@@ -115,7 +115,6 @@ impl ConnectorCommon for Worldpayvantiv {
         res: Response,
         event_builder: Option<&mut ConnectorEvent>,
     ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
-        // Note: Worlpay vantiv doesn't 
         let response: Result<worldpayvantiv::CnpOnlineResponse, _> =
             connector_utils::deserialize_xml_to_struct(&res.response);
 
@@ -196,7 +195,7 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
         let connector_router_data = worldpayvantiv::WorldpayvantivRouterData::from((amount, req));
         let connector_req_object =
             worldpayvantiv::CnpOnlineRequest::try_from(&connector_router_data)?;
-        
+
         router_env::logger::info!(raw_connector_request=?connector_req_object);
         let connector_req = connector_utils::XmlSerializer::serialize_to_xml_bytes(
             &connector_req_object,
@@ -374,7 +373,7 @@ impl ConnectorIntegration<Capture, PaymentsCaptureData, PaymentsResponseData> fo
         let connector_router_data = worldpayvantiv::WorldpayvantivRouterData::from((amount, req));
         let connector_req_object =
             worldpayvantiv::CnpOnlineRequest::try_from(&connector_router_data)?;
-            router_env::logger::info!(raw_connector_request=?connector_req_object);
+        router_env::logger::info!(raw_connector_request=?connector_req_object);
         let connector_req = connector_utils::XmlSerializer::serialize_to_xml_bytes(
             &connector_req_object,
             worldpayvantiv::worldpayvantiv_constants::XML_VERSION,
@@ -552,7 +551,7 @@ impl ConnectorIntegration<Execute, RefundsData, RefundsResponseData> for Worldpa
             worldpayvantiv::WorldpayvantivRouterData::from((refund_amount, req));
         let connector_req_object =
             worldpayvantiv::CnpOnlineRequest::try_from(&connector_router_data)?;
-            router_env::logger::info!(connector_request=?connector_req_object);
+        router_env::logger::info!(connector_request=?connector_req_object);
         let connector_req = connector_utils::XmlSerializer::serialize_to_xml_bytes(
             &connector_req_object,
             worldpayvantiv::worldpayvantiv_constants::XML_VERSION,

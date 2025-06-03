@@ -215,7 +215,6 @@ pub enum WorldpayvativCardType {
     DinersClub,
     #[serde(rename = "JCB")]
     JCB,
-
 }
 
 impl TryFrom<common_enums::CardNetwork> for WorldpayvativCardType {
@@ -616,10 +615,7 @@ impl TryFrom<&WorldpayvantivRouterData<&PaymentsCaptureRouterData>> for CnpOnlin
     ) -> Result<Self, Self::Error> {
         let report_group_metadata: WorldpayvantivMetadataObject =
             connector_utils::to_connector_meta(item.router_data.request.connector_meta.clone())?;
-        let api_call_id = format!(
-            "capture_{:?}",
-            connector_utils::generate_12_digit_number()
-        );
+        let api_call_id = format!("capture_{:?}", connector_utils::generate_12_digit_number());
         let capture = Some(Capture {
             id: api_call_id,
             report_group: report_group_metadata.report_group.clone(),
@@ -1265,725 +1261,725 @@ pub enum WorldpayvantivResponseCode {
     #[serde(rename = "015")]
     PendingShopperCheckoutCompletion,
     #[serde(rename = "016")]
-    ShopperCheckoutExpired, 
+    ShopperCheckoutExpired,
     #[serde(rename = "100")]
-    ProcessingNetworkUnavailable, 
+    ProcessingNetworkUnavailable,
     #[serde(rename = "101")]
-    IssuerUnavailable, 
+    IssuerUnavailable,
     #[serde(rename = "102")]
-    ReSubmitTransaction, 
+    ReSubmitTransaction,
     #[serde(rename = "103")]
-    MerchantNotConfiguredForProcessingAtThisSite, 
+    MerchantNotConfiguredForProcessingAtThisSite,
     #[serde(rename = "108")]
     TryAgainLater,
     #[serde(rename = "110")]
-    InsufficientFunds, 
+    InsufficientFunds,
     #[serde(rename = "111")]
-    AuthorizationAmountHasAlreadyBeenDepleted, 
+    AuthorizationAmountHasAlreadyBeenDepleted,
     #[serde(rename = "112")]
-    InsufficientFundsRetryAfter1Hour, 
+    InsufficientFundsRetryAfter1Hour,
     #[serde(rename = "113")]
-    InsufficientFundsRetryAfter24Hour, 
+    InsufficientFundsRetryAfter24Hour,
     #[serde(rename = "114")]
-    InsufficientFundsRetryAfter2Days, 
+    InsufficientFundsRetryAfter2Days,
     #[serde(rename = "115")]
-    InsufficientFundsRetryAfter4Days, 
+    InsufficientFundsRetryAfter4Days,
     #[serde(rename = "116")]
-    InsufficientFundsRetryAfter6Days, 
+    InsufficientFundsRetryAfter6Days,
     #[serde(rename = "117")]
-    InsufficientFundsRetryAfter8Days, 
+    InsufficientFundsRetryAfter8Days,
     #[serde(rename = "118")]
-    InsufficientFundsRetryAfter10Days, 
+    InsufficientFundsRetryAfter10Days,
     #[serde(rename = "120")]
-    CallIssuer, 
+    CallIssuer,
     #[serde(rename = "121")]
-    CallAmex, 
+    CallAmex,
     #[serde(rename = "122")]
-    CallDinersClub, 
+    CallDinersClub,
     #[serde(rename = "123")]
-    CallDiscover, 
+    CallDiscover,
     #[serde(rename = "124")]
-    CallJbs, 
+    CallJbs,
     #[serde(rename = "125")]
-    CallVisaMastercard, 
+    CallVisaMastercard,
     #[serde(rename = "126")]
-    CallIssuerUpdateCardholderData, 
+    CallIssuerUpdateCardholderData,
     #[serde(rename = "127")]
-    ExceedsApprovalAmountLimit, 
+    ExceedsApprovalAmountLimit,
     #[serde(rename = "130")]
-    CallIndicatedNumber, 
+    CallIndicatedNumber,
     #[serde(rename = "131")]
-    UnacceptablePinTransactionDeclinedRetry, 
+    UnacceptablePinTransactionDeclinedRetry,
     #[serde(rename = "132")]
-    PinNotChanged, 
+    PinNotChanged,
     #[serde(rename = "137")]
-    ConsumerMultiUseVirtualCardNumberSoftDecline, 
+    ConsumerMultiUseVirtualCardNumberSoftDecline,
     #[serde(rename = "138")]
-    ConsumerNonReloadablePrepaidCardSoftDecline, 
+    ConsumerNonReloadablePrepaidCardSoftDecline,
     #[serde(rename = "139")]
-    ConsumerSingleUseVirtualCardNumberSoftDecline, 
+    ConsumerSingleUseVirtualCardNumberSoftDecline,
     #[serde(rename = "140")]
-    UpdateCardholderData, 
+    UpdateCardholderData,
     #[serde(rename = "141")]
-    ConsumerNonReloadablePrepaidCardApproved, 
+    ConsumerNonReloadablePrepaidCardApproved,
     #[serde(rename = "142")]
-    ConsumerSingleUseVirtualCardNumberApproved, 
+    ConsumerSingleUseVirtualCardNumberApproved,
     #[serde(rename = "143")]
-    MerchantDoesntQualifyForProductCode, 
+    MerchantDoesntQualifyForProductCode,
     #[serde(rename = "145")]
-    Lifecycle, 
+    Lifecycle,
     #[serde(rename = "146")]
-    Policy, 
+    Policy,
     #[serde(rename = "147")]
-    FraudSecurity, 
+    FraudSecurity,
     #[serde(rename = "148")]
-    InvalidOrExpiredCardContactCardholderToUpdate, 
+    InvalidOrExpiredCardContactCardholderToUpdate,
     #[serde(rename = "149")]
-    InvalidTransactionOrCardRestrictionVerifyInformationAndResubmit, 
+    InvalidTransactionOrCardRestrictionVerifyInformationAndResubmit,
     #[serde(rename = "150")]
-    OriginalTransactionFound, 
+    OriginalTransactionFound,
     #[serde(rename = "151")]
-    OriginalTransactionNotFound, 
+    OriginalTransactionNotFound,
     #[serde(rename = "152")]
-    OriginalTransactionFoundButResponseNotYetAvailable, 
+    OriginalTransactionFoundButResponseNotYetAvailable,
     #[serde(rename = "153")]
-    QueryTransactionNotEnabled, 
+    QueryTransactionNotEnabled,
     #[serde(rename = "154")]
-    AtLeastOneOfOrigIdOrOrigCnpTxnIdIsRequired, 
+    AtLeastOneOfOrigIdOrOrigCnpTxnIdIsRequired,
     #[serde(rename = "155")]
-    OrigCnpTxnIdIsRequiredWhenShowStatusOnlyIsUsed, 
+    OrigCnpTxnIdIsRequiredWhenShowStatusOnlyIsUsed,
     #[serde(rename = "156")]
-    IncrementalAuthNotSupported, 
+    IncrementalAuthNotSupported,
     #[serde(rename = "157")]
-    SetAuthIndicatorToIncremental, 
+    SetAuthIndicatorToIncremental,
     #[serde(rename = "158")]
-    IncrementalValueForAuthIndicatorNotAllowedInThisAuthStructure, 
+    IncrementalValueForAuthIndicatorNotAllowedInThisAuthStructure,
     #[serde(rename = "159")]
-    CannotRequestAnIncrementalAuthIfOriginalAuthNotSetToEstimated, 
+    CannotRequestAnIncrementalAuthIfOriginalAuthNotSetToEstimated,
     #[serde(rename = "161")]
-    TransactionMustReferenceTheEstimatedAuth, 
+    TransactionMustReferenceTheEstimatedAuth,
     #[serde(rename = "162")]
-    IncrementedAuthExceedsMaxTransactionAmount, 
+    IncrementedAuthExceedsMaxTransactionAmount,
     #[serde(rename = "170")]
-    SubmittedMccNotAllowed, 
+    SubmittedMccNotAllowed,
     #[serde(rename = "191")]
-    TheMerchantIsNotRegisteredInTheUpdateProgram, 
+    TheMerchantIsNotRegisteredInTheUpdateProgram,
     #[serde(rename = "192")]
-    MerchantNotCertifiedEnabledForIias, 
+    MerchantNotCertifiedEnabledForIias,
     #[serde(rename = "206")]
-    IssuerGeneratedError, 
+    IssuerGeneratedError,
     #[serde(rename = "207")]
-    PickupCardOtherThanLostStolen, 
+    PickupCardOtherThanLostStolen,
     #[serde(rename = "209")]
-    InvalidAmountHardDecline, 
+    InvalidAmountHardDecline,
     #[serde(rename = "211")]
-    ReversalUnsuccessful, 
+    ReversalUnsuccessful,
     #[serde(rename = "212")]
-    MissingData, 
+    MissingData,
     #[serde(rename = "213")]
-    PickupCardLostCard, 
+    PickupCardLostCard,
     #[serde(rename = "214")]
-    PickupCardStolenCard, 
+    PickupCardStolenCard,
     #[serde(rename = "215")]
-    RestrictedCard, 
+    RestrictedCard,
     #[serde(rename = "216")]
-    InvalidDeactivate, 
+    InvalidDeactivate,
     #[serde(rename = "217")]
-    CardAlreadyActive, 
+    CardAlreadyActive,
     #[serde(rename = "218")]
-    CardNotActive, 
+    CardNotActive,
     #[serde(rename = "219")]
-    CardAlreadyDeactivate, 
+    CardAlreadyDeactivate,
     #[serde(rename = "221")]
-    OverMaxBalance, 
+    OverMaxBalance,
     #[serde(rename = "222")]
-    InvalidActivate, 
+    InvalidActivate,
     #[serde(rename = "223")]
-    NoTransactionFoundForReversal, 
+    NoTransactionFoundForReversal,
     #[serde(rename = "226")]
-    IncorrectCvv, 
+    IncorrectCvv,
     #[serde(rename = "229")]
-    IllegalTransaction, 
+    IllegalTransaction,
     #[serde(rename = "251")]
-    DuplicateTransaction, 
+    DuplicateTransaction,
     #[serde(rename = "252")]
-    SystemError, 
+    SystemError,
     #[serde(rename = "253")]
-    DeconvertedBin, 
+    DeconvertedBin,
     #[serde(rename = "254")]
-    MerchantDepleted, 
+    MerchantDepleted,
     #[serde(rename = "255")]
-    GiftCardEscheated, 
+    GiftCardEscheated,
     #[serde(rename = "256")]
-    InvalidReversalTypeForCreditCardTransaction, 
+    InvalidReversalTypeForCreditCardTransaction,
     #[serde(rename = "257")]
-    SystemErrorMessageFormatError, 
+    SystemErrorMessageFormatError,
     #[serde(rename = "258")]
-    SystemErrorCannotProcess, 
+    SystemErrorCannotProcess,
     #[serde(rename = "271")]
-    RefundRejectedDueToPendingDepositStatus, 
+    RefundRejectedDueToPendingDepositStatus,
     #[serde(rename = "272")]
-    RefundRejectedDueToDeclinedDepositStatus, 
+    RefundRejectedDueToDeclinedDepositStatus,
     #[serde(rename = "273")]
-    RefundRejectedByTheProcessingNetwork, 
+    RefundRejectedByTheProcessingNetwork,
     #[serde(rename = "284")]
-    CaptureCreditAndAuthReversalTagsCannotBeUsedForGiftCardTransactions, 
+    CaptureCreditAndAuthReversalTagsCannotBeUsedForGiftCardTransactions,
     #[serde(rename = "301")]
-    InvalidAccountNumber, 
+    InvalidAccountNumber,
     #[serde(rename = "302")]
-    AccountNumberDoesNotMatchPaymentType, 
+    AccountNumberDoesNotMatchPaymentType,
     #[serde(rename = "303")]
-    PickUpCard, 
+    PickUpCard,
     #[serde(rename = "304")]
-    LostStolenCard, 
+    LostStolenCard,
     #[serde(rename = "305")]
-    ExpiredCard, 
+    ExpiredCard,
     #[serde(rename = "306")]
-    AuthorizationHasExpiredNoNeedToReverse, 
+    AuthorizationHasExpiredNoNeedToReverse,
     #[serde(rename = "307")]
-    RestrictedCardSoftDecline, 
+    RestrictedCardSoftDecline,
     #[serde(rename = "308")]
-    RestrictedCardChargeback, 
+    RestrictedCardChargeback,
     #[serde(rename = "309")]
-    RestrictedCardPrepaidCardFilteringService, 
+    RestrictedCardPrepaidCardFilteringService,
     #[serde(rename = "310")]
-    InvalidTrackData, 
+    InvalidTrackData,
     #[serde(rename = "311")]
-    DepositIsAlreadyReferencedByAChargeback, 
+    DepositIsAlreadyReferencedByAChargeback,
     #[serde(rename = "312")]
-    RestrictedCardInternationalCardFilteringService, 
+    RestrictedCardInternationalCardFilteringService,
     #[serde(rename = "313")]
-    InternationalFilteringForIssuingCardCountry, 
+    InternationalFilteringForIssuingCardCountry,
     #[serde(rename = "315")]
-    RestrictedCardAuthFraudVelocityFilteringService, 
+    RestrictedCardAuthFraudVelocityFilteringService,
     #[serde(rename = "316")]
-    AutomaticRefundAlreadyIssued, 
+    AutomaticRefundAlreadyIssued,
     #[serde(rename = "317")]
-    RestrictedCardCardUnderSanction, 
+    RestrictedCardCardUnderSanction,
     #[serde(rename = "318")]
-    RestrictedCardAuthFraudAdviceFilteringService, 
+    RestrictedCardAuthFraudAdviceFilteringService,
     #[serde(rename = "319")]
-    RestrictedCardFraudAvsFilteringService, 
+    RestrictedCardFraudAvsFilteringService,
     #[serde(rename = "320")]
-    InvalidExpirationDate, 
+    InvalidExpirationDate,
     #[serde(rename = "321")]
-    InvalidMerchant, 
+    InvalidMerchant,
     #[serde(rename = "322")]
-    InvalidTransaction, 
+    InvalidTransaction,
     #[serde(rename = "323")]
-    NoSuchIssuer, 
+    NoSuchIssuer,
     #[serde(rename = "324")]
-    InvalidPin, 
+    InvalidPin,
     #[serde(rename = "325")]
-    TransactionNotAllowedAtTerminal, 
+    TransactionNotAllowedAtTerminal,
     #[serde(rename = "326")]
-    ExceedsNumberOfPinEntries, 
+    ExceedsNumberOfPinEntries,
     #[serde(rename = "327")]
-    CardholderTransactionNotPermitted, 
+    CardholderTransactionNotPermitted,
     #[serde(rename = "328")]
-    CardholderRequestedThatRecurringOrInstallmentPaymentBeStopped, 
+    CardholderRequestedThatRecurringOrInstallmentPaymentBeStopped,
     #[serde(rename = "330")]
-    InvalidPaymentType, 
+    InvalidPaymentType,
     #[serde(rename = "331")]
-    InvalidPosCapabilityForCardholderAuthorizedTerminalTransaction, 
+    InvalidPosCapabilityForCardholderAuthorizedTerminalTransaction,
     #[serde(rename = "332")]
-    InvalidPosCardholderIdForCardholderAuthorizedTerminalTransaction, 
+    InvalidPosCardholderIdForCardholderAuthorizedTerminalTransaction,
     #[serde(rename = "335")]
-    ThisMethodOfPaymentDoesNotSupportAuthorizationReversals, 
+    ThisMethodOfPaymentDoesNotSupportAuthorizationReversals,
     #[serde(rename = "336")]
-    ReversalAmountDoesNotMatchAuthorizationAmount, 
+    ReversalAmountDoesNotMatchAuthorizationAmount,
     #[serde(rename = "337")]
-    TransactionDidNotConvertToPinless, 
+    TransactionDidNotConvertToPinless,
     #[serde(rename = "340")]
-    InvalidAmountSoftDecline, 
+    InvalidAmountSoftDecline,
     #[serde(rename = "341")]
-    InvalidHealthcareAmounts, 
+    InvalidHealthcareAmounts,
     #[serde(rename = "346")]
-    InvalidBillingDescriptorPrefix, 
+    InvalidBillingDescriptorPrefix,
     #[serde(rename = "347")]
-    InvalidBillingDescriptor, 
+    InvalidBillingDescriptor,
     #[serde(rename = "348")]
-    InvalidReportGroup, 
+    InvalidReportGroup,
     #[serde(rename = "349")]
-    DoNotHonor, 
+    DoNotHonor,
     #[serde(rename = "350")]
     GenericDecline, // Soft or Hard Decline
     #[serde(rename = "351")]
-    DeclineRequestPositiveId, 
+    DeclineRequestPositiveId,
     #[serde(rename = "352")]
-    DeclineCvv2CidFail, 
+    DeclineCvv2CidFail,
     #[serde(rename = "354")]
     ThreeDSecureTransactionNotSupportedByMerchant,
     #[serde(rename = "356")]
-    InvalidPurchaseLevelIiiTheTransactionContainedBadOrMissingData, 
+    InvalidPurchaseLevelIiiTheTransactionContainedBadOrMissingData,
     #[serde(rename = "357")]
-    MissingHealthcareIiasTagForAnFsaTransaction, 
+    MissingHealthcareIiasTagForAnFsaTransaction,
     #[serde(rename = "358")]
-    RestrictedByVantivDueToSecurityCodeMismatch, 
+    RestrictedByVantivDueToSecurityCodeMismatch,
     #[serde(rename = "360")]
-    NoTransactionFoundWithSpecifiedTransactionId, 
+    NoTransactionFoundWithSpecifiedTransactionId,
     #[serde(rename = "361")]
-    AuthorizationNoLongerAvailable, 
+    AuthorizationNoLongerAvailable,
     #[serde(rename = "362")]
-    TransactionNotVoidedAlreadySettled, 
+    TransactionNotVoidedAlreadySettled,
     #[serde(rename = "363")]
-    AutoVoidOnRefund, 
+    AutoVoidOnRefund,
     #[serde(rename = "364")]
-    InvalidAccountNumberOriginalOrNocUpdatedECheckAccountRequired, 
+    InvalidAccountNumberOriginalOrNocUpdatedECheckAccountRequired,
     #[serde(rename = "365")]
-    TotalCreditAmountExceedsCaptureAmount, 
+    TotalCreditAmountExceedsCaptureAmount,
     #[serde(rename = "366")]
-    ExceedTheThresholdForSendingRedeposits, 
+    ExceedTheThresholdForSendingRedeposits,
     #[serde(rename = "367")]
-    DepositHasNotBeenReturnedForInsufficientNonSufficientFunds, 
+    DepositHasNotBeenReturnedForInsufficientNonSufficientFunds,
     #[serde(rename = "368")]
-    InvalidCheckNumber, 
+    InvalidCheckNumber,
     #[serde(rename = "369")]
-    RedepositAgainstInvalidTransactionType, 
+    RedepositAgainstInvalidTransactionType,
     #[serde(rename = "370")]
-    InternalSystemErrorCallVantiv, 
+    InternalSystemErrorCallVantiv,
     #[serde(rename = "371")]
-    OriginalTransactionHasBeenProcessedFutureRedepositsCanceled, 
+    OriginalTransactionHasBeenProcessedFutureRedepositsCanceled,
     #[serde(rename = "372")]
-    SoftDeclineAutoRecyclingInProgress, 
+    SoftDeclineAutoRecyclingInProgress,
     #[serde(rename = "373")]
-    HardDeclineAutoRecyclingComplete, 
+    HardDeclineAutoRecyclingComplete,
     #[serde(rename = "375")]
-    MerchantIsNotEnabledForSurcharging, 
+    MerchantIsNotEnabledForSurcharging,
     #[serde(rename = "376")]
-    ThisMethodOfPaymentDoesNotSupportSurcharging, 
+    ThisMethodOfPaymentDoesNotSupportSurcharging,
     #[serde(rename = "377")]
-    SurchargeIsNotValidForDebitOrPrepaidCards, 
+    SurchargeIsNotValidForDebitOrPrepaidCards,
     #[serde(rename = "378")]
-    SurchargeCannotExceedsTheMaximumAllowedLimit, 
+    SurchargeCannotExceedsTheMaximumAllowedLimit,
     #[serde(rename = "379")]
-    TransactionDeclinedByTheProcessingNetwork, 
+    TransactionDeclinedByTheProcessingNetwork,
     #[serde(rename = "380")]
-    SecondaryAmountCannotExceedTheSaleAmount, 
+    SecondaryAmountCannotExceedTheSaleAmount,
     #[serde(rename = "381")]
-    ThisMethodOfPaymentDoesNotSupportSecondaryAmount, 
+    ThisMethodOfPaymentDoesNotSupportSecondaryAmount,
     #[serde(rename = "382")]
-    SecondaryAmountCannotBeLessThanZero, 
+    SecondaryAmountCannotBeLessThanZero,
     #[serde(rename = "383")]
-    PartialTransactionIsNotSupportedWhenIncludingASecondaryAmount, 
+    PartialTransactionIsNotSupportedWhenIncludingASecondaryAmount,
     #[serde(rename = "384")]
-    SecondaryAmountRequiredOnPartialRefundWhenUsedOnDeposit, 
+    SecondaryAmountRequiredOnPartialRefundWhenUsedOnDeposit,
     #[serde(rename = "385")]
-    SecondaryAmountNotAllowedOnRefundIfNotIncludedOnDeposit, 
+    SecondaryAmountNotAllowedOnRefundIfNotIncludedOnDeposit,
     #[serde(rename = "386")]
-    ProcessingNetworkError, 
+    ProcessingNetworkError,
     #[serde(rename = "401")]
-    InvalidEMail, 
+    InvalidEMail,
     #[serde(rename = "466")]
-    InvalidCombinationOfAccountFundingTransactionTypeAndMcc, 
+    InvalidCombinationOfAccountFundingTransactionTypeAndMcc,
     #[serde(rename = "467")]
-    InvalidAccountFundingTransactionTypeForThisMethodOfPayment, 
+    InvalidAccountFundingTransactionTypeForThisMethodOfPayment,
     #[serde(rename = "468")]
-    MissingOneOrMoreReceiverFieldsForAccountFundingTransaction, 
+    MissingOneOrMoreReceiverFieldsForAccountFundingTransaction,
     #[serde(rename = "469")]
-    InvalidRecurringRequestSeeRecurringResponseForDetails, 
+    InvalidRecurringRequestSeeRecurringResponseForDetails,
     #[serde(rename = "470")]
-    ApprovedRecurringSubscriptionCreated, 
+    ApprovedRecurringSubscriptionCreated,
     #[serde(rename = "471")]
-    ParentTransactionDeclinedRecurringSubscriptionNotCreated, 
+    ParentTransactionDeclinedRecurringSubscriptionNotCreated,
     #[serde(rename = "472")]
-    InvalidPlanCode, 
+    InvalidPlanCode,
     #[serde(rename = "473")]
-    ScheduledRecurringPaymentProcessed, 
+    ScheduledRecurringPaymentProcessed,
     #[serde(rename = "475")]
-    InvalidSubscriptionId, 
+    InvalidSubscriptionId,
     #[serde(rename = "476")]
-    AddOnCodeAlreadyExists, 
+    AddOnCodeAlreadyExists,
     #[serde(rename = "477")]
-    DuplicateAddOnCodesInRequests, 
+    DuplicateAddOnCodesInRequests,
     #[serde(rename = "478")]
-    NoMatchingAddOnCodeForTheSubscription, 
+    NoMatchingAddOnCodeForTheSubscription,
     #[serde(rename = "480")]
-    NoMatchingDiscountCodeForTheSubscription, 
+    NoMatchingDiscountCodeForTheSubscription,
     #[serde(rename = "481")]
-    DuplicateDiscountCodesInRequest, 
+    DuplicateDiscountCodesInRequest,
     #[serde(rename = "482")]
-    InvalidStartDate, 
+    InvalidStartDate,
     #[serde(rename = "483")]
-    MerchantNotRegisteredForRecurringEngine, 
+    MerchantNotRegisteredForRecurringEngine,
     #[serde(rename = "484")]
-    InsufficientDataToUpdateSubscription, 
+    InsufficientDataToUpdateSubscription,
     #[serde(rename = "485")]
-    InvalidBillingDate, 
+    InvalidBillingDate,
     #[serde(rename = "486")]
-    DiscountCodeAlreadyExists, 
+    DiscountCodeAlreadyExists,
     #[serde(rename = "487")]
-    PlanCodeAlreadyExists, 
+    PlanCodeAlreadyExists,
     #[serde(rename = "500")]
-    TheAccountNumberWasChanged, 
+    TheAccountNumberWasChanged,
     #[serde(rename = "501")]
-    TheAccountWasClosed, 
+    TheAccountWasClosed,
     #[serde(rename = "502")]
-    TheExpirationDateWasChanged, 
+    TheExpirationDateWasChanged,
     #[serde(rename = "503")]
-    TheIssuingBankDoesNotParticipateInTheUpdateProgram, 
+    TheIssuingBankDoesNotParticipateInTheUpdateProgram,
     #[serde(rename = "504")]
-    ContactTheCardholderForUpdatedInformation, 
+    ContactTheCardholderForUpdatedInformation,
     #[serde(rename = "505")]
-    NoMatchFound, 
+    NoMatchFound,
     #[serde(rename = "506")]
-    NoChangesFound, 
+    NoChangesFound,
     #[serde(rename = "507")]
-    TheCardholderHasOptedOutOfTheUpdateProgram, 
+    TheCardholderHasOptedOutOfTheUpdateProgram,
     #[serde(rename = "521")]
-    SoftDeclineCardReaderDecryptionServiceIsNotAvailable, 
+    SoftDeclineCardReaderDecryptionServiceIsNotAvailable,
     #[serde(rename = "523")]
-    SoftDeclineDecryptionFailed, 
+    SoftDeclineDecryptionFailed,
     #[serde(rename = "524")]
-    HardDeclineInputDataIsInvalid, 
+    HardDeclineInputDataIsInvalid,
     #[serde(rename = "530")]
-    ApplePayKeyMismatch, 
+    ApplePayKeyMismatch,
     #[serde(rename = "531")]
-    ApplePayDecryptionFailed, 
+    ApplePayDecryptionFailed,
     #[serde(rename = "540")]
-    HardDeclineDecryptionFailed, 
+    HardDeclineDecryptionFailed,
     #[serde(rename = "550")]
-    AdvancedFraudFilterScoreBelowThreshold, 
+    AdvancedFraudFilterScoreBelowThreshold,
     #[serde(rename = "555")]
-    SuspectedFraud, 
+    SuspectedFraud,
     #[serde(rename = "560")]
-    SystemErrorContactWorldpayRepresentative, 
+    SystemErrorContactWorldpayRepresentative,
     #[serde(rename = "561")]
-    AmazonPayAmazonUnavailable, 
+    AmazonPayAmazonUnavailable,
     #[serde(rename = "562")]
-    AmazonPayAmazonDeclined, 
+    AmazonPayAmazonDeclined,
     #[serde(rename = "563")]
-    AmazonPayInvalidToken, 
+    AmazonPayInvalidToken,
     #[serde(rename = "564")]
-    MerchantNotEnabledForAmazonPay, 
+    MerchantNotEnabledForAmazonPay,
     #[serde(rename = "565")]
-    TransactionNotSupportedBlockedByIssuer, 
+    TransactionNotSupportedBlockedByIssuer,
     #[serde(rename = "566")]
-    BlockedByCardholderContactCardholder, 
+    BlockedByCardholderContactCardholder,
     #[serde(rename = "601")]
-    SoftDeclinePrimaryFundingSourceFailed, 
+    SoftDeclinePrimaryFundingSourceFailed,
     #[serde(rename = "602")]
-    SoftDeclineBuyerHasAlternateFundingSource, 
+    SoftDeclineBuyerHasAlternateFundingSource,
     #[serde(rename = "610")]
-    HardDeclineInvalidBillingAgreementId, 
+    HardDeclineInvalidBillingAgreementId,
     #[serde(rename = "611")]
-    HardDeclinePrimaryFundingSourceFailed, 
+    HardDeclinePrimaryFundingSourceFailed,
     #[serde(rename = "612")]
-    HardDeclineIssueWithPaypalAccount, 
+    HardDeclineIssueWithPaypalAccount,
     #[serde(rename = "613")]
-    HardDeclinePayPalAuthorizationIdMissing, 
+    HardDeclinePayPalAuthorizationIdMissing,
     #[serde(rename = "614")]
-    HardDeclineConfirmedEmailAddressIsNotAvailable, 
+    HardDeclineConfirmedEmailAddressIsNotAvailable,
     #[serde(rename = "615")]
-    HardDeclinePayPalBuyerAccountDenied, 
+    HardDeclinePayPalBuyerAccountDenied,
     #[serde(rename = "616")]
-    HardDeclinePayPalBuyerAccountRestricted, 
+    HardDeclinePayPalBuyerAccountRestricted,
     #[serde(rename = "617")]
-    HardDeclinePayPalOrderHasBeenVoidedExpiredOrCompleted, 
+    HardDeclinePayPalOrderHasBeenVoidedExpiredOrCompleted,
     #[serde(rename = "618")]
-    HardDeclineIssueWithPayPalRefund, 
+    HardDeclineIssueWithPayPalRefund,
     #[serde(rename = "619")]
-    HardDeclinePayPalCredentialsIssue, 
+    HardDeclinePayPalCredentialsIssue,
     #[serde(rename = "620")]
-    HardDeclinePayPalAuthorizationVoidedOrExpired, 
+    HardDeclinePayPalAuthorizationVoidedOrExpired,
     #[serde(rename = "621")]
-    HardDeclineRequiredPayPalParameterMissing, 
+    HardDeclineRequiredPayPalParameterMissing,
     #[serde(rename = "622")]
-    HardDeclinePayPalTransactionIdOrAuthIdIsInvalid, 
+    HardDeclinePayPalTransactionIdOrAuthIdIsInvalid,
     #[serde(rename = "623")]
-    HardDeclineExceededMaximumNumberOfPayPalAuthorizationAttempts, 
+    HardDeclineExceededMaximumNumberOfPayPalAuthorizationAttempts,
     #[serde(rename = "624")]
-    HardDeclineTransactionAmountExceedsMerchantsPayPalAccountLimit, 
+    HardDeclineTransactionAmountExceedsMerchantsPayPalAccountLimit,
     #[serde(rename = "625")]
-    HardDeclinePayPalFundingSourcesUnavailable, 
+    HardDeclinePayPalFundingSourcesUnavailable,
     #[serde(rename = "626")]
-    HardDeclineIssueWithPayPalPrimaryFundingSource, 
+    HardDeclineIssueWithPayPalPrimaryFundingSource,
     #[serde(rename = "627")]
-    HardDeclinePayPalProfileDoesNotAllowThisTransactionType, 
+    HardDeclinePayPalProfileDoesNotAllowThisTransactionType,
     #[serde(rename = "628")]
-    InternalSystemErrorWithPayPalContactVantiv, 
+    InternalSystemErrorWithPayPalContactVantiv,
     #[serde(rename = "629")]
-    HardDeclineContactPayPalConsumerForAnotherPaymentMethod, 
+    HardDeclineContactPayPalConsumerForAnotherPaymentMethod,
     #[serde(rename = "637")]
-    InvalidTerminalId, 
+    InvalidTerminalId,
     #[serde(rename = "640")]
-    PinlessDebitProcessingNotSupportedForNonRecurringTransactions, 
+    PinlessDebitProcessingNotSupportedForNonRecurringTransactions,
     #[serde(rename = "641")]
-    PinlessDebitProcessingNotSupportedForPartialAuths, 
+    PinlessDebitProcessingNotSupportedForPartialAuths,
     #[serde(rename = "642")]
-    MerchantNotConfiguredForPinlessDebitProcessing, 
+    MerchantNotConfiguredForPinlessDebitProcessing,
     #[serde(rename = "651")]
-    DeclineCustomerCancellation, 
+    DeclineCustomerCancellation,
     #[serde(rename = "652")]
-    DeclineReTryTransaction, 
+    DeclineReTryTransaction,
     #[serde(rename = "653")]
-    DeclineUnableToLocateRecordOnFile, 
+    DeclineUnableToLocateRecordOnFile,
     #[serde(rename = "654")]
-    DeclineFileUpdateFieldEditError, 
+    DeclineFileUpdateFieldEditError,
     #[serde(rename = "655")]
-    RemoteFunctionUnknown, 
+    RemoteFunctionUnknown,
     #[serde(rename = "656")]
-    DeclinedExceedsWithdrawalFrequencyLimit, 
+    DeclinedExceedsWithdrawalFrequencyLimit,
     #[serde(rename = "657")]
-    DeclineCardRecordNotAvailable, 
+    DeclineCardRecordNotAvailable,
     #[serde(rename = "658")]
-    InvalidAuthorizationCode, 
+    InvalidAuthorizationCode,
     #[serde(rename = "659")]
-    ReconciliationError, 
+    ReconciliationError,
     #[serde(rename = "660")]
-    PreferredDebitRoutingDenialCreditTransactionCanBeDebit, 
+    PreferredDebitRoutingDenialCreditTransactionCanBeDebit,
     #[serde(rename = "661")]
-    DeclinedCurrencyConversionCompleteNoAuthPerformed, 
+    DeclinedCurrencyConversionCompleteNoAuthPerformed,
     #[serde(rename = "662")]
-    DeclinedMultiCurrencyDccFail, 
+    DeclinedMultiCurrencyDccFail,
     #[serde(rename = "663")]
-    DeclinedMultiCurrencyInvertFail, 
+    DeclinedMultiCurrencyInvertFail,
     #[serde(rename = "664")]
-    Invalid3DSecurePassword, 
+    Invalid3DSecurePassword,
     #[serde(rename = "665")]
-    InvalidSocialSecurityNumber, 
+    InvalidSocialSecurityNumber,
     #[serde(rename = "666")]
-    InvalidMothersMaidenName, 
+    InvalidMothersMaidenName,
     #[serde(rename = "667")]
-    EnrollmentInquiryDeclined, 
+    EnrollmentInquiryDeclined,
     #[serde(rename = "668")]
-    SocialSecurityNumberNotAvailable, 
+    SocialSecurityNumberNotAvailable,
     #[serde(rename = "669")]
-    MothersMaidenNameNotAvailable, 
+    MothersMaidenNameNotAvailable,
     #[serde(rename = "670")]
-    PinAlreadyExistsOnDatabase, 
+    PinAlreadyExistsOnDatabase,
     #[serde(rename = "701")]
-    Under18YearsOld, 
+    Under18YearsOld,
     #[serde(rename = "702")]
-    BillToOutsideUsa, 
+    BillToOutsideUsa,
     #[serde(rename = "703")]
-    BillToAddressIsNotEqualToShipToAddress, 
+    BillToAddressIsNotEqualToShipToAddress,
     #[serde(rename = "704")]
-    DeclinedForeignCurrencyMustBeUsd, 
+    DeclinedForeignCurrencyMustBeUsd,
     #[serde(rename = "705")]
-    OnNegativeFile, 
+    OnNegativeFile,
     #[serde(rename = "706")]
-    BlockedAgreement, 
+    BlockedAgreement,
     #[serde(rename = "707")]
     InsufficientBuyingPower, // Other
     #[serde(rename = "708")]
-    InvalidData, 
+    InvalidData,
     #[serde(rename = "709")]
-    InvalidDataDataElementsMissing, 
+    InvalidDataDataElementsMissing,
     #[serde(rename = "710")]
-    InvalidDataDataFormatError, 
+    InvalidDataDataFormatError,
     #[serde(rename = "711")]
-    InvalidDataInvalidTCVersion, 
+    InvalidDataInvalidTCVersion,
     #[serde(rename = "712")]
-    DuplicateTransactionPaypalCredit, 
+    DuplicateTransactionPaypalCredit,
     #[serde(rename = "713")]
-    VerifyBillingAddress, 
+    VerifyBillingAddress,
     #[serde(rename = "714")]
-    InactiveAccount, 
+    InactiveAccount,
     #[serde(rename = "716")]
-    InvalidAuth, 
+    InvalidAuth,
     #[serde(rename = "717")]
-    AuthorizationAlreadyExistsForTheOrder, 
+    AuthorizationAlreadyExistsForTheOrder,
     #[serde(rename = "730")]
-    LodgingTransactionsAreNotAllowedForThisMcc, 
+    LodgingTransactionsAreNotAllowedForThisMcc,
     #[serde(rename = "731")]
-    DurationCannotBeNegative, 
+    DurationCannotBeNegative,
     #[serde(rename = "732")]
-    HotelFolioNumberCannotBeBlank, 
+    HotelFolioNumberCannotBeBlank,
     #[serde(rename = "733")]
-    InvalidCheckInDate, 
+    InvalidCheckInDate,
     #[serde(rename = "734")]
-    InvalidCheckOutDate, 
+    InvalidCheckOutDate,
     #[serde(rename = "735")]
-    InvalidCheckInOrCheckOutDate, 
+    InvalidCheckInOrCheckOutDate,
     #[serde(rename = "736")]
-    CheckOutDateCannotBeBeforeCheckInDate, 
+    CheckOutDateCannotBeBeforeCheckInDate,
     #[serde(rename = "737")]
-    NumberOfAdultsCannotBeNegative, 
+    NumberOfAdultsCannotBeNegative,
     #[serde(rename = "738")]
-    RoomRateCannotBeNegative, 
+    RoomRateCannotBeNegative,
     #[serde(rename = "739")]
-    RoomTaxCannotBeNegative, 
+    RoomTaxCannotBeNegative,
     #[serde(rename = "740")]
-    DurationCanOnlyBeFrom0To99ForVisa, 
+    DurationCanOnlyBeFrom0To99ForVisa,
     #[serde(rename = "801")]
-    AccountNumberWasSuccessfullyRegistered, 
+    AccountNumberWasSuccessfullyRegistered,
     #[serde(rename = "802")]
-    AccountNumberWasPreviouslyRegistered, 
+    AccountNumberWasPreviouslyRegistered,
     #[serde(rename = "803")]
-    ValidToken, 
+    ValidToken,
     #[serde(rename = "805")]
-    CardValidationNumberUpdated, 
+    CardValidationNumberUpdated,
     #[serde(rename = "820")]
-    CreditCardNumberWasInvalid, 
+    CreditCardNumberWasInvalid,
     #[serde(rename = "821")]
-    MerchantIsNotAuthorizedForTokens, 
+    MerchantIsNotAuthorizedForTokens,
     #[serde(rename = "822")]
-    TokenWasNotFound, 
+    TokenWasNotFound,
     #[serde(rename = "823")]
-    TokenInvalid, 
+    TokenInvalid,
     #[serde(rename = "825")]
-    MerchantNotAuthorizedForECheckTokens, 
+    MerchantNotAuthorizedForECheckTokens,
     #[serde(rename = "826")]
-    CheckoutIdWasInvalid, 
+    CheckoutIdWasInvalid,
     #[serde(rename = "827")]
-    CheckoutIdWasNotFound, 
+    CheckoutIdWasNotFound,
     #[serde(rename = "828")]
-    GenericCheckoutIdError, 
+    GenericCheckoutIdError,
     #[serde(rename = "835")]
-    CaptureAmountCanNotBeMoreThanAuthorizedAmount, 
+    CaptureAmountCanNotBeMoreThanAuthorizedAmount,
     #[serde(rename = "850")]
-    TaxBillingOnlyAllowedForMcc9311, 
+    TaxBillingOnlyAllowedForMcc9311,
     #[serde(rename = "851")]
-    Mcc9311RequiresTaxTypeElement, 
+    Mcc9311RequiresTaxTypeElement,
     #[serde(rename = "852")]
-    DebtRepaymentOnlyAllowedForViTransactionsOnMccs6012And6051, 
+    DebtRepaymentOnlyAllowedForViTransactionsOnMccs6012And6051,
     #[serde(rename = "861")]
-    RoutingNumberDidNotMatchOneOnFileForToken, 
+    RoutingNumberDidNotMatchOneOnFileForToken,
     #[serde(rename = "877")]
-    InvalidPayPageRegistrationId, 
+    InvalidPayPageRegistrationId,
     #[serde(rename = "878")]
-    ExpiredPayPageRegistrationId, 
+    ExpiredPayPageRegistrationId,
     #[serde(rename = "879")]
-    MerchantIsNotAuthorizedForPayPage, 
+    MerchantIsNotAuthorizedForPayPage,
     #[serde(rename = "890")]
-    MaximumNumberOfUpdatesForThisTokenExceeded, 
+    MaximumNumberOfUpdatesForThisTokenExceeded,
     #[serde(rename = "891")]
-    TooManyTokensCreatedForExistingNamespace, 
+    TooManyTokensCreatedForExistingNamespace,
     #[serde(rename = "895")]
-    PinValidationNotPossible, 
+    PinValidationNotPossible,
     #[serde(rename = "898")]
-    GenericTokenRegistrationError, 
+    GenericTokenRegistrationError,
     #[serde(rename = "899")]
-    GenericTokenUseError, 
+    GenericTokenUseError,
     #[serde(rename = "900")]
-    InvalidBankRoutingNumber, 
+    InvalidBankRoutingNumber,
     #[serde(rename = "901")]
-    MissingName, 
+    MissingName,
     #[serde(rename = "902")]
-    InvalidName, 
+    InvalidName,
     #[serde(rename = "903")]
-    MissingBillingCountryCode, 
+    MissingBillingCountryCode,
     #[serde(rename = "904")]
-    InvalidIban, 
+    InvalidIban,
     #[serde(rename = "905")]
-    MissingEmailAddress, 
+    MissingEmailAddress,
     #[serde(rename = "906")]
-    MissingMandateReference, 
+    MissingMandateReference,
     #[serde(rename = "907")]
-    InvalidMandateReference, 
+    InvalidMandateReference,
     #[serde(rename = "908")]
-    MissingMandateUrl, 
+    MissingMandateUrl,
     #[serde(rename = "909")]
-    InvalidMandateUrl, 
+    InvalidMandateUrl,
     #[serde(rename = "911")]
-    MissingMandateSignatureDate, 
+    MissingMandateSignatureDate,
     #[serde(rename = "912")]
-    InvalidMandateSignatureDate, 
+    InvalidMandateSignatureDate,
     #[serde(rename = "913")]
-    RecurringMandateAlreadyExists, 
+    RecurringMandateAlreadyExists,
     #[serde(rename = "914")]
-    RecurringMandateWasNotFound, 
+    RecurringMandateWasNotFound,
     #[serde(rename = "915")]
-    FinalRecurringWasAlreadyReceivedUsingThisMandate, 
+    FinalRecurringWasAlreadyReceivedUsingThisMandate,
     #[serde(rename = "916")]
-    IbanDidNotMatchOneOnFileForMandate, 
+    IbanDidNotMatchOneOnFileForMandate,
     #[serde(rename = "917")]
-    InvalidBillingCountry, 
+    InvalidBillingCountry,
     #[serde(rename = "922")]
-    ExpirationDateRequiredForInteracTransaction, 
+    ExpirationDateRequiredForInteracTransaction,
     #[serde(rename = "923")]
-    TransactionTypeIsNotSupportedWithThisMethodOfPayment, 
+    TransactionTypeIsNotSupportedWithThisMethodOfPayment,
     #[serde(rename = "924")]
-    UnreferencedOrphanRefundsAreNotAllowed, 
+    UnreferencedOrphanRefundsAreNotAllowed,
     #[serde(rename = "939")]
-    UnableToVoidATransactionWithAHeldState, 
+    UnableToVoidATransactionWithAHeldState,
     #[serde(rename = "940")]
-    ThisFundingInstructionResultsInANegativeAccountBalance, 
+    ThisFundingInstructionResultsInANegativeAccountBalance,
     #[serde(rename = "941")]
-    AccountBalanceInformationUnavailableAtThisTime, 
+    AccountBalanceInformationUnavailableAtThisTime,
     #[serde(rename = "942")]
-    TheSubmittedCardIsNotEligibleForFastAccessFunding, 
+    TheSubmittedCardIsNotEligibleForFastAccessFunding,
     #[serde(rename = "943")]
-    TransactionCannotUseBothCcdPaymentInformationAndCtxPaymentInformation, 
+    TransactionCannotUseBothCcdPaymentInformationAndCtxPaymentInformation,
     #[serde(rename = "944")]
-    ProcessingError, 
+    ProcessingError,
     #[serde(rename = "945")]
-    ThisFundingInstructionTypeIsInvalidForCanadianMerchants, 
+    ThisFundingInstructionTypeIsInvalidForCanadianMerchants,
     #[serde(rename = "946")]
-    CtxAndCcdRecordsAreNotAllowedForCanadianMerchants, 
+    CtxAndCcdRecordsAreNotAllowedForCanadianMerchants,
     #[serde(rename = "947")]
-    CanadianAccountNumberCannotExceed12Digits, 
+    CanadianAccountNumberCannotExceed12Digits,
     #[serde(rename = "948")]
-    ThisFundingInstructionTypeIsInvalid, 
+    ThisFundingInstructionTypeIsInvalid,
     #[serde(rename = "950")]
-    DeclineNegativeInformationOnFile, 
+    DeclineNegativeInformationOnFile,
     #[serde(rename = "951")]
-    AbsoluteDecline, 
+    AbsoluteDecline,
     #[serde(rename = "952")]
-    TheMerchantProfileDoesNotAllowTheRequestedOperation, 
+    TheMerchantProfileDoesNotAllowTheRequestedOperation,
     #[serde(rename = "953")]
-    TheAccountCannotAcceptAchTransactions, 
+    TheAccountCannotAcceptAchTransactions,
     #[serde(rename = "954")]
-    TheAccountCannotAcceptAchTransactionsOrSiteDrafts, 
+    TheAccountCannotAcceptAchTransactionsOrSiteDrafts,
     #[serde(rename = "955")]
-    AmountGreaterThanLimitSpecifiedInTheMerchantProfile, 
+    AmountGreaterThanLimitSpecifiedInTheMerchantProfile,
     #[serde(rename = "956")]
-    MerchantIsNotAuthorizedToPerformECheckVerificationTransactions, 
+    MerchantIsNotAuthorizedToPerformECheckVerificationTransactions,
     #[serde(rename = "957")]
-    FirstNameAndLastNameRequiredForECheckVerifications, 
+    FirstNameAndLastNameRequiredForECheckVerifications,
     #[serde(rename = "958")]
-    CompanyNameRequiredForCorporateAccountForECheckVerifications, 
+    CompanyNameRequiredForCorporateAccountForECheckVerifications,
     #[serde(rename = "959")]
-    PhoneNumberRequiredForECheckVerifications, 
+    PhoneNumberRequiredForECheckVerifications,
     #[serde(rename = "961")]
-    CardBrandTokenNotSupported, 
+    CardBrandTokenNotSupported,
     #[serde(rename = "962")]
-    PrivateLabelCardNotSupported, 
+    PrivateLabelCardNotSupported,
     #[serde(rename = "965")]
-    AllowedDailyDirectDebitCaptureECheckSaleLimitExceeded, 
+    AllowedDailyDirectDebitCaptureECheckSaleLimitExceeded,
     #[serde(rename = "966")]
-    AllowedDailyDirectDebitCreditECheckCreditLimitExceeded, 
+    AllowedDailyDirectDebitCreditECheckCreditLimitExceeded,
     #[serde(rename = "973")]
-    AccountNotEligibleForRtp, 
+    AccountNotEligibleForRtp,
     #[serde(rename = "980")]
-    SoftDeclineCustomerAuthenticationRequired, 
+    SoftDeclineCustomerAuthenticationRequired,
     #[serde(rename = "981")]
-    TransactionNotReversedVoidWorkflowNeedToBeInvoked, 
+    TransactionNotReversedVoidWorkflowNeedToBeInvoked,
     #[serde(rename = "982")]
-    TransactionReversalNotSupportedForTheCoreMerchants, 
+    TransactionReversalNotSupportedForTheCoreMerchants,
     #[serde(rename = "983")]
-    NoValidParentDepositOrParentRefundFound, 
+    NoValidParentDepositOrParentRefundFound,
     #[serde(rename = "984")]
-    TransactionReversalNotEnabledForVisa, 
+    TransactionReversalNotEnabledForVisa,
     #[serde(rename = "985")]
-    TransactionReversalNotEnabledForMastercard, 
+    TransactionReversalNotEnabledForMastercard,
     #[serde(rename = "986")]
-    TransactionReversalNotEnabledForAmEx, 
+    TransactionReversalNotEnabledForAmEx,
     #[serde(rename = "987")]
-    TransactionReversalNotEnabledForDiscover, 
+    TransactionReversalNotEnabledForDiscover,
     #[serde(rename = "988")]
-    TransactionReversalNotSupported, 
+    TransactionReversalNotSupported,
     #[serde(rename = "990")]
-    FundingInstructionHeldPleaseContactYourRelationshipManager, 
+    FundingInstructionHeldPleaseContactYourRelationshipManager,
     #[serde(rename = "991")]
-    MissingAddressInformation, 
+    MissingAddressInformation,
     #[serde(rename = "992")]
-    CryptographicFailure, 
+    CryptographicFailure,
     #[serde(rename = "993")]
-    InvalidRegionCode, 
+    InvalidRegionCode,
     #[serde(rename = "994")]
-    InvalidCountryCode, 
+    InvalidCountryCode,
     #[serde(rename = "995")]
-    InvalidCreditAccount, 
+    InvalidCreditAccount,
     #[serde(rename = "996")]
-    InvalidCheckingAccount, 
+    InvalidCheckingAccount,
     #[serde(rename = "997")]
-    InvalidSavingsAccount, 
+    InvalidSavingsAccount,
     #[serde(rename = "998")]
-    InvalidUseOfMccCorrectAndReattempt, 
+    InvalidUseOfMccCorrectAndReattempt,
     #[serde(rename = "999")]
-    ExceedsRtpTransactionLimit, 
+    ExceedsRtpTransactionLimit,
 }
 
 #[derive(Debug, Serialize, Deserialize, PartialEq, Clone, Copy)]
