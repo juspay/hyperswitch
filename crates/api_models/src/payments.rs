@@ -831,7 +831,7 @@ impl AmountDetailsUpdate {
 #[generate_schemas(PaymentsCreateRequest, PaymentsUpdateRequest, PaymentsConfirmRequest)]
 #[serde(deny_unknown_fields)]
 pub struct PaymentsRequest {
-    /// The payment amount in the lowest denomination of the currency (e.g., cents for USD). Read more about [Decimal and Non-Decimal Currencies](https://github.com/juspay/hyperswitch/wiki/Decimal-and-Non%E2%80%90Decimal-Currencies).
+    /// The primary amount for the payment, provided in the lowest denomination of the specified currency (e.g., 6540 for $65.40 USD). This field is mandatory for creating a payment.
     #[schema(value_type = Option<u64>, example = 6540)]
     #[serde(default, deserialize_with = "amount::deserialize_option")]
     #[mandatory_in(PaymentsCreateRequest = u64)]
@@ -842,7 +842,7 @@ pub struct PaymentsRequest {
     #[schema(value_type = Option<i64>, example = 6540)]
     pub order_tax_amount: Option<MinorUnit>,
 
-    /// The three-letter ISO currency code (uppercase). Example: `USD`.
+    /// The three-letter ISO 4217 currency code (e.g., "USD", "EUR") for the payment amount. This field is mandatory for creating a payment.
     #[schema(example = "USD", value_type = Option<Currency>)]
     #[mandatory_in(PaymentsCreateRequest = Currency)]
     pub currency: Option<api_enums::Currency>,
@@ -855,8 +855,7 @@ pub struct PaymentsRequest {
     #[schema(value_type = Option<i64>, example = 6540)]
     pub shipping_cost: Option<MinorUnit>,
 
-    /// Unique identifier for the payment. This ensures idempotency for multiple payments
-    /// that have been done by a single merchant. The value for this field can be specified in the request, it will be auto generated otherwise and returned in the API response.
+    /// Optional. A merchant-provided unique identifier for the payment, up to 30 characters long (e.g., "pay_mbabizu24mvu3mela5njyhpit4"). If provided, it ensures idempotency for the payment creation request. If omitted, Hyperswitch generates a unique ID for the payment.
     #[schema(
         value_type = Option<String>,
         min_length = 30,
@@ -883,10 +882,16 @@ pub struct PaymentsRequest {
     #[schema(value_type = Option<Vec<Connector>>, max_length = 255, example = json!(["stripe", "adyen"]))]
     pub connector: Option<Vec<api_enums::Connector>>,
 
-    /// Controls when the funds are captured. Can be `automatic` (captured immediately after successful confirmation) or `manual` (requires a separate call to `/payments/{payment_id}/capture` after successful confirmation). If omitted, defaults to `automatic`.
+    /// Specifies how the payment is captured.
+    /// - `automatic`: Funds are captured immediately after successful authorization. This is the default behavior if the field is omitted.
+    /// - `manual`: Funds are authorized but not captured. A separate request to the `/payments/{payment_id}/capture` endpoint is required to capture the funds.
     #[schema(value_type = Option<CaptureMethod>, example = "automatic")]
     pub capture_method: Option<api_enums::CaptureMethod>,
 
+    /// Specifies the type of cardholder authentication to be applied.
+    /// - `three_ds`: Requests 3D Secure authentication.
+    /// - `no_three_ds`: Indicates that 3D Secure authentication should not be performed.
+    /// If omitted, the authentication behavior is determined by merchant configuration and connector defaults.
     #[schema(value_type = Option<AuthenticationType>, example = "no_three_ds", default = "three_ds")]
     pub authentication_type: Option<api_enums::AuthenticationType>,
 
@@ -900,7 +905,7 @@ pub struct PaymentsRequest {
     #[remove_in(PaymentsUpdateRequest, PaymentsCreateRequest, PaymentsConfirmRequest)]
     pub capture_on: Option<PrimitiveDateTime>,
 
-    /// Set to `true` to attempt to confirm the payment immediately after creation (or update). If `false` or omitted, the payment intent will be created with a status like `requires_confirmation`, and a separate call to `POST /payments/{payment_id}/confirm` is needed. Default is `false`.
+    /// If set to `true`, Hyperswitch attempts to confirm and authorize the payment immediately after creation, provided sufficient payment method details are included. If `false` or omitted (default is `false`), the payment is created with a status such as `requires_payment_method` or `requires_confirmation`, and a separate `POST /payments/{payment_id}/confirm` call is necessary to proceed with authorization.
     #[schema(default = false, example = true)]
     pub confirm: Option<bool>,
 
@@ -947,6 +952,10 @@ pub struct PaymentsRequest {
     #[schema(value_type = Option<String>, example = "https://hyperswitch.io")]
     pub return_url: Option<Url>,
 
+    /// Specifies an intent to save the payment method for future use.
+    /// - `on_session`: The payment method is saved for use during the current session, typically when the customer is present.
+    /// - `off_session`: The payment method is saved for later use, potentially for recurring or merchant-initiated transactions when the customer may not be present.
+    /// Setting this field can initiate mandate creation flows. The actual state of the saved payment method (e.g., if it's available for off-session use immediately) will be reflected in the payment response and depends on the payment flow and connector capabilities.
     #[schema(value_type = Option<FutureUsage>, example = "off_session")]
     pub setup_future_usage: Option<api_enums::FutureUsage>,
 

@@ -3,33 +3,6 @@
 /// Creates a payment resource, which represents a customer's intent to pay.
 /// This endpoint is the starting point for various payment flows:
 ///
-/// - **Instant Payment (Single-Step):** For immediate authorization and capture.
-///   Set `confirm: true` and `capture_method: "automatic"`.
-///
-/// - **Two-Step Manual Capture:** Authorize now, capture later.
-///   Set `confirm: true` and `capture_method: "manual"`.
-///   The payment status will be `requires_capture`. Later, call `POST /payments/{payment_id}/capture`.
-///
-/// - **Fully Decoupled Flow (Multi-Step):** For complex checkouts.
-///   1. Call this endpoint (`POST /payments`) to create the payment intent.
-///      Returns `payment_id` and `client_secret`.
-///   2. Optionally, update details using `POST /payments/{payment_id}` (Payments - Update).
-///   3. Finalize and authorize using `POST /payments/{payment_id}/confirm` (Payments - Confirm).
-///   4. If manual capture, call `POST /payments/{payment_id}/capture`.
-///
-/// - **Saving Payment Methods:** To save a payment method for future use.
-///   Include `customer_id` and set `setup_future_usage` to `"on_session"` or `"off_session"`.
-///
-/// - **Setting up Recurring Payments (CIT):** For customer-initiated recurring setups.
-///   Use `setup_future_usage: "off_session"`. Can be with an initial charge (`amount > 0`)
-///   or as a zero-dollar authorization (`amount: 0`, `payment_type: "setup_mandate"`).
-///
-/// - **Executing Recurring Payments (MIT):** For merchant-initiated payments using a saved method.
-///   Set `off_session: true` and provide `recurring_details` (including the `payment_method_id` from setup).
-///
-/// You can also provide your internal order identifier using `merchant_order_reference_id` for reconciliation.
-///
-/// This page lists the various combinations in which the Payments - Create API can be used and the details about the various fields in the requests and responses.
 #[utoipa::path(
     post,
     path = "/payments",
@@ -214,7 +187,179 @@
         ),
     ),
     responses(
-        (status = 200, description = "Payment created", body = PaymentsCreateResponseOpenApi),
+        (status = 200, description = "Payment created", body = PaymentsCreateResponseOpenApi,
+            examples(
+                ("Minimal payment created, requires payment method" = (
+                    value = json!({
+                        "payment_id": "pay_syxxxxxxxxxxxx",
+                        "merchant_id": "merchant_myyyyyyyyyyyy",
+                        "status": "requires_payment_method",
+                        "amount": 6540,
+                        "currency": "USD",
+                        "client_secret": "pay_syxxxxxxxxxxxx_secret_szzzzzzzzzzz",
+                        "created": "2023-10-26T10:00:00Z",
+                        "amount_capturable": 6540,
+                        "profile_id": "pro_pzzzzzzzzzzz",
+                        "attempt_count": 1,
+                        "expires_on": "2023-10-26T10:15:00Z"
+                    })
+                )),
+                ("Payment with customer details, requires payment method" = (
+                    value = json!({
+                        "payment_id": "pay_custmeta_xxxxxxxxxxxx",
+                        "merchant_id": "merchant_myyyyyyyyyyyy",
+                        "status": "requires_payment_method",
+                        "amount": 6540,
+                        "currency": "USD",
+                        "customer_id": "cus_abcdefgh",
+                        "customer": {
+                            "id": "cus_abcdefgh",
+                            "name": "John Dough",
+                            "email": "john@example.com",
+                            "phone": "9123456789"
+                        },
+                        "description": "Its my first payment request",
+                        "statement_descriptor_name": "joseph",
+                        "statement_descriptor_suffix": "JS",
+                        "metadata": {
+                            "udf1": "some-value",
+                            "udf2": "some-value"
+                        },
+                        "client_secret": "pay_custmeta_xxxxxxxxxxxx_secret_szzzzzzzzzzz",
+                        "created": "2023-10-26T10:05:00Z",
+                        "ephemeral_key": {
+                            "customer_id": "cus_abcdefgh",
+                            "secret": "epk_ephemeralxxxxxxxxxxxx"
+                        },
+                        "profile_id": "pro_pzzzzzzzzzzz",
+                        "attempt_count": 1,
+                        "expires_on": "2023-10-26T10:20:00Z"
+                    })
+                )),
+                ("3DS payment created, requires payment method" = (
+                    value = json!({
+                        "payment_id": "pay_3ds_xxxxxxxxxxxx",
+                        "merchant_id": "merchant_myyyyyyyyyyyy",
+                        "status": "requires_payment_method",
+                        "amount": 6540,
+                        "currency": "USD",
+                        "authentication_type": "three_ds",
+                        "client_secret": "pay_3ds_xxxxxxxxxxxx_secret_szzzzzzzzzzz",
+                        "created": "2023-10-26T10:10:00Z",
+                        "profile_id": "pro_pzzzzzzzzzzz",
+                        "attempt_count": 1,
+                        "expires_on": "2023-10-26T10:25:00Z"
+                    })
+                )),
+                ("Manual capture payment created, requires payment method" = (
+                    value = json!({
+                        "payment_id": "pay_manualcap_xxxxxxxxxxxx",
+                        "merchant_id": "merchant_myyyyyyyyyyyy",
+                        "status": "requires_payment_method",
+                        "amount": 6540,
+                        "currency": "USD",
+                        "capture_method": "manual",
+                        "client_secret": "pay_manualcap_xxxxxxxxxxxx_secret_szzzzzzzzzzz",
+                        "created": "2023-10-26T10:15:00Z",
+                        "profile_id": "pro_pzzzzzzzzzzz",
+                        "attempt_count": 1,
+                        "expires_on": "2023-10-26T10:30:00Z"
+                    })
+                )),
+                ("Setup mandate payment succeeded" = (
+                    value = json!({
+                        "payment_id": "pay_mandatesetup_xxxxxxxxxxxx",
+                        "merchant_id": "merchant_myyyyyyyyyyyy",
+                        "status": "succeeded",
+                        "amount": 6540,
+                        "currency": "USD",
+                        "amount_capturable": 0,
+                        "amount_received": 6540,
+                        "connector": "fauxpay",
+                        "customer_id": "StripeCustomer123",
+                        "mandate_id": "man_xxxxxxxxxxxx",
+                        "mandate_data": {
+                            "customer_acceptance": {
+                                "acceptance_type": "online",
+                                "accepted_at": "1963-05-03T04:07:52.723Z",
+                                "online": { "ip_address": "127.0.0.1", "user_agent": "amet irure esse" }
+                            },
+                            "mandate_type": { "single_use": { "amount": 6540, "currency": "USD" } }
+                        },
+                        "setup_future_usage": "on_session",
+                        "payment_method": "card",
+                        "payment_method_data": {
+                            "card": { "last4": "4242", "card_exp_month": "10", "card_exp_year": "25", "card_holder_name": "joseph Doe" }
+                        },
+                        "authentication_type": "no_three_ds",
+                        "client_secret": "pay_mandatesetup_xxxxxxxxxxxx_secret_szzzzzzzzzzz",
+                        "created": "2023-10-26T10:20:00Z",
+                        "ephemeral_key": { "customer_id": "StripeCustomer123", "secret": "epk_ephemeralxxxxxxxxxxxx" },
+                        "profile_id": "pro_pzzzzzzzzzzz",
+                        "attempt_count": 1,
+                        "merchant_connector_id": "mca_mcaconnectorxxxx",
+                        "connector_transaction_id": "txn_connectortransidxxxx"
+                    })
+                )),
+                ("Payment created and card saved" = (
+                    value = json!({
+                        "payment_id": "pay_savecard_xxxxxxxxxxxx",
+                        "merchant_id": "merchant_myyyyyyyyyyyy",
+                        "status": "succeeded",
+                        "amount": 6540,
+                        "currency": "USD",
+                        "amount_capturable": 0,
+                        "amount_received": 6540,
+                        "connector": "fauxpay",
+                        "customer_id": "StripeCustomer123",
+                        "setup_future_usage": "on_session",
+                        "payment_method": "card",
+                        "payment_method_data": {
+                            "card": { "last4": "4242", "card_exp_month": "10", "card_exp_year": "25", "card_holder_name": "joseph Doe" }
+                        },
+                        "authentication_type": "no_three_ds",
+                        "client_secret": "pay_savecard_xxxxxxxxxxxx_secret_szzzzzzzzzzz",
+                        "created": "2023-10-26T10:25:00Z",
+                        "ephemeral_key": { "customer_id": "StripeCustomer123", "secret": "epk_ephemeralxxxxxxxxxxxx" },
+                        "profile_id": "pro_pzzzzzzzzzzz",
+                        "attempt_count": 1,
+                        "merchant_connector_id": "mca_mcaconnectorxxxx",
+                        "connector_transaction_id": "txn_connectortransidxxxx",
+                        "payment_token": null
+                    })
+                )),
+                ("Payment with billing details, requires payment method" = (
+                    value = json!({
+                        "payment_id": "pay_manualbill_xxxxxxxxxxxx",
+                        "merchant_id": "merchant_myyyyyyyyyyyy",
+                        "status": "requires_payment_method",
+                        "amount": 6540,
+                        "currency": "USD",
+                        "customer_id": "cus_abcdefgh",
+                        "customer": {
+                            "id": "cus_abcdefgh",
+                            "name": "John Dough",
+                            "email": "john@example.com",
+                            "phone": "9123456789"
+                        },
+                        "billing": {
+                            "address": {
+                                "line1": "1467", "line2": "Harrison Street", "city": "San Fransico",
+                                "state": "California", "zip": "94122", "country": "US",
+                                "first_name": "joseph", "last_name": "Doe"
+                            },
+                            "phone": { "number": "9123456789", "country_code": "+91" }
+                        },
+                        "client_secret": "pay_manualbill_xxxxxxxxxxxx_secret_szzzzzzzzzzz",
+                        "created": "2023-10-26T10:30:00Z",
+                        "ephemeral_key": { "customer_id": "cus_abcdefgh", "secret": "epk_ephemeralxxxxxxxxxxxx" },
+                        "profile_id": "pro_pzzzzzzzzzzz",
+                        "attempt_count": 1,
+                        "expires_on": "2023-10-26T10:45:00Z"
+                    })
+                ))
+            )
+        ),
         (status = 400, description = "Missing Mandatory fields")
     ),
     tag = "Payments",
