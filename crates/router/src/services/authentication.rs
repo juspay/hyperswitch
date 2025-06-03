@@ -715,7 +715,9 @@ where
     ) -> RouterResult<(Option<AuthenticationDataWithOrg>, AuthenticationType)> {
         // Step 1: Admin API Key and API Key Fallback (if allowed)
         if self.is_admin_auth_allowed {
-            let admin_auth = AdminApiAuthWithApiKeyFallback;
+            let admin_auth = AdminApiAuthWithApiKeyFallback {
+                organization_id: self.organization_id.clone(),
+            };
             match admin_auth
                 .authenticate_and_fetch(request_headers, state)
                 .await
@@ -1667,7 +1669,9 @@ where
 }
 
 #[derive(Debug, Default)]
-pub struct AdminApiAuthWithApiKeyFallback;
+pub struct AdminApiAuthWithApiKeyFallback {
+    pub organization_id: Option<id_type::OrganizationId>,
+}
 
 #[cfg(feature = "v1")]
 #[async_trait]
@@ -1741,6 +1745,16 @@ where
             )
             .await
             .to_not_found_response(errors::ApiErrorResponse::Unauthorized)?;
+
+        if let Some(organization_id) = &self.organization_id {
+            if organization_id != &merchant.organization_id {
+                return Err(
+                    report!(errors::ApiErrorResponse::Unauthorized).attach_printable(
+                        "Organization ID from request and merchant account does not match",
+                    ),
+                );
+            }
+        }
 
         if fallback_merchant_ids
             .merchant_ids

@@ -389,7 +389,20 @@ impl MerchantAccountCreateBridge for api::MerchantAccountCreate {
             .await?;
 
         let merchant_account_type = match organization.get_organization_type() {
-            OrganizationType::Standard => MerchantAccountType::Standard,
+            OrganizationType::Standard => {
+                match self.merchant_account_type {
+                    // Allow only if explicitly Standard or not provided
+                    Some(MerchantAccountType::Standard) | None => MerchantAccountType::Standard,
+                    Some(_) => {
+                        return Err(errors::ApiErrorResponse::InvalidRequestData {
+                            message:
+                                "Merchant account type must be Standard for a Standard Organization"
+                                    .to_string(),
+                        }
+                        .into());
+                    }
+                }
+            }
 
             OrganizationType::Platform => {
                 let accounts = state
@@ -405,10 +418,40 @@ impl MerchantAccountCreateBridge for api::MerchantAccountCreate {
                     .iter()
                     .any(|account| account.merchant_account_type == MerchantAccountType::Platform);
 
-                if platform_account_exists {
-                    MerchantAccountType::Connected
-                } else {
-                    MerchantAccountType::Platform
+                match (platform_account_exists, self.merchant_account_type) {
+                    // No platform account exists => must create Platform
+                    (false, Some(MerchantAccountType::Platform)) | (false, None) => {
+                        MerchantAccountType::Platform
+                    }
+                    (false, Some(_)) => {
+                        return Err(errors::ApiErrorResponse::InvalidRequestData {
+                            message:
+                                "First merchant account for Platform Organization must be a Platform Merchant"
+                                    .to_string(),
+                        }
+                        .into());
+                    }
+
+                    // Platform already exists => handle Standard / Connected
+                    (true, Some(MerchantAccountType::Standard)) | (true, None) => {
+                        MerchantAccountType::Standard
+                    }
+                    (true, Some(MerchantAccountType::Connected)) => {
+                        if !state.conf.platform.allow_connected_merchants {
+                            return Err(errors::ApiErrorResponse::InvalidRequestData {
+                                message: "Connected merchant accounts are not allowed".to_string(),
+                            }
+                            .into());
+                        }
+                        MerchantAccountType::Connected
+                    }
+                    (true, Some(MerchantAccountType::Platform)) => {
+                        return Err(errors::ApiErrorResponse::InvalidRequestData {
+                            message: "Platform Merchant already exists for this organization"
+                                .to_string(),
+                        }
+                        .into());
+                    }
                 }
             }
         };
