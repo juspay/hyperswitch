@@ -17,11 +17,11 @@ enabled = false
 
 # TODO: Update database credentials before running application
 [master_database]
-username = "db_user"
+username = "db_user3"
 password = "db_pass"
 host = "localhost"
 port = 5432
-dbname = "hyperswitch_db"
+dbname = "hyperswitch_db3"
 pool_size = 5
 connection_timeout = 10
 min_idle = 2
@@ -217,7 +217,7 @@ airwallex.base_url = "https://api-demo.airwallex.com/"
 amazonpay.base_url = "https://pay-api.amazon.com/v2"
 applepay.base_url = "https://apple-pay-gateway.apple.com/"
 archipel.base_url = "https://{{merchant_endpoint_prefix}}/ArchiPEL/Transaction/v1"
-authipay.base_url = "https://prod.emea.api.fiservapps.com/ipp/payments-gateway/v2"
+authipay.base_url = "https://prod.emea.api.fiservapps.com/sandbox/ipp/payments-gateway/v2/"
 authorizedotnet.base_url = "https://apitest.authorize.net/xml/v1/request.api"
 bambora.base_url = "https://api.na.bambora.com"
 bamboraapac.base_url = "https://demo.ippayments.com.au/interface/api"

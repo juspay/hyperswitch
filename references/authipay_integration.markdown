@@ -7,7 +7,7 @@ We are integrating **Authipay**, a Fiserv payment processing solution, into **Hy
 
 Authipay provides distinct URLs for sandbox and production environments to facilitate testing and live transaction processing. Below are the key URLs for the integration:
 
-- **baseUrl**: https://prod.emea.api.fiservapps.com/ipp/payments-gateway/v2
+- **baseUrl**: https://prod.emea.api.fiservapps.com/sandbox/ipp/payments-gateway/v2/
   - **Description**: Production Base URL for live transactions.
 - **sandboxUrl**: https://prod.emea.api.fiservapps.com/sandbox/ipp/payments-gateway/v2
   - **Description**: Sandbox URL for testing and development.
@@ -72,7 +72,7 @@ Message-Signature: GENERATED_BASE64_SIGNATURE
 
 ### Example Curl Command with Authentication
 ```bash
-curl -X POST https://prod.emea.api.fiservapps.com/ipp/payments-gateway/v2/payments \
+curl -X POST https://prod.emea.api.fiservapps.com/sandbox/ipp/payments-gateway/v2//payments \
   -H "Content-Type: application/json" \
   -H "Api-Key: YOUR_API_KEY" \
   -H "Client-Request-Id: 550e8400-e29b-41d4-a1b2-3f4544d0000" \
@@ -178,7 +178,7 @@ This flow initiates a card pre-authorization transaction, reserving funds on the
 
 #### Curl Example
 ```bash
-curl -X POST https://prod.emea.api.fiservapps.com/ipp/payments-gateway/v2/payments \
+curl -X POST https://prod.emea.api.fiservapps.com/sandbox/ipp/payments-gateway/v2//payments \
   -H "Content-Type: application/json" \
   -H "Api-Key: YOUR_API_KEY" \
   -H "Client-Request-Id: 550e8400-e29b-41d4-a1b2-3f4544d0000" \
@@ -270,7 +270,7 @@ This flow captures a previously authorized amount, finalizing the transaction an
 
 #### Curl Example
 ```bash
-curl -X POST https://prod.emea.api.fiservapps.com/ipp/payments-gateway/v2/payments/838123456789 \
+curl -X POST https://prod.emea.api.fiservapps.com/sandbox/ipp/payments-gateway/v2//payments/838123456789 \
   -H "Content-Type: application/json" \
   -H "Api-Key: YOUR_API_KEY" \
   -H "Client-Request-Id: 550e8400-e29b-41d4-a1b2-3f4544d0000" \
@@ -347,7 +347,7 @@ This flow processes a refund for a previously captured transaction, returning fu
 
 #### Curl Example
 ```bash
-curl -X POST https://prod.emea.api.fiservapps.com/ipp/payments-gateway/v2/payments/838123456789 \
+curl -X POST https://prod.emea.api.fiservapps.com/sandbox/ipp/payments-gateway/v2//payments/838123456789 \
   -H "Content-Type: application/json" \
   -H "Api-Key: YOUR_API_KEY" \
   -H "Client-Request-Id: 550e8400-e29b-41d4-a1b2-3f4544d0000" \
@@ -421,7 +421,7 @@ No request body is required for GET requests.
 
 #### Curl Example
 ```bash
-curl -X GET https://prod.emea.api.fiservapps.com/ipp/payments-gateway/v2/payments/838123456789 \
+curl -X GET https://prod.emea.api.fiservapps.com/sandbox/ipp/payments-gateway/v2//payments/838123456789 \
   -H "Api-Key: YOUR_API_KEY" \
   -H "Client-Request-Id: 550e8400-e29b-41d4-a1b2-3f4544d0000" \
   -H "Timestamp: 1695792000000" \
@@ -509,7 +509,7 @@ This flow tokenizes card details, enabling secure storage for future transaction
 
 #### Curl Example
 ```bash
-curl -X POST https://prod.emea.api.fiservapps.com/ipp/payments-gateway/v2/payment-tokens \
+curl -X POST https://prod.emea.api.fiservapps.com/sandbox/ipp/payments-gateway/v2//payment-tokens \
   -H "Content-Type: application/json" \
   -H "Api-Key: YOUR_API_KEY" \
   -H "Client-Request-Id: 550e8400-e29b-41d4-a1b2-3f4544d0000" \
@@ -550,7 +550,7 @@ curl -X POST https://prod.emea.api.fiservapps.com/ipp/payments-gateway/v2/paymen
   - URL: https://prod.emea.api.fiservapps.com/sandbox/ipp/payments-gateway/v2
   - Usage: For testing and development without affecting live transactions.
 - **Production Environment**:
-  - URL: https://prod.emea.api.fiservapps.com/ipp/payments-gateway/v2
+  - URL: https://prod.emea.api.fiservapps.com/sandbox/ipp/payments-gateway/v2/
   - Usage: For live transaction processing.
 
 ### Supported Currencies, Countries, Card Networks, and Payment Methods

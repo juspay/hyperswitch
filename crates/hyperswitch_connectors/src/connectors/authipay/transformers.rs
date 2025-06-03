@@ -106,10 +106,9 @@ impl TryFrom<&AuthipayRouterData<&PaymentsAuthorizeRouterData>> for AuthipayPaym
                     currency: item.router_data.request.currency.to_string(),
                 };
                 
-                let split_shipment = Some(SplitShipment {
-                    total_count: 1,
-                    final_shipment: true,
-                });
+                // Making split_shipment None since some merchants aren't set up to support it
+                // This avoids error code 10421: "The merchant is not setup to support split shipment"
+                let split_shipment = None;
                 
                 Ok(Self {
                     request_type: "PaymentCardPreAuthTransaction",
@@ -351,26 +350,19 @@ pub struct ErrorDetails {
 #[derive(Default, Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct AuthipayErrorResponse {
-    pub error: Option<ErrorDetails>,
-    pub status_code: u16,
-    pub code: String,
-    pub message: String,
-    pub reason: Option<String>,
+    pub client_request_id: Option<String>,
+    pub response_type: Option<String>,
+    pub error: ErrorDetails,
+    pub api_trace_id: Option<String>,
 }
 
 impl From<&AuthipayErrorResponse> for ErrorResponse {
     fn from(item: &AuthipayErrorResponse) -> Self {
         Self {
-            status_code: item.status_code,
-            code: item.error
-                .as_ref()
-                .and_then(|error| error.code.clone())
-                .unwrap_or_else(|| consts::NO_ERROR_CODE.to_string()),
-            message: item.error
-                .as_ref()
-                .map(|error| error.message.clone())
-                .unwrap_or_else(|| consts::NO_ERROR_MESSAGE.to_string()),
-            reason: item.reason.clone(),
+            status_code: 0, // This will be overridden by the HTTP status code
+            code: item.error.code.clone().unwrap_or_default(),
+            message: item.error.message.clone(),
+            reason: None,
             attempt_status: None,
             connector_transaction_id: None,
             network_decline_code: None,

@@ -3,6 +3,7 @@ import { execConfig, validateConfig } from "../../../utils/featureFlags.js";
 import { updateDefaultStatusCode } from "./Modifiers.js";
 
 import { connectorDetails as adyenConnectorDetails } from "./Adyen.js";
+import { connectorDetails as authipayConnectorDetails } from "./Authipay.js";
 import { connectorDetails as bankOfAmericaConnectorDetails } from "./BankOfAmerica.js";
 import { connectorDetails as bluesnapConnectorDetails } from "./Bluesnap.js";
 import { connectorDetails as braintreeConnectorDetails } from "./Braintree.js";
@@ -38,6 +39,7 @@ import { connectorDetails as archipelConnectorDetails } from "./Archipel.js";
 
 const connectorDetails = {
   adyen: adyenConnectorDetails,
+  authipay: authipayConnectorDetails,
   bankofamerica: bankOfAmericaConnectorDetails,
   bluesnap: bluesnapConnectorDetails,
   braintree: braintreeConnectorDetails,

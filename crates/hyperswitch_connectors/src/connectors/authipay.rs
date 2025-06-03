@@ -183,17 +183,20 @@ impl ConnectorCommon for Authipay {
         event_builder.map(|i| i.set_error_response_body(&response));
         router_env::logger::info!(connector_response=?response);
 
-        Ok(ErrorResponse {
-            status_code: res.status_code,
-            code: response.code,
-            message: response.message,
-            reason: response.reason,
-            attempt_status: None,
-            connector_transaction_id: None,
-            network_decline_code: None,
-            network_advice_code: None,
-            network_error_message: None,
-        })
+        let mut error_response = ErrorResponse::from(&response);
+        
+        // Set status code from the response, or 400 if error code is a "404"
+        if let Some(error_code) = &response.error.code {
+            if error_code == "404" {
+                error_response.status_code = 400;
+            } else {
+                error_response.status_code = res.status_code;
+            }
+        } else {
+            error_response.status_code = res.status_code;
+        }
+        
+        Ok(error_response)
     }
 }
 
@@ -686,8 +689,8 @@ static AUTHIPAY_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMethods> = L
             specific_features: Some(
                 api_models::feature_matrix::PaymentMethodSpecificFeatures::Card({
                     api_models::feature_matrix::CardSpecificFeatures {
-                        three_ds: common_enums::FeatureStatus::NotSupported,
-                        no_three_ds: common_enums::FeatureStatus::Supported,
+                        three_ds: common_enums::FeatureStatus::Supported,
+                        no_three_ds: common_enums::FeatureStatus::NotSupported,
                         supported_card_networks: supported_card_network.clone(),
                     }
                 }),
@@ -705,8 +708,8 @@ static AUTHIPAY_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMethods> = L
             specific_features: Some(
                 api_models::feature_matrix::PaymentMethodSpecificFeatures::Card({
                     api_models::feature_matrix::CardSpecificFeatures {
-                        three_ds: common_enums::FeatureStatus::NotSupported,
-                        no_three_ds: common_enums::FeatureStatus::Supported,
+                        three_ds: common_enums::FeatureStatus::Supported,
+                        no_three_ds: common_enums::FeatureStatus::NotSupported,
                         supported_card_networks: supported_card_network.clone(),
                     }
                 }),
