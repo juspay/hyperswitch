@@ -444,7 +444,7 @@ impl ConnectorConfig {
             Connector::Wise => Err("Use get_payout_connector_config".to_string()),
             Connector::Worldline => Ok(connector_data.worldline),
             Connector::Worldpay => Ok(connector_data.worldpay),
-            Connector::Worldpayvantiv => Ok(connector_data.worldpayvantiv),
+            // Connector::Worldpayvantiv => Ok(connector_data.worldpayvantiv),
             Connector::Worldpayxml => Ok(connector_data.worldpayxml),
             Connector::Zen => Ok(connector_data.zen),
             Connector::Zsl => Ok(connector_data.zsl),
