@@ -1616,7 +1616,7 @@ pub struct RequestPaymentMethodTypes {
     pub recurring_enabled: Option<bool>,
 
     /// Boolean Option to enable installment / EMI / BNPL payments. Default is None.
-    #[schema(example = false)]
+    #[schema(example = true)]
     pub installment_payment_enabled: Option<bool>,
 }
 impl RequestPaymentMethodTypes {
