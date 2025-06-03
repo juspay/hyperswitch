@@ -1808,7 +1808,7 @@ pub async fn record_attempt_core(
     let default_payment_status_data = PaymentStatusData {
         flow: PhantomData,
         payment_intent: payment_data.payment_intent.clone(),
-        payment_attempt: Some(payment_data.payment_attempt.clone()),
+        payment_attempt: payment_data.payment_attempt.clone(),
         attempts: None,
         should_sync_with_connector: false,
         payment_address: payment_data.payment_address.clone(),
@@ -1839,7 +1839,7 @@ pub async fn record_attempt_core(
                 payment_data: PaymentStatusData {
                     flow: PhantomData,
                     payment_intent: payment_data.payment_intent.clone(),
-                    payment_attempt: Some(payment_data.payment_attempt.clone()),
+                    payment_attempt: payment_data.payment_attempt.clone(),
                     attempts: None,
                     should_sync_with_connector: true,
                     payment_address: payment_data.payment_address.clone(),
@@ -1863,9 +1863,7 @@ pub async fn record_attempt_core(
     let record_payment_data = domain_payments::PaymentAttemptRecordData {
         flow: PhantomData,
         payment_intent: payment_status_data.payment_intent,
-        payment_attempt: payment_status_data
-            .payment_attempt
-            .unwrap_or(payment_data.payment_attempt.clone()),
+        payment_attempt: payment_status_data.payment_attempt,
         revenue_recovery_data: payment_data.revenue_recovery_data.clone(),
         payment_address: payment_data.payment_address.clone(),
     };
@@ -2730,11 +2728,7 @@ impl PaymentRedirectFlow for PaymentRedirectSync {
         let payment_data = &get_tracker_response.payment_data;
         self.validate_status_for_operation(payment_data.payment_intent.status)?;
 
-        let payment_attempt = payment_data
-            .payment_attempt
-            .as_ref()
-            .ok_or(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable("payment_attempt not found in get_tracker_response")?;
+        let payment_attempt = payment_data.payment_attempt.clone();
 
         let connector = payment_attempt
             .connector
@@ -7542,45 +7536,23 @@ where
                                 .map(|card_isin| card_isin.to_string()),
                         );
 
-                    routing::perform_dynamic_routing_with_intelligent_router(
-                        state,
-                        connectors.clone(),
-                        business_profile,
-                        dynamic_routing_config_params_interpolator,
-                    )
-                    .await
-                    .map_err(|e| logger::error!(dynamic_routing_error=?e))
-                    .unwrap_or(connectors)
-                }
-            } else {
-                connectors
+                routing::perform_dynamic_routing_with_intelligent_router(
+                    state,
+                    connectors.clone(),
+                    business_profile,
+                    dynamic_routing_config_params_interpolator,
+                    payment_data.get_payment_attempt(),
+                )
+                .await
+                .map_err(|e| logger::error!(dynamic_routing_error=?e))
+                .unwrap_or(connectors)
             }
         } else {
             connectors
         }
-        #[cfg(not(all(feature = "v1", feature = "dynamic_routing")))]
-        {
-            connectors.clone()
-        }
+    } else {
+        connectors
     };
-
-    let fallback_selection = routing::perform_fallback_routing(
-        &state.clone(),
-        merchant_context.get_merchant_key_store(),
-        &TransactionData::Payment(transaction_data.clone()),
-        eligible_connectors.as_ref(),
-        business_profile,
-    )
-    .await;
-
-    connectors.append(
-        &mut fallback_selection
-            .unwrap_or_default()
-            .iter()
-            .filter(|&routable_connector_choice| !connectors.contains(routable_connector_choice))
-            .cloned()
-            .collect::<Vec<_>>(),
-    );
 
     let connector_data = connectors
         .into_iter()
@@ -9137,7 +9109,7 @@ impl<F: Clone> OperationSessionSetters<F> for PaymentConfirmData<F> {
 impl<F: Clone> OperationSessionGetters<F> for PaymentStatusData<F> {
     #[track_caller]
     fn get_payment_attempt(&self) -> &storage::PaymentAttempt {
-        todo!()
+        &self.payment_attempt
     }
     fn get_client_secret(&self) -> &Option<Secret<String>> {
         todo!()
@@ -9266,7 +9238,7 @@ impl<F: Clone> OperationSessionGetters<F> for PaymentStatusData<F> {
     }
 
     fn get_optional_payment_attempt(&self) -> Option<&storage::PaymentAttempt> {
-        self.payment_attempt.as_ref()
+        Some(&self.payment_attempt)
     }
 
     fn get_all_keys_required(&self) -> Option<bool> {
@@ -9287,7 +9259,7 @@ impl<F: Clone> OperationSessionSetters<F> for PaymentStatusData<F> {
         todo!()
     }
     fn set_payment_attempt(&mut self, payment_attempt: storage::PaymentAttempt) {
-        self.payment_attempt = Some(payment_attempt);
+        self.payment_attempt = payment_attempt;
     }
 
     fn set_payment_method_data(&mut self, _payment_method_data: Option<domain::PaymentMethodData>) {

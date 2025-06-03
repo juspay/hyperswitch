@@ -1357,7 +1357,7 @@ pub async fn retrieve_payment_method_from_vault_internal(
 
 #[cfg(all(feature = "v2", feature = "tokenization_v2"))]
 #[instrument(skip_all)]
-pub async fn retrive_value_from_vault(
+pub async fn retrieve_value_from_vault(
     state: &routes::SessionState,
     request: pm_types::VaultRetrieveRequest,
 ) -> CustomResult<serde_json::value::Value, errors::VaultError> {

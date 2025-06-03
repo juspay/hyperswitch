@@ -893,13 +893,14 @@ intent_analytics_topic = "hyperswitch-payment-intent-events"
 attempt_analytics_topic = "hyperswitch-payment-attempt-events"
 refund_analytics_topic = "hyperswitch-refund-events"
 api_logs_topic = "hyperswitch-api-log-events"
-connector_logs_topic = "hyperswitch-connector-api-events"
+connector_logs_topic = "hyperswitch-outgoing-connector-events"
 outgoing_webhook_logs_topic = "hyperswitch-outgoing-webhook-events"
 dispute_analytics_topic = "hyperswitch-dispute-events"
 audit_events_topic = "hyperswitch-audit-events"
 payout_analytics_topic = "hyperswitch-payout-events"
 consolidated_events_topic = "hyperswitch-consolidated-events"
 authentication_analytics_topic = "hyperswitch-authentication-events"
+routing_logs_topic = "hyperswitch-routing-api-events"
 
 [analytics]
 source = "sqlx"
@@ -1022,7 +1023,7 @@ id = "12345"
 card_networks = "Visa, AmericanExpress, Mastercard"
 
 [network_tokenization_supported_connectors]
-connector_list = "cybersource"
+connector_list = "adyen,cybersource"
 
 # EmailClient configuration. Only applicable when the `email` feature flag is enabled.
 [email]
