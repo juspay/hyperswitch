@@ -284,7 +284,6 @@ impl ApiModelToDieselModelConvertor<ApiRevenueRecoveryMetadata> for PaymentReven
             invoice_next_billing_time: from.invoice_next_billing_time,
             card_issuer: from.card_issuer,
             card_network: from.card_network,
-
         }
     }
 

@@ -49,7 +49,7 @@ pub struct RevenueRecoveryAttemptData {
     /// Time when next invoice will be generated which will be equal to the end time of the current invoice
     pub invoice_next_billing_time: Option<PrimitiveDateTime>,
     /// card network type
-    pub card_network : Option<common_enums::CardNetwork>,
+    pub card_network: Option<common_enums::CardNetwork>,
     /// card isin
     pub card_isin: Option<String>,
 }
@@ -276,7 +276,7 @@ impl
             retry_count: invoice_details.retry_count,
             invoice_next_billing_time: invoice_details.next_billing_at,
             card_network: billing_connector_payment_details.card_network.clone(),
-            card_isin: billing_connector_payment_details.card_isin.clone()
+            card_isin: billing_connector_payment_details.card_isin.clone(),
         }
     }
 }

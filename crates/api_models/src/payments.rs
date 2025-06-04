@@ -8756,10 +8756,10 @@ pub struct PaymentsAttemptRecordRequest {
     pub triggered_by: common_enums::TriggeredBy,
 
     /// card_network
-    pub card_network : Option<common_enums::CardNetwork>,
+    pub card_network: Option<common_enums::CardNetwork>,
 
     /// Card IIN
-    pub card_issuer : Option<String>,
+    pub card_issuer: Option<String>,
 }
 
 /// Error details for the payment

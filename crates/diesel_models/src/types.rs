@@ -177,7 +177,7 @@ pub struct PaymentRevenueRecoveryMetadata {
     /// Card Network
     pub card_network: Option<common_enums::enums::CardNetwork>,
     /// Card Issuer
-    pub card_issuer: Option<String>
+    pub card_issuer: Option<String>,
 }
 
 #[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]

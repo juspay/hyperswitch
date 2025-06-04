@@ -458,8 +458,8 @@ pub enum StripebillingPaymentMethod {
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct StripeBillingCardDetails {
-    pub network : common_enums::CardNetwork,
-    pub country : common_enums::CountryAlpha2,
+    pub network: common_enums::CardNetwork,
+    pub country: common_enums::CountryAlpha2,
     pub funding: StripebillingFundingTypes,
 }
 
@@ -532,16 +532,13 @@ impl
                     connector_customer_id: charge_details.customer,
                     transaction_created_at: Some(charge_details.created),
                     payment_method_sub_type: common_enums::PaymentMethodType::from(
-                        charge_details
-                            .payment_method_details
-                            .card_details
-                            .funding,
+                        charge_details.payment_method_details.card_details.funding,
                     ),
                     payment_method_type: common_enums::PaymentMethod::from(
                         charge_details.payment_method_details.type_of_payment_method,
                     ),
                     card_network: Some(charge_details.payment_method_details.card_details.network),
-                    card_isin: None
+                    card_isin: None,
                 },
             ),
             ..item.data

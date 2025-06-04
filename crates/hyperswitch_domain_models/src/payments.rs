@@ -935,7 +935,7 @@ pub struct RevenueRecoveryData {
     pub invoice_next_billing_time: Option<PrimitiveDateTime>,
     pub triggered_by: storage_enums::enums::TriggeredBy,
     pub card_network: Option<common_enums::CardNetwork>,
-    pub card_issuer: Option<String>
+    pub card_issuer: Option<String>,
 }
 
 #[cfg(feature = "v2")]

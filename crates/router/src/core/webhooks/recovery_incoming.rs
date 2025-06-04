@@ -545,15 +545,17 @@ impl RevenueRecoveryAttempt {
         errors::RevenueRecoveryError,
     > {
         let payment_connector_id =   payment_connector_account.as_ref().map(|account: &hyperswitch_domain_models::merchant_connector_account::MerchantConnectorAccount| account.id.clone());
-        let request_payload = self.create_payment_record_request(
-            state,
-            billing_connector_account_id,
-            payment_connector_id,
-            payment_connector_account
-                .as_ref()
-                .map(|account| account.connector_name),
-            common_enums::TriggeredBy::External,
-        ).await?;
+        let request_payload = self
+            .create_payment_record_request(
+                state,
+                billing_connector_account_id,
+                payment_connector_id,
+                payment_connector_account
+                    .as_ref()
+                    .map(|account| account.connector_name),
+                common_enums::TriggeredBy::External,
+            )
+            .await?;
         let attempt_response = Box::pin(payments::record_attempt_core(
             state.clone(),
             req_state.clone(),
@@ -601,7 +603,8 @@ impl RevenueRecoveryAttempt {
         payment_merchant_connector_account_id: Option<id_type::MerchantConnectorAccountId>,
         payment_connector: Option<common_enums::connector_enums::Connector>,
         triggered_by: common_enums::TriggeredBy,
-    ) -> CustomResult<api_payments::PaymentsAttemptRecordRequest, errors::RevenueRecoveryError> {
+    ) -> CustomResult<api_payments::PaymentsAttemptRecordRequest, errors::RevenueRecoveryError>
+    {
         let revenue_recovery_attempt_data = &self.0;
         let amount_details =
             api_payments::PaymentAttemptAmountDetails::from(revenue_recovery_attempt_data);
@@ -618,10 +621,11 @@ impl RevenueRecoveryAttempt {
             .async_and_then(|isin| async move {
                 let issuer_identifier_number = isin.clone();
                 state.store.get_card_info(isin.as_str()).await.ok()
-            }).await.flatten();
-        
-        let card_issuer = card_info
-            .and_then(|info| info.card_issuer);
+            })
+            .await
+            .flatten();
+
+        let card_issuer = card_info.and_then(|info| info.card_issuer);
 
         let error =
             Option::<api_payments::RecordAttemptErrorDetails>::from(revenue_recovery_attempt_data);
@@ -652,7 +656,7 @@ impl RevenueRecoveryAttempt {
             invoice_next_billing_time: revenue_recovery_attempt_data.invoice_next_billing_time,
             triggered_by,
             card_network: revenue_recovery_attempt_data.card_network.clone(),
-            card_issuer
+            card_issuer,
         })
     }
 
