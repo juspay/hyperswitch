@@ -347,6 +347,7 @@ pub struct PaymentIntentNew {
     pub force_3ds_challenge: Option<bool>,
     pub force_3ds_challenge_trigger: Option<bool>,
     pub processor_merchant_id: Option<common_utils::id_type::MerchantId>,
+    pub routing_algorithm_id: Option<common_utils::id_type::RoutingId>,
     pub created_by: Option<String>,
     pub is_iframe_redirection_enabled: Option<bool>,
 }

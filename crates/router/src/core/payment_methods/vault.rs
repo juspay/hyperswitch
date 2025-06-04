@@ -1355,6 +1355,30 @@ pub async fn retrieve_payment_method_from_vault_internal(
     Ok(stored_pm_resp)
 }
 
+#[cfg(all(feature = "v2", feature = "tokenization_v2"))]
+#[instrument(skip_all)]
+pub async fn retrieve_value_from_vault(
+    state: &routes::SessionState,
+    request: pm_types::VaultRetrieveRequest,
+) -> CustomResult<serde_json::value::Value, errors::VaultError> {
+    let payload = request
+        .encode_to_vec()
+        .change_context(errors::VaultError::RequestEncodingFailed)
+        .attach_printable("Failed to encode VaultRetrieveRequest")?;
+
+    let resp = call_to_vault::<pm_types::VaultRetrieve>(state, payload)
+        .await
+        .change_context(errors::VaultError::VaultAPIError)
+        .attach_printable("Call to vault failed")?;
+
+    let stored_resp: serde_json::Value = resp
+        .parse_struct("VaultRetrieveResponse")
+        .change_context(errors::VaultError::ResponseDeserializationFailed)
+        .attach_printable("Failed to parse data into VaultRetrieveResponse")?;
+
+    Ok(stored_resp)
+}
+
 #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
 #[instrument(skip_all)]
 pub async fn retrieve_payment_method_from_vault_external(
@@ -1385,7 +1409,8 @@ pub async fn retrieve_payment_method_from_vault_external(
 
     let connector_name = merchant_connector_account
         .get_connector_name()
-        .unwrap_or_default(); // always get the connector name from this call
+        .ok_or(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Connector name not present for external vault")?; // always get the connector name from this call
 
     let connector_data = api::ConnectorData::get_external_vault_connector_by_name(
         &state.conf.connectors,
@@ -1545,7 +1570,8 @@ pub async fn delete_payment_method_data_from_vault_external(
 
     let connector_name = merchant_connector_account
         .get_connector_name()
-        .unwrap_or_default(); // always get the connector name from this call
+        .ok_or(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Connector name not present for external vault")?; // always get the connector name from this call
 
     let connector_data = api::ConnectorData::get_external_vault_connector_by_name(
         &state.conf.connectors,

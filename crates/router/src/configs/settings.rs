@@ -158,6 +158,8 @@ pub struct Settings<S: SecretState> {
     #[cfg(feature = "v2")]
     pub revenue_recovery: revenue_recovery::RevenueRecoverySettings,
     pub clone_connector_allowlist: Option<CloneConnectorAllowlistConfig>,
+    #[serde(default)]
+    pub infra_values: Option<HashMap<String, String>>,
 }
 
 #[derive(Debug, Deserialize, Clone, Default)]
@@ -444,9 +446,19 @@ impl Default for GenericLinkEnvUiConfig {
     }
 }
 
-#[derive(Debug, Deserialize, Clone, Default)]
+#[derive(Debug, Deserialize, Clone)]
 pub struct PaymentLink {
-    pub sdk_url: String,
+    pub sdk_url: url::Url,
+}
+
+impl Default for PaymentLink {
+    fn default() -> Self {
+        Self {
+            #[allow(clippy::expect_used)]
+            sdk_url: url::Url::parse("https://beta.hyperswitch.io/v0/HyperLoader.js")
+                .expect("Failed to parse default SDK URL"),
+        }
+    }
 }
 
 #[derive(Debug, Deserialize, Clone, Default)]
