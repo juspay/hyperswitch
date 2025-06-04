@@ -27,11 +27,11 @@ services:
   pg:
     image: postgres:latest
     ports:
-      - "${POSTGRES_PORT:-5432}:5432"
+      - "5432:5432"
     networks:
       - router_net
     volumes:
-      - pg_data:/VAR/LIB/POSTGRESQL/DATA
+      - pg_data:/var/lib/postgresql/data
     environment:
       - POSTGRES_USER=db_user
       - POSTGRES_PASSWORD=db_pass
@@ -48,7 +48,7 @@ services:
     networks:
       - router_net
     ports:
-      - "${REDIS_PORT:-6379}:6379"
+      - "6379:6379"
     healthcheck:
       test: ["CMD-SHELL", "redis-cli ping | grep '^PONG$'"]
       interval: 5s
@@ -88,7 +88,7 @@ services:
     pull_policy: always
     command: /local/bin/router -f /local/config/docker_compose.toml
     ports:
-      - "${HYPERSWITCH_SERVER_PORT:-8080}:8080"
+      - "8080:8080"
     networks:
       - router_net
     volumes:
@@ -176,7 +176,7 @@ services:
     image: docker.juspay.io/juspaydotin/hyperswitch-web:latest
     pull_policy: always
     ports:
-      - "${HYPERSWITCH_WEB_PORT:-9050}:9050"
+      - "9050:9050"
     networks:
       - router_net
     depends_on:
@@ -195,7 +195,7 @@ services:
     image: docker.juspay.io/juspaydotin/hyperswitch-control-center:latest
     pull_policy: always
     ports:
-      - "${HYPERSWITCH_CONTROL_CENTER_PORT:-9000}:9000"
+      - "9000:9000"
     environment:
       - configPath=/tmp/dashboard-config.toml
     volumes:
@@ -218,7 +218,7 @@ services:
         condition: service_started
     environment:
       - HYPERSWITCH_SERVER_URL=http://hyperswitch-server:8080
-      - HYPERSWITCH_CONTROL_CENTER_URL=http://hyperswitch-control-center:9090  
+      - HYPERSWITCH_CONTROL_CENTER_URL=http://hyperswitch-control-center:9000  
     entrypoint:
       [
         "/bin/sh",
@@ -486,7 +486,7 @@ services:
     image: docker.juspay.io/juspaydotin/hyperswitch-react-demo-app:latest
     pull_policy: always
     ports:
-      - "${UNIFIED_CHECKOUT_PORT:-9060}:9060"
+      - "9060:9060"
       - "5252:5252"
     networks:
       - router_net

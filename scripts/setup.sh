@@ -167,83 +167,6 @@ detect_docker_compose() {
     fi
 }
 
-# Function to check if a port is in use (returns 0 if in use, 1 if available)
-check_port_availability() {
-    local port=$1
-    if command -v nc &>/dev/null; then
-        if nc -z localhost "${port}" 2>/dev/null; then
-            return 0 # Port is in use
-        else
-            return 1 # Port is available
-        fi
-    elif command -v lsof &>/dev/null; then
-        if lsof -i :"${port}" &>/dev/null; then
-            return 0 # Port is in use
-        else
-            return 1 # Port is available
-        fi
-    else
-        tools_available=false
-        return 1 # Unable to check, assume available
-    fi
-}
-
-# Function to find the next available port starting from a given port
-find_next_available_port() {
-    local port=$1
-    local next_port=$port
-
-    while check_port_availability "${next_port}"; do
-        next_port=$((next_port + 1))
-        # Add an upper bound to prevent infinite loop
-        if [[ $next_port -gt $((port + 1000)) ]]; then
-            echo_error "Could not find an available port in range ${port}-$((port + 1000))"
-            return $port # Return the original port if no available port found
-        fi
-    done
-
-    echo "${next_port}"
-}
-
-# Function to write port configuration to .oneclick-setup.env file
-write_env_file() {
-    local mode=$1
-    local env_file=".oneclick-setup.env"
-
-    echo "# One-Click Setup configuration" >"${env_file}"
-    echo "# Generated on $(date)" >>"${env_file}"
-    echo "" >>"${env_file}"
-
-    # Enable one-click setup mode
-    echo "ONE_CLICK_SETUP=true" >>"${env_file}"
-
-    if [[ "$mode" == "original" ]]; then
-        # Write original ports
-        for service_port in "${services_with_ports[@]}"; do
-            service="${service_port%%:*}"
-            port="${service_port##*:}"
-            # Convert service name to uppercase without using ${var^^} syntax
-            service_upper=$(echo "${service}" | tr '[:lower:]' '[:upper:]')
-            echo "${service_upper}_PORT=${port}" >>"${env_file}"
-        done
-        echo_info "Default ports written to ${env_file}"
-    elif [[ "${mode}" == "new" ]]; then
-        # Write new ports - all ports are in the new_service_ports array now
-        for i in "${!services_with_ports[@]}"; do
-            service="${services_with_ports[$i]%%:*}"
-            # Convert service name to uppercase without using ${var^^} syntax
-            service_upper=$(echo "${service}" | tr '[:lower:]' '[:upper:]')
-            echo "${service_upper}_PORT=${new_service_ports[$i]}" >>"${env_file}"
-        done
-        echo_info "New ports configuration written to ${env_file}"
-    else
-        echo_error "Invalid mode specified for writing env file"
-        return 1
-    fi
-
-    return 0
-}
-
 check_prerequisites() {
     # Check curl
     if ! command -v curl &>/dev/null; then
@@ -254,97 +177,38 @@ check_prerequisites() {
     echo_success "curl is installed."
     echo ""
 
-    # Define required services and ports
-    services_with_ports=("hyperswitch_server:8080" "hyperswitch_control_center:9000" "hyperswitch_web:9050" "postgres:5432" "redis:6379" "unified_checkout:9060")
+    # Check ports
+    required_ports=(8080 9000 9050 5432 6379 9060)
     unavailable_ports=()
-    services_with_unavailable_ports=()
-    new_service_ports=()
-    new_available_ports=()
-    tools_available=true
 
-    # Check each port and collect unavailable ones
-    for service_port in "${services_with_ports[@]}"; do
-        service="${service_port%%:*}"
-        port="${service_port##*:}"
-
-        if [ "${tools_available}" = false ]; then
-            break
-        fi
-        if check_port_availability "${port}"; then
-            unavailable_ports+=("${port}")
-            services_with_unavailable_ports+=("${service_port}")
-
-            # Find next available port
-            next_port=$(find_next_available_port "${port}")
-            new_available_ports+=("${next_port}")
-            new_service_ports+=("${next_port}")
+    for port in "${required_ports[@]}"; do
+        if command -v nc &>/dev/null; then
+            if nc -z localhost "$port" 2>/dev/null; then
+                unavailable_ports+=("$port")
+            fi
+        elif command -v lsof &>/dev/null; then
+            if lsof -i :"$port" &>/dev/null; then
+                unavailable_ports+=("$port")
+            fi
         else
-            new_service_ports+=("${port}") # Empty string for available ports
+            echo_warning "Neither nc nor lsof available to check ports. Skipping port check."
+            echo ""
+            break
         fi
     done
 
-    # Report the results
     if [ ${#unavailable_ports[@]} -ne 0 ]; then
+        echo_warning "The following ports are already in use: ${unavailable_ports[*]}"
+        echo_warning "This might cause conflicts with Hyperswitch services."
         echo ""
-        echo_warning "The following ports are already in use:"
-        for i in "${!unavailable_ports[@]}"; do
-            service="${services_with_unavailable_ports[$i]%%:*}"
-            port="${unavailable_ports[$i]}"
-            next="${new_available_ports[$i]}"
-            echo " - ${service}: Port ${port} is in use, next available: ${next}"
-        done
-        echo ""
-
-        # Present options to the user
-        printf "Please choose one of the following options:\n"
-        printf "1) ${YELLOW}Use the next available ports${NC} : ${BLUE}[Default]${NC}\n"
-        printf "   This will automatically select alternative free ports for services\n"
-        printf "\n"
-        printf "2) ${YELLOW}Override existing ports${NC} :\n"
-        printf "   This will attempt to use the default ports even though they appear to be in use\n"
-        printf "   ${YELLOW}[Warning]${NC}: This may cause conflicts with existing services\n"
-        printf "\n"
-        printf "3) ${YELLOW}Exit the process${NC} :\n"
-        printf "   This will terminate the setup without making any changes\n"
-
-        local ports_option_selected=false
-        while [ "${ports_option_selected}" = "false" ]; do
-            echo -n "Enter your choice (1-3): "
-            read -n 1 user_choice
-            user_choice=${user_choice:-1}
-            echo
-
-            case $user_choice in
-            1)
-                echo_success "Using next available ports."
-                ports_option_selected=true
-                write_env_file "new"
-                ;;
-            2)
-                echo_warning "You chose to override the ports. This might cause conflicts."
-                ports_option_selected=true
-                write_env_file "original"
-                ;;
-            3)
-                echo_warning "Exiting the process."
-                ports_option_selected=true
-                handle_interrupt
-                exit 0
-                ;;
-            *)
-                echo_error "Invalid choice. Please enter 1, 2, or 3."
-                ;;
-            esac
-        done
-    else
-        if [ "${tools_available}" = "false" ]; then
-            echo_warning "Neither nc nor lsof available to check ports. Assuming ports are available."
-        else
-            echo_success "All required ports are available."
+        echo -n "Do you want to continue anyway? (y/n): "
+        read -n 1 -r REPLY
+        echo
+        if [[ ! $REPLY =~ ^[Yy]$ ]]; then
+            exit 1
         fi
+    else
         echo ""
-        # Write the original ports to the env file since all are available
-        write_env_file "original"
     fi
 }
 
@@ -353,7 +217,15 @@ setup_config() {
         echo_error "Configuration file 'config/docker_compose.toml' not found. Please ensure the file exists and is correctly configured."
         exit 1
     fi
-    HYPERSWITCH_BASE_URL="http://localhost:${HYPERSWITCH_SERVER_PORT:-8080}"
+
+    # Create an .env file for one-click setup
+    local env_file=".oneclick-setup.env"
+    echo "# One-Click Setup configuration" >"${env_file}"
+    echo "# Generated on $(date)" >>"${env_file}"
+    echo "" >>"${env_file}"
+
+    # Enable one-click setup mode
+    echo "ONE_CLICK_SETUP=true" >>"${env_file}"
 }
 
 select_profile() {
@@ -424,18 +296,27 @@ start_services() {
 }
 
 check_services_health() {
+    HYPERSWITCH_BASE_URL="http://localhost:8080"
     HYPERSWITCH_HEALTH_URL="${HYPERSWITCH_BASE_URL}/health"
+    HYPERSWITCH_DEEP_HEALTH_URL="${HYPERSWITCH_BASE_URL}/health/ready"
 
     # Basic health check
-    base_response=$(curl --silent --fail "${HYPERSWITCH_HEALTH_URL}") || exit 0
-    if [ "${base_response}" != "health is good" ]; then
+    health_response=$(curl --silent --fail "${HYPERSWITCH_HEALTH_URL}") || exit 0
+    if [ "${health_response}" != "health is good" ]; then
         exit 0
     fi
+
+    # Deep health check
+    deep_health_response=$(curl --silent "${HYPERSWITCH_DEEP_HEALTH_URL}") || exit 0
+    if [[ "$(echo "${deep_health_response}" | jq --raw-output '.error')" != "null" ]]; then
+        exit 0
+    fi
+
     # Extract version
     VERSION=$(curl --silent --output /dev/null --request GET --write-out '%header{x-hyperswitch-version}' "${HYPERSWITCH_BASE_URL}" | sed 's/-dirty$//')
     INSTALLATION_STATUS="success"
-    scarf_call
     print_access_info
+    scarf_call
 }
 
 print_access_info() {
