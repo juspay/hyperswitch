@@ -761,13 +761,16 @@ async fn create_order_at_connector<F: Clone>(
         .await
         .to_payment_failed_response()?;
 
-        let create_order_resp = resp.response.map(|res| {
-            if let types::PaymentsResponseData::PaymentsCreateOrderResponse { order_id } = res {
-                Some(order_id)
-            } else {
-                None
+        let create_order_resp = match resp.response {
+            Ok(res) => {
+                if let types::PaymentsResponseData::PaymentsCreateOrderResponse { order_id } = res {
+                    Ok(Some(order_id))
+                } else {
+                    Ok(None)
+                }
             }
-        });
+            Err(error) => Err(error),
+        };
 
         Ok(types::CreateOrderResult {
             create_order_result: create_order_resp,
