@@ -1746,8 +1746,8 @@ where
             .await
             .to_not_found_response(errors::ApiErrorResponse::Unauthorized)?;
 
-        if let Some(organization_id) = &self.organization_id {
-            if organization_id != &merchant.organization_id {
+        if let Some(ref organization_id) = self.organization_id {
+            if organization_id != merchant.get_org_id() {
                 return Err(
                     report!(errors::ApiErrorResponse::Unauthorized).attach_printable(
                         "Organization ID from request and merchant account does not match",
