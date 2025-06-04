@@ -4195,6 +4195,7 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsSessionD
             email: payment_data.email,
             surcharge_details: payment_data.surcharge_details,
             apple_pay_recurring_details,
+            customer_name: None,
         })
     }
 }

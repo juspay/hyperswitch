@@ -5857,6 +5857,7 @@ default_imp_for_external_vault_delete!(
     connectors::Wise,
     connectors::Worldline,
     connectors::Worldpay,
+    connectors::Worldpayvantiv,
     connectors::Worldpayxml,
     connectors::Wellsfargo,
     connectors::Vgs,
