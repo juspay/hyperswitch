@@ -1,4 +1,4 @@
-import { configs } from "@eslint/js";
+import { getCustomExchange } from "./Modifiers";
 
 export const customerAcceptance = {
   acceptance_type: "offline",
@@ -221,6 +221,15 @@ export const connectorDetails = {
         },
       },
     },
+    ZeroAuthMandate: {
+      Response: {
+        status: 200,
+        body: {
+          amount: 0,
+          status: "processing",
+        },
+      },
+    },
     PaymentMethodIdMandate3DSAutoCapture: {
       Request: {
         payment_method: "card",
@@ -257,6 +266,40 @@ export const connectorDetails = {
           payment_method_data: paymentMethodData3DSResponse,
         },
       },
+    },
+    MITAutoCapture: getCustomExchange({
+      ResponseCustom: {
+        status: 200,
+        body: {
+          status: "processing",
+        },
+      }
+    }),
+    ZeroAuthPaymentIntent: {
+      Request: {
+        amount: 0,
+        setup_future_usage: "off_session",
+        currency: "USD",
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_payment_method",
+          setup_future_usage: "off_session",
+        },
+      },
+    },
+    ZeroAuthConfirmPayment: {
+      Response: {
+        status: 422,
+        body: {
+          error: {
+            type: "invalid_request",
+            message: "A payment token or payment method data or ctp service details is required",
+            code: "IR_06",
+          },
+        },
+      }
     },
   },
 };
