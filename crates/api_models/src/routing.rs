@@ -608,6 +608,8 @@ pub struct DynamicRoutingAlgorithmRef {
     pub dynamic_routing_volume_split: Option<u8>,
     pub elimination_routing_algorithm: Option<EliminationRoutingAlgorithm>,
     pub contract_based_routing: Option<ContractRoutingAlgorithm>,
+    #[serde(default)]
+    pub is_merchant_created_in_decision_engine: bool,
 }
 
 pub trait DynamicRoutingAlgoAccessor {
@@ -715,6 +717,10 @@ impl DynamicRoutingAlgorithmRef {
 
     pub fn update_volume_split(&mut self, volume: Option<u8>) {
         self.dynamic_routing_volume_split = volume
+    }
+
+    pub fn update_merchant_creation_status_in_decision_engine(&mut self, is_created: bool) {
+        self.is_merchant_created_in_decision_engine = is_created;
     }
 
     pub fn is_success_rate_routing_enabled(&self) -> bool {
