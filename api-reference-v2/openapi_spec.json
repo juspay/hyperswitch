@@ -9471,7 +9471,7 @@
           }
         }
       },
-      "CustomerPaymentMethod": {
+      "CustomerPaymentMethodResponseItem": {
         "type": "object",
         "required": [
           "id",
@@ -9583,7 +9583,7 @@
           "customer_payment_methods": {
             "type": "array",
             "items": {
-              "$ref": "#/components/schemas/CustomerPaymentMethod"
+              "$ref": "#/components/schemas/CustomerPaymentMethodResponseItem"
             },
             "description": "List of payment methods for customer"
           }
@@ -16774,7 +16774,7 @@
           "customer_payment_methods": {
             "type": "array",
             "items": {
-              "$ref": "#/components/schemas/CustomerPaymentMethod"
+              "$ref": "#/components/schemas/CustomerPaymentMethodResponseItem"
             },
             "description": "The list of saved payment methods of the customer"
           }
@@ -16796,7 +16796,7 @@
           "customer_payment_methods": {
             "type": "array",
             "items": {
-              "$ref": "#/components/schemas/CustomerPaymentMethod"
+              "$ref": "#/components/schemas/CustomerPaymentMethodResponseItem"
             },
             "description": "The list of payment methods that are saved by the given customer\nThis field is only returned if the customer_id is provided in the request",
             "nullable": true
@@ -18611,12 +18611,6 @@
           "is_iframe_redirection_enabled": {
             "type": "boolean",
             "description": "Indicates if the redirection has to open in the iframe",
-            "nullable": true
-          },
-          "payment_token": {
-            "type": "string",
-            "description": "Provide a reference to a stored payment method",
-            "example": "187282ab-40ef-47a9-9206-5099ba31e432",
             "nullable": true
           }
         },

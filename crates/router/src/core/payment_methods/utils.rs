@@ -841,11 +841,9 @@ pub async fn retrieve_payment_token_data(
             },
         ))?;
 
-    let token_data_result = token_data_string
+    token_data_string
         .clone()
         .parse_struct("PaymentTokenData")
         .change_context(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable("failed to deserialize hyperswitch token data");
-
-    token_data_result
+        .attach_printable("failed to deserialize hyperswitch token data")
 }
