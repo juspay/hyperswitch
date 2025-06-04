@@ -2,7 +2,10 @@ use ::payment_methods::{
     controller::PaymentMethodsController,
     core::{migration, migration::payment_methods::migrate_payment_method},
 };
-#[cfg(any(feature = "v1", feature = "olap", feature = "oltp"))]
+#[cfg(all(
+    feature = "v1", 
+    any(feature = "olap", feature = "oltp")
+))]
 use actix_multipart::form::MultipartForm;
 use actix_web::{web, HttpRequest, HttpResponse};
 use common_utils::{errors::CustomResult, id_type, transformers::ForeignFrom};
@@ -27,7 +30,10 @@ use crate::{
         storage::payment_method::PaymentTokenData,
     },
 };
-#[cfg(feature = "v1")]
+#[cfg(all(
+    feature = "v1", 
+    any(feature = "olap", feature = "oltp")
+))]
 use crate::{
     core::{customers, payment_methods::tokenize},
     types::api::customers::CustomerRequest,
@@ -326,7 +332,10 @@ async fn get_merchant_account(
     Ok((key_store, merchant_account))
 }
 
-#[cfg(feature = "v1")]
+#[cfg(all(
+    feature = "v1", 
+    any(feature = "olap", feature = "oltp")
+))]
 #[instrument(skip_all, fields(flow = ?Flow::PaymentMethodsMigrate))]
 pub async fn migrate_payment_methods(
     state: web::Data<AppState>,
@@ -1101,7 +1110,10 @@ pub async fn tokenize_card_api(
     .await
 }
 
-#[cfg(feature = "v1")]
+#[cfg(all(
+    feature = "v1", 
+    any(feature = "olap", feature = "oltp")
+))]
 #[instrument(skip_all, fields(flow = ?Flow::TokenizeCardUsingPaymentMethodId))]
 pub async fn tokenize_card_using_pm_api(
     state: web::Data<AppState>,
@@ -1147,7 +1159,10 @@ pub async fn tokenize_card_using_pm_api(
     .await
 }
 
-#[cfg(feature = "v1")]
+#[cfg(all(
+    feature = "v1", 
+    any(feature = "olap", feature = "oltp")
+))]
 #[instrument(skip_all, fields(flow = ?Flow::TokenizeCardBatch))]
 pub async fn tokenize_card_batch_api(
     state: web::Data<AppState>,
