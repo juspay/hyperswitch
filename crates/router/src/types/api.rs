@@ -569,9 +569,9 @@ impl ConnectorData {
                 enums::Connector::Worldpay => {
                     Ok(ConnectorEnum::Old(Box::new(connector::Worldpay::new())))
                 }
-                // enums::Connector::Worldpayvantiv => {
-                //     Ok(ConnectorEnum::Old(Box::new(connector::Worldpayvantiv::new())))
-                // }
+                enums::Connector::Worldpayvantiv => Ok(ConnectorEnum::Old(Box::new(
+                    connector::Worldpayvantiv::new(),
+                ))),
                 enums::Connector::Worldpayxml => {
                     Ok(ConnectorEnum::Old(Box::new(connector::Worldpayxml::new())))
                 }
