@@ -196,6 +196,9 @@ max_age = 365
 outgoing_enabled = true
 redis_lock_expiry_seconds = 180             # 3 * 60 seconds
 
+[merchant_id_auth]
+merchant_id_auth_enabled = false
+
 [eph_key]
 validity = 1
 

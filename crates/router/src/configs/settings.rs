@@ -158,6 +158,7 @@ pub struct Settings<S: SecretState> {
     #[cfg(feature = "v2")]
     pub revenue_recovery: revenue_recovery::RevenueRecoverySettings,
     pub clone_connector_allowlist: Option<CloneConnectorAllowlistConfig>,
+    pub merchant_id_auth: MerchantIdAuthSettings,
 }
 
 #[derive(Debug, Deserialize, Clone, Default)]
@@ -803,6 +804,12 @@ pub struct DrainerSettings {
     pub max_read_count: u64,
     pub shutdown_interval: u32, // in milliseconds
     pub loop_interval: u32,     // in milliseconds
+}
+
+#[derive(Debug, Clone, Default, Deserialize)]
+#[serde(default)]
+pub struct MerchantIdAuthSettings {
+    pub merchant_id_auth_enabled: bool,
 }
 
 #[derive(Debug, Clone, Default, Deserialize)]

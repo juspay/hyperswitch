@@ -262,24 +262,9 @@ pub async fn payments_create_and_confirm_intent(
         }
     };
 
-    Box::pin(api::server_wrap(
-        flow,
-        state,
-        &req,
-        json_payload.into_inner(),
-        |state, auth: auth::AuthenticationData, request, req_state| {
-            let merchant_context = domain::MerchantContext::NormalMerchant(Box::new(
-                domain::Context(auth.merchant_account, auth.key_store),
-            ));
-            payments::payments_create_and_confirm_intent(
-                state,
-                req_state,
-                merchant_context,
-                auth.profile,
-                request,
-                header_payload.clone(),
-            )
-        },
+    let auth_type = if state.conf.merchant_id_auth.merchant_id_auth_enabled {
+        &auth::MerchantIdAuth()
+    } else {
         match env::which() {
             env::Env::Production => &auth::V2ApiKeyAuth {
                 is_connected_allowed: false,
@@ -295,7 +280,57 @@ pub async fn payments_create_and_confirm_intent(
                 },
                 req.headers(),
             ),
+        }
+    };
+
+    Box::pin(api::server_wrap(
+        flow,
+        state,
+        &req,
+        json_payload.into_inner(),
+        |state, auth: auth::AuthenticationData, request, req_state| {
+            let merchant_context = domain::MerchantContext::NormalMerchant(Box::new(
+                domain::Context(auth.merchant_account, auth.key_store),
+            ));
+            payments::payments_create_and_confirm_intent(
+                state.clone(),
+                req_state,
+                merchant_context,
+                auth.profile,
+                request,
+                header_payload.clone(),
+            )
         },
+        // if state.conf.merchant_id_auth_enabled {
+        //     let merchant_id = match json_payload.merchant_id.clone() {
+        //         Some(id) => id,
+        //         None => {
+        //             let err = errors::ApiErrorResponse::MissingRequiredField {
+        //                 field_name: "merchant_id"
+        //             };
+        //             return api::log_and_return_error_response(err.into());
+        //         }
+        //     };
+        //     &auth::MerchantIdAuth(merchant_id)
+        // } else {
+        //     match env::which() {
+        //         env::Env::Production => &auth::V2ApiKeyAuth {
+        //             is_connected_allowed: false,
+        //             is_platform_allowed: false,
+        //         },
+        //         _ => auth::auth_type(
+        //             &auth::V2ApiKeyAuth {
+        //                 is_connected_allowed: false,
+        //                 is_platform_allowed: false,
+        //             },
+        //             &auth::JWTAuth {
+        //                 permission: Permission::ProfilePaymentWrite,
+        //             },
+        //             req.headers(),
+        //         ),
+        //     }
+        // },
+        auth_type,
         api_locking::LockAction::NotApplicable,
     ))
     .await
