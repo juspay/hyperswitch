@@ -698,7 +698,7 @@ where
             );
             err.current_context().status_code().as_u16().into()
         }
-    }
+    };
 
     let infra = state.infra_components.clone();
 
