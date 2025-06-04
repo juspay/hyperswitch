@@ -11,6 +11,7 @@ use crate::{
     core::{
         admin,
         errors::{self, CustomResult, RouterResult, StorageErrorExt},
+        payment_methods,
         payments::{
             self, call_decision_manager, helpers,
             operations::{self, ValidateStatusForOperation},
@@ -377,35 +378,11 @@ impl<F: Clone + Send + Sync> Domain<F, PaymentsConfirmIntentRequest, PaymentConf
         business_profile: &domain::Profile,
         payment_data: &mut PaymentConfirmData<F>,
     ) -> CustomResult<(), errors::ApiErrorResponse> {
-        let db = &*state.store;
-        let key_manager_state = &state.into();
-
-        let storage_scheme = merchant_context.get_merchant_account().storage_scheme;
-
         let (payment_method, payment_method_data) = if let Some(payment_token) =
             payment_data.payment_attempt.payment_token.clone()
         {
-            let pm_token_data = helpers::retrieve_payment_token_data(
-                state,
-                payment_token.to_string(),
-                Some(payment_data.payment_attempt.payment_method_type),
-            )
-            .await?;
-
-            let payment_method_id = match pm_token_data {
-                storage::PaymentTokenData::PermanentCard(card_token_data) => {
-                    Some(card_token_data.payment_method_id)
-                }
-                storage::PaymentTokenData::TemporaryGeneric(_) => None,
-                storage::PaymentTokenData::AuthBankDebit(_) => None,
-            };
-
             let (card_cvc, card_holder_name) = match &payment_data.payment_method_data {
-                Some(
-                    hyperswitch_domain_models::payment_method_data::PaymentMethodData::CardToken(
-                        card_token,
-                    ),
-                ) => (
+                Some(domain::payment_method_data::PaymentMethodData::CardToken(card_token)) => (
                     card_token
                         .card_cvc
                         .clone()
@@ -425,106 +402,80 @@ impl<F: Clone + Send + Sync> Domain<F, PaymentsConfirmIntentRequest, PaymentConf
                 }
             };
 
-            if let Some(pm_id) = payment_method_id.clone() {
-                let payment_method = db
-                    .find_payment_method(
-                        key_manager_state,
-                        merchant_context.get_merchant_key_store(),
-                        &pm_id,
-                        storage_scheme,
-                    )
-                    .await
-                    .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
+            let (payment_method, vault_data) =
+                payment_methods::vault::retrieve_payment_method_from_vault_using_payment_token(
+                    state,
+                    merchant_context,
+                    business_profile,
+                    &payment_token,
+                    &payment_data.payment_attempt.payment_method_type,
+                )
+                .await
+                .change_context(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable("Failed to retrieve payment method from vault")?;
 
-                let vault_data =
-                    crate::core::payment_methods::vault::retrieve_payment_method_from_vault(
-                        state,
-                        merchant_context,
-                        business_profile,
-                        &payment_method,
-                    )
-                    .await
-                    .change_context(errors::ApiErrorResponse::InternalServerError)
-                    .attach_printable("Failed to retrieve payment method from vault")?
-                    .data;
+            match vault_data {
+                domain::vault::PaymentMethodVaultingData::Card(card_detail) => {
+                    let pm_data_from_vault = domain::payment_method_data::PaymentMethodData::Card(
+                        domain::payment_method_data::Card::from((
+                            card_detail,
+                            card_cvc,
+                            card_holder_name,
+                        )),
+                    );
 
-                match vault_data {
-                    hyperswitch_domain_models::vault::PaymentMethodVaultingData::Card(
-                        card_detail,
-                    ) => {
-                        let pm_data_from_vault =
-                            hyperswitch_domain_models::payment_method_data::PaymentMethodData::Card(
-                                hyperswitch_domain_models::payment_method_data::Card::from((
-                                    card_detail,
-                                    card_cvc,
-                                    card_holder_name,
-                                )),
-                            );
-
-                        (Some(payment_method), Some(pm_data_from_vault))
-                    }
-                    _ => Err(errors::ApiErrorResponse::NotImplemented {
-                        message: errors::NotImplementedMessage::Reason(
-                            "Non-card Tokenization not implemented".to_string(),
-                        ),
-                    })?,
+                    (Some(payment_method), Some(pm_data_from_vault))
                 }
-            } else {
-                (None, None)
+                _ => Err(errors::ApiErrorResponse::NotImplemented {
+                    message: errors::NotImplementedMessage::Reason(
+                        "Non-card Tokenization not implemented".to_string(),
+                    ),
+                })?,
             }
         } else {
-            match &payment_data.payment_method_data {
-                Some(hyperswitch_domain_models::payment_method_data::PaymentMethodData::Card(
-                    card,
-                )) => {
-                    let card = card.clone();
-                    if let Some(customer_acceptance) =
-                        payment_data.payment_attempt.customer_acceptance.clone()
-                    {
-                        let customer_id = match &payment_data.payment_intent.customer_id {
-                            Some(customer_id) => customer_id.clone(),
-                            None => {
-                                return Err(errors::ApiErrorResponse::InvalidDataValue {
-                                    field_name: "customer_id",
-                                })
-                                .attach_printable("customer_id not provided");
-                            }
-                        };
-                        let pm_create_data =
-                            api_models::payment_methods::PaymentMethodCreateData::Card(
-                                api_models::payment_methods::CardDetail::from(card),
-                            );
+            // If payment_token is not present, we try to vault the payment_method_data
+            match (
+                &payment_data.payment_method_data,
+                &payment_data.payment_attempt.customer_acceptance,
+            ) {
+                (Some(domain::PaymentMethodData::Card(card)), Some(_customer_acceptance)) => {
+                    let customer_id = match &payment_data.payment_intent.customer_id {
+                        Some(customer_id) => customer_id.clone(),
+                        None => {
+                            return Err(errors::ApiErrorResponse::InvalidDataValue {
+                                field_name: "customer_id",
+                            })
+                            .attach_printable("customer_id not provided");
+                        }
+                    };
 
-                        let req = api_models::payment_methods::PaymentMethodCreate {
-                            payment_method_type: payment_data.payment_attempt.payment_method_type,
-                            payment_method_subtype: payment_data
-                                .payment_attempt
-                                .payment_method_subtype,
-                            metadata: None,
-                            customer_id,
-                            payment_method_data: pm_create_data,
-                            billing: None,
-                            psp_tokenization: None,
-                            network_tokenization: None,
-                        };
+                    let pm_create_data =
+                        api::PaymentMethodCreateData::Card(api::CardDetail::from(card.clone()));
 
-                        let (_pm_response, payment_method) =
-                            crate::core::payment_methods::create_payment_method_core(
-                                state,
-                                &state.get_req_state(),
-                                req,
-                                merchant_context,
-                                business_profile,
-                            )
-                            .await?;
+                    let req = api::PaymentMethodCreate {
+                        payment_method_type: payment_data.payment_attempt.payment_method_type,
+                        payment_method_subtype: payment_data.payment_attempt.payment_method_subtype,
+                        metadata: None,
+                        customer_id,
+                        payment_method_data: pm_create_data,
+                        billing: None,
+                        psp_tokenization: None,
+                        network_tokenization: None,
+                    };
 
-                        (Some(payment_method), None)
-                    } else {
-                        // If customer_acceptance is not present, we will not have a payment_method_id from the vault
-                        (None, None)
-                    }
+                    let (_pm_response, payment_method) =
+                        payment_methods::create_payment_method_core(
+                            state,
+                            &state.get_req_state(),
+                            req,
+                            merchant_context,
+                            business_profile,
+                        )
+                        .await?;
+
+                    (Some(payment_method), None)
                 }
-                // We only vault and return payment_method_id in case of card
+                // Only vault when PaymentMethodData is Card and customer_acceptance is provided
                 _ => (None, None),
             }
         };
@@ -533,7 +484,7 @@ impl<F: Clone + Send + Sync> Domain<F, PaymentsConfirmIntentRequest, PaymentConf
             payment_data.update_payment_method_data(pm_data);
         }
         if let Some(pm) = payment_method {
-            payment_data.update_payment_data(pm.get_id().clone(), pm);
+            payment_data.update_payment_method_and_pm_id(pm.get_id().clone(), pm);
         }
 
         Ok(())

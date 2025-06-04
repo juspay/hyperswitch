@@ -880,7 +880,7 @@ impl<F: Clone> PaymentConfirmData<F> {
         self.payment_method_data = Some(payment_method_data);
     }
 
-    pub fn update_payment_data(
+    pub fn update_payment_method_and_pm_id(
         &mut self,
         payment_method_id: id_type::GlobalPaymentMethodId,
         payment_method: payment_methods::PaymentMethod,

@@ -6,12 +6,22 @@ use api_models::{
     payment_methods::RequestPaymentMethodTypes,
 };
 use common_enums::enums;
+#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+use common_utils::ext_traits::OptionExt;
+#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+use common_utils::ext_traits::StringExt;
+#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+use error_stack::ResultExt;
 use euclid::frontend::dir;
 use hyperswitch_constraint_graph as cgraph;
 use kgraph_utils::{error::KgraphError, transformers::IntoDirValue};
 use masking::ExposeInterface;
 use storage_impl::redis::cache::{CacheKey, PM_FILTERS_CGRAPH_CACHE};
 
+#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+use crate::db::errors;
+#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+use crate::db::storage::{self, enums as storage_enums};
 use crate::{configs::settings, routes::SessionState};
 
 pub fn make_pm_graph(
@@ -797,4 +807,46 @@ fn compile_accepted_currency_for_mca(
             .make_all_aggregator(&agg_nodes, None, None::<()>, Some(domain_id))
             .map_err(KgraphError::GraphConstructionError)?,
     ))
+}
+
+#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+pub async fn retrieve_payment_token_data(
+    state: &SessionState,
+    token: String,
+    payment_method: Option<&storage_enums::PaymentMethod>,
+) -> errors::RouterResult<storage::PaymentTokenData> {
+    let redis_conn = state
+        .store
+        .get_redis_conn()
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Failed to get redis connection")?;
+
+    let key = format!(
+        "pm_token_{}_{}_hyperswitch",
+        token,
+        payment_method
+            .get_required_value("payment_method")
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Payment method is required")?
+    );
+
+    let token_data_string = redis_conn
+        .get_key::<Option<String>>(&key.into())
+        .await
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Failed to fetch the token from redis")?
+        .ok_or(error_stack::Report::new(
+            errors::ApiErrorResponse::UnprocessableEntity {
+                message: "Token is invalid or expired".to_owned(),
+            },
+        ))?;
+
+    let token_data_result = token_data_string
+        .clone()
+        .parse_struct("PaymentTokenData")
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("failed to deserialize hyperswitch token data");
+
+
+    token_data_result
 }
