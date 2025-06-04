@@ -3885,7 +3885,7 @@ impl ProfileCreateBridge for api::ProfileCreate {
             .map(CardTestingGuardConfig::foreign_from)
             .or(Some(CardTestingGuardConfig::default()));
 
-        // Validate acquirer configs check for dublicates
+        // Validate acquirer configs check for duplicates
         self.acquirer_configs
             .as_ref()
             .filter(|configs| configs.0.len() > 1)
@@ -4438,7 +4438,7 @@ impl ProfileUpdateBridge for api::ProfileUpdate {
             }
         };
 
-        // Validate acquirer configs check for dublicates
+        // Validate acquirer configs check for duplicates
         self.acquirer_configs
             .as_ref()
             .filter(|configs| configs.0.len() > 1)
