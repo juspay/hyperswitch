@@ -5,7 +5,12 @@
 
 <h1 align="center">Composable Open-Source Payments Infrastructure</h1>
 
-![Quickstart demo](https://github.com/juspay/hyperswitch/blob/main/docs/gifs/quickstart.gif)
+<p align="center">
+  <img src="https://raw.githubusercontent.com/juspay/hyperswitch/main/docs/gifs/quickstart.gif" alt="Quickstart demo" />
+</p>
+
+
+<!-- @import "[TOC]" {cmd="toc" depthFrom=1 depthTo=6 orderedList=false} -->
 
 <p align="center">
   <a href="https://github.com/juspay/hyperswitch/actions?query=workflow%3ACI+branch%3Amain">
@@ -100,35 +105,40 @@ cd hyperswitch
 scripts/setup.sh
 ```
 <details>
-This script:
-- Detects Docker/Podman
-- Offers multiple deployment profiles:
-  - **Standard**: App server + Control Center
-  - **Full**: Includes monitoring + schedulers
-  - **Minimal**: Standalone App server
-- Provides access links when done
+  <summary><strong>This script: </strong></summary>
 
-If you need further help, check out our [video tutorial](https://docs.hyperswitch.io/hyperswitch-open-source/overview/unified-local-setup-using-docker). 
+  - Detects Docker/Podman  
+  - Offers multiple deployment profiles:
+    - **Standard**: App server + Control Center  
+    - **Full**: Includes monitoring + schedulers  
+    - **Minimal**: Standalone App server  
+  - Provides access links when done
 
-👉 After setup, [configure a connector](https://docs.hyperswitch.io/hyperswitch-open-source/account-setup/using-hyperswitch-control-center#add-a-payment-processor) and [test a payment](https://docs.hyperswitch.io/hyperswitch-open-source/account-setup/test-a-payment).
+  If you need further help, check out our [video tutorial](https://docs.hyperswitch.io/hyperswitch-open-source/overview/unified-local-setup-using-docker).  
+
+  👉 After setup, [configure a connector](https://docs.hyperswitch.io/hyperswitch-open-source/account-setup/using-hyperswitch-control-center#add-a-payment-processor) and [test a payment](https://docs.hyperswitch.io/hyperswitch-open-source/account-setup/test-a-payment).
 </details>
+
 
 <h3>Hosted Sandbox (No Setup Required)</h3>
 
+Hyperswitch offers a fully hosted sandbox environment that requires no setup. You can explore the Control Center, configure payment connectors, and test payments directly from the UI.
+
    <a href="https://app.hyperswitch.io">
-     <img src="https://github.com/juspay/hyperswitch/blob/main/docs/imgs/aws_button.png?raw=true" height="35">
+     <img src="https://github.com/juspay/hyperswitch/blob/main/docs/imgs/try-the-sandbox.png?raw=true" height="35">
    </a>
 
-Sign up with any email.
 
 <details>
-- Access full Control Center
-- Configure connectors
-- View logs, routing rules, and retry strategies
-- Try payments directly from the UI
+  <summary><strong> What you can do in the Hosted Sandbox</strong></summary>
+
+  - Access the full Control Center  
+  - Configure payment connectors  
+  - View logs, routing rules, and retry strategies  
+  - Try payments directly from the UI  
 </details>
 
-<h3>Cloud Deployment</strong></h3>
+<h3><strong>Cloud Deployment</strong></h3>
 
 You can deploy to AWS, GCP, or Azure using Helm or CDK scripts. Fastest path:
 
@@ -137,13 +147,19 @@ Click to deploy via AWS:
    <a href="https://console.aws.amazon.com/cloudformation/home?region=us-east-1#/stacks/new?stackName=HyperswitchBootstarp&templateURL=https://hyperswitch-synth.s3.eu-central-1.amazonaws.com/hs-starter-config.yaml">
      <img src="https://github.com/juspay/hyperswitch/blob/main/docs/imgs/aws_button.png?raw=true" height="35">
    </a>
+
 <details>
+  <summary><strong>Cloud Deployment Instructions</strong></summary>
 
-2. Follow instructions in the console. Takes ~30–45 mins.
+  1. Click the AWS deployment button above to launch the stack.  
+  2. Follow the guided steps in the AWS Console (approx. 30–45 mins).  
 
-Full cloud install guide: [Deploy with Helm](https://docs.hyperswitch.io/hyperswitch-open-source/deploy-on-kubernetes-using-helm)
+  ✅ This setup provisions Hyperswitch on your cloud account using CloudFormation.  
 
+  📘 For full instructions and Helm-based deployments, check out the  
+  <a href="https://docs.hyperswitch.io/hyperswitch-open-source/deploy-on-kubernetes-using-helm">Cloud Install Guide</a>.
 </details>
+
 
 <a href="#architectural-overview">
   <h2 id="architectural-overview">Architectural Overview</h2>
