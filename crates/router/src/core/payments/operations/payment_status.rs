@@ -243,10 +243,7 @@ async fn get_tracker_for_sync<
     todo!()
 }
 
-#[cfg(all(
-    any(feature = "v2", feature = "v1"),
-    not(feature = "payment_methods_v2")
-))]
+#[cfg(feature = "v1")]
 #[allow(clippy::too_many_arguments)]
 async fn get_tracker_for_sync<
     'a,

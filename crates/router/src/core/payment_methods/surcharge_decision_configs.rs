@@ -3,10 +3,9 @@ use api_models::{
     payments, routing,
     surcharge_decision_configs::{self, SurchargeDecisionConfigs, SurchargeDecisionManagerRecord},
 };
-#[cfg(all(
-    any(feature = "v1", feature = "v2"),
-    not(feature = "payment_methods_v2")
-))]
+#[cfg(
+    any(feature = "v1", feature = "v2")
+ )]
 use common_utils::{ext_traits::StringExt, types as common_utils_types};
 #[cfg(feature = "v2")]
 use common_utils::{
@@ -288,10 +287,9 @@ pub async fn perform_surcharge_decision_management_for_session_flow(
     Ok(surcharge_metadata)
 }
 
-#[cfg(all(
-    any(feature = "v1", feature = "v2"),
-    not(feature = "payment_methods_v2")
-))]
+#[cfg(
+    any(feature = "v1", feature = "v2")
+ )]
 pub async fn perform_surcharge_decision_management_for_saved_cards(
     state: &SessionState,
     algorithm_ref: routing::RoutingAlgorithmRef,

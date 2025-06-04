@@ -1,10 +1,7 @@
 use std::str::FromStr;
 
 use actix_web::http::header::HeaderMap;
-#[cfg(all(
-    any(feature = "v2", feature = "v1"),
-    not(feature = "payment_methods_v2")
-))]
+#[cfg(feature = "v1")]
 use api_models::payment_methods::PaymentMethodCreate;
 #[cfg(feature = "v2")]
 use api_models::payment_methods::PaymentMethodIntentConfirm;
@@ -4144,10 +4141,7 @@ impl ClientSecretFetch for payments::PaymentsPostSessionTokensRequest {
     }
 }
 
-#[cfg(all(
-    any(feature = "v2", feature = "v1"),
-    not(feature = "payment_methods_v2")
-))]
+#[cfg(feature = "v1")]
 impl ClientSecretFetch for PaymentMethodCreate {
     fn get_client_secret(&self) -> Option<&String> {
         self.client_secret.as_ref()

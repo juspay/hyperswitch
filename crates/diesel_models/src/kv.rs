@@ -150,10 +150,7 @@ impl DBOperation {
                 Updateable::PayoutAttemptUpdate(a) => DBResult::PayoutAttempt(Box::new(
                     a.orig.update_with_attempt_id(conn, a.update_data).await?,
                 )),
-                #[cfg(all(
-                    any(feature = "v1", feature = "v2"),
-                    not(feature = "payment_methods_v2")
-                ))]
+                #[cfg(feature = "v1")]
                 Updateable::PaymentMethodUpdate(v) => DBResult::PaymentMethod(Box::new(
                     v.orig
                         .update_with_payment_method_id(conn, v.update_data)

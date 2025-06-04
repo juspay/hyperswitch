@@ -13,7 +13,6 @@ use url::Url;
 use super::helpers;
 #[cfg(all(
     any(feature = "v2", feature = "v1"),
-    not(feature = "payment_methods_v2"),
     not(feature = "customer_v2")
 ))]
 use crate::core::payment_methods::cards::get_pm_list_context;

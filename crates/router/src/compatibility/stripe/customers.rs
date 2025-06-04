@@ -23,7 +23,6 @@ use crate::{
 #[cfg(all(
     any(feature = "v1", feature = "v2"),
     not(feature = "customer_v2"),
-    not(feature = "payment_methods_v2")
 ))]
 #[instrument(skip_all, fields(flow = ?Flow::CustomersCreate))]
 pub async fn customer_create(
@@ -74,8 +73,7 @@ pub async fn customer_create(
 
 #[cfg(all(
     any(feature = "v1", feature = "v2"),
-    not(feature = "customer_v2"),
-    not(feature = "payment_methods_v2")
+    not(feature = "customer_v2")
 ))]
 #[instrument(skip_all, fields(flow = ?Flow::CustomersRetrieve))]
 pub async fn customer_retrieve(
@@ -118,8 +116,7 @@ pub async fn customer_retrieve(
 
 #[cfg(all(
     any(feature = "v1", feature = "v2"),
-    not(feature = "customer_v2"),
-    not(feature = "payment_methods_v2")
+    not(feature = "customer_v2")
 ))]
 #[instrument(skip_all, fields(flow = ?Flow::CustomersUpdate))]
 pub async fn customer_update(
@@ -176,8 +173,7 @@ pub async fn customer_update(
 
 #[cfg(all(
     any(feature = "v1", feature = "v2"),
-    not(feature = "customer_v2"),
-    not(feature = "payment_methods_v2")
+    not(feature = "customer_v2")
 ))]
 #[instrument(skip_all, fields(flow = ?Flow::CustomersDelete))]
 pub async fn customer_delete(
@@ -221,7 +217,6 @@ pub async fn customer_delete(
 #[cfg(all(
     any(feature = "v1", feature = "v2"),
     not(feature = "customer_v2"),
-    not(feature = "payment_methods_v2")
 ))]
 #[instrument(skip_all, fields(flow = ?Flow::CustomerPaymentMethodsList))]
 pub async fn list_customer_payment_method_api(

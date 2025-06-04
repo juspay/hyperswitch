@@ -38,7 +38,6 @@ pub struct VaultId(String);
 
 #[cfg(any(
     feature = "v2",
-    feature = "payment_methods_v2",
     feature = "tokenization_v2"
 ))]
 impl VaultId {
@@ -50,10 +49,9 @@ impl VaultId {
         Self(id)
     }
 }
-#[cfg(all(
-    any(feature = "v1", feature = "v2"),
-    not(feature = "payment_methods_v2")
-))]
+#[cfg(
+    any(feature = "v1", feature = "v2")
+ )]
 #[derive(Clone, Debug)]
 pub struct PaymentMethod {
     pub customer_id: id_type::CustomerId,
@@ -253,10 +251,9 @@ impl PaymentMethod {
     }
 }
 
-#[cfg(all(
-    any(feature = "v1", feature = "v2"),
-    not(feature = "payment_methods_v2")
-))]
+#[cfg(
+    any(feature = "v1", feature = "v2")
+ )]
 #[async_trait::async_trait]
 impl super::behaviour::Conversion for PaymentMethod {
     type DstType = diesel_models::payment_method::PaymentMethod;
@@ -742,10 +739,7 @@ pub trait PaymentMethodInterface {
         storage_scheme: MerchantStorageScheme,
     ) -> CustomResult<PaymentMethod, Self::Error>;
 
-    #[cfg(all(
-        any(feature = "v1", feature = "v2"),
-        not(feature = "payment_methods_v2")
-    ))]
+    #[cfg(feature = "v1")]
     async fn find_payment_method_by_locker_id(
         &self,
         state: &keymanager::KeyManagerState,
@@ -754,10 +748,7 @@ pub trait PaymentMethodInterface {
         storage_scheme: MerchantStorageScheme,
     ) -> CustomResult<PaymentMethod, Self::Error>;
 
-    #[cfg(all(
-        any(feature = "v1", feature = "v2"),
-        not(feature = "payment_methods_v2")
-    ))]
+    #[cfg(feature = "v1")]
     async fn find_payment_method_by_customer_id_merchant_id_list(
         &self,
         state: &keymanager::KeyManagerState,
@@ -803,10 +794,7 @@ pub trait PaymentMethodInterface {
         storage_scheme: MerchantStorageScheme,
     ) -> CustomResult<Vec<PaymentMethod>, Self::Error>;
 
-    #[cfg(all(
-        any(feature = "v1", feature = "v2"),
-        not(feature = "payment_methods_v2")
-    ))]
+    #[cfg(feature = "v1")]
     async fn get_payment_method_count_by_customer_id_merchant_id_status(
         &self,
         customer_id: &id_type::CustomerId,
@@ -853,10 +841,7 @@ pub trait PaymentMethodInterface {
         fingerprint_id: &str,
     ) -> CustomResult<PaymentMethod, Self::Error>;
 
-    #[cfg(all(
-        any(feature = "v1", feature = "v2"),
-        not(feature = "payment_methods_v2")
-    ))]
+    #[cfg(feature = "v1")]
     async fn delete_payment_method_by_merchant_id_payment_method_id(
         &self,
         state: &keymanager::KeyManagerState,
@@ -935,10 +920,9 @@ pub struct PaymentMethodsSessionUpdateInternal {
     pub tokenization_data: Option<pii::SecretSerdeValue>,
 }
 
-#[cfg(all(
-    any(feature = "v1", feature = "v2"),
-    not(feature = "payment_methods_v2")
-))]
+#[cfg(
+    any(feature = "v1", feature = "v2")
+ )]
 #[cfg(test)]
 mod tests {
     #![allow(clippy::unwrap_used)]

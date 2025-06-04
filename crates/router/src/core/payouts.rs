@@ -2103,10 +2103,7 @@ pub async fn create_recipient_disburse_account(
                 if let Some(pm_method) = payout_data.payment_method.clone() {
                     let pm_update =
                         diesel_models::PaymentMethodUpdate::ConnectorMandateDetailsUpdate {
-                            #[cfg(all(
-                                any(feature = "v1", feature = "v2"),
-                                not(feature = "payment_methods_v2")
-                            ))]
+                            #[cfg(feature = "v1")]
                             connector_mandate_details: Some(connector_mandate_details_value),
 
                             #[cfg(feature = "v2")]
@@ -2501,10 +2498,7 @@ pub async fn response_handler(
     let payouts = payout_data.payouts.to_owned();
 
     let payout_method_id: Option<String> = payout_data.payment_method.as_ref().map(|pm| {
-        #[cfg(all(
-            any(feature = "v1", feature = "v2"),
-            not(feature = "payment_methods_v2")
-        ))]
+        #[cfg(feature = "v1")]
         {
             pm.payment_method_id.clone()
         }

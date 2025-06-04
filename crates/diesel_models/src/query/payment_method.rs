@@ -1,8 +1,7 @@
 use async_bb8_diesel::AsyncRunQueryDsl;
-#[cfg(all(
-    any(feature = "v1", feature = "v2"),
-    not(feature = "payment_methods_v2")
-))]
+#[cfg(
+    any(feature = "v1", feature = "v2")
+ )]
 use diesel::Table;
 use diesel::{
     associations::HasTable, debug_query, pg::Pg, BoolExpressionMethods, ExpressionMethods, QueryDsl,
@@ -10,10 +9,9 @@ use diesel::{
 use error_stack::ResultExt;
 
 use super::generics;
-#[cfg(all(
-    any(feature = "v1", feature = "v2"),
-    not(feature = "payment_methods_v2")
-))]
+#[cfg(
+    any(feature = "v1", feature = "v2")
+ )]
 use crate::schema::payment_methods::dsl;
 #[cfg(feature = "v2")]
 use crate::schema_v2::payment_methods::dsl::{self, id as pm_id};
@@ -29,10 +27,9 @@ impl PaymentMethodNew {
     }
 }
 
-#[cfg(all(
-    any(feature = "v1", feature = "v2"),
-    not(feature = "payment_methods_v2")
-))]
+#[cfg(
+    any(feature = "v1", feature = "v2")
+ )]
 impl PaymentMethod {
     pub async fn delete_by_payment_method_id(
         conn: &PgPooledConn,

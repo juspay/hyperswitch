@@ -9,8 +9,7 @@ use crate::{db::errors::StorageErrorExt, routes, types::domain};
 
 #[cfg(all(
     feature = "v2",
-    feature = "customer_v2",
-    feature = "payment_methods_v2"
+    feature = "customer_v2"
 ))]
 pub async fn list_payment_methods(
     state: routes::SessionState,

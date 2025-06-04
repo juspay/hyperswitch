@@ -232,7 +232,7 @@ pub fn mk_app(
             .service(routes::Cards::server(state.clone()));
     }
 
-    #[cfg(all(feature = "oltp", feature = "v2", feature = "payment_methods_v2"))]
+    #[cfg(all(feature = "oltp", feature = "v2"))]
     {
         server_app = server_app.service(routes::Proxy::server(state.clone()));
     }

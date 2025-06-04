@@ -1,7 +1,6 @@
-#[cfg(all(
-    any(feature = "v1", feature = "v2"),
-    not(feature = "payment_methods_v2")
-))]
+#[cfg(
+    any(feature = "v1", feature = "v2")
+ )]
 use common_utils::errors::CustomResult;
 use common_utils::types::keymanager;
 use hyperswitch_domain_models::{
@@ -42,10 +41,9 @@ impl From<&PaymentMethodsState> for keymanager::KeyManagerState {
         state.key_manager_state.clone()
     }
 }
-#[cfg(all(
-    any(feature = "v1", feature = "v2"),
-    not(feature = "payment_methods_v2")
-))]
+#[cfg(
+    any(feature = "v1", feature = "v2")
+ )]
 impl PaymentMethodsState {
     pub async fn find_payment_method(
         &self,

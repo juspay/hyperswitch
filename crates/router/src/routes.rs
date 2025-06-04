@@ -75,7 +75,7 @@ pub mod proxy;
 pub use self::app::DummyConnector;
 #[cfg(feature = "v2")]
 pub use self::app::PaymentMethodSession;
-#[cfg(all(feature = "oltp", feature = "v2", feature = "payment_methods_v2"))]
+#[cfg(all(feature = "oltp", feature = "v2"))]
 pub use self::app::Proxy;
 #[cfg(all(feature = "olap", feature = "recon", feature = "v1"))]
 pub use self::app::Recon;

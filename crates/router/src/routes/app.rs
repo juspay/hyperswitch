@@ -579,8 +579,7 @@ pub struct Payments;
 
 #[cfg(all(
     any(feature = "olap", feature = "oltp"),
-    feature = "v2",
-    feature = "payment_methods_v2",
+    feature = "v2"
 ))]
 impl Payments {
     pub fn server(state: AppState) -> Scope {
@@ -673,7 +672,7 @@ impl Relay {
 #[cfg(feature = "v2")]
 pub struct Proxy;
 
-#[cfg(all(feature = "oltp", feature = "v2", feature = "payment_methods_v2"))]
+#[cfg(all(feature = "oltp", feature = "v2"))]
 impl Proxy {
     pub fn server(state: AppState) -> Scope {
         web::scope("/proxy")
@@ -1089,7 +1088,6 @@ impl Customers {
 #[cfg(all(
     any(feature = "v1", feature = "v2"),
     not(feature = "customer_v2"),
-    not(feature = "payment_methods_v2"),
     any(feature = "olap", feature = "oltp")
 ))]
 impl Customers {
@@ -1250,7 +1248,7 @@ impl Payouts {
     }
 }
 
-#[cfg(all(feature = "oltp", feature = "v2", feature = "payment_methods_v2",))]
+#[cfg(all(feature = "oltp", feature = "v2"))]
 impl PaymentMethods {
     pub fn server(state: AppState) -> Scope {
         let mut route = web::scope("/v2/payment-methods").app_data(web::Data::new(state));

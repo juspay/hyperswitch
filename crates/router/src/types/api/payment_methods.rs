@@ -15,10 +15,7 @@ pub use api_models::payment_methods::{
     TokenizedCardValue2, TokenizedWalletValue1, TokenizedWalletValue2,
     TotalPaymentMethodCountResponse,
 };
-#[cfg(all(
-    any(feature = "v2", feature = "v1"),
-    not(feature = "payment_methods_v2")
-))]
+#[cfg(feature = "v1")]
 pub use api_models::payment_methods::{
     CardDetail, CardDetailFromLocker, CardDetailsPaymentMethod, CardNetworkTokenizeRequest,
     CardNetworkTokenizeResponse, CustomerPaymentMethod, CustomerPaymentMethodsListResponse,
@@ -46,10 +43,7 @@ pub(crate) trait PaymentMethodCreateExt {
 }
 
 // convert self.payment_method_type to payment_method and compare it against self.payment_method
-#[cfg(all(
-    any(feature = "v2", feature = "v1"),
-    not(feature = "payment_methods_v2")
-))]
+#[cfg(feature = "v1")]
 impl PaymentMethodCreateExt for PaymentMethodCreate {
     fn validate(&self) -> RouterResult<()> {
         if let Some(pm) = self.payment_method {

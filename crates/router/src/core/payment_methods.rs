@@ -1,10 +1,9 @@
 pub mod cards;
 pub mod network_tokenization;
 pub mod surcharge_decision_configs;
-#[cfg(all(
-    any(feature = "v1", feature = "v2"),
-    not(feature = "payment_methods_v2")
-))]
+#[cfg(
+    any(feature = "v1", feature = "v2")
+ )]
 pub mod tokenize;
 pub mod transformers;
 pub mod utils;
@@ -41,7 +40,6 @@ use error_stack::{report, ResultExt};
 use hyperswitch_domain_models::api::{GenericLinks, GenericLinksData};
 #[cfg(all(
     feature = "v2",
-    feature = "payment_methods_v2",
     feature = "customer_v2"
 ))]
 use hyperswitch_domain_models::mandates::CommonMandateReference;
@@ -467,10 +465,9 @@ fn generate_task_id_for_payment_method_status_update_workflow(
     format!("{runner}_{task}_{key_id}")
 }
 
-#[cfg(all(
-    any(feature = "v1", feature = "v2"),
-    not(feature = "payment_methods_v2")
-))]
+#[cfg(
+    any(feature = "v1", feature = "v2")
+ )]
 pub async fn add_payment_method_status_update_task(
     db: &dyn StorageInterface,
     payment_method: &domain::PaymentMethod,
@@ -543,10 +540,9 @@ pub async fn retrieve_payment_method_with_token(
     todo!()
 }
 
-#[cfg(all(
-    any(feature = "v1", feature = "v2"),
-    not(feature = "payment_methods_v2")
-))]
+#[cfg(
+    any(feature = "v1", feature = "v2")
+ )]
 #[instrument(skip_all)]
 #[allow(clippy::too_many_arguments)]
 pub async fn retrieve_payment_method_with_token(
@@ -770,10 +766,9 @@ pub(crate) fn get_payment_method_create_request(
     }
 }
 
-#[cfg(all(
-    any(feature = "v1", feature = "v2"),
-    not(feature = "payment_methods_v2")
-))]
+#[cfg(
+    any(feature = "v1", feature = "v2")
+ )]
 #[instrument(skip_all)]
 pub(crate) async fn get_payment_method_create_request(
     payment_method_data: Option<&domain::PaymentMethodData>,
@@ -2009,7 +2004,6 @@ pub async fn vault_payment_method(
 #[allow(unused)]
 #[cfg(all(
     feature = "v2",
-    feature = "payment_methods_v2",
     feature = "customer_v2"
 ))]
 fn get_pm_list_context(

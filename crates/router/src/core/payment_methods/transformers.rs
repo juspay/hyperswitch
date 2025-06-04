@@ -407,9 +407,7 @@ pub async fn mk_add_locker_request_hs(
     Ok(request)
 }
 
-#[cfg(all(
-    any(feature = "v1", feature = "v2"),
-    not(feature = "payment_methods_v2"),
+#[cfg(all(feature = "v1",
     feature = "payouts"
 ))]
 pub fn mk_add_bank_response_hs(
@@ -436,7 +434,7 @@ pub fn mk_add_bank_response_hs(
     }
 }
 
-#[cfg(all(feature = "v2", feature = "payment_methods_v2", feature = "payouts"))]
+#[cfg(all(feature = "v2", feature = "payouts"))]
 pub fn mk_add_bank_response_hs(
     _bank: api::BankPayout,
     _bank_reference: String,
@@ -446,10 +444,7 @@ pub fn mk_add_bank_response_hs(
     todo!()
 }
 
-#[cfg(all(
-    any(feature = "v1", feature = "v2"),
-    not(feature = "payment_methods_v2")
-))]
+#[cfg(feature = "v1")]
 pub fn mk_add_card_response_hs(
     card: api::CardDetail,
     card_reference: String,
@@ -798,10 +793,9 @@ pub fn mk_delete_card_response(
     })
 }
 
-#[cfg(all(
-    any(feature = "v1", feature = "v2"),
-    not(feature = "payment_methods_v2")
-))]
+#[cfg(
+    any(feature = "v1", feature = "v2")
+ )]
 pub fn get_card_detail(
     pm: &domain::PaymentMethod,
     response: Card,

@@ -580,8 +580,7 @@ pub async fn list_customers(
 
 #[cfg(all(
     feature = "v2",
-    feature = "customer_v2",
-    feature = "payment_methods_v2"
+    feature = "customer_v2"
 ))]
 #[instrument(skip_all)]
 pub async fn delete_customer(
@@ -602,8 +601,7 @@ pub async fn delete_customer(
 
 #[cfg(all(
     feature = "v2",
-    feature = "customer_v2",
-    feature = "payment_methods_v2"
+    feature = "customer_v2"
 ))]
 #[async_trait::async_trait]
 impl CustomerDeleteBridge for id_type::GlobalCustomerId {
@@ -761,11 +759,7 @@ trait CustomerDeleteBridge {
     ) -> errors::CustomerResponse<customers::CustomerDeleteResponse>;
 }
 
-#[cfg(all(
-    any(feature = "v1", feature = "v2"),
-    not(feature = "customer_v2"),
-    not(feature = "payment_methods_v2")
-))]
+#[cfg(feature = "v1")]
 #[instrument(skip_all)]
 pub async fn delete_customer(
     state: SessionState,
@@ -784,11 +778,7 @@ pub async fn delete_customer(
         .await
 }
 
-#[cfg(all(
-    any(feature = "v1", feature = "v2"),
-    not(feature = "customer_v2"),
-    not(feature = "payment_methods_v2")
-))]
+#[cfg(feature = "v1")]
 #[async_trait::async_trait]
 impl CustomerDeleteBridge for id_type::CustomerId {
     async fn redact_customer_details_and_generate_response<'a>(
