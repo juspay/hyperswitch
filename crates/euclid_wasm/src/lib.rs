@@ -222,10 +222,22 @@ pub fn get_all_connectors() -> JsResult {
 
 #[wasm_bindgen(js_name = getAllKeys)]
 pub fn get_all_keys() -> JsResult {
+    let excluded_keys = [
+        "Connector",
+        // 3DS Decision Rule Keys should not be included in the payument routing keys
+        "IssuerName",
+        "IssuerCountry",
+        "CustomerDevicePlatform",
+        "CustomerDeviceType",
+        "CustomerDeviceDisplaySize",
+        "AcquirerCountry",
+        "AcquirerFraudRate",
+    ];
+
     let keys: Vec<&'static str> = dir::DirKeyKind::VARIANTS
         .iter()
         .copied()
-        .filter(|s| s != &"Connector")
+        .filter(|s| !excluded_keys.contains(s))
         .collect();
     Ok(serde_wasm_bindgen::to_value(&keys)?)
 }
