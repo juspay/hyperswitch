@@ -3949,9 +3949,18 @@ impl MerchantConnectorAccountType {
         }
     }
 
+    #[cfg(feature = "v1")]
     pub fn get_connector_name(&self) -> Option<String> {
         match self {
             Self::DbVal(db_val) => Some(db_val.connector_name.to_string()),
+            Self::CacheVal(_) => None,
+        }
+    }
+
+    #[cfg(feature = "v2")]
+    pub fn get_connector_name(&self) -> Option<api_enums::Connector> {
+        match self {
+            Self::DbVal(db_val) => Some(db_val.connector_name),
             Self::CacheVal(_) => None,
         }
     }
@@ -5289,12 +5298,6 @@ where
         .await
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Failed to get merchant default fallback connectors config")?;
-
-        #[cfg(feature = "v2")]
-        let fallback_connetors_list = core_admin::ProfileWrapper::new(business_profile)
-            .get_default_fallback_list_of_connector_under_profile()
-            .change_context(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable("Failed to get merchant default fallback connectors config")?;
 
         let mut routing_connector_data_list = Vec::new();
 
@@ -6875,6 +6878,34 @@ where
             }
         };
     };
+    Ok(())
+}
+
+pub async fn validate_routing_id_with_profile_id(
+    db: &dyn StorageInterface,
+    routing_id: &id_type::RoutingId,
+    profile_id: &id_type::ProfileId,
+) -> CustomResult<(), errors::ApiErrorResponse> {
+    let _routing_id = db
+        .find_routing_algorithm_metadata_by_algorithm_id_profile_id(routing_id, profile_id)
+        .await
+        .map_err(|err| {
+            if err.current_context().is_db_not_found() {
+                logger::warn!(
+                    "Routing id not found for routing id - {:?} and profile id - {:?}",
+                    routing_id,
+                    profile_id
+                );
+                err.change_context(errors::ApiErrorResponse::InvalidDataFormat {
+                    field_name: "routing_algorithm_id".to_string(),
+                    expected_format: "A valid routing_id that belongs to the business_profile"
+                        .to_string(),
+                })
+            } else {
+                err.change_context(errors::ApiErrorResponse::InternalServerError)
+                    .attach_printable("Failed to validate routing id")
+            }
+        })?;
     Ok(())
 }
 

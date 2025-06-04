@@ -4,6 +4,21 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2025.06.04.0
+
+### Features
+
+- **core:** Add support for consuming eci for AuthNResponse in Authentication flow ([#8225](https://github.com/juspay/hyperswitch/pull/8225)) ([`33cd60e`](https://github.com/juspay/hyperswitch/commit/33cd60e64288b2a6bb24cc27b9d319fdbeab46ef))
+- **payments:** Implement routing in payments v2 ([#7709](https://github.com/juspay/hyperswitch/pull/7709)) ([`8871f31`](https://github.com/juspay/hyperswitch/commit/8871f310fca7c5c2994c5265a694f74fbc027e71))
+
+### Refactors
+
+- **refunds_v2:** Add feature flags and db methods to non kv config ([#7987](https://github.com/juspay/hyperswitch/pull/7987)) ([`e6482fb`](https://github.com/juspay/hyperswitch/commit/e6482fbe84e2e7bcbcafa7ab95c8ab573bc4bed7))
+
+**Full Changelog:** [`2025.06.03.0...2025.06.04.0`](https://github.com/juspay/hyperswitch/compare/2025.06.03.0...2025.06.04.0)
+
+- - -
+
 ## 2025.06.03.0
 
 ### Features
