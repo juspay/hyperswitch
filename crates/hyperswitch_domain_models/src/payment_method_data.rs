@@ -1912,7 +1912,7 @@ impl PaymentMethodsData {
             None
         }
     }
-    #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+    #[cfg(feature = "v2")]
     pub fn get_co_badged_card_data(&self) -> Option<payment_methods::CoBadgedCardData> {
         todo!()
     }
@@ -1938,10 +1938,7 @@ fn saved_in_locker_default() -> bool {
     true
 }
 
-#[cfg(all(
-    any(feature = "v1", feature = "v2"),
-    not(feature = "payment_methods_v2")
-))]
+#[cfg(feature = "v1")]
 #[derive(Clone, Debug, Eq, PartialEq, serde::Deserialize, serde::Serialize)]
 pub struct CardDetailsPaymentMethod {
     pub last4_digits: Option<String>,
@@ -1959,7 +1956,7 @@ pub struct CardDetailsPaymentMethod {
     pub co_badged_card_data: Option<payment_methods::CoBadgedCardData>,
 }
 
-#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+#[cfg(feature = "v2")]
 #[derive(Clone, Debug, Eq, PartialEq, serde::Deserialize, serde::Serialize)]
 pub struct CardDetailsPaymentMethod {
     pub last4_digits: Option<String>,
@@ -1976,7 +1973,7 @@ pub struct CardDetailsPaymentMethod {
     pub saved_to_locker: bool,
 }
 
-#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+#[cfg(feature = "v2")]
 impl CardDetailsPaymentMethod {
     pub fn to_card_details_from_locker(self) -> payment_methods::CardDetailFromLocker {
         payment_methods::CardDetailFromLocker {
