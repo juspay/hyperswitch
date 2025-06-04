@@ -111,16 +111,19 @@ async fn deep_health_check_func(
     logger::debug!("Decision Engine health check begin");
 
     #[cfg(feature = "dynamic_routing")]
-    let decision_engine_health_check = state.health_check_decision_engine().await.map_err(|error| {
-        let message = error.to_string();
-        error.change_context(errors::ApiErrorResponse::HealthCheckError {
-            component: "Decision Engine service",
-            message,
-        })
-    })?;
+    let decision_engine_health_check =
+        state
+            .health_check_decision_engine()
+            .await
+            .map_err(|error| {
+                let message = error.to_string();
+                error.change_context(errors::ApiErrorResponse::HealthCheckError {
+                    component: "Decision Engine service",
+                    message,
+                })
+            })?;
 
     logger::debug!("Decision Engine health check end");
-
 
     logger::debug!("Opensearch health check begin");
 
