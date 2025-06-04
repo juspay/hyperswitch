@@ -20,7 +20,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::{
     types::{RefundsResponseRouterData, ResponseRouterData},
-    utils::{self as connector_utils, CardData, PaymentsAuthorizeRequestData, RefundsRequestData},
+    utils::{self as connector_utils, CardData, PaymentsAuthorizeRequestData, RefundsRequestData, RouterData as _},
 };
 
 pub mod worldpayvantiv_constants {
@@ -554,6 +554,12 @@ impl TryFrom<&WorldpayvantivRouterData<&PaymentsAuthorizeRouterData>> for CnpOnl
     fn try_from(
         item: &WorldpayvantivRouterData<&PaymentsAuthorizeRouterData>,
     ) -> Result<Self, Self::Error> {
+        if item.router_data.is_three_ds() {
+            Err(errors::ConnectorError::NotSupported {
+                message: "Card 3DS".to_string(),
+                connector: "Worldpayvantiv",
+            })?
+        };
         let card = WorldpayvantivCardData::try_from(
             &item.router_data.request.payment_method_data.clone(),
         )?;
