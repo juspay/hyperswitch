@@ -77,6 +77,7 @@ impl From<Flow> for ApiIdentifier {
             | Flow::ToggleDynamicRouting
             | Flow::UpdateDynamicRoutingConfigs
             | Flow::DecisionManagerUpsertConfig
+            | Flow::RuleMigration
             | Flow::VolumeSplitOnRoutingType => Self::Routing,
 
             Flow::RetrieveForexFlow => Self::Forex,

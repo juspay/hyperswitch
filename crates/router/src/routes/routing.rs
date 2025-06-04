@@ -1576,7 +1576,7 @@ pub async fn migrate_routing_rules_for_profile(
             let merchant_context = domain::MerchantContext::NormalMerchant(Box::new(
                 domain::Context(auth.merchant_account, auth.key_store),
             ));
-            routing::migrate_rules_for_profile(state, merchant_context, query.0)
+            routing::migrate_rules_for_profile(state, merchant_context, query_params)
         },
         auth::auth_type(
             &auth::HeaderAuth(auth::ApiKeyAuth {
