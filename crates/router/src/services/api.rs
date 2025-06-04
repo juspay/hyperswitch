@@ -862,6 +862,8 @@ where
         }
     };
 
+    let infra = state.infra_components.clone();
+
     let api_event = ApiEvent::new(
         tenant_id,
         Some(merchant_id.clone()),
@@ -877,6 +879,7 @@ where
         event_type.unwrap_or(ApiEventsType::Miscellaneous),
         request,
         request.method(),
+        infra.clone()
     );
     state.event_handler().log_event(&api_event);
 
