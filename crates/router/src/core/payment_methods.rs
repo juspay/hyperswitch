@@ -2253,6 +2253,48 @@ pub async fn retrieve_payment_method(
         .map(services::ApplicationResponse::Json)
 }
 
+// When we separate out microservices, this function will be an endpoint in payment_methods
+#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+#[instrument(skip_all)]
+pub async fn update_payment_method_status_internal(
+    state: &SessionState,
+    key_store: &domain::MerchantKeyStore,
+    storage_scheme: enums::MerchantStorageScheme,
+    status: enums::PaymentMethodStatus,
+    payment_method_id: &id_type::GlobalPaymentMethodId,
+) -> RouterResult<domain::PaymentMethod> {
+    let db = &*state.store;
+    let key_manager_state = &state.into();
+
+    let payment_method = db
+        .find_payment_method(
+            &((state).into()),
+            key_store,
+            payment_method_id,
+            storage_scheme,
+        )
+        .await
+        .to_not_found_response(errors::ApiErrorResponse::PaymentMethodNotFound)?;
+
+    let pm_update = storage::PaymentMethodUpdate::StatusUpdate {
+        status: Some(status),
+    };
+
+    let updated_pm = db
+        .update_payment_method(
+            key_manager_state,
+            key_store,
+            payment_method.clone(),
+            pm_update,
+            storage_scheme,
+        )
+        .await
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Failed to update payment method in db")?;
+
+    Ok(updated_pm)
+}
+
 #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
 #[instrument(skip_all)]
 pub async fn update_payment_method(

@@ -2573,20 +2573,21 @@ impl<F: Clone> PostUpdateTracker<F, PaymentConfirmData<F>, types::PaymentsAuthor
                 | common_enums::AttemptStatus::PaymentMethodAwaited
                 | common_enums::AttemptStatus::ConfirmationAwaited
                 | common_enums::AttemptStatus::DeviceDataCollectionPending => {
-                    let pm_update = storage::PaymentMethodUpdate::StatusUpdate {
-                        status: Some(enums::PaymentMethodStatus::Active),
-                    };
 
-                    db.update_payment_method(
-                        key_manager_state,
+                    let pm_update_status = enums::PaymentMethodStatus::Active;
+
+                    // payment_methods microservice call
+                    payment_methods::update_payment_method_status_internal(
+                        state,
                         key_store,
-                        payment_method.clone(),
-                        pm_update,
                         storage_scheme,
+                        pm_update_status,
+                        payment_method.get_id(),
                     )
                     .await
                     .change_context(errors::ApiErrorResponse::InternalServerError)
-                    .attach_printable("Failed to update payment method in db")?;
+                    .attach_printable("Failed to update payment method status")?;
+
                 }
             }
         }
