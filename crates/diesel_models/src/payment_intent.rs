@@ -828,7 +828,7 @@ impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
                 customer_id: value.customer_id,
                 shipping_address_id: value.shipping_address_id,
                 billing_address_id: value.billing_address_id,
-                return_url: None, // deprecated
+                return_url: value.return_url.clone(),
                 business_country: value.business_country,
                 business_label: value.business_label,
                 description: value.description,
@@ -871,7 +871,7 @@ impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
                 customer_details,
                 updated_by,
             } => Self {
-                return_url: None, // deprecated
+                return_url: return_url.clone(),
                 status,
                 customer_id,
                 shipping_address_id,
