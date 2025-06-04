@@ -262,9 +262,7 @@ impl MandateAmountData {
     }
 }
 
-#[cfg(
-    any(feature = "v1", feature = "v2")
- )]
+#[cfg(feature = "v1")]
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct PaymentsMandateReferenceRecord {
     pub connector_mandate_id: String,

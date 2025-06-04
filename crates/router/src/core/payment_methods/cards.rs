@@ -10,9 +10,7 @@ use ::payment_methods::{
     },
     controller::PaymentMethodsController,
 };
-#[cfg(
-    any(feature = "v1", feature = "v2")
- )]
+#[cfg(feature = "v1")]
 use api_models::admin::PaymentMethodsEnabled;
 use api_models::{
     enums as api_enums,
@@ -43,9 +41,7 @@ use common_utils::{
 };
 use diesel_models::payment_method;
 use error_stack::{report, ResultExt};
-#[cfg(
-    any(feature = "v1", feature = "v2")
- )]
+#[cfg(feature = "v1")]
 use euclid::dssa::graph::{AnalysisContext, CgraphExt};
 use euclid::frontend::dir;
 use hyperswitch_constraint_graph as cgraph;
@@ -53,9 +49,7 @@ use hyperswitch_constraint_graph as cgraph;
 use hyperswitch_domain_models::customer::CustomerUpdate;
 use hyperswitch_domain_models::mandates::CommonMandateReference;
 use hyperswitch_interfaces::secrets_interface::secret_state::RawSecret;
-#[cfg(
-    any(feature = "v1", feature = "v2")
- )]
+#[cfg(feature = "v1")]
 use kgraph_utils::transformers::IntoDirValue;
 use masking::Secret;
 use router_env::{instrument, tracing};
@@ -67,13 +61,9 @@ use super::surcharge_decision_configs::{
     perform_surcharge_decision_management_for_payment_method_list,
     perform_surcharge_decision_management_for_saved_cards,
 };
-#[cfg(
-    any(feature = "v1", feature = "v2")
- )]
+#[cfg(feature = "v1")]
 use super::tokenize::NetworkTokenizationProcess;
-#[cfg(
-    any(feature = "v1", feature = "v2")
- )]
+#[cfg(feature = "v1")]
 use crate::core::payment_methods::{
     add_payment_method_status_update_task, tokenize,
     utils::{get_merchant_pm_filter_graph, make_pm_graph, refresh_pm_filters_cache},
@@ -1630,9 +1620,7 @@ pub async fn add_payment_method_data(
     }
 }
 
-#[cfg(
-    any(feature = "v1", feature = "v2")
- )]
+#[cfg(feature = "v1")]
 #[instrument(skip_all)]
 pub async fn update_customer_payment_method(
     state: routes::SessionState,
@@ -1862,9 +1850,7 @@ pub async fn update_customer_payment_method(
     }
 }
 
-#[cfg(
-    any(feature = "v1", feature = "v2")
- )]
+#[cfg(feature = "v1")]
 pub fn validate_payment_method_update(
     card_updation_obj: CardDetailUpdate,
     existing_card_data: api::CardDetailFromLocker,
@@ -2152,9 +2138,7 @@ where
     }
 }
 
-#[cfg(
-    any(feature = "v1", feature = "v2")
- )]
+#[cfg(feature = "v1")]
 pub async fn update_payment_method_metadata_and_last_used(
     state: &routes::SessionState,
     key_store: &domain::MerchantKeyStore,
@@ -2212,9 +2196,7 @@ pub async fn update_payment_method_connector_mandate_details(
     Ok(())
 }
 
-#[cfg(
-    any(feature = "v1", feature = "v2")
- )]
+#[cfg(feature = "v1")]
 pub async fn update_payment_method_connector_mandate_details(
     state: &routes::SessionState,
     key_store: &domain::MerchantKeyStore,
@@ -3754,9 +3736,7 @@ pub async fn call_surcharge_decision_management_for_saved_card(
     Ok(())
 }
 
-#[cfg(
-    any(feature = "v1", feature = "v2")
- )]
+#[cfg(feature = "v1")]
 #[allow(clippy::too_many_arguments)]
 pub async fn filter_payment_methods(
     graph: &cgraph::ConstraintGraph<dir::DirValue>,
@@ -5008,9 +4988,7 @@ pub async fn list_countries_currencies_for_connector_payment_method_util(
     }
 }
 
-#[cfg(
-    any(feature = "v1", feature = "v2")
- )]
+#[cfg(feature = "v1")]
 pub async fn tokenize_card_flow(
     state: &routes::SessionState,
     req: domain::CardNetworkTokenizeRequest,
@@ -5047,9 +5025,7 @@ pub async fn tokenize_card_flow(
     }
 }
 
-#[cfg(
-    any(feature = "v1", feature = "v2")
- )]
+#[cfg(feature = "v1")]
 pub async fn execute_card_tokenization(
     executor: tokenize::CardNetworkTokenizeExecutor<'_, domain::TokenizeCardRequest>,
     builder: tokenize::NetworkTokenizationBuilder<'_, tokenize::TokenizeWithCard>,
@@ -5111,9 +5087,7 @@ pub async fn execute_card_tokenization(
     Ok(builder.build())
 }
 
-#[cfg(
-    any(feature = "v1", feature = "v2")
- )]
+#[cfg(feature = "v1")]
 pub async fn execute_payment_method_tokenization(
     executor: tokenize::CardNetworkTokenizeExecutor<'_, domain::TokenizePaymentMethodRequest>,
     builder: tokenize::NetworkTokenizationBuilder<'_, tokenize::TokenizeWithPmId>,

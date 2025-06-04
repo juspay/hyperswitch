@@ -1,9 +1,7 @@
 pub mod cards;
 pub mod network_tokenization;
 pub mod surcharge_decision_configs;
-#[cfg(
-    any(feature = "v1", feature = "v2")
- )]
+#[cfg(feature = "v1")]
 pub mod tokenize;
 pub mod transformers;
 pub mod utils;
@@ -465,9 +463,7 @@ fn generate_task_id_for_payment_method_status_update_workflow(
     format!("{runner}_{task}_{key_id}")
 }
 
-#[cfg(
-    any(feature = "v1", feature = "v2")
- )]
+#[cfg(feature = "v1")]
 pub async fn add_payment_method_status_update_task(
     db: &dyn StorageInterface,
     payment_method: &domain::PaymentMethod,
@@ -540,9 +536,7 @@ pub async fn retrieve_payment_method_with_token(
     todo!()
 }
 
-#[cfg(
-    any(feature = "v1", feature = "v2")
- )]
+#[cfg(feature = "v1")]
 #[instrument(skip_all)]
 #[allow(clippy::too_many_arguments)]
 pub async fn retrieve_payment_method_with_token(
@@ -766,9 +760,7 @@ pub(crate) fn get_payment_method_create_request(
     }
 }
 
-#[cfg(
-    any(feature = "v1", feature = "v2")
- )]
+#[cfg(feature = "v1")]
 #[instrument(skip_all)]
 pub(crate) async fn get_payment_method_create_request(
     payment_method_data: Option<&domain::PaymentMethodData>,

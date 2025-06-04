@@ -647,9 +647,7 @@ pub struct SepaAndBacsBillingDetails {
     pub name: Secret<String>,
 }
 
-#[cfg(
-    any(feature = "v1", feature = "v2")
- )]
+#[cfg(feature = "v1")]
 #[derive(Eq, PartialEq, Clone, Debug, Serialize, Deserialize, Default)]
 pub struct NetworkTokenData {
     pub token_number: cards::CardNumber,

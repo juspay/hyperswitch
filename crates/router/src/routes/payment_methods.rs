@@ -2,10 +2,9 @@ use ::payment_methods::{
     controller::PaymentMethodsController,
     core::{migration, migration::payment_methods::migrate_payment_method},
 };
-#[cfg(all(
-    any(feature = "v1", feature = "v2", feature = "olap", feature = "oltp"),
-    not(feature = "customer_v2")
-))]
+#[cfg(
+    any(feature = "v1", feature = "olap", feature = "oltp")
+)]
 use actix_multipart::form::MultipartForm;
 use actix_web::{web, HttpRequest, HttpResponse};
 use common_utils::{errors::CustomResult, id_type, transformers::ForeignFrom};
@@ -30,10 +29,7 @@ use crate::{
         storage::payment_method::PaymentTokenData,
     },
 };
-#[cfg(all(
-    any(feature = "v1", feature = "v2", feature = "olap", feature = "oltp"),
-    not(feature = "customer_v2")
-))]
+#[cfg(feature = "v1")]
 use crate::{
     core::{customers, payment_methods::tokenize},
     types::api::customers::CustomerRequest,
@@ -332,10 +328,7 @@ async fn get_merchant_account(
     Ok((key_store, merchant_account))
 }
 
-#[cfg(all(
-    any(feature = "v1", feature = "v2", feature = "olap", feature = "oltp"),
-    not(feature = "customer_v2")
-))]
+#[cfg(feature = "v1")]
 #[instrument(skip_all, fields(flow = ?Flow::PaymentMethodsMigrate))]
 pub async fn migrate_payment_methods(
     state: web::Data<AppState>,
@@ -396,9 +389,7 @@ pub async fn migrate_payment_methods(
     .await
 }
 
-#[cfg(
-    any(feature = "v1", feature = "v2")
- )]
+#[cfg(feature = "v1")]
 #[instrument(skip_all, fields(flow = ?Flow::PaymentMethodSave))]
 pub async fn save_payment_method_api(
     state: web::Data<AppState>,
@@ -790,9 +781,7 @@ pub async fn render_pm_collect_link(
     .await
 }
 
-#[cfg(
-    any(feature = "v1", feature = "v2")
- )]
+#[cfg(feature = "v1")]
 #[instrument(skip_all, fields(flow = ?Flow::PaymentMethodsRetrieve))]
 pub async fn payment_method_retrieve_api(
     state: web::Data<AppState>,
@@ -830,9 +819,7 @@ pub async fn payment_method_retrieve_api(
     .await
 }
 
-#[cfg(
-    any(feature = "v1", feature = "v2")
- )]
+#[cfg(feature = "v1")]
 #[instrument(skip_all, fields(flow = ?Flow::PaymentMethodsUpdate))]
 pub async fn payment_method_update_api(
     state: web::Data<AppState>,
@@ -868,9 +855,7 @@ pub async fn payment_method_update_api(
     .await
 }
 
-#[cfg(
-    any(feature = "v1", feature = "v2")
- )]
+#[cfg(feature = "v1")]
 #[instrument(skip_all, fields(flow = ?Flow::PaymentMethodsDelete))]
 pub async fn payment_method_delete_api(
     state: web::Data<AppState>,
@@ -1124,9 +1109,7 @@ pub async fn tokenize_card_api(
     .await
 }
 
-#[cfg(
-    any(feature = "v1", feature = "olap", feature = "oltp")
-)]
+#[cfg(feature = "v1")]
 #[instrument(skip_all, fields(flow = ?Flow::TokenizeCardUsingPaymentMethodId))]
 pub async fn tokenize_card_using_pm_api(
     state: web::Data<AppState>,
@@ -1172,9 +1155,7 @@ pub async fn tokenize_card_using_pm_api(
     .await
 }
 
-#[cfg(
-    any(feature = "v1", feature = "olap", feature = "oltp")
-)]
+#[cfg(feature = "v1")]
 #[instrument(skip_all, fields(flow = ?Flow::TokenizeCardBatch))]
 pub async fn tokenize_card_batch_api(
     state: web::Data<AppState>,

@@ -793,9 +793,7 @@ pub fn mk_delete_card_response(
     })
 }
 
-#[cfg(
-    any(feature = "v1", feature = "v2")
- )]
+#[cfg(feature = "v1")]
 pub fn get_card_detail(
     pm: &domain::PaymentMethod,
     response: Card,

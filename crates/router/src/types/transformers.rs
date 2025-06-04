@@ -80,9 +80,7 @@ impl ForeignFrom<api_models::refunds::RefundType> for storage_enums::RefundType 
     }
 }
 
-#[cfg(
-    any(feature = "v1", feature = "v2")
- )]
+#[cfg(feature = "v1")]
 impl
     ForeignFrom<(
         Option<payment_methods::CardDetailFromLocker>,

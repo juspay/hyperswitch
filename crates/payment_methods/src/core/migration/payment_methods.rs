@@ -163,9 +163,7 @@ pub async fn migrate_payment_method(
     todo!()
 }
 
-#[cfg(
-    any(feature = "v1", feature = "v2")
- )]
+#[cfg(feature = "v1")]
 pub async fn populate_bin_details_for_masked_card(
     card_details: &api_models::payment_methods::MigrateCardDetail,
     db: &dyn state::PaymentMethodsStorageInterface,
@@ -199,9 +197,7 @@ pub async fn populate_bin_details_for_masked_card(
     Ok(card_bin_details)
 }
 
-#[cfg(
-    any(feature = "v1", feature = "v2")
- )]
+#[cfg(feature = "v1")]
 impl
     ForeignTryFrom<(
         &api_models::payment_methods::MigrateCardDetail,
@@ -356,9 +352,7 @@ impl
     }
 }
 
-#[cfg(
-    any(feature = "v1", feature = "v2")
- )]
+#[cfg(feature = "v1")]
 #[instrument(skip_all)]
 pub async fn get_client_secret_or_add_payment_method_for_migration(
     state: &state::PaymentMethodsState,
@@ -664,9 +658,7 @@ pub fn get_card_bin_and_last4_digits_for_masked_card(
 
     Ok((card_isin, last4_digits))
 }
-#[cfg(
-    any(feature = "v1", feature = "v2")
- )]
+#[cfg(feature = "v1")]
 #[instrument(skip_all)]
 pub async fn save_migration_payment_method(
     req: pm_api::PaymentMethodCreate,

@@ -1,13 +1,9 @@
 use ::payment_methods::controller::PaymentMethodsController;
-#[cfg(
-    any(feature = "v1", feature = "v2")
- )]
+#[cfg(feature = "v1")]
 use api_models::enums as api_enums;
 use api_models::locker_migration::MigrateCardResponse;
 use common_utils::{errors::CustomResult, id_type};
-#[cfg(
-    any(feature = "v1", feature = "v2")
- )]
+#[cfg(feature = "v1")]
 use diesel_models::enums as storage_enums;
 #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
 use error_stack::FutureExt;
@@ -17,17 +13,11 @@ use futures::TryFutureExt;
 
 #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
 use super::errors::StorageErrorExt;
-#[cfg(
-    any(feature = "v1", feature = "v2")
- )]
+#[cfg(feature = "v1")]
 use super::payment_methods::cards;
-#[cfg(
-    any(feature = "v1", feature = "v2")
- )]
+#[cfg(feature = "v1")]
 use crate::services::logger;
-#[cfg(
-    any(feature = "v1", feature = "v2")
- )]
+#[cfg(feature = "v1")]
 use crate::types::api;
 use crate::{errors, routes::SessionState, services, types::domain};
 
@@ -120,9 +110,7 @@ pub async fn rust_locker_migration(
     ))
 }
 
-#[cfg(
-    any(feature = "v1", feature = "v2")
- )]
+#[cfg(feature = "v1")]
 pub async fn call_to_locker(
     state: &SessionState,
     payment_methods: Vec<domain::PaymentMethod>,

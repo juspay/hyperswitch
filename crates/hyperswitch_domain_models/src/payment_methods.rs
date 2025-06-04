@@ -49,9 +49,7 @@ impl VaultId {
         Self(id)
     }
 }
-#[cfg(
-    any(feature = "v1", feature = "v2")
- )]
+#[cfg(feature = "v1")]
 #[derive(Clone, Debug)]
 pub struct PaymentMethod {
     pub customer_id: id_type::CustomerId,
@@ -251,9 +249,7 @@ impl PaymentMethod {
     }
 }
 
-#[cfg(
-    any(feature = "v1", feature = "v2")
- )]
+#[cfg(feature = "v1")]
 #[async_trait::async_trait]
 impl super::behaviour::Conversion for PaymentMethod {
     type DstType = diesel_models::payment_method::PaymentMethod;
@@ -920,9 +916,7 @@ pub struct PaymentMethodsSessionUpdateInternal {
     pub tokenization_data: Option<pii::SecretSerdeValue>,
 }
 
-#[cfg(
-    any(feature = "v1", feature = "v2")
- )]
+#[cfg(feature = "v1")]
 #[cfg(test)]
 mod tests {
     #![allow(clippy::unwrap_used)]

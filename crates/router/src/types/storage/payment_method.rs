@@ -14,9 +14,7 @@ pub enum PaymentTokenKind {
     Permanent,
 }
 
-#[cfg(
-    any(feature = "v1", feature = "v2")
- )]
+#[cfg(feature = "v1")]
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct CardTokenData {
     pub payment_method_id: Option<String>,

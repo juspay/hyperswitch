@@ -14,9 +14,7 @@ use common_utils::{
     metrics::utils::record_operation_time,
     request::RequestContent,
 };
-#[cfg(
-    any(feature = "v1", feature = "v2")
- )]
+#[cfg(feature = "v1")]
 use error_stack::ResultExt;
 #[cfg(feature = "v2")]
 use error_stack::{report, ResultExt};
@@ -39,9 +37,7 @@ use crate::{
 
 pub const NETWORK_TOKEN_SERVICE: &str = "NETWORK_TOKEN";
 
-#[cfg(
-    any(feature = "v1", feature = "v2")
- )]
+#[cfg(feature = "v1")]
 pub async fn mk_tokenization_req(
     state: &routes::SessionState,
     payload_bytes: &[u8],
@@ -264,9 +260,7 @@ pub async fn generate_network_token(
     Ok((cn_response.clone(), cn_response.card_reference))
 }
 
-#[cfg(
-    any(feature = "v1", feature = "v2")
- )]
+#[cfg(feature = "v1")]
 pub async fn make_card_network_tokenization_request(
     state: &routes::SessionState,
     card: &domain::CardDetail,
@@ -719,9 +713,7 @@ pub async fn do_status_check_for_network_token(
     }
 }
 
-#[cfg(
-    any(feature = "v1", feature = "v2")
- )]
+#[cfg(feature = "v1")]
 pub async fn check_token_status_with_tokenization_service(
     state: &routes::SessionState,
     customer_id: &id_type::CustomerId,
@@ -806,9 +798,7 @@ pub async fn check_token_status_with_tokenization_service(
     todo!()
 }
 
-#[cfg(
-    any(feature = "v1", feature = "v2")
- )]
+#[cfg(feature = "v1")]
 pub async fn delete_network_token_from_locker_and_token_service(
     state: &routes::SessionState,
     customer_id: &id_type::CustomerId,
@@ -857,9 +847,7 @@ pub async fn delete_network_token_from_locker_and_token_service(
     Ok(resp)
 }
 
-#[cfg(
-    any(feature = "v1", feature = "v2")
- )]
+#[cfg(feature = "v1")]
 pub async fn delete_network_token_from_tokenization_service(
     state: &routes::SessionState,
     network_token_requestor_reference_id: String,

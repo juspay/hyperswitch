@@ -8,23 +8,17 @@ use common_utils::{
 };
 use diesel::{AsChangeset, Identifiable, Insertable, Queryable, Selectable};
 use error_stack::ResultExt;
-#[cfg(
-    any(feature = "v1", feature = "v2")
- )]
+#[cfg(feature = "v1")]
 use masking::{ExposeInterface, Secret};
 use serde::{Deserialize, Serialize};
 use time::PrimitiveDateTime;
 
-#[cfg(
-    any(feature = "v1", feature = "v2")
- )]
+#[cfg(feature = "v1")]
 use crate::{enums as storage_enums, schema::payment_methods};
 #[cfg(feature = "v2")]
 use crate::{enums as storage_enums, schema_v2::payment_methods};
 
-#[cfg(
-    any(feature = "v1", feature = "v2")
- )]
+#[cfg(feature = "v1")]
 #[derive(
     Clone, Debug, Eq, PartialEq, Identifiable, Queryable, Selectable, Serialize, Deserialize,
 )]
@@ -109,9 +103,7 @@ impl PaymentMethod {
     }
 }
 
-#[cfg(
-    any(feature = "v1", feature = "v2")
- )]
+#[cfg(feature = "v1")]
 #[derive(
     Clone, Debug, Eq, PartialEq, Insertable, router_derive::DebugAsDisplay, Serialize, Deserialize,
 )]
@@ -203,9 +195,7 @@ pub struct TokenizeCoreWorkflow {
     pub pm: storage_enums::PaymentMethod,
 }
 
-#[cfg(
-    any(feature = "v1", feature = "v2")
- )]
+#[cfg(feature = "v1")]
 #[derive(Debug, Serialize, Deserialize)]
 pub enum PaymentMethodUpdate {
     MetadataUpdateAndLastUsed {
@@ -378,9 +368,7 @@ impl PaymentMethodUpdateInternal {
     }
 }
 
-#[cfg(
-    any(feature = "v1", feature = "v2")
- )]
+#[cfg(feature = "v1")]
 #[derive(Clone, Debug, AsChangeset, router_derive::DebugAsDisplay, Serialize, Deserialize)]
 #[diesel(table_name = payment_methods)]
 pub struct PaymentMethodUpdateInternal {
@@ -402,9 +390,7 @@ pub struct PaymentMethodUpdateInternal {
     scheme: Option<String>,
 }
 
-#[cfg(
-    any(feature = "v1", feature = "v2")
- )]
+#[cfg(feature = "v1")]
 impl PaymentMethodUpdateInternal {
     pub fn apply_changeset(self, source: PaymentMethod) -> PaymentMethod {
         let Self {
@@ -468,9 +454,7 @@ impl PaymentMethodUpdateInternal {
     }
 }
 
-#[cfg(
-    any(feature = "v1", feature = "v2")
- )]
+#[cfg(feature = "v1")]
 impl From<PaymentMethodUpdate> for PaymentMethodUpdateInternal {
     fn from(payment_method_update: PaymentMethodUpdate) -> Self {
         match payment_method_update {
@@ -840,9 +824,7 @@ impl From<PaymentMethodUpdate> for PaymentMethodUpdateInternal {
     }
 }
 
-#[cfg(
-    any(feature = "v1", feature = "v2")
- )]
+#[cfg(feature = "v1")]
 impl From<&PaymentMethodNew> for PaymentMethod {
     fn from(payment_method_new: &PaymentMethodNew) -> Self {
         Self {
@@ -927,9 +909,7 @@ impl From<&PaymentMethodNew> for PaymentMethod {
     }
 }
 
-#[cfg(
-    any(feature = "v1", feature = "v2")
- )]
+#[cfg(feature = "v1")]
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct PaymentsMandateReferenceRecord {
     pub connector_mandate_id: String,

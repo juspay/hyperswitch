@@ -33,9 +33,7 @@ pub(crate) trait MandateResponseExt: Sized {
     ) -> RouterResult<Self>;
 }
 
-#[cfg(
-    any(feature = "v1", feature = "v2")
- )]
+#[cfg(feature = "v1")]
 #[async_trait::async_trait]
 impl MandateResponseExt for MandateResponse {
     async fn from_db_mandate(
@@ -133,9 +131,7 @@ impl MandateResponseExt for MandateResponse {
     }
 }
 
-#[cfg(
-    any(feature = "v1", feature = "v2")
- )]
+#[cfg(feature = "v1")]
 impl From<api::payment_methods::CardDetailFromLocker> for MandateCardDetails {
     fn from(card_details_from_locker: api::payment_methods::CardDetailFromLocker) -> Self {
         mandates::MandateCardDetails {
