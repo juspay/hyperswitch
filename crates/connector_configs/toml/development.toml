@@ -6053,3 +6053,11 @@ label="Default Report Group"
 placeholder="Enter Default Report Group"
 required=true
 type="Text"
+
+[worldpayvantiv.metadata.merchant_config_currency]
+name="merchant_config_currency"
+label="Currency"
+placeholder="Enter Currency"
+required=true
+type="Select"
+options=[]

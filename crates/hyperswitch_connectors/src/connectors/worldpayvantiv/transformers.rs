@@ -79,6 +79,7 @@ pub struct WorldpayvantivPaymentMetadata {
 #[derive(Debug, Default, Serialize, Deserialize)]
 pub struct WorldpayvantivMetadataObject {
     pub report_group: String,
+    pub merchant_config_currency: common_enums::Currency,
 }
 
 impl TryFrom<&Option<common_utils::pii::SecretSerdeValue>> for WorldpayvantivMetadataObject {
@@ -560,11 +561,19 @@ impl TryFrom<&WorldpayvantivRouterData<&PaymentsAuthorizeRouterData>> for CnpOnl
                 connector: "Worldpayvantiv",
             })?
         };
+        let worldpayvantiv_metadata =
+            WorldpayvantivMetadataObject::try_from(&item.router_data.connector_meta_data)?;
+            
+        if worldpayvantiv_metadata.merchant_config_currency != item.router_data.request.currency {
+            Err(errors::ConnectorError::CurrencyNotSupported {
+                message: item.router_data.request.currency.to_string(),
+                connector: "Worldpayvantiv",
+            })?
+        };
+
         let card = WorldpayvantivCardData::try_from(
             &item.router_data.request.payment_method_data.clone(),
         )?;
-        let default_report_group =
-            WorldpayvantivMetadataObject::try_from(&item.router_data.connector_meta_data)?;
         let report_group = item
             .router_data
             .request
@@ -577,7 +586,7 @@ impl TryFrom<&WorldpayvantivRouterData<&PaymentsAuthorizeRouterData>> for CnpOnl
             })
             .transpose()?
             .and_then(|worldpayvantiv_metadata| worldpayvantiv_metadata.report_group)
-            .unwrap_or(default_report_group.report_group);
+            .unwrap_or(worldpayvantiv_metadata.report_group);
 
         let worldpayvantiv_auth_type =
             WorldpayvantivAuthType::try_from(&item.router_data.connector_auth_type)?;
@@ -1126,8 +1135,8 @@ impl<F>
                         ..item.data
                     })
                 } else {
-                    let report_group = WorldpayvantivMetadataObject {
-                        report_group: sale_response.report_group.clone(),
+                    let report_group = WorldpayvantivPaymentMetadata {
+                        report_group: Some(sale_response.report_group.clone()),
                     };
                     let connector_metadata =   Some(report_group.encode_to_value()
                     .change_context(errors::ConnectorError::ResponseHandlingFailed)?);
@@ -1167,8 +1176,8 @@ impl<F>
                         ..item.data
                     })
                 } else {
-                    let report_group = WorldpayvantivMetadataObject {
-                        report_group: auth_response.report_group.clone(),
+                    let report_group = WorldpayvantivPaymentMetadata {
+                        report_group: Some(auth_response.report_group.clone()),
                     };
                     let connector_metadata =   Some(report_group.encode_to_value()
                     .change_context(errors::ConnectorError::ResponseHandlingFailed)?);
