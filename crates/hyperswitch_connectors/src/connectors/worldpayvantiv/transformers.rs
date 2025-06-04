@@ -20,7 +20,10 @@ use serde::{Deserialize, Serialize};
 
 use crate::{
     types::{RefundsResponseRouterData, ResponseRouterData},
-    utils::{self as connector_utils, CardData, PaymentsAuthorizeRequestData, RefundsRequestData, RouterData as _},
+    utils::{
+        self as connector_utils, CardData, PaymentsAuthorizeRequestData, RefundsRequestData,
+        RouterData as _,
+    },
 };
 
 pub mod worldpayvantiv_constants {
@@ -951,10 +954,8 @@ impl<F> TryFrom<ResponseRouterData<F, CnpOnlineResponse, PaymentsCancelData, Pay
     ) -> Result<Self, Self::Error> {
         match item.response.void_response {
             Some(void_response) => {
-                let status = get_attempt_status(
-                    WorldpayvantivPaymentFlow::Void,
-                    void_response.response,
-                )?;
+                let status =
+                    get_attempt_status(WorldpayvantivPaymentFlow::Void, void_response.response)?;
                 if connector_utils::is_payment_failure(status) {
                     Ok(Self {
                         status,

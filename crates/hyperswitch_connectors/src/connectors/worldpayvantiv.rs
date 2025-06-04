@@ -161,10 +161,10 @@ impl ConnectorIntegration<SetupMandate, SetupMandateRequestData, PaymentsRespons
         _req: &RouterData<SetupMandate, SetupMandateRequestData, PaymentsResponseData>,
         _connectors: &Connectors,
     ) -> CustomResult<Option<Request>, errors::ConnectorError> {
-        Err(
-            errors::ConnectorError::NotImplemented("Setup Mandate flow for Worldpayvantiv".to_string())
-                .into(),
+        Err(errors::ConnectorError::NotImplemented(
+            "Setup Mandate flow for Worldpayvantiv".to_string(),
         )
+        .into())
     }
 }
 
