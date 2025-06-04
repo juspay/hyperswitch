@@ -1659,6 +1659,44 @@ impl TryFrom<&GooglePayWalletData> for StripePaymentMethodData {
     }
 }
 
+fn get_stripe_billing_address(
+    billing_details: Option<hyperswitch_domain_models::address::Address>,
+) -> Option<StripeBillingAddress> {
+    match billing_details {
+        Some(bd) => {
+            let billing_address = bd.address.as_ref();
+            Some(StripeBillingAddress {
+                city: billing_address.and_then(|a| a.city.clone()),
+                country: billing_address.and_then(|a| a.country),
+                address_line1: billing_address.and_then(|a| a.line1.clone()),
+                address_line2: billing_address.and_then(|a| a.line2.clone()),
+                zip_code: billing_address.and_then(|a| a.zip.clone()),
+                state: billing_address.and_then(|a| a.state.clone()),
+                name: billing_address.and_then(|a| {
+                    a.first_name.as_ref().map(|first_name| {
+                        format!(
+                            "{} {}",
+                            first_name.clone().expose(),
+                            a.last_name.clone().expose_option().unwrap_or_default()
+                        )
+                        .into()
+                    })
+                }),
+                email: bd.email.clone(),
+                phone: bd.phone.as_ref().map(|p| {
+                    format!(
+                        "{}{}",
+                        p.country_code.clone().unwrap_or_default(),
+                        p.number.clone().expose_option().unwrap_or_default()
+                    )
+                    .into()
+                }),
+            })
+        }
+        None => None,
+    }
+}
+
 impl TryFrom<(&PaymentsAuthorizeRouterData, MinorUnit)> for PaymentIntentRequest {
     type Error = error_stack::Report<ConnectorError>;
     fn try_from(data: (&PaymentsAuthorizeRouterData, MinorUnit)) -> Result<Self, Self::Error> {
