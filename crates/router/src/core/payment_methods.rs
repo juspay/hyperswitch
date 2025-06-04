@@ -36,10 +36,7 @@ use diesel_models::{
 use error_stack::{report, ResultExt};
 #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
 use hyperswitch_domain_models::api::{GenericLinks, GenericLinksData};
-#[cfg(all(
-    feature = "v2",
-    feature = "customer_v2"
-))]
+#[cfg(all(feature = "v2", feature = "customer_v2"))]
 use hyperswitch_domain_models::mandates::CommonMandateReference;
 use hyperswitch_domain_models::payments::{
     payment_attempt::PaymentAttempt, PaymentIntent, VaultData,
@@ -1995,10 +1992,7 @@ pub async fn vault_payment_method(
 
 // TODO: check if this function will be used for listing the customer payment methods for payments
 #[allow(unused)]
-#[cfg(all(
-    feature = "v2",
-    feature = "customer_v2"
-))]
+#[cfg(all(feature = "v2", feature = "customer_v2"))]
 fn get_pm_list_context(
     payment_method_type: enums::PaymentMethod,
     payment_method: &domain::PaymentMethod,

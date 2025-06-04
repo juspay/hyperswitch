@@ -41,10 +41,7 @@ pub struct VaultFingerprintResponse {
     pub fingerprint_id: String,
 }
 
-#[cfg(any(
-    feature = "v2",
-    feature = "tokenization_v2"
-))]
+#[cfg(any(feature = "v2", feature = "tokenization_v2"))]
 #[derive(Debug, serde::Deserialize, serde::Serialize)]
 pub struct AddVaultRequest<D> {
     pub entity_id: id_type::MerchantId,

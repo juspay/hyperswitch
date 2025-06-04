@@ -68,10 +68,7 @@ use crate::core::payment_methods::{
     add_payment_method_status_update_task, tokenize,
     utils::{get_merchant_pm_filter_graph, make_pm_graph, refresh_pm_filters_cache},
 };
-#[cfg(all(
-    any(feature = "v2", feature = "v1"),
-    not(feature = "customer_v2")
-))]
+#[cfg(all(any(feature = "v2", feature = "v1"), not(feature = "customer_v2")))]
 use crate::routes::app::SessionStateInfo;
 #[cfg(feature = "payouts")]
 use crate::types::domain::types::AsyncLift;
@@ -112,10 +109,7 @@ pub struct PmCards<'a> {
 
 #[async_trait::async_trait]
 impl PaymentMethodsController for PmCards<'_> {
-    #[cfg(all(
-        any(feature = "v1", feature = "v2"),
-        not(feature = "customer_v2")
-    ))]
+    #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
     #[instrument(skip_all)]
     #[allow(clippy::too_many_arguments)]
     async fn create_payment_method(
@@ -2565,10 +2559,7 @@ fn get_val(str: String, val: &serde_json::Value) -> Option<String> {
         .map(|s| s.to_string())
 }
 
-#[cfg(all(
-    any(feature = "v1", feature = "v2"),
-    not(feature = "customer_v2")
-))]
+#[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
 pub async fn list_payment_methods(
     state: routes::SessionState,
     merchant_context: domain::MerchantContext,

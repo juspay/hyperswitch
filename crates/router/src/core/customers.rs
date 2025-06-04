@@ -578,10 +578,7 @@ pub async fn list_customers(
     Ok(services::ApplicationResponse::Json(customers))
 }
 
-#[cfg(all(
-    feature = "v2",
-    feature = "customer_v2"
-))]
+#[cfg(all(feature = "v2", feature = "customer_v2"))]
 #[instrument(skip_all)]
 pub async fn delete_customer(
     state: SessionState,
@@ -599,10 +596,7 @@ pub async fn delete_customer(
     .await
 }
 
-#[cfg(all(
-    feature = "v2",
-    feature = "customer_v2"
-))]
+#[cfg(all(feature = "v2", feature = "customer_v2"))]
 #[async_trait::async_trait]
 impl CustomerDeleteBridge for id_type::GlobalCustomerId {
     async fn redact_customer_details_and_generate_response<'a>(
