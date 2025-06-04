@@ -349,6 +349,21 @@ impl<F: Clone + Send + Sync> Domain<F, PaymentsConfirmIntentRequest, PaymentConf
         )
         .await
     }
+
+    #[cfg(feature = "v2")]
+    async fn get_connector_for_tunnel<'a>(
+        &'a self,
+        state: &SessionState,
+        request: &PaymentsConfirmIntentRequest,
+        payment_data: &mut PaymentConfirmData<F>,
+    ) -> CustomResult<api::ConnectorData, errors::ApiErrorResponse> {
+        let connector_data =
+            helpers::get_connector_data_default(state, request.merchant_connector_details.clone())
+                .await?;
+        payment_data
+            .set_connector_in_payment_attempt(Some(connector_data.connector_name.to_string()));
+        Ok(connector_data)
+    }
 }
 
 #[async_trait]

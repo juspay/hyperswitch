@@ -1602,6 +1602,27 @@ pub async fn get_connector_default(
     ))
 }
 
+pub async fn get_connector_data_default(
+    state: &SessionState,
+    req: Option<api_models::payments::MerchantConnectorDetails>,
+) -> CustomResult<api::ConnectorData, errors::ApiErrorResponse> {
+    let connector = req
+        .as_ref()
+        .map(|connector_details| connector_details.connector_name.to_string())
+        .ok_or(errors::ApiErrorResponse::MissingRequiredField {
+            field_name: "merchant_connector_details",
+        })?;
+    let connector_data: api::ConnectorData = api::ConnectorData::get_connector_by_name(
+        &state.conf.connectors,
+        &connector,
+        api::GetToken::Connector,
+        None,
+    )
+    .change_context(errors::ApiErrorResponse::InternalServerError)
+    .attach_printable("Invalid connector name received")?;
+    Ok(connector_data)
+}
+
 #[cfg(all(feature = "v2", feature = "customer_v2"))]
 #[instrument(skip_all)]
 #[allow(clippy::type_complexity)]

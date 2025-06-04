@@ -2,6 +2,8 @@ use api_models::{enums::FrmSuggestion, payments::PaymentsRetrieveRequest};
 use async_trait::async_trait;
 use common_utils::ext_traits::AsyncExt;
 use error_stack::ResultExt;
+#[cfg(feature = "v2")]
+use hyperswitch_connectors::connectors::payme;
 use hyperswitch_domain_models::payments::PaymentStatusData;
 use router_env::{instrument, tracing};
 
@@ -360,6 +362,23 @@ impl<F: Clone + Send + Sync> Domain<F, PaymentsRetrieveRequest, PaymentStatusDat
         } else {
             Ok(ConnectorCallType::Skip)
         }
+    }
+
+    #[cfg(feature = "v2")]
+    async fn get_connector_for_tunnel<'a>(
+        &'a self,
+        state: &SessionState,
+        request: &PaymentsRetrieveRequest,
+        payment_data: &mut PaymentStatusData<F>,
+    ) -> CustomResult<api::ConnectorData, errors::ApiErrorResponse> {
+        use crate::core::payments::OperationSessionSetters;
+
+        let a =
+            helpers::get_connector_data_default(state, request.merchant_connector_details.clone())
+                .await?;
+
+        payment_data.set_connector_in_payment_attempt(Some(a.connector_name.to_string()));
+        Ok(a)
     }
 }
 
