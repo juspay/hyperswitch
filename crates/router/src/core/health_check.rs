@@ -197,17 +197,11 @@ impl HealthCheckInterface for app::SessionState {
         if self.conf.open_router.enabled {
             let url = format!("{}/{}", &self.conf.open_router.url, "health");
             let request = services::Request::new(services::Method::Get, &url);
-            services::call_connector_api(self, request, "health_check_for_decision_engine")
+            let _ = services::call_connector_api(self, request, "health_check_for_decision_engine")
                 .await
                 .change_context(
                     errors::HealthCheckDecisionEngineError::FailedToCallDecisionEngineService,
-                )?
-                .map_err(|err| {
-                    logger::error!("Failed to call decision engine service: {:?}", err);
-                    error_stack::report!(
-                        errors::HealthCheckDecisionEngineError::FailedToCallDecisionEngineService
-                    )
-                })?;
+                )?;
 
             logger::debug!("Decision engine health check successful");
             Ok(HealthState::Running)
