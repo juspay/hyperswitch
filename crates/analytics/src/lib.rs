@@ -16,6 +16,7 @@ pub mod payment_intents;
 pub mod payments;
 mod query;
 pub mod refunds;
+pub mod routing_events;
 pub mod sdk_events;
 pub mod search;
 mod sqlx;
@@ -1165,6 +1166,7 @@ pub enum AnalyticsFlow {
     GetDisputeFilters,
     GetDisputeMetrics,
     GetSankey,
+    GetRoutingEvents,
 }
 
 impl FlowMetric for AnalyticsFlow {}

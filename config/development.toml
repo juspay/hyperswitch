@@ -1035,6 +1035,7 @@ audit_events_topic = "hyperswitch-audit-events"
 payout_analytics_topic = "hyperswitch-payout-events"
 consolidated_events_topic = "hyperswitch-consolidated-events"
 authentication_analytics_topic = "hyperswitch-authentication-events"
+routing_logs_topic = "hyperswitch-routing-api-events"
 
 [debit_routing_config]
 supported_currencies = "USD"
@@ -1159,3 +1160,7 @@ retry_algorithm_type = "cascading"
 [clone_connector_allowlist]
 merchant_ids = "merchant_123, merchant_234"     # Comma-separated list of allowed merchant IDs
 connector_names = "stripe, adyen"               # Comma-separated list of allowed connector names
+
+[infra_values]
+cluster = "CLUSTER"
+version = "HOSTNAME"
