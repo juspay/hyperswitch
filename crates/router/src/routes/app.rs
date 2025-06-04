@@ -601,10 +601,7 @@ impl DummyConnector {
 
 pub struct Payments;
 
-#[cfg(all(
-    any(feature = "olap", feature = "oltp"),
-    feature = "v2"
-))]
+#[cfg(all(any(feature = "olap", feature = "oltp"), feature = "v2"))]
 impl Payments {
     pub fn server(state: AppState) -> Scope {
         let mut route = web::scope("/v2/payments").app_data(web::Data::new(state));

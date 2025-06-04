@@ -407,9 +407,7 @@ pub async fn mk_add_locker_request_hs(
     Ok(request)
 }
 
-#[cfg(all(feature = "v1",
-    feature = "payouts"
-))]
+#[cfg(all(feature = "v1", feature = "payouts"))]
 pub fn mk_add_bank_response_hs(
     bank: api::BankPayout,
     bank_reference: String,

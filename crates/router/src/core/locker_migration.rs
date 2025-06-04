@@ -21,10 +21,7 @@ use crate::services::logger;
 use crate::types::api;
 use crate::{errors, routes::SessionState, services, types::domain};
 
-#[cfg(all(
-    feature = "v2",
-    feature = "customer_v2"
-))]
+#[cfg(all(feature = "v2", feature = "customer_v2"))]
 pub async fn rust_locker_migration(
     _state: SessionState,
     _merchant_id: &id_type::MerchantId,

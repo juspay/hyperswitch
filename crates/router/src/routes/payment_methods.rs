@@ -2,9 +2,7 @@ use ::payment_methods::{
     controller::PaymentMethodsController,
     core::{migration, migration::payment_methods::migrate_payment_method},
 };
-#[cfg(
-    any(feature = "v1", feature = "olap", feature = "oltp")
-)]
+#[cfg(any(feature = "v1", feature = "olap", feature = "oltp"))]
 use actix_multipart::form::MultipartForm;
 use actix_web::{web, HttpRequest, HttpResponse};
 use common_utils::{errors::CustomResult, id_type, transformers::ForeignFrom};
@@ -465,10 +463,7 @@ pub async fn list_payment_method_api(
     .await
 }
 
-#[cfg(all(
-    any(feature = "v2", feature = "v1"),
-    not(feature = "customer_v2")
-))]
+#[cfg(all(any(feature = "v2", feature = "v1"), not(feature = "customer_v2")))]
 /// List payment methods for a Customer
 ///
 /// To filter and list the applicable payment methods for a particular Customer ID
@@ -531,10 +526,7 @@ pub async fn list_customer_payment_method_api(
     .await
 }
 
-#[cfg(all(
-    any(feature = "v2", feature = "v1"),
-    not(feature = "customer_v2")
-))]
+#[cfg(all(any(feature = "v2", feature = "v1"), not(feature = "customer_v2")))]
 /// List payment methods for a Customer
 ///
 /// To filter and list the applicable payment methods for a particular Customer ID
