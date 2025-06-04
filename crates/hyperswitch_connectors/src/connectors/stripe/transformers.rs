@@ -489,6 +489,8 @@ pub enum StripePaymentMethodData {
 // Struct to call the Stripe tokens API to create a PSP token for the card details provided
 #[derive(Debug, Eq, PartialEq, Serialize)]
 pub struct StripeCardToken {
+    #[serde(rename = "type")]
+    pub payment_method_type: Option<StripePaymentMethodType>,
     #[serde(rename = "card[number]")]
     pub token_card_number: cards::CardNumber,
     #[serde(rename = "card[exp_month]")]
@@ -1638,84 +1640,109 @@ impl TryFrom<&GooglePayWalletData> for StripePaymentMethodData {
     }
 }
 
+fn get_stripe_billing_address(
+    billing_details: Option<hyperswitch_domain_models::address::Address>,
+) -> Option<StripeBillingAddress> {
+    match billing_details {
+        Some(bd) => {
+            let billing_address = bd.address.as_ref();
+            Some(StripeBillingAddress {
+                city: billing_address.and_then(|a| a.city.clone()),
+                country: billing_address.and_then(|a| a.country),
+                address_line1: billing_address.and_then(|a| a.line1.clone()),
+                address_line2: billing_address.and_then(|a| a.line2.clone()),
+                zip_code: billing_address.and_then(|a| a.zip.clone()),
+                state: billing_address.and_then(|a| a.state.clone()),
+                name: billing_address.and_then(|a| {
+                    a.first_name.as_ref().map(|first_name| {
+                        format!(
+                            "{} {}",
+                            first_name.clone().expose(),
+                            a.last_name.clone().expose_option().unwrap_or_default()
+                        )
+                        .into()
+                    })
+                }),
+                email: bd.email.clone(),
+                phone: bd.phone.as_ref().map(|p| {
+                    format!(
+                        "{}{}",
+                        p.country_code.clone().unwrap_or_default(),
+                        p.number.clone().expose_option().unwrap_or_default()
+                    )
+                    .into()
+                }),
+            })
+        }
+        None => None,
+    }
+}
+
 impl TryFrom<(&PaymentsAuthorizeRouterData, MinorUnit)> for PaymentIntentRequest {
     type Error = error_stack::Report<ConnectorError>;
     fn try_from(data: (&PaymentsAuthorizeRouterData, MinorUnit)) -> Result<Self, Self::Error> {
         let item = data.0;
+
+        let payment_method_token = match &item.request.split_payments {
+            Some(common_types::payments::SplitPaymentsRequest::StripeSplitPayment(_)) => {
+                match item.payment_method_token.clone() {
+                    Some(PaymentMethodToken::Token(secret)) => Some(secret),
+                    _ => None,
+                }
+            }
+            _ => None,
+        };
+
         let amount = data.1;
         let order_id = item.connector_request_reference_id.clone();
 
-        let shipping_address = match item.get_optional_shipping() {
-            Some(shipping_details) => {
-                let shipping_address = shipping_details.address.as_ref();
-                shipping_address.and_then(|shipping_detail| {
-                    shipping_detail
-                        .first_name
-                        .as_ref()
-                        .map(|first_name| StripeShippingAddress {
-                            city: shipping_address.and_then(|a| a.city.clone()),
-                            country: shipping_address.and_then(|a| a.country),
-                            line1: shipping_address.and_then(|a| a.line1.clone()),
-                            line2: shipping_address.and_then(|a| a.line2.clone()),
-                            zip: shipping_address.and_then(|a| a.zip.clone()),
-                            state: shipping_address.and_then(|a| a.state.clone()),
-                            name: format!(
-                                "{} {}",
-                                first_name.clone().expose(),
-                                shipping_detail
-                                    .last_name
-                                    .clone()
-                                    .expose_option()
-                                    .unwrap_or_default()
-                            )
-                            .into(),
-                            phone: shipping_details.phone.as_ref().map(|p| {
-                                format!(
-                                    "{}{}",
-                                    p.country_code.clone().unwrap_or_default(),
-                                    p.number.clone().expose_option().unwrap_or_default()
+        let shipping_address = if payment_method_token.is_none() {
+            match item.get_optional_shipping() {
+                Some(shipping_details) => {
+                    let shipping_address_ref = shipping_details.address.as_ref();
+                    shipping_address_ref.and_then(|shipping_detail| {
+                        shipping_detail.first_name.as_ref().map(|first_name| {
+                            StripeShippingAddress {
+                                city: shipping_address_ref.and_then(|a| a.city.clone()),
+                                country: shipping_address_ref.and_then(|a| a.country),
+                                line1: shipping_address_ref.and_then(|a| a.line1.clone()),
+                                line2: shipping_address_ref.and_then(|a| a.line2.clone()),
+                                zip: shipping_address_ref.and_then(|a| a.zip.clone()),
+                                state: shipping_address_ref.and_then(|a| a.state.clone()),
+                                name: format!(
+                                    "{} {}",
+                                    first_name.clone().expose(),
+                                    shipping_detail
+                                        .last_name
+                                        .clone()
+                                        .expose_option()
+                                        .unwrap_or_default()
                                 )
-                                .into()
-                            }),
+                                .into(),
+                                phone: shipping_details.phone.as_ref().map(|p| {
+                                    format!(
+                                        "{}{}",
+                                        p.country_code.clone().unwrap_or_default(),
+                                        p.number.clone().expose_option().unwrap_or_default()
+                                    )
+                                    .into()
+                                }),
+                            }
                         })
-                })
+                    })
+                }
+                None => None,
             }
-            None => None,
+        } else {
+            None
         };
 
-        let billing_address = match item.get_optional_billing() {
-            Some(billing_details) => {
-                let billing_address = billing_details.address.as_ref();
-                StripeBillingAddress {
-                    city: billing_address.and_then(|a| a.city.clone()),
-                    country: billing_address.and_then(|a| a.country),
-                    address_line1: billing_address.and_then(|a| a.line1.clone()),
-                    address_line2: billing_address.and_then(|a| a.line2.clone()),
-                    zip_code: billing_address.and_then(|a| a.zip.clone()),
-                    state: billing_address.and_then(|a| a.state.clone()),
-                    name: billing_address.and_then(|a| {
-                        a.first_name.as_ref().map(|first_name| {
-                            format!(
-                                "{} {}",
-                                first_name.clone().expose(),
-                                a.last_name.clone().expose_option().unwrap_or_default()
-                            )
-                            .into()
-                        })
-                    }),
-                    email: billing_details.email.clone(),
-                    phone: billing_details.phone.as_ref().map(|p| {
-                        format!(
-                            "{}{}",
-                            p.country_code.clone().unwrap_or_default(),
-                            p.number.clone().expose_option().unwrap_or_default()
-                        )
-                        .into()
-                    }),
-                }
-            }
-            None => StripeBillingAddress::default(),
+        let billing_address = if payment_method_token.is_none() {
+            get_stripe_billing_address(item.get_optional_billing().cloned())
+        } else {
+            None
         };
+
         let mut payment_method_options = None;
 
         let (
@@ -1724,7 +1751,9 @@ impl TryFrom<(&PaymentsAuthorizeRouterData, MinorUnit)> for PaymentIntentRequest
             billing_address,
             payment_method_types,
             setup_future_usage,
-        ) = {
+        ) = if payment_method_token.is_some() {
+            (None, None, StripeBillingAddress::default(), None, None)
+        } else {
             match item
                 .request
                 .mandate_id
@@ -1812,7 +1841,11 @@ impl TryFrom<(&PaymentsAuthorizeRouterData, MinorUnit)> for PaymentIntentRequest
                                     &item.request,
                                 ),
                             ),
-                            billing_address,
+                            billing_address.ok_or_else(|| {
+                                ConnectorError::MissingRequiredField {
+                                    field_name: "billing_address",
+                                }
+                            })?,
                         )?;
 
                     validate_shipping_address_against_payment_method(
@@ -1831,38 +1864,42 @@ impl TryFrom<(&PaymentsAuthorizeRouterData, MinorUnit)> for PaymentIntentRequest
             }
         };
 
-        payment_data = match item.request.payment_method_data {
-            PaymentMethodData::Wallet(WalletData::ApplePay(_)) => {
-                let payment_method_token = item
-                    .payment_method_token
-                    .to_owned()
-                    .get_required_value("payment_token")
-                    .change_context(ConnectorError::InvalidWalletToken {
-                        wallet_name: "Apple Pay".to_string(),
-                    })?;
-
-                let payment_method_token = match payment_method_token {
-                    PaymentMethodToken::Token(payment_method_token) => payment_method_token,
-                    PaymentMethodToken::ApplePayDecrypt(_) => {
-                        Err(ConnectorError::InvalidWalletToken {
+        if payment_method_token.is_none() {
+            payment_data = match item.request.payment_method_data {
+                PaymentMethodData::Wallet(WalletData::ApplePay(_)) => {
+                    let payment_method_token = item
+                        .payment_method_token
+                        .to_owned()
+                        .get_required_value("payment_token")
+                        .change_context(ConnectorError::InvalidWalletToken {
                             wallet_name: "Apple Pay".to_string(),
-                        })?
-                    }
-                    PaymentMethodToken::PazeDecrypt(_) => {
-                        Err(crate::unimplemented_payment_method!("Paze", "Stripe"))?
-                    }
-                    PaymentMethodToken::GooglePayDecrypt(_) => {
-                        Err(crate::unimplemented_payment_method!("Google Pay", "Stripe"))?
-                    }
-                };
-                Some(StripePaymentMethodData::Wallet(
-                    StripeWallet::ApplepayPayment(ApplepayPayment {
-                        token: payment_method_token,
-                        payment_method_types: StripePaymentMethodType::Card,
-                    }),
-                ))
+                        })?;
+
+                    let payment_method_token = match payment_method_token {
+                        PaymentMethodToken::Token(payment_method_token) => payment_method_token,
+                        PaymentMethodToken::ApplePayDecrypt(_) => {
+                            Err(ConnectorError::InvalidWalletToken {
+                                wallet_name: "Apple Pay".to_string(),
+                            })?
+                        }
+                        PaymentMethodToken::PazeDecrypt(_) => {
+                            Err(crate::unimplemented_payment_method!("Paze", "Stripe"))?
+                        }
+                        PaymentMethodToken::GooglePayDecrypt(_) => {
+                            Err(crate::unimplemented_payment_method!("Google Pay", "Stripe"))?
+                        }
+                    };
+                    Some(StripePaymentMethodData::Wallet(
+                        StripeWallet::ApplepayPayment(ApplepayPayment {
+                            token: payment_method_token,
+                            payment_method_types: StripePaymentMethodType::Card,
+                        }),
+                    ))
+                }
+                _ => payment_data,
             }
-            _ => payment_data,
+        } else {
+            payment_data = None
         };
 
         let setup_mandate_details = item
@@ -1932,7 +1969,7 @@ impl TryFrom<(&PaymentsAuthorizeRouterData, MinorUnit)> for PaymentIntentRequest
 
         // We pass browser_info only when payment_data exists.
         // Hence, we're pass Null during recurring payments as payment_method_data[type] is not passed
-        let browser_info = if payment_data.is_some() {
+        let browser_info = if payment_data.is_some() && payment_method_token.is_none() {
             item.request
                 .browser_info
                 .clone()
@@ -1966,6 +2003,18 @@ impl TryFrom<(&PaymentsAuthorizeRouterData, MinorUnit)> for PaymentIntentRequest
             | None => (None, item.connector_customer.to_owned().map(Secret::new)),
         };
 
+        // let pm = if payment_method.is_none(){
+        //     payment_method_token.unwrap().expose()
+        // } else {
+        //     payment_method.unwrap()
+        // };
+
+        let pm = match (payment_method, payment_method_token) {
+            (Some(method), _) => Some(method),
+            (None, Some(token)) => Some(token.expose()),
+            (None, None) => None,
+        };
+
         Ok(Self {
             amount,                                      //hopefully we don't loose some cents here
             currency: item.request.currency.to_string(), //we need to copy the value and not transfer ownership
@@ -1984,7 +2033,7 @@ impl TryFrom<(&PaymentsAuthorizeRouterData, MinorUnit)> for PaymentIntentRequest
             capture_method: StripeCaptureMethod::from(item.request.capture_method),
             payment_data,
             payment_method_options,
-            payment_method,
+            payment_method: pm,
             customer,
             setup_mandate_details,
             off_session: item.request.off_session,
@@ -2080,6 +2129,7 @@ impl TryFrom<&TokenizationRouterData> for TokenRequest {
         let request_payment_data = match &item.request.payment_method_data {
             PaymentMethodData::Card(card_details) => {
                 StripePaymentMethodData::CardToken(StripeCardToken {
+                    payment_method_type: Some(StripePaymentMethodType::Card),
                     token_card_number: card_details.card_number.clone(),
                     token_card_exp_month: card_details.card_exp_month.clone(),
                     token_card_exp_year: card_details.card_exp_year.clone(),
@@ -3593,10 +3643,9 @@ impl<F, T> TryFrom<ResponseRouterData<F, StripeTokenResponse, T, PaymentsRespons
     fn try_from(
         item: ResponseRouterData<F, StripeTokenResponse, T, PaymentsResponseData>,
     ) -> Result<Self, Self::Error> {
+        let token = item.response.id.clone().expose();
         Ok(Self {
-            response: Ok(PaymentsResponseData::TokenizationResponse {
-                token: item.response.id.expose(),
-            }),
+            response: Ok(PaymentsResponseData::TokenizationResponse { token }),
             ..item.data
         })
     }

@@ -177,6 +177,7 @@ pub struct ConnectorCustomerData {
     pub name: Option<Secret<String>>,
     pub preprocessing_id: Option<String>,
     pub payment_method_data: PaymentMethodData,
+    pub split_payments: Option<common_types::payments::SplitPaymentsRequest>,
 }
 
 impl TryFrom<SetupMandateRequestData> for ConnectorCustomerData {
@@ -189,6 +190,7 @@ impl TryFrom<SetupMandateRequestData> for ConnectorCustomerData {
             phone: None,
             name: None,
             preprocessing_id: None,
+            split_payments: None,
         })
     }
 }
@@ -213,6 +215,7 @@ impl
             phone: None,
             name: data.request.customer_name.clone(),
             preprocessing_id: data.preprocessing_id.clone(),
+            split_payments: data.request.split_payments.clone(),
         })
     }
 }
@@ -223,6 +226,7 @@ pub struct PaymentMethodTokenizationData {
     pub browser_info: Option<BrowserInformation>,
     pub currency: storage_enums::Currency,
     pub amount: Option<i64>,
+    pub split_payments: Option<common_types::payments::SplitPaymentsRequest>,
 }
 
 impl TryFrom<SetupMandateRequestData> for PaymentMethodTokenizationData {
@@ -234,6 +238,7 @@ impl TryFrom<SetupMandateRequestData> for PaymentMethodTokenizationData {
             browser_info: None,
             currency: data.currency,
             amount: data.amount,
+            split_payments: None,
         })
     }
 }
@@ -248,6 +253,7 @@ impl<F> From<&RouterData<F, PaymentsAuthorizeData, response_types::PaymentsRespo
             browser_info: None,
             currency: data.request.currency,
             amount: Some(data.request.amount),
+            split_payments: data.request.split_payments.clone(),
         }
     }
 }
@@ -261,6 +267,7 @@ impl TryFrom<PaymentsAuthorizeData> for PaymentMethodTokenizationData {
             browser_info: data.browser_info,
             currency: data.currency,
             amount: Some(data.amount),
+            split_payments: data.split_payments.clone(),
         })
     }
 }
@@ -279,6 +286,7 @@ impl TryFrom<CompleteAuthorizeData> for PaymentMethodTokenizationData {
             browser_info: data.browser_info,
             currency: data.currency,
             amount: Some(data.amount),
+            split_payments: None,
         })
     }
 }

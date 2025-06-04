@@ -5216,6 +5216,7 @@ async fn decide_payment_method_tokenize_action(
     state: &SessionState,
     connector_name: &str,
     payment_method: storage::enums::PaymentMethod,
+    payment_intent_data: payments::PaymentIntent,
     pm_parent_token: Option<&str>,
     is_connector_tokenization_enabled: bool,
     apple_pay_flow: Option<domain::ApplePayFlow>,
@@ -5251,6 +5252,11 @@ async fn decide_payment_method_tokenize_action(
                 }
             }
         }
+    } else if matches!(
+        payment_intent_data.split_payments,
+        Some(common_types::payments::SplitPaymentsRequest::StripeSplitPayment(_))
+    ) {
+        Ok(TokenizationAction::TokenizeInConnector)
     } else {
         match pm_parent_token {
             None => Ok(match (is_connector_tokenization_enabled, apple_pay_flow) {
@@ -5420,6 +5426,7 @@ where
                 state,
                 &connector,
                 payment_method,
+                payment_data.get_payment_intent().clone(),
                 payment_data.get_token(),
                 is_connector_tokenization_enabled,
                 apple_pay_flow,
