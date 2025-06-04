@@ -310,7 +310,10 @@ where
         .map(ParentPaymentMethodToken::create_key_for_token)
         .async_map(|key_for_hyperswitch_token| async move {
             if key_for_hyperswitch_token.should_delete_payment_method_token(payment_intent_status) {
-                let _ = key_for_hyperswitch_token.delete(state).await;
+                key_for_hyperswitch_token.delete(state).await
+                .inspect_err(|err| {
+                    logger::error!("Failed to parse payments data: {}", err)
+                });
             }
         })
         .await;
