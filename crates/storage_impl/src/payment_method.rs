@@ -276,7 +276,7 @@ impl<T: DatabaseStore> PaymentMethodInterface for KVRouterStore<T> {
     }
 
     // Need to fix this once we start moving to v2 for payment method
-    #[cfg(all(feature = "v2", feature = "customer_v2"))]
+    #[cfg(feature = "v2")]
     async fn find_payment_method_list_by_global_customer_id(
         &self,
         state: &KeyManagerState,
@@ -326,7 +326,7 @@ impl<T: DatabaseStore> PaymentMethodInterface for KVRouterStore<T> {
         .await
     }
 
-    #[cfg(all(feature = "v2", feature = "customer_v2"))]
+    #[cfg(feature = "v2")]
     #[instrument(skip_all)]
     async fn find_payment_method_by_global_customer_id_merchant_id_status(
         &self,
@@ -573,7 +573,7 @@ impl<T: DatabaseStore> PaymentMethodInterface for RouterStore<T> {
     }
 
     // Need to fix this once we move to payment method for customer
-    #[cfg(all(feature = "v2", feature = "customer_v2"))]
+    #[cfg(feature = "v2")]
     #[instrument(skip_all)]
     async fn find_payment_method_list_by_global_customer_id(
         &self,
@@ -618,7 +618,7 @@ impl<T: DatabaseStore> PaymentMethodInterface for RouterStore<T> {
         .await
     }
 
-    #[cfg(all(feature = "v2", feature = "customer_v2"))]
+    #[cfg(feature = "v2")]
     #[instrument(skip_all)]
     async fn find_payment_method_by_global_customer_id_merchant_id_status(
         &self,
@@ -835,7 +835,7 @@ impl PaymentMethodInterface for MockDb {
     }
 
     // Need to fix this once we complete v2 payment method
-    #[cfg(all(feature = "v2", feature = "customer_v2"))]
+    #[cfg(feature = "v2")]
     async fn find_payment_method_list_by_global_customer_id(
         &self,
         state: &KeyManagerState,
@@ -872,7 +872,7 @@ impl PaymentMethodInterface for MockDb {
         .await
     }
 
-    #[cfg(all(feature = "v2", feature = "customer_v2"))]
+    #[cfg(feature = "v2")]
     async fn find_payment_method_by_global_customer_id_merchant_id_status(
         &self,
         state: &KeyManagerState,

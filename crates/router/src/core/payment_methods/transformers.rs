@@ -81,7 +81,7 @@ pub struct CardReqBody {
     pub card_reference: String,
 }
 
-#[cfg(all(feature = "v2", feature = "customer_v2"))]
+#[cfg(feature = "v2")]
 #[derive(Debug, Deserialize, Serialize)]
 pub struct CardReqBodyV2 {
     pub merchant_id: id_type::MerchantId,
@@ -733,7 +733,7 @@ pub async fn mk_delete_card_request_hs(
 }
 
 // Need to fix this once we start moving to v2 completion
-#[cfg(all(feature = "v2", feature = "customer_v2"))]
+#[cfg(feature = "v2")]
 pub async fn mk_delete_card_request_hs_by_id(
     jwekey: &settings::Jwekey,
     locker: &settings::Locker,

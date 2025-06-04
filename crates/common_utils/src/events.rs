@@ -46,11 +46,11 @@ pub enum ApiEventsType {
     },
     #[cfg(feature = "v2")]
     PaymentMethodCreate,
-    #[cfg(all(feature = "v2", feature = "customer_v2"))]
+    #[cfg(feature = "v2")]
     Customer {
         customer_id: Option<id_type::GlobalCustomerId>,
     },
-    #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
+    #[cfg(feature = "v1")]
     Customer {
         customer_id: id_type::CustomerId,
     },

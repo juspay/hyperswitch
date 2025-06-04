@@ -3,14 +3,14 @@ use common_utils::{encryption::Encryption, pii, types::Description};
 use diesel::{AsChangeset, Identifiable, Insertable, Queryable, Selectable};
 use time::PrimitiveDateTime;
 
-#[cfg(all(feature = "v2", feature = "customer_v2"))]
+#[cfg(feature = "v2")]
 use crate::enums::DeleteStatus;
-#[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
+#[cfg(feature = "v1")]
 use crate::schema::customers;
-#[cfg(all(feature = "v2", feature = "customer_v2"))]
+#[cfg(feature = "v2")]
 use crate::schema_v2::customers;
 
-#[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
+#[cfg(feature = "v1")]
 #[derive(
     Clone, Debug, router_derive::DebugAsDisplay, serde::Deserialize, serde::Serialize, Insertable,
 )]
@@ -32,14 +32,14 @@ pub struct CustomerNew {
     pub version: ApiVersion,
 }
 
-#[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
+#[cfg(feature = "v1")]
 impl CustomerNew {
     pub fn update_storage_scheme(&mut self, storage_scheme: common_enums::MerchantStorageScheme) {
         self.updated_by = Some(storage_scheme.to_string());
     }
 }
 
-#[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
+#[cfg(feature = "v1")]
 impl From<CustomerNew> for Customer {
     fn from(customer_new: CustomerNew) -> Self {
         Self {
@@ -62,7 +62,7 @@ impl From<CustomerNew> for Customer {
     }
 }
 
-#[cfg(all(feature = "v2", feature = "customer_v2"))]
+#[cfg(feature = "v2")]
 #[derive(
     Clone, Debug, Insertable, router_derive::DebugAsDisplay, serde::Deserialize, serde::Serialize,
 )]
@@ -88,14 +88,14 @@ pub struct CustomerNew {
     pub id: common_utils::id_type::GlobalCustomerId,
 }
 
-#[cfg(all(feature = "v2", feature = "customer_v2"))]
+#[cfg(feature = "v2")]
 impl CustomerNew {
     pub fn update_storage_scheme(&mut self, storage_scheme: common_enums::MerchantStorageScheme) {
         self.updated_by = Some(storage_scheme.to_string());
     }
 }
 
-#[cfg(all(feature = "v2", feature = "customer_v2"))]
+#[cfg(feature = "v2")]
 impl From<CustomerNew> for Customer {
     fn from(customer_new: CustomerNew) -> Self {
         Self {
@@ -121,7 +121,7 @@ impl From<CustomerNew> for Customer {
     }
 }
 
-#[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
+#[cfg(feature = "v1")]
 #[derive(
     Clone, Debug, Identifiable, Queryable, Selectable, serde::Deserialize, serde::Serialize,
 )]
@@ -144,7 +144,7 @@ pub struct Customer {
     pub version: ApiVersion,
 }
 
-#[cfg(all(feature = "v2", feature = "customer_v2"))]
+#[cfg(feature = "v2")]
 #[derive(
     Clone, Debug, Identifiable, Queryable, Selectable, serde::Serialize, serde::Deserialize,
 )]
@@ -170,7 +170,7 @@ pub struct Customer {
     pub id: common_utils::id_type::GlobalCustomerId,
 }
 
-#[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
+#[cfg(feature = "v1")]
 #[derive(
     Clone, Debug, AsChangeset, router_derive::DebugAsDisplay, serde::Deserialize, serde::Serialize,
 )]
@@ -189,7 +189,7 @@ pub struct CustomerUpdateInternal {
     pub updated_by: Option<String>,
 }
 
-#[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
+#[cfg(feature = "v1")]
 impl CustomerUpdateInternal {
     pub fn apply_changeset(self, source: Customer) -> Customer {
         let Self {
@@ -223,7 +223,7 @@ impl CustomerUpdateInternal {
     }
 }
 
-#[cfg(all(feature = "v2", feature = "customer_v2"))]
+#[cfg(feature = "v2")]
 #[derive(
     Clone, Debug, AsChangeset, router_derive::DebugAsDisplay, serde::Deserialize, serde::Serialize,
 )]
@@ -244,7 +244,7 @@ pub struct CustomerUpdateInternal {
     pub status: Option<DeleteStatus>,
 }
 
-#[cfg(all(feature = "v2", feature = "customer_v2"))]
+#[cfg(feature = "v2")]
 impl CustomerUpdateInternal {
     pub fn apply_changeset(self, source: Customer) -> Customer {
         let Self {

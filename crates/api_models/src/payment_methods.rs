@@ -16,7 +16,7 @@ use masking::PeekInterface;
 use serde::de;
 use utoipa::{schema, ToSchema};
 
-#[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
+#[cfg(feature = "v1")]
 use crate::customers;
 #[cfg(feature = "payouts")]
 use crate::payouts;
@@ -2614,7 +2614,7 @@ impl
     }
 }
 
-#[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
+#[cfg(feature = "v1")]
 impl From<(PaymentMethodRecord, id_type::MerchantId)> for customers::CustomerRequest {
     fn from(value: (PaymentMethodRecord, id_type::MerchantId)) -> Self {
         let (record, merchant_id) = value;

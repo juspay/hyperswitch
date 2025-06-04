@@ -123,7 +123,7 @@ use crate::{
     },
     workflows::payment_sync,
 };
-#[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
+#[cfg(feature = "v1")]
 use crate::{
     core::authentication as authentication_core,
     types::{api::authentication, BrowserInformation},
@@ -7891,7 +7891,7 @@ pub async fn route_connector_v1_for_payouts(
     Ok(ConnectorCallType::Retryable(connector_data))
 }
 
-#[cfg(all(feature = "v2", feature = "customer_v2"))]
+#[cfg(feature = "v2")]
 pub async fn payment_external_authentication(
     _state: SessionState,
     _merchant_context: domain::MerchantContext,
@@ -7900,7 +7900,7 @@ pub async fn payment_external_authentication(
     todo!()
 }
 
-#[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
+#[cfg(feature = "v1")]
 #[instrument(skip_all)]
 pub async fn payment_external_authentication<F: Clone + Sync>(
     state: SessionState,

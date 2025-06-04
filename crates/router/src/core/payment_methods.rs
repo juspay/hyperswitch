@@ -8,7 +8,7 @@ pub mod utils;
 mod validator;
 pub mod vault;
 use std::borrow::Cow;
-#[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
+#[cfg(feature = "v1")]
 use std::collections::HashSet;
 #[cfg(feature = "v2")]
 use std::str::FromStr;
@@ -19,7 +19,7 @@ pub use api_models::enums::Connector;
 use api_models::payment_methods;
 #[cfg(feature = "payouts")]
 pub use api_models::{enums::PayoutConnectors, payouts as payout_types};
-#[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
+#[cfg(feature = "v1")]
 use common_utils::ext_traits::{Encode, OptionExt};
 use common_utils::{consts::DEFAULT_LOCALE, id_type};
 #[cfg(feature = "v2")]
@@ -34,9 +34,9 @@ use diesel_models::{
     enums, GenericLinkNew, PaymentMethodCollectLink, PaymentMethodCollectLinkData,
 };
 use error_stack::{report, ResultExt};
-#[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
+#[cfg(feature = "v1")]
 use hyperswitch_domain_models::api::{GenericLinks, GenericLinksData};
-#[cfg(all(feature = "v2", feature = "customer_v2"))]
+#[cfg(feature = "v2")]
 use hyperswitch_domain_models::mandates::CommonMandateReference;
 use hyperswitch_domain_models::payments::{
     payment_attempt::PaymentAttempt, PaymentIntent, VaultData,
@@ -274,7 +274,7 @@ pub async fn create_pm_collect_db_entry(
         })
 }
 
-#[cfg(all(feature = "v2", feature = "customer_v2"))]
+#[cfg(feature = "v2")]
 pub async fn render_pm_collect_link(
     _state: SessionState,
     _merchant_context: domain::MerchantContext,
@@ -283,7 +283,7 @@ pub async fn render_pm_collect_link(
     todo!()
 }
 
-#[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
+#[cfg(feature = "v1")]
 pub async fn render_pm_collect_link(
     state: SessionState,
     merchant_context: domain::MerchantContext,
@@ -1992,7 +1992,7 @@ pub async fn vault_payment_method(
 
 // TODO: check if this function will be used for listing the customer payment methods for payments
 #[allow(unused)]
-#[cfg(all(feature = "v2", feature = "customer_v2"))]
+#[cfg(feature = "v2")]
 fn get_pm_list_context(
     payment_method_type: enums::PaymentMethod,
     payment_method: &domain::PaymentMethod,

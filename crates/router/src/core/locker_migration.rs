@@ -5,13 +5,13 @@ use api_models::locker_migration::MigrateCardResponse;
 use common_utils::{errors::CustomResult, id_type};
 #[cfg(feature = "v1")]
 use diesel_models::enums as storage_enums;
-#[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
+#[cfg(feature = "v1")]
 use error_stack::FutureExt;
 use error_stack::ResultExt;
-#[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
+#[cfg(feature = "v1")]
 use futures::TryFutureExt;
 
-#[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
+#[cfg(feature = "v1")]
 use super::errors::StorageErrorExt;
 #[cfg(feature = "v1")]
 use super::payment_methods::cards;
@@ -21,7 +21,7 @@ use crate::services::logger;
 use crate::types::api;
 use crate::{errors, routes::SessionState, services, types::domain};
 
-#[cfg(all(feature = "v2", feature = "customer_v2"))]
+#[cfg(feature = "v2")]
 pub async fn rust_locker_migration(
     _state: SessionState,
     _merchant_id: &id_type::MerchantId,

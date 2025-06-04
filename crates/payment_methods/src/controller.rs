@@ -32,7 +32,7 @@ pub enum DataDuplicationCheck {
 
 #[async_trait::async_trait]
 pub trait PaymentMethodsController {
-    #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
+    #[cfg(feature = "v1")]
     #[allow(clippy::too_many_arguments)]
     async fn create_payment_method(
         &self,
@@ -103,7 +103,7 @@ pub trait PaymentMethodsController {
         pm: api::PaymentMethodId,
     ) -> errors::PmResponse<api::PaymentMethodResponse>;
 
-    #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
+    #[cfg(feature = "v1")]
     async fn delete_payment_method(
         &self,
         pm_id: api::PaymentMethodId,
@@ -202,7 +202,7 @@ pub trait PaymentMethodsController {
         pm_id: String,
     ) -> errors::PmResult<bool>;
 
-    #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
+    #[cfg(feature = "v1")]
     async fn set_default_payment_method(
         &self,
         merchant_id: &id_type::MerchantId,

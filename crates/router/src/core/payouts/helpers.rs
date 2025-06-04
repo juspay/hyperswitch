@@ -11,7 +11,7 @@ use common_utils::{
         MinorUnit, UnifiedCode, UnifiedMessage,
     },
 };
-#[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
+#[cfg(feature = "v1")]
 use common_utils::{generate_customer_id_of_default_length, types::keymanager::ToEncryptable};
 use error_stack::{report, ResultExt};
 use hyperswitch_domain_models::type_encryption::{crypto_operation, CryptoOperation};
@@ -703,7 +703,7 @@ pub async fn save_payout_data_to_locker(
     todo!()
 }
 
-#[cfg(all(feature = "v2", feature = "customer_v2"))]
+#[cfg(feature = "v2")]
 pub(super) async fn get_or_create_customer_details(
     _state: &SessionState,
     _customer_details: &CustomerDetails,
@@ -712,7 +712,7 @@ pub(super) async fn get_or_create_customer_details(
     todo!()
 }
 
-#[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
+#[cfg(feature = "v1")]
 pub(super) async fn get_or_create_customer_details(
     state: &SessionState,
     customer_details: &CustomerDetails,
@@ -995,7 +995,7 @@ pub async fn get_default_payout_connector(
     ))
 }
 
-#[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
+#[cfg(feature = "v1")]
 pub fn should_call_payout_connector_create_customer<'a>(
     state: &'a SessionState,
     connector: &'a api::ConnectorData,
@@ -1025,7 +1025,7 @@ pub fn should_call_payout_connector_create_customer<'a>(
     }
 }
 
-#[cfg(all(feature = "v2", feature = "customer_v2"))]
+#[cfg(feature = "v2")]
 pub fn should_call_payout_connector_create_customer<'a>(
     state: &'a SessionState,
     connector: &'a api::ConnectorData,
@@ -1176,7 +1176,7 @@ pub(super) async fn filter_by_constraints(
     Ok(result)
 }
 
-#[cfg(all(feature = "v2", feature = "customer_v2"))]
+#[cfg(feature = "v2")]
 pub async fn update_payouts_and_payout_attempt(
     _payout_data: &mut PayoutData,
     _merchant_context: &domain::MerchantContext,
@@ -1186,7 +1186,7 @@ pub async fn update_payouts_and_payout_attempt(
     todo!()
 }
 
-#[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
+#[cfg(feature = "v1")]
 pub async fn update_payouts_and_payout_attempt(
     payout_data: &mut PayoutData,
     merchant_context: &domain::MerchantContext,

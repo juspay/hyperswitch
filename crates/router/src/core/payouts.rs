@@ -725,7 +725,7 @@ pub async fn payouts_fulfill_core(
     response_handler(&state, &merchant_context, &payout_data).await
 }
 
-#[cfg(all(feature = "olap", feature = "v2", feature = "customer_v2"))]
+#[cfg(all(feature = "olap", feature = "v2"))]
 pub async fn payouts_list_core(
     _state: SessionState,
     _merchant_context: domain::MerchantContext,
@@ -736,9 +736,7 @@ pub async fn payouts_list_core(
 }
 
 #[cfg(all(
-    feature = "olap",
-    any(feature = "v1", feature = "v2"),
-    not(feature = "customer_v2")
+    feature = "olap",feature = "v1"
 ))]
 pub async fn payouts_list_core(
     state: SessionState,
@@ -773,7 +771,7 @@ pub async fn payouts_list_core(
         {
             Ok(payout_attempt) => {
                 let domain_customer = match payout.customer_id.clone() {
-                    #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
+                    #[cfg(feature = "v1")]
                     Some(customer_id) => db
                         .find_customer_by_customer_id_merchant_id(
                             &(&state).into(),
@@ -1158,7 +1156,7 @@ pub async fn complete_create_recipient(
     Ok(())
 }
 
-#[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
+#[cfg(feature = "v1")]
 pub async fn create_recipient(
     state: &SessionState,
     merchant_context: &domain::MerchantContext,
@@ -1222,10 +1220,7 @@ pub async fn create_recipient(
                         )
                         .await
                     {
-                        #[cfg(all(
-                            any(feature = "v1", feature = "v2"),
-                            not(feature = "customer_v2")
-                        ))]
+                        #[cfg(feature = "v1")]
                         {
                             let customer_id = customer.customer_id.to_owned();
                             payout_data.customer_details = Some(
@@ -1244,7 +1239,7 @@ pub async fn create_recipient(
                             );
                         }
 
-                        #[cfg(all(feature = "v2", feature = "customer_v2"))]
+                        #[cfg(feature = "v2")]
                         {
                             let customer_id = customer.get_id().clone();
                             payout_data.customer_details = Some(
@@ -1358,7 +1353,7 @@ pub async fn create_recipient(
     Ok(())
 }
 
-#[cfg(all(feature = "v2", feature = "customer_v2"))]
+#[cfg(feature = "v2")]
 pub async fn create_recipient(
     state: &SessionState,
     merchant_context: &domain::MerchantContext,
@@ -2123,10 +2118,10 @@ pub async fn create_recipient_disburse_account(
                         .attach_printable("Unable to find payment method")?,
                     );
                 } else {
-                    #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
+                    #[cfg(feature = "v1")]
                     let customer_id = Some(customer_details.customer_id);
 
-                    #[cfg(all(feature = "v2", feature = "customer_v2"))]
+                    #[cfg(feature = "v2")]
                     let customer_id = customer_details.merchant_reference_id;
 
                     if let Some(customer_id) = customer_id {
@@ -2585,7 +2580,7 @@ pub async fn response_handler(
     Ok(services::ApplicationResponse::Json(response))
 }
 
-#[cfg(all(feature = "v2", feature = "customer_v2"))]
+#[cfg(feature = "v2")]
 #[allow(clippy::too_many_arguments)]
 pub async fn payout_create_db_entries(
     _state: &SessionState,
@@ -2602,7 +2597,7 @@ pub async fn payout_create_db_entries(
 }
 
 // DB entries
-#[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
+#[cfg(feature = "v1")]
 #[allow(clippy::too_many_arguments)]
 pub async fn payout_create_db_entries(
     state: &SessionState,
@@ -2812,7 +2807,7 @@ pub async fn payout_create_db_entries(
     })
 }
 
-#[cfg(all(feature = "v2", feature = "customer_v2"))]
+#[cfg(feature = "v2")]
 pub async fn make_payout_data(
     _state: &SessionState,
     _merchant_context: &domain::MerchantContext,
@@ -2823,7 +2818,7 @@ pub async fn make_payout_data(
     todo!()
 }
 
-#[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
+#[cfg(feature = "v1")]
 pub async fn make_payout_data(
     state: &SessionState,
     merchant_context: &domain::MerchantContext,

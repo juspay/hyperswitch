@@ -94,8 +94,7 @@ pub use self::app::{Blocklist, Organization, Routing, Verify, WebhookEvents};
 pub use self::app::{PayoutLink, Payouts};
 #[cfg(all(
     feature = "stripe",
-    any(feature = "v1", feature = "v2"),
-    not(feature = "customer_v2")
+    feature = "v1"
 ))]
 pub use super::compatibility::stripe::StripeApis;
 #[cfg(feature = "olap")]

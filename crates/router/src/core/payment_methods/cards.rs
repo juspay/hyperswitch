@@ -45,7 +45,7 @@ use error_stack::{report, ResultExt};
 use euclid::dssa::graph::{AnalysisContext, CgraphExt};
 use euclid::frontend::dir;
 use hyperswitch_constraint_graph as cgraph;
-#[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
+#[cfg(feature = "v1")]
 use hyperswitch_domain_models::customer::CustomerUpdate;
 use hyperswitch_domain_models::mandates::CommonMandateReference;
 use hyperswitch_interfaces::secrets_interface::secret_state::RawSecret;
@@ -68,7 +68,7 @@ use crate::core::payment_methods::{
     add_payment_method_status_update_task, tokenize,
     utils::{get_merchant_pm_filter_graph, make_pm_graph, refresh_pm_filters_cache},
 };
-#[cfg(all(any(feature = "v2", feature = "v1"), not(feature = "customer_v2")))]
+#[cfg(feature = "v1")]
 use crate::routes::app::SessionStateInfo;
 #[cfg(feature = "payouts")]
 use crate::types::domain::types::AsyncLift;
@@ -109,7 +109,7 @@ pub struct PmCards<'a> {
 
 #[async_trait::async_trait]
 impl PaymentMethodsController for PmCards<'_> {
-    #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
+    #[cfg(feature = "v1")]
     #[instrument(skip_all)]
     #[allow(clippy::too_many_arguments)]
     async fn create_payment_method(
@@ -770,7 +770,7 @@ impl PaymentMethodsController for PmCards<'_> {
         })
     }
 
-    #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
+    #[cfg(feature = "v1")]
     async fn set_default_payment_method(
         &self,
         merchant_id: &id_type::MerchantId,
@@ -951,7 +951,7 @@ impl PaymentMethodsController for PmCards<'_> {
         ))
     }
 
-    #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
+    #[cfg(feature = "v1")]
     #[instrument(skip_all)]
     async fn delete_payment_method(
         &self,
@@ -1939,7 +1939,7 @@ pub async fn get_card_from_locker(
     Ok(get_card_from_rs_locker_resp)
 }
 
-#[cfg(all(feature = "v2", feature = "customer_v2"))]
+#[cfg(feature = "v2")]
 pub async fn delete_card_by_locker_id(
     state: &routes::SessionState,
     id: &id_type::GlobalCustomerId,
@@ -2306,7 +2306,7 @@ pub async fn delete_card_from_hs_locker<'a>(
 }
 
 // Need to fix this function while completing v2
-#[cfg(all(feature = "v2", feature = "customer_v2"))]
+#[cfg(feature = "v2")]
 #[instrument(skip_all)]
 pub async fn delete_card_from_hs_locker_by_global_id<'a>(
     state: &routes::SessionState,
@@ -2559,7 +2559,7 @@ fn get_val(str: String, val: &serde_json::Value) -> Option<String> {
         .map(|s| s.to_string())
 }
 
-#[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
+#[cfg(feature = "v1")]
 pub async fn list_payment_methods(
     state: routes::SessionState,
     merchant_context: domain::MerchantContext,

@@ -3,8 +3,7 @@ use std::collections::HashMap;
 use common_utils::link_utils::EnabledPaymentMethod;
 
 #[cfg(all(
-    any(feature = "v1", feature = "v2"),
-    not(feature = "customer_v2"),
+    feature = "v1",
     feature = "olap"
 ))]
 use crate::types::transformers::ForeignInto;
@@ -15,7 +14,7 @@ use crate::{
     types::{api, transformers::ForeignFrom},
 };
 
-#[cfg(all(feature = "v2", feature = "customer_v2", feature = "olap"))]
+#[cfg(all(feature = "v2", feature = "olap"))]
 impl
     ForeignFrom<(
         storage::Payouts,
@@ -37,8 +36,7 @@ impl
 }
 
 #[cfg(all(
-    any(feature = "v1", feature = "v2"),
-    not(feature = "customer_v2"),
+    feature = "v1",
     feature = "olap"
 ))]
 impl

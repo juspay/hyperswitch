@@ -723,7 +723,7 @@ pub trait PaymentMethodInterface {
         storage_scheme: MerchantStorageScheme,
     ) -> CustomResult<PaymentMethod, Self::Error>;
 
-    #[cfg(all(feature = "v2", feature = "customer_v2"))]
+    #[cfg(feature = "v2")]
     async fn find_payment_method(
         &self,
         state: &keymanager::KeyManagerState,
@@ -752,7 +752,7 @@ pub trait PaymentMethodInterface {
     ) -> CustomResult<Vec<PaymentMethod>, Self::Error>;
 
     // Need to fix this once we start moving to v2 for payment method
-    #[cfg(all(feature = "v2", feature = "customer_v2"))]
+    #[cfg(feature = "v2")]
     async fn find_payment_method_list_by_global_customer_id(
         &self,
         state: &keymanager::KeyManagerState,
@@ -774,7 +774,7 @@ pub trait PaymentMethodInterface {
         storage_scheme: MerchantStorageScheme,
     ) -> CustomResult<Vec<PaymentMethod>, Self::Error>;
 
-    #[cfg(all(feature = "v2", feature = "customer_v2"))]
+    #[cfg(feature = "v2")]
     #[allow(clippy::too_many_arguments)]
     async fn find_payment_method_by_global_customer_id_merchant_id_status(
         &self,

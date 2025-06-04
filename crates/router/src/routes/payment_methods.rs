@@ -463,7 +463,7 @@ pub async fn list_payment_method_api(
     .await
 }
 
-#[cfg(all(any(feature = "v2", feature = "v1"), not(feature = "customer_v2")))]
+#[cfg(feature = "v1")]
 /// List payment methods for a Customer
 ///
 /// To filter and list the applicable payment methods for a particular Customer ID
@@ -526,7 +526,7 @@ pub async fn list_customer_payment_method_api(
     .await
 }
 
-#[cfg(all(any(feature = "v2", feature = "v1"), not(feature = "customer_v2")))]
+#[cfg(feature = "v1")]
 /// List payment methods for a Customer
 ///
 /// To filter and list the applicable payment methods for a particular Customer ID
@@ -742,7 +742,7 @@ pub async fn get_total_payment_method_count(
     .await
 }
 
-#[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
+#[cfg(feature = "v1")]
 /// Generate a form link for collecting payment methods for a customer
 #[instrument(skip_all, fields(flow = ?Flow::PaymentMethodCollectLink))]
 pub async fn render_pm_collect_link(

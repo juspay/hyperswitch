@@ -455,7 +455,7 @@ pub async fn get_client_secret_or_add_payment_method_for_migration(
         ))
     }
 }
-#[cfg(all(feature = "v1", not(feature = "customer_v2")))]
+#[cfg(feature = "v1")]
 #[allow(clippy::too_many_arguments)]
 pub async fn skip_locker_call_and_migrate_payment_method(
     state: &state::PaymentMethodsState,
@@ -624,7 +624,7 @@ pub async fn skip_locker_call_and_migrate_payment_method(
 }
 
 // need to discuss regarding the migration APIs for v2
-#[cfg(all(feature = "v2", feature = "customer_v2"))]
+#[cfg(feature = "v2")]
 pub async fn skip_locker_call_and_migrate_payment_method(
     _state: state::PaymentMethodsState,
     _req: &pm_api::PaymentMethodMigrate,

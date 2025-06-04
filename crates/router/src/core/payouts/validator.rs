@@ -11,7 +11,7 @@ use router_env::{instrument, tracing, which as router_env_which, Env};
 use url::Url;
 
 use super::helpers;
-#[cfg(all(any(feature = "v2", feature = "v1"), not(feature = "customer_v2")))]
+#[cfg(feature = "v1")]
 use crate::core::payment_methods::cards::get_pm_list_context;
 use crate::{
     core::{
@@ -50,7 +50,7 @@ pub async fn validate_uniqueness_of_payout_id_against_merchant_id(
     }
 }
 
-#[cfg(all(feature = "v2", feature = "customer_v2"))]
+#[cfg(feature = "v2")]
 pub async fn validate_create_request(
     _state: &SessionState,
     _merchant_context: &domain::MerchantContext,
@@ -69,7 +69,7 @@ pub async fn validate_create_request(
 /// - merchant_id passed is same as the one in merchant_account table
 /// - payout_id is unique against merchant_id
 /// - payout_token provided is legitimate
-#[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
+#[cfg(feature = "v1")]
 pub async fn validate_create_request(
     state: &SessionState,
     merchant_context: &domain::MerchantContext,

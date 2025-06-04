@@ -41,8 +41,7 @@ use super::payout_link::*;
 use super::payouts::*;
 #[cfg(all(
     feature = "oltp",
-    any(feature = "v1", feature = "v2"),
-    not(feature = "customer_v2")
+    feature = "v1"
 ))]
 use super::pm_auth;
 #[cfg(feature = "oltp")]
@@ -1072,13 +1071,12 @@ pub struct Customers;
 
 #[cfg(all(
     feature = "v2",
-    feature = "customer_v2",
     any(feature = "olap", feature = "oltp")
 ))]
 impl Customers {
     pub fn server(state: AppState) -> Scope {
         let mut route = web::scope("/v2/customers").app_data(web::Data::new(state));
-        #[cfg(all(feature = "olap", feature = "v2", feature = "customer_v2"))]
+        #[cfg(all(feature = "olap", feature = "v2"))]
         {
             route = route
                 .service(web::resource("/list").route(web::get().to(customers::customers_list)))
@@ -1087,7 +1085,7 @@ impl Customers {
                         .route(web::get().to(payment_methods::get_total_payment_method_count)),
                 )
         }
-        #[cfg(all(feature = "oltp", feature = "v2", feature = "customer_v2"))]
+        #[cfg(all(feature = "oltp", feature = "v2"))]
         {
             route = route
                 .service(web::resource("").route(web::post().to(customers::customers_create)))
@@ -1107,8 +1105,7 @@ impl Customers {
 }
 
 #[cfg(all(
-    any(feature = "v1", feature = "v2"),
-    not(feature = "customer_v2"),
+    feature = "v1",
     any(feature = "olap", feature = "oltp")
 ))]
 impl Customers {
@@ -1308,9 +1305,8 @@ impl PaymentMethods {
 pub struct PaymentMethods;
 
 #[cfg(all(
-    any(feature = "v1", feature = "v2"),
-    any(feature = "olap", feature = "oltp"),
-    not(feature = "customer_v2")
+    feature = "v1",
+    any(feature = "olap", feature = "oltp")
 ))]
 impl PaymentMethods {
     pub fn server(state: AppState) -> Scope {
@@ -1661,8 +1657,7 @@ impl MerchantConnectorAccount {
 pub struct EphemeralKey;
 
 #[cfg(all(
-    any(feature = "v1", feature = "v2"),
-    not(feature = "customer_v2"),
+    feature = "v1",
     feature = "oltp"
 ))]
 impl EphemeralKey {

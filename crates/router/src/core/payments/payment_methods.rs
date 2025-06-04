@@ -7,7 +7,7 @@ use error_stack::ResultExt;
 use super::errors;
 use crate::{db::errors::StorageErrorExt, routes, types::domain};
 
-#[cfg(all(feature = "v2", feature = "customer_v2"))]
+#[cfg(feature = "v2")]
 pub async fn list_payment_methods(
     state: routes::SessionState,
     merchant_context: domain::MerchantContext,

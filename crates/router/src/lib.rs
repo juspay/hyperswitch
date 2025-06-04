@@ -176,8 +176,7 @@ pub fn mk_app(
     }
     #[cfg(all(
         feature = "oltp",
-        any(feature = "v1", feature = "v2"),
-        not(feature = "customer_v2")
+        feature = "v1"
     ))]
     {
         server_app = server_app.service(routes::Poll::server(state.clone()))
@@ -223,8 +222,7 @@ pub fn mk_app(
 
     #[cfg(all(
         feature = "stripe",
-        any(feature = "v1", feature = "v2"),
-        not(feature = "customer_v2")
+        feature = "v1"
     ))]
     {
         server_app = server_app

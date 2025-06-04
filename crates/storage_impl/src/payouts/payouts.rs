@@ -5,8 +5,7 @@ use async_bb8_diesel::{AsyncConnection, AsyncRunQueryDsl};
 use common_utils::ext_traits::Encode;
 #[cfg(all(
     feature = "olap",
-    any(feature = "v1", feature = "v2"),
-    not(feature = "customer_v2")
+    any(feature = "v1", feature = "v2")
 ))]
 use diesel::JoinOnDsl;
 #[cfg(feature = "olap")]
@@ -14,13 +13,11 @@ use diesel::{associations::HasTable, ExpressionMethods, NullableExpressionMethod
 #[cfg(all(
     feature = "olap",
     any(feature = "v1", feature = "v2"),
-    not(feature = "customer_v2")
 ))]
 use diesel_models::payout_attempt::PayoutAttempt as DieselPayoutAttempt;
 #[cfg(all(
     feature = "olap",
-    any(feature = "v1", feature = "v2"),
-    not(feature = "customer_v2")
+    feature = "v1"
 ))]
 use diesel_models::schema::{
     address::dsl as add_dsl, customers::dsl as cust_dsl, payout_attempt::dsl as poa_dsl,
@@ -54,8 +51,7 @@ use router_env::{instrument, tracing};
 use crate::connection;
 #[cfg(all(
     feature = "olap",
-    any(feature = "v1", feature = "v2"),
-    not(feature = "customer_v2")
+    feature = "v1"
 ))]
 use crate::store::schema::{
     address::all_columns as addr_all_columns, customers::all_columns as cust_all_columns,
@@ -584,9 +580,8 @@ impl<T: DatabaseStore> PayoutsInterface for crate::RouterStore<T> {
     }
 
     #[cfg(all(
-        any(feature = "v1", feature = "v2"),
+        feature = "v1",
         feature = "olap",
-        not(feature = "customer_v2")
     ))]
     #[instrument(skip_all)]
     async fn filter_payouts_and_attempts(
@@ -744,7 +739,7 @@ impl<T: DatabaseStore> PayoutsInterface for crate::RouterStore<T> {
             })
     }
 
-    #[cfg(all(feature = "olap", feature = "v2", feature = "customer_v2"))]
+    #[cfg(all(feature = "olap", feature = "v2"))]
     #[instrument(skip_all)]
     async fn filter_payouts_and_attempts(
         &self,
@@ -816,9 +811,8 @@ impl<T: DatabaseStore> PayoutsInterface for crate::RouterStore<T> {
     }
 
     #[cfg(all(
-        any(feature = "v1", feature = "v2"),
+        feature = "v1",
         feature = "olap",
-        not(feature = "customer_v2")
     ))]
     #[instrument(skip_all)]
     async fn filter_active_payout_ids_by_constraints(
@@ -897,7 +891,7 @@ impl<T: DatabaseStore> PayoutsInterface for crate::RouterStore<T> {
         })
     }
 
-    #[cfg(all(feature = "olap", feature = "v2", feature = "customer_v2"))]
+    #[cfg(all(feature = "olap", feature = "v2"))]
     #[instrument(skip_all)]
     async fn filter_active_payout_ids_by_constraints(
         &self,
