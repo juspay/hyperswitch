@@ -3,9 +3,9 @@ pub mod transformers;
 use std::collections::HashSet;
 
 #[cfg(all(feature = "v1", feature = "dynamic_routing"))]
-use api_models::routing::{self, DynamicRoutingAlgoAccessor};
+use api_models::routing::DynamicRoutingAlgoAccessor;
 use api_models::{
-    enums, mandates as mandates_api,
+    enums, mandates as mandates_api, routing,
     routing::{
         self as routing_types, RoutingRetrieveQuery, RuleMigrationError, RuleMigrationResponse,
     },
@@ -523,7 +523,7 @@ pub async fn link_routing_config(
             utils::when(
                 matches!(
                     dynamic_routing_ref.success_based_algorithm,
-                    Some(routing_types::SuccessBasedAlgorithm {
+                    Some(routing::SuccessBasedAlgorithm {
                         algorithm_id_with_timestamp:
                         routing_types::DynamicAlgorithmWithTimestamp {
                             algorithm_id: Some(ref id),
@@ -533,7 +533,7 @@ pub async fn link_routing_config(
                     }) if id == &algorithm_id
                 ) || matches!(
                     dynamic_routing_ref.elimination_routing_algorithm,
-                    Some(routing_types::EliminationRoutingAlgorithm {
+                    Some(routing::EliminationRoutingAlgorithm {
                         algorithm_id_with_timestamp:
                         routing_types::DynamicAlgorithmWithTimestamp {
                             algorithm_id: Some(ref id),
@@ -543,7 +543,7 @@ pub async fn link_routing_config(
                     }) if id == &algorithm_id
                 ) || matches!(
                     dynamic_routing_ref.contract_based_routing,
-                    Some(routing_types::ContractRoutingAlgorithm {
+                    Some(routing::ContractRoutingAlgorithm {
                         algorithm_id_with_timestamp:
                         routing_types::DynamicAlgorithmWithTimestamp {
                             algorithm_id: Some(ref id),
@@ -1513,8 +1513,8 @@ pub async fn configure_dynamic_routing_volume_split(
     state: SessionState,
     merchant_context: domain::MerchantContext,
     profile_id: common_utils::id_type::ProfileId,
-    routing_info: routing_types::RoutingVolumeSplit,
-) -> RouterResponse<routing_types::RoutingVolumeSplit> {
+    routing_info: routing::RoutingVolumeSplit,
+) -> RouterResponse<routing::RoutingVolumeSplit> {
     metrics::ROUTING_CREATE_REQUEST_RECEIVED.add(
         1,
         router_env::metric_attributes!(("profile_id", profile_id.clone())),

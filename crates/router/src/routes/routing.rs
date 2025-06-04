@@ -1566,7 +1566,7 @@ pub async fn migrate_routing_rules_for_profile(
     req: HttpRequest,
     query: web::Query<routing_types::RuleMigrationQuery>,
 ) -> impl Responder {
-    let flow = Flow::RuleMigration;
+    let flow = Flow::DecisionEngineRuleMigration;
     Box::pin(oss_api::server_wrap(
         flow,
         state,

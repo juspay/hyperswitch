@@ -250,7 +250,7 @@ pub enum Flow {
     /// Routing retrieve dictionary
     RoutingRetrieveDictionary,
     /// Rule migration for decision-engine
-    RuleMigration,
+    DecisionEngineRuleMigration,
     /// Routing update config
     RoutingUpdateConfig,
     /// Routing update default config

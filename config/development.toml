@@ -1150,7 +1150,7 @@ click_to_pay = {connector_list = "adyen, cybersource"}
 
 [open_router]
 enabled = false
-url = "http://localhost:8082"
+url = "http://localhost:8080"
 
 [revenue_recovery]
 monitoring_threshold_in_seconds = 2592000
