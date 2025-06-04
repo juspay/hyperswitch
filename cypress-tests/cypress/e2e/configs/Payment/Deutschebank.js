@@ -1,3 +1,5 @@
+import { configs } from "@eslint/js";
+
 export const customerAcceptance = {
   acceptance_type: "offline",
   accepted_at: "1963-05-03T04:07:52.723Z",
@@ -219,14 +221,6 @@ export const connectorDetails = {
         },
       },
     },
-    ZeroAuthMandate: {
-      Response: {
-        status: 200,
-        body: {
-          status: "processing",
-        },
-      },
-    },
     PaymentMethodIdMandate3DSAutoCapture: {
       Request: {
         payment_method: "card",
@@ -261,36 +255,6 @@ export const connectorDetails = {
         body: {
           status: "requires_customer_action",
           payment_method_data: paymentMethodData3DSResponse,
-        },
-      },
-    },
-    ZeroAuthPaymentIntent: {
-      Request: {
-        amount: 0,
-        setup_future_usage: "off_session",
-        currency: "USD",
-      },
-      Response: {
-        status: 200,
-        body: {
-          status: "requires_payment_method",
-          setup_future_usage: "off_session",
-        },
-      },
-    },
-    ZeroAuthConfirmPayment: {
-      Request: {
-        payment_type: "setup_mandate",
-        payment_method: "card",
-        payment_method_type: "credit",
-        payment_method_data: {
-          card: successful3DSCardDetails,
-        },
-      },
-      Response: {
-        status: 200,
-        body: {
-          status: "processing",
         },
       },
     },
