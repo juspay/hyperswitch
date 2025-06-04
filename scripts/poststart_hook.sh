@@ -7,9 +7,13 @@ STATUS=""
 SERVER_BASE_URL="http://hyperswitch-server:8080"
 HYPERSWITCH_HEALTH_URL="${SERVER_BASE_URL}/health"
 HYPERSWITCH_DEEP_HEALTH_URL="${SERVER_BASE_URL}/health/ready"
-WEBHOOK_URL="https://hyperswitch.gateway.scarf.sh/docker"
-
 ONE_CLICK_SETUP="${ONE_CLICK_SETUP:-false}"
+
+if [[ "${ONE_CLICK_SETUP}" == "true" ]]; then
+    SCARF_URL="https://hyperswitch.gateway.scarf.sh/docker"
+else
+    SCARF_URL="https://hyperswitch.gateway.scarf.sh/only-docker"
+fi
 
 # Fetch health status
 echo "Fetching app server health status..."
@@ -17,9 +21,9 @@ HEALTH_RESPONSE=$(curl --silent --fail "${HYPERSWITCH_HEALTH_URL}") || HEALTH_RE
 
 if [[ "${HEALTH_RESPONSE}" == "connection_error" ]]; then
     STATUS="error"
-    ERROR_MESSAGE="404 response"
+    ERROR_MESSAGE="500 response"
 
-    curl --get "${WEBHOOK_URL}" \
+    curl --get "${SCARF_URL}" \
         --data-urlencode "version=${VERSION}" \
         --data-urlencode "status=${STATUS}" \
         --data-urlencode "error_message=${ERROR_MESSAGE}"
@@ -35,7 +39,7 @@ echo "Fetching Hyperswitch health status..."
 HEALTH_RESPONSE=$(curl --silent "${HYPERSWITCH_DEEP_HEALTH_URL}")
 
 # Prepare curl command
-CURL_COMMAND=("curl" "--get" "${WEBHOOK_URL}" "--data-urlencode" "version=${VERSION}")
+CURL_COMMAND=("curl" "--get" "${SCARF_URL}" "--data-urlencode" "version=${VERSION}")
 
 # Check if the response contains an error
 if [[ "$(echo "${HEALTH_RESPONSE}" | jq --raw-output '.error')" != "null" ]]; then
