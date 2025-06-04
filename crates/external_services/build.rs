@@ -36,6 +36,8 @@ fn compile_protos() -> Result<(), Box<dyn std::error::Error>> {
         // Compile the .proto file
         tonic_build::configure()
             .out_dir(out_dir)
+            .compile_well_known_types(true)
+            .extern_path(".google.protobuf.Timestamp", "::prost_types::Timestamp")
             .type_attribute(
                 "trainer.TriggerTrainingRequest",
                 "#[derive(masking::Deserialize, masking::Serialize)]",
@@ -49,12 +51,8 @@ fn compile_protos() -> Result<(), Box<dyn std::error::Error>> {
                 "#[derive(serde::Serialize)]",
             )
             .type_attribute(
-                "recovery_decider.RecoveryDeciderResponse",
-                "#[derive(serde::Serialize)]",
-            )
-            .type_attribute(
-                "recovery_decider.RecoveryDeciderRequest",
-                "#[derive(masking::Serialize, masking::Deserialize)]",
+                "google.protobuf.Timestamp",
+                "#[derive(serde::Serialize, serde::Deserialize)]",
             )
             .compile(&proto_files_to_compile, &[proto_base_path])?;
     }

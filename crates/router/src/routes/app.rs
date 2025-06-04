@@ -722,10 +722,7 @@ impl Decider {
     pub fn server(state: AppState) -> Scope {
         web::scope("/decider")
             .app_data(web::Data::new(state))
-            .service(
-                web::resource("/should_retry")
-                    .route(web::post().to(recovery_decider::recovery_should_retry_test)),
-            )
+            .service(web::resource("").route(web::post().to(recovery_decider::call_decider)))
     }
 }
 

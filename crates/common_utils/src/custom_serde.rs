@@ -1,4 +1,5 @@
 //! Custom serialization/deserialization implementations.
+pub mod prost_timestamp;
 
 /// Use the well-known ISO 8601 format when serializing and deserializing an
 /// [`PrimitiveDateTime`][PrimitiveDateTime].

@@ -50,7 +50,7 @@ pub struct GrpcClients {
     pub health_client: HealthCheckClient,
     #[cfg(feature = "v2")]
     #[allow(missing_docs)]
-    pub recovery_trainer_client: RecoveryDeciderClient,
+    pub recovery_decider_client: RecoveryDeciderClient,
     #[cfg(feature = "v2")]
     #[allow(missing_docs)]
     pub trainer_client: TrainerClient,
@@ -63,8 +63,9 @@ pub struct GrpcClientSettings {
     /// Configs for Dynamic Routing Client
     pub dynamic_routing_client: DynamicRoutingClientConfig,
     #[cfg(feature = "v2")]
-    /// Configs for Recovery Trainer Client
-    pub recovery_trainer_client: RecoveryDeciderClientConfig,
+    #[serde(default)]
+    /// Configs for Recovery Decider Client
+    pub recovery_decider_client: RecoveryDeciderClientConfig,
     #[cfg(feature = "v2")]
     #[serde(default)]
     /// Configs for Trainer Client
@@ -99,12 +100,12 @@ impl GrpcClientSettings {
             .expect("Failed to build gRPC connections");
 
         #[cfg(feature = "v2")]
-        let recovery_trainer_client = {
-            let config = self.recovery_trainer_client.clone();
+        let recovery_decider_client = {
+            let config = self.recovery_decider_client.clone();
 
             RecoveryDeciderClient::get_recovery_decider_connection(config, client.clone())
                 .await
-                .expect("Failed to establish a connection with the Recovery Trainer Server")
+                .expect("Failed to establish a connection with the Recovery Decider Server")
         };
 
         #[cfg(feature = "v2")]
@@ -121,7 +122,7 @@ impl GrpcClientSettings {
             #[cfg(feature = "dynamic_routing")]
             health_client,
             #[cfg(feature = "v2")]
-            recovery_trainer_client,
+            recovery_decider_client,
             #[cfg(feature = "v2")]
             trainer_client,
         })

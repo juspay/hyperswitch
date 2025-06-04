@@ -1133,9 +1133,9 @@ host = "localhost"
 port = 8000
 service = "dynamo"
 
-[grpc_client.recovery_trainer_client]
-host = "localhost"
-port = 50051
+[grpc_client.recovery_decider_client]
+host = "127.0.0.1"
+port = 8000
 
 [grpc_client.trainer_client]
 host = "0.0.0.0"

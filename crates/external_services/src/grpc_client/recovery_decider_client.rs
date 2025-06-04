@@ -12,12 +12,22 @@ use crate::grpc_client::{self, GrpcHeaders};
     clippy::as_conversions,
     clippy::use_self
 )]
-pub mod recovery_decider {
-    tonic::include_proto!("recovery_decider");
+pub mod decider {
+    tonic::include_proto!("decider");
 }
 
-use recovery_decider::recovery_decider_service_client::RecoveryDeciderServiceClient;
-pub use recovery_decider::{RecoveryDeciderRequest, RecoveryDeciderResponse};
+use common_utils::custom_serde::prost_timestamp::SerializableTimestamp;
+use decider::decider_client::DeciderClient;
+pub use decider::DeciderRequest;
+
+// This is the struct that will be serialized/deserialized by Actix
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct DeciderResponseForSerde {
+    pub retry_flag: bool,
+    // This field will use the custom serde logic defined in build.rs
+    // via field_type and field_attribute
+    pub retry_time: Option<SerializableTimestamp>,
+}
 
 #[allow(missing_docs)]
 pub type RecoveryDeciderResult<T> = CustomResult<T, RecoveryDeciderError>;
@@ -40,7 +50,7 @@ pub enum RecoveryDeciderError {
 /// Client for interacting with the Recovery Decider gRPC service.
 #[derive(Debug, Clone)]
 pub struct RecoveryDeciderClient {
-    client: RecoveryDeciderServiceClient<Client>,
+    client: DeciderClient<Client>,
 }
 
 impl RecoveryDeciderClient {
@@ -66,7 +76,7 @@ impl RecoveryDeciderClient {
                 RecoveryDeciderError::ConfigError(format!("Invalid URI: {}", uri_string))
             })?;
 
-        let service_client = RecoveryDeciderServiceClient::with_origin(hyper_client, uri);
+        let service_client = DeciderClient::with_origin(hyper_client, uri);
 
         Ok(Self {
             client: service_client,
@@ -74,43 +84,49 @@ impl RecoveryDeciderClient {
     }
 
     #[allow(clippy::too_many_arguments, missing_docs)]
-    pub async fn get_decider(
+    pub async fn decide_on_retry(
         &mut self,
         first_error_message: String,
         billing_state: String,
         card_funding: String,
         card_network: String,
         card_issuer: String,
-        txn_time: i64,
+        start_time: Option<prost_types::Timestamp>,
+        end_time: Option<prost_types::Timestamp>,
         headers: GrpcHeaders,
-    ) -> RecoveryDeciderResult<RecoveryDeciderResponse> {
-        let request = grpc_client::create_grpc_request(
-            RecoveryDeciderRequest {
-                first_error_message,
-                billing_state,
-                card_funding,
-                card_network,
-                card_issuer,
-                txn_time,
-            },
-            headers,
-        );
+    ) -> RecoveryDeciderResult<DeciderResponseForSerde> {
+        let request_data = DeciderRequest {
+            first_error_message,
+            billing_state,
+            card_funding,
+            card_network,
+            card_issuer,
+            start_time,
+            end_time,
+        };
+        let request = grpc_client::create_grpc_request(request_data, headers);
 
-        logger::debug!(recovery_decider_response =?request);
+        logger::debug!(decider_request =?request);
 
-        let response = self
+        let grpc_response = self
             .client
-            .should_retry(request)
+            .decide(request)
             .await
             .map_err(|status| {
-                logger::error!(grpc_error =?status, "Recovery Decider gRPC call failed");
+                logger::error!(grpc_error =?status, "Decider service call failed");
                 RecoveryDeciderError::ServiceError(status.message().to_string())
             })?
             .into_inner();
 
-        logger::debug!(recovery_decider_response =?response);
+        logger::debug!(grpc_decider_response =?grpc_response);
 
-        Ok(response)
+        // Map to our Serde-compatible struct
+        let response_for_serde = DeciderResponseForSerde {
+            retry_flag: grpc_response.retry_flag,
+            retry_time: grpc_response.retry_time.map(SerializableTimestamp::from),
+        };
+
+        Ok(response_for_serde)
     }
 }
 
@@ -131,13 +147,13 @@ impl Default for RecoveryDeciderClientConfig {
     }
 }
 
-impl common_utils::events::ApiEventMetric for RecoveryDeciderResponse {
+impl common_utils::events::ApiEventMetric for DeciderResponseForSerde {
     fn get_api_event_type(&self) -> Option<common_utils::events::ApiEventsType> {
         Some(common_utils::events::ApiEventsType::Miscellaneous)
     }
 }
 
-impl common_utils::events::ApiEventMetric for RecoveryDeciderRequest {
+impl common_utils::events::ApiEventMetric for DeciderRequest {
     fn get_api_event_type(&self) -> Option<common_utils::events::ApiEventsType> {
         Some(common_utils::events::ApiEventsType::Miscellaneous)
     }
