@@ -4,6 +4,20 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2025.05.28.0-hotfix1
+
+### Features
+
+- **events:** Adding infra level components to api-events ([#8242](https://github.com/juspay/hyperswitch/pull/8242)) ([`2ba704a`](https://github.com/juspay/hyperswitch/commit/2ba704a852fd481e931ff67c711f94a205519c40))
+
+### Bug Fixes
+
+- **connector:** [Worldpay] add root CA certificate ([#8206](https://github.com/juspay/hyperswitch/pull/8206)) ([`7c7d511`](https://github.com/juspay/hyperswitch/commit/7c7d5111c8de604180a960af93d75d90cd901504))
+
+**Full Changelog:** [`2025.05.28.0...2025.05.28.0-hotfix1`](https://github.com/juspay/hyperswitch/compare/2025.05.28.0...2025.05.28.0-hotfix1)
+
+- - -
+
 ## 2025.05.28.0
 
 ### Features
