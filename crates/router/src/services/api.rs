@@ -701,6 +701,8 @@ where
         }
     };
 
+    let infra = state.infra_components.clone();
+
     let api_event = ApiEvent::new(
         tenant_id,
         Some(merchant_id.clone()),
