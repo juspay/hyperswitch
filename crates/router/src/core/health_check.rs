@@ -203,7 +203,7 @@ impl HealthCheckInterface for app::SessionState {
                     errors::HealthCheckDecisionEngineError::FailedToCallDecisionEngineService,
                 )?
                 .map_err(|err| {
-                    logger::error!(error=?err, "Failed to call decision engine service: {:?}", err);
+                    logger::error!("Failed to call decision engine service: {:?}", err);
                     error_stack::report!(
                         errors::HealthCheckDecisionEngineError::FailedToCallDecisionEngineService
                     )
