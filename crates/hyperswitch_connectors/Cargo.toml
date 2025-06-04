@@ -25,7 +25,7 @@ http = "0.2.12"
 iso_currency = "0.4.4"
 isocountry = "0.3.2"
 image = { version = "0.25.6", default-features = false, features = ["png"] }
-josekit = "0.8.6"
+josekit = "0.8.7"
 lazy_static = "1.5.0"
 mime = "0.3.17"
 num-traits = "0.2.19"
