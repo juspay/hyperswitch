@@ -140,7 +140,8 @@ impl TryFrom<(&WalletData, &PaymentsAuthorizeRouterData)> for PaymentDetails {
             | WalletData::AliPayQr(_)
             | WalletData::ApplePayRedirect(_)
             | WalletData::GooglePayRedirect(_)
-            | WalletData::Mifinity(_) => Err(errors::ConnectorError::NotImplemented(
+            | WalletData::Mifinity(_)
+            | WalletData::RevolutPay(_) => Err(errors::ConnectorError::NotImplemented(
                 "Payment method".to_string(),
             ))?,
         };
@@ -165,6 +166,17 @@ impl
         let payment_data = match bank_redirect_data {
             BankRedirectData::Eps { .. } => Self::BankRedirect(Box::new(BankRedirectionPMData {
                 payment_brand: PaymentBrand::Eps,
+                bank_account_country: Some(item.router_data.get_billing_country()?),
+                bank_account_bank_name: None,
+                bank_account_bic: None,
+                bank_account_iban: None,
+                billing_country: None,
+                merchant_customer_id: None,
+                merchant_transaction_id: None,
+                customer_email: None,
+            })),
+            BankRedirectData::Eft { .. } => Self::BankRedirect(Box::new(BankRedirectionPMData {
+                payment_brand: PaymentBrand::Eft,
                 bank_account_country: Some(item.router_data.get_billing_country()?),
                 bank_account_bank_name: None,
                 bank_account_bic: None,
@@ -326,6 +338,7 @@ pub struct WalletPMData {
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum PaymentBrand {
     Eps,
+    Eft,
     Ideal,
     Giropay,
     Sofortueberweisung,

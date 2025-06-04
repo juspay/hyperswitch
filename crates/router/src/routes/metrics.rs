@@ -1,6 +1,5 @@
 pub mod bg_metrics_collector;
 pub mod request;
-pub mod utils;
 
 use router_env::{counter_metric, global_meter, histogram_metric_f64};
 
@@ -11,9 +10,7 @@ counter_metric!(KV_MISS, GLOBAL_METER); // No. of KV misses
 
 // API Level Metrics
 counter_metric!(REQUESTS_RECEIVED, GLOBAL_METER);
-counter_metric!(REQUEST_STATUS, GLOBAL_METER);
 histogram_metric_f64!(REQUEST_TIME, GLOBAL_METER);
-histogram_metric_f64!(EXTERNAL_REQUEST_TIME, GLOBAL_METER);
 
 // Operation Level Metrics
 counter_metric!(PAYMENT_OPS_COUNT, GLOBAL_METER);
@@ -101,7 +98,6 @@ counter_metric!(APPLE_PAY_MANUAL_FLOW_FAILED_PAYMENT, GLOBAL_METER);
 counter_metric!(APPLE_PAY_SIMPLIFIED_FLOW_FAILED_PAYMENT, GLOBAL_METER);
 
 // Metrics for Payment Auto Retries
-counter_metric!(AUTO_RETRY_CONNECTION_CLOSED, GLOBAL_METER);
 counter_metric!(AUTO_RETRY_ELIGIBLE_REQUEST_COUNT, GLOBAL_METER);
 counter_metric!(AUTO_RETRY_GSM_MISS_COUNT, GLOBAL_METER);
 counter_metric!(AUTO_RETRY_GSM_FETCH_FAILURE_COUNT, GLOBAL_METER);

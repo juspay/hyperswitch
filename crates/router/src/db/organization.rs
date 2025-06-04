@@ -31,7 +31,7 @@ impl OrganizationInterface for Store {
         &self,
         organization: storage::OrganizationNew,
     ) -> CustomResult<storage::Organization, errors::StorageError> {
-        let conn = connection::pg_connection_write(self).await?;
+        let conn = connection::pg_accounts_connection_write(self).await?;
         organization
             .insert(&conn)
             .await
@@ -43,7 +43,7 @@ impl OrganizationInterface for Store {
         &self,
         org_id: &id_type::OrganizationId,
     ) -> CustomResult<storage::Organization, errors::StorageError> {
-        let conn = connection::pg_connection_read(self).await?;
+        let conn = connection::pg_accounts_connection_read(self).await?;
         storage::Organization::find_by_org_id(&conn, org_id.to_owned())
             .await
             .map_err(|error| report!(errors::StorageError::from(error)))
@@ -55,7 +55,7 @@ impl OrganizationInterface for Store {
         org_id: &id_type::OrganizationId,
         update: storage::OrganizationUpdate,
     ) -> CustomResult<storage::Organization, errors::StorageError> {
-        let conn = connection::pg_connection_write(self).await?;
+        let conn = connection::pg_accounts_connection_write(self).await?;
 
         storage::Organization::update_by_org_id(&conn, org_id.to_owned(), update)
             .await
@@ -119,12 +119,14 @@ impl OrganizationInterface for super::MockDb {
                     organization_name,
                     organization_details,
                     metadata,
+                    platform_merchant_id,
                 } => {
                     organization_name
                         .as_ref()
                         .map(|org_name| org.set_organization_name(org_name.to_owned()));
                     organization_details.clone_into(&mut org.organization_details);
                     metadata.clone_into(&mut org.metadata);
+                    platform_merchant_id.clone_into(&mut org.platform_merchant_id);
                     org
                 }
             })

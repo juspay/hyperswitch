@@ -1,5 +1,9 @@
 //! API interface
 
+/// authentication module
+pub mod authentication;
+/// authentication_v2 module
+pub mod authentication_v2;
 pub mod disputes;
 pub mod disputes_v2;
 pub mod files;
@@ -16,6 +20,12 @@ pub mod payouts;
 pub mod payouts_v2;
 pub mod refunds;
 pub mod refunds_v2;
+pub mod revenue_recovery;
+pub mod revenue_recovery_v2;
+pub mod vault;
+pub mod vault_v2;
+
+use std::fmt::Debug;
 
 use common_enums::{
     enums::{CallConnectorAction, CaptureMethod, EventClass, PaymentAction, PaymentMethodType},
@@ -27,6 +37,8 @@ use common_utils::{
 };
 use error_stack::ResultExt;
 use hyperswitch_domain_models::{
+    configs::Connectors,
+    errors::api_error_response::ApiErrorResponse,
     payment_method_data::PaymentMethodData,
     router_data::{AccessToken, ConnectorAuthType, ErrorResponse, RouterData},
     router_data_v2::{
@@ -34,13 +46,14 @@ use hyperswitch_domain_models::{
         UasFlowData,
     },
     router_flow_types::{
-        mandate_revoke::MandateRevoke, AccessTokenAuth, Authenticate, PostAuthenticate,
-        PreAuthenticate, VerifyWebhookSource,
+        mandate_revoke::MandateRevoke, AccessTokenAuth, Authenticate, AuthenticationConfirmation,
+        PostAuthenticate, PreAuthenticate, VerifyWebhookSource,
     },
     router_request_types::{
         unified_authentication_service::{
             UasAuthenticationRequestData, UasAuthenticationResponseData,
-            UasPostAuthenticationRequestData, UasPreAuthenticationRequestData,
+            UasConfirmationRequestData, UasPostAuthenticationRequestData,
+            UasPreAuthenticationRequestData,
         },
         AccessTokenRequestData, MandateRevokeRequestData, VerifyWebhookSourceRequestData,
     },
@@ -52,13 +65,68 @@ use hyperswitch_domain_models::{
 use masking::Maskable;
 use serde_json::json;
 
+#[cfg(feature = "frm")]
+pub use self::fraud_check::*;
+#[cfg(feature = "frm")]
+pub use self::fraud_check_v2::*;
 #[cfg(feature = "payouts")]
 pub use self::payouts::*;
-pub use self::{payments::*, refunds::*};
+#[cfg(feature = "payouts")]
+pub use self::payouts_v2::*;
+pub use self::{payments::*, refunds::*, vault::*, vault_v2::*};
 use crate::{
-    configs::Connectors, connector_integration_v2::ConnectorIntegrationV2, consts, errors,
-    events::connector_api_logs::ConnectorEvent, metrics, types,
+    connector_integration_v2::ConnectorIntegrationV2, consts, errors,
+    events::connector_api_logs::ConnectorEvent, metrics, types, webhooks,
 };
+
+/// Connector trait
+pub trait Connector:
+    Send
+    + Refund
+    + Payment
+    + ConnectorRedirectResponse
+    + webhooks::IncomingWebhook
+    + ConnectorAccessToken
+    + disputes::Dispute
+    + files::FileUpload
+    + ConnectorTransactionId
+    + Payouts
+    + ConnectorVerifyWebhookSource
+    + FraudCheck
+    + ConnectorMandateRevoke
+    + authentication::ExternalAuthentication
+    + TaxCalculation
+    + UnifiedAuthenticationService
+    + revenue_recovery::RevenueRecovery
+    + ExternalVault
+{
+}
+
+impl<
+        T: Refund
+            + Payment
+            + ConnectorRedirectResponse
+            + Send
+            + webhooks::IncomingWebhook
+            + ConnectorAccessToken
+            + disputes::Dispute
+            + files::FileUpload
+            + ConnectorTransactionId
+            + Payouts
+            + ConnectorVerifyWebhookSource
+            + FraudCheck
+            + ConnectorMandateRevoke
+            + authentication::ExternalAuthentication
+            + TaxCalculation
+            + UnifiedAuthenticationService
+            + revenue_recovery::RevenueRecovery
+            + ExternalVault,
+    > Connector for T
+{
+}
+
+/// Alias for Box<&'static (dyn Connector + Sync)>
+pub type BoxedConnector = Box<&'static (dyn Connector + Sync)>;
 
 /// type BoxedConnectorIntegration
 pub type BoxedConnectorIntegration<'a, T, Req, Resp> =
@@ -94,6 +162,11 @@ pub trait ConnectorIntegration<T, Req, Resp>:
 
     /// fn get_content_type
     fn get_content_type(&self) -> &'static str {
+        mime::APPLICATION_JSON.essence_str()
+    }
+
+    /// fn get_content_type
+    fn get_accept_type(&self) -> &'static str {
         mime::APPLICATION_JSON.essence_str()
     }
 
@@ -195,6 +268,9 @@ pub trait ConnectorIntegration<T, Req, Resp>:
             status_code: res.status_code,
             attempt_status: None,
             connector_transaction_id: None,
+            network_advice_code: None,
+            network_decline_code: None,
+            network_error_message: None,
         })
     }
 
@@ -283,6 +359,9 @@ pub trait ConnectorCommon {
             reason: None,
             attempt_status: None,
             connector_transaction_id: None,
+            network_advice_code: None,
+            network_decline_code: None,
+            network_error_message: None,
         })
     }
 }
@@ -371,7 +450,11 @@ pub trait ConnectorVerifyWebhookSourceV2:
 
 /// trait UnifiedAuthenticationService
 pub trait UnifiedAuthenticationService:
-    ConnectorCommon + UasPreAuthentication + UasPostAuthentication + UasAuthentication
+    ConnectorCommon
+    + UasPreAuthentication
+    + UasPostAuthentication
+    + UasAuthenticationConfirmation
+    + UasAuthentication
 {
 }
 
@@ -395,6 +478,16 @@ pub trait UasPostAuthentication:
 {
 }
 
+/// trait UasAuthenticationConfirmation
+pub trait UasAuthenticationConfirmation:
+    ConnectorIntegration<
+    AuthenticationConfirmation,
+    UasConfirmationRequestData,
+    UasAuthenticationResponseData,
+>
+{
+}
+
 /// trait UasAuthentication
 pub trait UasAuthentication:
     ConnectorIntegration<Authenticate, UasAuthenticationRequestData, UasAuthenticationResponseData>
@@ -403,7 +496,11 @@ pub trait UasAuthentication:
 
 /// trait UnifiedAuthenticationServiceV2
 pub trait UnifiedAuthenticationServiceV2:
-    ConnectorCommon + UasPreAuthenticationV2 + UasPostAuthenticationV2 + UasAuthenticationV2
+    ConnectorCommon
+    + UasPreAuthenticationV2
+    + UasPostAuthenticationV2
+    + UasAuthenticationV2
+    + UasAuthenticationConfirmationV2
 {
 }
 
@@ -424,6 +521,17 @@ pub trait UasPostAuthenticationV2:
     PostAuthenticate,
     UasFlowData,
     UasPostAuthenticationRequestData,
+    UasAuthenticationResponseData,
+>
+{
+}
+
+/// trait UasAuthenticationConfirmationV2
+pub trait UasAuthenticationConfirmationV2:
+    ConnectorIntegrationV2<
+    AuthenticationConfirmation,
+    UasFlowData,
+    UasConfirmationRequestData,
     UasAuthenticationResponseData,
 >
 {
@@ -468,7 +576,7 @@ pub trait ConnectorValidation: ConnectorCommon + ConnectorSpecifications {
                             .supported_capture_methods
                             .contains(&capture_method)
                     })
-                    .unwrap_or_else(|| is_default_capture_method)
+                    .unwrap_or(true)
             }
             None => is_default_capture_method,
         };
@@ -541,6 +649,16 @@ pub trait ConnectorRedirectResponse {
 /// Empty trait for when payouts feature is disabled
 #[cfg(not(feature = "payouts"))]
 pub trait Payouts {}
+/// Empty trait for when payouts feature is disabled
+#[cfg(not(feature = "payouts"))]
+pub trait PayoutsV2 {}
+
+/// Empty trait for when frm feature is disabled
+#[cfg(not(feature = "frm"))]
+pub trait FraudCheck {}
+/// Empty trait for when frm feature is disabled
+#[cfg(not(feature = "frm"))]
+pub trait FraudCheckV2 {}
 
 fn get_connector_payment_method_type_info(
     supported_payment_method: &SupportedPaymentMethods,
@@ -567,4 +685,17 @@ fn get_connector_payment_method_type_info(
             })
         })
         .transpose()
+}
+
+/// ConnectorTransactionId trait
+pub trait ConnectorTransactionId: ConnectorCommon + Sync {
+    /// fn connector_transaction_id
+    fn connector_transaction_id(
+        &self,
+        payment_attempt: hyperswitch_domain_models::payments::payment_attempt::PaymentAttempt,
+    ) -> Result<Option<String>, ApiErrorResponse> {
+        Ok(payment_attempt
+            .get_connector_payment_id()
+            .map(ToString::to_string))
+    }
 }

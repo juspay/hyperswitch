@@ -1,7 +1,7 @@
 use std::marker::PhantomData;
 
 use common_enums::enums::PaymentMethod;
-use common_utils::ext_traits::ValueExt;
+use common_utils::ext_traits::{AsyncExt, ValueExt};
 use error_stack::ResultExt;
 use hyperswitch_domain_models::{
     errors::api_error_response::ApiErrorResponse,
@@ -10,6 +10,7 @@ use hyperswitch_domain_models::{
     router_data_v2::UasFlowData,
     router_request_types::unified_authentication_service::UasAuthenticationResponseData,
 };
+use masking::ExposeInterface;
 
 use super::types::{
     IRRELEVANT_ATTEMPT_ID_IN_AUTHENTICATION_FLOW,
@@ -47,6 +48,7 @@ where
         &router_data,
         payments::CallConnectorAction::Trigger,
         None,
+        None,
     )
     .await
     .to_payment_failed_response()?;
@@ -63,6 +65,7 @@ pub fn construct_uas_router_data<F: Clone, Req, Res>(
     request_data: Req,
     merchant_connector_account: &payments::helpers::MerchantConnectorAccountType,
     authentication_id: Option<String>,
+    payment_id: common_utils::id_type::PaymentId,
 ) -> RouterResult<RouterData<F, Req, Res>> {
     let auth_type: ConnectorAuthType = merchant_connector_account
         .get_connector_account_details()
@@ -75,9 +78,7 @@ pub fn construct_uas_router_data<F: Clone, Req, Res>(
         customer_id: None,
         connector_customer: None,
         connector: authentication_connector_name,
-        payment_id: common_utils::id_type::PaymentId::get_irrelevant_id("authentication")
-            .get_string_repr()
-            .to_owned(),
+        payment_id: payment_id.get_string_repr().to_owned(),
         tenant_id: state.tenant.tenant_id.clone(),
         attempt_id: IRRELEVANT_ATTEMPT_ID_IN_AUTHENTICATION_FLOW.to_owned(),
         status: common_enums::AttemptStatus::default(),
@@ -121,6 +122,7 @@ pub fn construct_uas_router_data<F: Clone, Req, Res>(
         connector_mandate_request_reference_id: None,
         authentication_id,
         psd2_sca_exemption_type: None,
+        whole_connector_response: None,
     })
 }
 
@@ -131,75 +133,93 @@ pub async fn external_authentication_update_trackers<F: Clone, Req>(
     acquirer_details: Option<
         hyperswitch_domain_models::router_request_types::authentication::AcquirerDetails,
     >,
+    merchant_key_store: &hyperswitch_domain_models::merchant_key_store::MerchantKeyStore,
 ) -> RouterResult<diesel_models::authentication::Authentication> {
     let authentication_update = match router_data.response {
         Ok(response) => match response {
             UasAuthenticationResponseData::PreAuthentication {
                 authentication_details,
-            } => diesel_models::authentication::AuthenticationUpdate::PreAuthenticationUpdate {
-                threeds_server_transaction_id: authentication_details
-                    .threeds_server_transaction_id
-                    .ok_or(ApiErrorResponse::InternalServerError)
-                    .attach_printable(
-                        "missing threeds_server_transaction_id in PreAuthentication Details",
-                    )?,
-                maximum_supported_3ds_version: authentication_details
-                    .maximum_supported_3ds_version
-                    .ok_or(ApiErrorResponse::InternalServerError)
-                    .attach_printable(
-                        "missing maximum_supported_3ds_version in PreAuthentication Details",
-                    )?,
-                connector_authentication_id: authentication_details
-                    .connector_authentication_id
-                    .ok_or(ApiErrorResponse::InternalServerError)
-                    .attach_printable(
-                        "missing connector_authentication_id in PreAuthentication Details",
-                    )?,
-                three_ds_method_data: authentication_details.three_ds_method_data,
-                three_ds_method_url: authentication_details.three_ds_method_url,
-                message_version: authentication_details
-                    .message_version
-                    .ok_or(ApiErrorResponse::InternalServerError)
-                    .attach_printable("missing message_version in PreAuthentication Details")?,
-                connector_metadata: authentication_details.connector_metadata,
-                authentication_status: common_enums::AuthenticationStatus::Pending,
-                acquirer_bin: acquirer_details
-                    .as_ref()
-                    .map(|acquirer_details| acquirer_details.acquirer_bin.clone()),
-                acquirer_merchant_id: acquirer_details
-                    .as_ref()
-                    .map(|acquirer_details| acquirer_details.acquirer_merchant_id.clone()),
-                acquirer_country_code: acquirer_details
-                    .and_then(|acquirer_details| acquirer_details.acquirer_country_code),
-                directory_server_id: authentication_details.directory_server_id,
-            },
+            } => Ok(
+                diesel_models::authentication::AuthenticationUpdate::PreAuthenticationUpdate {
+                    threeds_server_transaction_id: authentication_details
+                        .threeds_server_transaction_id
+                        .ok_or(ApiErrorResponse::InternalServerError)
+                        .attach_printable(
+                            "missing threeds_server_transaction_id in PreAuthentication Details",
+                        )?,
+                    maximum_supported_3ds_version: authentication_details
+                        .maximum_supported_3ds_version
+                        .ok_or(ApiErrorResponse::InternalServerError)
+                        .attach_printable(
+                            "missing maximum_supported_3ds_version in PreAuthentication Details",
+                        )?,
+                    connector_authentication_id: authentication_details
+                        .connector_authentication_id
+                        .ok_or(ApiErrorResponse::InternalServerError)
+                        .attach_printable(
+                            "missing connector_authentication_id in PreAuthentication Details",
+                        )?,
+                    three_ds_method_data: authentication_details.three_ds_method_data,
+                    three_ds_method_url: authentication_details.three_ds_method_url,
+                    message_version: authentication_details
+                        .message_version
+                        .ok_or(ApiErrorResponse::InternalServerError)
+                        .attach_printable("missing message_version in PreAuthentication Details")?,
+                    connector_metadata: authentication_details.connector_metadata,
+                    authentication_status: common_enums::AuthenticationStatus::Pending,
+                    acquirer_bin: acquirer_details
+                        .as_ref()
+                        .map(|acquirer_details| acquirer_details.acquirer_bin.clone()),
+                    acquirer_merchant_id: acquirer_details
+                        .as_ref()
+                        .map(|acquirer_details| acquirer_details.acquirer_merchant_id.clone()),
+                    acquirer_country_code: acquirer_details
+                        .and_then(|acquirer_details| acquirer_details.acquirer_country_code),
+                    directory_server_id: authentication_details.directory_server_id,
+                },
+            ),
             UasAuthenticationResponseData::Authentication {
                 authentication_details,
             } => {
                 let authentication_status = common_enums::AuthenticationStatus::foreign_from(
                     authentication_details.trans_status.clone(),
                 );
-                diesel_models::authentication::AuthenticationUpdate::AuthenticationUpdate {
-                    authentication_value: authentication_details.authentication_value,
-                    trans_status: authentication_details.trans_status,
-                    acs_url: authentication_details.authn_flow_type.get_acs_url(),
-                    challenge_request: authentication_details
-                        .authn_flow_type
-                        .get_challenge_request(),
-                    acs_reference_number: authentication_details
-                        .authn_flow_type
-                        .get_acs_reference_number(),
-                    acs_trans_id: authentication_details.authn_flow_type.get_acs_trans_id(),
-                    acs_signed_content: authentication_details
-                        .authn_flow_type
-                        .get_acs_signed_content(),
-                    authentication_type: authentication_details
-                        .authn_flow_type
-                        .get_decoupled_authentication_type(),
-                    authentication_status,
-                    connector_metadata: authentication_details.connector_metadata,
-                    ds_trans_id: authentication_details.ds_trans_id,
-                }
+                authentication_details
+                    .authentication_value
+                    .async_map(|auth_val| {
+                        crate::core::payment_methods::vault::create_tokenize(
+                            state,
+                            auth_val.expose(),
+                            None,
+                            authentication.authentication_id.clone(),
+                            merchant_key_store.key.get_inner(),
+                        )
+                    })
+                    .await
+                    .transpose()?;
+                Ok(
+                    diesel_models::authentication::AuthenticationUpdate::AuthenticationUpdate {
+                        trans_status: authentication_details.trans_status,
+                        acs_url: authentication_details.authn_flow_type.get_acs_url(),
+                        challenge_request: authentication_details
+                            .authn_flow_type
+                            .get_challenge_request(),
+                        acs_reference_number: authentication_details
+                            .authn_flow_type
+                            .get_acs_reference_number(),
+                        acs_trans_id: authentication_details.authn_flow_type.get_acs_trans_id(),
+                        acs_signed_content: authentication_details
+                            .authn_flow_type
+                            .get_acs_signed_content(),
+                        authentication_type: authentication_details
+                            .authn_flow_type
+                            .get_decoupled_authentication_type(),
+                        authentication_status,
+                        connector_metadata: authentication_details.connector_metadata,
+                        ds_trans_id: authentication_details.ds_trans_id,
+                        eci: authentication_details.eci,
+                    },
+                )
             }
             UasAuthenticationResponseData::PostAuthentication {
                 authentication_details,
@@ -208,29 +228,53 @@ pub async fn external_authentication_update_trackers<F: Clone, Req>(
                     .trans_status
                     .ok_or(ApiErrorResponse::InternalServerError)
                     .attach_printable("missing trans_status in PostAuthentication Details")?;
-                diesel_models::authentication::AuthenticationUpdate::PostAuthenticationUpdate {
-                    authentication_status: common_enums::AuthenticationStatus::foreign_from(
-                        trans_status.clone(),
-                    ),
-                    trans_status,
-                    authentication_value: authentication_details
-                        .dynamic_data_details
-                        .and_then(|details| details.dynamic_data_value)
-                        .map(masking::ExposeInterface::expose),
-                    eci: authentication_details.eci,
-                }
+
+                let authentication_value = authentication_details
+                    .dynamic_data_details
+                    .and_then(|details| details.dynamic_data_value)
+                    .map(ExposeInterface::expose);
+
+                authentication_value
+                    .async_map(|auth_val| {
+                        crate::core::payment_methods::vault::create_tokenize(
+                            state,
+                            auth_val,
+                            None,
+                            authentication.authentication_id.clone(),
+                            merchant_key_store.key.get_inner(),
+                        )
+                    })
+                    .await
+                    .transpose()?;
+                Ok(
+                    diesel_models::authentication::AuthenticationUpdate::PostAuthenticationUpdate {
+                        authentication_status: common_enums::AuthenticationStatus::foreign_from(
+                            trans_status.clone(),
+                        ),
+                        trans_status,
+                        eci: authentication_details.eci,
+                    },
+                )
             }
+
+            UasAuthenticationResponseData::Confirmation { .. } => Err(
+                ApiErrorResponse::InternalServerError,
+            )
+            .attach_printable("unexpected api confirmation in external authentication flow."),
         },
-        Err(error) => diesel_models::authentication::AuthenticationUpdate::ErrorUpdate {
-            connector_authentication_id: error.connector_transaction_id,
-            authentication_status: common_enums::AuthenticationStatus::Failed,
-            error_message: error
-                .reason
-                .map(|reason| format!("message: {}, reason: {}", error.message, reason))
-                .or(Some(error.message)),
-            error_code: Some(error.code),
-        },
-    };
+        Err(error) => Ok(
+            diesel_models::authentication::AuthenticationUpdate::ErrorUpdate {
+                connector_authentication_id: error.connector_transaction_id,
+                authentication_status: common_enums::AuthenticationStatus::Failed,
+                error_message: error
+                    .reason
+                    .map(|reason| format!("message: {}, reason: {}", error.message, reason))
+                    .or(Some(error.message)),
+                error_code: Some(error.code),
+            },
+        ),
+    }?;
+
     state
         .store
         .update_authentication_by_merchant_id_authentication_id(
@@ -240,4 +284,19 @@ pub async fn external_authentication_update_trackers<F: Clone, Req>(
         .await
         .change_context(ApiErrorResponse::InternalServerError)
         .attach_printable("Error while updating authentication")
+}
+
+pub fn get_checkout_event_status_and_reason(
+    attempt_status: common_enums::AttemptStatus,
+) -> (Option<String>, Option<String>) {
+    match attempt_status {
+        common_enums::AttemptStatus::Charged | common_enums::AttemptStatus::Authorized => (
+            Some("02".to_string()),
+            Some("Approval Code received".to_string()),
+        ),
+        _ => (
+            Some("03".to_string()),
+            Some("No Approval Code received".to_string()),
+        ),
+    }
 }

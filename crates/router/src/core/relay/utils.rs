@@ -101,12 +101,17 @@ pub async fn construct_relay_refund_router_data<F>(
             minor_payment_amount: relay_refund_data.amount,
             webhook_url,
             connector_metadata: None,
+            refund_connector_metadata: None,
             reason: relay_refund_data.reason,
             connector_refund_id: relay_record.connector_reference_id.clone(),
             browser_info: None,
             split_refunds: None,
             integrity_object: None,
             refund_status: common_enums::RefundStatus::from(relay_record.status),
+            merchant_account_id: None,
+            merchant_config_currency: None,
+            capture_method: None,
+            additional_payment_method_data: None,
         },
 
         response: Err(ErrorResponse::default()),
@@ -138,6 +143,7 @@ pub async fn construct_relay_refund_router_data<F>(
         connector_mandate_request_reference_id: None,
         authentication_id: None,
         psd2_sca_exemption_type: None,
+        whole_connector_response: None,
     };
 
     Ok(router_data)

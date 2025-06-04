@@ -71,6 +71,7 @@ impl ProcessTracker {
         time_upper_limit: PrimitiveDateTime,
         status: enums::ProcessTrackerStatus,
         limit: Option<i64>,
+        version: enums::ApiVersion,
     ) -> StorageResult<Vec<Self>> {
         generics::generic_filter::<
             <Self as HasTable>::Table,
@@ -81,7 +82,8 @@ impl ProcessTracker {
             conn,
             dsl::schedule_time
                 .between(time_lower_limit, time_upper_limit)
-                .and(dsl::status.eq(status)),
+                .and(dsl::status.eq(status))
+                .and(dsl::version.eq(version)),
             limit,
             None,
             None,

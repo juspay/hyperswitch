@@ -459,6 +459,9 @@ fn build_error_response(item: &PowertranzBaseResponse, status_code: u16) -> Opti
                 ),
                 attempt_status: None,
                 connector_transaction_id: None,
+                network_advice_code: None,
+                network_decline_code: None,
+                network_error_message: None,
             }
         })
     } else if !ISO_SUCCESS_CODES.contains(&item.iso_response_code.as_str()) {
@@ -470,6 +473,9 @@ fn build_error_response(item: &PowertranzBaseResponse, status_code: u16) -> Opti
             reason: Some(item.response_message.clone()),
             attempt_status: None,
             connector_transaction_id: None,
+            network_advice_code: None,
+            network_decline_code: None,
+            network_error_message: None,
         })
     } else {
         None

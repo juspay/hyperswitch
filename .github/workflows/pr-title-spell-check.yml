@@ -17,8 +17,8 @@ jobs:
 
       - name: Store PR title in a file
         shell: bash
-        env: 
-          TITLE: ${{ github.event.pull_request.title }} 
+        env:
+          TITLE: ${{ github.event.pull_request.title }}
         run: echo $TITLE > pr_title.txt
 
       - name: Spell check

@@ -6,7 +6,10 @@ pub mod user_role;
 use std::collections::HashSet;
 
 use common_utils::consts;
-pub use hyperswitch_domain_models::consts::CONNECTOR_MANDATE_REQUEST_REFERENCE_ID_LENGTH;
+pub use hyperswitch_domain_models::consts::{
+    CONNECTOR_MANDATE_REQUEST_REFERENCE_ID_LENGTH, ROUTING_ENABLED_PAYMENT_METHODS,
+    ROUTING_ENABLED_PAYMENT_METHOD_TYPES,
+};
 pub use hyperswitch_interfaces::consts::{NO_ERROR_CODE, NO_ERROR_MESSAGE};
 
 // ID generation
@@ -41,12 +44,6 @@ pub const DEFAULT_LIST_API_LIMIT: u16 = 10;
 
 // String literals
 pub(crate) const UNSUPPORTED_ERROR_MESSAGE: &str = "Unsupported response type";
-pub(crate) const LOW_BALANCE_ERROR_MESSAGE: &str = "Insufficient balance in the payment method";
-
-pub(crate) const CANNOT_CONTINUE_AUTH: &str =
-    "Cannot continue with Authorization due to failed Liability Shift.";
-#[cfg(feature = "payouts")]
-pub(crate) const DEFAULT_NOTIFICATION_SCRIPT_LANGUAGE: &str = "en-US";
 
 // General purpose base64 engines
 
@@ -57,7 +54,6 @@ pub(crate) const API_KEY_LENGTH: usize = 64;
 // OID (Object Identifier) for the merchant ID field extension.
 pub(crate) const MERCHANT_ID_FIELD_EXTENSION_ID: &str = "1.2.840.113635.100.6.32";
 
-pub(crate) const METRICS_HOST_TAG_NAME: &str = "host";
 pub const MAX_ROUTING_CONFIGS_PER_MERCHANT: usize = 100;
 pub const ROUTING_CONFIG_ID_LENGTH: usize = 10;
 
@@ -88,6 +84,12 @@ pub const EMAIL_SUBJECT_APPROVAL_RECON_REQUEST: &str =
     "Approval of Recon Request - Access Granted to Recon Dashboard";
 
 pub const ROLE_INFO_CACHE_PREFIX: &str = "CR_INFO_";
+
+pub const CARD_IP_BLOCKING_CACHE_KEY_PREFIX: &str = "CARD_IP_BLOCKING";
+
+pub const GUEST_USER_CARD_BLOCKING_CACHE_KEY_PREFIX: &str = "GUEST_USER_CARD_BLOCKING";
+
+pub const CUSTOMER_ID_BLOCKING_PREFIX: &str = "CUSTOMER_ID_BLOCKING";
 
 #[cfg(feature = "olap")]
 pub const VERIFY_CONNECTOR_ID_PREFIX: &str = "conn_verify";
@@ -151,6 +153,9 @@ pub const DEFAULT_DISPLAY_SDK_ONLY: bool = false;
 
 /// Default bool to enable saved payment method
 pub const DEFAULT_ENABLE_SAVED_PAYMENT_METHOD: bool = false;
+
+/// [PaymentLink] Default bool for enabling button only when form is ready
+pub const DEFAULT_ENABLE_BUTTON_ONLY_ON_FORM_READY: bool = false;
 
 /// Default Merchant Logo Link
 pub const DEFAULT_MERCHANT_LOGO: &str =
@@ -220,3 +225,21 @@ pub const DEFAULT_PAYMENT_METHOD_SESSION_EXPIRY: u32 = 15 * 60; // 15 minutes
 
 /// Authorize flow identifier used for performing GSM operations
 pub const AUTHORIZE_FLOW_STR: &str = "Authorize";
+
+/// Protocol Version for encrypted Google Pay Token
+pub(crate) const PROTOCOL: &str = "ECv2";
+
+/// Sender ID for Google Pay Decryption
+pub(crate) const SENDER_ID: &[u8] = b"Google";
+
+/// Default value for the number of attempts to retry fetching forex rates
+pub const DEFAULT_ANALYTICS_FOREX_RETRY_ATTEMPTS: u64 = 3;
+
+/// Default payment intent id
+pub const IRRELEVANT_PAYMENT_INTENT_ID: &str = "irrelevant_payment_intent_id";
+
+/// Default payment attempt id
+pub const IRRELEVANT_PAYMENT_ATTEMPT_ID: &str = "irrelevant_payment_attempt_id";
+
+// Default payment method storing TTL in redis in seconds
+pub const DEFAULT_PAYMENT_METHOD_STORE_TTL: i64 = 86400; // 1 day

@@ -1,5 +1,5 @@
 use common_enums::enums;
-use common_utils::{request::Method, types::MinorUnit};
+use common_utils::{request::Method, types::FloatMajorUnit};
 use hyperswitch_domain_models::{
     router_data::{ConnectorAuthType, RouterData},
     router_flow_types::refunds::{Execute, RSync},
@@ -18,12 +18,12 @@ use crate::{
 
 #[derive(Debug, Serialize)]
 pub struct BitpayRouterData<T> {
-    pub amount: MinorUnit,
+    pub amount: FloatMajorUnit,
     pub router_data: T,
 }
 
-impl<T> From<(MinorUnit, T)> for BitpayRouterData<T> {
-    fn from((amount, router_data): (MinorUnit, T)) -> Self {
+impl<T> From<(FloatMajorUnit, T)> for BitpayRouterData<T> {
+    fn from((amount, router_data): (FloatMajorUnit, T)) -> Self {
         Self {
             amount,
             router_data,
@@ -40,10 +40,10 @@ pub enum TransactionSpeed {
     High,
 }
 
-#[derive(Default, Debug, Serialize, Eq, PartialEq)]
+#[derive(Default, Debug, Serialize, PartialEq)]
 #[serde(rename_all = "camelCase")]
 pub struct BitpayPaymentsRequest {
-    price: MinorUnit,
+    price: FloatMajorUnit,
     currency: String,
     #[serde(rename = "redirectURL")]
     redirect_url: String,
@@ -117,10 +117,10 @@ pub enum ExceptionStatus {
 pub struct BitpayPaymentResponseData {
     pub url: Option<url::Url>,
     pub status: BitpayPaymentStatus,
-    pub price: MinorUnit,
+    pub price: FloatMajorUnit,
     pub currency: String,
-    pub amount_paid: MinorUnit,
-    pub invoice_time: Option<MinorUnit>,
+    pub amount_paid: FloatMajorUnit,
+    pub invoice_time: Option<FloatMajorUnit>,
     pub rate_refresh_time: Option<i64>,
     pub expiration_time: Option<i64>,
     pub current_time: Option<i64>,
@@ -180,7 +180,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, BitpayPaymentsResponse, T, PaymentsResp
 // Type definition for RefundRequest
 #[derive(Default, Debug, Serialize)]
 pub struct BitpayRefundRequest {
-    pub amount: MinorUnit,
+    pub amount: FloatMajorUnit,
 }
 
 impl<F> TryFrom<&BitpayRouterData<&types::RefundsRouterData<F>>> for BitpayRefundRequest {

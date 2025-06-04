@@ -366,25 +366,21 @@ impl SurchargeMetadata {
     }
 }
 
-impl ForeignTryFrom<&storage::Authentication> for AuthenticationData {
+impl
+    ForeignTryFrom<
+        &hyperswitch_domain_models::router_request_types::authentication::AuthenticationStore,
+    > for AuthenticationData
+{
     type Error = error_stack::Report<errors::ApiErrorResponse>;
-    fn foreign_try_from(authentication: &storage::Authentication) -> Result<Self, Self::Error> {
+    fn foreign_try_from(
+        authentication_store: &hyperswitch_domain_models::router_request_types::authentication::AuthenticationStore,
+    ) -> Result<Self, Self::Error> {
+        let authentication = &authentication_store.authentication;
         if authentication.authentication_status == common_enums::AuthenticationStatus::Success {
-            let threeds_server_transaction_id = authentication
-                .threeds_server_transaction_id
-                .clone()
-                .get_required_value("threeds_server_transaction_id")
-                .change_context(errors::ApiErrorResponse::InternalServerError)
-                .attach_printable("threeds_server_transaction_id must not be null when authentication_status is success")?;
-            let message_version = authentication
-                .message_version
-                .clone()
-                .get_required_value("message_version")
-                .change_context(errors::ApiErrorResponse::InternalServerError)
-                .attach_printable(
-                    "message_version must not be null when authentication_status is success",
-                )?;
-            let cavv = authentication
+            let threeds_server_transaction_id =
+                authentication.threeds_server_transaction_id.clone();
+            let message_version = authentication.message_version.clone();
+            let cavv = authentication_store
                 .cavv
                 .clone()
                 .get_required_value("cavv")

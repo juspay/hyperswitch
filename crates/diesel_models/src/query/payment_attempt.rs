@@ -1,9 +1,11 @@
+#[cfg(feature = "v1")]
 use std::collections::HashSet;
 
 use async_bb8_diesel::AsyncRunQueryDsl;
+#[cfg(feature = "v1")]
+use diesel::Table;
 use diesel::{
-    associations::HasTable, debug_query, pg::Pg, BoolExpressionMethods, ExpressionMethods,
-    QueryDsl, Table,
+    associations::HasTable, debug_query, pg::Pg, BoolExpressionMethods, ExpressionMethods, QueryDsl,
 };
 use error_stack::{report, ResultExt};
 
@@ -12,14 +14,14 @@ use super::generics;
 use crate::schema::payment_attempt::dsl;
 #[cfg(feature = "v2")]
 use crate::schema_v2::payment_attempt::dsl;
+#[cfg(feature = "v1")]
+use crate::{enums::IntentStatus, payment_attempt::PaymentAttemptUpdate, PaymentIntent};
 use crate::{
-    enums::{self, IntentStatus},
+    enums::{self},
     errors::DatabaseError,
-    payment_attempt::{
-        PaymentAttempt, PaymentAttemptNew, PaymentAttemptUpdate, PaymentAttemptUpdateInternal,
-    },
+    payment_attempt::{PaymentAttempt, PaymentAttemptNew, PaymentAttemptUpdateInternal},
     query::generics::db_metrics,
-    PaymentIntent, PgPooledConn, StorageResult,
+    PgPooledConn, StorageResult,
 };
 
 impl PaymentAttemptNew {
@@ -151,6 +153,29 @@ impl PaymentAttempt {
                         .eq(enums::AttemptStatus::Charged)
                         .or(dsl::status.eq(enums::AttemptStatus::PartialCharged)),
                 ),
+            Some(1),
+            None,
+            Some(dsl::modified_at.desc()),
+        )
+        .await?
+        .into_iter()
+        .nth(0)
+        .ok_or(report!(DatabaseError::NotFound))
+    }
+
+    #[cfg(feature = "v2")]
+    pub async fn find_last_successful_or_partially_captured_attempt_by_payment_id(
+        conn: &PgPooledConn,
+        payment_id: &common_utils::id_type::GlobalPaymentId,
+    ) -> StorageResult<Self> {
+        // perform ordering on the application level instead of database level
+        generics::generic_filter::<<Self as HasTable>::Table, _, _, Self>(
+            conn,
+            dsl::payment_id.eq(payment_id.to_owned()).and(
+                dsl::status
+                    .eq(enums::AttemptStatus::Charged)
+                    .or(dsl::status.eq(enums::AttemptStatus::PartialCharged)),
+            ),
             Some(1),
             None,
             Some(dsl::modified_at.desc()),
@@ -412,6 +437,64 @@ impl PaymentAttempt {
         ))
     }
 
+    #[cfg(feature = "v2")]
+    #[allow(clippy::too_many_arguments)]
+    pub async fn get_total_count_of_attempts(
+        conn: &PgPooledConn,
+        merchant_id: &common_utils::id_type::MerchantId,
+        active_attempt_ids: &[String],
+        connector: Option<String>,
+        payment_method_type: Option<enums::PaymentMethod>,
+        payment_method_subtype: Option<enums::PaymentMethodType>,
+        authentication_type: Option<enums::AuthenticationType>,
+        merchant_connector_id: Option<common_utils::id_type::MerchantConnectorAccountId>,
+        card_network: Option<enums::CardNetwork>,
+    ) -> StorageResult<i64> {
+        let mut filter = <Self as HasTable>::table()
+            .count()
+            .filter(dsl::merchant_id.eq(merchant_id.to_owned()))
+            .filter(dsl::id.eq_any(active_attempt_ids.to_owned()))
+            .into_boxed();
+
+        if let Some(connector) = connector {
+            filter = filter.filter(dsl::connector.eq(connector));
+        }
+
+        if let Some(payment_method_type) = payment_method_type {
+            filter = filter.filter(dsl::payment_method_type_v2.eq(payment_method_type));
+        }
+        if let Some(payment_method_subtype) = payment_method_subtype {
+            filter = filter.filter(dsl::payment_method_subtype.eq(payment_method_subtype));
+        }
+        if let Some(authentication_type) = authentication_type {
+            filter = filter.filter(dsl::authentication_type.eq(authentication_type));
+        }
+        if let Some(merchant_connector_id) = merchant_connector_id {
+            filter = filter.filter(dsl::merchant_connector_id.eq(merchant_connector_id))
+        }
+        if let Some(card_network) = card_network {
+            filter = filter.filter(dsl::card_network.eq(card_network))
+        }
+
+        router_env::logger::debug!(query = %debug_query::<Pg, _>(&filter).to_string());
+
+        // TODO: Remove these logs after debugging the issue for delay in count query
+        let start_time = std::time::Instant::now();
+        router_env::logger::debug!("Executing count query start_time: {:?}", start_time);
+        let result = db_metrics::track_database_call::<<Self as HasTable>::Table, _, _>(
+            filter.get_result_async::<i64>(conn),
+            db_metrics::DatabaseOperation::Filter,
+        )
+        .await
+        .change_context(DatabaseError::Others)
+        .attach_printable("Error filtering count of payments");
+
+        let duration = start_time.elapsed();
+        router_env::logger::debug!("Completed count query in {:?}", duration);
+
+        result
+    }
+
     #[cfg(feature = "v1")]
     #[allow(clippy::too_many_arguments)]
     pub async fn get_total_count_of_attempts(
@@ -424,6 +507,7 @@ impl PaymentAttempt {
         authentication_type: Option<Vec<enums::AuthenticationType>>,
         merchant_connector_id: Option<Vec<common_utils::id_type::MerchantConnectorAccountId>>,
         card_network: Option<Vec<enums::CardNetwork>>,
+        card_discovery: Option<Vec<enums::CardDiscovery>>,
     ) -> StorageResult<i64> {
         let mut filter = <Self as HasTable>::table()
             .count()
@@ -449,6 +533,9 @@ impl PaymentAttempt {
         }
         if let Some(card_network) = card_network {
             filter = filter.filter(dsl::card_network.eq_any(card_network))
+        }
+        if let Some(card_discovery) = card_discovery {
+            filter = filter.filter(dsl::card_discovery.eq_any(card_discovery))
         }
 
         router_env::logger::debug!(query = %debug_query::<Pg, _>(&filter).to_string());

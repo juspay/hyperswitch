@@ -29,7 +29,10 @@ pub async fn api_key_create(
             api_keys::create_api_key(state, payload, auth_data.key_store).await
         },
         auth::auth_type(
-            &auth::AdminApiAuthWithMerchantIdFromRoute(merchant_id.clone()),
+            &auth::PlatformOrgAdminAuthWithMerchantIdFromRoute {
+                merchant_id_from_route: merchant_id.clone(),
+                is_admin_auth_allowed: true,
+            },
             &auth::JWTAuthMerchantFromRoute {
                 merchant_id: merchant_id.clone(),
                 required_permission: Permission::MerchantApiKeyWrite,
@@ -130,7 +133,10 @@ pub async fn api_key_retrieve(
         (merchant_id.clone(), key_id.clone()),
         |state, _, (merchant_id, key_id), _| api_keys::retrieve_api_key(state, merchant_id, key_id),
         auth::auth_type(
-            &auth::AdminApiAuth,
+            &auth::PlatformOrgAdminAuthWithMerchantIdFromRoute {
+                merchant_id_from_route: merchant_id.clone(),
+                is_admin_auth_allowed: true,
+            },
             &auth::JWTAuthMerchantFromRoute {
                 merchant_id: merchant_id.clone(),
                 required_permission: Permission::MerchantApiKeyRead,
@@ -166,7 +172,10 @@ pub async fn api_key_update(
         payload,
         |state, _, payload, _| api_keys::update_api_key(state, payload),
         auth::auth_type(
-            &auth::AdminApiAuth,
+            &auth::PlatformOrgAdminAuthWithMerchantIdFromRoute {
+                merchant_id_from_route: merchant_id.clone(),
+                is_admin_auth_allowed: true,
+            },
             &auth::JWTAuthMerchantFromRoute {
                 merchant_id,
                 required_permission: Permission::MerchantApiKeyWrite,
@@ -190,7 +199,7 @@ pub async fn api_key_update(
     let mut payload = json_payload.into_inner();
     payload.key_id = api_key_id;
 
-    api::server_wrap(
+    Box::pin(api::server_wrap(
         flow,
         state,
         &req,
@@ -212,7 +221,7 @@ pub async fn api_key_update(
             req.headers(),
         ),
         api_locking::LockAction::NotApplicable,
-    )
+    ))
     .await
 }
 
@@ -229,14 +238,17 @@ pub async fn api_key_revoke(
     let flow = Flow::ApiKeyRevoke;
     let (merchant_id, key_id) = path.into_inner();
 
-    api::server_wrap(
+    Box::pin(api::server_wrap(
         flow,
         state,
         &req,
         (&merchant_id, &key_id),
         |state, _, (merchant_id, key_id), _| api_keys::revoke_api_key(state, merchant_id, key_id),
         auth::auth_type(
-            &auth::AdminApiAuth,
+            &auth::PlatformOrgAdminAuthWithMerchantIdFromRoute {
+                merchant_id_from_route: merchant_id.clone(),
+                is_admin_auth_allowed: true,
+            },
             &auth::JWTAuthMerchantFromRoute {
                 merchant_id: merchant_id.clone(),
                 required_permission: Permission::MerchantApiKeyWrite,
@@ -244,7 +256,7 @@ pub async fn api_key_revoke(
             req.headers(),
         ),
         api_locking::LockAction::NotApplicable,
-    )
+    ))
     .await
 }
 
@@ -261,14 +273,14 @@ pub async fn api_key_revoke(
     let flow = Flow::ApiKeyRevoke;
     let (merchant_id, key_id) = path.into_inner();
 
-    api::server_wrap(
+    Box::pin(api::server_wrap(
         flow,
         state,
         &req,
         (&merchant_id, &key_id),
         |state, _, (merchant_id, key_id), _| api_keys::revoke_api_key(state, merchant_id, key_id),
         auth::auth_type(
-            &auth::AdminApiAuth,
+            &auth::V2AdminApiAuth,
             &auth::JWTAuthMerchantFromRoute {
                 merchant_id: merchant_id.clone(),
                 required_permission: Permission::MerchantApiKeyWrite,
@@ -276,7 +288,7 @@ pub async fn api_key_revoke(
             req.headers(),
         ),
         api_locking::LockAction::NotApplicable,
-    )
+    ))
     .await
 }
 
@@ -294,7 +306,7 @@ pub async fn api_key_list(
     let offset = list_api_key_constraints.skip;
     let merchant_id = path.into_inner();
 
-    api::server_wrap(
+    Box::pin(api::server_wrap(
         flow,
         state,
         &req,
@@ -303,7 +315,10 @@ pub async fn api_key_list(
             api_keys::list_api_keys(state, merchant_id, limit, offset).await
         },
         auth::auth_type(
-            &auth::AdminApiAuth,
+            &auth::PlatformOrgAdminAuthWithMerchantIdFromRoute {
+                merchant_id_from_route: merchant_id.clone(),
+                is_admin_auth_allowed: true,
+            },
             &auth::JWTAuthMerchantFromRoute {
                 merchant_id,
                 required_permission: Permission::MerchantApiKeyRead,
@@ -311,7 +326,7 @@ pub async fn api_key_list(
             req.headers(),
         ),
         api_locking::LockAction::NotApplicable,
-    )
+    ))
     .await
 }
 #[cfg(feature = "v2")]
@@ -324,7 +339,7 @@ pub async fn api_key_list(
     let flow = Flow::ApiKeyList;
     let payload = query.into_inner();
 
-    api::server_wrap(
+    Box::pin(api::server_wrap(
         flow,
         state,
         &req,
@@ -346,6 +361,6 @@ pub async fn api_key_list(
             req.headers(),
         ),
         api_locking::LockAction::NotApplicable,
-    )
+    ))
     .await
 }

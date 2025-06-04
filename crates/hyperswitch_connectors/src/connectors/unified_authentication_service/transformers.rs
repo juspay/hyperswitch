@@ -3,10 +3,13 @@ use common_utils::types::FloatMajorUnit;
 use hyperswitch_domain_models::{
     router_data::{ConnectorAuthType, RouterData},
     router_request_types::unified_authentication_service::{
-        DynamicData, PostAuthenticationDetails, PreAuthenticationDetails, TokenDetails,
-        UasAuthenticationResponseData,
+        AuthenticationInfo, DynamicData, PostAuthenticationDetails, PreAuthenticationDetails,
+        TokenDetails, UasAuthenticationResponseData,
     },
-    types::{UasPostAuthenticationRouterData, UasPreAuthenticationRouterData},
+    types::{
+        UasAuthenticationConfirmationRouterData, UasPostAuthenticationRouterData,
+        UasPreAuthenticationRouterData,
+    },
 };
 use hyperswitch_interfaces::errors;
 use masking::Secret;
@@ -14,9 +17,6 @@ use serde::{Deserialize, Serialize};
 use time::PrimitiveDateTime;
 
 use crate::types::ResponseRouterData;
-
-const CTP_MASTERCARD: &str = "ctp_mastercard";
-
 //TODO: Fill the struct with respective fields
 pub struct UnifiedAuthenticationServiceRouterData<T> {
     pub amount: FloatMajorUnit, // The type of amount that a connector accepts, for example, String, i64, f64, etc.
@@ -33,7 +33,7 @@ impl<T> From<(FloatMajorUnit, T)> for UnifiedAuthenticationServiceRouterData<T> 
     }
 }
 
-#[derive(Debug, Serialize, PartialEq)]
+#[derive(Debug, Serialize)]
 pub struct UnifiedAuthenticationServicePreAuthenticateRequest {
     pub authenticate_by: String,
     pub session_id: String,
@@ -42,14 +42,58 @@ pub struct UnifiedAuthenticationServicePreAuthenticateRequest {
     pub service_details: Option<CtpServiceDetails>,
     pub customer_details: Option<CustomerDetails>,
     pub pmt_details: Option<PaymentDetails>,
-    pub auth_creds: AuthType,
+    pub auth_creds: ConnectorAuthType,
     pub transaction_details: Option<TransactionDetails>,
 }
 
-#[derive(Debug, Serialize, PartialEq)]
-#[serde(tag = "auth_type")]
-pub enum AuthType {
-    HeaderKey { api_key: Secret<String> },
+#[derive(Debug, Serialize)]
+pub struct UnifiedAuthenticationServiceAuthenticateConfirmationRequest {
+    pub authenticate_by: String,
+    pub source_authentication_id: String,
+    pub auth_creds: ConnectorAuthType,
+    pub x_src_flow_id: Option<String>,
+    pub transaction_amount: Option<FloatMajorUnit>,
+    pub transaction_currency: Option<enums::Currency>,
+    pub checkout_event_type: Option<String>,
+    pub checkout_event_status: Option<String>,
+    pub confirmation_status: Option<String>,
+    pub confirmation_reason: Option<String>,
+    pub confirmation_timestamp: Option<PrimitiveDateTime>,
+    pub network_authorization_code: Option<String>,
+    pub network_transaction_identifier: Option<String>,
+    pub correlation_id: Option<String>,
+    pub merchant_transaction_id: Option<String>,
+}
+
+#[derive(Debug, Serialize, PartialEq, Deserialize)]
+pub struct UnifiedAuthenticationServiceAuthenticateConfirmationResponse {
+    status: String,
+}
+
+impl<F, T>
+    TryFrom<
+        ResponseRouterData<
+            F,
+            UnifiedAuthenticationServiceAuthenticateConfirmationResponse,
+            T,
+            UasAuthenticationResponseData,
+        >,
+    > for RouterData<F, T, UasAuthenticationResponseData>
+{
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(
+        item: ResponseRouterData<
+            F,
+            UnifiedAuthenticationServiceAuthenticateConfirmationResponse,
+            T,
+            UasAuthenticationResponseData,
+        >,
+    ) -> Result<Self, Self::Error> {
+        Ok(Self {
+            response: Ok(UasAuthenticationResponseData::Confirmation {}),
+            ..item.data
+        })
+    }
 }
 
 #[derive(Default, Debug, Serialize, PartialEq)]
@@ -103,16 +147,6 @@ pub struct BrowserInfo {
     pub tz: i32,
     pub time_zone: i8,
     pub challenge_window_size: String,
-}
-
-#[derive(Default, Debug, Serialize, PartialEq)]
-pub struct AuthenticationInfo {
-    pub authentication_type: Option<String>,
-    pub authentication_reasons: Option<Vec<String>>,
-    pub consent_received: bool,
-    pub is_authenticated: bool,
-    pub locale: Option<String>,
-    pub supported_card_brands: Option<String>,
 }
 
 #[derive(Default, Debug, Serialize, PartialEq)]
@@ -188,18 +222,17 @@ impl TryFrom<&UnifiedAuthenticationServiceRouterData<&UasPreAuthenticationRouter
     fn try_from(
         item: &UnifiedAuthenticationServiceRouterData<&UasPreAuthenticationRouterData>,
     ) -> Result<Self, Self::Error> {
-        let auth_type =
-            UnifiedAuthenticationServiceAuthType::try_from(&item.router_data.connector_auth_type)?;
         let authentication_id = item.router_data.authentication_id.clone().ok_or(
             errors::ConnectorError::MissingRequiredField {
                 field_name: "authentication_id",
             },
         )?;
+        let authentication_info = item.router_data.request.authentication_info.clone();
         Ok(Self {
             authenticate_by: item.router_data.connector.clone(),
             session_id: authentication_id.clone(),
             source_authentication_id: authentication_id,
-            authentication_info: None,
+            authentication_info,
             service_details: Some(CtpServiceDetails {
                 service_session_ids: item.router_data.request.service_details.clone().map(
                     |service_details| ServiceSessionIds {
@@ -226,9 +259,7 @@ impl TryFrom<&UnifiedAuthenticationServiceRouterData<&UasPreAuthenticationRouter
             }),
             customer_details: None,
             pmt_details: None,
-            auth_creds: AuthType::HeaderKey {
-                api_key: auth_type.api_key,
-            },
+            auth_creds: item.router_data.connector_auth_type.clone(),
             transaction_details: Some(TransactionDetails {
                 amount: item.amount,
                 currency: item
@@ -252,24 +283,6 @@ impl TryFrom<&UnifiedAuthenticationServiceRouterData<&UasPreAuthenticationRouter
                 three_ds_data: None,
             }),
         })
-    }
-}
-
-//TODO: Fill the struct with respective fields
-// Auth Struct
-pub struct UnifiedAuthenticationServiceAuthType {
-    pub(super) api_key: Secret<String>,
-}
-
-impl TryFrom<&ConnectorAuthType> for UnifiedAuthenticationServiceAuthType {
-    type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(auth_type: &ConnectorAuthType) -> Result<Self, Self::Error> {
-        match auth_type {
-            ConnectorAuthType::HeaderKey { api_key } => Ok(Self {
-                api_key: api_key.to_owned(),
-            }),
-            _ => Err(errors::ConnectorError::FailedToObtainAuthType.into()),
-        }
     }
 }
 
@@ -322,11 +335,11 @@ impl<F, T>
     }
 }
 
-#[derive(Debug, Serialize, PartialEq)]
+#[derive(Debug, Serialize)]
 pub struct UnifiedAuthenticationServicePostAuthenticateRequest {
     pub authenticate_by: String,
     pub source_authentication_id: String,
-    pub auth_creds: AuthType,
+    pub auth_creds: ConnectorAuthType,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -361,17 +374,14 @@ impl TryFrom<&UasPostAuthenticationRouterData>
 {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(item: &UasPostAuthenticationRouterData) -> Result<Self, Self::Error> {
-        let auth_type = UnifiedAuthenticationServiceAuthType::try_from(&item.connector_auth_type)?;
         Ok(Self {
-            authenticate_by: CTP_MASTERCARD.to_owned(),
+            authenticate_by: item.connector.clone(),
             source_authentication_id: item.authentication_id.clone().ok_or(
                 errors::ConnectorError::MissingRequiredField {
                     field_name: "authentication_id",
                 },
             )?,
-            auth_creds: AuthType::HeaderKey {
-                api_key: auth_type.api_key,
-            },
+            auth_creds: item.connector_auth_type.clone(),
         })
     }
 }
@@ -442,4 +452,40 @@ impl<F, T>
 #[derive(Default, Debug, Serialize, Deserialize, PartialEq)]
 pub struct UnifiedAuthenticationServiceErrorResponse {
     pub error: String,
+}
+
+impl TryFrom<&UnifiedAuthenticationServiceRouterData<&UasAuthenticationConfirmationRouterData>>
+    for UnifiedAuthenticationServiceAuthenticateConfirmationRequest
+{
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(
+        item: &UnifiedAuthenticationServiceRouterData<&UasAuthenticationConfirmationRouterData>,
+    ) -> Result<Self, Self::Error> {
+        let authentication_id = item.router_data.authentication_id.clone().ok_or(
+            errors::ConnectorError::MissingRequiredField {
+                field_name: "authentication_id",
+            },
+        )?;
+        Ok(Self {
+            authenticate_by: item.router_data.connector.clone(),
+            auth_creds: item.router_data.connector_auth_type.clone(),
+            source_authentication_id: authentication_id,
+            x_src_flow_id: item.router_data.request.x_src_flow_id.clone(),
+            transaction_amount: Some(item.amount),
+            transaction_currency: Some(item.router_data.request.transaction_currency),
+            checkout_event_type: item.router_data.request.checkout_event_type.clone(),
+            checkout_event_status: item.router_data.request.checkout_event_status.clone(),
+            confirmation_status: item.router_data.request.confirmation_status.clone(),
+            confirmation_reason: item.router_data.request.confirmation_reason.clone(),
+            confirmation_timestamp: item.router_data.request.confirmation_timestamp,
+            network_authorization_code: item.router_data.request.network_authorization_code.clone(),
+            network_transaction_identifier: item
+                .router_data
+                .request
+                .network_transaction_identifier
+                .clone(),
+            correlation_id: item.router_data.request.correlation_id.clone(),
+            merchant_transaction_id: item.router_data.request.merchant_transaction_id.clone(),
+        })
+    }
 }

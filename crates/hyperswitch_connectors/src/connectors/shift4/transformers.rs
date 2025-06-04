@@ -313,7 +313,8 @@ impl TryFrom<&WalletData> for Shift4PaymentMethod {
             | WalletData::WeChatPayQr(_)
             | WalletData::CashappQr(_)
             | WalletData::SwishQr(_)
-            | WalletData::Mifinity(_) => Err(errors::ConnectorError::NotImplemented(
+            | WalletData::Mifinity(_)
+            | WalletData::RevolutPay(_) => Err(errors::ConnectorError::NotImplemented(
                 utils::get_unimplemented_payment_method_error_message("Shift4"),
             )
             .into()),
@@ -338,6 +339,7 @@ impl TryFrom<&BankTransferData> for Shift4PaymentMethod {
             | BankTransferData::MandiriVaBankTransfer { .. }
             | BankTransferData::Pix { .. }
             | BankTransferData::Pse {}
+            | BankTransferData::InstantBankTransfer {}
             | BankTransferData::LocalBankTransfer { .. } => {
                 Err(errors::ConnectorError::NotImplemented(
                     utils::get_unimplemented_payment_method_error_message("Shift4"),
@@ -505,6 +507,7 @@ impl TryFrom<&BankRedirectData> for PaymentMethodType {
             BankRedirectData::Sofort { .. } => Ok(Self::Sofort),
             BankRedirectData::BancontactCard { .. }
             | BankRedirectData::Blik { .. }
+            | BankRedirectData::Eft { .. }
             | BankRedirectData::Trustly { .. }
             | BankRedirectData::Przelewy24 { .. }
             | BankRedirectData::Bizum {}

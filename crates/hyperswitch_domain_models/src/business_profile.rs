@@ -1,22 +1,26 @@
+use common_enums::enums as api_enums;
+use common_types::primitive_wrappers;
 use common_utils::{
-    crypto::OptionalEncryptableValue,
+    crypto::{OptionalEncryptableName, OptionalEncryptableValue},
     date_time,
     encryption::Encryption,
     errors::{CustomResult, ValidationError},
+    ext_traits::OptionExt,
     pii, type_name,
     types::keymanager,
 };
 use diesel_models::business_profile::{
     AuthenticationConnectorDetails, BusinessPaymentLinkConfig, BusinessPayoutLinkConfig,
-    ProfileUpdateInternal, WebhookDetails,
+    CardTestingGuardConfig, ProfileUpdateInternal, WebhookDetails,
+};
+#[cfg(feature = "v2")]
+use diesel_models::business_profile::{
+    ExternalVaultConnectorDetails, RevenueRecoveryAlgorithmData,
 };
 use error_stack::ResultExt;
-use masking::{PeekInterface, Secret};
+use masking::{ExposeInterface, PeekInterface, Secret};
 
-use crate::{
-    consts,
-    type_encryption::{crypto_operation, AsyncLift, CryptoOperation},
-};
+use crate::type_encryption::{crypto_operation, AsyncLift, CryptoOperation};
 
 #[cfg(feature = "v1")]
 #[derive(Clone, Debug)]
@@ -58,9 +62,20 @@ pub struct Profile {
     pub is_network_tokenization_enabled: bool,
     pub is_auto_retries_enabled: bool,
     pub max_auto_retries_enabled: Option<i16>,
+    pub always_request_extended_authorization:
+        Option<primitive_wrappers::AlwaysRequestExtendedAuthorization>,
     pub is_click_to_pay_enabled: bool,
     pub authentication_product_ids:
         Option<common_types::payments::AuthenticationConnectorAccountMap>,
+    pub card_testing_guard_config: Option<CardTestingGuardConfig>,
+    pub card_testing_secret_key: OptionalEncryptableName,
+    pub is_clear_pan_retries_enabled: bool,
+    pub force_3ds_challenge: bool,
+    pub is_debit_routing_enabled: bool,
+    pub merchant_business_country: Option<common_enums::CountryAlpha2>,
+    pub is_iframe_redirection_enabled: Option<bool>,
+    pub is_pre_network_tokenization_enabled: bool,
+    pub three_ds_decision_rule_algorithm: Option<serde_json::Value>,
 }
 
 #[cfg(feature = "v1")]
@@ -101,9 +116,19 @@ pub struct ProfileSetter {
     pub is_network_tokenization_enabled: bool,
     pub is_auto_retries_enabled: bool,
     pub max_auto_retries_enabled: Option<i16>,
+    pub always_request_extended_authorization:
+        Option<primitive_wrappers::AlwaysRequestExtendedAuthorization>,
     pub is_click_to_pay_enabled: bool,
     pub authentication_product_ids:
         Option<common_types::payments::AuthenticationConnectorAccountMap>,
+    pub card_testing_guard_config: Option<CardTestingGuardConfig>,
+    pub card_testing_secret_key: OptionalEncryptableName,
+    pub is_clear_pan_retries_enabled: bool,
+    pub force_3ds_challenge: bool,
+    pub is_debit_routing_enabled: bool,
+    pub merchant_business_country: Option<api_enums::CountryAlpha2>,
+    pub is_iframe_redirection_enabled: Option<bool>,
+    pub is_pre_network_tokenization_enabled: bool,
 }
 
 #[cfg(feature = "v1")]
@@ -146,13 +171,23 @@ impl From<ProfileSetter> for Profile {
                 .always_collect_shipping_details_from_wallet_connector,
             tax_connector_id: value.tax_connector_id,
             is_tax_connector_enabled: value.is_tax_connector_enabled,
-            version: consts::API_VERSION,
+            version: common_types::consts::API_VERSION,
             dynamic_routing_algorithm: value.dynamic_routing_algorithm,
             is_network_tokenization_enabled: value.is_network_tokenization_enabled,
             is_auto_retries_enabled: value.is_auto_retries_enabled,
             max_auto_retries_enabled: value.max_auto_retries_enabled,
+            always_request_extended_authorization: value.always_request_extended_authorization,
             is_click_to_pay_enabled: value.is_click_to_pay_enabled,
             authentication_product_ids: value.authentication_product_ids,
+            card_testing_guard_config: value.card_testing_guard_config,
+            card_testing_secret_key: value.card_testing_secret_key,
+            is_clear_pan_retries_enabled: value.is_clear_pan_retries_enabled,
+            force_3ds_challenge: value.force_3ds_challenge,
+            is_debit_routing_enabled: value.is_debit_routing_enabled,
+            merchant_business_country: value.merchant_business_country,
+            is_iframe_redirection_enabled: value.is_iframe_redirection_enabled,
+            is_pre_network_tokenization_enabled: value.is_pre_network_tokenization_enabled,
+            three_ds_decision_rule_algorithm: None, // three_ds_decision_rule_algorithm is not yet created during profile creation
         }
     }
 }
@@ -205,6 +240,14 @@ pub struct ProfileGeneralUpdate {
     pub is_click_to_pay_enabled: Option<bool>,
     pub authentication_product_ids:
         Option<common_types::payments::AuthenticationConnectorAccountMap>,
+    pub card_testing_guard_config: Option<CardTestingGuardConfig>,
+    pub card_testing_secret_key: OptionalEncryptableName,
+    pub is_clear_pan_retries_enabled: Option<bool>,
+    pub force_3ds_challenge: Option<bool>,
+    pub is_debit_routing_enabled: Option<bool>,
+    pub merchant_business_country: Option<api_enums::CountryAlpha2>,
+    pub is_iframe_redirection_enabled: Option<bool>,
+    pub is_pre_network_tokenization_enabled: Option<bool>,
 }
 
 #[cfg(feature = "v1")]
@@ -214,6 +257,7 @@ pub enum ProfileUpdate {
     RoutingAlgorithmUpdate {
         routing_algorithm: Option<serde_json::Value>,
         payout_routing_algorithm: Option<serde_json::Value>,
+        three_ds_decision_rule_algorithm: Option<serde_json::Value>,
     },
     DynamicRoutingAlgorithmUpdate {
         dynamic_routing_algorithm: Option<serde_json::Value>,
@@ -226,6 +270,9 @@ pub enum ProfileUpdate {
     },
     NetworkTokenizationUpdate {
         is_network_tokenization_enabled: bool,
+    },
+    CardTestingSecretKeyUpdate {
+        card_testing_secret_key: OptionalEncryptableName,
     },
 }
 
@@ -269,6 +316,14 @@ impl From<ProfileUpdate> for ProfileUpdateInternal {
                     max_auto_retries_enabled,
                     is_click_to_pay_enabled,
                     authentication_product_ids,
+                    card_testing_guard_config,
+                    card_testing_secret_key,
+                    is_clear_pan_retries_enabled,
+                    force_3ds_challenge,
+                    is_debit_routing_enabled,
+                    merchant_business_country,
+                    is_iframe_redirection_enabled,
+                    is_pre_network_tokenization_enabled,
                 } = *update;
 
                 Self {
@@ -306,13 +361,24 @@ impl From<ProfileUpdate> for ProfileUpdateInternal {
                     is_network_tokenization_enabled,
                     is_auto_retries_enabled,
                     max_auto_retries_enabled,
+                    always_request_extended_authorization: None,
                     is_click_to_pay_enabled,
                     authentication_product_ids,
+                    card_testing_guard_config,
+                    card_testing_secret_key: card_testing_secret_key.map(Encryption::from),
+                    is_clear_pan_retries_enabled,
+                    force_3ds_challenge,
+                    is_debit_routing_enabled,
+                    merchant_business_country,
+                    is_iframe_redirection_enabled,
+                    is_pre_network_tokenization_enabled,
+                    three_ds_decision_rule_algorithm: None,
                 }
             }
             ProfileUpdate::RoutingAlgorithmUpdate {
                 routing_algorithm,
                 payout_routing_algorithm,
+                three_ds_decision_rule_algorithm,
             } => Self {
                 profile_name: None,
                 modified_at: now,
@@ -347,8 +413,18 @@ impl From<ProfileUpdate> for ProfileUpdateInternal {
                 is_network_tokenization_enabled: None,
                 is_auto_retries_enabled: None,
                 max_auto_retries_enabled: None,
+                always_request_extended_authorization: None,
                 is_click_to_pay_enabled: None,
                 authentication_product_ids: None,
+                card_testing_guard_config: None,
+                card_testing_secret_key: None,
+                is_clear_pan_retries_enabled: None,
+                force_3ds_challenge: None,
+                is_debit_routing_enabled: None,
+                merchant_business_country: None,
+                is_iframe_redirection_enabled: None,
+                is_pre_network_tokenization_enabled: None,
+                three_ds_decision_rule_algorithm,
             },
             ProfileUpdate::DynamicRoutingAlgorithmUpdate {
                 dynamic_routing_algorithm,
@@ -386,8 +462,18 @@ impl From<ProfileUpdate> for ProfileUpdateInternal {
                 is_network_tokenization_enabled: None,
                 is_auto_retries_enabled: None,
                 max_auto_retries_enabled: None,
+                always_request_extended_authorization: None,
                 is_click_to_pay_enabled: None,
                 authentication_product_ids: None,
+                card_testing_guard_config: None,
+                card_testing_secret_key: None,
+                is_clear_pan_retries_enabled: None,
+                force_3ds_challenge: None,
+                is_debit_routing_enabled: None,
+                merchant_business_country: None,
+                is_iframe_redirection_enabled: None,
+                is_pre_network_tokenization_enabled: None,
+                three_ds_decision_rule_algorithm: None,
             },
             ProfileUpdate::ExtendedCardInfoUpdate {
                 is_extended_card_info_enabled,
@@ -425,8 +511,18 @@ impl From<ProfileUpdate> for ProfileUpdateInternal {
                 is_network_tokenization_enabled: None,
                 is_auto_retries_enabled: None,
                 max_auto_retries_enabled: None,
+                always_request_extended_authorization: None,
                 is_click_to_pay_enabled: None,
                 authentication_product_ids: None,
+                card_testing_guard_config: None,
+                card_testing_secret_key: None,
+                is_clear_pan_retries_enabled: None,
+                force_3ds_challenge: None,
+                is_debit_routing_enabled: None,
+                merchant_business_country: None,
+                is_iframe_redirection_enabled: None,
+                is_pre_network_tokenization_enabled: None,
+                three_ds_decision_rule_algorithm: None,
             },
             ProfileUpdate::ConnectorAgnosticMitUpdate {
                 is_connector_agnostic_mit_enabled,
@@ -464,8 +560,18 @@ impl From<ProfileUpdate> for ProfileUpdateInternal {
                 is_network_tokenization_enabled: None,
                 is_auto_retries_enabled: None,
                 max_auto_retries_enabled: None,
+                always_request_extended_authorization: None,
                 is_click_to_pay_enabled: None,
                 authentication_product_ids: None,
+                card_testing_guard_config: None,
+                card_testing_secret_key: None,
+                is_clear_pan_retries_enabled: None,
+                force_3ds_challenge: None,
+                is_debit_routing_enabled: None,
+                merchant_business_country: None,
+                is_iframe_redirection_enabled: None,
+                is_pre_network_tokenization_enabled: None,
+                three_ds_decision_rule_algorithm: None,
             },
             ProfileUpdate::NetworkTokenizationUpdate {
                 is_network_tokenization_enabled,
@@ -503,8 +609,67 @@ impl From<ProfileUpdate> for ProfileUpdateInternal {
                 is_network_tokenization_enabled: Some(is_network_tokenization_enabled),
                 is_auto_retries_enabled: None,
                 max_auto_retries_enabled: None,
+                always_request_extended_authorization: None,
                 is_click_to_pay_enabled: None,
                 authentication_product_ids: None,
+                card_testing_guard_config: None,
+                card_testing_secret_key: None,
+                is_clear_pan_retries_enabled: None,
+                force_3ds_challenge: None,
+                is_debit_routing_enabled: None,
+                merchant_business_country: None,
+                is_iframe_redirection_enabled: None,
+                is_pre_network_tokenization_enabled: None,
+                three_ds_decision_rule_algorithm: None,
+            },
+            ProfileUpdate::CardTestingSecretKeyUpdate {
+                card_testing_secret_key,
+            } => Self {
+                profile_name: None,
+                modified_at: now,
+                return_url: None,
+                enable_payment_response_hash: None,
+                payment_response_hash_key: None,
+                redirect_to_merchant_with_http_post: None,
+                webhook_details: None,
+                metadata: None,
+                routing_algorithm: None,
+                intent_fulfillment_time: None,
+                frm_routing_algorithm: None,
+                payout_routing_algorithm: None,
+                is_recon_enabled: None,
+                applepay_verified_domains: None,
+                payment_link_config: None,
+                session_expiry: None,
+                authentication_connector_details: None,
+                payout_link_config: None,
+                is_extended_card_info_enabled: None,
+                extended_card_info_config: None,
+                is_connector_agnostic_mit_enabled: None,
+                use_billing_as_payment_method_billing: None,
+                collect_shipping_details_from_wallet_connector: None,
+                collect_billing_details_from_wallet_connector: None,
+                outgoing_webhook_custom_http_headers: None,
+                always_collect_billing_details_from_wallet_connector: None,
+                always_collect_shipping_details_from_wallet_connector: None,
+                tax_connector_id: None,
+                is_tax_connector_enabled: None,
+                dynamic_routing_algorithm: None,
+                is_network_tokenization_enabled: None,
+                is_auto_retries_enabled: None,
+                max_auto_retries_enabled: None,
+                always_request_extended_authorization: None,
+                is_click_to_pay_enabled: None,
+                authentication_product_ids: None,
+                card_testing_guard_config: None,
+                card_testing_secret_key: card_testing_secret_key.map(Encryption::from),
+                is_clear_pan_retries_enabled: None,
+                force_3ds_challenge: None,
+                is_debit_routing_enabled: None,
+                merchant_business_country: None,
+                is_iframe_redirection_enabled: None,
+                is_pre_network_tokenization_enabled: None,
+                three_ds_decision_rule_algorithm: None,
             },
         }
     }
@@ -518,7 +683,8 @@ impl super::behaviour::Conversion for Profile {
 
     async fn convert(self) -> CustomResult<Self::DstType, ValidationError> {
         Ok(diesel_models::business_profile::Profile {
-            profile_id: self.profile_id,
+            profile_id: self.profile_id.clone(),
+            id: Some(self.profile_id),
             merchant_id: self.merchant_id,
             profile_name: self.profile_name,
             created_at: self.created_at,
@@ -561,8 +727,18 @@ impl super::behaviour::Conversion for Profile {
             is_network_tokenization_enabled: self.is_network_tokenization_enabled,
             is_auto_retries_enabled: Some(self.is_auto_retries_enabled),
             max_auto_retries_enabled: self.max_auto_retries_enabled,
+            always_request_extended_authorization: self.always_request_extended_authorization,
             is_click_to_pay_enabled: self.is_click_to_pay_enabled,
             authentication_product_ids: self.authentication_product_ids,
+            card_testing_guard_config: self.card_testing_guard_config,
+            card_testing_secret_key: self.card_testing_secret_key.map(|name| name.into()),
+            is_clear_pan_retries_enabled: self.is_clear_pan_retries_enabled,
+            force_3ds_challenge: Some(self.force_3ds_challenge),
+            is_debit_routing_enabled: self.is_debit_routing_enabled,
+            merchant_business_country: self.merchant_business_country,
+            is_iframe_redirection_enabled: self.is_iframe_redirection_enabled,
+            is_pre_network_tokenization_enabled: Some(self.is_pre_network_tokenization_enabled),
+            three_ds_decision_rule_algorithm: self.three_ds_decision_rule_algorithm,
         })
     }
 
@@ -631,8 +807,33 @@ impl super::behaviour::Conversion for Profile {
                 is_network_tokenization_enabled: item.is_network_tokenization_enabled,
                 is_auto_retries_enabled: item.is_auto_retries_enabled.unwrap_or(false),
                 max_auto_retries_enabled: item.max_auto_retries_enabled,
+                always_request_extended_authorization: item.always_request_extended_authorization,
                 is_click_to_pay_enabled: item.is_click_to_pay_enabled,
                 authentication_product_ids: item.authentication_product_ids,
+                card_testing_guard_config: item.card_testing_guard_config,
+                card_testing_secret_key: item
+                    .card_testing_secret_key
+                    .async_lift(|inner| async {
+                        crypto_operation(
+                            state,
+                            type_name!(Self::DstType),
+                            CryptoOperation::DecryptOptional(inner),
+                            key_manager_identifier.clone(),
+                            key.peek(),
+                        )
+                        .await
+                        .and_then(|val| val.try_into_optionaloperation())
+                    })
+                    .await?,
+                is_clear_pan_retries_enabled: item.is_clear_pan_retries_enabled,
+                force_3ds_challenge: item.force_3ds_challenge.unwrap_or_default(),
+                is_debit_routing_enabled: item.is_debit_routing_enabled,
+                merchant_business_country: item.merchant_business_country,
+                is_iframe_redirection_enabled: item.is_iframe_redirection_enabled,
+                is_pre_network_tokenization_enabled: item
+                    .is_pre_network_tokenization_enabled
+                    .unwrap_or(false),
+                three_ds_decision_rule_algorithm: item.three_ds_decision_rule_algorithm,
             })
         }
         .await
@@ -643,7 +844,8 @@ impl super::behaviour::Conversion for Profile {
 
     async fn construct_new(self) -> CustomResult<Self::NewDstType, ValidationError> {
         Ok(diesel_models::business_profile::ProfileNew {
-            profile_id: self.profile_id,
+            profile_id: self.profile_id.clone(),
+            id: Some(self.profile_id),
             merchant_id: self.merchant_id,
             profile_name: self.profile_name,
             created_at: self.created_at,
@@ -687,6 +889,14 @@ impl super::behaviour::Conversion for Profile {
             max_auto_retries_enabled: self.max_auto_retries_enabled,
             is_click_to_pay_enabled: self.is_click_to_pay_enabled,
             authentication_product_ids: self.authentication_product_ids,
+            card_testing_guard_config: self.card_testing_guard_config,
+            card_testing_secret_key: self.card_testing_secret_key.map(Encryption::from),
+            is_clear_pan_retries_enabled: self.is_clear_pan_retries_enabled,
+            force_3ds_challenge: Some(self.force_3ds_challenge),
+            is_debit_routing_enabled: self.is_debit_routing_enabled,
+            merchant_business_country: self.merchant_business_country,
+            is_iframe_redirection_enabled: self.is_iframe_redirection_enabled,
+            is_pre_network_tokenization_enabled: Some(self.is_pre_network_tokenization_enabled),
         })
     }
 }
@@ -726,7 +936,8 @@ pub struct Profile {
     pub frm_routing_algorithm_id: Option<String>,
     pub payout_routing_algorithm_id: Option<common_utils::id_type::RoutingId>,
     pub default_fallback_routing: Option<pii::SecretSerdeValue>,
-    pub should_collect_cvv_during_payment: bool,
+    pub should_collect_cvv_during_payment:
+        Option<primitive_wrappers::ShouldCollectCvvDuringPayment>,
     pub tax_connector_id: Option<common_utils::id_type::MerchantConnectorAccountId>,
     pub is_tax_connector_enabled: bool,
     pub version: common_enums::ApiVersion,
@@ -735,6 +946,16 @@ pub struct Profile {
     pub authentication_product_ids:
         Option<common_types::payments::AuthenticationConnectorAccountMap>,
     pub three_ds_decision_manager_config: Option<common_types::payments::DecisionManagerRecord>,
+    pub card_testing_guard_config: Option<CardTestingGuardConfig>,
+    pub card_testing_secret_key: OptionalEncryptableName,
+    pub is_clear_pan_retries_enabled: bool,
+    pub is_debit_routing_enabled: bool,
+    pub merchant_business_country: Option<api_enums::CountryAlpha2>,
+    pub revenue_recovery_retry_algorithm_type: Option<common_enums::RevenueRecoveryAlgorithmType>,
+    pub revenue_recovery_retry_algorithm_data: Option<RevenueRecoveryAlgorithmData>,
+    pub is_iframe_redirection_enabled: Option<bool>,
+    pub is_external_vault_enabled: Option<bool>,
+    pub external_vault_connector_details: Option<ExternalVaultConnectorDetails>,
 }
 
 #[cfg(feature = "v2")]
@@ -771,7 +992,8 @@ pub struct ProfileSetter {
     pub frm_routing_algorithm_id: Option<String>,
     pub payout_routing_algorithm_id: Option<common_utils::id_type::RoutingId>,
     pub default_fallback_routing: Option<pii::SecretSerdeValue>,
-    pub should_collect_cvv_during_payment: bool,
+    pub should_collect_cvv_during_payment:
+        Option<primitive_wrappers::ShouldCollectCvvDuringPayment>,
     pub tax_connector_id: Option<common_utils::id_type::MerchantConnectorAccountId>,
     pub is_tax_connector_enabled: bool,
     pub is_network_tokenization_enabled: bool,
@@ -779,6 +1001,16 @@ pub struct ProfileSetter {
     pub authentication_product_ids:
         Option<common_types::payments::AuthenticationConnectorAccountMap>,
     pub three_ds_decision_manager_config: Option<common_types::payments::DecisionManagerRecord>,
+    pub card_testing_guard_config: Option<CardTestingGuardConfig>,
+    pub card_testing_secret_key: OptionalEncryptableName,
+    pub is_clear_pan_retries_enabled: bool,
+    pub is_debit_routing_enabled: bool,
+    pub merchant_business_country: Option<api_enums::CountryAlpha2>,
+    pub revenue_recovery_retry_algorithm_type: Option<common_enums::RevenueRecoveryAlgorithmType>,
+    pub revenue_recovery_retry_algorithm_data: Option<RevenueRecoveryAlgorithmData>,
+    pub is_iframe_redirection_enabled: Option<bool>,
+    pub is_external_vault_enabled: Option<bool>,
+    pub external_vault_connector_details: Option<ExternalVaultConnectorDetails>,
 }
 
 #[cfg(feature = "v2")]
@@ -824,11 +1056,21 @@ impl From<ProfileSetter> for Profile {
             should_collect_cvv_during_payment: value.should_collect_cvv_during_payment,
             tax_connector_id: value.tax_connector_id,
             is_tax_connector_enabled: value.is_tax_connector_enabled,
-            version: consts::API_VERSION,
+            version: common_types::consts::API_VERSION,
             is_network_tokenization_enabled: value.is_network_tokenization_enabled,
             is_click_to_pay_enabled: value.is_click_to_pay_enabled,
             authentication_product_ids: value.authentication_product_ids,
             three_ds_decision_manager_config: value.three_ds_decision_manager_config,
+            card_testing_guard_config: value.card_testing_guard_config,
+            card_testing_secret_key: value.card_testing_secret_key,
+            is_clear_pan_retries_enabled: value.is_clear_pan_retries_enabled,
+            is_debit_routing_enabled: value.is_debit_routing_enabled,
+            merchant_business_country: value.merchant_business_country,
+            revenue_recovery_retry_algorithm_type: value.revenue_recovery_retry_algorithm_type,
+            revenue_recovery_retry_algorithm_data: value.revenue_recovery_retry_algorithm_data,
+            is_iframe_redirection_enabled: value.is_iframe_redirection_enabled,
+            is_external_vault_enabled: value.is_external_vault_enabled,
+            external_vault_connector_details: value.external_vault_connector_details,
         }
     }
 }
@@ -850,6 +1092,19 @@ impl Profile {
     #[cfg(feature = "v2")]
     pub fn get_order_fulfillment_time(&self) -> Option<i64> {
         self.order_fulfillment_time
+    }
+
+    pub fn get_webhook_url_from_profile(&self) -> CustomResult<String, ValidationError> {
+        self.webhook_details
+            .clone()
+            .and_then(|details| details.webhook_url)
+            .get_required_value("webhook_details.webhook_url")
+            .map(ExposeInterface::expose)
+    }
+
+    #[cfg(feature = "v2")]
+    pub fn is_external_vault_enabled(&self) -> bool {
+        self.is_external_vault_enabled.unwrap_or(false)
     }
 }
 
@@ -883,6 +1138,13 @@ pub struct ProfileGeneralUpdate {
     pub authentication_product_ids:
         Option<common_types::payments::AuthenticationConnectorAccountMap>,
     pub three_ds_decision_manager_config: Option<common_types::payments::DecisionManagerRecord>,
+    pub card_testing_guard_config: Option<CardTestingGuardConfig>,
+    pub card_testing_secret_key: OptionalEncryptableName,
+    pub is_debit_routing_enabled: Option<bool>,
+    pub merchant_business_country: Option<api_enums::CountryAlpha2>,
+    pub is_iframe_redirection_enabled: Option<bool>,
+    pub is_external_vault_enabled: Option<bool>,
+    pub external_vault_connector_details: Option<ExternalVaultConnectorDetails>,
 }
 
 #[cfg(feature = "v2")]
@@ -906,10 +1168,17 @@ pub enum ProfileUpdate {
         is_network_tokenization_enabled: bool,
     },
     CollectCvvDuringPaymentUpdate {
-        should_collect_cvv_during_payment: bool,
+        should_collect_cvv_during_payment: primitive_wrappers::ShouldCollectCvvDuringPayment,
     },
     DecisionManagerRecordUpdate {
         three_ds_decision_manager_config: common_types::payments::DecisionManagerRecord,
+    },
+    CardTestingSecretKeyUpdate {
+        card_testing_secret_key: OptionalEncryptableName,
+    },
+    RevenueRecoveryAlgorithmUpdate {
+        revenue_recovery_retry_algorithm_type: common_enums::RevenueRecoveryAlgorithmType,
+        revenue_recovery_retry_algorithm_data: Option<RevenueRecoveryAlgorithmData>,
     },
 }
 
@@ -947,6 +1216,13 @@ impl From<ProfileUpdate> for ProfileUpdateInternal {
                     is_click_to_pay_enabled,
                     authentication_product_ids,
                     three_ds_decision_manager_config,
+                    card_testing_guard_config,
+                    card_testing_secret_key,
+                    is_debit_routing_enabled,
+                    merchant_business_country,
+                    is_iframe_redirection_enabled,
+                    is_external_vault_enabled,
+                    external_vault_connector_details,
                 } = *update;
                 Self {
                     profile_name,
@@ -985,9 +1261,19 @@ impl From<ProfileUpdate> for ProfileUpdateInternal {
                     is_network_tokenization_enabled,
                     is_auto_retries_enabled: None,
                     max_auto_retries_enabled: None,
-                    is_click_to_pay_enabled: None,
+                    is_click_to_pay_enabled,
                     authentication_product_ids,
                     three_ds_decision_manager_config,
+                    card_testing_guard_config,
+                    card_testing_secret_key: card_testing_secret_key.map(Encryption::from),
+                    is_clear_pan_retries_enabled: None,
+                    is_debit_routing_enabled,
+                    merchant_business_country,
+                    revenue_recovery_retry_algorithm_type: None,
+                    revenue_recovery_retry_algorithm_data: None,
+                    is_iframe_redirection_enabled: None,
+                    is_external_vault_enabled,
+                    external_vault_connector_details,
                 }
             }
             ProfileUpdate::RoutingAlgorithmUpdate {
@@ -1032,6 +1318,16 @@ impl From<ProfileUpdate> for ProfileUpdateInternal {
                 is_click_to_pay_enabled: None,
                 authentication_product_ids: None,
                 three_ds_decision_manager_config: None,
+                card_testing_guard_config: None,
+                card_testing_secret_key: None,
+                is_clear_pan_retries_enabled: None,
+                is_debit_routing_enabled: None,
+                merchant_business_country: None,
+                revenue_recovery_retry_algorithm_type: None,
+                revenue_recovery_retry_algorithm_data: None,
+                is_iframe_redirection_enabled: None,
+                is_external_vault_enabled: None,
+                external_vault_connector_details: None,
             },
             ProfileUpdate::ExtendedCardInfoUpdate {
                 is_extended_card_info_enabled,
@@ -1074,6 +1370,16 @@ impl From<ProfileUpdate> for ProfileUpdateInternal {
                 is_click_to_pay_enabled: None,
                 authentication_product_ids: None,
                 three_ds_decision_manager_config: None,
+                card_testing_guard_config: None,
+                card_testing_secret_key: None,
+                is_clear_pan_retries_enabled: None,
+                is_debit_routing_enabled: None,
+                merchant_business_country: None,
+                revenue_recovery_retry_algorithm_type: None,
+                revenue_recovery_retry_algorithm_data: None,
+                is_iframe_redirection_enabled: None,
+                is_external_vault_enabled: None,
+                external_vault_connector_details: None,
             },
             ProfileUpdate::ConnectorAgnosticMitUpdate {
                 is_connector_agnostic_mit_enabled,
@@ -1116,6 +1422,16 @@ impl From<ProfileUpdate> for ProfileUpdateInternal {
                 is_click_to_pay_enabled: None,
                 authentication_product_ids: None,
                 three_ds_decision_manager_config: None,
+                card_testing_guard_config: None,
+                card_testing_secret_key: None,
+                is_clear_pan_retries_enabled: None,
+                is_debit_routing_enabled: None,
+                merchant_business_country: None,
+                revenue_recovery_retry_algorithm_type: None,
+                revenue_recovery_retry_algorithm_data: None,
+                is_iframe_redirection_enabled: None,
+                is_external_vault_enabled: None,
+                external_vault_connector_details: None,
             },
             ProfileUpdate::DefaultRoutingFallbackUpdate {
                 default_fallback_routing,
@@ -1158,6 +1474,16 @@ impl From<ProfileUpdate> for ProfileUpdateInternal {
                 is_click_to_pay_enabled: None,
                 authentication_product_ids: None,
                 three_ds_decision_manager_config: None,
+                card_testing_guard_config: None,
+                card_testing_secret_key: None,
+                is_clear_pan_retries_enabled: None,
+                is_debit_routing_enabled: None,
+                merchant_business_country: None,
+                revenue_recovery_retry_algorithm_type: None,
+                revenue_recovery_retry_algorithm_data: None,
+                is_iframe_redirection_enabled: None,
+                is_external_vault_enabled: None,
+                external_vault_connector_details: None,
             },
             ProfileUpdate::NetworkTokenizationUpdate {
                 is_network_tokenization_enabled,
@@ -1200,6 +1526,16 @@ impl From<ProfileUpdate> for ProfileUpdateInternal {
                 is_click_to_pay_enabled: None,
                 authentication_product_ids: None,
                 three_ds_decision_manager_config: None,
+                card_testing_guard_config: None,
+                card_testing_secret_key: None,
+                is_clear_pan_retries_enabled: None,
+                is_debit_routing_enabled: None,
+                merchant_business_country: None,
+                revenue_recovery_retry_algorithm_type: None,
+                revenue_recovery_retry_algorithm_data: None,
+                is_iframe_redirection_enabled: None,
+                is_external_vault_enabled: None,
+                external_vault_connector_details: None,
             },
             ProfileUpdate::CollectCvvDuringPaymentUpdate {
                 should_collect_cvv_during_payment,
@@ -1242,6 +1578,16 @@ impl From<ProfileUpdate> for ProfileUpdateInternal {
                 is_click_to_pay_enabled: None,
                 authentication_product_ids: None,
                 three_ds_decision_manager_config: None,
+                card_testing_guard_config: None,
+                card_testing_secret_key: None,
+                is_clear_pan_retries_enabled: None,
+                is_debit_routing_enabled: None,
+                merchant_business_country: None,
+                revenue_recovery_retry_algorithm_type: None,
+                revenue_recovery_retry_algorithm_data: None,
+                is_iframe_redirection_enabled: None,
+                is_external_vault_enabled: None,
+                external_vault_connector_details: None,
             },
             ProfileUpdate::DecisionManagerRecordUpdate {
                 three_ds_decision_manager_config,
@@ -1284,6 +1630,121 @@ impl From<ProfileUpdate> for ProfileUpdateInternal {
                 is_click_to_pay_enabled: None,
                 authentication_product_ids: None,
                 three_ds_decision_manager_config: Some(three_ds_decision_manager_config),
+                card_testing_guard_config: None,
+                card_testing_secret_key: None,
+                is_clear_pan_retries_enabled: None,
+                is_debit_routing_enabled: None,
+                merchant_business_country: None,
+                revenue_recovery_retry_algorithm_type: None,
+                revenue_recovery_retry_algorithm_data: None,
+                is_iframe_redirection_enabled: None,
+                is_external_vault_enabled: None,
+                external_vault_connector_details: None,
+            },
+            ProfileUpdate::CardTestingSecretKeyUpdate {
+                card_testing_secret_key,
+            } => Self {
+                profile_name: None,
+                modified_at: now,
+                return_url: None,
+                enable_payment_response_hash: None,
+                payment_response_hash_key: None,
+                redirect_to_merchant_with_http_post: None,
+                webhook_details: None,
+                metadata: None,
+                is_recon_enabled: None,
+                applepay_verified_domains: None,
+                payment_link_config: None,
+                session_expiry: None,
+                authentication_connector_details: None,
+                payout_link_config: None,
+                is_extended_card_info_enabled: None,
+                extended_card_info_config: None,
+                is_connector_agnostic_mit_enabled: None,
+                use_billing_as_payment_method_billing: None,
+                collect_shipping_details_from_wallet_connector: None,
+                collect_billing_details_from_wallet_connector: None,
+                outgoing_webhook_custom_http_headers: None,
+                always_collect_billing_details_from_wallet_connector: None,
+                always_collect_shipping_details_from_wallet_connector: None,
+                routing_algorithm_id: None,
+                payout_routing_algorithm_id: None,
+                order_fulfillment_time: None,
+                order_fulfillment_time_origin: None,
+                frm_routing_algorithm_id: None,
+                default_fallback_routing: None,
+                should_collect_cvv_during_payment: None,
+                tax_connector_id: None,
+                is_tax_connector_enabled: None,
+                is_network_tokenization_enabled: None,
+                is_auto_retries_enabled: None,
+                max_auto_retries_enabled: None,
+                is_click_to_pay_enabled: None,
+                authentication_product_ids: None,
+                three_ds_decision_manager_config: None,
+                card_testing_guard_config: None,
+                card_testing_secret_key: card_testing_secret_key.map(Encryption::from),
+                is_clear_pan_retries_enabled: None,
+                is_debit_routing_enabled: None,
+                merchant_business_country: None,
+                revenue_recovery_retry_algorithm_type: None,
+                revenue_recovery_retry_algorithm_data: None,
+                is_iframe_redirection_enabled: None,
+                is_external_vault_enabled: None,
+                external_vault_connector_details: None,
+            },
+            ProfileUpdate::RevenueRecoveryAlgorithmUpdate {
+                revenue_recovery_retry_algorithm_type,
+                revenue_recovery_retry_algorithm_data,
+            } => Self {
+                profile_name: None,
+                modified_at: now,
+                return_url: None,
+                enable_payment_response_hash: None,
+                payment_response_hash_key: None,
+                redirect_to_merchant_with_http_post: None,
+                webhook_details: None,
+                metadata: None,
+                is_recon_enabled: None,
+                applepay_verified_domains: None,
+                payment_link_config: None,
+                session_expiry: None,
+                authentication_connector_details: None,
+                payout_link_config: None,
+                is_extended_card_info_enabled: None,
+                extended_card_info_config: None,
+                is_connector_agnostic_mit_enabled: None,
+                use_billing_as_payment_method_billing: None,
+                collect_shipping_details_from_wallet_connector: None,
+                collect_billing_details_from_wallet_connector: None,
+                outgoing_webhook_custom_http_headers: None,
+                always_collect_billing_details_from_wallet_connector: None,
+                always_collect_shipping_details_from_wallet_connector: None,
+                routing_algorithm_id: None,
+                payout_routing_algorithm_id: None,
+                order_fulfillment_time: None,
+                order_fulfillment_time_origin: None,
+                frm_routing_algorithm_id: None,
+                default_fallback_routing: None,
+                should_collect_cvv_during_payment: None,
+                tax_connector_id: None,
+                is_tax_connector_enabled: None,
+                is_network_tokenization_enabled: None,
+                is_auto_retries_enabled: None,
+                max_auto_retries_enabled: None,
+                is_click_to_pay_enabled: None,
+                authentication_product_ids: None,
+                three_ds_decision_manager_config: None,
+                card_testing_guard_config: None,
+                card_testing_secret_key: None,
+                is_clear_pan_retries_enabled: None,
+                is_debit_routing_enabled: None,
+                merchant_business_country: None,
+                revenue_recovery_retry_algorithm_type: Some(revenue_recovery_retry_algorithm_type),
+                revenue_recovery_retry_algorithm_data,
+                is_iframe_redirection_enabled: None,
+                is_external_vault_enabled: None,
+                external_vault_connector_details: None,
             },
         }
     }
@@ -1343,9 +1804,22 @@ impl super::behaviour::Conversion for Profile {
             is_network_tokenization_enabled: self.is_network_tokenization_enabled,
             is_auto_retries_enabled: None,
             max_auto_retries_enabled: None,
+            always_request_extended_authorization: None,
             is_click_to_pay_enabled: self.is_click_to_pay_enabled,
             authentication_product_ids: self.authentication_product_ids,
             three_ds_decision_manager_config: self.three_ds_decision_manager_config,
+            card_testing_guard_config: self.card_testing_guard_config,
+            card_testing_secret_key: self.card_testing_secret_key.map(|name| name.into()),
+            is_clear_pan_retries_enabled: self.is_clear_pan_retries_enabled,
+            force_3ds_challenge: None,
+            is_debit_routing_enabled: self.is_debit_routing_enabled,
+            merchant_business_country: self.merchant_business_country,
+            revenue_recovery_retry_algorithm_type: self.revenue_recovery_retry_algorithm_type,
+            revenue_recovery_retry_algorithm_data: self.revenue_recovery_retry_algorithm_data,
+            is_iframe_redirection_enabled: self.is_iframe_redirection_enabled,
+            is_external_vault_enabled: self.is_external_vault_enabled,
+            external_vault_connector_details: self.external_vault_connector_details,
+            three_ds_decision_rule_algorithm: None,
         })
     }
 
@@ -1417,6 +1891,28 @@ impl super::behaviour::Conversion for Profile {
                 is_click_to_pay_enabled: item.is_click_to_pay_enabled,
                 authentication_product_ids: item.authentication_product_ids,
                 three_ds_decision_manager_config: item.three_ds_decision_manager_config,
+                card_testing_guard_config: item.card_testing_guard_config,
+                card_testing_secret_key: match item.card_testing_secret_key {
+                    Some(encrypted_value) => crypto_operation(
+                        state,
+                        type_name!(Self::DstType),
+                        CryptoOperation::DecryptOptional(Some(encrypted_value)),
+                        key_manager_identifier.clone(),
+                        key.peek(),
+                    )
+                    .await
+                    .and_then(|val| val.try_into_optionaloperation())
+                    .unwrap_or_default(),
+                    None => None,
+                },
+                is_clear_pan_retries_enabled: item.is_clear_pan_retries_enabled,
+                is_debit_routing_enabled: item.is_debit_routing_enabled,
+                merchant_business_country: item.merchant_business_country,
+                revenue_recovery_retry_algorithm_type: item.revenue_recovery_retry_algorithm_type,
+                revenue_recovery_retry_algorithm_data: item.revenue_recovery_retry_algorithm_data,
+                is_iframe_redirection_enabled: item.is_iframe_redirection_enabled,
+                is_external_vault_enabled: item.is_external_vault_enabled,
+                external_vault_connector_details: item.external_vault_connector_details,
             })
         }
         .await
@@ -1475,6 +1971,16 @@ impl super::behaviour::Conversion for Profile {
             is_click_to_pay_enabled: self.is_click_to_pay_enabled,
             authentication_product_ids: self.authentication_product_ids,
             three_ds_decision_manager_config: self.three_ds_decision_manager_config,
+            card_testing_guard_config: self.card_testing_guard_config,
+            card_testing_secret_key: self.card_testing_secret_key.map(Encryption::from),
+            is_clear_pan_retries_enabled: Some(self.is_clear_pan_retries_enabled),
+            is_debit_routing_enabled: self.is_debit_routing_enabled,
+            merchant_business_country: self.merchant_business_country,
+            revenue_recovery_retry_algorithm_type: self.revenue_recovery_retry_algorithm_type,
+            revenue_recovery_retry_algorithm_data: self.revenue_recovery_retry_algorithm_data,
+            is_iframe_redirection_enabled: self.is_iframe_redirection_enabled,
+            is_external_vault_enabled: self.is_external_vault_enabled,
+            external_vault_connector_details: self.external_vault_connector_details,
         })
     }
 }

@@ -6,17 +6,18 @@ use diesel_models::enums as storage_enums;
 use hyperswitch_domain_models::merchant_key_store::MerchantKeyStore;
 #[cfg(feature = "v1")]
 use hyperswitch_domain_models::payments::payment_attempt::PaymentAttemptNew;
-use hyperswitch_domain_models::{
-    errors::StorageError,
-    payments::payment_attempt::{PaymentAttempt, PaymentAttemptInterface, PaymentAttemptUpdate},
+use hyperswitch_domain_models::payments::payment_attempt::{
+    PaymentAttempt, PaymentAttemptInterface, PaymentAttemptUpdate,
 };
 
 use super::MockDb;
+use crate::errors::StorageError;
 #[cfg(feature = "v1")]
 use crate::DataModelExt;
 
 #[async_trait::async_trait]
 impl PaymentAttemptInterface for MockDb {
+    type Error = StorageError;
     #[cfg(feature = "v1")]
     async fn find_payment_attempt_by_payment_id_merchant_id_attempt_id(
         &self,
@@ -53,6 +54,23 @@ impl PaymentAttemptInterface for MockDb {
         _authentication_type: Option<Vec<common_enums::AuthenticationType>>,
         _merchanat_connector_id: Option<Vec<common_utils::id_type::MerchantConnectorAccountId>>,
         _card_network: Option<Vec<storage_enums::CardNetwork>>,
+        _card_discovery: Option<Vec<storage_enums::CardDiscovery>>,
+        _storage_scheme: storage_enums::MerchantStorageScheme,
+    ) -> CustomResult<i64, StorageError> {
+        Err(StorageError::MockDbError)?
+    }
+
+    #[cfg(all(feature = "v2", feature = "olap"))]
+    async fn get_total_count_of_filtered_payment_attempts(
+        &self,
+        _merchant_id: &id_type::MerchantId,
+        _active_attempt_ids: &[String],
+        _connector: Option<api_models::enums::Connector>,
+        _payment_method_type: Option<common_enums::PaymentMethod>,
+        _payment_method_subtype: Option<common_enums::PaymentMethodType>,
+        _authentication_type: Option<common_enums::AuthenticationType>,
+        _merchanat_connector_id: Option<id_type::MerchantConnectorAccountId>,
+        _card_network: Option<storage_enums::CardNetwork>,
         _storage_scheme: storage_enums::MerchantStorageScheme,
     ) -> CustomResult<i64, StorageError> {
         Err(StorageError::MockDbError)?
@@ -207,8 +225,16 @@ impl PaymentAttemptInterface for MockDb {
             organization_id: payment_attempt.organization_id,
             profile_id: payment_attempt.profile_id,
             connector_mandate_detail: payment_attempt.connector_mandate_detail,
+            request_extended_authorization: payment_attempt.request_extended_authorization,
+            extended_authorization_applied: payment_attempt.extended_authorization_applied,
+            capture_before: payment_attempt.capture_before,
             card_discovery: payment_attempt.card_discovery,
             charges: None,
+            issuer_error_code: None,
+            issuer_error_message: None,
+            processor_merchant_id: payment_attempt.processor_merchant_id,
+            created_by: payment_attempt.created_by,
+            setup_future_usage_applied: payment_attempt.setup_future_usage_applied,
         };
         payment_attempts.push(payment_attempt.clone());
         Ok(payment_attempt)
@@ -313,6 +339,28 @@ impl PaymentAttemptInterface for MockDb {
             .find(|payment_attempt| {
                 payment_attempt.payment_id == *payment_id
                     && payment_attempt.merchant_id.eq(merchant_id)
+                    && (payment_attempt.status == storage_enums::AttemptStatus::PartialCharged
+                        || payment_attempt.status == storage_enums::AttemptStatus::Charged)
+            })
+            .cloned()
+            .unwrap())
+    }
+
+    #[cfg(feature = "v2")]
+    #[allow(clippy::unwrap_used)]
+    async fn find_payment_attempt_last_successful_or_partially_captured_attempt_by_payment_id(
+        &self,
+        _key_manager_state: &KeyManagerState,
+        _merchant_key_store: &MerchantKeyStore,
+        payment_id: &id_type::GlobalPaymentId,
+        _storage_scheme: storage_enums::MerchantStorageScheme,
+    ) -> CustomResult<PaymentAttempt, StorageError> {
+        let payment_attempts = self.payment_attempts.lock().await;
+
+        Ok(payment_attempts
+            .iter()
+            .find(|payment_attempt| {
+                payment_attempt.payment_id == *payment_id
                     && (payment_attempt.status == storage_enums::AttemptStatus::PartialCharged
                         || payment_attempt.status == storage_enums::AttemptStatus::Charged)
             })

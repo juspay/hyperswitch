@@ -23,6 +23,7 @@ pub mod files;
 pub mod fraud_check;
 pub mod gsm;
 pub mod health;
+pub mod hypersense;
 pub mod lock_utils;
 #[cfg(feature = "v1")]
 pub mod locker_migration;
@@ -43,10 +44,10 @@ pub mod poll;
 pub mod profiles;
 #[cfg(feature = "recon")]
 pub mod recon;
-#[cfg(feature = "v1")]
 pub mod refunds;
 #[cfg(feature = "olap")]
 pub mod routing;
+pub mod tokenization;
 #[cfg(feature = "olap")]
 pub mod user;
 #[cfg(feature = "olap")]
@@ -59,19 +60,33 @@ pub mod verify_connector;
 pub mod webhook_events;
 pub mod webhooks;
 
+#[cfg(all(feature = "v2", feature = "revenue_recovery"))]
+pub mod recovery_webhooks;
+
 pub mod relay;
+
+#[cfg(feature = "olap")]
+pub mod process_tracker;
+
+#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+pub mod proxy;
 
 #[cfg(feature = "dummy_connector")]
 pub use self::app::DummyConnector;
 #[cfg(feature = "v2")]
-pub use self::app::PaymentMethodsSession;
+pub use self::app::PaymentMethodSession;
+#[cfg(all(feature = "oltp", feature = "v2", feature = "payment_methods_v2"))]
+pub use self::app::Proxy;
 #[cfg(all(feature = "olap", feature = "recon", feature = "v1"))]
 pub use self::app::Recon;
+#[cfg(feature = "v2")]
+pub use self::app::Tokenization;
 pub use self::app::{
     ApiKeys, AppState, ApplePayCertificatesMigration, Cache, Cards, Configs, ConnectorOnboarding,
-    Customers, Disputes, EphemeralKey, FeatureMatrix, Files, Forex, Gsm, Health, Mandates,
-    MerchantAccount, MerchantConnectorAccount, PaymentLink, PaymentMethods, Payments, Poll,
-    Profile, ProfileNew, Refunds, Relay, RelayWebhooks, SessionState, User, Webhooks,
+    Customers, Disputes, EphemeralKey, FeatureMatrix, Files, Forex, Gsm, Health, Hypersense,
+    Mandates, MerchantAccount, MerchantConnectorAccount, PaymentLink, PaymentMethods, Payments,
+    Poll, ProcessTracker, Profile, ProfileNew, Refunds, Relay, RelayWebhooks, SessionState, User,
+    Webhooks,
 };
 #[cfg(feature = "olap")]
 pub use self::app::{Blocklist, Organization, Routing, Verify, WebhookEvents};

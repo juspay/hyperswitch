@@ -112,6 +112,7 @@ pub trait UnifiedAuthenticationService<F: Clone + Sync> {
         _three_ds_requestor_url: String,
         _merchant_connector_account: &MerchantConnectorAccountType,
         _connector_name: &str,
+        _payment_id: common_utils::id_type::PaymentId,
     ) -> RouterResult<hyperswitch_domain_models::types::UasAuthenticationRouterData> {
         Err(errors::ApiErrorResponse::NotImplemented {
             message: NotImplementedMessage::Reason("authentication".to_string()),
@@ -145,11 +146,14 @@ pub trait UnifiedAuthenticationService<F: Clone + Sync> {
         .into())
     }
 
-    fn confirmation(
+    async fn confirmation(
         _state: &SessionState,
         _key_store: &domain::MerchantKeyStore,
         _business_profile: &domain::Profile,
+        _payment_data: &PaymentData<F>,
         _merchant_connector_account: &MerchantConnectorAccountType,
+        _connector_name: &str,
+        _payment_method: common_enums::PaymentMethod,
     ) -> RouterResult<()> {
         Err(errors::ApiErrorResponse::NotImplemented {
             message: NotImplementedMessage::Reason("confirmation".to_string()),

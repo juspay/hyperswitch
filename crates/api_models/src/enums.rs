@@ -48,10 +48,22 @@ pub enum PayoutConnectors {
     Adyenplatform,
     Cybersource,
     Ebanx,
+    Nomupay,
     Payone,
     Paypal,
     Stripe,
     Wise,
+}
+
+#[cfg(feature = "v2")]
+/// Whether active attempt is to be set/unset
+#[derive(Clone, Debug, PartialEq, serde::Serialize, serde::Deserialize, ToSchema)]
+pub enum UpdateActiveAttempt {
+    /// Request to set the active attempt id
+    #[schema(value_type = Option<String>)]
+    Set(common_utils::id_type::GlobalAttemptId),
+    /// To unset the active attempt id
+    Unset,
 }
 
 #[cfg(feature = "payouts")]
@@ -62,6 +74,7 @@ impl From<PayoutConnectors> for RoutableConnectors {
             PayoutConnectors::Adyenplatform => Self::Adyenplatform,
             PayoutConnectors::Cybersource => Self::Cybersource,
             PayoutConnectors::Ebanx => Self::Ebanx,
+            PayoutConnectors::Nomupay => Self::Nomupay,
             PayoutConnectors::Payone => Self::Payone,
             PayoutConnectors::Paypal => Self::Paypal,
             PayoutConnectors::Stripe => Self::Stripe,
@@ -78,6 +91,7 @@ impl From<PayoutConnectors> for Connector {
             PayoutConnectors::Adyenplatform => Self::Adyenplatform,
             PayoutConnectors::Cybersource => Self::Cybersource,
             PayoutConnectors::Ebanx => Self::Ebanx,
+            PayoutConnectors::Nomupay => Self::Nomupay,
             PayoutConnectors::Payone => Self::Payone,
             PayoutConnectors::Paypal => Self::Paypal,
             PayoutConnectors::Stripe => Self::Stripe,
@@ -95,6 +109,7 @@ impl TryFrom<Connector> for PayoutConnectors {
             Connector::Adyenplatform => Ok(Self::Adyenplatform),
             Connector::Cybersource => Ok(Self::Cybersource),
             Connector::Ebanx => Ok(Self::Ebanx),
+            Connector::Nomupay => Ok(Self::Nomupay),
             Connector::Payone => Ok(Self::Payone),
             Connector::Paypal => Ok(Self::Paypal),
             Connector::Stripe => Ok(Self::Stripe),
@@ -145,6 +160,31 @@ pub enum TaxConnectors {
     Taxjar,
 }
 
+#[derive(Clone, Debug, serde::Serialize, strum::EnumString, Eq, PartialEq)]
+#[serde(rename_all = "snake_case")]
+pub enum BillingConnectors {
+    Chargebee,
+    Recurly,
+    Stripebilling,
+    #[cfg(feature = "dummy_connector")]
+    DummyBillingConnector,
+}
+
+#[derive(Clone, Copy, Debug, serde::Serialize, strum::EnumString, Eq, PartialEq)]
+#[serde(rename_all = "snake_case")]
+#[strum(serialize_all = "snake_case")]
+pub enum VaultConnectors {
+    Vgs,
+}
+
+impl From<VaultConnectors> for Connector {
+    fn from(value: VaultConnectors) -> Self {
+        match value {
+            VaultConnectors::Vgs => Self::Vgs,
+        }
+    }
+}
+
 #[derive(
     Clone, Debug, serde::Deserialize, serde::Serialize, strum::Display, strum::EnumString, ToSchema,
 )]
@@ -190,6 +230,7 @@ pub enum FieldType {
     UserCardExpiryMonth,
     UserCardExpiryYear,
     UserCardCvc,
+    UserCardNetwork,
     UserFullName,
     UserEmailAddress,
     UserPhoneNumber,
@@ -211,9 +252,12 @@ pub enum FieldType {
     UserShippingAddressPincode,
     UserShippingAddressState,
     UserShippingAddressCountry { options: Vec<String> },
+    UserSocialSecurityNumber,
     UserBlikCode,
     UserBank,
     UserBankAccountNumber,
+    UserSourceBankAccountId,
+    UserDestinationBankAccountId,
     Text,
     DropDown { options: Vec<String> },
     UserDateOfBirth,
@@ -401,9 +445,16 @@ pub fn convert_tax_connector(connector_name: &str) -> Option<TaxConnectors> {
     TaxConnectors::from_str(connector_name).ok()
 }
 
+pub fn convert_billing_connector(connector_name: &str) -> Option<BillingConnectors> {
+    BillingConnectors::from_str(connector_name).ok()
+}
 #[cfg(feature = "frm")]
 pub fn convert_frm_connector(connector_name: &str) -> Option<FrmConnectors> {
     FrmConnectors::from_str(connector_name).ok()
+}
+
+pub fn convert_vault_connector(connector_name: &str) -> Option<VaultConnectors> {
+    VaultConnectors::from_str(connector_name).ok()
 }
 
 #[derive(Debug, Clone, Copy, Eq, PartialEq, Ord, PartialOrd, serde::Serialize, Hash)]

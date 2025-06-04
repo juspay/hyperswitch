@@ -1,3 +1,4 @@
+use common_enums;
 use common_utils::consts::MAX_ALLOWED_MERCHANT_NAME_LENGTH;
 
 pub const MAX_NAME_LENGTH: usize = 70;
@@ -37,11 +38,6 @@ pub const REDIS_RECOVERY_CODE_ATTEMPTS_TTL_IN_SECS: i64 = 10 * 60; // 10 mins
 pub const REDIS_SSO_PREFIX: &str = "SSO_";
 pub const REDIS_SSO_TTL: i64 = 5 * 60; // 5 minutes
 
-/// Email subject
-pub const EMAIL_SUBJECT_SIGNUP: &str = "Welcome to the Hyperswitch community!";
-pub const EMAIL_SUBJECT_INVITATION: &str = "You have been invited to join Hyperswitch Community!";
-pub const EMAIL_SUBJECT_MAGIC_LINK: &str = "Unlock Hyperswitch: Use Your Magic Link to Sign In";
-pub const EMAIL_SUBJECT_RESET_PASSWORD: &str = "Get back to Hyperswitch - Reset Your Password Now";
-pub const EMAIL_SUBJECT_NEW_PROD_INTENT: &str = "New Prod Intent";
-pub const EMAIL_SUBJECT_WELCOME_TO_COMMUNITY: &str =
-    "Thank you for signing up on Hyperswitch Dashboard!";
+pub const DEFAULT_PROFILE_NAME: &str = "default";
+pub const DEFAULT_PRODUCT_TYPE: common_enums::MerchantProductType =
+    common_enums::MerchantProductType::Orchestration;

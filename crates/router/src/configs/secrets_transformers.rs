@@ -200,24 +200,6 @@ impl SecretsHandler for settings::PazeDecryptConfig {
 }
 
 #[async_trait::async_trait]
-impl SecretsHandler for settings::GooglePayDecryptConfig {
-    async fn convert_to_raw_secret(
-        value: SecretStateContainer<Self, SecuredSecret>,
-        secret_management_client: &dyn SecretManagementInterface,
-    ) -> CustomResult<SecretStateContainer<Self, RawSecret>, SecretsManagementError> {
-        let google_pay_decrypt_keys = value.get_inner();
-
-        let google_pay_root_signing_keys = secret_management_client
-            .get_secret(google_pay_decrypt_keys.google_pay_root_signing_keys.clone())
-            .await?;
-
-        Ok(value.transition_state(|_| Self {
-            google_pay_root_signing_keys,
-        }))
-    }
-}
-
-#[async_trait::async_trait]
 impl SecretsHandler for settings::ApplepayMerchantConfigs {
     async fn convert_to_raw_secret(
         value: SecretStateContainer<Self, SecuredSecret>,
@@ -238,25 +220,6 @@ impl SecretsHandler for settings::ApplepayMerchantConfigs {
             merchant_cert_key,
             common_merchant_identifier,
             ..applepay_merchant_configs
-        }))
-    }
-}
-
-#[async_trait::async_trait]
-impl SecretsHandler for settings::PaymentMethodAuth {
-    async fn convert_to_raw_secret(
-        value: SecretStateContainer<Self, SecuredSecret>,
-        secret_management_client: &dyn SecretManagementInterface,
-    ) -> CustomResult<SecretStateContainer<Self, RawSecret>, SecretsManagementError> {
-        let payment_method_auth = value.get_inner();
-
-        let pm_auth_key = secret_management_client
-            .get_secret(payment_method_auth.pm_auth_key.clone())
-            .await?;
-
-        Ok(value.transition_state(|payment_method_auth| Self {
-            pm_auth_key,
-            ..payment_method_auth
         }))
     }
 }
@@ -443,20 +406,6 @@ pub(crate) async fn fetch_raw_secrets(
     };
 
     #[allow(clippy::expect_used)]
-    let google_pay_decrypt_keys = if let Some(google_pay_keys) = conf.google_pay_decrypt_keys {
-        Some(
-            settings::GooglePayDecryptConfig::convert_to_raw_secret(
-                google_pay_keys,
-                secret_management_client,
-            )
-            .await
-            .expect("Failed to decrypt google pay decrypt configs"),
-        )
-    } else {
-        None
-    };
-
-    #[allow(clippy::expect_used)]
     let applepay_merchant_configs = settings::ApplepayMerchantConfigs::convert_to_raw_secret(
         conf.applepay_merchant_configs,
         secret_management_client,
@@ -516,6 +465,7 @@ pub(crate) async fn fetch_raw_secrets(
         #[cfg(feature = "olap")]
         replica_database,
         secrets,
+        fallback_merchant_ids_api_key_auth: conf.fallback_merchant_ids_api_key_auth,
         locker: conf.locker,
         connectors: conf.connectors,
         forex_api,
@@ -537,18 +487,21 @@ pub(crate) async fn fetch_raw_secrets(
         email: conf.email,
         user: conf.user,
         mandates: conf.mandates,
+        zero_mandates: conf.zero_mandates,
         network_transaction_id_supported_connectors: conf
             .network_transaction_id_supported_connectors,
         required_fields: conf.required_fields,
         delayed_session_response: conf.delayed_session_response,
         webhook_source_verification_call: conf.webhook_source_verification_call,
+        billing_connectors_payment_sync: conf.billing_connectors_payment_sync,
+        billing_connectors_invoice_sync: conf.billing_connectors_invoice_sync,
         payment_method_auth,
         connector_request_reference_id_config: conf.connector_request_reference_id_config,
         #[cfg(feature = "payouts")]
         payouts: conf.payouts,
         applepay_decrypt_keys,
         paze_decrypt_keys,
-        google_pay_decrypt_keys,
+        google_pay_decrypt_keys: conf.google_pay_decrypt_keys,
         multiple_api_version_supported_connectors: conf.multiple_api_version_supported_connectors,
         applepay_merchant_configs,
         lock_settings: conf.lock_settings,
@@ -576,6 +529,7 @@ pub(crate) async fn fetch_raw_secrets(
         decision: conf.decision,
         locker_based_open_banking_connectors: conf.locker_based_open_banking_connectors,
         grpc_client: conf.grpc_client,
+        crm: conf.crm,
         #[cfg(feature = "v2")]
         cell_information: conf.cell_information,
         network_tokenization_supported_card_networks: conf
@@ -584,5 +538,12 @@ pub(crate) async fn fetch_raw_secrets(
         network_tokenization_supported_connectors: conf.network_tokenization_supported_connectors,
         theme: conf.theme,
         platform: conf.platform,
+        authentication_providers: conf.authentication_providers,
+        open_router: conf.open_router,
+        #[cfg(feature = "v2")]
+        revenue_recovery: conf.revenue_recovery,
+        debit_routing_config: conf.debit_routing_config,
+        clone_connector_allowlist: conf.clone_connector_allowlist,
+        infra_values: conf.infra_values,
     }
 }

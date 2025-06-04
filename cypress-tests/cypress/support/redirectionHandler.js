@@ -1,5 +1,5 @@
 /* eslint-disable cypress/unsafe-to-chain-command */
-/* eslint-disable cypress/no-unnecessary-waiting */
+
 import jsQR from "jsqr";
 
 // Define constants for wait times
@@ -7,11 +7,14 @@ const CONSTANTS = {
   TIMEOUT: 20000, // 20 seconds
   WAIT_TIME: 10000, // 10 seconds
   ERROR_PATTERNS: [
-    /4\d{2}/,
-    /5\d{2}/,
-    /error/i,
-    /invalid request/i,
-    /server error/i,
+    /^(4|5)\d{2}\s/, // HTTP error status codes
+    /\berror occurred\b/i,
+    /\bpayment failed\b/i,
+    /\binvalid request\b/i,
+    /\bserver error\b/i,
+    /\btransaction failed\b/i,
+    /\bpayment declined\b/i,
+    /\bauthorization failed\b/i,
   ],
   VALID_TERMINAL_STATUSES: [
     "failed",
@@ -31,28 +34,28 @@ export function handleRedirection(
   switch (redirectionType) {
     case "bank_redirect":
       bankRedirectRedirection(
-        urls.redirection_url,
-        urls.expected_url,
+        urls.redirectionUrl,
+        urls.expectedUrl,
         connectorId,
         paymentMethodType
       );
       break;
     case "bank_transfer":
       bankTransferRedirection(
-        urls.redirection_url,
-        urls.expected_url,
+        urls.redirectionUrl,
+        urls.expectedUrl,
         connectorId,
         paymentMethodType,
-        handlerMetadata.next_action_type
+        handlerMetadata.nextActionType
       );
       break;
     case "three_ds":
-      threeDsRedirection(urls.redirection_url, urls.expected_url, connectorId);
+      threeDsRedirection(urls.redirectionUrl, urls.expectedUrl, connectorId);
       break;
     case "upi":
       upiRedirection(
-        urls.redirection_url,
-        urls.expected_url,
+        urls.redirectionUrl,
+        urls.expectedUrl,
         connectorId,
         paymentMethodType
       );
@@ -93,6 +96,17 @@ function bankTransferRedirection(
       break;
     case "image_data_url":
       switch (connectorId) {
+        case "facilitapay":
+          switch (paymentMethodType) {
+            case "pix":
+              fetchAndParseImageData(redirectionUrl).then((qrCodeData) => {
+                expect(qrCodeData).to.contains("FacilitaPay"); // image data contains the following value
+              });
+              break;
+            default:
+              verifyReturnUrl(redirectionUrl, expectedUrl, true);
+          }
+          break;
         case "itaubank":
           switch (paymentMethodType) {
             case "pix":
@@ -122,161 +136,186 @@ function bankRedirectRedirection(
   let verifyUrl = false;
 
   cy.visit(redirectionUrl.href);
-  waitForRedirect(redirectionUrl.href);
+  waitForRedirect(redirectionUrl.href); // Wait for the first redirect
 
-  handleFlow(
-    redirectionUrl,
-    expectedUrl,
-    connectorId,
-    ({ connectorId, paymentMethodType, constants }) => {
-      switch (connectorId) {
-        case "adyen":
-          switch (paymentMethodType) {
-            case "eps":
-              cy.get("h1").should("contain.text", "Acquirer Simulator");
-              cy.get('[value="authorised"]').click();
-              break;
-            case "ideal":
-              cy.get(":nth-child(4) > td > p").should(
-                "contain.text",
-                "Your Payment was Authorised/Refused/Cancelled (It may take up to five minutes to show on the Payment List)"
-              );
-              cy.get(".btnLink").click();
-              cy.url().should("include", "status=succeeded");
-              cy.wait(5000);
-              break;
-            case "giropay":
-              cy.get(
-                ".rds-cookies-overlay__allow-all-cookies-btn > .rds-button"
-              ).click();
-              cy.wait(5000);
-              cy.get(".normal-3").should(
-                "contain.text",
-                "Bank suchen ‑ mit giropay zahlen."
-              );
-              cy.get("#bankSearch").type("giropay TestBank{enter}");
-              cy.get(".normal-2 > div").click();
-              cy.get('[data-testid="customerIban"]').type(
-                "DE48499999601234567890"
-              );
-              cy.get('[data-testid="customerIdentification"]').type(
-                "9123456789"
-              );
-              cy.get(":nth-child(3) > .rds-button").click();
-              cy.get('[data-testid="onlineBankingPin"]').type("1234");
-              cy.get(".rds-button--primary").click();
-              cy.get(":nth-child(5) > .rds-radio-input-group__label").click();
-              cy.get(".rds-button--primary").click();
-              cy.get('[data-testid="photoTan"]').type("123456");
-              cy.get(".rds-button--primary").click();
-              cy.wait(5000);
-              cy.url().should("include", "status=succeeded");
-              cy.wait(5000);
-              break;
-            case "sofort":
-              cy.get(".modal-overlay.modal-shown.in", {
-                timeout: constants.TIMEOUT,
-              }).then(($modal) => {
-                // If modal is found, handle it
-                if ($modal.length > 0) {
-                  cy.get("button.cookie-modal-deny-all.button-tertiary")
-                    .should("be.visible")
-                    .should("contain", "Reject All")
-                    .click({ multiple: true });
-                  cy.get("div#TopBanks.top-banks-multistep")
-                    .should("contain", "Demo Bank")
-                    .as("btn")
-                    .click();
-                  cy.get("@btn").click();
-                } else {
-                  cy.get("input.phone").type("9123456789");
-                  cy.get("#button.onContinue")
-                    .should("contain", "Continue")
-                    .click();
-                }
-              });
-              break;
-            default:
-              throw new Error(
-                `Unsupported payment method type: ${paymentMethodType}`
-              );
-          }
-          verifyUrl = true;
-          break;
-        case "paypal":
-          if (["eps", "ideal", "giropay"].includes(paymentMethodType)) {
-            cy.get('button[name="Successful"][value="SUCCEEDED"]').click();
-            verifyUrl = true;
-          } else {
-            throw new Error(
-              `Unsupported payment method type: ${paymentMethodType}`
-            );
-          }
-          verifyUrl = true;
-          break;
-        case "stripe":
-          if (
-            ["eps", "ideal", "giropay", "sofort", "przelewy24"].includes(
-              paymentMethodType
-            )
-          ) {
-            cy.get('a[name="success"]').click();
-            verifyUrl = true;
-          } else {
-            throw new Error(
-              `Unsupported payment method type: ${paymentMethodType}`
-            );
-          }
-          verifyUrl = true;
-          break;
-        case "trustpay":
-          switch (paymentMethodType) {
-            case "eps":
-              cy.get("#bankname").type(
-                "Allgemeine Sparkasse Oberösterreich Bank AG (ASPKAT2LXXX / 20320)"
-              );
-              cy.get("#selectionSubmit").click();
-              cy.get("#user")
-                .should("be.visible")
-                .should("be.enabled")
-                .focus()
-                .type("Verfügernummer");
-              cy.get("input#submitButton.btn.btn-primary").click();
-              break;
-            case "ideal":
-              cy.contains("button", "Select your bank").click();
-              cy.get(
-                'button[data-testid="bank-item"][id="bank-item-INGBNL2A"]'
-              ).click();
-              break;
-            case "giropay":
-              cy.get("._transactionId__header__iXVd_").should(
-                "contain.text",
-                "Bank suchen ‑ mit giropay zahlen."
-              );
-              cy.get(".BankSearch_searchInput__uX_9l").type(
-                "Volksbank Hildesheim{enter}"
-              );
-              cy.get(".BankSearch_searchIcon__EcVO7").click();
-              cy.get(".BankSearch_bankWrapper__R5fUK").click();
-              cy.get("._transactionId__primaryButton__nCa0r").click();
-              cy.get(".normal-3").should("contain.text", "Kontoauswahl");
-              break;
-            default:
-              throw new Error(
-                `Unsupported payment method type: ${paymentMethodType}`
-              );
-          }
-          verifyUrl = false;
-          break;
-        default:
-          throw new Error(`Unsupported connector: ${connectorId}`);
+  // adyen ideal has been kept outside the handleFlow function just because cypress does not support nested `cy.origin` yet
+  // ref: https://github.com/cypress-io/cypress/issues/20718
+  // the work around is to use `cy.origin` in sequential manner
+  if (connectorId === "adyen" && paymentMethodType === "ideal") {
+    const adyenIdealOrigin1 = "https://ext.pay.ideal.nl";
+    const adyenIdealOrigin2 = "https://handler.ext.idealtesttool.nl";
+
+    cy.origin(
+      adyenIdealOrigin1,
+      { args: { constants: CONSTANTS } },
+      ({ constants }) => {
+        cy.log(
+          "Executing on Adyen iDEAL Origin 1:",
+          cy.state("window").location.origin
+        );
+        cy.wait(constants.TIMEOUT / 10); // 2 seconds
+        cy.get("button[data-testid=payment-action-button]").click();
+        cy.wait(constants.TIMEOUT / 10); // 2 seconds
+        cy.get("button[id=bank-item-TESTNL2A]").click();
       }
-    },
-    { paymentMethodType }
-  );
+    );
 
+    cy.log(`Waiting for redirection to ${adyenIdealOrigin2}`);
+    cy.location("origin", { timeout: CONSTANTS.TIMEOUT }).should(
+      "eq",
+      adyenIdealOrigin2
+    );
+
+    cy.origin(
+      adyenIdealOrigin2,
+      { args: { constants: CONSTANTS } },
+      ({ constants }) => {
+        cy.log(
+          "Executing on Adyen iDEAL Origin 2:",
+          cy.state("window").location.origin
+        );
+
+        cy.get(".btn.btn-primary.btn-lg")
+          .contains("Success")
+          .should("be.visible")
+          .click();
+
+        cy.url({ timeout: constants.WAIT_TIME }).should(
+          "include",
+          "/loading/SUCCESS"
+        );
+      }
+    );
+
+    // we get `An error occurred with the WebSocket` after clicking the `success` button
+    // and it does not redirect to the expected url
+    // so, we need cannot verify the return url for adyen ideal bank redirect
+    verifyUrl = false;
+  } else {
+    handleFlow(
+      redirectionUrl,
+      expectedUrl,
+      connectorId,
+      ({ connectorId, paymentMethodType }) => {
+        // Renamed expectedUrl arg for clarity
+        // This callback now runs either in cy.origin (if redirected) or directly (if iframe)
+        switch (connectorId) {
+          case "adyen":
+            switch (paymentMethodType) {
+              case "eps":
+                cy.get("h1").should("contain.text", "Acquirer Simulator");
+                cy.get('[value="authorised"]').click();
+                verifyUrl = true;
+                break;
+              // The 'ideal' case is handled outside handleFlow
+              default:
+                throw new Error(
+                  `Unsupported Adyen payment method type in handleFlow: ${paymentMethodType}`
+                );
+            }
+            break;
+
+          case "paypal":
+            if (["eps", "ideal", "giropay"].includes(paymentMethodType)) {
+              cy.get('button[name="Successful"][value="SUCCEEDED"]').click();
+              verifyUrl = true;
+            } else {
+              throw new Error(
+                `Unsupported Paypal payment method type: ${paymentMethodType}`
+              );
+            }
+
+            break;
+
+          case "stripe":
+            if (
+              ["eps", "ideal", "giropay", "sofort", "przelewy24"].includes(
+                paymentMethodType
+              )
+            ) {
+              // scroll down and click on the authorize test payment button
+              cy.get("body").then(() => {
+                cy.get("#frame-warning-container").then(($el) => {
+                  if ($el.is(":visible")) {
+                    // Frame warning is visible — use test payment button
+                    cy.get("#authorize-test-payment")
+                      .scrollIntoView()
+                      .should("be.visible")
+                      .click();
+                  } else {
+                    // Frame warning is hidden — use the success link
+                    cy.contains(
+                      'a.common-Button[name="success"]',
+                      "Authorize Test Payment"
+                    )
+                      .scrollIntoView()
+                      .should("be.visible")
+                      .click();
+                  }
+                });
+              });
+              verifyUrl = true;
+            } else {
+              throw new Error(
+                `Unsupported Stripe payment method type: ${paymentMethodType}`
+              );
+            }
+
+            break;
+
+          case "trustpay":
+            // Trustpay bank redirects never reach the terminal state
+            switch (paymentMethodType) {
+              case "eps":
+                cy.get("#bankname").type(
+                  "Allgemeine Sparkasse Oberösterreich Bank AG (ASPKAT2LXXX / 20320)"
+                );
+                cy.get("#selectionSubmit").click();
+                break;
+              case "ideal":
+                cy.contains("button", "Select your bank").click();
+                cy.get(
+                  'button[data-testid="bank-item"][id="bank-item-INGBNL2A"]'
+                ).click();
+                break;
+              case "giropay":
+                cy.get("._transactionId__header__iXVd_").should(
+                  "contain.text",
+                  "Bank suchen ‑ mit giropay zahlen."
+                );
+                cy.get(".BankSearch_searchInput__uX_9l").type(
+                  "Volksbank Hildesheim{enter}"
+                );
+                cy.get(".BankSearch_searchIcon__EcVO7").click();
+                cy.get(".BankSearch_bankWrapper__R5fUK").click();
+                cy.get("._transactionId__primaryButton__nCa0r").click();
+                cy.get(".normal-3").should("contain.text", "Kontoauswahl");
+                break;
+              default:
+                throw new Error(
+                  `Unsupported Trustpay payment method type: ${paymentMethodType}`
+                );
+            }
+            verifyUrl = false;
+            break;
+
+          default:
+            throw new Error(
+              `Unsupported connector in handleFlow: ${connectorId}`
+            );
+        }
+      },
+      { paymentMethodType } // Pass options to handleFlow
+    );
+
+    // extract the verifyUrl decision from within the handleFlow callback
+    // since the callback runs asynchronously within cy.origin or directly,
+    // we need a way to signal back if verification is needed.
+    // we use a closure variable `verifyUrl` which is modified inside the callback.
+    // this relies on cypress command queue ensuring the callback completes before cy.then runs.
+  }
   cy.then(() => {
+    // The value of verifyUrl determined by the specific flow (Adyen iDEAL or handleFlow callback)
     verifyReturnUrl(redirectionUrl, expectedUrl, verifyUrl);
   });
 }
@@ -430,7 +469,10 @@ function threeDsRedirection(redirectionUrl, expectedUrl, connectorId) {
                 });
             });
           break;
-
+        case "redsys":
+          cy.get("div.autenticada").click();
+          cy.get('input[value="Enviar"]').click();
+          break;
         default:
           cy.wait(constants.WAIT_TIME);
       }
@@ -483,13 +525,18 @@ function upiRedirection(
 }
 
 function verifyReturnUrl(redirectionUrl, expectedUrl, forwardFlow) {
-  if (!forwardFlow) return;
+  if (!forwardFlow) {
+    cy.log("Skipping return URL verification as forwardFlow is false.");
+    return;
+  }
+  cy.log(`Verifying return URL. Expecting host: ${expectedUrl.host}`);
 
   cy.location("host", { timeout: CONSTANTS.TIMEOUT }).should((currentHost) => {
     expect(currentHost).to.equal(expectedUrl.host);
   });
 
   cy.url().then((url) => {
+    cy.log(`Current URL for verification: ${url}`);
     cy.origin(
       new URL(url).origin,
       {
@@ -503,29 +550,58 @@ function verifyReturnUrl(redirectionUrl, expectedUrl, forwardFlow) {
         try {
           const redirectionHost = new URL(redirectionUrl).host;
           const expectedHost = new URL(expectedUrl).host;
-          if (redirectionHost.endsWith(expectedHost)) {
-            cy.wait(constants.WAIT_TIME / 2);
 
-            cy.window()
-              .its("location")
-              .then((location) => {
+          cy.log(
+            `Running verification checks within origin: ${location.origin}`
+          );
+
+          cy.window()
+            .its("location")
+            .then((location) => {
+              // Check for payment_id in the URL
+              const urlParams = new URLSearchParams(location.search);
+              const paymentId = urlParams.get("payment_id");
+
+              cy.log(`URL Params: ${location.search}`);
+              cy.log(`Payment ID: ${paymentId}`);
+
+              if (!paymentId) {
+                // eslint-disable-next-line cypress/assertion-before-screenshot
+                cy.screenshot("missing-payment-id-error");
+                throw new Error("URL does not contain payment_id parameter");
+              }
+
+              // Proceed with other verifications based on whether redirection host ends with expected host
+              if (redirectionHost.endsWith(expectedHost)) {
+                cy.wait(constants.WAIT_TIME / 2);
+
                 // Check page state before taking screenshots
                 cy.document().then((doc) => {
                   const pageText = doc.body.innerText.toLowerCase();
+
+                  cy.log(
+                    `Page text for error check: ${pageText.substring(0, 200)}...`
+                  );
+
                   if (!pageText) {
                     // eslint-disable-next-line cypress/assertion-before-screenshot
                     cy.screenshot("blank-page-error");
-                  } else if (
-                    constants.ERROR_PATTERNS.some((pattern) =>
+                    cy.log("Warning: Page appears blank.");
+                  } else {
+                    // Check if any error pattern exists in the text
+                    const hasError = constants.ERROR_PATTERNS.some((pattern) =>
                       pattern.test(pageText)
-                    )
-                  ) {
-                    // eslint-disable-next-line cypress/assertion-before-screenshot
-                    cy.screenshot(`error-page-${Date.now()}`);
+                    );
+
+                    if (hasError) {
+                      // Only take screenshot if an error pattern was found
+                      // eslint-disable-next-line cypress/assertion-before-screenshot
+                      cy.screenshot(`error-page-${Date.now()}`);
+                      throw new Error(`Page contains error: ${pageText}`);
+                    }
                   }
                 });
 
-                const urlParams = new URLSearchParams(location.search);
                 const paymentStatus = urlParams.get("status");
 
                 if (
@@ -537,21 +613,21 @@ function verifyReturnUrl(redirectionUrl, expectedUrl, forwardFlow) {
                     `Redirection failed with payment status: ${paymentStatus}`
                   );
                 }
-              });
-          } else {
-            cy.window().its("location.origin").should("eq", expectedUrl);
+              } else {
+                cy.window().its("location.origin").should("eq", expectedUrl);
 
-            Cypress.on("uncaught:exception", (err, runnable) => {
-              // Log the error details
-              // eslint-disable-next-line no-console
-              console.error(
-                `Error: ${err.message}\nOccurred in: ${runnable.title}\nStack: ${err.stack}`
-              );
+                Cypress.on("uncaught:exception", (err, runnable) => {
+                  // Log the error details
+                  // eslint-disable-next-line no-console
+                  console.error(
+                    `Error: ${err.message}\nOccurred in: ${runnable.title}\nStack: ${err.stack}`
+                  );
 
-              // Return false to prevent the error from failing the test
-              return false;
+                  // Return false to prevent the error from failing the test
+                  return false;
+                });
+              }
             });
-          }
         } catch (error) {
           throw new Error(`Redirection verification failed: ${error}`);
         }
@@ -670,37 +746,49 @@ function handleFlow(
   callback,
   options = {}
 ) {
+  // Extract the host from the redirection URL
   const originalHost = new URL(redirectionUrl.href).host;
+
   cy.location("host", { timeout: CONSTANTS.TIMEOUT }).then((currentHost) => {
+    const callbackArgs = {
+      connectorId,
+      constants: CONSTANTS,
+      expectedUrl: expectedUrl.origin,
+      ...options, // e.g. paymentMethodType if provided
+    };
+
     if (currentHost !== originalHost) {
-      // Regular redirection flow - host changed, use cy.origin()
+      cy.log(
+        `Redirect detected: ${originalHost} -> ${currentHost}. Using cy.origin.`
+      );
+
+      // For a regular redirection flow: host changed, use cy.origin
       cy.url().then((currentUrl) => {
-        cy.origin(
-          new URL(currentUrl).origin,
-          {
-            args: {
-              connectorId,
-              constants: CONSTANTS,
-              expectedUrl: expectedUrl.origin,
-              ...options, // optional params like paymentMethodType
-            },
-          },
-          callback
-        );
+        cy.origin(new URL(currentUrl).origin, { args: callbackArgs }, callback);
       });
     } else {
-      // Embedded flow - host unchanged, use cy.get("iframe")
+      cy.log(
+        `No host change detected or potential iframe. Executing callback directly/targeting iframe.`
+      );
+
+      // For embedded flows using an iframe:
       cy.get("iframe", { timeout: CONSTANTS.TIMEOUT })
         .should("be.visible")
-        .should("exist");
+        .should("exist")
+        .then((iframes) => {
+          if (iframes.length === 0) {
+            cy.log(
+              "No host change and no iframe detected, executing callback directly."
+            );
 
-      // Execute callback within the iframe context
-      callback({
-        connectorId,
-        constants: CONSTANTS,
-        expectedUrl: expectedUrl.origin,
-        ...options, // optional params like paymentMethodType
-      });
+            throw new Error("No iframe found for embedded flow.");
+          }
+          // Execute the callback directly for the embedded flow
+          cy.log(
+            "Iframe detected, executing callback targeting iframe context (implicitly)."
+          );
+          callback(callbackArgs);
+        });
     }
   });
 }

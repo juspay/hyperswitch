@@ -116,6 +116,10 @@ impl RoleInfo {
         acl
     }
 
+    pub fn from_predefined_roles(role_id: &str) -> Option<Self> {
+        predefined_roles::PREDEFINED_ROLES.get(role_id).cloned()
+    }
+
     pub async fn from_role_id_in_lineage(
         state: &SessionState,
         role_id: &str,
@@ -165,7 +169,7 @@ impl From<diesel_models::role::Role> for RoleInfo {
         Self {
             role_id: role.role_id,
             role_name: role.role_name,
-            groups: role.groups.into_iter().map(Into::into).collect(),
+            groups: role.groups,
             scope: role.scope,
             entity_type: role.entity_type,
             is_invitable: true,

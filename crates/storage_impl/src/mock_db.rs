@@ -1,15 +1,17 @@
 use std::sync::Arc;
 
+use common_utils::{errors::CustomResult, types::keymanager::KeyManagerState};
 use diesel_models as store;
 use error_stack::ResultExt;
-use futures::lock::Mutex;
+use futures::lock::{Mutex, MutexGuard};
 use hyperswitch_domain_models::{
-    errors::StorageError,
+    behaviour::{Conversion, ReverseConversion},
+    merchant_key_store::MerchantKeyStore,
     payments::{payment_attempt::PaymentAttempt, PaymentIntent},
 };
 use redis_interface::RedisSettings;
 
-use crate::redis::RedisStore;
+use crate::{errors::StorageError, redis::RedisStore};
 
 pub mod payment_attempt;
 pub mod payment_intent;
@@ -43,6 +45,8 @@ pub struct MockDb {
     pub mandates: Arc<Mutex<Vec<store::Mandate>>>,
     pub captures: Arc<Mutex<Vec<store::capture::Capture>>>,
     pub merchant_key_store: Arc<Mutex<Vec<store::merchant_key_store::MerchantKeyStore>>>,
+    #[cfg(all(feature = "v2", feature = "tokenization_v2"))]
+    pub tokenizations: Arc<Mutex<Vec<store::tokenization::Tokenization>>>,
     pub business_profiles: Arc<Mutex<Vec<store::business_profile::Profile>>>,
     pub reverse_lookups: Arc<Mutex<Vec<store::ReverseLookup>>>,
     pub payment_link: Arc<Mutex<Vec<store::payment_link::PaymentLink>>>,
@@ -90,6 +94,8 @@ impl MockDb {
             mandates: Default::default(),
             captures: Default::default(),
             merchant_key_store: Default::default(),
+            #[cfg(all(feature = "v2", feature = "tokenization_v2"))]
+            tokenizations: Default::default(),
             business_profiles: Default::default(),
             reverse_lookups: Default::default(),
             payment_link: Default::default(),
@@ -108,6 +114,119 @@ impl MockDb {
             user_authentication_methods: Default::default(),
             themes: Default::default(),
         })
+    }
+
+    /// Returns an option of the resource if it exists
+    pub async fn find_resource<D, R>(
+        &self,
+        state: &KeyManagerState,
+        key_store: &MerchantKeyStore,
+        resources: MutexGuard<'_, Vec<D>>,
+        filter_fn: impl Fn(&&D) -> bool,
+    ) -> CustomResult<Option<R>, StorageError>
+    where
+        D: Sync + ReverseConversion<R> + Clone,
+        R: Conversion,
+    {
+        let resource = resources.iter().find(filter_fn).cloned();
+        match resource {
+            Some(res) => Ok(Some(
+                res.convert(
+                    state,
+                    key_store.key.get_inner(),
+                    key_store.merchant_id.clone().into(),
+                )
+                .await
+                .change_context(StorageError::DecryptionError)?,
+            )),
+            None => Ok(None),
+        }
+    }
+
+    /// Throws errors when the requested resource is not found
+    pub async fn get_resource<D, R>(
+        &self,
+        state: &KeyManagerState,
+        key_store: &MerchantKeyStore,
+        resources: MutexGuard<'_, Vec<D>>,
+        filter_fn: impl Fn(&&D) -> bool,
+        error_message: String,
+    ) -> CustomResult<R, StorageError>
+    where
+        D: Sync + ReverseConversion<R> + Clone,
+        R: Conversion,
+    {
+        match self
+            .find_resource(state, key_store, resources, filter_fn)
+            .await?
+        {
+            Some(res) => Ok(res),
+            None => Err(StorageError::ValueNotFound(error_message).into()),
+        }
+    }
+
+    pub async fn get_resources<D, R>(
+        &self,
+        state: &KeyManagerState,
+        key_store: &MerchantKeyStore,
+        resources: MutexGuard<'_, Vec<D>>,
+        filter_fn: impl Fn(&&D) -> bool,
+        error_message: String,
+    ) -> CustomResult<Vec<R>, StorageError>
+    where
+        D: Sync + ReverseConversion<R> + Clone,
+        R: Conversion,
+    {
+        let resources: Vec<_> = resources.iter().filter(filter_fn).cloned().collect();
+        if resources.is_empty() {
+            Err(StorageError::ValueNotFound(error_message).into())
+        } else {
+            let pm_futures = resources
+                .into_iter()
+                .map(|pm| async {
+                    pm.convert(
+                        state,
+                        key_store.key.get_inner(),
+                        key_store.merchant_id.clone().into(),
+                    )
+                    .await
+                    .change_context(StorageError::DecryptionError)
+                })
+                .collect::<Vec<_>>();
+
+            let domain_resources = futures::future::try_join_all(pm_futures).await?;
+
+            Ok(domain_resources)
+        }
+    }
+
+    pub async fn update_resource<D, R>(
+        &self,
+        state: &KeyManagerState,
+        key_store: &MerchantKeyStore,
+        mut resources: MutexGuard<'_, Vec<D>>,
+        resource_updated: D,
+        filter_fn: impl Fn(&&mut D) -> bool,
+        error_message: String,
+    ) -> CustomResult<R, StorageError>
+    where
+        D: Sync + ReverseConversion<R> + Clone,
+        R: Conversion,
+    {
+        if let Some(pm) = resources.iter_mut().find(filter_fn) {
+            *pm = resource_updated.clone();
+            let result = resource_updated
+                .convert(
+                    state,
+                    key_store.key.get_inner(),
+                    key_store.merchant_id.clone().into(),
+                )
+                .await
+                .change_context(StorageError::DecryptionError)?;
+            Ok(result)
+        } else {
+            Err(StorageError::ValueNotFound(error_message).into())
+        }
     }
 }
 

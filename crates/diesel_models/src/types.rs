@@ -1,10 +1,15 @@
+#[cfg(feature = "v2")]
+use common_enums::enums::PaymentConnectorTransmission;
+#[cfg(feature = "v2")]
+use common_utils::id_type;
 use common_utils::{hashing::HashedString, pii, types::MinorUnit};
 use diesel::{
     sql_types::{Json, Jsonb},
     AsExpression, FromSqlRow,
 };
 use masking::{Secret, WithType};
-use serde::{Deserialize, Serialize};
+use serde::{self, Deserialize, Serialize};
+
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize, FromSqlRow, AsExpression)]
 #[diesel(sql_type = Jsonb)]
 pub struct OrderDetailsWithAmount {
@@ -40,12 +45,53 @@ impl masking::SerializableSecret for OrderDetailsWithAmount {}
 
 common_utils::impl_to_sql_from_sql_json!(OrderDetailsWithAmount);
 
+#[cfg(feature = "v2")]
+#[derive(Debug, Default, Clone, PartialEq, Deserialize, Serialize, FromSqlRow, AsExpression)]
+#[diesel(sql_type = Json)]
+pub struct FeatureMetadata {
+    /// Redirection response coming in request as metadata field only for redirection scenarios
+    pub redirect_response: Option<RedirectResponse>,
+    /// Additional tags to be used for global search
+    pub search_tags: Option<Vec<HashedString<WithType>>>,
+    /// Recurring payment details required for apple pay Merchant Token
+    pub apple_pay_recurring_details: Option<ApplePayRecurringDetails>,
+    /// revenue recovery data for payment intent
+    pub payment_revenue_recovery_metadata: Option<PaymentRevenueRecoveryMetadata>,
+}
+
+#[cfg(feature = "v2")]
+impl FeatureMetadata {
+    pub fn get_payment_method_sub_type(&self) -> Option<common_enums::PaymentMethodType> {
+        self.payment_revenue_recovery_metadata
+            .as_ref()
+            .map(|rrm| rrm.payment_method_subtype)
+    }
+
+    pub fn get_payment_method_type(&self) -> Option<common_enums::PaymentMethod> {
+        self.payment_revenue_recovery_metadata
+            .as_ref()
+            .map(|recovery_metadata| recovery_metadata.payment_method_type)
+    }
+
+    pub fn get_billing_merchant_connector_account_id(
+        &self,
+    ) -> Option<id_type::MerchantConnectorAccountId> {
+        self.payment_revenue_recovery_metadata
+            .as_ref()
+            .map(|recovery_metadata| recovery_metadata.billing_connector_id.clone())
+    }
+
+    // TODO: Check search_tags for relevant payment method type
+    // TODO: Check redirect_response metadata if applicable
+    // TODO: Check apple_pay_recurring_details metadata if applicable
+}
+
+#[cfg(feature = "v1")]
 #[derive(Debug, Clone, PartialEq, Deserialize, Serialize, FromSqlRow, AsExpression)]
 #[diesel(sql_type = Json)]
 pub struct FeatureMetadata {
     /// Redirection response coming in request as metadata field only for redirection scenarios
     pub redirect_response: Option<RedirectResponse>,
-    // TODO: Convert this to hashedstrings to avoid PII sensitive data
     /// Additional tags to be used for global search
     pub search_tags: Option<Vec<HashedString<WithType>>>,
     /// Recurring payment details required for apple pay Merchant Token
@@ -106,3 +152,35 @@ pub struct RedirectResponse {
 }
 impl masking::SerializableSecret for RedirectResponse {}
 common_utils::impl_to_sql_from_sql_json!(RedirectResponse);
+
+#[cfg(feature = "v2")]
+#[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]
+pub struct PaymentRevenueRecoveryMetadata {
+    /// Total number of billing connector + recovery retries for a payment intent.
+    pub total_retry_count: u16,
+    /// Flag for the payment connector's call
+    pub payment_connector_transmission: PaymentConnectorTransmission,
+    /// Billing Connector Id to update the invoices
+    pub billing_connector_id: id_type::MerchantConnectorAccountId,
+    /// Payment Connector Id to retry the payments
+    pub active_attempt_payment_connector_id: id_type::MerchantConnectorAccountId,
+    /// Billing Connector Payment Details
+    pub billing_connector_payment_details: BillingConnectorPaymentDetails,
+    ///Payment Method Type
+    pub payment_method_type: common_enums::enums::PaymentMethod,
+    /// PaymentMethod Subtype
+    pub payment_method_subtype: common_enums::enums::PaymentMethodType,
+    /// The name of the payment connector through which the payment attempt was made.
+    pub connector: common_enums::connector_enums::Connector,
+    /// Time at which next invoice will be created
+    pub invoice_next_billing_time: Option<time::PrimitiveDateTime>,
+}
+
+#[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]
+#[cfg(feature = "v2")]
+pub struct BillingConnectorPaymentDetails {
+    /// Payment Processor Token to process the Revenue Recovery Payment
+    pub payment_processor_token: String,
+    /// Billing Connector's Customer Id
+    pub connector_customer_id: String,
+}

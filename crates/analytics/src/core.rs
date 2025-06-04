@@ -34,7 +34,7 @@ pub async fn get_domain_info(
         AnalyticsDomain::AuthEvents => GetInfoResponse {
             metrics: utils::get_auth_event_metrics_info(),
             download_dimensions: None,
-            dimensions: Vec::new(),
+            dimensions: utils::get_auth_event_dimensions(),
         },
         AnalyticsDomain::ApiEvents => GetInfoResponse {
             metrics: utils::get_api_event_metrics_info(),

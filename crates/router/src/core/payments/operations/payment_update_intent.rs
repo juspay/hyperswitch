@@ -1,6 +1,9 @@
 use std::marker::PhantomData;
 
-use api_models::{enums::FrmSuggestion, payments::PaymentsUpdateIntentRequest};
+use api_models::{
+    enums::{FrmSuggestion, UpdateActiveAttempt},
+    payments::PaymentsUpdateIntentRequest,
+};
 use async_trait::async_trait;
 use common_utils::{
     errors::CustomResult,
@@ -21,7 +24,7 @@ use crate::{
     core::{
         errors::{self, RouterResult},
         payments::{
-            self,
+            self, helpers,
             operations::{self, ValidateStatusForOperation},
         },
     },
@@ -44,9 +47,10 @@ impl ValidateStatusForOperation for PaymentUpdateIntent {
         intent_status: common_enums::IntentStatus,
     ) -> Result<(), errors::ApiErrorResponse> {
         match intent_status {
-            common_enums::IntentStatus::RequiresPaymentMethod => Ok(()),
+            // if the status is `Failed`` we would want to Update few intent fields to perform a Revenue Recovery retry
+            common_enums::IntentStatus::RequiresPaymentMethod
+            | common_enums::IntentStatus::Failed => Ok(()),
             common_enums::IntentStatus::Succeeded
-            | common_enums::IntentStatus::Failed
             | common_enums::IntentStatus::Cancelled
             | common_enums::IntentStatus::Processing
             | common_enums::IntentStatus::RequiresCustomerAction
@@ -131,17 +135,28 @@ impl<F: Send + Clone> GetTracker<F, payments::PaymentIntentData<F>, PaymentsUpda
         state: &'a SessionState,
         payment_id: &common_utils::id_type::GlobalPaymentId,
         request: &PaymentsUpdateIntentRequest,
-        merchant_account: &domain::MerchantAccount,
-        _profile: &domain::Profile,
-        key_store: &domain::MerchantKeyStore,
+        merchant_context: &domain::MerchantContext,
+        profile: &domain::Profile,
         _header_payload: &hyperswitch_domain_models::payments::HeaderPayload,
-        _platform_merchant_account: Option<&domain::MerchantAccount>,
     ) -> RouterResult<operations::GetTrackerResponse<payments::PaymentIntentData<F>>> {
         let db = &*state.store;
+        if let Some(routing_algorithm_id) = request.routing_algorithm_id.as_ref() {
+            helpers::validate_routing_id_with_profile_id(
+                db,
+                routing_algorithm_id,
+                profile.get_id(),
+            )
+            .await?;
+        }
         let key_manager_state = &state.into();
-        let storage_scheme = merchant_account.storage_scheme;
+        let storage_scheme = merchant_context.get_merchant_account().storage_scheme;
         let payment_intent = db
-            .find_payment_intent_by_id(key_manager_state, payment_id, key_store, storage_scheme)
+            .find_payment_intent_by_id(
+                key_manager_state,
+                payment_id,
+                merchant_context.get_merchant_key_store(),
+                storage_scheme,
+            )
             .await
             .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
 
@@ -170,6 +185,7 @@ impl<F: Send + Clone> GetTracker<F, payments::PaymentIntentData<F>, PaymentsUpda
             session_expiry,
             frm_metadata,
             request_external_three_ds_authentication,
+            set_active_attempt_id,
         } = request.clone();
 
         let batch_encrypted_data = domain_types::crypto_operation(
@@ -184,8 +200,8 @@ impl<F: Send + Clone> GetTracker<F, payments::PaymentIntentData<F>, PaymentsUpda
                     },
                 ),
             ),
-            common_utils::types::keymanager::Identifier::Merchant(merchant_account.get_id().to_owned()),
-            key_store.key.peek(),
+            common_utils::types::keymanager::Identifier::Merchant(merchant_context.get_merchant_account().get_id().to_owned()),
+            merchant_context.get_merchant_key_store().key.peek(),
         )
         .await
         .and_then(|val| val.try_into_batchoperation())
@@ -218,6 +234,13 @@ impl<F: Send + Clone> GetTracker<F, payments::PaymentIntentData<F>, PaymentsUpda
             Some(details) => payment_intent.amount_details.update_from_request(&details),
             None => payment_intent.amount_details,
         };
+
+        let active_attempt_id = set_active_attempt_id
+            .map(|active_attempt_req| match active_attempt_req {
+                UpdateActiveAttempt::Set(global_attempt_id) => Some(global_attempt_id),
+                UpdateActiveAttempt::Unset => None,
+            })
+            .unwrap_or(payment_intent.active_attempt_id);
 
         let payment_intent = hyperswitch_domain_models::payments::PaymentIntent {
             amount_details: updated_amount_details,
@@ -259,7 +282,7 @@ impl<F: Send + Clone> GetTracker<F, payments::PaymentIntentData<F>, PaymentsUpda
                 .change_context(errors::ApiErrorResponse::InternalServerError)
                 .attach_printable("Unable to decode shipping address")?,
             capture_method: capture_method.unwrap_or(payment_intent.capture_method),
-            authentication_type: authentication_type.unwrap_or(payment_intent.authentication_type),
+            authentication_type: authentication_type.or(payment_intent.authentication_type),
             payment_link_config: payment_link_config
                 .map(ApiModelToDieselModelConvertor::convert_from)
                 .or(payment_intent.payment_link_config),
@@ -268,12 +291,14 @@ impl<F: Send + Clone> GetTracker<F, payments::PaymentIntentData<F>, PaymentsUpda
             routing_algorithm_id: routing_algorithm_id.or(payment_intent.routing_algorithm_id),
             allowed_payment_method_types: allowed_payment_method_types
                 .or(payment_intent.allowed_payment_method_types),
+            active_attempt_id,
             ..payment_intent
         };
 
         let payment_data = payments::PaymentIntentData {
             flow: PhantomData,
             payment_intent,
+            client_secret: None,
             sessions_token: vec![],
         };
 
@@ -324,7 +349,7 @@ impl<F: Clone> UpdateTracker<F, payments::PaymentIntentData<F>, PaymentsUpdateIn
                 tax_on_surcharge: intent.amount_details.tax_on_surcharge,
                 routing_algorithm_id: intent.routing_algorithm_id,
                 capture_method: Some(intent.capture_method),
-                authentication_type: Some(intent.authentication_type),
+                authentication_type: intent.authentication_type,
                 billing_address: intent.billing_address,
                 shipping_address: intent.shipping_address,
                 customer_present: Some(intent.customer_present),
@@ -347,6 +372,9 @@ impl<F: Clone> UpdateTracker<F, payments::PaymentIntentData<F>, PaymentsUpdateIn
                 ),
                 updated_by: intent.updated_by,
                 tax_details: intent.amount_details.tax_details,
+                active_attempt_id: Some(intent.active_attempt_id),
+                force_3ds_challenge: intent.force_3ds_challenge,
+                is_iframe_redirection_enabled: intent.is_iframe_redirection_enabled,
             }));
 
         let new_payment_intent = db
@@ -375,11 +403,11 @@ impl<F: Send + Clone>
     fn validate_request<'a, 'b>(
         &'b self,
         _request: &PaymentsUpdateIntentRequest,
-        merchant_account: &'a domain::MerchantAccount,
+        merchant_context: &'a domain::MerchantContext,
     ) -> RouterResult<operations::ValidateResult> {
         Ok(operations::ValidateResult {
-            merchant_id: merchant_account.get_id().to_owned(),
-            storage_scheme: merchant_account.storage_scheme,
+            merchant_id: merchant_context.get_merchant_account().get_id().to_owned(),
+            storage_scheme: merchant_context.get_merchant_account().storage_scheme,
             requeue: false,
         })
     }
@@ -415,6 +443,7 @@ impl<F: Clone + Send> Domain<F, PaymentsUpdateIntentRequest, payments::PaymentIn
         _merchant_key_store: &domain::MerchantKeyStore,
         _customer: &Option<domain::Customer>,
         _business_profile: &domain::Profile,
+        _should_retry_with_pan: bool,
     ) -> RouterResult<(
         PaymentsUpdateIntentOperation<'a, F>,
         Option<domain::PaymentMethodData>,
@@ -426,11 +455,10 @@ impl<F: Clone + Send> Domain<F, PaymentsUpdateIntentRequest, payments::PaymentIn
     #[instrument(skip_all)]
     async fn perform_routing<'a>(
         &'a self,
-        _merchant_account: &domain::MerchantAccount,
+        _merchant_context: &domain::MerchantContext,
         _business_profile: &domain::Profile,
         _state: &SessionState,
         _payment_data: &mut payments::PaymentIntentData<F>,
-        _mechant_key_store: &domain::MerchantKeyStore,
     ) -> CustomResult<api::ConnectorCallType, errors::ApiErrorResponse> {
         Ok(api::ConnectorCallType::Skip)
     }
@@ -439,8 +467,7 @@ impl<F: Clone + Send> Domain<F, PaymentsUpdateIntentRequest, payments::PaymentIn
     async fn guard_payment_against_blocklist<'a>(
         &'a self,
         _state: &SessionState,
-        _merchant_account: &domain::MerchantAccount,
-        _key_store: &domain::MerchantKeyStore,
+        _merchant_context: &domain::MerchantContext,
         _payment_data: &mut payments::PaymentIntentData<F>,
     ) -> CustomResult<bool, errors::ApiErrorResponse> {
         Ok(false)

@@ -1,5 +1,6 @@
 use std::{collections::HashMap, marker::PhantomData};
 
+use common_types::primitive_wrappers;
 use common_utils::{
     errors::IntegrityCheckError,
     ext_traits::{OptionExt, ValueExt},
@@ -9,7 +10,10 @@ use common_utils::{
 use error_stack::ResultExt;
 use masking::{ExposeInterface, Secret};
 
-use crate::{payment_address::PaymentAddress, payment_method_data, payments};
+use crate::{
+    network_tokenization::NetworkTokenNumber, payment_address::PaymentAddress, payment_method_data,
+    payments,
+};
 #[cfg(feature = "v2")]
 use crate::{
     payments::{
@@ -98,6 +102,9 @@ pub struct RouterData<Flow, Request, Response> {
     pub authentication_id: Option<String>,
     /// Contains the type of sca exemption required for the transaction
     pub psd2_sca_exemption_type: Option<common_enums::ScaExemptionType>,
+
+    /// Contains whole connector response
+    pub whole_connector_response: Option<String>,
 }
 
 // Different patterns of authentication.
@@ -294,7 +301,7 @@ pub struct PazeDecryptedData {
 #[derive(Debug, Clone, serde::Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct PazeToken {
-    pub payment_token: cards::CardNumber,
+    pub payment_token: NetworkTokenNumber,
     pub token_expiration_month: Secret<String>,
     pub token_expiration_year: Secret<String>,
     pub payment_account_reference: Secret<String>,
@@ -358,6 +365,7 @@ pub struct PaymentMethodBalance {
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct ConnectorResponseData {
     pub additional_payment_method_data: Option<AdditionalPaymentMethodConnectorResponse>,
+    extended_authorization_response_data: Option<ExtendedAuthorizationResponseData>,
 }
 
 impl ConnectorResponseData {
@@ -366,7 +374,13 @@ impl ConnectorResponseData {
     ) -> Self {
         Self {
             additional_payment_method_data: Some(additional_payment_method_data),
+            extended_authorization_response_data: None,
         }
+    }
+    pub fn get_extended_authorization_response_data(
+        &self,
+    ) -> Option<&ExtendedAuthorizationResponseData> {
+        self.extended_authorization_response_data.as_ref()
     }
 }
 
@@ -377,10 +391,21 @@ pub enum AdditionalPaymentMethodConnectorResponse {
         authentication_data: Option<serde_json::Value>,
         /// Various payment checks that are done for a payment
         payment_checks: Option<serde_json::Value>,
+        /// Card Network returned by the processor
+        card_network: Option<String>,
+        /// Domestic(Co-Branded) Card network returned by the processor
+        domestic_network: Option<String>,
     },
     PayLater {
         klarna_sdk: Option<KlarnaSdkResponse>,
     },
+}
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct ExtendedAuthorizationResponseData {
+    pub extended_authentication_applied:
+        Option<primitive_wrappers::ExtendedAuthorizationAppliedBool>,
+    pub capture_before: Option<time::PrimitiveDateTime>,
 }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
@@ -396,6 +421,9 @@ pub struct ErrorResponse {
     pub status_code: u16,
     pub attempt_status: Option<common_enums::enums::AttemptStatus>,
     pub connector_transaction_id: Option<String>,
+    pub network_decline_code: Option<String>,
+    pub network_advice_code: Option<String>,
+    pub network_error_message: Option<String>,
 }
 
 impl Default for ErrorResponse {
@@ -407,6 +435,9 @@ impl Default for ErrorResponse {
             status_code: http::StatusCode::INTERNAL_SERVER_ERROR.as_u16(),
             attempt_status: None,
             connector_transaction_id: None,
+            network_decline_code: None,
+            network_advice_code: None,
+            network_error_message: None,
         }
     }
 }
@@ -420,6 +451,9 @@ impl ErrorResponse {
             status_code: http::StatusCode::INTERNAL_SERVER_ERROR.as_u16(),
             attempt_status: None,
             connector_transaction_id: None,
+            network_decline_code: None,
+            network_advice_code: None,
+            network_error_message: None,
         }
     }
 }
@@ -471,6 +505,28 @@ impl
         storage_scheme: common_enums::MerchantStorageScheme,
     ) -> PaymentIntentUpdate {
         let amount_captured = self.get_captured_amount(payment_data);
+        let status = payment_data.payment_attempt.status.is_terminal_status();
+        let updated_feature_metadata =
+            payment_data
+                .payment_intent
+                .feature_metadata
+                .clone()
+                .map(|mut feature_metadata| {
+                    if let Some(ref mut payment_revenue_recovery_metadata) =
+                        feature_metadata.payment_revenue_recovery_metadata
+                    {
+                        payment_revenue_recovery_metadata.payment_connector_transmission = if self
+                            .response
+                            .is_ok()
+                        {
+                            common_enums::PaymentConnectorTransmission::ConnectorCallSucceeded
+                        } else {
+                            common_enums::PaymentConnectorTransmission::ConnectorCallUnsuccessful
+                        };
+                    }
+                    Box::new(feature_metadata)
+                });
+
         match self.response {
             Ok(ref _response) => PaymentIntentUpdate::ConfirmIntentPostUpdate {
                 status: common_enums::IntentStatus::from(
@@ -478,14 +534,23 @@ impl
                 ),
                 amount_captured,
                 updated_by: storage_scheme.to_string(),
+                feature_metadata: updated_feature_metadata,
             },
             Err(ref error) => PaymentIntentUpdate::ConfirmIntentPostUpdate {
-                status: error
-                    .attempt_status
-                    .map(common_enums::IntentStatus::from)
-                    .unwrap_or(common_enums::IntentStatus::Failed),
+                status: {
+                    let attempt_status = match error.attempt_status {
+                        // Use the status sent by connector in error_response if it's present
+                        Some(status) => status,
+                        None => match error.status_code {
+                            500..=511 => common_enums::enums::AttemptStatus::Pending,
+                            _ => common_enums::enums::AttemptStatus::Failure,
+                        },
+                    };
+                    common_enums::IntentStatus::from(attempt_status)
+                },
                 amount_captured,
                 updated_by: storage_scheme.to_string(),
+                feature_metadata: updated_feature_metadata,
             },
         }
     }
@@ -532,8 +597,7 @@ impl
                                         .connector_token_details
                                         .as_ref()
                                         .and_then(|token_details| {
-                                            token_details
-                                                .get_connector_mandate_request_reference_id()
+                                            token_details.get_connector_token_request_reference_id()
                                         }),
                                 ),
                         },
@@ -563,7 +627,9 @@ impl
                 router_response_types::PaymentsResponseData::PostProcessingResponse { .. } => {
                     todo!()
                 }
-                router_response_types::PaymentsResponseData::SessionUpdateResponse { .. } => {
+                router_response_types::PaymentsResponseData::PaymentResourceUpdateResponse {
+                    ..
+                } => {
                     todo!()
                 }
             },
@@ -575,15 +641,28 @@ impl
                     status_code: _,
                     attempt_status,
                     connector_transaction_id,
+                    network_decline_code,
+                    network_advice_code,
+                    network_error_message,
                 } = error_response.clone();
-                let attempt_status = attempt_status.unwrap_or(self.status);
 
+                let attempt_status = match error_response.attempt_status {
+                    // Use the status sent by connector in error_response if it's present
+                    Some(status) => status,
+                    None => match error_response.status_code {
+                        500..=511 => common_enums::enums::AttemptStatus::Pending,
+                        _ => common_enums::enums::AttemptStatus::Failure,
+                    },
+                };
                 let error_details = ErrorDetails {
                     code,
                     message,
                     reason,
                     unified_code: None,
                     unified_message: None,
+                    network_advice_code,
+                    network_decline_code,
+                    network_error_message,
                 };
 
                 PaymentAttemptUpdate::ErrorUpdate {
@@ -760,7 +839,9 @@ impl
                 router_response_types::PaymentsResponseData::PostProcessingResponse { .. } => {
                     todo!()
                 }
-                router_response_types::PaymentsResponseData::SessionUpdateResponse { .. } => {
+                router_response_types::PaymentsResponseData::PaymentResourceUpdateResponse {
+                    ..
+                } => {
                     todo!()
                 }
             },
@@ -772,6 +853,9 @@ impl
                     status_code: _,
                     attempt_status,
                     connector_transaction_id,
+                    network_advice_code,
+                    network_decline_code,
+                    network_error_message,
                 } = error_response.clone();
                 let attempt_status = attempt_status.unwrap_or(self.status);
 
@@ -781,6 +865,9 @@ impl
                     reason,
                     unified_code: None,
                     unified_message: None,
+                    network_advice_code,
+                    network_decline_code,
+                    network_error_message,
                 };
 
                 PaymentAttemptUpdate::ErrorUpdate {
@@ -914,10 +1001,17 @@ impl
                 updated_by: storage_scheme.to_string(),
             },
             Err(ref error) => PaymentIntentUpdate::SyncUpdate {
-                status: error
-                    .attempt_status
-                    .map(common_enums::IntentStatus::from)
-                    .unwrap_or(common_enums::IntentStatus::Failed),
+                status: {
+                    let attempt_status = match error.attempt_status {
+                        // Use the status sent by connector in error_response if it's present
+                        Some(status) => status,
+                        None => match error.status_code {
+                            200..=299 => common_enums::enums::AttemptStatus::Failure,
+                            _ => self.status,
+                        },
+                    };
+                    common_enums::IntentStatus::from(attempt_status)
+                },
                 amount_captured,
                 updated_by: storage_scheme.to_string(),
             },
@@ -975,7 +1069,9 @@ impl
                 router_response_types::PaymentsResponseData::PostProcessingResponse { .. } => {
                     todo!()
                 }
-                router_response_types::PaymentsResponseData::SessionUpdateResponse { .. } => {
+                router_response_types::PaymentsResponseData::PaymentResourceUpdateResponse {
+                    ..
+                } => {
                     todo!()
                 }
             },
@@ -987,8 +1083,19 @@ impl
                     status_code: _,
                     attempt_status,
                     connector_transaction_id,
+                    network_advice_code,
+                    network_decline_code,
+                    network_error_message,
                 } = error_response.clone();
-                let attempt_status = attempt_status.unwrap_or(self.status);
+
+                let attempt_status = match error_response.attempt_status {
+                    // Use the status sent by connector in error_response if it's present
+                    Some(status) => status,
+                    None => match error_response.status_code {
+                        200..=299 => common_enums::enums::AttemptStatus::Failure,
+                        _ => self.status,
+                    },
+                };
 
                 let error_details = ErrorDetails {
                     code,
@@ -996,6 +1103,9 @@ impl
                     reason,
                     unified_code: None,
                     unified_message: None,
+                    network_advice_code,
+                    network_decline_code,
+                    network_error_message,
                 };
 
                 PaymentAttemptUpdate::ErrorUpdate {
@@ -1019,11 +1129,7 @@ impl
                     .get_captured_amount(payment_data)
                     .unwrap_or(MinorUnit::zero());
 
-                let total_amount = payment_data
-                    .payment_attempt
-                    .as_ref()
-                    .map(|attempt| attempt.amount_details.get_net_amount())
-                    .unwrap_or(MinorUnit::zero());
+                let total_amount = payment_data.payment_attempt.amount_details.get_net_amount();
 
                 if amount_captured == total_amount {
                     common_enums::AttemptStatus::Charged
@@ -1039,7 +1145,7 @@ impl
         &self,
         payment_data: &payments::PaymentStatusData<router_flow_types::PSync>,
     ) -> Option<MinorUnit> {
-        let payment_attempt = payment_data.payment_attempt.as_ref()?;
+        let payment_attempt = &payment_data.payment_attempt;
 
         // Based on the status of the response, we can determine the amount capturable
         let intent_status = common_enums::IntentStatus::from(self.status);
@@ -1069,7 +1175,7 @@ impl
         &self,
         payment_data: &payments::PaymentStatusData<router_flow_types::PSync>,
     ) -> Option<MinorUnit> {
-        let payment_attempt = payment_data.payment_attempt.as_ref()?;
+        let payment_attempt = &payment_data.payment_attempt;
 
         // Based on the status of the response, we can determine the amount capturable
         let intent_status = common_enums::IntentStatus::from(self.status);
@@ -1131,6 +1237,7 @@ impl
                 ),
                 amount_captured,
                 updated_by: storage_scheme.to_string(),
+                feature_metadata: None,
             },
             Err(ref error) => PaymentIntentUpdate::ConfirmIntentPostUpdate {
                 status: error
@@ -1139,6 +1246,7 @@ impl
                     .unwrap_or(common_enums::IntentStatus::Failed),
                 amount_captured,
                 updated_by: storage_scheme.to_string(),
+                feature_metadata: None,
             },
         }
     }
@@ -1185,8 +1293,7 @@ impl
                                         .connector_token_details
                                         .as_ref()
                                         .and_then(|token_details| {
-                                            token_details
-                                                .get_connector_mandate_request_reference_id()
+                                            token_details.get_connector_token_request_reference_id()
                                         }),
                                 ),
                         },
@@ -1216,7 +1323,9 @@ impl
                 router_response_types::PaymentsResponseData::PostProcessingResponse { .. } => {
                     todo!()
                 }
-                router_response_types::PaymentsResponseData::SessionUpdateResponse { .. } => {
+                router_response_types::PaymentsResponseData::PaymentResourceUpdateResponse {
+                    ..
+                } => {
                     todo!()
                 }
             },
@@ -1228,6 +1337,9 @@ impl
                     status_code: _,
                     attempt_status,
                     connector_transaction_id,
+                    network_advice_code,
+                    network_decline_code,
+                    network_error_message,
                 } = error_response.clone();
                 let attempt_status = attempt_status.unwrap_or(self.status);
 
@@ -1237,6 +1349,9 @@ impl
                     reason,
                     unified_code: None,
                     unified_message: None,
+                    network_advice_code,
+                    network_decline_code,
+                    network_error_message,
                 };
 
                 PaymentAttemptUpdate::ErrorUpdate {

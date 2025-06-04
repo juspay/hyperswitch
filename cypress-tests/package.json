@@ -20,15 +20,15 @@
   "author": "Hyperswitch",
   "license": "ISC",
   "devDependencies": {
-    "@eslint/js": "^9.19.0",
-    "cypress": "^14.0.0",
+    "@eslint/js": "^9.28.0",
+    "cypress": "^14.4.0",
     "cypress-mochawesome-reporter": "^3.8.2",
-    "eslint": "^9.19.0",
-    "eslint-config-prettier": "^10.0.1",
-    "eslint-plugin-cypress": "^4.1.0",
-    "eslint-plugin-prettier": "^5.2.3",
-    "globals": "^15.14.0",
+    "eslint": "^9.28.0",
+    "eslint-config-prettier": "^10.1.5",
+    "eslint-plugin-cypress": "^5.0.1",
+    "eslint-plugin-prettier": "^5.4.1",
+    "globals": "^16.2.0",
     "jsqr": "^1.4.0",
-    "prettier": "^3.4.2"
+    "prettier": "^3.5.3"
   }
 }

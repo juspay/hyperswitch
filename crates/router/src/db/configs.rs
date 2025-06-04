@@ -1,5 +1,5 @@
 use diesel_models::configs::ConfigUpdateInternal;
-use error_stack::{report, ResultExt};
+use error_stack::report;
 use router_env::{instrument, tracing};
 use storage_impl::redis::cache::{self, CacheKind, CONFIG_CACHE};
 
@@ -191,7 +191,6 @@ impl ConfigInterface for MockDb {
         let mut configs = self.configs.lock().await;
 
         let config_new = storage::Config {
-            id: i32::try_from(configs.len()).change_context(errors::StorageError::MockDbError)?,
             key: config.key,
             config: config.config,
         };

@@ -7,22 +7,22 @@ use time::PrimitiveDateTime;
 use super::payout_attempt::PayoutAttempt;
 #[cfg(feature = "olap")]
 use super::PayoutFetchConstraints;
-use crate::errors;
 
 #[async_trait::async_trait]
 pub trait PayoutsInterface {
+    type Error;
     async fn insert_payout(
         &self,
         _payout: PayoutsNew,
         _storage_scheme: MerchantStorageScheme,
-    ) -> error_stack::Result<Payouts, errors::StorageError>;
+    ) -> error_stack::Result<Payouts, Self::Error>;
 
     async fn find_payout_by_merchant_id_payout_id(
         &self,
         _merchant_id: &id_type::MerchantId,
         _payout_id: &str,
         _storage_scheme: MerchantStorageScheme,
-    ) -> error_stack::Result<Payouts, errors::StorageError>;
+    ) -> error_stack::Result<Payouts, Self::Error>;
 
     async fn update_payout(
         &self,
@@ -30,14 +30,14 @@ pub trait PayoutsInterface {
         _payout: PayoutsUpdate,
         _payout_attempt: &PayoutAttempt,
         _storage_scheme: MerchantStorageScheme,
-    ) -> error_stack::Result<Payouts, errors::StorageError>;
+    ) -> error_stack::Result<Payouts, Self::Error>;
 
     async fn find_optional_payout_by_merchant_id_payout_id(
         &self,
         _merchant_id: &id_type::MerchantId,
         _payout_id: &str,
         _storage_scheme: MerchantStorageScheme,
-    ) -> error_stack::Result<Option<Payouts>, errors::StorageError>;
+    ) -> error_stack::Result<Option<Payouts>, Self::Error>;
 
     #[cfg(feature = "olap")]
     async fn filter_payouts_by_constraints(
@@ -45,7 +45,7 @@ pub trait PayoutsInterface {
         _merchant_id: &id_type::MerchantId,
         _filters: &PayoutFetchConstraints,
         _storage_scheme: MerchantStorageScheme,
-    ) -> error_stack::Result<Vec<Payouts>, errors::StorageError>;
+    ) -> error_stack::Result<Vec<Payouts>, Self::Error>;
 
     #[cfg(feature = "olap")]
     async fn filter_payouts_and_attempts(
@@ -60,7 +60,7 @@ pub trait PayoutsInterface {
             Option<diesel_models::Customer>,
             Option<diesel_models::Address>,
         )>,
-        errors::StorageError,
+        Self::Error,
     >;
 
     #[cfg(feature = "olap")]
@@ -69,7 +69,7 @@ pub trait PayoutsInterface {
         _merchant_id: &id_type::MerchantId,
         _time_range: &common_utils::types::TimeRange,
         _storage_scheme: MerchantStorageScheme,
-    ) -> error_stack::Result<Vec<Payouts>, errors::StorageError>;
+    ) -> error_stack::Result<Vec<Payouts>, Self::Error>;
 
     #[cfg(feature = "olap")]
     #[allow(clippy::too_many_arguments)]
@@ -81,14 +81,14 @@ pub trait PayoutsInterface {
         _currency: Option<Vec<storage_enums::Currency>>,
         _status: Option<Vec<storage_enums::PayoutStatus>>,
         _payout_method: Option<Vec<storage_enums::PayoutType>>,
-    ) -> error_stack::Result<i64, errors::StorageError>;
+    ) -> error_stack::Result<i64, Self::Error>;
 
     #[cfg(feature = "olap")]
     async fn filter_active_payout_ids_by_constraints(
         &self,
         _merchant_id: &id_type::MerchantId,
         _constraints: &PayoutFetchConstraints,
-    ) -> error_stack::Result<Vec<String>, errors::StorageError>;
+    ) -> error_stack::Result<Vec<String>, Self::Error>;
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]

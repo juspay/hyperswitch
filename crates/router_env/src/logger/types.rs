@@ -124,6 +124,8 @@ pub enum Flow {
     PaymentMethodSave,
     /// Customer payment methods list flow.
     CustomerPaymentMethodsList,
+    /// Payment methods token data get flow.
+    GetPaymentMethodTokenData,
     /// List Customers for a merchant
     CustomersList,
     /// Retrieve countries and currencies for connector and payment method
@@ -267,6 +269,8 @@ pub enum Flow {
     ToggleBlocklistGuard,
     /// Incoming Webhook Receive
     IncomingWebhookReceive,
+    /// Recovery incoming webhook receive
+    RecoveryIncomingWebhookReceive,
     /// Validate payment method flow
     ValidatePaymentMethod,
     /// API Key create flow
@@ -405,6 +409,8 @@ pub enum Flow {
     UpdateUserRole,
     /// Create merchant account for user in a org
     UserMerchantAccountCreate,
+    /// Create Platform
+    CreatePlatformAccount,
     /// Create Org in a given tenancy
     UserOrgMerchantCreate,
     /// Generate Sample Data
@@ -531,8 +537,11 @@ pub enum Flow {
     PaymentsManualUpdate,
     /// Dynamic Tax Calcultion
     SessionUpdateTaxCalculation,
+    ProxyConfirmIntent,
     /// Payments post session tokens flow
     PaymentsPostSessionTokens,
+    /// Payments Update Metadata
+    PaymentsUpdateMetadata,
     /// Payments start redirection flow
     PaymentStartRedirection,
     /// Volume split on the routing type
@@ -541,14 +550,50 @@ pub enum Flow {
     Relay,
     /// Relay retrieve flow
     RelayRetrieve,
+    /// Card tokenization flow
+    TokenizeCard,
+    /// Card tokenization using payment method flow
+    TokenizeCardUsingPaymentMethodId,
+    /// Cards batch tokenization flow
+    TokenizeCardBatch,
     /// Incoming Relay Webhook Receive
     IncomingRelayWebhookReceive,
+    /// Generate Hypersense Token
+    HypersenseTokenRequest,
+    /// Verify Hypersense Token
+    HypersenseVerifyToken,
+    /// Signout Hypersense Token
+    HypersenseSignoutToken,
     /// Payment Method Session Create
     PaymentMethodSessionCreate,
     /// Payment Method Session Retrieve
     PaymentMethodSessionRetrieve,
+    // Payment Method Session Update
+    PaymentMethodSessionUpdate,
     /// Update a saved payment method using the payment methods session
     PaymentMethodSessionUpdateSavedPaymentMethod,
+    /// Delete a saved payment method using the payment methods session
+    PaymentMethodSessionDeleteSavedPaymentMethod,
+    /// Confirm a payment method session with payment method data
+    PaymentMethodSessionConfirm,
+    /// Create Cards Info flow
+    CardsInfoCreate,
+    /// Update Cards Info flow
+    CardsInfoUpdate,
+    /// Cards Info migrate flow
+    CardsInfoMigrate,
+    ///Total payment method count for merchant
+    TotalPaymentMethodCount,
+    /// Process Tracker Revenue Recovery Workflow Retrieve
+    RevenueRecoveryRetrieve,
+    /// Tokenization flow
+    TokenizationCreate,
+    /// Tokenization retrieve flow
+    TokenizationRetrieve,
+    /// Clone Connector flow
+    CloneConnector,
+    ///Proxy Flow
+    Proxy,
 }
 
 /// Trait for providing generic behaviour to flow metric

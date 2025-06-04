@@ -57,6 +57,7 @@ pub struct KafkaPaymentAttempt<'a> {
     pub profile_id: &'a id_type::ProfileId,
     pub organization_id: &'a id_type::OrganizationId,
     pub card_network: Option<String>,
+    pub card_discovery: Option<String>,
 }
 
 #[cfg(feature = "v1")]
@@ -115,6 +116,9 @@ impl<'a> KafkaPaymentAttempt<'a> {
                 .and_then(|card| card.get("card_network"))
                 .and_then(|network| network.as_str())
                 .map(|network| network.to_string()),
+            card_discovery: attempt
+                .card_discovery
+                .map(|discovery| discovery.to_string()),
         }
     }
 }

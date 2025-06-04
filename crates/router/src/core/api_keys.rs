@@ -228,7 +228,9 @@ pub async fn add_api_key_expiry_task(
         API_KEY_EXPIRY_RUNNER,
         [API_KEY_EXPIRY_TAG],
         api_key_expiry_tracker,
+        None,
         schedule_time,
+        common_types::consts::API_VERSION,
     )
     .change_context(errors::ApiErrorResponse::InternalServerError)
     .attach_printable("Failed to construct API key expiry process tracker task")?;

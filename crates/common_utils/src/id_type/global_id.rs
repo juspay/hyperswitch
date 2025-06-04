@@ -2,6 +2,7 @@ pub(super) mod customer;
 pub(super) mod payment;
 pub(super) mod payment_methods;
 pub(super) mod refunds;
+pub(super) mod token;
 
 use diesel::{backend::Backend, deserialize::FromSql, serialize::ToSql, sql_types};
 use error_stack::ResultExt;
@@ -27,6 +28,7 @@ pub(crate) enum GlobalEntity {
     PaymentMethod,
     Refund,
     PaymentMethodSession,
+    Token,
 }
 
 impl GlobalEntity {
@@ -38,6 +40,7 @@ impl GlobalEntity {
             Self::Attempt => "att",
             Self::Refund => "ref",
             Self::PaymentMethodSession => "pms",
+            Self::Token => "tok",
         }
     }
 }
@@ -134,7 +137,7 @@ impl GlobalId {
     ) -> Result<Self, GlobalIdError> {
         let length_id = LengthId::from(input_string)?;
         let input_string = &length_id.0 .0;
-        let (cell_id, remaining) = input_string
+        let (cell_id, _remaining) = input_string
             .split_once("_")
             .ok_or(GlobalIdError::InvalidIdFormat)?;
 

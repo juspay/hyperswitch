@@ -16,6 +16,8 @@ impl From<enums::CardType> for global_enums::PaymentMethodType {
         match value {
             enums::CardType::Credit => Self::Credit,
             enums::CardType::Debit => Self::Debit,
+            #[cfg(feature = "v2")]
+            enums::CardType::Card => Self::Card,
         }
     }
 }
@@ -60,6 +62,7 @@ impl From<enums::WalletType> for global_enums::PaymentMethodType {
             enums::WalletType::Venmo => Self::Venmo,
             enums::WalletType::Mifinity => Self::Mifinity,
             enums::WalletType::Paze => Self::Paze,
+            enums::WalletType::RevolutPay => Self::RevolutPay,
         }
     }
 }
@@ -111,7 +114,7 @@ impl From<enums::BankTransferType> for global_enums::PaymentMethodType {
             enums::BankTransferType::Pix => Self::Pix,
             enums::BankTransferType::Pse => Self::Pse,
             enums::BankTransferType::Ach => Self::Ach,
-            enums::BankTransferType::Sepa => Self::Sepa,
+            enums::BankTransferType::SepaBankTransfer => Self::Sepa,
             enums::BankTransferType::Bacs => Self::Bacs,
             enums::BankTransferType::BcaBankTransfer => Self::BcaBankTransfer,
             enums::BankTransferType::BniVa => Self::BniVa,
@@ -121,6 +124,7 @@ impl From<enums::BankTransferType> for global_enums::PaymentMethodType {
             enums::BankTransferType::MandiriVa => Self::MandiriVa,
             enums::BankTransferType::PermataBankTransfer => Self::PermataBankTransfer,
             enums::BankTransferType::LocalBankTransfer => Self::LocalBankTransfer,
+            enums::BankTransferType::InstantBankTransfer => Self::InstantBankTransfer,
         }
     }
 }
@@ -160,6 +164,7 @@ impl From<enums::BankRedirectType> for global_enums::PaymentMethodType {
             enums::BankRedirectType::Giropay => Self::Giropay,
             enums::BankRedirectType::Ideal => Self::Ideal,
             enums::BankRedirectType::Sofort => Self::Sofort,
+            enums::BankRedirectType::Eft => Self::Eft,
             enums::BankRedirectType::Eps => Self::Eps,
             enums::BankRedirectType::BancontactCard => Self::BancontactCard,
             enums::BankRedirectType::Blik => Self::Blik,
@@ -258,6 +263,19 @@ fn lower_value(dir_value: dir::DirValue) -> Result<EuclidValue, AnalysisErrorTyp
         dir::DirValue::SetupFutureUsage(sfu) => EuclidValue::SetupFutureUsage(sfu),
         dir::DirValue::OpenBankingType(ob) => EuclidValue::PaymentMethodType(ob.into()),
         dir::DirValue::MobilePaymentType(mp) => EuclidValue::PaymentMethodType(mp.into()),
+        dir::DirValue::IssuerName(str_value) => EuclidValue::IssuerName(str_value),
+        dir::DirValue::IssuerCountry(country) => EuclidValue::IssuerCountry(country),
+        dir::DirValue::CustomerDevicePlatform(customer_device_platform) => {
+            EuclidValue::CustomerDevicePlatform(customer_device_platform)
+        }
+        dir::DirValue::CustomerDeviceType(customer_device_type) => {
+            EuclidValue::CustomerDeviceType(customer_device_type)
+        }
+        dir::DirValue::CustomerDeviceDisplaySize(customer_device_display_size) => {
+            EuclidValue::CustomerDeviceDisplaySize(customer_device_display_size)
+        }
+        dir::DirValue::AcquirerCountry(country) => EuclidValue::AcquirerCountry(country),
+        dir::DirValue::AcquirerFraudRate(num_value) => EuclidValue::AcquirerFraudRate(num_value),
     })
 }
 

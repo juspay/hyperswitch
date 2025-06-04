@@ -1,31 +1,32 @@
-use common_enums::enums;
-use common_utils::types::StringMinorUnit;
+use std::collections::HashMap;
+
+use common_enums::{enums, Currency};
+use common_utils::{ext_traits::OptionExt, pii, request::Method, types::StringMajorUnit};
+use error_stack::ResultExt;
 use hyperswitch_domain_models::{
     payment_method_data::PaymentMethodData,
     router_data::{ConnectorAuthType, RouterData},
     router_flow_types::refunds::{Execute, RSync},
     router_request_types::ResponseId,
-    router_response_types::{PaymentsResponseData, RefundsResponseData},
-    types::{PaymentsAuthorizeRouterData, RefundsRouterData},
+    router_response_types::{PaymentsResponseData, RedirectForm, RefundsResponseData},
+    types::{PaymentsAuthorizeRouterData, PaymentsSyncRouterData, RefundsRouterData},
 };
 use hyperswitch_interfaces::errors;
-use masking::Secret;
+use masking::{ExposeInterface, Secret};
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    types::{RefundsResponseRouterData, ResponseRouterData},
-    utils::PaymentsAuthorizeRequestData,
+    types::{PaymentsSyncResponseRouterData, RefundsResponseRouterData, ResponseRouterData},
+    utils::{self, PaymentsAuthorizeRequestData},
 };
 
-//TODO: Fill the struct with respective fields
 pub struct CoingateRouterData<T> {
-    pub amount: StringMinorUnit, // The type of amount that a connector accepts, for example, String, i64, f64, etc.
+    pub amount: StringMajorUnit,
     pub router_data: T,
 }
 
-impl<T> From<(StringMinorUnit, T)> for CoingateRouterData<T> {
-    fn from((amount, item): (StringMinorUnit, T)) -> Self {
-        //Todo :  use utils to convert the amount to the type of amount that a connector accepts
+impl<T> From<(StringMajorUnit, T)> for CoingateRouterData<T> {
+    fn from((amount, item): (StringMajorUnit, T)) -> Self {
         Self {
             amount,
             router_data: item,
@@ -33,20 +34,34 @@ impl<T> From<(StringMinorUnit, T)> for CoingateRouterData<T> {
     }
 }
 
-//TODO: Fill the struct with respective fields
-#[derive(Default, Debug, Serialize, PartialEq)]
-pub struct CoingatePaymentsRequest {
-    amount: StringMinorUnit,
-    card: CoingateCard,
+#[derive(Debug, Serialize, Deserialize)]
+pub struct CoingateConnectorMetadataObject {
+    pub currency_id: i32,
+    pub platform_id: i32,
+    pub ledger_account_id: Secret<String>,
 }
 
-#[derive(Default, Debug, Serialize, Eq, PartialEq)]
-pub struct CoingateCard {
-    number: cards::CardNumber,
-    expiry_month: Secret<String>,
-    expiry_year: Secret<String>,
-    cvc: Secret<String>,
-    complete: bool,
+impl TryFrom<&Option<pii::SecretSerdeValue>> for CoingateConnectorMetadataObject {
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(meta_data: &Option<pii::SecretSerdeValue>) -> Result<Self, Self::Error> {
+        let metadata: Self = utils::to_connector_meta_from_secret::<Self>(meta_data.clone())
+            .change_context(errors::ConnectorError::InvalidConnectorConfig {
+                config: "metadata",
+            })?;
+        Ok(metadata)
+    }
+}
+
+#[derive(Default, Debug, Serialize, PartialEq)]
+pub struct CoingatePaymentsRequest {
+    price_amount: StringMajorUnit,
+    price_currency: Currency,
+    receive_currency: String,
+    callback_url: String,
+    success_url: Option<String>,
+    cancel_url: Option<String>,
+    title: String,
+    token: Secret<String>,
 }
 
 impl TryFrom<&CoingateRouterData<&PaymentsAuthorizeRouterData>> for CoingatePaymentsRequest {
@@ -54,81 +69,38 @@ impl TryFrom<&CoingateRouterData<&PaymentsAuthorizeRouterData>> for CoingatePaym
     fn try_from(
         item: &CoingateRouterData<&PaymentsAuthorizeRouterData>,
     ) -> Result<Self, Self::Error> {
-        match item.router_data.request.payment_method_data.clone() {
-            PaymentMethodData::Card(req_card) => {
-                let card = CoingateCard {
-                    number: req_card.card_number,
-                    expiry_month: req_card.card_exp_month,
-                    expiry_year: req_card.card_exp_year,
-                    cvc: req_card.card_cvc,
-                    complete: item.router_data.request.is_auto_capture()?,
-                };
-                Ok(Self {
-                    amount: item.amount.clone(),
-                    card,
-                })
-            }
-            _ => Err(errors::ConnectorError::NotImplemented("Payment method".to_string()).into()),
-        }
-    }
-}
-
-//TODO: Fill the struct with respective fields
-// Auth Struct
-pub struct CoingateAuthType {
-    pub(super) api_key: Secret<String>,
-}
-
-impl TryFrom<&ConnectorAuthType> for CoingateAuthType {
-    type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(auth_type: &ConnectorAuthType) -> Result<Self, Self::Error> {
-        match auth_type {
-            ConnectorAuthType::HeaderKey { api_key } => Ok(Self {
-                api_key: api_key.to_owned(),
+        let auth = CoingateAuthType::try_from(&item.router_data.connector_auth_type)?;
+        Ok(match item.router_data.request.payment_method_data {
+            PaymentMethodData::Crypto(_) => Ok(Self {
+                price_amount: item.amount.clone(),
+                price_currency: item.router_data.request.currency,
+                receive_currency: "DO_NOT_CONVERT".to_string(),
+                callback_url: item.router_data.request.get_webhook_url()?,
+                success_url: item.router_data.request.router_return_url.clone(),
+                cancel_url: item.router_data.request.router_return_url.clone(),
+                title: item.router_data.connector_request_reference_id.clone(),
+                token: auth.merchant_token,
             }),
-            _ => Err(errors::ConnectorError::FailedToObtainAuthType.into()),
-        }
+            _ => Err(errors::ConnectorError::NotImplemented(
+                utils::get_unimplemented_payment_method_error_message("Coingate"),
+            )),
+        }?)
     }
 }
-// PaymentsResponse
-//TODO: Append the remaining status flags
-#[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq)]
-#[serde(rename_all = "lowercase")]
-pub enum CoingatePaymentStatus {
-    Succeeded,
-    Failed,
-    #[default]
-    Processing,
-}
-
-impl From<CoingatePaymentStatus> for common_enums::AttemptStatus {
-    fn from(item: CoingatePaymentStatus) -> Self {
-        match item {
-            CoingatePaymentStatus::Succeeded => Self::Charged,
-            CoingatePaymentStatus::Failed => Self::Failure,
-            CoingatePaymentStatus::Processing => Self::Authorizing,
-        }
-    }
-}
-
-//TODO: Fill the struct with respective fields
-#[derive(Default, Debug, Clone, Serialize, Deserialize, PartialEq)]
-pub struct CoingatePaymentsResponse {
+#[derive(Debug, Serialize, Deserialize)]
+pub struct CoingateSyncResponse {
     status: CoingatePaymentStatus,
-    id: String,
+    id: i64,
 }
-
-impl<F, T> TryFrom<ResponseRouterData<F, CoingatePaymentsResponse, T, PaymentsResponseData>>
-    for RouterData<F, T, PaymentsResponseData>
-{
+impl TryFrom<PaymentsSyncResponseRouterData<CoingateSyncResponse>> for PaymentsSyncRouterData {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
-        item: ResponseRouterData<F, CoingatePaymentsResponse, T, PaymentsResponseData>,
+        item: PaymentsSyncResponseRouterData<CoingateSyncResponse>,
     ) -> Result<Self, Self::Error> {
         Ok(Self {
-            status: common_enums::AttemptStatus::from(item.response.status),
+            status: enums::AttemptStatus::from(item.response.status.clone()),
             response: Ok(PaymentsResponseData::TransactionResponse {
-                resource_id: ResponseId::ConnectorTransactionId(item.response.id),
+                resource_id: ResponseId::ConnectorTransactionId(item.response.id.to_string()),
                 redirection_data: Box::new(None),
                 mandate_reference: Box::new(None),
                 connector_metadata: None,
@@ -141,88 +113,231 @@ impl<F, T> TryFrom<ResponseRouterData<F, CoingatePaymentsResponse, T, PaymentsRe
         })
     }
 }
+pub struct CoingateAuthType {
+    pub(super) api_key: Secret<String>,
+    pub(super) merchant_token: Secret<String>,
+}
 
-//TODO: Fill the struct with respective fields
-// REFUND :
-// Type definition for RefundRequest
+impl TryFrom<&ConnectorAuthType> for CoingateAuthType {
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(auth_type: &ConnectorAuthType) -> Result<Self, Self::Error> {
+        match auth_type {
+            ConnectorAuthType::BodyKey { api_key, key1 } => Ok(Self {
+                api_key: api_key.to_owned(),
+                merchant_token: key1.to_owned(),
+            }),
+            _ => Err(errors::ConnectorError::FailedToObtainAuthType.into()),
+        }
+    }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[serde(rename_all = "lowercase")]
+pub enum CoingatePaymentStatus {
+    New,
+    Pending,
+    Confirming,
+    Paid,
+    Invalid,
+    Expired,
+    Canceled,
+}
+
+impl From<CoingatePaymentStatus> for common_enums::AttemptStatus {
+    fn from(item: CoingatePaymentStatus) -> Self {
+        match item {
+            CoingatePaymentStatus::Paid => Self::Charged,
+            CoingatePaymentStatus::Canceled
+            | CoingatePaymentStatus::Expired
+            | CoingatePaymentStatus::Invalid => Self::Failure,
+            CoingatePaymentStatus::Confirming | CoingatePaymentStatus::New => {
+                Self::AuthenticationPending
+            }
+            CoingatePaymentStatus::Pending => Self::Pending,
+        }
+    }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct CoingatePaymentsResponse {
+    status: CoingatePaymentStatus,
+    id: i64,
+    payment_url: Option<String>,
+    order_id: Option<String>,
+}
+
+impl<F, T> TryFrom<ResponseRouterData<F, CoingatePaymentsResponse, T, PaymentsResponseData>>
+    for RouterData<F, T, PaymentsResponseData>
+{
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(
+        item: ResponseRouterData<F, CoingatePaymentsResponse, T, PaymentsResponseData>,
+    ) -> Result<Self, Self::Error> {
+        Ok(Self {
+            status: enums::AttemptStatus::from(item.response.status.clone()),
+            response: Ok(PaymentsResponseData::TransactionResponse {
+                resource_id: ResponseId::ConnectorTransactionId(item.response.id.to_string()),
+                redirection_data: Box::new(Some(RedirectForm::Form {
+                    endpoint: item.response.payment_url.clone().ok_or(
+                        errors::ConnectorError::MissingRequiredField {
+                            field_name: "payment_url",
+                        },
+                    )?,
+                    method: Method::Get,
+                    form_fields: HashMap::new(),
+                })),
+                mandate_reference: Box::new(None),
+                connector_metadata: None,
+                network_txn_id: None,
+                connector_response_reference_id: item.response.order_id.clone(),
+                incremental_authorization_allowed: None,
+                charges: None,
+            }),
+            ..item.data
+        })
+    }
+}
+
 #[derive(Default, Debug, Serialize)]
 pub struct CoingateRefundRequest {
-    pub amount: StringMinorUnit,
+    pub amount: StringMajorUnit,
+    pub address: Secret<String>,
+    pub currency_id: i32,
+    pub platform_id: i32,
+    pub reason: String,
+    pub email: pii::Email,
+    pub ledger_account_id: Secret<String>,
 }
 
 impl<F> TryFrom<&CoingateRouterData<&RefundsRouterData<F>>> for CoingateRefundRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(item: &CoingateRouterData<&RefundsRouterData<F>>) -> Result<Self, Self::Error> {
+        let metadata: CoingateConnectorMetadataObject =
+            utils::to_connector_meta_from_secret(item.router_data.connector_meta_data.clone())
+                .change_context(errors::ConnectorError::InvalidConnectorConfig {
+                    config: "merchant_connector_account.metadata",
+                })?;
+
+        let refund_metadata = item
+            .router_data
+            .request
+            .refund_connector_metadata
+            .as_ref()
+            .get_required_value("refund_connector_metadata")
+            .change_context(errors::ConnectorError::MissingRequiredField {
+                field_name: "refund_connector_metadata",
+            })?
+            .clone()
+            .expose();
+
+        let address: Secret<String> = serde_json::from_value::<Secret<String>>(
+            refund_metadata.get("address").cloned().ok_or_else(|| {
+                errors::ConnectorError::MissingRequiredField {
+                    field_name: "address",
+                }
+            })?,
+        )
+        .change_context(errors::ConnectorError::MissingRequiredField {
+            field_name: "address",
+        })?;
+
+        let email: pii::Email = serde_json::from_value::<pii::Email>(
+            refund_metadata.get("email").cloned().ok_or_else(|| {
+                errors::ConnectorError::MissingRequiredField {
+                    field_name: "email",
+                }
+            })?,
+        )
+        .change_context(errors::ConnectorError::MissingRequiredField {
+            field_name: "email",
+        })?;
+
         Ok(Self {
-            amount: item.amount.to_owned(),
+            amount: item.amount.clone(),
+            address,
+            currency_id: metadata.currency_id,
+            platform_id: metadata.platform_id,
+            reason: item.router_data.request.reason.clone().ok_or(
+                errors::ConnectorError::MissingRequiredField {
+                    field_name: "refund.reason",
+                },
+            )?,
+            email,
+            ledger_account_id: metadata.ledger_account_id,
         })
     }
 }
 
-// Type definition for Refund Response
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct CoingateRefundResponse {
+    pub status: CoingateRefundStatus,
+    pub id: i64,
+}
 
-#[allow(dead_code)]
-#[derive(Debug, Serialize, Default, Deserialize, Clone)]
-pub enum RefundStatus {
-    Succeeded,
-    Failed,
-    #[default]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[serde(rename_all = "lowercase")]
+pub enum CoingateRefundStatus {
+    Pending,
+    Completed,
+    Rejected,
     Processing,
 }
 
-impl From<RefundStatus> for enums::RefundStatus {
-    fn from(item: RefundStatus) -> Self {
+impl TryFrom<RefundsResponseRouterData<Execute, CoingateRefundResponse>>
+    for RefundsRouterData<Execute>
+{
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(
+        item: RefundsResponseRouterData<Execute, CoingateRefundResponse>,
+    ) -> Result<Self, Self::Error> {
+        Ok(Self {
+            response: Ok(RefundsResponseData {
+                connector_refund_id: item.response.id.to_string(),
+                refund_status: enums::RefundStatus::from(item.response.status),
+            }),
+            ..item.data
+        })
+    }
+}
+
+impl TryFrom<RefundsResponseRouterData<RSync, CoingateRefundResponse>>
+    for RefundsRouterData<RSync>
+{
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(
+        item: RefundsResponseRouterData<RSync, CoingateRefundResponse>,
+    ) -> Result<Self, Self::Error> {
+        Ok(Self {
+            response: Ok(RefundsResponseData {
+                connector_refund_id: item.response.id.to_string(),
+                refund_status: enums::RefundStatus::from(item.response.status),
+            }),
+            ..item.data
+        })
+    }
+}
+
+impl From<CoingateRefundStatus> for common_enums::RefundStatus {
+    fn from(item: CoingateRefundStatus) -> Self {
         match item {
-            RefundStatus::Succeeded => Self::Success,
-            RefundStatus::Failed => Self::Failure,
-            RefundStatus::Processing => Self::Pending,
-            //TODO: Review mapping
+            CoingateRefundStatus::Pending => Self::Pending,
+            CoingateRefundStatus::Completed => Self::Success,
+            CoingateRefundStatus::Rejected => Self::Failure,
+            CoingateRefundStatus::Processing => Self::Pending,
         }
     }
 }
 
-//TODO: Fill the struct with respective fields
-#[derive(Default, Debug, Clone, Serialize, Deserialize)]
-pub struct RefundResponse {
-    id: String,
-    status: RefundStatus,
-}
-
-impl TryFrom<RefundsResponseRouterData<Execute, RefundResponse>> for RefundsRouterData<Execute> {
-    type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(
-        item: RefundsResponseRouterData<Execute, RefundResponse>,
-    ) -> Result<Self, Self::Error> {
-        Ok(Self {
-            response: Ok(RefundsResponseData {
-                connector_refund_id: item.response.id.to_string(),
-                refund_status: enums::RefundStatus::from(item.response.status),
-            }),
-            ..item.data
-        })
-    }
-}
-
-impl TryFrom<RefundsResponseRouterData<RSync, RefundResponse>> for RefundsRouterData<RSync> {
-    type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(
-        item: RefundsResponseRouterData<RSync, RefundResponse>,
-    ) -> Result<Self, Self::Error> {
-        Ok(Self {
-            response: Ok(RefundsResponseData {
-                connector_refund_id: item.response.id.to_string(),
-                refund_status: enums::RefundStatus::from(item.response.status),
-            }),
-            ..item.data
-        })
-    }
-}
-
-//TODO: Fill the struct with respective fields
 #[derive(Default, Debug, Serialize, Deserialize, PartialEq)]
 pub struct CoingateErrorResponse {
-    pub status_code: u16,
-    pub code: String,
     pub message: String,
-    pub reason: Option<String>,
+    pub reason: String,
+    pub errors: Option<Vec<String>>,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct CoingateWebhookBody {
+    pub token: Secret<String>,
+    pub status: CoingatePaymentStatus,
+    pub id: i64,
 }

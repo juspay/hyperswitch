@@ -4,7 +4,11 @@ use api_models::webhooks::IncomingWebhookEvent;
 use cards::CardNumber;
 use common_enums::{enums, enums as api_enums};
 use common_utils::{
-    consts, ext_traits::OptionExt, pii::Email, request::Method, types::StringMinorUnit,
+    consts,
+    ext_traits::OptionExt,
+    pii::Email,
+    request::Method,
+    types::{MinorUnit, StringMinorUnit},
 };
 use error_stack::ResultExt;
 use hyperswitch_domain_models::{
@@ -28,7 +32,7 @@ use strum::Display;
 use crate::{
     types::{RefundsResponseRouterData, ResponseRouterData},
     utils::{
-        self, AddressDetailsData, ApplePay, PaymentsAuthorizeRequestData,
+        self, AddressData, AddressDetailsData, ApplePay, PaymentsAuthorizeRequestData,
         PaymentsCancelRequestData, PaymentsCaptureRequestData, PaymentsSetupMandateRequestData,
         PaymentsSyncRequestData, RefundsRequestData, RouterData as _,
     },
@@ -175,7 +179,9 @@ impl TryFrom<&api_enums::PaymentMethodType> for NovalNetPaymentTypes {
     fn try_from(item: &api_enums::PaymentMethodType) -> Result<Self, Self::Error> {
         match item {
             api_enums::PaymentMethodType::ApplePay => Ok(Self::APPLEPAY),
-            api_enums::PaymentMethodType::Credit => Ok(Self::CREDITCARD),
+            api_enums::PaymentMethodType::Credit | api_enums::PaymentMethodType::Debit => {
+                Ok(Self::CREDITCARD)
+            }
             api_enums::PaymentMethodType::GooglePay => Ok(Self::GOOGLEPAY),
             api_enums::PaymentMethodType::Paypal => Ok(Self::PAYPAL),
             _ => Err(errors::ConnectorError::NotImplemented(
@@ -352,7 +358,8 @@ impl TryFrom<&NovalnetRouterData<&PaymentsAuthorizeRouterData>> for NovalnetPaym
                     | WalletDataPaymentMethod::GooglePayRedirect(_)
                     | WalletDataPaymentMethod::GooglePayThirdPartySdk(_)
                     | WalletDataPaymentMethod::MbWayRedirect(_)
-                    | WalletDataPaymentMethod::MobilePayRedirect(_) => {
+                    | WalletDataPaymentMethod::MobilePayRedirect(_)
+                    | WalletDataPaymentMethod::RevolutPay(_) => {
                         Err(errors::ConnectorError::NotImplemented(
                             utils::get_unimplemented_payment_method_error_message("novalnet"),
                         )
@@ -558,7 +565,7 @@ pub struct ResultData {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct NovalnetPaymentsResponseTransactionData {
-    pub amount: Option<u64>,
+    pub amount: Option<MinorUnit>,
     pub currency: Option<common_enums::Currency>,
     pub date: Option<String>,
     pub order_no: Option<String>,
@@ -589,6 +596,9 @@ pub fn get_error_response(result: ResultData, status_code: u16) -> ErrorResponse
         status_code,
         attempt_status: None,
         connector_transaction_id: None,
+        network_advice_code: None,
+        network_decline_code: None,
+        network_error_message: None,
     }
 }
 
@@ -727,7 +737,7 @@ pub struct NovalnetAuthorizationResponse {
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct NovalnetSyncResponseTransactionData {
-    pub amount: Option<u64>,
+    pub amount: Option<MinorUnit>,
     pub currency: Option<common_enums::Currency>,
     pub date: Option<String>,
     pub order_no: Option<String>,
@@ -893,13 +903,13 @@ pub struct NovalnetRefundSyncResponse {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct NovalnetRefundsTransactionData {
-    pub amount: Option<u64>,
+    pub amount: Option<MinorUnit>,
     pub date: Option<String>,
     pub currency: Option<common_enums::Currency>,
     pub order_no: Option<String>,
     pub payment_type: String,
     pub refund: RefundData,
-    pub refunded_amount: u64,
+    pub refunded_amount: Option<u64>,
     pub status: NovalnetTransactionStatus,
     pub status_code: u64,
     pub test_mode: u8,
@@ -910,7 +920,7 @@ pub struct NovalnetRefundsTransactionData {
 pub struct RefundData {
     amount: u64,
     currency: common_enums::Currency,
-    payment_type: String,
+    payment_type: Option<String>,
     tid: Option<Secret<i64>>,
 }
 
@@ -1092,7 +1102,7 @@ impl<F>
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct NovalnetCaptureTransactionData {
-    pub amount: Option<u64>,
+    pub amount: Option<MinorUnit>,
     pub capture: CaptureData,
     pub currency: Option<common_enums::Currency>,
     pub order_no: Option<String>,
@@ -1467,7 +1477,7 @@ impl TryFrom<&SetupMandateRouterData> for NovalnetPaymentsRequest {
             enums::AuthenticationType::NoThreeDs => None,
         };
         let test_mode = get_test_mode(item.test_mode);
-        let req_address = item.get_billing_address()?.to_owned();
+        let req_address = item.get_optional_billing();
 
         let billing = NovalnetPaymentsRequestBilling {
             house_no: item.get_optional_billing_line1(),
@@ -1477,10 +1487,12 @@ impl TryFrom<&SetupMandateRouterData> for NovalnetPaymentsRequest {
             country_code: item.get_optional_billing_country(),
         };
 
+        let email = item.get_billing_email().or(item.request.get_email())?;
+
         let customer = NovalnetPaymentsRequestCustomer {
-            first_name: req_address.get_optional_first_name(),
-            last_name: req_address.get_optional_last_name(),
-            email: item.request.get_email()?.clone(),
+            first_name: req_address.and_then(|addr| addr.get_optional_first_name()),
+            last_name: req_address.and_then(|addr| addr.get_optional_last_name()),
+            email,
             mobile: item.get_optional_billing_phone_number(),
             billing: Some(billing),
             // no_nc is used to indicate if minimal customer data is passed or not
@@ -1504,7 +1516,7 @@ impl TryFrom<&SetupMandateRouterData> for NovalnetPaymentsRequest {
                     card_expiry_month: req_card.card_exp_month.clone(),
                     card_expiry_year: req_card.card_exp_year.clone(),
                     card_cvc: req_card.card_cvc.clone(),
-                    card_holder: req_address.get_full_name()?.clone(),
+                    card_holder: item.get_billing_address()?.get_full_name()?,
                 });
 
                 let transaction = NovalnetPaymentsRequestTransaction {
@@ -1570,7 +1582,7 @@ impl TryFrom<&SetupMandateRouterData> for NovalnetPaymentsRequest {
                         return_url: None,
                         error_return_url: None,
                         payment_data: Some(NovalNetPaymentData::ApplePay(NovalnetApplePay {
-                            wallet_data: Secret::new(payment_method_data.payment_data.clone()),
+                            wallet_data: payment_method_data.get_applepay_decoded_payment_data()?,
                         })),
                         enforce_3d: None,
                         create_token,
@@ -1598,7 +1610,8 @@ impl TryFrom<&SetupMandateRouterData> for NovalnetPaymentsRequest {
                 | WalletDataPaymentMethod::GooglePayRedirect(_)
                 | WalletDataPaymentMethod::GooglePayThirdPartySdk(_)
                 | WalletDataPaymentMethod::MbWayRedirect(_)
-                | WalletDataPaymentMethod::MobilePayRedirect(_) => {
+                | WalletDataPaymentMethod::MobilePayRedirect(_)
+                | WalletDataPaymentMethod::RevolutPay(_) => {
                     Err(errors::ConnectorError::NotImplemented(
                         utils::get_unimplemented_payment_method_error_message("novalnet"),
                     ))?

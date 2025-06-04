@@ -64,13 +64,7 @@ impl From<CustomerNew> for Customer {
 
 #[cfg(all(feature = "v2", feature = "customer_v2"))]
 #[derive(
-    Clone,
-    Debug,
-    PartialEq,
-    Insertable,
-    router_derive::DebugAsDisplay,
-    serde::Deserialize,
-    serde::Serialize,
+    Clone, Debug, Insertable, router_derive::DebugAsDisplay, serde::Deserialize, serde::Serialize,
 )]
 #[diesel(table_name = customers, primary_key(id))]
 pub struct CustomerNew {
@@ -82,7 +76,7 @@ pub struct CustomerNew {
     pub description: Option<Description>,
     pub created_at: PrimitiveDateTime,
     pub metadata: Option<pii::SecretSerdeValue>,
-    pub connector_customer: Option<pii::SecretSerdeValue>,
+    pub connector_customer: Option<common_types::customers::ConnectorCustomerMap>,
     pub modified_at: PrimitiveDateTime,
     pub default_payment_method_id: Option<common_utils::id_type::GlobalPaymentMethodId>,
     pub updated_by: Option<String>,
@@ -164,7 +158,7 @@ pub struct Customer {
     pub description: Option<Description>,
     pub created_at: PrimitiveDateTime,
     pub metadata: Option<pii::SecretSerdeValue>,
-    pub connector_customer: Option<pii::SecretSerdeValue>,
+    pub connector_customer: Option<common_types::customers::ConnectorCustomerMap>,
     pub modified_at: PrimitiveDateTime,
     pub default_payment_method_id: Option<common_utils::id_type::GlobalPaymentMethodId>,
     pub updated_by: Option<String>,
@@ -242,7 +236,7 @@ pub struct CustomerUpdateInternal {
     pub phone_country_code: Option<String>,
     pub metadata: Option<pii::SecretSerdeValue>,
     pub modified_at: PrimitiveDateTime,
-    pub connector_customer: Option<pii::SecretSerdeValue>,
+    pub connector_customer: Option<common_types::customers::ConnectorCustomerMap>,
     pub default_payment_method_id: Option<Option<common_utils::id_type::GlobalPaymentMethodId>>,
     pub updated_by: Option<String>,
     pub default_billing_address: Option<Encryption>,

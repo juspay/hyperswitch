@@ -218,7 +218,13 @@ mod tests {
             profile_id: common_utils::generate_profile_id_of_default_length(),
             organization_id: Default::default(),
             connector_mandate_detail: Default::default(),
+            request_extended_authorization: Default::default(),
+            extended_authorization_applied: Default::default(),
+            capture_before: Default::default(),
             card_discovery: Default::default(),
+            processor_merchant_id: Default::default(),
+            created_by: None,
+            setup_future_usage_applied: Default::default(),
         };
 
         let store = state
@@ -302,7 +308,13 @@ mod tests {
             profile_id: common_utils::generate_profile_id_of_default_length(),
             organization_id: Default::default(),
             connector_mandate_detail: Default::default(),
+            request_extended_authorization: Default::default(),
+            extended_authorization_applied: Default::default(),
+            capture_before: Default::default(),
             card_discovery: Default::default(),
+            processor_merchant_id: Default::default(),
+            created_by: None,
+            setup_future_usage_applied: Default::default(),
         };
         let store = state
             .stores
@@ -399,7 +411,13 @@ mod tests {
             profile_id: common_utils::generate_profile_id_of_default_length(),
             organization_id: Default::default(),
             connector_mandate_detail: Default::default(),
+            request_extended_authorization: Default::default(),
+            extended_authorization_applied: Default::default(),
+            capture_before: Default::default(),
             card_discovery: Default::default(),
+            processor_merchant_id: Default::default(),
+            created_by: None,
+            setup_future_usage_applied: Default::default(),
         };
         let store = state
             .stores

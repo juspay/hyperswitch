@@ -1,7 +1,7 @@
 use std::path::PathBuf;
 
 use common_enums::EntityType;
-use common_utils::{ext_traits::AsyncExt, id_type, types::theme::ThemeLineage};
+use common_utils::{ext_traits::AsyncExt, id_type, types::user::ThemeLineage};
 use diesel_models::user::theme::Theme;
 use error_stack::ResultExt;
 use hyperswitch_domain_models::merchant_key_store::MerchantKeyStore;
@@ -100,7 +100,7 @@ fn validate_tenant(state: &SessionState, tenant_id: &id_type::TenantId) -> UserR
 
 async fn validate_org(state: &SessionState, org_id: &id_type::OrganizationId) -> UserResult<()> {
     state
-        .store
+        .accounts_store
         .find_organization_by_org_id(org_id)
         .await
         .to_not_found_response(UserErrors::InvalidThemeLineage("org_id".to_string()))

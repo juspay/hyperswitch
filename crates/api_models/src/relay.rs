@@ -24,11 +24,11 @@ pub struct RelayRequest {
 #[serde(rename_all = "snake_case")]
 pub enum RelayData {
     /// The data that is associated with a refund relay request
-    Refund(RelayRefundRequest),
+    Refund(RelayRefundRequestData),
 }
 
 #[derive(Debug, ToSchema, Clone, Deserialize, Serialize)]
-pub struct RelayRefundRequest {
+pub struct RelayRefundRequestData {
     /// The amount that is being refunded
     #[schema(value_type = i64 , example = 6540)]
     pub amount: MinorUnit,

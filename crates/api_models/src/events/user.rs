@@ -11,15 +11,16 @@ use crate::user::{
         GetMetaDataRequest, GetMetaDataResponse, GetMultipleMetaDataPayload, SetMetaDataRequest,
     },
     AcceptInviteFromEmailRequest, AuthSelectRequest, AuthorizeResponse, BeginTotpResponse,
-    ChangePasswordRequest, ConnectAccountRequest, CreateInternalUserRequest,
+    ChangePasswordRequest, CloneConnectorRequest, ConnectAccountRequest, CreateInternalUserRequest,
     CreateTenantUserRequest, CreateUserAuthenticationMethodRequest, ForgotPasswordRequest,
     GetSsoAuthUrlRequest, GetUserAuthenticationMethodsRequest, GetUserDetailsResponse,
     GetUserRoleDetailsRequest, GetUserRoleDetailsResponseV2, InviteUserRequest,
-    ReInviteUserRequest, RecoveryCodes, ResetPasswordRequest, RotatePasswordRequest,
-    SendVerifyEmailRequest, SignUpRequest, SignUpWithMerchantIdRequest, SsoSignInRequest,
-    SwitchMerchantRequest, SwitchOrganizationRequest, SwitchProfileRequest, TokenResponse,
-    TwoFactorAuthStatusResponse, TwoFactorStatus, UpdateUserAccountDetailsRequest,
-    UpdateUserAuthenticationMethodRequest, UserFromEmailRequest, UserMerchantCreate,
+    PlatformAccountCreateRequest, PlatformAccountCreateResponse, ReInviteUserRequest,
+    RecoveryCodes, ResetPasswordRequest, RotatePasswordRequest, SendVerifyEmailRequest,
+    SignUpRequest, SignUpWithMerchantIdRequest, SsoSignInRequest, SwitchMerchantRequest,
+    SwitchOrganizationRequest, SwitchProfileRequest, TokenResponse, TwoFactorAuthStatusResponse,
+    TwoFactorStatus, UpdateUserAccountDetailsRequest, UpdateUserAuthenticationMethodRequest,
+    UserFromEmailRequest, UserMerchantAccountResponse, UserMerchantCreate,
     UserOrgMerchantCreateRequest, VerifyEmailRequest, VerifyRecoveryCodeRequest, VerifyTotpRequest,
 };
 
@@ -38,7 +39,10 @@ common_utils::impl_api_event_type!(
         SwitchProfileRequest,
         CreateInternalUserRequest,
         CreateTenantUserRequest,
+        PlatformAccountCreateRequest,
+        PlatformAccountCreateResponse,
         UserOrgMerchantCreateRequest,
+        UserMerchantAccountResponse,
         UserMerchantCreate,
         AuthorizeResponse,
         ConnectAccountRequest,
@@ -67,7 +71,8 @@ common_utils::impl_api_event_type!(
         UpdateUserAuthenticationMethodRequest,
         GetSsoAuthUrlRequest,
         SsoSignInRequest,
-        AuthSelectRequest
+        AuthSelectRequest,
+        CloneConnectorRequest
     )
 );
 

@@ -113,6 +113,7 @@ impl TryFrom<&VoltRouterData<&types::PaymentsAuthorizeRouterData>> for VoltPayme
                 BankRedirectData::BancontactCard { .. }
                 | BankRedirectData::Bizum {}
                 | BankRedirectData::Blik { .. }
+                | BankRedirectData::Eft { .. }
                 | BankRedirectData::Eps { .. }
                 | BankRedirectData::Giropay { .. }
                 | BankRedirectData::Ideal { .. }
@@ -353,6 +354,9 @@ impl<F, T> TryFrom<ResponseRouterData<F, VoltPaymentsResponseData, T, PaymentsRe
                             status_code: item.http_code,
                             attempt_status: None,
                             connector_transaction_id: Some(payment_response.id),
+                            network_advice_code: None,
+                            network_decline_code: None,
+                            network_error_message: None,
                         })
                     } else {
                         Ok(PaymentsResponseData::TransactionResponse {
@@ -394,6 +398,9 @@ impl<F, T> TryFrom<ResponseRouterData<F, VoltPaymentsResponseData, T, PaymentsRe
                             status_code: item.http_code,
                             attempt_status: None,
                             connector_transaction_id: Some(webhook_response.payment.clone()),
+                            network_advice_code: None,
+                            network_decline_code: None,
+                            network_error_message: None,
                         })
                     } else {
                         Ok(PaymentsResponseData::TransactionResponse {

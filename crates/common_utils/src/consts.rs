@@ -127,6 +127,8 @@ pub const ROLE_ID_ORGANIZATION_ADMIN: &str = "org_admin";
 pub const ROLE_ID_INTERNAL_VIEW_ONLY_USER: &str = "internal_view_only";
 /// Role ID for Internal Admin
 pub const ROLE_ID_INTERNAL_ADMIN: &str = "internal_admin";
+/// Role ID for Internal Demo
+pub const ROLE_ID_INTERNAL_DEMO: &str = "internal_demo";
 
 /// Max length allowed for Description
 pub const MAX_DESCRIPTION_LENGTH: u16 = 255;
@@ -152,3 +154,37 @@ pub const X_REQUEST_ID: &str = "x-request-id";
 
 /// Default Tenant ID for the `Global` tenant
 pub const DEFAULT_GLOBAL_TENANT_ID: &str = "global";
+
+/// Default status of Card IP Blocking
+pub const DEFAULT_CARD_IP_BLOCKING_STATUS: bool = false;
+
+/// Default Threshold for Card IP Blocking
+pub const DEFAULT_CARD_IP_BLOCKING_THRESHOLD: i32 = 3;
+
+/// Default status of Guest User Card Blocking
+pub const DEFAULT_GUEST_USER_CARD_BLOCKING_STATUS: bool = false;
+
+/// Default Threshold for Card Blocking for Guest Users
+pub const DEFAULT_GUEST_USER_CARD_BLOCKING_THRESHOLD: i32 = 10;
+
+/// Default status of Customer ID Blocking
+pub const DEFAULT_CUSTOMER_ID_BLOCKING_STATUS: bool = false;
+
+/// Default Threshold for Customer ID Blocking
+pub const DEFAULT_CUSTOMER_ID_BLOCKING_THRESHOLD: i32 = 5;
+
+/// Default Card Testing Guard Redis Expiry in seconds
+pub const DEFAULT_CARD_TESTING_GUARD_EXPIRY_IN_SECS: i32 = 3600;
+
+/// SOAP 1.1 Envelope Namespace
+pub const SOAP_ENV_NAMESPACE: &str = "http://schemas.xmlsoap.org/soap/envelope/";
+
+#[cfg(all(feature = "v2", feature = "tokenization_v2"))]
+/// Length of generated tokens
+pub const TOKEN_LENGTH: usize = 32;
+
+/// The tag name used for identifying the host in metrics.
+pub const METRICS_HOST_TAG_NAME: &str = "host";
+
+/// API client request timeout (in seconds)
+pub const REQUEST_TIME_OUT: u64 = 30;

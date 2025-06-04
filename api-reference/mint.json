@@ -5,6 +5,17 @@
     "dark": "/logo/dark.svg",
     "light": "/logo/light.svg"
   },
+  "topbarLinks": [
+    {
+      "name": "Contact Us",
+      "url": "https://join.slack.com/t/hyperswitch-io/shared_invite/zt-2jqxmpsbm-WXUENx022HjNEy~Ark7Orw"
+    }
+  ],
+  "topbarCtaButton": {
+    "type": "link",
+    "url": "https://docs.hyperswitch.io/hyperswitch-open-source/overview",
+    "name": "Self-Deploy"
+  },
   "favicon": "/favicon.png",
   "colors": {
     "primary": "#006DF9",
@@ -14,16 +25,25 @@
       "dark": "#242F48"
     }
   },
+  "sidebar": {
+    "items": "card"
+  },
   "tabs": [
     {
       "name": "Locker API Reference",
       "url": "locker-api-reference"
+    },
+    {
+      "name": "Intelligent Router API Reference",
+      "url": "intelligent-router-api-reference"
     }
   ],
   "navigation": [
     {
       "group": "Get Started",
-      "pages": ["introduction"]
+      "pages": [
+        "introduction"
+      ]
     },
     {
       "group": "Essentials",
@@ -39,6 +59,7 @@
         {
           "group": "Payments",
           "pages": [
+            "api-reference/payments/Introduction--to--payments",
             "api-reference/payments/payments--create",
             "api-reference/payments/payments--update",
             "api-reference/payments/payments--confirm",
@@ -50,7 +71,8 @@
             "api-reference/payments/payments-link--retrieve",
             "api-reference/payments/payments--list",
             "api-reference/payments/payments--external-3ds-authentication",
-            "api-reference/payments/payments--complete-authorize"
+            "api-reference/payments/payments--complete-authorize",
+            "api-reference/payments/payments--update-metadata"
           ]
         },
         {
@@ -102,6 +124,76 @@
           ]
         },
         {
+          "group": "Payouts",
+          "pages": [
+            "api-reference/payouts/payouts--create",
+            "api-reference/payouts/payouts--update",
+            "api-reference/payouts/payouts--cancel",
+            "api-reference/payouts/payouts--fulfill",
+            "api-reference/payouts/payouts--confirm",
+            "api-reference/payouts/payouts--retrieve",
+            "api-reference/payouts/payouts--list",
+            "api-reference/payouts/payouts--list-filters",
+            "api-reference/payouts/payouts--filter"
+          ]
+        },
+        {
+          "group": "Event",
+          "pages": [
+            "api-reference/event/events--list",
+            "api-reference/event/events--delivery-attempt-list",
+            "api-reference/event/events--manual-retry"
+          ]
+        },
+        {
+          "group": "Poll",
+          "pages": [
+            "api-reference/poll/poll--retrieve-poll-status"
+          ]
+        },
+        {
+          "group": "Blocklist",
+          "pages": [
+            "api-reference/blocklist/get-blocklist",
+            "api-reference/blocklist/post-blocklist",
+            "api-reference/blocklist/delete-blocklist",
+            "api-reference/blocklist/post-blocklisttoggle"
+          ]
+        },
+        {
+          "group": "Routing",
+          "pages": [
+            "api-reference/routing/routing--list",
+            "api-reference/routing/routing--create",
+            "api-reference/routing/routing--retrieve-config",
+            "api-reference/routing/routing--deactivate",
+            "api-reference/routing/routing--retrieve-default-config",
+            "api-reference/routing/routing--update-default-config",
+            "api-reference/routing/routing--retrieve-default-for-profile",
+            "api-reference/routing/routing--update-default-for-profile",
+            "api-reference/routing/routing--retrieve",
+            "api-reference/routing/routing--activate-config"
+          ]
+        },
+        {
+          "group": "Relay",
+          "pages": [
+            "api-reference/relay/relay",
+            "api-reference/relay/relay--retrieve"
+          ]
+        },
+        {
+          "group": "Schemas",
+          "pages": [
+            "api-reference/schemas/outgoing--webhook"
+          ]
+        }
+      ]
+    },
+    {
+      "group": "Admin API based",
+      "pages": [
+        {
           "group": "Organization",
           "pages": [
             "api-reference/organization/organization--create",
@@ -150,28 +242,6 @@
           ]
         },
         {
-          "group": "Payouts",
-          "pages": [
-            "api-reference/payouts/payouts--create",
-            "api-reference/payouts/payouts--update",
-            "api-reference/payouts/payouts--cancel",
-            "api-reference/payouts/payouts--fulfill",
-            "api-reference/payouts/payouts--confirm",
-            "api-reference/payouts/payouts--retrieve",
-            "api-reference/payouts/payouts--list",
-            "api-reference/payouts/payouts--list-filters",
-            "api-reference/payouts/payouts--filter"
-          ]
-        },
-        {
-          "group": "Event",
-          "pages": [
-            "api-reference/event/events--list",
-            "api-reference/event/events--delivery-attempt-list",
-            "api-reference/event/events--manual-retry"
-          ]
-        },
-        {
           "group": "GSM (Global Status Mapping)",
           "pages": [
             "api-reference/gsm/gsm--create",
@@ -181,56 +251,29 @@
           ]
         },
         {
-          "group": "Poll",
-          "pages": ["api-reference/poll/poll--retrieve-poll-status"]
-        },
-        {
-          "group": "Blocklist",
+          "group": "Event",
           "pages": [
-            "api-reference/blocklist/get-blocklist",
-            "api-reference/blocklist/post-blocklist",
-            "api-reference/blocklist/delete-blocklist",
-            "api-reference/blocklist/post-blocklisttoggle"
+            "api-reference/event/events--list",
+            "api-reference/event/events--delivery-attempt-list",
+            "api-reference/event/events--manual-retry"
           ]
-        },
-        {
-          "group": "Routing",
-          "pages": [
-            "api-reference/routing/routing--list",
-            "api-reference/routing/routing--create",
-            "api-reference/routing/routing--retrieve-config",
-            "api-reference/routing/routing--deactivate",
-            "api-reference/routing/routing--retrieve-default-config",
-            "api-reference/routing/routing--update-default-config",
-            "api-reference/routing/routing--retrieve-default-for-profile",
-            "api-reference/routing/routing--update-default-for-profile",
-            "api-reference/routing/routing--retrieve",
-            "api-reference/routing/routing--activate-config"
-          ]
-        },
-        {
-          "group": "Relay",
-          "pages": [
-            "api-reference/relay/relay",
-            "api-reference/relay/relay--retrieve"
-          ]
-        },
-        {
-          "group": "Schemas",
-          "pages": ["api-reference/schemas/outgoing--webhook"]
         }
       ]
     },
     {
       "group": "Hyperswitch Card Vault",
-      "pages": ["locker-api-reference/overview"]
+      "pages": [
+        "locker-api-reference/overview"
+      ]
     },
     {
       "group": "API Reference",
       "pages": [
         {
           "group": "Locker - Health",
-          "pages": ["locker-api-reference/locker-health/get-health"]
+          "pages": [
+            "locker-api-reference/locker-health/get-health"
+          ]
         },
         {
           "group": "Locker - Key Custodian",
@@ -250,22 +293,66 @@
           ]
         }
       ]
+    },
+    {
+      "group": "Hyperswitch Intelligent Router",
+      "pages": [
+        "intelligent-router-api-reference/overview"
+      ]
+    },
+    {
+      "group": "API Reference",
+      "pages": [
+        {
+          "group": "Success Rate",
+          "pages": [
+            "intelligent-router-api-reference/success-rate/fetch-success-rate-for-an-entity",
+            "intelligent-router-api-reference/success-rate/update-success-rate-window",
+            "intelligent-router-api-reference/success-rate/invalidate-windows",
+            "intelligent-router-api-reference/success-rate/fetch-entity-and-global-success-rates"
+          ]
+        },
+        {
+          "group": "Elimination",
+          "pages": [
+            "intelligent-router-api-reference/elimination/fetch-eliminated-processor-list",
+            "intelligent-router-api-reference/elimination/update-elimination-bucket",
+            "intelligent-router-api-reference/elimination/invalidate-elimination-bucket"
+          ]
+        },
+        {
+          "group": "Contract Routing",
+          "pages": [
+            "intelligent-router-api-reference/contract-routing/fetch-contract-scores-for-an-entity",
+            "intelligent-router-api-reference/contract-routing/update-contract-information-for-an-entity",
+            "intelligent-router-api-reference/contract-routing/invalidate-contract-information-for-an-entity"
+          ]
+        },
+        {
+          "group": "Static Routing",
+          "pages": [
+            "intelligent-router-api-reference/static-routing/create-a-routing-rule",
+            "intelligent-router-api-reference/static-routing/evaluate-routing-rule"
+          ]
+        }
+      ]
     }
   ],
   "footerSocials": {
     "github": "https://github.com/juspay/hyperswitch",
     "linkedin": "https://www.linkedin.com/company/hyperswitch"
   },
-  "openapi": ["openapi_spec.json", "rust_locker_open_api_spec.yml"],
+  "openapi": [
+    "openapi_spec.json",
+    "rust_locker_open_api_spec.yml"
+  ],
   "api": {
     "maintainOrder": true
   },
   "analytics": {
     "gtm": {
       "tagId": "GTM-PLBNKQFQ"
-    }
-  },
-  "analytics": {
+    },
     "mixpanel": {
       "projectToken": "b00355f29d9548d1333608df71d5d53d"
     }

@@ -114,6 +114,10 @@ pub enum SdkEventNames {
     ThreeDsMethod,
     LoaderChanged,
     DisplayThreeDsSdk,
+    ThreeDsSdkInit,
+    AreqParamsGeneration,
+    ChallengePresented,
+    ChallengeComplete,
 }
 
 pub mod metric_behaviour {

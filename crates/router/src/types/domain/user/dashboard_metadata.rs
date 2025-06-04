@@ -27,6 +27,7 @@ pub enum MetaData {
     IsMultipleConfiguration(bool),
     IsChangePasswordRequired(bool),
     OnboardingSurvey(api::OnboardingSurvey),
+    ReconStatus(api::ReconStatus),
 }
 
 impl From<&MetaData> for DBEnum {
@@ -55,6 +56,7 @@ impl From<&MetaData> for DBEnum {
             MetaData::IsMultipleConfiguration(_) => Self::IsMultipleConfiguration,
             MetaData::IsChangePasswordRequired(_) => Self::IsChangePasswordRequired,
             MetaData::OnboardingSurvey(_) => Self::OnboardingSurvey,
+            MetaData::ReconStatus(_) => Self::ReconStatus,
         }
     }
 }

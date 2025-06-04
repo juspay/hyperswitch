@@ -5,6 +5,9 @@
 #[utoipa::path(
     post,
     path = "/accounts/{account_id}/connectors",
+    params(
+        ("account_id" = String, Path, description = "The unique identifier for the merchant account")
+    ),
     request_body(
         content = MerchantConnectorCreate,
         examples(
@@ -57,7 +60,7 @@
     ),
     tag = "Merchant Connector Account",
     operation_id = "Create a Merchant Connector",
-    security(("admin_api_key" = []))
+    security(("api_key" = []))
 )]
 pub async fn connector_create() {}
 
@@ -142,7 +145,7 @@ pub async fn connector_create() {}
     ),
     tag = "Merchant Connector Account",
     operation_id = "Retrieve a Merchant Connector",
-    security(("admin_api_key" = []))
+    security(("api_key" = []))
 )]
 pub async fn connector_retrieve() {}
 
@@ -183,7 +186,7 @@ pub async fn connector_retrieve() {}
     ),
     tag = "Merchant Connector Account",
     operation_id = "List all Merchant Connectors",
-    security(("admin_api_key" = []))
+    security(("api_key" = []))
 )]
 pub async fn connector_list() {}
 
@@ -231,7 +234,7 @@ pub async fn connector_list() {}
     ),
    tag = "Merchant Connector Account",
    operation_id = "Update a Merchant Connector",
-   security(("admin_api_key" = []))
+   security(("api_key" = []))
 )]
 pub async fn connector_update() {}
 

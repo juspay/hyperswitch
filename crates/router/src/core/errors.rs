@@ -7,12 +7,12 @@ pub mod utils;
 
 use std::fmt::Display;
 
+pub use ::payment_methods::core::errors::VaultError;
 use actix_web::{body::BoxBody, ResponseError};
 pub use common_utils::errors::{CustomResult, ParsingError, ValidationError};
 use diesel_models::errors as storage_errors;
-pub use hyperswitch_domain_models::errors::{
-    api_error_response::{ApiErrorResponse, ErrorType, NotImplementedMessage},
-    StorageError as DataStorageError,
+pub use hyperswitch_domain_models::errors::api_error_response::{
+    ApiErrorResponse, ErrorType, NotImplementedMessage,
 };
 pub use hyperswitch_interfaces::errors::ConnectorError;
 pub use redis_interface::errors::RedisError;
@@ -119,46 +119,6 @@ pub enum HealthCheckOutGoing {
 }
 
 #[derive(Debug, thiserror::Error)]
-pub enum VaultError {
-    #[error("Failed to save card in card vault")]
-    SaveCardFailed,
-    #[error("Failed to fetch card details from card vault")]
-    FetchCardFailed,
-    #[error("Failed to delete card in card vault")]
-    DeleteCardFailed,
-    #[error("Failed to encode card vault request")]
-    RequestEncodingFailed,
-    #[error("Failed to deserialize card vault response")]
-    ResponseDeserializationFailed,
-    #[error("Failed to create payment method")]
-    PaymentMethodCreationFailed,
-    #[error("The given payment method is currently not supported in vault")]
-    PaymentMethodNotSupported,
-    #[error("The given payout method is currently not supported in vault")]
-    PayoutMethodNotSupported,
-    #[error("Missing required field: {field_name}")]
-    MissingRequiredField { field_name: &'static str },
-    #[error("The card vault returned an unexpected response: {0:?}")]
-    UnexpectedResponseError(bytes::Bytes),
-    #[error("Failed to update in PMD table")]
-    UpdateInPaymentMethodDataTableFailed,
-    #[error("Failed to fetch payment method in vault")]
-    FetchPaymentMethodFailed,
-    #[error("Failed to save payment method in vault")]
-    SavePaymentMethodFailed,
-    #[error("Failed to generate fingerprint")]
-    GenerateFingerprintFailed,
-    #[error("Failed to encrypt vault request")]
-    RequestEncryptionFailed,
-    #[error("Failed to decrypt vault response")]
-    ResponseDecryptionFailed,
-    #[error("Failed to call vault")]
-    VaultAPIError,
-    #[error("Failed while calling locker API")]
-    ApiError,
-}
-
-#[derive(Debug, thiserror::Error)]
 pub enum AwsKmsError {
     #[error("Failed to base64 decode input data")]
     Base64DecodingFailed,
@@ -246,8 +206,6 @@ pub enum PazeDecryptionError {
 
 #[derive(Debug, thiserror::Error)]
 pub enum GooglePayDecryptionError {
-    #[error("Recipient ID not found")]
-    RecipientIdNotFound,
     #[error("Invalid expiration time")]
     InvalidExpirationTime,
     #[error("Failed to base64 decode input data")]
@@ -390,6 +348,18 @@ pub enum RoutingError {
     SuccessRateCalculationError,
     #[error("Success rate client from dynamic routing gRPC service not initialized")]
     SuccessRateClientInitializationError,
+    #[error("Elimination client from dynamic routing gRPC service not initialized")]
+    EliminationClientInitializationError,
+    #[error("Unable to analyze elimination routing config from dynamic routing service")]
+    EliminationRoutingCalculationError,
+    #[error("Params not found in elimination based routing config")]
+    EliminationBasedRoutingParamsNotFoundError,
+    #[error("Unable to retrieve elimination based routing config")]
+    EliminationRoutingConfigError,
+    #[error(
+        "Invalid elimination based connector label received from dynamic routing service: '{0}'"
+    )]
+    InvalidEliminationBasedConnectorLabel(String),
     #[error("Unable to convert from '{from}' to '{to}'")]
     GenericConversionError { from: String, to: String },
     #[error("Invalid success based connector label received from dynamic routing service: '{0}'")]
@@ -402,12 +372,20 @@ pub enum RoutingError {
     ContractBasedRoutingConfigError,
     #[error("Params not found in contract based routing config")]
     ContractBasedRoutingParamsNotFoundError,
-    #[error("Unable to calculate contract score from dynamic routing service")]
-    ContractScoreCalculationError,
+    #[error("Unable to calculate contract score from dynamic routing service: '{err}'")]
+    ContractScoreCalculationError { err: String },
+    #[error("Unable to update contract score on dynamic routing service")]
+    ContractScoreUpdationError,
     #[error("contract routing client from dynamic routing gRPC service not initialized")]
     ContractRoutingClientInitializationError,
     #[error("Invalid contract based connector label received from dynamic routing service: '{0}'")]
     InvalidContractBasedConnectorLabel(String),
+    #[error("Failed to perform routing in open_router")]
+    OpenRouterCallFailed,
+    #[error("Error from open_router: {0}")]
+    OpenRouterError(String),
+    #[error("Invalid transaction type")]
+    InvalidTransactionType,
 }
 
 #[derive(Debug, Clone, thiserror::Error)]
@@ -444,4 +422,73 @@ pub enum NetworkTokenizationError {
     DeleteNetworkTokenFailed,
     #[error("Network token service not configured")]
     NetworkTokenizationServiceNotConfigured,
+    #[error("Failed while calling Network Token Service API")]
+    ApiError,
+    #[error("Network Tokenization is not enabled for profile")]
+    NetworkTokenizationNotEnabledForProfile,
+    #[error("Network Tokenization is not supported for {message}")]
+    NotSupported { message: String },
+    #[error("Failed to encrypt the NetworkToken payment method details")]
+    NetworkTokenDetailsEncryptionFailed,
+}
+
+#[derive(Debug, thiserror::Error)]
+pub enum BulkNetworkTokenizationError {
+    #[error("Failed to validate card details")]
+    CardValidationFailed,
+    #[error("Failed to validate payment method details")]
+    PaymentMethodValidationFailed,
+    #[error("Failed to assign a customer to the card")]
+    CustomerAssignmentFailed,
+    #[error("Failed to perform BIN lookup for the card")]
+    BinLookupFailed,
+    #[error("Failed to tokenize the card details with the network")]
+    NetworkTokenizationFailed,
+    #[error("Failed to store the card details in locker")]
+    VaultSaveFailed,
+    #[error("Failed to create a payment method entry")]
+    PaymentMethodCreationFailed,
+    #[error("Failed to update the payment method")]
+    PaymentMethodUpdationFailed,
+}
+
+#[cfg(all(feature = "revenue_recovery", feature = "v2"))]
+#[derive(Debug, thiserror::Error)]
+pub enum RevenueRecoveryError {
+    #[error("Failed to fetch payment intent")]
+    PaymentIntentFetchFailed,
+    #[error("Failed to fetch payment attempt")]
+    PaymentAttemptFetchFailed,
+    #[error("Failed to fetch payment attempt")]
+    PaymentAttemptIdNotFound,
+    #[error("Failed to get revenue recovery invoice webhook")]
+    InvoiceWebhookProcessingFailed,
+    #[error("Failed to get revenue recovery invoice transaction")]
+    TransactionWebhookProcessingFailed,
+    #[error("Failed to create payment intent")]
+    PaymentIntentCreateFailed,
+    #[error("Source verification failed for billing connector")]
+    WebhookAuthenticationFailed,
+    #[error("Payment merchant connector account not found using account reference id")]
+    PaymentMerchantConnectorAccountNotFound,
+    #[error("Failed to fetch primitive date_time")]
+    ScheduleTimeFetchFailed,
+    #[error("Failed to create process tracker")]
+    ProcessTrackerCreationError,
+    #[error("Failed to get the response from process tracker")]
+    ProcessTrackerResponseError,
+    #[error("Billing connector psync call failed")]
+    BillingConnectorPaymentsSyncFailed,
+    #[error("Billing connector invoice sync call failed")]
+    BillingConnectorInvoiceSyncFailed,
+    #[error("Failed to get the retry count for payment intent")]
+    RetryCountFetchFailed,
+    #[error("Failed to get the billing threshold retry count")]
+    BillingThresholdRetryCountFetchFailed,
+    #[error("Failed to get the retry algorithm type")]
+    RetryAlgorithmTypeNotFound,
+    #[error("Failed to update the retry algorithm type")]
+    RetryAlgorithmUpdationFailed,
+    #[error("Failed to create the revenue recovery attempt data")]
+    RevenueRecoveryAttemptDataCreateFailed,
 }
