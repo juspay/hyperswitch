@@ -184,6 +184,7 @@ cards = [
     "wise",
     "worldline",
     "worldpay",
+    "worldpayvantiv",
     "xendit",
     "zen",
     "zsl",
@@ -317,6 +318,7 @@ stripe.base_url_file_upload = "https://files.stripe.com/"
 wise.base_url = "https://api.sandbox.transferwise.tech/"
 worldline.base_url = "https://eu.sandbox.api-ingenico.com/"
 worldpay.base_url = "https://try.access.worldpay.com/"
+worldpayvantiv.base_url = "https://www.testvantivcnp.com/sandbox/communicator/online"
 worldpayxml.base_url = "https://secure-test.worldpay.com/jsp/merchant/xml/paymentService.jsp"
 xendit.base_url = "https://api.xendit.co"
 trustpay.base_url = "https://test-tpgw.trustpay.eu/"
@@ -1162,3 +1164,7 @@ retry_algorithm_type = "cascading"
 [clone_connector_allowlist]
 merchant_ids = "merchant_123, merchant_234"     # Comma-separated list of allowed merchant IDs
 connector_names = "stripe, adyen"               # Comma-separated list of allowed connector names
+
+[infra_values]
+cluster = "CLUSTER"
+version = "HOSTNAME"
