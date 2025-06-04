@@ -23443,6 +23443,10 @@
             "type": "number",
             "format": "double",
             "nullable": true
+          },
+          "shuffle_on_tie_during_exploitation": {
+            "type": "boolean",
+            "nullable": true
           }
         }
       },
