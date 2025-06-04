@@ -70,6 +70,9 @@ describe("Card - SingleUse Mandates flow test", () => {
           "automatic",
           globalState
         );
+
+        if (shouldContinue)
+          shouldContinue = utils.should_continue_further(data);
       });
 
       it("retrieve-payment-call-test", () => {
@@ -132,6 +135,9 @@ describe("Card - SingleUse Mandates flow test", () => {
           "automatic",
           globalState
         );
+
+        if (shouldContinue)
+          shouldContinue = utils.should_continue_further(data);
       });
 
       it("retrieve-payment-call-test", () => {
@@ -155,6 +161,9 @@ describe("Card - SingleUse Mandates flow test", () => {
           "automatic",
           globalState
         );
+
+        if (shouldContinue)
+          shouldContinue = utils.should_continue_further(data);
       });
 
       it("retrieve-payment-call-test", () => {
