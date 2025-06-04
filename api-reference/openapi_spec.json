@@ -6012,6 +6012,62 @@
           }
         }
       },
+      "AcquirerConfig": {
+        "type": "object",
+        "description": "Acquirer configuration",
+        "required": [
+          "acquirer_assigned_merchant_id",
+          "merchant_name",
+          "mcc",
+          "merchant_country_code",
+          "network",
+          "acquirer_bin",
+          "acquirer_fraud_rate"
+        ],
+        "properties": {
+          "acquirer_assigned_merchant_id": {
+            "type": "string",
+            "description": "The merchant id assigned by the acquirer",
+            "example": "M123456789"
+          },
+          "merchant_name": {
+            "type": "string",
+            "description": "merchant name",
+            "example": "NewAge Retailer"
+          },
+          "mcc": {
+            "type": "string",
+            "description": "Merchant category code assigned by acquirer",
+            "example": "5812"
+          },
+          "merchant_country_code": {
+            "type": "string",
+            "description": "Merchant country code assigned by acquirer",
+            "example": "US"
+          },
+          "network": {
+            "type": "string",
+            "description": "Network provider",
+            "example": "VISA"
+          },
+          "acquirer_bin": {
+            "type": "string",
+            "description": "Acquirer bin",
+            "example": "456789"
+          },
+          "acquirer_ica": {
+            "type": "string",
+            "description": "Acquirer ica provided by acquirer",
+            "example": "401288",
+            "nullable": true
+          },
+          "acquirer_fraud_rate": {
+            "type": "string",
+            "description": "Fraud rate for the particular acquirer configuration",
+            "example": "0.01"
+          }
+        }
+      },
       "AcquirerConfigs": {
         "type": "object",
         "description": "Acquirer configs",
