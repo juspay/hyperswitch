@@ -8,7 +8,10 @@ use common_utils::{
     errors::CustomResult,
     ext_traits::{ByteSliceExt, OptionExt},
     request::{Method, Request, RequestBuilder, RequestContent},
-    types::{AmountConvertor, MinorUnit, MinorUnitForConnector},
+    types::{
+        AmountConvertor, MinorUnit, MinorUnitForConnector, StringMinorUnit,
+        StringMinorUnitForConnector,
+    },
 };
 use error_stack::{report, ResultExt};
 use hyperswitch_domain_models::{
@@ -86,7 +89,7 @@ use crate::{
         SubmitEvidenceRouterData,
     },
     utils::{
-        self as connector_utils, convert_payment_authorize_router_response,
+        convert_amount, convert_payment_authorize_router_response,
         convert_setup_mandate_router_data_to_authorize_router_data, is_mandate_supported,
         ForeignTryFrom, PaymentMethodDataType,
     },
@@ -96,12 +99,14 @@ const ADYEN_API_VERSION: &str = "v68";
 #[derive(Clone)]
 pub struct Adyen {
     amount_converter: &'static (dyn AmountConvertor<Output = MinorUnit> + Sync),
+    amount_converter_webhooks: &'static (dyn AmountConvertor<Output = StringMinorUnit> + Sync),
 }
 
 impl Adyen {
     pub const fn new() -> &'static Self {
         &Self {
             amount_converter: &MinorUnitForConnector,
+            amount_converter_webhooks: &StringMinorUnitForConnector,
         }
     }
 }
@@ -467,7 +472,7 @@ impl ConnectorIntegration<SetupMandate, SetupMandateRequestData, PaymentsRespons
             convert_setup_mandate_router_data_to_authorize_router_data(req),
         ));
 
-        let amount = connector_utils::convert_amount(
+        let amount = convert_amount(
             self.amount_converter,
             authorize_req.request.minor_amount,
             authorize_req.request.currency,
@@ -584,7 +589,7 @@ impl ConnectorIntegration<Capture, PaymentsCaptureData, PaymentsResponseData> fo
         req: &PaymentsCaptureRouterData,
         _connectors: &Connectors,
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
-        let amount_to_capture = connector_utils::convert_amount(
+        let amount_to_capture = convert_amount(
             self.amount_converter,
             req.request.minor_amount_to_capture,
             req.request.currency,
@@ -850,7 +855,7 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
         req: &PaymentsAuthorizeRouterData,
         _connectors: &Connectors,
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
-        let amount = connector_utils::convert_amount(
+        let amount = convert_amount(
             self.amount_converter,
             req.request.minor_amount,
             req.request.currency,
@@ -1013,7 +1018,7 @@ impl ConnectorIntegration<PreProcessing, PaymentsPreProcessingData, PaymentsResp
             })?,
         };
 
-        let amount = connector_utils::convert_amount(self.amount_converter, amount, currency)?;
+        let amount = convert_amount(self.amount_converter, amount, currency)?;
 
         if response.balance.currency != currency || response.balance.value < amount {
             Ok(RouterData {
@@ -1298,7 +1303,7 @@ impl ConnectorIntegration<PoCreate, PayoutsData, PayoutsResponseData> for Adyen 
         req: &PayoutsRouterData<PoCreate>,
         _connectors: &Connectors,
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
-        let amount = connector_utils::convert_amount(
+        let amount = convert_amount(
             self.amount_converter,
             req.request.minor_amount,
             req.request.destination_currency,
@@ -1396,7 +1401,7 @@ impl ConnectorIntegration<PoEligibility, PayoutsData, PayoutsResponseData> for A
         req: &PayoutsRouterData<PoEligibility>,
         _connectors: &Connectors,
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
-        let amount = connector_utils::convert_amount(
+        let amount = convert_amount(
             self.amount_converter,
             req.request.minor_amount,
             req.request.destination_currency,
@@ -1523,7 +1528,7 @@ impl ConnectorIntegration<PoFulfill, PayoutsData, PayoutsResponseData> for Adyen
         req: &PayoutsRouterData<PoFulfill>,
         _connectors: &Connectors,
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
-        let amount = connector_utils::convert_amount(
+        let amount = convert_amount(
             self.amount_converter,
             req.request.minor_amount,
             req.request.destination_currency,
@@ -1628,7 +1633,7 @@ impl ConnectorIntegration<Execute, RefundsData, RefundsResponseData> for Adyen {
         req: &RefundsRouterData<Execute>,
         _connectors: &Connectors,
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
-        let refund_amount = connector_utils::convert_amount(
+        let refund_amount = convert_amount(
             self.amount_converter,
             req.request.minor_refund_amount,
             req.request.currency,
@@ -1876,8 +1881,14 @@ impl IncomingWebhook for Adyen {
     ) -> CustomResult<disputes::DisputePayload, errors::ConnectorError> {
         let notif = get_webhook_object_from_body(request.body)
             .change_context(errors::ConnectorError::WebhookBodyDecodingFailed)?;
+
+        let amount = convert_amount(
+            self.amount_converter_webhooks,
+            notif.amount.value,
+            notif.amount.currency,
+        )?;
         Ok(disputes::DisputePayload {
-            amount: notif.amount.value.to_string(),
+            amount,
             currency: notif.amount.currency,
             dispute_stage: api_models::enums::DisputeStage::from(notif.event_code.clone()),
             connector_dispute_id: notif.psp_reference,

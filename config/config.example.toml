@@ -945,6 +945,7 @@ audit_events_topic = "topic"             # Kafka topic to be used for Payment Au
 payout_analytics_topic = "topic"         # Kafka topic to be used for Payouts and PayoutAttempt events
 consolidated_events_topic = "topic"      # Kafka topic to be used for Consolidated events
 authentication_analytics_topic = "topic" # Kafka topic to be used for Authentication events
+routing_logs_topic = "topic"             # Kafka topic to be used for Routing events
 
 # File storage configuration
 [file_storage]
@@ -1039,7 +1040,7 @@ delete_token_url= ""          # base url to delete token from token service
 check_token_status_url= ""    # base url to check token status from token service
 
 [network_tokenization_supported_connectors]
-connector_list = "cybersource" # Supported connectors for network tokenization
+connector_list = "adyen,cybersource" # Supported connectors for network tokenization
 
 [network_transaction_id_supported_connectors]
 connector_list = "adyen,archipel,cybersource,novalnet,stripe,worldpay" # Supported connectors for network transaction id
@@ -1076,3 +1077,7 @@ retry_algorithm_type = "cascading" # type of retry algorithm
 [clone_connector_allowlist]
 merchant_ids = "merchant_ids"           # Comma-separated list of allowed merchant IDs
 connector_names = "connector_names"     # Comma-separated list of allowed connector names
+
+[infra_values]
+cluster = "CLUSTER"         # value of CLUSTER from deployment
+version = "HOSTNAME"        # value of HOSTNAME from deployment which tells its version
