@@ -194,21 +194,26 @@ impl HealthCheckInterface for app::SessionState {
     async fn health_check_decision_engine(
         &self,
     ) -> CustomResult<HealthState, errors::HealthCheckDecisionEngineError> {
-        let url = format!("{}/{}", &self.conf.open_router.url, "health");
-        let request = services::Request::new(services::Method::Get, &url);
+        if self.conf.open_router.enabled {
+            let url = format!("{}/{}", &self.conf.open_router.url, "health");
+            let request = services::Request::new(services::Method::Get, &url);
+            services::call_connector_api(self, request, "health_check_for_decision_engine")
+                .await
+                .change_context(
+                    errors::HealthCheckDecisionEngineError::FailedToCallDecisionEngineService,
+                )?
+                .map_err(|err| {
+                    logger::error!(error=?err, "Failed to call decision engine service: {:?}", err);
+                    error_stack::report!(
+                        errors::HealthCheckDecisionEngineError::FailedToCallDecisionEngineService
+                    )
+                })?;
 
-        services::call_connector_api(self, request, "health_check_for_decision_engine")
-            .await
-            .change_context(
-                errors::HealthCheckDecisionEngineError::FailedToCallDecisionEngineService,
-            )?
-            .map_err(|_| {
-                error_stack::report!(
-                    errors::HealthCheckDecisionEngineError::FailedToCallDecisionEngineService
-                )
-            })?;
-
-        logger::debug!("Decision engine health check successful");
-        Ok(HealthState::Running)
+            logger::debug!("Decision engine health check successful");
+            Ok(HealthState::Running)
+        } else {
+            logger::debug!("Decision engine health check not applicable");
+            Ok(HealthState::NotApplicable)
+        }
     }
 }
