@@ -1077,3 +1077,7 @@ retry_algorithm_type = "cascading" # type of retry algorithm
 [clone_connector_allowlist]
 merchant_ids = "merchant_ids"           # Comma-separated list of allowed merchant IDs
 connector_names = "connector_names"     # Comma-separated list of allowed connector names
+
+[infra_values]
+cluster = "CLUSTER"         # value of CLUSTER from deployment
+version = "HOSTNAME"        # value of HOSTNAME from deployment which tells its version
