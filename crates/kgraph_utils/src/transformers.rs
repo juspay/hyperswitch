@@ -311,7 +311,9 @@ impl IntoDirValue for (api_enums::PaymentMethodType, api_enums::PaymentMethod) {
             api_enums::PaymentMethodType::DirectCarrierBilling => {
                 Ok(dirval!(MobilePaymentType = DirectCarrierBilling))
             }
-            api_enums::PaymentMethodType::ProxyCard => todo!(),
+            api_enums::PaymentMethodType::ProxyCard => Err(KgraphError::ContextConstructionError(
+                Box::new(AnalysisErrorType::NotSupported),
+            )),
         }
     }
 }

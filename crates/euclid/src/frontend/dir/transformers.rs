@@ -192,7 +192,7 @@ impl IntoDirValue for (global_enums::PaymentMethodType, global_enums::PaymentMet
                 Ok(dirval!(MobilePaymentType = DirectCarrierBilling))
             }
             global_enums::PaymentMethodType::Eft => Ok(dirval!(BankRedirectType = Eft)),
-            global_enums::PaymentMethodType::ProxyCard => todo!(),
+            global_enums::PaymentMethodType::ProxyCard => Err(AnalysisErrorType::NotSupported),
         }
     }
 }
