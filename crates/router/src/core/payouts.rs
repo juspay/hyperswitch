@@ -735,9 +735,7 @@ pub async fn payouts_list_core(
     todo!()
 }
 
-#[cfg(all(
-    feature = "olap",feature = "v1"
-))]
+#[cfg(all(feature = "olap", feature = "v1"))]
 pub async fn payouts_list_core(
     state: SessionState,
     merchant_context: domain::MerchantContext,

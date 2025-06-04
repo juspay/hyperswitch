@@ -2,10 +2,7 @@ use std::collections::HashMap;
 
 use common_utils::link_utils::EnabledPaymentMethod;
 
-#[cfg(all(
-    feature = "v1",
-    feature = "olap"
-))]
+#[cfg(all(feature = "v1", feature = "olap"))]
 use crate::types::transformers::ForeignInto;
 #[cfg(feature = "olap")]
 use crate::types::{api::payments, domain, storage};
@@ -35,10 +32,7 @@ impl
     }
 }
 
-#[cfg(all(
-    feature = "v1",
-    feature = "olap"
-))]
+#[cfg(all(feature = "v1", feature = "olap"))]
 impl
     ForeignFrom<(
         storage::Payouts,
