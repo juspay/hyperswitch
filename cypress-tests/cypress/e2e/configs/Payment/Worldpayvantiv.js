@@ -526,7 +526,7 @@ export const connectorDetails = {
         TRIGGER_SKIP: true,
       },
       Request: {
-        currency: "EUR",
+        currency: "USD",
         amount: 6000,
         authentication_type: "no_three_ds",
         customer_acceptance: null,
