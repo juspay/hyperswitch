@@ -430,7 +430,7 @@ impl<F> TryFrom<ResponseRouterData<F, CnpOnlineResponse, PaymentsSyncData, Payme
                         } else if let Some(sale_response) = &result.sale_response {
                             let status = get_attempt_status(
                                 WorldpayvantivPaymentFlow::Sale,
-                                sale_response.response_code.clone(),
+                                sale_response.response_code,
                             )?;
                             if connector_utils::is_payment_failure(status) {
                                 Ok(Self {
@@ -470,7 +470,7 @@ impl<F> TryFrom<ResponseRouterData<F, CnpOnlineResponse, PaymentsSyncData, Payme
                         {
                             let status = get_attempt_status(
                                 WorldpayvantivPaymentFlow::Auth,
-                                authorization_response.response_code.clone(),
+                                authorization_response.response_code,
                             )?;
                             if connector_utils::is_payment_failure(status) {
                                 Ok(Self {
@@ -880,7 +880,7 @@ impl<F> TryFrom<ResponseRouterData<F, CnpOnlineResponse, PaymentsCaptureData, Pa
             Some(capture_response) => {
                 let status = get_attempt_status(
                     WorldpayvantivPaymentFlow::Capture,
-                    capture_response.response.clone(),
+                    capture_response.response,
                 )?;
                 if connector_utils::is_payment_failure(status) {
                     Ok(Self {
@@ -947,7 +947,7 @@ impl<F> TryFrom<ResponseRouterData<F, CnpOnlineResponse, PaymentsCancelData, Pay
             Some(void_response) => {
                 let status = get_attempt_status(
                     WorldpayvantivPaymentFlow::Void,
-                    void_response.response.clone(),
+                    void_response.response,
                 )?;
                 if connector_utils::is_payment_failure(status) {
                     Ok(Self {
@@ -1010,7 +1010,7 @@ impl TryFrom<RefundsResponseRouterData<Execute, CnpOnlineResponse>> for RefundsR
     ) -> Result<Self, Self::Error> {
         match item.response.credit_response {
             Some(credit_response) => {
-                let refund_status = get_refund_status(credit_response.response.clone())?;
+                let refund_status = get_refund_status(credit_response.response)?;
                 if connector_utils::is_refund_failure(refund_status) {
                     Ok(Self {
                         response: Err(ErrorResponse {
@@ -1102,7 +1102,7 @@ impl<F>
     ) -> Result<Self, Self::Error> {
         match (item.response.sale_response, item.response.authorization_response) {
             (Some(sale_response), None) => {
-                let status = get_attempt_status(WorldpayvantivPaymentFlow::Sale, sale_response.response_code.clone())?;
+                let status = get_attempt_status(WorldpayvantivPaymentFlow::Sale, sale_response.response_code)?;
                 if connector_utils::is_payment_failure(status) {
                     Ok(Self {
                         status,
@@ -1143,7 +1143,7 @@ impl<F>
                 }
             },
             (None, Some(auth_response)) => {
-                let status = get_attempt_status(WorldpayvantivPaymentFlow::Auth, auth_response.response_code.clone())?;
+                let status = get_attempt_status(WorldpayvantivPaymentFlow::Auth, auth_response.response_code)?;
                 if connector_utils::is_payment_failure(status) {
                     Ok(Self {
                         status,
@@ -1218,7 +1218,7 @@ impl TryFrom<RefundsResponseRouterData<RSync, CnpOnlineResponse>> for RefundsRou
                     .first()
                     .ok_or(errors::ConnectorError::ResponseHandlingFailed)?;
                 if let Some(refund_response) = &results.credit_response {
-                    let refund_status = get_refund_status(refund_response.response.clone())?;
+                    let refund_status = get_refund_status(refund_response.response)?;
                     if connector_utils::is_refund_failure(refund_status) {
                         Ok(Self {
                             response: Err(ErrorResponse {
