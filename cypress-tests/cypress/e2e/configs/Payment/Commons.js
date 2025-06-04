@@ -1621,7 +1621,8 @@ export const connectorDetails = {
         status: 400,
         body: {
           error: {
-            message: "return_url must be at most 2048 characters long. Received 2050 characters",
+            message:
+              "return_url must be at most 2048 characters long. Received 2050 characters",
             code: "IR_06",
             type: "invalid_request"
           },
