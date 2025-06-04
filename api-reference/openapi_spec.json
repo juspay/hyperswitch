@@ -24615,7 +24615,7 @@
           "acquirer_configs": {
             "allOf": [
               {
-                "$ref": "#/components/schemas/common_types.domain.AcquirerConfigs"
+                "$ref": "#/components/schemas/AcquirerConfigs"
               }
             ],
             "nullable": true
@@ -24907,7 +24907,7 @@
           "acquirer_configs": {
             "allOf": [
               {
-                "$ref": "#/components/schemas/common_types.domain.AcquirerConfigs"
+                "$ref": "#/components/schemas/AcquirerConfigs"
               }
             ],
             "nullable": true

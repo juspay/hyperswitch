@@ -235,6 +235,7 @@ Never share your secret api keys. Keep them guarded and secure.
         common_types::payments::ConnectorChargeResponseData,
         common_types::payments::StripeChargeResponseData,
         common_types::three_ds_decision_rule_engine::ThreeDSDecisionRule,
+        common_types::domain::AcquirerConfigs,
         common_types::three_ds_decision_rule_engine::ThreeDSDecision,
         api_models::refunds::RefundRequest,
         api_models::refunds::RefundType,

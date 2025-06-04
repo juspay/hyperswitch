@@ -2013,6 +2013,7 @@ pub struct ProfileCreate {
     pub is_pre_network_tokenization_enabled: Option<bool>,
 
     /// Merchant Acquirer config
+    #[schema(value_type = Option<AcquirerConfigs>)]
     pub acquirer_configs: Option<common_types::domain::AcquirerConfigs>,
 }
 
@@ -2320,6 +2321,7 @@ pub struct ProfileResponse {
     pub is_pre_network_tokenization_enabled: bool,
 
     /// Acquirer configs
+    #[schema(value_type = Option<AcquirerConfigs>)]
     pub acquirer_configs: Option<common_types::domain::AcquirerConfigs>,
 }
 
@@ -2627,6 +2629,7 @@ pub struct ProfileUpdate {
     pub is_pre_network_tokenization_enabled: Option<bool>,
 
     /// Acquirer configs
+    #[schema(value_type = Option<AcquirerConfigs>)]
     pub acquirer_configs: Option<common_types::domain::AcquirerConfigs>,
 }
 
