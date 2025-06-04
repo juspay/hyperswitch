@@ -225,13 +225,13 @@ pub fn get_all_keys() -> JsResult {
     let excluded_keys = [
         "Connector",
         // 3DS Decision Rule Keys should not be included in the payument routing keys
-        "IssuerName",
-        "IssuerCountry",
-        "CustomerDevicePlatform",
-        "CustomerDeviceType",
-        "CustomerDeviceDisplaySize",
-        "AcquirerCountry",
-        "AcquirerFraudRate",
+        "issuer_name",
+        "issuer_country",
+        "customer_device_platform",
+        "customer_device_type",
+        "customer_device_display_size",
+        "acquirer_country",
+        "acquirer_fraud_rate",
     ];
 
     let keys: Vec<&'static str> = dir::DirKeyKind::VARIANTS
