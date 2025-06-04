@@ -218,7 +218,7 @@ impl From<api_models::disputes::DisputeResponse> for StripeDisputeResponse {
     fn from(res: api_models::disputes::DisputeResponse) -> Self {
         Self {
             id: res.dispute_id,
-            amount: res.amount,
+            amount: res.amount.to_string(),
             currency: res.currency,
             payment_intent: res.payment_id,
             reason: res.connector_reason,
