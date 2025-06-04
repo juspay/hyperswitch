@@ -31,6 +31,7 @@ pub mod worldpayvantiv_constants {
     pub const XML_VERSION: &str = "1.0";
     pub const XML_ENCODING: &str = "UTF-8";
     pub const XMLNS: &str = "http://www.vantivcnp.com/schema";
+    pub const MAX_ID_LENGTH: usize = 26;
 }
 
 pub struct WorldpayvantivRouterData<T> {
@@ -598,11 +599,18 @@ impl TryFrom<&WorldpayvantivRouterData<&PaymentsAuthorizeRouterData>> for CnpOnl
             password: worldpayvantiv_auth_type.password,
         };
 
+        let api_call_id =
+            if item.router_data.attempt_id.len() < worldpayvantiv_constants::MAX_ID_LENGTH {
+                item.router_data.attempt_id.clone()
+            } else {
+                format!("auth_{:?}", connector_utils::generate_12_digit_number())
+            };
+
         let (authorization, sale) = if item.router_data.request.is_auto_capture()? {
             (
                 None,
                 Some(Sale {
-                    id: item.router_data.attempt_id.clone(),
+                    id: api_call_id.clone(),
                     report_group: report_group.clone(),
                     order_id: item.router_data.payment_id.clone(),
                     amount: item.amount,
@@ -613,7 +621,7 @@ impl TryFrom<&WorldpayvantivRouterData<&PaymentsAuthorizeRouterData>> for CnpOnl
         } else {
             (
                 Some(Authorization {
-                    id: item.router_data.attempt_id.clone(),
+                    id: api_call_id.clone(),
                     report_group: report_group.clone(),
                     order_id: item.router_data.payment_id.clone(),
                     amount: item.amount,
@@ -2049,7 +2057,12 @@ fn get_attempt_status(
         WorldpayvantivResponseCode::Approved
         | WorldpayvantivResponseCode::PartiallyApproved
         | WorldpayvantivResponseCode::OfflineApproval
-        | WorldpayvantivResponseCode::OfflineApprovalUnableToGoOnline => match flow {
+        | WorldpayvantivResponseCode::OfflineApprovalUnableToGoOnline
+        | WorldpayvantivResponseCode::ConsumerNonReloadablePrepaidCardApproved
+        | WorldpayvantivResponseCode::ConsumerSingleUseVirtualCardNumberApproved
+        | WorldpayvantivResponseCode::ScheduledRecurringPaymentProcessed
+        | WorldpayvantivResponseCode::ApprovedRecurringSubscriptionCreated
+         => match flow {
             WorldpayvantivPaymentFlow::Sale => Ok(common_enums::AttemptStatus::Charged),
             WorldpayvantivPaymentFlow::Auth => Ok(common_enums::AttemptStatus::Authorized),
             WorldpayvantivPaymentFlow::Capture => Ok(common_enums::AttemptStatus::Charged),
@@ -2089,8 +2102,6 @@ fn get_attempt_status(
         | WorldpayvantivResponseCode::ConsumerNonReloadablePrepaidCardSoftDecline
         | WorldpayvantivResponseCode::ConsumerSingleUseVirtualCardNumberSoftDecline
         | WorldpayvantivResponseCode::UpdateCardholderData
-        | WorldpayvantivResponseCode::ConsumerNonReloadablePrepaidCardApproved
-        | WorldpayvantivResponseCode::ConsumerSingleUseVirtualCardNumberApproved
         | WorldpayvantivResponseCode::MerchantDoesntQualifyForProductCode
         | WorldpayvantivResponseCode::Lifecycle
         | WorldpayvantivResponseCode::Policy
@@ -2213,10 +2224,8 @@ fn get_attempt_status(
         | WorldpayvantivResponseCode::InvalidAccountFundingTransactionTypeForThisMethodOfPayment
         | WorldpayvantivResponseCode::MissingOneOrMoreReceiverFieldsForAccountFundingTransaction
         | WorldpayvantivResponseCode::InvalidRecurringRequestSeeRecurringResponseForDetails
-        | WorldpayvantivResponseCode::ApprovedRecurringSubscriptionCreated
         | WorldpayvantivResponseCode::ParentTransactionDeclinedRecurringSubscriptionNotCreated
         | WorldpayvantivResponseCode::InvalidPlanCode
-        | WorldpayvantivResponseCode::ScheduledRecurringPaymentProcessed
         | WorldpayvantivResponseCode::InvalidSubscriptionId
         | WorldpayvantivResponseCode::AddOnCodeAlreadyExists
         | WorldpayvantivResponseCode::DuplicateAddOnCodesInRequests
@@ -2459,8 +2468,6 @@ fn get_refund_status(
         | WorldpayvantivResponseCode::ConsumerMultiUseVirtualCardNumberSoftDecline
         | WorldpayvantivResponseCode::ConsumerNonReloadablePrepaidCardSoftDecline
         | WorldpayvantivResponseCode::ConsumerSingleUseVirtualCardNumberSoftDecline
-        | WorldpayvantivResponseCode::ConsumerNonReloadablePrepaidCardApproved
-        | WorldpayvantivResponseCode::ConsumerSingleUseVirtualCardNumberApproved
         | WorldpayvantivResponseCode::MerchantDoesntQualifyForProductCode
         | WorldpayvantivResponseCode::Lifecycle
         | WorldpayvantivResponseCode::Policy
