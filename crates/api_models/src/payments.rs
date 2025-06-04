@@ -43,7 +43,7 @@ use crate::payment_methods;
 use crate::{
     admin::{self, MerchantConnectorInfo},
     enums as api_enums,
-    mandates::RecurringDetails,
+    mandates::RecurringDetails, payments,
 };
 #[cfg(feature = "v1")]
 use crate::{disputes, ephemeral_key::EphemeralKeyCreateResponse, refunds, ValidateFieldAndGet};
@@ -596,6 +596,10 @@ pub struct PaymentsIntentResponse {
     #[serde(with = "common_utils::custom_serde::iso8601")]
     pub expires_on: PrimitiveDateTime,
 
+    /// When is this intent created
+    #[serde(with = "common_utils::custom_serde::iso8601")]
+    pub created_at: PrimitiveDateTime,
+
     /// Additional data related to some frm(Fraud Risk Management) connectors
     #[schema(value_type = Option<Object>, example = r#"{ "coverage_request" : "fraud", "fulfillment_method" : "delivery" }"#)]
     pub frm_metadata: Option<pii::SecretSerdeValue>,
@@ -603,6 +607,9 @@ pub struct PaymentsIntentResponse {
     /// Whether to perform external authentication (if applicable)
     #[schema(value_type = External3dsAuthenticationRequest)]
     pub request_external_three_ds_authentication: common_enums::External3dsAuthenticationRequest,
+
+    /// merchant id
+    pub merchant_id: id_type::MerchantId,
 }
 
 #[cfg(feature = "v2")]
@@ -1544,11 +1551,14 @@ pub struct PaymentAttemptResponse {
     /// The global identifier for the payment attempt
     #[schema(value_type = String)]
     pub id: id_type::GlobalAttemptId,
+
     /// /// The status of the attempt
     #[schema(value_type = AttemptStatus, example = "charged")]
     pub status: enums::AttemptStatus,
+
     /// Amount related information for this payment and attempt
     pub amount: PaymentAttemptAmountDetails,
+    
     /// Name of the connector that was used for the payment attempt.
     #[schema(example = "stripe")]
     pub connector: Option<String>,
@@ -1606,6 +1616,7 @@ pub struct PaymentAttemptResponse {
 
     /// Value passed in X-CLIENT-SOURCE header during payments confirm request by the client
     pub client_source: Option<String>,
+
     /// Value passed in X-CLIENT-VERSION header during payments confirm request by the client
     pub client_version: Option<String>,
 
@@ -1622,12 +1633,22 @@ pub struct PaymentAttemptRecordResponse {
     /// The status of the attempt
     #[schema(value_type = AttemptStatus, example = "charged")]
     pub status: enums::AttemptStatus,
+    /// The amount of the payment attempt
+    #[schema(value_type = i64, example = 6540)]
+    pub amount: MinorUnit,
+    /// The card network used for the payment attempt
+    #[schema(value_type = Option<CardNetwork>, example = "Visa")]
+    pub card_network: Option<api_enums::CardNetwork>,
+    /// Error details for the payment attempt, if any.
+    /// This includes fields like error code, network advice code, and network decline code.
+    pub error_details: Option<RecordAttemptErrorDetails>,
     /// Additional data that might be required by hyperswitch based on the requested features by the merchants.
     #[schema(value_type = Option<FeatureMetadata>)]
     pub payment_intent_feature_metadata: Option<FeatureMetadata>,
     /// Additional data that might be required by hyperswitch, to enable some specific features.
     pub payment_attempt_feature_metadata: Option<PaymentAttemptFeatureMetadata>,
 }
+
 #[cfg(feature = "v2")]
 #[derive(Clone, Debug, serde::Deserialize, serde::Serialize, PartialEq, ToSchema)]
 pub struct PaymentAttemptFeatureMetadata {
@@ -8768,4 +8789,16 @@ pub struct RecordAttemptErrorDetails {
     pub network_decline_code: Option<String>,
     /// A string indicating how to proceed with an network error if payment gateway provide one. This is used to understand the network error code better.
     pub network_error_message: Option<String>,
+}
+
+impl From<ErrorDetails> for RecordAttemptErrorDetails {
+    fn from(error_details: ErrorDetails) -> Self {
+        Self {
+            code: error_details.code,
+            message: error_details.message,
+            network_decline_code: error_details.network_decline_code,
+            network_advice_code: error_details.network_advice_code,
+            network_error_message: error_details.network_error_message,
+        }
+    }
 }

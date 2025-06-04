@@ -1,11 +1,15 @@
 use std::{marker::PhantomData, str::FromStr};
-use services::kafka::revenue_recovery::RevenueRecovery;
+
 use api_models::{enums as api_enums, payments as api_payments, webhooks};
 use common_utils::{
+    crypto::Encryptable,
     ext_traits::{AsyncExt, ValueExt},
     id_type,
 };
 use diesel_models::process_tracker as storage;
+use masking::Secret;
+use serde_json::Value;
+use services::kafka::revenue_recovery::RevenueRecovery;
 use error_stack::{report, ResultExt};
 use hyperswitch_domain_models::{
     payments as domain_payments, revenue_recovery, router_data_v2::flow_common_types,
@@ -153,29 +157,56 @@ pub async fn recovery_incoming_webhook_flow(
 
     router_env::logger::info!("Intent retry count: {:?}", intent_retry_count);
 
-    state.event_handler.log_event(&RevenueRecovery{
-        attempt_id: &"string".to_string(),
-        // payment_id: &recovery_intent_from_payment_attempt.payment_id,
-        // attempt_amount: recovery_attempt_from_payment_attempt
-        //     .as_ref()
-        //     .map_or(0, |attempt| attempt.amount),
-        // attempt_currency: recovery_attempt_from_payment_attempt
-        //     .as_ref()
-        //     .map_or(&common_enums::Currency::default(), |attempt| &attempt.currency),
-        attempt_status: recovery_attempt_from_payment_attempt
-            .as_ref()
-            .map_or(&common_enums::AttemptStatus::default(), |attempt| &attempt.attempt_status),
-        // attempt_error_code: recovery_attempt_from_payment_attempt
-        //     .as_ref()
-        //     .and_then(|attempt| attempt.error_code.as_ref()),
-        // attempt_created_at: recovery_attempt_from_payment_attempt
-        //     .as_ref()
-        //     .and_then(
-        //         // || recovery_intent_from_payment_attempt.feature_metadata.as_ref().and_then(|metadata| metadata.payment_revenue_recovery_metadata.as_ref().and_then(|rr_metadata| rr_metadata.)),
-        //         |attempt| attempt.,
-        //     )
-        //     .assume_utc(),
-    });
+    // // Temporary owned strings for optional error fields
+    // let error_code = recovery_attempt_from_payment_attempt
+    //     .as_ref()
+    //     .and_then(|a| a.error_code.clone());
+    // let temp_network_error_message = recovery_attempt_from_payment_attempt
+    //     .as_ref()
+    //     .and_then(|a| a.network_error_message.clone());
+    // let network_decline_code = recovery_attempt_from_payment_attempt
+    //     .as_ref()
+    //     .and_then(|a| a.network_decline_code.clone());
+    
+    // let attempt_id_str = recovery_attempt_from_payment_attempt
+    //     .as_ref()
+    //     .map_or_else(|| "N/A".to_string(), |attempt| attempt.attempt_id.get_string_repr().to_string()); 
+    
+    // let merchant_reference_id_str = recovery_intent_from_payment_attempt.merchant_reference_id.get_string_repr().to_string(); 
+    // state.event_handler.log_event(&RevenueRecovery{
+    //     merchant_id: &recovery_intent_from_payment_attempt.merchant_id,
+    //     invoice_id: merchant_reference_id_str, // Pass owned String
+    //     invoice_amount: recovery_intent_from_payment_attempt.invoice_amount,
+    //     invoice_currency: &recovery_intent_from_payment_attempt.invoice_currency,
+    //     invoice_due_date: recovery_intent_from_payment_attempt.created_at.map(|dt| dt.assume_utc()), // Assuming created_at can be used as invoice_due_date
+    //     invoice_date: recovery_intent_from_payment_attempt.created_at.map_or_else(time::OffsetDateTime::now_utc, |dt| dt.assume_utc()), // Assuming created_at can be used as invoice_date or now if not present
+    //     invoice_address: recovery_intent_from_payment_attempt.billing_address.as_ref().map(|addr| Encryptable::new(Secret::new(Value::from(addr.clone())), merchant_context.peek_storage_scheme())),
+    //     attempt_id: attempt_id_str, // Pass owned String
+    //     attempt_amount: recovery_attempt_from_payment_attempt
+    //         .as_ref()
+    //         .map_or(common_utils::types::MinorUnit::new(0), |attempt| attempt.amount),
+    //     attempt_currency: recovery_attempt_from_payment_attempt
+    //         .as_ref()
+    //         .map_or(&common_enums::Currency::default(), |attempt| &attempt.currency),
+    //     attempt_status: recovery_attempt_from_payment_attempt
+    //         .as_ref()
+    //         .map_or(&common_enums::AttemptStatus::default(), |attempt| &attempt.attempt_status),
+    //     attempt_error_code: temp_error_code, // Pass Option<String>
+    //     network_error_message: temp_network_error_message, // Pass Option<String>
+    //     network_error_code: temp_network_decline_code, // Pass Option<String>, Assuming network_decline_code can be used as network_error_code
+    //     attempt_created_at: recovery_attempt_from_payment_attempt
+    //         .as_ref()
+    //         .and_then(|attempt| attempt.transaction_created_at)
+    //         .map_or_else(time::OffsetDateTime::now_utc, |dt| dt.assume_utc()),
+    //     payment_method_type: recovery_attempt_from_payment_attempt
+    //         .as_ref()
+    //         .map(|attempt| &attempt.payment_method_type),
+    //     payment_method_subtype: recovery_attempt_from_payment_attempt
+    //         .as_ref()
+    //         .map(|attempt| &attempt.payment_method_sub_type),
+    //     card_network: None, // Placeholder, needs to be fetched if available
+    //     card_issuer: None, // Placeholder, needs to be fetched if available
+    // });
 
     match action {
         revenue_recovery::RecoveryAction::CancelInvoice => todo!(),
@@ -370,6 +401,12 @@ impl RevenueRecoveryInvoice {
                     payment_id,
                     status,
                     feature_metadata,
+                    merchant_id: payments_response.merchant_id.clone(),
+                    merchant_reference_id: self.0.merchant_reference_id.clone(),
+                    invoice_amount: self.0.amount,
+                    invoice_currency: self.0.currency,
+                    created_at: payments_response.created_at,
+                    billing_address: self.0.billing_address.clone(),
                 }))
             }
             Err(err)
@@ -430,6 +467,12 @@ impl RevenueRecoveryInvoice {
             payment_id: response.id,
             status: response.status,
             feature_metadata: response.feature_metadata,
+            merchant_id: response.merchant_id.clone(),
+            merchant_reference_id: self.0.merchant_reference_id.clone(),
+            invoice_amount: self.0.amount,
+            invoice_currency: self.0.currency,
+            created_at: response.created_at,
+            billing_address: self.0.billing_address.clone(),
         })
     }
 }
@@ -530,10 +573,15 @@ impl RevenueRecoveryAttempt {
                                 )
                         });
                 let payment_attempt =
-                    final_attempt.map(|attempt_res| revenue_recovery::RecoveryPaymentAttempt {
-                        attempt_id: attempt_res.id.to_owned(),
-                        attempt_status: attempt_res.status.to_owned(),
-                        feature_metadata: attempt_res.feature_metadata.to_owned(),
+                    final_attempt.map(|res| revenue_recovery::RecoveryPaymentAttempt {
+                        attempt_id: res.id.to_owned(),
+                        attempt_status: res.status.to_owned(),
+                        feature_metadata: res.feature_metadata.to_owned(),
+                        amount: res.amount.net_amount,
+                        card_network: None,
+                        network_advice_code: res.error.clone().and_then(|e| e.network_advice_code), // Placeholder, to be populated if available
+                        network_decline_code: res.error.clone().and_then(|e| e.network_decline_code), // Placeholder, to be populated if available
+                        error_code: res.error.clone().and_then(|error| Some(error.code)),
                     });
                 // If we have an attempt, combine it with payment_intent in a tuple.
                 let res_with_payment_intent_and_attempt =
@@ -590,16 +638,28 @@ impl RevenueRecoveryAttempt {
 
         let (recovery_attempt, updated_recovery_intent) = match attempt_response {
             Ok(services::ApplicationResponse::JsonWithHeaders((attempt_response, _))) => {
+                
                 Ok((
                     revenue_recovery::RecoveryPaymentAttempt {
                         attempt_id: attempt_response.id.clone(),
                         attempt_status: attempt_response.status,
                         feature_metadata: attempt_response.payment_attempt_feature_metadata,
+                        amount: attempt_response.amount,
+                        card_network: None,
+                        network_advice_code: attempt_response.error_details.clone().and_then(|error| error.network_decline_code), // Placeholder, to be populated if available
+                        network_decline_code: attempt_response.error_details.clone().and_then(|error| error.network_decline_code), // Placeholder, to be populated if available
+                        error_code: attempt_response.error_details.clone().map(|error| error.code),
                     },
                     revenue_recovery::RecoveryPaymentIntent {
                         payment_id: payment_intent.payment_id.clone(),
                         status: attempt_response.status.into(), // Using status from attempt_response
                         feature_metadata: attempt_response.payment_intent_feature_metadata, // Using feature_metadata from attempt_response
+                        merchant_id: payment_intent.merchant_id.clone(),
+                        merchant_reference_id: payment_intent.merchant_reference_id.clone(),
+                        invoice_amount: payment_intent.invoice_amount,
+                        invoice_currency: payment_intent.invoice_currency,
+                        created_at: payment_intent.created_at,
+                        billing_address: payment_intent.billing_address.clone(),
                     },
                 ))
             }
@@ -1174,4 +1234,12 @@ impl BillingConnectorInvoiceSyncFlowRouterData {
     fn inner(self) -> router_types::BillingConnectorInvoiceSyncRouterData {
         self.0
     }
+}
+
+async fn publish_revenue_recovery_event_to_kafka(
+    state: &SessionState,
+    payment_intent: &revenue_recovery::RecoveryPaymentIntent,
+    payment_attempt: &revenue_recovery::RecoveryPaymentAttempt,
+)-> CustomResult<(),errors::RevenueRecoveryError>{
+    Ok(())
 }

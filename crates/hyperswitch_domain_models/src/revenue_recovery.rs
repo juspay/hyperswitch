@@ -83,17 +83,29 @@ pub enum RecoveryAction {
     /// Invalid event has been received.
     InvalidAction,
 }
+
 #[derive(Clone)]
 pub struct RecoveryPaymentIntent {
     pub payment_id: id_type::GlobalPaymentId,
     pub status: common_enums::IntentStatus,
     pub feature_metadata: Option<api_payments::FeatureMetadata>,
+    pub merchant_id: id_type::MerchantId,
+    pub merchant_reference_id: id_type::PaymentReferenceId,
+    pub invoice_amount: util_types::MinorUnit,
+    pub invoice_currency: common_enums::Currency,
+    pub created_at: PrimitiveDateTime,
+    pub billing_address: Option<api_payments::Address>,
 }
 
 pub struct RecoveryPaymentAttempt {
     pub attempt_id: id_type::GlobalAttemptId,
     pub attempt_status: common_enums::AttemptStatus,
     pub feature_metadata: Option<api_payments::PaymentAttemptFeatureMetadata>,
+    pub amount: util_types::MinorUnit,
+    pub card_network: Option<String>,
+    pub network_advice_code: Option<String>,
+    pub network_decline_code: Option<String>,
+    pub error_code: Option<String>,
 }
 
 impl RecoveryPaymentAttempt {
