@@ -37,12 +37,12 @@ pub async fn execute_three_ds_decision_rule(
         .algorithm_data
         .parse_value("Algorithm")
         .change_context(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable("Error parsing program from routing algorithm")?;
+        .attach_printable("Error parsing program from three_ds_decision rule algorithm")?;
     let program: ast::Program<ThreeDSDecisionRule> = algorithm
         .data
         .parse_value("Program<ThreeDSDecisionRule>")
         .change_context(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable("Error parsing program from routing algorithm")?;
+        .attach_printable("Error parsing program from three_ds_decision rule algorithm")?;
     // Construct backend input from request
     let backend_input = construct_backend_input(request.clone())
         .change_context(errors::ApiErrorResponse::InternalServerError)
