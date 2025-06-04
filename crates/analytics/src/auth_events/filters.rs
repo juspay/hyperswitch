@@ -1,5 +1,5 @@
 use api_models::analytics::{auth_events::AuthEventDimensions, Granularity, TimeRange};
-use common_enums::DecoupledAuthenticationType;
+use common_enums::{Currency, DecoupledAuthenticationType};
 use common_utils::errors::ReportSwitchExt;
 use diesel_models::enums::{AuthenticationConnectors, AuthenticationStatus, TransactionStatus};
 use error_stack::ResultExt;
@@ -60,4 +60,25 @@ pub struct AuthEventFilterRow {
     pub authentication_connector: Option<DBEnumWrapper<AuthenticationConnectors>>,
     pub message_version: Option<String>,
     pub acs_reference_number: Option<String>,
+    pub platform: Option<String>,
+    pub mcc: Option<String>,
+    pub currency: Option<DBEnumWrapper<Currency>>,
+    pub merchant_country: Option<String>,
+    pub billing_country: Option<String>,
+    pub shipping_country: Option<String>,
+    pub issuer_country: Option<String>,
+    pub earliest_supported_version: Option<String>,
+    pub latest_supported_version: Option<String>,
+    pub whitelist_decision: Option<bool>,
+    pub device_manufacturer: Option<String>,
+    pub device_type: Option<String>,
+    pub device_brand: Option<String>,
+    pub device_os: Option<String>,
+    pub device_display: Option<String>,
+    pub browser_name: Option<String>,
+    pub browser_version: Option<String>,
+    pub issuer_id: Option<String>,
+    pub scheme_name: Option<String>,
+    pub exemption_requested: Option<bool>,
+    pub exemption_accepted: Option<bool>,
 }

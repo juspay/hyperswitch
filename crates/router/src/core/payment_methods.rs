@@ -1876,7 +1876,8 @@ pub async fn vault_payment_method_external(
 
     let connector_name = merchant_connector_account
         .get_connector_name()
-        .unwrap_or_default(); // always get the connector name from this call
+        .ok_or(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Connector name not present for external vault")?; // always get the connector name from this call
 
     let connector_data = api::ConnectorData::get_external_vault_connector_by_name(
         &state.conf.connectors,
