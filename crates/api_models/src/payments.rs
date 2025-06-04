@@ -7014,6 +7014,7 @@ pub enum VaultSessionDetails {
 #[derive(Debug, Clone, Eq, PartialEq, serde::Serialize, ToSchema)]
 pub struct VgsSessionDetails {
     /// The identifier of the external vault
+    #[schema(value_type = String)]
     pub external_vault_id: Secret<String>,
     /// The environment for the external vault initiation
     pub sdk_env: String,
@@ -7022,12 +7023,16 @@ pub struct VgsSessionDetails {
 #[derive(Debug, Clone, Eq, PartialEq, serde::Serialize, ToSchema)]
 pub struct HyperswitchVaultSessionDetails {
     /// Session ID for Hyperswitch Vault
+    #[schema(value_type = String)]
     pub payment_method_session_id: Secret<String>,
     /// Client secret for Hyperswitch Vault
+    #[schema(value_type = String)]
     pub client_secret: Secret<String>,
     /// Publishable key for Hyperswitch Vault
+    #[schema(value_type = String)]
     pub publishable_key: Secret<String>,
     /// Profile ID for Hyperswitch Vault
+    #[schema(value_type = String)]
     pub profile_id: Secret<String>,
 }
 

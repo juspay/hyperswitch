@@ -12228,16 +12228,20 @@
         ],
         "properties": {
           "payment_method_session_id": {
-            "$ref": "#/components/schemas/Secret"
+            "type": "string",
+            "description": "Session ID for Hyperswitch Vault"
           },
           "client_secret": {
-            "$ref": "#/components/schemas/Secret"
+            "type": "string",
+            "description": "Client secret for Hyperswitch Vault"
           },
           "publishable_key": {
-            "$ref": "#/components/schemas/Secret"
+            "type": "string",
+            "description": "Publishable key for Hyperswitch Vault"
           },
           "profile_id": {
-            "$ref": "#/components/schemas/Secret"
+            "type": "string",
+            "description": "Profile ID for Hyperswitch Vault"
           }
         }
       },
@@ -24375,10 +24379,10 @@
           {
             "type": "object",
             "required": [
-              "Vgs"
+              "vgs"
             ],
             "properties": {
-              "Vgs": {
+              "vgs": {
                 "$ref": "#/components/schemas/VgsSessionDetails"
               }
             }
@@ -24386,10 +24390,10 @@
           {
             "type": "object",
             "required": [
-              "HyperswitchVault"
+              "hyperswitch_vault"
             ],
             "properties": {
-              "HyperswitchVault": {
+              "hyperswitch_vault": {
                 "$ref": "#/components/schemas/HyperswitchVaultSessionDetails"
               }
             }
@@ -24429,7 +24433,8 @@
         ],
         "properties": {
           "external_vault_id": {
-            "$ref": "#/components/schemas/Secret"
+            "type": "string",
+            "description": "The identifier of the external vault"
           },
           "sdk_env": {
             "type": "string",
