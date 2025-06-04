@@ -8,8 +8,8 @@ use async_trait::async_trait;
 use common_utils::{
     errors::ReportSwitchExt,
     events::ApiEventsType,
-    types::{AmountConvertor, StringMinorUnitForConnector},
     ext_traits::{AsyncExt, ByteSliceExt, ValueExt},
+    types::{AmountConvertor, StringMinorUnitForConnector},
 };
 use diesel_models::ConnectorMandateReferenceId;
 use error_stack::{report, ResultExt};

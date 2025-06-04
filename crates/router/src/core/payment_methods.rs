@@ -10,7 +10,6 @@ pub mod transformers;
 pub mod utils;
 mod validator;
 pub mod vault;
-use std::borrow::Cow;
 #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
 use std::collections::HashSet;
 use std::{borrow::Cow, str::FromStr};
@@ -22,7 +21,11 @@ pub use api_models::enums::Connector;
 pub use api_models::{enums::PayoutConnectors, payouts as payout_types};
 use api_models::{payment_methods, webhooks::WebhookResponseTracker};
 #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
-use common_utils::{ ext_traits::{Encode, OptionExt}, consts::DEFAULT_LOCALE, id_type};
+use common_utils::{
+    consts::DEFAULT_LOCALE,
+    ext_traits::{Encode, OptionExt},
+    id_type,
+};
 #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
 use common_utils::{
     crypto::Encryptable,
