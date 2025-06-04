@@ -2190,7 +2190,7 @@ pub async fn list_customer_payment_method_core(
             .try_collect::<Vec<_>>()
             .await;
 
-    customer_payment_methods.extend(payment_method_results?.into_iter().filter_map(|opt| opt));
+    customer_payment_methods.extend(payment_method_results?.into_iter().flatten());
 
     let response = api::CustomerPaymentMethodsListResponse {
         customer_payment_methods,

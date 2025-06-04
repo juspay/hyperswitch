@@ -1016,7 +1016,7 @@ impl transformers::ForeignTryFrom<(domain::PaymentMethod, String)>
             billing: payment_method_billing,
             network_tokenization: network_token_resp,
             psp_tokenization_enabled: psp_tokenization_enabled.unwrap_or(false),
-            payment_token: payment_token,
+            payment_token,
         })
     }
 }

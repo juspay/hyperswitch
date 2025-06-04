@@ -2573,7 +2573,6 @@ impl<F: Clone> PostUpdateTracker<F, PaymentConfirmData<F>, types::PaymentsAuthor
                 | common_enums::AttemptStatus::PaymentMethodAwaited
                 | common_enums::AttemptStatus::ConfirmationAwaited
                 | common_enums::AttemptStatus::DeviceDataCollectionPending => {
-
                     let pm_update_status = enums::PaymentMethodStatus::Active;
 
                     // payment_methods microservice call
@@ -2587,7 +2586,6 @@ impl<F: Clone> PostUpdateTracker<F, PaymentConfirmData<F>, types::PaymentsAuthor
                     .await
                     .change_context(errors::ApiErrorResponse::InternalServerError)
                     .attach_printable("Failed to update payment method status")?;
-
                 }
             }
         }
