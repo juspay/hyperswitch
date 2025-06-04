@@ -76,6 +76,7 @@ pub struct Profile {
     pub is_iframe_redirection_enabled: Option<bool>,
     pub is_pre_network_tokenization_enabled: bool,
     pub three_ds_decision_rule_algorithm: Option<serde_json::Value>,
+    pub acquirer_configs: Option<common_types::domain::AcquirerConfigs>,
 }
 
 #[cfg(feature = "v1")]
@@ -129,6 +130,7 @@ pub struct ProfileSetter {
     pub merchant_business_country: Option<api_enums::CountryAlpha2>,
     pub is_iframe_redirection_enabled: Option<bool>,
     pub is_pre_network_tokenization_enabled: bool,
+    pub acquirer_configs: Option<common_types::domain::AcquirerConfigs>,
 }
 
 #[cfg(feature = "v1")]
@@ -188,6 +190,7 @@ impl From<ProfileSetter> for Profile {
             is_iframe_redirection_enabled: value.is_iframe_redirection_enabled,
             is_pre_network_tokenization_enabled: value.is_pre_network_tokenization_enabled,
             three_ds_decision_rule_algorithm: None, // three_ds_decision_rule_algorithm is not yet created during profile creation
+            acquirer_configs: value.acquirer_configs,
         }
     }
 }
@@ -248,6 +251,7 @@ pub struct ProfileGeneralUpdate {
     pub merchant_business_country: Option<api_enums::CountryAlpha2>,
     pub is_iframe_redirection_enabled: Option<bool>,
     pub is_pre_network_tokenization_enabled: Option<bool>,
+    pub acquirer_configs: Option<common_types::domain::AcquirerConfigs>,
 }
 
 #[cfg(feature = "v1")]
@@ -324,6 +328,7 @@ impl From<ProfileUpdate> for ProfileUpdateInternal {
                     merchant_business_country,
                     is_iframe_redirection_enabled,
                     is_pre_network_tokenization_enabled,
+                    acquirer_configs,
                 } = *update;
 
                 Self {
@@ -373,6 +378,7 @@ impl From<ProfileUpdate> for ProfileUpdateInternal {
                     is_iframe_redirection_enabled,
                     is_pre_network_tokenization_enabled,
                     three_ds_decision_rule_algorithm: None,
+                    acquirer_configs,
                 }
             }
             ProfileUpdate::RoutingAlgorithmUpdate {
@@ -425,6 +431,7 @@ impl From<ProfileUpdate> for ProfileUpdateInternal {
                 is_iframe_redirection_enabled: None,
                 is_pre_network_tokenization_enabled: None,
                 three_ds_decision_rule_algorithm,
+                acquirer_configs: None,
             },
             ProfileUpdate::DynamicRoutingAlgorithmUpdate {
                 dynamic_routing_algorithm,
@@ -474,6 +481,7 @@ impl From<ProfileUpdate> for ProfileUpdateInternal {
                 is_iframe_redirection_enabled: None,
                 is_pre_network_tokenization_enabled: None,
                 three_ds_decision_rule_algorithm: None,
+                acquirer_configs: None,
             },
             ProfileUpdate::ExtendedCardInfoUpdate {
                 is_extended_card_info_enabled,
@@ -523,6 +531,7 @@ impl From<ProfileUpdate> for ProfileUpdateInternal {
                 is_iframe_redirection_enabled: None,
                 is_pre_network_tokenization_enabled: None,
                 three_ds_decision_rule_algorithm: None,
+                acquirer_configs: None,
             },
             ProfileUpdate::ConnectorAgnosticMitUpdate {
                 is_connector_agnostic_mit_enabled,
@@ -572,6 +581,7 @@ impl From<ProfileUpdate> for ProfileUpdateInternal {
                 is_iframe_redirection_enabled: None,
                 is_pre_network_tokenization_enabled: None,
                 three_ds_decision_rule_algorithm: None,
+                acquirer_configs: None,
             },
             ProfileUpdate::NetworkTokenizationUpdate {
                 is_network_tokenization_enabled,
@@ -621,6 +631,7 @@ impl From<ProfileUpdate> for ProfileUpdateInternal {
                 is_iframe_redirection_enabled: None,
                 is_pre_network_tokenization_enabled: None,
                 three_ds_decision_rule_algorithm: None,
+                acquirer_configs: None,
             },
             ProfileUpdate::CardTestingSecretKeyUpdate {
                 card_testing_secret_key,
@@ -670,6 +681,7 @@ impl From<ProfileUpdate> for ProfileUpdateInternal {
                 is_iframe_redirection_enabled: None,
                 is_pre_network_tokenization_enabled: None,
                 three_ds_decision_rule_algorithm: None,
+                acquirer_configs: None,
             },
         }
     }
@@ -739,6 +751,7 @@ impl super::behaviour::Conversion for Profile {
             is_iframe_redirection_enabled: self.is_iframe_redirection_enabled,
             is_pre_network_tokenization_enabled: Some(self.is_pre_network_tokenization_enabled),
             three_ds_decision_rule_algorithm: self.three_ds_decision_rule_algorithm,
+            acquirer_configs: self.acquirer_configs,
         })
     }
 
@@ -834,6 +847,7 @@ impl super::behaviour::Conversion for Profile {
                     .is_pre_network_tokenization_enabled
                     .unwrap_or(false),
                 three_ds_decision_rule_algorithm: item.three_ds_decision_rule_algorithm,
+                acquirer_configs: item.acquirer_configs,
             })
         }
         .await
@@ -897,6 +911,7 @@ impl super::behaviour::Conversion for Profile {
             merchant_business_country: self.merchant_business_country,
             is_iframe_redirection_enabled: self.is_iframe_redirection_enabled,
             is_pre_network_tokenization_enabled: Some(self.is_pre_network_tokenization_enabled),
+            acquirer_configs: self.acquirer_configs,
         })
     }
 }
@@ -946,6 +961,7 @@ pub struct Profile {
     pub authentication_product_ids:
         Option<common_types::payments::AuthenticationConnectorAccountMap>,
     pub three_ds_decision_manager_config: Option<common_types::payments::DecisionManagerRecord>,
+    pub acquirer_configs: Option<common_types::domain::AcquirerConfigs>,
     pub card_testing_guard_config: Option<CardTestingGuardConfig>,
     pub card_testing_secret_key: OptionalEncryptableName,
     pub is_clear_pan_retries_enabled: bool,
@@ -1001,6 +1017,7 @@ pub struct ProfileSetter {
     pub authentication_product_ids:
         Option<common_types::payments::AuthenticationConnectorAccountMap>,
     pub three_ds_decision_manager_config: Option<common_types::payments::DecisionManagerRecord>,
+    pub acquirer_configs: Option<common_types::domain::AcquirerConfigs>,
     pub card_testing_guard_config: Option<CardTestingGuardConfig>,
     pub card_testing_secret_key: OptionalEncryptableName,
     pub is_clear_pan_retries_enabled: bool,
@@ -1061,6 +1078,7 @@ impl From<ProfileSetter> for Profile {
             is_click_to_pay_enabled: value.is_click_to_pay_enabled,
             authentication_product_ids: value.authentication_product_ids,
             three_ds_decision_manager_config: value.three_ds_decision_manager_config,
+            acquirer_configs: value.acquirer_configs,
             card_testing_guard_config: value.card_testing_guard_config,
             card_testing_secret_key: value.card_testing_secret_key,
             is_clear_pan_retries_enabled: value.is_clear_pan_retries_enabled,
@@ -1138,6 +1156,7 @@ pub struct ProfileGeneralUpdate {
     pub authentication_product_ids:
         Option<common_types::payments::AuthenticationConnectorAccountMap>,
     pub three_ds_decision_manager_config: Option<common_types::payments::DecisionManagerRecord>,
+    pub acquirer_configs: Option<common_types::domain::AcquirerConfigs>,
     pub card_testing_guard_config: Option<CardTestingGuardConfig>,
     pub card_testing_secret_key: OptionalEncryptableName,
     pub is_debit_routing_enabled: Option<bool>,
@@ -1216,6 +1235,7 @@ impl From<ProfileUpdate> for ProfileUpdateInternal {
                     is_click_to_pay_enabled,
                     authentication_product_ids,
                     three_ds_decision_manager_config,
+                    acquirer_configs,
                     card_testing_guard_config,
                     card_testing_secret_key,
                     is_debit_routing_enabled,
@@ -1808,6 +1828,7 @@ impl super::behaviour::Conversion for Profile {
             is_click_to_pay_enabled: self.is_click_to_pay_enabled,
             authentication_product_ids: self.authentication_product_ids,
             three_ds_decision_manager_config: self.three_ds_decision_manager_config,
+            acquirer_configs: self.acquirer_configs,
             card_testing_guard_config: self.card_testing_guard_config,
             card_testing_secret_key: self.card_testing_secret_key.map(|name| name.into()),
             is_clear_pan_retries_enabled: self.is_clear_pan_retries_enabled,
@@ -1891,6 +1912,7 @@ impl super::behaviour::Conversion for Profile {
                 is_click_to_pay_enabled: item.is_click_to_pay_enabled,
                 authentication_product_ids: item.authentication_product_ids,
                 three_ds_decision_manager_config: item.three_ds_decision_manager_config,
+                acquirer_configs: item.acquirer_configs,
                 card_testing_guard_config: item.card_testing_guard_config,
                 card_testing_secret_key: match item.card_testing_secret_key {
                     Some(encrypted_value) => crypto_operation(

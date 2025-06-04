@@ -691,6 +691,41 @@ macro_rules! impl_enum_str {
     };
 }
 
+/// This macro is used to check for duplicates in a list of values.
+/// It takes a vector of strings and a set of strings as arguments.
+/// Uses HashSet for checking duplicates. If insertion fails (i.e., duplicate found), puts it in the vector.
+/// Returns a vector of strings containing the duplicate values.
+#[macro_export]
+macro_rules! check_and_add_duplicate {
+    // Arm for most fields that are Clone and use Display for formatting
+    ($duplicates_vec:expr, $seen_set:expr, $field_value:expr, $field_name_str:expr) => {
+        if !$seen_set.insert($field_value.clone()) {
+            $duplicates_vec.push(format!("{}: {}", $field_name_str, $field_value));
+        }
+    };
+    // Arm for fields that are Clone and need Debug formatting (e.g., enums)
+    ($duplicates_vec:expr, $seen_set:expr, $field_value:expr, $field_name_str:expr, debug_format) => {
+        if !$seen_set.insert($field_value.clone()) {
+            $duplicates_vec.push(format!("{}: {:?}", $field_name_str, $field_value));
+        }
+    };
+    // Arm for Option<String>: only check Some(value), store String in seen_set
+    ($duplicates_vec:expr, $seen_set:expr, $option_string_value:expr, $field_name_str:expr, option_some_string_check) => {
+        if let Some(ref value_inside_option) = $option_string_value {
+            // Check if it's Some(value)
+            if !$seen_set.insert(value_inside_option.clone()) {
+                // $seen_set is HashSet<String>
+                $duplicates_vec.push(format!(
+                    // Format with the inner value
+                    "{}: {}",
+                    $field_name_str, value_inside_option
+                ));
+            }
+        }
+        // If $option_string_value is None, this arm does nothing.
+    };
+}
+
 // --- Tests ---
 #[cfg(test)]
 mod tests {

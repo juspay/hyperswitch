@@ -2111,6 +2111,21 @@ impl ForeignFrom<api_models::admin::CardTestingGuardConfig>
     }
 }
 
+// impl ForeignFrom<api_models::admin::AcquirerConfig> for diesel_models::business_profile::AcquirerConfig {
+//     fn foreign_from(item: api_models::admin::AcquirerConfig) -> Self {
+//         Self {
+//             acquirer_assigned_merchant_id: item.acquirer_assigned_merchant_id,
+//             merchant_name: item.merchant_name,
+//             mcc: item.mcc,
+//             merchant_country_code: item.merchant_country_code,
+//             network: item.network,
+//             acquirer_bin: item.acquirer_bin,
+//             acquirer_ica: item.acquirer_ica,
+//             acquirer_fraud_rate: item.acquirer_fraud_rate,
+//         }
+//     }
+// }
+
 impl ForeignFrom<diesel_models::business_profile::CardTestingGuardConfig>
     for api_models::admin::CardTestingGuardConfig
 {

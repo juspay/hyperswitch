@@ -3823,6 +3823,7 @@ impl ProfileCreateBridge for api::ProfileCreate {
         state: &SessionState,
         merchant_context: &domain::MerchantContext,
     ) -> RouterResult<domain::Profile> {
+        use common_types::domain::AcquirerConfigs;
         use common_utils::ext_traits::AsyncExt;
 
         if let Some(session_expiry) = &self.session_expiry {
@@ -3903,6 +3904,29 @@ impl ProfileCreateBridge for api::ProfileCreate {
             .card_testing_guard_config
             .map(CardTestingGuardConfig::foreign_from)
             .or(Some(CardTestingGuardConfig::default()));
+
+        // Validate acquirer configs check for dublicates
+        self.acquirer_configs
+            .as_ref()
+            .filter(|configs| configs.0.len() > 1)
+            .map(|configs| {
+                let duplicates =
+                    AcquirerConfigs::validate_acquirer_configs_return_duplicates_if_exists(
+                        &configs.0,
+                    );
+
+                if duplicates.is_empty() {
+                    Ok(())
+                } else {
+                    Err(errors::ApiErrorResponse::InvalidRequestData {
+                        message: format!(
+                            "Invalid acquirer configurations. Duplicate values found: {}",
+                            duplicates.join(", ")
+                        ),
+                    })
+                }
+            })
+            .transpose()?;
 
         Ok(domain::Profile::from(domain::ProfileSetter {
             profile_id,
@@ -4017,6 +4041,7 @@ impl ProfileCreateBridge for api::ProfileCreate {
             is_pre_network_tokenization_enabled: self
                 .is_pre_network_tokenization_enabled
                 .unwrap_or_default(),
+            acquirer_configs: self.acquirer_configs,
         }))
     }
 
@@ -4139,6 +4164,7 @@ impl ProfileCreateBridge for api::ProfileCreate {
             is_click_to_pay_enabled: self.is_click_to_pay_enabled,
             authentication_product_ids: self.authentication_product_ids,
             three_ds_decision_manager_config: None,
+            acquirer_configs: None,
             card_testing_guard_config,
             card_testing_secret_key: card_testing_secret_key
                 .async_lift(|inner| async {
@@ -4322,6 +4348,8 @@ impl ProfileUpdateBridge for api::ProfileUpdate {
         key_store: &domain::MerchantKeyStore,
         business_profile: &domain::Profile,
     ) -> RouterResult<domain::ProfileUpdate> {
+        use common_types::domain::AcquirerConfigs;
+
         if let Some(session_expiry) = &self.session_expiry {
             helpers::validate_session_expiry(session_expiry.to_owned())?;
         }
@@ -4414,6 +4442,29 @@ impl ProfileUpdateBridge for api::ProfileUpdate {
             }
         };
 
+        // Validate acquirer configs check for dublicates
+        self.acquirer_configs
+            .as_ref()
+            .filter(|configs| configs.0.len() > 1)
+            .map(|configs| {
+                let duplicates =
+                    AcquirerConfigs::validate_acquirer_configs_return_duplicates_if_exists(
+                        &configs.0,
+                    );
+
+                if duplicates.is_empty() {
+                    Ok(())
+                } else {
+                    Err(errors::ApiErrorResponse::InvalidRequestData {
+                        message: format!(
+                            "Invalid acquirer configurations. Duplicate values found: {}",
+                            duplicates.join(", ")
+                        ),
+                    })
+                }
+            })
+            .transpose()?;
+
         Ok(domain::ProfileUpdate::Update(Box::new(
             domain::ProfileGeneralUpdate {
                 profile_name: self.profile_name,
@@ -4467,6 +4518,7 @@ impl ProfileUpdateBridge for api::ProfileUpdate {
                 merchant_business_country: self.merchant_business_country,
                 is_iframe_redirection_enabled: self.is_iframe_redirection_enabled,
                 is_pre_network_tokenization_enabled: self.is_pre_network_tokenization_enabled,
+                acquirer_configs: self.acquirer_configs,
             },
         )))
     }
@@ -4595,6 +4647,7 @@ impl ProfileUpdateBridge for api::ProfileUpdate {
                 is_click_to_pay_enabled: self.is_click_to_pay_enabled,
                 authentication_product_ids: self.authentication_product_ids,
                 three_ds_decision_manager_config: None,
+                acquirer_configs: None,
                 card_testing_guard_config: self
                     .card_testing_guard_config
                     .map(ForeignInto::foreign_into),
