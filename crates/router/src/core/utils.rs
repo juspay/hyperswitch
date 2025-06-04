@@ -73,9 +73,7 @@ pub async fn construct_payout_router_data<'a, F>(
     todo!()
 }
 
-#[cfg(all(
-    feature = "payouts",feature = "v1"
-))]
+#[cfg(all(feature = "payouts", feature = "v1"))]
 #[instrument(skip_all)]
 pub async fn construct_payout_router_data<'a, F>(
     state: &SessionState,

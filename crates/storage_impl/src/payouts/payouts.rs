@@ -3,22 +3,13 @@ use api_models::enums::PayoutConnectors;
 #[cfg(feature = "olap")]
 use async_bb8_diesel::{AsyncConnection, AsyncRunQueryDsl};
 use common_utils::ext_traits::Encode;
-#[cfg(all(
-    feature = "olap",
-    any(feature = "v1", feature = "v2")
-))]
+#[cfg(all(feature = "olap", any(feature = "v1", feature = "v2")))]
 use diesel::JoinOnDsl;
 #[cfg(feature = "olap")]
 use diesel::{associations::HasTable, ExpressionMethods, NullableExpressionMethods, QueryDsl};
-#[cfg(all(
-    feature = "olap",
-    any(feature = "v1", feature = "v2"),
-))]
+#[cfg(all(feature = "olap", any(feature = "v1", feature = "v2"),))]
 use diesel_models::payout_attempt::PayoutAttempt as DieselPayoutAttempt;
-#[cfg(all(
-    feature = "olap",
-    feature = "v1"
-))]
+#[cfg(all(feature = "olap", feature = "v1"))]
 use diesel_models::schema::{
     address::dsl as add_dsl, customers::dsl as cust_dsl, payout_attempt::dsl as poa_dsl,
 };
@@ -49,10 +40,7 @@ use router_env::{instrument, tracing};
 
 #[cfg(feature = "olap")]
 use crate::connection;
-#[cfg(all(
-    feature = "olap",
-    feature = "v1"
-))]
+#[cfg(all(feature = "olap", feature = "v1"))]
 use crate::store::schema::{
     address::all_columns as addr_all_columns, customers::all_columns as cust_all_columns,
     payout_attempt::all_columns as poa_all_columns, payouts::all_columns as po_all_columns,
@@ -579,10 +567,7 @@ impl<T: DatabaseStore> PayoutsInterface for crate::RouterStore<T> {
         })
     }
 
-    #[cfg(all(
-        feature = "v1",
-        feature = "olap",
-    ))]
+    #[cfg(all(feature = "v1", feature = "olap",))]
     #[instrument(skip_all)]
     async fn filter_payouts_and_attempts(
         &self,
@@ -810,10 +795,7 @@ impl<T: DatabaseStore> PayoutsInterface for crate::RouterStore<T> {
         })
     }
 
-    #[cfg(all(
-        feature = "v1",
-        feature = "olap",
-    ))]
+    #[cfg(all(feature = "v1", feature = "olap",))]
     #[instrument(skip_all)]
     async fn filter_active_payout_ids_by_constraints(
         &self,
