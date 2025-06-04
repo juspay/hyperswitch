@@ -6053,6 +6053,7 @@
       },
       "AcquirerData": {
         "type": "object",
+        "description": "Represents data about the acquirer used in the 3DS decision rule.",
         "required": [
           "country"
         ],
@@ -6063,6 +6064,7 @@
           "fraud_rate": {
             "type": "number",
             "format": "double",
+            "description": "The fraud rate associated with the acquirer.",
             "nullable": true
           }
         }
@@ -11659,6 +11661,7 @@
       },
       "CustomerDeviceData": {
         "type": "object",
+        "description": "Represents data about the customer's device used in the 3DS decision rule.",
         "properties": {
           "platform": {
             "allOf": [
@@ -14608,12 +14611,14 @@
       },
       "IssuerData": {
         "type": "object",
+        "description": "Represents data about the issuer used in the 3DS decision rule.",
         "required": [
           "country"
         ],
         "properties": {
           "name": {
             "type": "string",
+            "description": "The name of the issuer.",
             "nullable": true
           },
           "country": {
@@ -17821,6 +17826,7 @@
       },
       "PaymentData": {
         "type": "object",
+        "description": "Represents the payment data used in the 3DS decision rule.",
         "required": [
           "amount",
           "currency"
@@ -17828,7 +17834,8 @@
         "properties": {
           "amount": {
             "type": "integer",
-            "format": "int64"
+            "format": "int64",
+            "description": "The amount of the payment in minor units (e.g., cents for USD)."
           },
           "currency": {
             "$ref": "#/components/schemas/Currency"
@@ -19212,6 +19219,7 @@
       },
       "PaymentMethodMetaData": {
         "type": "object",
+        "description": "Represents metadata about the payment method used in the 3DS decision rule.",
         "required": [
           "card_network"
         ],
@@ -28158,13 +28166,15 @@
       },
       "ThreeDsDecisionRuleExecuteRequest": {
         "type": "object",
+        "description": "Represents the request to execute a 3DS decision rule.",
         "required": [
           "routing_id",
           "payment"
         ],
         "properties": {
           "routing_id": {
-            "type": "string"
+            "type": "string",
+            "description": "The ID of the routing algorithm to be executed."
           },
           "payment": {
             "$ref": "#/components/schemas/PaymentData"
@@ -28206,6 +28216,7 @@
       },
       "ThreeDsDecisionRuleExecuteResponse": {
         "type": "object",
+        "description": "Represents the response from executing a 3DS decision rule.",
         "required": [
           "decision"
         ],
