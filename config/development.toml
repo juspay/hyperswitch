@@ -1160,3 +1160,7 @@ retry_algorithm_type = "cascading"
 [clone_connector_allowlist]
 merchant_ids = "merchant_123, merchant_234"     # Comma-separated list of allowed merchant IDs
 connector_names = "stripe, adyen"               # Comma-separated list of allowed connector names
+
+[infra_values]
+cluster = "CLUSTER"
+version = "HOSTNAME"
