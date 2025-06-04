@@ -264,26 +264,6 @@ pub async fn create_merchant_account(
         .await
         .to_duplicate_response(errors::ApiErrorResponse::DuplicateMerchantAccount)?;
 
-    // Call to DE here
-    // Check if creation should be based on default profile
-    #[cfg(all(feature = "dynamic_routing", feature = "v1"))]
-    {
-        if state.conf.open_router.enabled {
-            merchant_account
-                .default_profile
-                .as_ref()
-                .async_map(|profile_id| {
-                    routing::helpers::create_decision_engine_merchant(&state, profile_id)
-                })
-                .await
-                .transpose()
-                .map_err(|err| {
-                    crate::logger::error!("Failed to create merchant in Decision Engine {err:?}");
-                })
-                .ok();
-        }
-    }
-
     let merchant_context = domain::MerchantContext::NormalMerchant(Box::new(domain::Context(
         merchant_account.clone(),
         key_store.clone(),
@@ -3904,6 +3884,22 @@ impl ProfileCreateBridge for api::ProfileCreate {
             .map(CardTestingGuardConfig::foreign_from)
             .or(Some(CardTestingGuardConfig::default()));
 
+        let mut dynamic_routing_algorithm_ref =
+            routing_types::DynamicRoutingAlgorithmRef::default();
+
+        if self.is_debit_routing_enabled == Some(true) {
+            routing::helpers::create_merchant_in_decision_engine_if_not_exists(
+                state,
+                &profile_id,
+                &mut dynamic_routing_algorithm_ref,
+            )
+            .await;
+        }
+
+        let dynamic_routing_algorithm = serde_json::to_value(dynamic_routing_algorithm_ref)
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("error serializing dynamic_routing_algorithm_ref to JSON Value")?;
+
         Ok(domain::Profile::from(domain::ProfileSetter {
             profile_id,
             merchant_id: merchant_context.get_merchant_account().get_id().clone(),
@@ -3981,7 +3977,7 @@ impl ProfileCreateBridge for api::ProfileCreate {
                 .always_collect_billing_details_from_wallet_connector,
             always_collect_shipping_details_from_wallet_connector: self
                 .always_collect_shipping_details_from_wallet_connector,
-            dynamic_routing_algorithm: None,
+            dynamic_routing_algorithm: Some(dynamic_routing_algorithm),
             is_network_tokenization_enabled: self.is_network_tokenization_enabled,
             is_auto_retries_enabled: self.is_auto_retries_enabled.unwrap_or_default(),
             max_auto_retries_enabled: self.max_auto_retries_enabled.map(i16::from),
@@ -4414,6 +4410,37 @@ impl ProfileUpdateBridge for api::ProfileUpdate {
             }
         };
 
+        let dynamic_routing_algo_ref = if self.is_debit_routing_enabled == Some(true) {
+            let mut dynamic_routing_algo_ref: routing_types::DynamicRoutingAlgorithmRef =
+                business_profile
+                    .dynamic_routing_algorithm
+                    .clone()
+                    .map(|val| val.parse_value("DynamicRoutingAlgorithmRef"))
+                    .transpose()
+                    .change_context(errors::ApiErrorResponse::InternalServerError)
+                    .attach_printable(
+                        "unable to deserialize dynamic routing algorithm ref from business profile",
+                    )?
+                    .unwrap_or_default();
+
+            routing::helpers::create_merchant_in_decision_engine_if_not_exists(
+                state,
+                business_profile.get_id(),
+                &mut dynamic_routing_algo_ref,
+            )
+            .await;
+
+            let dynamic_routing_algo_ref_value = serde_json::to_value(dynamic_routing_algo_ref)
+                .change_context(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable(
+                    "error serializing dynamic_routing_algorithm_ref to JSON Value",
+                )?;
+
+            Some(dynamic_routing_algo_ref_value)
+        } else {
+            self.dynamic_routing_algorithm
+        };
+
         Ok(domain::ProfileUpdate::Update(Box::new(
             domain::ProfileGeneralUpdate {
                 profile_name: self.profile_name,
@@ -4451,7 +4478,7 @@ impl ProfileUpdateBridge for api::ProfileUpdate {
                     .always_collect_shipping_details_from_wallet_connector,
                 tax_connector_id: self.tax_connector_id,
                 is_tax_connector_enabled: self.is_tax_connector_enabled,
-                dynamic_routing_algorithm: self.dynamic_routing_algorithm,
+                dynamic_routing_algorithm: dynamic_routing_algo_ref,
                 is_network_tokenization_enabled: self.is_network_tokenization_enabled,
                 is_auto_retries_enabled: self.is_auto_retries_enabled,
                 max_auto_retries_enabled: self.max_auto_retries_enabled.map(i16::from),
@@ -4691,6 +4718,8 @@ impl ProfileWrapper {
             storage::enums::TransactionType::Payment => (Some(algorithm_id), None),
             #[cfg(feature = "payouts")]
             storage::enums::TransactionType::Payout => (None, Some(algorithm_id)),
+            //TODO: Handle ThreeDsAuthentication Transaction Type for Three DS Decision Rule Algorithm configuration
+            storage::enums::TransactionType::ThreeDsAuthentication => todo!(),
         };
 
         let profile_update = domain::ProfileUpdate::RoutingAlgorithmUpdate {

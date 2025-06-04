@@ -847,6 +847,5 @@ pub async fn retrieve_payment_token_data(
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("failed to deserialize hyperswitch token data");
 
-
     token_data_result
 }
