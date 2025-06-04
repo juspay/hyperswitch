@@ -168,3 +168,32 @@ impl ApiEventMetric for PollId {
         })
     }
 }
+
+/// Wrapper for consolidated API events
+#[derive(Clone, Debug, Eq, PartialEq, Serialize)]
+#[serde(rename_all = "snake_case")]
+pub struct ApiConsolidatedEvent<'a> {
+    pub event: &'a ApiEvent,
+    pub event_type: &'static str,
+}
+
+impl<'a> ApiConsolidatedEvent<'a> {
+    pub fn new(api_event: &'a ApiEvent) -> Self {
+        Self { 
+            event: api_event,
+            event_type: "api_event"
+        }
+    }
+}
+
+impl<'a> crate::services::kafka::KafkaMessage for ApiConsolidatedEvent<'a> {
+    fn key(&self) -> String {
+        self.event.key()
+    }
+    fn event_type(&self) -> crate::events::EventType {
+        crate::events::EventType::Consolidated
+    }
+    fn creation_timestamp(&self) -> Option<i64> {
+        self.event.creation_timestamp()
+    }
+}

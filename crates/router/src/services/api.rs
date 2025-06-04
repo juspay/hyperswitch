@@ -64,7 +64,7 @@ use crate::{
         payments,
     },
     events::{
-        api_logs::{ApiEvent, ApiEventMetric, ApiEventsType},
+        api_logs::{ApiEvent, ApiEventMetric, ApiEventsType, ApiConsolidatedEvent},
         connector_api_logs::ConnectorEvent,
     },
     headers, logger,
@@ -75,6 +75,7 @@ use crate::{
     services::{
         connector_integration_interface::RouterDataConversion,
         generic_link_response::build_generic_link_html,
+        kafka,
     },
     types::{self, api, ErrorResponse},
     utils,
@@ -703,7 +704,7 @@ where
     let infra = state.infra_components.clone();
 
     let api_event = ApiEvent::new(
-        tenant_id,
+        tenant_id.clone(),
         Some(merchant_id.clone()),
         flow,
         &request_id,
@@ -719,9 +720,8 @@ where
         request.method(),
         infra.clone(),
     );
-
-    state.event_handler().log_event(&api_event);
-
+    state.event_handler().log_event(&api_event.clone());
+    state.event_handler().log_event(&ApiConsolidatedEvent::new(&api_event));
     output
 }
 
