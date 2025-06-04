@@ -4,7 +4,7 @@ use api_models::{
     admin::{self as admin_types},
     enums as api_enums, routing as routing_types,
 };
-use common_enums::{MerchantAccountType, OrganizationType};
+use common_enums::{MerchantAccountRequestType, MerchantAccountType, OrganizationType};
 use common_utils::{
     date_time,
     ext_traits::{AsyncExt, Encode, OptionExt, ValueExt},
@@ -392,7 +392,9 @@ impl MerchantAccountCreateBridge for api::MerchantAccountCreate {
             OrganizationType::Standard => {
                 match self.merchant_account_type {
                     // Allow only if explicitly Standard or not provided
-                    Some(MerchantAccountType::Standard) | None => MerchantAccountType::Standard,
+                    Some(MerchantAccountRequestType::Standard) | None => {
+                        MerchantAccountType::Standard
+                    }
                     Some(_) => {
                         return Err(errors::ApiErrorResponse::InvalidRequestData {
                             message:
@@ -418,39 +420,25 @@ impl MerchantAccountCreateBridge for api::MerchantAccountCreate {
                     .iter()
                     .any(|account| account.merchant_account_type == MerchantAccountType::Platform);
 
-                match (platform_account_exists, self.merchant_account_type) {
-                    // No platform account exists => must create Platform
-                    (false, Some(MerchantAccountType::Platform)) | (false, None) => {
-                        MerchantAccountType::Platform
-                    }
-                    (false, Some(_)) => {
-                        return Err(errors::ApiErrorResponse::InvalidRequestData {
-                            message:
-                                "First merchant account for Platform Organization must be a Platform Merchant"
-                                    .to_string(),
+                if !platform_account_exists {
+                    // First merchant in a Platform org must be Platform
+                    MerchantAccountType::Platform
+                } else {
+                    match self.merchant_account_type {
+                        Some(MerchantAccountRequestType::Standard) | None => {
+                            MerchantAccountType::Standard
                         }
-                        .into());
-                    }
-
-                    // Platform already exists => handle Standard / Connected
-                    (true, Some(MerchantAccountType::Standard)) | (true, None) => {
-                        MerchantAccountType::Standard
-                    }
-                    (true, Some(MerchantAccountType::Connected)) => {
-                        if !state.conf.platform.allow_connected_merchants {
-                            return Err(errors::ApiErrorResponse::InvalidRequestData {
-                                message: "Connected merchant accounts are not allowed".to_string(),
+                        Some(MerchantAccountRequestType::Connected) => {
+                            if state.conf.platform.allow_connected_merchants {
+                                MerchantAccountType::Connected
+                            } else {
+                                return Err(errors::ApiErrorResponse::InvalidRequestData {
+                                    message: "Connected merchant accounts are not allowed"
+                                        .to_string(),
+                                }
+                                .into());
                             }
-                            .into());
                         }
-                        MerchantAccountType::Connected
-                    }
-                    (true, Some(MerchantAccountType::Platform)) => {
-                        return Err(errors::ApiErrorResponse::InvalidRequestData {
-                            message: "Platform Merchant already exists for this organization"
-                                .to_string(),
-                        }
-                        .into());
                     }
                 }
             }
