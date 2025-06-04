@@ -6012,6 +6012,13 @@
           }
         }
       },
+      "AcquirerConfigs": {
+        "type": "object",
+        "description": "Acquirer configs",
+        "additionalProperties": {
+          "$ref": "#/components/schemas/AcquirerConfig"
+        }
+      },
       "AdditionalMerchantData": {
         "oneOf": [
           {
@@ -24604,6 +24611,14 @@
             "type": "boolean",
             "description": "Indicates if pre network tokenization is enabled or not",
             "nullable": true
+          },
+          "acquirer_configs": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/common_types.domain.AcquirerConfigs"
+              }
+            ],
+            "nullable": true
           }
         },
         "additionalProperties": false
@@ -24888,6 +24903,14 @@
             "description": "Indicates if pre network tokenization is enabled or not",
             "default": false,
             "example": false
+          },
+          "acquirer_configs": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/common_types.domain.AcquirerConfigs"
+              }
+            ],
+            "nullable": true
           }
         }
       },
