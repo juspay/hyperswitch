@@ -20,12 +20,13 @@ use common_utils::custom_serde::prost_timestamp::SerializableTimestamp;
 use decider::decider_client::DeciderClient;
 pub use decider::DeciderRequest;
 
-// This is the struct that will be serialized/deserialized by Actix
+/// Represents the response from the decider service, suitable for HTTP JSON serialization.
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct DeciderResponseForSerde {
+    /// Flag indicating if a retry is recommended.
     pub retry_flag: bool,
-    // This field will use the custom serde logic defined in build.rs
-    // via field_type and field_attribute
+    /// The recommended time for a retry, if applicable.
+    // This field uses a custom wrapper `SerializableTimestamp` for Serde compatibility.
     pub retry_time: Option<SerializableTimestamp>,
 }
 

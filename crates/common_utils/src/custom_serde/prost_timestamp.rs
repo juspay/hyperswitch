@@ -7,7 +7,7 @@ pub struct SerializableTimestamp(pub Timestamp);
 
 impl From<Timestamp> for SerializableTimestamp {
     fn from(ts: Timestamp) -> Self {
-        SerializableTimestamp(ts)
+        Self(ts)
     }
 }
 
@@ -43,7 +43,7 @@ impl<'de> Deserialize<'de> for SerializableTimestamp {
         D: Deserializer<'de>,
     {
         let fields = TimestampFields::deserialize(deserializer)?;
-        Ok(SerializableTimestamp(Timestamp {
+        Ok(Self(Timestamp {
             seconds: fields.seconds,
             nanos: fields.nanos,
         }))
@@ -56,6 +56,7 @@ pub mod optional_prost_timestamp {
 
     use super::SerializableTimestamp;
 
+    /// Serializes `Option<SerializableTimestamp>`.
     pub fn serialize<S>(
         option_timestamp: &Option<SerializableTimestamp>,
         serializer: S,
@@ -69,6 +70,7 @@ pub mod optional_prost_timestamp {
         }
     }
 
+    /// Deserializes `Option<SerializableTimestamp>`.
     pub fn deserialize<'de, D>(deserializer: D) -> Result<Option<SerializableTimestamp>, D::Error>
     where
         D: Deserializer<'de>,
