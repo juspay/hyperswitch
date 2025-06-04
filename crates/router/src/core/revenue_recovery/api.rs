@@ -193,7 +193,8 @@ pub async fn record_internal_attempt_api(
         ),
         Some(revenue_recovery_metadata.connector),
         common_enums::TriggeredBy::Internal,
-    ).await?;
+    ).await
+    .change_context(errors::ApiErrorResponse::GenericNotFoundError { message: "Cannot Create the payment record Request".to_string() })?;
 
     let merchant_context_from_revenue_recovery_payment_data =
         MerchantContext::NormalMerchant(Box::new(Context(

@@ -282,6 +282,9 @@ impl ApiModelToDieselModelConvertor<ApiRevenueRecoveryMetadata> for PaymentReven
             payment_method_subtype: from.payment_method_subtype,
             connector: from.connector,
             invoice_next_billing_time: from.invoice_next_billing_time,
+            card_issuer: from.card_issuer,
+            card_network: from.card_network,
+
         }
     }
 
@@ -298,6 +301,8 @@ impl ApiModelToDieselModelConvertor<ApiRevenueRecoveryMetadata> for PaymentReven
             payment_method_subtype: self.payment_method_subtype,
             connector: self.connector,
             invoice_next_billing_time: self.invoice_next_billing_time,
+            card_issuer: self.card_issuer,
+            card_network: self.card_network,
         }
     }
 }

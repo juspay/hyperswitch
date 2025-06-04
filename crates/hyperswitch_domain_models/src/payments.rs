@@ -743,6 +743,8 @@ impl PaymentIntent {
             network_error_message: None,
             retry_count: None,
             invoice_next_billing_time: None,
+            card_isin: None,
+            card_network: None,
         })
     }
 
@@ -932,6 +934,8 @@ pub struct RevenueRecoveryData {
     pub retry_count: Option<u16>,
     pub invoice_next_billing_time: Option<PrimitiveDateTime>,
     pub triggered_by: storage_enums::enums::TriggeredBy,
+    pub card_network: Option<common_enums::CardNetwork>,
+    pub card_issuer: Option<String>
 }
 
 #[cfg(feature = "v2")]
@@ -980,6 +984,8 @@ where
                     errors::api_error_response::ApiErrorResponse::InternalServerError
                 })?,
                 invoice_next_billing_time: self.revenue_recovery_data.invoice_next_billing_time,
+                card_network: self.revenue_recovery_data.card_network.clone(),
+                card_issuer: self.revenue_recovery_data.card_issuer.clone(),
             }),
             None => Err(errors::api_error_response::ApiErrorResponse::InternalServerError)
                 .attach_printable("Connector not found in payment attempt")?,

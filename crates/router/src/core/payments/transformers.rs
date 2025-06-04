@@ -4908,6 +4908,8 @@ impl ForeignFrom<&diesel_models::types::FeatureMetadata> for api_models::payment
                         ),
                     invoice_next_billing_time: payment_revenue_recovery_metadata
                         .invoice_next_billing_time,
+                    card_issuer: payment_revenue_recovery_metadata.card_issuer.clone(),
+                    card_network: payment_revenue_recovery_metadata.card_network.clone(),
                 }
             });
         let apple_pay_details = feature_metadata

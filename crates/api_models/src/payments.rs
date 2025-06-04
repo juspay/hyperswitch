@@ -8636,6 +8636,10 @@ pub struct PaymentRevenueRecoveryMetadata {
     pub connector: common_enums::connector_enums::Connector,
     /// Invoice Next billing time
     pub invoice_next_billing_time: Option<PrimitiveDateTime>,
+    /// Card Network
+    pub card_network: Option<common_enums::CardNetwork>,
+    /// Card Issuer
+    pub card_issuer: Option<String>,
 }
 #[cfg(feature = "v2")]
 impl PaymentRevenueRecoveryMetadata {
@@ -8752,7 +8756,10 @@ pub struct PaymentsAttemptRecordRequest {
     pub triggered_by: common_enums::TriggeredBy,
 
     /// card_network
-    pub card_network : common_enums::CardNetwork
+    pub card_network : Option<common_enums::CardNetwork>,
+
+    /// Card IIN
+    pub card_issuer : Option<String>,
 }
 
 /// Error details for the payment

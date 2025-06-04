@@ -174,6 +174,10 @@ pub struct PaymentRevenueRecoveryMetadata {
     pub connector: common_enums::connector_enums::Connector,
     /// Time at which next invoice will be created
     pub invoice_next_billing_time: Option<time::PrimitiveDateTime>,
+    /// Card Network
+    pub card_network: Option<common_enums::enums::CardNetwork>,
+    /// Card Issuer
+    pub card_issuer: Option<String>
 }
 
 #[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]

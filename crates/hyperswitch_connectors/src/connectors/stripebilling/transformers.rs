@@ -534,13 +534,14 @@ impl
                     payment_method_sub_type: common_enums::PaymentMethodType::from(
                         charge_details
                             .payment_method_details
-                            .card_funding_type
+                            .card_details
                             .funding,
                     ),
                     payment_method_type: common_enums::PaymentMethod::from(
                         charge_details.payment_method_details.type_of_payment_method,
                     ),
-                    card_network: charge_details.payment_method_details.card_details.network
+                    card_network: Some(charge_details.payment_method_details.card_details.network),
+                    card_isin: None
                 },
             ),
             ..item.data

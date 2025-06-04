@@ -612,26 +612,20 @@ impl RevenueRecoveryAttempt {
             }),
         };
 
-        let card_issuer = diesel_models::cards_info::CardInfo::find_by_iin(state.store, revenue_recovery_attempt_data.card_isin.clone()).await?;
+        let card_info = revenue_recovery_attempt_data
+            .card_isin
+            .clone()
+            .async_and_then(|isin| async move {
+                let issuer_identifier_number = isin.clone();
+                state.store.get_card_info(isin.as_str()).await.ok()
+            }).await.flatten();
+        
+        let card_issuer = card_info
+            .and_then(|info| info.card_issuer);
 
-        let payment_method_data =  api_payments::AdditionalCardInfo {
-            card_network: Some(revenue_recovery_attempt_data.card_network),
-            card_issuer,
-            card_type: None,
-            card_issuing_country: None,
-            card_exp_month: None,
-            card_exp_year: None,
-            card_holder_name: None,
-            payment_checks: None,
-            authentication_data: None,
-            last4: None,
-            bank_code: None,
-            card_extended_bin: None,
-            card_isin: None,
-        };
         let error =
             Option::<api_payments::RecordAttemptErrorDetails>::from(revenue_recovery_attempt_data);
-        api_payments::PaymentsAttemptRecordRequest {
+        Ok(api_payments::PaymentsAttemptRecordRequest {
             amount_details,
             status: revenue_recovery_attempt_data.status,
             billing: None,
@@ -657,8 +651,9 @@ impl RevenueRecoveryAttempt {
             retry_count: revenue_recovery_attempt_data.retry_count,
             invoice_next_billing_time: revenue_recovery_attempt_data.invoice_next_billing_time,
             triggered_by,
-            card_network: revenue_recovery_attempt_data.card_network
-        }
+            card_network: revenue_recovery_attempt_data.card_network.clone(),
+            card_issuer
+        })
     }
 
     pub async fn find_payment_merchant_connector_account(
