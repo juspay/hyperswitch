@@ -90,7 +90,7 @@ impl ApiEvent {
             event_type,
             hs_latency,
             http_method: http_method.to_string(),
-            infra_components: infra_components,
+            infra_components,
         }
     }
 }
