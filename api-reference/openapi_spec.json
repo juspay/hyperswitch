@@ -14773,7 +14773,7 @@
           "merchant_account_type": {
             "allOf": [
               {
-                "$ref": "#/components/schemas/MerchantAccountType"
+                "$ref": "#/components/schemas/MerchantAccountRequestType"
               }
             ],
             "nullable": true
