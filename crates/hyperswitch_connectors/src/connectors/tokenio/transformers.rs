@@ -19,6 +19,7 @@ use hyperswitch_interfaces::{
     errors,
 };
 use masking::ExposeInterface;
+use masking::PeekInterface;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
@@ -82,7 +83,9 @@ pub enum LocalInstrument {
 #[serde(untagged)]
 pub enum Creditor {
     FasterPayments {
+        #[serde(rename = "sortCode")]
         sort_code: Secret<String>,
+        #[serde(rename = "accountNumber")]
         account_number: Secret<String>,
         name: Secret<String>,
     },
@@ -94,17 +97,22 @@ pub enum Creditor {
         iban: Secret<String>,
         name: Secret<String>,
     },
-    Elixir {
-        // either iban or Polish domestic accountNumber required, choose one:
-        iban: Option<Secret<String>>,
-        account_number: Option<Secret<String>>,
+    ElixirIban {
+        iban: Secret<String>,
+        name: Secret<String>,
+    },
+    ElixirAccount {
+        #[serde(rename = "accountNumber")]
+        account_number: Secret<String>,
         name: Secret<String>,
     },
     Bankgiro {
+        #[serde(rename = "bankgiroNumber")]
         bankgiro_number: Secret<String>,
         name: Secret<String>,
     },
     Plusgiro {
+        #[serde(rename = "plusgiroNumber")]
         plusgiro_number: Secret<String>,
         name: Secret<String>,
     },
@@ -182,15 +190,25 @@ impl TryFrom<&TokenioRouterData<&PaymentsAuthorizeRouterData>> for TokenioPaymen
                         iban,
                         name,
                         ..
-                    }) => (
-                        LocalInstrument::Elixir,
-                        Creditor::Elixir {
-                            iban: Some(iban.clone()),
-                            account_number: Some(account_number.clone()),
-                            name: name.clone().into(),
-                        },
-                    ),
-
+                    }) => {
+                        if !iban.peek().is_empty() {
+                            (
+                                LocalInstrument::Elixir,
+                                Creditor::ElixirIban {
+                                    iban: iban.clone(),
+                                    name: name.clone().into(),
+                                },
+                            )
+                        } else {
+                            (
+                                LocalInstrument::Elixir,
+                                Creditor::ElixirAccount {
+                                    account_number: account_number.clone(),
+                                    name: name.clone().into(),
+                                },
+                            )
+                        }
+                    }
                     Some(MerchantAccountData::Bacs {
                         account_number,
                         sort_code,
@@ -376,7 +394,7 @@ impl From<TokenioPaymentsResponse> for common_enums::AttemptStatus {
                 }
 
                 // Success statuses
-                PaymentStatus::SettlementCompleted =>Self::Charged,
+                PaymentStatus::SettlementCompleted => Self::Charged,
 
                 // Settlement in progress - could map to different status based on business logic
                 PaymentStatus::SettlementInProgress => Self::Pending,

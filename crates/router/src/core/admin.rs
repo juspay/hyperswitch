@@ -12,6 +12,7 @@ use common_utils::{
     types::keymanager::{self as km_types, KeyManagerState, ToEncryptable},
 };
 use diesel_models::configs;
+use diesel_models::payment_method;
 #[cfg(all(any(feature = "v1", feature = "v2"), feature = "olap"))]
 use diesel_models::{business_profile::CardTestingGuardConfig, organization::OrganizationBridge};
 use error_stack::{report, FutureExt, ResultExt};
@@ -21,7 +22,6 @@ use hyperswitch_domain_models::merchant_connector_account::{
 };
 use masking::{ExposeInterface, PeekInterface, Secret};
 use pm_auth::{connector::plaid::transformers::PlaidAuthType, types as pm_auth_types};
-use regex::Regex;
 use uuid::Uuid;
 
 #[cfg(any(feature = "v1", feature = "v2"))]
@@ -56,9 +56,6 @@ use crate::{
     utils,
 };
 
-const IBAN_MAX_LENGTH: usize = 34;
-const BACS_SORT_CODE_LENGTH: usize = 6;
-const BACS_MAX_ACCOUNT_NUMBER_LENGTH: usize = 8;
 
 #[inline]
 pub fn create_merchant_publishable_key() -> String {
@@ -2359,6 +2356,7 @@ impl MerchantConnectorAccountUpdateBridge for api_models::admin::MerchantConnect
                     &self.connector_type,
                     &mca.connector_name,
                     types::AdditionalMerchantData::foreign_from(data.clone()),
+                    merchant_context.get_merchant_key_store(),
                 )
                 .await?,
             )
@@ -2541,6 +2539,7 @@ impl MerchantConnectorAccountUpdateBridge for api_models::admin::MerchantConnect
                     &self.connector_type,
                     &connector_enum,
                     types::AdditionalMerchantData::foreign_from(data.clone()),
+                    merchant_context.get_merchant_key_store(),
                 )
                 .await?,
             )
@@ -2688,6 +2687,7 @@ impl MerchantConnectorAccountCreateBridge for api::MerchantConnectorCreate {
                     &self.connector_type,
                     &self.connector_name,
                     types::AdditionalMerchantData::foreign_from(data.clone()),
+                    &key_store,
                 )
                 .await?,
             )
@@ -2893,6 +2893,7 @@ impl MerchantConnectorAccountCreateBridge for api::MerchantConnectorCreate {
                     &self.connector_type,
                     &self.connector_name,
                     types::AdditionalMerchantData::foreign_from(data.clone()),
+                    &key_store,
                 )
                 .await?,
             )
@@ -4946,6 +4947,7 @@ async fn process_open_banking_connectors(
     connector_type: &api_enums::ConnectorType,
     connector: &api_enums::Connector,
     additional_merchant_data: types::AdditionalMerchantData,
+    key_store: &domain::MerchantKeyStore,
 ) -> RouterResult<types::MerchantRecipientData> {
     let new_merchant_data = match additional_merchant_data {
         types::AdditionalMerchantData::OpenBankingRecipientData(merchant_data) => {
@@ -4959,7 +4961,7 @@ async fn process_open_banking_connectors(
             }
             match &merchant_data {
                 types::MerchantRecipientData::AccountData(acc_data) => {
-                    validate_bank_account_data(acc_data)?;
+                    core_utils::validate_bank_account_data(acc_data)?;
 
                     let connector_name = api_enums::Connector::to_string(connector);
 
@@ -4969,7 +4971,7 @@ async fn process_open_banking_connectors(
                         .connector_list
                         .contains(connector_name.as_str());
                     let recipient_id = if recipient_creation_not_supported {
-                        locker_recipient_create_call(state, merchant_id, acc_data).await
+                        locker_recipient_create_call(state, merchant_id, acc_data, key_store).await
                     } else {
                         connector_recipient_create_call(
                             state,
@@ -5070,32 +5072,7 @@ async fn process_open_banking_connectors(
 
     Ok(new_merchant_data)
 }
-fn validate_bank_account_data(data: &types::MerchantAccountData) -> RouterResult<()> {
-    match data {
-        types::MerchantAccountData::Iban { iban, .. } => validate_iban(iban),
 
-        types::MerchantAccountData::Sepa { iban, .. } => validate_iban(iban),
-
-        types::MerchantAccountData::SepaInstant { iban, .. } => validate_iban(iban),
-
-        types::MerchantAccountData::Bacs {
-            account_number,
-            sort_code,
-            ..
-        } => validate_uk_account(account_number, sort_code, "BACS"),
-
-        types::MerchantAccountData::FasterPayments {
-            account_number,
-            sort_code,
-            ..
-        } => validate_uk_account(account_number, sort_code, "FasterPayments"),
-
-        // Skip validation for unknown payment systems
-        types::MerchantAccountData::Elixir { .. }
-        | types::MerchantAccountData::Bankgiro { .. }
-        | types::MerchantAccountData::Plusgiro { .. } => Ok(()),
-    }
-}
 
 async fn connector_recipient_create_call(
     state: &SessionState,
@@ -5234,16 +5211,33 @@ async fn connector_recipient_create_call(
 
     Ok(recipient_id)
 }
-
 async fn locker_recipient_create_call(
     state: &SessionState,
     merchant_id: &id_type::MerchantId,
     data: &types::MerchantAccountData,
+    key_store: &domain::MerchantKeyStore,
 ) -> RouterResult<String> {
-    let enc_data = serde_json::to_string(data)
-        .change_context(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable("Failed to convert to MerchantAccountData json to String")?;
+    let key_manager_state = &state.into();
+    let key = key_store.key.get_inner().peek();
+    let identifier = km_types::Identifier::Merchant(key_store.merchant_id.clone());
 
+    let data_json = serde_json::to_string(data)
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Failed to serialize MerchantAccountData to JSON")?;
+
+    let encrypted_data = domain_types::crypto_operation(
+        key_manager_state,
+        type_name!(payment_method::PaymentMethod),
+        domain_types::CryptoOperation::Encrypt(Secret::<String, masking::WithType>::new(data_json)),
+        identifier,
+        key,
+    )
+    .await
+    .and_then(|val| val.try_into_operation())
+    .change_context(errors::ApiErrorResponse::InternalServerError)
+    .attach_printable("Failed to encrypt merchant account data")?;
+
+    let enc_data = hex::encode(encrypted_data.into_encrypted().expose());
     let merchant_id_string = merchant_id.get_string_repr().to_owned();
 
     let cust_id = id_type::CustomerId::try_from(std::borrow::Cow::from(merchant_id_string))
@@ -5300,80 +5294,4 @@ pub async fn enable_platform_account(
     .change_context(errors::ApiErrorResponse::InternalServerError)
     .attach_printable("Error while enabling platform merchant account")
     .map(|_| services::ApplicationResponse::StatusOk)
-}
-
-fn validate_iban(iban: &Secret<String>) -> RouterResult<()> {
-    if iban.peek().len() > IBAN_MAX_LENGTH {
-        return Err(errors::ApiErrorResponse::InvalidRequestData {
-            message: "IBAN length must be up to 34 characters".to_string(),
-        }
-        .into());
-    }
-
-    let pattern = Regex::new(r"^[A-Z0-9]*$")
-        .change_context(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable("failed to create regex pattern")?;
-
-    let mut iban = iban.peek().to_string();
-
-    if !pattern.is_match(iban.as_str()) {
-        return Err(errors::ApiErrorResponse::InvalidRequestData {
-            message: "IBAN data must be alphanumeric".to_string(),
-        }
-        .into());
-    }
-
-    // MOD check
-    let first_4 = iban.chars().take(4).collect::<String>();
-    iban.push_str(first_4.as_str());
-    let len = iban.len();
-
-    let rearranged_iban = iban
-        .chars()
-        .rev()
-        .take(len - 4)
-        .collect::<String>()
-        .chars()
-        .rev()
-        .collect::<String>();
-
-    let mut result = String::new();
-
-    rearranged_iban.chars().for_each(|c| {
-        if c.is_ascii_uppercase() {
-            let digit = (u32::from(c) - u32::from('A')) + 10;
-            result.push_str(&format!("{:02}", digit));
-        } else {
-            result.push(c);
-        }
-    });
-
-    let num = result
-        .parse::<u128>()
-        .change_context(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable("failed to validate IBAN")?;
-
-    if num % 97 != 1 {
-        return Err(errors::ApiErrorResponse::InvalidRequestData {
-            message: "Invalid IBAN".to_string(),
-        }
-        .into());
-    }
-
-    Ok(())
-}
-fn validate_uk_account(
-    account_number: &Secret<String>,
-    sort_code: &Secret<String>,
-    payment_type: &str,
-) -> RouterResult<()> {
-    if account_number.peek().len() > BACS_MAX_ACCOUNT_NUMBER_LENGTH
-        || sort_code.peek().len() != BACS_SORT_CODE_LENGTH
-    {
-        return Err(errors::ApiErrorResponse::InvalidRequestData {
-            message: format!("Invalid {} numbers", payment_type),
-        }
-        .into());
-    }
-    Ok(())
 }

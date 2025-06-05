@@ -993,73 +993,122 @@ pub struct RevenueRecoveryMetadata {
 #[derive(Debug, Clone, serde::Deserialize, serde::Serialize, ToSchema)]
 #[serde(rename_all = "snake_case")]
 pub enum MerchantAccountData {
+    /// IBAN-based account for international transfers
     Iban {
-        #[schema(value_type= String)]
+        /// International Bank Account Number (up to 34 characters)
+        #[schema(value_type = String)]
         iban: Secret<String>,
+        
+        /// Account holder name
         name: String,
-        #[schema(value_type= Option<String>)]
+        #[schema(value_type = Option<String>)]
         #[serde(skip_serializing_if = "Option::is_none")]
         connector_recipient_id: Option<Secret<String>>,
     },
+    /// UK BACS payment system
     Bacs {
-        #[schema(value_type= String)]
+        /// 8-digit UK account number
+        #[schema(value_type = String)]
         account_number: Secret<String>,
-        #[schema(value_type= String)]
+        
+        /// 6-digit UK sort code
+        #[schema(value_type = String, example = "123456")]
         sort_code: Secret<String>,
+        
+        /// Account holder name
         name: String,
-        #[schema(value_type= Option<String>)]
+        
+        #[schema(value_type = Option<String>)]
         #[serde(skip_serializing_if = "Option::is_none")]
         connector_recipient_id: Option<Secret<String>>,
     },
+    /// UK Faster Payments (instant transfers)
     FasterPayments {
-        #[schema(value_type= String)]
+        /// 8-digit UK account number
+        #[schema(value_type = String)]
         account_number: Secret<String>,
-        #[schema(value_type= String)]
+        /// 6-digit UK sort code
+        #[schema(value_type = String)]
         sort_code: Secret<String>,
+        
+        /// Account holder name
         name: String,
-        #[schema(value_type= Option<String>)]
+
+        #[schema(value_type = Option<String>)]
         #[serde(skip_serializing_if = "Option::is_none")]
         connector_recipient_id: Option<Secret<String>>,
     },
+
+    /// SEPA payments (Euro zone)
     Sepa {
-        #[schema(value_type= String)]
+        /// IBAN for SEPA transfers
+        #[schema(value_type = String, example = "FR1420041010050500013M02606")]
         iban: Secret<String>,
+        /// Account holder name
         name: String,
-        #[schema(value_type= Option<String>)]
+        #[schema(value_type = Option<String>)]
         #[serde(skip_serializing_if = "Option::is_none")]
         connector_recipient_id: Option<Secret<String>>,
     },
+
+    /// SEPA Instant payments (10-second transfers)
     SepaInstant {
-        #[schema(value_type= String)]
+        /// IBAN for instant SEPA transfers
+        #[schema(value_type = String, example = "DE89370400440532013000")]
         iban: Secret<String>,
+        
+        /// Account holder name
         name: String,
-        #[schema(value_type= Option<String>)]
+        
+        #[schema(value_type = Option<String>)]
         #[serde(skip_serializing_if = "Option::is_none")]
         connector_recipient_id: Option<Secret<String>>,
     },
+
+    /// Polish Elixir payment system
     Elixir {
-        #[schema(value_type= String)]
+        /// Polish account number (26 digits)
+        #[schema(value_type = String, example = "12345678901234567890123456")]
         account_number: Secret<String>,
-        #[schema(value_type= String)]
+        
+        /// Polish IBAN (28 chars)
+        #[schema(value_type = String, example = "PL27114020040000300201355387")]
         iban: Secret<String>,
+        
+        /// Account holder name
         name: String,
-        #[schema(value_type= Option<String>)]
+        
+        #[schema(value_type = Option<String>)]
         #[serde(skip_serializing_if = "Option::is_none")]
         connector_recipient_id: Option<Secret<String>>,
     },
+
+    /// Swedish Bankgiro system
     Bankgiro {
-        #[schema(value_type= String)]
+        /// Bankgiro number (7-8 digits)
+        #[schema(value_type = String, example = "5402-9656")]
         number: Secret<String>,
+        
+        /// Account holder name
+        #[schema(example = "Erik Andersson")]
         name: String,
-        #[schema(value_type= Option<String>)]
+        
+        #[schema(value_type = Option<String>)]
         #[serde(skip_serializing_if = "Option::is_none")]
         connector_recipient_id: Option<Secret<String>>,
     },
+
+    /// Swedish Plusgiro system
     Plusgiro {
-        #[schema(value_type= String)]
+        /// Plusgiro number (2-8 digits)
+        #[schema(value_type = String, example = "4789-2")]
         number: Secret<String>,
+        
+        /// Account holder name
+        #[schema(example = "Anna Larsson")]
         name: String,
-        #[schema(value_type= Option<String>)]
+        
+        #[schema(value_type = Option<String>)]
         #[serde(skip_serializing_if = "Option::is_none")]
         connector_recipient_id: Option<Secret<String>>,
     },
