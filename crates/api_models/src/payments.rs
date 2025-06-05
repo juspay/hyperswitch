@@ -8636,8 +8636,10 @@ pub struct PaymentRevenueRecoveryMetadata {
     pub connector: common_enums::connector_enums::Connector,
     /// Invoice Next billing time
     pub invoice_next_billing_time: Option<PrimitiveDateTime>,
+    #[schema(value_type = CardNetwork, example = "Visa")]
     /// Card Network
     pub card_network: Option<common_enums::CardNetwork>,
+    #[schema(value_type = Option<String>, example = "424242")]
     /// Card Issuer
     pub card_issuer: Option<String>,
 }
@@ -8755,6 +8757,7 @@ pub struct PaymentsAttemptRecordRequest {
     #[schema(value_type = TriggeredBy, example = "internal" )]
     pub triggered_by: common_enums::TriggeredBy,
 
+    #[schema(value_type = CardNetwork, example = "Visa" )]
     /// card_network
     pub card_network: Option<common_enums::CardNetwork>,
 
