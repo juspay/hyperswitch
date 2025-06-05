@@ -485,7 +485,7 @@ impl KafkaProducer {
         .attach_printable_lazy(|| format!("Failed to add positive intent event {intent:?}"))?;
 
         self.log_event(&KafkaConsolidatedEvent::new(
-            &KafkaPaymentIntentEvent::from_storage(intent),
+            &KafkaPaymentIntentEvent::from_storage(intent, infra_values.clone()),
             tenant_id.clone(),
         ))
         .attach_printable_lazy(|| format!("Failed to add consolidated intent event {intent:?}"))
