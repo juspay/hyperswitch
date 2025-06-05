@@ -35,6 +35,7 @@ use strum::Display;
 use time::{Date, PrimitiveDateTime};
 use url::Url;
 use utoipa::ToSchema;
+
 #[cfg(feature = "v2")]
 use crate::mandates;
 #[cfg(feature = "v2")]
