@@ -2,16 +2,14 @@ pub mod transformers;
 
 use std::sync::LazyLock;
 
-use base64::Engine;
 use common_utils::{
     errors::CustomResult,
     request::{Method, Request, RequestBuilder, RequestContent},
-    types::{AmountConvertor, StringMinorUnit, StringMinorUnitForConnector},
+    types::{AmountConvertor, MinorUnit, MinorUnitForConnector},
 };
-use error_stack::{report, ResultExt};
+use error_stack::report;
 use hyperswitch_domain_models::{
-    payment_method_data::PaymentMethodData,
-    router_data::{AccessToken, ConnectorAuthType, ErrorResponse, RouterData},
+    router_data::{AccessToken, ErrorResponse, RouterData},
     router_flow_types::{
         access_token_auth::AccessTokenAuth,
         payments::{Authorize, Capture, PSync, PaymentMethodToken, Session, SetupMandate, Void},
@@ -37,70 +35,67 @@ use hyperswitch_interfaces::{
         ConnectorValidation,
     },
     configs::Connectors,
-    consts, errors,
+    errors,
     events::connector_api_logs::ConnectorEvent,
     types::{self, Response},
     webhooks,
 };
-use masking::{ExposeInterface, Mask};
-use transformers as worldpayxml;
+use transformers as worldpayvantiv;
 
-use crate::{constants::headers, types::ResponseRouterData, utils};
+use crate::{constants::headers, types::ResponseRouterData, utils as connector_utils};
 
 #[derive(Clone)]
-pub struct Worldpayxml {
-    amount_converter: &'static (dyn AmountConvertor<Output = StringMinorUnit> + Sync),
+pub struct Worldpayvantiv {
+    amount_converter: &'static (dyn AmountConvertor<Output = MinorUnit> + Sync),
 }
 
-impl Worldpayxml {
+impl Worldpayvantiv {
     pub fn new() -> &'static Self {
         &Self {
-            amount_converter: &StringMinorUnitForConnector,
+            amount_converter: &MinorUnitForConnector,
         }
     }
 }
 
-impl api::Payment for Worldpayxml {}
-impl api::PaymentSession for Worldpayxml {}
-impl api::ConnectorAccessToken for Worldpayxml {}
-impl api::MandateSetup for Worldpayxml {}
-impl api::PaymentAuthorize for Worldpayxml {}
-impl api::PaymentSync for Worldpayxml {}
-impl api::PaymentCapture for Worldpayxml {}
-impl api::PaymentVoid for Worldpayxml {}
-impl api::Refund for Worldpayxml {}
-impl api::RefundExecute for Worldpayxml {}
-impl api::RefundSync for Worldpayxml {}
-impl api::PaymentToken for Worldpayxml {}
+impl api::Payment for Worldpayvantiv {}
+impl api::PaymentSession for Worldpayvantiv {}
+impl api::ConnectorAccessToken for Worldpayvantiv {}
+impl api::MandateSetup for Worldpayvantiv {}
+impl api::PaymentAuthorize for Worldpayvantiv {}
+impl api::PaymentSync for Worldpayvantiv {}
+impl api::PaymentCapture for Worldpayvantiv {}
+impl api::PaymentVoid for Worldpayvantiv {}
+impl api::Refund for Worldpayvantiv {}
+impl api::RefundExecute for Worldpayvantiv {}
+impl api::RefundSync for Worldpayvantiv {}
+impl api::PaymentToken for Worldpayvantiv {}
 
 impl ConnectorIntegration<PaymentMethodToken, PaymentMethodTokenizationData, PaymentsResponseData>
-    for Worldpayxml
+    for Worldpayvantiv
 {
     // Not Implemented (R)
 }
 
-impl<Flow, Request, Response> ConnectorCommonExt<Flow, Request, Response> for Worldpayxml
+impl<Flow, Request, Response> ConnectorCommonExt<Flow, Request, Response> for Worldpayvantiv
 where
     Self: ConnectorIntegration<Flow, Request, Response>,
 {
     fn build_headers(
         &self,
-        req: &RouterData<Flow, Request, Response>,
+        _req: &RouterData<Flow, Request, Response>,
         _connectors: &Connectors,
     ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
-        let mut header = vec![(
+        let header = vec![(
             headers::CONTENT_TYPE.to_string(),
-            self.common_get_content_type().to_string().into(),
+            self.get_content_type().to_string().into(),
         )];
-        let mut api_key = self.get_auth_header(&req.connector_auth_type)?;
-        header.append(&mut api_key);
         Ok(header)
     }
 }
 
-impl ConnectorCommon for Worldpayxml {
+impl ConnectorCommon for Worldpayvantiv {
     fn id(&self) -> &'static str {
-        "worldpayxml"
+        "worldpayvantiv"
     }
 
     fn get_currency_unit(&self) -> api::CurrencyUnit {
@@ -112,29 +107,7 @@ impl ConnectorCommon for Worldpayxml {
     }
 
     fn base_url<'a>(&self, connectors: &'a Connectors) -> &'a str {
-        connectors.worldpayxml.base_url.as_ref()
-    }
-
-    fn get_auth_header(
-        &self,
-        auth_type: &ConnectorAuthType,
-    ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
-        let auth = worldpayxml::WorldpayxmlAuthType::try_from(auth_type)
-            .change_context(errors::ConnectorError::FailedToObtainAuthType)?;
-
-        let basic_auth_value = format!(
-            "Basic {}",
-            common_utils::consts::BASE64_ENGINE.encode(format!(
-                "{}:{}",
-                auth.api_username.expose(),
-                auth.api_password.expose()
-            ))
-        );
-
-        Ok(vec![(
-            headers::AUTHORIZATION.to_string(),
-            Mask::into_masked(basic_auth_value),
-        )])
+        connectors.worldpayvantiv.base_url.as_ref()
     }
 
     fn build_error_response(
@@ -142,84 +115,62 @@ impl ConnectorCommon for Worldpayxml {
         res: Response,
         event_builder: Option<&mut ConnectorEvent>,
     ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
-        let response: Result<worldpayxml::PaymentService, _> =
-            utils::deserialize_xml_to_struct(&res.response);
+        let response: Result<worldpayvantiv::CnpOnlineResponse, _> =
+            connector_utils::deserialize_xml_to_struct(&res.response);
 
         match response {
             Ok(response_data) => {
-                event_builder.map(|i| i.set_error_response_body(&response_data));
+                event_builder.map(|i| i.set_response_body(&response_data));
                 router_env::logger::info!(connector_response=?response_data);
-                let (error_code, error_msg) = response_data
-                    .reply
-                    .as_ref()
-                    .and_then(|reply| {
-                        reply
-                            .error
-                            .as_ref()
-                            .map(|error| (Some(error.code.clone()), Some(error.message.clone())))
-                    })
-                    .unwrap_or((None, None));
-
                 Ok(ErrorResponse {
                     status_code: res.status_code,
-                    code: error_code.unwrap_or(consts::NO_ERROR_CODE.to_string()),
-                    message: error_msg
-                        .clone()
-                        .unwrap_or(consts::NO_ERROR_MESSAGE.to_string()),
-                    reason: error_msg.clone(),
+                    code: response_data.response_code,
+                    message: response_data.message.clone(),
+                    reason: Some(response_data.message.clone()),
                     attempt_status: None,
                     connector_transaction_id: None,
-                    network_advice_code: None,
                     network_decline_code: None,
+                    network_advice_code: None,
                     network_error_message: None,
                 })
             }
             Err(error_msg) => {
                 event_builder.map(|event| event.set_error(serde_json::json!({"error": res.response.escape_ascii().to_string(), "status_code": res.status_code})));
                 router_env::logger::error!(deserialization_error =? error_msg);
-                utils::handle_json_response_deserialization_failure(res, "worldpayxml")
+                connector_utils::handle_json_response_deserialization_failure(res, "worldpayvantiv")
             }
         }
     }
 }
 
-impl ConnectorValidation for Worldpayxml {
-    fn validate_mandate_payment(
-        &self,
-        _pm_type: Option<common_enums::PaymentMethodType>,
-        _pm_data: PaymentMethodData,
-    ) -> CustomResult<(), errors::ConnectorError> {
-        Err(errors::ConnectorError::NotSupported {
-            message: "mandate payment".to_string(),
-            connector: "worldpayxml",
-        }
-        .into())
-    }
+impl ConnectorValidation for Worldpayvantiv {
+    //TODO: implement functions when support enabled
 }
 
-impl ConnectorIntegration<Session, PaymentsSessionData, PaymentsResponseData> for Worldpayxml {
+impl ConnectorIntegration<Session, PaymentsSessionData, PaymentsResponseData> for Worldpayvantiv {
     //TODO: implement sessions flow
 }
 
-impl ConnectorIntegration<AccessTokenAuth, AccessTokenRequestData, AccessToken> for Worldpayxml {}
+impl ConnectorIntegration<AccessTokenAuth, AccessTokenRequestData, AccessToken> for Worldpayvantiv {}
 
 impl ConnectorIntegration<SetupMandate, SetupMandateRequestData, PaymentsResponseData>
-    for Worldpayxml
+    for Worldpayvantiv
 {
-    // Not Implemented (R)
     fn build_request(
         &self,
         _req: &RouterData<SetupMandate, SetupMandateRequestData, PaymentsResponseData>,
         _connectors: &Connectors,
     ) -> CustomResult<Option<Request>, errors::ConnectorError> {
         Err(errors::ConnectorError::NotImplemented(
-            "Setup Mandate flow for Worldpayxml".to_string(),
+            "Setup Mandate flow for Worldpayvantiv".to_string(),
         )
         .into())
     }
 }
 
-impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData> for Worldpayxml {
+impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData>
+    for Worldpayvantiv
+{
     fn get_headers(
         &self,
         req: &PaymentsAuthorizeRouterData,
@@ -245,22 +196,25 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
         req: &PaymentsAuthorizeRouterData,
         _connectors: &Connectors,
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
-        let amount = utils::convert_amount(
+        let amount = connector_utils::convert_amount(
             self.amount_converter,
             req.request.minor_amount,
             req.request.currency,
         )?;
 
-        let connector_router_data = worldpayxml::WorldpayxmlRouterData::from((amount, req));
-        let connector_req_object = worldpayxml::PaymentService::try_from(&connector_router_data)?;
+        let connector_router_data = worldpayvantiv::WorldpayvantivRouterData::from((amount, req));
+        let connector_req_object =
+            worldpayvantiv::CnpOnlineRequest::try_from(&connector_router_data)?;
 
-        let connector_req = utils::XmlSerializer::serialize_to_xml_bytes(
+        router_env::logger::info!(raw_connector_request=?connector_req_object);
+        let connector_req = connector_utils::XmlSerializer::serialize_to_xml_bytes(
             &connector_req_object,
-            worldpayxml::worldpayxml_constants::XML_VERSION,
-            Some(worldpayxml::worldpayxml_constants::XML_ENCODING),
+            worldpayvantiv::worldpayvantiv_constants::XML_VERSION,
+            Some(worldpayvantiv::worldpayvantiv_constants::XML_ENCODING),
             None,
-            Some(worldpayxml::worldpayxml_constants::WORLDPAYXML_DOC_TYPE),
+            None,
         )?;
+
         Ok(RequestContent::RawBytes(connector_req))
     }
 
@@ -292,8 +246,8 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
         event_builder: Option<&mut ConnectorEvent>,
         res: Response,
     ) -> CustomResult<PaymentsAuthorizeRouterData, errors::ConnectorError> {
-        let response: worldpayxml::PaymentService =
-            utils::deserialize_xml_to_struct(&res.response)?;
+        let response: worldpayvantiv::CnpOnlineResponse =
+            connector_utils::deserialize_xml_to_struct(&res.response)?;
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
         RouterData::try_from(ResponseRouterData {
@@ -312,7 +266,7 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
     }
 }
 
-impl ConnectorIntegration<PSync, PaymentsSyncData, PaymentsResponseData> for Worldpayxml {
+impl ConnectorIntegration<PSync, PaymentsSyncData, PaymentsResponseData> for Worldpayvantiv {
     fn get_headers(
         &self,
         req: &PaymentsSyncRouterData,
@@ -338,13 +292,14 @@ impl ConnectorIntegration<PSync, PaymentsSyncData, PaymentsResponseData> for Wor
         req: &PaymentsSyncRouterData,
         _connectors: &Connectors,
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
-        let connector_req_object = worldpayxml::PaymentService::try_from(req)?;
-        let connector_req = utils::XmlSerializer::serialize_to_xml_bytes(
+        let connector_req_object = worldpayvantiv::CnpOnlineRequest::try_from(req)?;
+        router_env::logger::info!(raw_connector_request=?connector_req_object);
+        let connector_req = connector_utils::XmlSerializer::serialize_to_xml_bytes(
             &connector_req_object,
-            worldpayxml::worldpayxml_constants::XML_VERSION,
-            Some(worldpayxml::worldpayxml_constants::XML_ENCODING),
+            worldpayvantiv::worldpayvantiv_constants::XML_VERSION,
+            Some(worldpayvantiv::worldpayvantiv_constants::XML_ENCODING),
             None,
-            Some(worldpayxml::worldpayxml_constants::WORLDPAYXML_DOC_TYPE),
+            None,
         )?;
         Ok(RequestContent::RawBytes(connector_req))
     }
@@ -373,8 +328,8 @@ impl ConnectorIntegration<PSync, PaymentsSyncData, PaymentsResponseData> for Wor
         event_builder: Option<&mut ConnectorEvent>,
         res: Response,
     ) -> CustomResult<PaymentsSyncRouterData, errors::ConnectorError> {
-        let response: worldpayxml::PaymentService =
-            utils::deserialize_xml_to_struct(&res.response)?;
+        let response: worldpayvantiv::CnpOnlineResponse =
+            connector_utils::deserialize_xml_to_struct(&res.response)?;
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
         RouterData::try_from(ResponseRouterData {
@@ -393,7 +348,7 @@ impl ConnectorIntegration<PSync, PaymentsSyncData, PaymentsResponseData> for Wor
     }
 }
 
-impl ConnectorIntegration<Capture, PaymentsCaptureData, PaymentsResponseData> for Worldpayxml {
+impl ConnectorIntegration<Capture, PaymentsCaptureData, PaymentsResponseData> for Worldpayvantiv {
     fn get_headers(
         &self,
         req: &PaymentsCaptureRouterData,
@@ -419,21 +374,24 @@ impl ConnectorIntegration<Capture, PaymentsCaptureData, PaymentsResponseData> fo
         req: &PaymentsCaptureRouterData,
         _connectors: &Connectors,
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
-        let amount = utils::convert_amount(
+        let amount = connector_utils::convert_amount(
             self.amount_converter,
             req.request.minor_amount_to_capture,
             req.request.currency,
         )?;
-        let connector_router_data = worldpayxml::WorldpayxmlRouterData::from((amount, req));
-        let connector_req_object = worldpayxml::PaymentService::try_from(&connector_router_data)?;
 
-        let connector_req = utils::XmlSerializer::serialize_to_xml_bytes(
+        let connector_router_data = worldpayvantiv::WorldpayvantivRouterData::from((amount, req));
+        let connector_req_object =
+            worldpayvantiv::CnpOnlineRequest::try_from(&connector_router_data)?;
+        router_env::logger::info!(raw_connector_request=?connector_req_object);
+        let connector_req = connector_utils::XmlSerializer::serialize_to_xml_bytes(
             &connector_req_object,
-            worldpayxml::worldpayxml_constants::XML_VERSION,
-            Some(worldpayxml::worldpayxml_constants::XML_ENCODING),
+            worldpayvantiv::worldpayvantiv_constants::XML_VERSION,
+            Some(worldpayvantiv::worldpayvantiv_constants::XML_ENCODING),
             None,
-            Some(worldpayxml::worldpayxml_constants::WORLDPAYXML_DOC_TYPE),
+            None,
         )?;
+
         Ok(RequestContent::RawBytes(connector_req))
     }
 
@@ -463,8 +421,8 @@ impl ConnectorIntegration<Capture, PaymentsCaptureData, PaymentsResponseData> fo
         event_builder: Option<&mut ConnectorEvent>,
         res: Response,
     ) -> CustomResult<PaymentsCaptureRouterData, errors::ConnectorError> {
-        let response: worldpayxml::PaymentService =
-            utils::deserialize_xml_to_struct(&res.response)?;
+        let response: worldpayvantiv::CnpOnlineResponse =
+            connector_utils::deserialize_xml_to_struct(&res.response)?;
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
         RouterData::try_from(ResponseRouterData {
@@ -483,13 +441,17 @@ impl ConnectorIntegration<Capture, PaymentsCaptureData, PaymentsResponseData> fo
     }
 }
 
-impl ConnectorIntegration<Void, PaymentsCancelData, PaymentsResponseData> for Worldpayxml {
+impl ConnectorIntegration<Void, PaymentsCancelData, PaymentsResponseData> for Worldpayvantiv {
     fn get_headers(
         &self,
         req: &PaymentsCancelRouterData,
         connectors: &Connectors,
     ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
         self.build_headers(req, connectors)
+    }
+
+    fn get_content_type(&self) -> &'static str {
+        self.common_get_content_type()
     }
 
     fn get_url(
@@ -500,24 +462,22 @@ impl ConnectorIntegration<Void, PaymentsCancelData, PaymentsResponseData> for Wo
         Ok(self.base_url(connectors).to_owned())
     }
 
-    fn get_content_type(&self) -> &'static str {
-        self.common_get_content_type()
-    }
-
     fn get_request_body(
         &self,
         req: &PaymentsCancelRouterData,
         _connectors: &Connectors,
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
-        let connector_req_object = worldpayxml::PaymentService::try_from(req)?;
+        let connector_req_object = worldpayvantiv::CnpOnlineRequest::try_from(req)?;
+        router_env::logger::info!(raw_connector_request=?connector_req_object);
 
-        let connector_req = utils::XmlSerializer::serialize_to_xml_bytes(
+        let connector_req = connector_utils::XmlSerializer::serialize_to_xml_bytes(
             &connector_req_object,
-            worldpayxml::worldpayxml_constants::XML_VERSION,
-            Some(worldpayxml::worldpayxml_constants::XML_ENCODING),
+            worldpayvantiv::worldpayvantiv_constants::XML_VERSION,
+            Some(worldpayvantiv::worldpayvantiv_constants::XML_ENCODING),
             None,
-            Some(worldpayxml::worldpayxml_constants::WORLDPAYXML_DOC_TYPE),
+            None,
         )?;
+
         Ok(RequestContent::RawBytes(connector_req))
     }
 
@@ -532,7 +492,9 @@ impl ConnectorIntegration<Void, PaymentsCancelData, PaymentsResponseData> for Wo
                 .url(&types::PaymentsVoidType::get_url(self, req, connectors)?)
                 .attach_default_headers()
                 .headers(types::PaymentsVoidType::get_headers(self, req, connectors)?)
-                .set_body(self.get_request_body(req, connectors)?)
+                .set_body(types::PaymentsVoidType::get_request_body(
+                    self, req, connectors,
+                )?)
                 .build(),
         ))
     }
@@ -543,8 +505,8 @@ impl ConnectorIntegration<Void, PaymentsCancelData, PaymentsResponseData> for Wo
         event_builder: Option<&mut ConnectorEvent>,
         res: Response,
     ) -> CustomResult<PaymentsCancelRouterData, errors::ConnectorError> {
-        let response: worldpayxml::PaymentService =
-            utils::deserialize_xml_to_struct(&res.response)?;
+        let response: worldpayvantiv::CnpOnlineResponse =
+            connector_utils::deserialize_xml_to_struct(&res.response)?;
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
         RouterData::try_from(ResponseRouterData {
@@ -563,7 +525,7 @@ impl ConnectorIntegration<Void, PaymentsCancelData, PaymentsResponseData> for Wo
     }
 }
 
-impl ConnectorIntegration<Execute, RefundsData, RefundsResponseData> for Worldpayxml {
+impl ConnectorIntegration<Execute, RefundsData, RefundsResponseData> for Worldpayvantiv {
     fn get_headers(
         &self,
         req: &RefundsRouterData<Execute>,
@@ -589,21 +551,25 @@ impl ConnectorIntegration<Execute, RefundsData, RefundsResponseData> for Worldpa
         req: &RefundsRouterData<Execute>,
         _connectors: &Connectors,
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
-        let refund_amount = utils::convert_amount(
+        let refund_amount = connector_utils::convert_amount(
             self.amount_converter,
             req.request.minor_refund_amount,
             req.request.currency,
         )?;
 
-        let connector_router_data = worldpayxml::WorldpayxmlRouterData::from((refund_amount, req));
-        let connector_req_object = worldpayxml::PaymentService::try_from(&connector_router_data)?;
-        let connector_req = utils::XmlSerializer::serialize_to_xml_bytes(
+        let connector_router_data =
+            worldpayvantiv::WorldpayvantivRouterData::from((refund_amount, req));
+        let connector_req_object =
+            worldpayvantiv::CnpOnlineRequest::try_from(&connector_router_data)?;
+        router_env::logger::info!(connector_request=?connector_req_object);
+        let connector_req = connector_utils::XmlSerializer::serialize_to_xml_bytes(
             &connector_req_object,
-            worldpayxml::worldpayxml_constants::XML_VERSION,
-            Some(worldpayxml::worldpayxml_constants::XML_ENCODING),
+            worldpayvantiv::worldpayvantiv_constants::XML_VERSION,
+            Some(worldpayvantiv::worldpayvantiv_constants::XML_ENCODING),
             None,
-            Some(worldpayxml::worldpayxml_constants::WORLDPAYXML_DOC_TYPE),
+            None,
         )?;
+
         Ok(RequestContent::RawBytes(connector_req))
     }
 
@@ -632,8 +598,8 @@ impl ConnectorIntegration<Execute, RefundsData, RefundsResponseData> for Worldpa
         event_builder: Option<&mut ConnectorEvent>,
         res: Response,
     ) -> CustomResult<RefundsRouterData<Execute>, errors::ConnectorError> {
-        let response: worldpayxml::PaymentService =
-            utils::deserialize_xml_to_struct(&res.response)?;
+        let response: worldpayvantiv::CnpOnlineResponse =
+            connector_utils::deserialize_xml_to_struct(&res.response)?;
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
         RouterData::try_from(ResponseRouterData {
@@ -652,7 +618,7 @@ impl ConnectorIntegration<Execute, RefundsData, RefundsResponseData> for Worldpa
     }
 }
 
-impl ConnectorIntegration<RSync, RefundsData, RefundsResponseData> for Worldpayxml {
+impl ConnectorIntegration<RSync, RefundsData, RefundsResponseData> for Worldpayvantiv {
     fn get_headers(
         &self,
         req: &RefundSyncRouterData,
@@ -678,15 +644,17 @@ impl ConnectorIntegration<RSync, RefundsData, RefundsResponseData> for Worldpayx
         req: &RefundSyncRouterData,
         _connectors: &Connectors,
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
-        let connector_req_object = worldpayxml::PaymentService::try_from(req)?;
+        let connector_req_object = worldpayvantiv::CnpOnlineRequest::try_from(req)?;
+        router_env::logger::info!(raw_connector_request=?connector_req_object);
 
-        let connector_req = utils::XmlSerializer::serialize_to_xml_bytes(
+        let connector_req = connector_utils::XmlSerializer::serialize_to_xml_bytes(
             &connector_req_object,
-            worldpayxml::worldpayxml_constants::XML_VERSION,
-            Some(worldpayxml::worldpayxml_constants::XML_ENCODING),
+            worldpayvantiv::worldpayvantiv_constants::XML_VERSION,
+            Some(worldpayvantiv::worldpayvantiv_constants::XML_ENCODING),
             None,
-            Some(worldpayxml::worldpayxml_constants::WORLDPAYXML_DOC_TYPE),
+            None,
         )?;
+
         Ok(RequestContent::RawBytes(connector_req))
     }
 
@@ -714,8 +682,8 @@ impl ConnectorIntegration<RSync, RefundsData, RefundsResponseData> for Worldpayx
         event_builder: Option<&mut ConnectorEvent>,
         res: Response,
     ) -> CustomResult<RefundSyncRouterData, errors::ConnectorError> {
-        let response: worldpayxml::PaymentService =
-            utils::deserialize_xml_to_struct(&res.response)?;
+        let response: worldpayvantiv::CnpOnlineResponse =
+            connector_utils::deserialize_xml_to_struct(&res.response)?;
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
         RouterData::try_from(ResponseRouterData {
@@ -735,7 +703,7 @@ impl ConnectorIntegration<RSync, RefundsData, RefundsResponseData> for Worldpayx
 }
 
 #[async_trait::async_trait]
-impl webhooks::IncomingWebhook for Worldpayxml {
+impl webhooks::IncomingWebhook for Worldpayvantiv {
     fn get_webhook_object_reference_id(
         &self,
         _request: &webhooks::IncomingWebhookRequestDetails<'_>,
@@ -758,7 +726,7 @@ impl webhooks::IncomingWebhook for Worldpayxml {
     }
 }
 
-static WORLDPAYXML_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMethods> =
+static WORLDPAYVANTIV_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMethods> =
     LazyLock::new(|| {
         let supported_capture_methods = vec![
             common_enums::CaptureMethod::Automatic,
@@ -768,17 +736,16 @@ static WORLDPAYXML_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMethods> 
 
         let supported_card_network = vec![
             common_enums::CardNetwork::AmericanExpress,
-            common_enums::CardNetwork::CartesBancaires,
             common_enums::CardNetwork::DinersClub,
             common_enums::CardNetwork::JCB,
-            common_enums::CardNetwork::Maestro,
             common_enums::CardNetwork::Mastercard,
             common_enums::CardNetwork::Visa,
+            common_enums::CardNetwork::Discover,
         ];
 
-        let mut worldpayxml_supported_payment_methods = SupportedPaymentMethods::new();
+        let mut worldpayvantiv_supported_payment_methods = SupportedPaymentMethods::new();
 
-        worldpayxml_supported_payment_methods.add(
+        worldpayvantiv_supported_payment_methods.add(
             common_enums::PaymentMethod::Card,
             common_enums::PaymentMethodType::Credit,
             PaymentMethodDetails {
@@ -797,7 +764,7 @@ static WORLDPAYXML_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMethods> 
             },
         );
 
-        worldpayxml_supported_payment_methods.add(
+        worldpayvantiv_supported_payment_methods.add(
             common_enums::PaymentMethod::Card,
             common_enums::PaymentMethodType::Debit,
             PaymentMethodDetails {
@@ -815,27 +782,27 @@ static WORLDPAYXML_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMethods> 
                 ),
             },
         );
-        worldpayxml_supported_payment_methods
+        worldpayvantiv_supported_payment_methods
     });
 
-static WORLDPAYXML_CONNECTOR_INFO: ConnectorInfo = ConnectorInfo {
-    display_name: "Worldpay XML",
-    description: "Worldpay is a payment gateway and PSP enabling secure online transactions",
+static WORLDPAYVANTIV_CONNECTOR_INFO: ConnectorInfo = ConnectorInfo {
+    display_name: "Worldpay Vantiv",
+    description: "Worldpay Vantiv, also known as the Worldpay CNP API, is a robust XML-based interface used to process online (card-not-present) transactions such as e-commerce purchases, subscription billing, and digital payments",
     connector_type: common_enums::PaymentConnectorCategory::PaymentGateway,
 };
 
-static WORLDPAYXML_SUPPORTED_WEBHOOK_FLOWS: [common_enums::EventClass; 0] = [];
+static WORLDPAYVANTIV_SUPPORTED_WEBHOOK_FLOWS: [common_enums::EventClass; 0] = [];
 
-impl ConnectorSpecifications for Worldpayxml {
+impl ConnectorSpecifications for Worldpayvantiv {
     fn get_connector_about(&self) -> Option<&'static ConnectorInfo> {
-        Some(&WORLDPAYXML_CONNECTOR_INFO)
+        Some(&WORLDPAYVANTIV_CONNECTOR_INFO)
     }
 
     fn get_supported_payment_methods(&self) -> Option<&'static SupportedPaymentMethods> {
-        Some(&*WORLDPAYXML_SUPPORTED_PAYMENT_METHODS)
+        Some(&*WORLDPAYVANTIV_SUPPORTED_PAYMENT_METHODS)
     }
 
     fn get_supported_webhook_flows(&self) -> Option<&'static [common_enums::EventClass]> {
-        Some(&WORLDPAYXML_SUPPORTED_WEBHOOK_FLOWS)
+        Some(&WORLDPAYVANTIV_SUPPORTED_WEBHOOK_FLOWS)
     }
 }
