@@ -11,7 +11,7 @@ use common_utils::{
 };
 use common_utils::{
     errors::{CustomResult, ValidationError},
-    ext_traits::OptionExt,
+    ext_traits::{Encode, OptionExt},
     id_type, pii,
     types::{
         keymanager::{self, KeyManagerState},
@@ -521,8 +521,6 @@ impl PaymentAttempt {
         request: &api_models::payments::PaymentsConfirmIntentRequest,
         encrypted_data: DecryptedPaymentAttempt,
     ) -> CustomResult<Self, errors::api_error_response::ApiErrorResponse> {
-        use common_utils::ext_traits::Encode;
-
         let id = id_type::GlobalAttemptId::generate(&cell_id);
         let intent_amount_details = payment_intent.amount_details.clone();
 

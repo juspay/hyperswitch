@@ -8,7 +8,7 @@ pub use api_models::payment_methods::{
     PaymentMethodCollectLinkRenderRequest, PaymentMethodCollectLinkRequest, PaymentMethodCreate,
     PaymentMethodCreateData, PaymentMethodDeleteResponse, PaymentMethodId,
     PaymentMethodIntentConfirm, PaymentMethodIntentCreate, PaymentMethodListData,
-    PaymentMethodListRequest, PaymentMethodListResponse, PaymentMethodMigrate,
+    PaymentMethodListRequest, PaymentMethodListResponseForSession, PaymentMethodMigrate,
     PaymentMethodMigrateResponse, PaymentMethodResponse, PaymentMethodResponseData,
     PaymentMethodUpdate, PaymentMethodUpdateData, PaymentMethodsData, TokenDataResponse,
     TokenDetailsResponse, TokenizePayloadEncrypted, TokenizePayloadRequest, TokenizedCardValue1,

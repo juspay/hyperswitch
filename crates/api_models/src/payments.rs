@@ -7596,7 +7596,7 @@ pub struct PaymentMethodListResponseForPayments {
     /// The list of payment methods that are saved by the given customer
     /// This field is only returned if the customer_id is provided in the request
     #[schema(value_type = Option<Vec<CustomerPaymentMethodResponseItem>>)]
-    pub customer_payment_methods: Option<Vec<payment_methods::CustomerPaymentMethodResponseItem>>,
+    pub customer_payment_methods: Option<Vec<payment_methods::PaymentMethodResponseItem>>,
 }
 
 #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
