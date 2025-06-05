@@ -1,0 +1,8 @@
+{
+  "auth": {
+    "type": "basic",
+    "basic": {
+      "username": "{{api_key}}"
+    }
+  }
+}
