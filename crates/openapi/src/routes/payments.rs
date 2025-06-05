@@ -10,12 +10,12 @@
         content = PaymentsCreateRequest,
         examples(
             (
-                "Create a payment with minimal fields" = (
+                "1. Create a payment with minimal fields" = (
                     value = json!({"amount": 6540,"currency": "USD"})
                 )
             ),
             (
-                "Create a payment with customer details and metadata" = (
+                "2. Create a payment with customer details and metadata" = (
                     value = json!({
                     "amount": 6540,
                     "currency": "USD",
@@ -37,7 +37,7 @@
                 )
             ),
             (
-                "Create a 3DS payment" = (
+                "3. Create a 3DS payment" = (
                     value = json!({
                     "amount": 6540,
                     "currency": "USD",
@@ -46,7 +46,7 @@
                 )
             ),
             (
-                "Create a manual capture payment" = (
+                "4. Create a manual capture payment (basic)" = (
                     value = json!({
                     "amount": 6540,
                     "currency": "USD",
@@ -55,7 +55,7 @@
                 )
             ),
             (
-                "Create a setup mandate payment" = (
+                "5. Create a setup mandate payment" = (
                     value = json!({
                     "amount": 6540,
                     "currency": "USD",
@@ -101,7 +101,7 @@
                 )
             ),
             (
-                "Create a recurring payment with mandate_id" = (
+                "6. Create a recurring payment with mandate_id" = (
                     value = json!({
                     "amount": 6540,
                     "currency": "USD",
@@ -114,7 +114,7 @@
                 )
             ),
             (
-                "Create a payment and save the card" = (
+                "7. Create a payment and save the card" = (
                     value = json!({
                     "amount": 6540,
                     "currency": "USD",
@@ -144,7 +144,7 @@
                 )
             ),
             (
-                "Create a payment using an already saved card's token" = (
+                "8. Create a payment using an already saved card's token" = (
                     value = json!({
                     "amount": 6540,
                     "currency": "USD",
@@ -157,7 +157,7 @@
                 )
             ),
             (
-                "Create a manual capture payment" = (
+                "9. Create a payment with billing details" = (
                     value = json!({
                     "amount": 6540,
                     "currency": "USD",
@@ -189,7 +189,7 @@
     responses(
         (status = 200, description = "Payment created", body = PaymentsCreateResponseOpenApi,
             examples(
-                ("Minimal payment created, requires payment method" = (
+                ("1. Response for minimal payment creation (requires payment method)" = (
                     value = json!({
                         "payment_id": "pay_syxxxxxxxxxxxx",
                         "merchant_id": "merchant_myyyyyyyyyyyy",
@@ -204,7 +204,7 @@
                         "expires_on": "2023-10-26T10:15:00Z"
                     })
                 )),
-                ("Payment with customer details, requires payment method" = (
+                ("2. Response for payment with customer details (requires payment method)" = (
                     value = json!({
                         "payment_id": "pay_custmeta_xxxxxxxxxxxx",
                         "merchant_id": "merchant_myyyyyyyyyyyy",
@@ -236,7 +236,7 @@
                         "expires_on": "2023-10-26T10:20:00Z"
                     })
                 )),
-                ("3DS payment created, requires payment method" = (
+                ("3. Response for 3DS payment creation (requires payment method)" = (
                     value = json!({
                         "payment_id": "pay_3ds_xxxxxxxxxxxx",
                         "merchant_id": "merchant_myyyyyyyyyyyy",
@@ -251,7 +251,7 @@
                         "expires_on": "2023-10-26T10:25:00Z"
                     })
                 )),
-                ("Manual capture payment created, requires payment method" = (
+                ("4. Response for basic manual capture payment (requires payment method)" = (
                     value = json!({
                         "payment_id": "pay_manualcap_xxxxxxxxxxxx",
                         "merchant_id": "merchant_myyyyyyyyyyyy",
@@ -266,7 +266,7 @@
                         "expires_on": "2023-10-26T10:30:00Z"
                     })
                 )),
-                ("Setup mandate payment succeeded" = (
+                ("5. Response for successful setup mandate payment" = (
                     value = json!({
                         "payment_id": "pay_mandatesetup_xxxxxxxxxxxx",
                         "merchant_id": "merchant_myyyyyyyyyyyy",
@@ -301,7 +301,30 @@
                         "connector_transaction_id": "txn_connectortransidxxxx"
                     })
                 )),
-                ("Payment created and card saved" = (
+                ("6. Response for successful recurring payment with mandate_id" = (
+                    value = json!({
+                        "payment_id": "pay_recurring_xxxxxxxxxxxx",
+                        "merchant_id": "merchant_myyyyyyyyyyyy",
+                        "status": "succeeded",
+                        "amount": 6540,
+                        "currency": "USD",
+                        "amount_capturable": 0,
+                        "amount_received": 6540,
+                        "connector": "fauxpay",
+                        "customer_id": "StripeCustomer",
+                        "mandate_id": "{{mandate_id}}",
+                        "off_session": true,
+                        "payment_method": "card",
+                        "authentication_type": "no_three_ds",
+                        "client_secret": "pay_recurring_xxxxxxxxxxxx_secret_szzzzzzzzzzz",
+                        "created": "2023-10-26T10:22:00Z",
+                        "profile_id": "pro_pzzzzzzzzzzz",
+                        "attempt_count": 1,
+                        "merchant_connector_id": "mca_mcaconnectorxxxx",
+                        "connector_transaction_id": "txn_connectortransidxxxx"
+                    })
+                )),
+                ("7. Response for successful payment with card saved" = (
                     value = json!({
                         "payment_id": "pay_savecard_xxxxxxxxxxxx",
                         "merchant_id": "merchant_myyyyyyyyyyyy",
@@ -325,10 +348,30 @@
                         "attempt_count": 1,
                         "merchant_connector_id": "mca_mcaconnectorxxxx",
                         "connector_transaction_id": "txn_connectortransidxxxx",
-                        "payment_token": null
+                        "payment_token": null // Assuming payment_token is for subsequent use, not in this response.
                     })
                 )),
-                ("Payment with billing details, requires payment method" = (
+                ("8. Response for successful payment using saved card token" = (
+                    value = json!({
+                        "payment_id": "pay_token_xxxxxxxxxxxx",
+                        "merchant_id": "merchant_myyyyyyyyyyyy",
+                        "status": "succeeded",
+                        "amount": 6540,
+                        "currency": "USD",
+                        "amount_capturable": 0,
+                        "amount_received": 6540,
+                        "connector": "fauxpay",
+                        "payment_method": "card",
+                        "payment_token": "{{payment_token}}",
+                        "client_secret": "pay_token_xxxxxxxxxxxx_secret_szzzzzzzzzzz",
+                        "created": "2023-10-26T10:27:00Z",
+                        "profile_id": "pro_pzzzzzzzzzzz",
+                        "attempt_count": 1,
+                        "merchant_connector_id": "mca_mcaconnectorxxxx",
+                        "connector_transaction_id": "txn_connectortransidxxxx"
+                    })
+                )),
+                ("9. Response for payment with billing details (requires payment method)" = (
                     value = json!({
                         "payment_id": "pay_manualbill_xxxxxxxxxxxx",
                         "merchant_id": "merchant_myyyyyyyyyyyy",
@@ -338,9 +381,9 @@
                         "customer_id": "cus_abcdefgh",
                         "customer": {
                             "id": "cus_abcdefgh",
-                            "name": "John Dough",
-                            "email": "john@example.com",
-                            "phone": "9123456789"
+                            "name": "John Dough", // Assuming customer name might be available if ID is
+                            "email": "john@example.com", // Assuming email might be available
+                            "phone": "9123456789" // Assuming phone might be available
                         },
                         "billing": {
                             "address": {
