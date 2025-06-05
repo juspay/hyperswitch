@@ -2,6 +2,7 @@ pub mod transformers;
 
 use std::sync::LazyLock;
 
+use base64::Engine;
 use common_enums::enums;
 use common_utils::{
     errors::CustomResult,
@@ -42,7 +43,6 @@ use hyperswitch_interfaces::{
     types::{self, Response},
     webhooks,
 };
-use base64::Engine;
 use masking::{ExposeInterface, Mask, PeekInterface};
 use transformers as authipay;
 
@@ -59,7 +59,7 @@ impl Authipay {
             amount_converter: &FloatMajorUnitForConnector,
         }
     }
-    
+
     pub fn generate_authorization_signature(
         &self,
         auth: authipay::AuthipayAuthType,
@@ -184,7 +184,7 @@ impl ConnectorCommon for Authipay {
         router_env::logger::info!(connector_response=?response);
 
         let mut error_response = ErrorResponse::from(&response);
-        
+
         // Set status code from the response, or 400 if error code is a "404"
         if let Some(error_code) = &response.error.code {
             if error_code == "404" {
@@ -195,7 +195,7 @@ impl ConnectorCommon for Authipay {
         } else {
             error_response.status_code = res.status_code;
         }
-        
+
         Ok(error_response)
     }
 }
@@ -335,7 +335,10 @@ impl ConnectorIntegration<PSync, PaymentsSyncData, PaymentsResponseData> for Aut
         req: &PaymentsSyncRouterData,
         connectors: &Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        let connector_transaction_id = req.request.connector_transaction_id.get_connector_transaction_id()
+        let connector_transaction_id = req
+            .request
+            .connector_transaction_id
+            .get_connector_transaction_id()
             .change_context(errors::ConnectorError::RequestEncodingFailed)?;
         Ok(format!(
             "{}payments/{}",
@@ -586,7 +589,10 @@ impl ConnectorIntegration<RSync, RefundsData, RefundsResponseData> for Authipay 
         req: &RefundSyncRouterData,
         connectors: &Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        let refund_id = req.request.connector_refund_id.clone()
+        let refund_id = req
+            .request
+            .connector_refund_id
+            .clone()
             .ok_or(errors::ConnectorError::RequestEncodingFailed)?;
         Ok(format!(
             "{}payments/{}",
@@ -665,60 +671,61 @@ impl webhooks::IncomingWebhook for Authipay {
     }
 }
 
-static AUTHIPAY_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMethods> = LazyLock::new(|| {
-    let supported_capture_methods = vec![
-        enums::CaptureMethod::Automatic,
-        enums::CaptureMethod::SequentialAutomatic,
-        enums::CaptureMethod::Manual,
-    ];
+static AUTHIPAY_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMethods> =
+    LazyLock::new(|| {
+        let supported_capture_methods = vec![
+            enums::CaptureMethod::Automatic,
+            enums::CaptureMethod::SequentialAutomatic,
+            enums::CaptureMethod::Manual,
+        ];
 
-    let supported_card_network = vec![
-        common_enums::CardNetwork::Visa,
-        common_enums::CardNetwork::Mastercard,
-    ];
+        let supported_card_network = vec![
+            common_enums::CardNetwork::Visa,
+            common_enums::CardNetwork::Mastercard,
+        ];
 
-    let mut authipay_supported_payment_methods = SupportedPaymentMethods::new();
+        let mut authipay_supported_payment_methods = SupportedPaymentMethods::new();
 
-    authipay_supported_payment_methods.add(
-        enums::PaymentMethod::Card,
-        enums::PaymentMethodType::Credit,
-        PaymentMethodDetails {
-            mandates: enums::FeatureStatus::NotSupported,
-            refunds: enums::FeatureStatus::Supported,
-            supported_capture_methods: supported_capture_methods.clone(),
-            specific_features: Some(
-                api_models::feature_matrix::PaymentMethodSpecificFeatures::Card({
-                    api_models::feature_matrix::CardSpecificFeatures {
-                        three_ds: common_enums::FeatureStatus::Supported,
-                        no_three_ds: common_enums::FeatureStatus::NotSupported,
-                        supported_card_networks: supported_card_network.clone(),
-                    }
-                }),
-            ),
-        },
-    );
+        authipay_supported_payment_methods.add(
+            enums::PaymentMethod::Card,
+            enums::PaymentMethodType::Credit,
+            PaymentMethodDetails {
+                mandates: enums::FeatureStatus::NotSupported,
+                refunds: enums::FeatureStatus::Supported,
+                supported_capture_methods: supported_capture_methods.clone(),
+                specific_features: Some(
+                    api_models::feature_matrix::PaymentMethodSpecificFeatures::Card({
+                        api_models::feature_matrix::CardSpecificFeatures {
+                            three_ds: common_enums::FeatureStatus::Supported,
+                            no_three_ds: common_enums::FeatureStatus::NotSupported,
+                            supported_card_networks: supported_card_network.clone(),
+                        }
+                    }),
+                ),
+            },
+        );
 
-    authipay_supported_payment_methods.add(
-        enums::PaymentMethod::Card,
-        enums::PaymentMethodType::Debit,
-        PaymentMethodDetails {
-            mandates: enums::FeatureStatus::NotSupported,
-            refunds: enums::FeatureStatus::Supported,
-            supported_capture_methods: supported_capture_methods.clone(),
-            specific_features: Some(
-                api_models::feature_matrix::PaymentMethodSpecificFeatures::Card({
-                    api_models::feature_matrix::CardSpecificFeatures {
-                        three_ds: common_enums::FeatureStatus::Supported,
-                        no_three_ds: common_enums::FeatureStatus::NotSupported,
-                        supported_card_networks: supported_card_network.clone(),
-                    }
-                }),
-            ),
-        },
-    );
+        authipay_supported_payment_methods.add(
+            enums::PaymentMethod::Card,
+            enums::PaymentMethodType::Debit,
+            PaymentMethodDetails {
+                mandates: enums::FeatureStatus::NotSupported,
+                refunds: enums::FeatureStatus::Supported,
+                supported_capture_methods: supported_capture_methods.clone(),
+                specific_features: Some(
+                    api_models::feature_matrix::PaymentMethodSpecificFeatures::Card({
+                        api_models::feature_matrix::CardSpecificFeatures {
+                            three_ds: common_enums::FeatureStatus::Supported,
+                            no_three_ds: common_enums::FeatureStatus::NotSupported,
+                            supported_card_networks: supported_card_network.clone(),
+                        }
+                    }),
+                ),
+            },
+        );
 
-    authipay_supported_payment_methods
-});
+        authipay_supported_payment_methods
+    });
 
 static AUTHIPAY_CONNECTOR_INFO: ConnectorInfo = ConnectorInfo {
     display_name: "Authipay",

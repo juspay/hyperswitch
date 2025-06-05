@@ -1,6 +1,6 @@
+use cards;
 use common_enums::enums;
 use common_utils::types::FloatMajorUnit;
-use cards;
 use hyperswitch_domain_models::{
     payment_method_data::PaymentMethodData,
     router_data::{ConnectorAuthType, ErrorResponse, RouterData},
@@ -9,13 +9,11 @@ use hyperswitch_domain_models::{
     router_response_types::{PaymentsResponseData, RefundsResponseData},
     types::{PaymentsAuthorizeRouterData, PaymentsCaptureRouterData, RefundsRouterData},
 };
-use hyperswitch_interfaces::{consts, errors};
+use hyperswitch_interfaces::{ errors};
 use masking::Secret;
 use serde::{Deserialize, Serialize};
 
-use crate::{
-    types::{RefundsResponseRouterData, ResponseRouterData},
-};
+use crate::types::{RefundsResponseRouterData, ResponseRouterData};
 
 // Type definition for router data with amount
 pub struct AuthipayRouterData<T> {
@@ -90,26 +88,24 @@ impl TryFrom<&AuthipayRouterData<&PaymentsAuthorizeRouterData>> for AuthipayPaym
                     month: req_card.card_exp_month.clone(),
                     year: req_card.card_exp_year.clone(),
                 };
-                
+
                 let card = Card {
                     number: req_card.card_number.clone(),
                     security_code: req_card.card_cvc.clone(),
                     expiry_date,
                 };
-                
-                let payment_method = PaymentMethod {
-                    payment_card: card,
-                };
-                
+
+                let payment_method = PaymentMethod { payment_card: card };
+
                 let transaction_amount = Amount {
-                    total: item.amount.clone(),
+                    total: item.amount,
                     currency: item.router_data.request.currency.to_string(),
                 };
-                
+
                 // Making split_shipment None since some merchants aren't set up to support it
                 // This avoids error code 10421: "The merchant is not setup to support split shipment"
                 let split_shipment = None;
-                
+
                 Ok(Self {
                     request_type: "PaymentCardPreAuthTransaction",
                     transaction_amount,
@@ -134,7 +130,11 @@ impl TryFrom<&ConnectorAuthType> for AuthipayAuthType {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(auth_type: &ConnectorAuthType) -> Result<Self, Self::Error> {
         match auth_type {
-            ConnectorAuthType::SignatureKey { api_key, api_secret, .. } => Ok(Self {
+            ConnectorAuthType::SignatureKey {
+                api_key,
+                api_secret,
+                ..
+            } => Ok(Self {
                 api_key: api_key.to_owned(),
                 api_secret: api_secret.to_owned(),
             }),
@@ -240,7 +240,7 @@ pub struct AuthipayCaptureRequest {
 
 impl TryFrom<&AuthipayRouterData<&PaymentsCaptureRouterData>> for AuthipayCaptureRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
-    
+
     fn try_from(
         item: &AuthipayRouterData<&PaymentsCaptureRouterData>,
     ) -> Result<Self, Self::Error> {
@@ -311,7 +311,9 @@ impl TryFrom<RefundsResponseRouterData<Execute, RefundResponse>> for RefundsRout
                 connector_refund_id: item.response.ipg_transaction_id.to_string(),
                 refund_status: enums::RefundStatus::from(match item.response.transaction_state {
                     AuthipayPaymentStatus::RETURNED => RefundStatus::Succeeded,
-                    AuthipayPaymentStatus::FAILED | AuthipayPaymentStatus::DECLINED => RefundStatus::Failed,
+                    AuthipayPaymentStatus::FAILED | AuthipayPaymentStatus::DECLINED => {
+                        RefundStatus::Failed
+                    }
                     _ => RefundStatus::Processing,
                 }),
             }),
@@ -330,7 +332,9 @@ impl TryFrom<RefundsResponseRouterData<RSync, RefundResponse>> for RefundsRouter
                 connector_refund_id: item.response.ipg_transaction_id.to_string(),
                 refund_status: enums::RefundStatus::from(match item.response.transaction_state {
                     AuthipayPaymentStatus::RETURNED => RefundStatus::Succeeded,
-                    AuthipayPaymentStatus::FAILED | AuthipayPaymentStatus::DECLINED => RefundStatus::Failed,
+                    AuthipayPaymentStatus::FAILED | AuthipayPaymentStatus::DECLINED => {
+                        RefundStatus::Failed
+                    }
                     _ => RefundStatus::Processing,
                 }),
             }),
