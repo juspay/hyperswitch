@@ -418,7 +418,7 @@ impl MerchantAccountCreateBridge for api::MerchantAccountCreate {
                     .iter()
                     .any(|account| account.merchant_account_type == MerchantAccountType::Platform);
 
-                if !platform_account_exists {
+                if accounts.is_empty() || !platform_account_exists {
                     // First merchant in a Platform org must be Platform
                     MerchantAccountType::Platform
                 } else {
