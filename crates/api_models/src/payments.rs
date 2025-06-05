@@ -7613,6 +7613,10 @@ pub struct ResponsePaymentMethodTypesForPayments {
     #[schema(example = "klarna", value_type = PaymentMethodType)]
     pub payment_method_subtype: common_enums::PaymentMethodType,
 
+    /// The payment experience for the payment method
+    #[schema(value_type = Option<PaymentExperience>)]
+    pub payment_experience: Option<common_enums::PaymentExperience>,
+
     /// payment method subtype specific information
     #[serde(flatten)]
     #[schema(value_type = Option<PaymentMethodSubtypeSpecificData>)]
