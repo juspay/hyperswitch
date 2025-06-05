@@ -91,7 +91,7 @@ pub trait RefundInterface {
         offset: i64,
     ) -> CustomResult<Vec<diesel_models::refund::Refund>, errors::StorageError>;
 
-    #[cfg(all(feature = "v2", feature = "refunds_v2"))]
+    #[cfg(all(feature = "v2", feature = "refunds_v2", feature = "olap"))]
     async fn filter_refund_by_constraints(
         &self,
         merchant_id: &common_utils::id_type::MerchantId,
@@ -138,7 +138,7 @@ pub trait RefundInterface {
         storage_scheme: enums::MerchantStorageScheme,
     ) -> CustomResult<i64, errors::StorageError>;
 
-    #[cfg(all(feature = "v2", feature = "refunds_v2"))]
+    #[cfg(all(feature = "v2", feature = "refunds_v2", feature = "olap"))]
     async fn get_total_count_of_refunds(
         &self,
         merchant_id: &common_utils::id_type::MerchantId,
@@ -150,6 +150,7 @@ pub trait RefundInterface {
 #[cfg(not(feature = "kv_store"))]
 mod storage {
     use error_stack::report;
+    use hyperswitch_domain_models::refunds;
     use router_env::{instrument, tracing};
 
     use super::RefundInterface;
@@ -162,6 +163,7 @@ mod storage {
 
     #[async_trait::async_trait]
     impl RefundInterface for Store {
+        #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "refunds_v2")))]
         #[instrument(skip_all)]
         async fn find_refund_by_internal_reference_id_merchant_id(
             &self,
@@ -208,6 +210,19 @@ mod storage {
             .map_err(|error| report!(errors::StorageError::from(error)))
         }
 
+        #[cfg(all(feature = "v2", feature = "refunds_v2"))]
+        async fn find_refund_by_id(
+            &self,
+            id: &common_utils::id_type::GlobalRefundId,
+            storage_scheme: enums::MerchantStorageScheme,
+        ) -> CustomResult<storage_types::Refund, errors::StorageError> {
+            let conn = connection::pg_connection_read(self).await?;
+            storage_types::Refund::find_by_global_id(&conn, id)
+                .await
+                .map_err(|error| report!(errors::StorageError::from(error)))
+        }
+
+        #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "refunds_v2")))]
         #[instrument(skip_all)]
         async fn update_refund(
             &self,
@@ -221,6 +236,21 @@ mod storage {
                 .map_err(|error| report!(errors::StorageError::from(error)))
         }
 
+        #[cfg(all(feature = "v2", feature = "refunds_v2"))]
+        #[instrument(skip_all)]
+        async fn update_refund(
+            &self,
+            this: storage_types::Refund,
+            refund: storage_types::RefundUpdate,
+            _storage_scheme: enums::MerchantStorageScheme,
+        ) -> CustomResult<storage_types::Refund, errors::StorageError> {
+            let conn = connection::pg_connection_write(self).await?;
+            this.update_with_id(&conn, refund)
+                .await
+                .map_err(|error| report!(errors::StorageError::from(error)))
+        }
+
+        #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "refunds_v2")))]
         #[instrument(skip_all)]
         async fn find_refund_by_merchant_id_refund_id(
             &self,
@@ -234,6 +264,7 @@ mod storage {
                 .map_err(|error| report!(errors::StorageError::from(error)))
         }
 
+        #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "refunds_v2")))]
         #[instrument(skip_all)]
         async fn find_refund_by_merchant_id_connector_refund_id_connector(
             &self,
@@ -253,6 +284,7 @@ mod storage {
             .map_err(|error| report!(errors::StorageError::from(error)))
         }
 
+        #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "refunds_v2")))]
         #[instrument(skip_all)]
         async fn find_refund_by_payment_id_merchant_id(
             &self,
@@ -266,7 +298,11 @@ mod storage {
                 .map_err(|error| report!(errors::StorageError::from(error)))
         }
 
-        #[cfg(feature = "olap")]
+        #[cfg(all(
+            any(feature = "v1", feature = "v2"),
+            not(feature = "refunds_v2"),
+            feature = "olap"
+        ))]
         #[instrument(skip_all)]
         async fn filter_refund_by_constraints(
             &self,
@@ -288,7 +324,33 @@ mod storage {
             .map_err(|error| report!(errors::StorageError::from(error)))
         }
 
-        #[cfg(feature = "olap")]
+        #[cfg(all(feature = "v2", feature = "refunds_v2", feature = "olap"))]
+        #[instrument(skip_all)]
+        async fn filter_refund_by_constraints(
+            &self,
+            merchant_id: &common_utils::id_type::MerchantId,
+            refund_details: refunds::RefundListConstraints,
+            _storage_scheme: enums::MerchantStorageScheme,
+            limit: i64,
+            offset: i64,
+        ) -> CustomResult<Vec<diesel_models::refund::Refund>, errors::StorageError> {
+            let conn = connection::pg_connection_read(self).await?;
+            <diesel_models::refund::Refund as storage_types::RefundDbExt>::filter_by_constraints(
+                &conn,
+                merchant_id,
+                refund_details,
+                limit,
+                offset,
+            )
+            .await
+            .map_err(|error| report!(errors::StorageError::from(error)))
+        }
+
+        #[cfg(all(
+            any(feature = "v1", feature = "v2"),
+            not(feature = "refunds_v2"),
+            feature = "olap"
+        ))]
         #[instrument(skip_all)]
         async fn filter_refund_by_meta_constraints(
             &self,
@@ -306,7 +368,11 @@ mod storage {
             .map_err(|error|report!(errors::StorageError::from(error)))
         }
 
-        #[cfg(feature = "olap")]
+        #[cfg(all(
+            any(feature = "v1", feature = "v2"),
+            not(feature = "refunds_v2"),
+            feature = "olap"
+        ))]
         #[instrument(skip_all)]
         async fn get_refund_status_with_count(
             &self,
@@ -321,12 +387,34 @@ mod storage {
             .map_err(|error|report!(errors::StorageError::from(error)))
         }
 
-        #[cfg(feature = "olap")]
+        #[cfg(all(
+            any(feature = "v1", feature = "v2"),
+            not(feature = "refunds_v2"),
+            feature = "olap"
+        ))]
         #[instrument(skip_all)]
         async fn get_total_count_of_refunds(
             &self,
             merchant_id: &common_utils::id_type::MerchantId,
             refund_details: &refunds::RefundListConstraints,
+            _storage_scheme: enums::MerchantStorageScheme,
+        ) -> CustomResult<i64, errors::StorageError> {
+            let conn = connection::pg_connection_read(self).await?;
+            <diesel_models::refund::Refund as storage_types::RefundDbExt>::get_refunds_count(
+                &conn,
+                merchant_id,
+                refund_details,
+            )
+            .await
+            .map_err(|error| report!(errors::StorageError::from(error)))
+        }
+
+        #[cfg(all(feature = "v2", feature = "refunds_v2", feature = "olap"))]
+        #[instrument(skip_all)]
+        async fn get_total_count_of_refunds(
+            &self,
+            merchant_id: &common_utils::id_type::MerchantId,
+            refund_details: refunds::RefundListConstraints,
             _storage_scheme: enums::MerchantStorageScheme,
         ) -> CustomResult<i64, errors::StorageError> {
             let conn = connection::pg_connection_read(self).await?;
@@ -943,7 +1031,7 @@ mod storage {
             .map_err(|error| report!(errors::StorageError::from(error)))
         }
 
-        #[cfg(all(feature = "v2", feature = "refunds_v2"))]
+        #[cfg(all(feature = "v2", feature = "refunds_v2", feature = "olap"))]
         #[instrument(skip_all)]
         async fn filter_refund_by_constraints(
             &self,
@@ -1024,7 +1112,7 @@ mod storage {
             .map_err(|error| report!(errors::StorageError::from(error)))
         }
 
-        #[cfg(all(feature = "v2", feature = "refunds_v2"))]
+        #[cfg(all(feature = "v2", feature = "refunds_v2", feature = "olap"))]
         #[instrument(skip_all)]
         async fn get_total_count_of_refunds(
             &self,

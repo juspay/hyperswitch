@@ -3,6 +3,7 @@ import { execConfig, validateConfig } from "../../../utils/featureFlags.js";
 import { updateDefaultStatusCode } from "./Modifiers.js";
 
 import { connectorDetails as adyenConnectorDetails } from "./Adyen.js";
+import { connectorDetails as archipelConnectorDetails } from "./Archipel.js";
 import { connectorDetails as bankOfAmericaConnectorDetails } from "./BankOfAmerica.js";
 import { connectorDetails as bluesnapConnectorDetails } from "./Bluesnap.js";
 import { connectorDetails as braintreeConnectorDetails } from "./Braintree.js";
@@ -13,6 +14,7 @@ import { connectorDetails as datatransConnectorDetails } from "./Datatrans.js";
 import { connectorDetails as deutschebankConnectorDetails } from "./Deutschebank.js";
 import { connectorDetails as elavonConnectorDetails } from "./Elavon.js";
 import { connectorDetails as facilitapayConnectorDetails } from "./Facilitapay.js";
+import { connectorDetails as fiservConnectorDetails } from "./Fiserv.js";
 import { connectorDetails as fiservemeaConnectorDetails } from "./Fiservemea.js";
 import { connectorDetails as fiuuConnectorDetails } from "./Fiuu.js";
 import { connectorDetails as getnetConnectorDetails } from "./Getnet.js";
@@ -32,9 +34,11 @@ import { connectorDetails as stripeConnectorDetails } from "./Stripe.js";
 import { connectorDetails as trustpayConnectorDetails } from "./Trustpay.js";
 import { connectorDetails as wellsfargoConnectorDetails } from "./WellsFargo.js";
 import { connectorDetails as worldpayConnectorDetails } from "./WorldPay.js";
+import { connectorDetails as worldpayxmlConnectorDetails } from "./Worldpayxml.js";
 import { connectorDetails as xenditConnectorDetails } from "./Xendit.js";
 import { connectorDetails as archipelConnectorDetails } from "./Archipel.js";
 import { connectorDetails as moneiConnectorDetails } from "./Monei.js";
+
 const connectorDetails = {
   adyen: adyenConnectorDetails,
   bankofamerica: bankOfAmericaConnectorDetails,
@@ -47,6 +51,7 @@ const connectorDetails = {
   deutschebank: deutschebankConnectorDetails,
   elavon: elavonConnectorDetails,
   facilitapay: facilitapayConnectorDetails,
+  fiserv: fiservConnectorDetails,
   fiservemea: fiservemeaConnectorDetails,
   fiuu: fiuuConnectorDetails,
   getnet: getnetConnectorDetails,
@@ -66,6 +71,7 @@ const connectorDetails = {
   trustpay: trustpayConnectorDetails,
   wellsfargo: wellsfargoConnectorDetails,
   worldpay: worldpayConnectorDetails,
+  worldpayxml: worldpayxmlConnectorDetails,
   xendit: xenditConnectorDetails,
   archipel: archipelConnectorDetails,
   monei : moneiConnectorDetails,
@@ -327,7 +333,13 @@ export function updateBusinessProfile(
 export const CONNECTOR_LISTS = {
   // Exclusion lists (skip these connectors)
   EXCLUDE: {
-    CONNECTOR_AGNOSTIC_NTID: ["bankofamerica", "braintree", "fiuu", "paypal"],
+    CONNECTOR_AGNOSTIC_NTID: [
+      "bankofamerica",
+      "braintree",
+      "fiuu",
+      "paypal",
+      "fiserv",
+    ],
     // Add more exclusion lists
   },
 

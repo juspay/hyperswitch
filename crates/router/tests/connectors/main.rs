@@ -63,6 +63,7 @@ mod nexixpay;
 mod nmi;
 mod nomupay;
 mod noon;
+mod nordea;
 mod novalnet;
 mod nuvei;
 #[cfg(feature = "dummy_connector")]
@@ -90,6 +91,7 @@ mod stax;
 mod stripe;
 mod stripebilling;
 mod taxjar;
+mod tokenio;
 mod trustpay;
 mod tsys;
 mod unified_authentication_service;
@@ -97,6 +99,7 @@ mod utils;
 mod vgs;
 mod volt;
 mod wellsfargo;
+mod worldpayvantiv;
 // mod wellsfargopayout;
 #[cfg(feature = "payouts")]
 mod wise;

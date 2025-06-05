@@ -1,6 +1,5 @@
 // This file is the default. To override, add to connector.js
 import { getCustomExchange } from "./Modifiers";
-import State from "../../../utils/State.js";
 
 export const customerAcceptance = {
   acceptance_type: "offline",
@@ -10,47 +9,6 @@ export const customerAcceptance = {
     user_agent: "amet irure esse",
   },
 };
-
-const globalState = new State({
-  connectorId: Cypress.env("CONNECTOR"),
-  baseUrl: Cypress.env("BASEURL"),
-  adminApiKey: Cypress.env("ADMINAPIKEY"),
-  connectorAuthFilePath: Cypress.env("CONNECTOR_AUTH_FILE_PATH"),
-});
-
-const connectorName = normalize(globalState.get("connectorId"));
-
-function normalize(input) {
-  const exceptions = {
-    bankofamerica: "Bank of America",
-    cybersource: "Cybersource",
-    paybox: "Paybox",
-    paypal: "Paypal",
-    wellsfargo: "Wellsfargo",
-    fiuu: "Fiuu",
-    noon: "Noon",
-    archipel: "Archipel",
-    // Add more known exceptions here
-  };
-
-  if (typeof input !== "string") {
-    const specName = Cypress.spec.name;
-
-    if (specName.includes("-")) {
-      const parts = specName.split("-");
-
-      if (parts.length > 1 && parts[1].includes(".")) {
-        return parts[1].split(".")[0];
-      }
-    }
-
-    // Fallback
-    return `${specName}`;
-  }
-
-  const lowerCaseInput = input.toLowerCase();
-  return exceptions[lowerCaseInput] || input;
-}
 
 const successfulNo3DSCardDetails = {
   card_number: "4111111111111111",
@@ -1612,7 +1570,7 @@ export const connectorDetails = {
     },
   },
   return_url_variations: {
-    "return_url_too_long": getCustomExchange({
+    return_url_too_long: getCustomExchange({
       Request: {
         customer_id: "customer_1234567890",
         return_url: "http://example.com/" + "a".repeat(237),
@@ -1621,14 +1579,15 @@ export const connectorDetails = {
         status: 400,
         body: {
           error: {
-            message: "return_url must be at most 255 characters long. Received 256 characters",
+            message:
+              "return_url must be at most 255 characters long. Received 256 characters",
             code: "IR_06",
-            type: "invalid_request"
+            type: "invalid_request",
           },
         },
       },
     }),
-    "return_url_invalid_format": getCustomExchange({
+    return_url_invalid_format: getCustomExchange({
       Request: {
         return_url: "not_a_valid_url",
       },
@@ -1636,9 +1595,10 @@ export const connectorDetails = {
         status: 400,
         body: {
           error: {
-            message: "Json deserialize error: relative URL without a base: \"not_a_valid_url\" at line 1 column 357",
+            message:
+              'Json deserialize error: relative URL without a base: "not_a_valid_url" at line 1 column 357',
             code: "IR_06",
-            error_type: "invalid_request"
+            error_type: "invalid_request",
           },
         },
       },
@@ -1653,9 +1613,10 @@ export const connectorDetails = {
       status: 400,
       body: {
         error: {
-          message: "mandate_id must be at most 64 characters long. Received 67 characters",
+          message:
+            "mandate_id must be at most 64 characters long. Received 67 characters",
           code: "IR_06",
-          type: "invalid_request"
+          type: "invalid_request",
         },
       },
     },

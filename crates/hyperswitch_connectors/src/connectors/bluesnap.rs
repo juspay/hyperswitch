@@ -11,7 +11,10 @@ use common_utils::{
     errors::CustomResult,
     ext_traits::{BytesExt, StringExt, ValueExt},
     request::{Method, Request, RequestBuilder, RequestContent},
-    types::{AmountConvertor, StringMajorUnit, StringMajorUnitForConnector},
+    types::{
+        AmountConvertor, FloatMajorUnit, FloatMajorUnitForConnector, StringMajorUnit,
+        StringMajorUnitForConnector, StringMinorUnit, StringMinorUnitForConnector,
+    },
 };
 use error_stack::{report, Report, ResultExt};
 use hyperswitch_domain_models::{
@@ -58,10 +61,10 @@ use crate::{
     constants::headers,
     types::ResponseRouterData,
     utils::{
-        construct_not_supported_error_report, convert_amount,
+        construct_not_supported_error_report, convert_amount, convert_back_amount_to_minor_units,
         get_error_code_error_message_based_on_priority, get_header_key_value, get_http_header,
         handle_json_response_deserialization_failure, to_connector_meta_from_secret,
-        to_currency_lower_unit, ConnectorErrorType, ConnectorErrorTypeMapping, ForeignTryFrom,
+        ConnectorErrorType, ConnectorErrorTypeMapping, ForeignTryFrom,
         PaymentsAuthorizeRequestData, RefundsRequestData, RouterData as _,
     },
 };
@@ -73,12 +76,18 @@ pub const REQUEST_TIMEOUT_PAYMENT_NOT_FOUND: &str = "Timed out ,payment not foun
 #[derive(Clone)]
 pub struct Bluesnap {
     amount_converter: &'static (dyn AmountConvertor<Output = StringMajorUnit> + Sync),
+    amount_converter_to_string_minor_unit:
+        &'static (dyn AmountConvertor<Output = StringMinorUnit> + Sync),
+    amount_converter_float_major_unit:
+        &'static (dyn AmountConvertor<Output = FloatMajorUnit> + Sync),
 }
 
 impl Bluesnap {
     pub fn new() -> &'static Self {
         &Self {
             amount_converter: &StringMajorUnitForConnector,
+            amount_converter_to_string_minor_unit: &StringMinorUnitForConnector,
+            amount_converter_float_major_unit: &FloatMajorUnitForConnector,
         }
     }
 }
@@ -1161,9 +1170,15 @@ impl IncomingWebhook for Bluesnap {
         let dispute_details: bluesnap::BluesnapDisputeWebhookBody =
             serde_urlencoded::from_bytes(request.body)
                 .change_context(errors::ConnectorError::WebhookBodyDecodingFailed)?;
+        let amount = convert_back_amount_to_minor_units(
+            self.amount_converter_float_major_unit,
+            dispute_details.invoice_charge_amount,
+            dispute_details.currency,
+        )?;
         Ok(DisputePayload {
-            amount: to_currency_lower_unit(
-                dispute_details.invoice_charge_amount.abs().to_string(),
+            amount: convert_amount(
+                self.amount_converter_to_string_minor_unit,
+                amount,
                 dispute_details.currency,
             )?,
             currency: dispute_details.currency,
@@ -1450,7 +1465,7 @@ static BLUESNAP_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMethods> =
                     api_models::feature_matrix::PaymentMethodSpecificFeatures::Card({
                         api_models::feature_matrix::CardSpecificFeatures {
                             three_ds: common_enums::FeatureStatus::Supported,
-                            no_three_ds: common_enums::FeatureStatus::NotSupported,
+                            no_three_ds: common_enums::FeatureStatus::Supported,
                             supported_card_networks: supported_card_network.clone(),
                         }
                     }),

@@ -47,12 +47,16 @@ use super::payouts::*;
 use super::pm_auth;
 #[cfg(feature = "oltp")]
 use super::poll;
+#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+use super::proxy;
 #[cfg(all(feature = "v2", feature = "revenue_recovery", feature = "oltp"))]
 use super::recovery_webhooks::*;
 #[cfg(all(feature = "oltp", feature = "v2"))]
 use super::refunds;
 #[cfg(feature = "olap")]
 use super::routing;
+#[cfg(all(feature = "oltp", feature = "v2"))]
+use super::tokenization as tokenization_routes;
 #[cfg(all(feature = "olap", feature = "v1"))]
 use super::verification::{apple_pay_merchant_registration, retrieve_apple_pay_verified_domains};
 #[cfg(feature = "oltp")]
@@ -126,6 +130,7 @@ pub struct SessionState {
     pub theme_storage_client: Arc<dyn FileStorageInterface>,
     pub locale: String,
     pub crm_client: Arc<dyn CrmInterface>,
+    pub infra_components: Option<serde_json::Value>,
 }
 impl scheduler::SchedulerSessionState for SessionState {
     fn get_db(&self) -> Box<dyn SchedulerInterface> {
@@ -238,6 +243,7 @@ pub struct AppState {
     pub grpc_client: Arc<GrpcClients>,
     pub theme_storage_client: Arc<dyn FileStorageInterface>,
     pub crm_client: Arc<dyn CrmInterface>,
+    pub infra_components: Option<serde_json::Value>,
 }
 impl scheduler::SchedulerAppState for AppState {
     fn get_tenants(&self) -> Vec<id_type::TenantId> {
@@ -402,7 +408,7 @@ impl AppState {
             let crm_client = conf.crm.get_crm_client().await;
 
             let grpc_client = conf.grpc_client.get_grpc_client_interface().await;
-
+            let infra_component_values = Self::process_env_mappings(conf.infra_values.clone());
             Self {
                 flow_name: String::from("default"),
                 stores,
@@ -423,6 +429,7 @@ impl AppState {
                 grpc_client,
                 theme_storage_client,
                 crm_client,
+                infra_components: infra_component_values,
             }
         })
         .await
@@ -517,7 +524,28 @@ impl AppState {
             theme_storage_client: self.theme_storage_client.clone(),
             locale: locale.unwrap_or(common_utils::consts::DEFAULT_LOCALE.to_string()),
             crm_client: self.crm_client.clone(),
+            infra_components: self.infra_components.clone(),
         })
+    }
+
+    pub fn process_env_mappings(
+        mappings: Option<HashMap<String, String>>,
+    ) -> Option<serde_json::Value> {
+        let result: HashMap<String, String> = mappings?
+            .into_iter()
+            .filter_map(|(key, env_var)| std::env::var(&env_var).ok().map(|value| (key, value)))
+            .collect();
+
+        if result.is_empty() {
+            None
+        } else {
+            Some(serde_json::Value::Object(
+                result
+                    .into_iter()
+                    .map(|(k, v)| (k, serde_json::Value::String(v)))
+                    .collect(),
+            ))
+        }
     }
 }
 
@@ -663,6 +691,18 @@ impl Relay {
             .app_data(web::Data::new(state))
             .service(web::resource("").route(web::post().to(relay::relay)))
             .service(web::resource("/{relay_id}").route(web::get().to(relay::relay_retrieve)))
+    }
+}
+
+#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+pub struct Proxy;
+
+#[cfg(all(feature = "oltp", feature = "v2", feature = "payment_methods_v2"))]
+impl Proxy {
+    pub fn server(state: AppState) -> Scope {
+        web::scope("/proxy")
+            .app_data(web::Data::new(state))
+            .service(web::resource("").route(web::post().to(proxy::proxy)))
     }
 }
 
@@ -842,43 +882,23 @@ impl Routing {
             .app_data(web::Data::new(state.clone()))
             .service(
                 web::resource("/active").route(web::get().to(|state, req, query_params| {
-                    routing::routing_retrieve_linked_config(
-                        state,
-                        req,
-                        query_params,
-                        &TransactionType::Payment,
-                    )
+                    routing::routing_retrieve_linked_config(state, req, query_params, None)
                 })),
             )
             .service(
                 web::resource("")
                     .route(
                         web::get().to(|state, req, path: web::Query<RoutingRetrieveQuery>| {
-                            routing::list_routing_configs(
-                                state,
-                                req,
-                                path,
-                                &TransactionType::Payment,
-                            )
+                            routing::list_routing_configs(state, req, path, None)
                         }),
                     )
                     .route(web::post().to(|state, req, payload| {
-                        routing::routing_create_config(
-                            state,
-                            req,
-                            payload,
-                            TransactionType::Payment,
-                        )
+                        routing::routing_create_config(state, req, payload, None)
                     })),
             )
             .service(web::resource("/list/profile").route(web::get().to(
                 |state, req, query: web::Query<RoutingRetrieveQuery>| {
-                    routing::list_routing_configs_for_profile(
-                        state,
-                        req,
-                        query,
-                        &TransactionType::Payment,
-                    )
+                    routing::list_routing_configs_for_profile(state, req, query, None)
                 },
             )))
             .service(
@@ -893,7 +913,7 @@ impl Routing {
             )
             .service(
                 web::resource("/deactivate").route(web::post().to(|state, req, payload| {
-                    routing::routing_unlink_config(state, req, payload, &TransactionType::Payment)
+                    routing::routing_unlink_config(state, req, payload, None)
                 })),
             )
             .service(
@@ -938,7 +958,7 @@ impl Routing {
                                     state,
                                     req,
                                     path,
-                                    &TransactionType::Payout,
+                                    Some(TransactionType::Payout),
                                 )
                             },
                         ))
@@ -947,7 +967,7 @@ impl Routing {
                                 state,
                                 req,
                                 payload,
-                                TransactionType::Payout,
+                                Some(TransactionType::Payout),
                             )
                         })),
                 )
@@ -957,7 +977,7 @@ impl Routing {
                             state,
                             req,
                             query,
-                            &TransactionType::Payout,
+                            Some(TransactionType::Payout),
                         )
                     },
                 )))
@@ -967,7 +987,7 @@ impl Routing {
                             state,
                             req,
                             query_params,
-                            &TransactionType::Payout,
+                            Some(TransactionType::Payout),
                         )
                     },
                 )))
@@ -991,8 +1011,14 @@ impl Routing {
                 )
                 .service(
                     web::resource("/payouts/{algorithm_id}/activate").route(web::post().to(
-                        |state, req, path| {
-                            routing::routing_link_config(state, req, path, &TransactionType::Payout)
+                        |state, req, path, payload| {
+                            routing::routing_link_config(
+                                state,
+                                req,
+                                path,
+                                payload,
+                                Some(TransactionType::Payout),
+                            )
                         },
                     )),
                 )
@@ -1002,7 +1028,7 @@ impl Routing {
                             state,
                             req,
                             payload,
-                            &TransactionType::Payout,
+                            Some(TransactionType::Payout),
                         )
                     },
                 )))
@@ -1037,8 +1063,8 @@ impl Routing {
             )
             .service(
                 web::resource("/{algorithm_id}/activate").route(web::post().to(
-                    |state, req, path| {
-                        routing::routing_link_config(state, req, path, &TransactionType::Payment)
+                    |state, req, payload, path| {
+                        routing::routing_link_config(state, req, path, payload, None)
                     },
                 )),
             );
@@ -1401,6 +1427,20 @@ impl PaymentMethodSession {
             );
 
         route
+    }
+}
+
+#[cfg(all(feature = "v2", feature = "oltp"))]
+pub struct Tokenization;
+
+#[cfg(all(feature = "v2", feature = "oltp"))]
+impl Tokenization {
+    pub fn server(state: AppState) -> Scope {
+        let mut token_route = web::scope("/v2/tokenize").app_data(web::Data::new(state));
+        token_route = token_route.service(
+            web::resource("").route(web::post().to(tokenization_routes::create_token_vault_api)),
+        );
+        token_route
     }
 }
 
@@ -2051,6 +2091,10 @@ impl Profile {
                     .service(
                         web::resource("/set_volume_split")
                             .route(web::post().to(routing::set_dynamic_routing_volume_split)),
+                    )
+                    .service(
+                        web::resource("/get_volume_split")
+                            .route(web::get().to(routing::get_dynamic_routing_volume_split)),
                     )
                     .service(
                         web::scope("/elimination")
