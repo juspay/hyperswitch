@@ -42,6 +42,8 @@ pub struct KafkaPaymentIntent<'a> {
     pub feature_metadata: Option<&'a Value>,
     pub merchant_order_reference_id: Option<&'a String>,
     pub organization_id: &'a id_type::OrganizationId,
+    #[serde(flatten)]
+    infra_values: Option<Value>,
 }
 
 #[cfg(feature = "v2")]
@@ -81,7 +83,7 @@ pub struct KafkaPaymentIntent<'a> {
 
 #[cfg(feature = "v1")]
 impl<'a> KafkaPaymentIntent<'a> {
-    pub fn from_storage(intent: &'a PaymentIntent) -> Self {
+    pub fn from_storage(intent: &'a PaymentIntent, infra_values: Option<Value>) -> Self {
         Self {
             payment_id: &intent.payment_id,
             merchant_id: &intent.merchant_id,
@@ -121,6 +123,7 @@ impl<'a> KafkaPaymentIntent<'a> {
             feature_metadata: intent.feature_metadata.as_ref(),
             merchant_order_reference_id: intent.merchant_order_reference_id.as_ref(),
             organization_id: &intent.organization_id,
+            infra_values,
         }
     }
 }
