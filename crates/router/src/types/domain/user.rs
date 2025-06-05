@@ -640,13 +640,12 @@ impl TryFrom<user_api::SignUpRequest> for NewUserMerchant {
         let merchant_id = id_type::MerchantId::new_from_unix_timestamp();
         let new_organization = NewUserOrganization::from(value);
         let product_type = Some(consts::user::DEFAULT_PRODUCT_TYPE);
-        let merchant_account_type = Some(common_enums::MerchantAccountRequestType::Standard);
         Ok(Self {
             company_name: None,
             merchant_id,
             new_organization,
             product_type,
-            merchant_account_type,
+            merchant_account_type: None,
         })
     }
 }
@@ -658,13 +657,12 @@ impl TryFrom<user_api::ConnectAccountRequest> for NewUserMerchant {
         let merchant_id = id_type::MerchantId::new_from_unix_timestamp();
         let new_organization = NewUserOrganization::from(value);
         let product_type = Some(consts::user::DEFAULT_PRODUCT_TYPE);
-        let merchant_account_type = Some(common_enums::MerchantAccountRequestType::Standard);
         Ok(Self {
             company_name: None,
             merchant_id,
             new_organization,
             product_type,
-            merchant_account_type,
+            merchant_account_type: None,
         })
     }
 }
@@ -676,13 +674,12 @@ impl TryFrom<user_api::SignUpWithMerchantIdRequest> for NewUserMerchant {
         let merchant_id = MerchantId::new(value.company_name.clone())?;
         let new_organization = NewUserOrganization::try_from(value)?;
         let product_type = Some(consts::user::DEFAULT_PRODUCT_TYPE);
-        let merchant_account_type = Some(common_enums::MerchantAccountRequestType::Standard);
         Ok(Self {
             company_name,
             merchant_id: id_type::MerchantId::try_from(merchant_id)?,
             new_organization,
             product_type,
-            merchant_account_type,
+            merchant_account_type: None,
         })
     }
 }

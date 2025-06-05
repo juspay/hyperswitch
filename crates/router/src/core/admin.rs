@@ -390,12 +390,10 @@ impl MerchantAccountCreateBridge for api::MerchantAccountCreate {
 
         let merchant_account_type = match organization.get_organization_type() {
             OrganizationType::Standard => {
-                match self.merchant_account_type {
+                match self.merchant_account_type.unwrap_or_default() {
                     // Allow only if explicitly Standard or not provided
-                    Some(MerchantAccountRequestType::Standard) | None => {
-                        MerchantAccountType::Standard
-                    }
-                    Some(_) => {
+                    MerchantAccountRequestType::Standard => MerchantAccountType::Standard,
+                    MerchantAccountRequestType::Connected => {
                         return Err(errors::ApiErrorResponse::InvalidRequestData {
                             message:
                                 "Merchant account type must be Standard for a Standard Organization"
@@ -424,11 +422,9 @@ impl MerchantAccountCreateBridge for api::MerchantAccountCreate {
                     // First merchant in a Platform org must be Platform
                     MerchantAccountType::Platform
                 } else {
-                    match self.merchant_account_type {
-                        Some(MerchantAccountRequestType::Standard) | None => {
-                            MerchantAccountType::Standard
-                        }
-                        Some(MerchantAccountRequestType::Connected) => {
+                    match self.merchant_account_type.unwrap_or_default() {
+                        MerchantAccountRequestType::Standard => MerchantAccountType::Standard,
+                        MerchantAccountRequestType::Connected => {
                             if state.conf.platform.allow_connected_merchants {
                                 MerchantAccountType::Connected
                             } else {
