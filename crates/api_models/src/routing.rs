@@ -1,10 +1,12 @@
 use std::fmt::Debug;
 
+use common_types::three_ds_decision_rule_engine::{ThreeDSDecision, ThreeDSDecisionRule};
 use common_utils::{
     errors::{ParsingError, ValidationError},
     ext_traits::ValueExt,
     pii,
 };
+use euclid::frontend::ast::Program;
 pub use euclid::{
     dssa::types::EuclidAnalysable,
     frontend::{
@@ -62,6 +64,7 @@ pub struct RoutingConfigRequest {
     pub algorithm: Option<StaticRoutingAlgorithm>,
     #[schema(value_type = Option<String>)]
     pub profile_id: Option<common_utils::id_type::ProfileId>,
+    pub transaction_type: Option<TransactionType>,
 }
 
 #[derive(Debug, serde::Serialize, ToSchema)]
@@ -75,11 +78,18 @@ pub struct ProfileDefaultRoutingConfig {
 pub struct RoutingRetrieveQuery {
     pub limit: Option<u16>,
     pub offset: Option<u8>,
+    pub transaction_type: Option<TransactionType>,
+}
+
+#[derive(Clone, Debug, serde::Deserialize, serde::Serialize)]
+pub struct RoutingActivatePayload {
+    pub transaction_type: Option<TransactionType>,
 }
 
 #[derive(Clone, Debug, serde::Deserialize, serde::Serialize)]
 pub struct RoutingRetrieveLinkQuery {
     pub profile_id: Option<common_utils::id_type::ProfileId>,
+    pub transaction_type: Option<TransactionType>,
 }
 
 #[derive(Clone, Debug, serde::Deserialize, serde::Serialize)]
@@ -294,6 +304,7 @@ pub enum RoutingAlgorithmKind {
     VolumeSplit,
     Advanced,
     Dynamic,
+    ThreeDsDecisionRule,
 }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
@@ -328,7 +339,37 @@ pub enum StaticRoutingAlgorithm {
     Priority(Vec<RoutableConnectorChoice>),
     VolumeSplit(Vec<ConnectorVolumeSplit>),
     #[schema(value_type=ProgramConnectorSelection)]
-    Advanced(ast::Program<ConnectorSelection>),
+    Advanced(Program<ConnectorSelection>),
+    #[schema(value_type=ProgramThreeDsDecisionRule)]
+    ThreeDsDecisionRule(Program<ThreeDSDecisionRule>),
+}
+
+#[derive(Serialize, Deserialize, ToSchema)]
+#[serde(rename_all = "camelCase")]
+pub struct ProgramThreeDsDecisionRule {
+    pub default_selection: ThreeDSDecisionRule,
+    #[schema(value_type = RuleThreeDsDecisionRule)]
+    pub rules: Vec<ast::Rule<ThreeDSDecisionRule>>,
+    #[schema(value_type = HashMap<String, serde_json::Value>)]
+    pub metadata: std::collections::HashMap<String, serde_json::Value>,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize, ToSchema)]
+#[serde(rename_all = "camelCase")]
+pub struct RuleThreeDsDecisionRule {
+    pub name: String,
+    pub connector_selection: ThreeDSDecision,
+    #[schema(value_type = Vec<IfStatement>)]
+    pub statements: Vec<ast::IfStatement>,
+}
+
+impl StaticRoutingAlgorithm {
+    pub fn should_validate_connectors_in_routing_config(&self) -> bool {
+        match self {
+            Self::Single(_) | Self::Priority(_) | Self::VolumeSplit(_) | Self::Advanced(_) => true,
+            Self::ThreeDsDecisionRule(_) => false,
+        }
+    }
 }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema)]
@@ -337,7 +378,8 @@ pub enum RoutingAlgorithmSerde {
     Single(Box<RoutableConnectorChoice>),
     Priority(Vec<RoutableConnectorChoice>),
     VolumeSplit(Vec<ConnectorVolumeSplit>),
-    Advanced(ast::Program<ConnectorSelection>),
+    Advanced(Program<ConnectorSelection>),
+    ThreeDsDecisionRule(Program<ThreeDSDecisionRule>),
 }
 
 impl TryFrom<RoutingAlgorithmSerde> for StaticRoutingAlgorithm {
@@ -362,6 +404,7 @@ impl TryFrom<RoutingAlgorithmSerde> for StaticRoutingAlgorithm {
             RoutingAlgorithmSerde::Priority(i) => Self::Priority(i),
             RoutingAlgorithmSerde::VolumeSplit(i) => Self::VolumeSplit(i),
             RoutingAlgorithmSerde::Advanced(i) => Self::Advanced(i),
+            RoutingAlgorithmSerde::ThreeDsDecisionRule(i) => Self::ThreeDsDecisionRule(i),
         })
     }
 }
@@ -464,6 +507,7 @@ impl StaticRoutingAlgorithm {
             Self::Priority(_) => RoutingAlgorithmKind::Priority,
             Self::VolumeSplit(_) => RoutingAlgorithmKind::VolumeSplit,
             Self::Advanced(_) => RoutingAlgorithmKind::Advanced,
+            Self::ThreeDsDecisionRule(_) => RoutingAlgorithmKind::ThreeDsDecisionRule,
         }
     }
 }
@@ -564,6 +608,8 @@ pub struct DynamicRoutingAlgorithmRef {
     pub dynamic_routing_volume_split: Option<u8>,
     pub elimination_routing_algorithm: Option<EliminationRoutingAlgorithm>,
     pub contract_based_routing: Option<ContractRoutingAlgorithm>,
+    #[serde(default)]
+    pub is_merchant_created_in_decision_engine: bool,
 }
 
 pub trait DynamicRoutingAlgoAccessor {
@@ -671,6 +717,10 @@ impl DynamicRoutingAlgorithmRef {
 
     pub fn update_volume_split(&mut self, volume: Option<u8>) {
         self.dynamic_routing_volume_split = volume
+    }
+
+    pub fn update_merchant_creation_status_in_decision_engine(&mut self, is_created: bool) {
+        self.is_merchant_created_in_decision_engine = is_created;
     }
 
     pub fn is_success_rate_routing_enabled(&self) -> bool {
@@ -1002,7 +1052,7 @@ pub struct CurrentBlockThreshold {
     pub max_total_count: Option<u64>,
 }
 
-#[derive(serde::Serialize, serde::Deserialize, Debug, Default, Clone, ToSchema)]
+#[derive(serde::Serialize, serde::Deserialize, Debug, Default, Clone, Copy, ToSchema)]
 #[serde(rename_all = "snake_case")]
 pub enum SuccessRateSpecificityLevel {
     #[default]
@@ -1238,4 +1288,248 @@ impl RoutableConnectorChoiceWithBucketName {
             bucket_name,
         }
     }
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub struct CalSuccessRateConfigEventRequest {
+    pub min_aggregates_size: Option<u32>,
+    pub default_success_rate: Option<f64>,
+    pub specificity_level: SuccessRateSpecificityLevel,
+    pub exploration_percent: Option<f64>,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub struct CalSuccessRateEventRequest {
+    pub id: String,
+    pub params: String,
+    pub labels: Vec<String>,
+    pub config: Option<CalSuccessRateConfigEventRequest>,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub struct EliminationRoutingEventBucketConfig {
+    pub bucket_size: Option<u64>,
+    pub bucket_leak_interval_in_secs: Option<u64>,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub struct EliminationRoutingEventRequest {
+    pub id: String,
+    pub params: String,
+    pub labels: Vec<String>,
+    pub config: Option<EliminationRoutingEventBucketConfig>,
+}
+
+/// API-1 types
+#[derive(Clone, Debug, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub struct CalContractScoreEventRequest {
+    pub id: String,
+    pub params: String,
+    pub labels: Vec<String>,
+    pub config: Option<ContractBasedRoutingConfig>,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub struct LabelWithScoreEventResponse {
+    pub score: f64,
+    pub label: String,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub struct CalSuccessRateEventResponse {
+    pub labels_with_score: Vec<LabelWithScoreEventResponse>,
+    pub routing_apporach: RoutingApproach,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum RoutingApproach {
+    Exploitation,
+    Exploration,
+    Elimination,
+    ContractBased,
+    Default,
+}
+
+impl RoutingApproach {
+    pub fn from_decision_engine_approach(approach: &str) -> Self {
+        match approach {
+            "SR_SELECTION_V3_ROUTING" => Self::Exploitation,
+            "SR_V3_HEDGING" => Self::Exploration,
+            _ => Self::Default,
+        }
+    }
+}
+
+impl std::fmt::Display for RoutingApproach {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::Exploitation => write!(f, "Exploitation"),
+            Self::Exploration => write!(f, "Exploration"),
+            Self::Elimination => write!(f, "Elimination"),
+            Self::ContractBased => write!(f, "ContractBased"),
+            Self::Default => write!(f, "Default"),
+        }
+    }
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub struct BucketInformationEventResponse {
+    pub is_eliminated: bool,
+    pub bucket_name: Vec<String>,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub struct EliminationInformationEventResponse {
+    pub entity: Option<BucketInformationEventResponse>,
+    pub global: Option<BucketInformationEventResponse>,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub struct LabelWithStatusEliminationEventResponse {
+    pub label: String,
+    pub elimination_information: Option<EliminationInformationEventResponse>,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub struct EliminationEventResponse {
+    pub labels_with_status: Vec<LabelWithStatusEliminationEventResponse>,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub struct ScoreDataEventResponse {
+    pub score: f64,
+    pub label: String,
+    pub current_count: u64,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub struct CalContractScoreEventResponse {
+    pub labels_with_score: Vec<ScoreDataEventResponse>,
+}
+
+#[derive(Clone, Copy, Debug, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub struct CalGlobalSuccessRateConfigEventRequest {
+    pub entity_min_aggregates_size: u32,
+    pub entity_default_success_rate: f64,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub struct CalGlobalSuccessRateEventRequest {
+    pub entity_id: String,
+    pub entity_params: String,
+    pub entity_labels: Vec<String>,
+    pub global_labels: Vec<String>,
+    pub config: Option<CalGlobalSuccessRateConfigEventRequest>,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub struct UpdateSuccessRateWindowConfig {
+    pub max_aggregates_size: Option<u32>,
+    pub current_block_threshold: Option<CurrentBlockThreshold>,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub struct UpdateLabelWithStatusEventRequest {
+    pub label: String,
+    pub status: bool,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub struct UpdateSuccessRateWindowEventRequest {
+    pub id: String,
+    pub params: String,
+    pub labels_with_status: Vec<UpdateLabelWithStatusEventRequest>,
+    pub config: Option<UpdateSuccessRateWindowConfig>,
+    pub global_labels_with_status: Vec<UpdateLabelWithStatusEventRequest>,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub struct UpdateSuccessRateWindowEventResponse {
+    pub status: UpdationStatusEventResponse,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum UpdationStatusEventResponse {
+    WindowUpdationSucceeded,
+    WindowUpdationFailed,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub struct LabelWithBucketNameEventRequest {
+    pub label: String,
+    pub bucket_name: String,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub struct UpdateEliminationBucketEventRequest {
+    pub id: String,
+    pub params: String,
+    pub labels_with_bucket_name: Vec<LabelWithBucketNameEventRequest>,
+    pub config: Option<EliminationRoutingEventBucketConfig>,
+}
+
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub struct UpdateEliminationBucketEventResponse {
+    pub status: EliminationUpdationStatusEventResponse,
+}
+
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum EliminationUpdationStatusEventResponse {
+    BucketUpdationSucceeded,
+    BucketUpdationFailed,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub struct ContractLabelInformationEventRequest {
+    pub label: String,
+    pub target_count: u64,
+    pub target_time: u64,
+    pub current_count: u64,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub struct UpdateContractRequestEventRequest {
+    pub id: String,
+    pub params: String,
+    pub labels_information: Vec<ContractLabelInformationEventRequest>,
+}
+
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub struct UpdateContractEventResponse {
+    pub status: ContractUpdationStatusEventResponse,
+}
+
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum ContractUpdationStatusEventResponse {
+    ContractUpdationSucceeded,
+    ContractUpdationFailed,
 }

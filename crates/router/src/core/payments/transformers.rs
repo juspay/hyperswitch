@@ -587,11 +587,7 @@ pub async fn construct_router_data_for_psync<'a>(
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Failed while parsing value for ConnectorAuthType")?;
 
-    let attempt = &payment_data
-        .payment_attempt
-        .get_required_value("attempt")
-        .change_context(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable("Payment Attempt is not available in payment data")?;
+    let attempt = &payment_data.payment_attempt;
 
     let connector_request_reference_id = payment_intent
         .merchant_reference_id
@@ -1913,21 +1909,19 @@ where
         profile: &domain::Profile,
     ) -> RouterResponse<api_models::payments::PaymentsResponse> {
         let payment_intent = self.payment_intent;
-        let optional_payment_attempt = self.payment_attempt.as_ref();
+        let payment_attempt = &self.payment_attempt;
 
         let amount = api_models::payments::PaymentAmountDetailsResponse::foreign_from((
             &payment_intent.amount_details,
-            optional_payment_attempt.map(|payment_attempt| &payment_attempt.amount_details),
+            &payment_attempt.amount_details,
         ));
 
-        let connector =
-            optional_payment_attempt.and_then(|payment_attempt| payment_attempt.connector.clone());
+        let connector = payment_attempt.connector.clone();
 
-        let merchant_connector_id = optional_payment_attempt
-            .and_then(|payment_attempt| payment_attempt.merchant_connector_id.clone());
+        let merchant_connector_id = payment_attempt.merchant_connector_id.clone();
 
-        let error = optional_payment_attempt
-            .and_then(|payment_attempt| payment_attempt.error.clone())
+        let error = payment_attempt
+            .error
             .as_ref()
             .map(api_models::payments::ErrorDetails::foreign_from);
         let attempts = self.attempts.as_ref().map(|attempts| {
@@ -1949,8 +1943,8 @@ where
 
         let connector_token_details = self
             .payment_attempt
-            .as_ref()
-            .and_then(|attempt| attempt.connector_token_details.clone())
+            .connector_token_details
+            .clone()
             .and_then(Option::<api_models::payments::ConnectorTokenDetails>::foreign_from);
 
         let return_url = payment_intent.return_url.or(profile.return_url.clone());
@@ -1969,31 +1963,16 @@ where
             shipping: self.payment_address.get_shipping().cloned().map(From::from),
             created: payment_intent.created_at,
             payment_method_data,
-            payment_method_type: self
-                .payment_attempt
-                .as_ref()
-                .map(|attempt| attempt.payment_method_type),
-            payment_method_subtype: self
-                .payment_attempt
-                .as_ref()
-                .map(|attempt| attempt.payment_method_subtype),
-            connector_transaction_id: self
-                .payment_attempt
-                .as_ref()
-                .and_then(|attempt| attempt.connector_payment_id.clone()),
+            payment_method_type: Some(payment_attempt.payment_method_type),
+            payment_method_subtype: Some(payment_attempt.payment_method_subtype),
+            connector_transaction_id: payment_attempt.connector_payment_id.clone(),
             connector_reference_id: None,
             merchant_connector_id,
             browser_info: None,
             connector_token_details,
-            payment_method_id: self
-                .payment_attempt
-                .as_ref()
-                .and_then(|attempt| attempt.payment_method_id.clone()),
+            payment_method_id: payment_attempt.payment_method_id.clone(),
             error,
-            authentication_type_applied: self
-                .payment_attempt
-                .as_ref()
-                .and_then(|attempt| attempt.authentication_applied),
+            authentication_type_applied: payment_attempt.authentication_applied,
             authentication_type: payment_intent.authentication_type,
             next_action: None,
             attempts,
