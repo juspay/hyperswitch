@@ -293,7 +293,7 @@ pub async fn payments_create_and_confirm_intent(
                 domain::Context(auth.merchant_account, auth.key_store),
             ));
             payments::payments_create_and_confirm_intent(
-                state.clone(),
+                state,
                 req_state,
                 merchant_context,
                 auth.profile,
@@ -301,35 +301,6 @@ pub async fn payments_create_and_confirm_intent(
                 header_payload.clone(),
             )
         },
-        // if state.conf.merchant_id_auth_enabled {
-        //     let merchant_id = match json_payload.merchant_id.clone() {
-        //         Some(id) => id,
-        //         None => {
-        //             let err = errors::ApiErrorResponse::MissingRequiredField {
-        //                 field_name: "merchant_id"
-        //             };
-        //             return api::log_and_return_error_response(err.into());
-        //         }
-        //     };
-        //     &auth::MerchantIdAuth(merchant_id)
-        // } else {
-        //     match env::which() {
-        //         env::Env::Production => &auth::V2ApiKeyAuth {
-        //             is_connected_allowed: false,
-        //             is_platform_allowed: false,
-        //         },
-        //         _ => auth::auth_type(
-        //             &auth::V2ApiKeyAuth {
-        //                 is_connected_allowed: false,
-        //                 is_platform_allowed: false,
-        //             },
-        //             &auth::JWTAuth {
-        //                 permission: Permission::ProfilePaymentWrite,
-        //             },
-        //             req.headers(),
-        //         ),
-        //     }
-        // },
         auth_type,
         api_locking::LockAction::NotApplicable,
     ))
