@@ -9,7 +9,7 @@ use masking::ExposeInterface;
 use super::{ConstructFlowSpecificData, Feature};
 use crate::{
     core::{
-        errors::{ConnectorErrorExt, RouterResult},
+        errors::{self, ConnectorErrorExt, RouterResult},
         mandate,
         payments::{
             self, access_token, customers, helpers, tokenization, transformers, PaymentData,
@@ -766,7 +766,13 @@ async fn create_order_at_connector<F: Clone>(
                 if let types::PaymentsResponseData::PaymentsCreateOrderResponse { order_id } = res {
                     Ok(Some(order_id))
                 } else {
-                    Ok(None)
+                    let unexpected_response = format!("{:?}", res);
+                    Err(
+                        errors::ConnectorError::UnexpectedResponseError(bytes::Bytes::from(
+                            unexpected_response,
+                        ))
+                        .into(),
+                    )
                 }
             }
             Err(error) => Err(error),
@@ -802,10 +808,7 @@ fn update_router_data_with_create_order_result<F>(
                 true
             }
             Ok(None) => {
-                router_data.response = Err(ApiErrorResponse::MissingRequiredField {
-                    field_name: "order_id",
-                }
-                .into());
+                router_data.response = Err(ApiErrorResponse::InternalServerError.into());
                 false
             }
             Err(err) => {

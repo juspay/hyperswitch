@@ -682,6 +682,7 @@ default_imp_for_create_order!(
     connectors::Worldline,
     connectors::Worldpay,
     connectors::Worldpayxml,
+    connectors::Worldpayvantiv,
     connectors::Wellsfargo,
     connectors::Wellsfargopayout,
     connectors::Xendit,
