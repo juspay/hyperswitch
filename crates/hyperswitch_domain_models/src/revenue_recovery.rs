@@ -48,6 +48,10 @@ pub struct RevenueRecoveryAttemptData {
     pub retry_count: Option<u16>,
     /// Time when next invoice will be generated which will be equal to the end time of the current invoice
     pub invoice_next_billing_time: Option<PrimitiveDateTime>,
+    /// card network type
+    pub card_network: Option<common_enums::CardNetwork>,
+    /// card isin
+    pub card_isin: Option<String>,
 }
 
 /// This is unified struct for Revenue Recovery Invoice Data and it is constructed from billing connectors
@@ -271,6 +275,8 @@ impl
             network_error_message: None,
             retry_count: invoice_details.retry_count,
             invoice_next_billing_time: invoice_details.next_billing_at,
+            card_network: billing_connector_payment_details.card_network.clone(),
+            card_isin: billing_connector_payment_details.card_isin.clone(),
         }
     }
 }

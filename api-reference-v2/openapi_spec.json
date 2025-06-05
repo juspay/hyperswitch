@@ -17450,7 +17450,8 @@
           "billing_connector_payment_details",
           "payment_method_type",
           "payment_method_subtype",
-          "connector"
+          "connector",
+          "card_network"
         ],
         "properties": {
           "total_retry_count": {
@@ -17494,6 +17495,15 @@
             "type": "string",
             "format": "date-time",
             "description": "Invoice Next billing time",
+            "nullable": true
+          },
+          "card_network": {
+            "$ref": "#/components/schemas/CardNetwork"
+          },
+          "card_issuer": {
+            "type": "string",
+            "description": "Card Issuer",
+            "example": "424242",
             "nullable": true
           }
         }
