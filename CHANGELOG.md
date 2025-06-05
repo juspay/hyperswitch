@@ -4,6 +4,16 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2025.06.02.0-hotfix1
+
+### Features
+
+- **connectors:** [Worldpayvantiv] add card support ([#8263](https://github.com/juspay/hyperswitch/pull/8263)) ([`d866ae6`](https://github.com/juspay/hyperswitch/commit/d866ae6e94a630a3209478cff655684445a432dc))
+
+**Full Changelog:** [`2025.06.02.0...2025.06.02.0-hotfix1`](https://github.com/juspay/hyperswitch/compare/2025.06.02.0...2025.06.02.0-hotfix1)
+
+- - -
+
 ## 2025.06.02.0
 
 ### Features
