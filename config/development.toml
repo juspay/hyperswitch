@@ -1143,3 +1143,7 @@ click_to_pay = {connector_list = "adyen, cybersource"}
 [open_router]
 enabled = false
 url = "http://localhost:8080"
+
+[infra_values]
+cluster = "CLUSTER"         # value of CLUSTER from deployment
+version = "HOSTNAME"        # value of HOSTNAME from deployment which tells its version
