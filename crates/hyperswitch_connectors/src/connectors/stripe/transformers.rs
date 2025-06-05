@@ -2663,7 +2663,9 @@ where
             .response
             .customer
             .clone()
-            .ok_or(ConnectorError::MissingRequiredField { field_name: "CustomerId" })?
+            .ok_or(ConnectorError::MissingRequiredField {
+                field_name: "CustomerId",
+            })?
             .expose();
         Ok(Self {
             status,
