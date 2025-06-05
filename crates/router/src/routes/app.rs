@@ -124,6 +124,7 @@ pub struct SessionState {
     pub grpc_client: Arc<GrpcClients>,
     pub theme_storage_client: Arc<dyn FileStorageInterface>,
     pub locale: String,
+    pub infra_components: Option<serde_json::Value>,
 }
 impl scheduler::SchedulerSessionState for SessionState {
     fn get_db(&self) -> Box<dyn SchedulerInterface> {
@@ -231,6 +232,7 @@ pub struct AppState {
     pub encryption_client: Arc<dyn EncryptionManagementInterface>,
     pub grpc_client: Arc<GrpcClients>,
     pub theme_storage_client: Arc<dyn FileStorageInterface>,
+    pub infra_components: Option<serde_json::Value>,
 }
 impl scheduler::SchedulerAppState for AppState {
     fn get_tenants(&self) -> Vec<id_type::TenantId> {
@@ -395,6 +397,8 @@ impl AppState {
 
             let grpc_client = conf.grpc_client.get_grpc_client_interface().await;
 
+            let infra_component_values = Self::process_env_mappings(conf.infra_values.clone());
+
             Self {
                 flow_name: String::from("default"),
                 stores,
@@ -414,6 +418,7 @@ impl AppState {
                 encryption_client,
                 grpc_client,
                 theme_storage_client,
+                infra_components: infra_component_values,
             }
         })
         .await
@@ -507,7 +512,28 @@ impl AppState {
             grpc_client: Arc::clone(&self.grpc_client),
             theme_storage_client: self.theme_storage_client.clone(),
             locale: locale.unwrap_or(common_utils::consts::DEFAULT_LOCALE.to_string()),
+            infra_components: self.infra_components.clone(),
         })
+    }
+
+    pub fn process_env_mappings(
+        mappings: Option<HashMap<String, String>>,
+    ) -> Option<serde_json::Value> {
+        let result: HashMap<String, String> = mappings?
+            .into_iter()
+            .filter_map(|(key, env_var)| std::env::var(&env_var).ok().map(|value| (key, value)))
+            .collect();
+
+        if result.is_empty() {
+            None
+        } else {
+            Some(serde_json::Value::Object(
+                result
+                    .into_iter()
+                    .map(|(k, v)| (k, serde_json::Value::String(v)))
+                    .collect(),
+            ))
+        }
     }
 }
 

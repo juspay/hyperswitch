@@ -148,6 +148,8 @@ pub struct Settings<S: SecretState> {
     pub platform: Platform,
     pub authentication_providers: AuthenticationProviders,
     pub open_router: OpenRouter,
+    #[serde(default)]
+    pub infra_values: Option<HashMap<String, String>>,
 }
 
 #[derive(Debug, Deserialize, Clone, Default)]
