@@ -9,7 +9,7 @@ pub mod trait_impls;
 use cards::CardNumber;
 #[cfg(feature = "v2")]
 use common_enums::enums::PaymentConnectorTransmission;
-use common_enums::{enums, ProductType};
+use common_enums::ProductType;
 #[cfg(feature = "v1")]
 use common_types::primitive_wrappers::{
     ExtendedAuthorizationAppliedBool, RequestExtendedAuthorizationBool,
@@ -35,24 +35,37 @@ use strum::Display;
 use time::{Date, PrimitiveDateTime};
 use url::Url;
 use utoipa::ToSchema;
-
 #[cfg(feature = "v2")]
 use crate::mandates;
 #[cfg(feature = "v2")]
 use crate::payment_methods;
 use crate::{
     admin::{self, MerchantConnectorInfo},
-    disputes, enums as api_enums,
-    ephemeral_key::EphemeralKeyCreateResponse,
+    enums as api_enums,
     mandates::RecurringDetails,
-    refunds, ValidateFieldAndGet,
 };
-#[derive(serde::Deserialize)]
-pub struct ConnectorCode {
-    pub connector: api_enums::Connector,
-    pub code: String,
+#[cfg(feature = "v1")]
+use crate::{disputes, ephemeral_key::EphemeralKeyCreateResponse, refunds, ValidateFieldAndGet};
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum PaymentOp {
+    Create,
+    Update,
+    Confirm,
 }
 
+use crate::enums;
+#[derive(serde::Deserialize)]
+pub struct BankData {
+    pub payment_method_type: api_enums::PaymentMethodType,
+    pub code_information: Vec<BankCodeInformation>,
+}
+
+#[derive(serde::Deserialize)]
+pub struct BankCodeInformation {
+    pub bank_name: common_enums::BankNames,
+    pub connector_codes: Vec<ConnectorCode>,
+}
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema, PartialEq, Eq)]
 pub struct BankCodeResponse {
     #[schema(value_type = Vec<BankNames>)]
