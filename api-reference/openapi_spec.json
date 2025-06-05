@@ -28330,13 +28330,6 @@
           "propertyName": "type"
         }
       },
-      "VaultSdk": {
-        "type": "string",
-        "enum": [
-          "vgs_sdk",
-          "hyperswitch_sdk"
-        ]
-      },
       "Venmo": {
         "type": "object",
         "required": [
