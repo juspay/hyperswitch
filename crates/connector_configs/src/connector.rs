@@ -124,6 +124,7 @@ pub struct ConfigMetadata {
     pub ledger_account_id: Option<InputData>,
     pub tenant_id: Option<InputData>,
     pub platform_url: Option<InputData>,
+    pub report_group: Option<InputData>,
 }
 
 #[serde_with::skip_serializing_none]
