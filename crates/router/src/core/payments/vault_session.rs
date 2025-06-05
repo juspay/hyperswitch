@@ -115,7 +115,7 @@ where
                 .change_context(errors::ApiErrorResponse::InternalServerError)
                 .attach_printable("Failed to update customer during Vault session")?;
         };
-        
+
         let vault_session_details = generate_vault_session_details(
             state,
             merchant_context,
