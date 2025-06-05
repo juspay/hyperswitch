@@ -1933,7 +1933,7 @@ pub struct CustomerPaymentMethodsListResponse {
 // OLAP PML Response
 #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
 #[derive(Debug, serde::Serialize, ToSchema)]
-pub struct PaymentMethodsListResponse {
+pub struct CustomerPaymentMethodsListResponse {
     /// List of payment methods for customer
     pub customer_payment_methods: Vec<PaymentMethodResponseItem>,
 }

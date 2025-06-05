@@ -23,9 +23,6 @@ use std::{
 #[cfg(feature = "v2")]
 pub mod payment_methods;
 
-#[cfg(feature = "v2")]
-use core::payment_methods::vault;
-
 #[cfg(feature = "olap")]
 use api_models::admin::MerchantConnectorInfo;
 use api_models::{
@@ -95,6 +92,8 @@ use super::{
 use crate::core::debit_routing;
 #[cfg(feature = "frm")]
 use crate::core::fraud_check as frm_core;
+#[cfg(feature = "v2")]
+use crate::core::payment_methods::vault;
 #[cfg(feature = "v1")]
 use crate::core::routing::helpers as routing_helpers;
 #[cfg(all(feature = "v1", feature = "dynamic_routing"))]

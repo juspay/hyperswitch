@@ -2858,7 +2858,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/PaymentMethodsListResponse"
+                  "$ref": "#/components/schemas/CustomerPaymentMethodsListResponse"
                 }
               }
             }
@@ -9558,6 +9558,21 @@
               }
             ],
             "nullable": true
+          }
+        }
+      },
+      "CustomerPaymentMethodsListResponse": {
+        "type": "object",
+        "required": [
+          "customer_payment_methods"
+        ],
+        "properties": {
+          "customer_payment_methods": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PaymentMethodResponseItem"
+            },
+            "description": "List of payment methods for customer"
           }
         }
       },
@@ -17389,21 +17404,6 @@
           }
         },
         "additionalProperties": false
-      },
-      "PaymentMethodsListResponse": {
-        "type": "object",
-        "required": [
-          "customer_payment_methods"
-        ],
-        "properties": {
-          "customer_payment_methods": {
-            "type": "array",
-            "items": {
-              "$ref": "#/components/schemas/PaymentMethodResponseItem"
-            },
-            "description": "List of payment methods for customer"
-          }
-        }
       },
       "PaymentMethodsSessionUpdateRequest": {
         "type": "object",

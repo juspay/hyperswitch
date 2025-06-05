@@ -332,7 +332,7 @@ pub async fn payment_method_delete_api() {}
         ("id" = String, Path, description = "The unique identifier for the customer"),
     ),
     responses(
-        (status = 200, description = "Payment Methods Retrieved", body = PaymentMethodsListResponse),
+        (status = 200, description = "Payment Methods Retrieved", body = CustomerPaymentMethodsListResponse),
         (status = 404, description = "Customer Not Found"),
     ),
     tag = "Payment Methods",

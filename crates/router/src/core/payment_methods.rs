@@ -1398,7 +1398,7 @@ pub async fn list_saved_payment_methods_for_customer(
     state: SessionState,
     merchant_context: domain::MerchantContext,
     customer_id: id_type::GlobalCustomerId,
-) -> RouterResponse<payment_methods::PaymentMethodsListResponse> {
+) -> RouterResponse<payment_methods::CustomerPaymentMethodsListResponse> {
     let customer_payment_methods =
         list_payment_methods_core(&state, &merchant_context, &customer_id).await?;
 
@@ -2129,7 +2129,7 @@ pub async fn list_payment_methods_core(
     state: &SessionState,
     merchant_context: &domain::MerchantContext,
     customer_id: &id_type::GlobalCustomerId,
-) -> RouterResult<payment_methods::PaymentMethodsListResponse> {
+) -> RouterResult<payment_methods::CustomerPaymentMethodsListResponse> {
     let db = &*state.store;
     let key_manager_state = &(state).into();
 
@@ -2152,7 +2152,7 @@ pub async fn list_payment_methods_core(
         .collect::<Result<Vec<payment_methods::PaymentMethodResponseItem>, _>>()
         .change_context(errors::ApiErrorResponse::InternalServerError)?;
 
-    let response = payment_methods::PaymentMethodsListResponse {
+    let response = payment_methods::CustomerPaymentMethodsListResponse {
         customer_payment_methods,
     };
 
