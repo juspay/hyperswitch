@@ -976,32 +976,8 @@ impl transformers::ForeignTryFrom<(domain::PaymentMethod, String)>
             .map(|billing| billing.into_inner())
             .map(From::from);
 
-        let network_token_pmd = item
-            .network_token_payment_method_data
-            .clone()
-            .map(|data| data.into_inner())
-            .and_then(|data| match data {
-                domain::PaymentMethodsData::NetworkToken(token) => {
-                    Some(api::NetworkTokenDetailsPaymentMethod::from(token))
-                }
-                _ => None,
-            });
-
-        let network_token_resp = network_token_pmd.map(|pmd| api::NetworkTokenResponse {
-            payment_method_data: pmd,
-        });
-
         // TODO: check how we can get this field
         let recurring_enabled = true;
-
-        let psp_tokenization_enabled = item.connector_mandate_details.and_then(|details| {
-            details.payments.map(|payments| {
-                payments.values().any(|connector_token_reference| {
-                    connector_token_reference.connector_token_status
-                        == api_enums::ConnectorTokenStatus::Active
-                })
-            })
-        });
 
         Ok(Self {
             id: item.id,
@@ -1016,8 +992,6 @@ impl transformers::ForeignTryFrom<(domain::PaymentMethod, String)>
             requires_cvv: true,
             is_default: false,
             billing: payment_method_billing,
-            network_tokenization: network_token_resp,
-            psp_tokenization_enabled: psp_tokenization_enabled.unwrap_or(false),
             payment_token,
         })
     }

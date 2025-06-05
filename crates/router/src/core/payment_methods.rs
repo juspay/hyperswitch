@@ -37,6 +37,7 @@ use diesel_models::{
     enums, GenericLinkNew, PaymentMethodCollectLink, PaymentMethodCollectLinkData,
 };
 use error_stack::{report, ResultExt};
+use futures::TryStreamExt;
 #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
 use hyperswitch_domain_models::api::{GenericLinks, GenericLinksData};
 #[cfg(all(
@@ -1371,7 +1372,7 @@ pub async fn list_payment_methods_for_session(
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("error when fetching merchant connector accounts")?;
 
-    let customer_payment_methods = list_customer_payment_method_core(
+    let customer_payment_methods = list_customer_payment_methods_core(
         &state,
         &merchant_context,
         &payment_method_session.customer_id,
@@ -1397,7 +1398,7 @@ pub async fn list_saved_payment_methods_for_customer(
     customer_id: id_type::GlobalCustomerId,
 ) -> RouterResponse<payment_methods::PaymentMethodsListResponse> {
     let customer_payment_methods =
-        list_payment_method_core(&state, &merchant_context, &customer_id).await?;
+        list_payment_methods_core(&state, &merchant_context, &customer_id).await?;
 
     Ok(hyperswitch_domain_models::api::ApplicationResponse::Json(
         customer_payment_methods,
@@ -2122,13 +2123,11 @@ fn get_pm_list_token_data(
 }
 
 #[cfg(all(feature = "v2", feature = "olap"))]
-pub async fn list_payment_method_core(
+pub async fn list_payment_methods_core(
     state: &SessionState,
     merchant_context: &domain::MerchantContext,
     customer_id: &id_type::GlobalCustomerId,
 ) -> RouterResult<payment_methods::PaymentMethodsListResponse> {
-    use futures::TryStreamExt;
-
     let db = &*state.store;
     let key_manager_state = &(state).into();
 
@@ -2158,14 +2157,12 @@ pub async fn list_payment_method_core(
     Ok(response)
 }
 
-#[cfg(feature = "v2")]
-pub async fn list_customer_payment_method_core(
+#[cfg(all(feature = "v2", feature = "oltp"))]
+pub async fn list_customer_payment_methods_core(
     state: &SessionState,
     merchant_context: &domain::MerchantContext,
     customer_id: &id_type::GlobalCustomerId,
 ) -> RouterResult<Vec<payment_methods::CustomerPaymentMethodResponseItem>> {
-    use futures::TryStreamExt;
-
     let db = &*state.store;
     let key_manager_state = &(state).into();
 
@@ -2287,7 +2284,7 @@ pub async fn retrieve_payment_method(
         .map(services::ApplicationResponse::Json)
 }
 
-// When we separate out microservices, this function will be an endpoint in payment_methods
+// TODO: When we separate out microservices, this function will be an endpoint in payment_methods
 #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
 #[instrument(skip_all)]
 pub async fn update_payment_method_status_internal(

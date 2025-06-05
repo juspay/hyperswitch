@@ -2197,13 +2197,6 @@ pub struct CustomerPaymentMethodResponseItem {
     /// The billing details of the payment method
     #[schema(value_type = Option<Address>)]
     pub billing: Option<payments::Address>,
-
-    ///The network token details for the payment method
-    pub network_tokenization: Option<NetworkTokenResponse>,
-
-    /// Whether psp_tokenization is enabled for the payment_method, this will be true when at least
-    /// one multi-use token with status `Active` is available for the payment method
-    pub psp_tokenization_enabled: bool,
 }
 
 #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
