@@ -45,7 +45,7 @@ pub use self::{
     merchant_connector_account::MerchantConnectorAccountId,
     organization::OrganizationId,
     payment::{PaymentId, PaymentReferenceId},
-    profile::ProfileId,
+    profile::{AcquirerId, ProfileId},
     refunds::RefundReferenceId,
     relay::RelayId,
     routing::RoutingId,

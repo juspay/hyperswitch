@@ -2011,6 +2011,10 @@ pub struct ProfileCreate {
 
     /// Indicates if pre network tokenization is enabled or not
     pub is_pre_network_tokenization_enabled: Option<bool>,
+
+    /// Merchant Acquirer config
+    #[schema(value_type = Option<AcquirerConfigs>)]
+    pub acquirer_configs: Option<common_types::domain::AcquirerConfigs>,
 }
 
 #[nutype::nutype(
@@ -2315,6 +2319,10 @@ pub struct ProfileResponse {
     /// Indicates if pre network tokenization is enabled or not
     #[schema(default = false, example = false)]
     pub is_pre_network_tokenization_enabled: bool,
+
+    /// Acquirer configs
+    #[schema(value_type = Option<AcquirerConfigs>)]
+    pub acquirer_configs: Option<common_types::domain::AcquirerConfigs>,
 }
 
 #[cfg(feature = "v2")]
@@ -2619,6 +2627,10 @@ pub struct ProfileUpdate {
     /// Indicates if pre network tokenization is enabled or not
     #[schema(default = false, example = false)]
     pub is_pre_network_tokenization_enabled: Option<bool>,
+
+    /// Acquirer configs
+    #[schema(value_type = Option<AcquirerConfigs>)]
+    pub acquirer_configs: Option<common_types::domain::AcquirerConfigs>,
 }
 
 #[cfg(feature = "v2")]
