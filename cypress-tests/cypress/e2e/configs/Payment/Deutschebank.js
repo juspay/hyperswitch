@@ -268,6 +268,16 @@ export const connectorDetails = {
       },
     },
     MITAutoCapture: getCustomExchange({
+      Response: {
+        status: 400,
+        body: {
+          error: {
+            type: "invalid_request",
+            message: "No eligible connector was found for the current payment method configuration",
+            code: "IR_39",
+          },
+        },
+      },
       ResponseCustom: {
         status: 200,
         body: {
