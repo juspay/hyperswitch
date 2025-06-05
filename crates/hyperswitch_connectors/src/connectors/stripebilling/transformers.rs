@@ -458,9 +458,29 @@ pub enum StripebillingPaymentMethod {
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct StripeBillingCardDetails {
-    pub network: common_enums::CardNetwork,
+    pub network: StripebillingCardNetwork,
     pub country: common_enums::CountryAlpha2,
     pub funding: StripebillingFundingTypes,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone, Copy)]
+#[serde(rename_all = "snake_case")]
+pub enum StripebillingCardNetwork {
+    Visa,
+    Mastercard,
+    AmericanExpress,
+    JCB,
+    DinersClub,
+    Discover,
+    CartesBancaires,
+    UnionPay,
+    Interac,
+    RuPay,
+    Maestro,
+    Star,
+    Pulse,
+    Accel,
+    Nyce,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, Copy)]
@@ -537,7 +557,9 @@ impl
                     payment_method_type: common_enums::PaymentMethod::from(
                         charge_details.payment_method_details.type_of_payment_method,
                     ),
-                    card_network: Some(charge_details.payment_method_details.card_details.network),
+                    card_network: Some(common_enums::CardNetwork::from(
+                        charge_details.payment_method_details.card_details.network,
+                    )),
                     card_isin: None,
                 },
             ),
@@ -611,5 +633,27 @@ impl
             }),
             ..item.data
         })
+    }
+}
+
+impl From<StripebillingCardNetwork> for enums::CardNetwork {
+    fn from(item: StripebillingCardNetwork) -> Self {
+        match item {
+            StripebillingCardNetwork::Visa => Self::Visa,
+            StripebillingCardNetwork::Mastercard => Self::Mastercard,
+            StripebillingCardNetwork::AmericanExpress => Self::AmericanExpress,
+            StripebillingCardNetwork::JCB => Self::JCB,
+            StripebillingCardNetwork::DinersClub => Self::DinersClub,
+            StripebillingCardNetwork::Discover => Self::Discover,
+            StripebillingCardNetwork::CartesBancaires => Self::CartesBancaires,
+            StripebillingCardNetwork::UnionPay => Self::UnionPay,
+            StripebillingCardNetwork::Interac => Self::Interac,
+            StripebillingCardNetwork::RuPay => Self::RuPay,
+            StripebillingCardNetwork::Maestro => Self::Maestro,
+            StripebillingCardNetwork::Star => Self::Star,
+            StripebillingCardNetwork::Pulse => Self::Pulse,
+            StripebillingCardNetwork::Accel => Self::Accel,
+            StripebillingCardNetwork::Nyce => Self::Nyce,
+        }
     }
 }
