@@ -130,7 +130,7 @@ impl<'a> KafkaPaymentIntent<'a> {
 
 #[cfg(feature = "v2")]
 impl<'a> KafkaPaymentIntent<'a> {
-    pub fn from_storage(intent: &'a PaymentIntent) -> Self {
+    pub fn from_storage(intent: &'a PaymentIntent, infra_values: Option<Value>) -> Self {
         // Self {
         //     id: &intent.id,
         //     merchant_id: &intent.merchant_id,
