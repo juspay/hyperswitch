@@ -74,6 +74,7 @@ pub struct Profile {
     pub is_iframe_redirection_enabled: Option<bool>,
     pub is_pre_network_tokenization_enabled: Option<bool>,
     pub three_ds_decision_rule_algorithm: Option<serde_json::Value>,
+    pub acquirer_configs: Option<common_types::domain::AcquirerConfigs>,
 }
 
 #[cfg(feature = "v1")]
@@ -183,6 +184,7 @@ pub struct ProfileUpdateInternal {
     pub is_iframe_redirection_enabled: Option<bool>,
     pub is_pre_network_tokenization_enabled: Option<bool>,
     pub three_ds_decision_rule_algorithm: Option<serde_json::Value>,
+    pub acquirer_configs: Option<common_types::domain::AcquirerConfigs>,
 }
 
 #[cfg(feature = "v1")]
@@ -234,6 +236,7 @@ impl ProfileUpdateInternal {
             is_iframe_redirection_enabled,
             is_pre_network_tokenization_enabled,
             three_ds_decision_rule_algorithm,
+            acquirer_configs,
         } = self;
         Profile {
             profile_id: source.profile_id,
@@ -316,6 +319,7 @@ impl ProfileUpdateInternal {
                 .or(source.is_pre_network_tokenization_enabled),
             three_ds_decision_rule_algorithm: three_ds_decision_rule_algorithm
                 .or(source.three_ds_decision_rule_algorithm),
+            acquirer_configs: acquirer_configs.or(source.acquirer_configs),
         }
     }
 }

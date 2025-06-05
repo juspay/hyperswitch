@@ -1,31 +1,13 @@
 use api_models::profile_acquirer;
-use common_utils::{date_time, types::keymanager::KeyManagerState};
-use diesel_models::profile_acquirer::{ProfileAcquirer, ProfileAcquirerNew};
+use common_utils::types::keymanager::KeyManagerState;
 use error_stack::ResultExt;
 
 use crate::{
     core::errors::{self, utils::StorageErrorExt, RouterResponse},
     services::api,
-    types::{domain, transformers::ForeignFrom},
+    types::domain,
     SessionState,
 };
-
-impl ForeignFrom<ProfileAcquirer> for profile_acquirer::ProfileAcquirerResponse {
-    fn foreign_from(db_acquirer: ProfileAcquirer) -> Self {
-        Self {
-            profile_acquirer_id: db_acquirer.profile_acquirer_id,
-            acquirer_assigned_merchant_id: db_acquirer.acquirer_assigned_merchant_id,
-            merchant_name: db_acquirer.merchant_name,
-            mcc: db_acquirer.mcc,
-            merchant_country_code: db_acquirer.merchant_country_code,
-            network: db_acquirer.network,
-            acquirer_bin: db_acquirer.acquirer_bin,
-            acquirer_ica: db_acquirer.acquirer_ica,
-            acquirer_fraud_rate: db_acquirer.acquirer_fraud_rate,
-            profile_id: db_acquirer.profile_id,
-        }
-    }
-}
 
 #[cfg(all(feature = "olap", feature = "v1"))]
 pub async fn create_profile_acquirer(
@@ -34,12 +16,11 @@ pub async fn create_profile_acquirer(
     merchant_context: domain::MerchantContext,
 ) -> RouterResponse<profile_acquirer::ProfileAcquirerResponse> {
     let db = state.store.as_ref();
-    let now = date_time::now();
     let profile_acquirer_id = common_utils::generate_profile_acquirer_id_of_default_length();
     let key_manager_state: KeyManagerState = (&state).into();
     let merchant_key_store = merchant_context.get_merchant_key_store();
 
-    let business_profile = db
+    let mut business_profile = db
         .find_business_profile_by_profile_id(
             &key_manager_state,
             merchant_key_store,
@@ -50,111 +31,88 @@ pub async fn create_profile_acquirer(
             id: request.profile_id.get_string_repr().to_owned(),
         })?;
 
-    let existing_profile_acquirers = db
-        .list_profile_acquirer_based_on_profile_id(business_profile.get_id())
-        .await
-        .inspect_err(|error| {
-            router_env::logger::error!("Failed to list profile acquirers: {:?}", error);
-        })
-        .change_context(errors::ApiErrorResponse::InternalServerError)?;
-
-    (!existing_profile_acquirers.is_empty())
-        .then(|| {
-            has_duplicate_profile_acquirer(
-                &request,
-                &existing_profile_acquirers,
-                &profile_acquirer_id,
-            )
-        })
-        .transpose()?;
-
-    let new_acquirer_entry = ProfileAcquirerNew {
-        profile_acquirer_id: profile_acquirer_id.clone(),
-        acquirer_assigned_merchant_id: request.acquirer_assigned_merchant_id,
-        merchant_name: request.merchant_name,
-        mcc: request.mcc,
-        merchant_country_code: request.merchant_country_code,
-        network: request.network,
-        acquirer_bin: request.acquirer_bin,
-        acquirer_ica: request.acquirer_ica,
+    let incoming_acquirer_config_to_check = common_types::domain::AcquirerConfig {
+        acquirer_assigned_merchant_id: request.acquirer_assigned_merchant_id.clone(),
+        merchant_name: request.merchant_name.clone(),
+        mcc: request.mcc.clone(),
+        merchant_country_code: request.merchant_country_code.clone(),
+        network: request.network.clone(),
+        acquirer_bin: request.acquirer_bin.clone(),
+        acquirer_ica: request.acquirer_ica.clone(),
         acquirer_fraud_rate: request.acquirer_fraud_rate,
-        created_at: Some(now),
-        last_modified_at: Some(now),
-        profile_id: business_profile.get_id().clone(),
     };
 
-    let created_acquirer = db
-        .insert_profile_acquirer(new_acquirer_entry)
-        .await
-        .to_duplicate_response(errors::ApiErrorResponse::GenericDuplicateError {
-            message: format!(
-                "Profile acquirer with id {} already exists.",
-                profile_acquirer_id.get_string_repr()
-            ),
+    // Check for duplicates before proceeding
+
+    business_profile
+        .acquirer_configs
+        .as_ref()
+        .map_or(Ok(()), |configs_wrapper| {
+            match configs_wrapper.0.values().any(|existing_config| existing_config == &incoming_acquirer_config_to_check) {
+                true => Err(error_stack::report!(
+                    errors::ApiErrorResponse::GenericDuplicateError {
+                        message: format!(
+                            "Duplicate acquirer configuration found for profile_id: {}. Conflicting configuration: {:?}",
+                            request.profile_id.get_string_repr(),
+                            incoming_acquirer_config_to_check
+                        ),
+                    }
+                )),
+                false => Ok(()),
+            }
         })?;
 
-    Ok(api::ApplicationResponse::Json(
-        profile_acquirer::ProfileAcquirerResponse::foreign_from(created_acquirer),
-    ))
-}
+    let new_acquirer_config_data = incoming_acquirer_config_to_check;
 
-fn has_duplicate_profile_acquirer(
-    request: &profile_acquirer::ProfileAcquirerCreate,
-    existing_acquirers: &Vec<ProfileAcquirer>,
-    profile_acquirer_id: &common_utils::id_type::ProfileAcquirerId,
-) -> Result<(), error_stack::Report<errors::ApiErrorResponse>> {
-    for acquirer in existing_acquirers {
-        if acquirer.acquirer_assigned_merchant_id == request.acquirer_assigned_merchant_id
-            && acquirer.merchant_name == request.merchant_name
-            && acquirer.mcc == request.mcc
-            && acquirer.merchant_country_code == request.merchant_country_code
-            && acquirer.network == request.network
-            && acquirer.acquirer_bin == request.acquirer_bin
-            && acquirer.acquirer_ica == request.acquirer_ica
-        {
-            return Err(error_stack::Report::from(
-                errors::ApiErrorResponse::GenericDuplicateError {
-                    message: format!(
-                        "Profile acquirer configuration with id {} already exists.",
-                        profile_acquirer_id.get_string_repr()
-                    ),
-                },
-            ));
-        }
-    }
-    Ok(())
-}
-
-#[cfg(all(feature = "olap", feature = "v1"))]
-pub async fn list_merchant_acquirers(
-    state: SessionState,
-    merchant_context: domain::MerchantContext,
-    profile_id: common_utils::id_type::ProfileId,
-) -> RouterResponse<Vec<profile_acquirer::ProfileAcquirerResponse>> {
-    let db = state.store.as_ref();
-    let key_manager_state: KeyManagerState = (&state).into();
-    let merchant_key_store = merchant_context.get_merchant_key_store();
-
-    let business_profile = db
-        .find_business_profile_by_profile_id(&key_manager_state, merchant_key_store, &profile_id)
-        .await
-        .to_not_found_response(errors::ApiErrorResponse::ProfileNotFound {
-            id: profile_id.get_string_repr().to_owned(),
-        })?;
-
-    let profile_acquirers = db
-        .list_profile_acquirer_based_on_profile_id(business_profile.get_id())
-        .await
-        .inspect_err(|error| {
-            router_env::logger::error!("Failed to list profile acquirers: {:?}", error);
+    // Get a mutable reference to the HashMap inside AcquirerConfigs,
+    // initializing if it's None or the inner HashMap is not present.
+    let configs_map = &mut business_profile
+        .acquirer_configs
+        .get_or_insert_with(|| {
+            common_types::domain::AcquirerConfigs(std::collections::HashMap::new())
         })
-        .change_context(errors::ApiErrorResponse::InternalServerError)?;
+        .0;
 
-    let response = api::ApplicationResponse::Json(
-        profile_acquirers
-            .into_iter()
-            .map(profile_acquirer::ProfileAcquirerResponse::foreign_from)
-            .collect(),
+    configs_map.insert(
+        profile_acquirer_id.clone(),
+        new_acquirer_config_data.clone(),
     );
-    Ok(response)
+
+    let profile_update = domain::ProfileUpdate::AcquirerConfigsUpdate {
+        acquirer_configs: business_profile.acquirer_configs.clone(),
+    };
+    let updated_business_profile = db
+        .update_profile_by_profile_id(
+            &key_manager_state,
+            merchant_key_store,
+            business_profile,
+            profile_update,
+        )
+        .await
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Failed to update business profile with new acquirer config")?;
+
+    let updated_acquire_details = updated_business_profile
+        .acquirer_configs
+        .as_ref()
+        .and_then(|acquirer_configs_wrapper| acquirer_configs_wrapper.0.get(&profile_acquirer_id))
+        .ok_or(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Failed to get updated acquirer config")?;
+
+    let response = profile_acquirer::ProfileAcquirerResponse {
+        profile_acquirer_id,
+        profile_id: request.profile_id.clone(),
+        acquirer_assigned_merchant_id: updated_acquire_details
+            .acquirer_assigned_merchant_id
+            .clone(),
+        merchant_name: updated_acquire_details.merchant_name.clone(),
+        mcc: updated_acquire_details.mcc.clone(),
+        merchant_country_code: updated_acquire_details.merchant_country_code.clone(),
+        network: updated_acquire_details.network.clone(),
+        acquirer_bin: updated_acquire_details.acquirer_bin.clone(),
+        acquirer_ica: updated_acquire_details.acquirer_ica.clone(),
+        acquirer_fraud_rate: updated_acquire_details.acquirer_fraud_rate,
+    };
+
+    Ok(api::ApplicationResponse::Json(response))
 }

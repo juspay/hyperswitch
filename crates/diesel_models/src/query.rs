@@ -34,7 +34,6 @@ pub mod payment_method;
 pub mod payout_attempt;
 pub mod payouts;
 pub mod process_tracker;
-pub mod profile_acquirer;
 pub mod refund;
 pub mod relay;
 pub mod reverse_lookup;
