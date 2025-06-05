@@ -26,7 +26,7 @@ if [[ "${HEALTH_RESPONSE}" == "connection_error" ]]; then
     curl --get "${SCARF_URL}" \
         --data-urlencode "version=${VERSION}" \
         --data-urlencode "status=${STATUS}" \
-        --data-urlencode "error_message=${ERROR_MESSAGE}"
+        --data-urlencode "error_message='${ERROR_MESSAGE}'"
 
     echo "Webhook sent with connection error."
     exit 0
@@ -50,9 +50,9 @@ if [[ "$(echo "${HEALTH_RESPONSE}" | jq --raw-output '.error')" != "null" ]]; th
 
     CURL_COMMAND+=(
         "--data-urlencode" "status=${STATUS}"
-        "--data-urlencode" "error_type=${ERROR_TYPE}"
-        "--data-urlencode" "error_message=${ERROR_MESSAGE}"
-        "--data-urlencode" "error_code=${ERROR_CODE}"
+        "--data-urlencode" "error_type='${ERROR_TYPE}'"
+        "--data-urlencode" "error_message='${ERROR_MESSAGE}'"
+        "--data-urlencode" "error_code='${ERROR_CODE}'"
     )
     "${CURL_COMMAND[@]}"
     echo "Webhook sent with error status."
