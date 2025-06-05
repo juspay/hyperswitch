@@ -93,7 +93,7 @@ reqwest = { version = "0.11.27", features = ["json", "rustls-tls", "gzip", "mult
 ring = "0.17.8"
 rust_decimal = { version = "1.35.0", features = ["serde-with-float", "serde-with-str"] }
 rust-i18n = { git = "https://github.com/kashif-m/rust-i18n", rev = "f2d8096aaaff7a87a847c35a5394c269f75e077a" }
-rust-grpc-client = { path = "/Users/debarshi.gupta/unified-connector-service/sdk/rust-grpc-client", default-features = false }
+rust-grpc-client = { git = "https://github.com/juspay/connector-service", rev = "eea707db7729508c152b8648741c7147efcc1cef", package = "rust-grpc-client" }
 rustc-hash = "1.1.0"
 rustls = "0.22"
 rustls-pemfile = "2"
