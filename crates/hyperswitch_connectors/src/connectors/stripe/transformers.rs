@@ -170,8 +170,8 @@ pub struct PaymentIntentRequest {
     pub meta_data: HashMap<String, String>,
     pub return_url: String,
     pub confirm: bool,
-    pub payment_method: Option<String>,
-    pub customer: Option<Secret<String>>,
+    pub payment_method: Option<Secret<String>>,
+    pub customer: Option<String>,
     #[serde(flatten)]
     pub setup_mandate_details: Option<StripeMandateRequest>,
     pub description: Option<String>,
@@ -486,6 +486,23 @@ pub enum StripePaymentMethodData {
     BankTransfer(StripeBankTransferData),
 }
 
+#[derive(Debug, Clone, Default, Eq, PartialEq, Serialize)]
+pub struct StripeBillingAddressCardToken {
+    #[serde(rename = "billing_details[name]")]
+    pub name: Option<Secret<String>>,
+    #[serde(rename = "billing_details[email]")]
+    pub email: Option<Email>,
+    #[serde(rename = "billing_details[phone]")]
+    pub phone: Option<Secret<String>>,
+    #[serde(rename = "billing_details[address][line1]")]
+    pub address_line1: Option<Secret<String>>,
+    #[serde(rename = "billing_details[address][line2]")]
+    pub address_line2: Option<Secret<String>>,
+    #[serde(rename = "billing_details[address][state]")]
+    pub state: Option<Secret<String>>,
+    #[serde(rename = "billing_details[address][city]")]
+    pub city: Option<String>,
+}
 // Struct to call the Stripe tokens API to create a PSP token for the card details provided
 #[derive(Debug, Eq, PartialEq, Serialize)]
 pub struct StripeCardToken {
@@ -499,6 +516,8 @@ pub struct StripeCardToken {
     pub token_card_exp_year: Secret<String>,
     #[serde(rename = "card[cvc]")]
     pub token_card_cvc: Secret<String>,
+    #[serde(flatten)]
+    pub billing: Option<StripeBillingAddressCardToken>,
 }
 
 #[derive(Debug, Eq, PartialEq, Serialize)]
@@ -1678,6 +1697,44 @@ fn get_stripe_billing_address(
     }
 }
 
+fn get_stripe_billing_address_card_token(
+    billing_details: Option<hyperswitch_domain_models::address::Address>,
+) -> Option<StripeBillingAddressCardToken> {
+    let bd = billing_details?;
+
+    let billing_address = bd.address.as_ref()?;
+
+    let name = match (&billing_address.first_name, &billing_address.last_name) {
+        (Some(first_name), Some(last_name)) => Some(
+            format!(
+                "{} {}",
+                first_name.clone().expose(),
+                last_name.clone().expose()
+            )
+            .into(),
+        ),
+        (Some(first_name), None) => Some(first_name.clone().expose().into()),
+        _ => None,
+    };
+
+    Some(StripeBillingAddressCardToken {
+        name,
+        email: bd.email.clone(),
+        phone: bd.phone.as_ref().map(|p| {
+            format!(
+                "{}{}",
+                p.country_code.clone().unwrap_or_default(),
+                p.number.clone().expose_option().unwrap_or_default()
+            )
+            .into()
+        }),
+        address_line1: billing_address.line1.clone(),
+        address_line2: billing_address.line2.clone(),
+        state: billing_address.state.clone(),
+        city: billing_address.city.clone(),
+    })
+}
+
 impl TryFrom<(&PaymentsAuthorizeRouterData, MinorUnit)> for PaymentIntentRequest {
     type Error = error_stack::Report<ConnectorError>;
     fn try_from(data: (&PaymentsAuthorizeRouterData, MinorUnit)) -> Result<Self, Self::Error> {
@@ -1978,40 +2035,31 @@ impl TryFrom<(&PaymentsAuthorizeRouterData, MinorUnit)> for PaymentIntentRequest
             None
         };
 
-        let (charges, customer) = match &item.request.split_payments {
+        let charges = match &item.request.split_payments {
             Some(common_types::payments::SplitPaymentsRequest::StripeSplitPayment(
                 stripe_split_payment,
-            )) => {
-                let charges = match &stripe_split_payment.charge_type {
-                    PaymentChargeType::Stripe(charge_type) => match charge_type {
-                        StripeChargeType::Direct => Some(IntentCharges {
-                            application_fee_amount: stripe_split_payment.application_fees,
-                            destination_account_id: None,
-                        }),
-                        StripeChargeType::Destination => Some(IntentCharges {
-                            application_fee_amount: stripe_split_payment.application_fees,
-                            destination_account_id: Some(
-                                stripe_split_payment.transfer_account_id.clone(),
-                            ),
-                        }),
-                    },
-                };
-                (charges, None)
-            }
+            )) => match &stripe_split_payment.charge_type {
+                PaymentChargeType::Stripe(charge_type) => match charge_type {
+                    StripeChargeType::Direct => Some(IntentCharges {
+                        application_fee_amount: stripe_split_payment.application_fees,
+                        destination_account_id: None,
+                    }),
+                    StripeChargeType::Destination => Some(IntentCharges {
+                        application_fee_amount: stripe_split_payment.application_fees,
+                        destination_account_id: Some(
+                            stripe_split_payment.transfer_account_id.clone(),
+                        ),
+                    }),
+                },
+            },
             Some(common_types::payments::SplitPaymentsRequest::AdyenSplitPayment(_))
             | Some(common_types::payments::SplitPaymentsRequest::XenditSplitPayment(_))
-            | None => (None, item.connector_customer.to_owned().map(Secret::new)),
+            | None => None,
         };
 
-        // let pm = if payment_method.is_none(){
-        //     payment_method_token.unwrap().expose()
-        // } else {
-        //     payment_method.unwrap()
-        // };
-
-        let pm = match (payment_method, payment_method_token) {
-            (Some(method), _) => Some(method),
-            (None, Some(token)) => Some(token.expose()),
+        let pm = match (payment_method, payment_method_token.clone()) {
+            (Some(method), _) => Some(Secret::new(method)),
+            (None, Some(token)) => Some(token),
             (None, None) => None,
         };
 
@@ -2034,7 +2082,7 @@ impl TryFrom<(&PaymentsAuthorizeRouterData, MinorUnit)> for PaymentIntentRequest
             payment_data,
             payment_method_options,
             payment_method: pm,
-            customer,
+            customer: item.connector_customer.clone(),
             setup_mandate_details,
             off_session: item.request.off_session,
             setup_future_usage,
@@ -2125,6 +2173,8 @@ impl TryFrom<&SetupMandateRouterData> for SetupIntentRequest {
 impl TryFrom<&TokenizationRouterData> for TokenRequest {
     type Error = error_stack::Report<ConnectorError>;
     fn try_from(item: &TokenizationRouterData) -> Result<Self, Self::Error> {
+        let billing_address =
+            get_stripe_billing_address_card_token(item.get_optional_billing().cloned());
         // Card flow for tokenization is handled separately because of API contact difference
         let request_payment_data = match &item.request.payment_method_data {
             PaymentMethodData::Card(card_details) => {
@@ -2134,6 +2184,7 @@ impl TryFrom<&TokenizationRouterData> for TokenRequest {
                     token_card_exp_month: card_details.card_exp_month.clone(),
                     token_card_exp_year: card_details.card_exp_year.clone(),
                     token_card_cvc: card_details.card_cvc.clone(),
+                    billing: billing_address,
                 })
             }
             _ => {
