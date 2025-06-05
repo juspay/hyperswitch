@@ -4499,6 +4499,7 @@ pub enum NextActionData {
     #[cfg(feature = "v1")]
     RedirectInsidePopup {
         popup_url: String,
+        redirect_response_url:String
     },
     /// Contains the url for redirection flow
     #[cfg(feature = "v2")]
