@@ -8,7 +8,7 @@
   "topbarLinks": [
     {
       "name": "Contact Us",
-      "url": "https://join.slack.com/t/hyperswitch-io/shared_invite/zt-2jqxmpsbm-WXUENx022HjNEy~Ark7Orw"
+      "url": "https://inviter.co/hyperswitch-slack"
     }
   ],
   "topbarCtaButton": {
@@ -18,12 +18,17 @@
   },
   "favicon": "/favicon.png",
   "colors": {
-    "primary": "#006DF9",
-    "light": "#006DF9",
-    "dark": "#006DF9",
-    "background": {
-      "dark": "#242F48"
-    }
+  "primary": "#4F8EFF",
+  "light": "#6BA3FF", 
+  "dark": "#2563EB",
+  "background": {
+    "light": "#FAFBFC",
+    "dark": "#1d1d1d"
+  },
+  "anchors": {
+    "from": "#4F8EFF",
+    "to": "#8B5CF6"
+  }
   },
   "sidebar": {
     "items": "card"
