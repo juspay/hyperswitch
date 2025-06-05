@@ -1357,7 +1357,7 @@ pub async fn retrieve_payment_method_from_vault_internal(
 
 #[cfg(all(feature = "v2", feature = "tokenization_v2"))]
 #[instrument(skip_all)]
-pub async fn retrive_value_from_vault(
+pub async fn retrieve_value_from_vault(
     state: &routes::SessionState,
     request: pm_types::VaultRetrieveRequest,
 ) -> CustomResult<serde_json::value::Value, errors::VaultError> {
@@ -1409,7 +1409,8 @@ pub async fn retrieve_payment_method_from_vault_external(
 
     let connector_name = merchant_connector_account
         .get_connector_name()
-        .unwrap_or_default(); // always get the connector name from this call
+        .ok_or(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Connector name not present for external vault")?; // always get the connector name from this call
 
     let connector_data = api::ConnectorData::get_external_vault_connector_by_name(
         &state.conf.connectors,
@@ -1569,7 +1570,8 @@ pub async fn delete_payment_method_data_from_vault_external(
 
     let connector_name = merchant_connector_account
         .get_connector_name()
-        .unwrap_or_default(); // always get the connector name from this call
+        .ok_or(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Connector name not present for external vault")?; // always get the connector name from this call
 
     let connector_data = api::ConnectorData::get_external_vault_connector_by_name(
         &state.conf.connectors,

@@ -1,5 +1,9 @@
 use common_enums::enums;
-use common_utils::{ext_traits::OptionExt, request::Method, types::FloatMajorUnit};
+use common_utils::{
+    ext_traits::OptionExt,
+    request::Method,
+    types::{FloatMajorUnit, MinorUnit},
+};
 use error_stack::ResultExt;
 use hyperswitch_domain_models::{
     payment_method_data::{PaymentMethodData, WalletData},
@@ -287,7 +291,7 @@ pub struct ResponseData {
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct DisputeResponseData {
     pub id: String,
-    pub amount: i64,
+    pub amount: MinorUnit,
     pub currency: api_models::enums::Currency,
     pub token: String,
     pub dispute_reason_description: String,

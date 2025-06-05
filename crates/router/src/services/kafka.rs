@@ -162,6 +162,7 @@ pub struct KafkaSettings {
     payout_analytics_topic: String,
     consolidated_events_topic: String,
     authentication_analytics_topic: String,
+    routing_logs_topic: String,
     revenue_recovery_topic: String,
 }
 
@@ -250,6 +251,12 @@ impl KafkaSettings {
             },
         )?;
 
+        common_utils::fp_utils::when(self.routing_logs_topic.is_default_or_empty(), || {
+            Err(ApplicationError::InvalidConfigurationValueError(
+                "Kafka Routing Logs topic must not be empty".into(),
+            ))
+        })?;
+
         Ok(())
     }
 }
@@ -271,6 +278,7 @@ pub struct KafkaProducer {
     consolidated_events_topic: String,
     authentication_analytics_topic: String,
     ckh_database_name: Option<String>,
+    routing_logs_topic: String,
     revenue_recovery_topic: String,
 }
 
@@ -321,6 +329,7 @@ impl KafkaProducer {
             consolidated_events_topic: conf.consolidated_events_topic.clone(),
             authentication_analytics_topic: conf.authentication_analytics_topic.clone(),
             ckh_database_name: None,
+            routing_logs_topic: conf.routing_logs_topic.clone(),
             revenue_recovery_topic: conf.revenue_recovery_topic.clone(),
         })
     }
@@ -657,6 +666,7 @@ impl KafkaProducer {
             EventType::Payout => &self.payout_analytics_topic,
             EventType::Consolidated => &self.consolidated_events_topic,
             EventType::Authentication => &self.authentication_analytics_topic,
+            EventType::RoutingApiLogs => &self.routing_logs_topic,
             EventType::RevenueRecovery => &self.revenue_recovery_topic
         }
     }
