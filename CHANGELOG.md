@@ -4,6 +4,16 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2025.05.05.0-hotfix6
+
+### Features
+
+- **events:** Adding infra level components to api-events ([#8253](https://github.com/juspay/hyperswitch/pull/8253)) ([`9341fb2`](https://github.com/juspay/hyperswitch/commit/9341fb2da45a4f5dc702725fd624dea6f93adc04))
+
+**Full Changelog:** [`2025.05.05.0-hotfix5...2025.05.05.0-hotfix6`](https://github.com/juspay/hyperswitch/compare/2025.05.05.0-hotfix5...2025.05.05.0-hotfix6)
+
+- - -
+
 ## 2025.05.05.0-hotfix5
 
 ### Refactors
