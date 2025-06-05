@@ -292,7 +292,7 @@ pub trait Domain<F: Clone, R, D>: Send + Sync {
     ) -> CustomResult<api::ConnectorChoice, errors::ApiErrorResponse>;
 
     #[cfg(feature = "v2")]
-    async fn get_connector_for_tunnel<'a>(
+    async fn get_connector_from_request<'a>(
         &'a self,
         state: &SessionState,
         request: &R,

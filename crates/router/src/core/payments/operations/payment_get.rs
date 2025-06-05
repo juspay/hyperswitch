@@ -321,51 +321,32 @@ impl<F: Clone + Send + Sync> Domain<F, PaymentsRetrieveRequest, PaymentStatusDat
                 .change_context(errors::ApiErrorResponse::InternalServerError)
                 .attach_printable("Connector is none when constructing response")?;
 
-            // Since the connector name and merchant connector credentials is provided in the request, we directly construct ConnectorData, bypassing routing logic.
-            match &payment_data.merchant_connector_details {
-                Some(_) => {
-                    let connector_data: api::ConnectorData =
-                        api::ConnectorData::get_connector_by_name(
-                            &state.conf.connectors,
-                            connector,
-                            api::GetToken::Connector,
-                            None,
-                        )
-                        .change_context(errors::ApiErrorResponse::InternalServerError)
-                        .attach_printable("Invalid connector name received from payment_attempt")?;
-                    Ok(ConnectorCallType::PreDetermined(connector_data.into()))
-                }
-                None => {
-                    let merchant_connector_id = payment_attempt
-                        .merchant_connector_id
-                        .as_ref()
-                        .get_required_value("merchant_connector_id")
-                        .change_context(errors::ApiErrorResponse::InternalServerError)
-                        .attach_printable(
-                            "Merchant connector id is none when constructing response",
-                        )?;
+            let merchant_connector_id = payment_attempt
+                .merchant_connector_id
+                .as_ref()
+                .get_required_value("merchant_connector_id")
+                .change_context(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable("Merchant connector id is none when constructing response")?;
 
-                    let connector_data = api::ConnectorData::get_connector_by_name(
-                        &state.conf.connectors,
-                        connector,
-                        api::GetToken::Connector,
-                        Some(merchant_connector_id.to_owned()),
-                    )
-                    .change_context(errors::ApiErrorResponse::InternalServerError)
-                    .attach_printable("Invalid connector name received")?;
+            let connector_data = api::ConnectorData::get_connector_by_name(
+                &state.conf.connectors,
+                connector,
+                api::GetToken::Connector,
+                Some(merchant_connector_id.to_owned()),
+            )
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Invalid connector name received")?;
 
-                    Ok(ConnectorCallType::PreDetermined(
-                        api::ConnectorRoutingData::from(connector_data),
-                    ))
-                }
-            }
+            Ok(ConnectorCallType::PreDetermined(
+                api::ConnectorRoutingData::from(connector_data),
+            ))
         } else {
             Ok(ConnectorCallType::Skip)
         }
     }
 
     #[cfg(feature = "v2")]
-    async fn get_connector_for_tunnel<'a>(
+    async fn get_connector_from_request<'a>(
         &'a self,
         state: &SessionState,
         request: &PaymentsRetrieveRequest,
@@ -373,12 +354,15 @@ impl<F: Clone + Send + Sync> Domain<F, PaymentsRetrieveRequest, PaymentStatusDat
     ) -> CustomResult<api::ConnectorData, errors::ApiErrorResponse> {
         use crate::core::payments::OperationSessionSetters;
 
-        let a =
-            helpers::get_connector_data_default(state, request.merchant_connector_details.clone())
-                .await?;
+        let connector_data = helpers::get_connector_data_from_request(
+            state,
+            request.merchant_connector_details.clone(),
+        )
+        .await?;
 
-        payment_data.set_connector_in_payment_attempt(Some(a.connector_name.to_string()));
-        Ok(a)
+        payment_data
+            .set_connector_in_payment_attempt(Some(connector_data.connector_name.to_string()));
+        Ok(connector_data)
     }
 }
 

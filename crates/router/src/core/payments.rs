@@ -300,7 +300,7 @@ where
 #[cfg(feature = "v2")]
 #[allow(clippy::too_many_arguments, clippy::type_complexity)]
 #[instrument(skip_all, fields(payment_id, merchant_id))]
-pub async fn payments_operation_core_tunnel<F, Req, Op, FData, D>(
+pub async fn internal_payments_operation_core<F, Req, Op, FData, D>(
     state: &SessionState,
     req_state: ReqState,
     merchant_context: domain::MerchantContext,
@@ -339,10 +339,10 @@ where
 
     let connector_data = operation
         .to_domain()?
-        .get_connector_for_tunnel(state, &req, &mut payment_data)
+        .get_connector_from_request(state, &req, &mut payment_data)
         .await?;
 
-    let router_data = call_connector_service_for_tunnel(
+    let router_data = internal_call_connector_service(
         state,
         req_state.clone(),
         &merchant_context,
@@ -2181,26 +2181,39 @@ where
             &header_payload,
         )
         .await?;
-    //match case for euler's scenario
 
-    // let connector_data = operation
-    //     .to_domain()?
-    //     .get_connector_data_by_name(&state, &req)
-    //     .await?;
-
-    let (payment_data, _req, connector_http_status_code, external_latency) =
-        payments_operation_core_tunnel::<_, _, _, _, _>(
-            &state,
-            req_state,
-            merchant_context.clone(),
-            &profile,
-            operation.clone(),
-            req,
-            get_tracker_response,
-            call_connector_action,
-            header_payload.clone(),
-        )
-        .await?;
+    let (payment_data, connector_http_status_code, external_latency) =
+        if state.conf.merchant_id_auth.merchant_id_auth_enabled {
+            let (payment_data, _req, connector_http_status_code, external_latency) =
+                internal_payments_operation_core::<_, _, _, _, _>(
+                    &state,
+                    req_state,
+                    merchant_context.clone(),
+                    &profile,
+                    operation.clone(),
+                    req,
+                    get_tracker_response,
+                    call_connector_action,
+                    header_payload.clone(),
+                )
+                .await?;
+            (payment_data, connector_http_status_code, external_latency)
+        } else {
+            let (payment_data, _req, _customer, connector_http_status_code, external_latency) =
+                payments_operation_core::<_, _, _, _, _>(
+                    &state,
+                    req_state,
+                    merchant_context.clone(),
+                    &profile,
+                    operation.clone(),
+                    req,
+                    get_tracker_response,
+                    call_connector_action,
+                    header_payload.clone(),
+                )
+                .await?;
+            (payment_data, connector_http_status_code, external_latency)
+        };
 
     payment_data.generate_response(
         &state,
@@ -3937,7 +3950,7 @@ where
 #[cfg(feature = "v2")]
 #[allow(clippy::too_many_arguments)]
 #[instrument(skip_all)]
-pub async fn call_connector_service_for_tunnel<F, RouterDReq, ApiRequest, D>(
+pub async fn internal_call_connector_service<F, RouterDReq, ApiRequest, D>(
     state: &SessionState,
     req_state: ReqState,
     merchant_context: &domain::MerchantContext,
@@ -7794,6 +7807,8 @@ pub async fn route_connector_v2_for_payments(
     .await
     .change_context(errors::ApiErrorResponse::InternalServerError)?;
 
+    println!("$$$connectors123: {:?}", connectors);
+
     let connectors = routing::perform_eligibility_analysis_with_fallback(
         &state.clone(),
         merchant_context.get_merchant_key_store(),
@@ -7805,6 +7820,8 @@ pub async fn route_connector_v2_for_payments(
     .await
     .change_context(errors::ApiErrorResponse::InternalServerError)
     .attach_printable("failed eligibility analysis and fallback")?;
+
+    println!("$$$connectors: {:?}", connectors);
 
     connectors
         .first()
@@ -9829,7 +9846,7 @@ impl<F: Clone> OperationSessionSetters<F> for PaymentStatusData<F> {
     }
 
     fn set_connector_in_payment_attempt(&mut self, connector: Option<String>) {
-        todo!()
+        self.payment_attempt.connector = connector;
     }
 }
 

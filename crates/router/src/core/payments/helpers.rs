@@ -1602,7 +1602,7 @@ pub async fn get_connector_default(
     ))
 }
 
-pub async fn get_connector_data_default(
+pub async fn get_connector_data_from_request(
     state: &SessionState,
     req: Option<api_models::payments::MerchantConnectorDetails>,
 ) -> CustomResult<api::ConnectorData, errors::ApiErrorResponse> {
