@@ -1,7 +1,7 @@
 {
   "childrenOrder": [
     "Create-Order",
-    "Create - Mandate Transaction",
+    "Create-Mandate Transaction",
     "Retrieve-Order",
     "Create-Recurring Mandate Transaction",
     "Retrieve-Order-copy"
