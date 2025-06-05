@@ -6,7 +6,7 @@ import {
 
 // Test card details for successful transactions
 const successfulNo3DSCardDetails = {
-  card_number: "5424180279791732", // Mastercard test card from specs
+  card_number: "4147463011110091", // Mastercard test card from specs
   card_exp_month: "12",
   card_exp_year: "28",
   card_holder_name: "Test User",
@@ -17,9 +17,9 @@ const successfulNo3DSCardDetails = {
 const successfulTestCardDetails = {
   card_number: "4147463011110091", // Visa test card from specs
   card_exp_month: "12",
-  card_exp_year: "25",
+  card_exp_year: "28",
   card_holder_name: "Test User",
-  card_cvc: "977",
+  card_cvc: "123",
 };
 
 // Card details for failed transactions
@@ -34,7 +34,7 @@ const failedCardDetails = {
 // Payment method data for successful transactions
 const payment_method_data = {
   card: {
-    last4: "1732",
+    last4: "0091",
     card_type: "CREDIT",
     card_network: "Mastercard",
     card_issuer: "Test Bank",
@@ -42,7 +42,7 @@ const payment_method_data = {
     card_isin: "542418",
     card_extended_bin: null,
     card_exp_month: "12",
-    card_exp_year: "24",
+    card_exp_year: "28",
     card_holder_name: "Test User",
     payment_checks: {
       cvc_check: "pass",
