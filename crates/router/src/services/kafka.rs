@@ -464,10 +464,11 @@ impl KafkaProducer {
         intent: &PaymentIntent,
         old_intent: Option<PaymentIntent>,
         tenant_id: TenantID,
+        infra_values: Option<Value>,
     ) -> MQResult<()> {
         if let Some(negative_event) = old_intent {
             self.log_event(&KafkaEvent::old(
-                &KafkaPaymentIntent::from_storage(&negative_event),
+                &KafkaPaymentIntent::from_storage(&negative_event, infra_values.clone()),
                 tenant_id.clone(),
                 self.ckh_database_name.clone(),
             ))
@@ -477,7 +478,7 @@ impl KafkaProducer {
         };
 
         self.log_event(&KafkaEvent::new(
-            &KafkaPaymentIntent::from_storage(intent),
+            &KafkaPaymentIntent::from_storage(intent, infra_values.clone()),
             tenant_id.clone(),
             self.ckh_database_name.clone(),
         ))
@@ -494,9 +495,10 @@ impl KafkaProducer {
         &self,
         delete_old_intent: &PaymentIntent,
         tenant_id: TenantID,
+        infra_values: Option<Value>,
     ) -> MQResult<()> {
         self.log_event(&KafkaEvent::old(
-            &KafkaPaymentIntent::from_storage(delete_old_intent),
+            &KafkaPaymentIntent::from_storage(delete_old_intent, infra_values),
             tenant_id.clone(),
             self.ckh_database_name.clone(),
         ))
