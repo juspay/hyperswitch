@@ -115,22 +115,7 @@ where
                 .change_context(errors::ApiErrorResponse::InternalServerError)
                 .attach_printable("Failed to update customer during Vault session")?;
         };
-
-        // (_, *payment_data) = operation
-        //     .to_update_tracker()?
-        //     .update_trackers(
-        //         state,
-        //         req_state,
-        //         payment_data.clone(),
-        //         customer.clone(),
-        //         merchant_context.get_merchant_account().storage_scheme,
-        //         updated_customer,
-        //         merchant_context.get_merchant_key_store(),
-        //         None,
-        //         header_payload.clone(),
-        //     )
-        //     .await?;
-
+        
         let vault_session_details = generate_vault_session_details(
             state,
             merchant_context,
