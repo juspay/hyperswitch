@@ -291,6 +291,7 @@ impl ApiEventMetric for payment_methods::PaymentMethodDeleteResponse {
     }
 }
 
+#[cfg(feature = "v1")]
 impl ApiEventMetric for payment_methods::CustomerPaymentMethodsListResponse {}
 
 impl ApiEventMetric for PaymentMethodListRequest {
@@ -462,6 +463,9 @@ impl ApiEventMetric for payments::PaymentMethodListResponseForPayments {
 
 #[cfg(feature = "v2")]
 impl ApiEventMetric for PaymentMethodListResponseForSession {}
+
+#[cfg(feature = "v2")]
+impl ApiEventMetric for payment_methods::PaymentMethodsListResponse {}
 
 #[cfg(feature = "v2")]
 impl ApiEventMetric for payments::PaymentsCaptureResponse {

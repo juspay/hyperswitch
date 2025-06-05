@@ -2858,7 +2858,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/CustomerPaymentMethodsListResponse"
+                  "$ref": "#/components/schemas/PaymentMethodsListResponse"
                 }
               }
             }
@@ -9571,21 +9571,6 @@
           "psp_tokenization_enabled": {
             "type": "boolean",
             "description": "Whether psp_tokenization is enabled for the payment_method, this will be true when at least\none multi-use token with status `Active` is available for the payment method"
-          }
-        }
-      },
-      "CustomerPaymentMethodsListResponse": {
-        "type": "object",
-        "required": [
-          "customer_payment_methods"
-        ],
-        "properties": {
-          "customer_payment_methods": {
-            "type": "array",
-            "items": {
-              "$ref": "#/components/schemas/CustomerPaymentMethodResponseItem"
-            },
-            "description": "List of payment methods for customer"
           }
         }
       },

@@ -1930,13 +1930,6 @@ pub struct CustomerPaymentMethodsListResponse {
     pub is_guest_customer: Option<bool>,
 }
 
-#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
-#[derive(Debug, serde::Serialize, ToSchema)]
-pub struct CustomerPaymentMethodsListResponse {
-    /// List of payment methods for customer
-    pub customer_payment_methods: Vec<CustomerPaymentMethodResponseItem>,
-}
-
 // OLAP PML Response
 #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
 #[derive(Debug, serde::Serialize, ToSchema)]

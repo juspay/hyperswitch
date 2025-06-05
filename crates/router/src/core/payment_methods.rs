@@ -1382,7 +1382,7 @@ pub async fn list_payment_methods_for_session(
         hyperswitch_domain_models::merchant_connector_account::FlattenedPaymentMethodsEnabled::from_payment_connectors_list(payment_connector_accounts)
             .perform_filtering()
             .get_required_fields(RequiredFieldsInput::new(state.conf.required_fields.clone()))
-            .generate_response_for_session(customer_payment_methods.customer_payment_methods);
+            .generate_response_for_session(customer_payment_methods);
 
     Ok(hyperswitch_domain_models::api::ApplicationResponse::Json(
         response,
@@ -1395,9 +1395,9 @@ pub async fn list_saved_payment_methods_for_customer(
     state: SessionState,
     merchant_context: domain::MerchantContext,
     customer_id: id_type::GlobalCustomerId,
-) -> RouterResponse<api::CustomerPaymentMethodsListResponse> {
+) -> RouterResponse<payment_methods::PaymentMethodsListResponse> {
     let customer_payment_methods =
-        list_customer_payment_method_core(&state, &merchant_context, &customer_id).await?;
+        list_payment_method_core(&state, &merchant_context, &customer_id).await?;
 
     Ok(hyperswitch_domain_models::api::ApplicationResponse::Json(
         customer_payment_methods,
@@ -2163,7 +2163,7 @@ pub async fn list_customer_payment_method_core(
     state: &SessionState,
     merchant_context: &domain::MerchantContext,
     customer_id: &id_type::GlobalCustomerId,
-) -> RouterResult<api::CustomerPaymentMethodsListResponse> {
+) -> RouterResult<Vec<payment_methods::CustomerPaymentMethodResponseItem>> {
     use futures::TryStreamExt;
 
     let db = &*state.store;
@@ -2230,11 +2230,7 @@ pub async fn list_customer_payment_method_core(
 
     customer_payment_methods.extend(payment_method_results?.into_iter().flatten());
 
-    let response = api::CustomerPaymentMethodsListResponse {
-        customer_payment_methods,
-    };
-
-    Ok(response)
+    Ok(customer_payment_methods)
 }
 
 #[cfg(all(feature = "v2", feature = "olap"))]

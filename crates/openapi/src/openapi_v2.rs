@@ -244,7 +244,6 @@ Never share your secret api keys. Keep them guarded and secure.
         api_models::payment_methods::CardNetworkTypes,
         api_models::payment_methods::BankDebitTypes,
         api_models::payment_methods::BankTransferTypes,
-        api_models::payment_methods::CustomerPaymentMethodsListResponse,
         api_models::payment_methods::PaymentMethodDeleteResponse,
         api_models::payment_methods::PaymentMethodUpdate,
         api_models::payment_methods::PaymentMethodUpdateData,
