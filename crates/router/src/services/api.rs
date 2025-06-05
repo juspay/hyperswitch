@@ -716,7 +716,7 @@ where
         event_type.unwrap_or(ApiEventsType::Miscellaneous),
         request,
         request.method(),
-        infra.clone()
+        infra.clone(),
     );
     state.event_handler().log_event(&api_event);
 

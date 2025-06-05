@@ -114,7 +114,7 @@ pub async fn incoming_webhooks_wrapper<W: types::OutgoingWebhookType>(
         api_event,
         req,
         req.method(),
-        infra
+        infra,
     );
     state.event_handler().log_event(&api_event);
     Ok(application_response)
