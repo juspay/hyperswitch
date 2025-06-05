@@ -356,13 +356,5 @@
     "mixpanel": {
       "projectToken": "b00355f29d9548d1333608df71d5d53d"
     }
-  },
-  "contextual": {
-   "options": [
-     "copy",
-     "view",
-     "chatgpt",
-     "claude"
-   ]
- }
+  }
 }
