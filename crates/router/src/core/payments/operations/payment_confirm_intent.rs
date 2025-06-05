@@ -470,7 +470,7 @@ impl<F: Clone + Send + Sync> Domain<F, PaymentsConfirmIntentRequest, PaymentConf
                 )
                 .await?;
 
-                // Don't modify payment_method_data in this case
+                // Don't modify payment_method_data in this case, only the payment_method and payment_method_id
                 (Some(payment_method), None)
             }
             _ => (None, None), // Pass payment_data unmodified for any other case

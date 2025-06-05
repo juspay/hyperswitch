@@ -6,12 +6,14 @@ use common_types::primitive_wrappers::{
 };
 #[cfg(feature = "v2")]
 use common_utils::{
-    crypto::Encryptable, encryption::Encryption, ext_traits::ValueExt,
+    crypto::Encryptable,
+    encryption::Encryption,
+    ext_traits::{Encode, ValueExt},
     types::keymanager::ToEncryptable,
 };
 use common_utils::{
     errors::{CustomResult, ValidationError},
-    ext_traits::{Encode, OptionExt},
+    ext_traits::OptionExt,
     id_type, pii,
     types::{
         keymanager::{self, KeyManagerState},

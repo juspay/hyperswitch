@@ -23,6 +23,9 @@ use std::{
 #[cfg(feature = "v2")]
 pub mod payment_methods;
 
+#[cfg(feature = "v2")]
+use core::payment_methods::vault;
+
 #[cfg(feature = "olap")]
 use api_models::admin::MerchantConnectorInfo;
 use api_models::{
@@ -307,14 +310,11 @@ where
         .payment_token
         .as_ref()
         .zip(Some(payment_data.get_payment_attempt().payment_method_type))
-        .map(ParentPaymentMethodToken::create_key_for_token)
-        .async_map(|key_for_hyperswitch_token| async move {
-            if key_for_hyperswitch_token.should_delete_payment_method_token(payment_intent_status) {
-                key_for_hyperswitch_token
-                    .delete(state)
-                    .await
-                    .inspect_err(|err| logger::error!("Failed to parse payments data: {}", err));
-            }
+        .map(ParentPaymentMethodToken::return_key_for_token)
+        .async_map(|key_for_token| async move {
+            let _ = vault::delete_payment_token(state, &key_for_token, payment_intent_status)
+                .await
+                .inspect_err(|err| logger::error!("Failed to delete payment_token: {}", err));
         })
         .await;
 

@@ -23,8 +23,8 @@ use crate::types::api::payouts;
 use crate::{
     consts,
     core::errors::{self, CustomResult, RouterResult},
-    db, logger, routes,
-    routes::metrics,
+    db, logger,
+    routes::{self, metrics},
     types::{
         api, domain,
         storage::{self, enums},
@@ -36,7 +36,7 @@ use crate::{
     core::{
         errors::ConnectorErrorExt,
         errors::StorageErrorExt,
-        payment_methods::transformers as pm_transforms,
+        payment_methods::{transformers as pm_transforms, utils},
         payments::{self as payments_core, helpers as payment_helpers},
         utils as core_utils,
     },
@@ -1474,7 +1474,7 @@ pub async fn retrieve_payment_method_from_vault_using_payment_token(
     payment_token: &String,
     payment_method_type: &common_enums::PaymentMethod,
 ) -> RouterResult<(domain::PaymentMethod, domain::PaymentMethodVaultingData)> {
-    let pm_token_data = crate::core::payment_methods::utils::retrieve_payment_token_data(
+    let pm_token_data = utils::retrieve_payment_token_data(
         state,
         payment_token.to_string(),
         Some(payment_method_type),
@@ -1486,20 +1486,18 @@ pub async fn retrieve_payment_method_from_vault_using_payment_token(
             card_token_data.payment_method_id
         }
         storage::PaymentTokenData::TemporaryGeneric(_) => {
-            return Err(errors::ApiErrorResponse::NotImplemented {
+            Err(errors::ApiErrorResponse::NotImplemented {
                 message: errors::NotImplementedMessage::Reason(
                     "TemporaryGeneric Token not implemented".to_string(),
                 ),
-            }
-            .into());
+            })?
         }
         storage::PaymentTokenData::AuthBankDebit(_) => {
-            return Err(errors::ApiErrorResponse::NotImplemented {
+            Err(errors::ApiErrorResponse::NotImplemented {
                 message: errors::NotImplementedMessage::Reason(
                     "AuthBankDebit Token not implemented".to_string(),
                 ),
-            }
-            .into());
+            })?
         }
     };
     let db = &*state.store;
@@ -1525,6 +1523,27 @@ pub async fn retrieve_payment_method_from_vault_using_payment_token(
             .data;
 
     Ok((payment_method, vault_data))
+}
+
+#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+#[instrument(skip_all)]
+pub async fn delete_payment_token(
+    state: &routes::SessionState,
+    key_for_token: &str,
+    intent_status: enums::IntentStatus,
+) -> RouterResult<()> {
+    if ![
+        enums::IntentStatus::RequiresCustomerAction,
+        enums::IntentStatus::RequiresMerchantAction,
+    ]
+    .contains(&intent_status)
+    {
+        utils::delete_payment_token_data(state, key_for_token)
+            .await
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Unable to delete payment_token")?;
+    }
+    Ok(())
 }
 
 #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]

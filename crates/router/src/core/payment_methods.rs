@@ -37,6 +37,7 @@ use diesel_models::{
     enums, GenericLinkNew, PaymentMethodCollectLink, PaymentMethodCollectLinkData,
 };
 use error_stack::{report, ResultExt};
+#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
 use futures::TryStreamExt;
 #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
 use hyperswitch_domain_models::api::{GenericLinks, GenericLinksData};
@@ -900,6 +901,7 @@ pub async fn create_payment_method(
     merchant_context: &domain::MerchantContext,
     profile: &domain::Profile,
 ) -> RouterResponse<api::PaymentMethodResponse> {
+    // payment_method is for internal use, can never be populated in response
     let (response, _payment_method) =
         create_payment_method_core(state, request_state, req, merchant_context, profile).await?;
 

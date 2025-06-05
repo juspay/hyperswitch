@@ -7,9 +7,7 @@ use api_models::{
 };
 use common_enums::enums;
 #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
-use common_utils::ext_traits::OptionExt;
-#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
-use common_utils::ext_traits::StringExt;
+use common_utils::ext_traits::{OptionExt, StringExt};
 #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
 use error_stack::ResultExt;
 use euclid::frontend::dir;
@@ -22,6 +20,8 @@ use storage_impl::redis::cache::{CacheKey, PM_FILTERS_CGRAPH_CACHE};
 use crate::db::errors;
 #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
 use crate::db::storage::{self, enums as storage_enums};
+#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+use crate::services::logger;
 use crate::{configs::settings, routes::SessionState};
 
 pub fn make_pm_graph(
@@ -810,7 +810,7 @@ fn compile_accepted_currency_for_mca(
 }
 
 #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
-pub async fn retrieve_payment_token_data(
+pub(super) async fn retrieve_payment_token_data(
     state: &SessionState,
     token: String,
     payment_method: Option<&storage_enums::PaymentMethod>,
@@ -846,4 +846,25 @@ pub async fn retrieve_payment_token_data(
         .parse_struct("PaymentTokenData")
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("failed to deserialize hyperswitch token data")
+}
+
+#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+pub(super) async fn delete_payment_token_data(
+    state: &SessionState,
+    key_for_token: &str,
+) -> errors::RouterResult<()> {
+    let redis_conn = state
+        .store
+        .get_redis_conn()
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Failed to get redis connection")?;
+    match redis_conn.delete_key(&key_for_token.into()).await {
+        Ok(_) => Ok(()),
+        Err(err) => {
+            {
+                logger::info!("Error while deleting redis key: {:?}", err)
+            };
+            Ok(())
+        }
+    }
 }
