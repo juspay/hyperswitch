@@ -17,21 +17,21 @@ enabled = false
 
 # TODO: Update database credentials before running application
 [master_database]
-username = "db_user"
+username = "db_user2"
 password = "db_pass"
 host = "localhost"
 port = 5432
-dbname = "hyperswitch_db"
+dbname = "hyperswitch_db2"
 pool_size = 5
 connection_timeout = 10
 min_idle = 2
 
 [replica_database]
-username = "db_user"
+username = "db_user2"
 password = "db_pass"
 host = "localhost"
 port = 5432
-dbname = "hyperswitch_db"
+dbname = "hyperswitch_db2"
 pool_size = 5
 connection_timeout = 10
 
@@ -159,6 +159,7 @@ cards = [
     "jpmorgan",
     "juspaythreedsserver",
     "mollie",
+    "monei",
     "moneris",
     "multisafepay",
     "netcetera",
@@ -286,6 +287,7 @@ jpmorgan.secondary_base_url = "https://id.payments.jpmorgan.com"
 klarna.base_url = "https://api{{klarna_region}}.playground.klarna.com/"
 mifinity.base_url = "https://demo.mifinity.com/"
 mollie.base_url = "https://api.mollie.com/v2/"
+monei.base_url = "https://api.monei.com/v1/"
 moneris.base_url = "https://api.sb.moneris.io"
 mollie.secondary_base_url = "https://api.cc.mollie.com/v1/"
 multisafepay.base_url = "https://testapi.multisafepay.com/"

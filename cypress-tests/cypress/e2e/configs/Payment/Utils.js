@@ -34,7 +34,7 @@ import { connectorDetails as wellsfargoConnectorDetails } from "./WellsFargo.js"
 import { connectorDetails as worldpayConnectorDetails } from "./WorldPay.js";
 import { connectorDetails as xenditConnectorDetails } from "./Xendit.js";
 import { connectorDetails as archipelConnectorDetails } from "./Archipel.js";
-
+import { connectorDetails as moneiConnectorDetails } from "./Monei.js";
 const connectorDetails = {
   adyen: adyenConnectorDetails,
   bankofamerica: bankOfAmericaConnectorDetails,
@@ -68,6 +68,7 @@ const connectorDetails = {
   worldpay: worldpayConnectorDetails,
   xendit: xenditConnectorDetails,
   archipel: archipelConnectorDetails,
+  monei : moneiConnectorDetails,
 };
 
 export default function getConnectorDetails(connectorId) {
