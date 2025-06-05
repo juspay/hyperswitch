@@ -736,7 +736,7 @@ impl webhooks::IncomingWebhook for Tokenio {
         let ed25519 = crypto::Ed25519;
         let is_valid = ed25519
             .verify_signature(
-                &public_key_bytes, // ✅ Now contains actual ED25519 key (32 bytes)
+                &public_key_bytes, 
                 &signature_bytes,  // ED25519 signature (64 bytes)
                 message_bytes,     // Raw webhook body
             )

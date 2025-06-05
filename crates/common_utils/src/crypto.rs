@@ -334,31 +334,59 @@ impl DecodeMessage for GcmAes256 {
 #[derive(Debug)]
 pub struct Ed25519;
 
+impl Ed25519 {
+    /// ED25519 algorithm constants
+    const ED25519_PUBLIC_KEY_LEN: usize = 32;
+    const ED25519_SIGNATURE_LEN: usize = 64;
+    /// Validates ED25519 inputs (public key and signature lengths)
+    fn validate_inputs(
+        public_key: &[u8],
+        signature: &[u8],
+    ) -> CustomResult<(), errors::CryptoError> {
+        // Validate public key length
+        if public_key.len() != Self::ED25519_PUBLIC_KEY_LEN {
+            return Err(errors::CryptoError::InvalidKeyLength).attach_printable(format!(
+                "Invalid ED25519 public key length: expected {} bytes, got {}",
+                Self::ED25519_PUBLIC_KEY_LEN,
+                public_key.len()
+            ));
+        }
+
+        // Validate signature length
+        if signature.len() != Self::ED25519_SIGNATURE_LEN {
+            return Err(errors::CryptoError::InvalidKeyLength).attach_printable(format!(
+                "Invalid ED25519 signature length: expected {} bytes, got {}",
+                Self::ED25519_SIGNATURE_LEN,
+                signature.len()
+            ));
+        }
+
+        Ok(())
+    }
+}
+
 impl VerifySignature for Ed25519 {
     fn verify_signature(
         &self,
-        secret: &[u8],    
+        public_key: &[u8],
         signature: &[u8], // ED25519 signature bytes (must be 64 bytes)
         msg: &[u8],       // Message that was signed
     ) -> CustomResult<bool, errors::CryptoError> {
-        if secret.len() != 32 {
-            return Err(errors::CryptoError::InvalidKeyLength).attach_printable(format!(
-                "Invalid ED25519 public key length: expected 32 bytes, got {}",
-                secret.len()
-            ));
-        }
-        if signature.len() != 64 {
-            return Err(errors::CryptoError::SignatureVerificationFailed).attach_printable(
-                format!(
-                    "Invalid ED25519 signature length: expected 64 bytes, got {}",
-                    signature.len()
-                ),
-            );
-        }
-        let public_key = ring::signature::UnparsedPublicKey::new(&ring::signature::ED25519, secret);
-        match public_key.verify(msg, signature) {
+        // Validate inputs first
+        Self::validate_inputs(public_key, signature)?;
+
+        // Create unparsed public key
+        let ring_public_key = ring::signature::UnparsedPublicKey::new(&ring::signature::ED25519, public_key);
+
+        // Perform verification
+        match ring_public_key.verify(msg, signature) {
             Ok(()) => Ok(true),
-            Err(_) => Ok(false),
+            Err(_) => {
+                // Signature verification failed - this is a legitimate failure,
+                // not an error condition. The signature is well-formed but invalid.
+                Err(errors::CryptoError::SignatureVerificationFailed)
+                    .attach_printable("ED25519 signature verification failed")
+            }
         }
     }
 }
