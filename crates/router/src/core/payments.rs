@@ -13,6 +13,8 @@ pub mod session_operation;
 pub mod tokenization;
 pub mod transformers;
 pub mod types;
+#[cfg(feature = "v2")]
+pub mod vault_session;
 #[cfg(feature = "olap")]
 use std::collections::HashMap;
 use std::{
