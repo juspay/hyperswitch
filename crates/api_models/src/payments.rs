@@ -68,10 +68,10 @@ pub struct BankCodeInformation {
     pub connector_codes: Vec<ConnectorCode>,
 }
 
-#[derive(serde::Deserialize)]	
-pub struct ConnectorCode {	
-    pub connector: api_enums::Connector,	
-    pub code: String,	
+#[derive(serde::Deserialize)]
+pub struct ConnectorCode {
+    pub connector: api_enums::Connector,
+    pub code: String,
 }
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema, PartialEq, Eq)]
 pub struct BankCodeResponse {
