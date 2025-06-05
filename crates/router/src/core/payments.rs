@@ -7632,9 +7632,9 @@ where
     D: OperationSessionGetters<F> + OperationSessionSetters<F> + Send + Sync + Clone,
 {
     let routing_algorithm_id = {
-        let routing_algorithm = business_profile.routing_algorithm.clone();
-
-        let algorithm_ref = routing_algorithm
+        let algorithm_ref = business_profile
+            .routing_algorithm
+            .clone()
             .map(|ra| ra.parse_value::<api::routing::RoutingAlgorithmRef>("RoutingAlgorithmRef"))
             .transpose()
             .change_context(errors::ApiErrorResponse::InternalServerError)
@@ -7643,7 +7643,7 @@ where
         algorithm_ref.algorithm_id
     };
 
-    let mut connectors = routing::perform_static_routing_v1(
+    let static_connectors = routing::perform_static_routing_v1(
         state,
         merchant_context.get_merchant_account().get_id(),
         routing_algorithm_id.as_ref(),
@@ -7653,23 +7653,20 @@ where
     .await
     .change_context(errors::ApiErrorResponse::InternalServerError)?;
 
-    // adds straight through connectors to the list of connectors in the active routing algorithm
-    // and perform eligibility analysis on the combined set of connectors
-
-    connectors = connector_list
-        .map(|mut straight_through_connectors| {
-            straight_through_connectors.extend(connectors.clone());
-            straight_through_connectors
+    let combined_connectors = connector_list
+        .map(|mut straight_through| {
+            straight_through.extend(static_connectors.clone());
+            straight_through
         })
-        .unwrap_or_else(|| connectors);
+        .unwrap_or_else(|| static_connectors);
 
     #[cfg(all(feature = "v1", feature = "dynamic_routing"))]
     let payment_attempt = transaction_data.payment_attempt.clone();
 
-    connectors = routing::perform_eligibility_analysis(
-        &state.clone(),
+    let eligible_connectors = routing::perform_eligibility_analysis(
+        state,
         merchant_context.get_merchant_key_store(),
-        connectors,
+        combined_connectors,
         &TransactionData::Payment(transaction_data.clone()),
         eligible_connectors.as_ref(),
         business_profile.get_id(),
@@ -7678,97 +7675,95 @@ where
     .change_context(errors::ApiErrorResponse::InternalServerError)
     .attach_printable("failed eligibility analysis")?;
 
-    // dynamic success based connector selection
-    let mut connectors = {
-        #[cfg(all(feature = "v1", feature = "dynamic_routing"))]
-        if let Some(algo) = business_profile.dynamic_routing_algorithm.clone() {
-            let dynamic_routing_config: api_models::routing::DynamicRoutingAlgorithmRef = algo
-                .parse_value("DynamicRoutingAlgorithmRef")
-                .change_context(errors::ApiErrorResponse::InternalServerError)
-                .attach_printable("unable to deserialize DynamicRoutingAlgorithmRef from JSON")?;
-            let dynamic_split = api_models::routing::RoutingVolumeSplit {
-                routing_type: api_models::routing::RoutingType::Dynamic,
-                split: dynamic_routing_config
-                    .dynamic_routing_volume_split
-                    .unwrap_or_default(),
-            };
-            let static_split: api_models::routing::RoutingVolumeSplit =
-                api_models::routing::RoutingVolumeSplit {
-                    routing_type: api_models::routing::RoutingType::Static,
-                    split: consts::DYNAMIC_ROUTING_MAX_VOLUME
-                        - dynamic_routing_config
-                            .dynamic_routing_volume_split
-                            .unwrap_or_default(),
-                };
-            let volume_split_vec = vec![dynamic_split, static_split];
-            let routing_choice =
-                routing::perform_dynamic_routing_volume_split(volume_split_vec, None)
-                    .change_context(errors::ApiErrorResponse::InternalServerError)
-                    .attach_printable("failed to perform volume split on routing type")?;
+    #[cfg(all(feature = "v1", feature = "dynamic_routing"))]
+    let eligible_connectors = if let Some(algo) = business_profile.dynamic_routing_algorithm.clone() {
+        let dynamic_routing_config: api_models::routing::DynamicRoutingAlgorithmRef = algo
+            .parse_value("DynamicRoutingAlgorithmRef")
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("unable to deserialize DynamicRoutingAlgorithmRef from JSON")?;
 
-            if routing_choice.routing_type.is_dynamic_routing() {
-                if state.conf.open_router.enabled {
-                    routing::perform_dynamic_routing_with_open_router(
-                        state,
-                        connectors.clone(),
-                        business_profile,
-                        payment_attempt,
-                    )
-                    .await
-                    .map_err(|e| logger::error!(open_routing_error=?e))
-                    .unwrap_or(connectors)
-                } else {
-                    let dynamic_routing_config_params_interpolator =
-                        routing_helpers::DynamicRoutingConfigParamsInterpolator::new(
-                            payment_data.get_payment_attempt().payment_method,
-                            payment_data.get_payment_attempt().payment_method_type,
-                            payment_data.get_payment_attempt().authentication_type,
-                            payment_data.get_payment_attempt().currency,
-                            payment_data
-                                .get_billing_address()
-                                .and_then(|address| address.address)
-                                .and_then(|address| address.country),
-                            payment_data
-                                .get_payment_attempt()
-                                .payment_method_data
-                                .as_ref()
-                                .and_then(|data| data.as_object())
-                                .and_then(|card| card.get("card"))
-                                .and_then(|data| data.as_object())
-                                .and_then(|card| card.get("card_network"))
-                                .and_then(|network| network.as_str())
-                                .map(|network| network.to_string()),
-                            payment_data
-                                .get_payment_attempt()
-                                .payment_method_data
-                                .as_ref()
-                                .and_then(|data| data.as_object())
-                                .and_then(|card| card.get("card"))
-                                .and_then(|data| data.as_object())
-                                .and_then(|card| card.get("card_isin"))
-                                .and_then(|card_isin| card_isin.as_str())
-                                .map(|card_isin| card_isin.to_string()),
-                        );
+        let dynamic_split = api_models::routing::RoutingVolumeSplit {
+            routing_type: api_models::routing::RoutingType::Dynamic,
+            split: dynamic_routing_config
+                .dynamic_routing_volume_split
+                .unwrap_or_default(),
+        };
+
+        let static_split = api_models::routing::RoutingVolumeSplit {
+            routing_type: api_models::routing::RoutingType::Static,
+            split: consts::DYNAMIC_ROUTING_MAX_VOLUME
+                - dynamic_routing_config.dynamic_routing_volume_split.unwrap_or_default(),
+        };
+
+        let routing_choice = routing::perform_dynamic_routing_volume_split(
+            vec![dynamic_split, static_split],
+            None,
+        )
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("failed to perform volume split on routing type")?;
+
+        if routing_choice.routing_type.is_dynamic_routing() {
+            if state.conf.open_router.enabled {
+                routing::perform_dynamic_routing_with_open_router(
+                    state,
+                    eligible_connectors.clone(),
+                    business_profile,
+                    payment_attempt,
+                )
+                .await
+                .map_err(|e| logger::error!(open_routing_error=?e))
+                .unwrap_or(eligible_connectors)
+            } else {
+                let interpolator = routing_helpers::DynamicRoutingConfigParamsInterpolator::new(
+                    payment_data.get_payment_attempt().payment_method,
+                    payment_data.get_payment_attempt().payment_method_type,
+                    payment_data.get_payment_attempt().authentication_type,
+                    payment_data.get_payment_attempt().currency,
+                    payment_data
+                        .get_billing_address()
+                        .and_then(|addr| addr.address)
+                        .and_then(|addr| addr.country),
+                    payment_data
+                        .get_payment_attempt()
+                        .payment_method_data
+                        .as_ref()
+                        .and_then(|data| data.as_object())
+                        .and_then(|obj| obj.get("card"))
+                        .and_then(|data| data.as_object())
+                        .and_then(|card| card.get("card_network"))
+                        .and_then(|val| val.as_str())
+                        .map(|s| s.to_string()),
+                    payment_data
+                        .get_payment_attempt()
+                        .payment_method_data
+                        .as_ref()
+                        .and_then(|data| data.as_object())
+                        .and_then(|obj| obj.get("card"))
+                        .and_then(|data| data.as_object())
+                        .and_then(|card| card.get("card_isin"))
+                        .and_then(|val| val.as_str())
+                        .map(|s| s.to_string()),
+                );
 
                 routing::perform_dynamic_routing_with_intelligent_router(
                     state,
-                    connectors.clone(),
+                    eligible_connectors.clone(),
                     business_profile,
-                    dynamic_routing_config_params_interpolator,
+                    interpolator,
                     payment_data.get_payment_attempt(),
                 )
                 .await
                 .map_err(|e| logger::error!(dynamic_routing_error=?e))
-                .unwrap_or(connectors)
+                .unwrap_or(eligible_connectors)
             }
         } else {
-            connectors
+            eligible_connectors
         }
     } else {
-        connectors
+        eligible_connectors
     };
 
-    let connector_data = connectors
+    let connector_data = eligible_connectors
         .into_iter()
         .map(|conn| {
             api::ConnectorData::get_connector_by_name(
@@ -7777,7 +7772,7 @@ where
                 api::GetToken::Connector,
                 conn.merchant_connector_id,
             )
-            .map(|connector_data| connector_data.into())
+            .map(|cd| cd.into())
         })
         .collect::<CustomResult<Vec<_>, _>>()
         .change_context(errors::ApiErrorResponse::InternalServerError)

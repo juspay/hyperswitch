@@ -2146,6 +2146,8 @@ pub async fn perform_success_based_routing(
         }
         logger::debug!(success_based_routing_connectors=?connectors);
 
+        logger::info!(selected_sr_connectors=?connectors, payment_id = %payment_id.get_string_repr(), profile_id = %profile_id.get_string_repr(), "Success Rate based routing selected connectors");
+
         routing_event.set_status_code(200);
         routing_event.set_routable_connectors(connectors.clone());
         state.event_handler().log_event(&routing_event);

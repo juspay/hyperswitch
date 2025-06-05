@@ -110,6 +110,20 @@ impl DecisionEngineApiHandler for EuclidApiClient {
         .await?;
         logger::debug!(euclid_response = ?response, euclid_request_path = %path, "decision_engine_euclid: Received raw response from Euclid API");
 
+        println!(">>>decision engine response {:?}", response);
+
+        let status = response.status();
+        if !status.is_success() {
+            let error_response_body = response
+                .text()
+                .await
+                .unwrap_or_else(|_| "Unable to read error response body".to_string());
+            return Err(errors::RoutingError::DslExecutionError).attach_printable(format!(
+                "Euclid API call to path '{}' failed with status {}: {}",
+                path, status, error_response_body
+            ));
+        }
+
         let parsed_response = response
             .json::<Res>()
             .await
@@ -149,6 +163,18 @@ impl DecisionEngineApiHandler for EuclidApiClient {
         .await?;
 
         logger::debug!(euclid_response = ?response, euclid_request_path = %path, "decision_engine_routing: Received raw response from Euclid API");
+
+        let status = response.status();
+        if !status.is_success() {
+            let error_response_body = response
+                .text()
+                .await
+                .unwrap_or_else(|_| "Unable to read error response body".to_string());
+            return Err(errors::RoutingError::DslExecutionError).attach_printable(format!(
+                "Euclid API call (no response parsing) to path '{}' failed with status {}: {}",
+                path, status, error_response_body
+            ));
+        }
         Ok(())
     }
 }
@@ -176,6 +202,18 @@ impl DecisionEngineApiHandler for ConfigApiClient {
         )
         .await?;
         logger::debug!(decision_engine_config_response = ?response, decision_engine_request_path = %path, "decision_engine_config: Received raw response from Decision Engine config API");
+
+        let status = response.status();
+        if !status.is_success() {
+            let error_response_body = response
+                .text()
+                .await
+                .unwrap_or_else(|_| "Unable to read error response body".to_string());
+            return Err(errors::RoutingError::DslExecutionError).attach_printable(format!(
+                "Decision Engine config API call to path '{}' failed with status {}: {}",
+                path, status, error_response_body
+            ));
+        }
 
         let parsed_response = response
             .json::<Res>()
@@ -216,6 +254,18 @@ impl DecisionEngineApiHandler for ConfigApiClient {
         .await?;
 
         logger::debug!(decision_engine_response = ?response, decision_engine_request_path = %path, "decision_engine_config: Received raw response from Decision Engine config API");
+
+        let status = response.status();
+        if !status.is_success() {
+            let error_response_body = response
+                .text()
+                .await
+                .unwrap_or_else(|_| "Unable to read error response body".to_string());
+            return Err(errors::RoutingError::DslExecutionError).attach_printable(format!(
+                "Decision Engine config API call (no response parsing) to path '{}' failed with status {}: {}",
+                path, status, error_response_body
+            ));
+        }
         Ok(())
     }
 }
