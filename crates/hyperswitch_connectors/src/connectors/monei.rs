@@ -692,7 +692,6 @@ impl ConnectorIntegration<Execute, RefundsData, RefundsResponseData> for Monei {
         res: Response,
         event_builder: Option<&mut ConnectorEvent>,
     ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
-        println!("$$$ {:?}", res.clone());
         self.build_error_response(res, event_builder)
     }
 }

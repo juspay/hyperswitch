@@ -363,7 +363,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, MoneiPaymentsResponse, T, PaymentsRespo
         let address = item.data.address.clone();
 
         // Create a new router data with fields from the original
-        let router_data = RouterData {
+        let router_data = Self {
             flow: item.data.flow,
             merchant_id: item.data.merchant_id.clone(),
             customer_id: item.data.customer_id.clone(),
@@ -373,11 +373,11 @@ impl<F, T> TryFrom<ResponseRouterData<F, MoneiPaymentsResponse, T, PaymentsRespo
             attempt_id: item.data.attempt_id.clone(),
             tenant_id: item.data.tenant_id.clone(),
             status: common_enums::AttemptStatus::from(item.response.status),
-            payment_method: item.data.payment_method.clone(),
+            payment_method: item.data.payment_method,
             connector_auth_type: item.data.connector_auth_type.clone(),
             description: item.data.description.clone(),
             address, // Use the address with billing details if available
-            auth_type: item.data.auth_type.clone(),
+            auth_type: item.data.auth_type,
             connector_meta_data: item.data.connector_meta_data.clone(),
             connector_wallets_details: item.data.connector_wallets_details.clone(),
             amount_captured: item.data.amount_captured,
@@ -413,8 +413,8 @@ impl<F, T> TryFrom<ResponseRouterData<F, MoneiPaymentsResponse, T, PaymentsRespo
             dispute_id: item.data.dispute_id.clone(),
             refund_id: item.data.refund_id.clone(),
             connector_response: item.data.connector_response.clone(),
-            payment_method_status: item.data.payment_method_status.clone(),
-            minor_amount_captured: item.data.minor_amount_captured.clone(),
+            payment_method_status: item.data.payment_method_status,
+            minor_amount_captured: item.data.minor_amount_captured,
             integrity_check: item.data.integrity_check.clone(),
             additional_merchant_data: item.data.additional_merchant_data.clone(),
             header_payload: item.data.header_payload.clone(),
@@ -423,7 +423,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, MoneiPaymentsResponse, T, PaymentsRespo
                 .connector_mandate_request_reference_id
                 .clone(),
             authentication_id: item.data.authentication_id.clone(),
-            psd2_sca_exemption_type: item.data.psd2_sca_exemption_type.clone(),
+            psd2_sca_exemption_type: item.data.psd2_sca_exemption_type,
             whole_connector_response: item.data.whole_connector_response.clone(),
         };
 
