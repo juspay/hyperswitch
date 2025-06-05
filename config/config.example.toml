@@ -1077,3 +1077,7 @@ retry_algorithm_type = "cascading" # type of retry algorithm
 [clone_connector_allowlist]
 merchant_ids = "merchant_ids"           # Comma-separated list of allowed merchant IDs
 connector_names = "connector_names"     # Comma-separated list of allowed connector names
+
+[platform]
+enabled = false # Enable or disable platform features
+allow_connected_merchants = false # Enable or disable connected merchant account features

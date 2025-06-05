@@ -1068,6 +1068,8 @@ impl Settings<SecuredSecret> {
             .validate()
             .map_err(|err| ApplicationError::InvalidConfigurationValueError(err.to_string()))?;
 
+        self.platform.validate()?;
+
         Ok(())
     }
 }
