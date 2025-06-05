@@ -151,7 +151,7 @@ pub enum RoutableConnectors {
     Wise,
     Worldline,
     Worldpay,
-    // Worldpayvantiv,
+    Worldpayvantiv,
     Worldpayxml,
     Xendit,
     Zen,
@@ -309,7 +309,7 @@ pub enum Connector {
     Wise,
     Worldline,
     Worldpay,
-    // Worldpayvantiv,
+    Worldpayvantiv,
     Worldpayxml,
     Signifyd,
     Plaid,
@@ -473,7 +473,7 @@ impl Connector {
             | Self::Wise
             | Self::Worldline
             | Self::Worldpay
-            // | Self::Worldpayvantiv
+            | Self::Worldpayvantiv
             | Self::Worldpayxml
             | Self::Xendit
             | Self::Zen
@@ -629,7 +629,7 @@ impl From<RoutableConnectors> for Connector {
             RoutableConnectors::Wise => Self::Wise,
             RoutableConnectors::Worldline => Self::Worldline,
             RoutableConnectors::Worldpay => Self::Worldpay,
-            // RoutableConnectors::Worldpayvantiv => Self::Worldpayvantiv,
+            RoutableConnectors::Worldpayvantiv => Self::Worldpayvantiv,
             RoutableConnectors::Worldpayxml => Self::Worldpayxml,
             RoutableConnectors::Zen => Self::Zen,
             RoutableConnectors::Plaid => Self::Plaid,
@@ -743,7 +743,7 @@ impl TryFrom<Connector> for RoutableConnectors {
             Connector::Wise => Ok(Self::Wise),
             Connector::Worldline => Ok(Self::Worldline),
             Connector::Worldpay => Ok(Self::Worldpay),
-            // Connector::Worldpayvantiv => Ok(Self::Worldpayvantiv),
+            Connector::Worldpayvantiv => Ok(Self::Worldpayvantiv),
             Connector::Worldpayxml => Ok(Self::Worldpayxml),
             Connector::Xendit => Ok(Self::Xendit),
             Connector::Zen => Ok(Self::Zen),

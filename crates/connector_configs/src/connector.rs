@@ -124,6 +124,7 @@ pub struct ConfigMetadata {
     pub ledger_account_id: Option<InputData>,
     pub tenant_id: Option<InputData>,
     pub platform_url: Option<InputData>,
+    pub report_group: Option<InputData>,
     pub proxy_url: Option<InputData>,
 }
 
@@ -447,7 +448,7 @@ impl ConnectorConfig {
             Connector::Wise => Err("Use get_payout_connector_config".to_string()),
             Connector::Worldline => Ok(connector_data.worldline),
             Connector::Worldpay => Ok(connector_data.worldpay),
-            // Connector::Worldpayvantiv => Ok(connector_data.worldpayvantiv),
+            Connector::Worldpayvantiv => Ok(connector_data.worldpayvantiv),
             Connector::Worldpayxml => Ok(connector_data.worldpayxml),
             Connector::Zen => Ok(connector_data.zen),
             Connector::Zsl => Ok(connector_data.zsl),
