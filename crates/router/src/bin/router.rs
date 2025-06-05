@@ -45,6 +45,6 @@ async fn main() -> ApplicationResult<()> {
     let _ = server.await;
 
     Err(error_stack::Report::from(ApplicationError::from(
-        std::io::Error::new(std::io::ErrorKind::Other, "Server shut down"),
+        std::io::Error::other("Server shut down"),
     )))
 }
