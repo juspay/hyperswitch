@@ -1697,6 +1697,44 @@ fn get_stripe_billing_address(
     }
 }
 
+fn get_stripe_billing_address_card_token(
+    billing_details: Option<hyperswitch_domain_models::address::Address>,
+) -> Option<StripeBillingAddressCardToken> {
+    let bd = billing_details?;
+
+    let billing_address = bd.address.as_ref()?;
+
+    let name = match (&billing_address.first_name, &billing_address.last_name) {
+        (Some(first_name), Some(last_name)) => Some(
+            format!(
+                "{} {}",
+                first_name.clone().expose(),
+                last_name.clone().expose()
+            )
+            .into(),
+        ),
+        (Some(first_name), None) => Some(first_name.clone().expose().into()),
+        _ => None,
+    };
+
+    Some(StripeBillingAddressCardToken {
+        name,
+        email: bd.email.clone(),
+        phone: bd.phone.as_ref().map(|p| {
+            format!(
+                "{}{}",
+                p.country_code.clone().unwrap_or_default(),
+                p.number.clone().expose_option().unwrap_or_default()
+            )
+            .into()
+        }),
+        address_line1: billing_address.line1.clone(),
+        address_line2: billing_address.line2.clone(),
+        state: billing_address.state.clone(),
+        city: billing_address.city.clone(),
+    })
+}
+
 impl TryFrom<(&PaymentsAuthorizeRouterData, MinorUnit)> for PaymentIntentRequest {
     type Error = error_stack::Report<ConnectorError>;
     fn try_from(data: (&PaymentsAuthorizeRouterData, MinorUnit)) -> Result<Self, Self::Error> {
