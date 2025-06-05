@@ -88,14 +88,14 @@ pub struct AcquirerConfig {
 #[derive(Serialize, Deserialize, Debug, Clone, FromSqlRow, AsExpression, ToSchema)]
 #[diesel(sql_type = Jsonb)]
 /// Acquirer configs
-pub struct AcquirerConfigs(pub HashMap<String, AcquirerConfig>);
+pub struct AcquirerConfigs(pub HashMap<common_utils::id_type::AcquirerId, AcquirerConfig>);
 
 impl_to_sql_from_sql_json!(AcquirerConfigs);
 
 impl AcquirerConfigs {
     /// Validates acquirer configs for duplicates
     pub fn validate_acquirer_configs_return_duplicates_if_exists(
-        acquirer_configs: &HashMap<String, AcquirerConfig>,
+        acquirer_configs: &HashMap<common_utils::id_type::AcquirerId, AcquirerConfig>,
     ) -> Vec<String> {
         let mut seen_acquirer_assigned_merchant_ids: HashSet<String> = HashSet::new();
         let mut seen_merchant_names: HashSet<String> = HashSet::new();
