@@ -9482,8 +9482,7 @@
           "recurring_enabled",
           "created",
           "requires_cvv",
-          "is_default",
-          "psp_tokenization_enabled"
+          "is_default"
         ],
         "properties": {
           "id": {
@@ -9559,18 +9558,6 @@
               }
             ],
             "nullable": true
-          },
-          "network_tokenization": {
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/NetworkTokenResponse"
-              }
-            ],
-            "nullable": true
-          },
-          "psp_tokenization_enabled": {
-            "type": "boolean",
-            "description": "Whether psp_tokenization is enabled for the payment_method, this will be true when at least\none multi-use token with status `Active` is available for the payment method"
           }
         }
       },
