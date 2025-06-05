@@ -970,7 +970,11 @@ impl webhooks::IncomingWebhook for Novalnet {
         let dispute_status =
             novalnet::get_novalnet_dispute_status(notif.event.event_type).to_string();
         Ok(disputes::DisputePayload {
-            amount: novalnet::option_to_result(amount)?.to_string(),
+            amount: utils::convert_amount(
+                self.amount_converter,
+                amount.ok_or(errors::ConnectorError::AmountConversionFailed)?,
+                novalnet::option_to_result(currency)?,
+            )?,
             currency: novalnet::option_to_result(currency)?,
             dispute_stage: api_models::enums::DisputeStage::Dispute,
             connector_dispute_id: notif.event.tid.to_string(),

@@ -38,6 +38,7 @@ pub enum MerchantProductType {
     serde::Serialize,
     strum::Display,
     strum::EnumString,
+    ToSchema,
 )]
 #[router_derive::diesel_enum(storage_type = "text")]
 #[strum(serialize_all = "snake_case")]
