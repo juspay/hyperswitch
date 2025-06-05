@@ -14863,6 +14863,13 @@
           }
         }
       },
+      "MerchantAccountRequestType": {
+        "type": "string",
+        "enum": [
+          "standard",
+          "connected"
+        ]
+      },
       "MerchantAccountResponse": {
         "type": "object",
         "required": [
