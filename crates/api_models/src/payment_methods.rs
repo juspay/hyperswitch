@@ -850,11 +850,11 @@ pub struct PaymentMethodResponse {
 
     /// Indicates whether the payment method is eligible for recurring payments
     #[schema(example = true)]
-    pub recurring_enabled: bool,
+    pub recurring_enabled: Option<bool>,
 
     /// Indicates whether the payment method is eligible for installment payments
     #[schema(example = true)]
-    pub installment_payment_enabled: bool,
+    pub installment_payment_enabled: Option<bool>,
 
     /// Type of payment experience enabled with the connector
     #[schema(value_type = Option<Vec<PaymentExperience>>, example = json!(["redirect_to_url"]))]
@@ -1611,13 +1611,13 @@ pub struct RequestPaymentMethodTypes {
     #[schema(example = 1313)]
     pub maximum_amount: Option<MinorUnit>,
 
-    /// Boolean to enable recurring payments / mandates. Default is true.
-    #[schema(default = true, example = false)]
-    pub recurring_enabled: bool,
+    /// Boolean Option  to enable recurring payments / mandates. Default is None.
+    #[schema(example = false)]
+    pub recurring_enabled: Option<bool>,
 
-    /// Boolean to enable installment / EMI / BNPL payments. Default is true.
-    #[schema(default = true, example = false)]
-    pub installment_payment_enabled: bool,
+    /// Boolean Option to enable installment / EMI / BNPL payments. Default is None.
+    #[schema(example = true)]
+    pub installment_payment_enabled: Option<bool>,
 }
 impl RequestPaymentMethodTypes {
     /// Get payment_method_type
@@ -2181,11 +2181,11 @@ pub struct CustomerPaymentMethod {
 
     /// Indicates whether the payment method is eligible for recurring payments
     #[schema(example = true)]
-    pub recurring_enabled: bool,
+    pub recurring_enabled:Option<bool>,
 
     /// Indicates whether the payment method is eligible for installment payments
     #[schema(example = true)]
-    pub installment_payment_enabled: bool,
+    pub installment_payment_enabled: Option<bool>,
 
     /// Type of payment experience enabled with the connector
     #[schema(value_type = Option<Vec<PaymentExperience>>,example = json!(["redirect_to_url"]))]

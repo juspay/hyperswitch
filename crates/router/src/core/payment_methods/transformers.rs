@@ -428,8 +428,8 @@ pub fn mk_add_bank_response_hs(
         card: None,
         metadata: req.metadata,
         created: Some(common_utils::date_time::now()),
-        recurring_enabled: false,           // [#256]
-        installment_payment_enabled: false, // #[#256]
+        recurring_enabled: Some(false),           // [#256]
+        installment_payment_enabled: Some(false), // #[#256]
         payment_experience: Some(vec![api_models::enums::PaymentExperience::RedirectToUrl]),
         last_used_at: Some(common_utils::date_time::now()),
         client_secret: None,
@@ -491,8 +491,8 @@ pub fn mk_add_card_response_hs(
         card: Some(card),
         metadata: req.metadata,
         created: Some(common_utils::date_time::now()),
-        recurring_enabled: false,           // [#256]
-        installment_payment_enabled: false, // #[#256]
+        recurring_enabled: Some(false),           // [#256]
+        installment_payment_enabled: Some(false), // #[#256]
         payment_experience: Some(vec![api_models::enums::PaymentExperience::RedirectToUrl]),
         last_used_at: Some(common_utils::date_time::now()), // [#256]
         client_secret: req.client_secret,

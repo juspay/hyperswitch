@@ -196,6 +196,7 @@ impl ForeignTryFrom<domain::Profile> for ProfileResponse {
             is_debit_routing_enabled: Some(item.is_debit_routing_enabled),
             merchant_business_country: item.merchant_business_country,
             is_pre_network_tokenization_enabled: item.is_pre_network_tokenization_enabled,
+            is_iframe_redirection_enabled: item.is_iframe_redirection_enabled,
         })
     }
 }

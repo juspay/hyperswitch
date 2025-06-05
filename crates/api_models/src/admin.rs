@@ -2311,6 +2311,10 @@ pub struct ProfileResponse {
     /// Indicates if pre network tokenization is enabled or not
     #[schema(default = false, example = false)]
     pub is_pre_network_tokenization_enabled: bool,
+
+    /// Indicates if the redirection has to open in the iframe
+    #[schema(value_type = Option<bool>, example = false)]
+    pub is_iframe_redirection_enabled: Option<bool>,
 }
 
 #[cfg(feature = "v2")]
