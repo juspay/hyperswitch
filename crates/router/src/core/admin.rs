@@ -56,7 +56,6 @@ use crate::{
     utils,
 };
 
-
 #[inline]
 pub fn create_merchant_publishable_key() -> String {
     format!(
@@ -5073,7 +5072,6 @@ async fn process_open_banking_connectors(
     Ok(new_merchant_data)
 }
 
-
 async fn connector_recipient_create_call(
     state: &SessionState,
     merchant_id: &id_type::MerchantId,
@@ -5096,82 +5094,7 @@ async fn connector_recipient_create_call(
         pm_auth_types::RecipientCreateResponse,
     > = connector.connector.get_connector_integration();
 
-    let req = match data {
-        types::MerchantAccountData::Iban { iban, name, .. } => {
-            pm_auth_types::RecipientCreateRequest {
-                name: name.clone(),
-                account_data: pm_auth_types::RecipientAccountData::Iban(iban.clone()),
-                address: None,
-            }
-        }
-        types::MerchantAccountData::Bacs {
-            account_number,
-            sort_code,
-            name,
-            ..
-        } => pm_auth_types::RecipientCreateRequest {
-            name: name.clone(),
-            account_data: pm_auth_types::RecipientAccountData::Bacs {
-                sort_code: sort_code.clone(),
-                account_number: account_number.clone(),
-            },
-            address: None,
-        },
-        types::MerchantAccountData::FasterPayments {
-            account_number,
-            sort_code,
-            name,
-            ..
-        } => pm_auth_types::RecipientCreateRequest {
-            name: name.clone(),
-            account_data: pm_auth_types::RecipientAccountData::FasterPayments {
-                sort_code: sort_code.clone(),
-                account_number: account_number.clone(),
-            },
-            address: None,
-        },
-        types::MerchantAccountData::Sepa { iban, name, .. } => {
-            pm_auth_types::RecipientCreateRequest {
-                name: name.clone(),
-                account_data: pm_auth_types::RecipientAccountData::Sepa(iban.clone()),
-                address: None,
-            }
-        }
-        types::MerchantAccountData::SepaInstant { iban, name, .. } => {
-            pm_auth_types::RecipientCreateRequest {
-                name: name.clone(),
-                account_data: pm_auth_types::RecipientAccountData::SepaInstant(iban.clone()),
-                address: None,
-            }
-        }
-        types::MerchantAccountData::Elixir {
-            account_number,
-            iban,
-            name,
-            ..
-        } => pm_auth_types::RecipientCreateRequest {
-            name: name.clone(),
-            account_data: pm_auth_types::RecipientAccountData::Elixir {
-                account_number: account_number.clone(),
-                iban: iban.clone(),
-            },
-            address: None,
-        },
-        types::MerchantAccountData::Bankgiro { number, name, .. } => {
-            pm_auth_types::RecipientCreateRequest {
-                name: name.clone(),
-                account_data: pm_auth_types::RecipientAccountData::Bankgiro(number.clone()),
-                address: None,
-            }
-        }
-        types::MerchantAccountData::Plusgiro { number, name, .. } => {
-            pm_auth_types::RecipientCreateRequest {
-                name: name.clone(),
-                account_data: pm_auth_types::RecipientAccountData::Plusgiro(number.clone()),
-                address: None,
-            }
-        }
-    };
+    let req = pm_auth_types::RecipientCreateRequest::from(data);
     let router_data = pm_auth_types::RecipientCreateRouterData {
         flow: std::marker::PhantomData,
         merchant_id: Some(merchant_id.to_owned()),
@@ -5294,4 +5217,73 @@ pub async fn enable_platform_account(
     .change_context(errors::ApiErrorResponse::InternalServerError)
     .attach_printable("Error while enabling platform merchant account")
     .map(|_| services::ApplicationResponse::StatusOk)
+}
+
+impl From<&types::MerchantAccountData> for pm_auth_types::RecipientCreateRequest {
+    fn from(data: &types::MerchantAccountData) -> Self {
+        let (name, account_data) = match data {
+            types::MerchantAccountData::Iban { iban, name, .. } => (
+                name.clone(),
+                pm_auth_types::RecipientAccountData::Iban(iban.clone()),
+            ),
+            types::MerchantAccountData::Bacs {
+                account_number,
+                sort_code,
+                name,
+                ..
+            } => (
+                name.clone(),
+                pm_auth_types::RecipientAccountData::Bacs {
+                    sort_code: sort_code.clone(),
+                    account_number: account_number.clone(),
+                },
+            ),
+            types::MerchantAccountData::FasterPayments {
+                account_number,
+                sort_code,
+                name,
+                ..
+            } => (
+                name.clone(),
+                pm_auth_types::RecipientAccountData::FasterPayments {
+                    sort_code: sort_code.clone(),
+                    account_number: account_number.clone(),
+                },
+            ),
+            types::MerchantAccountData::Sepa { iban, name, .. } => (
+                name.clone(),
+                pm_auth_types::RecipientAccountData::Sepa(iban.clone()),
+            ),
+            types::MerchantAccountData::SepaInstant { iban, name, .. } => (
+                name.clone(),
+                pm_auth_types::RecipientAccountData::SepaInstant(iban.clone()),
+            ),
+            types::MerchantAccountData::Elixir {
+                account_number,
+                iban,
+                name,
+                ..
+            } => (
+                name.clone(),
+                pm_auth_types::RecipientAccountData::Elixir {
+                    account_number: account_number.clone(),
+                    iban: iban.clone(),
+                },
+            ),
+            types::MerchantAccountData::Bankgiro { number, name, .. } => (
+                name.clone(),
+                pm_auth_types::RecipientAccountData::Bankgiro(number.clone()),
+            ),
+            types::MerchantAccountData::Plusgiro { number, name, .. } => (
+                name.clone(),
+                pm_auth_types::RecipientAccountData::Plusgiro(number.clone()),
+            ),
+        };
+
+        Self {
+            name,
+            account_data,
+            address: None,
+        }
+    }
 }
