@@ -155,6 +155,11 @@ bg_metrics_collection_interval_in_secs = 15           # Interval for collecting 
 delay_between_retries_in_milliseconds = 500 # Delay between retries in milliseconds
 redis_lock_expiry_seconds = 180             # Seconds before the redis lock expires
 
+# Controls whether merchant ID authentication is enabled.
+# When enabled, payment endpoints will accept and require a merchant_id field in the request.
+[merchant_id_auth]
+merchant_id_auth_enabled = false
+
 # Main SQL data store credentials
 [master_database]
 username = "db_user"      # DB Username

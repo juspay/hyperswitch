@@ -38,15 +38,6 @@ impl From<MerchantId> for router_env::opentelemetry::Value {
     }
 }
 
-impl FromStr for MerchantId {
-    type Err = error_stack::Report<ValidationError>;
-
-    fn from_str(s: &str) -> Result<Self, Self::Err> {
-        let cow_string = std::borrow::Cow::Owned(s.to_string());
-        Self::try_from(cow_string)
-    }
-}
-
 impl MerchantId {
     /// Create a Merchant id from MerchantName
     pub fn from_merchant_name(merchant_name: MerchantName) -> Self {

@@ -263,7 +263,7 @@ pub async fn payments_create_and_confirm_intent(
     };
 
     let auth_type = if state.conf.merchant_id_auth.merchant_id_auth_enabled {
-        &auth::MerchantIdAuth()
+        &auth::MerchantIdAuth
     } else {
         match env::which() {
             env::Env::Production => &auth::V2ApiKeyAuth {

@@ -2236,7 +2236,7 @@ where
 
 #[derive(Debug)]
 #[cfg(feature = "v2")]
-pub struct MerchantIdAuth();
+pub struct MerchantIdAuth;
 
 #[cfg(feature = "v2")]
 #[async_trait]
@@ -2254,9 +2254,8 @@ where
         }
 
         let key_manager_state = &(&state.session_state()).into();
-        let merchant_id =
-            &get_id_type_by_key_from_headers(headers::X_MERCHANT_ID.to_string(), request_headers)?
-                .get_required_value(headers::X_MERCHANT_ID)?;
+        let merchant_id = HeaderMapStruct::new(request_headers)
+            .get_id_type_from_header::<id_type::MerchantId>(headers::X_MERCHANT_ID)?;
         let profile_id =
             get_id_type_by_key_from_headers(headers::X_PROFILE_ID.to_string(), request_headers)?
                 .get_required_value(headers::X_PROFILE_ID)?;
@@ -2264,7 +2263,7 @@ where
             .store()
             .get_merchant_key_store_by_merchant_id(
                 key_manager_state,
-                merchant_id,
+                &merchant_id,
                 &state.store().get_master_key().to_vec().into(),
             )
             .await
@@ -2275,14 +2274,14 @@ where
             .find_business_profile_by_merchant_id_profile_id(
                 key_manager_state,
                 &key_store,
-                merchant_id,
+                &merchant_id,
                 &profile_id,
             )
             .await
             .to_not_found_response(errors::ApiErrorResponse::Unauthorized)?;
         let merchant = state
             .store()
-            .find_merchant_account_by_merchant_id(key_manager_state, merchant_id, &key_store)
+            .find_merchant_account_by_merchant_id(key_manager_state, &merchant_id, &key_store)
             .await
             .to_not_found_response(errors::ApiErrorResponse::Unauthorized)?;
 
