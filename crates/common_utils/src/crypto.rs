@@ -381,9 +381,11 @@ impl VerifySignature for Ed25519 {
         // Perform verification
         match ring_public_key.verify(msg, signature) {
             Ok(()) => Ok(true),
-            Err(_) => {
-                // Signature verification failed - this is a legitimate failure,
-                // not an error condition. The signature is well-formed but invalid.
+            Err(err) => {
+                router_env::logger::error!(
+                    "ED25519 signature verification failed: {:?}",
+                    err
+                );
                 Err(errors::CryptoError::SignatureVerificationFailed)
                     .attach_printable("ED25519 signature verification failed")
             }
