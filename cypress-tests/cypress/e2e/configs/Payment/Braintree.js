@@ -156,6 +156,7 @@ export const connectorDetails = {
         status: 200,
         body: {
           status: "requires_customer_action",
+          setup_future_usage: "on_session",
           payment_method_data: paymentMethodData3DSResponse,
         },
       },
@@ -261,6 +262,7 @@ export const connectorDetails = {
         status: 200,
         body: {
           status: "requires_customer_action",
+          setup_future_usage: "on_session",
           payment_method_data: paymentMethodData3DSResponse,
         },
       },
