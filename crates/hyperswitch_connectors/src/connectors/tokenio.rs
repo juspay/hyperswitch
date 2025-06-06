@@ -1,4 +1,9 @@
 pub mod transformers;
+use std::{
+    sync::LazyLock,
+    time::{SystemTime, UNIX_EPOCH},
+};
+
 use base64::{engine::general_purpose::URL_SAFE_NO_PAD, Engine as _};
 use common_enums::{enums, FeatureStatus, PaymentMethodType};
 use common_utils::{
@@ -8,8 +13,6 @@ use common_utils::{
     request::{Method, Request, RequestBuilder, RequestContent},
     types::{AmountConvertor, StringMajorUnit, StringMajorUnitForConnector},
 };
-use std::sync::LazyLock;
-
 use error_stack::ResultExt;
 use hyperswitch_domain_models::{
     router_data::{AccessToken, ConnectorAuthType, ErrorResponse, RouterData},
@@ -44,16 +47,10 @@ use hyperswitch_interfaces::{
     webhooks,
 };
 use masking::{ExposeInterface, Mask, Secret};
-use openssl::ec::EcKey;
-use openssl::hash::MessageDigest;
-use openssl::pkey::PKey;
-use openssl::rsa::Rsa;
-use openssl::sign::Signer;
+use openssl::{ec::EcKey, hash::MessageDigest, pkey::PKey, rsa::Rsa, sign::Signer};
 use transformers::{self as tokenio, TokenioPaymentStatus};
 
 use crate::{constants::headers, types::ResponseRouterData, utils};
-
-use std::time::{SystemTime, UNIX_EPOCH};
 
 #[derive(Clone)]
 pub struct Tokenio {
@@ -736,9 +733,9 @@ impl webhooks::IncomingWebhook for Tokenio {
         let ed25519 = crypto::Ed25519;
         let is_valid = ed25519
             .verify_signature(
-                &public_key_bytes, 
-                &signature_bytes,  // ED25519 signature (64 bytes)
-                message_bytes,     // Raw webhook body
+                &public_key_bytes,
+                &signature_bytes, // ED25519 signature (64 bytes)
+                message_bytes,    // Raw webhook body
             )
             .change_context(errors::ConnectorError::WebhookSourceVerificationFailed)
             .attach_printable("ED25519 signature verification failed")?;

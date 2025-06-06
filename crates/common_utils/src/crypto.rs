@@ -8,6 +8,8 @@ use ring::{
     aead::{self, BoundKey, OpeningKey, SealingKey, UnboundKey},
     hmac,
 };
+#[cfg(feature = "logs")]
+use router_env::logger;
 
 use crate::{
     errors::{self, CustomResult},
@@ -376,16 +378,15 @@ impl VerifySignature for Ed25519 {
         Self::validate_inputs(public_key, signature)?;
 
         // Create unparsed public key
-        let ring_public_key = ring::signature::UnparsedPublicKey::new(&ring::signature::ED25519, public_key);
+        let ring_public_key =
+            ring::signature::UnparsedPublicKey::new(&ring::signature::ED25519, public_key);
 
         // Perform verification
         match ring_public_key.verify(msg, signature) {
             Ok(()) => Ok(true),
-            Err(err) => {
-                router_env::logger::error!(
-                    "ED25519 signature verification failed: {:?}",
-                    err
-                );
+            Err(_err) => {
+                #[cfg(feature = "logs")]
+                logger::error!("ED25519 signature verification failed: {:?}", _err);
                 Err(errors::CryptoError::SignatureVerificationFailed)
                     .attach_printable("ED25519 signature verification failed")
             }

@@ -998,7 +998,7 @@ pub enum MerchantAccountData {
         /// International Bank Account Number (up to 34 characters)
         #[schema(value_type = String)]
         iban: Secret<String>,
-        
+
         /// Account holder name
         name: String,
         #[schema(value_type = Option<String>)]
@@ -1010,14 +1010,14 @@ pub enum MerchantAccountData {
         /// 8-digit UK account number
         #[schema(value_type = String)]
         account_number: Secret<String>,
-        
+
         /// 6-digit UK sort code
         #[schema(value_type = String, example = "123456")]
         sort_code: Secret<String>,
-        
+
         /// Account holder name
         name: String,
-        
+
         #[schema(value_type = Option<String>)]
         #[serde(skip_serializing_if = "Option::is_none")]
         connector_recipient_id: Option<Secret<String>>,
@@ -1030,7 +1030,7 @@ pub enum MerchantAccountData {
         /// 6-digit UK sort code
         #[schema(value_type = String)]
         sort_code: Secret<String>,
-        
+
         /// Account holder name
         name: String,
 
@@ -1056,10 +1056,10 @@ pub enum MerchantAccountData {
         /// IBAN for instant SEPA transfers
         #[schema(value_type = String, example = "DE89370400440532013000")]
         iban: Secret<String>,
-        
+
         /// Account holder name
         name: String,
-        
+
         #[schema(value_type = Option<String>)]
         #[serde(skip_serializing_if = "Option::is_none")]
         connector_recipient_id: Option<Secret<String>>,
@@ -1070,14 +1070,14 @@ pub enum MerchantAccountData {
         /// Polish account number (26 digits)
         #[schema(value_type = String, example = "12345678901234567890123456")]
         account_number: Secret<String>,
-        
+
         /// Polish IBAN (28 chars)
         #[schema(value_type = String, example = "PL27114020040000300201355387")]
         iban: Secret<String>,
-        
+
         /// Account holder name
         name: String,
-        
+
         #[schema(value_type = Option<String>)]
         #[serde(skip_serializing_if = "Option::is_none")]
         connector_recipient_id: Option<Secret<String>>,
@@ -1088,11 +1088,11 @@ pub enum MerchantAccountData {
         /// Bankgiro number (7-8 digits)
         #[schema(value_type = String, example = "5402-9656")]
         number: Secret<String>,
-        
+
         /// Account holder name
         #[schema(example = "Erik Andersson")]
         name: String,
-        
+
         #[schema(value_type = Option<String>)]
         #[serde(skip_serializing_if = "Option::is_none")]
         connector_recipient_id: Option<Secret<String>>,
@@ -1103,11 +1103,11 @@ pub enum MerchantAccountData {
         /// Plusgiro number (2-8 digits)
         #[schema(value_type = String, example = "4789-2")]
         number: Secret<String>,
-        
+
         /// Account holder name
         #[schema(example = "Anna Larsson")]
         name: String,
-        
+
         #[schema(value_type = Option<String>)]
         #[serde(skip_serializing_if = "Option::is_none")]
         connector_recipient_id: Option<Secret<String>>,

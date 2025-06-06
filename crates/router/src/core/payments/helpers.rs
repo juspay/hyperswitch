@@ -6322,16 +6322,40 @@ pub fn get_recipient_id_for_open_banking(
             MerchantRecipientData::ConnectorRecipientId(id) => Ok(Some(id.peek().clone())),
             MerchantRecipientData::AccountData(acc_data) => {
                 let connector_recipient_id = match acc_data {
-                    MerchantAccountData::Bacs { connector_recipient_id, .. } |
-                    MerchantAccountData::Iban { connector_recipient_id, .. } |
-                    MerchantAccountData::FasterPayments { connector_recipient_id, .. } |
-                    MerchantAccountData::Sepa { connector_recipient_id, .. } |
-                    MerchantAccountData::SepaInstant { connector_recipient_id, .. } |
-                    MerchantAccountData::Elixir { connector_recipient_id, .. } |
-                    MerchantAccountData::Bankgiro { connector_recipient_id, .. } |
-                    MerchantAccountData::Plusgiro { connector_recipient_id, .. } => connector_recipient_id,
+                    MerchantAccountData::Bacs {
+                        connector_recipient_id,
+                        ..
+                    }
+                    | MerchantAccountData::Iban {
+                        connector_recipient_id,
+                        ..
+                    }
+                    | MerchantAccountData::FasterPayments {
+                        connector_recipient_id,
+                        ..
+                    }
+                    | MerchantAccountData::Sepa {
+                        connector_recipient_id,
+                        ..
+                    }
+                    | MerchantAccountData::SepaInstant {
+                        connector_recipient_id,
+                        ..
+                    }
+                    | MerchantAccountData::Elixir {
+                        connector_recipient_id,
+                        ..
+                    }
+                    | MerchantAccountData::Bankgiro {
+                        connector_recipient_id,
+                        ..
+                    }
+                    | MerchantAccountData::Plusgiro {
+                        connector_recipient_id,
+                        ..
+                    } => connector_recipient_id,
                 };
-                
+
                 match connector_recipient_id {
                     Some(RecipientIdType::ConnectorId(id)) => Ok(Some(id.peek().clone())),
                     Some(RecipientIdType::LockerId(id)) => Ok(Some(id.peek().clone())),
@@ -6339,7 +6363,7 @@ pub fn get_recipient_id_for_open_banking(
                         config: "recipient_id".to_string(),
                     }),
                 }
-            },
+            }
             _ => Err(errors::ApiErrorResponse::InvalidConnectorConfiguration {
                 config: "recipient_id".to_string(),
             }),

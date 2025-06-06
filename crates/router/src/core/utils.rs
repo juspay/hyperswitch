@@ -2091,10 +2091,7 @@ pub fn validate_bank_account_data(data: &types::MerchantAccountData) -> RouterRe
             ..
         } => validate_uk_account(account_number, sort_code),
 
-        types::MerchantAccountData::Elixir {
-            iban,
-            ..
-        } => validate_elixir_account(iban),
+        types::MerchantAccountData::Elixir { iban, .. } => validate_elixir_account(iban),
 
         types::MerchantAccountData::Bankgiro { number, .. } => validate_bankgiro_number(number),
 
@@ -2191,9 +2188,7 @@ fn validate_uk_account(
     Ok(())
 }
 
-fn validate_elixir_account(
-    iban: &Secret<String>,
-) -> RouterResult<()> {
+fn validate_elixir_account(iban: &Secret<String>) -> RouterResult<()> {
     let iban_str = iban.peek();
 
     // Validate IBAN first

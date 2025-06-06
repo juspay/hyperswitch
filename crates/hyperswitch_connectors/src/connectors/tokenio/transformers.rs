@@ -1,14 +1,11 @@
-use api_models::admin::AdditionalMerchantData;
-use api_models::admin::MerchantAccountData;
-use api_models::admin::MerchantRecipientData;
+use std::collections::HashMap;
+
+use api_models::admin::{AdditionalMerchantData, MerchantAccountData, MerchantRecipientData};
 use common_enums::enums;
-use common_utils::id_type::MerchantId;
-use common_utils::request::Method;
-use common_utils::types::StringMajorUnit;
-use hyperswitch_domain_models::router_data::ErrorResponse;
+use common_utils::{id_type::MerchantId, request::Method, types::StringMajorUnit};
 use hyperswitch_domain_models::{
     payment_method_data::PaymentMethodData,
-    router_data::{ConnectorAuthType, RouterData},
+    router_data::{ConnectorAuthType, ErrorResponse, RouterData},
     router_flow_types::refunds::{Execute, RSync},
     router_request_types::ResponseId,
     router_response_types::{PaymentsResponseData, RedirectForm, RefundsResponseData},
@@ -18,12 +15,8 @@ use hyperswitch_interfaces::{
     consts::{NO_ERROR_CODE, NO_ERROR_MESSAGE},
     errors,
 };
-use masking::ExposeInterface;
-use masking::PeekInterface;
+use masking::{ExposeInterface, PeekInterface, Secret};
 use serde::{Deserialize, Serialize};
-use std::collections::HashMap;
-
-use masking::Secret;
 
 use crate::{
     types::{RefundsResponseRouterData, ResponseRouterData},

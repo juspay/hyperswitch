@@ -2018,7 +2018,6 @@ pub async fn decode_and_decrypt_locker_data(
     key_store: &domain::MerchantKeyStore,
     enc_card_data: String,
 ) -> errors::CustomResult<Secret<String>, errors::VaultError> {
-
     let key = key_store.key.get_inner().peek();
     let decoded_bytes = hex::decode(&enc_card_data)
         .change_context(errors::VaultError::ResponseDeserializationFailed)
