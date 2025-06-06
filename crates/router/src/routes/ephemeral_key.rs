@@ -9,7 +9,7 @@ use crate::{
     services::{api, authentication as auth},
 };
 
-#[cfg(all(feature = "v1", not(feature = "customer_v2")))]
+#[cfg(feature = "v1")]
 #[instrument(skip_all, fields(flow = ?Flow::EphemeralKeyCreate))]
 pub async fn ephemeral_key_create(
     state: web::Data<AppState>,

@@ -1,5 +1,5 @@
 use common_enums::enums::MerchantStorageScheme;
-#[cfg(all(feature = "v2", feature = "customer_v2"))]
+#[cfg(feature = "v2")]
 use common_enums::DeleteStatus;
 use common_utils::{
     crypto::{self, Encryptable},
@@ -22,7 +22,7 @@ use time::PrimitiveDateTime;
 
 use crate::{behaviour, merchant_key_store::MerchantKeyStore, type_encryption as types};
 
-#[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
+#[cfg(feature = "v1")]
 #[derive(Clone, Debug, router_derive::ToEncryption)]
 pub struct Customer {
     pub customer_id: id_type::CustomerId,
@@ -45,7 +45,7 @@ pub struct Customer {
     pub version: common_enums::ApiVersion,
 }
 
-#[cfg(all(feature = "v2", feature = "customer_v2"))]
+#[cfg(feature = "v2")]
 #[derive(Clone, Debug, router_derive::ToEncryption)]
 pub struct Customer {
     pub merchant_id: id_type::MerchantId,
@@ -73,19 +73,19 @@ pub struct Customer {
 
 impl Customer {
     /// Get the unique identifier of Customer
-    #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
+    #[cfg(feature = "v1")]
     pub fn get_id(&self) -> &id_type::CustomerId {
         &self.customer_id
     }
 
     /// Get the global identifier of Customer
-    #[cfg(all(feature = "v2", feature = "customer_v2"))]
+    #[cfg(feature = "v2")]
     pub fn get_id(&self) -> &id_type::GlobalCustomerId {
         &self.id
     }
 
     /// Get the connector customer ID for the specified connector label, if present
-    #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
+    #[cfg(feature = "v1")]
     pub fn get_connector_customer_id(&self, connector_label: &str) -> Option<&str> {
         use masking::PeekInterface;
 
@@ -98,7 +98,7 @@ impl Customer {
     }
 
     /// Get the connector customer ID for the specified merchant connector account ID, if present
-    #[cfg(all(feature = "v2", feature = "customer_v2"))]
+    #[cfg(feature = "v2")]
     pub fn get_connector_customer_id(
         &self,
         merchant_connector_id: &id_type::MerchantConnectorAccountId,
@@ -110,7 +110,7 @@ impl Customer {
     }
 }
 
-#[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
+#[cfg(feature = "v1")]
 #[async_trait::async_trait]
 impl behaviour::Conversion for Customer {
     type DstType = diesel_models::customers::Customer;
@@ -214,7 +214,7 @@ impl behaviour::Conversion for Customer {
     }
 }
 
-#[cfg(all(feature = "v2", feature = "customer_v2"))]
+#[cfg(feature = "v2")]
 #[async_trait::async_trait]
 impl behaviour::Conversion for Customer {
     type DstType = diesel_models::customers::Customer;
@@ -328,7 +328,7 @@ impl behaviour::Conversion for Customer {
     }
 }
 
-#[cfg(all(feature = "v2", feature = "customer_v2"))]
+#[cfg(feature = "v2")]
 #[derive(Clone, Debug)]
 pub struct CustomerGeneralUpdate {
     pub name: crypto::OptionalEncryptableName,
@@ -344,7 +344,7 @@ pub struct CustomerGeneralUpdate {
     pub status: Option<DeleteStatus>,
 }
 
-#[cfg(all(feature = "v2", feature = "customer_v2"))]
+#[cfg(feature = "v2")]
 #[derive(Clone, Debug)]
 pub enum CustomerUpdate {
     Update(Box<CustomerGeneralUpdate>),
@@ -356,7 +356,7 @@ pub enum CustomerUpdate {
     },
 }
 
-#[cfg(all(feature = "v2", feature = "customer_v2"))]
+#[cfg(feature = "v2")]
 impl From<CustomerUpdate> for CustomerUpdateInternal {
     fn from(customer_update: CustomerUpdate) -> Self {
         match customer_update {
@@ -426,7 +426,7 @@ impl From<CustomerUpdate> for CustomerUpdateInternal {
     }
 }
 
-#[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
+#[cfg(feature = "v1")]
 #[derive(Clone, Debug)]
 pub enum CustomerUpdate {
     Update {
@@ -447,7 +447,7 @@ pub enum CustomerUpdate {
     },
 }
 
-#[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
+#[cfg(feature = "v1")]
 impl From<CustomerUpdate> for CustomerUpdateInternal {
     fn from(customer_update: CustomerUpdate) -> Self {
         match customer_update {
@@ -528,14 +528,14 @@ where
     >,
 {
     type Error;
-    #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
+    #[cfg(feature = "v1")]
     async fn delete_customer_by_customer_id_merchant_id(
         &self,
         customer_id: &id_type::CustomerId,
         merchant_id: &id_type::MerchantId,
     ) -> CustomResult<bool, Self::Error>;
 
-    #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
+    #[cfg(feature = "v1")]
     async fn find_customer_optional_by_customer_id_merchant_id(
         &self,
         state: &KeyManagerState,
@@ -545,7 +545,7 @@ where
         storage_scheme: MerchantStorageScheme,
     ) -> CustomResult<Option<Customer>, Self::Error>;
 
-    #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
+    #[cfg(feature = "v1")]
     async fn find_customer_optional_with_redacted_customer_details_by_customer_id_merchant_id(
         &self,
         state: &KeyManagerState,
@@ -555,7 +555,7 @@ where
         storage_scheme: MerchantStorageScheme,
     ) -> CustomResult<Option<Customer>, Self::Error>;
 
-    #[cfg(all(feature = "v2", feature = "customer_v2"))]
+    #[cfg(feature = "v2")]
     async fn find_optional_by_merchant_id_merchant_reference_id(
         &self,
         state: &KeyManagerState,
@@ -565,7 +565,7 @@ where
         storage_scheme: MerchantStorageScheme,
     ) -> CustomResult<Option<Customer>, Self::Error>;
 
-    #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
+    #[cfg(feature = "v1")]
     #[allow(clippy::too_many_arguments)]
     async fn update_customer_by_customer_id_merchant_id(
         &self,
@@ -578,7 +578,7 @@ where
         storage_scheme: MerchantStorageScheme,
     ) -> CustomResult<Customer, Self::Error>;
 
-    #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
+    #[cfg(feature = "v1")]
     async fn find_customer_by_customer_id_merchant_id(
         &self,
         state: &KeyManagerState,
@@ -588,7 +588,7 @@ where
         storage_scheme: MerchantStorageScheme,
     ) -> CustomResult<Customer, Self::Error>;
 
-    #[cfg(all(feature = "v2", feature = "customer_v2"))]
+    #[cfg(feature = "v2")]
     async fn find_customer_by_merchant_reference_id_merchant_id(
         &self,
         state: &KeyManagerState,
@@ -614,7 +614,7 @@ where
         storage_scheme: MerchantStorageScheme,
     ) -> CustomResult<Customer, Self::Error>;
 
-    #[cfg(all(feature = "v2", feature = "customer_v2"))]
+    #[cfg(feature = "v2")]
     #[allow(clippy::too_many_arguments)]
     async fn update_customer_by_global_id(
         &self,
@@ -627,7 +627,7 @@ where
         storage_scheme: MerchantStorageScheme,
     ) -> CustomResult<Customer, Self::Error>;
 
-    #[cfg(all(feature = "v2", feature = "customer_v2"))]
+    #[cfg(feature = "v2")]
     async fn find_customer_by_global_id(
         &self,
         state: &KeyManagerState,

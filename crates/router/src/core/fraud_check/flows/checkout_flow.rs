@@ -28,7 +28,7 @@ use crate::{
 impl ConstructFlowSpecificData<frm_api::Checkout, FraudCheckCheckoutData, FraudCheckResponseData>
     for FrmData
 {
-    #[cfg(all(feature = "v2", feature = "customer_v2"))]
+    #[cfg(feature = "v2")]
     async fn construct_router_data<'a>(
         &self,
         _state: &SessionState,
@@ -43,7 +43,7 @@ impl ConstructFlowSpecificData<frm_api::Checkout, FraudCheckCheckoutData, FraudC
         todo!()
     }
 
-    #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
+    #[cfg(feature = "v1")]
     async fn construct_router_data<'a>(
         &self,
         state: &SessionState,

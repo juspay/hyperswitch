@@ -14,10 +14,7 @@ pub enum PaymentTokenKind {
     Permanent,
 }
 
-#[cfg(all(
-    any(feature = "v1", feature = "v2"),
-    not(feature = "payment_methods_v2")
-))]
+#[cfg(feature = "v1")]
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct CardTokenData {
     pub payment_method_id: Option<String>,
@@ -26,7 +23,7 @@ pub struct CardTokenData {
     pub network_token_locker_id: Option<String>,
 }
 
-#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+#[cfg(feature = "v2")]
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct CardTokenData {
     pub payment_method_id: Option<common_utils::id_type::GlobalPaymentMethodId>,
@@ -65,10 +62,7 @@ pub enum PaymentTokenData {
 }
 
 impl PaymentTokenData {
-    #[cfg(all(
-        any(feature = "v1", feature = "v2"),
-        not(feature = "payment_methods_v2")
-    ))]
+    #[cfg(feature = "v1")]
     pub fn permanent_card(
         payment_method_id: Option<String>,
         locker_id: Option<String>,
@@ -83,7 +77,7 @@ impl PaymentTokenData {
         })
     }
 
-    #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+    #[cfg(feature = "v2")]
     pub fn permanent_card(
         payment_method_id: Option<common_utils::id_type::GlobalPaymentMethodId>,
         locker_id: Option<String>,
@@ -109,10 +103,7 @@ impl PaymentTokenData {
     }
 }
 
-#[cfg(all(
-    any(feature = "v1", feature = "v2"),
-    not(feature = "payment_methods_v2")
-))]
+#[cfg(feature = "v1")]
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct PaymentMethodListContext {
     pub card_details: Option<api::CardDetailFromLocker>,
@@ -121,7 +112,7 @@ pub struct PaymentMethodListContext {
     pub bank_transfer_details: Option<api::BankPayout>,
 }
 
-#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+#[cfg(feature = "v2")]
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub enum PaymentMethodListContext {
     Card {
@@ -141,7 +132,7 @@ pub enum PaymentMethodListContext {
     },
 }
 
-#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+#[cfg(feature = "v2")]
 impl PaymentMethodListContext {
     pub(crate) fn get_token_data(&self) -> Option<PaymentTokenData> {
         match self {

@@ -24,7 +24,7 @@ use crate::{
     types::{api, domain, transformers::ForeignFrom},
 };
 
-#[cfg(all(feature = "v2", feature = "customer_v2"))]
+#[cfg(feature = "v2")]
 pub async fn initiate_payout_link(
     _state: SessionState,
     _merchant_context: domain::MerchantContext,
@@ -35,7 +35,7 @@ pub async fn initiate_payout_link(
     todo!()
 }
 
-#[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
+#[cfg(feature = "v1")]
 pub async fn initiate_payout_link(
     state: SessionState,
     merchant_context: domain::MerchantContext,
