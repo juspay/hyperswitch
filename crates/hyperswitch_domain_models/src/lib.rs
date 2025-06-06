@@ -284,6 +284,11 @@ impl ApiModelToDieselModelConvertor<ApiRevenueRecoveryMetadata> for PaymentReven
             invoice_next_billing_time: from.invoice_next_billing_time,
             card_issuer: from.card_issuer,
             card_network: from.card_network,
+            first_payment_attempt_network_advice_code: from
+                .first_payment_attempt_network_advice_code,
+            first_payment_attempt_network_decline_code: from
+                .first_payment_attempt_network_decline_code,
+            first_payment_attempt_pg_error_code: from.first_payment_attempt_pg_error_code,
         }
     }
 
@@ -302,6 +307,11 @@ impl ApiModelToDieselModelConvertor<ApiRevenueRecoveryMetadata> for PaymentReven
             invoice_next_billing_time: self.invoice_next_billing_time,
             card_issuer: self.card_issuer,
             card_network: self.card_network,
+            first_payment_attempt_network_advice_code: self
+                .first_payment_attempt_network_advice_code,
+            first_payment_attempt_network_decline_code: self
+                .first_payment_attempt_network_decline_code,
+            first_payment_attempt_pg_error_code: self.first_payment_attempt_pg_error_code,
         }
     }
 }

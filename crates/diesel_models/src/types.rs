@@ -178,6 +178,12 @@ pub struct PaymentRevenueRecoveryMetadata {
     pub card_network: Option<common_enums::enums::CardNetwork>,
     /// Card Issuer
     pub card_issuer: Option<String>,
+    /// First Payment Attempt Payment Gateway Error Code
+    pub first_payment_attempt_pg_error_code: Option<String>,
+    /// First Payment Attempt Network Error Code
+    pub first_payment_attempt_network_decline_code: Option<String>,
+    /// First Payment Attempt Network Advice Code
+    pub first_payment_attempt_network_advice_code: Option<String>,
 }
 
 #[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]
