@@ -156,7 +156,7 @@ jobs:
           GATEWAY_MERCHANT_ID: ${{ secrets.STRIPE_GATEWAY_MERCHANT_ID }}
           GPAY_CERTIFICATE: ${{ secrets.STRIPE_GPAY_CERTIFICATE }}
           GPAY_CERTIFICATE_KEYS: ${{ secrets.STRIPE_GPAY_CERTIFICATE_KEYS }}
-          MERCHANT_API_KEY: ${{ secrets.STRIPE_MERCHANT_API_KEY }}     
+          MERCHANT_API_KEY: ${{ secrets.MERCHANT_API_KEY }}     
         shell: bash
         run: |
           RED='\033[0;31m'
