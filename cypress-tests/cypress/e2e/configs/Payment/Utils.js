@@ -14,6 +14,7 @@ import { connectorDetails as datatransConnectorDetails } from "./Datatrans.js";
 import { connectorDetails as deutschebankConnectorDetails } from "./Deutschebank.js";
 import { connectorDetails as elavonConnectorDetails } from "./Elavon.js";
 import { connectorDetails as facilitapayConnectorDetails } from "./Facilitapay.js";
+import { connectorDetails as fiservConnectorDetails } from "./Fiserv.js";
 import { connectorDetails as fiservemeaConnectorDetails } from "./Fiservemea.js";
 import { connectorDetails as fiuuConnectorDetails } from "./Fiuu.js";
 import { connectorDetails as getnetConnectorDetails } from "./Getnet.js";
@@ -48,6 +49,7 @@ const connectorDetails = {
   deutschebank: deutschebankConnectorDetails,
   elavon: elavonConnectorDetails,
   facilitapay: facilitapayConnectorDetails,
+  fiserv: fiservConnectorDetails,
   fiservemea: fiservemeaConnectorDetails,
   fiuu: fiuuConnectorDetails,
   getnet: getnetConnectorDetails,
@@ -328,13 +330,7 @@ export function updateBusinessProfile(
 export const CONNECTOR_LISTS = {
   // Exclusion lists (skip these connectors)
   EXCLUDE: {
-    CONNECTOR_AGNOSTIC_NTID: [
-      "bankofamerica",
-      "braintree",
-      "fiuu",
-      "paypal",
-      "fiservemea",
-    ],
+    CONNECTOR_AGNOSTIC_NTID: ["bankofamerica", "braintree", "fiuu", "paypal"],
     // Add more exclusion lists
   },
 
