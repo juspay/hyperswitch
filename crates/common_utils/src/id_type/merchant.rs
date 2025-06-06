@@ -3,7 +3,7 @@
 //! Ids for merchant account are derived from the merchant name
 //! If there are any special characters, they are removed
 
-use std::{fmt::Display, str::FromStr};
+use std::fmt::Display;
 
 use crate::{
     date_time,
