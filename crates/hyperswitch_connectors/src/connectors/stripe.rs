@@ -72,8 +72,8 @@ use hyperswitch_interfaces::{
     },
     webhooks::{IncomingWebhook, IncomingWebhookRequestDetails},
 };
-use masking::{ExposeInterface, Mask as _, Maskable, PeekInterface, ExposeOptionInterface};
-use router_env::{instrument, logger, tracing};
+use masking::{ExposeInterface, Mask as _, Maskable, PeekInterface, };
+use router_env::{instrument, tracing};
 use stripe::auth_headers;
 
 use self::transformers as stripe;
