@@ -2659,20 +2659,8 @@ where
             .as_ref()
             .and_then(extract_payment_method_connector_response_from_latest_charge);
 
-        let cus_id = item
-            .response
-            .customer
-            .clone()
-            .ok_or(ConnectorError::MissingRequiredField {
-                field_name: "CustomerId",
-            })?
-            .expose();
         Ok(Self {
             status,
-            customer_id: common_utils::id_type::CustomerId::try_from(std::borrow::Cow::from(
-                cus_id,
-            ))
-            .ok(),
             // client_secret: Some(item.response.client_secret.clone().as_str()),
             // description: item.response.description.map(|x| x.as_str()),
             // statement_descriptor_suffix: item.response.statement_descriptor_suffix.map(|x| x.as_str()),
