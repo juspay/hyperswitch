@@ -373,6 +373,17 @@ pub trait Domain<F: Clone, R, D>: Send + Sync {
         Ok(())
     }
 
+    #[cfg(feature = "v2")]
+    async fn create_or_fetch_payment_method<'a>(
+        &'a self,
+        state: &SessionState,
+        merchant_context: &domain::MerchantContext,
+        business_profile: &domain::Profile,
+        payment_data: &mut D,
+    ) -> CustomResult<(), errors::ApiErrorResponse> {
+        Ok(())
+    }
+
     // #[cfg(feature = "v2")]
     // async fn call_connector<'a, RouterDataReq>(
     //     &'a self,

@@ -843,6 +843,56 @@ impl
     }
 }
 
+#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+impl
+    From<(
+        payment_methods::CardDetail,
+        Secret<String>,
+        Option<Secret<String>>,
+    )> for Card
+{
+    fn from(
+        (card_detail, card_cvc, card_holder_name): (
+            payment_methods::CardDetail,
+            Secret<String>,
+            Option<Secret<String>>,
+        ),
+    ) -> Self {
+        Self {
+            card_number: card_detail.card_number,
+            card_exp_month: card_detail.card_exp_month,
+            card_exp_year: card_detail.card_exp_year,
+            card_cvc,
+            card_issuer: card_detail.card_issuer,
+            card_network: card_detail.card_network,
+            card_type: card_detail.card_type.map(|val| val.to_string()),
+            card_issuing_country: card_detail.card_issuing_country.map(|val| val.to_string()),
+            bank_code: None,
+            nick_name: card_detail.nick_name,
+            card_holder_name: card_holder_name.or(card_detail.card_holder_name),
+            co_badged_card_data: None,
+        }
+    }
+}
+
+#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+impl From<Card> for payment_methods::CardDetail {
+    fn from(card: Card) -> Self {
+        Self {
+            card_number: card.card_number,
+            card_exp_month: card.card_exp_month,
+            card_exp_year: card.card_exp_year,
+            card_holder_name: card.card_holder_name,
+            nick_name: card.nick_name,
+            card_issuing_country: None,
+            card_network: card.card_network,
+            card_issuer: card.card_issuer,
+            card_type: None,
+            card_cvc: Some(card.card_cvc),
+        }
+    }
+}
+
 impl From<api_models::payments::CardRedirectData> for CardRedirectData {
     fn from(value: api_models::payments::CardRedirectData) -> Self {
         match value {

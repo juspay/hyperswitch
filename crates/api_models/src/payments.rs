@@ -5328,6 +5328,10 @@ pub struct PaymentsConfirmIntentRequest {
     /// The payment_method_id to be associated with the payment
     #[schema(value_type = Option<String>)]
     pub payment_method_id: Option<id_type::GlobalPaymentMethodId>,
+
+    /// Provide a reference to a stored payment method
+    #[schema(example = "187282ab-40ef-47a9-9206-5099ba31e432")]
+    pub payment_token: Option<String>,
 }
 
 #[cfg(feature = "v2")]
@@ -5550,6 +5554,7 @@ impl From<&PaymentsRequest> for PaymentsConfirmIntentRequest {
             customer_acceptance: request.customer_acceptance.clone(),
             browser_info: request.browser_info.clone(),
             payment_method_id: request.payment_method_id.clone(),
+            payment_token: None,
         }
     }
 }
@@ -7624,8 +7629,8 @@ pub struct PaymentMethodListResponseForPayments {
 
     /// The list of payment methods that are saved by the given customer
     /// This field is only returned if the customer_id is provided in the request
-    #[schema(value_type = Option<Vec<CustomerPaymentMethod>>)]
-    pub customer_payment_methods: Option<Vec<payment_methods::CustomerPaymentMethod>>,
+    #[schema(value_type = Option<Vec<CustomerPaymentMethodResponseItem>>)]
+    pub customer_payment_methods: Option<Vec<payment_methods::CustomerPaymentMethodResponseItem>>,
 }
 
 #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]

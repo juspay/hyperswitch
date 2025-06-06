@@ -43,7 +43,7 @@ use self::payment_attempt::PaymentAttempt;
 use crate::{
     address::Address, business_profile, customer, errors, merchant_account,
     merchant_connector_account, merchant_context, payment_address, payment_method_data,
-    revenue_recovery, routing, ApiModelToDieselModelConvertor,
+    payment_methods, revenue_recovery, routing, ApiModelToDieselModelConvertor,
 };
 #[cfg(feature = "v1")]
 use crate::{payment_method_data, RemoteStorageObject};
@@ -855,6 +855,7 @@ where
     pub payment_method_data: Option<payment_method_data::PaymentMethodData>,
     pub payment_address: payment_address::PaymentAddress,
     pub mandate_data: Option<api_models::payments::MandateIds>,
+    pub payment_method: Option<payment_methods::PaymentMethod>,
 }
 
 #[cfg(feature = "v2")]
@@ -872,6 +873,22 @@ impl<F: Clone> PaymentConfirmData<F> {
                 .payment_intent
                 .get_connector_customer_id_from_feature_metadata(),
         }
+    }
+
+    pub fn update_payment_method_data(
+        &mut self,
+        payment_method_data: payment_method_data::PaymentMethodData,
+    ) {
+        self.payment_method_data = Some(payment_method_data);
+    }
+
+    pub fn update_payment_method_and_pm_id(
+        &mut self,
+        payment_method_id: id_type::GlobalPaymentMethodId,
+        payment_method: payment_methods::PaymentMethod,
+    ) {
+        self.payment_attempt.payment_method_id = Some(payment_method_id);
+        self.payment_method = Some(payment_method);
     }
 }
 

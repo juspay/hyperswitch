@@ -94,6 +94,8 @@ use super::{
 use crate::core::debit_routing;
 #[cfg(feature = "frm")]
 use crate::core::fraud_check as frm_core;
+#[cfg(feature = "v2")]
+use crate::core::payment_methods::vault;
 #[cfg(feature = "v1")]
 use crate::core::routing::helpers as routing_helpers;
 #[cfg(all(feature = "v1", feature = "dynamic_routing"))]
@@ -170,6 +172,11 @@ where
 
     // Get the trackers related to track the state of the payment
     let operations::GetTrackerResponse { mut payment_data } = get_tracker_response;
+
+    operation
+        .to_domain()?
+        .create_or_fetch_payment_method(state, &merchant_context, profile, &mut payment_data)
+        .await?;
 
     let (_operation, customer) = operation
         .to_domain()?
@@ -295,6 +302,22 @@ where
         ConnectorCallType::SessionMultiple(vec) => todo!(),
         ConnectorCallType::Skip => payment_data,
     };
+
+    let payment_intent_status = payment_data.get_payment_intent().status;
+
+    // Delete the tokens after payment
+    payment_data
+        .get_payment_attempt()
+        .payment_token
+        .as_ref()
+        .zip(Some(payment_data.get_payment_attempt().payment_method_type))
+        .map(ParentPaymentMethodToken::return_key_for_token)
+        .async_map(|key_for_token| async move {
+            let _ = vault::delete_payment_token(state, &key_for_token, payment_intent_status)
+                .await
+                .inspect_err(|err| logger::error!("Failed to delete payment_token: {:?}", err));
+        })
+        .await;
 
     Ok((payment_data, req, customer, None, None))
 }
