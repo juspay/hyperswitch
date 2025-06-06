@@ -56,14 +56,17 @@ pub async fn should_call_unified_connector_service<F: Clone, T>(
         Err(_) => return Ok(None),
     };
 
-    let rollout_percent: f64 = rollout_config.config.parse().unwrap_or(0.0);
-    let random_value: f64 = rand::thread_rng().gen_range(0.1..=1.0);
+    let rollout_percent: f64 = match rollout_config.config.parse() {
+        Ok(percent) => percent,
+        Err(_) => return Ok(None),
+    };
+    let random_value: f64 = rand::thread_rng().gen_range(0.0..=1.0);
 
-    if random_value <= rollout_percent {
+    if random_value < rollout_percent {
         match PaymentServiceClient::connect(state.conf.unified_connector_service.url.clone()).await
         {
             Ok(client) => Ok(Some(client)),
-            Err(_) => Ok(None), 
+            Err(_) => Ok(None),
         }
     } else {
         Ok(None)

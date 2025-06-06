@@ -3319,6 +3319,38 @@ where
             .call_unified_connector_service(merchant_connector_account.clone(), &mut client)
             .await;
 
+        if should_add_task_to_process_tracker(payment_data) {
+            operation
+                .to_domain()?
+                .add_task_to_process_tracker(
+                    state,
+                    payment_data.get_payment_attempt(),
+                    validate_result.requeue,
+                    schedule_time,
+                )
+                .await
+                .map_err(|error| logger::error!(process_tracker_error=?error))
+                .ok();
+        }
+
+        // Update the payment trackers just before calling the connector
+        // Since the request is already built in the previous step,
+        // there should be no error in request construction from hyperswitch end
+        (_, *payment_data) = operation
+            .to_update_tracker()?
+            .update_trackers(
+                state,
+                req_state,
+                payment_data.clone(),
+                customer.clone(),
+                merchant_context.get_merchant_account().storage_scheme,
+                None,
+                merchant_context.get_merchant_key_store(),
+                frm_suggestion,
+                header_payload.clone(),
+            )
+            .await?;
+
         let etime_connector = Instant::now();
         let duration_connector = etime_connector.saturating_duration_since(stime_connector);
         tracing::info!(duration = format!("Duration taken: {}", duration_connector.as_millis()));
