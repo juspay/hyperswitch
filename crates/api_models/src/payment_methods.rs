@@ -2187,7 +2187,7 @@ pub struct CustomerPaymentMethodResponseItem {
 
     ///  A timestamp (ISO 8601 code) that determines when the payment method was last used
     #[schema(value_type = PrimitiveDateTime,example = "2024-02-24T11:04:09.922Z")]
-    #[serde(default, with = "common_utils::custom_serde::iso8601")]
+    #[serde(with = "common_utils::custom_serde::iso8601")]
     pub last_used_at: time::PrimitiveDateTime,
 
     /// Indicates if the payment method has been set to default or not

@@ -2194,11 +2194,6 @@ pub async fn list_customer_payment_methods_core(
                     .payment_method_type
                     .get_required_value("payment_method_type")?;
 
-                // let intent_fulfillment_time = business_profile
-                //     .as_ref()
-                //     .and_then(|b_profile| b_profile.get_order_fulfillment_time())
-                //     .unwrap_or(consts::DEFAULT_INTENT_FULFILLMENT_TIME);
-
                 let intent_fulfillment_time = common_utils::consts::DEFAULT_INTENT_FULFILLMENT_TIME;
 
                 let token_data = get_pm_list_token_data(payment_method_type, &pm)?;

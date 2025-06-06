@@ -16,13 +16,15 @@ use kgraph_utils::{error::KgraphError, transformers::IntoDirValue};
 use masking::ExposeInterface;
 use storage_impl::redis::cache::{CacheKey, PM_FILTERS_CGRAPH_CACHE};
 
-#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
-use crate::db::errors;
-#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
-use crate::db::storage::{self, enums as storage_enums};
-#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
-use crate::services::logger;
 use crate::{configs::settings, routes::SessionState};
+#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+use crate::{
+    db::{
+        errors,
+        storage::{self, enums as storage_enums},
+    },
+    services::logger,
+};
 
 pub fn make_pm_graph(
     builder: &mut cgraph::ConstraintGraphBuilder<dir::DirValue>,
@@ -862,7 +864,7 @@ pub(super) async fn delete_payment_token_data(
         Ok(_) => Ok(()),
         Err(err) => {
             {
-                logger::info!("Error while deleting redis key: {:?}", err)
+                logger::error!("Error while deleting redis key: {:?}", err)
             };
             Ok(())
         }

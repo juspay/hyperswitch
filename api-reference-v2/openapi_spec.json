@@ -9482,6 +9482,7 @@
           "recurring_enabled",
           "created",
           "requires_cvv",
+          "last_used_at",
           "is_default"
         ],
         "properties": {
@@ -16760,7 +16761,7 @@
           "customer_payment_methods": {
             "type": "array",
             "items": {
-              "$ref": "#/components/schemas/CustomerPaymentMethodResponseItem"
+              "$ref": "#/components/schemas/PaymentMethodResponseItem"
             },
             "description": "The list of payment methods that are saved by the given customer\nThis field is only returned if the customer_id is provided in the request",
             "nullable": true

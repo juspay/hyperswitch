@@ -5,20 +5,22 @@ use super::{
     PaymentStartRedirectionRequest, PaymentsCreateIntentRequest, PaymentsGetIntentRequest,
     PaymentsIntentResponse, PaymentsRequest,
 };
-#[cfg(feature = "v1")]
-use crate::payment_methods::PaymentMethodListResponse;
 #[cfg(feature = "v2")]
 use crate::payment_methods::PaymentMethodListResponseForSession;
 #[cfg(feature = "v1")]
-use crate::payments::{
-    ExtendedCardInfoResponse, PaymentIdType, PaymentListFilterConstraints, PaymentListResponseV2,
-    PaymentsApproveRequest, PaymentsCancelRequest, PaymentsCaptureRequest,
-    PaymentsCompleteAuthorizeRequest, PaymentsDynamicTaxCalculationRequest,
-    PaymentsDynamicTaxCalculationResponse, PaymentsExternalAuthenticationRequest,
-    PaymentsExternalAuthenticationResponse, PaymentsIncrementalAuthorizationRequest,
-    PaymentsManualUpdateRequest, PaymentsManualUpdateResponse, PaymentsPostSessionTokensRequest,
-    PaymentsPostSessionTokensResponse, PaymentsRejectRequest, PaymentsRetrieveRequest,
-    PaymentsStartRequest, PaymentsUpdateMetadataRequest, PaymentsUpdateMetadataResponse,
+use crate::{
+    payment_methods::PaymentMethodListResponse,
+    payments::{
+        ExtendedCardInfoResponse, PaymentIdType, PaymentListFilterConstraints,
+        PaymentListResponseV2, PaymentsApproveRequest, PaymentsCancelRequest,
+        PaymentsCaptureRequest, PaymentsCompleteAuthorizeRequest,
+        PaymentsDynamicTaxCalculationRequest, PaymentsDynamicTaxCalculationResponse,
+        PaymentsExternalAuthenticationRequest, PaymentsExternalAuthenticationResponse,
+        PaymentsIncrementalAuthorizationRequest, PaymentsManualUpdateRequest,
+        PaymentsManualUpdateResponse, PaymentsPostSessionTokensRequest,
+        PaymentsPostSessionTokensResponse, PaymentsRejectRequest, PaymentsRetrieveRequest,
+        PaymentsStartRequest, PaymentsUpdateMetadataRequest, PaymentsUpdateMetadataResponse,
+    },
 };
 use crate::{
     payment_methods::{

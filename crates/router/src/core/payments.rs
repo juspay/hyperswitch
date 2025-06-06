@@ -313,7 +313,7 @@ where
         .async_map(|key_for_token| async move {
             let _ = vault::delete_payment_token(state, &key_for_token, payment_intent_status)
                 .await
-                .inspect_err(|err| logger::error!("Failed to delete payment_token: {}", err));
+                .inspect_err(|err| logger::error!("Failed to delete payment_token: {:?}", err));
         })
         .await;
 
