@@ -1090,3 +1090,7 @@ connector_names = "connector_names"     # Comma-separated list of allowed connec
 [infra_values]
 cluster = "CLUSTER"         # value of CLUSTER from deployment
 version = "HOSTNAME"        # value of HOSTNAME from deployment which tells its version
+
+[platform]
+enabled = false # Enable or disable platform features
+allow_connected_merchants = false # Enable or disable connected merchant account features

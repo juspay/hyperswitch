@@ -15171,6 +15171,14 @@
               }
             ],
             "nullable": true
+          },
+          "merchant_account_type": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/MerchantAccountRequestType"
+              }
+            ],
+            "nullable": true
           }
         },
         "additionalProperties": false
@@ -15256,6 +15264,13 @@
             "example": false
           }
         }
+      },
+      "MerchantAccountRequestType": {
+        "type": "string",
+        "enum": [
+          "standard",
+          "connected"
+        ]
       },
       "MerchantAccountResponse": {
         "type": "object",

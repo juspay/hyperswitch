@@ -191,6 +191,7 @@ pub struct CloneConnectorAllowlistConfig {
 #[derive(Debug, Deserialize, Clone, Default)]
 pub struct Platform {
     pub enabled: bool,
+    pub allow_connected_merchants: bool,
 }
 
 #[derive(Debug, Clone, Default, Deserialize)]
@@ -1075,6 +1076,8 @@ impl Settings<SecuredSecret> {
             .storage
             .validate()
             .map_err(|err| ApplicationError::InvalidConfigurationValueError(err.to_string()))?;
+
+        self.platform.validate()?;
 
         Ok(())
     }
