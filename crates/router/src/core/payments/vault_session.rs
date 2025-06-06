@@ -76,13 +76,11 @@ where
             .as_ref()
             .map(|details| &details.vault_connector_id);
 
-        let merchant_connector_account = helpers::get_merchant_connector_account(
+        let merchant_connector_account = helpers::get_merchant_connector_account_v2(
             state,
             merchant_context.get_merchant_account().get_id(),
             None,
             merchant_context.get_merchant_key_store(),
-            profile.get_id(),
-            "", // This is a placeholder for the connector name, which is not used in this context
             external_vault_source,
         )
         .await?;
