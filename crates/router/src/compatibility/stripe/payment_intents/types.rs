@@ -857,7 +857,7 @@ pub(crate) fn into_stripe_next_action(
                 },
             }
         }
-        payments::NextActionData::RedirectInsidePopup { popup_url,..} => {
+        payments::NextActionData::RedirectInsidePopup { popup_url, .. } => {
             StripeNextAction::RedirectToUrl {
                 redirect_to_url: RedirectUrl {
                     return_url,
