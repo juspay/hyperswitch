@@ -58,9 +58,10 @@ const multiUseMandateData = {
 
 const missingPaymentTokenError = {
   code: "IR_06",
-  message: "A payment token or payment method data or ctp service details is required",
+  message:
+    "A payment token or payment method data or ctp service details is required",
   type: "invalid_request",
-}
+};
 
 export const connectorDetails = {
   card_pm: {
@@ -546,7 +547,7 @@ export const connectorDetails = {
       ResponseCustom: {
         status: 422,
         body: {
-          error: missingPaymentTokenError
+          error: missingPaymentTokenError,
         },
       },
     }),
