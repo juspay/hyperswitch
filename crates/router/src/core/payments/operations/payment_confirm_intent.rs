@@ -1,6 +1,6 @@
 use api_models::{enums::FrmSuggestion, payments::PaymentsConfirmIntentRequest};
 use async_trait::async_trait;
-use common_utils::{ext_traits::Encode, types::keymanager::ToEncryptable};
+use common_utils::{ext_traits::Encode, id_type, types::keymanager::ToEncryptable};
 use error_stack::ResultExt;
 use hyperswitch_domain_models::payments::PaymentConfirmData;
 use masking::PeekInterface;
@@ -148,7 +148,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentConfirmData<F>, PaymentsConfir
     async fn get_trackers<'a>(
         &'a self,
         state: &'a SessionState,
-        payment_id: &common_utils::id_type::GlobalPaymentId,
+        payment_id: &id_type::GlobalPaymentId,
         request: &PaymentsConfirmIntentRequest,
         merchant_context: &domain::MerchantContext,
         profile: &domain::Profile,
@@ -241,6 +241,8 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentConfirmData<F>, PaymentsConfir
             Some(true),
         );
 
+        let merchant_connector_details = request.merchant_connector_details.clone();
+
         let payment_data = PaymentConfirmData {
             flow: std::marker::PhantomData,
             payment_intent,
@@ -248,6 +250,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentConfirmData<F>, PaymentsConfir
             payment_method_data,
             payment_address,
             mandate_data: None,
+            merchant_connector_details,
         };
 
         let get_trackers_response = operations::GetTrackerResponse { payment_data };
@@ -335,7 +338,6 @@ impl<F: Clone + Send + Sync> Domain<F, PaymentsConfirmIntentRequest, PaymentConf
         merchant_context: &domain::MerchantContext,
         business_profile: &domain::Profile,
         state: &SessionState,
-        // TODO: do not take the whole payment data here
         payment_data: &mut PaymentConfirmData<F>,
     ) -> CustomResult<ConnectorCallType, errors::ApiErrorResponse> {
         payments::connector_selection(
@@ -346,6 +348,23 @@ impl<F: Clone + Send + Sync> Domain<F, PaymentsConfirmIntentRequest, PaymentConf
             None,
         )
         .await
+    }
+
+    #[cfg(feature = "v2")]
+    async fn get_connector_from_request<'a>(
+        &'a self,
+        state: &SessionState,
+        request: &PaymentsConfirmIntentRequest,
+        payment_data: &mut PaymentConfirmData<F>,
+    ) -> CustomResult<api::ConnectorData, errors::ApiErrorResponse> {
+        let connector_data = helpers::get_connector_data_from_request(
+            state,
+            request.merchant_connector_details.clone(),
+        )
+        .await?;
+        payment_data
+            .set_connector_in_payment_attempt(Some(connector_data.connector_name.to_string()));
+        Ok(connector_data)
     }
 }
 
@@ -383,13 +402,18 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentConfirmData<F>, PaymentsConfirmInt
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Connector is none when constructing response")?;
 
-        let merchant_connector_id = payment_data
-            .payment_attempt
-            .merchant_connector_id
-            .clone()
-            .get_required_value("merchant_connector_id")
-            .change_context(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable("Merchant connector id is none when constructing response")?;
+        let merchant_connector_id = match &payment_data.merchant_connector_details {
+            Some(_details) => None,
+            None => Some(
+                payment_data
+                    .payment_attempt
+                    .merchant_connector_id
+                    .clone()
+                    .get_required_value("merchant_connector_id")
+                    .change_context(errors::ApiErrorResponse::InternalServerError)
+                    .attach_printable("Merchant connector id is none when constructing response")?,
+            ),
+        };
 
         let payment_intent_update =
             hyperswitch_domain_models::payments::payment_intent::PaymentIntentUpdate::ConfirmIntent {

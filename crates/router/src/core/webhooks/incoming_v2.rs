@@ -474,6 +474,7 @@ async fn payments_incoming_webhook_flow(
                         expand_attempts: false,
                         param: None,
                         all_keys_required: None,
+                        merchant_connector_details: None,
                     },
                     get_trackers_response,
                     consume_or_trigger_flow,
@@ -678,6 +679,7 @@ where
             attempts: None,
             should_sync_with_connector: true,
             payment_address,
+            merchant_connector_details: None,
         },
     })
 }
