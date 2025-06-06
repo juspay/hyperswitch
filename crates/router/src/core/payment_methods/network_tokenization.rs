@@ -27,7 +27,7 @@ use hyperswitch_domain_models::payment_method_data::{
 };
 use josekit::jwe;
 use masking::{ExposeInterface, Mask, PeekInterface, Secret};
-
+use serde::{Deserialize, Serialize};
 use super::transformers::DeleteCardResp;
 use crate::{
     core::{errors, payment_methods, payments::helpers},
@@ -966,8 +966,8 @@ pub fn get_network_token_resource_object(
 #[derive(Debug, Clone, Deserialize, Serialize)]
 #[serde(untagged)]
 pub enum NetworkTokenWebhookResponse {
-    PanMetadataUpdate(PanMetadataUpdateBody),
-    NetworkTokenMetadataUpdate(NetworkTokenMetaDataUpdateBody),
+    PanMetadataUpdate(pm_types::PanMetadataUpdateBody),
+    NetworkTokenMetadataUpdate(pm_types::NetworkTokenMetaDataUpdateBody),
 }
 
 impl NetworkTokenWebhookResponse {
@@ -1007,20 +1007,3 @@ impl NetworkTokenWebhookResponse {
     }
 }
 
-#[derive(Debug, Clone, Deserialize, Serialize)]
-pub struct NetworkTokenRequestorData {
-    pub card_reference: String,
-    pub customer_id: String,
-    pub expiry_year: Secret<String>,
-    pub expiry_month: Secret<String>,
-}
-
-#[derive(Debug, Clone, Deserialize, Serialize)]
-pub struct NetworkTokenMetaDataUpdateBody {
-    pub token: NetworkTokenRequestorData,
-}
-
-#[derive(Debug, Clone, Deserialize, Serialize)]
-pub struct PanMetadataUpdateBody {
-    pub card: NetworkTokenRequestorData,
-}

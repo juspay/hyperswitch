@@ -54,6 +54,7 @@ use crate::{
             IncomingWebhook,
         },
         domain,
+        payment_methods as pm_types,
         storage::{self, enums},
         transformers::{ForeignFrom, ForeignInto, ForeignTryFrom},
     },
@@ -174,7 +175,7 @@ pub async fn network_token_incoming_webhooks_wrapper<W: types::OutgoingWebhookTy
     let infra = state.infra_components.clone();
     let api_event = ApiEvent::new(
         state.tenant.tenant_id.clone(),
-        Some(merchant_context.get_merchant_account().get_id().clone()),
+        Some(merchant_id),
         flow,
         &request_id,
         request_duration,
@@ -193,68 +194,6 @@ pub async fn network_token_incoming_webhooks_wrapper<W: types::OutgoingWebhookTy
     Ok(application_response)
 }
 
-#[cfg(feature = "v1")]
-#[allow(clippy::too_many_arguments)]
-pub async fn network_token_incoming_webhooks_wrapper<W: types::OutgoingWebhookType>(
-    flow: &impl router_env::types::FlowMetric,
-    state: SessionState,
-    req_state: ReqState,
-    req: &actix_web::HttpRequest,
-    body: actix_web::web::Bytes,
-) -> RouterResponse<serde_json::Value> {
-    let start_instant = Instant::now();
-
-    let request_details: IncomingWebhookRequestDetails<'_> = IncomingWebhookRequestDetails {
-        method: req.method().clone(),
-        uri: req.uri().clone(),
-        headers: req.headers(),
-        query_params: req.query_string().to_string(),
-        body: &body,
-    };
-
-    let (application_response, webhooks_response_tracker, serialized_req, merchant_id) = Box::pin(
-        network_token_incoming_webhooks_core::<W>(&state, req_state, request_details),
-    )
-    .await?;
-
-    logger::info!(incoming_webhook_payload = ?serialized_req);
-
-    let request_duration = Instant::now()
-        .saturating_duration_since(start_instant)
-        .as_millis();
-
-    let request_id = RequestId::extract(req)
-        .await
-        .attach_printable("Unable to extract request id from request")
-        .change_context(errors::ApiErrorResponse::InternalServerError)?;
-    let auth_type = auth::AuthenticationType::NoAuth;
-    let status_code = 200;
-    let api_event = ApiEventsType::NetworkTokenWebhook {
-        payment_method_id: webhooks_response_tracker.get_payment_method_id(),
-    };
-    let response_value = serde_json::to_value(&webhooks_response_tracker)
-        .change_context(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable("Could not convert webhook effect to string")?;
-
-    let api_event = ApiEvent::new(
-        state.tenant.tenant_id.clone(),
-        Some(merchant_id),
-        flow,
-        &request_id,
-        request_duration,
-        status_code,
-        serialized_req,
-        Some(response_value),
-        None,
-        auth_type,
-        None,
-        api_event,
-        req,
-        req.method(),
-    );
-    state.event_handler().log_event(&api_event);
-    Ok(application_response)
-}
 
 #[allow(clippy::too_many_arguments)]
 #[instrument(skip_all)]
@@ -779,19 +718,19 @@ async fn network_token_incoming_webhooks_core<W: types::OutgoingWebhookType>(
         router_env::metric_attributes!((MERCHANT_ID, merchant_id.clone())),
     );
 
-    let (merchant_account, key_store) =
+    let merchant_context =
         payment_methods::fetch_merchant_account_for_network_token_webhooks(state, &merchant_id)
             .await?;
     let payment_method = payment_methods::fetch_payment_method_for_network_token_webhooks(
         state,
-        &merchant_account,
-        &key_store,
+        &merchant_context.get_merchant_account(),
+        &merchant_context.get_merchant_key_store(),
         &payment_method_id,
     )
     .await?;
 
     let webhook_resp_tracker = response__
-        .update_payment_method(state, &payment_method, &merchant_account, &key_store)
+        .update_payment_method(state, &payment_method, &merchant_context)
         .await?;
 
     Ok((
@@ -862,13 +801,12 @@ pub trait NetworkTokenWebhookResponseExt {
         &self,
         state: &SessionState,
         payment_method: &domain::PaymentMethod,
-        merchant_account: &domain::MerchantAccount,
-        key_store: &domain::MerchantKeyStore,
+        merchant_context: &domain::MerchantContext,
     ) -> CustomResult<WebhookResponseTracker, errors::ApiErrorResponse>;
 }
 
 #[async_trait]
-impl NetworkTokenWebhookResponseExt for network_tokenization::PanMetadataUpdateBody {
+impl NetworkTokenWebhookResponseExt for pm_types::PanMetadataUpdateBody {
     fn get_network_token_requestor_ref_id(&self) -> String {
         self.card.card_reference.clone()
     }
@@ -899,8 +837,7 @@ impl NetworkTokenWebhookResponseExt for network_tokenization::PanMetadataUpdateB
         &self,
         state: &SessionState,
         payment_method: &domain::PaymentMethod,
-        merchant_account: &domain::MerchantAccount,
-        key_store: &domain::MerchantKeyStore,
+        merchant_context: &domain::MerchantContext,
     ) -> CustomResult<WebhookResponseTracker, errors::ApiErrorResponse> {
         let decrypted_data = self.decrypt_payment_method_data(payment_method)?;
         payment_methods::handle_metadata_update(
@@ -911,8 +848,7 @@ impl NetworkTokenWebhookResponseExt for network_tokenization::PanMetadataUpdateB
                 .clone()
                 .get_required_value("locker_id")?,
             payment_method,
-            merchant_account,
-            key_store,
+            merchant_context,
             decrypted_data,
             true,
         )
@@ -921,7 +857,7 @@ impl NetworkTokenWebhookResponseExt for network_tokenization::PanMetadataUpdateB
 }
 
 #[async_trait]
-impl NetworkTokenWebhookResponseExt for network_tokenization::NetworkTokenMetaDataUpdateBody {
+impl NetworkTokenWebhookResponseExt for pm_types::NetworkTokenMetaDataUpdateBody {
     fn get_network_token_requestor_ref_id(&self) -> String {
         self.token.card_reference.clone()
     }
@@ -952,8 +888,7 @@ impl NetworkTokenWebhookResponseExt for network_tokenization::NetworkTokenMetaDa
         &self,
         state: &SessionState,
         payment_method: &domain::PaymentMethod,
-        merchant_account: &domain::MerchantAccount,
-        key_store: &domain::MerchantKeyStore,
+        merchant_context: &domain::MerchantContext,
     ) -> CustomResult<WebhookResponseTracker, errors::ApiErrorResponse> {
         let decrypted_data = self.decrypt_payment_method_data(payment_method)?;
         payment_methods::handle_metadata_update(
@@ -964,8 +899,7 @@ impl NetworkTokenWebhookResponseExt for network_tokenization::NetworkTokenMetaDa
                 .clone()
                 .get_required_value("locker_id")?,
             payment_method,
-            merchant_account,
-            key_store,
+            merchant_context,
             decrypted_data,
             true,
         )

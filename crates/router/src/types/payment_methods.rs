@@ -382,3 +382,22 @@ pub struct CheckTokenStatusResponsePayload {
 pub struct CheckTokenStatusResponse {
     pub payload: CheckTokenStatusResponsePayload,
 }
+
+
+#[derive(Debug, Clone, Deserialize, Serialize)]
+pub struct NetworkTokenRequestorData {
+    pub card_reference: String,
+    pub customer_id: String,
+    pub expiry_year: Secret<String>,
+    pub expiry_month: Secret<String>,
+}
+
+#[derive(Debug, Clone, Deserialize, Serialize)]
+pub struct NetworkTokenMetaDataUpdateBody {
+    pub token: NetworkTokenRequestorData,
+}
+
+#[derive(Debug, Clone, Deserialize, Serialize)]
+pub struct PanMetadataUpdateBody {
+    pub card: NetworkTokenRequestorData,
+}

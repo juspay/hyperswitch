@@ -22,9 +22,11 @@ pub use api_models::{enums::PayoutConnectors, payouts as payout_types};
 use api_models::{payment_methods, webhooks::WebhookResponseTracker};
 #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
 use common_utils::{
+    crypto::Encryptable,
     consts::DEFAULT_LOCALE,
     ext_traits::{Encode, OptionExt},
     id_type,
+    fp_utils::when,
 };
 #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
 use common_utils::{
@@ -106,6 +108,7 @@ use crate::{
     services,
     types::{
         domain,
+        payment_methods as pm_types,
         storage::{self, enums as storage_enums},
     },
 };
@@ -3269,7 +3272,7 @@ pub fn fetch_payment_method_create_request(
 pub async fn fetch_merchant_account_for_network_token_webhooks(
     state: &SessionState,
     merchant_id: &id_type::MerchantId,
-) -> RouterResult<(domain::MerchantAccount, domain::MerchantKeyStore)> {
+) -> RouterResult<domain::MerchantContext> {
     let db = &*state.store;
     let key_manager_state = &(state).into();
 
@@ -3289,7 +3292,11 @@ pub async fn fetch_merchant_account_for_network_token_webhooks(
         .await
         .change_context(errors::ApiErrorResponse::InternalServerError)?;
 
-    Ok((merchant_account, key_store))
+    let merchant_context = domain::MerchantContext::NormalMerchant(Box::new(
+        domain::Context(merchant_account.clone(), key_store),
+    ));
+
+    Ok(merchant_context)
 }
 
 #[cfg(feature = "v1")]
@@ -3320,15 +3327,14 @@ pub async fn fetch_payment_method_for_network_token_webhooks(
 #[allow(clippy::too_many_arguments)]
 pub async fn handle_metadata_update(
     state: &SessionState,
-    metadata: &network_tokenization::NetworkTokenRequestorData,
+    metadata: &pm_types::NetworkTokenRequestorData,
     locker_id: String,
     payment_method: &domain::PaymentMethod,
-    merchant_account: &domain::MerchantAccount,
-    key_store: &domain::MerchantKeyStore,
+    merchant_context: &domain::MerchantContext,
     decrypted_data: payment_methods::CardDetailFromLocker,
     is_pan_update: bool,
 ) -> RouterResult<WebhookResponseTracker> {
-    let merchant_id = merchant_account.get_id();
+    let merchant_id =merchant_context.get_merchant_account().get_id();
     let customer_id = &payment_method.customer_id;
 
     when(
@@ -3348,10 +3354,20 @@ pub async fn handle_metadata_update(
     card.card_exp_year = metadata.expiry_year.clone();
     card.card_exp_month = metadata.expiry_month.clone();
 
-    cards::delete_card_from_locker(state, customer_id, merchant_id, &locker_id)
-        .await
-        .change_context(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable("failed to delete network token information from the permanent locker")?;
+    cards::PmCards {
+        state,
+        merchant_context,
+    }
+    .delete_card_from_locker(
+        customer_id, merchant_id, &locker_id
+    )
+    .await
+    .switch()?;
+
+    // cards::delete_card_from_locker(state, customer_id, merchant_id, &locker_id)
+    //     .await
+    //     .change_context(errors::ApiErrorResponse::InternalServerError)
+    //     .attach_printable("failed to delete network token information from the permanent locker")?;
 
     let card_network = card
         .card_brand
@@ -3380,7 +3396,7 @@ pub async fn handle_metadata_update(
         payment_method_request,
         &card_data,
         customer_id,
-        merchant_account,
+        merchant_context.get_merchant_account(),
         None,
     )
     .await
@@ -3395,7 +3411,7 @@ pub async fn handle_metadata_update(
     let key_manager_state = state.into();
 
     let pm_data_encrypted: Option<Encryptable<Secret<serde_json::Value>>> = pm_details
-        .async_map(|pm_card| cards::create_encrypted_data(&key_manager_state, key_store, pm_card))
+        .async_map(|pm_card| cards::create_encrypted_data(&key_manager_state,  merchant_context.get_merchant_key_store(), pm_card))
         .await
         .transpose()
         .change_context(errors::ApiErrorResponse::InternalServerError)
@@ -3432,10 +3448,10 @@ pub async fn handle_metadata_update(
 
     db.update_payment_method(
         &key_manager_state,
-        key_store,
+        merchant_context.get_merchant_key_store(),
         payment_method.clone(),
         pm_update,
-        merchant_account.storage_scheme,
+        merchant_context.get_merchant_account().storage_scheme,
     )
     .await
     .change_context(errors::ApiErrorResponse::InternalServerError)?;
