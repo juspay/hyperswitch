@@ -285,8 +285,24 @@ sinks:
       csv:
         fields:
           - merchant_id
+          - invoice_id
+          - invoice_amount
+          - invoice_currency
+          - invoice_due_date
+          - invoice_date
+          - invoice_address
           - attempt_id
+          - attempt_amount
+          - attempt_currency
           - attempt_status
+          - pg_error_code
+          - network_advice_code
+          - network_error_code
+          - attempt_created_at
+          - payment_method_type
+          - payment_method_subtype
+          - card_network
+          - card_issuer
     key_prefix: "{{ .merchant_id }}/%M/%d_%H_%M_%S"
     timezone: "Europe/London"
     auth: 
@@ -300,4 +316,3 @@ sinks:
     filename_append_uuid: false
     filename_time_format: "%"
     filename_extension: csv
-    

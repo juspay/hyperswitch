@@ -8804,14 +8804,3 @@ pub struct RecordAttemptErrorDetails {
     pub network_error_message: Option<String>,
 }
 
-impl From<ErrorDetails> for RecordAttemptErrorDetails {
-    fn from(error_details: ErrorDetails) -> Self {
-        Self {
-            code: error_details.code,
-            message: error_details.message,
-            network_decline_code: error_details.network_decline_code,
-            network_advice_code: error_details.network_advice_code,
-            network_error_message: error_details.network_error_message,
-        }
-    }
-}
