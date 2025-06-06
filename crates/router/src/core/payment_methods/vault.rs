@@ -1398,6 +1398,7 @@ pub async fn retrieve_payment_method_from_vault_external(
         &merchant_connector_account,
         None,
         connector_vault_id,
+        None,
     )
     .await?;
 
@@ -1453,7 +1454,8 @@ pub fn get_vault_response_for_retrieve_payment_method_data<F>(
                 Ok(pm_types::VaultRetrieveResponse { data: vault_data })
             }
             types::VaultResponseData::ExternalVaultInsertResponse { .. }
-            | types::VaultResponseData::ExternalVaultDeleteResponse { .. } => {
+            | types::VaultResponseData::ExternalVaultDeleteResponse { .. }
+            | types::VaultResponseData::ExternalVaultCreateResponse { .. } => {
                 Err(report!(errors::ApiErrorResponse::InternalServerError)
                     .attach_printable("Invalid Vault Response"))
             }
@@ -1559,6 +1561,7 @@ pub async fn delete_payment_method_data_from_vault_external(
         &merchant_connector_account,
         None,
         Some(connector_vault_id),
+        None,
     )
     .await?;
 
@@ -1619,7 +1622,8 @@ pub fn get_vault_response_for_delete_payment_method_data<F>(
                 })
             }
             types::VaultResponseData::ExternalVaultInsertResponse { .. }
-            | types::VaultResponseData::ExternalVaultRetrieveResponse { .. } => {
+            | types::VaultResponseData::ExternalVaultRetrieveResponse { .. }
+            | types::VaultResponseData::ExternalVaultCreateResponse { .. } => {
                 Err(report!(errors::ApiErrorResponse::InternalServerError)
                     .attach_printable("Invalid Vault Response"))
             }

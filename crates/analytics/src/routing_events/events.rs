@@ -70,4 +70,5 @@ pub struct RoutingEventsResult {
     pub created_at: PrimitiveDateTime,
     pub method: String,
     pub routing_engine: String,
+    pub routing_approach: Option<String>,
 }

@@ -615,6 +615,10 @@ impl SupportedPaymentMethodsExt for SupportedPaymentMethods {
 
 #[derive(Debug, Clone)]
 pub enum VaultResponseData {
+    ExternalVaultCreateResponse {
+        session_id: masking::Secret<String>,
+        client_secret: masking::Secret<String>,
+    },
     ExternalVaultInsertResponse {
         connector_vault_id: String,
         fingerprint_id: String,

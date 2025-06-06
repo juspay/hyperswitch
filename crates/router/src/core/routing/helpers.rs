@@ -1452,7 +1452,7 @@ pub async fn push_metrics_with_update_window_for_contract_based_routing(
                     routing_events::RoutingEngine::IntelligentRouter,
                 );
 
-                let update_respose = client
+                let update_response = client
                     .update_contracts(
                         profile_id.get_string_repr().into(),
                         vec![request_label_info],
@@ -1474,7 +1474,7 @@ pub async fn push_metrics_with_update_window_for_contract_based_routing(
                     )?;
 
                 let event_response = routing_types::UpdateContractEventResponse {
-                        status: match update_respose.status {
+                        status: match update_response.status {
                             0 => routing_types::ContractUpdationStatusEventResponse::ContractUpdationSucceeded,
                             1 => routing_types::ContractUpdationStatusEventResponse::ContractUpdationFailed,
                             _ => {

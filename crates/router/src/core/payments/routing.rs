@@ -2087,7 +2087,7 @@ pub async fn perform_success_based_routing(
                 "unable to calculate/fetch success rate from dynamic routing service",
             )?;
 
-        let event_resposne = api_routing::CalSuccessRateEventResponse {
+        let event_response = api_routing::CalSuccessRateEventResponse {
             labels_with_score: success_based_connectors
                 .labels_with_score
                 .iter()
@@ -2098,7 +2098,7 @@ pub async fn perform_success_based_routing(
                     },
                 )
                 .collect(),
-            routing_apporach: match success_based_connectors.routing_approach {
+            routing_approach: match success_based_connectors.routing_approach {
                 0 => api_routing::RoutingApproach::Exploration,
                 1 => api_routing::RoutingApproach::Exploitation,
                 _ => {
@@ -2113,8 +2113,8 @@ pub async fn perform_success_based_routing(
             },
         };
 
-        routing_event.set_response_body(&event_resposne);
-        routing_event.set_routing_approach(event_resposne.routing_apporach.to_string());
+        routing_event.set_response_body(&event_response);
+        routing_event.set_routing_approach(event_response.routing_approach.to_string());
 
         let mut connectors = Vec::with_capacity(success_based_connectors.labels_with_score.len());
         for label_with_score in success_based_connectors.labels_with_score {

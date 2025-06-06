@@ -264,6 +264,11 @@ impl ForeignTryFrom<api_enums::Connector> for common_enums::RoutableConnectors {
             }
             api_enums::Connector::Hipay => Self::Hipay,
             api_enums::Connector::Helcim => Self::Helcim,
+            api_enums::Connector::HyperswitchVault => {
+                Err(common_utils::errors::ValidationError::InvalidValue {
+                    message: "Hyperswitch Vault is not a routable connector".to_string(),
+                })?
+            }
             api_enums::Connector::Iatapay => Self::Iatapay,
             api_enums::Connector::Inespay => Self::Inespay,
             api_enums::Connector::Itaubank => Self::Itaubank,
@@ -2073,6 +2078,7 @@ impl ForeignFrom<api_models::admin::ExternalVaultConnectorDetails>
     fn foreign_from(item: api_models::admin::ExternalVaultConnectorDetails) -> Self {
         Self {
             vault_connector_id: item.vault_connector_id,
+            vault_sdk: item.vault_sdk,
         }
     }
 }
@@ -2083,6 +2089,7 @@ impl ForeignFrom<diesel_models::business_profile::ExternalVaultConnectorDetails>
     fn foreign_from(item: diesel_models::business_profile::ExternalVaultConnectorDetails) -> Self {
         Self {
             vault_connector_id: item.vault_connector_id,
+            vault_sdk: item.vault_sdk,
         }
     }
 }

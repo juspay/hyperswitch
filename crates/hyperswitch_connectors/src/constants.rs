@@ -33,6 +33,7 @@ pub(crate) mod headers {
     pub(crate) const KEY: &str = "key";
     pub(crate) const X_SIGNATURE: &str = "X-Signature";
     pub(crate) const SOAP_ACTION: &str = "SOAPAction";
+    pub(crate) const X_PROFILE_ID: &str = "X-Profile-Id";
 }
 
 /// Unsupported response type error message

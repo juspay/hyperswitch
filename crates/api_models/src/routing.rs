@@ -1345,7 +1345,7 @@ pub struct LabelWithScoreEventResponse {
 #[serde(rename_all = "snake_case")]
 pub struct CalSuccessRateEventResponse {
     pub labels_with_score: Vec<LabelWithScoreEventResponse>,
-    pub routing_apporach: RoutingApproach,
+    pub routing_approach: RoutingApproach,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
