@@ -357,8 +357,7 @@ pub async fn create_routing_algorithm_under_profile(
                     .await
                     .map_err(|e| {
                         // errors are ignored as this is just for diff checking as of now (optional flow).
-                        logger::error!(decision_engine_error=?e, "decision_engine_euclid");
-                        logger::debug!(decision_engine_request=?routing_rule, "decision_engine_euclid");
+                        logger::error!(decision_engine_error=?e,decision_engine_euclid_request=?routing_rule, "failed to create rule in decision_engine");
                     })
                     .ok();
             }

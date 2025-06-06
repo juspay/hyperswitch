@@ -717,15 +717,14 @@ impl From<RoutingAlgorithmRecord> for routing_algorithm::RoutingProfileMetadata 
 }
 
 impl TryFrom<ast::Program<ConnectorSelection>> for Program {
-    type Error = errors::RoutingError;
+    type Error = error_stack::Report<errors::RoutingError>;
 
     fn try_from(p: ast::Program<ConnectorSelection>) -> Result<Self, Self::Error> {
         let rules = p
             .rules
             .into_iter()
             .map(convert_rule)
-            .collect::<Result<Vec<_>, _>>()
-            .map_err(|e| e.current_context().clone())?;
+            .collect::<Result<Vec<_>, _>>()?;
 
         Ok(Self {
             globals: HashMap::new(),
