@@ -63,7 +63,7 @@ pub async fn should_call_unified_connector_service<F: Clone, T>(
         match PaymentServiceClient::connect(state.conf.unified_connector_service.url.clone()).await
         {
             Ok(client) => Ok(Some(client)),
-            Err(_) => Ok(None), // Failed to connect, so skip
+            Err(_) => Ok(None), 
         }
     } else {
         Ok(None)
