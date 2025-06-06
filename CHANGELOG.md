@@ -4,6 +4,16 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2025.05.28.0-hotfix2
+
+### Refactors
+
+- Add infra-values in intent kafka events ([#8267](https://github.com/juspay/hyperswitch/pull/8267)) ([`b68525d`](https://github.com/juspay/hyperswitch/commit/b68525d860941302cb1df4972a0ba5d88f4d3c48))
+
+**Full Changelog:** [`2025.05.28.0-hotfix1...2025.05.28.0-hotfix2`](https://github.com/juspay/hyperswitch/compare/2025.05.28.0-hotfix1...2025.05.28.0-hotfix2)
+
+- - -
+
 ## 2025.05.28.0-hotfix1
 
 ### Features
