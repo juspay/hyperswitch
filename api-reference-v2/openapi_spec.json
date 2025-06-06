@@ -16761,7 +16761,7 @@
           "customer_payment_methods": {
             "type": "array",
             "items": {
-              "$ref": "#/components/schemas/PaymentMethodResponseItem"
+              "$ref": "#/components/schemas/CustomerPaymentMethodResponseItem"
             },
             "description": "The list of payment methods that are saved by the given customer\nThis field is only returned if the customer_id is provided in the request",
             "nullable": true
