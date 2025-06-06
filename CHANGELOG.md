@@ -4,6 +4,16 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2025.06.04.0-hotfix2
+
+### Bug Fixes
+
+- **wasm:** [Worldpayvantiv] add support for metadata.report_group ([#8270](https://github.com/juspay/hyperswitch/pull/8270)) ([`9b127d2`](https://github.com/juspay/hyperswitch/commit/9b127d2fcdc9717478b75dcab16ca39e375f481c))
+
+**Full Changelog:** [`2025.06.04.0-hotfix1...2025.06.04.0-hotfix2`](https://github.com/juspay/hyperswitch/compare/2025.06.04.0-hotfix1...2025.06.04.0-hotfix2)
+
+- - -
+
 ## 2025.06.04.0-hotfix1
 
 ### Features
