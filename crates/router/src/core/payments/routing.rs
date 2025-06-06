@@ -196,6 +196,9 @@ pub fn make_dsl_input_for_payouts(
         metadata,
         payment,
         payment_method,
+        acquirer_data: None,
+        customer_device_data: None,
+        issuer_data: None,
     })
 }
 
@@ -308,6 +311,9 @@ pub fn make_dsl_input(
         payment: payment_input,
         payment_method: payment_method_input,
         mandate: mandate_data,
+        acquirer_data: None,
+        customer_device_data: None,
+        issuer_data: None,
     })
 }
 
@@ -419,6 +425,9 @@ pub fn make_dsl_input(
         payment: payment_input,
         payment_method: payment_method_input,
         mandate: mandate_data,
+        acquirer_data: None,
+        customer_device_data: None,
+        issuer_data: None,
     })
 }
 
@@ -1083,6 +1092,9 @@ pub async fn perform_session_flow_routing<'a>(
             mandate_type: None,
             payment_type: None,
         },
+        acquirer_data: None,
+        customer_device_data: None,
+        issuer_data: None,
     };
 
     for connector_data in session_input.chosen.iter() {
@@ -1227,6 +1239,9 @@ pub async fn perform_session_flow_routing(
             mandate_type: None,
             payment_type: None,
         },
+        acquirer_data: None,
+        customer_device_data: None,
+        issuer_data: None,
     };
 
     for connector_data in session_input.chosen.iter() {
@@ -1529,6 +1544,9 @@ pub fn make_dsl_input_for_surcharge(
         payment: payment_input,
         payment_method: payment_method_input,
         mandate: mandate_data,
+        acquirer_data: None,
+        customer_device_data: None,
+        issuer_data: None,
     };
     Ok(backend_input)
 }

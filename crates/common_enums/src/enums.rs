@@ -2596,6 +2596,7 @@ pub enum CountryAlpha3 {
     strum::EnumString,
     Deserialize,
     Serialize,
+    utoipa::ToSchema,
 )]
 pub enum Country {
     Afghanistan,
