@@ -1400,7 +1400,24 @@ fn create_stripe_payment_method(
             )
             .into()),
         },
-
+        PaymentMethodData::ExternalProxyCardData(proxy_card) => {
+            let data = StripePaymentMethodData::ProxyCard(StripeProxyCardData {
+                payment_method_data_type: StripePaymentMethodType::Card,
+                payment_method_data_card_number: proxy_card.card_number.clone(),
+                payment_method_data_card_exp_month: proxy_card
+                    .card_exp_month
+                    .clone(),
+                payment_method_data_card_exp_year: proxy_card.card_exp_year.clone(),
+                payment_method_data_card_cvc: Some(proxy_card.card_cvc.clone()),
+                payment_method_auth_type: None,
+                payment_method_data_card_preferred_network: None,
+            });
+            Ok((
+                data,
+                Some(StripePaymentMethodType::Card),
+                billing_address,
+            ))
+        }
         PaymentMethodData::Upi(_)
         | PaymentMethodData::RealTimePayment(_)
         | PaymentMethodData::MobilePayment(_)
@@ -1408,7 +1425,6 @@ fn create_stripe_payment_method(
         | PaymentMethodData::OpenBanking(_)
         | PaymentMethodData::CardToken(_)
         | PaymentMethodData::NetworkToken(_)
-        | PaymentMethodData::ExternalProxyCardData(_)
         | PaymentMethodData::CardDetailsForNetworkTransactionId(_) => Err(
             ConnectorError::NotImplemented(get_unimplemented_payment_method_error_message(
                 "stripe",

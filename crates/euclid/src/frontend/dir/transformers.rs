@@ -8,6 +8,7 @@ impl IntoDirValue for (global_enums::PaymentMethodType, global_enums::PaymentMet
         match self.0 {
             global_enums::PaymentMethodType::Credit => Ok(dirval!(CardType = Credit)),
             global_enums::PaymentMethodType::Debit => Ok(dirval!(CardType = Debit)),
+            global_enums::PaymentMethodType::ProxyCard => Ok(dirval!(CardType = Proxy)),
             #[cfg(feature = "v2")]
             global_enums::PaymentMethodType::Card => Ok(dirval!(CardType = Card)),
             global_enums::PaymentMethodType::Giropay => Ok(dirval!(BankRedirectType = Giropay)),
@@ -192,7 +193,6 @@ impl IntoDirValue for (global_enums::PaymentMethodType, global_enums::PaymentMet
                 Ok(dirval!(MobilePaymentType = DirectCarrierBilling))
             }
             global_enums::PaymentMethodType::Eft => Ok(dirval!(BankRedirectType = Eft)),
-            global_enums::PaymentMethodType::ProxyCard => Err(AnalysisErrorType::NotSupported),
         }
     }
 }

@@ -72,6 +72,7 @@ impl IntoContext for BackendInput {
         if let Some(payment_type) = self.mandate.payment_type {
             ctx.push(dir::DirValue::PaymentType(payment_type));
         }
+        
 
         Ok(ctx)
     }
@@ -134,6 +135,7 @@ impl IntoDirValue for (api_enums::PaymentMethodType, api_enums::PaymentMethod) {
             api_enums::PaymentMethodType::AmazonPay => Ok(dirval!(WalletType = AmazonPay)),
             api_enums::PaymentMethodType::Credit => Ok(dirval!(CardType = Credit)),
             api_enums::PaymentMethodType::Debit => Ok(dirval!(CardType = Debit)),
+            api_enums::PaymentMethodType::ProxyCard => Ok(dirval!(CardType = Proxy)),
             #[cfg(feature = "v2")]
             api_enums::PaymentMethodType::Card => Ok(dirval!(CardType = Card)),
             api_enums::PaymentMethodType::Giropay => Ok(dirval!(BankRedirectType = Giropay)),
