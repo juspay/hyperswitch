@@ -162,6 +162,11 @@ max_age = 365     # Max age of a refund in days.
 outgoing_enabled = true
 redis_lock_expiry_seconds = 180
 
+# Controls whether merchant ID authentication is enabled.
+# When enabled, payment endpoints will accept and require a x-merchant-id header in the request.
+[merchant_id_auth]
+merchant_id_auth_enabled = false
+
 # Validity of an Ephemeral Key in Hours
 [eph_key]
 validity = 1
@@ -291,6 +296,7 @@ wellsfargopayout.base_url = "https://api-sandbox.wellsfargo.com/"
 wise.base_url = "https://api.sandbox.transferwise.tech/"
 worldline.base_url = "https://eu.sandbox.api-ingenico.com/"
 worldpay.base_url = "https://try.access.worldpay.com/"
+worldpayvantiv.base_url = "https://www.testvantivcnp.com/sandbox/communicator/online"
 worldpayxml.base_url = "https://secure-test.worldpay.com/jsp/merchant/xml/paymentService.jsp"
 xendit.base_url = "https://api.xendit.co"
 zsl.base_url = "https://api.sitoffalb.net/"
@@ -359,6 +365,7 @@ cards = [
     "thunes",
     "tokenio",
   "worldpay",
+    "worldpayvantiv",
     "worldpayxml",
     "xendit",
   "zen",
@@ -1077,3 +1084,7 @@ retry_algorithm_type = "cascading" # type of retry algorithm
 [clone_connector_allowlist]
 merchant_ids = "merchant_ids"           # Comma-separated list of allowed merchant IDs
 connector_names = "connector_names"     # Comma-separated list of allowed connector names
+
+[infra_values]
+cluster = "CLUSTER"         # value of CLUSTER from deployment
+version = "HOSTNAME"        # value of HOSTNAME from deployment which tells its version

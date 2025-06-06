@@ -8157,6 +8157,7 @@
           "wise",
           "worldline",
           "worldpay",
+          "worldpayvantiv",
           "worldpayxml",
           "signifyd",
           "plaid",
@@ -21692,6 +21693,14 @@
               "payment_method_subtype": {
                 "$ref": "#/components/schemas/PaymentMethodType"
               },
+              "payment_experience": {
+                "allOf": [
+                  {
+                    "$ref": "#/components/schemas/PaymentExperience"
+                  }
+                ],
+                "nullable": true
+              },
               "required_fields": {
                 "allOf": [
                   {
@@ -22091,6 +22100,7 @@
           "wise",
           "worldline",
           "worldpay",
+          "worldpayvantiv",
           "worldpayxml",
           "xendit",
           "zen",

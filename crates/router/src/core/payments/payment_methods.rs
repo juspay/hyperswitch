@@ -87,6 +87,9 @@ impl FilteredPaymentMethodsEnabled {
                     payment_method_subtype: payment_methods_enabled
                         .payment_methods_enabled
                         .payment_method_subtype,
+                    payment_experience: payment_methods_enabled
+                        .payment_methods_enabled
+                        .payment_experience,
                 },
             )
             .collect();
@@ -100,6 +103,7 @@ struct RequiredFieldsForEnabledPaymentMethod {
     required_field: Option<Vec<api_models::payment_methods::RequiredFieldInfo>>,
     payment_method_subtype: common_enums::PaymentMethodType,
     payment_method_type: common_enums::PaymentMethod,
+    payment_experience: Option<common_enums::PaymentExperience>,
 }
 
 /// Container to hold the filtered payment methods enabled with required fields
@@ -110,6 +114,7 @@ struct RequiredFieldsAndSurchargeForEnabledPaymentMethodType {
     required_field: Option<Vec<api_models::payment_methods::RequiredFieldInfo>>,
     payment_method_subtype: common_enums::PaymentMethodType,
     payment_method_type: common_enums::PaymentMethod,
+    payment_experience: Option<common_enums::PaymentExperience>,
     surcharge: Option<api_models::payment_methods::SurchargeDetailsResponse>,
 }
 
@@ -127,6 +132,7 @@ impl RequiredFieldsAndSurchargeForEnabledPaymentMethodTypes {
                 api_models::payments::ResponsePaymentMethodTypesForPayments {
                     payment_method_type: payment_methods_enabled.payment_method_type,
                     payment_method_subtype: payment_methods_enabled.payment_method_subtype,
+                    payment_experience: payment_methods_enabled.payment_experience,
                     required_fields: payment_methods_enabled.required_field,
                     surcharge_details: payment_methods_enabled.surcharge,
                     extra_information: None,
@@ -153,6 +159,7 @@ impl RequiredFieldsForEnabledPaymentMethodTypes {
                     payment_method_type: payment_methods_enabled.payment_method_type,
                     required_field: payment_methods_enabled.required_field,
                     payment_method_subtype: payment_methods_enabled.payment_method_subtype,
+                    payment_experience: payment_methods_enabled.payment_experience,
                     surcharge: None,
                 },
             )
