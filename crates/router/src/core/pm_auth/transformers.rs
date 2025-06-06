@@ -16,6 +16,36 @@ impl From<types::MerchantAccountData> for pm_auth_types::MerchantAccountData {
                 sort_code,
                 name,
             },
+            types::MerchantAccountData::FasterPayments {
+                account_number,
+                sort_code,
+                name,
+                ..
+            } => Self::FasterPayments {
+                account_number,
+                sort_code,
+                name,
+            },
+            types::MerchantAccountData::Sepa { iban, name, .. } => Self::Sepa { iban, name },
+            types::MerchantAccountData::SepaInstant { iban, name, .. } => {
+                Self::SepaInstant { iban, name }
+            }
+            types::MerchantAccountData::Elixir {
+                account_number,
+                iban,
+                name,
+                ..
+            } => Self::Elixir {
+                account_number,
+                iban,
+                name,
+            },
+            types::MerchantAccountData::Bankgiro { number, name, .. } => {
+                Self::Bankgiro { number, name }
+            }
+            types::MerchantAccountData::Plusgiro { number, name, .. } => {
+                Self::Plusgiro { number, name }
+            }
         }
     }
 }
