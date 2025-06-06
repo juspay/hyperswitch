@@ -1,4 +1,5 @@
 import { customerAcceptance } from "./Commons";
+import { getCustomExchange } from "./Modifiers";
 
 const successfulNo3DSCardDetails = {
   card_number: "4111111111111111",
@@ -26,6 +27,7 @@ const billing_info = {
     country_code: "+91",
   },
 };
+
 const successful3DSCardDetails = {
   card_number: "4000000000000002",
   card_exp_month: "06",
@@ -33,6 +35,7 @@ const successful3DSCardDetails = {
   card_holder_name: "joseph Doe",
   card_cvc: "123",
 };
+
 const singleUseMandateData = {
   customer_acceptance: customerAcceptance,
   mandate_type: {
@@ -52,6 +55,13 @@ const multiUseMandateData = {
     },
   },
 };
+
+const missingPaymentTokenError = {
+  code: "IR_06",
+  message: "A payment token or payment method data or ctp service details is required",
+  type: "invalid_request",
+}
+
 export const connectorDetails = {
   card_pm: {
     PaymentIntent: {
@@ -74,8 +84,8 @@ export const connectorDetails = {
         payment_method_data: {
           card: successfulNo3DSCardDetails,
           billing: {
-          email: billing_info.email,
-        },
+            email: billing_info.email,
+          },
         },
         billing: {
           email: billing_info.email,
@@ -184,8 +194,8 @@ export const connectorDetails = {
         payment_method_data: {
           card: successfulNo3DSCardDetails,
           billing: {
-          email: billing_info.email,
-        },
+            email: billing_info.email,
+          },
         },
         currency: "EUR",
         setup_future_usage: "on_session",
@@ -198,7 +208,7 @@ export const connectorDetails = {
         },
       },
     },
-    SaveCardUseNo3DSAutoCaptureOffSession: {
+    SaveCardUseNo3DSAutoCaptureOffSession: getCustomExchange({
       Configs: {
         TRIGGER_SKIP: true,
       },
@@ -215,10 +225,16 @@ export const connectorDetails = {
       Response: {
         status: 200,
         body: {
-          status: "succeeded",
+          status: "processing",
         },
       },
-    },
+      ResponseCustom: {
+        status: 422,
+        body: {
+          error: missingPaymentTokenError,
+        },
+      },
+    }),
     SaveCardUseNo3DSManualCaptureOffSession: {
       Configs: {
         TRIGGER_SKIP: true,
@@ -297,8 +313,8 @@ export const connectorDetails = {
         payment_method_data: {
           card: successfulNo3DSCardDetails,
           billing: {
-          email: billing_info.email,
-        },
+            email: billing_info.email,
+          },
         },
         currency: "EUR",
         mandate_data: singleUseMandateData,
@@ -319,8 +335,8 @@ export const connectorDetails = {
         payment_method_data: {
           card: successfulNo3DSCardDetails,
           billing: {
-          email: billing_info.email,
-        },
+            email: billing_info.email,
+          },
         },
         currency: "EUR",
         mandate_data: singleUseMandateData,
@@ -514,6 +530,32 @@ export const connectorDetails = {
         status: 200,
         body: {
           status: "requires_customer_action",
+        },
+      },
+    },
+    MITAutoCapture: getCustomExchange({
+      Request: {
+        currency: "EUR",
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "processing",
+        },
+      },
+      ResponseCustom: {
+        status: 422,
+        body: {
+          error: missingPaymentTokenError
+        },
+      },
+    }),
+    ZeroAuthMandate: {
+      Response: {
+        status: 200,
+        body: {
+          amount: 0,
+          status: "processing",
         },
       },
     },

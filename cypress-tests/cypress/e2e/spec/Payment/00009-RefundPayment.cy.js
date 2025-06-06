@@ -691,6 +691,9 @@ describe("Card - Refund flow - No 3DS", () => {
           "automatic",
           globalState
         );
+
+        if (shouldContinue)
+          shouldContinue = utils.should_continue_further(data);
       });
 
       it("Confirm No 3DS MIT", () => {
