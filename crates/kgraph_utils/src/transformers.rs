@@ -311,7 +311,7 @@ impl IntoDirValue for (api_enums::PaymentMethodType, api_enums::PaymentMethod) {
             api_enums::PaymentMethodType::Paze => Ok(dirval!(WalletType = Paze)),
             api_enums::PaymentMethodType::DirectCarrierBilling => {
                 Ok(dirval!(MobilePaymentType = DirectCarrierBilling))
-            },
+            }
         }
     }
 }

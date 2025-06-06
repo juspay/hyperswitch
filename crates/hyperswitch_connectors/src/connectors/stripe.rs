@@ -72,7 +72,7 @@ use hyperswitch_interfaces::{
     },
     webhooks::{IncomingWebhook, IncomingWebhookRequestDetails},
 };
-use masking::{ExposeInterface, Mask as _, Maskable, PeekInterface, };
+use masking::{ExposeInterface, Mask as _, Maskable, PeekInterface};
 use router_env::{instrument, tracing};
 use stripe::auth_headers;
 
