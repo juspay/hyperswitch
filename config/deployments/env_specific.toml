@@ -156,7 +156,7 @@ delay_between_retries_in_milliseconds = 500 # Delay between retries in milliseco
 redis_lock_expiry_seconds = 180             # Seconds before the redis lock expires
 
 # Controls whether merchant ID authentication is enabled.
-# When enabled, payment endpoints will accept and require a merchant_id field in the request.
+# When enabled, payment endpoints will accept and require a x-merchant-id field in the request.
 [merchant_id_auth]
 merchant_id_auth_enabled = false
 
