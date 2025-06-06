@@ -273,7 +273,8 @@ export const connectorDetails = {
         body: {
           error: {
             type: "invalid_request",
-            message: "No eligible connector was found for the current payment method configuration",
+            message:
+              "No eligible connector was found for the current payment method configuration",
             code: "IR_39",
           },
         },
@@ -283,7 +284,7 @@ export const connectorDetails = {
         body: {
           status: "processing",
         },
-      }
+      },
     }),
     ZeroAuthPaymentIntent: {
       Request: {
@@ -305,11 +306,12 @@ export const connectorDetails = {
         body: {
           error: {
             type: "invalid_request",
-            message: "A payment token or payment method data or ctp service details is required",
+            message:
+              "A payment token or payment method data or ctp service details is required",
             code: "IR_06",
           },
         },
-      }
+      },
     },
   },
 };
