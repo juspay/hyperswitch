@@ -1,4 +1,6 @@
 pub mod validator;
+use std::collections::HashMap;
+
 use actix_web::http::header;
 use api_models::{
     admin::PaymentLinkConfig,
@@ -14,7 +16,6 @@ use futures::future;
 use hyperswitch_domain_models::api::{GenericLinks, GenericLinksData};
 use masking::{PeekInterface, Secret};
 use router_env::logger;
-use std::collections::HashMap;
 use time::PrimitiveDateTime;
 
 use super::{
