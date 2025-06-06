@@ -1,9 +1,38 @@
+import { getCustomExchange } from "./Modifiers";
+
+export const customerAcceptance = {
+  acceptance_type: "offline",
+  accepted_at: "1963-05-03T04:07:52.723Z",
+  online: {
+    ip_address: "127.0.0.1",
+    user_agent: "amet irure esse",
+  },
+};
+
 const successful3DSCardDetails = {
   card_number: "4761739090000088",
   card_exp_month: "12",
   card_exp_year: "2034",
   card_holder_name: "John Doe",
   card_cvc: "123",
+};
+
+const paymentMethodData3DSResponse = {
+  card: {
+    last4: "0088",
+    card_type: "DEBIT",
+    card_network: "Visa",
+    card_issuer: "INTL HDQTRS-CENTER OWNED",
+    card_issuing_country: "UNITEDSTATES",
+    card_isin: "476173",
+    card_extended_bin: null,
+    card_exp_month: "12",
+    card_exp_year: "2034",
+    card_holder_name: "John Doe",
+    payment_checks: null,
+    authentication_data: null,
+  },
+  billing: null,
 };
 
 export const connectorDetails = {
@@ -189,6 +218,98 @@ export const connectorDetails = {
         status: 200,
         body: {
           status: "succeeded",
+        },
+      },
+    },
+    ZeroAuthMandate: {
+      Response: {
+        status: 200,
+        body: {
+          amount: 0,
+          status: "processing",
+        },
+      },
+    },
+    PaymentMethodIdMandate3DSAutoCapture: {
+      Request: {
+        payment_method: "card",
+        payment_method_data: {
+          card: successful3DSCardDetails,
+        },
+        currency: "USD",
+        mandate_data: null,
+        authentication_type: "three_ds",
+        customer_acceptance: customerAcceptance,
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_customer_action",
+          payment_method_data: paymentMethodData3DSResponse,
+        },
+      },
+    },
+    PaymentMethodIdMandate3DSManualCapture: {
+      Request: {
+        payment_method: "card",
+        payment_method_data: {
+          card: successful3DSCardDetails,
+        },
+        mandate_data: null,
+        authentication_type: "three_ds",
+        customer_acceptance: customerAcceptance,
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_customer_action",
+          payment_method_data: paymentMethodData3DSResponse,
+        },
+      },
+    },
+    MITAutoCapture: getCustomExchange({
+      Response: {
+        status: 400,
+        body: {
+          error: {
+            type: "invalid_request",
+            message:
+              "No eligible connector was found for the current payment method configuration",
+            code: "IR_39",
+          },
+        },
+      },
+      ResponseCustom: {
+        status: 200,
+        body: {
+          status: "processing",
+        },
+      },
+    }),
+    ZeroAuthPaymentIntent: {
+      Request: {
+        amount: 0,
+        setup_future_usage: "off_session",
+        currency: "USD",
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_payment_method",
+          setup_future_usage: "off_session",
+        },
+      },
+    },
+    ZeroAuthConfirmPayment: {
+      Response: {
+        status: 422,
+        body: {
+          error: {
+            type: "invalid_request",
+            message:
+              "A payment token or payment method data or ctp service details is required",
+            code: "IR_06",
+          },
         },
       },
     },

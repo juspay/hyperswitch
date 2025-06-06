@@ -335,9 +335,10 @@ export const CONNECTOR_LISTS = {
     CONNECTOR_AGNOSTIC_NTID: [
       "bankofamerica",
       "braintree",
+      "fiserv",
       "fiuu",
       "paypal",
-      "fiserv",
+      "worldpayxml",
     ],
     // Add more exclusion lists
   },
