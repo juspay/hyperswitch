@@ -15,7 +15,7 @@ open_banking_uk.adyen.banks = "aib,bank_of_scotland,danske_bank,first_direct,fir
 przelewy24.stripe.banks = "alior_bank,bank_millennium,bank_nowy_bfg_sa,bank_pekao_sa,banki_spbdzielcze,blik,bnp_paribas,boz,citi,credit_agricole,e_transfer_pocztowy24,getin_bank,idea_bank,inteligo,mbank_mtransfer,nest_przelew,noble_pay,pbac_z_ipko,plus_bank,santander_przelew24,toyota_bank,volkswagen_bank"
 
 [connector_customer]
-connector_list = "stax,stripe,gocardless,facilitapay"
+connector_list = "stax,stripe,gocardless,facilitapay,hyperswitch_vault"
 payout_connector_list = "nomupay,stripe,wise"
 
 # Connector configuration, provided attributes will be used to fulfill API requests.
@@ -73,6 +73,7 @@ gocardless.base_url = "https://api.gocardless.com"
 gpayments.base_url = "https://{{merchant_endpoint_prefix}}-test.api.as1.gpayments.net"
 helcim.base_url = "https://api.helcim.com/"
 hipay.base_url = "https://secure-gateway.hipay-tpp.com/rest/"
+hyperswitch_vault.base_url = "https://sandbox.hyperswitch.io"
 hipay.secondary_base_url = "https://secure2-vault.hipay-tpp.com/rest/"
 hipay.third_base_url = "https://api-gateway.hipay.com/"
 iatapay.base_url = "https://iata-pay.iata.org/api/v1"

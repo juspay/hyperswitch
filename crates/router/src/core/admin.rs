@@ -1538,6 +1538,12 @@ impl ConnectorAuthTypeAndMetadataValidation<'_> {
                 helcim::transformers::HelcimAuthType::try_from(self.auth_type)?;
                 Ok(())
             }
+            api_enums::Connector::HyperswitchVault => {
+                hyperswitch_vault::transformers::HyperswitchVaultAuthType::try_from(
+                    self.auth_type,
+                )?;
+                Ok(())
+            }
             api_enums::Connector::Iatapay => {
                 iatapay::transformers::IatapayAuthType::try_from(self.auth_type)?;
                 Ok(())

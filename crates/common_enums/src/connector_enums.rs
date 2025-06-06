@@ -254,6 +254,7 @@ pub enum Connector {
     Gpayments,
     Hipay,
     Helcim,
+    HyperswitchVault,
     Inespay,
     Iatapay,
     Itaubank,
@@ -425,6 +426,7 @@ impl Connector {
             | Self::Gpayments
             | Self::Hipay
             | Self::Helcim
+            | Self::HyperswitchVault
             | Self::Iatapay
 			| Self::Inespay
             | Self::Itaubank
@@ -754,6 +756,7 @@ impl TryFrom<Connector> for RoutableConnectors {
             Connector::Redsys => Ok(Self::Redsys),
             Connector::CtpMastercard
             | Connector::Gpayments
+            | Connector::HyperswitchVault
             | Connector::Juspaythreedsserver
             | Connector::Netcetera
             | Connector::Taxjar

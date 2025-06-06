@@ -1099,7 +1099,9 @@ impl Default for PaymentRefundType {
 impl Default for CustomerType {
     fn default() -> Self {
         let data = types::ConnectorCustomerData {
-            payment_method_data: types::domain::PaymentMethodData::Card(CCardType::default().0),
+            payment_method_data: Some(types::domain::PaymentMethodData::Card(
+                CCardType::default().0,
+            )),
             description: None,
             email: Email::from_str("test@juspay.in").ok(),
             phone: None,

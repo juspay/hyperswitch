@@ -7005,6 +7005,38 @@ pub enum SessionToken {
 }
 
 #[derive(Debug, Clone, Eq, PartialEq, serde::Serialize, ToSchema)]
+#[serde(rename_all = "snake_case")]
+pub enum VaultSessionDetails {
+    Vgs(VgsSessionDetails),
+    HyperswitchVault(HyperswitchVaultSessionDetails),
+}
+
+#[derive(Debug, Clone, Eq, PartialEq, serde::Serialize, ToSchema)]
+pub struct VgsSessionDetails {
+    /// The identifier of the external vault
+    #[schema(value_type = String)]
+    pub external_vault_id: Secret<String>,
+    /// The environment for the external vault initiation
+    pub sdk_env: String,
+}
+
+#[derive(Debug, Clone, Eq, PartialEq, serde::Serialize, ToSchema)]
+pub struct HyperswitchVaultSessionDetails {
+    /// Session ID for Hyperswitch Vault
+    #[schema(value_type = String)]
+    pub payment_method_session_id: Secret<String>,
+    /// Client secret for Hyperswitch Vault
+    #[schema(value_type = String)]
+    pub client_secret: Secret<String>,
+    /// Publishable key for Hyperswitch Vault
+    #[schema(value_type = String)]
+    pub publishable_key: Secret<String>,
+    /// Profile ID for Hyperswitch Vault
+    #[schema(value_type = String)]
+    pub profile_id: Secret<String>,
+}
+
+#[derive(Debug, Clone, Eq, PartialEq, serde::Serialize, ToSchema)]
 #[serde(rename_all = "lowercase")]
 pub struct PazeSessionTokenResponse {
     /// Paze Client ID
@@ -7392,6 +7424,8 @@ pub struct PaymentsSessionResponse {
     pub payment_id: id_type::GlobalPaymentId,
     /// The list of session token object
     pub session_token: Vec<SessionToken>,
+    /// External vault session details
+    pub vault_details: Option<VaultSessionDetails>,
 }
 
 #[derive(Default, Debug, serde::Deserialize, serde::Serialize, Clone, ToSchema)]
