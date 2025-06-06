@@ -2,7 +2,7 @@
   "auth": {
     "type": "basic",
     "basic": {
-      "username": "{{api_key}}"
+      "username": "{{merchant_api_key}}"
     }
   }
 }

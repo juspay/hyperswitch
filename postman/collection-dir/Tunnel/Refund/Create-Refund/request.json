@@ -22,5 +22,5 @@
       }
     ]
   },
-  "url": "{{baseUrl}}/orders/{{order_id}}/refunds"
+  "url": "https://sandbox.juspay.in/orders/{{order_id}}/refunds"
 }

@@ -17,9 +17,9 @@
     ]
   },
   "url": {
-    "raw": "{{baseUrl}}/orders/{{order_id}}?options.add_full_gateway_response=true",
+    "raw": "https://sandbox.juspay.in/orders/{{order_id}}?options.add_full_gateway_response=true",
     "host": [
-      "{{baseUrl}}"
+      "https://sandbox.juspay.in"
     ],
     "path": [
       "orders",

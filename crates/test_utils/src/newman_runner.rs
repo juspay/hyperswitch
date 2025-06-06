@@ -293,10 +293,10 @@ pub fn generate_newman_command_for_connector() -> Result<ReturnArgs> {
         ]);
     }
 
-      if let Ok(merchant_api_key) = env::var("MERCHANT_API_KEY") {
+    if let Ok(merchant_api_key) = env::var("MERCHANT_API_KEY") {
         newman_command.args([
             "--env-var",
-            &format!("api_key={merchant_api_key}"),
+            &format!("merchant_api_key={merchant_api_key}"),
         ]);
     }
 

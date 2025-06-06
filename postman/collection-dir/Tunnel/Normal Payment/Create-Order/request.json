@@ -41,5 +41,5 @@
       }
     ]
   },
-  "url": "{{baseUrl}}/orders"
+  "url": "https://sandbox.juspay.in/orders"
 }

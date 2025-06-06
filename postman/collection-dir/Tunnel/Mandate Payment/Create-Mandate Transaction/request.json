@@ -91,5 +91,5 @@
       }
     ]
   },
-  "url": "{{baseUrl}}/txns"
+  "url": "https://sandbox.juspay.in/txns"
 }
