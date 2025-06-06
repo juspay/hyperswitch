@@ -22,11 +22,11 @@ pub use api_models::{enums::PayoutConnectors, payouts as payout_types};
 use api_models::{payment_methods, webhooks::WebhookResponseTracker};
 #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
 use common_utils::{
-    crypto::Encryptable,
     consts::DEFAULT_LOCALE,
+    crypto::Encryptable,
     ext_traits::{Encode, OptionExt},
-    id_type,
     fp_utils::when,
+    id_type,
 };
 #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
 use common_utils::{
@@ -107,8 +107,7 @@ use crate::{
     },
     services,
     types::{
-        domain,
-        payment_methods as pm_types,
+        domain, payment_methods as pm_types,
         storage::{self, enums as storage_enums},
     },
 };
@@ -3292,9 +3291,10 @@ pub async fn fetch_merchant_account_for_network_token_webhooks(
         .await
         .change_context(errors::ApiErrorResponse::InternalServerError)?;
 
-    let merchant_context = domain::MerchantContext::NormalMerchant(Box::new(
-        domain::Context(merchant_account.clone(), key_store),
-    ));
+    let merchant_context = domain::MerchantContext::NormalMerchant(Box::new(domain::Context(
+        merchant_account.clone(),
+        key_store,
+    )));
 
     Ok(merchant_context)
 }
@@ -3334,7 +3334,7 @@ pub async fn handle_metadata_update(
     decrypted_data: payment_methods::CardDetailFromLocker,
     is_pan_update: bool,
 ) -> RouterResult<WebhookResponseTracker> {
-    let merchant_id =merchant_context.get_merchant_account().get_id();
+    let merchant_id = merchant_context.get_merchant_account().get_id();
     let customer_id = &payment_method.customer_id;
 
     when(
@@ -3358,9 +3358,7 @@ pub async fn handle_metadata_update(
         state,
         merchant_context,
     }
-    .delete_card_from_locker(
-        customer_id, merchant_id, &locker_id
-    )
+    .delete_card_from_locker(customer_id, merchant_id, &locker_id)
     .await
     .switch()?;
 
@@ -3411,7 +3409,13 @@ pub async fn handle_metadata_update(
     let key_manager_state = state.into();
 
     let pm_data_encrypted: Option<Encryptable<Secret<serde_json::Value>>> = pm_details
-        .async_map(|pm_card| cards::create_encrypted_data(&key_manager_state,  merchant_context.get_merchant_key_store(), pm_card))
+        .async_map(|pm_card| {
+            cards::create_encrypted_data(
+                &key_manager_state,
+                merchant_context.get_merchant_key_store(),
+                pm_card,
+            )
+        })
         .await
         .transpose()
         .change_context(errors::ApiErrorResponse::InternalServerError)

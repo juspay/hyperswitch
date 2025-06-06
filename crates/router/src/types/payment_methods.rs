@@ -383,7 +383,6 @@ pub struct CheckTokenStatusResponse {
     pub payload: CheckTokenStatusResponsePayload,
 }
 
-
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct NetworkTokenRequestorData {
     pub card_reference: String,

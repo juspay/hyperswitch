@@ -53,8 +53,7 @@ use crate::{
             self, mandates::MandateResponseExt, ConnectorCommon, ConnectorData, GetToken,
             IncomingWebhook,
         },
-        domain,
-        payment_methods as pm_types,
+        domain, payment_methods as pm_types,
         storage::{self, enums},
         transformers::{ForeignFrom, ForeignInto, ForeignTryFrom},
     },
@@ -193,7 +192,6 @@ pub async fn network_token_incoming_webhooks_wrapper<W: types::OutgoingWebhookTy
     state.event_handler().log_event(&api_event);
     Ok(application_response)
 }
-
 
 #[allow(clippy::too_many_arguments)]
 #[instrument(skip_all)]

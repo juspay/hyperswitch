@@ -28,6 +28,7 @@ use hyperswitch_domain_models::payment_method_data::{
 use josekit::jwe;
 use masking::{ExposeInterface, Mask, PeekInterface, Secret};
 use serde::{Deserialize, Serialize};
+
 use super::transformers::DeleteCardResp;
 use crate::{
     core::{errors, payment_methods, payments::helpers},
@@ -1006,4 +1007,3 @@ impl NetworkTokenWebhookResponse {
         }
     }
 }
-
