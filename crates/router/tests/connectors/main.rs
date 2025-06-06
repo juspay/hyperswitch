@@ -54,6 +54,7 @@ mod jpmorgan;
 mod juspaythreedsserver;
 mod mifinity;
 mod mollie;
+mod monei;
 mod moneris;
 mod multisafepay;
 mod netcetera;

@@ -163,6 +163,7 @@ pub struct ConnectorTomlConfig {
 #[serde_with::skip_serializing_none]
 #[derive(Debug, Deserialize, serde::Serialize, Clone)]
 pub struct ConnectorConfig {
+    pub monei: Option<ConnectorTomlConfig>,
     pub juspaythreedsserver: Option<ConnectorTomlConfig>,
     pub aci: Option<ConnectorTomlConfig>,
     pub adyen: Option<ConnectorTomlConfig>,
@@ -354,6 +355,8 @@ impl ConnectorConfig {
         let connector_data = Self::new()?;
         match connector {
             Connector::Aci => Ok(connector_data.aci),
+            // PRAGMA: connector
+            Connector::Monei => Ok(connector_data.monei),
             Connector::Adyen => Ok(connector_data.adyen),
             Connector::Adyenplatform => Err("Use get_payout_connector_config".to_string()),
             Connector::Airwallex => Ok(connector_data.airwallex),
