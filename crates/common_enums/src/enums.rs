@@ -1630,11 +1630,11 @@ impl IntentStatus {
             | Self::Failed
             | Self::Cancelled
             |  Self::PartiallyCaptured
-            |  Self::RequiresCapture  => false,
+            |  Self::RequiresCapture | Self::Conflicted => false,
             Self::Processing
             | Self::RequiresCustomerAction
             | Self::RequiresMerchantAction
-            | Self::PartiallyCapturedAndCapturable | Self::Conflicted
+            | Self::PartiallyCapturedAndCapturable
             => true,
         }
     }

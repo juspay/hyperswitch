@@ -941,7 +941,7 @@ impl
         let intent_status = common_enums::IntentStatus::from(self.status);
         match intent_status {
             // If the status is succeeded then we have captured the whole amount
-            common_enums::IntentStatus::Succeeded => {
+            common_enums::IntentStatus::Succeeded | common_enums::IntentStatus::Conflicted => {
                 let amount_to_capture = payment_data
                     .payment_attempt
                     .amount_details
@@ -966,8 +966,7 @@ impl
             | common_enums::IntentStatus::Processing => None,
             // Invalid states for this flow
             common_enums::IntentStatus::RequiresPaymentMethod
-            | common_enums::IntentStatus::RequiresConfirmation
-            | common_enums::IntentStatus::Conflicted => None,
+            | common_enums::IntentStatus::RequiresConfirmation => None,
             // Invalid statues for this flow
             common_enums::IntentStatus::PartiallyCaptured
             | common_enums::IntentStatus::PartiallyCapturedAndCapturable => {
@@ -1161,12 +1160,12 @@ impl
             // For these statuses, update the capturable amount when it reaches terminal / capturable state
             common_enums::IntentStatus::RequiresCustomerAction
             | common_enums::IntentStatus::RequiresMerchantAction
-            | common_enums::IntentStatus::Processing
-            | common_enums::IntentStatus::Conflicted => None,
+            | common_enums::IntentStatus::Processing => None,
             // Invalid states for this flow
             common_enums::IntentStatus::RequiresPaymentMethod
             | common_enums::IntentStatus::RequiresConfirmation => None,
-            common_enums::IntentStatus::RequiresCapture => {
+            common_enums::IntentStatus::RequiresCapture
+            | common_enums::IntentStatus::Conflicted => {
                 let total_amount = payment_attempt.amount_details.get_net_amount();
                 Some(total_amount)
             }
@@ -1205,14 +1204,14 @@ impl
             // Invalid states for this flow
             common_enums::IntentStatus::RequiresPaymentMethod
             | common_enums::IntentStatus::RequiresConfirmation => None,
-            common_enums::IntentStatus::RequiresCapture => {
+            common_enums::IntentStatus::RequiresCapture
+            | common_enums::IntentStatus::Conflicted => {
                 let total_amount = payment_attempt.amount_details.get_net_amount();
                 Some(total_amount)
             }
             // Invalid statues for this flow
             common_enums::IntentStatus::PartiallyCaptured
-            | common_enums::IntentStatus::PartiallyCapturedAndCapturable
-            | common_enums::IntentStatus::Conflicted => None,
+            | common_enums::IntentStatus::PartiallyCapturedAndCapturable => None,
         }
     }
 }
