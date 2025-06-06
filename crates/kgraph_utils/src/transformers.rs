@@ -72,7 +72,6 @@ impl IntoContext for BackendInput {
         if let Some(payment_type) = self.mandate.payment_type {
             ctx.push(dir::DirValue::PaymentType(payment_type));
         }
-        
 
         Ok(ctx)
     }
