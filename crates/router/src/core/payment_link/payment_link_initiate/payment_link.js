@@ -291,12 +291,6 @@ function boot() {
   // Add event listeners
   initializeEventListeners(paymentDetails);
 
-  // Update payment link styles
-  var paymentLinkUiRules = paymentDetails.payment_link_ui_rules;
-  if (isObject(paymentLinkUiRules)) {
-    updatePaymentLinkUi(paymentLinkUiRules);
-  }
-
   // Initialize SDK
   // @ts-ignore
   if (window.Hyper) {
@@ -358,11 +352,11 @@ function initializeEventListeners(paymentDetails) {
   if (payNowButtonText) {
     if (paymentDetails.payment_button_text) {
       payNowButtonText.textContent = paymentDetails.payment_button_text;
-    } else if (paymentDetails.is_setup_mandate_flow || (paymentDetails.amount==="0.00" && paymentDetails.setup_future_usage_applied ==="off_session")) {
+    } else if (paymentDetails.is_setup_mandate_flow || (paymentDetails.amount === "0.00" && paymentDetails.setup_future_usage_applied === "off_session")) {
       payNowButtonText.textContent = translations.addPaymentMethod;
     } else {
-      payNowButtonText.textContent = capture_type === "manual" ? translations.authorizePayment: translations.payNow;
-      
+      payNowButtonText.textContent = capture_type === "manual" ? translations.authorizePayment : translations.payNow;
+
     }
   }
 
@@ -1214,25 +1208,4 @@ function renderSDKHeader(paymentDetails) {
     // sdkHeaderNode.append(sdkHeaderLogoNode);
     sdkHeaderNode.append(sdkHeaderItemNode);
   }
-}
-
-/**
- * Trigger - post UI render
- * Use - add CSS rules for the payment link
- * @param {Object} paymentLinkUiRules
- */
-function updatePaymentLinkUi(paymentLinkUiRules) {
-  Object.keys(paymentLinkUiRules).forEach(function (selector) {
-    try {
-      var node = document.querySelector(selector);
-      if (node instanceof HTMLElement) {
-        var styles = paymentLinkUiRules[selector];
-        Object.keys(styles).forEach(function (property) {
-          node.style[property] = styles[property];
-        });
-      }
-    } catch (error) {
-      console.error("Failed to apply styles to selector", selector, error);
-    }
-  })
 }

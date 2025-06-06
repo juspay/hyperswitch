@@ -4991,6 +4991,7 @@ impl ForeignFrom<api_models::admin::PaymentLinkConfigRequest>
             payment_form_label_type: config.payment_form_label_type,
             show_card_terms: config.show_card_terms,
             is_setup_mandate_flow: config.is_setup_mandate_flow,
+            color_icon_card_cvc_error: config.color_icon_card_cvc_error,
         }
     }
 }
@@ -5066,6 +5067,7 @@ impl ForeignFrom<diesel_models::PaymentLinkConfigRequestForPayments>
             payment_form_label_type: config.payment_form_label_type,
             show_card_terms: config.show_card_terms,
             is_setup_mandate_flow: config.is_setup_mandate_flow,
+            color_icon_card_cvc_error: config.color_icon_card_cvc_error,
         }
     }
 }
