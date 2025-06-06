@@ -65,9 +65,6 @@ use redis_interface::errors::RedisError;
 use router_env::{instrument, tracing};
 #[cfg(feature = "olap")]
 use router_types::transformers::ForeignFrom;
-use rust_grpc_client::payments::{
-    self as payments_grpc, payment_service_client::PaymentServiceClient, Address, PhoneDetails,
-};
 use rustc_hash::FxHashMap;
 use scheduler::utils as pt_utils;
 #[cfg(feature = "v2")]
@@ -90,6 +87,7 @@ use self::{
 };
 use super::{
     errors::StorageErrorExt, payment_methods::surcharge_decision_configs, routing::TransactionData,
+    unified_connector_service::utils::should_call_unified_connector_service,
 };
 #[cfg(feature = "v1")]
 use crate::core::debit_routing;
@@ -3108,8 +3106,6 @@ where
     dyn api::Connector:
         services::api::ConnectorIntegration<F, RouterDReq, router_types::PaymentsResponseData>,
 {
-    use super::unified_connector_service::utils::should_call_unified_connector_service;
-
     let stime_connector = Instant::now();
 
     let merchant_connector_account = construct_profile_id_and_get_mca(
@@ -3243,7 +3239,7 @@ where
         )
         .await?;
 
-    if should_call_unified_connector_service(
+    if let Some(mut client) = should_call_unified_connector_service(
         state,
         merchant_context,
         merchant_connector_account.clone(),
@@ -3252,7 +3248,7 @@ where
     .await?
     {
         let _ = router_data
-            .call_unified_connector_service(state, merchant_connector_account.clone())
+            .call_unified_connector_service(merchant_connector_account.clone(), &mut client)
             .await;
 
         let etime_connector = Instant::now();

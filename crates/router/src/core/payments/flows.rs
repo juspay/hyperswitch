@@ -36,8 +36,8 @@ use hyperswitch_interfaces::api::{
     payouts::Payouts, UasAuthentication, UasAuthenticationConfirmation, UasPostAuthentication,
     UasPreAuthentication, UnifiedAuthenticationService,
 };
+use rust_grpc_client::payments::payment_service_client::PaymentServiceClient;
 
-use super::helpers::MerchantConnectorAccountType;
 #[cfg(feature = "frm")]
 use crate::types::fraud_check as frm_types;
 use crate::{
@@ -201,8 +201,8 @@ pub trait Feature<F, T> {
 
     async fn call_unified_connector_service<'a>(
         &mut self,
-        _state: &SessionState,
-        _merchant_connector_account: MerchantConnectorAccountType,
+        _merchant_connector_account: helpers::MerchantConnectorAccountType,
+        _client: &mut PaymentServiceClient<tonic::transport::Channel>,
     ) -> RouterResult<()>
     where
         F: Clone,

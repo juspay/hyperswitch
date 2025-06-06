@@ -1,12 +1,10 @@
-use api_models::admin::ConnectorAuthType;
 use async_trait::async_trait;
-use common_enums::{self as enums, AttemptStatus};
-use common_utils::ext_traits::ValueExt;
+use common_enums as enums;
 use error_stack::ResultExt;
 use hyperswitch_domain_models::errors::api_error_response::ApiErrorResponse;
 #[cfg(feature = "v2")]
 use hyperswitch_domain_models::payments::PaymentConfirmData;
-use masking::{ExposeInterface, PeekInterface};
+use masking::ExposeInterface;
 use rust_grpc_client::payments::payment_service_client::PaymentServiceClient;
 
 // use router_env::tracing::Instrument;
@@ -16,13 +14,11 @@ use crate::{
         errors::{ConnectorErrorExt, RouterResult},
         mandate,
         payments::{
-            self, access_token, customers,
-            helpers::{self, MerchantConnectorAccountType},
-            tokenization, transformers, PaymentData,
+            self, access_token, customers, helpers, tokenization, transformers, PaymentData,
         },
         unified_connector_service::utils::{
             construct_router_data_from_ucs_authorize_response, construct_ucs_authorize_request,
-            construct_ucs_request_metadata, convert_ucs_attempt_status,
+            construct_ucs_request_metadata,
         },
     },
     logger,
@@ -428,15 +424,9 @@ impl Feature<api::Authorize, types::PaymentsAuthorizeData> for types::PaymentsAu
 
     async fn call_unified_connector_service<'a>(
         &mut self,
-        state: &SessionState,
-        merchant_connector_account: MerchantConnectorAccountType,
+        merchant_connector_account: helpers::MerchantConnectorAccountType,
+        client: &mut PaymentServiceClient<tonic::transport::Channel>,
     ) -> RouterResult<()> {
-        let mut client =
-            PaymentServiceClient::connect(state.conf.unified_connector_service.url.clone())
-                .await
-                .change_context(ApiErrorResponse::InternalServerError)
-                .attach_printable("Failed to connect to payment service")?;
-
         let request = construct_ucs_authorize_request(&self)?;
 
         let mut request = tonic::Request::new(request);

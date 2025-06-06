@@ -1,6 +1,6 @@
 use api_models::admin::ConnectorAuthType;
 use common_enums::{enums::PaymentMethod, AttemptStatus, AuthenticationType};
-use common_utils::{consts, ext_traits::ValueExt};
+use common_utils::ext_traits::ValueExt;
 use error_stack::ResultExt;
 use hyperswitch_connectors::utils::CardData;
 use hyperswitch_domain_models::{
@@ -13,7 +13,9 @@ use hyperswitch_domain_models::{
 };
 use masking::{ExposeInterface, PeekInterface};
 use rand::Rng;
-use rust_grpc_client::payments::{self as payments_grpc};
+use rust_grpc_client::payments::{
+    self as payments_grpc, payment_service_client::PaymentServiceClient,
+};
 use tonic::metadata::MetadataMap;
 
 use crate::{
@@ -28,18 +30,18 @@ pub async fn should_call_unified_connector_service<F: Clone, T>(
     merchant_context: &MerchantContext,
     merchant_connector_account: MerchantConnectorAccountType,
     router_data: &RouterData<F, T, PaymentsResponseData>,
-) -> RouterResult<bool> {
+) -> RouterResult<Option<PaymentServiceClient<tonic::transport::Channel>>> {
     let merchant_id = merchant_context
         .get_merchant_account()
         .get_id()
         .get_string_repr();
 
-    let connector_name = merchant_connector_account
-        .get_connector_name()
-        .ok_or(ApiErrorResponse::InternalServerError)?;
+    let connector_name = match merchant_connector_account.get_connector_name() {
+        Some(name) => name,
+        None => return Ok(None),
+    };
 
     let payment_method = router_data.payment_method.to_string();
-
     let flow_name = get_flow_name::<F>()?;
 
     let config_key = format!(
@@ -51,14 +53,21 @@ pub async fn should_call_unified_connector_service<F: Clone, T>(
 
     let rollout_config = match db.find_config_by_key(&config_key).await {
         Ok(config) => config,
-        Err(_) => return Ok(false),
+        Err(_) => return Ok(None),
     };
 
     let rollout_percent: f64 = rollout_config.config.parse().unwrap_or(0.0);
-
     let random_value: f64 = rand::thread_rng().gen_range(0.1..=1.0);
 
-    Ok(random_value <= rollout_percent)
+    if random_value <= rollout_percent {
+        match PaymentServiceClient::connect(state.conf.unified_connector_service.url.clone()).await
+        {
+            Ok(client) => Ok(Some(client)),
+            Err(_) => Ok(None), // Failed to connect, so skip
+        }
+    } else {
+        Ok(None)
+    }
 }
 
 pub fn construct_ucs_authorize_request(
@@ -128,7 +137,7 @@ pub fn construct_ucs_payment_method_data(
                         card_number: card.card_number.get_card_no(),
                         card_exp_month: card
                             .get_card_expiry_month_2_digit()
-                            .map_err(|e| ApiErrorResponse::InternalServerError)?
+                            .map_err(|_| ApiErrorResponse::InternalServerError)?
                             .peek()
                             .to_string(),
                         card_exp_year: card.get_expiry_year_4_digit().peek().to_string(),
@@ -324,7 +333,7 @@ pub fn construct_ucs_request_metadata(
 
     let parsed_connector_name = connector_name
         .parse()
-        .map_err(|e| ApiErrorResponse::InternalServerError)
+        .map_err(|_| ApiErrorResponse::InternalServerError)
         .attach_printable_lazy(|| format!("Failed to parse connector name: {connector_name}"))?;
 
     metadata.append("x-connector", parsed_connector_name);
