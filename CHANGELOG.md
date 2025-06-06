@@ -4,6 +4,16 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2025.05.28.0-hotfix3
+
+### Revert
+
+- **routing:** Add connectors from current active routing algorithm before adding fallback connectors ([#8259](https://github.com/juspay/hyperswitch/pull/8259)) ([`1826256`](https://github.com/juspay/hyperswitch/commit/182625624d298e0408b7ecd013a83db33c1e009a))
+
+**Full Changelog:** [`2025.05.28.0-hotfix2...2025.05.28.0-hotfix3`](https://github.com/juspay/hyperswitch/compare/2025.05.28.0-hotfix2...2025.05.28.0-hotfix3)
+
+- - -
+
 ## 2025.05.28.0-hotfix2
 
 ### Refactors
