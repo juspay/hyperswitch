@@ -163,6 +163,7 @@ impl
                     trans_status: response.trans_status,
                     connector_metadata: None,
                     ds_trans_id: response.authentication_response.ds_trans_id,
+                    eci: response.eci,
                 })
             }
             NetceteraAuthenticationResponse::Error(error_response) => Err(ErrorResponse {

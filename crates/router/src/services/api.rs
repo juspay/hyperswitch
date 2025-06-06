@@ -602,7 +602,6 @@ where
                 .switch(),
             )?
     };
-
     let locale = utils::get_locale_from_header(&incoming_request_header.clone());
     let mut session_state =
         Arc::new(app_state.clone()).get_session_state(&tenant_id, Some(locale), || {
@@ -701,6 +700,8 @@ where
         }
     };
 
+    let infra = state.infra_components.clone();
+
     let api_event = ApiEvent::new(
         tenant_id,
         Some(merchant_id.clone()),
@@ -716,7 +717,9 @@ where
         event_type.unwrap_or(ApiEventsType::Miscellaneous),
         request,
         request.method(),
+        infra.clone(),
     );
+
     state.event_handler().log_event(&api_event);
 
     output

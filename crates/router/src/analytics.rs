@@ -10,8 +10,8 @@ pub mod routes {
     use analytics::{
         api_event::api_events_core, connector_events::connector_events_core, enums::AuthInfo,
         errors::AnalyticsError, lambda_utils::invoke_lambda, opensearch::OpenSearchError,
-        outgoing_webhook_event::outgoing_webhook_events_core, sdk_events::sdk_events_core,
-        AnalyticsFlow,
+        outgoing_webhook_event::outgoing_webhook_events_core, routing_events::routing_events_core,
+        sdk_events::sdk_events_core, AnalyticsFlow,
     };
     use api_models::analytics::{
         api_event::QueryType,
@@ -111,6 +111,10 @@ pub mod routes {
                                 .route(web::post().to(get_auth_event_metrics)),
                         )
                         .service(
+                            web::resource("metrics/auth_events/sankey")
+                                .route(web::post().to(get_auth_event_sankey)),
+                        )
+                        .service(
                             web::resource("filters/auth_events")
                                 .route(web::post().to(get_merchant_auth_events_filters)),
                         )
@@ -128,6 +132,10 @@ pub mod routes {
                         .service(
                             web::resource("connector_event_logs")
                                 .route(web::get().to(get_profile_connector_events)),
+                        )
+                        .service(
+                            web::resource("routing_event_logs")
+                                .route(web::get().to(get_profile_routing_events)),
                         )
                         .service(
                             web::resource("outgoing_webhook_event_logs")
@@ -302,6 +310,10 @@ pub mod routes {
                                 .service(
                                     web::resource("connector_event_logs")
                                         .route(web::get().to(get_profile_connector_events)),
+                                )
+                                .service(
+                                    web::resource("routing_event_logs")
+                                        .route(web::get().to(get_profile_routing_events)),
                                 )
                                 .service(
                                     web::resource("outgoing_webhook_event_logs")
@@ -2165,6 +2177,44 @@ pub mod routes {
         .await
     }
 
+    pub async fn get_profile_routing_events(
+        state: web::Data<AppState>,
+        req: actix_web::HttpRequest,
+        json_payload: web::Query<api_models::analytics::routing_events::RoutingEventsRequest>,
+    ) -> impl Responder {
+        let flow = AnalyticsFlow::GetRoutingEvents;
+        Box::pin(api::server_wrap(
+            flow,
+            state,
+            &req,
+            json_payload.into_inner(),
+            |state, auth: AuthenticationData, req, _| async move {
+                utils::check_if_profile_id_is_present_in_payment_intent(
+                    req.payment_id.clone(),
+                    &state,
+                    &auth,
+                )
+                .await
+                .change_context(AnalyticsError::AccessForbiddenError)?;
+                routing_events_core(&state.pool, req, auth.merchant_account.get_id())
+                    .await
+                    .map(ApplicationResponse::Json)
+            },
+            auth::auth_type(
+                &auth::HeaderAuth(auth::ApiKeyAuth {
+                    is_connected_allowed: false,
+                    is_platform_allowed: false,
+                }),
+                &auth::JWTAuth {
+                    permission: Permission::ProfileAnalyticsRead,
+                },
+                req.headers(),
+            ),
+            api_locking::LockAction::NotApplicable,
+        ))
+        .await
+    }
+
     pub async fn get_global_search_results(
         state: web::Data<AppState>,
         req: actix_web::HttpRequest,
@@ -2716,6 +2766,37 @@ pub mod routes {
                     merchant_ids: vec![merchant_id.clone()],
                 };
                 analytics::payment_intents::get_sankey(&state.pool, &auth, req)
+                    .await
+                    .map(ApplicationResponse::Json)
+            },
+            &auth::JWTAuth {
+                permission: Permission::MerchantAnalyticsRead,
+            },
+            api_locking::LockAction::NotApplicable,
+        ))
+        .await
+    }
+
+    pub async fn get_auth_event_sankey(
+        state: web::Data<AppState>,
+        req: actix_web::HttpRequest,
+        json_payload: web::Json<TimeRange>,
+    ) -> impl Responder {
+        let flow = AnalyticsFlow::GetSankey;
+        let payload = json_payload.into_inner();
+        Box::pin(api::server_wrap(
+            flow,
+            state,
+            &req,
+            payload,
+            |state, auth: AuthenticationData, req, _| async move {
+                let org_id = auth.merchant_account.get_org_id();
+                let merchant_id = auth.merchant_account.get_id();
+                let auth: AuthInfo = AuthInfo::MerchantLevel {
+                    org_id: org_id.clone(),
+                    merchant_ids: vec![merchant_id.clone()],
+                };
+                analytics::auth_events::get_sankey(&state.pool, &auth, req)
                     .await
                     .map(ApplicationResponse::Json)
             },

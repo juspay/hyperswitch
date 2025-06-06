@@ -259,7 +259,7 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
             worldpayxml::worldpayxml_constants::XML_VERSION,
             Some(worldpayxml::worldpayxml_constants::XML_ENCODING),
             None,
-            worldpayxml::worldpayxml_constants::WORLDPAYXML_DOC_TYPE,
+            Some(worldpayxml::worldpayxml_constants::WORLDPAYXML_DOC_TYPE),
         )?;
         Ok(RequestContent::RawBytes(connector_req))
     }
@@ -344,7 +344,7 @@ impl ConnectorIntegration<PSync, PaymentsSyncData, PaymentsResponseData> for Wor
             worldpayxml::worldpayxml_constants::XML_VERSION,
             Some(worldpayxml::worldpayxml_constants::XML_ENCODING),
             None,
-            worldpayxml::worldpayxml_constants::WORLDPAYXML_DOC_TYPE,
+            Some(worldpayxml::worldpayxml_constants::WORLDPAYXML_DOC_TYPE),
         )?;
         Ok(RequestContent::RawBytes(connector_req))
     }
@@ -432,7 +432,7 @@ impl ConnectorIntegration<Capture, PaymentsCaptureData, PaymentsResponseData> fo
             worldpayxml::worldpayxml_constants::XML_VERSION,
             Some(worldpayxml::worldpayxml_constants::XML_ENCODING),
             None,
-            worldpayxml::worldpayxml_constants::WORLDPAYXML_DOC_TYPE,
+            Some(worldpayxml::worldpayxml_constants::WORLDPAYXML_DOC_TYPE),
         )?;
         Ok(RequestContent::RawBytes(connector_req))
     }
@@ -516,7 +516,7 @@ impl ConnectorIntegration<Void, PaymentsCancelData, PaymentsResponseData> for Wo
             worldpayxml::worldpayxml_constants::XML_VERSION,
             Some(worldpayxml::worldpayxml_constants::XML_ENCODING),
             None,
-            worldpayxml::worldpayxml_constants::WORLDPAYXML_DOC_TYPE,
+            Some(worldpayxml::worldpayxml_constants::WORLDPAYXML_DOC_TYPE),
         )?;
         Ok(RequestContent::RawBytes(connector_req))
     }
@@ -602,7 +602,7 @@ impl ConnectorIntegration<Execute, RefundsData, RefundsResponseData> for Worldpa
             worldpayxml::worldpayxml_constants::XML_VERSION,
             Some(worldpayxml::worldpayxml_constants::XML_ENCODING),
             None,
-            worldpayxml::worldpayxml_constants::WORLDPAYXML_DOC_TYPE,
+            Some(worldpayxml::worldpayxml_constants::WORLDPAYXML_DOC_TYPE),
         )?;
         Ok(RequestContent::RawBytes(connector_req))
     }
@@ -685,7 +685,7 @@ impl ConnectorIntegration<RSync, RefundsData, RefundsResponseData> for Worldpayx
             worldpayxml::worldpayxml_constants::XML_VERSION,
             Some(worldpayxml::worldpayxml_constants::XML_ENCODING),
             None,
-            worldpayxml::worldpayxml_constants::WORLDPAYXML_DOC_TYPE,
+            Some(worldpayxml::worldpayxml_constants::WORLDPAYXML_DOC_TYPE),
         )?;
         Ok(RequestContent::RawBytes(connector_req))
     }
