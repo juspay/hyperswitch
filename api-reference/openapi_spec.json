@@ -16264,10 +16264,14 @@
             "type": "object",
             "required": [
               "popup_url",
+              "redirect_response_url",
               "type"
             ],
             "properties": {
               "popup_url": {
+                "type": "string"
+              },
+              "redirect_response_url": {
                 "type": "string"
               },
               "type": {
