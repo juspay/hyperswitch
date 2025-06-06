@@ -3990,7 +3990,7 @@
         "properties": {
           "city": {
             "type": "string",
-            "description": "The address city",
+            "description": "The city, district, suburb, town, or village of the address.",
             "example": "New York",
             "nullable": true,
             "maxLength": 50
@@ -4005,21 +4005,21 @@
           },
           "line1": {
             "type": "string",
-            "description": "The first line of the address",
+            "description": "The first line of the street address or P.O. Box.",
             "example": "123, King Street",
             "nullable": true,
             "maxLength": 200
           },
           "line2": {
             "type": "string",
-            "description": "The second line of the address",
+            "description": "The second line of the street address or P.O. Box (e.g., apartment, suite, unit, or building).",
             "example": "Powelson Avenue",
             "nullable": true,
             "maxLength": 50
           },
           "line3": {
             "type": "string",
-            "description": "The third line of the address",
+            "description": "The third line of the street address, if applicable.",
             "example": "Bridgewater",
             "nullable": true,
             "maxLength": 50
@@ -7102,7 +7102,7 @@
         "properties": {
           "capture_id": {
             "type": "string",
-            "description": "Unique identifier for the capture"
+            "description": "A unique identifier for this specific capture operation."
           },
           "status": {
             "$ref": "#/components/schemas/CaptureStatus"
@@ -7123,11 +7123,11 @@
           },
           "connector": {
             "type": "string",
-            "description": "The connector used for the payment"
+            "description": "The name of the payment connector that processed this capture."
           },
           "authorized_attempt_id": {
             "type": "string",
-            "description": "Unique identifier for the parent attempt on which this capture is made"
+            "description": "The ID of the payment attempt that was successfully authorized and subsequently captured by this operation."
           },
           "connector_capture_id": {
             "type": "string",
@@ -7141,22 +7141,22 @@
           },
           "error_message": {
             "type": "string",
-            "description": "If there was an error while calling the connector the error message is received here",
+            "description": "A human-readable message from the connector explaining why this capture operation failed, if applicable.",
             "nullable": true
           },
           "error_code": {
             "type": "string",
-            "description": "If there was an error while calling the connectors the code is received here",
+            "description": "The error code returned by the connector if this capture operation failed. This code is connector-specific.",
             "nullable": true
           },
           "error_reason": {
             "type": "string",
-            "description": "If there was an error while calling the connectors the reason is received here",
+            "description": "A more detailed reason from the connector explaining the capture failure, if available.",
             "nullable": true
           },
           "reference_id": {
             "type": "string",
-            "description": "Reference to the capture at connector side",
+            "description": "The connector's own reference or transaction ID for this specific capture operation. Useful for reconciliation.",
             "nullable": true
           }
         }
