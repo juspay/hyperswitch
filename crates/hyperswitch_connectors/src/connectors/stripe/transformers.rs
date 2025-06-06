@@ -37,7 +37,7 @@ use hyperswitch_domain_models::{
     },
 };
 use hyperswitch_interfaces::{consts, errors::ConnectorError};
-use masking::{ExposeInterface, ExposeOptionInterface, Mask, Maskable, PeekInterface, Secret};
+use masking::{ExposeInterface, Mask, Maskable, PeekInterface, Secret};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use time::PrimitiveDateTime;
@@ -171,7 +171,7 @@ pub struct PaymentIntentRequest {
     pub return_url: String,
     pub confirm: bool,
     pub payment_method: Option<Secret<String>>,
-    pub customer: Option<String>,
+    pub customer: Option<Secret<String>>,
     #[serde(flatten)]
     pub setup_mandate_details: Option<StripeMandateRequest>,
     pub description: Option<String>,
@@ -517,7 +517,7 @@ pub struct StripeCardToken {
     #[serde(rename = "card[cvc]")]
     pub token_card_cvc: Secret<String>,
     #[serde(flatten)]
-    pub billing: Option<StripeBillingAddressCardToken>,
+    pub billing: StripeBillingAddressCardToken,
 }
 
 #[derive(Debug, Eq, PartialEq, Serialize)]
@@ -1659,82 +1659,6 @@ impl TryFrom<&GooglePayWalletData> for StripePaymentMethodData {
     }
 }
 
-fn get_stripe_billing_address(
-    billing_details: Option<hyperswitch_domain_models::address::Address>,
-) -> Option<StripeBillingAddress> {
-    match billing_details {
-        Some(address) => {
-            let billing_address = address.address.as_ref();
-            Some(StripeBillingAddress {
-                city: billing_address.and_then(|a| a.city.clone()),
-                country: billing_address.and_then(|a| a.country),
-                address_line1: billing_address.and_then(|a| a.line1.clone()),
-                address_line2: billing_address.and_then(|a| a.line2.clone()),
-                zip_code: billing_address.and_then(|a| a.zip.clone()),
-                state: billing_address.and_then(|a| a.state.clone()),
-                name: billing_address.and_then(|a| {
-                    a.first_name.as_ref().map(|first_name| {
-                        format!(
-                            "{} {}",
-                            first_name.clone().expose(),
-                            a.last_name.clone().expose_option().unwrap_or_default()
-                        )
-                        .into()
-                    })
-                }),
-                email: address.email.clone(),
-                phone: address.phone.as_ref().map(|p| {
-                    format!(
-                        "{}{}",
-                        p.country_code.clone().unwrap_or_default(),
-                        p.number.clone().expose_option().unwrap_or_default()
-                    )
-                    .into()
-                }),
-            })
-        }
-        None => None,
-    }
-}
-
-fn get_stripe_billing_address_card_token(
-    billing_details: Option<hyperswitch_domain_models::address::Address>,
-) -> Option<StripeBillingAddressCardToken> {
-    let address = billing_details?;
-
-    let billing_address = address.address.as_ref()?;
-
-    let name = match (&billing_address.first_name, &billing_address.last_name) {
-        (Some(first_name), Some(last_name)) => Some(
-            format!(
-                "{} {}",
-                first_name.clone().expose(),
-                last_name.clone().expose()
-            )
-            .into(),
-        ),
-        (Some(first_name), None) => Some(first_name.clone().expose().into()),
-        _ => None,
-    };
-
-    Some(StripeBillingAddressCardToken {
-        name,
-        email: address.email.clone(),
-        phone: address.phone.as_ref().map(|p| {
-            format!(
-                "{}{}",
-                p.country_code.clone().unwrap_or_default(),
-                p.number.clone().expose_option().unwrap_or_default()
-            )
-            .into()
-        }),
-        address_line1: billing_address.line1.clone(),
-        address_line2: billing_address.line2.clone(),
-        state: billing_address.state.clone(),
-        city: billing_address.city.clone(),
-    })
-}
-
 impl TryFrom<(&PaymentsAuthorizeRouterData, MinorUnit)> for PaymentIntentRequest {
     type Error = error_stack::Report<ConnectorError>;
     fn try_from(data: (&PaymentsAuthorizeRouterData, MinorUnit)) -> Result<Self, Self::Error> {
@@ -1753,51 +1677,35 @@ impl TryFrom<(&PaymentsAuthorizeRouterData, MinorUnit)> for PaymentIntentRequest
         let amount = data.1;
         let order_id = item.connector_request_reference_id.clone();
 
-        let shipping_address = if payment_method_token.is_none() {
-            match item.get_optional_shipping() {
-                Some(shipping_details) => {
-                    let shipping_address_ref = shipping_details.address.as_ref();
-                    shipping_address_ref.and_then(|shipping_detail| {
-                        shipping_detail.first_name.as_ref().map(|first_name| {
-                            StripeShippingAddress {
-                                city: shipping_address_ref.and_then(|a| a.city.clone()),
-                                country: shipping_address_ref.and_then(|a| a.country),
-                                line1: shipping_address_ref.and_then(|a| a.line1.clone()),
-                                line2: shipping_address_ref.and_then(|a| a.line2.clone()),
-                                zip: shipping_address_ref.and_then(|a| a.zip.clone()),
-                                state: shipping_address_ref.and_then(|a| a.state.clone()),
-                                name: format!(
-                                    "{} {}",
-                                    first_name.clone().expose(),
-                                    shipping_detail
-                                        .last_name
-                                        .clone()
-                                        .expose_option()
-                                        .unwrap_or_default()
-                                )
-                                .into(),
-                                phone: shipping_details.phone.as_ref().map(|p| {
-                                    format!(
-                                        "{}{}",
-                                        p.country_code.clone().unwrap_or_default(),
-                                        p.number.clone().expose_option().unwrap_or_default()
-                                    )
-                                    .into()
-                                }),
-                            }
-                        })
-                    })
-                }
-                None => None,
-            }
-        } else {
+        let shipping_address = if payment_method_token.is_some() {
             None
+        } else {
+            Some(StripeShippingAddress {
+                city: item.get_optional_shipping_city(),
+                country: item.get_optional_shipping_country(),
+                line1: item.get_optional_shipping_line1(),
+                line2: item.get_optional_shipping_line2(),
+                zip: item.get_optional_shipping_zip(),
+                state: item.get_optional_shipping_state(),
+                name: item.get_optional_shipping_full_name(),
+                phone: item.get_optional_shipping_phone_number(),
+            })
         };
 
-        let billing_address = if payment_method_token.is_none() {
-            get_stripe_billing_address(item.get_optional_billing().cloned())
-        } else {
+        let billing_address = if payment_method_token.is_some() {
             None
+        } else {
+            Some(StripeBillingAddress {
+                city: item.get_optional_billing_city(),
+                country: item.get_optional_billing_country(),
+                address_line1: item.get_optional_billing_line1(),
+                address_line2: item.get_optional_billing_line2(),
+                zip_code: item.get_optional_billing_zip(),
+                state: item.get_optional_billing_state(),
+                name: item.get_optional_billing_full_name(),
+                email: item.get_optional_billing_email(),
+                phone: item.get_optional_billing_phone_number(),
+            })
         };
 
         let mut payment_method_options = None;
@@ -2063,6 +1971,12 @@ impl TryFrom<(&PaymentsAuthorizeRouterData, MinorUnit)> for PaymentIntentRequest
             (None, None) => None,
         };
 
+        let customer_id = item.connector_customer.clone().ok_or_else(|| {
+            ConnectorError::MissingRequiredField {
+                field_name: "connector_customer",
+            }
+        })?;
+
         Ok(Self {
             amount,                                      //hopefully we don't loose some cents here
             currency: item.request.currency.to_string(), //we need to copy the value and not transfer ownership
@@ -2082,7 +1996,7 @@ impl TryFrom<(&PaymentsAuthorizeRouterData, MinorUnit)> for PaymentIntentRequest
             payment_data,
             payment_method_options,
             payment_method: pm,
-            customer: item.connector_customer.clone(),
+            customer: Some(Secret::new(customer_id)),
             setup_mandate_details,
             off_session: item.request.off_session,
             setup_future_usage,
@@ -2173,8 +2087,16 @@ impl TryFrom<&SetupMandateRouterData> for SetupIntentRequest {
 impl TryFrom<&TokenizationRouterData> for TokenRequest {
     type Error = error_stack::Report<ConnectorError>;
     fn try_from(item: &TokenizationRouterData) -> Result<Self, Self::Error> {
-        let billing_address =
-            get_stripe_billing_address_card_token(item.get_optional_billing().cloned());
+        let billing_address = StripeBillingAddressCardToken {
+            name: item.get_optional_billing_full_name(),
+            email: item.get_optional_billing_email(),
+            phone: item.get_optional_billing_phone_number(),
+            address_line1: item.get_optional_billing_line1(),
+            address_line2: item.get_optional_billing_line2(),
+            city: item.get_optional_billing_city(),
+            state: item.get_optional_billing_state(),
+        };
+
         // Card flow for tokenization is handled separately because of API contact difference
         let request_payment_data = match &item.request.payment_method_data {
             PaymentMethodData::Card(card_details) => {
@@ -3428,7 +3350,7 @@ pub struct StripeShippingAddress {
     #[serde(rename = "shipping[address][state]")]
     pub state: Option<Secret<String>>,
     #[serde(rename = "shipping[name]")]
-    pub name: Secret<String>,
+    pub name: Option<Secret<String>>,
     #[serde(rename = "shipping[phone]")]
     pub phone: Option<Secret<String>>,
 }
@@ -4492,7 +4414,7 @@ mod test_validate_shipping_address_against_payment_method {
         zip: Option<String>,
     ) -> StripeShippingAddress {
         StripeShippingAddress {
-            name: Secret::new(name),
+            name: Some(Secret::new(name)),
             line1: line1.map(Secret::new),
             country,
             zip: zip.map(Secret::new),
