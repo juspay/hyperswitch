@@ -43,7 +43,8 @@ use crate::payment_methods;
 use crate::{
     admin::{self, MerchantConnectorInfo},
     enums as api_enums,
-    mandates::RecurringDetails, payments,
+    mandates::RecurringDetails,
+    payments,
 };
 #[cfg(feature = "v1")]
 use crate::{disputes, ephemeral_key::EphemeralKeyCreateResponse, refunds, ValidateFieldAndGet};
@@ -1558,7 +1559,7 @@ pub struct PaymentAttemptResponse {
 
     /// Amount related information for this payment and attempt
     pub amount: PaymentAttemptAmountDetails,
-    
+
     /// Name of the connector that was used for the payment attempt.
     #[schema(example = "stripe")]
     pub connector: Option<String>,
@@ -8803,4 +8804,3 @@ pub struct RecordAttemptErrorDetails {
     /// A string indicating how to proceed with an network error if payment gateway provide one. This is used to understand the network error code better.
     pub network_error_message: Option<String>,
 }
-

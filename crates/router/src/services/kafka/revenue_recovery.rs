@@ -1,8 +1,8 @@
-use common_utils::{id_type,types::MinorUnit};
+use common_utils::{id_type, types::MinorUnit};
 use time::PrimitiveDateTime;
 
 #[derive(serde::Serialize, Debug)]
-pub struct RevenueRecovery<'a>{
+pub struct RevenueRecovery<'a> {
     pub merchant_id: &'a id_type::MerchantId,
     pub invoice_id: Option<String>,
     pub invoice_amount: MinorUnit,
@@ -10,7 +10,7 @@ pub struct RevenueRecovery<'a>{
     pub invoice_due_date: Option<PrimitiveDateTime>,
     pub invoice_date: PrimitiveDateTime,
     pub invoice_address: Option<api_models::payments::Address>,
-    pub attempt_id : String,
+    pub attempt_id: String,
     pub attempt_amount: MinorUnit,
     pub attempt_currency: &'a common_enums::Currency,
     pub attempt_status: &'a common_enums::AttemptStatus,
@@ -28,11 +28,9 @@ pub struct RevenueRecovery<'a>{
 
 impl super::KafkaMessage for RevenueRecovery<'_> {
     fn key(&self) -> String {
-        
-            // self.merchant_id.get_string_repr(),
-            // self.payment_id.get_string_repr(),
-            self.attempt_id.to_string()
-        
+        // self.merchant_id.get_string_repr(),
+        // self.payment_id.get_string_repr(),
+        self.attempt_id.to_string()
     }
 
     fn event_type(&self) -> crate::events::EventType {

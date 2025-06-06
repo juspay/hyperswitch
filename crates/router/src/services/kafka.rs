@@ -667,7 +667,7 @@ impl KafkaProducer {
             EventType::Consolidated => &self.consolidated_events_topic,
             EventType::Authentication => &self.authentication_analytics_topic,
             EventType::RoutingApiLogs => &self.routing_logs_topic,
-            EventType::RevenueRecovery => &self.revenue_recovery_topic
+            EventType::RevenueRecovery => &self.revenue_recovery_topic,
         }
     }
 }

@@ -2043,7 +2043,9 @@ where
                 .as_ref()
                 .map(api_models::payments::PaymentAttemptFeatureMetadata::foreign_from),
             card_network: None,
-            error_details: payment_attempt.error.map(|error | api_models::payments::RecordAttemptErrorDetails::from(error))
+            error_details: payment_attempt
+                .error
+                .map(|error| api_models::payments::RecordAttemptErrorDetails::from(error)),
         };
         Ok(services::ApplicationResponse::JsonWithHeaders((
             response,
@@ -4791,7 +4793,7 @@ impl ForeignFrom<&hyperswitch_domain_models::payments::payment_attempt::PaymentA
             feature_metadata: attempt
                 .feature_metadata
                 .as_ref()
-                .map(api_models::payments::PaymentAttemptFeatureMetadata::foreign_from),   
+                .map(api_models::payments::PaymentAttemptFeatureMetadata::foreign_from),
         }
     }
 }
