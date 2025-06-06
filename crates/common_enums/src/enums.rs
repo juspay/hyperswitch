@@ -7105,6 +7105,26 @@ impl AuthenticationConnectors {
 
 #[derive(
     Clone,
+    Copy,
+    Debug,
+    Eq,
+    Hash,
+    PartialEq,
+    serde::Serialize,
+    serde::Deserialize,
+    strum::Display,
+    strum::EnumString,
+    ToSchema,
+)]
+#[serde(rename_all = "snake_case")]
+#[strum(serialize_all = "snake_case")]
+pub enum VaultSdk {
+    VgsSdk,
+    HyperswitchSdk,
+}
+
+#[derive(
+    Clone,
     Debug,
     Eq,
     Default,

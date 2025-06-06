@@ -8110,6 +8110,7 @@
           "gpayments",
           "hipay",
           "helcim",
+          "hyperswitch_vault",
           "inespay",
           "iatapay",
           "itaubank",
@@ -8157,6 +8158,7 @@
           "wise",
           "worldline",
           "worldpay",
+          "worldpayvantiv",
           "worldpayxml",
           "signifyd",
           "plaid",
@@ -10711,6 +10713,14 @@
             "type": "string",
             "description": "Merchant Connector id to be stored for vault connector",
             "nullable": true
+          },
+          "vault_sdk": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/VaultSdk"
+              }
+            ],
+            "nullable": true
           }
         }
       },
@@ -12206,6 +12216,33 @@
             "type": "boolean",
             "description": "indicates if retry with pan is possible",
             "nullable": true
+          }
+        }
+      },
+      "HyperswitchVaultSessionDetails": {
+        "type": "object",
+        "required": [
+          "payment_method_session_id",
+          "client_secret",
+          "publishable_key",
+          "profile_id"
+        ],
+        "properties": {
+          "payment_method_session_id": {
+            "type": "string",
+            "description": "Session ID for Hyperswitch Vault"
+          },
+          "client_secret": {
+            "type": "string",
+            "description": "Client secret for Hyperswitch Vault"
+          },
+          "publishable_key": {
+            "type": "string",
+            "description": "Publishable key for Hyperswitch Vault"
+          },
+          "profile_id": {
+            "type": "string",
+            "description": "Profile ID for Hyperswitch Vault"
           }
         }
       },
@@ -18823,6 +18860,14 @@
               "$ref": "#/components/schemas/SessionToken"
             },
             "description": "The list of session token object"
+          },
+          "vault_details": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/VaultSessionDetails"
+              }
+            ],
+            "nullable": true
           }
         }
       },
@@ -21692,6 +21737,14 @@
               "payment_method_subtype": {
                 "$ref": "#/components/schemas/PaymentMethodType"
               },
+              "payment_experience": {
+                "allOf": [
+                  {
+                    "$ref": "#/components/schemas/PaymentExperience"
+                  }
+                ],
+                "nullable": true
+              },
               "required_fields": {
                 "allOf": [
                   {
@@ -22091,6 +22144,7 @@
           "wise",
           "worldline",
           "worldpay",
+          "worldpayvantiv",
           "worldpayxml",
           "xendit",
           "zen",
@@ -24323,6 +24377,39 @@
           "propertyName": "type"
         }
       },
+      "VaultSdk": {
+        "type": "string",
+        "enum": [
+          "vgs_sdk",
+          "hyperswitch_sdk"
+        ]
+      },
+      "VaultSessionDetails": {
+        "oneOf": [
+          {
+            "type": "object",
+            "required": [
+              "vgs"
+            ],
+            "properties": {
+              "vgs": {
+                "$ref": "#/components/schemas/VgsSessionDetails"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "hyperswitch_vault"
+            ],
+            "properties": {
+              "hyperswitch_vault": {
+                "$ref": "#/components/schemas/HyperswitchVaultSessionDetails"
+              }
+            }
+          }
+        ]
+      },
       "Venmo": {
         "type": "object",
         "required": [
@@ -24345,6 +24432,23 @@
             "description": "mobile number linked to venmo account",
             "example": "******* 3349",
             "nullable": true
+          }
+        }
+      },
+      "VgsSessionDetails": {
+        "type": "object",
+        "required": [
+          "external_vault_id",
+          "sdk_env"
+        ],
+        "properties": {
+          "external_vault_id": {
+            "type": "string",
+            "description": "The identifier of the external vault"
+          },
+          "sdk_env": {
+            "type": "string",
+            "description": "The environment for the external vault initiation"
           }
         }
       },

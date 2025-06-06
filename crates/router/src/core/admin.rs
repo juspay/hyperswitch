@@ -1538,6 +1538,12 @@ impl ConnectorAuthTypeAndMetadataValidation<'_> {
                 helcim::transformers::HelcimAuthType::try_from(self.auth_type)?;
                 Ok(())
             }
+            api_enums::Connector::HyperswitchVault => {
+                hyperswitch_vault::transformers::HyperswitchVaultAuthType::try_from(
+                    self.auth_type,
+                )?;
+                Ok(())
+            }
             api_enums::Connector::Iatapay => {
                 iatapay::transformers::IatapayAuthType::try_from(self.auth_type)?;
                 Ok(())
@@ -1728,6 +1734,13 @@ impl ConnectorAuthTypeAndMetadataValidation<'_> {
             }
             api_enums::Connector::Worldpay => {
                 worldpay::transformers::WorldpayAuthType::try_from(self.auth_type)?;
+                Ok(())
+            }
+            api_enums::Connector::Worldpayvantiv => {
+                worldpayvantiv::transformers::WorldpayvantivAuthType::try_from(self.auth_type)?;
+                worldpayvantiv::transformers::WorldpayvantivMetadataObject::try_from(
+                    self.connector_meta_data,
+                )?;
                 Ok(())
             }
             api_enums::Connector::Worldpayxml => {
