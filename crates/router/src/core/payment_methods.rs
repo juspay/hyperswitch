@@ -3227,6 +3227,7 @@ async fn create_single_use_tokenization_flow(
         browser_info: None,
         currency: api_models::enums::Currency::default(),
         amount: None,
+        split_payments: None,
     };
 
     let payment_method_session_address = types::PaymentAddress::new(

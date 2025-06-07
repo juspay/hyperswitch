@@ -1107,6 +1107,7 @@ impl Default for CustomerType {
             phone: None,
             name: None,
             preprocessing_id: None,
+            split_payments: None,
         };
         Self(data)
     }
@@ -1119,6 +1120,7 @@ impl Default for TokenType {
             browser_info: None,
             amount: Some(100),
             currency: enums::Currency::USD,
+            split_payments: None,
         };
         Self(data)
     }
