@@ -85,6 +85,8 @@ use crate::routes::cards_info::{
 use crate::routes::feature_matrix;
 #[cfg(all(feature = "frm", feature = "oltp"))]
 use crate::routes::fraud_check as frm_routes;
+#[cfg(all(feature = "olap", feature = "v1"))]
+use crate::routes::profile_acquirer;
 #[cfg(all(feature = "recon", feature = "olap"))]
 use crate::routes::recon as recon_routes;
 pub use crate::{
@@ -2642,6 +2644,20 @@ impl ProcessTracker {
             .service(
                 web::resource("/{revenue_recovery_id}")
                     .route(web::get().to(revenue_recovery::revenue_recovery_pt_retrieve_api)),
+            )
+    }
+}
+
+#[cfg(feature = "olap")]
+pub struct ProfileAcquirer;
+
+#[cfg(all(feature = "olap", feature = "v1"))]
+impl ProfileAcquirer {
+    pub fn server(state: AppState) -> Scope {
+        web::scope("/profile_acquirer")
+            .app_data(web::Data::new(state))
+            .service(
+                web::resource("").route(web::post().to(profile_acquirer::create_profile_acquirer)),
             )
     }
 }

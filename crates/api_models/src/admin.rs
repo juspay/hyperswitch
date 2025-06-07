@@ -2323,6 +2323,9 @@ pub struct ProfileResponse {
     /// Indicates if pre network tokenization is enabled or not
     #[schema(default = false, example = false)]
     pub is_pre_network_tokenization_enabled: bool,
+
+    /// Acquirer configs
+    pub acquirer_configs: Option<common_types::domain::AcquirerConfigs>,
 }
 
 #[cfg(feature = "v2")]

@@ -126,6 +126,9 @@ pub enum ApiEventsType {
         token_id: Option<id_type::GlobalTokenId>,
     },
     ProcessTracker,
+    ProfileAcquirer {
+        profile_acquirer_id: id_type::ProfileAcquirerId,
+    },
     ThreeDsDecisionRule,
 }
 
