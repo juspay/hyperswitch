@@ -254,8 +254,8 @@ impl PaymentMethodsController for PmCards<'_> {
             card: None,
             metadata: req.metadata.clone(),
             created: Some(common_utils::date_time::now()),
-            recurring_enabled: false,           //[#219]
-            installment_payment_enabled: false, //[#219]
+            recurring_enabled: Some(false),           //[#219]
+            installment_payment_enabled: Some(false), //[#219]
             payment_experience: Some(vec![api_models::enums::PaymentExperience::RedirectToUrl]),
             last_used_at: Some(common_utils::date_time::now()),
             client_secret: None,
@@ -990,8 +990,8 @@ impl PaymentMethodsController for PmCards<'_> {
                 card,
                 metadata: pm.metadata,
                 created: Some(pm.created_at),
-                recurring_enabled: false,
-                installment_payment_enabled: false,
+                recurring_enabled: Some(false),
+                installment_payment_enabled: Some(false),
                 payment_experience: Some(vec![api_models::enums::PaymentExperience::RedirectToUrl]),
                 last_used_at: Some(pm.last_used_at),
                 client_secret: pm.client_secret,
@@ -1889,8 +1889,8 @@ pub async fn update_customer_payment_method(
                 card: Some(existing_card_data),
                 metadata: pm.metadata,
                 created: Some(pm.created_at),
-                recurring_enabled: false,
-                installment_payment_enabled: false,
+                recurring_enabled: Some(false),
+                installment_payment_enabled: Some(false),
                 payment_experience: Some(vec![api_models::enums::PaymentExperience::RedirectToUrl]),
                 last_used_at: Some(common_utils::date_time::now()),
                 client_secret: pm.client_secret.clone(),
@@ -4086,7 +4086,7 @@ fn filter_installment_based(
     installment_payment_enabled: Option<bool>,
 ) -> bool {
     installment_payment_enabled.map_or(true, |enabled| {
-        payment_method.installment_payment_enabled == enabled
+        payment_method.installment_payment_enabled == Some(enabled)
     })
 }
 
@@ -4120,7 +4120,9 @@ fn filter_recurring_based(
     payment_method: &RequestPaymentMethodTypes,
     recurring_enabled: Option<bool>,
 ) -> bool {
-    recurring_enabled.map_or(true, |enabled| payment_method.recurring_enabled == enabled)
+    recurring_enabled.map_or(true, |enabled| {
+        payment_method.recurring_enabled == Some(enabled)
+    })
 }
 
 #[cfg(all(
@@ -4361,7 +4363,7 @@ pub async fn list_customer_payment_method(
             metadata: pm.metadata,
             payment_method_issuer_code: pm.payment_method_issuer_code,
             recurring_enabled: mca_enabled,
-            installment_payment_enabled: false,
+            installment_payment_enabled: Some(false),
             payment_experience: Some(vec![api_models::enums::PaymentExperience::RedirectToUrl]),
             created: Some(pm.created_at),
             #[cfg(feature = "payouts")]
@@ -4374,7 +4376,7 @@ pub async fn list_customer_payment_method(
                 && customer.default_payment_method_id == Some(pm.payment_method_id),
             billing: payment_method_billing,
         };
-        if requires_cvv || mca_enabled {
+        if requires_cvv || mca_enabled.unwrap_or(false) {
             customer_pms.push(pma.to_owned());
         }
 
@@ -4605,9 +4607,9 @@ pub async fn get_mca_status(
     is_connector_agnostic_mit_enabled: bool,
     connector_mandate_details: Option<CommonMandateReference>,
     network_transaction_id: Option<&String>,
-) -> errors::RouterResult<bool> {
+) -> errors::RouterResult<Option<bool>> {
     if is_connector_agnostic_mit_enabled && network_transaction_id.is_some() {
-        return Ok(true);
+        return Ok(Some(true));
     }
     if let Some(connector_mandate_details) = connector_mandate_details {
         let mcas = state
@@ -4623,14 +4625,14 @@ pub async fn get_mca_status(
                 id: merchant_id.get_string_repr().to_owned(),
             })?;
 
-        return Ok(
+        return Ok(Some(
             mcas.is_merchant_connector_account_id_in_connector_mandate_details(
                 profile_id.as_ref(),
                 &connector_mandate_details,
             ),
-        );
+        ));
     }
-    Ok(false)
+    Ok(Some(false))
 }
 
 #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
