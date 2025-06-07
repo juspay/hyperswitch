@@ -18,7 +18,28 @@ use common_types::payments::CustomerAcceptance;
 use hyperswitch_domain_models::router_flow_types::{
     BillingConnectorInvoiceSync, BillingConnectorPaymentsSync, RecoveryRecordBack,
 };
-use hyperswitch_domain_models::router_request_types::PaymentsCaptureData;
+#[cfg(feature = "dummy_connector")]
+use hyperswitch_domain_models::router_flow_types::{
+    ExternalVaultCreateFlow, ExternalVaultDeleteFlow, ExternalVaultInsertFlow,
+    ExternalVaultRetrieveFlow,
+};
+use hyperswitch_domain_models::{
+    mandates::CustomerAcceptance,
+    router_flow_types::{
+        Authenticate, AuthenticationConfirmation, PostAuthenticate, PreAuthenticate,
+    },
+    router_request_types::PaymentsCaptureData,
+};
+#[cfg(feature = "dummy_connector")]
+use hyperswitch_interfaces::api::vault::{
+    ExternalVault, ExternalVaultCreate, ExternalVaultDelete, ExternalVaultInsert,
+    ExternalVaultRetrieve,
+};
+use hyperswitch_interfaces::api::{
+    payouts::Payouts, UasAuthentication, UasAuthenticationConfirmation, UasPostAuthentication,
+    UasPreAuthentication, UnifiedAuthenticationService,
+};
+use rust_grpc_client::payments::payment_service_client::PaymentServiceClient;
 
 use crate::{
     core::{
@@ -177,6 +198,20 @@ pub trait Feature<F, T> {
     ) -> RouterResult<(Option<services::Request>, bool)> {
         Ok((None, true))
     }
+
+    async fn call_unified_connector_service<'a>(
+        &mut self,
+        _merchant_connector_account: helpers::MerchantConnectorAccountType,
+        _client: &mut PaymentServiceClient<tonic::transport::Channel>,
+    ) -> RouterResult<()>
+    where
+        F: Clone,
+        Self: Sized,
+        dyn api::Connector: services::ConnectorIntegration<F, T, types::PaymentsResponseData>,
+    {
+        Ok(())
+    }
+}
 
     async fn create_order_at_connector(
         &mut self,

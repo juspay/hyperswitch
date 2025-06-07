@@ -354,7 +354,7 @@ dependencies = [
  "common_utils",
  "currency_conversion",
  "diesel_models",
- "error-stack",
+ "error-stack 0.4.1",
  "futures 0.3.31",
  "hyperswitch_interfaces",
  "masking",
@@ -459,7 +459,7 @@ dependencies = [
  "common_enums",
  "common_types",
  "common_utils",
- "error-stack",
+ "error-stack 0.4.1",
  "euclid",
  "masking",
  "mime",
@@ -1214,10 +1214,13 @@ checksum = "021e862c184ae977658b36c4500f7feac3221ca5da43e3f25bd04ab6c79a29b5"
 dependencies = [
  "axum-core 0.5.2",
  "bytes 1.10.1",
+ "form_urlencoded",
  "futures-util",
  "http 1.3.1",
  "http-body 1.0.1",
  "http-body-util",
+ "hyper 1.6.0",
+ "hyper-util",
  "itoa",
  "matchit 0.8.4",
  "memchr",
@@ -1226,10 +1229,15 @@ dependencies = [
  "pin-project-lite",
  "rustversion",
  "serde",
+ "serde_json",
+ "serde_path_to_error",
+ "serde_urlencoded",
  "sync_wrapper 1.0.1",
+ "tokio 1.45.1",
  "tower 0.5.2",
  "tower-layer",
  "tower-service",
+ "tracing",
 ]
 
 [[package]]
@@ -1269,6 +1277,7 @@ dependencies = [
  "sync_wrapper 1.0.1",
  "tower-layer",
  "tower-service",
+ "tracing",
 ]
 
 [[package]]
@@ -1609,7 +1618,7 @@ name = "cards"
 version = "0.1.0"
 dependencies = [
  "common_utils",
- "error-stack",
+ "error-stack 0.4.1",
  "masking",
  "regex",
  "router_env",
@@ -1640,6 +1649,20 @@ dependencies = [
  "serde",
  "serde_json",
  "thiserror 1.0.69",
+]
+
+[[package]]
+name = "cargo_metadata"
+version = "0.19.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "dd5eb614ed4c27c5d706420e4320fbe3216ab31fa1c33cd8246ac36dae4479ba"
+dependencies = [
+ "camino",
+ "cargo-platform",
+ "semver 1.0.26",
+ "serde",
+ "serde_json",
+ "thiserror 2.0.12",
 ]
 
 [[package]]
@@ -1857,7 +1880,7 @@ dependencies = [
  "bytes 1.10.1",
  "common_enums",
  "diesel",
- "error-stack",
+ "error-stack 0.4.1",
  "fake",
  "futures 0.3.31",
  "globset",
@@ -2597,7 +2620,7 @@ dependencies = [
  "common_types",
  "common_utils",
  "diesel",
- "error-stack",
+ "error-stack 0.4.1",
  "masking",
  "router_derive",
  "router_env",
@@ -2683,7 +2706,7 @@ dependencies = [
  "config",
  "diesel",
  "diesel_models",
- "error-stack",
+ "error-stack 0.4.1",
  "external_services",
  "hyperswitch_interfaces",
  "masking",
@@ -2890,6 +2913,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "error-stack"
+version = "0.5.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "fe413319145d1063f080f27556fd30b1d70b01e2ba10c2a6e40d4be982ffc5d1"
+dependencies = [
+ "anyhow",
+ "rustc_version 0.4.1",
+]
+
+[[package]]
 name = "etcetera"
 version = "0.8.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2974,7 +3007,7 @@ dependencies = [
 name = "events"
 version = "0.1.0"
 dependencies = [
- "error-stack",
+ "error-stack 0.4.1",
  "masking",
  "router_env",
  "serde",
@@ -2998,7 +3031,7 @@ dependencies = [
  "base64 0.22.1",
  "common_utils",
  "dyn-clone",
- "error-stack",
+ "error-stack 0.4.1",
  "hex",
  "http 0.2.12",
  "http-body-util",
@@ -3016,8 +3049,8 @@ dependencies = [
  "serde",
  "thiserror 1.0.69",
  "tokio 1.45.1",
- "tonic 0.13.1",
- "tonic-build",
+ "tonic 0.12.3",
+ "tonic-build 0.12.2",
  "tonic-reflection",
  "tonic-types",
  "url",
@@ -3326,6 +3359,18 @@ dependencies = [
 ]
 
 [[package]]
+name = "g2h"
+version = "0.2.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "312ad594dd0e3c26f860a52c8b703ab509c546931920f277f1afa9b7127fd755"
+dependencies = [
+ "heck 0.5.0",
+ "prost-build",
+ "quote",
+ "tonic-build 0.13.1",
+]
+
+[[package]]
 name = "generic-array"
 version = "0.14.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3469,6 +3514,24 @@ dependencies = [
  "ff 0.13.0",
  "rand_core 0.6.4",
  "subtle",
+]
+
+[[package]]
+name = "grpc-api-types"
+version = "0.1.0"
+source = "git+https://github.com/juspay/connector-service?rev=eea707db7729508c152b8648741c7147efcc1cef#eea707db7729508c152b8648741c7147efcc1cef"
+dependencies = [
+ "axum 0.8.4",
+ "cargo_metadata 0.19.2",
+ "error-stack 0.5.0",
+ "g2h",
+ "heck 0.5.0",
+ "http 1.3.1",
+ "prost",
+ "prost-build",
+ "serde",
+ "tonic 0.13.1",
+ "tonic-build 0.13.1",
 ]
 
 [[package]]
@@ -3949,7 +4012,7 @@ dependencies = [
  "common_types",
  "common_utils",
  "encoding_rs",
- "error-stack",
+ "error-stack 0.4.1",
  "hex",
  "html-escape",
  "http 0.2.12",
@@ -4013,7 +4076,7 @@ dependencies = [
  "common_types",
  "common_utils",
  "diesel_models",
- "error-stack",
+ "error-stack 0.4.1",
  "futures 0.3.31",
  "http 0.2.12",
  "masking",
@@ -4040,7 +4103,7 @@ dependencies = [
  "common_enums",
  "common_utils",
  "dyn-clone",
- "error-stack",
+ "error-stack 0.4.1",
  "http 0.2.12",
  "hyperswitch_domain_models",
  "masking",
@@ -5592,7 +5655,7 @@ dependencies = [
  "common_utils",
  "csv",
  "dyn-clone",
- "error-stack",
+ "error-stack 0.4.1",
  "hyperswitch_domain_models",
  "hyperswitch_interfaces",
  "masking",
@@ -5849,7 +5912,7 @@ dependencies = [
  "bytes 1.10.1",
  "common_enums",
  "common_utils",
- "error-stack",
+ "error-stack 0.4.1",
  "http 0.2.12",
  "masking",
  "mime",
@@ -5989,9 +6052,9 @@ dependencies = [
 
 [[package]]
 name = "prost"
-version = "0.13.2"
+version = "0.13.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "3b2ecbe40f08db5c006b5764a2645f7f3f141ce756412ac9e1dd6087e6d32995"
+checksum = "2796faa41db3ec313a31f7624d9286acf277b52de526150b7e69f3debf891ee5"
 dependencies = [
  "bytes 1.10.1",
  "prost-derive",
@@ -5999,11 +6062,10 @@ dependencies = [
 
 [[package]]
 name = "prost-build"
-version = "0.13.2"
+version = "0.13.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f8650aabb6c35b860610e9cff5dc1af886c9e25073b7b1712a68972af4281302"
+checksum = "be769465445e8c1474e9c5dac2018218498557af32d9ed057325ec9a41ae81bf"
 dependencies = [
- "bytes 1.10.1",
  "heck 0.5.0",
  "itertools 0.13.0",
  "log",
@@ -6020,9 +6082,9 @@ dependencies = [
 
 [[package]]
 name = "prost-derive"
-version = "0.13.2"
+version = "0.13.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "acf0c195eebb4af52c752bec4f52f645da98b6e92077a04110c7f349477ae5ac"
+checksum = "8a56d757972c98b346a9b766e3f02746cde6dd1cd1d1d563472929fdd74bec4d"
 dependencies = [
  "anyhow",
  "itertools 0.13.0",
@@ -6033,9 +6095,9 @@ dependencies = [
 
 [[package]]
 name = "prost-types"
-version = "0.13.2"
+version = "0.13.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "60caa6738c7369b940c3d49246a8d1749323674c65cb13010134f5c9bad5b519"
+checksum = "52c2c1bf36ddb1a1c396b3601a3cec27c2462e45f07c386894ec3ccf5332bd16"
 dependencies = [
  "prost",
 ]
@@ -6357,7 +6419,7 @@ name = "redis_interface"
 version = "0.1.0"
 dependencies = [
  "common_utils",
- "error-stack",
+ "error-stack 0.4.1",
  "fred",
  "futures 0.3.31",
  "serde",
@@ -6683,7 +6745,7 @@ dependencies = [
  "diesel",
  "diesel_models",
  "dyn-clone",
- "error-stack",
+ "error-stack 0.4.1",
  "euclid",
  "events",
  "external_services",
@@ -6720,6 +6782,7 @@ dependencies = [
  "ring 0.17.14",
  "router_derive",
  "router_env",
+ "rust-grpc-client",
  "rust-i18n",
  "rust_decimal",
  "rustc-hash 1.1.0",
@@ -6740,6 +6803,7 @@ dependencies = [
  "thiserror 1.0.69",
  "time",
  "tokio 1.45.1",
+ "tonic 0.13.1",
  "totp-rs",
  "tracing-futures",
  "unicode-segmentation",
@@ -6758,7 +6822,7 @@ version = "0.1.0"
 dependencies = [
  "common_utils",
  "diesel",
- "error-stack",
+ "error-stack 0.4.1",
  "indexmap 2.9.0",
  "proc-macro2",
  "quote",
@@ -6774,9 +6838,9 @@ dependencies = [
 name = "router_env"
 version = "0.1.0"
 dependencies = [
- "cargo_metadata",
+ "cargo_metadata 0.18.1",
  "config",
- "error-stack",
+ "error-stack 0.4.1",
  "gethostname",
  "opentelemetry",
  "opentelemetry-aws",
@@ -6822,6 +6886,14 @@ dependencies = [
  "spki 0.7.3",
  "subtle",
  "zeroize",
+]
+
+[[package]]
+name = "rust-grpc-client"
+version = "0.1.0"
+source = "git+https://github.com/juspay/connector-service?rev=eea707db7729508c152b8648741c7147efcc1cef#eea707db7729508c152b8648741c7147efcc1cef"
+dependencies = [
+ "grpc-api-types",
 ]
 
 [[package]]
@@ -7193,7 +7265,7 @@ dependencies = [
  "common_types",
  "common_utils",
  "diesel_models",
- "error-stack",
+ "error-stack 0.4.1",
  "external_services",
  "futures 0.3.31",
  "hyperswitch_domain_models",
@@ -8022,7 +8094,7 @@ dependencies = [
  "diesel",
  "diesel_models",
  "dyn-clone",
- "error-stack",
+ "error-stack 0.4.1",
  "futures 0.3.31",
  "hyperswitch_domain_models",
  "masking",
@@ -8915,6 +8987,20 @@ dependencies = [
 ]
 
 [[package]]
+name = "tonic-build"
+version = "0.13.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "eac6f67be712d12f0b41328db3137e0d0757645d8904b4cb7d51cd9c2279e847"
+dependencies = [
+ "prettyplease",
+ "proc-macro2",
+ "prost-build",
+ "prost-types",
+ "quote",
+ "syn 2.0.101",
+]
+
+[[package]]
 name = "tonic-reflection"
 version = "0.13.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -8924,7 +9010,7 @@ dependencies = [
  "prost-types",
  "tokio 1.45.1",
  "tokio-stream",
- "tonic 0.13.1",
+ "tonic 0.12.3",
 ]
 
 [[package]]
@@ -8935,7 +9021,7 @@ checksum = "07439468da24d5f211d3f3bd7b63665d8f45072804457e838a87414a478e2db8"
 dependencies = [
  "prost",
  "prost-types",
- "tonic 0.13.1",
+ "tonic 0.12.3",
 ]
 
 [[package]]
@@ -9440,7 +9526,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "2990d9ea5967266ea0ccf413a4aa5c42a93dbcfda9cb49a97de6931726b12566"
 dependencies = [
  "anyhow",
- "cargo_metadata",
+ "cargo_metadata 0.18.1",
  "cfg-if 1.0.0",
  "git2",
  "regex",
