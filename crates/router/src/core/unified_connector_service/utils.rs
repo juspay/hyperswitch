@@ -31,7 +31,6 @@ pub async fn should_call_unified_connector_service<F: Clone, T>(
     merchant_connector_account: MerchantConnectorAccountType,
     router_data: &RouterData<F, T, PaymentsResponseData>,
 ) -> RouterResult<Option<PaymentServiceClient<tonic::transport::Channel>>> {
-
     let merchant_id = merchant_context
         .get_merchant_account()
         .get_id()
