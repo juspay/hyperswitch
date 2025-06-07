@@ -205,7 +205,9 @@ Never share your secret api keys. Keep them guarded and secure.
 
         // Routes for profile acquirer account
         routes::profile_acquirer::profile_acquirer_create,
-        routes::profile_acquirer::profile_acquirer_list,
+
+        // Routes for 3DS Decision Rule
+        routes::three_ds_decision_rule::three_ds_decision_rule_execute,
     ),
     components(schemas(
         common_utils::types::MinorUnit,
@@ -240,6 +242,13 @@ Never share your secret api keys. Keep them guarded and secure.
         common_types::payments::StripeChargeResponseData,
         common_types::three_ds_decision_rule_engine::ThreeDSDecisionRule,
         common_types::three_ds_decision_rule_engine::ThreeDSDecision,
+        api_models::three_ds_decision_rule::ThreeDsDecisionRuleExecuteRequest,
+        api_models::three_ds_decision_rule::ThreeDsDecisionRuleExecuteResponse,
+        api_models::three_ds_decision_rule::PaymentData,
+        api_models::three_ds_decision_rule::PaymentMethodMetaData,
+        api_models::three_ds_decision_rule::CustomerDeviceData,
+        api_models::three_ds_decision_rule::IssuerData,
+        api_models::three_ds_decision_rule::AcquirerData,
         api_models::refunds::RefundRequest,
         api_models::refunds::RefundType,
         api_models::refunds::RefundResponse,
@@ -317,6 +326,7 @@ Never share your secret api keys. Keep them guarded and secure.
         api_models::enums::DisputeStage,
         api_models::enums::DisputeStatus,
         api_models::enums::CountryAlpha2,
+        api_models::enums::Country,
         api_models::enums::CountryAlpha3,
         api_models::enums::FieldType,
         api_models::enums::FrmAction,
@@ -471,6 +481,7 @@ Never share your secret api keys. Keep them guarded and secure.
         api_models::payments::ClickToPaySessionResponse,
         api_models::enums::ProductType,
         api_models::enums::MerchantAccountType,
+        api_models::enums::MerchantAccountRequestType,
         api_models::payments::GooglePayWalletData,
         api_models::payments::PayPalWalletData,
         api_models::payments::PaypalRedirection,
@@ -768,6 +779,9 @@ Never share your secret api keys. Keep them guarded and secure.
         api_models::open_router::DecisionEngineEliminationData,
         api_models::profile_acquirer::ProfileAcquirerCreate,
         api_models::profile_acquirer::ProfileAcquirerResponse,
+        euclid::frontend::dir::enums::CustomerDevicePlatform,
+        euclid::frontend::dir::enums::CustomerDeviceType,
+        euclid::frontend::dir::enums::CustomerDeviceDisplaySize,
     )),
     modifiers(&SecurityAddon)
 )]

@@ -5741,30 +5741,36 @@
         ]
       }
     },
-    "/profile_acquirers/{profile_id}": {
-      "get": {
+    "/three_ds_decision/execute": {
+      "post": {
         "tags": [
-          "Profile Acquirer"
+          "3DS Decision Rule"
         ],
-        "summary": "Profile Acquirer - List",
-        "description": "List all Profile Acquirers for a specific Profile.",
-        "operationId": "List Profile Acquirers",
+        "summary": "3DS Decision - Execute",
+        "operationId": "Execute 3DS Decision Rule",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ThreeDsDecisionRuleExecuteRequest"
+              }
+            }
+          },
+          "required": true
+        },
         "responses": {
           "200": {
-            "description": "Profile Acquirers listed",
+            "description": "3DS Decision Rule Executed Successfully",
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "array",
-                  "items": {
-                    "$ref": "#/components/schemas/ProfileAcquirerResponse"
-                  }
+                  "$ref": "#/components/schemas/ThreeDsDecisionRuleExecuteResponse"
                 }
               }
             }
           },
           "400": {
-            "description": "Invalid data"
+            "description": "Bad Request"
           }
         },
         "security": [
@@ -6090,6 +6096,24 @@
         "description": "Acquirer configs",
         "additionalProperties": {
           "$ref": "#/components/schemas/AcquirerConfig"
+        }
+      },
+      "AcquirerData": {
+        "type": "object",
+        "description": "Represents data about the acquirer used in the 3DS decision rule.",
+        "required": [
+          "country"
+        ],
+        "properties": {
+          "country": {
+            "$ref": "#/components/schemas/Country"
+          },
+          "fraud_rate": {
+            "type": "number",
+            "format": "double",
+            "description": "The fraud rate associated with the acquirer.",
+            "nullable": true
+          }
         }
       },
       "AdditionalMerchantData": {
@@ -10053,6 +10077,7 @@
           "gpayments",
           "hipay",
           "helcim",
+          "hyperswitch_vault",
           "inespay",
           "iatapay",
           "itaubank",
@@ -10100,6 +10125,7 @@
           "wise",
           "worldline",
           "worldpay",
+          "worldpayvantiv",
           "worldpayxml",
           "signifyd",
           "plaid",
@@ -10408,6 +10434,260 @@
         "enum": [
           "day",
           "month"
+        ]
+      },
+      "Country": {
+        "type": "string",
+        "enum": [
+          "Afghanistan",
+          "AlandIslands",
+          "Albania",
+          "Algeria",
+          "AmericanSamoa",
+          "Andorra",
+          "Angola",
+          "Anguilla",
+          "Antarctica",
+          "AntiguaAndBarbuda",
+          "Argentina",
+          "Armenia",
+          "Aruba",
+          "Australia",
+          "Austria",
+          "Azerbaijan",
+          "Bahamas",
+          "Bahrain",
+          "Bangladesh",
+          "Barbados",
+          "Belarus",
+          "Belgium",
+          "Belize",
+          "Benin",
+          "Bermuda",
+          "Bhutan",
+          "BoliviaPlurinationalState",
+          "BonaireSintEustatiusAndSaba",
+          "BosniaAndHerzegovina",
+          "Botswana",
+          "BouvetIsland",
+          "Brazil",
+          "BritishIndianOceanTerritory",
+          "BruneiDarussalam",
+          "Bulgaria",
+          "BurkinaFaso",
+          "Burundi",
+          "CaboVerde",
+          "Cambodia",
+          "Cameroon",
+          "Canada",
+          "CaymanIslands",
+          "CentralAfricanRepublic",
+          "Chad",
+          "Chile",
+          "China",
+          "ChristmasIsland",
+          "CocosKeelingIslands",
+          "Colombia",
+          "Comoros",
+          "Congo",
+          "CongoDemocraticRepublic",
+          "CookIslands",
+          "CostaRica",
+          "CotedIvoire",
+          "Croatia",
+          "Cuba",
+          "Curacao",
+          "Cyprus",
+          "Czechia",
+          "Denmark",
+          "Djibouti",
+          "Dominica",
+          "DominicanRepublic",
+          "Ecuador",
+          "Egypt",
+          "ElSalvador",
+          "EquatorialGuinea",
+          "Eritrea",
+          "Estonia",
+          "Ethiopia",
+          "FalklandIslandsMalvinas",
+          "FaroeIslands",
+          "Fiji",
+          "Finland",
+          "France",
+          "FrenchGuiana",
+          "FrenchPolynesia",
+          "FrenchSouthernTerritories",
+          "Gabon",
+          "Gambia",
+          "Georgia",
+          "Germany",
+          "Ghana",
+          "Gibraltar",
+          "Greece",
+          "Greenland",
+          "Grenada",
+          "Guadeloupe",
+          "Guam",
+          "Guatemala",
+          "Guernsey",
+          "Guinea",
+          "GuineaBissau",
+          "Guyana",
+          "Haiti",
+          "HeardIslandAndMcDonaldIslands",
+          "HolySee",
+          "Honduras",
+          "HongKong",
+          "Hungary",
+          "Iceland",
+          "India",
+          "Indonesia",
+          "IranIslamicRepublic",
+          "Iraq",
+          "Ireland",
+          "IsleOfMan",
+          "Israel",
+          "Italy",
+          "Jamaica",
+          "Japan",
+          "Jersey",
+          "Jordan",
+          "Kazakhstan",
+          "Kenya",
+          "Kiribati",
+          "KoreaDemocraticPeoplesRepublic",
+          "KoreaRepublic",
+          "Kuwait",
+          "Kyrgyzstan",
+          "LaoPeoplesDemocraticRepublic",
+          "Latvia",
+          "Lebanon",
+          "Lesotho",
+          "Liberia",
+          "Libya",
+          "Liechtenstein",
+          "Lithuania",
+          "Luxembourg",
+          "Macao",
+          "MacedoniaTheFormerYugoslavRepublic",
+          "Madagascar",
+          "Malawi",
+          "Malaysia",
+          "Maldives",
+          "Mali",
+          "Malta",
+          "MarshallIslands",
+          "Martinique",
+          "Mauritania",
+          "Mauritius",
+          "Mayotte",
+          "Mexico",
+          "MicronesiaFederatedStates",
+          "MoldovaRepublic",
+          "Monaco",
+          "Mongolia",
+          "Montenegro",
+          "Montserrat",
+          "Morocco",
+          "Mozambique",
+          "Myanmar",
+          "Namibia",
+          "Nauru",
+          "Nepal",
+          "Netherlands",
+          "NewCaledonia",
+          "NewZealand",
+          "Nicaragua",
+          "Niger",
+          "Nigeria",
+          "Niue",
+          "NorfolkIsland",
+          "NorthernMarianaIslands",
+          "Norway",
+          "Oman",
+          "Pakistan",
+          "Palau",
+          "PalestineState",
+          "Panama",
+          "PapuaNewGuinea",
+          "Paraguay",
+          "Peru",
+          "Philippines",
+          "Pitcairn",
+          "Poland",
+          "Portugal",
+          "PuertoRico",
+          "Qatar",
+          "Reunion",
+          "Romania",
+          "RussianFederation",
+          "Rwanda",
+          "SaintBarthelemy",
+          "SaintHelenaAscensionAndTristandaCunha",
+          "SaintKittsAndNevis",
+          "SaintLucia",
+          "SaintMartinFrenchpart",
+          "SaintPierreAndMiquelon",
+          "SaintVincentAndTheGrenadines",
+          "Samoa",
+          "SanMarino",
+          "SaoTomeAndPrincipe",
+          "SaudiArabia",
+          "Senegal",
+          "Serbia",
+          "Seychelles",
+          "SierraLeone",
+          "Singapore",
+          "SintMaartenDutchpart",
+          "Slovakia",
+          "Slovenia",
+          "SolomonIslands",
+          "Somalia",
+          "SouthAfrica",
+          "SouthGeorgiaAndTheSouthSandwichIslands",
+          "SouthSudan",
+          "Spain",
+          "SriLanka",
+          "Sudan",
+          "Suriname",
+          "SvalbardAndJanMayen",
+          "Swaziland",
+          "Sweden",
+          "Switzerland",
+          "SyrianArabRepublic",
+          "TaiwanProvinceOfChina",
+          "Tajikistan",
+          "TanzaniaUnitedRepublic",
+          "Thailand",
+          "TimorLeste",
+          "Togo",
+          "Tokelau",
+          "Tonga",
+          "TrinidadAndTobago",
+          "Tunisia",
+          "Turkey",
+          "Turkmenistan",
+          "TurksAndCaicosIslands",
+          "Tuvalu",
+          "Uganda",
+          "Ukraine",
+          "UnitedArabEmirates",
+          "UnitedKingdomOfGreatBritainAndNorthernIreland",
+          "UnitedStatesOfAmerica",
+          "UnitedStatesMinorOutlyingIslands",
+          "Uruguay",
+          "Uzbekistan",
+          "Vanuatu",
+          "VenezuelaBolivarianRepublic",
+          "Vietnam",
+          "VirginIslandsBritish",
+          "VirginIslandsUS",
+          "WallisAndFutuna",
+          "WesternSahara",
+          "Yemen",
+          "Zambia",
+          "Zimbabwe"
         ]
       },
       "CountryAlpha2": {
@@ -11427,6 +11707,78 @@
             "maxLength": 2
           }
         }
+      },
+      "CustomerDeviceData": {
+        "type": "object",
+        "description": "Represents data about the customer's device used in the 3DS decision rule.",
+        "properties": {
+          "platform": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/CustomerDevicePlatform"
+              }
+            ],
+            "nullable": true
+          },
+          "device_type": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/CustomerDeviceType"
+              }
+            ],
+            "nullable": true
+          },
+          "display_size": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/CustomerDeviceDisplaySize"
+              }
+            ],
+            "nullable": true
+          }
+        }
+      },
+      "CustomerDeviceDisplaySize": {
+        "type": "string",
+        "enum": [
+          "size320x568",
+          "size375x667",
+          "size390x844",
+          "size414x896",
+          "size428x926",
+          "size768x1024",
+          "size834x1112",
+          "size834x1194",
+          "size1024x1366",
+          "size1280x720",
+          "size1366x768",
+          "size1440x900",
+          "size1920x1080",
+          "size2560x1440",
+          "size3840x2160",
+          "size500x600",
+          "size600x400",
+          "size360x640",
+          "size412x915",
+          "size800x1280"
+        ]
+      },
+      "CustomerDevicePlatform": {
+        "type": "string",
+        "enum": [
+          "web",
+          "android",
+          "ios"
+        ]
+      },
+      "CustomerDeviceType": {
+        "type": "string",
+        "enum": [
+          "mobile",
+          "tablet",
+          "desktop",
+          "gaming_console"
+        ]
       },
       "CustomerPaymentMethod": {
         "type": "object",
@@ -14306,6 +14658,23 @@
           "partially_captured_and_capturable"
         ]
       },
+      "IssuerData": {
+        "type": "object",
+        "description": "Represents data about the issuer used in the 3DS decision rule.",
+        "required": [
+          "country"
+        ],
+        "properties": {
+          "name": {
+            "type": "string",
+            "description": "The name of the issuer.",
+            "nullable": true
+          },
+          "country": {
+            "$ref": "#/components/schemas/Country"
+          }
+        }
+      },
       "JCSVoucherData": {
         "type": "object",
         "properties": {
@@ -14849,6 +15218,14 @@
               }
             ],
             "nullable": true
+          },
+          "merchant_account_type": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/MerchantAccountRequestType"
+              }
+            ],
+            "nullable": true
           }
         },
         "additionalProperties": false
@@ -14934,6 +15311,13 @@
             "example": false
           }
         }
+      },
+      "MerchantAccountRequestType": {
+        "type": "string",
+        "enum": [
+          "standard",
+          "connected"
+        ]
       },
       "MerchantAccountResponse": {
         "type": "object",
@@ -17504,6 +17888,24 @@
         ],
         "description": "Configure a custom payment link for the particular payment"
       },
+      "PaymentData": {
+        "type": "object",
+        "description": "Represents the payment data used in the 3DS decision rule.",
+        "required": [
+          "amount",
+          "currency"
+        ],
+        "properties": {
+          "amount": {
+            "type": "integer",
+            "format": "int64",
+            "description": "The amount of the payment in minor units (e.g., cents for USD)."
+          },
+          "currency": {
+            "$ref": "#/components/schemas/Currency"
+          }
+        }
+      },
       "PaymentExperience": {
         "type": "string",
         "description": "To indicate the type of payment experience that the customer would go through",
@@ -18879,6 +19281,18 @@
           }
         }
       },
+      "PaymentMethodMetaData": {
+        "type": "object",
+        "description": "Represents metadata about the payment method used in the 3DS decision rule.",
+        "required": [
+          "card_network"
+        ],
+        "properties": {
+          "card_network": {
+            "$ref": "#/components/schemas/CardNetwork"
+          }
+        }
+      },
       "PaymentMethodResponse": {
         "type": "object",
         "required": [
@@ -19471,7 +19885,8 @@
             "type": "string",
             "description": "The URL to which you want the user to be redirected after the completion of the payment operation",
             "example": "https://hyperswitch.io",
-            "nullable": true
+            "nullable": true,
+            "maxLength": 2048
           },
           "setup_future_usage": {
             "allOf": [
@@ -19880,7 +20295,8 @@
             "type": "string",
             "description": "The URL to which you want the user to be redirected after the completion of the payment operation",
             "example": "https://hyperswitch.io",
-            "nullable": true
+            "nullable": true,
+            "maxLength": 2048
           },
           "setup_future_usage": {
             "allOf": [
@@ -21147,7 +21563,8 @@
             "type": "string",
             "description": "The URL to which you want the user to be redirected after the completion of the payment operation",
             "example": "https://hyperswitch.io",
-            "nullable": true
+            "nullable": true,
+            "maxLength": 2048
           },
           "setup_future_usage": {
             "allOf": [
@@ -22367,7 +22784,8 @@
             "type": "string",
             "description": "The URL to which you want the user to be redirected after the completion of the payment operation",
             "example": "https://hyperswitch.io",
-            "nullable": true
+            "nullable": true,
+            "maxLength": 2048
           },
           "setup_future_usage": {
             "allOf": [
@@ -26353,6 +26771,7 @@
           "wise",
           "worldline",
           "worldpay",
+          "worldpayvantiv",
           "worldpayxml",
           "xendit",
           "zen",
@@ -27949,6 +28368,68 @@
             "type": "string",
             "description": "Directory Server ID",
             "nullable": true
+          }
+        }
+      },
+      "ThreeDsDecisionRuleExecuteRequest": {
+        "type": "object",
+        "description": "Represents the request to execute a 3DS decision rule.",
+        "required": [
+          "routing_id",
+          "payment"
+        ],
+        "properties": {
+          "routing_id": {
+            "type": "string",
+            "description": "The ID of the routing algorithm to be executed."
+          },
+          "payment": {
+            "$ref": "#/components/schemas/PaymentData"
+          },
+          "payment_method": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PaymentMethodMetaData"
+              }
+            ],
+            "nullable": true
+          },
+          "customer_device": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/CustomerDeviceData"
+              }
+            ],
+            "nullable": true
+          },
+          "issuer": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/IssuerData"
+              }
+            ],
+            "nullable": true
+          },
+          "acquirer": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/AcquirerData"
+              }
+            ],
+            "nullable": true
+          }
+        },
+        "additionalProperties": false
+      },
+      "ThreeDsDecisionRuleExecuteResponse": {
+        "type": "object",
+        "description": "Represents the response from executing a 3DS decision rule.",
+        "required": [
+          "decision"
+        ],
+        "properties": {
+          "decision": {
+            "$ref": "#/components/schemas/ThreeDSDecision"
           }
         }
       },
