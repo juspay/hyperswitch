@@ -1,0 +1,24 @@
+{
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "https://sandbox.juspay.in",
+      "type": "string"
+    },
+    {
+      "key": "order_id",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "api_key",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "mandate_id",
+      "value": "",
+      "type": "string"
+    }
+  ]
+}

@@ -1,0 +1,95 @@
+{
+  "method": "POST",
+  "header": [
+    {
+      "key": "Content-Type",
+      "value": "application/x-www-form-urlencoded"
+    }
+  ],
+  "body": {
+    "mode": "urlencoded",
+    "urlencoded": [
+      {
+        "key": "order_id",
+        "value": "{{order_id}}",
+        "type": "text"
+      },
+      {
+        "key": "merchant_id",
+        "value": "global_installment",
+        "type": "text"
+      },
+      {
+        "key": "payment_method_type",
+        "value": "CARD",
+        "type": "text"
+      },
+      {
+        "key": "payment_method",
+        "value": "VISA",
+        "type": "text"
+      },
+      {
+        "key": "card_number",
+        "value": "4456530000001096",
+        "type": "text"
+      },
+      {
+        "key": "card_exp_month",
+        "value": "04",
+        "type": "text"
+      },
+      {
+        "key": "card_exp_year",
+        "value": "2030",
+        "type": "text"
+      },
+      {
+        "key": "name_on_card",
+        "value": "Malav Shah",
+        "type": "text"
+      },
+      {
+        "key": "card_security_code",
+        "value": "100",
+        "type": "text"
+      },
+      {
+        "key": "should_create_mandate",
+        "value": "true",
+        "type": "text"
+      },
+      {
+        "key": "save_to_locker",
+        "value": "true",
+        "type": "text"
+      },
+      {
+        "key": "redirect_after_payment",
+        "value": "true",
+        "type": "text"
+      },
+      {
+        "key": "format",
+        "value": "json",
+        "type": "text"
+      },
+      {
+        "key": "auth_type",
+        "value": "THREE_DS",
+        "type": "text"
+      },
+      {
+        "key": "mandate_type",
+        "value": "MANDATE",
+        "type": "text"
+      },
+      {
+        "key": "metadata.JUSPAY:gateway_reference_id",
+        "value": "noon-mandate",
+        "type": "text"
+      }
+    ]
+  },
+  "url": "https://sandbox.juspay.in/txns"
+}

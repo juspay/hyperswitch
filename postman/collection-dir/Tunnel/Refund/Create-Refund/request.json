@@ -1,0 +1,26 @@
+{
+  "method": "POST",
+  "header": [
+    {
+      "key": "Content-Type",
+      "value": "application/json",
+      "type": "text"
+    }
+  ],
+  "body": {
+    "mode": "urlencoded",
+    "urlencoded": [
+      {
+        "key": "unique_request_id",
+        "value": "refund__{{$isoTimestamp}}",
+        "type": "text"
+      },
+      {
+        "key": "amount",
+        "value": "1",
+        "type": "text"
+      }
+    ]
+  },
+  "url": "https://sandbox.juspay.in/orders/{{order_id}}/refunds"
+}
