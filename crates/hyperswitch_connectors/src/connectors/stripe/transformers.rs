@@ -1999,7 +1999,15 @@ impl TryFrom<(&PaymentsAuthorizeRouterData, MinorUnit)> for PaymentIntentRequest
             customer: Some(Secret::new(customer_id)),
             setup_mandate_details,
             off_session: item.request.off_session,
-            setup_future_usage,
+            setup_future_usage: match (
+                item.request.split_payments.as_ref(),
+                item.request.setup_future_usage,
+                item.request.customer_acceptance.as_ref(),
+            ) {
+                (Some(_), Some(usage), Some(_)) => Some(usage),
+                _ => setup_future_usage,
+            },
+
             payment_method_types,
             expand: Some(ExpandableObjects::LatestCharge),
             browser_info,
