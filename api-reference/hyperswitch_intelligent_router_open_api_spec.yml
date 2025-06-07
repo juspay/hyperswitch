@@ -45,6 +45,7 @@ paths:
                 default_success_rate: 0.95
                 specificity_level: ENTITY
                 exploration_percent: 20.0
+                shuffle_on_tie_during_exploitation: true
       responses:
         "200":
           description: Success rate calculated successfully
