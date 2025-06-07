@@ -150,6 +150,7 @@ impl DashboardRequestPayload {
                     | PaymentMethod::GiftCard
                     | PaymentMethod::OpenBanking
                     | PaymentMethod::CardRedirect
+                    | PaymentMethod::ExternalProxyCardData
                     | PaymentMethod::MobilePayment => {
                         if let Some(provider) = payload.provider {
                             let val = Self::transform_payment_method(

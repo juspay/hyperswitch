@@ -31,6 +31,7 @@ pub enum CardType {
     Debit,
     #[cfg(feature = "v2")]
     Card,
+    Proxy,
 }
 
 #[derive(

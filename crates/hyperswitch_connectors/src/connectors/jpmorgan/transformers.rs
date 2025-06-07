@@ -197,6 +197,7 @@ impl TryFrom<&JpmorganRouterData<&PaymentsAuthorizeRouterData>> for JpmorganPaym
             | PaymentMethodData::GiftCard(_)
             | PaymentMethodData::OpenBanking(_)
             | PaymentMethodData::CardToken(_)
+            | PaymentMethodData::ExternalProxyCardData(_)
             | PaymentMethodData::NetworkToken(_) => Err(errors::ConnectorError::NotImplemented(
                 get_unimplemented_payment_method_error_message("jpmorgan"),
             )

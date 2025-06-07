@@ -18,6 +18,7 @@ impl From<enums::CardType> for global_enums::PaymentMethodType {
             enums::CardType::Debit => Self::Debit,
             #[cfg(feature = "v2")]
             enums::CardType::Card => Self::Card,
+            enums::CardType::Proxy => Self::ProxyCard,
         }
     }
 }
