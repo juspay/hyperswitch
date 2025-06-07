@@ -280,3 +280,9 @@ pub enum RecoveryError {
     #[error("Failed to fetch billing connector account id")]
     BillingMerchantConnectorAccountIdNotFound,
 }
+
+#[derive(Debug, Clone, thiserror::Error)]
+pub enum HealthCheckDecisionEngineError {
+    #[error("Failed to establish Decision Engine connection")]
+    FailedToCallDecisionEngineService,
+}
