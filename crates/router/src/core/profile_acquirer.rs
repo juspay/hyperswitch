@@ -31,11 +31,11 @@ pub async fn create_profile_acquirer(
             id: request.profile_id.get_string_repr().to_owned(),
         })?;
 
-    let incoming_acquirer_config_to_check = common_types::domain::AcquirerConfig {
+    let incoming_acquirer_config = common_types::domain::AcquirerConfig {
         acquirer_assigned_merchant_id: request.acquirer_assigned_merchant_id.clone(),
         merchant_name: request.merchant_name.clone(),
         mcc: request.mcc.clone(),
-        merchant_country_code: request.merchant_country_code.clone(),
+        merchant_country_code: request.merchant_country_code,
         network: request.network.clone(),
         acquirer_bin: request.acquirer_bin.clone(),
         acquirer_ica: request.acquirer_ica.clone(),
@@ -48,21 +48,19 @@ pub async fn create_profile_acquirer(
         .acquirer_configs
         .as_ref()
         .map_or(Ok(()), |configs_wrapper| {
-            match configs_wrapper.0.values().any(|existing_config| existing_config == &incoming_acquirer_config_to_check) {
+            match configs_wrapper.0.values().any(|existing_config| existing_config == &incoming_acquirer_config) {
                 true => Err(error_stack::report!(
                     errors::ApiErrorResponse::GenericDuplicateError {
                         message: format!(
                             "Duplicate acquirer configuration found for profile_id: {}. Conflicting configuration: {:?}",
                             request.profile_id.get_string_repr(),
-                            incoming_acquirer_config_to_check
+                            incoming_acquirer_config
                         ),
                     }
                 )),
                 false => Ok(()),
             }
         })?;
-
-    let new_acquirer_config_data = incoming_acquirer_config_to_check;
 
     // Get a mutable reference to the HashMap inside AcquirerConfigs,
     // initializing if it's None or the inner HashMap is not present.
@@ -75,7 +73,7 @@ pub async fn create_profile_acquirer(
 
     configs_map.insert(
         profile_acquirer_id.clone(),
-        new_acquirer_config_data.clone(),
+        incoming_acquirer_config.clone(),
     );
 
     let profile_update = domain::ProfileUpdate::AcquirerConfigsUpdate {
@@ -107,7 +105,7 @@ pub async fn create_profile_acquirer(
             .clone(),
         merchant_name: updated_acquire_details.merchant_name.clone(),
         mcc: updated_acquire_details.mcc.clone(),
-        merchant_country_code: updated_acquire_details.merchant_country_code.clone(),
+        merchant_country_code: updated_acquire_details.merchant_country_code,
         network: updated_acquire_details.network.clone(),
         acquirer_bin: updated_acquire_details.acquirer_bin.clone(),
         acquirer_ica: updated_acquire_details.acquirer_ica.clone(),

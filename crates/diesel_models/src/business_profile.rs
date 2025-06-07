@@ -380,6 +380,7 @@ pub struct Profile {
     pub id: common_utils::id_type::ProfileId,
     pub is_iframe_redirection_enabled: Option<bool>,
     pub three_ds_decision_rule_algorithm: Option<serde_json::Value>,
+    pub acquirer_configs: Option<common_types::domain::AcquirerConfigs>,
     pub routing_algorithm_id: Option<common_utils::id_type::RoutingId>,
     pub order_fulfillment_time: Option<i64>,
     pub order_fulfillment_time_origin: Option<common_enums::OrderFulfillmentTimeOrigin>,
@@ -669,6 +670,7 @@ impl ProfileUpdateInternal {
             external_vault_connector_details: external_vault_connector_details
                 .or(source.external_vault_connector_details),
             three_ds_decision_rule_algorithm: None,
+            acquirer_configs: None,
         }
     }
 }
