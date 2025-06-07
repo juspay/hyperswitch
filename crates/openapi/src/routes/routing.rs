@@ -339,7 +339,7 @@ pub async fn toggle_elimination_routing() {}
 /// Create a Contract based dynamic routing algorithm
 #[utoipa::path(
     post,
-    path = "/account/:account_id/business_profile/:profile_id/dynamic_routing/contracts/toggle",
+    path = "/account/{account_id}/business_profile/{profile_id}/dynamic_routing/contracts/toggle",
     params(
         ("account_id" = String, Path, description = "Merchant id"),
         ("profile_id" = String, Path, description = "Profile id under which Dynamic routing needs to be toggled"),
