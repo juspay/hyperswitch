@@ -30,6 +30,7 @@ pub struct RoutingAlgorithmMetadata {
     pub algorithm_for: enums::TransactionType,
 }
 
+#[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct RoutingProfileMetadata {
     pub profile_id: id_type::ProfileId,
     pub algorithm_id: id_type::RoutingId,
