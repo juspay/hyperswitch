@@ -1,6 +1,7 @@
 [package]
 name = "hyperswitch_connectors"
 version = "0.1.0"
+workspace = "../../../"
 edition.workspace = true
 rust-version.workspace = true
 license.workspace = true
@@ -53,15 +54,15 @@ lazy_static = "1.4.0"
 unicode-normalization = "0.1.21"
 html-escape = "0.2"
 # First party crates
-api_models = { version = "0.1.0", path = "../api_models", features = ["errors"], default-features = false }
-cards = { version = "0.1.0", path = "../cards" }
-common_enums = { version = "0.1.0", path = "../common_enums" }
-common_types = { version = "0.1.0", path = "../common_types" }
-common_utils = { version = "0.1.0", path = "../common_utils", features = ["async_ext", "logs", "metrics", "crypto_openssl"] }
-hyperswitch_domain_models = { version = "0.1.0", path = "../hyperswitch_domain_models", default-features = false }
-hyperswitch_interfaces = { version = "0.1.0", path = "../hyperswitch_interfaces", default-features = false }
-masking = { version = "0.1.0", path = "../masking" }
-router_env = { version = "0.1.0", path = "../router_env", features = ["log_extra_implicit_fields", "log_custom_entries_to_extra"] }
+api_models = { version = "0.1.0", path = "../../api_models", features = ["errors"], default-features = false }
+cards = { version = "0.1.0", path = "../../cards" }
+common_enums = { version = "0.1.0", path = "../../common_enums" }
+common_types = { version = "0.1.0", path = "../../common_types" }
+common_utils = { version = "0.1.0", path = "../../common_utils", features = ["async_ext", "logs", "metrics", "crypto_openssl"] }
+hyperswitch_domain_models = { version = "0.1.0", path = "../../hyperswitch_domain_models", default-features = false }
+hyperswitch_interfaces = { version = "0.1.0", path = "../../hyperswitch_interfaces", default-features = false }
+masking = { version = "0.1.0", path = "../../masking" }
+router_env = { version = "0.1.0", path = "../../router_env", features = ["log_extra_implicit_fields", "log_custom_entries_to_extra"] }
 
 [lints]
 workspace = true
