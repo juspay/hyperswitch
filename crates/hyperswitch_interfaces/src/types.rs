@@ -10,7 +10,7 @@ use hyperswitch_domain_models::{
         mandate_revoke::MandateRevoke,
         payments::{
             Authorize, AuthorizeSessionToken, Balance, CalculateTax, Capture, CompleteAuthorize,
-            CreateConnectorCustomer, IncrementalAuthorization, InitPayment, PSync,
+            CreateConnectorCustomer, CreateOrder, IncrementalAuthorization, InitPayment, PSync,
             PaymentMethodToken, PostProcessing, PostSessionTokens, PreProcessing, SdkSessionUpdate,
             Session, SetupMandate, UpdateMetadata, Void,
         },
@@ -37,14 +37,15 @@ use hyperswitch_domain_models::{
             UasPreAuthenticationRequestData,
         },
         AcceptDisputeRequestData, AccessTokenRequestData, AuthorizeSessionTokenData,
-        CompleteAuthorizeData, ConnectorCustomerData, DefendDisputeRequestData,
-        MandateRevokeRequestData, PaymentMethodTokenizationData, PaymentsAuthorizeData,
-        PaymentsCancelData, PaymentsCaptureData, PaymentsIncrementalAuthorizationData,
-        PaymentsPostProcessingData, PaymentsPostSessionTokensData, PaymentsPreProcessingData,
-        PaymentsSessionData, PaymentsSyncData, PaymentsTaxCalculationData,
-        PaymentsUpdateMetadataData, RefundsData, RetrieveFileRequestData,
-        SdkPaymentsSessionUpdateData, SetupMandateRequestData, SubmitEvidenceRequestData,
-        UploadFileRequestData, VaultRequestData, VerifyWebhookSourceRequestData,
+        CompleteAuthorizeData, ConnectorCustomerData, CreateOrderRequestData,
+        DefendDisputeRequestData, MandateRevokeRequestData, PaymentMethodTokenizationData,
+        PaymentsAuthorizeData, PaymentsCancelData, PaymentsCaptureData,
+        PaymentsIncrementalAuthorizationData, PaymentsPostProcessingData,
+        PaymentsPostSessionTokensData, PaymentsPreProcessingData, PaymentsSessionData,
+        PaymentsSyncData, PaymentsTaxCalculationData, PaymentsUpdateMetadataData, RefundsData,
+        RetrieveFileRequestData, SdkPaymentsSessionUpdateData, SetupMandateRequestData,
+        SubmitEvidenceRequestData, UploadFileRequestData, VaultRequestData,
+        VerifyWebhookSourceRequestData,
     },
     router_response_types::{
         revenue_recovery::{
@@ -103,6 +104,9 @@ pub type SetupMandateType =
 /// Type alias for `ConnectorIntegration<MandateRevoke, MandateRevokeRequestData, MandateRevokeResponseData>`
 pub type MandateRevokeType =
     dyn ConnectorIntegration<MandateRevoke, MandateRevokeRequestData, MandateRevokeResponseData>;
+/// Type alias for `ConnectorIntegration<CreateOrder, CreateOrderRequestData, PaymentsResponseData>`
+pub type CreateOrderType =
+    dyn ConnectorIntegration<CreateOrder, CreateOrderRequestData, PaymentsResponseData>;
 /// Type alias for `ConnectorIntegration<PreProcessing, PaymentsPreProcessingData, PaymentsResponseData>`
 pub type PaymentsPreProcessingType =
     dyn ConnectorIntegration<PreProcessing, PaymentsPreProcessingData, PaymentsResponseData>;

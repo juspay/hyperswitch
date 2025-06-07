@@ -1,18 +1,22 @@
 //! Payments interface
 
 use hyperswitch_domain_models::{
-    router_flow_types::payments::{
-        Approve, Authorize, AuthorizeSessionToken, CalculateTax, Capture, CompleteAuthorize,
-        CreateConnectorCustomer, IncrementalAuthorization, PSync, PaymentMethodToken,
-        PostProcessing, PostSessionTokens, PreProcessing, Reject, SdkSessionUpdate, Session,
-        SetupMandate, UpdateMetadata, Void,
+    router_flow_types::{
+        payments::{
+            Approve, Authorize, AuthorizeSessionToken, CalculateTax, Capture, CompleteAuthorize,
+            CreateConnectorCustomer, IncrementalAuthorization, PSync, PaymentMethodToken,
+            PostProcessing, PostSessionTokens, PreProcessing, Reject, SdkSessionUpdate, Session,
+            SetupMandate, UpdateMetadata, Void,
+        },
+        CreateOrder,
     },
     router_request_types::{
         AuthorizeSessionTokenData, CompleteAuthorizeData, ConnectorCustomerData,
-        PaymentMethodTokenizationData, PaymentsApproveData, PaymentsAuthorizeData,
-        PaymentsCancelData, PaymentsCaptureData, PaymentsIncrementalAuthorizationData,
-        PaymentsPostProcessingData, PaymentsPostSessionTokensData, PaymentsPreProcessingData,
-        PaymentsRejectData, PaymentsSessionData, PaymentsSyncData, PaymentsTaxCalculationData,
+        CreateOrderRequestData, PaymentMethodTokenizationData, PaymentsApproveData,
+        PaymentsAuthorizeData, PaymentsCancelData, PaymentsCaptureData,
+        PaymentsIncrementalAuthorizationData, PaymentsPostProcessingData,
+        PaymentsPostSessionTokensData, PaymentsPreProcessingData, PaymentsRejectData,
+        PaymentsSessionData, PaymentsSyncData, PaymentsTaxCalculationData,
         PaymentsUpdateMetadataData, SdkPaymentsSessionUpdateData, SetupMandateRequestData,
     },
     router_response_types::{PaymentsResponseData, TaxCalculationResponseData},
@@ -43,6 +47,7 @@ pub trait Payment:
     + PaymentSessionUpdate
     + PaymentPostSessionTokens
     + PaymentUpdateMetadata
+    + PaymentsCreateOrder
 {
 }
 
@@ -161,5 +166,11 @@ pub trait PaymentsPreProcessing:
 /// trait PaymentsPostProcessing
 pub trait PaymentsPostProcessing:
     api::ConnectorIntegration<PostProcessing, PaymentsPostProcessingData, PaymentsResponseData>
+{
+}
+
+/// trait PaymentsCreateOrder
+pub trait PaymentsCreateOrder:
+    api::ConnectorIntegration<CreateOrder, CreateOrderRequestData, PaymentsResponseData>
 {
 }

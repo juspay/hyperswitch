@@ -1061,7 +1061,16 @@ impl Default for RequiredFields {
                     enums::PaymentMethodType::UpiCollect,
                     connectors(vec![(
                         Connector::Razorpay,
-                        fields(vec![], vec![], vec![RequiredField::UpiCollectVpaId]),
+                        fields(
+                            vec![],
+                            vec![],
+                            vec![
+                                RequiredField::UpiCollectVpaId,
+                                RequiredField::Email,
+                                RequiredField::BillingPhone,
+                                RequiredField::BillingPhoneCountryCode,
+                            ],
+                        ),
                     )]),
                 )])),
             ),

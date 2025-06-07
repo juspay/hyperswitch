@@ -3322,6 +3322,10 @@ where
         &call_connector_action,
     );
 
+    let should_continue_further = router_data
+        .create_order_at_connector(state, &connector, should_continue_further)
+        .await?;
+
     let updated_customer = call_create_connector_customer_if_required(
         state,
         customer,
@@ -3504,6 +3508,17 @@ where
             id: merchant_connector_id.get_string_repr().to_owned(),
         })?;
 
+    operation
+        .to_domain()?
+        .populate_payment_data(
+            state,
+            payment_data,
+            merchant_context,
+            business_profile,
+            &connector,
+        )
+        .await?;
+
     let updated_customer = call_create_connector_customer_if_required(
         state,
         customer,
@@ -3541,6 +3556,10 @@ where
         &mut router_data,
         &call_connector_action,
     );
+
+    let should_continue_further = router_data
+        .create_order_at_connector(state, &connector, should_continue_further)
+        .await?;
 
     // In case of authorize flow, pre-task and post-tasks are being called in build request
     // if we do not want to proceed further, then the function will return Ok(None, false)
@@ -8610,6 +8629,9 @@ pub trait OperationSessionSetters<F> {
     fn set_vault_operation(&mut self, vault_operation: domain_payments::VaultOperation);
 
     #[cfg(feature = "v2")]
+    fn set_connector_request_reference_id(&mut self, reference_id: Option<String>);
+
+    #[cfg(feature = "v2")]
     fn set_vault_session_details(
         &mut self,
         external_vault_session_details: Option<api::VaultSessionDetails>,
@@ -9179,6 +9201,10 @@ impl<F: Clone> OperationSessionSetters<F> for PaymentIntentData<F> {
         todo!()
     }
 
+    fn set_connector_request_reference_id(&mut self, reference_id: Option<String>) {
+        todo!()
+    }
+
     fn set_vault_session_details(
         &mut self,
         vault_session_details: Option<api::VaultSessionDetails>,
@@ -9454,6 +9480,10 @@ impl<F: Clone> OperationSessionSetters<F> for PaymentConfirmData<F> {
         self.payment_attempt.connector = connector;
     }
 
+    fn set_connector_request_reference_id(&mut self, reference_id: Option<String>) {
+        self.payment_attempt.connector_request_reference_id = reference_id;
+    }
+
     fn set_vault_session_details(
         &mut self,
         external_vault_session_details: Option<api::VaultSessionDetails>,
@@ -9722,6 +9752,10 @@ impl<F: Clone> OperationSessionSetters<F> for PaymentStatusData<F> {
     }
 
     fn set_connector_in_payment_attempt(&mut self, connector: Option<String>) {
+        todo!()
+    }
+
+    fn set_connector_request_reference_id(&mut self, reference_id: Option<String>) {
         todo!()
     }
 
@@ -9994,6 +10028,10 @@ impl<F: Clone> OperationSessionSetters<F> for PaymentCaptureData<F> {
     }
 
     fn set_connector_in_payment_attempt(&mut self, connector: Option<String>) {
+        todo!()
+    }
+
+    fn set_connector_request_reference_id(&mut self, reference_id: Option<String>) {
         todo!()
     }
 
