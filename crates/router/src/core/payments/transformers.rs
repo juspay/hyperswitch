@@ -2,7 +2,7 @@ use std::{fmt::Debug, marker::PhantomData, str::FromStr};
 
 use api_models::payments::{
     Address, ConnectorMandateReferenceId, CustomerDetails, CustomerDetailsResponse, FrmMessage,
-    RequestSurchargeDetails,
+    MandateIds, RequestSurchargeDetails,
 };
 use common_enums::{Currency, RequestIncrementalAuthorization};
 use common_utils::{
@@ -3388,6 +3388,17 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsAuthoriz
     }
 }
 
+fn get_off_session(
+    mandate_id: Option<&MandateIds>,
+    off_session_flag: Option<bool>,
+) -> Option<bool> {
+    match (mandate_id, off_session_flag) {
+        (_, Some(false)) => Some(false),
+        (Some(_), _) | (_, Some(true)) => Some(true),
+        (None, None) => None,
+    }
+}
+
 #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
 impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsAuthorizeData {
     type Error = error_stack::Report<errors::ApiErrorResponse>;
@@ -3542,14 +3553,10 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsAuthoriz
             })
             .transpose()?
             .map(pii::SecretSerdeValue::new);
-        let is_off_session = match (
+        let is_off_session = get_off_session(
             payment_data.mandate_id.as_ref(),
             payment_data.payment_intent.off_session,
-        ) {
-            (_, Some(false)) => Some(false),
-            (Some(_), _) | (_, Some(true)) => Some(true),
-            (None, None) => None,
-        };
+        );
 
         Ok(Self {
             payment_method_data: (payment_method_data.get_required_value("payment_method_data")?),
@@ -4392,14 +4399,11 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::SetupMandateRequ
             })
             .transpose()?
             .map(pii::SecretSerdeValue::new);
-        let is_off_session = match (
+
+        let is_off_session = get_off_session(
             payment_data.mandate_id.as_ref(),
             payment_data.payment_intent.off_session,
-        ) {
-            (_, Some(false)) => Some(false),
-            (Some(_), _) | (_, Some(true)) => Some(true),
-            (None, None) => None,
-        };
+        );
 
         Ok(Self {
             currency: payment_data.currency,
@@ -4545,14 +4549,11 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::CompleteAuthoriz
             .and_then(|braintree| braintree.merchant_account_id.clone());
         let merchant_config_currency =
             braintree_metadata.and_then(|braintree| braintree.merchant_config_currency);
-        let is_off_session = match (
+
+        let is_off_session = get_off_session(
             payment_data.mandate_id.as_ref(),
             payment_data.payment_intent.off_session,
-        ) {
-            (_, Some(false)) => Some(false),
-            (Some(_), _) | (_, Some(true)) => Some(true),
-            (None, None) => None,
-        };
+        );
 
         Ok(Self {
             setup_future_usage: payment_data.payment_intent.setup_future_usage,
