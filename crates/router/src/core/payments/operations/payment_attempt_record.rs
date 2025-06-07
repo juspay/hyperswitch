@@ -81,6 +81,7 @@ impl ValidateStatusForOperation for PaymentAttemptRecord {
             common_enums::IntentStatus::Succeeded
             | common_enums::IntentStatus::Cancelled
             | common_enums::IntentStatus::Processing
+            | common_enums::IntentStatus::Conflicted
             | common_enums::IntentStatus::RequiresCustomerAction
             | common_enums::IntentStatus::RequiresMerchantAction
             | common_enums::IntentStatus::RequiresCapture

@@ -155,6 +155,7 @@ pub enum AttemptStatus {
     PaymentMethodAwaited,
     ConfirmationAwaited,
     DeviceDataCollectionPending,
+    IntegrityFailure,
 }
 
 impl AttemptStatus {
@@ -183,7 +184,8 @@ impl AttemptStatus {
             | Self::Pending
             | Self::PaymentMethodAwaited
             | Self::ConfirmationAwaited
-            | Self::DeviceDataCollectionPending => false,
+            | Self::DeviceDataCollectionPending
+            | Self::IntegrityFailure => false,
         }
     }
 }
@@ -1599,6 +1601,8 @@ pub enum IntentStatus {
     PartiallyCaptured,
     /// The payment has been captured partially and the remaining amount is capturable
     PartiallyCapturedAndCapturable,
+    /// There has been a discrepancy between the amount/currency sent in the request and the amount/currency received by the processor
+    Conflicted,
 }
 
 impl IntentStatus {
@@ -1612,7 +1616,8 @@ impl IntentStatus {
             | Self::RequiresPaymentMethod
             | Self::RequiresConfirmation
             | Self::RequiresCapture
-            | Self::PartiallyCapturedAndCapturable => false,
+            | Self::PartiallyCapturedAndCapturable
+            | Self::Conflicted => false,
         }
     }
 
@@ -1627,7 +1632,7 @@ impl IntentStatus {
             | Self::Failed
             | Self::Cancelled
             |  Self::PartiallyCaptured
-            |  Self::RequiresCapture => false,
+            |  Self::RequiresCapture | Self::Conflicted => false,
             Self::Processing
             | Self::RequiresCustomerAction
             | Self::RequiresMerchantAction
@@ -1747,7 +1752,8 @@ impl From<AttemptStatus> for PaymentMethodStatus {
             | AttemptStatus::PartialCharged
             | AttemptStatus::PartialChargedAndChargeable
             | AttemptStatus::ConfirmationAwaited
-            | AttemptStatus::DeviceDataCollectionPending => Self::Inactive,
+            | AttemptStatus::DeviceDataCollectionPending
+            | AttemptStatus::IntegrityFailure => Self::Inactive,
             AttemptStatus::Charged | AttemptStatus::Authorized => Self::Active,
         }
     }

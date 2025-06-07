@@ -440,7 +440,8 @@ pub(crate) fn is_payment_failure(status: AttemptStatus) -> bool {
         | AttemptStatus::Pending
         | AttemptStatus::PaymentMethodAwaited
         | AttemptStatus::ConfirmationAwaited
-        | AttemptStatus::DeviceDataCollectionPending => false,
+        | AttemptStatus::DeviceDataCollectionPending
+        | AttemptStatus::IntegrityFailure => false,
     }
 }
 
@@ -6186,7 +6187,8 @@ impl FrmTransactionRouterDataRequest for FrmTransactionRouterData {
             | AttemptStatus::Pending
             | AttemptStatus::PaymentMethodAwaited
             | AttemptStatus::ConfirmationAwaited
-            | AttemptStatus::DeviceDataCollectionPending => None,
+            | AttemptStatus::DeviceDataCollectionPending
+            | AttemptStatus::IntegrityFailure => None,
         }
     }
 }

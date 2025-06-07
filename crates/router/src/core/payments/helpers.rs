@@ -4239,7 +4239,8 @@ pub fn get_attempt_type(
                     | enums::AttemptStatus::Voided
                     | enums::AttemptStatus::AutoRefunded
                     | enums::AttemptStatus::PaymentMethodAwaited
-                    | enums::AttemptStatus::DeviceDataCollectionPending => {
+                    | enums::AttemptStatus::DeviceDataCollectionPending
+                    | enums::AttemptStatus::IntegrityFailure => {
                         metrics::MANUAL_RETRY_VALIDATION_FAILED.add(
                             1,
                             router_env::metric_attributes!((
@@ -4294,7 +4295,8 @@ pub fn get_attempt_type(
         | enums::IntentStatus::PartiallyCaptured
         | enums::IntentStatus::PartiallyCapturedAndCapturable
         | enums::IntentStatus::Processing
-        | enums::IntentStatus::Succeeded => {
+        | enums::IntentStatus::Succeeded
+        | enums::IntentStatus::Conflicted => {
             Err(report!(errors::ApiErrorResponse::PreconditionFailed {
                 message: format!(
                     "You cannot {action} this payment because it has status {}",
@@ -4545,7 +4547,8 @@ pub fn is_manual_retry_allowed(
 
             storage_enums::AttemptStatus::VoidFailed
             | storage_enums::AttemptStatus::RouterDeclined
-            | storage_enums::AttemptStatus::CaptureFailed => Some(false),
+            | storage_enums::AttemptStatus::CaptureFailed
+            | storage_enums::AttemptStatus::IntegrityFailure => Some(false),
 
             storage_enums::AttemptStatus::AuthenticationFailed
             | storage_enums::AttemptStatus::AuthorizationFailed
@@ -4556,7 +4559,8 @@ pub fn is_manual_retry_allowed(
         | enums::IntentStatus::PartiallyCaptured
         | enums::IntentStatus::PartiallyCapturedAndCapturable
         | enums::IntentStatus::Processing
-        | enums::IntentStatus::Succeeded => Some(false),
+        | enums::IntentStatus::Succeeded
+        | enums::IntentStatus::Conflicted => Some(false),
 
         enums::IntentStatus::RequiresCustomerAction
         | enums::IntentStatus::RequiresMerchantAction
