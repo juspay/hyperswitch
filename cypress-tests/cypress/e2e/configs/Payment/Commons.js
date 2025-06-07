@@ -1615,13 +1615,14 @@ export const connectorDetails = {
     "return_url_too_long": getCustomExchange({
       Request: {
         customer_id: "customer_1234567890",
-        return_url: "http://example.com/" + "a".repeat(237),
+        return_url: "http://example.com/" + "a".repeat(2031),
       },
       Response: {
         status: 400,
         body: {
           error: {
-            message: "return_url must be at most 255 characters long. Received 256 characters",
+            message:
+              "return_url must be at most 2048 characters long. Received 2050 characters",
             code: "IR_06",
             type: "invalid_request"
           },

@@ -19092,7 +19092,7 @@
             "description": "The URL to which you want the user to be redirected after the completion of the payment operation",
             "example": "https://hyperswitch.io",
             "nullable": true,
-            "maxLength": 255
+            "maxLength": 2048
           },
           "setup_future_usage": {
             "allOf": [
@@ -19497,7 +19497,7 @@
             "description": "The URL to which you want the user to be redirected after the completion of the payment operation",
             "example": "https://hyperswitch.io",
             "nullable": true,
-            "maxLength": 255
+            "maxLength": 2048
           },
           "setup_future_usage": {
             "allOf": [
@@ -20755,7 +20755,7 @@
             "description": "The URL to which you want the user to be redirected after the completion of the payment operation",
             "example": "https://hyperswitch.io",
             "nullable": true,
-            "maxLength": 255
+            "maxLength": 2048
           },
           "setup_future_usage": {
             "allOf": [
@@ -21966,7 +21966,7 @@
             "description": "The URL to which you want the user to be redirected after the completion of the payment operation",
             "example": "https://hyperswitch.io",
             "nullable": true,
-            "maxLength": 255
+            "maxLength": 2048
           },
           "setup_future_usage": {
             "allOf": [
