@@ -9,7 +9,7 @@ use masking::ExposeInterface;
 use super::{ConstructFlowSpecificData, Feature};
 use crate::{
     core::{
-        errors::{self, ConnectorErrorExt, RouterResult},
+        errors::{ConnectorErrorExt, RouterResult},
         mandate,
         payments::{
             self, access_token, customers, helpers, tokenization, transformers, PaymentData,
@@ -425,11 +425,13 @@ impl Feature<api::Authorize, types::PaymentsAuthorizeData> for types::PaymentsAu
         let create_order_result =
             create_order_at_connector(self, state, connector, should_continue_payment).await?;
 
-        Ok(update_router_data_with_create_order_result(
+        let should_continue_payment = update_router_data_with_create_order_result(
             create_order_result,
             self,
             should_continue_payment,
-        ))
+        )?;
+
+        Ok(should_continue_payment)
     }
 }
 
@@ -766,13 +768,11 @@ async fn create_order_at_connector<F: Clone>(
                 if let types::PaymentsResponseData::PaymentsCreateOrderResponse { order_id } = res {
                     Ok(Some(order_id))
                 } else {
-                    let unexpected_response = format!("{:?}", res);
-                    Err(
-                        errors::ConnectorError::UnexpectedResponseError(bytes::Bytes::from(
-                            unexpected_response,
-                        ))
-                        .into(),
-                    )
+                    Err(error_stack::report!(ApiErrorResponse::InternalServerError)
+                        .attach_printable(format!(
+                            "Unexpected response format from connector: {:?}",
+                            res
+                        )))?
                 }
             }
             Err(error) => Err(error),
@@ -798,25 +798,23 @@ fn update_router_data_with_create_order_result<F>(
         types::PaymentsResponseData,
     >,
     should_continue_further: bool,
-) -> bool {
+) -> RouterResult<bool> {
     if create_order_result.is_create_order_performed {
         match create_order_result.create_order_result {
             Ok(Some(order_id)) => {
                 router_data.request.order_id = Some(order_id.clone());
                 router_data.response =
                     Ok(types::PaymentsResponseData::PaymentsCreateOrderResponse { order_id });
-                true
+                Ok(true)
             }
-            Ok(None) => {
-                router_data.response = Err(ApiErrorResponse::InternalServerError.into());
-                false
-            }
+            Ok(None) => Err(error_stack::report!(ApiErrorResponse::InternalServerError)
+                .attach_printable("Order Id not found."))?,
             Err(err) => {
                 router_data.response = Err(err.clone());
-                false
+                Ok(false)
             }
         }
     } else {
-        should_continue_further
+        Ok(should_continue_further)
     }
 }

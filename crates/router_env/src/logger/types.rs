@@ -594,6 +594,8 @@ pub enum Flow {
     CloneConnector,
     ///Proxy Flow
     Proxy,
+    /// ThreeDs Decision Rule Execute flow
+    ThreeDsDecisionRuleExecute,
 }
 
 /// Trait for providing generic behaviour to flow metric

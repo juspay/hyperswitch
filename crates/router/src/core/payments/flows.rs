@@ -19,7 +19,8 @@ use hyperswitch_domain_models::router_flow_types::{
 };
 #[cfg(feature = "dummy_connector")]
 use hyperswitch_domain_models::router_flow_types::{
-    ExternalVaultDeleteFlow, ExternalVaultInsertFlow, ExternalVaultRetrieveFlow,
+    ExternalVaultCreateFlow, ExternalVaultDeleteFlow, ExternalVaultInsertFlow,
+    ExternalVaultRetrieveFlow,
 };
 use hyperswitch_domain_models::{
     mandates::CustomerAcceptance,
@@ -30,7 +31,8 @@ use hyperswitch_domain_models::{
 };
 #[cfg(feature = "dummy_connector")]
 use hyperswitch_interfaces::api::vault::{
-    ExternalVault, ExternalVaultDelete, ExternalVaultInsert, ExternalVaultRetrieve,
+    ExternalVault, ExternalVaultCreate, ExternalVaultDelete, ExternalVaultInsert,
+    ExternalVaultRetrieve,
 };
 use hyperswitch_interfaces::api::{
     payouts::Payouts, UasAuthentication, UasAuthenticationConfirmation, UasPostAuthentication,
@@ -918,6 +920,18 @@ impl<const T: u8> ExternalVaultDelete for connector::DummyConnector<T> {}
 impl<const T: u8>
     services::ConnectorIntegration<
         ExternalVaultDeleteFlow,
+        types::VaultRequestData,
+        types::VaultResponseData,
+    > for connector::DummyConnector<T>
+{
+}
+
+#[cfg(feature = "dummy_connector")]
+impl<const T: u8> ExternalVaultCreate for connector::DummyConnector<T> {}
+#[cfg(feature = "dummy_connector")]
+impl<const T: u8>
+    services::ConnectorIntegration<
+        ExternalVaultCreateFlow,
         types::VaultRequestData,
         types::VaultResponseData,
     > for connector::DummyConnector<T>

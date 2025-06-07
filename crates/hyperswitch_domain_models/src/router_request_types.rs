@@ -177,7 +177,7 @@ pub struct ConnectorCustomerData {
     pub phone: Option<Secret<String>>,
     pub name: Option<Secret<String>>,
     pub preprocessing_id: Option<String>,
-    pub payment_method_data: PaymentMethodData,
+    pub payment_method_data: Option<PaymentMethodData>,
 }
 
 impl TryFrom<SetupMandateRequestData> for ConnectorCustomerData {
@@ -185,7 +185,7 @@ impl TryFrom<SetupMandateRequestData> for ConnectorCustomerData {
     fn try_from(data: SetupMandateRequestData) -> Result<Self, Self::Error> {
         Ok(Self {
             email: data.email,
-            payment_method_data: data.payment_method_data,
+            payment_method_data: Some(data.payment_method_data),
             description: None,
             phone: None,
             name: None,
@@ -209,7 +209,30 @@ impl
     ) -> Result<Self, Self::Error> {
         Ok(Self {
             email: data.request.email.clone(),
-            payment_method_data: data.request.payment_method_data.clone(),
+            payment_method_data: Some(data.request.payment_method_data.clone()),
+            description: None,
+            phone: None,
+            name: data.request.customer_name.clone(),
+            preprocessing_id: data.preprocessing_id.clone(),
+        })
+    }
+}
+
+impl TryFrom<&RouterData<flows::Session, PaymentsSessionData, response_types::PaymentsResponseData>>
+    for ConnectorCustomerData
+{
+    type Error = error_stack::Report<ApiErrorResponse>;
+
+    fn try_from(
+        data: &RouterData<
+            flows::Session,
+            PaymentsSessionData,
+            response_types::PaymentsResponseData,
+        >,
+    ) -> Result<Self, Self::Error> {
+        Ok(Self {
+            email: data.request.email.clone(),
+            payment_method_data: None,
             description: None,
             phone: None,
             name: data.request.customer_name.clone(),
@@ -906,6 +929,7 @@ pub struct PaymentsSessionData {
     // Minor Unit amount for amount frame work
     pub minor_amount: MinorUnit,
     pub apple_pay_recurring_details: Option<api_models::payments::ApplePayRecurringPaymentRequest>,
+    pub customer_name: Option<Secret<String>>,
 }
 
 #[derive(Debug, Clone, Default)]
@@ -963,4 +987,5 @@ pub struct SetupMandateRequestData {
 pub struct VaultRequestData {
     pub payment_method_vaulting_data: Option<PaymentMethodVaultingData>,
     pub connector_vault_id: Option<String>,
+    pub connector_customer_id: Option<String>,
 }

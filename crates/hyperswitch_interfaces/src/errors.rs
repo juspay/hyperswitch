@@ -2,7 +2,7 @@
 
 use common_enums::ApiClientError;
 use common_utils::errors::ErrorSwitch;
-use hyperswitch_domain_models::{errors::api_error_response::ApiErrorResponse, router_data};
+use hyperswitch_domain_models::errors::api_error_response::ApiErrorResponse;
 
 /// Connector Errors
 #[allow(missing_docs, missing_debug_implementations)]
@@ -154,27 +154,6 @@ impl ErrorSwitch<ApiErrorResponse> for ConnectorError {
                 ApiErrorResponse::WebhookInvalidMerchantSecret
             }
             _ => ApiErrorResponse::InternalServerError,
-        }
-    }
-}
-
-impl From<ConnectorError> for router_data::ErrorResponse {
-    fn from(error: ConnectorError) -> Self {
-        Self {
-            code: "Connector_error".to_string(),
-            message: match error {
-                ConnectorError::UnexpectedResponseError(bytes) => {
-                    String::from_utf8_lossy(&bytes).to_string()
-                }
-                _ => format!("Connector error: {:?}", error),
-            },
-            reason: None,
-            status_code: 400,
-            attempt_status: None,
-            connector_transaction_id: None,
-            network_advice_code: None,
-            network_decline_code: None,
-            network_error_message: None,
         }
     }
 }

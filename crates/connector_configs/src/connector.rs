@@ -124,6 +124,8 @@ pub struct ConfigMetadata {
     pub ledger_account_id: Option<InputData>,
     pub tenant_id: Option<InputData>,
     pub platform_url: Option<InputData>,
+    pub report_group: Option<InputData>,
+    pub proxy_url: Option<InputData>,
 }
 
 #[serde_with::skip_serializing_none]
@@ -212,6 +214,7 @@ pub struct ConnectorConfig {
     pub gpayments: Option<ConnectorTomlConfig>,
     pub hipay: Option<ConnectorTomlConfig>,
     pub helcim: Option<ConnectorTomlConfig>,
+    pub hyperswitch_vault: Option<ConnectorTomlConfig>,
     pub inespay: Option<ConnectorTomlConfig>,
     pub jpmorgan: Option<ConnectorTomlConfig>,
     pub klarna: Option<ConnectorTomlConfig>,
@@ -397,6 +400,7 @@ impl ConnectorConfig {
             Connector::Gocardless => Ok(connector_data.gocardless),
             Connector::Gpayments => Ok(connector_data.gpayments),
             Connector::Hipay => Ok(connector_data.hipay),
+            Connector::HyperswitchVault => Ok(connector_data.hyperswitch_vault),
             Connector::Helcim => Ok(connector_data.helcim),
             Connector::Inespay => Ok(connector_data.inespay),
             Connector::Jpmorgan => Ok(connector_data.jpmorgan),
