@@ -867,7 +867,7 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
                 // Check if it's an object and get the external_vault_url
                 if let Some(url_value) = metadata_value.get("external_vault_url") {
                     if let Some(url_str) = url_value.as_str() {
-                        return Ok(format!("{}{}",url_str.to_string(),"v1/payment_intents"));
+                        return Ok(format!("{}{}", url_str.to_string(), "v1/payment_intents"));
                     }
                 }
             }
