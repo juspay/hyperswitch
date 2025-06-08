@@ -3043,7 +3043,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/PaymentMethodListResponse"
+                  "$ref": "#/components/schemas/PaymentMethodListResponseForSession"
                 }
               }
             }
@@ -8110,6 +8110,7 @@
           "gpayments",
           "hipay",
           "helcim",
+          "hyperswitch_vault",
           "inespay",
           "iatapay",
           "itaubank",
@@ -8157,6 +8158,7 @@
           "wise",
           "worldline",
           "worldpay",
+          "worldpayvantiv",
           "worldpayxml",
           "signifyd",
           "plaid",
@@ -9471,24 +9473,30 @@
           }
         }
       },
-      "CustomerPaymentMethod": {
+      "CustomerPaymentMethodResponseItem": {
         "type": "object",
         "required": [
           "id",
+          "payment_token",
           "customer_id",
           "payment_method_type",
           "payment_method_subtype",
           "recurring_enabled",
           "created",
           "requires_cvv",
-          "is_default",
-          "psp_tokenization_enabled"
+          "last_used_at",
+          "is_default"
         ],
         "properties": {
           "id": {
             "type": "string",
             "description": "The unique identifier of the payment method.",
             "example": "12345_pm_01926c58bc6e77c09e809964e72af8c8"
+          },
+          "payment_token": {
+            "type": "string",
+            "description": "Temporary Token for payment method in vault which gets refreshed for every payment",
+            "example": "7ebf443f-a050-4067-84e5-e6f6d4800aef"
           },
           "customer_id": {
             "type": "string",
@@ -9553,18 +9561,6 @@
               }
             ],
             "nullable": true
-          },
-          "network_tokenization": {
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/NetworkTokenResponse"
-              }
-            ],
-            "nullable": true
-          },
-          "psp_tokenization_enabled": {
-            "type": "boolean",
-            "description": "Whether psp_tokenization is enabled for the payment_method, this will be true when at least\none multi-use token with status `Active` is available for the payment method"
           }
         }
       },
@@ -9577,7 +9573,7 @@
           "customer_payment_methods": {
             "type": "array",
             "items": {
-              "$ref": "#/components/schemas/CustomerPaymentMethod"
+              "$ref": "#/components/schemas/PaymentMethodResponseItem"
             },
             "description": "List of payment methods for customer"
           }
@@ -10015,8 +10011,7 @@
             "description": "The identifier for payment_attempt"
           },
           "amount": {
-            "type": "string",
-            "description": "The dispute amount"
+            "$ref": "#/components/schemas/StringMinorUnit"
           },
           "currency": {
             "$ref": "#/components/schemas/Currency"
@@ -10711,6 +10706,14 @@
           "vault_connector_id": {
             "type": "string",
             "description": "Merchant Connector id to be stored for vault connector",
+            "nullable": true
+          },
+          "vault_sdk": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/VaultSdk"
+              }
+            ],
             "nullable": true
           }
         }
@@ -12207,6 +12210,33 @@
             "type": "boolean",
             "description": "indicates if retry with pan is possible",
             "nullable": true
+          }
+        }
+      },
+      "HyperswitchVaultSessionDetails": {
+        "type": "object",
+        "required": [
+          "payment_method_session_id",
+          "client_secret",
+          "publishable_key",
+          "profile_id"
+        ],
+        "properties": {
+          "payment_method_session_id": {
+            "type": "string",
+            "description": "Session ID for Hyperswitch Vault"
+          },
+          "client_secret": {
+            "type": "string",
+            "description": "Client secret for Hyperswitch Vault"
+          },
+          "publishable_key": {
+            "type": "string",
+            "description": "Publishable key for Hyperswitch Vault"
+          },
+          "profile_id": {
+            "type": "string",
+            "description": "Profile ID for Hyperswitch Vault"
           }
         }
       },
@@ -16752,29 +16782,6 @@
         },
         "additionalProperties": false
       },
-      "PaymentMethodListResponse": {
-        "type": "object",
-        "required": [
-          "payment_methods_enabled",
-          "customer_payment_methods"
-        ],
-        "properties": {
-          "payment_methods_enabled": {
-            "type": "array",
-            "items": {
-              "$ref": "#/components/schemas/ResponsePaymentMethodTypes"
-            },
-            "description": "The list of payment methods that are enabled for the business profile"
-          },
-          "customer_payment_methods": {
-            "type": "array",
-            "items": {
-              "$ref": "#/components/schemas/CustomerPaymentMethod"
-            },
-            "description": "The list of saved payment methods of the customer"
-          }
-        }
-      },
       "PaymentMethodListResponseForPayments": {
         "type": "object",
         "required": [
@@ -16791,10 +16798,33 @@
           "customer_payment_methods": {
             "type": "array",
             "items": {
-              "$ref": "#/components/schemas/CustomerPaymentMethod"
+              "$ref": "#/components/schemas/CustomerPaymentMethodResponseItem"
             },
             "description": "The list of payment methods that are saved by the given customer\nThis field is only returned if the customer_id is provided in the request",
             "nullable": true
+          }
+        }
+      },
+      "PaymentMethodListResponseForSession": {
+        "type": "object",
+        "required": [
+          "payment_methods_enabled",
+          "customer_payment_methods"
+        ],
+        "properties": {
+          "payment_methods_enabled": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ResponsePaymentMethodTypes"
+            },
+            "description": "The list of payment methods that are enabled for the business profile"
+          },
+          "customer_payment_methods": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/CustomerPaymentMethodResponseItem"
+            },
+            "description": "The list of saved payment methods of the customer"
           }
         }
       },
@@ -16895,6 +16925,103 @@
             }
           }
         ]
+      },
+      "PaymentMethodResponseItem": {
+        "type": "object",
+        "required": [
+          "id",
+          "customer_id",
+          "payment_method_type",
+          "payment_method_subtype",
+          "recurring_enabled",
+          "created",
+          "requires_cvv",
+          "is_default",
+          "psp_tokenization_enabled"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "The unique identifier of the payment method.",
+            "example": "12345_pm_01926c58bc6e77c09e809964e72af8c8"
+          },
+          "customer_id": {
+            "type": "string",
+            "description": "The unique identifier of the customer.",
+            "example": "12345_cus_01926c58bc6e77c09e809964e72af8c8",
+            "maxLength": 64,
+            "minLength": 32
+          },
+          "payment_method_type": {
+            "$ref": "#/components/schemas/PaymentMethod"
+          },
+          "payment_method_subtype": {
+            "$ref": "#/components/schemas/PaymentMethodType"
+          },
+          "recurring_enabled": {
+            "type": "boolean",
+            "description": "Indicates whether the payment method is eligible for recurring payments",
+            "example": true
+          },
+          "payment_method_data": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PaymentMethodListData"
+              }
+            ],
+            "nullable": true
+          },
+          "bank": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/MaskedBankDetails"
+              }
+            ],
+            "nullable": true
+          },
+          "created": {
+            "type": "string",
+            "format": "date-time",
+            "description": "A timestamp (ISO 8601 code) that determines when the payment method was created",
+            "example": "2023-01-18T11:04:09.922Z"
+          },
+          "requires_cvv": {
+            "type": "boolean",
+            "description": "Whether this payment method requires CVV to be collected",
+            "example": true
+          },
+          "last_used_at": {
+            "type": "string",
+            "format": "date-time",
+            "description": "A timestamp (ISO 8601 code) that determines when the payment method was last used",
+            "example": "2024-02-24T11:04:09.922Z"
+          },
+          "is_default": {
+            "type": "boolean",
+            "description": "Indicates if the payment method has been set to default or not",
+            "example": true
+          },
+          "billing": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/Address"
+              }
+            ],
+            "nullable": true
+          },
+          "network_tokenization": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/NetworkTokenResponse"
+              }
+            ],
+            "nullable": true
+          },
+          "psp_tokenization_enabled": {
+            "type": "boolean",
+            "description": "Whether psp_tokenization is enabled for the payment_method, this will be true when at least\none multi-use token with status `Active` is available for the payment method"
+          }
+        }
       },
       "PaymentMethodSessionConfirmRequest": {
         "type": "object",
@@ -17617,6 +17744,12 @@
           "payment_method_id": {
             "type": "string",
             "description": "The payment_method_id to be associated with the payment",
+            "nullable": true
+          },
+          "payment_token": {
+            "type": "string",
+            "description": "Provide a reference to a stored payment method",
+            "example": "187282ab-40ef-47a9-9206-5099ba31e432",
             "nullable": true
           }
         },
@@ -18824,6 +18957,14 @@
               "$ref": "#/components/schemas/SessionToken"
             },
             "description": "The list of session token object"
+          },
+          "vault_details": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/VaultSessionDetails"
+              }
+            ],
+            "nullable": true
           }
         }
       },
@@ -20888,6 +21029,26 @@
           }
         }
       },
+      "ProgramThreeDsDecisionRule": {
+        "type": "object",
+        "required": [
+          "defaultSelection",
+          "rules",
+          "metadata"
+        ],
+        "properties": {
+          "defaultSelection": {
+            "$ref": "#/components/schemas/ThreeDSDecisionRule"
+          },
+          "rules": {
+            "$ref": "#/components/schemas/RuleThreeDsDecisionRule"
+          },
+          "metadata": {
+            "type": "object",
+            "additionalProperties": {}
+          }
+        }
+      },
       "ProxyRequest": {
         "type": "object",
         "required": [
@@ -21673,6 +21834,14 @@
               "payment_method_subtype": {
                 "$ref": "#/components/schemas/PaymentMethodType"
               },
+              "payment_experience": {
+                "allOf": [
+                  {
+                    "$ref": "#/components/schemas/PaymentExperience"
+                  }
+                ],
+                "nullable": true
+              },
               "required_fields": {
                 "allOf": [
                   {
@@ -22072,6 +22241,7 @@
           "wise",
           "worldline",
           "worldpay",
+          "worldpayvantiv",
           "worldpayxml",
           "xendit",
           "zen",
@@ -22097,7 +22267,8 @@
           "priority",
           "volume_split",
           "advanced",
-          "dynamic"
+          "dynamic",
+          "three_ds_decision_rule"
         ]
       },
       "RoutingAlgorithmWrapper": {
@@ -22245,6 +22416,28 @@
           },
           "connectorSelection": {
             "$ref": "#/components/schemas/ConnectorSelection"
+          },
+          "statements": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/IfStatement"
+            }
+          }
+        }
+      },
+      "RuleThreeDsDecisionRule": {
+        "type": "object",
+        "required": [
+          "name",
+          "connectorSelection",
+          "statements"
+        ],
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "connectorSelection": {
+            "$ref": "#/components/schemas/ThreeDSDecision"
           },
           "statements": {
             "type": "array",
@@ -23162,6 +23355,24 @@
                 "$ref": "#/components/schemas/ProgramConnectorSelection"
               }
             }
+          },
+          {
+            "type": "object",
+            "required": [
+              "type",
+              "data"
+            ],
+            "properties": {
+              "type": {
+                "type": "string",
+                "enum": [
+                  "three_ds_decision_rule"
+                ]
+              },
+              "data": {
+                "$ref": "#/components/schemas/ProgramThreeDsDecisionRule"
+              }
+            }
           }
         ],
         "discriminator": {
@@ -23237,6 +23448,10 @@
         "discriminator": {
           "propertyName": "type"
         }
+      },
+      "StringMinorUnit": {
+        "type": "string",
+        "description": "Connector specific types to send"
       },
       "StripeChargeResponseData": {
         "type": "object",
@@ -23572,6 +23787,30 @@
         "properties": {
           "secrets": {
             "$ref": "#/components/schemas/SecretInfoToInitiateSdk"
+          }
+        }
+      },
+      "ThreeDSDecision": {
+        "type": "string",
+        "description": "Enum representing the possible outcomes of the 3DS Decision Rule Engine.",
+        "enum": [
+          "no_three_ds",
+          "challenge_requested",
+          "challenge_preferred",
+          "three_ds_exemption_requested_tra",
+          "three_ds_exemption_requested_low_value",
+          "issuer_three_ds_exemption_requested"
+        ]
+      },
+      "ThreeDSDecisionRule": {
+        "type": "object",
+        "description": "Struct representing the output configuration for the 3DS Decision Rule Engine.",
+        "required": [
+          "decision"
+        ],
+        "properties": {
+          "decision": {
+            "$ref": "#/components/schemas/ThreeDSDecision"
           }
         }
       },
@@ -23924,7 +24163,8 @@
         "type": "string",
         "enum": [
           "payment",
-          "payout"
+          "payout",
+          "three_ds_authentication"
         ]
       },
       "TriggeredBy": {
@@ -24234,6 +24474,39 @@
           "propertyName": "type"
         }
       },
+      "VaultSdk": {
+        "type": "string",
+        "enum": [
+          "vgs_sdk",
+          "hyperswitch_sdk"
+        ]
+      },
+      "VaultSessionDetails": {
+        "oneOf": [
+          {
+            "type": "object",
+            "required": [
+              "vgs"
+            ],
+            "properties": {
+              "vgs": {
+                "$ref": "#/components/schemas/VgsSessionDetails"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "hyperswitch_vault"
+            ],
+            "properties": {
+              "hyperswitch_vault": {
+                "$ref": "#/components/schemas/HyperswitchVaultSessionDetails"
+              }
+            }
+          }
+        ]
+      },
       "Venmo": {
         "type": "object",
         "required": [
@@ -24256,6 +24529,23 @@
             "description": "mobile number linked to venmo account",
             "example": "******* 3349",
             "nullable": true
+          }
+        }
+      },
+      "VgsSessionDetails": {
+        "type": "object",
+        "required": [
+          "external_vault_id",
+          "sdk_env"
+        ],
+        "properties": {
+          "external_vault_id": {
+            "type": "string",
+            "description": "The identifier of the external vault"
+          },
+          "sdk_env": {
+            "type": "string",
+            "description": "The environment for the external vault initiation"
           }
         }
       },

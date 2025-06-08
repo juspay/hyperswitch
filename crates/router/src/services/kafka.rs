@@ -161,6 +161,7 @@ pub struct KafkaSettings {
     payout_analytics_topic: String,
     consolidated_events_topic: String,
     authentication_analytics_topic: String,
+    routing_logs_topic: String,
 }
 
 impl KafkaSettings {
@@ -248,6 +249,12 @@ impl KafkaSettings {
             },
         )?;
 
+        common_utils::fp_utils::when(self.routing_logs_topic.is_default_or_empty(), || {
+            Err(ApplicationError::InvalidConfigurationValueError(
+                "Kafka Routing Logs topic must not be empty".into(),
+            ))
+        })?;
+
         Ok(())
     }
 }
@@ -269,6 +276,7 @@ pub struct KafkaProducer {
     consolidated_events_topic: String,
     authentication_analytics_topic: String,
     ckh_database_name: Option<String>,
+    routing_logs_topic: String,
 }
 
 struct RdKafkaProducer(ThreadedProducer<DefaultProducerContext>);
@@ -318,6 +326,7 @@ impl KafkaProducer {
             consolidated_events_topic: conf.consolidated_events_topic.clone(),
             authentication_analytics_topic: conf.authentication_analytics_topic.clone(),
             ckh_database_name: None,
+            routing_logs_topic: conf.routing_logs_topic.clone(),
         })
     }
 
@@ -464,10 +473,11 @@ impl KafkaProducer {
         intent: &PaymentIntent,
         old_intent: Option<PaymentIntent>,
         tenant_id: TenantID,
+        infra_values: Option<Value>,
     ) -> MQResult<()> {
         if let Some(negative_event) = old_intent {
             self.log_event(&KafkaEvent::old(
-                &KafkaPaymentIntent::from_storage(&negative_event),
+                &KafkaPaymentIntent::from_storage(&negative_event, infra_values.clone()),
                 tenant_id.clone(),
                 self.ckh_database_name.clone(),
             ))
@@ -477,14 +487,14 @@ impl KafkaProducer {
         };
 
         self.log_event(&KafkaEvent::new(
-            &KafkaPaymentIntent::from_storage(intent),
+            &KafkaPaymentIntent::from_storage(intent, infra_values.clone()),
             tenant_id.clone(),
             self.ckh_database_name.clone(),
         ))
         .attach_printable_lazy(|| format!("Failed to add positive intent event {intent:?}"))?;
 
         self.log_event(&KafkaConsolidatedEvent::new(
-            &KafkaPaymentIntentEvent::from_storage(intent),
+            &KafkaPaymentIntentEvent::from_storage(intent, infra_values.clone()),
             tenant_id.clone(),
         ))
         .attach_printable_lazy(|| format!("Failed to add consolidated intent event {intent:?}"))
@@ -494,9 +504,10 @@ impl KafkaProducer {
         &self,
         delete_old_intent: &PaymentIntent,
         tenant_id: TenantID,
+        infra_values: Option<Value>,
     ) -> MQResult<()> {
         self.log_event(&KafkaEvent::old(
-            &KafkaPaymentIntent::from_storage(delete_old_intent),
+            &KafkaPaymentIntent::from_storage(delete_old_intent, infra_values),
             tenant_id.clone(),
             self.ckh_database_name.clone(),
         ))
@@ -653,6 +664,7 @@ impl KafkaProducer {
             EventType::Payout => &self.payout_analytics_topic,
             EventType::Consolidated => &self.consolidated_events_topic,
             EventType::Authentication => &self.authentication_analytics_topic,
+            EventType::RoutingApiLogs => &self.routing_logs_topic,
         }
     }
 }
