@@ -830,6 +830,19 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
         let mut api_key = self.get_auth_header(&req.connector_auth_type)?;
         header.append(&mut api_key);
 
+        // Add Authorization header for ExternalProxyCardData
+        if let PaymentMethodData::ExternalProxyCardData(_) = &req.request.payment_method_data {
+            if let Some(connector_metadata) = &req.connector_meta_data {
+                // connector_metadata is Secret<serde_json::Value>, so we need to clone and expose it
+                let metadata_value = connector_metadata.clone().expose();
+                // Check if it's an object and get the external_vault_url
+                if let Some(url_value) = metadata_value.get("proxy_authorization_key") {
+                    if let Some(url_str) = url_value.as_str() {
+                        header.push(( AUTHORIZATION.to_string(), format!("Basic {:?}",Maskable::new_masked(url_str.to_string().into())).into(), ));
+                    }
+                }
+            }
+        }
         if let Some(common_types::payments::SplitPaymentsRequest::StripeSplitPayment(
             stripe_split_payment,
         )) = &req.request.split_payments
@@ -867,7 +880,7 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
                 // Check if it's an object and get the external_vault_url
                 if let Some(url_value) = metadata_value.get("external_vault_url") {
                     if let Some(url_str) = url_value.as_str() {
-                        return Ok(url_str.to_string());
+                        return Ok(format!("{}{}",url_str.to_string(),"v1/payment_intents"));
                     }
                 }
             }
