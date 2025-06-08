@@ -53,7 +53,7 @@ hyperswitch_interfaces = { version = "0.1.0", path = "../hyperswitch_interfaces"
 masking = { version = "0.1.0", path = "../masking" }
 router_env = { version = "0.1.0", path = "../router_env", features = ["log_extra_implicit_fields", "log_custom_entries_to_extra"] }
 api_models = { version = "0.1.0", path = "../api_models", optional = true }
-
+tracing = { workspace = true }
 
 [build-dependencies]
 tonic-build = { version = "0.12", optional = true }

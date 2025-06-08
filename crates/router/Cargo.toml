@@ -144,7 +144,7 @@ scheduler = { version = "0.1.0", path = "../scheduler", default-features = false
 storage_impl = { version = "0.1.0", path = "../storage_impl", default-features = false }
 payment_methods = { version = "0.1.0", path = "../payment_methods", default-features = false }
 router_db = { version = "0.1.0", path = "../router_db" }
-
+tracing = { workspace = true }
 [build-dependencies]
 router_env = { version = "0.1.0", path = "../router_env", default-features = false }
 

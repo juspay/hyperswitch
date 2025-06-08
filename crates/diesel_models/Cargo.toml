@@ -27,7 +27,7 @@ serde_json = "1.0.115"
 strum = { version = "0.26.2", features = ["derive"] }
 thiserror = "1.0.58"
 time = { version = "0.3.35", features = ["serde", "serde-well-known", "std"] }
-
+tracing = { workspace = true }
 
 # First party crates
 common_enums = { version = "0.1.0", path = "../common_enums" }

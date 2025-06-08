@@ -62,7 +62,7 @@ url = { version = "2.5.0", features = ["serde"] }
 utoipa = { version = "4.2.0", features = ["preserve_order", "preserve_path_order"] }
 uuid = { version = "1.8.0", features = ["v7"] }
 openssl = {version = "0.10.70", optional = true}
-
+tracing = { workspace = true }
 # First party crates
 common_enums = { version = "0.1.0", path = "../common_enums" }
 masking = { version = "0.1.0", path = "../masking" }
