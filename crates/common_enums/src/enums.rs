@@ -6,7 +6,9 @@ use std::{
     num::{ParseFloatError, TryFromIntError},
 };
 
-pub use accounts::{MerchantAccountType, MerchantProductType, OrganizationType};
+pub use accounts::{
+    MerchantAccountRequestType, MerchantAccountType, MerchantProductType, OrganizationType,
+};
 pub use payments::ProductType;
 use serde::{Deserialize, Serialize};
 pub use ui::*;
@@ -2596,6 +2598,7 @@ pub enum CountryAlpha3 {
     strum::EnumString,
     Deserialize,
     Serialize,
+    utoipa::ToSchema,
 )]
 pub enum Country {
     Afghanistan,
@@ -7101,6 +7104,26 @@ impl AuthenticationConnectors {
             Self::Gpayments => true,
         }
     }
+}
+
+#[derive(
+    Clone,
+    Copy,
+    Debug,
+    Eq,
+    Hash,
+    PartialEq,
+    serde::Serialize,
+    serde::Deserialize,
+    strum::Display,
+    strum::EnumString,
+    ToSchema,
+)]
+#[serde(rename_all = "snake_case")]
+#[strum(serialize_all = "snake_case")]
+pub enum VaultSdk {
+    VgsSdk,
+    HyperswitchSdk,
 }
 
 #[derive(
