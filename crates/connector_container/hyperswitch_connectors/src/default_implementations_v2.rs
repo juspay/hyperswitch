@@ -267,7 +267,7 @@ default_imp_for_new_connector_integration_payment!(
     connectors::Cryptopay,
     connectors::CtpMastercard,
     connectors::Cybersource,
-    connectors::Datatrans,
+    
     connectors::Deutschebank,
     connectors::Digitalvirgo,
     connectors::Dlocal,
@@ -387,7 +387,7 @@ default_imp_for_new_connector_integration_refund!(
     connectors::Cryptopay,
     connectors::CtpMastercard,
     connectors::Cybersource,
-    connectors::Datatrans,
+    
     connectors::Deutschebank,
     connectors::Digitalvirgo,
     connectors::Dlocal,
@@ -502,7 +502,7 @@ default_imp_for_new_connector_integration_connector_access_token!(
     connectors::Cryptopay,
     connectors::CtpMastercard,
     connectors::Cybersource,
-    connectors::Datatrans,
+    
     connectors::Deutschebank,
     connectors::Digitalvirgo,
     connectors::Dlocal,
@@ -622,7 +622,7 @@ default_imp_for_new_connector_integration_accept_dispute!(
     connectors::Coingate,
     connectors::Cryptopay,
     connectors::CtpMastercard,
-    connectors::Datatrans,
+    
     connectors::Deutschebank,
     connectors::Digitalvirgo,
     connectors::Dlocal,
@@ -741,7 +741,7 @@ default_imp_for_new_connector_integration_submit_evidence!(
     connectors::Coingate,
     connectors::Cryptopay,
     connectors::CtpMastercard,
-    connectors::Datatrans,
+    
     connectors::Deutschebank,
     connectors::Digitalvirgo,
     connectors::Dlocal,
@@ -861,7 +861,7 @@ default_imp_for_new_connector_integration_defend_dispute!(
     connectors::Cryptopay,
     connectors::CtpMastercard,
     connectors::Cybersource,
-    connectors::Datatrans,
+    
     connectors::Deutschebank,
     connectors::Digitalvirgo,
     connectors::Dlocal,
@@ -991,7 +991,7 @@ default_imp_for_new_connector_integration_file_upload!(
     connectors::Cryptopay,
     connectors::CtpMastercard,
     connectors::Cybersource,
-    connectors::Datatrans,
+    
     connectors::Deutschebank,
     connectors::Digitalvirgo,
     connectors::Dlocal,
@@ -1113,7 +1113,7 @@ default_imp_for_new_connector_integration_payouts_create!(
     connectors::Cryptopay,
     connectors::CtpMastercard,
     connectors::Cybersource,
-    connectors::Datatrans,
+    
     connectors::Deutschebank,
     connectors::Digitalvirgo,
     connectors::Dlocal,
@@ -1235,7 +1235,7 @@ default_imp_for_new_connector_integration_payouts_eligibility!(
     connectors::Cryptopay,
     connectors::CtpMastercard,
     connectors::Cybersource,
-    connectors::Datatrans,
+    
     connectors::Deutschebank,
     connectors::Digitalvirgo,
     connectors::Dlocal,
@@ -1357,7 +1357,7 @@ default_imp_for_new_connector_integration_payouts_fulfill!(
     connectors::Cryptopay,
     connectors::CtpMastercard,
     connectors::Cybersource,
-    connectors::Datatrans,
+    
     connectors::Deutschebank,
     connectors::Digitalvirgo,
     connectors::Dlocal,
@@ -1479,7 +1479,7 @@ default_imp_for_new_connector_integration_payouts_cancel!(
     connectors::Cryptopay,
     connectors::CtpMastercard,
     connectors::Cybersource,
-    connectors::Datatrans,
+    
     connectors::Deutschebank,
     connectors::Digitalvirgo,
     connectors::Dlocal,
@@ -1601,7 +1601,7 @@ default_imp_for_new_connector_integration_payouts_quote!(
     connectors::Cryptopay,
     connectors::CtpMastercard,
     connectors::Cybersource,
-    connectors::Datatrans,
+    
     connectors::Deutschebank,
     connectors::Digitalvirgo,
     connectors::Dlocal,
@@ -1723,7 +1723,7 @@ default_imp_for_new_connector_integration_payouts_recipient!(
     connectors::Cryptopay,
     connectors::CtpMastercard,
     connectors::Cybersource,
-    connectors::Datatrans,
+    
     connectors::Deutschebank,
     connectors::Digitalvirgo,
     connectors::Dlocal,
@@ -1845,7 +1845,7 @@ default_imp_for_new_connector_integration_payouts_sync!(
     connectors::Cryptopay,
     connectors::CtpMastercard,
     connectors::Cybersource,
-    connectors::Datatrans,
+    
     connectors::Deutschebank,
     connectors::Digitalvirgo,
     connectors::Dlocal,
@@ -1967,7 +1967,7 @@ default_imp_for_new_connector_integration_payouts_recipient_account!(
     connectors::Cryptopay,
     connectors::CtpMastercard,
     connectors::Cybersource,
-    connectors::Datatrans,
+    
     connectors::Deutschebank,
     connectors::Digitalvirgo,
     connectors::Dlocal,
@@ -2087,7 +2087,7 @@ default_imp_for_new_connector_integration_webhook_source_verification!(
     connectors::Cryptopay,
     connectors::CtpMastercard,
     connectors::Cybersource,
-    connectors::Datatrans,
+    
     connectors::Deutschebank,
     connectors::Digitalvirgo,
     connectors::Dlocal,
@@ -2209,7 +2209,7 @@ default_imp_for_new_connector_integration_frm_sale!(
     connectors::Cryptopay,
     connectors::CtpMastercard,
     connectors::Cybersource,
-    connectors::Datatrans,
+    
     connectors::Deutschebank,
     connectors::Digitalvirgo,
     connectors::Dlocal,
@@ -2331,7 +2331,7 @@ default_imp_for_new_connector_integration_frm_checkout!(
     connectors::Cryptopay,
     connectors::CtpMastercard,
     connectors::Cybersource,
-    connectors::Datatrans,
+    
     connectors::Deutschebank,
     connectors::Digitalvirgo,
     connectors::Dlocal,
@@ -2453,7 +2453,7 @@ default_imp_for_new_connector_integration_frm_transaction!(
     connectors::Cryptopay,
     connectors::CtpMastercard,
     connectors::Cybersource,
-    connectors::Datatrans,
+    
     connectors::Deutschebank,
     connectors::Digitalvirgo,
     connectors::Dlocal,
@@ -2575,7 +2575,7 @@ default_imp_for_new_connector_integration_frm_fulfillment!(
     connectors::Cryptopay,
     connectors::CtpMastercard,
     connectors::Cybersource,
-    connectors::Datatrans,
+    
     connectors::Deutschebank,
     connectors::Digitalvirgo,
     connectors::Dlocal,
@@ -2697,7 +2697,7 @@ default_imp_for_new_connector_integration_frm_record_return!(
     connectors::Cryptopay,
     connectors::CtpMastercard,
     connectors::Cybersource,
-    connectors::Datatrans,
+    
     connectors::Deutschebank,
     connectors::Digitalvirgo,
     connectors::Dlocal,
@@ -2816,7 +2816,7 @@ default_imp_for_new_connector_integration_revoking_mandates!(
     connectors::Cryptopay,
     connectors::CtpMastercard,
     connectors::Cybersource,
-    connectors::Datatrans,
+    
     connectors::Deutschebank,
     connectors::Digitalvirgo,
     connectors::Dlocal,
@@ -2920,7 +2920,7 @@ default_imp_for_new_connector_integration_frm!(
     connectors::Coinbase,
     connectors::Cryptopay,
     connectors::CtpMastercard,
-    connectors::Datatrans,
+    
     connectors::Deutschebank,
     connectors::Digitalvirgo,
     connectors::Dlocal,
@@ -3040,7 +3040,7 @@ default_imp_for_new_connector_integration_connector_authentication!(
     connectors::Coinbase,
     connectors::Cryptopay,
     connectors::CtpMastercard,
-    connectors::Datatrans,
+    
     connectors::Deutschebank,
     connectors::Digitalvirgo,
     connectors::Dlocal,
@@ -3149,7 +3149,7 @@ default_imp_for_new_connector_integration_revenue_recovery!(
     connectors::Coinbase,
     connectors::Cryptopay,
     connectors::CtpMastercard,
-    connectors::Datatrans,
+    
     connectors::Deutschebank,
     connectors::Digitalvirgo,
     connectors::Dlocal,
@@ -3268,7 +3268,7 @@ default_imp_for_new_connector_integration_external_vault!(
     connectors::Cryptopay,
     connectors::CtpMastercard,
     connectors::Cybersource,
-    connectors::Datatrans,
+    
     connectors::Deutschebank,
     connectors::Digitalvirgo,
     connectors::Dlocal,

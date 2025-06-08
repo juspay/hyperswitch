@@ -1,4 +1,10 @@
 pub mod transformers;
+mod constants;
+mod metrics;
+mod types;
+mod utils;
+mod default_implementations;
+mod default_implementations_v2;
 
 use api_models::webhooks::{IncomingWebhookEvent, ObjectReferenceId};
 use base64::Engine;
@@ -39,7 +45,7 @@ use hyperswitch_interfaces::{
     consts::NO_ERROR_CODE,
     errors,
     events::connector_api_logs::ConnectorEvent,
-    types::{self, Response},
+    types::{self as hi_types, Response},
     webhooks::{IncomingWebhook, IncomingWebhookRequestDetails},
 };
 use masking::{Mask, PeekInterface};
@@ -49,7 +55,7 @@ use crate::{
     constants::headers,
     types::ResponseRouterData,
     utils::{
-        self, convert_amount, PaymentsAuthorizeRequestData, RefundsRequestData,
+        convert_amount, PaymentsAuthorizeRequestData, RefundsRequestData,
         RouterData as OtherRouterData,
     },
 };
@@ -262,10 +268,10 @@ impl ConnectorIntegration<SetupMandate, SetupMandateRequestData, PaymentsRespons
         Ok(Some(
             RequestBuilder::new()
                 .method(Method::Post)
-                .url(&types::SetupMandateType::get_url(self, req, connectors)?)
+                .url(&hi_types::SetupMandateType::get_url(self, req, connectors)?)
                 .attach_default_headers()
-                .headers(types::SetupMandateType::get_headers(self, req, connectors)?)
-                .set_body(types::SetupMandateType::get_request_body(
+                .headers(hi_types::SetupMandateType::get_headers(self, req, connectors)?)
+                .set_body(hi_types::SetupMandateType::get_request_body(
                     self, req, connectors,
                 )?)
                 .build(),
@@ -357,14 +363,14 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
         Ok(Some(
             RequestBuilder::new()
                 .method(Method::Post)
-                .url(&types::PaymentsAuthorizeType::get_url(
+                .url(&hi_types::PaymentsAuthorizeType::get_url(
                     self, req, connectors,
                 )?)
                 .attach_default_headers()
-                .headers(types::PaymentsAuthorizeType::get_headers(
+                .headers(hi_types::PaymentsAuthorizeType::get_headers(
                     self, req, connectors,
                 )?)
-                .set_body(types::PaymentsAuthorizeType::get_request_body(
+                .set_body(hi_types::PaymentsAuthorizeType::get_request_body(
                     self, req, connectors,
                 )?)
                 .build(),
@@ -434,9 +440,9 @@ impl ConnectorIntegration<PSync, PaymentsSyncData, PaymentsResponseData> for Dat
         Ok(Some(
             RequestBuilder::new()
                 .method(Method::Get)
-                .url(&types::PaymentsSyncType::get_url(self, req, connectors)?)
+                .url(&hi_types::PaymentsSyncType::get_url(self, req, connectors)?)
                 .attach_default_headers()
-                .headers(types::PaymentsSyncType::get_headers(self, req, connectors)?)
+                .headers(hi_types::PaymentsSyncType::get_headers(self, req, connectors)?)
                 .build(),
         ))
     }
@@ -517,12 +523,12 @@ impl ConnectorIntegration<Capture, PaymentsCaptureData, PaymentsResponseData> fo
         Ok(Some(
             RequestBuilder::new()
                 .method(Method::Post)
-                .url(&types::PaymentsCaptureType::get_url(self, req, connectors)?)
+                .url(&hi_types::PaymentsCaptureType::get_url(self, req, connectors)?)
                 .attach_default_headers()
-                .headers(types::PaymentsCaptureType::get_headers(
+                .headers(hi_types::PaymentsCaptureType::get_headers(
                     self, req, connectors,
                 )?)
-                .set_body(types::PaymentsCaptureType::get_request_body(
+                .set_body(hi_types::PaymentsCaptureType::get_request_body(
                     self, req, connectors,
                 )?)
                 .build(),
@@ -590,10 +596,10 @@ impl ConnectorIntegration<Void, PaymentsCancelData, PaymentsResponseData> for Da
     ) -> CustomResult<Option<Request>, errors::ConnectorError> {
         let request = RequestBuilder::new()
             .method(Method::Post)
-            .url(&types::PaymentsVoidType::get_url(self, req, connectors)?)
+            .url(&hi_types::PaymentsVoidType::get_url(self, req, connectors)?)
             .attach_default_headers()
-            .headers(types::PaymentsVoidType::get_headers(self, req, connectors)?)
-            .set_body(types::PaymentsVoidType::get_request_body(
+            .headers(hi_types::PaymentsVoidType::get_headers(self, req, connectors)?)
+            .set_body(hi_types::PaymentsVoidType::get_request_body(
                 self, req, connectors,
             )?)
             .build();
@@ -676,12 +682,12 @@ impl ConnectorIntegration<Execute, RefundsData, RefundsResponseData> for Datatra
     ) -> CustomResult<Option<Request>, errors::ConnectorError> {
         let request = RequestBuilder::new()
             .method(Method::Post)
-            .url(&types::RefundExecuteType::get_url(self, req, connectors)?)
+            .url(&hi_types::RefundExecuteType::get_url(self, req, connectors)?)
             .attach_default_headers()
-            .headers(types::RefundExecuteType::get_headers(
+            .headers(hi_types::RefundExecuteType::get_headers(
                 self, req, connectors,
             )?)
-            .set_body(types::RefundExecuteType::get_request_body(
+            .set_body(hi_types::RefundExecuteType::get_request_body(
                 self, req, connectors,
             )?)
             .build();
@@ -748,10 +754,10 @@ impl ConnectorIntegration<RSync, RefundsData, RefundsResponseData> for Datatrans
         Ok(Some(
             RequestBuilder::new()
                 .method(Method::Get)
-                .url(&types::RefundSyncType::get_url(self, req, connectors)?)
+                .url(&hi_types::RefundSyncType::get_url(self, req, connectors)?)
                 .attach_default_headers()
-                .headers(types::RefundSyncType::get_headers(self, req, connectors)?)
-                .set_body(types::RefundSyncType::get_request_body(
+                .headers(hi_types::RefundSyncType::get_headers(self, req, connectors)?)
+                .set_body(hi_types::RefundSyncType::get_request_body(
                     self, req, connectors,
                 )?)
                 .build(),

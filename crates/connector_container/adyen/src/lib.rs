@@ -4,6 +4,7 @@ mod metrics;
 mod types;
 mod utils;
 mod default_implementations;
+mod default_implementations_v2;
 
 use std::sync::LazyLock;
 
