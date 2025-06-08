@@ -351,6 +351,9 @@ export const connectorDetails = {
       },
     },
     MITAutoCapture: {
+      Configs: {
+        TRIGGER_SKIP: true,
+      },
       Request: {
         currency: "MYR",
         billing: billingAddress,
