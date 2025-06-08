@@ -342,7 +342,7 @@ impl From<&payments::PaymentIntent> for RecoveryPaymentIntent {
             billing_address: payment_intent
                 .billing_address
                 .clone()
-                .and_then(|address| Some(api_payments::Address::from(address.into_inner()))),
+                .map(|address| api_payments::Address::from(address.into_inner())),
         }
     }
 }

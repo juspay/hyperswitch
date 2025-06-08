@@ -28,6 +28,7 @@ use hyperswitch_domain_models::{
     ApiModelToDieselModelConvertor,
 };
 use time::PrimitiveDateTime;
+use crate::core::webhooks::recovery_incoming as recovery_incoming_flow;
 
 use crate::{
     core::{
@@ -101,6 +102,14 @@ impl RevenueRecoveryPaymentsAttemptStatus {
     ) -> Result<(), errors::ProcessTrackerError> {
         let db = &*state.store;
 
+        let recovery_payment_intent = hyperswitch_domain_models::revenue_recovery::RecoveryPaymentIntent::from(
+            payment_intent,
+        );
+
+        let recovery_payment_attempt = hyperswitch_domain_models::revenue_recovery::RecoveryPaymentAttempt::from(
+            &payment_attempt,
+        );
+
         match self {
             Self::Succeeded => {
                 // finish psync task as the payment was a success
@@ -110,6 +119,14 @@ impl RevenueRecoveryPaymentsAttemptStatus {
                         business_status::PSYNC_WORKFLOW_COMPLETE,
                     )
                     .await?;
+
+                // publish events to kafka
+                recovery_incoming_flow::publish_revenue_recovery_event_to_kafka(
+                    state,
+                    &recovery_payment_intent,
+                    &recovery_payment_attempt,
+                ).await.change_context(errors::RecoveryError::KafkaEventPublishFailed)?;
+
                 // Record a successful transaction back to Billing Connector
                 // TODO: Add support for retrying failed outgoing recordback webhooks
                 record_back_to_billing_connector(
@@ -130,6 +147,13 @@ impl RevenueRecoveryPaymentsAttemptStatus {
                         business_status::PSYNC_WORKFLOW_COMPLETE,
                     )
                     .await?;
+
+                // publish events to kafka
+                recovery_incoming_flow::publish_revenue_recovery_event_to_kafka(
+                    state,
+                    &recovery_payment_intent,
+                    &recovery_payment_attempt,
+                ).await.change_context(errors::RecoveryError::KafkaEventPublishFailed)?;
 
                 // get a reschedule time
                 let schedule_time = get_schedule_time_to_retry_mit_payments(

@@ -44,7 +44,6 @@ use crate::{
     admin::{self, MerchantConnectorInfo},
     enums as api_enums,
     mandates::RecurringDetails,
-    payments,
 };
 #[cfg(feature = "v1")]
 use crate::{disputes, ephemeral_key::EphemeralKeyCreateResponse, refunds, ValidateFieldAndGet};

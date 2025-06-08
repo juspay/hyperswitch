@@ -279,4 +279,6 @@ pub enum RecoveryError {
     RecordBackToBillingConnectorFailed,
     #[error("Failed to fetch billing connector account id")]
     BillingMerchantConnectorAccountIdNotFound,
+    #[error("Failed to publish event to kafka")]
+    KafkaEventPublishFailed
 }

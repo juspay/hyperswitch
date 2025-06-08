@@ -2033,7 +2033,7 @@ where
         let response = api_models::payments::PaymentAttemptRecordResponse {
             id: payment_attempt.id.clone(),
             status: payment_attempt.status,
-            amount: payment_attempt.amount_details.get_net_amount().clone(),
+            amount: payment_attempt.amount_details.get_net_amount(),
             payment_intent_feature_metadata: payment_intent
                 .feature_metadata
                 .as_ref()
@@ -2045,7 +2045,7 @@ where
             card_network: None,
             error_details: payment_attempt
                 .error
-                .map(|error| api_models::payments::RecordAttemptErrorDetails::from(error)),
+                .map(api_models::payments::RecordAttemptErrorDetails::from),
         };
         Ok(services::ApplicationResponse::JsonWithHeaders((
             response,

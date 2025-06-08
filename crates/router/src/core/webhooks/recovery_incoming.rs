@@ -149,7 +149,7 @@ pub async fn recovery_incoming_webhook_flow(
         .map_err(|e| {
             router_env::logger::error!("Failed to publish revenue recovery event to Kafka: {:?}", e)
         })
-        .ok(); // Log error and continue
+        .ok();
     }
 
     let attempt_triggered_by = recovery_attempt_from_payment_attempt
@@ -598,7 +598,7 @@ impl RevenueRecoveryAttempt {
                             .error
                             .clone()
                             .and_then(|e| e.network_decline_code), // Placeholder, to be populated if available
-                        error_code: res.error.clone().and_then(|error| Some(error.code)),
+                        error_code: res.error.clone().map(|error| error.code),
                     });
                 // If we have an attempt, combine it with payment_intent in a tuple.
                 let res_with_payment_intent_and_attempt =
@@ -1280,7 +1280,7 @@ impl BillingConnectorInvoiceSyncFlowRouterData {
     }
 }
 
-async fn publish_revenue_recovery_event_to_kafka(
+pub async fn publish_revenue_recovery_event_to_kafka(
     state: &SessionState,
     payment_intent: &revenue_recovery::RecoveryPaymentIntent,
     payment_attempt: &revenue_recovery::RecoveryPaymentAttempt,
@@ -1288,7 +1288,7 @@ async fn publish_revenue_recovery_event_to_kafka(
     let invoice_id_str = payment_intent
         .merchant_reference_id
         .as_ref()
-        .and_then(|id| Some(id.get_string_repr().to_string()));
+        .map(|id| id.get_string_repr().to_string());
     let attempt_id_str = payment_attempt.attempt_id.get_string_repr().to_string();
 
     let revenue_recovery_feature_metadata = payment_intent
@@ -1306,7 +1306,7 @@ async fn publish_revenue_recovery_event_to_kafka(
             .and_then(|data| data.invoice_next_billing_time),
         invoice_address: payment_intent.billing_address.clone(),
         attempt_id: attempt_id_str,
-        attempt_amount: payment_attempt.amount.clone(),
+        attempt_amount: payment_attempt.amount,
         attempt_currency: &payment_intent.invoice_currency.clone(),
         attempt_status: &payment_attempt.attempt_status.clone(),
         pg_error_code: payment_attempt.error_code.clone(),
@@ -1314,14 +1314,14 @@ async fn publish_revenue_recovery_event_to_kafka(
         network_error_code: payment_attempt.network_decline_code.clone(),
         attempt_created_at: payment_intent.created_at,
         payment_method_type: revenue_recovery_feature_metadata
-            .and_then(|data| Some(&data.payment_method_type)),
+            .map(|data| &data.payment_method_type),
         payment_method_subtype: revenue_recovery_feature_metadata
-            .and_then(|data| Some(&data.payment_method_subtype)),
+            .map(|data| &data.payment_method_subtype),
         card_network: revenue_recovery_feature_metadata.and_then(|data| data.card_network.as_ref()),
         card_issuer: revenue_recovery_feature_metadata.and_then(|data| data.card_issuer.clone()),
         retry_count: revenue_recovery_feature_metadata
-            .and_then(|data| Some(data.total_retry_count)),
-        payment_gateway: revenue_recovery_feature_metadata.and_then(|data| Some(data.connector)),
+            .map(|data| data.total_retry_count),
+        payment_gateway: revenue_recovery_feature_metadata.map(|data| data.connector),
     };
     state.event_handler.log_event(&event);
     Ok(())

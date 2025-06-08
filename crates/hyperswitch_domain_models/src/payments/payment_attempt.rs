@@ -365,6 +365,7 @@ pub struct ErrorDetails {
     pub network_error_message: Option<String>,
 }
 
+#[cfg(feature = "v2")]
 impl From<ErrorDetails> for api_models::payments::RecordAttemptErrorDetails {
     fn from(error_details: ErrorDetails) -> Self {
         Self {

@@ -41,7 +41,7 @@ use self::{
     dispute::KafkaDispute, dispute_event::KafkaDisputeEvent, payment_attempt::KafkaPaymentAttempt,
     payment_attempt_event::KafkaPaymentAttemptEvent, payment_intent::KafkaPaymentIntent,
     payment_intent_event::KafkaPaymentIntentEvent, refund::KafkaRefund,
-    refund_event::KafkaRefundEvent, revenue_recovery::RevenueRecovery,
+    refund_event::KafkaRefundEvent,
 };
 use crate::{services::kafka::fraud_check::KafkaFraudCheck, types::storage::Dispute};
 
