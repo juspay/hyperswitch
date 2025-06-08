@@ -17505,6 +17505,21 @@
             "description": "Card Issuer",
             "example": "424242",
             "nullable": true
+          },
+          "first_payment_attempt_pg_error_code": {
+            "type": "string",
+            "description": "First Payment Attempt Payment Gateway Error Code",
+            "nullable": true
+          },
+          "first_payment_attempt_network_decline_code": {
+            "type": "string",
+            "description": "First Payment Attempt Network Error Code",
+            "nullable": true
+          },
+          "first_payment_attempt_network_advice_code": {
+            "type": "string",
+            "description": "First Payment Attempt Network Advice Code",
+            "nullable": true
           }
         }
       },
