@@ -947,9 +947,45 @@ where
         &self,
     ) -> CustomResult<Option<FeatureMetadata>, errors::api_error_response::ApiErrorResponse> {
         let payment_intent_feature_metadata = self.payment_intent.get_feature_metadata();
-
         let revenue_recovery = self.payment_intent.get_revenue_recovery_metadata();
         let payment_attempt_connector = self.payment_attempt.connector.clone();
+        let first_pg_error_code = revenue_recovery.as_ref().and_then(|data| {
+            data.first_payment_attempt_pg_error_code
+                .clone()
+                .or_else(|| {
+                    self.payment_attempt
+                        .error
+                        .as_ref()
+                        .map(|error| error.code.clone())
+                })
+        });
+
+        let (first_network_advice_code, first_network_decline_code) =
+            if first_pg_error_code.is_some() {
+                let advice_code = revenue_recovery.as_ref().and_then(|data| {
+                    data.first_payment_attempt_network_advice_code
+                        .clone()
+                        .or_else(|| {
+                            self.payment_attempt
+                                .error
+                                .as_ref()
+                                .map(|error| error.code.clone())
+                        })
+                });
+                let decline_code = revenue_recovery.as_ref().and_then(|data| {
+                    data.first_payment_attempt_network_decline_code
+                        .clone()
+                        .or_else(|| {
+                            self.payment_attempt
+                                .error
+                                .as_ref()
+                                .map(|error| error.code.clone())
+                        })
+                });
+                (advice_code, decline_code)
+            } else {
+                (None, None)
+            };
         let payment_revenue_recovery_metadata = match payment_attempt_connector {
             Some(connector) => Some(diesel_models::types::PaymentRevenueRecoveryMetadata {
                 // Update retry count by one.
@@ -986,6 +1022,9 @@ where
                 invoice_next_billing_time: self.revenue_recovery_data.invoice_next_billing_time,
                 card_network: self.revenue_recovery_data.card_network.clone(),
                 card_issuer: self.revenue_recovery_data.card_issuer.clone(),
+                first_payment_attempt_network_advice_code: first_network_advice_code,
+                first_payment_attempt_network_decline_code: first_network_decline_code,
+                first_payment_attempt_pg_error_code: first_pg_error_code,
             }),
             None => Err(errors::api_error_response::ApiErrorResponse::InternalServerError)
                 .attach_printable("Connector not found in payment attempt")?,

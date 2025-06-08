@@ -8661,9 +8661,18 @@ pub struct PaymentRevenueRecoveryMetadata {
     #[schema(value_type = CardNetwork, example = "Visa")]
     /// Card Network
     pub card_network: Option<common_enums::CardNetwork>,
-    #[schema(value_type = Option<String>, example = "424242")]
     /// Card Issuer
+    #[schema(value_type = Option<String>, example = "JP MORGAN CHASE")]
     pub card_issuer: Option<String>,
+    /// First Payment Attempt Payment Gateway Error Code
+    #[schema(value_type = Option<String>, example = "card_declined")]
+    pub first_payment_attempt_pg_error_code: Option<String>,
+    /// First Payment Attempt Network Error Code
+    #[schema(value_type = Option<String>, example = "05")]
+    pub first_payment_attempt_network_decline_code: Option<String>,
+    /// First Payment Attempt Network Advice Code
+    #[schema(value_type = Option<String>, example = "02")]
+    pub first_payment_attempt_network_advice_code: Option<String>,
 }
 #[cfg(feature = "v2")]
 impl PaymentRevenueRecoveryMetadata {

@@ -4896,6 +4896,15 @@ impl ForeignFrom<&diesel_models::types::FeatureMetadata> for api_models::payment
                         .invoice_next_billing_time,
                     card_issuer: payment_revenue_recovery_metadata.card_issuer.clone(),
                     card_network: payment_revenue_recovery_metadata.card_network.clone(),
+                    first_payment_attempt_network_advice_code: payment_revenue_recovery_metadata
+                        .first_payment_attempt_network_advice_code
+                        .clone(),
+                    first_payment_attempt_network_decline_code: payment_revenue_recovery_metadata
+                        .first_payment_attempt_network_decline_code
+                        .clone(),
+                    first_payment_attempt_pg_error_code: payment_revenue_recovery_metadata
+                        .first_payment_attempt_pg_error_code
+                        .clone(),
                 }
             });
         let apple_pay_details = feature_metadata
