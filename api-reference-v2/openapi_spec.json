@@ -17503,22 +17503,25 @@
           "card_issuer": {
             "type": "string",
             "description": "Card Issuer",
-            "example": "424242",
+            "example": "JP MORGAN CHASE",
             "nullable": true
           },
           "first_payment_attempt_pg_error_code": {
             "type": "string",
             "description": "First Payment Attempt Payment Gateway Error Code",
+            "example": "card_declined",
             "nullable": true
           },
           "first_payment_attempt_network_decline_code": {
             "type": "string",
             "description": "First Payment Attempt Network Error Code",
+            "example": "05",
             "nullable": true
           },
           "first_payment_attempt_network_advice_code": {
             "type": "string",
             "description": "First Payment Attempt Network Advice Code",
+            "example": "02",
             "nullable": true
           }
         }
