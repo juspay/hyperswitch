@@ -18034,7 +18034,8 @@
           "voucher",
           "gift_card",
           "open_banking",
-          "mobile_payment"
+          "mobile_payment",
+          "external_proxy_card_data"
         ]
       },
       "PaymentMethodCollectLinkRequest": {
@@ -18269,6 +18270,18 @@
             "properties": {
               "card": {
                 "$ref": "#/components/schemas/Card"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "title": "ExternalProxyCardData",
+            "required": [
+              "external_proxy_card_data"
+            ],
+            "properties": {
+              "external_proxy_card_data": {
+                "$ref": "#/components/schemas/ProxyCard"
               }
             }
           },
@@ -18991,6 +19004,7 @@
           "pay_safe_card",
           "przelewy24",
           "prompt_pay",
+          "proxy_card",
           "pse",
           "red_compra",
           "red_pagos",
