@@ -83,6 +83,7 @@ pm.test("Authentication object is not null", function () {
     pm.expect(responseJson.payment.authentication).to.not.be.null;
 });
 
+//Response body should have "payment.authentication.url" property
 pm.test("Authentication object has 'url' property", function () {
     pm.expect(responseJson.payment.authentication).to.have.property('url');
 });
