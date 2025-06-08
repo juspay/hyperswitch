@@ -1,6 +1,6 @@
 [workspace]
 resolver = "2"
-members = ["crates/*", "crates/connector_container/hyperswitch_connectors", "crates/connector_container/aci"]
+members = ["crates/*", "crates/connector_container/hyperswitch_connectors", "crates/connector_container/aci",  "crates/connector_container/adyen"]
 exclude = ["crates/connector_container"]
 package.edition = "2021"
 package.rust-version = "1.80.0"

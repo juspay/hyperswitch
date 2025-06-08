@@ -102,7 +102,7 @@ pub mod xendit;
 pub mod zen;
 pub mod zsl;
 pub use self::{
-    adyen::Adyen, adyenplatform::Adyenplatform, airwallex::Airwallex,
+    adyenplatform::Adyenplatform, airwallex::Airwallex,
     amazonpay::Amazonpay, archipel::Archipel, authorizedotnet::Authorizedotnet, bambora::Bambora,
     bamboraapac::Bamboraapac, bankofamerica::Bankofamerica, barclaycard::Barclaycard,
     billwerk::Billwerk, bitpay::Bitpay, bluesnap::Bluesnap, boku::Boku, braintree::Braintree,
@@ -130,3 +130,6 @@ pub use self::{
 
 pub use aci::Aci;
 pub use aci;
+
+pub use adyen;
+pub use adyen::Adyen;
