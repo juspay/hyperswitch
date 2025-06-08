@@ -571,6 +571,22 @@ impl DummyConnector {
     }
 }
 
+#[cfg(all(feature = "dummy_connector", feature = "v2"))]
+impl DummyConnector {
+    pub fn server(state: AppState) -> Scope {
+        let mut routes_with_restricted_access = web::scope("");
+        #[cfg(not(feature = "external_access_dc"))]
+        {
+            routes_with_restricted_access =
+                routes_with_restricted_access.guard(actix_web::guard::Host("localhost"));
+        }
+        routes_with_restricted_access = routes_with_restricted_access
+            .service(web::resource("/payment").route(web::post().to(dummy_connector_payment)));
+        web::scope("/dummy-connector")
+            .app_data(web::Data::new(state))
+            .service(routes_with_restricted_access)
+    }
+}
 pub struct Payments;
 
 #[cfg(all(

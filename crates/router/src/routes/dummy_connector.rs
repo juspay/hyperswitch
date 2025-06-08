@@ -82,6 +82,28 @@ pub async fn dummy_connector_payment(
     .await
 }
 
+
+#[cfg(all(feature = "dummy_connector", feature = "v2"))]
+#[instrument(skip_all, fields(flow = ?types::Flow::DummyPaymentCreate))]
+pub async fn dummy_connector_payment(
+    state: web::Data<app::AppState>,
+    req: actix_web::HttpRequest,
+    json_payload: web::Json<types::DummyConnectorPaymentRequest>,
+) -> impl actix_web::Responder {
+    let payload = json_payload.into_inner();
+    let flow = types::Flow::DummyPaymentCreate;
+    Box::pin(api::server_wrap(
+        flow,
+        state,
+        &req,
+        payload,
+        |state, _: (), req, _| core::payment(state, req),
+        &auth::NoAuth,
+        api_locking::LockAction::NotApplicable,
+    ))
+    .await
+}
+
 #[cfg(all(feature = "dummy_connector", feature = "v1"))]
 #[instrument(skip_all, fields(flow = ?types::Flow::DummyPaymentRetrieve))]
 pub async fn dummy_connector_payment_data(
