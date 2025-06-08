@@ -7,11 +7,11 @@ rust-version.workspace = true
 license.workspace = true
 
 [features]
-frm = ["hyperswitch_domain_models/frm", "hyperswitch_interfaces/frm", "aci/frm"]
-payouts = ["hyperswitch_domain_models/payouts", "api_models/payouts", "hyperswitch_interfaces/payouts", "aci/payouts" ]
-v1 = ["api_models/v1", "hyperswitch_domain_models/v1", "common_utils/v1", "aci/v1"]
-v2 = ["api_models/v2", "hyperswitch_domain_models/v2", "common_utils/v2", "hyperswitch_interfaces/v2", "aci/v2"]
-revenue_recovery = ["hyperswitch_interfaces/revenue_recovery", "hyperswitch_domain_models/revenue_recovery", "aci/revenue_recovery"]
+frm = ["hyperswitch_domain_models/frm", "hyperswitch_interfaces/frm"]
+payouts = ["hyperswitch_domain_models/payouts", "api_models/payouts", "hyperswitch_interfaces/payouts"]
+v1 = ["api_models/v1", "hyperswitch_domain_models/v1", "common_utils/v1"]
+v2 = ["api_models/v2", "hyperswitch_domain_models/v2", "common_utils/v2", "hyperswitch_interfaces/v2"]
+revenue_recovery = ["hyperswitch_interfaces/revenue_recovery", "hyperswitch_domain_models/revenue_recovery"]
 
 [dependencies]
 actix-http = "3.6.0"
@@ -65,8 +65,6 @@ masking = { version = "0.1.0", path = "../../masking" }
 router_env = { version = "0.1.0", path = "../../router_env", features = ["log_extra_implicit_fields", "log_custom_entries_to_extra"] }
 tracing = { workspace = true }
 
-
-aci = { version = "0.1.0", path = "../aci" }
 
 [lints]
 workspace = true

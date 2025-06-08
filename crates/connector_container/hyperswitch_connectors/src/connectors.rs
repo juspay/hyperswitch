@@ -1,5 +1,5 @@
 // pub mod aci;
-pub mod adyen;
+// pub mod adyen;
 pub mod adyenplatform;
 pub mod airwallex;
 pub mod amazonpay;

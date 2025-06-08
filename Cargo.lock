@@ -336,6 +336,61 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "512761e0bb2578dd7380c6baaa0f4ce03e84f95e960231d1dec8bf4d7d6e2627"
 
 [[package]]
+name = "adyen"
+version = "0.1.0"
+dependencies = [
+ "actix-http",
+ "actix-web",
+ "api_models",
+ "async-trait",
+ "base64 0.22.1",
+ "bytes 1.10.1",
+ "cards",
+ "common_enums",
+ "common_types",
+ "common_utils",
+ "encoding_rs",
+ "error-stack",
+ "hex",
+ "html-escape",
+ "http 0.2.12",
+ "hyperswitch_domain_models",
+ "hyperswitch_interfaces",
+ "image",
+ "iso_currency",
+ "isocountry",
+ "josekit 0.8.6",
+ "lazy_static",
+ "masking",
+ "mime",
+ "num-traits",
+ "qrcode",
+ "quick-xml 0.31.0",
+ "rand 0.8.5",
+ "regex",
+ "reqwest 0.11.27",
+ "ring 0.17.14",
+ "router_env",
+ "roxmltree",
+ "serde",
+ "serde_json",
+ "serde_qs",
+ "serde_repr",
+ "serde_urlencoded",
+ "serde_with",
+ "sha1",
+ "strum 0.26.3",
+ "time",
+ "tracing",
+ "unicode-normalization",
+ "unidecode",
+ "url",
+ "urlencoding",
+ "utoipa",
+ "uuid",
+]
+
+[[package]]
 name = "ahash"
 version = "0.7.8"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -4049,6 +4104,7 @@ dependencies = [
  "aci",
  "actix-http",
  "actix-web",
+ "adyen",
  "api_models",
  "async-trait",
  "base64 0.22.1",

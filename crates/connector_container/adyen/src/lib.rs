@@ -88,8 +88,7 @@ use transformers as adyen;
 #[cfg(feature = "payouts")]
 use crate::utils::PayoutsData as UtilsPayoutData;
 use crate::{
-    capture_method_not_supported,
-    constants::{self, headers},
+    constants::{headers},
     types::{
         AcceptDisputeRouterData, DefendDisputeRouterData, ResponseRouterData,
         SubmitEvidenceRouterData,
