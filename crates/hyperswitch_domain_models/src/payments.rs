@@ -949,11 +949,16 @@ where
         let payment_intent_feature_metadata = self.payment_intent.get_feature_metadata();
         let revenue_recovery = self.payment_intent.get_revenue_recovery_metadata();
         let payment_attempt_connector = self.payment_attempt.connector.clone();
-        let first_pg_error_code =  revenue_recovery.as_ref().and_then(|data| 
-            data.first_payment_attempt_pg_error_code.clone()
-            .or_else(|| 
-                self.payment_attempt
-                .error.as_ref().map(|error| error.code.clone())));
+        let first_pg_error_code = revenue_recovery.as_ref().and_then(|data| {
+            data.first_payment_attempt_pg_error_code
+                .clone()
+                .or_else(|| {
+                    self.payment_attempt
+                        .error
+                        .as_ref()
+                        .map(|error| error.code.clone())
+                })
+        });
 
         let (first_network_advice_code, first_network_decline_code) =
             if first_pg_error_code.is_some() {
