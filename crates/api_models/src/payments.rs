@@ -1999,19 +1999,19 @@ pub struct ProxyCard {
     pub card_issuer: Option<String>,
 
     /// The card network for the card
-    #[schema(value_type = Option<Secret<String>>, example = "tok_sandbox_2eo812ry192812b")]
+    #[schema(value_type = Option<String>, example = "tok_sandbox_2eo812ry192812b")]
     pub card_network: Option<Secret<String>>,
 
-    #[schema(example = "tok_sandbox_2eo812ry192812b")]
+    #[schema(value_type = Option<String>, example = "CREDIT")]
     pub card_type: Option<Secret<String>>,
 
-    #[schema(example = "tok_sandbox_2eo812ry192812b")]
+    #[schema(value_type = Option<String>, example = "INDIA")]
     pub card_issuing_country: Option<Secret<String>>,
 
-    #[schema(example = "tok_sandbox_2eo812ry192812b")]
+    #[schema(value_type = Option<String>, example = "JP_AMEX")]
     pub bank_code: Option<Secret<String>>,
     /// The card holder's nick name
-    #[schema(value_type = Option<String>, example = "tok_sandbox_2eo812ry192812b")]
+    #[schema(value_type = Option<String>, example = "John")]
     pub nick_name: Option<Secret<String>>,
 }
 
