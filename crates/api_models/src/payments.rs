@@ -8781,3 +8781,16 @@ impl Serialize for NullObject {
         serializer.serialize_none()
     }
 }
+
+#[cfg(test)]
+mod null_object_test {
+    use super::*;
+    use serde_json;
+
+    #[test]
+    fn test_null_object_serialization() {
+        let null_object = NullObject;
+        let serialized = serde_json::to_string(&null_object).unwrap();
+        assert_eq!(serialized, "null"); 
+    }
+}
