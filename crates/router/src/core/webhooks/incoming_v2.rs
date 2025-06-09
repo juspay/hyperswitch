@@ -97,6 +97,8 @@ pub async fn incoming_webhooks_wrapper<W: types::OutgoingWebhookType>(
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Could not convert webhook effect to string")?;
 
+    let infra = state.infra_components.clone();
+
     let api_event = ApiEvent::new(
         state.tenant.tenant_id.clone(),
         Some(merchant_context.get_merchant_account().get_id().clone()),
@@ -112,6 +114,7 @@ pub async fn incoming_webhooks_wrapper<W: types::OutgoingWebhookType>(
         api_event,
         req,
         req.method(),
+        infra,
     );
     state.event_handler().log_event(&api_event);
     Ok(application_response)
@@ -671,7 +674,7 @@ where
         payment_data: PaymentStatusData {
             flow: PhantomData,
             payment_intent,
-            payment_attempt: Some(payment_attempt),
+            payment_attempt,
             attempts: None,
             should_sync_with_connector: true,
             payment_address,

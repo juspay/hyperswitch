@@ -2,9 +2,9 @@ pub mod opensearch;
 #[cfg(feature = "olap")]
 pub mod user;
 pub mod user_role;
-
 use std::collections::HashSet;
 
+use api_models::enums::Country;
 use common_utils::consts;
 pub use hyperswitch_domain_models::consts::{
     CONNECTOR_MANDATE_REQUEST_REFERENCE_ID_LENGTH, ROUTING_ENABLED_PAYMENT_METHODS,
@@ -243,3 +243,34 @@ pub const IRRELEVANT_PAYMENT_ATTEMPT_ID: &str = "irrelevant_payment_attempt_id";
 
 // Default payment method storing TTL in redis in seconds
 pub const DEFAULT_PAYMENT_METHOD_STORE_TTL: i64 = 86400; // 1 day
+
+// List of countries that are part of the PSD2 region
+pub const PSD2_COUNTRIES: [Country; 27] = [
+    Country::Austria,
+    Country::Belgium,
+    Country::Bulgaria,
+    Country::Croatia,
+    Country::Cyprus,
+    Country::Czechia,
+    Country::Denmark,
+    Country::Estonia,
+    Country::Finland,
+    Country::France,
+    Country::Germany,
+    Country::Greece,
+    Country::Hungary,
+    Country::Ireland,
+    Country::Italy,
+    Country::Latvia,
+    Country::Lithuania,
+    Country::Luxembourg,
+    Country::Malta,
+    Country::Netherlands,
+    Country::Poland,
+    Country::Portugal,
+    Country::Romania,
+    Country::Slovakia,
+    Country::Slovenia,
+    Country::Spain,
+    Country::Sweden,
+];

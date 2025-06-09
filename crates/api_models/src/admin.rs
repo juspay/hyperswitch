@@ -112,6 +112,10 @@ pub struct MerchantAccountCreate {
     /// Product Type of this merchant account
     #[schema(value_type = Option<MerchantProductType>, example = "Orchestration")]
     pub product_type: Option<api_enums::MerchantProductType>,
+
+    /// Merchant Account Type of this merchant account
+    #[schema(value_type = Option<MerchantAccountRequestType>, example = "standard")]
+    pub merchant_account_type: Option<api_enums::MerchantAccountRequestType>,
 }
 
 #[cfg(feature = "v1")]
@@ -287,6 +291,10 @@ pub struct ExternalVaultConnectorDetails {
     /// Merchant Connector id to be stored for vault connector
     #[schema(value_type = Option<String>)]
     pub vault_connector_id: id_type::MerchantConnectorAccountId,
+
+    /// External vault to be used for storing payment method information
+    #[schema(value_type = Option<VaultSdk>)]
+    pub vault_sdk: Option<common_enums::VaultSdk>,
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize, ToSchema)]
@@ -572,6 +580,10 @@ pub struct MerchantAccountResponse {
     /// Product Type of this merchant account
     #[schema(value_type = Option<MerchantProductType>, example = "Orchestration")]
     pub product_type: Option<api_enums::MerchantProductType>,
+
+    /// Merchant Account Type of this merchant account
+    #[schema(value_type = MerchantAccountType, example = "standard")]
+    pub merchant_account_type: api_enums::MerchantAccountType,
 }
 
 #[cfg(feature = "v2")]

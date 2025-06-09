@@ -29,7 +29,8 @@ use crate::{
     admin::*,
     analytics::{
         api_event::*, auth_events::*, connector_events::ConnectorEventsRequest,
-        outgoing_webhook_event::OutgoingWebhookLogsRequest, sdk_events::*, search::*, *,
+        outgoing_webhook_event::OutgoingWebhookLogsRequest, routing_events::RoutingEventsRequest,
+        sdk_events::*, search::*, *,
     },
     api_keys::*,
     cards_info::*,
@@ -142,7 +143,8 @@ impl_api_event_type!(
         OrganizationCreateRequest,
         OrganizationUpdateRequest,
         OrganizationId,
-        CustomerListRequest
+        CustomerListRequest,
+        RoutingEventsRequest
     )
 );
 
