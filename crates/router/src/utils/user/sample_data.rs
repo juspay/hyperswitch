@@ -4,7 +4,7 @@ use api_models::{
 };
 use common_utils::{
     id_type,
-    types::{ConnectorTransactionId, MinorUnit},
+    types::{AmountConvertor, ConnectorTransactionId, MinorUnit, StringMinorUnitForConnector},
 };
 #[cfg(feature = "v1")]
 use diesel_models::user::sample_data::PaymentAttemptBatchNew;
@@ -431,13 +431,18 @@ pub async fn generate_sample_data(
         let dispute =
             if disputes_count < number_of_disputes && !is_failed_payment && refund.is_none() {
                 disputes_count += 1;
+                let currency = payment_intent
+                    .currency
+                    .unwrap_or(common_enums::Currency::USD);
                 Some(DisputeNew {
                     dispute_id: common_utils::generate_id_with_default_len("test"),
-                    amount: (amount * 100).to_string(),
-                    currency: payment_intent
-                        .currency
-                        .unwrap_or(common_enums::Currency::USD)
-                        .to_string(),
+                    amount: StringMinorUnitForConnector::convert(
+                        &StringMinorUnitForConnector,
+                        MinorUnit::new(amount * 100),
+                        currency,
+                    )
+                    .change_context(SampleDataError::InternalServerError)?,
+                    currency: currency.to_string(),
                     dispute_stage: storage_enums::DisputeStage::Dispute,
                     dispute_status: storage_enums::DisputeStatus::DisputeOpened,
                     payment_id: payment_id.clone(),
@@ -457,7 +462,7 @@ pub async fn generate_sample_data(
                     evidence: None,
                     profile_id: payment_intent.profile_id.clone(),
                     merchant_connector_id: payment_attempt.merchant_connector_id.clone(),
-                    dispute_amount: amount * 100,
+                    dispute_amount: MinorUnit::new(amount * 100),
                     organization_id: org_id.clone(),
                     dispute_currency: Some(payment_intent.currency.unwrap_or_default()),
                 })

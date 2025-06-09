@@ -301,20 +301,24 @@ impl ConnectorData {
     #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
     pub fn get_external_vault_connector_by_name(
         _connectors: &Connectors,
-        name: &str,
+        connector: &api_enums::Connector,
         connector_type: GetToken,
         connector_id: Option<common_utils::id_type::MerchantConnectorAccountId>,
     ) -> CustomResult<Self, errors::ApiErrorResponse> {
-        let connector = Self::convert_connector(name)?;
-        let external_vault_connector_name = api_enums::VaultConnectors::from_str(name)
-            .change_context(errors::ConnectorError::InvalidConnectorName)
-            .change_context(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable_lazy(|| {
-                format!("unable to parse external vault connector name {name}")
-            })?;
+        let connector_enum = Self::convert_connector(&connector.to_string())?;
+        let external_vault_connector_name =
+            api_enums::VaultConnectors::from_str(&connector.to_string())
+                .change_context(errors::ConnectorError::InvalidConnectorName)
+                .change_context(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable_lazy(|| {
+                    format!(
+                        "unable to parse external vault connector name {:?}",
+                        connector
+                    )
+                })?;
         let connector_name = api_enums::Connector::from(external_vault_connector_name);
         Ok(Self {
-            connector,
+            connector: connector_enum,
             connector_name,
             get_token: connector_type,
             merchant_connector_id: connector_id,
@@ -334,7 +338,7 @@ impl ConnectorData {
                     connector::Adyenplatform::new(),
                 ))),
                 enums::Connector::Airwallex => {
-                    Ok(ConnectorEnum::Old(Box::new(&connector::Airwallex)))
+                    Ok(ConnectorEnum::Old(Box::new(connector::Airwallex::new())))
                 }
                 // enums::Connector::Amazonpay => {
                 //     Ok(ConnectorEnum::Old(Box::new(connector::Amazonpay)))
@@ -352,9 +356,9 @@ impl ConnectorData {
                 enums::Connector::Bankofamerica => {
                     Ok(ConnectorEnum::Old(Box::new(&connector::Bankofamerica)))
                 }
-                // enums::Connector::Barclaycard => {
-                //     Ok(ConnectorEnum::Old(Box::new(connector::Barclaycard)))
-                // }
+                enums::Connector::Barclaycard => {
+                    Ok(ConnectorEnum::Old(Box::new(&connector::Barclaycard)))
+                }
                 enums::Connector::Billwerk => {
                     Ok(ConnectorEnum::Old(Box::new(connector::Billwerk::new())))
                 }
@@ -474,6 +478,9 @@ impl ConnectorData {
                 enums::Connector::Helcim => {
                     Ok(ConnectorEnum::Old(Box::new(connector::Helcim::new())))
                 }
+                enums::Connector::HyperswitchVault => {
+                    Ok(ConnectorEnum::Old(Box::new(&connector::HyperswitchVault)))
+                }
                 enums::Connector::Iatapay => {
                     Ok(ConnectorEnum::Old(Box::new(connector::Iatapay::new())))
                 }
@@ -565,8 +572,12 @@ impl ConnectorData {
                 enums::Connector::Worldpay => {
                     Ok(ConnectorEnum::Old(Box::new(connector::Worldpay::new())))
                 }
-                // enums::Connector::Worldpayxml => { Ok(ConnectorEnum::Old(Box::new(connector::Worldpayxml)))
-                // },
+                enums::Connector::Worldpayvantiv => Ok(ConnectorEnum::Old(Box::new(
+                    connector::Worldpayvantiv::new(),
+                ))),
+                enums::Connector::Worldpayxml => {
+                    Ok(ConnectorEnum::Old(Box::new(connector::Worldpayxml::new())))
+                }
                 enums::Connector::Xendit => {
                     Ok(ConnectorEnum::Old(Box::new(connector::Xendit::new())))
                 }
@@ -592,6 +603,7 @@ impl ConnectorData {
                     Ok(ConnectorEnum::Old(Box::new(connector::Paystack::new())))
                 }
                 // enums::Connector::Thunes => Ok(ConnectorEnum::Old(Box::new(connector::Thunes))),
+                // enums::Connector::Tokenio => Ok(ConnectorEnum::Old(Box::new(connector::Tokenio))),
                 enums::Connector::Trustpay => {
                     Ok(ConnectorEnum::Old(Box::new(connector::Trustpay::new())))
                 }

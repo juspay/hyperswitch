@@ -1,6 +1,6 @@
 use api_models::routing::{
-    MerchantRoutingAlgorithm, RoutingAlgorithm as Algorithm, RoutingAlgorithmKind,
-    RoutingDictionaryRecord,
+    DynamicRoutingAlgorithm, MerchantRoutingAlgorithm, RoutingAlgorithmKind,
+    RoutingAlgorithmWrapper, RoutingDictionaryRecord,
 };
 #[cfg(feature = "v1")]
 use api_models::{
@@ -59,15 +59,23 @@ impl ForeignTryFrom<RoutingAlgorithm> for MerchantRoutingAlgorithm {
     type Error = error_stack::Report<errors::ParsingError>;
 
     fn foreign_try_from(value: RoutingAlgorithm) -> Result<Self, Self::Error> {
+        let algorithm: RoutingAlgorithmWrapper = match value.kind {
+            diesel_models::enums::RoutingAlgorithmKind::Dynamic => value
+                .algorithm_data
+                .parse_value::<DynamicRoutingAlgorithm>("RoutingAlgorithmDynamic")
+                .map(RoutingAlgorithmWrapper::Dynamic)?,
+            _ => value
+                .algorithm_data
+                .parse_value::<api_models::routing::StaticRoutingAlgorithm>("RoutingAlgorithm")
+                .map(RoutingAlgorithmWrapper::Static)?,
+        };
+
         Ok(Self {
             id: value.algorithm_id,
             name: value.name,
-
             profile_id: value.profile_id,
             description: value.description.unwrap_or_default(),
-            algorithm: value
-                .algorithm_data
-                .parse_value::<Algorithm>("RoutingAlgorithm")?,
+            algorithm,
             created_at: value.created_at.assume_utc().unix_timestamp(),
             modified_at: value.modified_at.assume_utc().unix_timestamp(),
             algorithm_for: value.algorithm_for,
@@ -83,6 +91,7 @@ impl ForeignFrom<storage_enums::RoutingAlgorithmKind> for RoutingAlgorithmKind {
             storage_enums::RoutingAlgorithmKind::VolumeSplit => Self::VolumeSplit,
             storage_enums::RoutingAlgorithmKind::Advanced => Self::Advanced,
             storage_enums::RoutingAlgorithmKind::Dynamic => Self::Dynamic,
+            storage_enums::RoutingAlgorithmKind::ThreeDsDecisionRule => Self::ThreeDsDecisionRule,
         }
     }
 }
@@ -95,6 +104,7 @@ impl ForeignFrom<RoutingAlgorithmKind> for storage_enums::RoutingAlgorithmKind {
             RoutingAlgorithmKind::VolumeSplit => Self::VolumeSplit,
             RoutingAlgorithmKind::Advanced => Self::Advanced,
             RoutingAlgorithmKind::Dynamic => Self::Dynamic,
+            RoutingAlgorithmKind::ThreeDsDecisionRule => Self::ThreeDsDecisionRule,
         }
     }
 }

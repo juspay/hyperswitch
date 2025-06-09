@@ -36,7 +36,10 @@ use crate::{
     },
     db::GlobalStorageInterface,
     routes::SessionState,
-    services::{self, authentication::UserFromToken},
+    services::{
+        self,
+        authentication::{AuthenticationDataWithOrg, UserFromToken},
+    },
     types::{domain, transformers::ForeignFrom},
     utils::{self, user::password},
 };
@@ -413,6 +416,7 @@ pub struct NewUserMerchant {
     company_name: Option<UserCompanyName>,
     new_organization: NewUserOrganization,
     product_type: Option<common_enums::MerchantProductType>,
+    merchant_account_type: Option<common_enums::MerchantAccountRequestType>,
 }
 
 impl TryFrom<UserCompanyName> for MerchantName {
@@ -505,6 +509,7 @@ impl NewUserMerchant {
             redirect_to_merchant_with_http_post: None,
             pm_collect_link_config: None,
             product_type: self.get_product_type(),
+            merchant_account_type: self.merchant_account_type,
         })
     }
 
@@ -517,14 +522,22 @@ impl NewUserMerchant {
 
         let merchant_account_create_request = self
             .create_merchant_account_request()
-            .attach_printable("unable to construct merchant account create request")?;
-
-        let ApplicationResponse::Json(merchant_account_response) = Box::pin(
-            admin::create_merchant_account(state.clone(), merchant_account_create_request),
-        )
-        .await
-        .change_context(UserErrors::InternalServerError)
-        .attach_printable("Error while creating a merchant")?
+            .attach_printable("Unable to construct merchant account create request")?;
+        let org_id = merchant_account_create_request
+            .clone()
+            .organization_id
+            .ok_or(UserErrors::InternalServerError)?;
+        let ApplicationResponse::Json(merchant_account_response) =
+            Box::pin(admin::create_merchant_account(
+                state.clone(),
+                merchant_account_create_request,
+                Some(AuthenticationDataWithOrg {
+                    organization_id: org_id,
+                }),
+            ))
+            .await
+            .change_context(UserErrors::InternalServerError)
+            .attach_printable("Error while creating merchant")?
         else {
             return Err(UserErrors::InternalServerError.into());
         };
@@ -566,7 +579,7 @@ impl NewUserMerchant {
             .attach_printable("unable to construct merchant account create request")?;
 
         let ApplicationResponse::Json(merchant_account_response) = Box::pin(
-            admin::create_merchant_account(state.clone(), merchant_account_create_request),
+            admin::create_merchant_account(state.clone(), merchant_account_create_request, None),
         )
         .await
         .change_context(UserErrors::InternalServerError)
@@ -632,6 +645,7 @@ impl TryFrom<user_api::SignUpRequest> for NewUserMerchant {
             merchant_id,
             new_organization,
             product_type,
+            merchant_account_type: None,
         })
     }
 }
@@ -648,6 +662,7 @@ impl TryFrom<user_api::ConnectAccountRequest> for NewUserMerchant {
             merchant_id,
             new_organization,
             product_type,
+            merchant_account_type: None,
         })
     }
 }
@@ -659,12 +674,12 @@ impl TryFrom<user_api::SignUpWithMerchantIdRequest> for NewUserMerchant {
         let merchant_id = MerchantId::new(value.company_name.clone())?;
         let new_organization = NewUserOrganization::try_from(value)?;
         let product_type = Some(consts::user::DEFAULT_PRODUCT_TYPE);
-
         Ok(Self {
             company_name,
             merchant_id: id_type::MerchantId::try_from(merchant_id)?,
             new_organization,
             product_type,
+            merchant_account_type: None,
         })
     }
 }
@@ -685,6 +700,7 @@ impl TryFrom<(user_api::CreateInternalUserRequest, id_type::OrganizationId)> for
             merchant_id,
             new_organization,
             product_type: None,
+            merchant_account_type: None,
         })
     }
 }
@@ -699,6 +715,7 @@ impl TryFrom<InviteeUserRequestWithInvitedUserToken> for NewUserMerchant {
             merchant_id,
             new_organization,
             product_type: None,
+            merchant_account_type: None,
         })
     }
 }
@@ -712,6 +729,7 @@ impl From<(user_api::CreateTenantUserRequest, MerchantAccountIdentifier)> for Ne
             merchant_id,
             new_organization,
             product_type: None,
+            merchant_account_type: None,
         }
     }
 }
@@ -732,6 +750,7 @@ impl TryFrom<UserMerchantCreateRequestWithToken> for NewUserMerchant {
                 user_merchant_create.company_name.clone(),
             )?),
             product_type: user_merchant_create.product_type,
+            merchant_account_type: user_merchant_create.merchant_account_type,
             new_organization: NewUserOrganization::from((
                 user_from_storage,
                 user_merchant_create,
@@ -755,6 +774,7 @@ impl TryFrom<user_api::PlatformAccountCreateRequest> for NewUserMerchant {
             merchant_id,
             new_organization,
             product_type: Some(consts::user::DEFAULT_PRODUCT_TYPE),
+            merchant_account_type: None,
         })
     }
 }

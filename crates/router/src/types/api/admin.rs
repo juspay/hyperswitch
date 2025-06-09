@@ -92,6 +92,7 @@ impl ForeignTryFrom<domain::MerchantAccount> for MerchantAccountResponse {
             recon_status: item.recon_status,
             pm_collect_link_config,
             product_type: item.product_type,
+            merchant_account_type: item.merchant_account_type,
         })
     }
 }

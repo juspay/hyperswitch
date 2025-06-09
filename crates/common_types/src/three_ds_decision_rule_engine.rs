@@ -46,6 +46,14 @@ pub struct ThreeDSDecisionRule {
     /// The decided 3DS action based on the rules
     pub decision: ThreeDSDecision,
 }
+
+impl ThreeDSDecisionRule {
+    /// Returns the decision
+    pub fn get_decision(&self) -> ThreeDSDecision {
+        self.decision
+    }
+}
+
 impl_to_sql_from_sql_json!(ThreeDSDecisionRule);
 
 impl EuclidDirFilter for ThreeDSDecisionRule {

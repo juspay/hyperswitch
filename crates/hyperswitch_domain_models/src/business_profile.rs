@@ -248,7 +248,7 @@ pub struct ProfileGeneralUpdate {
     pub is_clear_pan_retries_enabled: Option<bool>,
     pub force_3ds_challenge: Option<bool>,
     pub active_surcharge_algorithm_id: Option<common_utils::id_type::SurchargeRoutingId>,
-    pub is_debit_routing_enabled: bool,
+    pub is_debit_routing_enabled: Option<bool>,
     pub merchant_business_country: Option<api_enums::CountryAlpha2>,
     pub is_iframe_redirection_enabled: Option<bool>,
     pub is_pre_network_tokenization_enabled: Option<bool>,
@@ -430,7 +430,7 @@ impl From<ProfileUpdate> for ProfileUpdateInternal {
                 is_clear_pan_retries_enabled: None,
                 force_3ds_challenge: None,
                 active_surcharge_algorithm_id: None,
-                is_debit_routing_enabled: false,
+                is_debit_routing_enabled: None,
                 merchant_business_country: None,
                 is_iframe_redirection_enabled: None,
                 is_pre_network_tokenization_enabled: None,
@@ -480,7 +480,7 @@ impl From<ProfileUpdate> for ProfileUpdateInternal {
                 is_clear_pan_retries_enabled: None,
                 force_3ds_challenge: None,
                 active_surcharge_algorithm_id: None,
-                is_debit_routing_enabled: false,
+                is_debit_routing_enabled: None,
                 merchant_business_country: None,
                 is_iframe_redirection_enabled: None,
                 is_pre_network_tokenization_enabled: None,
@@ -530,7 +530,7 @@ impl From<ProfileUpdate> for ProfileUpdateInternal {
                 is_clear_pan_retries_enabled: None,
                 force_3ds_challenge: None,
                 active_surcharge_algorithm_id: None,
-                is_debit_routing_enabled: false,
+                is_debit_routing_enabled: None,
                 merchant_business_country: None,
                 is_iframe_redirection_enabled: None,
                 is_pre_network_tokenization_enabled: None,
@@ -580,7 +580,7 @@ impl From<ProfileUpdate> for ProfileUpdateInternal {
                 is_clear_pan_retries_enabled: None,
                 force_3ds_challenge: None,
                 active_surcharge_algorithm_id: None,
-                is_debit_routing_enabled: false,
+                is_debit_routing_enabled: None,
                 merchant_business_country: None,
                 is_iframe_redirection_enabled: None,
                 is_pre_network_tokenization_enabled: None,
@@ -630,7 +630,7 @@ impl From<ProfileUpdate> for ProfileUpdateInternal {
                 is_clear_pan_retries_enabled: None,
                 force_3ds_challenge: None,
                 active_surcharge_algorithm_id: None,
-                is_debit_routing_enabled: false,
+                is_debit_routing_enabled: None,
                 merchant_business_country: None,
                 is_iframe_redirection_enabled: None,
                 is_pre_network_tokenization_enabled: None,
@@ -680,7 +680,7 @@ impl From<ProfileUpdate> for ProfileUpdateInternal {
                 is_clear_pan_retries_enabled: None,
                 force_3ds_challenge: None,
                 active_surcharge_algorithm_id: None,
-                is_debit_routing_enabled: false,
+                is_debit_routing_enabled: None,
                 merchant_business_country: None,
                 is_iframe_redirection_enabled: None,
                 is_pre_network_tokenization_enabled: None,
@@ -730,7 +730,7 @@ impl From<ProfileUpdate> for ProfileUpdateInternal {
                 is_clear_pan_retries_enabled: None,
                 force_3ds_challenge: None,
                 active_surcharge_algorithm_id,
-                is_debit_routing_enabled: false,
+                is_debit_routing_enabled: None,
                 merchant_business_country: None,
                 is_iframe_redirection_enabled: None,
                 is_pre_network_tokenization_enabled: None,
@@ -1176,6 +1176,11 @@ impl Profile {
     pub fn is_external_vault_enabled(&self) -> bool {
         self.is_external_vault_enabled.unwrap_or(false)
     }
+
+    #[cfg(feature = "v2")]
+    pub fn is_vault_sdk_enabled(&self) -> bool {
+        self.external_vault_connector_details.is_some()
+    }
 }
 
 #[cfg(feature = "v2")]
@@ -1210,7 +1215,7 @@ pub struct ProfileGeneralUpdate {
     pub three_ds_decision_manager_config: Option<common_types::payments::DecisionManagerRecord>,
     pub card_testing_guard_config: Option<CardTestingGuardConfig>,
     pub card_testing_secret_key: OptionalEncryptableName,
-    pub is_debit_routing_enabled: bool,
+    pub is_debit_routing_enabled: Option<bool>,
     pub merchant_business_country: Option<api_enums::CountryAlpha2>,
     pub is_iframe_redirection_enabled: Option<bool>,
     pub is_external_vault_enabled: Option<bool>,
@@ -1391,7 +1396,7 @@ impl From<ProfileUpdate> for ProfileUpdateInternal {
                 card_testing_guard_config: None,
                 card_testing_secret_key: None,
                 is_clear_pan_retries_enabled: None,
-                is_debit_routing_enabled: false,
+                is_debit_routing_enabled: None,
                 merchant_business_country: None,
                 revenue_recovery_retry_algorithm_type: None,
                 revenue_recovery_retry_algorithm_data: None,
@@ -1443,7 +1448,7 @@ impl From<ProfileUpdate> for ProfileUpdateInternal {
                 card_testing_guard_config: None,
                 card_testing_secret_key: None,
                 is_clear_pan_retries_enabled: None,
-                is_debit_routing_enabled: false,
+                is_debit_routing_enabled: None,
                 merchant_business_country: None,
                 revenue_recovery_retry_algorithm_type: None,
                 revenue_recovery_retry_algorithm_data: None,
@@ -1495,7 +1500,7 @@ impl From<ProfileUpdate> for ProfileUpdateInternal {
                 card_testing_guard_config: None,
                 card_testing_secret_key: None,
                 is_clear_pan_retries_enabled: None,
-                is_debit_routing_enabled: false,
+                is_debit_routing_enabled: None,
                 merchant_business_country: None,
                 revenue_recovery_retry_algorithm_type: None,
                 revenue_recovery_retry_algorithm_data: None,
@@ -1547,7 +1552,7 @@ impl From<ProfileUpdate> for ProfileUpdateInternal {
                 card_testing_guard_config: None,
                 card_testing_secret_key: None,
                 is_clear_pan_retries_enabled: None,
-                is_debit_routing_enabled: false,
+                is_debit_routing_enabled: None,
                 merchant_business_country: None,
                 revenue_recovery_retry_algorithm_type: None,
                 revenue_recovery_retry_algorithm_data: None,
@@ -1599,7 +1604,7 @@ impl From<ProfileUpdate> for ProfileUpdateInternal {
                 card_testing_guard_config: None,
                 card_testing_secret_key: None,
                 is_clear_pan_retries_enabled: None,
-                is_debit_routing_enabled: false,
+                is_debit_routing_enabled: None,
                 merchant_business_country: None,
                 revenue_recovery_retry_algorithm_type: None,
                 revenue_recovery_retry_algorithm_data: None,
@@ -1651,7 +1656,7 @@ impl From<ProfileUpdate> for ProfileUpdateInternal {
                 card_testing_guard_config: None,
                 card_testing_secret_key: None,
                 is_clear_pan_retries_enabled: None,
-                is_debit_routing_enabled: false,
+                is_debit_routing_enabled: None,
                 merchant_business_country: None,
                 revenue_recovery_retry_algorithm_type: None,
                 revenue_recovery_retry_algorithm_data: None,
@@ -1703,7 +1708,7 @@ impl From<ProfileUpdate> for ProfileUpdateInternal {
                 card_testing_guard_config: None,
                 card_testing_secret_key: None,
                 is_clear_pan_retries_enabled: None,
-                is_debit_routing_enabled: false,
+                is_debit_routing_enabled: None,
                 merchant_business_country: None,
                 revenue_recovery_retry_algorithm_type: None,
                 revenue_recovery_retry_algorithm_data: None,
@@ -1755,7 +1760,7 @@ impl From<ProfileUpdate> for ProfileUpdateInternal {
                 card_testing_guard_config: None,
                 card_testing_secret_key: card_testing_secret_key.map(Encryption::from),
                 is_clear_pan_retries_enabled: None,
-                is_debit_routing_enabled: false,
+                is_debit_routing_enabled: None,
                 merchant_business_country: None,
                 revenue_recovery_retry_algorithm_type: None,
                 revenue_recovery_retry_algorithm_data: None,
@@ -1808,7 +1813,7 @@ impl From<ProfileUpdate> for ProfileUpdateInternal {
                 card_testing_guard_config: None,
                 card_testing_secret_key: None,
                 is_clear_pan_retries_enabled: None,
-                is_debit_routing_enabled: false,
+                is_debit_routing_enabled: None,
                 merchant_business_country: None,
                 revenue_recovery_retry_algorithm_type: Some(revenue_recovery_retry_algorithm_type),
                 revenue_recovery_retry_algorithm_data,
@@ -1963,20 +1968,19 @@ impl super::behaviour::Conversion for Profile {
                 authentication_product_ids: item.authentication_product_ids,
                 three_ds_decision_manager_config: item.three_ds_decision_manager_config,
                 card_testing_guard_config: item.card_testing_guard_config,
-                card_testing_secret_key: item
-                    .card_testing_secret_key
-                    .async_lift(|inner| async {
-                        crypto_operation(
-                            state,
-                            type_name!(Self::DstType),
-                            CryptoOperation::DecryptOptional(inner),
-                            key_manager_identifier.clone(),
-                            key.peek(),
-                        )
-                        .await
-                        .and_then(|val| val.try_into_optionaloperation())
-                    })
-                    .await?,
+                card_testing_secret_key: match item.card_testing_secret_key {
+                    Some(encrypted_value) => crypto_operation(
+                        state,
+                        type_name!(Self::DstType),
+                        CryptoOperation::DecryptOptional(Some(encrypted_value)),
+                        key_manager_identifier.clone(),
+                        key.peek(),
+                    )
+                    .await
+                    .and_then(|val| val.try_into_optionaloperation())
+                    .unwrap_or_default(),
+                    None => None,
+                },
                 is_clear_pan_retries_enabled: item.is_clear_pan_retries_enabled,
                 active_surcharge_algorithm_id: item.active_surcharge_algorithm_id,
                 is_debit_routing_enabled: item.is_debit_routing_enabled,

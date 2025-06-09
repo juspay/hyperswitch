@@ -4591,7 +4591,7 @@ pub async fn perform_surcharge_ops(
     _state: &routes::SessionState,
     _merchant_context: &domain::MerchantContext,
     _business_profile: Option<Profile>,
-    _response: &mut api::CustomerPaymentMethodsListResponse,
+    _response: &mut api_models::payment_methods::CustomerPaymentMethodsListResponse,
 ) -> Result<(), error_stack::Report<errors::ApiErrorResponse>> {
     todo!()
 }
@@ -5123,7 +5123,12 @@ pub async fn tokenize_card_flow(
             );
             let builder =
                 tokenize::NetworkTokenizationBuilder::<tokenize::TokenizeWithPmId>::default();
-            execute_payment_method_tokenization(executor, builder, payment_method).await
+            Box::pin(execute_payment_method_tokenization(
+                executor,
+                builder,
+                payment_method,
+            ))
+            .await
         }
     }
 }

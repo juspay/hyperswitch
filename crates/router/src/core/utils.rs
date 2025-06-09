@@ -15,6 +15,8 @@ use common_utils::{
     types::{keymanager::KeyManagerState, ConnectorTransactionIdTrait, MinorUnit},
 };
 use error_stack::{report, ResultExt};
+#[cfg(feature = "v2")]
+use hyperswitch_domain_models::types::VaultRouterData;
 use hyperswitch_domain_models::{
     merchant_connector_account::MerchantConnectorAccount, payment_address::PaymentAddress,
     router_data::ErrorResponse, router_request_types, types::OrderDetailsWithAmount,
@@ -2041,10 +2043,12 @@ pub async fn construct_vault_router_data<F>(
     merchant_connector_account: &payment_helpers::MerchantConnectorAccountType,
     payment_method_vaulting_data: Option<domain::PaymentMethodVaultingData>,
     connector_vault_id: Option<String>,
+    connector_customer_id: Option<String>,
 ) -> RouterResult<VaultRouterDataV2<F>> {
     let connector_name = merchant_connector_account
         .get_connector_name()
-        .unwrap_or_default(); // always get the connector name from the merchant_connector_account
+        .ok_or(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Connector name not present for external vault")?; // always get the connector name from the merchant_connector_account
     let connector_auth_type: types::ConnectorAuthType = merchant_connector_account
         .get_connector_account_details()
         .parse_value("ConnectorAuthType")
@@ -2062,6 +2066,7 @@ pub async fn construct_vault_router_data<F>(
         request: types::VaultRequestData {
             payment_method_vaulting_data,
             connector_vault_id,
+            connector_customer_id,
         },
         response: Ok(types::VaultResponseData::default()),
     };

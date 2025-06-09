@@ -44,6 +44,7 @@ paths:
                 min_aggregates_size: 5
                 default_success_rate: 0.95
                 specificity_level: ENTITY
+                exploration_percent: 20.0
       responses:
         "200":
           description: Success rate calculated successfully
@@ -758,6 +759,17 @@ components:
           items:
             $ref: "#/components/schemas/LabelWithScore"
           description: List of labels with their calculated success rates
+        routing_approach:
+          $ref: "#/components/schemas/RoutingApproach"
+
+    RoutingApproach:
+      type: string
+      description: >
+        Defines the routing approach based on the success rate calculation.
+      enum:
+        - EXPLORATION
+        - EXPLOITATION
+      example: EXPLOITATION
 
     UpdateSuccessRateWindowRequest:
       type: object
