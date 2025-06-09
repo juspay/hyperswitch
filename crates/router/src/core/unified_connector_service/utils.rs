@@ -168,7 +168,8 @@ pub fn construct_ucs_payment_address(
                     .and_then(|c| payments_grpc::CountryAlpha2::from_str_name(&c.to_string()))
             })
             .ok_or_else(|| ApiErrorResponse::InternalServerError)
-            .attach_printable("Invalid country code")?.into();
+            .attach_printable("Invalid country code")?
+            .into();
 
         Some(payments_grpc::Address {
             address: address
@@ -209,7 +210,8 @@ pub fn construct_ucs_payment_address(
                     .and_then(|c| payments_grpc::CountryAlpha2::from_str_name(&c.to_string()))
             })
             .ok_or_else(|| ApiErrorResponse::InternalServerError)
-            .attach_printable("Invalid country code")?.into();
+            .attach_printable("Invalid country code")?
+            .into();
 
         Some(payments_grpc::Address {
             address: address
@@ -251,7 +253,8 @@ pub fn construct_ucs_payment_address(
                         .and_then(|c| payments_grpc::CountryAlpha2::from_str_name(&c.to_string()))
                 })
                 .ok_or_else(|| ApiErrorResponse::InternalServerError)
-                .attach_printable("Invalid country code")?.into();
+                .attach_printable("Invalid country code")?
+                .into();
 
             Some(payments_grpc::Address {
                 address: address
