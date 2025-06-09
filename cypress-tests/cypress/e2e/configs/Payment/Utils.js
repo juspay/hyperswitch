@@ -333,6 +333,7 @@ export const CONNECTOR_LISTS = {
     CONNECTOR_AGNOSTIC_NTID: [
       "bankofamerica",
       "braintree",
+      "facilitapay",
       "fiuu",
       "paypal",
       "fiserv",
