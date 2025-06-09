@@ -1,0 +1,240 @@
+# API Models Crate Overview
+
+The `api_models` crate is a fundamental component of the Hyperswitch payment orchestration platform, responsible for defining the API request and response models. This document provides an overview of the api_models crate's structure, responsibilities, and key components.
+
+## Purpose
+
+The api_models crate serves as the contract between Hyperswitch and its API consumers, providing:
+
+1. **Request Models**: Defines the structure of incoming API requests
+2. **Response Models**: Defines the structure of outgoing API responses
+3. **Validation Logic**: Implements validation rules for API requests
+4. **Serialization/Deserialization**: Handles conversion between JSON and Rust types
+5. **Documentation**: Provides OpenAPI documentation for the API
+
+## Architecture
+
+The api_models crate follows a modular architecture where each API resource has its own module. This design allows for:
+
+1. **Separation of Concerns**: Each resource's models are isolated
+2. **Maintainability**: Changes to one resource don't affect others
+3. **Versioning**: API versions can be managed independently
+4. **Documentation**: Each resource can be documented separately
+
+## Key Components
+
+### Request Models
+
+Request models define the structure of incoming API requests:
+
+- **Create Models**: For creating new resources
+- **Update Models**: For updating existing resources
+- **Query Models**: For querying resources
+- **Delete Models**: For deleting resources
+
+### Response Models
+
+Response models define the structure of outgoing API responses:
+
+- **Resource Models**: Represent the resources being returned
+- **List Models**: Represent lists of resources
+- **Error Models**: Represent error responses
+- **Status Models**: Represent status responses
+
+### Validation
+
+The api_models crate implements validation logic for API requests:
+
+- **Field Validation**: Validates individual fields
+- **Cross-Field Validation**: Validates relationships between fields
+- **Business Rule Validation**: Validates business rules
+- **Type Validation**: Validates data types
+
+### Serialization/Deserialization
+
+The api_models crate handles conversion between JSON and Rust types:
+
+- **JSON Serialization**: Converts Rust types to JSON
+- **JSON Deserialization**: Converts JSON to Rust types
+- **Custom Serializers**: Handles special serialization cases
+- **Custom Deserializers**: Handles special deserialization cases
+
+## Key Resources
+
+The api_models crate defines models for all API resources in the Hyperswitch system:
+
+### Payment Resources
+
+- **PaymentIntent**: Models for creating and managing payment intents
+- **PaymentMethod**: Models for creating and managing payment methods
+- **Refund**: Models for creating and managing refunds
+- **Dispute**: Models for managing disputes
+
+### Customer Resources
+
+- **Customer**: Models for creating and managing customers
+- **Address**: Models for creating and managing addresses
+- **MandateData**: Models for creating and managing mandates
+
+### Merchant Resources
+
+- **MerchantAccount**: Models for creating and managing merchant accounts
+- **MerchantConnectorAccount**: Models for creating and managing merchant connector accounts
+- **BusinessProfile**: Models for creating and managing business profiles
+
+### Configuration Resources
+
+- **Config**: Models for managing system configuration
+- **ApiKey**: Models for creating and managing API keys
+- **User**: Models for creating and managing users
+
+### Operational Resources
+
+- **Webhook**: Models for creating and managing webhooks
+- **Event**: Models for managing events
+
+## API Versioning
+
+The api_models crate supports API versioning:
+
+- **Version Namespaces**: Each version has its own namespace
+- **Version Compatibility**: Ensures backward compatibility
+- **Version Migration**: Provides migration paths between versions
+- **Version Documentation**: Documents changes between versions
+
+## OpenAPI Documentation Support
+
+The `api_models` crate plays a crucial role in generating the project's OpenAPI documentation. It achieves this by:
+- **Defining Annotatable Models**: Provides the core Rust request and response structs (e.g., for payments, customers) that are annotated using a library like `utoipa` (e.g., with `#[derive(ToSchema)]`).
+- **Enabling Schema Generation**: These annotations allow `utoipa` to derive OpenAPI schema definitions directly from the Rust types.
+- **Facilitating Endpoint Documentation**: While API endpoint definitions (paths, operations) are typically defined in the `router` crate (using `utoipa::path` macros on Actix Web handlers), they consume the annotated models from `api_models` to describe request/response bodies and parameters.
+- **Source for Examples and Errors**: The defined models also serve as the basis for generating example requests/responses and defining error response schemas in the OpenAPI specification.
+
+The final OpenAPI document is typically generated by a dedicated process or a specialized crate (like the `openapi` crate within this workspace) that collects all `utoipa` annotations from `api_models` and route handlers in the `router`.
+
+## Code Structure
+
+```
+api_models/
+├── src/
+│   ├── payments/              # Payment-related models
+│   │   ├── payment_intent.rs  # Payment intent models
+│   │   ├── payment_method.rs  # Payment method models
+│   │   ├── refund.rs          # Refund models
+│   │   └── dispute.rs         # Dispute models
+│   ├── customers/             # Customer-related models
+│   │   ├── customer.rs        # Customer models
+│   │   ├── address.rs         # Address models
+│   │   └── mandate.rs         # Mandate models
+│   ├── merchants/             # Merchant-related models
+│   │   ├── merchant_account.rs # Merchant account models
+│   │   ├── connector_account.rs # Connector account models
+│   │   └── business_profile.rs # Business profile models
+│   ├── admin/                 # Admin-related models
+│   │   ├── api_key.rs         # API key models
+│   │   ├── user.rs            # User models
+│   │   └── config.rs          # Config models
+│   ├── webhooks/              # Webhook-related models
+│   │   ├── incoming.rs        # Incoming webhook models
+│   │   └── outgoing.rs        # Outgoing webhook models
+│   ├── enums/                 # Enum definitions
+│   │   ├── mod.rs             # Main enums module
+│   │   └── ...                # Enum submodules
+│   ├── errors.rs              # Error definitions
+│   ├── response.rs            # Common response models
+│   ├── pagination.rs          # Pagination models
+│   ├── validation.rs          # Validation utilities
+│   └── lib.rs                 # Library entry point
+└── Cargo.toml                 # Crate manifest
+```
+
+## Key Workflows
+
+### Payment Intent Creation
+
+1. Client sends a PaymentIntentCreate request
+2. Request is validated against the PaymentIntentCreate model
+3. Payment intent is created in the system
+4. PaymentIntentResponse is returned to the client
+
+### Payment Method Creation
+
+1. Client sends a PaymentMethodCreate request
+2. Request is validated against the PaymentMethodCreate model
+3. Payment method is created in the system
+4. PaymentMethodResponse is returned to the client
+
+### Refund Creation
+
+1. Client sends a RefundCreate request
+2. Request is validated against the RefundCreate model
+3. Refund is created in the system
+4. RefundResponse is returned to the client
+
+## Request Validation
+
+The api_models crate implements comprehensive request validation:
+
+### Field-level Validation
+
+- **Required Fields**: Ensures required fields are present
+- **Field Types**: Validates field types
+- **Field Formats**: Validates field formats (e.g., email, URL)
+- **Field Lengths**: Validates field lengths
+- **Field Patterns**: Validates field patterns (e.g., regex)
+
+### Business Rule Validation
+
+- **Cross-Field Validation**: Validates relationships between fields
+- **Conditional Validation**: Validates fields based on conditions
+- **Business Logic Validation**: Validates business rules
+
+## Response Formatting
+
+The api_models crate implements standardized response formatting:
+
+### Success Responses
+
+- **Resource Representation**: Returns the resource representation
+- **Hypermedia Links**: Includes links to related resources
+- **Metadata**: Includes metadata about the response
+
+### Error Responses
+
+- **Error Code**: Includes a machine-readable error code
+- **Error Message**: Includes a human-readable error message
+- **Error Details**: Includes details about the error
+- **Request ID**: Includes a request ID for tracking
+
+## Integration with Other Crates
+
+The api_models crate integrates with several other crates in the Hyperswitch ecosystem:
+
+1. **router**: Uses api_models for request/response handling
+2. **hyperswitch_domain_models**: Provides domain models for transformations
+3. **common_utils**: Provides utility functions
+4. **common_enums**: Provides shared enumerations
+5. **masking**: Provides data masking capabilities
+
+## Security Considerations
+
+The api_models crate implements several security measures:
+
+- **Input Validation**: Validates all input to prevent injection attacks
+- **Sensitive Data Handling**: Masks sensitive data in logs and responses
+- **Rate Limiting**: Supports rate limiting headers
+- **Authentication**: Supports authentication headers
+- **Authorization**: Supports authorization models
+
+## Performance Considerations
+
+The api_models crate is designed for high performance:
+
+- **Efficient Serialization**: Uses efficient serialization/deserialization
+- **Minimal Allocations**: Minimizes memory allocations
+- **Lazy Validation**: Performs validation only when needed
+- **Caching**: Caches frequently used data
+
+## Conclusion
+
+The api_models crate is a critical component of the Hyperswitch platform, providing the contract between Hyperswitch and its API consumers. Its modular design, comprehensive validation, and standardized formatting ensure a consistent and reliable API experience for all users.
