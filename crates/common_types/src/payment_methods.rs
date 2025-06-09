@@ -181,7 +181,7 @@ struct RequestPaymentMethodTypesV1 {
     pub accepted_countries: Option<AcceptedCountries>,
     pub minimum_amount: Option<common_utils::types::MinorUnit>,
     pub maximum_amount: Option<common_utils::types::MinorUnit>,
-    pub recurring_enabled:  Option<bool>,
+    pub recurring_enabled: Option<bool>,
     pub installment_payment_enabled: Option<bool>,
 }
 

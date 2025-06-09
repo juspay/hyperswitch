@@ -134,7 +134,8 @@ impl<T> ConnectorErrorExt<T> for error_stack::Result<T, errors::ConnectorError> 
             errors::ConnectorError::CaptureMethodNotSupported => {
                 errors::ApiErrorResponse::NotSupported {
                     message: "Capture Method Not Supported".to_owned(),
-                }.into()
+                }
+                .into()
             }
             errors::ConnectorError::FailedToObtainIntegrationUrl
             | errors::ConnectorError::RequestEncodingFailed
@@ -241,7 +242,7 @@ impl<T> ConnectorErrorExt<T> for error_stack::Result<T, errors::ConnectorError> 
                 errors::ConnectorError::CaptureMethodNotSupported => {
                     errors::ApiErrorResponse::NotSupported {
                         message: "Capture Method Not Supported".to_owned(),
-                    }         
+                    }
                 }
                 errors::ConnectorError::InvalidWalletToken {wallet_name} => errors::ApiErrorResponse::InvalidWalletToken {wallet_name: wallet_name.to_string()},
                 errors::ConnectorError::CurrencyNotSupported { message, connector} => errors::ApiErrorResponse::CurrencyNotSupported { message: format!("Credentials for the currency {message} are not configured with the connector {connector}/hyperswitch") },
@@ -335,7 +336,7 @@ impl<T> ConnectorErrorExt<T> for error_stack::Result<T, errors::ConnectorError> 
                 errors::ConnectorError::CaptureMethodNotSupported => {
                     errors::ApiErrorResponse::NotSupported {
                         message: "Capture Method Not Supported".to_owned(),
-                    }                
+                    }
                 }
                 errors::ConnectorError::RequestEncodingFailed
                 | errors::ConnectorError::RequestEncodingFailedWithReason(_)

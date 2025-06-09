@@ -2181,7 +2181,7 @@ pub struct CustomerPaymentMethod {
 
     /// Indicates whether the payment method supports recurring payments. Optional.
     #[schema(example = true)]
-    pub recurring_enabled:Option<bool>,
+    pub recurring_enabled: Option<bool>,
 
     /// Indicates whether the payment method is eligible for installment payments (e.g., EMI, BNPL). Optional.
     #[schema(example = true)]
