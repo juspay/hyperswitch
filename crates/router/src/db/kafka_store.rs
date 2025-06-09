@@ -1505,14 +1505,6 @@ impl PaymentAttemptInterface for KafkaStore {
             )
             .await?;
 
-        // if let Err(er) = self
-        //     .kafka_producer
-        //     .log_payment_attempt(&attempt, None, self.tenant_id.clone())
-        //     .await
-        // {
-        //     logger::error!(message="Failed to log analytics event for payment attempt {attempt:?}", error_message=?er)
-        // }
-
         Ok(attempt)
     }
 
@@ -1558,14 +1550,6 @@ impl PaymentAttemptInterface for KafkaStore {
                 storage_scheme,
             )
             .await?;
-
-        // if let Err(er) = self
-        //     .kafka_producer
-        //     .log_payment_attempt(&attempt, Some(this), self.tenant_id.clone())
-        //     .await
-        // {
-        //     logger::error!(message="Failed to log analytics event for payment attempt {attempt:?}", error_message=?er)
-        // }
 
         Ok(attempt)
     }

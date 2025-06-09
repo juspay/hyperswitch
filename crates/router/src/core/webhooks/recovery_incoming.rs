@@ -1312,6 +1312,11 @@ pub async fn publish_revenue_recovery_event_to_kafka(
         pg_error_code: payment_attempt.error_code.clone(),
         network_advice_code: payment_attempt.network_advice_code.clone(),
         network_error_code: payment_attempt.network_decline_code.clone(),
+        first_pg_error_code: revenue_recovery_feature_metadata.and_then(|data| data.first_payment_attempt_pg_error_code.clone()),
+        first_network_advice_code: revenue_recovery_feature_metadata
+            .and_then(|data| data.first_payment_attempt_network_advice_code.clone()),
+        first_network_error_code: revenue_recovery_feature_metadata
+            .and_then(|data| data.first_payment_attempt_network_decline_code.clone()),
         attempt_created_at: payment_intent.created_at,
         payment_method_type: revenue_recovery_feature_metadata
             .map(|data| &data.payment_method_type),

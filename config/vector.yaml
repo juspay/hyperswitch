@@ -274,12 +274,12 @@ sinks:
     type: aws_s3
     inputs:
       - revenue_events
-    bucket: r-r-test-2110
+    bucket: BUCKET_NAME
     region: us-east-1
     content_type: json
     batch:
       max_events: 1000
-      timeout_secs: 60
+      timeout_secs: 86400
     encoding:
       codec: csv
       csv:
@@ -298,17 +298,22 @@ sinks:
           - pg_error_code
           - network_advice_code
           - network_error_code
+          - first_pg_error_code
+          - first_network_advice_code
+          - first_network_error_code
           - attempt_created_at
           - payment_method_type
           - payment_method_subtype
           - card_network
           - card_issuer
+          - retry_count
+          - payment_gateway
     key_prefix: "{{ .merchant_id }}/%M/%d_%H_%M_%S"
     timezone: "Europe/London"
     auth: 
-      access_key_id: "AKIAT6O474TZRBY4M3KE"
-      secret_access_key: "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"
-      assume_role: arn:aws:iam::271583274227:role/nishantt
+      access_key_id: "ACCESS_KEY_ID"
+      secret_access_key: "SECRET_ACCESS_KEY"
+      assume_role: AWS_ROLE
     server_side_encryption: aws:kms
     request:
       max_retries: 3
