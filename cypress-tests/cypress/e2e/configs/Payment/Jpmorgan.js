@@ -353,18 +353,14 @@ export const connectorDetails = {
       },
     },
     ZeroAuthMandate: {
-      Request: {
-        payment_method: "card",
-        payment_method_data: {
-          card: successfulNo3DSCardDetails,
-        },
-        currency: "USD",
-        mandate_data: singleUseMandateData,
-      },
       Response: {
-        status: 200,
+        status: 501,
         body: {
-          status: "processing",
+          error: {
+            type: "invalid_request",
+            message: "Setup Mandate flow for JPMorgan is not implemented",
+            code: "IR_00",
+          },
         },
       },
     },
@@ -392,14 +388,16 @@ export const connectorDetails = {
         },
       },
       Response: {
-        status: 200,
+        status: 501,
         body: {
-          status: "processing",
-          setup_future_usage: "off_session",
+          error: {
+            type: "invalid_request",
+            message: "Setup Mandate flow for JPMorgan is not implemented",
+            code: "IR_00",
+          },
         },
       },
     },
-
     SaveCardUseNo3DSAutoCapture: {
       Request: {
         payment_method: "card",
@@ -435,6 +433,10 @@ export const connectorDetails = {
       },
     },
     PaymentMethodIdMandateNo3DSAutoCapture: {
+      
+      Configs: {
+        TRIGGER_SKIP: true,
+      },
       Request: {
         payment_method: "card",
         payment_method_data: {
@@ -519,6 +521,9 @@ export const connectorDetails = {
       },
     },
     PaymentMethodIdMandateNo3DSManualCapture: {
+      Configs: {
+        TRIGGER_SKIP: true,
+      },
       Request: {
         payment_method: "card",
         payment_method_data: {
