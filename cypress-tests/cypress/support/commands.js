@@ -2591,7 +2591,7 @@ Cypress.Commands.add(
     const merchant_connector_id = globalState.get(
       `${configInfo.merchantConnectorPrefix}Id`
     );
-    const setupFutureUsage = globalState.get("setupFutureUsage");
+
     for (const key in reqData) {
       requestBody[key] = reqData[key];
     }
