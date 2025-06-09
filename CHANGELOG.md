@@ -4,6 +4,24 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2025.06.06.0
+
+### Features
+
+- **router:** Return payment_experience in PML for payment (v2) ([#8255](https://github.com/juspay/hyperswitch/pull/8255)) ([`9ce3d73`](https://github.com/juspay/hyperswitch/commit/9ce3d73e53c1d0196af4617142048c00a7937f98))
+
+### Bug Fixes
+
+- **wasm:** [Worldpayvantiv] add support for metadata.report_group ([#8260](https://github.com/juspay/hyperswitch/pull/8260)) ([`d15ee49`](https://github.com/juspay/hyperswitch/commit/d15ee49bad78a5d3e460bf08fc83ae3df84dcfee))
+
+### Refactors
+
+- Add infra-values in intent kafka events ([#8264](https://github.com/juspay/hyperswitch/pull/8264)) ([`4a7c08f`](https://github.com/juspay/hyperswitch/commit/4a7c08fbc57f9712f1ff478d01d4929b9576b448))
+
+**Full Changelog:** [`2025.06.05.0...2025.06.06.0`](https://github.com/juspay/hyperswitch/compare/2025.06.05.0...2025.06.06.0)
+
+- - -
+
 ## 2025.06.05.0
 
 ### Features

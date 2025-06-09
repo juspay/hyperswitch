@@ -1106,6 +1106,11 @@ impl Profile {
     pub fn is_external_vault_enabled(&self) -> bool {
         self.is_external_vault_enabled.unwrap_or(false)
     }
+
+    #[cfg(feature = "v2")]
+    pub fn is_vault_sdk_enabled(&self) -> bool {
+        self.external_vault_connector_details.is_some()
+    }
 }
 
 #[cfg(feature = "v2")]

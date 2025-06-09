@@ -155,6 +155,11 @@ bg_metrics_collection_interval_in_secs = 15           # Interval for collecting 
 delay_between_retries_in_milliseconds = 500 # Delay between retries in milliseconds
 redis_lock_expiry_seconds = 180             # Seconds before the redis lock expires
 
+# Controls whether merchant ID authentication is enabled.
+# When enabled, payment endpoints will accept and require a x-merchant-id header in the request.
+[merchant_id_auth]
+merchant_id_auth_enabled = false
+
 # Main SQL data store credentials
 [master_database]
 username = "db_user"      # DB Username
@@ -363,6 +368,9 @@ background_color = "#FFFFFF"                     # Background color of email bod
 
 [connectors.unified_authentication_service] #Unified Authentication Service Configuration
 base_url = "http://localhost:8000" #base url to call unified authentication service
+
+[connectors.hyperswitch_vault] # Hyperswitch Vault Configuration
+base_url = "http://localhost:8080" # base url to call hyperswitch vault service
 
 [clone_connector_allowlist]
 merchant_ids = "merchant_ids"           # Comma-separated list of allowed merchant IDs

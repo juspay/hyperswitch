@@ -260,6 +260,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentConfirmData<F>, ProxyPaymentsR
             payment_method_data: Some(PaymentMethodData::MandatePayment),
             payment_address,
             mandate_data: Some(mandate_data_input),
+            payment_method: None,
             merchant_connector_details: None,
         };
 

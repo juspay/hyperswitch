@@ -1,9 +1,9 @@
 use api_models::{enums::FrmSuggestion, payments::PaymentsConfirmIntentRequest};
 use async_trait::async_trait;
-use common_utils::{ext_traits::Encode, id_type, types::keymanager::ToEncryptable};
+use common_utils::{ext_traits::Encode, fp_utils::when, id_type, types::keymanager::ToEncryptable};
 use error_stack::ResultExt;
 use hyperswitch_domain_models::payments::PaymentConfirmData;
-use masking::PeekInterface;
+use masking::{ExposeOptionInterface, PeekInterface};
 use router_env::{instrument, tracing};
 
 use super::{Domain, GetTracker, Operation, UpdateTracker, ValidateRequest};
@@ -11,6 +11,7 @@ use crate::{
     core::{
         admin,
         errors::{self, CustomResult, RouterResult, StorageErrorExt},
+        payment_methods,
         payments::{
             self, call_decision_manager, helpers,
             operations::{self, ValidateStatusForOperation},
@@ -225,6 +226,23 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentConfirmData<F>, PaymentsConfir
             .clone()
             .map(hyperswitch_domain_models::payment_method_data::PaymentMethodData::from);
 
+        if request.payment_token.is_some() {
+            when(
+                !matches!(
+                    payment_method_data,
+                    Some(domain::payment_method_data::PaymentMethodData::CardToken(_))
+                ),
+                || {
+                    Err(errors::ApiErrorResponse::InvalidDataValue {
+                        field_name: "payment_method_data",
+                    })
+                    .attach_printable(
+                        "payment_method_data should be card_token when a token is passed",
+                    )
+                },
+            )?;
+        };
+
         let payment_address = hyperswitch_domain_models::payment_address::PaymentAddress::new(
             payment_intent
                 .shipping_address
@@ -250,6 +268,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentConfirmData<F>, PaymentsConfir
             payment_method_data,
             payment_address,
             mandate_data: None,
+            payment_method: None,
             merchant_connector_details,
         };
 
@@ -351,6 +370,125 @@ impl<F: Clone + Send + Sync> Domain<F, PaymentsConfirmIntentRequest, PaymentConf
     }
 
     #[cfg(feature = "v2")]
+    async fn create_or_fetch_payment_method<'a>(
+        &'a self,
+        state: &SessionState,
+        merchant_context: &domain::MerchantContext,
+        business_profile: &domain::Profile,
+        payment_data: &mut PaymentConfirmData<F>,
+    ) -> CustomResult<(), errors::ApiErrorResponse> {
+        let (payment_method, payment_method_data) = match (
+            &payment_data.payment_attempt.payment_token,
+            &payment_data.payment_method_data,
+            &payment_data.payment_attempt.customer_acceptance,
+        ) {
+            (
+                Some(payment_token),
+                Some(domain::payment_method_data::PaymentMethodData::CardToken(card_token)),
+                None,
+            ) => {
+                let (card_cvc, card_holder_name) = {
+                    (
+                        card_token
+                            .card_cvc
+                            .clone()
+                            .ok_or(errors::ApiErrorResponse::InvalidDataValue {
+                                field_name: "card_cvc",
+                            })
+                            .attach_printable("card_cvc not provided")?,
+                        card_token.card_holder_name.clone(),
+                    )
+                };
+
+                let (payment_method, vault_data) =
+                    payment_methods::vault::retrieve_payment_method_from_vault_using_payment_token(
+                        state,
+                        merchant_context,
+                        business_profile,
+                        payment_token,
+                        &payment_data.payment_attempt.payment_method_type,
+                    )
+                    .await
+                    .change_context(errors::ApiErrorResponse::InternalServerError)
+                    .attach_printable("Failed to retrieve payment method from vault")?;
+
+                match vault_data {
+                    domain::vault::PaymentMethodVaultingData::Card(card_detail) => {
+                        let pm_data_from_vault =
+                            domain::payment_method_data::PaymentMethodData::Card(
+                                domain::payment_method_data::Card::from((
+                                    card_detail,
+                                    card_cvc,
+                                    card_holder_name,
+                                )),
+                            );
+
+                        (Some(payment_method), Some(pm_data_from_vault))
+                    }
+                    _ => Err(errors::ApiErrorResponse::NotImplemented {
+                        message: errors::NotImplementedMessage::Reason(
+                            "Non-card Tokenization not implemented".to_string(),
+                        ),
+                    })?,
+                }
+            }
+
+            (Some(_payment_token), _, _) => Err(errors::ApiErrorResponse::InvalidDataValue {
+                field_name: "payment_method_data",
+            })
+            .attach_printable("payment_method_data should be card_token when a token is passed")?,
+
+            (None, Some(domain::PaymentMethodData::Card(card)), Some(_customer_acceptance)) => {
+                let customer_id = match &payment_data.payment_intent.customer_id {
+                    Some(customer_id) => customer_id.clone(),
+                    None => {
+                        return Err(errors::ApiErrorResponse::InvalidDataValue {
+                            field_name: "customer_id",
+                        })
+                        .attach_printable("customer_id not provided");
+                    }
+                };
+
+                let pm_create_data =
+                    api::PaymentMethodCreateData::Card(api::CardDetail::from(card.clone()));
+
+                let req = api::PaymentMethodCreate {
+                    payment_method_type: payment_data.payment_attempt.payment_method_type,
+                    payment_method_subtype: payment_data.payment_attempt.payment_method_subtype,
+                    metadata: None,
+                    customer_id,
+                    payment_method_data: pm_create_data,
+                    billing: None,
+                    psp_tokenization: None,
+                    network_tokenization: None,
+                };
+
+                let (_pm_response, payment_method) = payment_methods::create_payment_method_core(
+                    state,
+                    &state.get_req_state(),
+                    req,
+                    merchant_context,
+                    business_profile,
+                )
+                .await?;
+
+                // Don't modify payment_method_data in this case, only the payment_method and payment_method_id
+                (Some(payment_method), None)
+            }
+            _ => (None, None), // Pass payment_data unmodified for any other case
+        };
+
+        if let Some(pm_data) = payment_method_data {
+            payment_data.update_payment_method_data(pm_data);
+        }
+        if let Some(pm) = payment_method {
+            payment_data.update_payment_method_and_pm_id(pm.get_id().clone(), pm);
+        }
+
+        Ok(())
+    }
+
+    #[cfg(feature = "v2")]
     async fn get_connector_from_request<'a>(
         &'a self,
         state: &SessionState,
@@ -424,12 +562,26 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentConfirmData<F>, PaymentsConfirmInt
 
         let authentication_type = payment_data.payment_attempt.authentication_type;
 
-        let payment_attempt_update = hyperswitch_domain_models::payments::payment_attempt::PaymentAttemptUpdate::ConfirmIntent {
-            status: attempt_status,
-            updated_by: storage_scheme.to_string(),
-            connector,
-            merchant_connector_id,
-            authentication_type,
+        let payment_attempt_update = match &payment_data.payment_method {
+            Some(payment_method) => {
+                hyperswitch_domain_models::payments::payment_attempt::PaymentAttemptUpdate::ConfirmIntentTokenized {
+                    status: attempt_status,
+                    updated_by: storage_scheme.to_string(),
+                    connector,
+                    merchant_connector_id,
+                    authentication_type,
+                    payment_method_id : payment_method.get_id().clone()
+                }
+            }
+            None => {
+                hyperswitch_domain_models::payments::payment_attempt::PaymentAttemptUpdate::ConfirmIntent {
+                    status: attempt_status,
+                    updated_by: storage_scheme.to_string(),
+                    connector,
+                    merchant_connector_id,
+                    authentication_type,
+                }
+            }
         };
 
         let updated_payment_intent = db
