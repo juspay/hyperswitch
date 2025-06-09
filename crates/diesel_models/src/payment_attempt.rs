@@ -833,7 +833,7 @@ pub struct PaymentAttemptUpdateInternal {
     pub authentication_type: Option<storage_enums::AuthenticationType>,
     pub error_message: Option<String>,
     pub connector_payment_id: Option<String>,
-    // payment_method_id: Option<String>,
+    pub payment_method_id: Option<id_type::GlobalPaymentMethodId>,
     // cancellation_reason: Option<String>,
     pub modified_at: PrimitiveDateTime,
     pub browser_info: Option<serde_json::Value>,

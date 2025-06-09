@@ -600,6 +600,38 @@ pub enum MerchantAccountData {
         name: String,
         connector_recipient_id: Option<RecipientIdType>,
     },
+    FasterPayments {
+        account_number: Secret<String>,
+        sort_code: Secret<String>,
+        name: String,
+        connector_recipient_id: Option<RecipientIdType>,
+    },
+    Sepa {
+        iban: Secret<String>,
+        name: String,
+        connector_recipient_id: Option<RecipientIdType>,
+    },
+    SepaInstant {
+        iban: Secret<String>,
+        name: String,
+        connector_recipient_id: Option<RecipientIdType>,
+    },
+    Elixir {
+        account_number: Secret<String>,
+        iban: Secret<String>,
+        name: String,
+        connector_recipient_id: Option<RecipientIdType>,
+    },
+    Bankgiro {
+        number: Secret<String>,
+        name: String,
+        connector_recipient_id: Option<RecipientIdType>,
+    },
+    Plusgiro {
+        number: Secret<String>,
+        name: String,
+        connector_recipient_id: Option<RecipientIdType>,
+    },
 }
 
 impl ForeignFrom<MerchantAccountData> for api_models::admin::MerchantAccountData {
@@ -625,6 +657,82 @@ impl ForeignFrom<MerchantAccountData> for api_models::admin::MerchantAccountData
             } => Self::Bacs {
                 account_number,
                 sort_code,
+                name,
+                connector_recipient_id: match connector_recipient_id {
+                    Some(RecipientIdType::ConnectorId(id)) => Some(id.clone()),
+                    _ => None,
+                },
+            },
+            MerchantAccountData::FasterPayments {
+                account_number,
+                sort_code,
+                name,
+                connector_recipient_id,
+            } => Self::FasterPayments {
+                account_number,
+                sort_code,
+                name,
+                connector_recipient_id: match connector_recipient_id {
+                    Some(RecipientIdType::ConnectorId(id)) => Some(id.clone()),
+                    _ => None,
+                },
+            },
+            MerchantAccountData::Sepa {
+                iban,
+                name,
+                connector_recipient_id,
+            } => Self::Sepa {
+                iban,
+                name,
+                connector_recipient_id: match connector_recipient_id {
+                    Some(RecipientIdType::ConnectorId(id)) => Some(id.clone()),
+                    _ => None,
+                },
+            },
+            MerchantAccountData::SepaInstant {
+                iban,
+                name,
+                connector_recipient_id,
+            } => Self::SepaInstant {
+                iban,
+                name,
+                connector_recipient_id: match connector_recipient_id {
+                    Some(RecipientIdType::ConnectorId(id)) => Some(id.clone()),
+                    _ => None,
+                },
+            },
+            MerchantAccountData::Elixir {
+                account_number,
+                iban,
+                name,
+                connector_recipient_id,
+            } => Self::Elixir {
+                account_number,
+                iban,
+                name,
+                connector_recipient_id: match connector_recipient_id {
+                    Some(RecipientIdType::ConnectorId(id)) => Some(id.clone()),
+                    _ => None,
+                },
+            },
+            MerchantAccountData::Bankgiro {
+                number,
+                name,
+                connector_recipient_id,
+            } => Self::Bankgiro {
+                number,
+                name,
+                connector_recipient_id: match connector_recipient_id {
+                    Some(RecipientIdType::ConnectorId(id)) => Some(id.clone()),
+                    _ => None,
+                },
+            },
+            MerchantAccountData::Plusgiro {
+                number,
+                name,
+                connector_recipient_id,
+            } => Self::Plusgiro {
+                number,
                 name,
                 connector_recipient_id: match connector_recipient_id {
                     Some(RecipientIdType::ConnectorId(id)) => Some(id.clone()),
@@ -658,10 +766,67 @@ impl From<api_models::admin::MerchantAccountData> for MerchantAccountData {
                 name,
                 connector_recipient_id: connector_recipient_id.map(RecipientIdType::ConnectorId),
             },
+            api_models::admin::MerchantAccountData::FasterPayments {
+                account_number,
+                sort_code,
+                name,
+                connector_recipient_id,
+            } => Self::FasterPayments {
+                account_number,
+                sort_code,
+                name,
+                connector_recipient_id: connector_recipient_id.map(RecipientIdType::ConnectorId),
+            },
+            api_models::admin::MerchantAccountData::Sepa {
+                iban,
+                name,
+                connector_recipient_id,
+            } => Self::Sepa {
+                iban,
+                name,
+                connector_recipient_id: connector_recipient_id.map(RecipientIdType::ConnectorId),
+            },
+            api_models::admin::MerchantAccountData::SepaInstant {
+                iban,
+                name,
+                connector_recipient_id,
+            } => Self::SepaInstant {
+                iban,
+                name,
+                connector_recipient_id: connector_recipient_id.map(RecipientIdType::ConnectorId),
+            },
+            api_models::admin::MerchantAccountData::Elixir {
+                account_number,
+                iban,
+                name,
+                connector_recipient_id,
+            } => Self::Elixir {
+                account_number,
+                iban,
+                name,
+                connector_recipient_id: connector_recipient_id.map(RecipientIdType::ConnectorId),
+            },
+            api_models::admin::MerchantAccountData::Bankgiro {
+                number,
+                name,
+                connector_recipient_id,
+            } => Self::Bankgiro {
+                number,
+                name,
+                connector_recipient_id: connector_recipient_id.map(RecipientIdType::ConnectorId),
+            },
+            api_models::admin::MerchantAccountData::Plusgiro {
+                number,
+                name,
+                connector_recipient_id,
+            } => Self::Plusgiro {
+                number,
+                name,
+                connector_recipient_id: connector_recipient_id.map(RecipientIdType::ConnectorId),
+            },
         }
     }
 }
-
 #[derive(Debug, Clone, serde::Deserialize, serde::Serialize)]
 #[serde(rename_all = "snake_case")]
 pub enum MerchantRecipientData {
