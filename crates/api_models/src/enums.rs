@@ -175,12 +175,14 @@ pub enum BillingConnectors {
 #[strum(serialize_all = "snake_case")]
 pub enum VaultConnectors {
     Vgs,
+    HyperswitchVault,
 }
 
 impl From<VaultConnectors> for Connector {
     fn from(value: VaultConnectors) -> Self {
         match value {
             VaultConnectors::Vgs => Self::Vgs,
+            VaultConnectors::HyperswitchVault => Self::HyperswitchVault,
         }
     }
 }

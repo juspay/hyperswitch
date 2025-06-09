@@ -87,6 +87,12 @@ pub struct ConfigMerchantAdditionalDetails {
     pub bacs: Option<Vec<InputData>>,
     pub connector_recipient_id: Option<InputData>,
     pub wallet_id: Option<InputData>,
+    pub faster_payments: Option<Vec<InputData>>,
+    pub sepa: Option<Vec<InputData>>,
+    pub sepa_instant: Option<Vec<InputData>>,
+    pub elixir: Option<Vec<InputData>>,
+    pub bankgiro: Option<Vec<InputData>>,
+    pub plusgiro: Option<Vec<InputData>>,
 }
 
 #[serde_with::skip_serializing_none]
@@ -124,6 +130,8 @@ pub struct ConfigMetadata {
     pub ledger_account_id: Option<InputData>,
     pub tenant_id: Option<InputData>,
     pub platform_url: Option<InputData>,
+    pub report_group: Option<InputData>,
+    pub proxy_url: Option<InputData>,
 }
 
 #[serde_with::skip_serializing_none]
@@ -214,6 +222,7 @@ pub struct ConnectorConfig {
     pub gpayments: Option<ConnectorTomlConfig>,
     pub hipay: Option<ConnectorTomlConfig>,
     pub helcim: Option<ConnectorTomlConfig>,
+    pub hyperswitch_vault: Option<ConnectorTomlConfig>,
     pub inespay: Option<ConnectorTomlConfig>,
     pub jpmorgan: Option<ConnectorTomlConfig>,
     pub klarna: Option<ConnectorTomlConfig>,
@@ -265,6 +274,7 @@ pub struct ConnectorConfig {
     pub wise_payout: Option<ConnectorTomlConfig>,
     pub worldline: Option<ConnectorTomlConfig>,
     pub worldpay: Option<ConnectorTomlConfig>,
+    pub worldpayvantiv: Option<ConnectorTomlConfig>,
     pub worldpayxml: Option<ConnectorTomlConfig>,
     pub xendit: Option<ConnectorTomlConfig>,
     pub square: Option<ConnectorTomlConfig>,
@@ -399,6 +409,7 @@ impl ConnectorConfig {
             Connector::Gocardless => Ok(connector_data.gocardless),
             Connector::Gpayments => Ok(connector_data.gpayments),
             Connector::Hipay => Ok(connector_data.hipay),
+            Connector::HyperswitchVault => Ok(connector_data.hyperswitch_vault),
             Connector::Helcim => Ok(connector_data.helcim),
             Connector::Inespay => Ok(connector_data.inespay),
             Connector::Jpmorgan => Ok(connector_data.jpmorgan),
@@ -436,6 +447,7 @@ impl ConnectorConfig {
             Connector::Stax => Ok(connector_data.stax),
             Connector::Stripe => Ok(connector_data.stripe),
             Connector::Stripebilling => Ok(connector_data.stripebilling),
+            Connector::Tokenio => Ok(connector_data.tokenio),
             Connector::Trustpay => Ok(connector_data.trustpay),
             Connector::Threedsecureio => Ok(connector_data.threedsecureio),
             Connector::Taxjar => Ok(connector_data.taxjar),
@@ -446,6 +458,7 @@ impl ConnectorConfig {
             Connector::Wise => Err("Use get_payout_connector_config".to_string()),
             Connector::Worldline => Ok(connector_data.worldline),
             Connector::Worldpay => Ok(connector_data.worldpay),
+            Connector::Worldpayvantiv => Ok(connector_data.worldpayvantiv),
             Connector::Worldpayxml => Ok(connector_data.worldpayxml),
             Connector::Zen => Ok(connector_data.zen),
             Connector::Zsl => Ok(connector_data.zsl),

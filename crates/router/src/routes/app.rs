@@ -99,7 +99,7 @@ pub use crate::{
 use crate::{
     configs::{secrets_transformers, Settings},
     db::kafka_store::{KafkaStore, TenantID},
-    routes::hypersense as hypersense_routes,
+    routes::{hypersense as hypersense_routes, three_ds_decision_rule},
 };
 
 #[derive(Clone)]
@@ -130,6 +130,7 @@ pub struct SessionState {
     pub theme_storage_client: Arc<dyn FileStorageInterface>,
     pub locale: String,
     pub crm_client: Arc<dyn CrmInterface>,
+    pub infra_components: Option<serde_json::Value>,
 }
 impl scheduler::SchedulerSessionState for SessionState {
     fn get_db(&self) -> Box<dyn SchedulerInterface> {
@@ -242,6 +243,7 @@ pub struct AppState {
     pub grpc_client: Arc<GrpcClients>,
     pub theme_storage_client: Arc<dyn FileStorageInterface>,
     pub crm_client: Arc<dyn CrmInterface>,
+    pub infra_components: Option<serde_json::Value>,
 }
 impl scheduler::SchedulerAppState for AppState {
     fn get_tenants(&self) -> Vec<id_type::TenantId> {
@@ -406,7 +408,7 @@ impl AppState {
             let crm_client = conf.crm.get_crm_client().await;
 
             let grpc_client = conf.grpc_client.get_grpc_client_interface().await;
-
+            let infra_component_values = Self::process_env_mappings(conf.infra_values.clone());
             Self {
                 flow_name: String::from("default"),
                 stores,
@@ -427,6 +429,7 @@ impl AppState {
                 grpc_client,
                 theme_storage_client,
                 crm_client,
+                infra_components: infra_component_values,
             }
         })
         .await
@@ -521,7 +524,28 @@ impl AppState {
             theme_storage_client: self.theme_storage_client.clone(),
             locale: locale.unwrap_or(common_utils::consts::DEFAULT_LOCALE.to_string()),
             crm_client: self.crm_client.clone(),
+            infra_components: self.infra_components.clone(),
         })
+    }
+
+    pub fn process_env_mappings(
+        mappings: Option<HashMap<String, String>>,
+    ) -> Option<serde_json::Value> {
+        let result: HashMap<String, String> = mappings?
+            .into_iter()
+            .filter_map(|(key, env_var)| std::env::var(&env_var).ok().map(|value| (key, value)))
+            .collect();
+
+        if result.is_empty() {
+            None
+        } else {
+            Some(serde_json::Value::Object(
+                result
+                    .into_iter()
+                    .map(|(k, v)| (k, serde_json::Value::String(v)))
+                    .collect(),
+            ))
+        }
     }
 }
 
@@ -2159,6 +2183,20 @@ impl Gsm {
     }
 }
 
+pub struct ThreeDsDecisionRule;
+
+#[cfg(feature = "oltp")]
+impl ThreeDsDecisionRule {
+    pub fn server(state: AppState) -> Scope {
+        web::scope("/three_ds_decision")
+            .app_data(web::Data::new(state))
+            .service(
+                web::resource("/execute")
+                    .route(web::post().to(three_ds_decision_rule::execute_decision_rule)),
+            )
+    }
+}
+
 #[cfg(feature = "olap")]
 pub struct Verify;
 
@@ -2243,7 +2281,6 @@ impl User {
             .service(
                 web::resource("/tenant_signup").route(web::post().to(user::create_tenant_user)),
             )
-            .service(web::resource("/create_platform").route(web::post().to(user::create_platform)))
             .service(web::resource("/create_org").route(web::post().to(user::user_org_create)))
             .service(
                 web::resource("/create_merchant")
@@ -2270,6 +2307,12 @@ impl User {
                     .route(web::get().to(user::get_multiple_dashboard_metadata))
                     .route(web::post().to(user::set_dashboard_metadata)),
             );
+
+        if state.conf.platform.enabled {
+            route = route.service(
+                web::resource("/create_platform").route(web::post().to(user::create_platform)),
+            )
+        }
 
         route = route
             .service(web::scope("/key").service(
