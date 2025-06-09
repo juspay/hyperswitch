@@ -50,6 +50,7 @@ function validateErrorMessage(response, resData) {
   }
 }
 
+//skip MIT using PMId if connector does not support MIT only
 export function shouldSkipMitUsingPMId(connectorId) {
   const skipConnectors = ["fiuu"];
   return skipConnectors.includes(connectorId);
