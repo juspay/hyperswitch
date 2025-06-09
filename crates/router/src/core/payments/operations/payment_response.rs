@@ -2160,16 +2160,25 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
                 async move {
                     let should_route_to_open_router = state.conf.open_router.enabled;
 
-                    if should_route_to_open_router {
-                        routing_helpers::update_gateway_score_helper_with_open_router(
+                    let should_perform_sr_update =
+                        routing_helpers::should_parform_update_gateway_score(
                             &state,
-                            &payment_attempt,
-                            &profile_id,
-                            dynamic_routing_algo_ref.clone(),
+                            &gsm_error_category,
                         )
-                        .await
-                        .map_err(|e| logger::error!(open_router_update_gateway_score_err=?e))
-                        .ok();
+                        .await;
+
+                    if should_route_to_open_router {
+                        if should_perform_sr_update {
+                            routing_helpers::update_gateway_score_helper_with_open_router(
+                                &state,
+                                &payment_attempt,
+                                &profile_id,
+                                dynamic_routing_algo_ref.clone(),
+                            )
+                            .await
+                            .map_err(|e| logger::error!(open_router_update_gateway_score_err=?e))
+                            .ok();
+                        }
                     } else {
                         routing_helpers::push_metrics_with_update_window_for_success_based_routing(
                             &state,
@@ -2178,6 +2187,7 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
                             &profile_id,
                             dynamic_routing_algo_ref.clone(),
                             dynamic_routing_config_params_interpolator.clone(),
+                            should_perform_sr_update
                         )
                         .await
                         .map_err(|e| logger::error!(success_based_routing_metrics_error=?e))

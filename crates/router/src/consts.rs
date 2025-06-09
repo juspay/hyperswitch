@@ -307,3 +307,5 @@ pub const PSD2_COUNTRIES: [Country; 27] = [
     Country::Spain,
     Country::Sweden,
 ];
+
+pub const SUCCESS_RATE_ROUTING_ERROR_CATEGORY_KEY: &str = "success_rate_routing_error_categories";
