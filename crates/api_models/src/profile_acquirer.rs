@@ -11,9 +11,6 @@ pub struct ProfileAcquirerCreate {
     /// merchant name
     #[schema(value_type= String,example = "NewAge Retailer")]
     pub merchant_name: String,
-    /// Merchant category code assigned by acquirer
-    #[schema(value_type= String,example = "5812")]
-    pub mcc: String,
     /// Merchant country code assigned by acquirer
     #[schema(value_type= String,example = "US")]
     pub merchant_country_code: enums::CountryAlpha2,

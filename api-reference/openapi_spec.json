@@ -24921,7 +24921,6 @@
         "required": [
           "acquirer_assigned_merchant_id",
           "merchant_name",
-          "mcc",
           "merchant_country_code",
           "network",
           "acquirer_bin",
@@ -24938,11 +24937,6 @@
             "type": "string",
             "description": "merchant name",
             "example": "NewAge Retailer"
-          },
-          "mcc": {
-            "type": "string",
-            "description": "Merchant category code assigned by acquirer",
-            "example": "5812"
           },
           "merchant_country_code": {
             "type": "string",
