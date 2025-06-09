@@ -427,7 +427,7 @@ impl Feature<api::Authorize, types::PaymentsAuthorizeData> for types::PaymentsAu
         merchant_connector_account: helpers::MerchantConnectorAccountType,
         client: &mut PaymentServiceClient<tonic::transport::Channel>,
     ) -> RouterResult<()> {
-        let request = construct_ucs_authorize_request(&self)?;
+        let request = construct_ucs_authorize_request(self)?;
 
         let mut request = tonic::Request::new(request);
 
