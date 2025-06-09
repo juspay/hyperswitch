@@ -433,7 +433,6 @@ export const connectorDetails = {
       },
     },
     PaymentMethodIdMandateNo3DSAutoCapture: {
-      
       Configs: {
         TRIGGER_SKIP: true,
       },
