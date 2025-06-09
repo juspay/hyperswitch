@@ -2,6 +2,12 @@
 //!
 //! Functions that are used to perform the retrieval of merchant's
 //! routing dict, configs, defaults
+use std::fmt::Debug;
+#[cfg(all(feature = "dynamic_routing", feature = "v1"))]
+use std::str::FromStr;
+#[cfg(all(feature = "dynamic_routing", feature = "v1"))]
+use std::sync::Arc;
+
 #[cfg(feature = "v1")]
 use api_models::open_router;
 use api_models::routing as routing_types;
@@ -31,11 +37,6 @@ use router_env::logger;
 #[cfg(feature = "v1")]
 use router_env::{instrument, tracing};
 use rustc_hash::FxHashSet;
-use std::fmt::Debug;
-#[cfg(all(feature = "dynamic_routing", feature = "v1"))]
-use std::str::FromStr;
-#[cfg(all(feature = "dynamic_routing", feature = "v1"))]
-use std::sync::Arc;
 use storage_impl::redis::cache;
 #[cfg(all(feature = "dynamic_routing", feature = "v1"))]
 use storage_impl::redis::cache::Cacheable;
@@ -1251,6 +1252,8 @@ pub async fn update_window_for_elimination_routing(
 ) -> RouterResult<()> {
     if let Some(elimination_algo_ref) = dynamic_algo_ref.elimination_routing_algorithm {
         if elimination_algo_ref.enabled_feature != routing_types::DynamicRoutingFeatures::None {
+            logger::info!("Performing update window for elimination routing");
+
             let client = state
                 .grpc_client
                 .dynamic_routing
@@ -1260,26 +1263,25 @@ pub async fn update_window_for_elimination_routing(
                     message: "elimination_rate gRPC client not found".to_string(),
                 })?;
 
-            let elimination_routing_config = fetch_dynamic_routing_configs::<
-                routing_types::EliminationRoutingConfig,
-            >(
-                state,
-                profile_id,
-                elimination_algo_ref
-                    .algorithm_id_with_timestamp
-                    .algorithm_id
-                    .ok_or(errors::ApiErrorResponse::GenericNotFoundError {
-                        message: "elimination routing algorithm_id not found".to_string(),
-                    })
-                    .attach_printable(
-                        "elimination_routing_algorithm_id not found in business_profile",
-                    )?,
-            )
-            .await
-            .change_context(errors::ApiErrorResponse::GenericNotFoundError {
-                message: "elimination based dynamic routing configs not found".to_string(),
-            })
-            .attach_printable("unable to retrieve success_rate based dynamic routing configs")?;
+            let elimination_routing_config =
+                fetch_dynamic_routing_configs::<routing_types::EliminationRoutingConfig>(
+                    state,
+                    profile_id,
+                    elimination_algo_ref
+                        .algorithm_id_with_timestamp
+                        .algorithm_id
+                        .ok_or(errors::ApiErrorResponse::GenericNotFoundError {
+                            message: "elimination routing algorithm_id not found".to_string(),
+                        })
+                        .attach_printable(
+                            "elimination_routing_algorithm_id not found in business_profile",
+                        )?,
+                )
+                .await
+                .change_context(errors::ApiErrorResponse::GenericNotFoundError {
+                    message: "elimination based dynamic routing configs not found".to_string(),
+                })
+                .attach_printable("unable to retrieve elimination routing configs")?;
 
             let payment_connector = &payment_attempt.connector.clone().ok_or(
                 errors::ApiErrorResponse::GenericNotFoundError {
