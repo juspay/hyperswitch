@@ -6173,7 +6173,8 @@ impl FrmTransactionRouterDataRequest for FrmTransactionRouterData {
             AttemptStatus::AuthenticationSuccessful
             | AttemptStatus::PartialChargedAndChargeable
             | AttemptStatus::Authorized
-            | AttemptStatus::Charged | AttemptStatus::IntegrityFailure => Some(true),
+            | AttemptStatus::Charged
+            | AttemptStatus::IntegrityFailure => Some(true),
 
             AttemptStatus::Started
             | AttemptStatus::AuthenticationPending

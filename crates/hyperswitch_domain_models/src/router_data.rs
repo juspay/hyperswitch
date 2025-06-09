@@ -696,7 +696,8 @@ impl
             // So set the amount capturable to zero
             common_enums::IntentStatus::Succeeded
             | common_enums::IntentStatus::Failed
-            | common_enums::IntentStatus::Cancelled | common_enums::IntentStatus::Conflicted => Some(MinorUnit::zero()),
+            | common_enums::IntentStatus::Cancelled
+            | common_enums::IntentStatus::Conflicted => Some(MinorUnit::zero()),
             // For these statuses, update the capturable amount when it reaches terminal / capturable state
             common_enums::IntentStatus::RequiresCustomerAction
             | common_enums::IntentStatus::RequiresMerchantAction
@@ -912,7 +913,8 @@ impl
             // If the status is already succeeded / failed we cannot capture any more amount
             common_enums::IntentStatus::Succeeded
             | common_enums::IntentStatus::Failed
-            | common_enums::IntentStatus::Cancelled | common_enums::IntentStatus::Conflicted => Some(MinorUnit::zero()),
+            | common_enums::IntentStatus::Cancelled
+            | common_enums::IntentStatus::Conflicted => Some(MinorUnit::zero()),
             // For these statuses, update the capturable amount when it reaches terminal / capturable state
             common_enums::IntentStatus::RequiresCustomerAction
             | common_enums::IntentStatus::RequiresMerchantAction
@@ -1153,7 +1155,8 @@ impl
             // If the status is already succeeded / failed we cannot capture any more amount
             common_enums::IntentStatus::Succeeded
             | common_enums::IntentStatus::Failed
-            | common_enums::IntentStatus::Cancelled | common_enums::IntentStatus::Conflicted => Some(MinorUnit::zero()),
+            | common_enums::IntentStatus::Cancelled
+            | common_enums::IntentStatus::Conflicted => Some(MinorUnit::zero()),
             // For these statuses, update the capturable amount when it reaches terminal / capturable state
             common_enums::IntentStatus::RequiresCustomerAction
             | common_enums::IntentStatus::RequiresMerchantAction
@@ -1385,7 +1388,8 @@ impl
             // So set the amount capturable to zero
             common_enums::IntentStatus::Succeeded
             | common_enums::IntentStatus::Failed
-            | common_enums::IntentStatus::Cancelled | common_enums::IntentStatus::Conflicted => Some(MinorUnit::zero()),
+            | common_enums::IntentStatus::Cancelled
+            | common_enums::IntentStatus::Conflicted => Some(MinorUnit::zero()),
             // For these statuses, update the capturable amount when it reaches terminal / capturable state
             common_enums::IntentStatus::RequiresCustomerAction
             | common_enums::IntentStatus::RequiresMerchantAction
