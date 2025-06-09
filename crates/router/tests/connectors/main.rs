@@ -71,6 +71,7 @@ mod opennode;
 mod paybox;
 #[cfg(feature = "dummy_connector")]
 mod payeezy;
+mod paymango;
 mod payme;
 mod payone;
 mod paypal;

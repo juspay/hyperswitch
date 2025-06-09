@@ -39,7 +39,8 @@ use hyperswitch_interfaces::{
 use masking::{ExposeInterface, Mask};
 use transformers as paymango;
 
-use crate::{constants::headers, types::ResponseRouterData, utils};
+use crate::{constants::headers, types::ResponseRouterData, utils::{self, RefundsRequestData}};
+use base64::Engine;
 
 #[derive(Clone)]
 pub struct Paymango {
@@ -98,10 +99,8 @@ impl ConnectorCommon for Paymango {
     }
 
     fn get_currency_unit(&self) -> api::CurrencyUnit {
-        todo!()
-        //    TODO! Check connector documentation, on which unit they are processing the currency.
-        //    If the connector accepts amount in lower unit ( i.e cents for USD) then return api::CurrencyUnit::Minor,
-        //    if connector accepts amount in base unit (i.e dollars for USD) then return api::CurrencyUnit::Base
+        // PayMongo processes amounts in minor units (centavos for PHP)
+        api::CurrencyUnit::Minor
     }
 
     fn common_get_content_type(&self) -> &'static str {
@@ -118,9 +117,14 @@ impl ConnectorCommon for Paymango {
     ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
         let auth = paymango::PaymangoAuthType::try_from(auth_type)
             .change_context(errors::ConnectorError::FailedToObtainAuthType)?;
+        
+        // PayMongo uses Basic Auth with API key as username (no password)
+        let auth_value = format!("{}:", auth.api_key.expose());
+        let encoded = common_utils::consts::BASE64_ENGINE.encode(auth_value);
+        
         Ok(vec![(
             headers::AUTHORIZATION.to_string(),
-            auth.api_key.expose().into_masked(),
+            format!("Basic {}", encoded).into_masked(),
         )])
     }
 
@@ -137,11 +141,15 @@ impl ConnectorCommon for Paymango {
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
 
+        // PayMongo returns an array of errors, we'll use the first one
+        let first_error = response.errors.first()
+            .ok_or(errors::ConnectorError::ResponseDeserializationFailed)?;
+
         Ok(ErrorResponse {
             status_code: res.status_code,
-            code: response.code,
-            message: response.message,
-            reason: response.reason,
+            code: first_error.code.clone(),
+            message: first_error.detail.clone(),
+            reason: first_error.source.as_ref().map(|s| format!("{}: {}", s.pointer, s.attribute)),
             attempt_status: None,
             connector_transaction_id: None,
             network_decline_code: None,
@@ -182,9 +190,10 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
     fn get_url(
         &self,
         _req: &PaymentsAuthorizeRouterData,
-        _connectors: &Connectors,
+        connectors: &Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        Err(errors::ConnectorError::NotImplemented("get_url method".to_string()).into())
+        // PayMongo API endpoint for creating payment intents
+        Ok(format!("{}/payment_intents", self.base_url(connectors)))
     }
 
     fn get_request_body(
@@ -199,7 +208,7 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
         )?;
 
         let connector_router_data = paymango::PaymangoRouterData::from((amount, req));
-        let connector_req = paymango::PaymangoPaymentsRequest::try_from(&connector_router_data)?;
+        let connector_req = paymango::PaymangoPaymentIntentRequest::try_from(&connector_router_data)?;
         Ok(RequestContent::Json(Box::new(connector_req)))
     }
 
@@ -208,6 +217,10 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
         req: &PaymentsAuthorizeRouterData,
         connectors: &Connectors,
     ) -> CustomResult<Option<Request>, errors::ConnectorError> {
+        // PayMongo uses a two-step process:
+        // 1. Create Payment Intent (this request)
+        // 2. Create Payment Method and attach to Payment Intent
+        // For now, we're implementing step 1
         Ok(Some(
             RequestBuilder::new()
                 .method(Method::Post)
@@ -231,7 +244,7 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
         event_builder: Option<&mut ConnectorEvent>,
         res: Response,
     ) -> CustomResult<PaymentsAuthorizeRouterData, errors::ConnectorError> {
-        let response: paymango::PaymangoPaymentsResponse = res
+        let response: paymango::PaymangoPaymentIntentResponse = res
             .response
             .parse_struct("Paymango PaymentsAuthorizeResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
@@ -268,10 +281,16 @@ impl ConnectorIntegration<PSync, PaymentsSyncData, PaymentsResponseData> for Pay
 
     fn get_url(
         &self,
-        _req: &PaymentsSyncRouterData,
-        _connectors: &Connectors,
+        req: &PaymentsSyncRouterData,
+        connectors: &Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        Err(errors::ConnectorError::NotImplemented("get_url method".to_string()).into())
+        // PayMongo API endpoint for retrieving payment intent status
+        let payment_intent_id = req
+            .request
+            .connector_transaction_id
+            .get_connector_transaction_id()
+            .change_context(errors::ConnectorError::MissingConnectorTransactionID)?;
+        Ok(format!("{}/payment_intents/{}", self.base_url(connectors), payment_intent_id))
     }
 
     fn build_request(
@@ -295,7 +314,7 @@ impl ConnectorIntegration<PSync, PaymentsSyncData, PaymentsResponseData> for Pay
         event_builder: Option<&mut ConnectorEvent>,
         res: Response,
     ) -> CustomResult<PaymentsSyncRouterData, errors::ConnectorError> {
-        let response: paymango::PaymangoPaymentsResponse = res
+        let response: paymango::PaymangoPaymentIntentResponse = res
             .response
             .parse_struct("paymango PaymentsSyncResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
@@ -332,18 +351,42 @@ impl ConnectorIntegration<Capture, PaymentsCaptureData, PaymentsResponseData> fo
 
     fn get_url(
         &self,
-        _req: &PaymentsCaptureRouterData,
-        _connectors: &Connectors,
+        req: &PaymentsCaptureRouterData,
+        connectors: &Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        Err(errors::ConnectorError::NotImplemented("get_url method".to_string()).into())
+        // PayMongo API endpoint for capturing payment intents
+        let payment_intent_id = req.request.connector_transaction_id.clone();
+        Ok(format!("{}/payment_intents/{}/capture", self.base_url(connectors), payment_intent_id))
     }
 
     fn get_request_body(
         &self,
-        _req: &PaymentsCaptureRouterData,
+        req: &PaymentsCaptureRouterData,
         _connectors: &Connectors,
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
-        Err(errors::ConnectorError::NotImplemented("get_request_body method".to_string()).into())
+        let amount = utils::convert_amount(
+            self.amount_converter,
+            req.request.minor_amount_to_capture,
+            req.request.currency,
+        )?;
+
+        let capture_request = paymango::PaymangoCaptureRequest {
+            data: paymango::CaptureData {
+                attributes: paymango::CaptureAttributes {
+                    amount: {
+                        let minor_amount = StringMinorUnitForConnector::convert_back(
+                            &StringMinorUnitForConnector,
+                            amount.clone(),
+                            req.request.currency,
+                        )
+                        .change_context(errors::ConnectorError::RequestEncodingFailed)?;
+                        minor_amount.get_amount_as_i64()
+                    },
+                },
+            },
+        };
+        
+        Ok(RequestContent::Json(Box::new(capture_request)))
     }
 
     fn build_request(
@@ -372,7 +415,7 @@ impl ConnectorIntegration<Capture, PaymentsCaptureData, PaymentsResponseData> fo
         event_builder: Option<&mut ConnectorEvent>,
         res: Response,
     ) -> CustomResult<PaymentsCaptureRouterData, errors::ConnectorError> {
-        let response: paymango::PaymangoPaymentsResponse = res
+        let response: paymango::PaymangoPaymentIntentResponse = res
             .response
             .parse_struct("Paymango PaymentsCaptureResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
@@ -412,9 +455,10 @@ impl ConnectorIntegration<Execute, RefundsData, RefundsResponseData> for Paymang
     fn get_url(
         &self,
         _req: &RefundsRouterData<Execute>,
-        _connectors: &Connectors,
+        connectors: &Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        Err(errors::ConnectorError::NotImplemented("get_url method".to_string()).into())
+        // PayMongo API endpoint for creating refunds
+        Ok(format!("{}/refunds", self.base_url(connectors)))
     }
 
     fn get_request_body(
@@ -458,7 +502,7 @@ impl ConnectorIntegration<Execute, RefundsData, RefundsResponseData> for Paymang
         event_builder: Option<&mut ConnectorEvent>,
         res: Response,
     ) -> CustomResult<RefundsRouterData<Execute>, errors::ConnectorError> {
-        let response: paymango::RefundResponse = res
+        let response: paymango::PaymangoRefundResponse = res
             .response
             .parse_struct("paymango RefundResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
@@ -495,10 +539,12 @@ impl ConnectorIntegration<RSync, RefundsData, RefundsResponseData> for Paymango 
 
     fn get_url(
         &self,
-        _req: &RefundSyncRouterData,
-        _connectors: &Connectors,
+        req: &RefundSyncRouterData,
+        connectors: &Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        Err(errors::ConnectorError::NotImplemented("get_url method".to_string()).into())
+        // PayMongo API endpoint for retrieving refund status
+        let refund_id = req.request.get_connector_refund_id()?;
+        Ok(format!("{}/refunds/{}", self.base_url(connectors), refund_id))
     }
 
     fn build_request(
@@ -512,9 +558,6 @@ impl ConnectorIntegration<RSync, RefundsData, RefundsResponseData> for Paymango 
                 .url(&types::RefundSyncType::get_url(self, req, connectors)?)
                 .attach_default_headers()
                 .headers(types::RefundSyncType::get_headers(self, req, connectors)?)
-                .set_body(types::RefundSyncType::get_request_body(
-                    self, req, connectors,
-                )?)
                 .build(),
         ))
     }
@@ -525,7 +568,7 @@ impl ConnectorIntegration<RSync, RefundsData, RefundsResponseData> for Paymango 
         event_builder: Option<&mut ConnectorEvent>,
         res: Response,
     ) -> CustomResult<RefundSyncRouterData, errors::ConnectorError> {
-        let response: paymango::RefundResponse = res
+        let response: paymango::PaymangoRefundResponse = res
             .response
             .parse_struct("paymango RefundSyncResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
