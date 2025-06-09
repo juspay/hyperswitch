@@ -2187,7 +2187,7 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
                             &profile_id,
                             dynamic_routing_algo_ref.clone(),
                             dynamic_routing_config_params_interpolator.clone(),
-                            should_perform_sr_update
+                            should_perform_sr_update,
                         )
                         .await
                         .map_err(|e| logger::error!(success_based_routing_metrics_error=?e))
