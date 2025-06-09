@@ -40,6 +40,7 @@ pub mod refunds;
 pub mod relay;
 pub mod routing;
 pub mod surcharge_decision_configs;
+pub mod three_ds_decision_rule;
 #[cfg(feature = "tokenization_v2")]
 pub mod tokenization;
 pub mod user;

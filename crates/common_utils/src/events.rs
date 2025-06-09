@@ -126,6 +126,7 @@ pub enum ApiEventsType {
         token_id: Option<id_type::GlobalTokenId>,
     },
     ProcessTracker,
+    ThreeDsDecisionRule,
 }
 
 impl ApiEventMetric for serde_json::Value {}
