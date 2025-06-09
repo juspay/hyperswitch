@@ -1,18 +1,15 @@
 use common_utils::id_type;
-#[cfg(feature = "v2")]
-use diesel::BoolExpressionMethods;
-#[cfg(feature = "v1")]
 use diesel::BoolExpressionMethods;
 use diesel::{associations::HasTable, ExpressionMethods};
 
 use super::generics;
-use crate::errors;
 #[cfg(feature = "v1")]
 use crate::schema::customers::dsl;
 #[cfg(feature = "v2")]
 use crate::schema_v2::customers::dsl;
 use crate::{
     customers::{Customer, CustomerNew, CustomerUpdateInternal},
+    errors,
     PgPooledConn, StorageResult,
 };
 

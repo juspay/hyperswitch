@@ -1186,7 +1186,6 @@ impl Refunds {
 
 #[cfg(all(
     feature = "v2",
-    feature = "refunds_v2",
     any(feature = "olap", feature = "oltp")
 ))]
 impl Refunds {

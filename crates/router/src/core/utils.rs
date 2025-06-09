@@ -23,7 +23,7 @@ use hyperswitch_domain_models::{
 use hyperswitch_domain_models::{
     router_data_v2::flow_common_types::VaultConnectorFlowData, types::VaultRouterDataV2,
 };
-#[cfg(all(feature = "v2", feature = "refunds_v2"))]
+#[cfg(feature = "v2")]
 use masking::ExposeOptionInterface;
 #[cfg(feature = "payouts")]
 use masking::{ExposeInterface, PeekInterface};
