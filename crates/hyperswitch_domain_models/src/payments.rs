@@ -2,7 +2,7 @@
 use std::marker::PhantomData;
 
 #[cfg(feature = "v2")]
-use api_models::payments::{{MerchantConnectorDetails, SessionToken, VaultSessionDetails}};
+use api_models::payments::{MerchantConnectorDetails, SessionToken, VaultSessionDetails};
 use common_types::primitive_wrappers::{
     AlwaysRequestExtendedAuthorization, RequestExtendedAuthorizationBool,
 };
@@ -43,8 +43,8 @@ use self::payment_attempt::PaymentAttempt;
 use crate::{
     address::Address, business_profile, customer, errors, merchant_account,
     merchant_connector_account, merchant_connector_account::MerchantConnectorAccountTypeDetails,
-    merchant_context, payment_address, payment_method_data, payment_methods, revenue_recovery, routing,
-    ApiModelToDieselModelConvertor,
+    merchant_context, payment_address, payment_method_data, payment_methods, revenue_recovery,
+    routing, ApiModelToDieselModelConvertor,
 };
 #[cfg(feature = "v1")]
 use crate::{payment_method_data, RemoteStorageObject};
