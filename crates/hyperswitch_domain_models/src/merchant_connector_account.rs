@@ -150,6 +150,29 @@ impl MerchantConnectorAccountTypeDetails {
             Self::MerchantConnectorDetails(_) => None,
         }
     }
+
+    pub fn get_mca_id(&self) -> Option<id_type::MerchantConnectorAccountId> {
+        match self {
+            Self::MerchantConnectorAccount(merchant_connector_account) => Some(merchant_connector_account.get_id()),
+            Self::MerchantConnectorDetails(_) => None,
+        }
+    }
+
+    pub fn get_connector_name(&self) -> Option<common_enums::connector_enums::Connector> {
+        match self {
+            Self::MerchantConnectorAccount(merchant_connector_account) => Some(merchant_connector_account.connector_name),
+            Self::MerchantConnectorDetails(_) => None,
+        }
+    }
+
+    pub fn get_inner_db_merchant_connector_account(
+        &self,
+    ) -> Option<&MerchantConnectorAccount> {
+        match self {
+            Self::MerchantConnectorAccount(merchant_connector_account) => Some(merchant_connector_account),
+            Self::MerchantConnectorDetails(_) => None,
+        }
+    }
 }
 
 #[cfg(feature = "v2")]

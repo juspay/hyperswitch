@@ -2040,7 +2040,7 @@ pub(crate) fn validate_profile_id_from_auth_layer<T: GetProfileId + std::fmt::De
 pub async fn construct_vault_router_data<F>(
     state: &SessionState,
     merchant_account: &domain::MerchantAccount,
-    merchant_connector_account: &payment_helpers::MerchantConnectorAccountType,
+    merchant_connector_account: &domain::MerchantConnectorAccountTypeDetails,
     payment_method_vaulting_data: Option<domain::PaymentMethodVaultingData>,
     connector_vault_id: Option<String>,
     connector_customer_id: Option<String>,
@@ -2051,7 +2051,6 @@ pub async fn construct_vault_router_data<F>(
         .attach_printable("Connector name not present for external vault")?; // always get the connector name from the merchant_connector_account
     let connector_auth_type: types::ConnectorAuthType = merchant_connector_account
         .get_connector_account_details()
-        .parse_value("ConnectorAuthType")
         .change_context(errors::ApiErrorResponse::InternalServerError)?;
 
     let resource_common_data = VaultConnectorFlowData {

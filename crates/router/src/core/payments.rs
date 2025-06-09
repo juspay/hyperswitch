@@ -3586,7 +3586,7 @@ where
     let merchant_connector_account = helpers::get_merchant_connector_account_details(
         state,
         payment_data,
-        &connector,
+        connector.merchant_connector_id.as_ref(),
         merchant_context,
     )
     .await?;
@@ -3892,7 +3892,7 @@ where
     let merchant_connector_account = helpers::get_merchant_connector_account_details(
         state,
         payment_data,
-        &connector,
+        connector.merchant_connector_id.as_ref(),
         merchant_context,
     )
     .await?;
@@ -4004,7 +4004,7 @@ where
     let merchant_connector_account = helpers::get_merchant_connector_account_details(
         state,
         payment_data,
-        &connector,
+        connector.merchant_connector_id.as_ref(),
         merchant_context,
     )
     .await?;
@@ -4353,7 +4353,7 @@ where
         let merchant_connector_account = helpers::get_merchant_connector_account_details(
             state,
             &payment_data,
-            &session_connector_data.connector,
+            session_connector_data.connector.merchant_connector_id.as_ref(),
             merchant_context,
         )
         .await?;

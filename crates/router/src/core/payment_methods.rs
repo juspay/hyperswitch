@@ -1875,7 +1875,7 @@ pub async fn vault_payment_method_external(
     state: &SessionState,
     pmd: &domain::PaymentMethodVaultingData,
     merchant_account: &domain::MerchantAccount,
-    merchant_connector_account: payment_helpers::MerchantConnectorAccountType,
+    merchant_connector_account: domain::MerchantConnectorAccountTypeDetails,
 ) -> RouterResult<pm_types::AddVaultResponse> {
     let router_data = core_utils::construct_vault_router_data(
         state,

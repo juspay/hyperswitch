@@ -1387,7 +1387,7 @@ pub async fn retrieve_payment_method_from_vault_external(
     state: &routes::SessionState,
     merchant_account: &domain::MerchantAccount,
     pm: &domain::PaymentMethod,
-    merchant_connector_account: payment_helpers::MerchantConnectorAccountType,
+    merchant_connector_account: domain::MerchantConnectorAccountTypeDetails,
 ) -> RouterResult<pm_types::VaultRetrieveResponse> {
     let connector_vault_id = pm
         .locker_id
@@ -1633,7 +1633,7 @@ pub async fn delete_payment_method_data_from_vault_internal(
 pub async fn delete_payment_method_data_from_vault_external(
     state: &routes::SessionState,
     merchant_account: &domain::MerchantAccount,
-    merchant_connector_account: payment_helpers::MerchantConnectorAccountType,
+    merchant_connector_account: domain::MerchantConnectorAccountTypeDetails,
     vault_id: domain::VaultId,
 ) -> RouterResult<pm_types::VaultDeleteResponse> {
     let connector_vault_id = vault_id.get_string_repr().to_owned();
