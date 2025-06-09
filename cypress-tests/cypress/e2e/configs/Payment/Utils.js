@@ -332,7 +332,13 @@ export function updateBusinessProfile(
 export const CONNECTOR_LISTS = {
   // Exclusion lists (skip these connectors)
   EXCLUDE: {
-    CONNECTOR_AGNOSTIC_NTID: ["bankofamerica", "braintree", "fiuu", "paypal"],
+    CONNECTOR_AGNOSTIC_NTID: [
+      "bankofamerica",
+      "braintree",
+      "fiuu",
+      "paypal",
+      "fiserv",
+    ],
     // Add more exclusion lists
   },
 
