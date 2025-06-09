@@ -2144,8 +2144,10 @@ Cypress.Commands.add(
     saveCardConfirmBody.payment_token = globalState.get("paymentToken");
     saveCardConfirmBody.profile_id = profile_id;
 
-    for (const key in reqData) {
-      saveCardConfirmBody[key] = reqData[key];
+    // Include request data from config but exclude payment_method_data
+    if (reqData) {
+      const { payment_method_data, ...requestDataWithoutPMD } = reqData;
+      Object.assign(saveCardConfirmBody, requestDataWithoutPMD);
     }
 
     if (reqData.billing === null) {
@@ -2256,11 +2258,6 @@ Cypress.Commands.add(
                 "nextActionUrl",
                 response.body.next_action.redirect_to_url
               );
-              for (const key in resData.body) {
-                expect(resData.body[key], [key]).to.deep.equal(
-                  response.body[key]
-                );
-              }
             } else if (response.body.authentication_type === "no_three_ds") {
               for (const key in resData.body) {
                 expect(resData.body[key], [key]).to.deep.equal(

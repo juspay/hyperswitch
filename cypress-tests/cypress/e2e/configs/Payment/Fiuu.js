@@ -458,6 +458,7 @@ export const connectorDetails = {
         currency: "MYR",
         setup_future_usage: "on_session",
         customer_acceptance: customerAcceptance,
+        billing: billingAddress,
       },
       Response: {
         status: 200,
