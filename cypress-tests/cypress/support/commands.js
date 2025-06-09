@@ -2146,12 +2146,10 @@ Cypress.Commands.add(
 
     // Include request data from config but exclude payment_method_data
     if (reqData) {
-      const { payment_method_data, ...requestDataWithoutPMD } = reqData;
+      const requestDataWithoutPMD = Object.fromEntries(
+        Object.entries(reqData).filter(([key]) => key !== "payment_method_data")
+      );
       Object.assign(saveCardConfirmBody, requestDataWithoutPMD);
-    }
-
-    if (reqData.billing === null) {
-      saveCardConfirmBody.billing = null;
     }
 
     cy.request({
