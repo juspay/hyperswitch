@@ -596,7 +596,7 @@ pub fn generate_payment_method_response(
         payment_method_type: payment_method.get_payment_method_type(),
         payment_method_subtype: payment_method.get_payment_method_subtype(),
         created: Some(payment_method.created_at),
-        recurring_enabled: false,
+        recurring_enabled: Some(false),
         last_used_at: Some(payment_method.last_used_at),
         payment_method_data: pmd,
         connector_tokens,
@@ -986,7 +986,7 @@ impl transformers::ForeignTryFrom<domain::PaymentMethod> for api::CustomerPaymen
         });
 
         // TODO: check how we can get this field
-        let recurring_enabled = true;
+        let recurring_enabled = Some(true);
 
         let psp_tokenization_enabled = item.connector_mandate_details.and_then(|details| {
             details.payments.map(|payments| {
