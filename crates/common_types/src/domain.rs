@@ -65,9 +65,6 @@ pub struct AcquirerConfig {
     /// merchant name
     #[schema(value_type= String,example = "NewAge Retailer")]
     pub merchant_name: String,
-    /// Merchant category code assigned by acquirer
-    #[schema(value_type= String,example = "5812")]
-    pub mcc: String,
     /// Merchant country code assigned by acquirer
     #[schema(value_type= String,example = "US")]
     pub merchant_country_code: common_enums::CountryAlpha2,
@@ -88,6 +85,6 @@ pub struct AcquirerConfig {
 #[derive(Serialize, Deserialize, Debug, Clone, FromSqlRow, AsExpression, ToSchema)]
 #[diesel(sql_type = Jsonb)]
 /// Acquirer configs
-pub struct AcquirerConfigs(pub HashMap<common_utils::id_type::ProfileAcquirerId, AcquirerConfig>);
+pub struct AcquirerConfigMap(pub HashMap<common_utils::id_type::ProfileAcquirerId, AcquirerConfig>);
 
-impl_to_sql_from_sql_json!(AcquirerConfigs);
+impl_to_sql_from_sql_json!(AcquirerConfigMap);

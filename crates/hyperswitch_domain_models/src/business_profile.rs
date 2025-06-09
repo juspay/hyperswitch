@@ -76,7 +76,7 @@ pub struct Profile {
     pub is_iframe_redirection_enabled: Option<bool>,
     pub is_pre_network_tokenization_enabled: bool,
     pub three_ds_decision_rule_algorithm: Option<serde_json::Value>,
-    pub acquirer_configs: Option<common_types::domain::AcquirerConfigs>,
+    pub acquirer_config_map: Option<common_types::domain::AcquirerConfigMap>,
 }
 
 #[cfg(feature = "v1")]
@@ -189,7 +189,7 @@ impl From<ProfileSetter> for Profile {
             is_iframe_redirection_enabled: value.is_iframe_redirection_enabled,
             is_pre_network_tokenization_enabled: value.is_pre_network_tokenization_enabled,
             three_ds_decision_rule_algorithm: None, // three_ds_decision_rule_algorithm is not yet created during profile creation
-            acquirer_configs: None,
+            acquirer_config_map: None,
         }
     }
 }
@@ -276,8 +276,8 @@ pub enum ProfileUpdate {
     CardTestingSecretKeyUpdate {
         card_testing_secret_key: OptionalEncryptableName,
     },
-    AcquirerConfigsUpdate {
-        acquirer_configs: Option<common_types::domain::AcquirerConfigs>,
+    AcquirerConfigMapUpdate {
+        acquirer_config_map: Option<common_types::domain::AcquirerConfigMap>,
     },
 }
 
@@ -378,7 +378,7 @@ impl From<ProfileUpdate> for ProfileUpdateInternal {
                     is_iframe_redirection_enabled,
                     is_pre_network_tokenization_enabled,
                     three_ds_decision_rule_algorithm: None,
-                    acquirer_configs: None,
+                    acquirer_config_map: None,
                 }
             }
             ProfileUpdate::RoutingAlgorithmUpdate {
@@ -431,7 +431,7 @@ impl From<ProfileUpdate> for ProfileUpdateInternal {
                 is_iframe_redirection_enabled: None,
                 is_pre_network_tokenization_enabled: None,
                 three_ds_decision_rule_algorithm,
-                acquirer_configs: None,
+                acquirer_config_map: None,
             },
             ProfileUpdate::DynamicRoutingAlgorithmUpdate {
                 dynamic_routing_algorithm,
@@ -481,7 +481,7 @@ impl From<ProfileUpdate> for ProfileUpdateInternal {
                 is_iframe_redirection_enabled: None,
                 is_pre_network_tokenization_enabled: None,
                 three_ds_decision_rule_algorithm: None,
-                acquirer_configs: None,
+                acquirer_config_map: None,
             },
             ProfileUpdate::ExtendedCardInfoUpdate {
                 is_extended_card_info_enabled,
@@ -531,7 +531,7 @@ impl From<ProfileUpdate> for ProfileUpdateInternal {
                 is_iframe_redirection_enabled: None,
                 is_pre_network_tokenization_enabled: None,
                 three_ds_decision_rule_algorithm: None,
-                acquirer_configs: None,
+                acquirer_config_map: None,
             },
             ProfileUpdate::ConnectorAgnosticMitUpdate {
                 is_connector_agnostic_mit_enabled,
@@ -581,7 +581,7 @@ impl From<ProfileUpdate> for ProfileUpdateInternal {
                 is_iframe_redirection_enabled: None,
                 is_pre_network_tokenization_enabled: None,
                 three_ds_decision_rule_algorithm: None,
-                acquirer_configs: None,
+                acquirer_config_map: None,
             },
             ProfileUpdate::NetworkTokenizationUpdate {
                 is_network_tokenization_enabled,
@@ -631,7 +631,7 @@ impl From<ProfileUpdate> for ProfileUpdateInternal {
                 is_iframe_redirection_enabled: None,
                 is_pre_network_tokenization_enabled: None,
                 three_ds_decision_rule_algorithm: None,
-                acquirer_configs: None,
+                acquirer_config_map: None,
             },
             ProfileUpdate::CardTestingSecretKeyUpdate {
                 card_testing_secret_key,
@@ -681,9 +681,11 @@ impl From<ProfileUpdate> for ProfileUpdateInternal {
                 is_iframe_redirection_enabled: None,
                 is_pre_network_tokenization_enabled: None,
                 three_ds_decision_rule_algorithm: None,
-                acquirer_configs: None,
+                acquirer_config_map: None,
             },
-            ProfileUpdate::AcquirerConfigsUpdate { acquirer_configs } => Self {
+            ProfileUpdate::AcquirerConfigMapUpdate {
+                acquirer_config_map,
+            } => Self {
                 profile_name: None,
                 modified_at: now,
                 return_url: None,
@@ -729,7 +731,7 @@ impl From<ProfileUpdate> for ProfileUpdateInternal {
                 is_iframe_redirection_enabled: None,
                 is_pre_network_tokenization_enabled: None,
                 three_ds_decision_rule_algorithm: None,
-                acquirer_configs,
+                acquirer_config_map,
             },
         }
     }
@@ -799,7 +801,7 @@ impl super::behaviour::Conversion for Profile {
             is_iframe_redirection_enabled: self.is_iframe_redirection_enabled,
             is_pre_network_tokenization_enabled: Some(self.is_pre_network_tokenization_enabled),
             three_ds_decision_rule_algorithm: self.three_ds_decision_rule_algorithm,
-            acquirer_configs: self.acquirer_configs,
+            acquirer_config_map: self.acquirer_config_map,
         })
     }
 
@@ -895,7 +897,7 @@ impl super::behaviour::Conversion for Profile {
                     .is_pre_network_tokenization_enabled
                     .unwrap_or(false),
                 three_ds_decision_rule_algorithm: item.three_ds_decision_rule_algorithm,
-                acquirer_configs: item.acquirer_configs,
+                acquirer_config_map: item.acquirer_config_map,
             })
         }
         .await
@@ -1887,7 +1889,7 @@ impl super::behaviour::Conversion for Profile {
             is_external_vault_enabled: self.is_external_vault_enabled,
             external_vault_connector_details: self.external_vault_connector_details,
             three_ds_decision_rule_algorithm: None,
-            acquirer_configs: None,
+            acquirer_config_map: None,
         })
     }
 

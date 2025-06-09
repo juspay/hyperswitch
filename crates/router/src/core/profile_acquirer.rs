@@ -34,7 +34,6 @@ pub async fn create_profile_acquirer(
     let incoming_acquirer_config = common_types::domain::AcquirerConfig {
         acquirer_assigned_merchant_id: request.acquirer_assigned_merchant_id.clone(),
         merchant_name: request.merchant_name.clone(),
-        mcc: request.mcc.clone(),
         merchant_country_code: request.merchant_country_code,
         network: request.network.clone(),
         acquirer_bin: request.acquirer_bin.clone(),
@@ -45,7 +44,7 @@ pub async fn create_profile_acquirer(
     // Check for duplicates before proceeding
 
     business_profile
-        .acquirer_configs
+        .acquirer_config_map
         .as_ref()
         .map_or(Ok(()), |configs_wrapper| {
             match configs_wrapper.0.values().any(|existing_config| existing_config == &incoming_acquirer_config) {
@@ -62,12 +61,12 @@ pub async fn create_profile_acquirer(
             }
         })?;
 
-    // Get a mutable reference to the HashMap inside AcquirerConfigs,
+    // Get a mutable reference to the HashMap inside AcquirerConfigMap,
     // initializing if it's None or the inner HashMap is not present.
     let configs_map = &mut business_profile
-        .acquirer_configs
+        .acquirer_config_map
         .get_or_insert_with(|| {
-            common_types::domain::AcquirerConfigs(std::collections::HashMap::new())
+            common_types::domain::AcquirerConfigMap(std::collections::HashMap::new())
         })
         .0;
 
@@ -76,8 +75,8 @@ pub async fn create_profile_acquirer(
         incoming_acquirer_config.clone(),
     );
 
-    let profile_update = domain::ProfileUpdate::AcquirerConfigsUpdate {
-        acquirer_configs: business_profile.acquirer_configs.clone(),
+    let profile_update = domain::ProfileUpdate::AcquirerConfigMapUpdate {
+        acquirer_config_map: business_profile.acquirer_config_map.clone(),
     };
     let updated_business_profile = db
         .update_profile_by_profile_id(
@@ -91,7 +90,7 @@ pub async fn create_profile_acquirer(
         .attach_printable("Failed to update business profile with new acquirer config")?;
 
     let updated_acquire_details = updated_business_profile
-        .acquirer_configs
+        .acquirer_config_map
         .as_ref()
         .and_then(|acquirer_configs_wrapper| acquirer_configs_wrapper.0.get(&profile_acquirer_id))
         .ok_or(errors::ApiErrorResponse::InternalServerError)
@@ -104,7 +103,6 @@ pub async fn create_profile_acquirer(
             .acquirer_assigned_merchant_id
             .clone(),
         merchant_name: updated_acquire_details.merchant_name.clone(),
-        mcc: updated_acquire_details.mcc.clone(),
         merchant_country_code: updated_acquire_details.merchant_country_code,
         network: updated_acquire_details.network.clone(),
         acquirer_bin: updated_acquire_details.acquirer_bin.clone(),

@@ -277,7 +277,7 @@ Never share your secret api keys. Keep them guarded and secure.
         api_models::payment_methods::PaymentMethodResponse,
         api_models::payment_methods::CustomerPaymentMethod,
         common_types::three_ds_decision_rule_engine::ThreeDSDecisionRule,
-        common_types::domain::AcquirerConfigs,
+        common_types::domain::AcquirerConfigMap,
         common_types::domain::AcquirerConfig,
         api_models::payment_methods::PaymentMethodListResponse,
         api_models::payment_methods::ResponsePaymentMethodsEnabled,

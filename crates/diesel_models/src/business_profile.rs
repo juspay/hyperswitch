@@ -74,7 +74,7 @@ pub struct Profile {
     pub is_iframe_redirection_enabled: Option<bool>,
     pub is_pre_network_tokenization_enabled: Option<bool>,
     pub three_ds_decision_rule_algorithm: Option<serde_json::Value>,
-    pub acquirer_configs: Option<common_types::domain::AcquirerConfigs>,
+    pub acquirer_config_map: Option<common_types::domain::AcquirerConfigMap>,
 }
 
 #[cfg(feature = "v1")]
@@ -184,7 +184,7 @@ pub struct ProfileUpdateInternal {
     pub is_iframe_redirection_enabled: Option<bool>,
     pub is_pre_network_tokenization_enabled: Option<bool>,
     pub three_ds_decision_rule_algorithm: Option<serde_json::Value>,
-    pub acquirer_configs: Option<common_types::domain::AcquirerConfigs>,
+    pub acquirer_config_map: Option<common_types::domain::AcquirerConfigMap>,
 }
 
 #[cfg(feature = "v1")]
@@ -236,7 +236,7 @@ impl ProfileUpdateInternal {
             is_iframe_redirection_enabled,
             is_pre_network_tokenization_enabled,
             three_ds_decision_rule_algorithm,
-            acquirer_configs,
+            acquirer_config_map,
         } = self;
         Profile {
             profile_id: source.profile_id,
@@ -319,7 +319,7 @@ impl ProfileUpdateInternal {
                 .or(source.is_pre_network_tokenization_enabled),
             three_ds_decision_rule_algorithm: three_ds_decision_rule_algorithm
                 .or(source.three_ds_decision_rule_algorithm),
-            acquirer_configs: acquirer_configs.or(source.acquirer_configs),
+            acquirer_config_map: acquirer_config_map.or(source.acquirer_config_map),
         }
     }
 }
@@ -380,7 +380,7 @@ pub struct Profile {
     pub id: common_utils::id_type::ProfileId,
     pub is_iframe_redirection_enabled: Option<bool>,
     pub three_ds_decision_rule_algorithm: Option<serde_json::Value>,
-    pub acquirer_configs: Option<common_types::domain::AcquirerConfigs>,
+    pub acquirer_config_map: Option<common_types::domain::AcquirerConfigMap>,
     pub routing_algorithm_id: Option<common_utils::id_type::RoutingId>,
     pub order_fulfillment_time: Option<i64>,
     pub order_fulfillment_time_origin: Option<common_enums::OrderFulfillmentTimeOrigin>,
@@ -670,7 +670,7 @@ impl ProfileUpdateInternal {
             external_vault_connector_details: external_vault_connector_details
                 .or(source.external_vault_connector_details),
             three_ds_decision_rule_algorithm: None,
-            acquirer_configs: None,
+            acquirer_config_map: None,
         }
     }
 }
