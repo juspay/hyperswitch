@@ -287,7 +287,6 @@ pub struct RazorpaySyncResponse {
 
 #[derive(Debug, Copy, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
-// #[derive(strum::Display)]
 pub enum RazorpayStatus {
     Created,
     Authorized,
