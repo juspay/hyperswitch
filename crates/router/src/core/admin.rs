@@ -4,7 +4,7 @@ use api_models::{
     admin::{self as admin_types},
     enums as api_enums, routing as routing_types,
 };
-use common_enums::{MerchantAccountType, OrganizationType};
+use common_enums::{MerchantAccountRequestType, MerchantAccountType, OrganizationType};
 use common_utils::{
     date_time,
     ext_traits::{AsyncExt, Encode, OptionExt, ValueExt},
@@ -369,7 +369,20 @@ impl MerchantAccountCreateBridge for api::MerchantAccountCreate {
             .await?;
 
         let merchant_account_type = match organization.get_organization_type() {
-            OrganizationType::Standard => MerchantAccountType::Standard,
+            OrganizationType::Standard => {
+                match self.merchant_account_type.unwrap_or_default() {
+                    // Allow only if explicitly Standard or not provided
+                    MerchantAccountRequestType::Standard => MerchantAccountType::Standard,
+                    MerchantAccountRequestType::Connected => {
+                        return Err(errors::ApiErrorResponse::InvalidRequestData {
+                            message:
+                                "Merchant account type must be Standard for a Standard Organization"
+                                    .to_string(),
+                        }
+                        .into());
+                    }
+                }
+            }
 
             OrganizationType::Platform => {
                 let accounts = state
@@ -385,10 +398,24 @@ impl MerchantAccountCreateBridge for api::MerchantAccountCreate {
                     .iter()
                     .any(|account| account.merchant_account_type == MerchantAccountType::Platform);
 
-                if platform_account_exists {
-                    MerchantAccountType::Connected
-                } else {
+                if accounts.is_empty() || !platform_account_exists {
+                    // First merchant in a Platform org must be Platform
                     MerchantAccountType::Platform
+                } else {
+                    match self.merchant_account_type.unwrap_or_default() {
+                        MerchantAccountRequestType::Standard => MerchantAccountType::Standard,
+                        MerchantAccountRequestType::Connected => {
+                            if state.conf.platform.allow_connected_merchants {
+                                MerchantAccountType::Connected
+                            } else {
+                                return Err(errors::ApiErrorResponse::InvalidRequestData {
+                                    message: "Connected merchant accounts are not allowed"
+                                        .to_string(),
+                                }
+                                .into());
+                            }
+                        }
+                    }
                 }
             }
         };
@@ -1536,6 +1563,12 @@ impl ConnectorAuthTypeAndMetadataValidation<'_> {
             }
             api_enums::Connector::Helcim => {
                 helcim::transformers::HelcimAuthType::try_from(self.auth_type)?;
+                Ok(())
+            }
+            api_enums::Connector::HyperswitchVault => {
+                hyperswitch_vault::transformers::HyperswitchVaultAuthType::try_from(
+                    self.auth_type,
+                )?;
                 Ok(())
             }
             api_enums::Connector::Iatapay => {

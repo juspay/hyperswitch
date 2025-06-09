@@ -196,6 +196,9 @@ pub fn make_dsl_input_for_payouts(
         metadata,
         payment,
         payment_method,
+        acquirer_data: None,
+        customer_device_data: None,
+        issuer_data: None,
     })
 }
 
@@ -308,6 +311,9 @@ pub fn make_dsl_input(
         payment: payment_input,
         payment_method: payment_method_input,
         mandate: mandate_data,
+        acquirer_data: None,
+        customer_device_data: None,
+        issuer_data: None,
     })
 }
 
@@ -419,6 +425,9 @@ pub fn make_dsl_input(
         payment: payment_input,
         payment_method: payment_method_input,
         mandate: mandate_data,
+        acquirer_data: None,
+        customer_device_data: None,
+        issuer_data: None,
     })
 }
 
@@ -1083,6 +1092,9 @@ pub async fn perform_session_flow_routing<'a>(
             mandate_type: None,
             payment_type: None,
         },
+        acquirer_data: None,
+        customer_device_data: None,
+        issuer_data: None,
     };
 
     for connector_data in session_input.chosen.iter() {
@@ -1227,6 +1239,9 @@ pub async fn perform_session_flow_routing(
             mandate_type: None,
             payment_type: None,
         },
+        acquirer_data: None,
+        customer_device_data: None,
+        issuer_data: None,
     };
 
     for connector_data in session_input.chosen.iter() {
@@ -1529,6 +1544,9 @@ pub fn make_dsl_input_for_surcharge(
         payment: payment_input,
         payment_method: payment_method_input,
         mandate: mandate_data,
+        acquirer_data: None,
+        customer_device_data: None,
+        issuer_data: None,
     };
     Ok(backend_input)
 }
@@ -2087,7 +2105,7 @@ pub async fn perform_success_based_routing(
                 "unable to calculate/fetch success rate from dynamic routing service",
             )?;
 
-        let event_resposne = api_routing::CalSuccessRateEventResponse {
+        let event_response = api_routing::CalSuccessRateEventResponse {
             labels_with_score: success_based_connectors
                 .labels_with_score
                 .iter()
@@ -2098,7 +2116,7 @@ pub async fn perform_success_based_routing(
                     },
                 )
                 .collect(),
-            routing_apporach: match success_based_connectors.routing_approach {
+            routing_approach: match success_based_connectors.routing_approach {
                 0 => api_routing::RoutingApproach::Exploration,
                 1 => api_routing::RoutingApproach::Exploitation,
                 _ => {
@@ -2113,8 +2131,8 @@ pub async fn perform_success_based_routing(
             },
         };
 
-        routing_event.set_response_body(&event_resposne);
-        routing_event.set_routing_approach(event_resposne.routing_apporach.to_string());
+        routing_event.set_response_body(&event_response);
+        routing_event.set_routing_approach(event_response.routing_approach.to_string());
 
         let mut connectors = Vec::with_capacity(success_based_connectors.labels_with_score.len());
         for label_with_score in success_based_connectors.labels_with_score {
