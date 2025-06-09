@@ -793,7 +793,7 @@ where
 
 #[cfg(all(feature = "v1", feature = "dynamic_routing"))]
 #[instrument(skip_all)]
-pub async fn should_parform_update_gateway_score(
+pub async fn should_perform_update_gateway_score(
     state: &SessionState,
     gsm_error_category: &Option<ErrorCategory>,
 ) -> bool {
@@ -815,7 +815,7 @@ pub async fn should_parform_update_gateway_score(
             }
             Err(e) => {
                 if !e.current_context().is_db_not_found() {
-                    logger::error!(configs_db_error=?e, "Error fetching payment config");
+                    logger::error!(configs_db_error=?e, "Error fetching success rate error categories from config");
                 }
                 Vec::default()
             }
@@ -836,7 +836,7 @@ pub async fn should_parform_update_gateway_score(
             );
         } else {
             logger::debug!(
-                "update_gateway_score should be skipped as GSM error category is: {:?}",
+                "update_gateway_score can be skipped as GSM error category is: {:?}",
                 gsm_error_category
             );
         }
