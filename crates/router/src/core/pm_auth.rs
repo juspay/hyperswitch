@@ -339,7 +339,6 @@ async fn store_bank_details_in_payment_methods(
         .customer_id
         .ok_or(ApiErrorResponse::CustomerNotFound)?;
 
-    #[cfg(feature = "v1")]
     let payment_methods = db
         .find_payment_method_by_customer_id_merchant_id_list(
             &((&state).into()),
@@ -347,20 +346,6 @@ async fn store_bank_details_in_payment_methods(
             &customer_id,
             merchant_context.get_merchant_account().get_id(),
             None,
-        )
-        .await
-        .change_context(ApiErrorResponse::InternalServerError)?;
-
-    #[cfg(feature = "v2")]
-    let payment_methods = db
-        .find_payment_method_by_global_customer_id_merchant_id_status(
-            &((&state).into()),
-            merchant_context.get_merchant_key_store(),
-            &customer_id,
-            merchant_context.get_merchant_account().get_id(),
-            common_enums::enums::PaymentMethodStatus::Active,
-            None,
-            merchant_context.get_merchant_account().storage_scheme,
         )
         .await
         .change_context(ApiErrorResponse::InternalServerError)?;

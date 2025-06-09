@@ -840,7 +840,7 @@ impl
     }
 }
 
-#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+#[cfg(feature = "v2")]
 impl
     From<(
         payment_methods::CardDetail,
@@ -872,7 +872,7 @@ impl
     }
 }
 
-#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+#[cfg(feature = "v2")]
 impl From<Card> for payment_methods::CardDetail {
     fn from(card: Card) -> Self {
         Self {

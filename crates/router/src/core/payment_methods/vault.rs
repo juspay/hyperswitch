@@ -1527,7 +1527,7 @@ pub async fn retrieve_payment_method_from_vault_using_payment_token(
     Ok((payment_method, vault_data))
 }
 
-#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+#[cfg(feature = "v2")]
 #[instrument(skip_all)]
 pub async fn delete_payment_token(
     state: &routes::SessionState,
@@ -1548,7 +1548,7 @@ pub async fn delete_payment_token(
     Ok(())
 }
 
-#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+#[cfg(feature = "v2")]
 #[instrument(skip_all)]
 pub async fn retrieve_payment_method_from_vault(
     state: &routes::SessionState,

@@ -64,7 +64,7 @@ pub enum PaymentTokenData {
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 #[serde(tag = "kind", rename_all = "snake_case")]
-#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+#[cfg(feature = "v2")]
 pub enum PaymentTokenData {
     TemporaryGeneric(GenericTokenData),
     PermanentCard(CardTokenData),
@@ -114,7 +114,7 @@ impl PaymentTokenData {
         matches!(self, Self::PermanentCard(_) | Self::Permanent(_))
     }
 
-    #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+    #[cfg(feature = "v2")]
     pub fn is_permanent_card(&self) -> bool {
         matches!(self, Self::PermanentCard(_))
     }
