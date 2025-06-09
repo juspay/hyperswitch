@@ -5291,6 +5291,8 @@ where
     pub card_testing_guard_data:
         Option<hyperswitch_domain_models::card_testing_guard_data::CardTestingGuardData>,
     pub vault_operation: Option<domain_payments::VaultOperation>,
+    pub authentication_provider: Option<String>,
+    pub acquirer_details: Option<authentication_core::types::AcquirerDetails>,
 }
 
 #[derive(Clone, serde::Serialize, Debug)]

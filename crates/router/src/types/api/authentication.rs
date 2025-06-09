@@ -127,7 +127,12 @@ pub struct AuthenticationConnectorData {
 
 impl AuthenticationConnectorData {
     pub fn get_connector_by_name(name: &str) -> CustomResult<Self, errors::ApiErrorResponse> {
-        let connector_name = enums::AuthenticationConnectors::from_str("netcetera")
+        let connector_str = if name == "juspaythreedsserver" {
+            "netcetera"
+        } else {
+            name
+        };
+        let connector_name = enums::AuthenticationConnectors::from_str(connector_str)
             .change_context(errors::ApiErrorResponse::IncorrectConnectorNameGiven)
             .attach_printable_lazy(|| format!("unable to parse connector: {name}"))?;
         let connector = Self::convert_connector(connector_name)?;

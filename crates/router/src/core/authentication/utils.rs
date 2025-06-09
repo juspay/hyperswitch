@@ -1,3 +1,5 @@
+use std::str::FromStr;
+
 use error_stack::ResultExt;
 use hyperswitch_domain_models::router_data_v2::ExternalAuthenticationFlowData;
 
@@ -277,6 +279,7 @@ pub async fn get_authentication_connector_data(
     state: &SessionState,
     key_store: &domain::MerchantKeyStore,
     business_profile: &domain::Profile,
+    authentication_provider: Option<String>,
 ) -> RouterResult<(
     common_enums::AuthenticationConnectors,
     payments::helpers::MerchantConnectorAccountType,
@@ -289,19 +292,30 @@ pub async fn get_authentication_connector_data(
             message: "authentication_connector_details is not available in business profile".into(),
         })
         .attach_printable("authentication_connector_details not configured by the merchant")?;
-    let authentication_connector = authentication_details
-        .authentication_connectors
-        .first()
-        .ok_or(errors::ApiErrorResponse::UnprocessableEntity {
-            message: format!(
-                "No authentication_connector found for profile_id {:?}",
-                business_profile.get_id()
-            ),
-        })
-        .attach_printable(
-            "No authentication_connector found from merchant_account.authentication_details",
+    let authentication_connector = if let Some(authentication_connector) = authentication_provider {
+        common_enums::AuthenticationConnectors::from_str(&authentication_connector).change_context(
+            errors::ApiErrorResponse::UnprocessableEntity {
+                message: format!(
+                    "Invalid authentication_connector provided: {:?}",
+                    authentication_connector
+                ),
+            },
         )?
-        .to_owned();
+    } else {
+        authentication_details
+            .authentication_connectors
+            .first()
+            .ok_or(errors::ApiErrorResponse::UnprocessableEntity {
+                message: format!(
+                    "No authentication_connector found for profile_id {:?}",
+                    business_profile.get_id()
+                ),
+            })
+            .attach_printable(
+                "No authentication_connector found from merchant_account.authentication_details",
+            )?
+            .to_owned()
+    };
     let profile_id = business_profile.get_id();
     let authentication_connector_mca = payments::helpers::get_merchant_connector_account(
         state,

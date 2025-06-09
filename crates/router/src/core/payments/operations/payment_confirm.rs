@@ -828,6 +828,8 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
             service_details: request.ctp_service_details.clone(),
             card_testing_guard_data: None,
             vault_operation: None,
+            authentication_provider: request.authentication_provider.clone(),
+            acquirer_details: request.acquirer_details.clone().map(ForeignFrom::foreign_from),
         };
 
         let get_trackers_response = operations::GetTrackerResponse {
@@ -1007,6 +1009,7 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
                 payment_data,
                 connector_call_type,
                 mandate_type,
+                payment_data.acquirer_details.clone(),
             )
             .await?;
         payment_data.authentication = match external_authentication_flow {
@@ -1024,6 +1027,7 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
                     acquirer_details,
                     payment_data.payment_attempt.payment_id.clone(),
                     payment_data.payment_attempt.organization_id.clone(),
+                    payment_data.authentication_provider.clone(),
                 ))
                 .await?;
                 if authentication.is_separate_authn_required()
@@ -1064,6 +1068,7 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
                     business_profile.clone(),
                     authentication_id.clone(),
                     &payment_data.payment_intent.payment_id,
+                    payment_data.payment_attempt.authentication_connector.clone(),
                 ))
                 .await?;
                 //If authentication is not successful, skip the payment connector flows and mark the payment as failure
@@ -1319,7 +1324,7 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
                     ..
                 } => {
                     let (authentication_connector, three_ds_connector_account) =
-                    authentication::utils::get_authentication_connector_data(state, key_store, business_profile).await?;
+                    authentication::utils::get_authentication_connector_data(state, key_store, business_profile, None).await?;
                 let authentication_connector_name = authentication_connector.to_string();
                 let authentication = authentication::utils::create_new_authentication(
                     state,
@@ -1386,7 +1391,7 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
                 },
                 helpers::UnifiedAuthenticationServiceFlow::ExternalAuthenticationPostAuthenticate {authentication_id} => {
                     let (authentication_connector, three_ds_connector_account) =
-                    authentication::utils::get_authentication_connector_data(state, key_store, business_profile).await?;
+                    authentication::utils::get_authentication_connector_data(state, key_store, business_profile, None).await?;
                 let is_pull_mechanism_enabled =
                     utils::check_if_pull_mechanism_for_external_3ds_enabled_from_connector_metadata(
                         three_ds_connector_account

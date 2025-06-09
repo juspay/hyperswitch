@@ -6780,6 +6780,7 @@ pub async fn decide_action_for_unified_authentication_service<F: Clone>(
         payment_data,
         connector_call_type,
         mandate_type,
+        None,
     )
     .await?;
     Ok(match external_authentication_flow {
@@ -6844,6 +6845,7 @@ pub async fn get_payment_external_authentication_flow_during_confirm<F: Clone>(
     payment_data: &mut PaymentData<F>,
     connector_call_type: &api::ConnectorCallType,
     mandate_type: Option<api_models::payments::MandateTransactionType>,
+    acquirer_details: Option<authentication::types::AcquirerDetails>,
 ) -> RouterResult<Option<PaymentExternalAuthenticationFlow>> {
     let authentication_id = payment_data.payment_attempt.authentication_id.clone();
     let is_authentication_type_3ds = payment_data.payment_attempt.authentication_type
@@ -6925,7 +6927,7 @@ pub async fn get_payment_external_authentication_flow_during_confirm<F: Clone>(
             Some(PaymentExternalAuthenticationFlow::PreAuthenticationFlow {
                 card: Box::new(card),
                 token,
-                acquirer_details: None,
+                acquirer_details,
             })
         } else {
             None

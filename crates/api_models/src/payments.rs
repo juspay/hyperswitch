@@ -1114,6 +1114,19 @@ pub struct PaymentsRequest {
     /// Service details for click to pay external authentication
     #[schema(value_type = Option<CtpServiceDetails>)]
     pub ctp_service_details: Option<CtpServiceDetails>,
+
+    /// The authentication provider to be used for this payment]
+    pub authentication_provider: Option<String>,
+
+    /// Acquirer Details
+    pub acquirer_details: Option<AcquirerDetails>,
+}
+
+#[derive(Clone, serde::Deserialize, Debug, serde::Serialize)]
+pub struct AcquirerDetails {
+    pub acquirer_bin: String,
+    pub acquirer_merchant_id: String,
+    pub acquirer_country_code: Option<String>,
 }
 
 #[derive(Clone, Debug, PartialEq, serde::Serialize, serde::Deserialize, ToSchema)]
@@ -5675,6 +5688,7 @@ pub struct ExternalAuthenticationDetailsResponse {
     /// DS Transaction ID
     pub ds_transaction_id: Option<String>,
     #[serde(rename = "trans_status")]
+    #[schema(value_type = TransactionStatus)]
     pub transaction_status: Option<common_enums::TransactionStatus>,
     /// Authentication Value
     pub authentication_value: Option<String>,

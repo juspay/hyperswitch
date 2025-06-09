@@ -185,6 +185,8 @@ impl<F: Send + Clone + Sync>
             service_details: None,
             card_testing_guard_data: None,
             vault_operation: None,
+            authentication_provider: None,
+            acquirer_details: None,
         };
         let get_trackers_response = operations::GetTrackerResponse {
             operation: Box::new(self),

@@ -628,6 +628,8 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
             service_details: None,
             card_testing_guard_data: None,
             vault_operation: None,
+            authentication_provider: request.authentication_provider.clone(),
+            acquirer_details: request.acquirer_details.clone().map(ForeignFrom::foreign_from),
         };
 
         let get_trackers_response = operations::GetTrackerResponse {

@@ -34,6 +34,7 @@ use crate::{
         errors::{self, RouterResponse, RouterResult},
         payments::{self, helpers},
         utils as core_utils,
+        authentication,
     },
     headers::X_PAYMENT_CONFIRM_SOURCE,
     routes::{metrics, SessionState},
@@ -4603,5 +4604,15 @@ impl ForeignFrom<(Self, Option<&api_models::payments::AdditionalPaymentData>)>
                 }
                 Some(card_type_in_bin_store)
             })
+    }
+}
+
+impl ForeignFrom<api_models::payments::AcquirerDetails> for authentication::types::AcquirerDetails {
+    fn foreign_from(acquirer_details: api_models::payments::AcquirerDetails) -> Self {
+        Self {
+            acquirer_bin: acquirer_details.acquirer_bin,
+            acquirer_merchant_id: acquirer_details.acquirer_merchant_id,
+            acquirer_country_code: acquirer_details.acquirer_country_code,
+        }
     }
 }

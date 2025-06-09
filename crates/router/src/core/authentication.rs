@@ -92,9 +92,10 @@ pub async fn perform_post_authentication(
     business_profile: domain::Profile,
     authentication_id: String,
     payment_id: &common_utils::id_type::PaymentId,
+    authentication_provider: Option<String>,
 ) -> CustomResult<storage::Authentication, ApiErrorResponse> {
     let (authentication_connector, three_ds_connector_account) =
-        utils::get_authentication_connector_data(state, key_store, &business_profile).await?;
+        utils::get_authentication_connector_data(state, key_store, &business_profile, authentication_provider).await?;
     let is_pull_mechanism_enabled =
         check_if_pull_mechanism_for_external_3ds_enabled_from_connector_metadata(
             three_ds_connector_account
@@ -138,9 +139,10 @@ pub async fn perform_pre_authentication(
     acquirer_details: Option<types::AcquirerDetails>,
     payment_id: common_utils::id_type::PaymentId,
     organization_id: common_utils::id_type::OrganizationId,
+    authentication_provider: Option<String>,
 ) -> CustomResult<storage::Authentication, ApiErrorResponse> {
     let (authentication_connector, three_ds_connector_account) =
-        utils::get_authentication_connector_data(state, key_store, business_profile).await?;
+        utils::get_authentication_connector_data(state, key_store, business_profile, authentication_provider).await?;
     let authentication_connector_name = authentication_connector.to_string();
     let authentication = utils::create_new_authentication(
         state,

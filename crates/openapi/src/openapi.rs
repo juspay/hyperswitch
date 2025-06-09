@@ -71,135 +71,135 @@ Never share your secret api keys. Keep them guarded and secure.
     paths(
         // Routes for payments
         routes::payments::payments_create,
-        routes::payments::payments_update,
-        routes::payments::payments_confirm,
+        // routes::payments::payments_update,
+        // routes::payments::payments_confirm,
         routes::payments::payments_retrieve,
-        routes::payments::payments_capture,
-        routes::payments::payments_connector_session,
-        routes::payments::payments_cancel,
-        routes::payments::payments_list,
-        routes::payments::payments_incremental_authorization,
-        routes::payment_link::payment_link_retrieve,
+        // routes::payments::payments_capture,
+        // routes::payments::payments_connector_session,
+        // routes::payments::payments_cancel,
+        // routes::payments::payments_list,
+        // routes::payments::payments_incremental_authorization,
+        // routes::payment_link::payment_link_retrieve,
         routes::payments::payments_external_authentication,
-        routes::payments::payments_complete_authorize,
-        routes::payments::payments_post_session_tokens,
+        // routes::payments::payments_complete_authorize,
+        // routes::payments::payments_post_session_tokens,
 
         // Routes for relay
-        routes::relay::relay,
-        routes::relay::relay_retrieve,
+        // routes::relay::relay,
+        // routes::relay::relay_retrieve,
 
-        // Routes for refunds
-        routes::refunds::refunds_create,
-        routes::refunds::refunds_retrieve,
-        routes::refunds::refunds_update,
-        routes::refunds::refunds_list,
+        // // Routes for refunds
+        // routes::refunds::refunds_create,
+        // routes::refunds::refunds_retrieve,
+        // routes::refunds::refunds_update,
+        // routes::refunds::refunds_list,
 
-        // Routes for Organization
-        routes::organization::organization_create,
-        routes::organization::organization_retrieve,
-        routes::organization::organization_update,
+        // // Routes for Organization
+        // routes::organization::organization_create,
+        // routes::organization::organization_retrieve,
+        // routes::organization::organization_update,
 
-        // Routes for merchant account
-        routes::merchant_account::merchant_account_create,
-        routes::merchant_account::retrieve_merchant_account,
-        routes::merchant_account::update_merchant_account,
-        routes::merchant_account::delete_merchant_account,
-        routes::merchant_account::merchant_account_kv_status,
+        // // Routes for merchant account
+        // routes::merchant_account::merchant_account_create,
+        // routes::merchant_account::retrieve_merchant_account,
+        // routes::merchant_account::update_merchant_account,
+        // routes::merchant_account::delete_merchant_account,
+        // routes::merchant_account::merchant_account_kv_status,
 
-        // Routes for merchant connector account
-        routes::merchant_connector_account::connector_create,
-        routes::merchant_connector_account::connector_retrieve,
-        routes::merchant_connector_account::connector_list,
-        routes::merchant_connector_account::connector_update,
-        routes::merchant_connector_account::connector_delete,
+        // // Routes for merchant connector account
+        // routes::merchant_connector_account::connector_create,
+        // routes::merchant_connector_account::connector_retrieve,
+        // routes::merchant_connector_account::connector_list,
+        // routes::merchant_connector_account::connector_update,
+        // routes::merchant_connector_account::connector_delete,
 
-        //Routes for gsm
-        routes::gsm::create_gsm_rule,
-        routes::gsm::get_gsm_rule,
-        routes::gsm::update_gsm_rule,
-        routes::gsm::delete_gsm_rule,
+        // //Routes for gsm
+        // routes::gsm::create_gsm_rule,
+        // routes::gsm::get_gsm_rule,
+        // routes::gsm::update_gsm_rule,
+        // routes::gsm::delete_gsm_rule,
 
-        // Routes for mandates
-        routes::mandates::get_mandate,
-        routes::mandates::revoke_mandate,
-        routes::mandates::customers_mandates_list,
+        // // Routes for mandates
+        // routes::mandates::get_mandate,
+        // routes::mandates::revoke_mandate,
+        // routes::mandates::customers_mandates_list,
 
-        //Routes for customers
-        routes::customers::customers_create,
-        routes::customers::customers_retrieve,
-        routes::customers::customers_list,
-        routes::customers::customers_update,
-        routes::customers::customers_delete,
+        // //Routes for customers
+        // routes::customers::customers_create,
+        // routes::customers::customers_retrieve,
+        // routes::customers::customers_list,
+        // routes::customers::customers_update,
+        // routes::customers::customers_delete,
 
-        //Routes for payment methods
-        routes::payment_method::create_payment_method_api,
-        routes::payment_method::list_payment_method_api,
-        routes::payment_method::list_customer_payment_method_api,
-        routes::payment_method::list_customer_payment_method_api_client,
-        routes::payment_method::default_payment_method_set_api,
-        routes::payment_method::payment_method_retrieve_api,
-        routes::payment_method::payment_method_update_api,
-        routes::payment_method::payment_method_delete_api,
+        // //Routes for payment methods
+        // routes::payment_method::create_payment_method_api,
+        // routes::payment_method::list_payment_method_api,
+        // routes::payment_method::list_customer_payment_method_api,
+        // routes::payment_method::list_customer_payment_method_api_client,
+        // routes::payment_method::default_payment_method_set_api,
+        // routes::payment_method::payment_method_retrieve_api,
+        // routes::payment_method::payment_method_update_api,
+        // routes::payment_method::payment_method_delete_api,
 
-        // Routes for Profile
-        routes::profile::profile_create,
-        routes::profile::profile_list,
-        routes::profile::profile_retrieve,
-        routes::profile::profile_update,
-        routes::profile::profile_delete,
+        // // Routes for Profile
+        // routes::profile::profile_create,
+        // routes::profile::profile_list,
+        // routes::profile::profile_retrieve,
+        // routes::profile::profile_update,
+        // routes::profile::profile_delete,
 
-        // Routes for disputes
-        routes::disputes::retrieve_dispute,
-        routes::disputes::retrieve_disputes_list,
+        // // Routes for disputes
+        // routes::disputes::retrieve_dispute,
+        // routes::disputes::retrieve_disputes_list,
 
-        // Routes for routing
-        routes::routing::routing_create_config,
-        routes::routing::routing_link_config,
-        routes::routing::routing_retrieve_config,
-        routes::routing::list_routing_configs,
-        routes::routing::routing_unlink_config,
-        routes::routing::routing_update_default_config,
-        routes::routing::routing_retrieve_default_config,
-        routes::routing::routing_retrieve_linked_config,
-        routes::routing::routing_retrieve_default_config_for_profiles,
-        routes::routing::routing_update_default_config_for_profile,
-        routes::routing::success_based_routing_update_configs,
-        routes::routing::toggle_success_based_routing,
-        routes::routing::toggle_elimination_routing,
-        routes::routing::contract_based_routing_setup_config,
-        routes::routing::contract_based_routing_update_configs,
+        // // Routes for routing
+        // routes::routing::routing_create_config,
+        // routes::routing::routing_link_config,
+        // routes::routing::routing_retrieve_config,
+        // routes::routing::list_routing_configs,
+        // routes::routing::routing_unlink_config,
+        // routes::routing::routing_update_default_config,
+        // routes::routing::routing_retrieve_default_config,
+        // routes::routing::routing_retrieve_linked_config,
+        // routes::routing::routing_retrieve_default_config_for_profiles,
+        // routes::routing::routing_update_default_config_for_profile,
+        // routes::routing::success_based_routing_update_configs,
+        // routes::routing::toggle_success_based_routing,
+        // routes::routing::toggle_elimination_routing,
+        // routes::routing::contract_based_routing_setup_config,
+        // routes::routing::contract_based_routing_update_configs,
 
-        // Routes for blocklist
-        routes::blocklist::remove_entry_from_blocklist,
-        routes::blocklist::list_blocked_payment_methods,
-        routes::blocklist::add_entry_to_blocklist,
-        routes::blocklist::toggle_blocklist_guard,
+        // // Routes for blocklist
+        // routes::blocklist::remove_entry_from_blocklist,
+        // routes::blocklist::list_blocked_payment_methods,
+        // routes::blocklist::add_entry_to_blocklist,
+        // routes::blocklist::toggle_blocklist_guard,
 
-        // Routes for payouts
-        routes::payouts::payouts_create,
-        routes::payouts::payouts_retrieve,
-        routes::payouts::payouts_update,
-        routes::payouts::payouts_cancel,
-        routes::payouts::payouts_fulfill,
-        routes::payouts::payouts_list,
-        routes::payouts::payouts_confirm,
-        routes::payouts::payouts_list_filters,
-        routes::payouts::payouts_list_by_filter,
+        // // Routes for payouts
+        // routes::payouts::payouts_create,
+        // routes::payouts::payouts_retrieve,
+        // routes::payouts::payouts_update,
+        // routes::payouts::payouts_cancel,
+        // routes::payouts::payouts_fulfill,
+        // routes::payouts::payouts_list,
+        // routes::payouts::payouts_confirm,
+        // routes::payouts::payouts_list_filters,
+        // routes::payouts::payouts_list_by_filter,
 
-        // Routes for api keys
-        routes::api_keys::api_key_create,
-        routes::api_keys::api_key_retrieve,
-        routes::api_keys::api_key_update,
-        routes::api_keys::api_key_revoke,
-        routes::api_keys::api_key_list,
+        // // Routes for api keys
+        // routes::api_keys::api_key_create,
+        // routes::api_keys::api_key_retrieve,
+        // routes::api_keys::api_key_update,
+        // routes::api_keys::api_key_revoke,
+        // routes::api_keys::api_key_list,
 
-        // Routes for events
-        routes::webhook_events::list_initial_webhook_delivery_attempts,
-        routes::webhook_events::list_webhook_delivery_attempts,
-        routes::webhook_events::retry_webhook_delivery_attempt,
+        // // Routes for events
+        // routes::webhook_events::list_initial_webhook_delivery_attempts,
+        // routes::webhook_events::list_webhook_delivery_attempts,
+        // routes::webhook_events::retry_webhook_delivery_attempt,
 
-        // Routes for poll apis
-        routes::poll::retrieve_poll_status,
+        // // Routes for poll apis
+        // routes::poll::retrieve_poll_status,
     ),
     components(schemas(
         common_utils::types::MinorUnit,
