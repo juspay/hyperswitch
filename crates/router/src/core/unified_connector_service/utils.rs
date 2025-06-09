@@ -332,10 +332,24 @@ pub fn construct_ucs_request_metadata(
         .change_context(ApiErrorResponse::InternalServerError)
         .attach_printable("Failed while parsing value for ConnectorAuthType")?;
 
-    let connector_name = merchant_connector_account
-        .get_connector_name()
-        .ok_or_else(|| ApiErrorResponse::InternalServerError)
-        .attach_printable("Missing connector name")?;
+    let connector_name = {
+        #[cfg(feature = "v1")]
+        {
+            merchant_connector_account
+                .get_connector_name()
+                .ok_or_else(|| ApiErrorResponse::InternalServerError)
+                .attach_printable("Missing connector name")?
+        }
+
+        #[cfg(feature = "v2")]
+        {
+            merchant_connector_account
+                .get_connector_name()
+                .map(|connector| connector.to_string())
+                .ok_or_else(|| ApiErrorResponse::InternalServerError)
+                .attach_printable("Missing connector name")?
+        }
+    };
 
     let parsed_connector_name = connector_name
         .parse()
