@@ -330,6 +330,7 @@ pub fn create_merchant_account_request_for_org(
         redirect_to_merchant_with_http_post: None,
         pm_collect_link_config: None,
         product_type: Some(product_type),
+        merchant_account_type: None,
     })
 }
 

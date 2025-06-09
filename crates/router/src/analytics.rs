@@ -10,8 +10,8 @@ pub mod routes {
     use analytics::{
         api_event::api_events_core, connector_events::connector_events_core, enums::AuthInfo,
         errors::AnalyticsError, lambda_utils::invoke_lambda, opensearch::OpenSearchError,
-        outgoing_webhook_event::outgoing_webhook_events_core, sdk_events::sdk_events_core,
-        AnalyticsFlow,
+        outgoing_webhook_event::outgoing_webhook_events_core, routing_events::routing_events_core,
+        sdk_events::sdk_events_core, AnalyticsFlow,
     };
     use api_models::analytics::{
         api_event::QueryType,
@@ -132,6 +132,10 @@ pub mod routes {
                         .service(
                             web::resource("connector_event_logs")
                                 .route(web::get().to(get_profile_connector_events)),
+                        )
+                        .service(
+                            web::resource("routing_event_logs")
+                                .route(web::get().to(get_profile_routing_events)),
                         )
                         .service(
                             web::resource("outgoing_webhook_event_logs")
@@ -306,6 +310,10 @@ pub mod routes {
                                 .service(
                                     web::resource("connector_event_logs")
                                         .route(web::get().to(get_profile_connector_events)),
+                                )
+                                .service(
+                                    web::resource("routing_event_logs")
+                                        .route(web::get().to(get_profile_routing_events)),
                                 )
                                 .service(
                                     web::resource("outgoing_webhook_event_logs")
@@ -2164,6 +2172,44 @@ pub mod routes {
             &auth::JWTAuth {
                 permission: Permission::ProfileAnalyticsRead,
             },
+            api_locking::LockAction::NotApplicable,
+        ))
+        .await
+    }
+
+    pub async fn get_profile_routing_events(
+        state: web::Data<AppState>,
+        req: actix_web::HttpRequest,
+        json_payload: web::Query<api_models::analytics::routing_events::RoutingEventsRequest>,
+    ) -> impl Responder {
+        let flow = AnalyticsFlow::GetRoutingEvents;
+        Box::pin(api::server_wrap(
+            flow,
+            state,
+            &req,
+            json_payload.into_inner(),
+            |state, auth: AuthenticationData, req, _| async move {
+                utils::check_if_profile_id_is_present_in_payment_intent(
+                    req.payment_id.clone(),
+                    &state,
+                    &auth,
+                )
+                .await
+                .change_context(AnalyticsError::AccessForbiddenError)?;
+                routing_events_core(&state.pool, req, auth.merchant_account.get_id())
+                    .await
+                    .map(ApplicationResponse::Json)
+            },
+            auth::auth_type(
+                &auth::HeaderAuth(auth::ApiKeyAuth {
+                    is_connected_allowed: false,
+                    is_platform_allowed: false,
+                }),
+                &auth::JWTAuth {
+                    permission: Permission::ProfileAnalyticsRead,
+                },
+                req.headers(),
+            ),
             api_locking::LockAction::NotApplicable,
         ))
         .await

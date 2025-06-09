@@ -2018,9 +2018,7 @@ pub async fn decode_and_decrypt_locker_data(
     key_store: &domain::MerchantKeyStore,
     enc_card_data: String,
 ) -> errors::CustomResult<Secret<String>, errors::VaultError> {
-    // Fetch key
     let key = key_store.key.get_inner().peek();
-    // Decode
     let decoded_bytes = hex::decode(&enc_card_data)
         .change_context(errors::VaultError::ResponseDeserializationFailed)
         .attach_printable("Failed to decode hex string into bytes")?;
@@ -4591,7 +4589,7 @@ pub async fn perform_surcharge_ops(
     _state: &routes::SessionState,
     _merchant_context: &domain::MerchantContext,
     _business_profile: Option<Profile>,
-    _response: &mut api::CustomerPaymentMethodsListResponse,
+    _response: &mut api_models::payment_methods::CustomerPaymentMethodsListResponse,
 ) -> Result<(), error_stack::Report<errors::ApiErrorResponse>> {
     todo!()
 }
