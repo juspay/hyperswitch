@@ -2325,6 +2325,7 @@ pub struct ProfileResponse {
     pub is_pre_network_tokenization_enabled: bool,
 
     /// Acquirer configs
+    #[schema(value_type = Option<AcquirerConfigs>)]
     pub acquirer_configs: Option<common_types::domain::AcquirerConfigs>,
 }
 
