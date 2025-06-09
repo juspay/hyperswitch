@@ -81,31 +81,31 @@ pub fn construct_ucs_authorize_request(
             .ok_or_else(|| ApiErrorResponse::InternalServerError)
             .attach_printable("Failed to parse currency")?;
 
-    let payment_method = construct_ucs_payment_method(router_data.payment_method.clone())?;
+    let payment_method = construct_ucs_payment_method(router_data.payment_method)?;
 
     let payment_method_data =
         construct_ucs_payment_method_data(router_data.request.payment_method_data.clone())?;
 
     let address = construct_ucs_payment_address(router_data.address.clone())?;
 
-    let auth_type = construct_ucs_auth_type(router_data.auth_type.clone())?;
+    let auth_type = construct_ucs_auth_type(router_data.auth_type)?;
 
     let browser_info = router_data
         .request
         .browser_info
         .clone()
-        .map(|browser_info| construct_ucs_browser_info(browser_info))
+        .map(construct_ucs_browser_info)
         .transpose()?;
 
     Ok(payments_grpc::PaymentsAuthorizeRequest {
         amount: router_data.request.amount,
-        currency: currency as i32,
-        payment_method: payment_method as i32,
+        currency: currency.into(),
+        payment_method: payment_method.into(),
         payment_method_data: Some(payment_method_data),
         connector_customer: Some("abcd".to_string()),
         return_url: router_data.request.router_return_url.clone(),
         address: Some(address),
-        auth_type: auth_type as i32,
+        auth_type: auth_type.into(),
         connector_request_reference_id: router_data.connector_request_reference_id.clone(),
         enrolled_for_3ds: router_data.request.enrolled_for_3ds,
         request_incremental_authorization: router_data.request.request_incremental_authorization,
@@ -168,7 +168,7 @@ pub fn construct_ucs_payment_address(
                     .and_then(|c| payments_grpc::CountryAlpha2::from_str_name(&c.to_string()))
             })
             .ok_or_else(|| ApiErrorResponse::InternalServerError)
-            .attach_printable("Invalid country code")? as i32;
+            .attach_printable("Invalid country code")?.into();
 
         Some(payments_grpc::Address {
             address: address
@@ -209,7 +209,7 @@ pub fn construct_ucs_payment_address(
                     .and_then(|c| payments_grpc::CountryAlpha2::from_str_name(&c.to_string()))
             })
             .ok_or_else(|| ApiErrorResponse::InternalServerError)
-            .attach_printable("Invalid country code")? as i32;
+            .attach_printable("Invalid country code")?.into();
 
         Some(payments_grpc::Address {
             address: address
@@ -251,7 +251,7 @@ pub fn construct_ucs_payment_address(
                         .and_then(|c| payments_grpc::CountryAlpha2::from_str_name(&c.to_string()))
                 })
                 .ok_or_else(|| ApiErrorResponse::InternalServerError)
-                .attach_printable("Invalid country code")? as i32;
+                .attach_printable("Invalid country code")?.into();
 
             Some(payments_grpc::Address {
                 address: address
@@ -302,7 +302,7 @@ pub fn construct_ucs_browser_info(
     browser_info: hyperswitch_domain_models::router_request_types::BrowserInformation,
 ) -> RouterResult<payments_grpc::BrowserInformation> {
     Ok(payments_grpc::BrowserInformation {
-        color_depth: browser_info.color_depth.map(|v| v as u32),
+        color_depth: browser_info.color_depth.map(|v| v.into()),
         java_enabled: browser_info.java_enabled,
         java_script_enabled: browser_info.java_script_enabled,
         language: browser_info.language,
