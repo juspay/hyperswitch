@@ -4707,9 +4707,9 @@ pub struct WaitScreenInstructions {
 #[derive(Clone, Debug, Eq, PartialEq, serde::Serialize, serde::Deserialize, ToSchema)]
 pub struct PollConfig {
     /// Interval of the poll
-    pub delay_in_secs: i8,
+    pub delay_in_secs: u16,
     /// Frequency of the poll
-    pub frequency: i8,
+    pub frequency: u16,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq, serde::Serialize, serde::Deserialize, ToSchema)]

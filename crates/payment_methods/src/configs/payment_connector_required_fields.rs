@@ -1066,7 +1066,7 @@ impl Default for RequiredFields {
                             vec![],
                             vec![
                                 RequiredField::UpiCollectVpaId,
-                                RequiredField::Email,
+                                RequiredField::BillingEmail,
                                 RequiredField::BillingPhone,
                                 RequiredField::BillingPhoneCountryCode,
                             ],

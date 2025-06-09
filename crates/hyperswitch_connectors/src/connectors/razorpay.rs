@@ -129,7 +129,7 @@ impl ConnectorCommon for Razorpay {
     ) -> CustomResult<Vec<(String, Maskable<String>)>, errors::ConnectorError> {
         let auth = razorpay::RazorpayAuthType::try_from(auth_type)
             .change_context(errors::ConnectorError::FailedToObtainAuthType)?;
-        let encoded_api_key = base64::engine::general_purpose::STANDARD.encode(format!(
+        let encoded_api_key = common_utils::consts::BASE64_ENGINE.encode(format!(
             "{}:{}",
             auth.razorpay_id.peek(),
             auth.razorpay_secret.peek()
@@ -277,7 +277,7 @@ impl ConnectorIntegration<CreateOrder, CreateOrderRequestData, PaymentsResponseD
     ) -> CustomResult<CreateOrderRouterData, errors::ConnectorError> {
         let response: razorpay::RazorpayOrderResponse = res
             .response
-            .parse_struct("razorpay RazorpayOrderResponse")
+            .parse_struct("RazorpayOrderResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
@@ -839,6 +839,6 @@ impl ConnectorSpecifications for Razorpay {
         payment_attempt: &hyperswitch_domain_models::payments::payment_attempt::PaymentAttempt,
     ) -> String {
         // The length of receipt for Razorpay order request should not exceed 40 characters.
-        uuid::Uuid::new_v4().to_string()
+        uuid::Uuid::now_v7().to_string()
     }
 }

@@ -285,9 +285,9 @@ pub struct RazorpaySyncResponse {
     status: RazorpayStatus,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Copy, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
-#[derive(strum::Display)]
+// #[derive(strum::Display)]
 pub enum RazorpayStatus {
     Created,
     Authorized,
@@ -600,7 +600,6 @@ pub struct Metadata {
 
 // #[derive(Debug, Serialize, Eq, PartialEq, Clone, Deserialize)]
 // #[serde(rename_all = "snake_case")]
-// #[derive(strum::Display)]
 // pub enum RazorpayWebhookPaymentStatus {
 //     Authorized,
 //     Captured,
