@@ -2494,8 +2494,9 @@ where
     let connector_name = payment_attempt
         .connector
         .as_ref()
-        .get_required_value("connector")?;
-    
+        .map(|c| c.as_str())
+        .unwrap_or_default();
+
     let router_return_url = helpers::create_redirect_url(
         &base_url.to_string(),
         &payment_attempt,
