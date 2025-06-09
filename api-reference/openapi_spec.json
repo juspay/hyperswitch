@@ -24745,12 +24745,14 @@
           "delay_in_secs": {
             "type": "integer",
             "format": "int32",
-            "description": "Interval of the poll"
+            "description": "Interval of the poll",
+            "minimum": 0
           },
           "frequency": {
             "type": "integer",
             "format": "int32",
-            "description": "Frequency of the poll"
+            "description": "Frequency of the poll",
+            "minimum": 0
           }
         }
       },
