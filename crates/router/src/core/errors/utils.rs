@@ -133,7 +133,7 @@ impl<T> ConnectorErrorExt<T> for error_stack::Result<T, errors::ConnectorError> 
             }
             errors::ConnectorError::CaptureMethodNotSupported => {
                 errors::ApiErrorResponse::NotSupported {
-                    message: "Capture Method Not Supported".into(),
+                    message: "Capture Method Not Supported".to_owned(),
                 }
                 .into()
             }
@@ -241,7 +241,7 @@ impl<T> ConnectorErrorExt<T> for error_stack::Result<T, errors::ConnectorError> 
                 },
                 errors::ConnectorError::CaptureMethodNotSupported => {
                     errors::ApiErrorResponse::NotSupported {
-                        message: "Capture Method Not Supported".into(),
+                        message: "Capture Method Not Supported".to_owned(),
                     }
                     .into()
                 }
@@ -336,7 +336,8 @@ impl<T> ConnectorErrorExt<T> for error_stack::Result<T, errors::ConnectorError> 
                 }
                 errors::ConnectorError::CaptureMethodNotSupported => {
                     errors::ApiErrorResponse::NotSupported {
-                        message: "Capture Method Not Supported".into(),
+                        message: "Capture Method Not Supported".to_owned()
+                        ,
                     }
                     .into()
                 }
