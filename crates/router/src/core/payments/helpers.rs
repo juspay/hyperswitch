@@ -4518,15 +4518,14 @@ pub fn is_manual_retry_allowed(
             | enums::AttemptStatus::Voided
             | enums::AttemptStatus::AutoRefunded
             | enums::AttemptStatus::PaymentMethodAwaited
-            | enums::AttemptStatus::DeviceDataCollectionPending => {
+            | enums::AttemptStatus::DeviceDataCollectionPending | storage_enums::AttemptStatus::IntegrityFailure => {
                 logger::error!("Payment Attempt should not be in this state because Attempt to Intent status mapping doesn't allow it");
                 None
             }
 
             storage_enums::AttemptStatus::VoidFailed
             | storage_enums::AttemptStatus::RouterDeclined
-            | storage_enums::AttemptStatus::CaptureFailed
-            | storage_enums::AttemptStatus::IntegrityFailure => Some(false),
+            | storage_enums::AttemptStatus::CaptureFailed => Some(false),
 
             storage_enums::AttemptStatus::AuthenticationFailed
             | storage_enums::AttemptStatus::AuthorizationFailed

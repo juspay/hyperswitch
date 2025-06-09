@@ -6173,7 +6173,7 @@ impl FrmTransactionRouterDataRequest for FrmTransactionRouterData {
             AttemptStatus::AuthenticationSuccessful
             | AttemptStatus::PartialChargedAndChargeable
             | AttemptStatus::Authorized
-            | AttemptStatus::Charged => Some(true),
+            | AttemptStatus::Charged | AttemptStatus::IntegrityFailure => Some(true),
 
             AttemptStatus::Started
             | AttemptStatus::AuthenticationPending
@@ -6187,8 +6187,7 @@ impl FrmTransactionRouterDataRequest for FrmTransactionRouterData {
             | AttemptStatus::Pending
             | AttemptStatus::PaymentMethodAwaited
             | AttemptStatus::ConfirmationAwaited
-            | AttemptStatus::DeviceDataCollectionPending
-            | AttemptStatus::IntegrityFailure => None,
+            | AttemptStatus::DeviceDataCollectionPending => None,
         }
     }
 }
