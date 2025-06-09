@@ -1,13 +1,12 @@
 use common_utils::events::{ApiEventMetric, ApiEventsType};
 
-#[cfg(feature = "v1")]
-use crate::refunds::RefundRequest;
-#[cfg(feature = "v2")]
-use crate::refunds::RefundsCreateRequest;
 use crate::refunds::{
-    RefundAggregateResponse, RefundListFilters, RefundListMetaData, RefundListRequest,
-    RefundListResponse, RefundManualUpdateRequest, RefundResponse, RefundUpdateRequest,
-    RefundsRetrieveRequest,
+    self, RefundAggregateResponse, RefundListFilters, RefundListMetaData, RefundListRequest,
+    RefundListResponse,
+};
+#[cfg(feature = "v1")]
+use crate::refunds::{
+    RefundManualUpdateRequest, RefundRequest, RefundUpdateRequest, RefundsRetrieveRequest,
 };
 
 #[cfg(feature = "v1")]
@@ -23,15 +22,8 @@ impl ApiEventMetric for RefundRequest {
     }
 }
 
-#[cfg(feature = "v2")]
-impl ApiEventMetric for RefundsCreateRequest {
-    fn get_api_event_type(&self) -> Option<ApiEventsType> {
-        None
-    }
-}
-
 #[cfg(feature = "v1")]
-impl ApiEventMetric for RefundResponse {
+impl ApiEventMetric for refunds::RefundResponse {
     fn get_api_event_type(&self) -> Option<ApiEventsType> {
         Some(ApiEventsType::Refund {
             payment_id: Some(self.payment_id.clone()),
@@ -41,10 +33,10 @@ impl ApiEventMetric for RefundResponse {
 }
 
 #[cfg(feature = "v2")]
-impl ApiEventMetric for RefundResponse {
+impl ApiEventMetric for refunds::RefundResponse {
     fn get_api_event_type(&self) -> Option<ApiEventsType> {
         Some(ApiEventsType::Refund {
-            payment_id: self.payment_id.clone(),
+            payment_id: Some(self.payment_id.clone()),
             refund_id: self.id.clone(),
         })
     }
@@ -52,6 +44,16 @@ impl ApiEventMetric for RefundResponse {
 
 #[cfg(feature = "v1")]
 impl ApiEventMetric for RefundsRetrieveRequest {
+    fn get_api_event_type(&self) -> Option<ApiEventsType> {
+        Some(ApiEventsType::Refund {
+            payment_id: None,
+            refund_id: self.refund_id.clone(),
+        })
+    }
+}
+
+#[cfg(feature = "v2")]
+impl ApiEventMetric for refunds::RefundsRetrieveRequest {
     fn get_api_event_type(&self) -> Option<ApiEventsType> {
         Some(ApiEventsType::Refund {
             payment_id: None,

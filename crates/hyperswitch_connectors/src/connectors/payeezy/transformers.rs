@@ -76,7 +76,8 @@ impl TryFrom<CardIssuer> for PayeezyCardType {
             CardIssuer::Maestro
             | CardIssuer::DinersClub
             | CardIssuer::JCB
-            | CardIssuer::CarteBlanche => Err(ConnectorError::NotImplemented(
+            | CardIssuer::CarteBlanche
+            | CardIssuer::CartesBancaires => Err(ConnectorError::NotImplemented(
                 get_unimplemented_payment_method_error_message("Payeezy"),
             ))?,
         }

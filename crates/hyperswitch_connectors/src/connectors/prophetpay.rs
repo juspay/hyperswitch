@@ -1,9 +1,9 @@
 pub mod transformers;
-
-use std::fmt::Debug;
+use std::{fmt::Debug, sync::LazyLock};
 
 use api_models::webhooks::{IncomingWebhookEvent, ObjectReferenceId};
 use base64::Engine;
+use common_enums::enums;
 use common_utils::{
     consts::BASE64_ENGINE,
     errors::CustomResult,
@@ -24,7 +24,10 @@ use hyperswitch_domain_models::{
         PaymentsAuthorizeData, PaymentsCancelData, PaymentsCaptureData, PaymentsSessionData,
         PaymentsSyncData, RefundsData, SetupMandateRequestData,
     },
-    router_response_types::{PaymentsResponseData, RefundsResponseData},
+    router_response_types::{
+        ConnectorInfo, PaymentMethodDetails, PaymentsResponseData, RefundsResponseData,
+        SupportedPaymentMethods, SupportedPaymentMethodsExt,
+    },
     types::{
         PaymentsAuthorizeRouterData, PaymentsCancelRouterData, PaymentsCompleteAuthorizeRouterData,
         PaymentsSyncRouterData, RefundSyncRouterData, RefundsRouterData,
@@ -716,5 +719,47 @@ impl IncomingWebhook for Prophetpay {
         Err(report!(errors::ConnectorError::WebhooksNotImplemented))
     }
 }
+static PROPHETPAY_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMethods> =
+    LazyLock::new(|| {
+        let supported_capture_methods = vec![
+            enums::CaptureMethod::Automatic,
+            enums::CaptureMethod::SequentialAutomatic,
+        ];
 
-impl ConnectorSpecifications for Prophetpay {}
+        let mut prophetpay_supported_payment_methods = SupportedPaymentMethods::new();
+
+        prophetpay_supported_payment_methods.add(
+            enums::PaymentMethod::CardRedirect,
+            enums::PaymentMethodType::CardRedirect,
+            PaymentMethodDetails {
+                mandates: enums::FeatureStatus::NotSupported,
+                refunds: enums::FeatureStatus::Supported,
+                supported_capture_methods: supported_capture_methods.clone(),
+                specific_features: None,
+            },
+        );
+
+        prophetpay_supported_payment_methods
+    });
+
+static PROPHETPAY_CONNECTOR_INFO: ConnectorInfo = ConnectorInfo {
+        display_name: "Prophetpay",
+        description: "GlobePay Limited is a professional cross-border payment solution provider (WeChat Pay & Alipay) in the UK",
+        connector_type: enums::PaymentConnectorCategory::PaymentGateway,
+    };
+
+static PROPHETPAY_SUPPORTED_WEBHOOK_FLOWS: [enums::EventClass; 0] = [];
+
+impl ConnectorSpecifications for Prophetpay {
+    fn get_connector_about(&self) -> Option<&'static ConnectorInfo> {
+        Some(&PROPHETPAY_CONNECTOR_INFO)
+    }
+
+    fn get_supported_payment_methods(&self) -> Option<&'static SupportedPaymentMethods> {
+        Some(&*PROPHETPAY_SUPPORTED_PAYMENT_METHODS)
+    }
+
+    fn get_supported_webhook_flows(&self) -> Option<&'static [enums::EventClass]> {
+        Some(&PROPHETPAY_SUPPORTED_WEBHOOK_FLOWS)
+    }
+}

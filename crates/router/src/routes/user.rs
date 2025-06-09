@@ -260,6 +260,29 @@ pub async fn create_tenant_user(
 }
 
 #[cfg(feature = "v1")]
+pub async fn create_platform(
+    state: web::Data<AppState>,
+    req: HttpRequest,
+    json_payload: web::Json<user_api::PlatformAccountCreateRequest>,
+) -> HttpResponse {
+    let flow = Flow::CreatePlatformAccount;
+    Box::pin(api::server_wrap(
+        flow,
+        state,
+        &req,
+        json_payload.into_inner(),
+        |state, user: auth::UserFromToken, json_payload, _| {
+            user_core::create_platform_account(state, user, json_payload)
+        },
+        &auth::JWTAuth {
+            permission: Permission::OrganizationAccountWrite,
+        },
+        api_locking::LockAction::NotApplicable,
+    ))
+    .await
+}
+
+#[cfg(feature = "v1")]
 pub async fn user_org_create(
     state: web::Data<AppState>,
     req: HttpRequest,
@@ -987,6 +1010,28 @@ pub async fn switch_profile_for_user_in_org_and_merchant(
             user_core::switch_profile_for_user_in_org_and_merchant(state, req, user)
         },
         &auth::DashboardNoPermissionAuth,
+        api_locking::LockAction::NotApplicable,
+    ))
+    .await
+}
+
+#[cfg(feature = "v1")]
+pub async fn clone_connector(
+    state: web::Data<AppState>,
+    req: HttpRequest,
+    json_payload: web::Json<user_api::CloneConnectorRequest>,
+) -> HttpResponse {
+    let flow = Flow::CloneConnector;
+
+    Box::pin(api::server_wrap(
+        flow,
+        state.clone(),
+        &req,
+        json_payload.into_inner(),
+        |state, _: auth::UserFromToken, req, _| user_core::clone_connector(state, req),
+        &auth::JWTAuth {
+            permission: Permission::MerchantInternalConnectorWrite,
+        },
         api_locking::LockAction::NotApplicable,
     ))
     .await

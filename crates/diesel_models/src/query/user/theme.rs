@@ -1,5 +1,5 @@
 use async_bb8_diesel::AsyncRunQueryDsl;
-use common_utils::types::theme::ThemeLineage;
+use common_utils::types::user::ThemeLineage;
 use diesel::{
     associations::HasTable,
     debug_query,
@@ -18,7 +18,7 @@ use crate::{
         db_metrics::{track_database_call, DatabaseOperation},
     },
     schema::themes::dsl,
-    user::theme::{Theme, ThemeNew},
+    user::theme::{Theme, ThemeNew, ThemeUpdate, ThemeUpdateInternal},
     PgPooledConn, StorageResult,
 };
 
@@ -128,6 +128,23 @@ impl Theme {
             conn,
             Self::lineage_filter(lineage),
         )
+        .await
+    }
+
+    pub async fn update_by_theme_id(
+        conn: &PgPooledConn,
+        theme_id: String,
+        update: ThemeUpdate,
+    ) -> StorageResult<Self> {
+        let update_internal: ThemeUpdateInternal = update.into();
+
+        let predicate = dsl::theme_id.eq(theme_id);
+        generics::generic_update_with_unique_predicate_get_result::<
+            <Self as HasTable>::Table,
+            _,
+            _,
+            _,
+        >(conn, predicate, update_internal)
         .await
     }
 

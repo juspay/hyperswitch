@@ -2,7 +2,7 @@
 use std::marker::PhantomData;
 
 #[cfg(feature = "v2")]
-use api_models::payments::SessionToken;
+use api_models::payments::{SessionToken, VaultSessionDetails};
 use common_types::primitive_wrappers::{
     AlwaysRequestExtendedAuthorization, RequestExtendedAuthorizationBool,
 };
@@ -42,8 +42,8 @@ use self::payment_attempt::PaymentAttempt;
 #[cfg(feature = "v2")]
 use crate::{
     address::Address, business_profile, customer, errors, merchant_account,
-    merchant_connector_account, payment_address, payment_method_data, routing,
-    ApiModelToDieselModelConvertor,
+    merchant_connector_account, merchant_context, payment_address, payment_method_data,
+    payment_methods, revenue_recovery, routing, ApiModelToDieselModelConvertor,
 };
 #[cfg(feature = "v1")]
 use crate::{payment_method_data, RemoteStorageObject};
@@ -119,6 +119,7 @@ pub struct PaymentIntent {
     pub created_by: Option<CreatedBy>,
     pub force_3ds_challenge: Option<bool>,
     pub force_3ds_challenge_trigger: Option<bool>,
+    pub is_iframe_redirection_enabled: Option<bool>,
 }
 
 impl PaymentIntent {
@@ -503,6 +504,9 @@ pub struct PaymentIntent {
     pub processor_merchant_id: id_type::MerchantId,
     /// merchantwho invoked the resource based api (identifier) and through what source (Api, Jwt(Dashboard))
     pub created_by: Option<CreatedBy>,
+
+    /// Indicates if the redirection has to open in the iframe
+    pub is_iframe_redirection_enabled: Option<bool>,
 }
 
 #[cfg(feature = "v2")]
@@ -561,11 +565,10 @@ impl PaymentIntent {
 
     pub async fn create_domain_model_from_request(
         payment_id: &id_type::GlobalPaymentId,
-        merchant_account: &merchant_account::MerchantAccount,
+        merchant_context: &merchant_context::MerchantContext,
         profile: &business_profile::Profile,
         request: api_models::payments::PaymentsCreateIntentRequest,
         decrypted_payment_intent: DecryptedPaymentIntent,
-        platform_merchant_id: Option<&merchant_account::MerchantAccount>,
     ) -> CustomResult<Self, errors::api_error_response::ApiErrorResponse> {
         let connector_metadata = request
             .get_connector_metadata_as_value()
@@ -592,7 +595,7 @@ impl PaymentIntent {
 
         Ok(Self {
             id: payment_id.clone(),
-            merchant_id: merchant_account.get_id().clone(),
+            merchant_id: merchant_context.get_merchant_account().get_id().clone(),
             // Intent status would be RequiresPaymentMethod because we are creating a new payment intent
             status: common_enums::IntentStatus::RequiresPaymentMethod,
             amount_details: AmountDetails::from(request.amount_details),
@@ -616,7 +619,10 @@ impl PaymentIntent {
             profile_id: profile.get_id().clone(),
             payment_link_id: None,
             frm_merchant_decision: None,
-            updated_by: merchant_account.storage_scheme.to_string(),
+            updated_by: merchant_context
+                .get_merchant_account()
+                .storage_scheme
+                .to_string(),
             request_incremental_authorization,
             // Authorization count is 0 in create intent as no authorization is made yet
             authorization_count: Some(0),
@@ -650,7 +656,10 @@ impl PaymentIntent {
             capture_method: request.capture_method.unwrap_or_default(),
             authentication_type: request.authentication_type,
             prerouting_algorithm: None,
-            organization_id: merchant_account.organization_id.clone(),
+            organization_id: merchant_context
+                .get_merchant_account()
+                .organization_id
+                .clone(),
             enable_payment_link: request.payment_link_enabled.unwrap_or_default(),
             apply_mit_exemption: request.apply_mit_exemption.unwrap_or_default(),
             customer_present: request.customer_present.unwrap_or_default(),
@@ -661,8 +670,9 @@ impl PaymentIntent {
             split_payments: None,
             force_3ds_challenge: None,
             force_3ds_challenge_trigger: None,
-            processor_merchant_id: merchant_account.get_id().clone(),
+            processor_merchant_id: merchant_context.get_merchant_account().get_id().clone(),
             created_by: None,
+            is_iframe_redirection_enabled: None,
         })
     }
 
@@ -676,6 +686,64 @@ impl PaymentIntent {
 
     pub fn get_feature_metadata(&self) -> Option<FeatureMetadata> {
         self.feature_metadata.clone()
+    }
+
+    pub fn create_revenue_recovery_attempt_data(
+        &self,
+        revenue_recovery_metadata: api_models::payments::PaymentRevenueRecoveryMetadata,
+        billing_connector_account: &merchant_connector_account::MerchantConnectorAccount,
+    ) -> CustomResult<
+        revenue_recovery::RevenueRecoveryAttemptData,
+        errors::api_error_response::ApiErrorResponse,
+    > {
+        let merchant_reference_id = self.merchant_reference_id.clone().ok_or_else(|| {
+            error_stack::report!(
+                errors::api_error_response::ApiErrorResponse::GenericNotFoundError {
+                    message: "mandate reference id not found".to_string()
+                }
+            )
+        })?;
+
+        let connector_account_reference_id = billing_connector_account
+            .get_account_reference_id_using_payment_merchant_connector_account_id(
+                revenue_recovery_metadata.active_attempt_payment_connector_id,
+            )
+            .ok_or_else(|| {
+                error_stack::report!(
+                    errors::api_error_response::ApiErrorResponse::GenericNotFoundError {
+                        message: "connector account reference id not found".to_string()
+                    }
+                )
+            })?;
+
+        Ok(revenue_recovery::RevenueRecoveryAttemptData {
+            amount: self.amount_details.order_amount,
+            currency: self.amount_details.currency,
+            merchant_reference_id,
+            connector_transaction_id: None, // No connector id
+            error_code: None,
+            error_message: None,
+            processor_payment_method_token: revenue_recovery_metadata
+                .billing_connector_payment_details
+                .payment_processor_token,
+            connector_customer_id: revenue_recovery_metadata
+                .billing_connector_payment_details
+                .connector_customer_id,
+            connector_account_reference_id,
+            transaction_created_at: None, // would unwrap_or as now
+            status: common_enums::AttemptStatus::Started,
+            payment_method_type: self
+                .get_payment_method_type()
+                .unwrap_or(revenue_recovery_metadata.payment_method_type),
+            payment_method_sub_type: self
+                .get_payment_method_sub_type()
+                .unwrap_or(revenue_recovery_metadata.payment_method_subtype),
+            network_advice_code: None,
+            network_decline_code: None,
+            network_error_message: None,
+            retry_count: None,
+            invoice_next_billing_time: None,
+        })
     }
 
     pub fn get_optional_customer_id(
@@ -699,6 +767,10 @@ impl PaymentIntent {
                 cm.parse_value::<api_models::payments::ConnectorMetadata>("ConnectorMetadata")
             })
             .transpose()
+    }
+
+    pub fn get_currency(&self) -> storage_enums::Currency {
+        self.amount_details.currency
     }
 }
 
@@ -766,6 +838,8 @@ where
     pub payment_intent: PaymentIntent,
     pub sessions_token: Vec<SessionToken>,
     pub client_secret: Option<Secret<String>>,
+    pub vault_session_details: Option<VaultSessionDetails>,
+    pub connector_customer_id: Option<String>,
 }
 
 // TODO: Check if this can be merged with existing payment data
@@ -781,6 +855,7 @@ where
     pub payment_method_data: Option<payment_method_data::PaymentMethodData>,
     pub payment_address: payment_address::PaymentAddress,
     pub mandate_data: Option<api_models::payments::MandateIds>,
+    pub payment_method: Option<payment_methods::PaymentMethod>,
 }
 
 #[cfg(feature = "v2")]
@@ -799,6 +874,22 @@ impl<F: Clone> PaymentConfirmData<F> {
                 .get_connector_customer_id_from_feature_metadata(),
         }
     }
+
+    pub fn update_payment_method_data(
+        &mut self,
+        payment_method_data: payment_method_data::PaymentMethodData,
+    ) {
+        self.payment_method_data = Some(payment_method_data);
+    }
+
+    pub fn update_payment_method_and_pm_id(
+        &mut self,
+        payment_method_id: id_type::GlobalPaymentMethodId,
+        payment_method: payment_methods::PaymentMethod,
+    ) {
+        self.payment_attempt.payment_method_id = Some(payment_method_id);
+        self.payment_method = Some(payment_method);
+    }
 }
 
 #[cfg(feature = "v2")]
@@ -809,7 +900,7 @@ where
 {
     pub flow: PhantomData<F>,
     pub payment_intent: PaymentIntent,
-    pub payment_attempt: Option<PaymentAttempt>,
+    pub payment_attempt: PaymentAttempt,
     pub payment_address: payment_address::PaymentAddress,
     pub attempts: Option<Vec<PaymentAttempt>>,
     /// Should the payment status be synced with connector
@@ -848,6 +939,7 @@ where
     pub payment_intent: PaymentIntent,
     pub payment_attempt: PaymentAttempt,
     pub revenue_recovery_data: RevenueRecoveryData,
+    pub payment_address: payment_address::PaymentAddress,
 }
 
 #[cfg(feature = "v2")]
@@ -858,6 +950,7 @@ pub struct RevenueRecoveryData {
     pub connector_customer_id: String,
     pub retry_count: Option<u16>,
     pub invoice_next_billing_time: Option<PrimitiveDateTime>,
+    pub triggered_by: storage_enums::enums::TriggeredBy,
 }
 
 #[cfg(feature = "v2")]
@@ -925,9 +1018,29 @@ where
     }
 }
 
+#[derive(Default, Clone, serde::Serialize, Debug)]
+pub struct CardAndNetworkTokenDataForVault {
+    pub card_data: payment_method_data::Card,
+    pub network_token: NetworkTokenDataForVault,
+}
+
+#[derive(Default, Clone, serde::Serialize, Debug)]
+pub struct NetworkTokenDataForVault {
+    pub network_token_data: payment_method_data::NetworkTokenData,
+    pub network_token_req_ref_id: String,
+}
+
+#[derive(Default, Clone, serde::Serialize, Debug)]
+pub struct CardDataForVault {
+    pub card_data: payment_method_data::Card,
+    pub network_token_req_ref_id: Option<String>,
+}
+
 #[derive(Clone, serde::Serialize, Debug)]
 pub enum VaultOperation {
     ExistingVaultData(VaultData),
+    SaveCardData(CardDataForVault),
+    SaveCardAndNetworkTokenData(Box<CardAndNetworkTokenDataForVault>),
 }
 
 impl VaultOperation {

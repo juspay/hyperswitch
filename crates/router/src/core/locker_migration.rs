@@ -1,3 +1,4 @@
+use ::payment_methods::controller::PaymentMethodsController;
 #[cfg(all(
     any(feature = "v1", feature = "v2"),
     not(feature = "payment_methods_v2")
@@ -90,6 +91,10 @@ pub async fn rust_locker_migration(
     let mut customers_moved = 0;
     let mut cards_moved = 0;
 
+    let merchant_context = domain::MerchantContext::NormalMerchant(Box::new(domain::Context(
+        merchant_account.clone(),
+        key_store.clone(),
+    )));
     for customer in domain_customers {
         let result = db
             .find_payment_method_by_customer_id_merchant_id_list(
@@ -106,7 +111,7 @@ pub async fn rust_locker_migration(
                     pm,
                     &customer.customer_id,
                     merchant_id,
-                    &merchant_account,
+                    &merchant_context,
                 )
             })
             .await?;
@@ -134,7 +139,7 @@ pub async fn call_to_locker(
     payment_methods: Vec<domain::PaymentMethod>,
     customer_id: &id_type::CustomerId,
     merchant_id: &id_type::MerchantId,
-    merchant_account: &domain::MerchantAccount,
+    merchant_context: &domain::MerchantContext,
 ) -> CustomResult<usize, errors::ApiErrorResponse> {
     let mut cards_moved = 0;
 
@@ -192,12 +197,13 @@ pub async fn call_to_locker(
             network_transaction_id: None,
         };
 
-        let add_card_result = cards::add_card_hs(
-                state,
+        let add_card_result = cards::PmCards{
+            state,
+            merchant_context,
+        }.add_card_hs(
                 pm_create,
                 &card_details,
                 customer_id,
-                merchant_account,
                 api_enums::LockerChoice::HyperswitchCardVault,
                 Some(pm.locker_id.as_ref().unwrap_or(&pm.payment_method_id)),
 
@@ -234,7 +240,7 @@ pub async fn call_to_locker(
     _payment_methods: Vec<domain::PaymentMethod>,
     _customer_id: &id_type::CustomerId,
     _merchant_id: &id_type::MerchantId,
-    _merchant_account: &domain::MerchantAccount,
+    _merchant_context: &domain::MerchantContext,
 ) -> CustomResult<usize, errors::ApiErrorResponse> {
     todo!()
 }

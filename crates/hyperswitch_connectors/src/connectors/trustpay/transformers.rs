@@ -6,7 +6,7 @@ use common_utils::{
     errors::CustomResult,
     pii::{self, Email},
     request::Method,
-    types::StringMajorUnit,
+    types::{FloatMajorUnit, StringMajorUnit},
 };
 use error_stack::{report, ResultExt};
 use hyperswitch_domain_models::{
@@ -1320,7 +1320,7 @@ impl<F>
     }
 }
 
-pub fn get_apple_pay_session<F, T>(
+pub(crate) fn get_apple_pay_session<F, T>(
     instance_id: String,
     secrets: &SdkSecretInfo,
     apple_pay_init_result: TrustpayApplePayResponse,
@@ -1372,7 +1372,7 @@ pub fn get_apple_pay_session<F, T>(
     })
 }
 
-pub fn get_google_pay_session<F, T>(
+pub(crate) fn get_google_pay_session<F, T>(
     instance_id: String,
     secrets: &SdkSecretInfo,
     google_pay_init_result: TrustpayGooglePayResponse,
@@ -1910,7 +1910,7 @@ pub struct WebhookReferences {
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 #[serde(rename_all = "PascalCase")]
 pub struct WebhookAmount {
-    pub amount: f64,
+    pub amount: FloatMajorUnit,
     pub currency: enums::Currency,
 }
 

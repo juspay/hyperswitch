@@ -23,13 +23,16 @@ pub mod diesel_exports {
         DbRevenueRecoveryAlgorithmType as RevenueRecoveryAlgorithmType, DbRoleScope as RoleScope,
         DbRoutingAlgorithmKind as RoutingAlgorithmKind, DbScaExemptionType as ScaExemptionType,
         DbSuccessBasedRoutingConclusiveState as SuccessBasedRoutingConclusiveState,
-        DbTotpStatus as TotpStatus, DbTransactionType as TransactionType,
-        DbUserRoleVersion as UserRoleVersion, DbUserStatus as UserStatus,
-        DbWebhookDeliveryAttempt as WebhookDeliveryAttempt,
+        DbTokenizationFlag as TokenizationFlag, DbTotpStatus as TotpStatus,
+        DbTransactionType as TransactionType, DbUserRoleVersion as UserRoleVersion,
+        DbUserStatus as UserStatus, DbWebhookDeliveryAttempt as WebhookDeliveryAttempt,
     };
 }
+
 pub use common_enums::*;
 use common_utils::pii;
+#[cfg(all(feature = "v2", feature = "tokenization_v2"))]
+pub use common_utils::tokenization;
 use diesel::{deserialize::FromSqlRow, expression::AsExpression, sql_types::Jsonb};
 use router_derive::diesel_enum;
 use time::PrimitiveDateTime;
@@ -54,6 +57,7 @@ pub enum RoutingAlgorithmKind {
     VolumeSplit,
     Advanced,
     Dynamic,
+    ThreeDsDecisionRule,
 }
 
 #[derive(
@@ -83,7 +87,6 @@ pub enum EventObjectType {
     Clone,
     Copy,
     Debug,
-    Default,
     Eq,
     PartialEq,
     serde::Serialize,
@@ -96,7 +99,6 @@ pub enum EventObjectType {
 #[serde(rename_all = "snake_case")]
 pub enum RefundType {
     InstantRefund,
-    #[default]
     RegularRefund,
     RetryRefund,
 }

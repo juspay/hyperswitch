@@ -10,6 +10,7 @@ use masking::StrongSecret;
 use redis::{kv_store::RedisConnInterface, pub_sub::PubSubInterface, RedisStore};
 mod address;
 pub mod callback_mapper;
+pub mod cards_info;
 pub mod config;
 pub mod connection;
 pub mod customers;
@@ -31,6 +32,9 @@ pub mod utils;
 
 use common_utils::{errors::CustomResult, types::keymanager::KeyManagerState};
 use database::store::PgPool;
+#[cfg(all(feature = "v2", feature = "tokenization_v2"))]
+use diesel_models::tokenization::Tokenization;
+pub mod tokenization;
 #[cfg(not(feature = "payouts"))]
 use hyperswitch_domain_models::{PayoutAttemptInterface, PayoutsInterface};
 pub use mock_db::MockDb;
@@ -501,3 +505,14 @@ impl UniqueConstraints for diesel_models::Customer {
 impl<T: DatabaseStore> PayoutAttemptInterface for RouterStore<T> {}
 #[cfg(not(feature = "payouts"))]
 impl<T: DatabaseStore> PayoutsInterface for RouterStore<T> {}
+
+#[cfg(all(feature = "v2", feature = "tokenization_v2"))]
+impl UniqueConstraints for diesel_models::tokenization::Tokenization {
+    fn unique_constraints(&self) -> Vec<String> {
+        vec![format!("id_{}", self.id.get_string_repr())]
+    }
+
+    fn table_name(&self) -> &str {
+        "tokenization"
+    }
+}

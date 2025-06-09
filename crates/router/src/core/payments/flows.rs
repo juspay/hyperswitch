@@ -15,7 +15,12 @@ pub mod update_metadata_flow;
 use async_trait::async_trait;
 #[cfg(all(feature = "v2", feature = "revenue_recovery"))]
 use hyperswitch_domain_models::router_flow_types::{
-    BillingConnectorPaymentsSync, RecoveryRecordBack,
+    BillingConnectorInvoiceSync, BillingConnectorPaymentsSync, RecoveryRecordBack,
+};
+#[cfg(feature = "dummy_connector")]
+use hyperswitch_domain_models::router_flow_types::{
+    ExternalVaultCreateFlow, ExternalVaultDeleteFlow, ExternalVaultInsertFlow,
+    ExternalVaultRetrieveFlow,
 };
 use hyperswitch_domain_models::{
     mandates::CustomerAcceptance,
@@ -23,6 +28,11 @@ use hyperswitch_domain_models::{
         Authenticate, AuthenticationConfirmation, PostAuthenticate, PreAuthenticate,
     },
     router_request_types::PaymentsCaptureData,
+};
+#[cfg(feature = "dummy_connector")]
+use hyperswitch_interfaces::api::vault::{
+    ExternalVault, ExternalVaultCreate, ExternalVaultDelete, ExternalVaultInsert,
+    ExternalVaultRetrieve,
 };
 use hyperswitch_interfaces::api::{
     payouts::Payouts, UasAuthentication, UasAuthenticationConfirmation, UasPostAuthentication,
@@ -51,8 +61,7 @@ pub trait ConstructFlowSpecificData<F, Req, Res> {
         &self,
         state: &SessionState,
         connector_id: &str,
-        merchant_account: &domain::MerchantAccount,
-        key_store: &domain::MerchantKeyStore,
+        merchant_context: &domain::MerchantContext,
         customer: &Option<domain::Customer>,
         merchant_connector_account: &helpers::MerchantConnectorAccountType,
         merchant_recipient_data: Option<types::MerchantRecipientData>,
@@ -64,8 +73,7 @@ pub trait ConstructFlowSpecificData<F, Req, Res> {
         &self,
         _state: &SessionState,
         _connector_id: &str,
-        _merchant_account: &domain::MerchantAccount,
-        _key_store: &domain::MerchantKeyStore,
+        _merchant_context: &domain::MerchantContext,
         _customer: &Option<domain::Customer>,
         _merchant_connector_account: &domain::MerchantConnectorAccount,
         _merchant_recipient_data: Option<types::MerchantRecipientData>,
@@ -75,8 +83,7 @@ pub trait ConstructFlowSpecificData<F, Req, Res> {
     async fn get_merchant_recipient_data<'a>(
         &self,
         state: &SessionState,
-        merchant_account: &domain::MerchantAccount,
-        key_store: &domain::MerchantKeyStore,
+        merchant_context: &domain::MerchantContext,
         merchant_connector_account: &helpers::MerchantConnectorAccountType,
         connector: &api::ConnectorData,
     ) -> RouterResult<Option<types::MerchantRecipientData>>;
@@ -93,6 +100,7 @@ pub trait Feature<F, T> {
         connector_request: Option<services::Request>,
         business_profile: &domain::Profile,
         header_payload: hyperswitch_domain_models::payments::HeaderPayload,
+        all_keys_required: Option<bool>,
     ) -> RouterResult<Self>
     where
         Self: Sized,
@@ -103,7 +111,7 @@ pub trait Feature<F, T> {
         &self,
         state: &SessionState,
         connector: &api::ConnectorData,
-        merchant_account: &domain::MerchantAccount,
+        merchant_context: &domain::MerchantContext,
         creds_identifier: Option<&str>,
     ) -> RouterResult<types::AddAccessTokenResult>
     where
@@ -193,21 +201,6 @@ pub trait Feature<F, T> {
     }
 }
 
-macro_rules! default_imp_for_complete_authorize {
-    ($($path:ident::$connector:ident),*) => {
-        $(
-            impl api::PaymentsCompleteAuthorize for $path::$connector {}
-            impl
-            services::ConnectorIntegration<
-            api::CompleteAuthorize,
-            types::CompleteAuthorizeData,
-            types::PaymentsResponseData,
-        > for $path::$connector
-        {}
-    )*
-    };
-}
-
 #[cfg(feature = "dummy_connector")]
 impl<const T: u8> api::PaymentsCompleteAuthorize for connector::DummyConnector<T> {}
 #[cfg(feature = "dummy_connector")]
@@ -220,33 +213,6 @@ impl<const T: u8>
 {
 }
 
-default_imp_for_complete_authorize!(
-    connector::Adyenplatform,
-    connector::Ebanx,
-    connector::Gpayments,
-    connector::Netcetera,
-    connector::Plaid,
-    connector::Signifyd,
-    connector::Stripe,
-    connector::Threedsecureio,
-    connector::Wise,
-    connector::Wellsfargopayout
-);
-macro_rules! default_imp_for_webhook_source_verification {
-    ($($path:ident::$connector:ident),*) => {
-        $(
-            impl api::ConnectorVerifyWebhookSource for $path::$connector {}
-            impl
-            services::ConnectorIntegration<
-            api::VerifyWebhookSource,
-            types::VerifyWebhookSourceRequestData,
-            types::VerifyWebhookSourceResponseData,
-        > for $path::$connector
-        {}
-    )*
-    };
-}
-
 #[cfg(feature = "dummy_connector")]
 impl<const T: u8> api::ConnectorVerifyWebhookSource for connector::DummyConnector<T> {}
 #[cfg(feature = "dummy_connector")]
@@ -257,33 +223,6 @@ impl<const T: u8>
         types::VerifyWebhookSourceResponseData,
     > for connector::DummyConnector<T>
 {
-}
-default_imp_for_webhook_source_verification!(
-    connector::Adyenplatform,
-    connector::Ebanx,
-    connector::Gpayments,
-    connector::Netcetera,
-    connector::Plaid,
-    connector::Signifyd,
-    connector::Stripe,
-    connector::Threedsecureio,
-    connector::Wellsfargopayout,
-    connector::Wise
-);
-
-macro_rules! default_imp_for_create_customer {
-    ($($path:ident::$connector:ident),*) => {
-        $(
-            impl api::ConnectorCustomer for $path::$connector {}
-            impl
-            services::ConnectorIntegration<
-            api::CreateConnectorCustomer,
-            types::ConnectorCustomerData,
-            types::PaymentsResponseData,
-        > for $path::$connector
-        {}
-    )*
-    };
 }
 
 #[cfg(feature = "dummy_connector")]
@@ -298,35 +237,6 @@ impl<const T: u8>
 {
 }
 
-default_imp_for_create_customer!(
-    connector::Adyenplatform,
-    connector::Ebanx,
-    connector::Gpayments,
-    connector::Netcetera,
-    connector::Plaid,
-    connector::Signifyd,
-    connector::Threedsecureio,
-    connector::Wellsfargopayout,
-    connector::Wise
-);
-
-macro_rules! default_imp_for_connector_redirect_response {
-    ($($path:ident::$connector:ident),*) => {
-        $(
-            impl services::ConnectorRedirectResponse for $path::$connector {
-                fn get_flow_type(
-                    &self,
-                    _query_params: &str,
-                    _json_payload: Option<serde_json::Value>,
-                    _action: services::PaymentAction
-                ) -> CustomResult<payments::CallConnectorAction, ConnectorError> {
-                    Ok(payments::CallConnectorAction::Trigger)
-                }
-            }
-    )*
-    };
-}
-
 #[cfg(feature = "dummy_connector")]
 impl<const T: u8> services::ConnectorRedirectResponse for connector::DummyConnector<T> {
     fn get_flow_type(
@@ -339,57 +249,8 @@ impl<const T: u8> services::ConnectorRedirectResponse for connector::DummyConnec
     }
 }
 
-default_imp_for_connector_redirect_response!(
-    connector::Adyenplatform,
-    connector::Ebanx,
-    connector::Gpayments,
-    connector::Netcetera,
-    connector::Plaid,
-    connector::Signifyd,
-    connector::Threedsecureio,
-    connector::Wellsfargopayout,
-    connector::Wise
-);
-
-macro_rules! default_imp_for_connector_request_id {
-    ($($path:ident::$connector:ident),*) => {
-        $(
-            impl api::ConnectorTransactionId for $path::$connector {}
-    )*
-    };
-}
-
 #[cfg(feature = "dummy_connector")]
 impl<const T: u8> api::ConnectorTransactionId for connector::DummyConnector<T> {}
-
-default_imp_for_connector_request_id!(
-    connector::Adyenplatform,
-    connector::Ebanx,
-    connector::Gpayments,
-    connector::Netcetera,
-    connector::Plaid,
-    connector::Signifyd,
-    connector::Stripe,
-    connector::Threedsecureio,
-    connector::Wellsfargopayout,
-    connector::Wise
-);
-
-macro_rules! default_imp_for_accept_dispute {
-    ($($path:ident::$connector:ident),*) => {
-        $(
-            impl api::Dispute for $path::$connector {}
-            impl api::AcceptDispute for $path::$connector {}
-            impl
-                services::ConnectorIntegration<
-                api::Accept,
-                types::AcceptDisputeRequestData,
-                types::AcceptDisputeResponse,
-            > for $path::$connector
-            {}
-    )*
-    };
-}
 
 #[cfg(feature = "dummy_connector")]
 impl<const T: u8> api::Dispute for connector::DummyConnector<T> {}
@@ -403,43 +264,6 @@ impl<const T: u8>
         types::AcceptDisputeResponse,
     > for connector::DummyConnector<T>
 {
-}
-
-default_imp_for_accept_dispute!(
-    connector::Adyenplatform,
-    connector::Ebanx,
-    connector::Gpayments,
-    connector::Netcetera,
-    connector::Plaid,
-    connector::Signifyd,
-    connector::Stripe,
-    connector::Threedsecureio,
-    connector::Wellsfargopayout,
-    connector::Wise
-);
-
-macro_rules! default_imp_for_file_upload {
-    ($($path:ident::$connector:ident),*) => {
-        $(
-            impl api::FileUpload for $path::$connector {}
-            impl api::UploadFile for $path::$connector {}
-            impl
-                services::ConnectorIntegration<
-                api::Upload,
-                types::UploadFileRequestData,
-                types::UploadFileResponse,
-            > for $path::$connector
-            {}
-            impl api::RetrieveFile for $path::$connector {}
-            impl
-                services::ConnectorIntegration<
-                api::Retrieve,
-                types::RetrieveFileRequestData,
-                types::RetrieveFileResponse,
-            > for $path::$connector
-            {}
-    )*
-    };
 }
 
 #[cfg(feature = "dummy_connector")]
@@ -467,33 +291,6 @@ impl<const T: u8>
 {
 }
 
-default_imp_for_file_upload!(
-    connector::Adyenplatform,
-    connector::Ebanx,
-    connector::Gpayments,
-    connector::Netcetera,
-    connector::Plaid,
-    connector::Signifyd,
-    connector::Threedsecureio,
-    connector::Wellsfargopayout,
-    connector::Wise
-);
-
-macro_rules! default_imp_for_submit_evidence {
-    ($($path:ident::$connector:ident),*) => {
-        $(
-            impl api::SubmitEvidence for $path::$connector {}
-            impl
-                services::ConnectorIntegration<
-                api::Evidence,
-                types::SubmitEvidenceRequestData,
-                types::SubmitEvidenceResponse,
-            > for $path::$connector
-            {}
-    )*
-    };
-}
-
 #[cfg(feature = "dummy_connector")]
 impl<const T: u8> api::SubmitEvidence for connector::DummyConnector<T> {}
 #[cfg(feature = "dummy_connector")]
@@ -504,33 +301,6 @@ impl<const T: u8>
         types::SubmitEvidenceResponse,
     > for connector::DummyConnector<T>
 {
-}
-
-default_imp_for_submit_evidence!(
-    connector::Adyenplatform,
-    connector::Ebanx,
-    connector::Gpayments,
-    connector::Netcetera,
-    connector::Plaid,
-    connector::Signifyd,
-    connector::Threedsecureio,
-    connector::Wellsfargopayout,
-    connector::Wise
-);
-
-macro_rules! default_imp_for_defend_dispute {
-    ($($path:ident::$connector:ident),*) => {
-        $(
-            impl api::DefendDispute for $path::$connector {}
-            impl
-                services::ConnectorIntegration<
-                api::Defend,
-                types::DefendDisputeRequestData,
-                types::DefendDisputeResponse,
-            > for $path::$connector
-            {}
-        )*
-    };
 }
 
 #[cfg(feature = "dummy_connector")]
@@ -545,49 +315,6 @@ impl<const T: u8>
 {
 }
 
-default_imp_for_defend_dispute!(
-    connector::Adyenplatform,
-    connector::Ebanx,
-    connector::Gpayments,
-    connector::Netcetera,
-    connector::Plaid,
-    connector::Signifyd,
-    connector::Stripe,
-    connector::Threedsecureio,
-    connector::Wellsfargopayout,
-    connector::Wise
-);
-
-macro_rules! default_imp_for_pre_processing_steps{
-    ($($path:ident::$connector:ident),*)=> {
-        $(
-            impl api::PaymentsPreProcessing for $path::$connector {}
-            impl
-            services::ConnectorIntegration<
-            api::PreProcessing,
-            types::PaymentsPreProcessingData,
-            types::PaymentsResponseData,
-        > for $path::$connector
-        {}
-    )*
-    };
-}
-
-macro_rules! default_imp_for_post_processing_steps{
-    ($($path:ident::$connector:ident),*)=> {
-        $(
-            impl api::PaymentsPostProcessing for $path::$connector {}
-            impl
-            services::ConnectorIntegration<
-            api::PostProcessing,
-            types::PaymentsPostProcessingData,
-            types::PaymentsResponseData,
-        > for $path::$connector
-        {}
-    )*
-    };
-}
-
 #[cfg(feature = "dummy_connector")]
 impl<const T: u8> api::PaymentsPreProcessing for connector::DummyConnector<T> {}
 #[cfg(feature = "dummy_connector")]
@@ -599,19 +326,6 @@ impl<const T: u8>
     > for connector::DummyConnector<T>
 {
 }
-
-default_imp_for_pre_processing_steps!(
-    connector::Adyenplatform,
-    connector::Ebanx,
-    connector::Gpayments,
-    connector::Netcetera,
-    connector::Plaid,
-    connector::Signifyd,
-    connector::Stripe,
-    connector::Threedsecureio,
-    connector::Wellsfargopayout,
-    connector::Wise
-);
 
 #[cfg(feature = "dummy_connector")]
 impl<const T: u8> api::PaymentsPostProcessing for connector::DummyConnector<T> {}
@@ -625,53 +339,8 @@ impl<const T: u8>
 {
 }
 
-default_imp_for_post_processing_steps!(
-    connector::Adyenplatform,
-    connector::Stripe,
-    connector::Ebanx,
-    connector::Gpayments,
-    connector::Netcetera,
-    connector::Signifyd,
-    connector::Threedsecureio,
-    connector::Wellsfargopayout,
-    connector::Wise
-);
-
-macro_rules! default_imp_for_payouts {
-    ($($path:ident::$connector:ident),*) => {
-        $(
-            impl Payouts for $path::$connector {}
-    )*
-    };
-}
-
 #[cfg(feature = "dummy_connector")]
 impl<const T: u8> Payouts for connector::DummyConnector<T> {}
-
-default_imp_for_payouts!(
-    connector::Gpayments,
-    connector::Netcetera,
-    connector::Plaid,
-    connector::Signifyd,
-    connector::Threedsecureio,
-    connector::Wellsfargopayout
-);
-
-#[cfg(feature = "payouts")]
-macro_rules! default_imp_for_payouts_create {
-    ($($path:ident::$connector:ident),*) => {
-        $(
-            impl api::PayoutCreate for $path::$connector {}
-            impl
-            services::ConnectorIntegration<
-            api::PoCreate,
-            types::PayoutsData,
-            types::PayoutsResponseData,
-        > for $path::$connector
-        {}
-    )*
-    };
-}
 
 #[cfg(feature = "payouts")]
 #[cfg(feature = "dummy_connector")]
@@ -685,33 +354,6 @@ impl<const T: u8>
 }
 
 #[cfg(feature = "payouts")]
-default_imp_for_payouts_create!(
-    connector::Adyenplatform,
-    connector::Gpayments,
-    connector::Netcetera,
-    connector::Plaid,
-    connector::Signifyd,
-    connector::Threedsecureio,
-    connector::Wellsfargopayout
-);
-
-#[cfg(feature = "payouts")]
-macro_rules! default_imp_for_payouts_retrieve {
-    ($($path:ident::$connector:ident),*) => {
-        $(
-            impl api::PayoutSync for $path::$connector {}
-            impl
-            services::ConnectorIntegration<
-            api::PoSync,
-            types::PayoutsData,
-            types::PayoutsResponseData,
-        > for $path::$connector
-        {}
-    )*
-    };
-}
-
-#[cfg(feature = "payouts")]
 #[cfg(feature = "dummy_connector")]
 impl<const T: u8> api::PayoutSync for connector::DummyConnector<T> {}
 #[cfg(feature = "payouts")]
@@ -720,36 +362,6 @@ impl<const T: u8>
     services::ConnectorIntegration<api::PoSync, types::PayoutsData, types::PayoutsResponseData>
     for connector::DummyConnector<T>
 {
-}
-
-#[cfg(feature = "payouts")]
-default_imp_for_payouts_retrieve!(
-    connector::Adyenplatform,
-    connector::Ebanx,
-    connector::Gpayments,
-    connector::Netcetera,
-    connector::Plaid,
-    connector::Signifyd,
-    connector::Stripe,
-    connector::Threedsecureio,
-    connector::Wellsfargopayout,
-    connector::Wise
-);
-
-#[cfg(feature = "payouts")]
-macro_rules! default_imp_for_payouts_eligibility {
-    ($($path:ident::$connector:ident),*) => {
-        $(
-            impl api::PayoutEligibility for $path::$connector {}
-            impl
-            services::ConnectorIntegration<
-            api::PoEligibility,
-            types::PayoutsData,
-            types::PayoutsResponseData,
-        > for $path::$connector
-        {}
-    )*
-    };
 }
 
 #[cfg(feature = "payouts")]
@@ -767,34 +379,6 @@ impl<const T: u8>
 }
 
 #[cfg(feature = "payouts")]
-default_imp_for_payouts_eligibility!(
-    connector::Adyenplatform,
-    connector::Gpayments,
-    connector::Netcetera,
-    connector::Plaid,
-    connector::Signifyd,
-    connector::Stripe,
-    connector::Threedsecureio,
-    connector::Wellsfargopayout
-);
-
-#[cfg(feature = "payouts")]
-macro_rules! default_imp_for_payouts_fulfill {
-    ($($path:ident::$connector:ident),*) => {
-        $(
-            impl api::PayoutFulfill for $path::$connector {}
-            impl
-            services::ConnectorIntegration<
-            api::PoFulfill,
-            types::PayoutsData,
-            types::PayoutsResponseData,
-        > for $path::$connector
-        {}
-    )*
-    };
-}
-
-#[cfg(feature = "payouts")]
 #[cfg(feature = "dummy_connector")]
 impl<const T: u8> api::PayoutFulfill for connector::DummyConnector<T> {}
 #[cfg(feature = "payouts")]
@@ -803,32 +387,6 @@ impl<const T: u8>
     services::ConnectorIntegration<api::PoFulfill, types::PayoutsData, types::PayoutsResponseData>
     for connector::DummyConnector<T>
 {
-}
-
-#[cfg(feature = "payouts")]
-default_imp_for_payouts_fulfill!(
-    connector::Gpayments,
-    connector::Netcetera,
-    connector::Plaid,
-    connector::Signifyd,
-    connector::Threedsecureio,
-    connector::Wellsfargopayout
-);
-
-#[cfg(feature = "payouts")]
-macro_rules! default_imp_for_payouts_cancel {
-    ($($path:ident::$connector:ident),*) => {
-        $(
-            impl api::PayoutCancel for $path::$connector {}
-            impl
-            services::ConnectorIntegration<
-            api::PoCancel,
-            types::PayoutsData,
-            types::PayoutsResponseData,
-        > for $path::$connector
-        {}
-    )*
-    };
 }
 
 #[cfg(feature = "payouts")]
@@ -843,33 +401,6 @@ impl<const T: u8>
 }
 
 #[cfg(feature = "payouts")]
-default_imp_for_payouts_cancel!(
-    connector::Adyenplatform,
-    connector::Gpayments,
-    connector::Netcetera,
-    connector::Plaid,
-    connector::Signifyd,
-    connector::Threedsecureio,
-    connector::Wellsfargopayout
-);
-
-#[cfg(feature = "payouts")]
-macro_rules! default_imp_for_payouts_quote {
-    ($($path:ident::$connector:ident),*) => {
-        $(
-            impl api::PayoutQuote for $path::$connector {}
-            impl
-            services::ConnectorIntegration<
-            api::PoQuote,
-            types::PayoutsData,
-            types::PayoutsResponseData,
-        > for $path::$connector
-        {}
-    )*
-    };
-}
-
-#[cfg(feature = "payouts")]
 #[cfg(feature = "dummy_connector")]
 impl<const T: u8> api::PayoutQuote for connector::DummyConnector<T> {}
 #[cfg(feature = "payouts")]
@@ -881,34 +412,6 @@ impl<const T: u8>
 }
 
 #[cfg(feature = "payouts")]
-default_imp_for_payouts_quote!(
-    connector::Adyenplatform,
-    connector::Gpayments,
-    connector::Netcetera,
-    connector::Plaid,
-    connector::Signifyd,
-    connector::Stripe,
-    connector::Threedsecureio,
-    connector::Wellsfargopayout
-);
-
-#[cfg(feature = "payouts")]
-macro_rules! default_imp_for_payouts_recipient {
-    ($($path:ident::$connector:ident),*) => {
-        $(
-            impl api::PayoutRecipient for $path::$connector {}
-            impl
-            services::ConnectorIntegration<
-            api::PoRecipient,
-            types::PayoutsData,
-            types::PayoutsResponseData,
-        > for $path::$connector
-        {}
-    )*
-    };
-}
-
-#[cfg(feature = "payouts")]
 #[cfg(feature = "dummy_connector")]
 impl<const T: u8> api::PayoutRecipient for connector::DummyConnector<T> {}
 #[cfg(feature = "payouts")]
@@ -917,33 +420,6 @@ impl<const T: u8>
     services::ConnectorIntegration<api::PoRecipient, types::PayoutsData, types::PayoutsResponseData>
     for connector::DummyConnector<T>
 {
-}
-
-#[cfg(feature = "payouts")]
-default_imp_for_payouts_recipient!(
-    connector::Adyenplatform,
-    connector::Gpayments,
-    connector::Netcetera,
-    connector::Plaid,
-    connector::Signifyd,
-    connector::Threedsecureio,
-    connector::Wellsfargopayout
-);
-
-#[cfg(feature = "payouts")]
-macro_rules! default_imp_for_payouts_recipient_account {
-    ($($path:ident::$connector:ident),*) => {
-        $(
-            impl api::PayoutRecipientAccount for $path::$connector {}
-            impl
-            services::ConnectorIntegration<
-            api::PoRecipientAccount,
-            types::PayoutsData,
-            types::PayoutsResponseData,
-        > for $path::$connector
-        {}
-    )*
-    };
 }
 
 #[cfg(feature = "payouts")]
@@ -960,34 +436,6 @@ impl<const T: u8>
 {
 }
 
-#[cfg(feature = "payouts")]
-default_imp_for_payouts_recipient_account!(
-    connector::Adyenplatform,
-    connector::Ebanx,
-    connector::Gpayments,
-    connector::Netcetera,
-    connector::Plaid,
-    connector::Signifyd,
-    connector::Threedsecureio,
-    connector::Wellsfargopayout,
-    connector::Wise
-);
-
-macro_rules! default_imp_for_approve {
-    ($($path:ident::$connector:ident),*) => {
-        $(
-            impl api::PaymentApprove for $path::$connector {}
-            impl
-            services::ConnectorIntegration<
-            api::Approve,
-            types::PaymentsApproveData,
-            types::PaymentsResponseData,
-        > for $path::$connector
-        {}
-    )*
-    };
-}
-
 #[cfg(feature = "dummy_connector")]
 impl<const T: u8> api::PaymentApprove for connector::DummyConnector<T> {}
 #[cfg(feature = "dummy_connector")]
@@ -998,34 +446,6 @@ impl<const T: u8>
         types::PaymentsResponseData,
     > for connector::DummyConnector<T>
 {
-}
-
-default_imp_for_approve!(
-    connector::Adyenplatform,
-    connector::Ebanx,
-    connector::Gpayments,
-    connector::Netcetera,
-    connector::Plaid,
-    connector::Signifyd,
-    connector::Stripe,
-    connector::Threedsecureio,
-    connector::Wellsfargopayout,
-    connector::Wise
-);
-
-macro_rules! default_imp_for_reject {
-    ($($path:ident::$connector:ident),*) => {
-        $(
-            impl api::PaymentReject for $path::$connector {}
-            impl
-            services::ConnectorIntegration<
-            api::Reject,
-            types::PaymentsRejectData,
-            types::PaymentsResponseData,
-        > for $path::$connector
-        {}
-    )*
-    };
 }
 
 #[cfg(feature = "dummy_connector")]
@@ -1040,59 +460,8 @@ impl<const T: u8>
 {
 }
 
-default_imp_for_reject!(
-    connector::Adyenplatform,
-    connector::Ebanx,
-    connector::Gpayments,
-    connector::Netcetera,
-    connector::Plaid,
-    connector::Signifyd,
-    connector::Stripe,
-    connector::Threedsecureio,
-    connector::Wellsfargopayout,
-    connector::Wise
-);
-
-#[cfg(feature = "frm")]
-macro_rules! default_imp_for_fraud_check {
-    ($($path:ident::$connector:ident),*) => {
-        $(
-            impl api::FraudCheck for $path::$connector {}
-    )*
-    };
-}
-
 #[cfg(feature = "dummy_connector")]
 impl<const T: u8> api::FraudCheck for connector::DummyConnector<T> {}
-
-#[cfg(feature = "frm")]
-default_imp_for_fraud_check!(
-    connector::Adyenplatform,
-    connector::Ebanx,
-    connector::Gpayments,
-    connector::Netcetera,
-    connector::Plaid,
-    connector::Stripe,
-    connector::Threedsecureio,
-    connector::Wellsfargopayout,
-    connector::Wise
-);
-
-#[cfg(feature = "frm")]
-macro_rules! default_imp_for_frm_sale {
-    ($($path:ident::$connector:ident),*) => {
-        $(
-            impl api::FraudCheckSale for $path::$connector {}
-            impl
-            services::ConnectorIntegration<
-            api::Sale,
-            frm_types::FraudCheckSaleData,
-            frm_types::FraudCheckResponseData,
-        > for $path::$connector
-        {}
-    )*
-    };
-}
 
 #[cfg(all(feature = "frm", feature = "dummy_connector"))]
 impl<const T: u8> api::FraudCheckSale for connector::DummyConnector<T> {}
@@ -1104,35 +473,6 @@ impl<const T: u8>
         frm_types::FraudCheckResponseData,
     > for connector::DummyConnector<T>
 {
-}
-
-#[cfg(feature = "frm")]
-default_imp_for_frm_sale!(
-    connector::Adyenplatform,
-    connector::Ebanx,
-    connector::Gpayments,
-    connector::Netcetera,
-    connector::Plaid,
-    connector::Stripe,
-    connector::Threedsecureio,
-    connector::Wellsfargopayout,
-    connector::Wise
-);
-
-#[cfg(feature = "frm")]
-macro_rules! default_imp_for_frm_checkout {
-    ($($path:ident::$connector:ident),*) => {
-        $(
-            impl api::FraudCheckCheckout for $path::$connector {}
-            impl
-            services::ConnectorIntegration<
-            api::Checkout,
-            frm_types::FraudCheckCheckoutData,
-            frm_types::FraudCheckResponseData,
-        > for $path::$connector
-        {}
-    )*
-    };
 }
 
 #[cfg(all(feature = "frm", feature = "dummy_connector"))]
@@ -1147,35 +487,6 @@ impl<const T: u8>
 {
 }
 
-#[cfg(feature = "frm")]
-default_imp_for_frm_checkout!(
-    connector::Adyenplatform,
-    connector::Ebanx,
-    connector::Gpayments,
-    connector::Netcetera,
-    connector::Plaid,
-    connector::Stripe,
-    connector::Threedsecureio,
-    connector::Wellsfargopayout,
-    connector::Wise
-);
-
-#[cfg(feature = "frm")]
-macro_rules! default_imp_for_frm_transaction {
-    ($($path:ident::$connector:ident),*) => {
-        $(
-            impl api::FraudCheckTransaction for $path::$connector {}
-            impl
-            services::ConnectorIntegration<
-            api::Transaction,
-            frm_types::FraudCheckTransactionData,
-            frm_types::FraudCheckResponseData,
-        > for $path::$connector
-        {}
-    )*
-    };
-}
-
 #[cfg(all(feature = "frm", feature = "dummy_connector"))]
 impl<const T: u8> api::FraudCheckTransaction for connector::DummyConnector<T> {}
 #[cfg(all(feature = "frm", feature = "dummy_connector"))]
@@ -1186,35 +497,6 @@ impl<const T: u8>
         frm_types::FraudCheckResponseData,
     > for connector::DummyConnector<T>
 {
-}
-
-#[cfg(feature = "frm")]
-default_imp_for_frm_transaction!(
-    connector::Adyenplatform,
-    connector::Ebanx,
-    connector::Gpayments,
-    connector::Netcetera,
-    connector::Plaid,
-    connector::Stripe,
-    connector::Threedsecureio,
-    connector::Wellsfargopayout,
-    connector::Wise
-);
-
-#[cfg(feature = "frm")]
-macro_rules! default_imp_for_frm_fulfillment {
-    ($($path:ident::$connector:ident),*) => {
-        $(
-            impl api::FraudCheckFulfillment for $path::$connector {}
-            impl
-            services::ConnectorIntegration<
-            api::Fulfillment,
-            frm_types::FraudCheckFulfillmentData,
-            frm_types::FraudCheckResponseData,
-        > for $path::$connector
-        {}
-    )*
-    };
 }
 
 #[cfg(all(feature = "frm", feature = "dummy_connector"))]
@@ -1229,35 +511,6 @@ impl<const T: u8>
 {
 }
 
-#[cfg(feature = "frm")]
-default_imp_for_frm_fulfillment!(
-    connector::Adyenplatform,
-    connector::Ebanx,
-    connector::Gpayments,
-    connector::Netcetera,
-    connector::Plaid,
-    connector::Stripe,
-    connector::Threedsecureio,
-    connector::Wellsfargopayout,
-    connector::Wise
-);
-
-#[cfg(feature = "frm")]
-macro_rules! default_imp_for_frm_record_return {
-    ($($path:ident::$connector:ident),*) => {
-        $(
-            impl api::FraudCheckRecordReturn for $path::$connector {}
-            impl
-            services::ConnectorIntegration<
-            api::RecordReturn,
-            frm_types::FraudCheckRecordReturnData,
-            frm_types::FraudCheckResponseData,
-        > for $path::$connector
-        {}
-    )*
-    };
-}
-
 #[cfg(all(feature = "frm", feature = "dummy_connector"))]
 impl<const T: u8> api::FraudCheckRecordReturn for connector::DummyConnector<T> {}
 #[cfg(all(feature = "frm", feature = "dummy_connector"))]
@@ -1268,34 +521,6 @@ impl<const T: u8>
         frm_types::FraudCheckResponseData,
     > for connector::DummyConnector<T>
 {
-}
-
-#[cfg(feature = "frm")]
-default_imp_for_frm_record_return!(
-    connector::Adyenplatform,
-    connector::Ebanx,
-    connector::Gpayments,
-    connector::Netcetera,
-    connector::Plaid,
-    connector::Stripe,
-    connector::Threedsecureio,
-    connector::Wellsfargopayout,
-    connector::Wise
-);
-
-macro_rules! default_imp_for_incremental_authorization {
-    ($($path:ident::$connector:ident),*) => {
-        $(
-            impl api::PaymentIncrementalAuthorization for $path::$connector {}
-            impl
-            services::ConnectorIntegration<
-            api::IncrementalAuthorization,
-            types::PaymentsIncrementalAuthorizationData,
-            types::PaymentsResponseData,
-        > for $path::$connector
-        {}
-    )*
-    };
 }
 
 #[cfg(feature = "dummy_connector")]
@@ -1310,33 +535,6 @@ impl<const T: u8>
 {
 }
 
-default_imp_for_incremental_authorization!(
-    connector::Adyenplatform,
-    connector::Ebanx,
-    connector::Gpayments,
-    connector::Netcetera,
-    connector::Plaid,
-    connector::Signifyd,
-    connector::Stripe,
-    connector::Threedsecureio,
-    connector::Wellsfargopayout,
-    connector::Wise
-);
-
-macro_rules! default_imp_for_revoking_mandates {
-    ($($path:ident::$connector:ident),*) => {
-        $( impl api::ConnectorMandateRevoke for $path::$connector {}
-            impl
-            services::ConnectorIntegration<
-            api::MandateRevoke,
-            types::MandateRevokeRequestData,
-            types::MandateRevokeResponseData,
-        > for $path::$connector
-        {}
-    )*
-    };
-}
-
 #[cfg(feature = "dummy_connector")]
 impl<const T: u8> api::ConnectorMandateRevoke for connector::DummyConnector<T> {}
 #[cfg(feature = "dummy_connector")]
@@ -1347,56 +545,6 @@ impl<const T: u8>
         types::MandateRevokeResponseData,
     > for connector::DummyConnector<T>
 {
-}
-default_imp_for_revoking_mandates!(
-    connector::Adyenplatform,
-    connector::Ebanx,
-    connector::Gpayments,
-    connector::Netcetera,
-    connector::Plaid,
-    connector::Signifyd,
-    connector::Stripe,
-    connector::Threedsecureio,
-    connector::Wise
-);
-
-macro_rules! default_imp_for_connector_authentication {
-    ($($path:ident::$connector:ident),*) => {
-        $( impl api::ExternalAuthentication for $path::$connector {}
-            impl api::ConnectorAuthentication for $path::$connector {}
-            impl api::ConnectorPreAuthentication for $path::$connector {}
-            impl api::ConnectorPreAuthenticationVersionCall for $path::$connector {}
-            impl api::ConnectorPostAuthentication for $path::$connector {}
-            impl
-            services::ConnectorIntegration<
-            api::Authentication,
-            types::authentication::ConnectorAuthenticationRequestData,
-            types::authentication::AuthenticationResponseData,
-        > for $path::$connector
-        {}
-        impl
-            services::ConnectorIntegration<
-            api::PreAuthentication,
-            types::authentication::PreAuthNRequestData,
-            types::authentication::AuthenticationResponseData,
-        > for $path::$connector
-        {}
-        impl
-            services::ConnectorIntegration<
-            api::PreAuthenticationVersionCall,
-            types::authentication::PreAuthNRequestData,
-            types::authentication::AuthenticationResponseData,
-        > for $path::$connector
-        {}
-        impl
-            services::ConnectorIntegration<
-            api::PostAuthentication,
-            types::authentication::ConnectorPostAuthenticationRequestData,
-            types::authentication::AuthenticationResponseData,
-        > for $path::$connector
-        {}
-    )*
-    };
 }
 
 #[cfg(feature = "dummy_connector")]
@@ -1446,29 +594,7 @@ impl<const T: u8>
     > for connector::DummyConnector<T>
 {
 }
-default_imp_for_connector_authentication!(
-    connector::Adyenplatform,
-    connector::Ebanx,
-    connector::Plaid,
-    connector::Signifyd,
-    connector::Stripe,
-    connector::Wellsfargopayout,
-    connector::Wise
-);
 
-macro_rules! default_imp_for_authorize_session_token {
-    ($($path:ident::$connector:ident),*) => {
-        $( impl api::PaymentAuthorizeSessionToken for $path::$connector {}
-            impl
-            services::ConnectorIntegration<
-                api::AuthorizeSessionToken,
-                types::AuthorizeSessionTokenData,
-                types::PaymentsResponseData
-        > for $path::$connector
-        {}
-    )*
-    };
-}
 #[cfg(feature = "dummy_connector")]
 impl<const T: u8> api::PaymentAuthorizeSessionToken for connector::DummyConnector<T> {}
 #[cfg(feature = "dummy_connector")]
@@ -1480,32 +606,7 @@ impl<const T: u8>
     > for connector::DummyConnector<T>
 {
 }
-default_imp_for_authorize_session_token!(
-    connector::Adyenplatform,
-    connector::Ebanx,
-    connector::Gpayments,
-    connector::Netcetera,
-    connector::Plaid,
-    connector::Signifyd,
-    connector::Stripe,
-    connector::Threedsecureio,
-    connector::Wellsfargopayout,
-    connector::Wise
-);
 
-macro_rules! default_imp_for_calculate_tax {
-    ($($path:ident::$connector:ident),*) => {
-        $( impl api::TaxCalculation for $path::$connector {}
-            impl
-            services::ConnectorIntegration<
-                api::CalculateTax,
-                types::PaymentsTaxCalculationData,
-                types::TaxCalculationResponseData
-        > for $path::$connector
-        {}
-    )*
-    };
-}
 #[cfg(feature = "dummy_connector")]
 impl<const T: u8> api::TaxCalculation for connector::DummyConnector<T> {}
 #[cfg(feature = "dummy_connector")]
@@ -1518,32 +619,6 @@ impl<const T: u8>
 {
 }
 
-default_imp_for_calculate_tax!(
-    connector::Adyenplatform,
-    connector::Ebanx,
-    connector::Gpayments,
-    connector::Netcetera,
-    connector::Plaid,
-    connector::Signifyd,
-    connector::Stripe,
-    connector::Threedsecureio,
-    connector::Wellsfargopayout,
-    connector::Wise
-);
-
-macro_rules! default_imp_for_session_update {
-    ($($path:ident::$connector:ident),*) => {
-        $( impl api::PaymentSessionUpdate for $path::$connector {}
-            impl
-            services::ConnectorIntegration<
-                api::SdkSessionUpdate,
-                types::SdkPaymentsSessionUpdateData,
-                types::PaymentsResponseData
-        > for $path::$connector
-        {}
-    )*
-    };
-}
 #[cfg(feature = "dummy_connector")]
 impl<const T: u8> api::PaymentSessionUpdate for connector::DummyConnector<T> {}
 #[cfg(feature = "dummy_connector")]
@@ -1556,32 +631,6 @@ impl<const T: u8>
 {
 }
 
-default_imp_for_session_update!(
-    connector::Adyenplatform,
-    connector::Ebanx,
-    connector::Gpayments,
-    connector::Netcetera,
-    connector::Plaid,
-    connector::Signifyd,
-    connector::Stripe,
-    connector::Threedsecureio,
-    connector::Wellsfargopayout,
-    connector::Wise
-);
-
-macro_rules! default_imp_for_post_session_tokens {
-    ($($path:ident::$connector:ident),*) => {
-        $( impl api::PaymentPostSessionTokens for $path::$connector {}
-            impl
-            services::ConnectorIntegration<
-                api::PostSessionTokens,
-                types::PaymentsPostSessionTokensData,
-                types::PaymentsResponseData
-        > for $path::$connector
-        {}
-    )*
-    };
-}
 #[cfg(feature = "dummy_connector")]
 impl<const T: u8> api::PaymentPostSessionTokens for connector::DummyConnector<T> {}
 #[cfg(feature = "dummy_connector")]
@@ -1594,32 +643,6 @@ impl<const T: u8>
 {
 }
 
-default_imp_for_post_session_tokens!(
-    connector::Adyenplatform,
-    connector::Ebanx,
-    connector::Gpayments,
-    connector::Netcetera,
-    connector::Plaid,
-    connector::Signifyd,
-    connector::Stripe,
-    connector::Threedsecureio,
-    connector::Wellsfargopayout,
-    connector::Wise
-);
-
-macro_rules! default_imp_for_update_metadata {
-    ($($path:ident::$connector:ident),*) => {
-        $( impl api::PaymentUpdateMetadata for $path::$connector {}
-            impl
-            services::ConnectorIntegration<
-                api::UpdateMetadata,
-                types::PaymentsUpdateMetadataData,
-                types::PaymentsResponseData
-        > for $path::$connector
-        {}
-    )*
-    };
-}
 #[cfg(feature = "dummy_connector")]
 impl<const T: u8> api::PaymentUpdateMetadata for connector::DummyConnector<T> {}
 #[cfg(feature = "dummy_connector")]
@@ -1632,32 +655,6 @@ impl<const T: u8>
 {
 }
 
-default_imp_for_update_metadata!(
-    connector::Adyenplatform,
-    connector::Ebanx,
-    connector::Gpayments,
-    connector::Netcetera,
-    connector::Plaid,
-    connector::Signifyd,
-    connector::Threedsecureio,
-    connector::Wellsfargopayout,
-    connector::Wise
-);
-
-macro_rules! default_imp_for_uas_pre_authentication {
-    ($($path:ident::$connector:ident),*) => {
-        $( impl UnifiedAuthenticationService for $path::$connector {}
-            impl UasPreAuthentication for $path::$connector {}
-            impl
-            services::ConnectorIntegration<
-            PreAuthenticate,
-            types::UasPreAuthenticationRequestData,
-            types::UasAuthenticationResponseData
-        > for $path::$connector
-        {}
-    )*
-    };
-}
 #[cfg(feature = "dummy_connector")]
 impl<const T: u8> UasPreAuthentication for connector::DummyConnector<T> {}
 #[cfg(feature = "dummy_connector")]
@@ -1672,32 +669,6 @@ impl<const T: u8>
 {
 }
 
-default_imp_for_uas_pre_authentication!(
-    connector::Adyenplatform,
-    connector::Ebanx,
-    connector::Gpayments,
-    connector::Netcetera,
-    connector::Plaid,
-    connector::Signifyd,
-    connector::Stripe,
-    connector::Threedsecureio,
-    connector::Wellsfargopayout,
-    connector::Wise
-);
-
-macro_rules! default_imp_for_uas_post_authentication {
-    ($($path:ident::$connector:ident),*) => {
-        $( impl UasPostAuthentication for $path::$connector {}
-            impl
-            services::ConnectorIntegration<
-                PostAuthenticate,
-                types::UasPostAuthenticationRequestData,
-                types::UasAuthenticationResponseData
-        > for $path::$connector
-        {}
-    )*
-    };
-}
 #[cfg(feature = "dummy_connector")]
 impl<const T: u8> UasPostAuthentication for connector::DummyConnector<T> {}
 #[cfg(feature = "dummy_connector")]
@@ -1709,46 +680,6 @@ impl<const T: u8>
     > for connector::DummyConnector<T>
 {
 }
-
-default_imp_for_uas_post_authentication!(
-    connector::Adyenplatform,
-    connector::Ebanx,
-    connector::Gpayments,
-    connector::Netcetera,
-    connector::Plaid,
-    connector::Signifyd,
-    connector::Stripe,
-    connector::Threedsecureio,
-    connector::Wellsfargopayout,
-    connector::Wise
-);
-
-macro_rules! default_imp_for_uas_authentication_confirmation {
-    ($($path:ident::$connector:ident),*) => {
-        $( impl UasAuthenticationConfirmation for $path::$connector {}
-            impl
-            services::ConnectorIntegration<
-            AuthenticationConfirmation,
-            types::UasConfirmationRequestData,
-            types::UasAuthenticationResponseData
-            > for $path::$connector
-            {}
-        )*
-    };
-}
-
-default_imp_for_uas_authentication_confirmation!(
-    connector::Adyenplatform,
-    connector::Ebanx,
-    connector::Gpayments,
-    connector::Netcetera,
-    connector::Plaid,
-    connector::Signifyd,
-    connector::Stripe,
-    connector::Threedsecureio,
-    connector::Wellsfargopayout,
-    connector::Wise
-);
 
 #[cfg(feature = "dummy_connector")]
 impl<const T: u8> UasAuthenticationConfirmation for connector::DummyConnector<T> {}
@@ -1762,20 +693,6 @@ impl<const T: u8>
 {
 }
 
-macro_rules! default_imp_for_uas_authentication {
-    ($($path:ident::$connector:ident),*) => {
-        $( impl UasAuthentication for $path::$connector {}
-            impl
-            services::ConnectorIntegration<
-                Authenticate,
-                types::UasAuthenticationRequestData,
-                types::UasAuthenticationResponseData
-        > for $path::$connector
-        {}
-    )*
-    };
-}
-
 #[cfg(feature = "dummy_connector")]
 impl<const T: u8> UasAuthentication for connector::DummyConnector<T> {}
 #[cfg(feature = "dummy_connector")]
@@ -1787,19 +704,6 @@ impl<const T: u8>
     > for connector::DummyConnector<T>
 {
 }
-
-default_imp_for_uas_authentication!(
-    connector::Adyenplatform,
-    connector::Ebanx,
-    connector::Gpayments,
-    connector::Netcetera,
-    connector::Plaid,
-    connector::Signifyd,
-    connector::Stripe,
-    connector::Threedsecureio,
-    connector::Wellsfargopayout,
-    connector::Wise
-);
 
 /// Determines whether a capture API call should be made for a payment attempt
 /// This function evaluates whether an authorized payment should proceed with a capture API call
@@ -1860,6 +764,7 @@ pub async fn call_capture_request(
             connector_request,
             business_profile,
             header_payload.clone(),
+            None,
         )
         .await
 }
@@ -1911,44 +816,9 @@ fn handle_post_capture_response(
     }
 }
 
-macro_rules! default_imp_for_revenue_recovery {
-    ($($path:ident::$connector:ident),*) => {
-        $(  impl api::RevenueRecovery for $path::$connector {}
-    )*
-    };
-}
-
 #[cfg(feature = "dummy_connector")]
 impl<const T: u8> api::RevenueRecovery for connector::DummyConnector<T> {}
 
-default_imp_for_revenue_recovery! {
-    connector::Adyenplatform,
-    connector::Ebanx,
-    connector::Gpayments,
-    connector::Netcetera,
-    connector::Plaid,
-
-    connector::Signifyd,
-    connector::Stripe,
-    connector::Threedsecureio,
-    connector::Wellsfargopayout,
-    connector::Wise
-}
-
-#[cfg(all(feature = "v2", feature = "revenue_recovery"))]
-macro_rules! default_imp_for_billing_connector_payment_sync {
-    ($($path:ident::$connector:ident),*) => {
-        $(  impl api::BillingConnectorPaymentsSyncIntegration for $path::$connector {}
-            impl
-            services::ConnectorIntegration<
-                BillingConnectorPaymentsSync,
-                types::BillingConnectorPaymentsSyncRequest,
-                types::BillingConnectorPaymentsSyncResponse,
-        > for $path::$connector
-        {}
-    )*
-    };
-}
 #[cfg(all(feature = "v2", feature = "revenue_recovery"))]
 #[cfg(feature = "dummy_connector")]
 impl<const T: u8> api::BillingConnectorPaymentsSyncIntegration for connector::DummyConnector<T> {}
@@ -1964,35 +834,6 @@ impl<const T: u8>
 }
 
 #[cfg(all(feature = "v2", feature = "revenue_recovery"))]
-default_imp_for_billing_connector_payment_sync!(
-    connector::Adyenplatform,
-    connector::Ebanx,
-    connector::Gpayments,
-    connector::Netcetera,
-    connector::Plaid,
-    connector::Signifyd,
-    connector::Stripe,
-    connector::Threedsecureio,
-    connector::Wellsfargopayout,
-    connector::Wise
-);
-
-#[cfg(all(feature = "v2", feature = "revenue_recovery"))]
-macro_rules! default_imp_for_revenue_recovery_record_back {
-    ($($path:ident::$connector:ident),*) => {
-        $(
-            impl api::RevenueRecoveryRecordBack for $path::$connector {}
-            impl
-            services::ConnectorIntegration<
-                RecoveryRecordBack,
-                types::RevenueRecoveryRecordBackRequest,
-                types::RevenueRecoveryRecordBackResponse,
-        > for $path::$connector
-        {}
-    )*
-    };
-}
-#[cfg(all(feature = "v2", feature = "revenue_recovery"))]
 #[cfg(feature = "dummy_connector")]
 impl<const T: u8> api::RevenueRecoveryRecordBack for connector::DummyConnector<T> {}
 #[cfg(all(feature = "v2", feature = "revenue_recovery"))]
@@ -2005,16 +846,68 @@ impl<const T: u8>
     > for connector::DummyConnector<T>
 {
 }
+
 #[cfg(all(feature = "v2", feature = "revenue_recovery"))]
-default_imp_for_revenue_recovery_record_back!(
-    connector::Adyenplatform,
-    connector::Ebanx,
-    connector::Gpayments,
-    connector::Netcetera,
-    connector::Plaid,
-    connector::Signifyd,
-    connector::Stripe,
-    connector::Threedsecureio,
-    connector::Wellsfargopayout,
-    connector::Wise
-);
+#[cfg(feature = "dummy_connector")]
+impl<const T: u8> api::BillingConnectorInvoiceSyncIntegration for connector::DummyConnector<T> {}
+#[cfg(all(feature = "v2", feature = "revenue_recovery"))]
+#[cfg(feature = "dummy_connector")]
+impl<const T: u8>
+    services::ConnectorIntegration<
+        BillingConnectorInvoiceSync,
+        types::BillingConnectorInvoiceSyncRequest,
+        types::BillingConnectorInvoiceSyncResponse,
+    > for connector::DummyConnector<T>
+{
+}
+
+#[cfg(feature = "dummy_connector")]
+impl<const T: u8> ExternalVault for connector::DummyConnector<T> {}
+
+#[cfg(feature = "dummy_connector")]
+impl<const T: u8> ExternalVaultInsert for connector::DummyConnector<T> {}
+#[cfg(feature = "dummy_connector")]
+impl<const T: u8>
+    services::ConnectorIntegration<
+        ExternalVaultInsertFlow,
+        types::VaultRequestData,
+        types::VaultResponseData,
+    > for connector::DummyConnector<T>
+{
+}
+
+#[cfg(feature = "dummy_connector")]
+impl<const T: u8> ExternalVaultRetrieve for connector::DummyConnector<T> {}
+#[cfg(feature = "dummy_connector")]
+impl<const T: u8>
+    services::ConnectorIntegration<
+        ExternalVaultRetrieveFlow,
+        types::VaultRequestData,
+        types::VaultResponseData,
+    > for connector::DummyConnector<T>
+{
+}
+
+#[cfg(feature = "dummy_connector")]
+impl<const T: u8> ExternalVaultDelete for connector::DummyConnector<T> {}
+#[cfg(feature = "dummy_connector")]
+impl<const T: u8>
+    services::ConnectorIntegration<
+        ExternalVaultDeleteFlow,
+        types::VaultRequestData,
+        types::VaultResponseData,
+    > for connector::DummyConnector<T>
+{
+}
+
+#[cfg(feature = "dummy_connector")]
+impl<const T: u8> ExternalVaultCreate for connector::DummyConnector<T> {}
+#[cfg(feature = "dummy_connector")]
+impl<const T: u8>
+    services::ConnectorIntegration<
+        ExternalVaultCreateFlow,
+        types::VaultRequestData,
+        types::VaultResponseData,
+    > for connector::DummyConnector<T>
+{
+}

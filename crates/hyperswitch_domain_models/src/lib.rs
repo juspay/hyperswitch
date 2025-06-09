@@ -5,14 +5,17 @@ pub mod bulk_tokenization;
 pub mod business_profile;
 pub mod callback_mapper;
 pub mod card_testing_guard_data;
+pub mod cards_info;
 pub mod configs;
 pub mod consts;
 pub mod customer;
 pub mod disputes;
 pub mod errors;
+pub mod ext_traits;
 pub mod mandates;
 pub mod merchant_account;
 pub mod merchant_connector_account;
+pub mod merchant_context;
 pub mod merchant_key_store;
 pub mod network_tokenization;
 pub mod payment_address;
@@ -31,9 +34,10 @@ pub mod router_flow_types;
 pub mod router_request_types;
 pub mod router_response_types;
 pub mod routing;
+#[cfg(feature = "tokenization_v2")]
+pub mod tokenization;
 pub mod type_encryption;
 pub mod types;
-#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
 pub mod vault;
 
 #[cfg(not(feature = "payouts"))]
@@ -615,6 +619,22 @@ impl From<&api_models::payments::PaymentAttemptAmountDetails>
     for payments::payment_attempt::AttemptAmountDetailsSetter
 {
     fn from(amount: &api_models::payments::PaymentAttemptAmountDetails) -> Self {
+        Self {
+            net_amount: amount.net_amount,
+            amount_to_capture: amount.amount_to_capture,
+            surcharge_amount: amount.surcharge_amount,
+            tax_on_surcharge: amount.tax_on_surcharge,
+            amount_capturable: amount.amount_capturable,
+            shipping_cost: amount.shipping_cost,
+            order_tax_amount: amount.order_tax_amount,
+        }
+    }
+}
+#[cfg(feature = "v2")]
+impl From<&payments::payment_attempt::AttemptAmountDetailsSetter>
+    for api_models::payments::PaymentAttemptAmountDetails
+{
+    fn from(amount: &payments::payment_attempt::AttemptAmountDetailsSetter) -> Self {
         Self {
             net_amount: amount.net_amount,
             amount_to_capture: amount.amount_to_capture,

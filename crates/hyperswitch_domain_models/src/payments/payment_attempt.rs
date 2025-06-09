@@ -6,7 +6,9 @@ use common_types::primitive_wrappers::{
 };
 #[cfg(feature = "v2")]
 use common_utils::{
-    crypto::Encryptable, encryption::Encryption, ext_traits::ValueExt,
+    crypto::Encryptable,
+    encryption::Encryption,
+    ext_traits::{Encode, ValueExt},
     types::keymanager::ToEncryptable,
 };
 use common_utils::{
@@ -562,7 +564,7 @@ impl PaymentAttempt {
             last_synced: None,
             cancellation_reason: None,
             browser_info: request.browser_info.clone(),
-            payment_token: None,
+            payment_token: request.payment_token.clone(),
             connector_metadata: None,
             payment_experience: None,
             payment_method_data: None,
@@ -581,7 +583,14 @@ impl PaymentAttempt {
             charges: None,
             client_source: None,
             client_version: None,
-            customer_acceptance: None,
+            customer_acceptance: request
+                .customer_acceptance
+                .as_ref()
+                .map(Encode::encode_to_value)
+                .transpose()
+                .change_context(errors::api_error_response::ApiErrorResponse::InternalServerError)
+                .attach_printable("Unable to encode customer_acceptance")?
+                .map(Secret::new),
             profile_id: payment_intent.profile_id.clone(),
             organization_id: payment_intent.organization_id.clone(),
             payment_method_type: request.payment_method_type,
@@ -713,7 +722,7 @@ impl PaymentAttempt {
         let feature_metadata = PaymentAttemptFeatureMetadata {
             revenue_recovery: Some({
                 PaymentAttemptRevenueRecoveryData {
-                    attempt_triggered_by: common_enums::TriggeredBy::External,
+                    attempt_triggered_by: request.triggered_by,
                 }
             }),
         };
@@ -1747,6 +1756,15 @@ pub enum PaymentAttemptUpdate {
         merchant_connector_id: id_type::MerchantConnectorAccountId,
         authentication_type: storage_enums::AuthenticationType,
     },
+    /// Update the payment attempt on confirming the intent, before calling the connector, when payment_method_id is present
+    ConfirmIntentTokenized {
+        status: storage_enums::AttemptStatus,
+        updated_by: String,
+        connector: String,
+        merchant_connector_id: id_type::MerchantConnectorAccountId,
+        authentication_type: storage_enums::AuthenticationType,
+        payment_method_id: id_type::GlobalPaymentMethodId,
+    },
     /// Update the payment attempt on confirming the intent, after calling the connector on success response
     ConfirmIntentResponse(Box<ConfirmIntentResponseUpdate>),
     /// Update the payment attempt after force syncing with the connector
@@ -2523,6 +2541,7 @@ impl From<PaymentAttemptUpdate> for diesel_models::PaymentAttemptUpdateInternal 
                 authentication_type,
             } => Self {
                 status: Some(status),
+                payment_method_id: None,
                 error_message: None,
                 modified_at: common_utils::date_time::now(),
                 browser_info: None,
@@ -2553,6 +2572,7 @@ impl From<PaymentAttemptUpdate> for diesel_models::PaymentAttemptUpdateInternal 
                 updated_by,
             } => Self {
                 status: Some(status),
+                payment_method_id: None,
                 error_message: Some(error.message),
                 error_code: Some(error.code),
                 modified_at: common_utils::date_time::now(),
@@ -2587,6 +2607,7 @@ impl From<PaymentAttemptUpdate> for diesel_models::PaymentAttemptUpdateInternal 
                 } = *confirm_intent_response_update;
                 Self {
                     status: Some(status),
+                    payment_method_id: None,
                     amount_capturable,
                     error_message: None,
                     error_code: None,
@@ -2617,6 +2638,7 @@ impl From<PaymentAttemptUpdate> for diesel_models::PaymentAttemptUpdateInternal 
                 updated_by,
             } => Self {
                 status: Some(status),
+                payment_method_id: None,
                 amount_capturable,
                 error_message: None,
                 error_code: None,
@@ -2645,6 +2667,7 @@ impl From<PaymentAttemptUpdate> for diesel_models::PaymentAttemptUpdateInternal 
                 updated_by,
             } => Self {
                 status: Some(status),
+                payment_method_id: None,
                 amount_capturable,
                 amount_to_capture: None,
                 error_message: None,
@@ -2672,6 +2695,7 @@ impl From<PaymentAttemptUpdate> for diesel_models::PaymentAttemptUpdateInternal 
                 updated_by,
             } => Self {
                 amount_to_capture,
+                payment_method_id: None,
                 error_message: None,
                 modified_at: common_utils::date_time::now(),
                 browser_info: None,
@@ -2689,6 +2713,38 @@ impl From<PaymentAttemptUpdate> for diesel_models::PaymentAttemptUpdateInternal 
                 amount_capturable: None,
                 connector_token_details: None,
                 authentication_type: None,
+                feature_metadata: None,
+                network_advice_code: None,
+                network_decline_code: None,
+                network_error_message: None,
+            },
+            PaymentAttemptUpdate::ConfirmIntentTokenized {
+                status,
+                updated_by,
+                connector,
+                merchant_connector_id,
+                authentication_type,
+                payment_method_id,
+            } => Self {
+                status: Some(status),
+                payment_method_id: Some(payment_method_id),
+                error_message: None,
+                modified_at: common_utils::date_time::now(),
+                browser_info: None,
+                error_code: None,
+                error_reason: None,
+                updated_by,
+                merchant_connector_id: Some(merchant_connector_id),
+                unified_code: None,
+                unified_message: None,
+                connector_payment_id: None,
+                connector: Some(connector),
+                redirection_data: None,
+                connector_metadata: None,
+                amount_capturable: None,
+                amount_to_capture: None,
+                connector_token_details: None,
+                authentication_type: Some(authentication_type),
                 feature_metadata: None,
                 network_advice_code: None,
                 network_decline_code: None,

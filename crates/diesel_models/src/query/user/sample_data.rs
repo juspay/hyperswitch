@@ -14,9 +14,11 @@ use crate::schema_v2::{
     refund::dsl as refund_dsl,
 };
 use crate::{
-    errors, schema::dispute::dsl as dispute_dsl, user, Dispute, DisputeNew, PaymentAttempt,
-    PaymentIntent, PaymentIntentNew, PgPooledConn, Refund, RefundNew, StorageResult,
+    errors, schema::dispute::dsl as dispute_dsl, Dispute, DisputeNew, PaymentAttempt,
+    PaymentIntent, PgPooledConn, Refund, RefundNew, StorageResult,
 };
+#[cfg(feature = "v1")]
+use crate::{user, PaymentIntentNew};
 
 #[cfg(feature = "v1")]
 pub async fn insert_payment_intents(

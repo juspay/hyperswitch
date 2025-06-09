@@ -1,4 +1,5 @@
 pub mod transformers;
+use std::{convert::TryFrom, sync::LazyLock};
 
 use common_enums::{enums, CallConnectorAction, PaymentAction};
 use common_utils::{
@@ -6,7 +7,10 @@ use common_utils::{
     errors::CustomResult,
     ext_traits::ByteSliceExt,
     request::{Method, Request, RequestBuilder, RequestContent},
-    types::{AmountConvertor, MinorUnit, MinorUnitForConnector},
+    types::{
+        AmountConvertor, MinorUnit, MinorUnitForConnector, StringMinorUnit,
+        StringMinorUnitForConnector,
+    },
 };
 use error_stack::ResultExt;
 use hyperswitch_domain_models::{
@@ -25,8 +29,9 @@ use hyperswitch_domain_models::{
         SyncRequestType, UploadFileRequestData,
     },
     router_response_types::{
-        AcceptDisputeResponse, DefendDisputeResponse, PaymentsResponseData, RefundsResponseData,
-        RetrieveFileResponse, SubmitEvidenceResponse, UploadFileResponse,
+        AcceptDisputeResponse, ConnectorInfo, DefendDisputeResponse, PaymentMethodDetails,
+        PaymentsResponseData, RefundsResponseData, RetrieveFileResponse, SubmitEvidenceResponse,
+        SupportedPaymentMethods, SupportedPaymentMethodsExt, UploadFileResponse,
     },
     types::{
         PaymentsAuthorizeRouterData, PaymentsCancelRouterData, PaymentsCaptureRouterData,
@@ -69,12 +74,14 @@ use crate::{
 #[derive(Clone)]
 pub struct Checkout {
     amount_converter: &'static (dyn AmountConvertor<Output = MinorUnit> + Sync),
+    amount_converter_webhooks: &'static (dyn AmountConvertor<Output = StringMinorUnit> + Sync),
 }
 
 impl Checkout {
     pub fn new() -> &'static Self {
         &Self {
             amount_converter: &MinorUnitForConnector,
+            amount_converter_webhooks: &StringMinorUnitForConnector,
         }
     }
 }
@@ -1290,8 +1297,15 @@ impl webhooks::IncomingWebhook for Checkout {
             .body
             .parse_struct("CheckoutWebhookBody")
             .change_context(errors::ConnectorError::WebhookBodyDecodingFailed)?;
+
+        let amount = utils::convert_amount(
+            self.amount_converter_webhooks,
+            dispute_details.data.amount,
+            dispute_details.data.currency,
+        )?;
+
         Ok(DisputePayload {
-            amount: dispute_details.data.amount.to_string(),
+            amount,
             currency: dispute_details.data.currency,
             dispute_stage: api_models::enums::DisputeStage::from(
                 dispute_details.transaction_type.clone(),
@@ -1449,4 +1463,114 @@ impl utils::ConnectorErrorTypeMapping for Checkout {
     }
 }
 
-impl ConnectorSpecifications for Checkout {}
+static CHECKOUT_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMethods> =
+    LazyLock::new(|| {
+        let supported_capture_methods = vec![
+            enums::CaptureMethod::Automatic,
+            enums::CaptureMethod::Manual,
+            enums::CaptureMethod::SequentialAutomatic,
+            enums::CaptureMethod::ManualMultiple,
+        ];
+
+        let supported_card_network = vec![
+            common_enums::CardNetwork::AmericanExpress,
+            common_enums::CardNetwork::CartesBancaires,
+            common_enums::CardNetwork::DinersClub,
+            common_enums::CardNetwork::Discover,
+            common_enums::CardNetwork::JCB,
+            common_enums::CardNetwork::Mastercard,
+            common_enums::CardNetwork::Visa,
+            common_enums::CardNetwork::UnionPay,
+        ];
+
+        let mut checkout_supported_payment_methods = SupportedPaymentMethods::new();
+
+        checkout_supported_payment_methods.add(
+            enums::PaymentMethod::Card,
+            enums::PaymentMethodType::Credit,
+            PaymentMethodDetails {
+                mandates: enums::FeatureStatus::NotSupported,
+                refunds: enums::FeatureStatus::Supported,
+                supported_capture_methods: supported_capture_methods.clone(),
+                specific_features: Some(
+                    api_models::feature_matrix::PaymentMethodSpecificFeatures::Card({
+                        api_models::feature_matrix::CardSpecificFeatures {
+                            three_ds: common_enums::FeatureStatus::Supported,
+                            no_three_ds: common_enums::FeatureStatus::Supported,
+                            supported_card_networks: supported_card_network.clone(),
+                        }
+                    }),
+                ),
+            },
+        );
+
+        checkout_supported_payment_methods.add(
+            enums::PaymentMethod::Card,
+            enums::PaymentMethodType::Debit,
+            PaymentMethodDetails {
+                mandates: enums::FeatureStatus::NotSupported,
+                refunds: enums::FeatureStatus::Supported,
+                supported_capture_methods: supported_capture_methods.clone(),
+                specific_features: Some(
+                    api_models::feature_matrix::PaymentMethodSpecificFeatures::Card({
+                        api_models::feature_matrix::CardSpecificFeatures {
+                            three_ds: common_enums::FeatureStatus::Supported,
+                            no_three_ds: common_enums::FeatureStatus::Supported,
+                            supported_card_networks: supported_card_network.clone(),
+                        }
+                    }),
+                ),
+            },
+        );
+
+        checkout_supported_payment_methods.add(
+            enums::PaymentMethod::Wallet,
+            enums::PaymentMethodType::GooglePay,
+            PaymentMethodDetails {
+                mandates: enums::FeatureStatus::NotSupported,
+                refunds: enums::FeatureStatus::Supported,
+                supported_capture_methods: supported_capture_methods.clone(),
+                specific_features: None,
+            },
+        );
+
+        checkout_supported_payment_methods.add(
+            enums::PaymentMethod::Wallet,
+            enums::PaymentMethodType::ApplePay,
+            PaymentMethodDetails {
+                mandates: enums::FeatureStatus::NotSupported,
+                refunds: enums::FeatureStatus::Supported,
+                supported_capture_methods: supported_capture_methods.clone(),
+                specific_features: None,
+            },
+        );
+
+        checkout_supported_payment_methods
+    });
+
+static CHECKOUT_CONNECTOR_INFO: ConnectorInfo = ConnectorInfo {
+        display_name: "Checkout",
+        description:
+            "Checkout.com is a British multinational financial technology company that processes payments for other companies.",
+        connector_type: enums::PaymentConnectorCategory::PaymentGateway,
+    };
+
+static CHECKOUT_SUPPORTED_WEBHOOK_FLOWS: [enums::EventClass; 3] = [
+    enums::EventClass::Payments,
+    enums::EventClass::Refunds,
+    enums::EventClass::Disputes,
+];
+
+impl ConnectorSpecifications for Checkout {
+    fn get_connector_about(&self) -> Option<&'static ConnectorInfo> {
+        Some(&CHECKOUT_CONNECTOR_INFO)
+    }
+
+    fn get_supported_payment_methods(&self) -> Option<&'static SupportedPaymentMethods> {
+        Some(&*CHECKOUT_SUPPORTED_PAYMENT_METHODS)
+    }
+
+    fn get_supported_webhook_flows(&self) -> Option<&'static [enums::EventClass]> {
+        Some(&CHECKOUT_SUPPORTED_WEBHOOK_FLOWS)
+    }
+}

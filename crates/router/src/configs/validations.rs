@@ -181,6 +181,18 @@ impl super::settings::LockSettings {
     }
 }
 
+impl super::settings::WebhooksSettings {
+    pub fn validate(&self) -> Result<(), ApplicationError> {
+        use common_utils::fp_utils::when;
+
+        when(self.redis_lock_expiry_seconds.is_default_or_empty(), || {
+            Err(ApplicationError::InvalidConfigurationValueError(
+                "redis_lock_expiry_seconds must not be empty or 0".into(),
+            ))
+        })
+    }
+}
+
 impl super::settings::GenericLinkEnvConfig {
     pub fn validate(&self) -> Result<(), ApplicationError> {
         use common_utils::fp_utils::when;
@@ -289,6 +301,19 @@ impl super::settings::KeyManagerConfig {
         when(self.enabled && self.url.is_default_or_empty(), || {
             Err(ApplicationError::InvalidConfigurationValueError(
                 "Invalid URL for Keymanager".into(),
+            ))
+        })
+    }
+}
+
+impl super::settings::Platform {
+    pub fn validate(&self) -> Result<(), ApplicationError> {
+        use common_utils::fp_utils::when;
+
+        when(!self.enabled && self.allow_connected_merchants, || {
+            Err(ApplicationError::InvalidConfigurationValueError(
+                "platform.allow_connected_merchants cannot be true when platform.enabled is false"
+                    .into(),
             ))
         })
     }

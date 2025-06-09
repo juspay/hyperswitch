@@ -1,3 +1,6 @@
+pub use ::payment_methods::controller::{DataDuplicationCheck, DeleteCardResp};
+#[cfg(feature = "v2")]
+use api_models::payment_methods::PaymentMethodResponseItem;
 use api_models::{enums as api_enums, payment_methods::Card};
 use common_utils::{
     ext_traits::{Encode, StringExt},
@@ -73,13 +76,6 @@ pub struct StoreCardRespPayload {
     pub duplication_check: Option<DataDuplicationCheck>,
 }
 
-#[derive(Debug, Deserialize, Serialize, PartialEq)]
-#[serde(rename_all = "snake_case")]
-pub enum DataDuplicationCheck {
-    Duplicated,
-    MetaDataChanged,
-}
-
 #[derive(Debug, Deserialize, Serialize)]
 pub struct CardReqBody {
     pub merchant_id: id_type::MerchantId,
@@ -107,13 +103,6 @@ pub struct RetrieveCardResp {
 pub struct RetrieveCardRespPayload {
     pub card: Option<Card>,
     pub enc_card_data: Option<Secret<String>>,
-}
-
-#[derive(Debug, Deserialize, Serialize)]
-pub struct DeleteCardResp {
-    pub status: String,
-    pub error_message: Option<String>,
-    pub error_code: Option<String>,
 }
 
 #[derive(Debug, Deserialize, Serialize)]
@@ -539,8 +528,10 @@ pub fn generate_pm_vaulting_req_from_update_request(
             card_network: card_create.card_network,
             card_issuer: card_create.card_issuer,
             card_type: card_create.card_type,
-            card_holder_name: update_card.card_holder_name,
-            nick_name: update_card.nick_name,
+            card_holder_name: update_card
+                .card_holder_name
+                .or(card_create.card_holder_name),
+            nick_name: update_card.nick_name.or(card_create.nick_name),
             card_cvc: None,
         }),
         _ => todo!(), //todo! - since support for network tokenization is not added PaymentMethodUpdateData. should be handled later.
@@ -941,7 +932,73 @@ pub fn mk_card_value2(
 }
 
 #[cfg(feature = "v2")]
-impl transformers::ForeignTryFrom<domain::PaymentMethod> for api::CustomerPaymentMethod {
+impl transformers::ForeignTryFrom<(domain::PaymentMethod, String)>
+    for api::CustomerPaymentMethodResponseItem
+{
+    type Error = error_stack::Report<errors::ValidationError>;
+
+    fn foreign_try_from(
+        (item, payment_token): (domain::PaymentMethod, String),
+    ) -> Result<Self, Self::Error> {
+        // For payment methods that are active we should always have the payment method subtype
+        let payment_method_subtype =
+            item.payment_method_subtype
+                .ok_or(errors::ValidationError::MissingRequiredField {
+                    field_name: "payment_method_subtype".to_string(),
+                })?;
+
+        // For payment methods that are active we should always have the payment method type
+        let payment_method_type =
+            item.payment_method_type
+                .ok_or(errors::ValidationError::MissingRequiredField {
+                    field_name: "payment_method_type".to_string(),
+                })?;
+
+        let payment_method_data = item
+            .payment_method_data
+            .map(|payment_method_data| payment_method_data.into_inner())
+            .map(|payment_method_data| match payment_method_data {
+                api_models::payment_methods::PaymentMethodsData::Card(
+                    card_details_payment_method,
+                ) => {
+                    let card_details = api::CardDetailFromLocker::from(card_details_payment_method);
+                    api_models::payment_methods::PaymentMethodListData::Card(card_details)
+                }
+                api_models::payment_methods::PaymentMethodsData::BankDetails(..) => todo!(),
+                api_models::payment_methods::PaymentMethodsData::WalletDetails(..) => {
+                    todo!()
+                }
+            });
+
+        let payment_method_billing = item
+            .payment_method_billing_address
+            .clone()
+            .map(|billing| billing.into_inner())
+            .map(From::from);
+
+        // TODO: check how we can get this field
+        let recurring_enabled = true;
+
+        Ok(Self {
+            id: item.id,
+            customer_id: item.customer_id,
+            payment_method_type,
+            payment_method_subtype,
+            created: item.created_at,
+            last_used_at: item.last_used_at,
+            recurring_enabled,
+            payment_method_data,
+            bank: None,
+            requires_cvv: true,
+            is_default: false,
+            billing: payment_method_billing,
+            payment_token,
+        })
+    }
+}
+
+#[cfg(feature = "v2")]
+impl transformers::ForeignTryFrom<domain::PaymentMethod> for PaymentMethodResponseItem {
     type Error = error_stack::Report<errors::ValidationError>;
 
     fn foreign_try_from(item: domain::PaymentMethod) -> Result<Self, Self::Error> {
@@ -1032,6 +1089,7 @@ pub fn generate_payment_method_session_response(
     payment_method_session: hyperswitch_domain_models::payment_methods::PaymentMethodSession,
     client_secret: Secret<String>,
     associated_payment: Option<api_models::payments::PaymentsResponse>,
+    tokenization_service_response: Option<api_models::tokenization::GenericTokenizationResponse>,
 ) -> api_models::payment_methods::PaymentMethodSessionResponse {
     let next_action = associated_payment
         .as_ref()
@@ -1045,6 +1103,10 @@ pub fn generate_payment_method_session_response(
             },
         );
 
+    let token_id = tokenization_service_response
+        .as_ref()
+        .map(|tokenization_service_response| tokenization_service_response.id.clone());
+
     api_models::payment_methods::PaymentMethodSessionResponse {
         id: payment_method_session.id,
         customer_id: payment_method_session.customer_id,
@@ -1054,12 +1116,14 @@ pub fn generate_payment_method_session_response(
             .map(From::from),
         psp_tokenization: payment_method_session.psp_tokenization,
         network_tokenization: payment_method_session.network_tokenization,
+        tokenization_data: payment_method_session.tokenization_data,
         expires_at: payment_method_session.expires_at,
         client_secret,
         next_action,
         return_url: payment_method_session.return_url,
         associated_payment_methods: payment_method_session.associated_payment_methods,
         authentication_details,
+        associated_token_id: token_id,
     }
 }
 

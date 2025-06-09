@@ -642,7 +642,8 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
                         | common_enums::PaymentMethodType::DuitNow
                         | common_enums::PaymentMethodType::PromptPay
                         | common_enums::PaymentMethodType::VietQr
-                        | common_enums::PaymentMethodType::OpenBankingPIS,
+                        | common_enums::PaymentMethodType::OpenBankingPIS
+                        | common_enums::PaymentMethodType::RevolutPay,
                     ) => Err(error_stack::report!(errors::ConnectorError::NotSupported {
                         message: payment_method_type.to_string(),
                         connector: "klarna",
@@ -758,7 +759,8 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
                         | common_enums::PaymentMethodType::DuitNow
                         | common_enums::PaymentMethodType::PromptPay
                         | common_enums::PaymentMethodType::VietQr
-                        | common_enums::PaymentMethodType::OpenBankingPIS,
+                        | common_enums::PaymentMethodType::OpenBankingPIS
+                        | common_enums::PaymentMethodType::RevolutPay,
                     ) => Err(error_stack::report!(errors::ConnectorError::NotSupported {
                         message: payment_method_type.to_string(),
                         connector: "klarna",
@@ -881,7 +883,8 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
                         | common_enums::PaymentMethodType::DuitNow
                         | common_enums::PaymentMethodType::PromptPay
                         | common_enums::PaymentMethodType::VietQr
-                        | common_enums::PaymentMethodType::OpenBankingPIS,
+                        | common_enums::PaymentMethodType::OpenBankingPIS
+                        | common_enums::PaymentMethodType::RevolutPay,
                     ) => Err(error_stack::report!(errors::ConnectorError::NotSupported {
                         message: payment_method_type.to_string(),
                         connector: "klarna",
@@ -995,7 +998,8 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
                         | common_enums::PaymentMethodType::DuitNow
                         | common_enums::PaymentMethodType::PromptPay
                         | common_enums::PaymentMethodType::VietQr
-                        | common_enums::PaymentMethodType::OpenBankingPIS,
+                        | common_enums::PaymentMethodType::OpenBankingPIS
+                        | common_enums::PaymentMethodType::RevolutPay,
                     ) => Err(error_stack::report!(errors::ConnectorError::NotSupported {
                         message: payment_method_type.to_string(),
                         connector: "klarna",

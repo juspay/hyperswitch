@@ -2,6 +2,7 @@
 
 use hyperswitch_domain_models::{
     router_data::AccessToken,
+    router_data_v2::flow_common_types,
     router_flow_types::{
         access_token_auth::AccessTokenAuth,
         dispute::{Accept, Defend, Evidence},
@@ -18,10 +19,18 @@ use hyperswitch_domain_models::{
         unified_authentication_service::{
             Authenticate, AuthenticationConfirmation, PostAuthenticate, PreAuthenticate,
         },
+        vault::{
+            ExternalVaultCreateFlow, ExternalVaultDeleteFlow, ExternalVaultInsertFlow,
+            ExternalVaultRetrieveFlow,
+        },
         webhooks::VerifyWebhookSource,
+        BillingConnectorInvoiceSync,
     },
     router_request_types::{
-        revenue_recovery::{BillingConnectorPaymentsSyncRequest, RevenueRecoveryRecordBackRequest},
+        revenue_recovery::{
+            BillingConnectorInvoiceSyncRequest, BillingConnectorPaymentsSyncRequest,
+            RevenueRecoveryRecordBackRequest,
+        },
         unified_authentication_service::{
             UasAuthenticationRequestData, UasAuthenticationResponseData,
             UasConfirmationRequestData, UasPostAuthenticationRequestData,
@@ -35,15 +44,17 @@ use hyperswitch_domain_models::{
         PaymentsSessionData, PaymentsSyncData, PaymentsTaxCalculationData,
         PaymentsUpdateMetadataData, RefundsData, RetrieveFileRequestData,
         SdkPaymentsSessionUpdateData, SetupMandateRequestData, SubmitEvidenceRequestData,
-        UploadFileRequestData, VerifyWebhookSourceRequestData,
+        UploadFileRequestData, VaultRequestData, VerifyWebhookSourceRequestData,
     },
     router_response_types::{
         revenue_recovery::{
-            BillingConnectorPaymentsSyncResponse, RevenueRecoveryRecordBackResponse,
+            BillingConnectorInvoiceSyncResponse, BillingConnectorPaymentsSyncResponse,
+            RevenueRecoveryRecordBackResponse,
         },
         AcceptDisputeResponse, DefendDisputeResponse, MandateRevokeResponseData,
         PaymentsResponseData, RefundsResponseData, RetrieveFileResponse, SubmitEvidenceResponse,
-        TaxCalculationResponseData, UploadFileResponse, VerifyWebhookSourceResponseData,
+        TaxCalculationResponseData, UploadFileResponse, VaultResponseData,
+        VerifyWebhookSourceResponseData,
     },
 };
 #[cfg(feature = "payouts")]
@@ -56,7 +67,7 @@ use hyperswitch_domain_models::{
     router_response_types::PayoutsResponseData,
 };
 
-use crate::api::ConnectorIntegration;
+use crate::{api::ConnectorIntegration, connector_integration_v2::ConnectorIntegrationV2};
 /// struct Response
 #[derive(Clone, Debug)]
 pub struct Response {
@@ -245,3 +256,75 @@ pub type BillingConnectorPaymentsSyncType = dyn ConnectorIntegration<
     BillingConnectorPaymentsSyncRequest,
     BillingConnectorPaymentsSyncResponse,
 >;
+
+/// Type alias for `ConnectorIntegration<BillingConnectorInvoiceSync, BillingConnectorInvoiceSyncRequest, BillingConnectorInvoiceSyncResponse>`
+pub type BillingConnectorInvoiceSyncType = dyn ConnectorIntegration<
+    BillingConnectorInvoiceSync,
+    BillingConnectorInvoiceSyncRequest,
+    BillingConnectorInvoiceSyncResponse,
+>;
+
+/// Type alias for `ConnectorIntegrationV2<RecoveryRecordBack, RevenueRecoveryRecordBackData, RevenueRecoveryRecordBackRequest, RevenueRecoveryRecordBackResponse>`
+pub type RevenueRecoveryRecordBackTypeV2 = dyn ConnectorIntegrationV2<
+    RecoveryRecordBack,
+    flow_common_types::RevenueRecoveryRecordBackData,
+    RevenueRecoveryRecordBackRequest,
+    RevenueRecoveryRecordBackResponse,
+>;
+
+/// Type alias for `ConnectorIntegrationV2<BillingConnectorPaymentsSync, BillingConnectorPaymentsSyncRequest, BillingConnectorPaymentsSyncResponse>`
+pub type BillingConnectorPaymentsSyncTypeV2 = dyn ConnectorIntegrationV2<
+    BillingConnectorPaymentsSync,
+    flow_common_types::BillingConnectorPaymentsSyncFlowData,
+    BillingConnectorPaymentsSyncRequest,
+    BillingConnectorPaymentsSyncResponse,
+>;
+
+/// Type alias for `ConnectorIntegrationV2<BillingConnectorInvoiceSync, BillingConnectorInvoiceSyncFlowData, BillingConnectorInvoiceSyncRequest, BillingConnectorInvoiceSyncResponse>`
+pub type BillingConnectorInvoiceSyncTypeV2 = dyn ConnectorIntegrationV2<
+    BillingConnectorInvoiceSync,
+    flow_common_types::BillingConnectorInvoiceSyncFlowData,
+    BillingConnectorInvoiceSyncRequest,
+    BillingConnectorInvoiceSyncResponse,
+>;
+
+/// Type alias for `ConnectorIntegration<ExternalVaultInsertFlow, VaultRequestData, VaultResponseData>`
+pub type ExternalVaultInsertType =
+    dyn ConnectorIntegration<ExternalVaultInsertFlow, VaultRequestData, VaultResponseData>;
+/// Type alias for `ConnectorIntegration<ExternalVaultRetrieveFlow, VaultRequestData, VaultResponseData>`
+pub type ExternalVaultRetrieveType =
+    dyn ConnectorIntegration<ExternalVaultRetrieveFlow, VaultRequestData, VaultResponseData>;
+/// Type alias for `ConnectorIntegration<ExternalVaultDeleteFlow, VaultRequestData, VaultResponseData>`
+pub type ExternalVaultDeleteType =
+    dyn ConnectorIntegration<ExternalVaultDeleteFlow, VaultRequestData, VaultResponseData>;
+/// Type alias for `ConnectorIntegration<ExternalVaultCreateFlow, VaultRequestData, VaultResponseData>`
+pub type ExternalVaultCreateType =
+    dyn ConnectorIntegration<ExternalVaultCreateFlow, VaultRequestData, VaultResponseData>;
+
+/// Proxy configuration structure
+#[derive(Debug, serde::Deserialize, Clone)]
+#[serde(default)]
+pub struct Proxy {
+    /// The URL of the HTTP proxy server.
+    pub http_url: Option<String>,
+
+    /// The URL of the HTTPS proxy server.
+    pub https_url: Option<String>,
+
+    /// The timeout duration (in seconds) for idle connections in the proxy pool.
+    pub idle_pool_connection_timeout: Option<u64>,
+
+    /// A comma-separated list of hosts that should bypass the proxy.
+    pub bypass_proxy_hosts: Option<String>,
+}
+
+impl Default for Proxy {
+    fn default() -> Self {
+        Self {
+            http_url: Default::default(),
+            https_url: Default::default(),
+            idle_pool_connection_timeout: Some(90),
+            bypass_proxy_hosts: Default::default(),
+        }
+    }
+}

@@ -1,10 +1,11 @@
 use std::collections::{HashMap, HashSet};
 
-use common_enums::{AuthenticationConnectors, UIWidgetFormLayout};
+use common_enums::{AuthenticationConnectors, UIWidgetFormLayout, VaultSdk};
 use common_types::primitive_wrappers;
 use common_utils::{encryption::Encryption, pii};
 use diesel::{AsChangeset, Identifiable, Insertable, Queryable, Selectable};
 use masking::Secret;
+use time::Duration;
 
 #[cfg(feature = "v1")]
 use crate::schema::business_profile;
@@ -70,6 +71,9 @@ pub struct Profile {
     pub is_debit_routing_enabled: bool,
     pub merchant_business_country: Option<common_enums::CountryAlpha2>,
     pub id: Option<common_utils::id_type::ProfileId>,
+    pub is_iframe_redirection_enabled: Option<bool>,
+    pub is_pre_network_tokenization_enabled: Option<bool>,
+    pub three_ds_decision_rule_algorithm: Option<serde_json::Value>,
 }
 
 #[cfg(feature = "v1")]
@@ -123,6 +127,8 @@ pub struct ProfileNew {
     pub is_debit_routing_enabled: bool,
     pub merchant_business_country: Option<common_enums::CountryAlpha2>,
     pub id: Option<common_utils::id_type::ProfileId>,
+    pub is_iframe_redirection_enabled: Option<bool>,
+    pub is_pre_network_tokenization_enabled: Option<bool>,
 }
 
 #[cfg(feature = "v1")]
@@ -172,8 +178,11 @@ pub struct ProfileUpdateInternal {
     pub card_testing_secret_key: Option<Encryption>,
     pub is_clear_pan_retries_enabled: Option<bool>,
     pub force_3ds_challenge: Option<bool>,
-    pub is_debit_routing_enabled: bool,
+    pub is_debit_routing_enabled: Option<bool>,
     pub merchant_business_country: Option<common_enums::CountryAlpha2>,
+    pub is_iframe_redirection_enabled: Option<bool>,
+    pub is_pre_network_tokenization_enabled: Option<bool>,
+    pub three_ds_decision_rule_algorithm: Option<serde_json::Value>,
 }
 
 #[cfg(feature = "v1")]
@@ -222,6 +231,9 @@ impl ProfileUpdateInternal {
             force_3ds_challenge,
             is_debit_routing_enabled,
             merchant_business_country,
+            is_iframe_redirection_enabled,
+            is_pre_network_tokenization_enabled,
+            three_ds_decision_rule_algorithm,
         } = self;
         Profile {
             profile_id: source.profile_id,
@@ -294,9 +306,16 @@ impl ProfileUpdateInternal {
                 .unwrap_or(source.is_clear_pan_retries_enabled),
             force_3ds_challenge,
             id: source.id,
-            is_debit_routing_enabled,
+            is_debit_routing_enabled: is_debit_routing_enabled
+                .unwrap_or(source.is_debit_routing_enabled),
             merchant_business_country: merchant_business_country
                 .or(source.merchant_business_country),
+            is_iframe_redirection_enabled: is_iframe_redirection_enabled
+                .or(source.is_iframe_redirection_enabled),
+            is_pre_network_tokenization_enabled: is_pre_network_tokenization_enabled
+                .or(source.is_pre_network_tokenization_enabled),
+            three_ds_decision_rule_algorithm: three_ds_decision_rule_algorithm
+                .or(source.three_ds_decision_rule_algorithm),
         }
     }
 }
@@ -355,6 +374,8 @@ pub struct Profile {
     pub is_debit_routing_enabled: bool,
     pub merchant_business_country: Option<common_enums::CountryAlpha2>,
     pub id: common_utils::id_type::ProfileId,
+    pub is_iframe_redirection_enabled: Option<bool>,
+    pub three_ds_decision_rule_algorithm: Option<serde_json::Value>,
     pub routing_algorithm_id: Option<common_utils::id_type::RoutingId>,
     pub order_fulfillment_time: Option<i64>,
     pub order_fulfillment_time_origin: Option<common_enums::OrderFulfillmentTimeOrigin>,
@@ -364,6 +385,8 @@ pub struct Profile {
     pub three_ds_decision_manager_config: Option<common_types::payments::DecisionManagerRecord>,
     pub should_collect_cvv_during_payment:
         Option<primitive_wrappers::ShouldCollectCvvDuringPayment>,
+    pub is_external_vault_enabled: Option<bool>,
+    pub external_vault_connector_details: Option<ExternalVaultConnectorDetails>,
     pub revenue_recovery_retry_algorithm_type: Option<common_enums::RevenueRecoveryAlgorithmType>,
     pub revenue_recovery_retry_algorithm_data: Option<RevenueRecoveryAlgorithmData>,
 }
@@ -436,6 +459,9 @@ pub struct ProfileNew {
     pub id: common_utils::id_type::ProfileId,
     pub revenue_recovery_retry_algorithm_type: Option<common_enums::RevenueRecoveryAlgorithmType>,
     pub revenue_recovery_retry_algorithm_data: Option<RevenueRecoveryAlgorithmData>,
+    pub is_iframe_redirection_enabled: Option<bool>,
+    pub is_external_vault_enabled: Option<bool>,
+    pub external_vault_connector_details: Option<ExternalVaultConnectorDetails>,
 }
 
 #[cfg(feature = "v2")]
@@ -477,7 +503,7 @@ pub struct ProfileUpdateInternal {
     pub card_testing_guard_config: Option<CardTestingGuardConfig>,
     pub card_testing_secret_key: Option<Encryption>,
     pub is_clear_pan_retries_enabled: Option<bool>,
-    pub is_debit_routing_enabled: bool,
+    pub is_debit_routing_enabled: Option<bool>,
     pub merchant_business_country: Option<common_enums::CountryAlpha2>,
     pub routing_algorithm_id: Option<common_utils::id_type::RoutingId>,
     pub order_fulfillment_time: Option<i64>,
@@ -490,6 +516,9 @@ pub struct ProfileUpdateInternal {
         Option<primitive_wrappers::ShouldCollectCvvDuringPayment>,
     pub revenue_recovery_retry_algorithm_type: Option<common_enums::RevenueRecoveryAlgorithmType>,
     pub revenue_recovery_retry_algorithm_data: Option<RevenueRecoveryAlgorithmData>,
+    pub is_iframe_redirection_enabled: Option<bool>,
+    pub is_external_vault_enabled: Option<bool>,
+    pub external_vault_connector_details: Option<ExternalVaultConnectorDetails>,
 }
 
 #[cfg(feature = "v2")]
@@ -541,6 +570,9 @@ impl ProfileUpdateInternal {
             merchant_business_country,
             revenue_recovery_retry_algorithm_type,
             revenue_recovery_retry_algorithm_data,
+            is_iframe_redirection_enabled,
+            is_external_vault_enabled,
+            external_vault_connector_details,
         } = self;
         Profile {
             id: source.id,
@@ -618,13 +650,21 @@ impl ProfileUpdateInternal {
             is_clear_pan_retries_enabled: is_clear_pan_retries_enabled
                 .unwrap_or(source.is_clear_pan_retries_enabled),
             force_3ds_challenge: None,
-            is_debit_routing_enabled,
+            is_debit_routing_enabled: is_debit_routing_enabled
+                .unwrap_or(source.is_debit_routing_enabled),
             merchant_business_country: merchant_business_country
                 .or(source.merchant_business_country),
             revenue_recovery_retry_algorithm_type: revenue_recovery_retry_algorithm_type
                 .or(source.revenue_recovery_retry_algorithm_type),
             revenue_recovery_retry_algorithm_data: revenue_recovery_retry_algorithm_data
                 .or(source.revenue_recovery_retry_algorithm_data),
+            is_iframe_redirection_enabled: is_iframe_redirection_enabled
+                .or(source.is_iframe_redirection_enabled),
+            is_external_vault_enabled: is_external_vault_enabled
+                .or(source.is_external_vault_enabled),
+            external_vault_connector_details: external_vault_connector_details
+                .or(source.external_vault_connector_details),
+            three_ds_decision_rule_algorithm: None,
         }
     }
 }
@@ -638,6 +678,15 @@ pub struct AuthenticationConnectorDetails {
 }
 
 common_utils::impl_to_sql_from_sql_json!(AuthenticationConnectorDetails);
+
+#[derive(Clone, Debug, serde::Deserialize, serde::Serialize, diesel::AsExpression)]
+#[diesel(sql_type = diesel::sql_types::Jsonb)]
+pub struct ExternalVaultConnectorDetails {
+    pub vault_connector_id: common_utils::id_type::MerchantConnectorAccountId,
+    pub vault_sdk: Option<VaultSdk>,
+}
+
+common_utils::impl_to_sql_from_sql_json!(ExternalVaultConnectorDetails);
 
 #[derive(Clone, Debug, serde::Deserialize, serde::Serialize, diesel::AsExpression)]
 #[diesel(sql_type = diesel::sql_types::Jsonb)]
@@ -756,6 +805,14 @@ common_utils::impl_to_sql_from_sql_json!(BusinessPayoutLinkConfig);
 #[diesel(sql_type = diesel::sql_types::Jsonb)]
 pub struct RevenueRecoveryAlgorithmData {
     pub monitoring_configured_timestamp: time::PrimitiveDateTime,
+}
+
+impl RevenueRecoveryAlgorithmData {
+    pub fn has_exceeded_monitoring_threshold(&self, monitoring_threshold_in_seconds: i64) -> bool {
+        let total_threshold_time = self.monitoring_configured_timestamp
+            + Duration::seconds(monitoring_threshold_in_seconds);
+        common_utils::date_time::now() >= total_threshold_time
+    }
 }
 
 common_utils::impl_to_sql_from_sql_json!(RevenueRecoveryAlgorithmData);

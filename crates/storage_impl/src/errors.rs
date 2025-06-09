@@ -273,10 +273,16 @@ pub enum RecoveryError {
     ProcessTrackerFailure,
     #[error("The encountered task is invalid")]
     InvalidTask,
-    #[error("The Intended data was not found")]
+    #[error("The Process Tracker data was not found")]
     ValueNotFound,
     #[error("Failed to update billing connector")]
     RecordBackToBillingConnectorFailed,
     #[error("Failed to fetch billing connector account id")]
     BillingMerchantConnectorAccountIdNotFound,
+}
+
+#[derive(Debug, Clone, thiserror::Error)]
+pub enum HealthCheckDecisionEngineError {
+    #[error("Failed to establish Decision Engine connection")]
+    FailedToCallDecisionEngineService,
 }

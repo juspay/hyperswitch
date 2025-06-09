@@ -490,6 +490,7 @@ pub(crate) async fn fetch_raw_secrets(
         delayed_session_response: conf.delayed_session_response,
         webhook_source_verification_call: conf.webhook_source_verification_call,
         billing_connectors_payment_sync: conf.billing_connectors_payment_sync,
+        billing_connectors_invoice_sync: conf.billing_connectors_invoice_sync,
         payment_method_auth,
         connector_request_reference_id_config: conf.connector_request_reference_id_config,
         #[cfg(feature = "payouts")]
@@ -524,6 +525,7 @@ pub(crate) async fn fetch_raw_secrets(
         decision: conf.decision,
         locker_based_open_banking_connectors: conf.locker_based_open_banking_connectors,
         grpc_client: conf.grpc_client,
+        crm: conf.crm,
         #[cfg(feature = "v2")]
         cell_information: conf.cell_information,
         network_tokenization_supported_card_networks: conf
@@ -532,6 +534,13 @@ pub(crate) async fn fetch_raw_secrets(
         network_tokenization_supported_connectors: conf.network_tokenization_supported_connectors,
         theme: conf.theme,
         platform: conf.platform,
+        authentication_providers: conf.authentication_providers,
         open_router: conf.open_router,
+        #[cfg(feature = "v2")]
+        revenue_recovery: conf.revenue_recovery,
+        debit_routing_config: conf.debit_routing_config,
+        clone_connector_allowlist: conf.clone_connector_allowlist,
+        merchant_id_auth: conf.merchant_id_auth,
+        infra_values: conf.infra_values,
     }
 }

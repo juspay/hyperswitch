@@ -49,6 +49,7 @@ pub struct MerchantAccount {
     pub version: common_enums::ApiVersion,
     pub is_platform_account: bool,
     pub product_type: Option<common_enums::MerchantProductType>,
+    pub merchant_account_type: common_enums::MerchantAccountType,
 }
 
 #[cfg(feature = "v1")]
@@ -85,6 +86,7 @@ pub struct MerchantAccountSetter {
     pub version: common_enums::ApiVersion,
     pub is_platform_account: bool,
     pub product_type: Option<common_enums::MerchantProductType>,
+    pub merchant_account_type: common_enums::MerchantAccountType,
 }
 
 #[cfg(feature = "v1")]
@@ -121,6 +123,7 @@ impl From<MerchantAccountSetter> for MerchantAccount {
             version: item.version,
             is_platform_account: item.is_platform_account,
             product_type: item.product_type,
+            merchant_account_type: item.merchant_account_type,
         }
     }
 }
@@ -142,6 +145,7 @@ pub struct MerchantAccountSetter {
     pub is_platform_account: bool,
     pub version: common_enums::ApiVersion,
     pub product_type: Option<common_enums::MerchantProductType>,
+    pub merchant_account_type: common_enums::MerchantAccountType,
 }
 
 #[cfg(feature = "v2")]
@@ -161,6 +165,7 @@ impl From<MerchantAccountSetter> for MerchantAccount {
             is_platform_account,
             version,
             product_type,
+            merchant_account_type,
         } = item;
         Self {
             id,
@@ -176,6 +181,7 @@ impl From<MerchantAccountSetter> for MerchantAccount {
             is_platform_account,
             version,
             product_type,
+            merchant_account_type,
         }
     }
 }
@@ -196,6 +202,7 @@ pub struct MerchantAccount {
     pub is_platform_account: bool,
     pub version: common_enums::ApiVersion,
     pub product_type: Option<common_enums::MerchantProductType>,
+    pub merchant_account_type: common_enums::MerchantAccountType,
 }
 
 impl MerchantAccount {
@@ -214,6 +221,14 @@ impl MerchantAccount {
     /// Get the organization_id from MerchantAccount
     pub fn get_org_id(&self) -> &common_utils::id_type::OrganizationId {
         &self.organization_id
+    }
+
+    /// Check whether the merchant account is a platform account
+    pub fn is_platform_account(&self) -> bool {
+        matches!(
+            self.merchant_account_type,
+            common_enums::MerchantAccountType::Platform
+        )
     }
 }
 
@@ -575,6 +590,7 @@ impl super::behaviour::Conversion for MerchantAccount {
             version: common_types::consts::API_VERSION,
             is_platform_account: self.is_platform_account,
             product_type: self.product_type,
+            merchant_account_type: self.merchant_account_type,
         };
 
         Ok(diesel_models::MerchantAccount::from(setter))
@@ -637,6 +653,7 @@ impl super::behaviour::Conversion for MerchantAccount {
                 is_platform_account: item.is_platform_account,
                 version: item.version,
                 product_type: item.product_type,
+                merchant_account_type: item.merchant_account_type.unwrap_or_default(),
             })
         }
         .await
@@ -662,6 +679,7 @@ impl super::behaviour::Conversion for MerchantAccount {
             product_type: self
                 .product_type
                 .or(Some(common_enums::MerchantProductType::Orchestration)),
+            merchant_account_type: self.merchant_account_type,
         })
     }
 }
@@ -703,6 +721,7 @@ impl super::behaviour::Conversion for MerchantAccount {
             version: self.version,
             is_platform_account: self.is_platform_account,
             product_type: self.product_type,
+            merchant_account_type: self.merchant_account_type,
         };
 
         Ok(diesel_models::MerchantAccount::from(setter))
@@ -782,6 +801,7 @@ impl super::behaviour::Conversion for MerchantAccount {
                 version: item.version,
                 is_platform_account: item.is_platform_account,
                 product_type: item.product_type,
+                merchant_account_type: item.merchant_account_type.unwrap_or_default(),
             })
         }
         .await
@@ -825,6 +845,7 @@ impl super::behaviour::Conversion for MerchantAccount {
             product_type: self
                 .product_type
                 .or(Some(common_enums::MerchantProductType::Orchestration)),
+            merchant_account_type: self.merchant_account_type,
         })
     }
 }

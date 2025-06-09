@@ -12,6 +12,9 @@ mod business_profile {
     };
 }
 
+pub mod merchant_context {
+    pub use hyperswitch_domain_models::merchant_context::{Context, MerchantContext};
+}
 mod customers {
     pub use hyperswitch_domain_models::customer::*;
 }
@@ -44,9 +47,17 @@ pub mod payment_method_data {
     pub use hyperswitch_domain_models::payment_method_data::*;
 }
 
+pub mod authentication {
+    pub use hyperswitch_domain_models::router_request_types::authentication::*;
+}
+
 #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
 pub mod vault {
     pub use hyperswitch_domain_models::vault::*;
+}
+
+mod routing {
+    pub use hyperswitch_domain_models::routing::*;
 }
 
 pub mod payments;
@@ -61,10 +72,12 @@ pub use callback_mapper::*;
 pub use consts::*;
 pub use event::*;
 pub use merchant_connector_account::*;
+pub use merchant_context::*;
 pub use merchant_key_store::*;
 pub use network_tokenization::*;
 pub use payment_method_data::*;
 pub use payment_methods::*;
+pub use routing::*;
 #[cfg(feature = "olap")]
 pub use user::*;
 pub use user_key_store::*;

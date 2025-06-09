@@ -2,11 +2,13 @@ use common_utils::events::{ApiEventMetric, ApiEventsType};
 
 use crate::routing::{
     ContractBasedRoutingPayloadWrapper, ContractBasedRoutingSetupPayloadWrapper,
-    DynamicRoutingUpdateConfigQuery, LinkedRoutingConfigRetrieveResponse, MerchantRoutingAlgorithm,
-    ProfileDefaultRoutingConfig, RoutingAlgorithmId, RoutingConfigRequest, RoutingDictionaryRecord,
-    RoutingKind, RoutingLinkWrapper, RoutingPayloadWrapper, RoutingRetrieveLinkQuery,
-    RoutingRetrieveLinkQueryWrapper, RoutingRetrieveQuery, RoutingVolumeSplitWrapper,
-    SuccessBasedRoutingConfig, SuccessBasedRoutingPayloadWrapper, ToggleDynamicRoutingQuery,
+    DynamicRoutingUpdateConfigQuery, EliminationRoutingPayloadWrapper,
+    LinkedRoutingConfigRetrieveResponse, MerchantRoutingAlgorithm, ProfileDefaultRoutingConfig,
+    RoutingAlgorithmId, RoutingConfigRequest, RoutingDictionaryRecord, RoutingKind,
+    RoutingLinkWrapper, RoutingPayloadWrapper, RoutingRetrieveLinkQuery,
+    RoutingRetrieveLinkQueryWrapper, RoutingRetrieveQuery, RoutingVolumeSplit,
+    RoutingVolumeSplitResponse, RoutingVolumeSplitWrapper, SuccessBasedRoutingConfig,
+    SuccessBasedRoutingPayloadWrapper, ToggleDynamicRoutingPath, ToggleDynamicRoutingQuery,
     ToggleDynamicRoutingWrapper,
 };
 
@@ -98,6 +100,12 @@ impl ApiEventMetric for SuccessBasedRoutingPayloadWrapper {
     }
 }
 
+impl ApiEventMetric for EliminationRoutingPayloadWrapper {
+    fn get_api_event_type(&self) -> Option<ApiEventsType> {
+        Some(ApiEventsType::Routing)
+    }
+}
+
 impl ApiEventMetric for ContractBasedRoutingPayloadWrapper {
     fn get_api_event_type(&self) -> Option<ApiEventsType> {
         Some(ApiEventsType::Routing)
@@ -123,6 +131,24 @@ impl ApiEventMetric for DynamicRoutingUpdateConfigQuery {
 }
 
 impl ApiEventMetric for RoutingVolumeSplitWrapper {
+    fn get_api_event_type(&self) -> Option<ApiEventsType> {
+        Some(ApiEventsType::Routing)
+    }
+}
+
+impl ApiEventMetric for ToggleDynamicRoutingPath {
+    fn get_api_event_type(&self) -> Option<ApiEventsType> {
+        Some(ApiEventsType::Routing)
+    }
+}
+
+impl ApiEventMetric for RoutingVolumeSplitResponse {
+    fn get_api_event_type(&self) -> Option<ApiEventsType> {
+        Some(ApiEventsType::Routing)
+    }
+}
+
+impl ApiEventMetric for RoutingVolumeSplit {
     fn get_api_event_type(&self) -> Option<ApiEventsType> {
         Some(ApiEventsType::Routing)
     }
