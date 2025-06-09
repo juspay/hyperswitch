@@ -110,6 +110,7 @@ pub struct ConfigMetadata {
     pub three_ds_requestor_id: Option<InputData>,
     pub pull_mechanism_for_external_3ds_enabled: Option<InputData>,
     pub klarna_region: Option<InputData>,
+    pub pricing_type: Option<InputData>
     pub source_balance_account: Option<InputData>,
     pub brand_id: Option<InputData>,
     pub destination_account_number: Option<InputData>,
@@ -124,7 +125,6 @@ pub struct ConfigMetadata {
     pub ledger_account_id: Option<InputData>,
     pub tenant_id: Option<InputData>,
     pub platform_url: Option<InputData>,
-    pub pricing_type: Option<InputData>
 }
 
 #[serde_with::skip_serializing_none]
