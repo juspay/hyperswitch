@@ -4024,6 +4024,7 @@ dependencies = [
  "masking",
  "mime",
  "num-traits",
+ "openssl",
  "qrcode",
  "quick-xml",
  "rand 0.8.5",
