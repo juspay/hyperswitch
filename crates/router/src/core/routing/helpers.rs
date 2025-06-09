@@ -2267,6 +2267,7 @@ pub async fn enable_decision_engine_dynamic_routing_setup(
         DECISION_ENGINE_RULE_CREATE_ENDPOINT,
         Some(default_engine_config_request),
         None,
+        None,
     )
     .await
     .change_context(errors::ApiErrorResponse::InternalServerError)
@@ -2344,6 +2345,7 @@ pub async fn update_decision_engine_dynamic_routing_setup(
         DECISION_ENGINE_RULE_UPDATE_ENDPOINT,
         Some(decision_engine_request),
         None,
+        None,
     )
     .await
     .change_context(errors::ApiErrorResponse::InternalServerError)
@@ -2392,6 +2394,7 @@ pub async fn disable_decision_engine_dynamic_routing_setup(
         services::Method::Post,
         DECISION_ENGINE_RULE_DELETE_ENDPOINT,
         Some(decision_engine_request),
+        None,
         None,
     )
     .await
@@ -2443,6 +2446,7 @@ pub async fn create_decision_engine_merchant(
         DECISION_ENGINE_MERCHANT_CREATE_ENDPOINT,
         Some(merchant_account_req),
         None,
+        None,
     )
     .await
     .change_context(errors::ApiErrorResponse::InternalServerError)
@@ -2466,6 +2470,7 @@ pub async fn delete_decision_engine_merchant(
         state,
         services::Method::Delete,
         &path,
+        None,
         None,
         None,
     )

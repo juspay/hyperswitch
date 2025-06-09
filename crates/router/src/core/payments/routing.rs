@@ -473,10 +473,36 @@ pub async fn perform_static_routing_v1(
                 }
             };
 
+            let payment_id = match transaction_data {
+                routing::TransactionData::Payment(payment_data) => payment_data
+                    .payment_attempt
+                    .payment_id
+                    .clone()
+                    .get_string_repr()
+                    .to_string(),
+                #[cfg(feature = "payouts")]
+                routing::TransactionData::Payout(payout_data) => {
+                    payout_data.payout_attempt.payout_id.clone()
+                }
+            };
+
+            let routing_events_wrapper = utils::RoutingEventsWrapper::new(
+                state.tenant.tenant_id.clone(),
+                state.request_id,
+                payment_id,
+                business_profile.get_id().to_owned(),
+                business_profile.merchant_id.to_owned(),
+                "Perform Debit Routing flow".to_string(),
+                None,
+                true,
+                true,
+            );
+
             let de_euclid_connectors = perform_decision_euclid_routing(
                 state,
                 backend_input.clone(),
                 business_profile.get_id().get_string_repr().to_string(),
+                routing_events_wrapper
             )
             .await
             .map_err(|e|
@@ -1628,19 +1654,36 @@ pub async fn perform_open_routing_for_debit_routing(
         Some(or_types::RankingAlgorithm::NtwBasedRouting),
     );
 
-    let response: RoutingResult<DecidedGateway> =
+    let routing_events_wrapper = utils::RoutingEventsWrapper::new(
+        state.tenant.tenant_id.clone(),
+        state.request_id,
+        payment_attempt.payment_id.get_string_repr().to_string(),
+        payment_attempt.profile_id.to_owned(),
+        payment_attempt.merchant_id.to_owned(),
+        "Perform Debit Routing flow".to_string(),
+        Some(open_router_req_body.clone()),
+        true,
+        true,
+    );
+
+    let response: RoutingResult<utils::RoutingEventsResponse<DecidedGateway>> =
         utils::EuclidApiClient::send_decision_engine_request(
             state,
             services::Method::Post,
             "decide-gateway",
             Some(open_router_req_body),
             None,
+            Some(routing_events_wrapper),
         )
         .await;
 
     let output = match response {
-        Ok(decided_gateway) => {
-            let debit_routing_output = decided_gateway
+        Ok(events_response) => {
+            let debit_routing_output = events_response
+                .response
+                .ok_or(errors::RoutingError::OpenRouterError(
+                    "Response from decision engine API is empty".to_string(),
+                ))?
                 .debit_routing_output
                 .get_required_value("debit_routing_output")
                 .change_context(errors::RoutingError::OpenRouterError(
@@ -1779,54 +1822,40 @@ pub async fn perform_decide_gateway_call_with_open_router(
         is_elimination_enabled,
     );
 
-    let serialized_request = serde_json::to_value(&open_router_req_body)
-        .change_context(errors::RoutingError::OpenRouterCallFailed)
-        .attach_printable("Failed to serialize open_router request body")?;
-
-    let url = format!("{}/{}", &state.conf.open_router.url, "decide-gateway");
-    let mut request = request::Request::new(services::Method::Post, &url);
-    request.add_header(headers::CONTENT_TYPE, "application/json".into());
-    request.add_header(
-        headers::X_TENANT_ID,
-        state.tenant.tenant_id.get_string_repr().to_owned().into(),
-    );
-    request.set_body(request::RequestContent::Json(Box::new(
-        open_router_req_body,
-    )));
-
-    let mut routing_event = RoutingEvent::new(
+    let routing_events_wrapper = utils::RoutingEventsWrapper::new(
         state.tenant.tenant_id.clone(),
-        "".to_string(),
-        "open_router_decide_gateway_call",
-        serialized_request,
-        url.clone(),
-        ApiMethod::Rest(services::Method::Post),
-        payment_attempt.payment_id.get_string_repr().to_string(),
-        profile_id.to_owned(),
-        payment_attempt.merchant_id.to_owned(),
         state.request_id,
-        RoutingEngine::DecisionEngine,
+        payment_attempt.payment_id.get_string_repr().to_string(),
+        payment_attempt.profile_id.to_owned(),
+        payment_attempt.merchant_id.to_owned(),
+        "Decision Engine SuccessRate decide_gateway".to_string(),
+        Some(open_router_req_body.clone()),
+        true,
+        false,
     );
 
-    let response = services::call_connector_api(state, request, "open_router_decide_gateway_call")
-        .await
-        .inspect_err(|err| {
-            routing_event
-                .set_error(serde_json::json!({"error": err.current_context().to_string()}));
-            state.event_handler().log_event(&routing_event);
-        })
-        .change_context(errors::RoutingError::OpenRouterCallFailed)?;
+    let response: RoutingResult<utils::RoutingEventsResponse<DecidedGateway>> =
+        utils::SRConfigApiClient::send_decision_engine_request(
+            state,
+            services::Method::Post,
+            "decide-gateway",
+            Some(open_router_req_body),
+            None,
+            Some(routing_events_wrapper),
+        )
+        .await;
 
     let sr_sorted_connectors = match response {
         Ok(resp) => {
-            let decided_gateway: DecidedGateway = resp
-                .response
-                .parse_struct("DecidedGateway")
-                .change_context(errors::RoutingError::OpenRouterError(
-                    "Failed to parse the response from open_router".into(),
+            let decided_gateway: DecidedGateway =
+                resp.response.ok_or(errors::RoutingError::OpenRouterError(
+                    "Empty response received from open_router".into(),
                 ))?;
 
-            routing_event.set_status_code(resp.status_code);
+            let mut routing_event = resp.event.ok_or(errors::RoutingError::OpenRouterError(
+                "Routing event is missing in the response from open_router".into(),
+            ))?;
+
             routing_event.set_response_body(&decided_gateway);
             routing_event.set_routing_approach(
                 api_routing::RoutingApproach::from_decision_engine_approach(
@@ -1858,18 +1887,9 @@ pub async fn perform_decide_gateway_call_with_open_router(
             Ok(routable_connectors)
         }
         Err(err) => {
-            let err_resp: or_types::ErrorResponse = err
-                .response
-                .parse_struct("ErrorResponse")
-                .change_context(errors::RoutingError::OpenRouterError(
-                    "Failed to parse the response from open_router".into(),
-                ))?;
-            logger::error!("open_router_error_response: {:?}", err_resp);
+            logger::error!("open_router_error_response: {:?}", err);
 
-            routing_event.set_status_code(err.status_code);
-            routing_event.set_error(serde_json::json!({"error": err_resp.error_message}));
-            routing_event.set_error_response_body(&err_resp);
-            state.event_handler().log_event(&routing_event);
+            // state.event_handler().log_event(&routing_event);
 
             Err(errors::RoutingError::OpenRouterError(
                 "Failed to perform decide_gateway call in open_router".into(),
@@ -1897,54 +1917,38 @@ pub async fn update_gateway_score_with_open_router(
         payment_id: payment_id.clone(),
     };
 
-    let serialized_request = serde_json::to_value(&open_router_req_body)
-        .change_context(errors::RoutingError::OpenRouterCallFailed)
-        .attach_printable("Failed to serialize open_router request body")?;
-
-    let url = format!("{}/{}", &state.conf.open_router.url, "update-gateway-score");
-    let mut request = request::Request::new(services::Method::Post, &url);
-    request.add_header(headers::CONTENT_TYPE, "application/json".into());
-    request.add_header(
-        headers::X_TENANT_ID,
-        state.tenant.tenant_id.get_string_repr().to_owned().into(),
-    );
-    request.set_body(request::RequestContent::Json(Box::new(
-        open_router_req_body,
-    )));
-
-    let mut routing_event = RoutingEvent::new(
+    let routing_events_wrapper = utils::RoutingEventsWrapper::new(
         state.tenant.tenant_id.clone(),
-        "".to_string(),
-        "open_router_update_gateway_score_call",
-        serialized_request,
-        url.clone(),
-        ApiMethod::Rest(services::Method::Post),
+        state.request_id,
         payment_id.get_string_repr().to_string(),
         profile_id.to_owned(),
         merchant_id.to_owned(),
-        state.request_id,
-        RoutingEngine::DecisionEngine,
+        "Decision Engine SuccessRate update_gateway_score".to_string(),
+        Some(open_router_req_body.clone()),
+        true,
+        false,
     );
 
-    let response =
-        services::call_connector_api(state, request, "open_router_update_gateway_score_call")
-            .await
-            .inspect_err(|err| {
-                routing_event
-                    .set_error(serde_json::json!({"error": err.current_context().to_string()}));
-                state.event_handler().log_event(&routing_event);
-            })
-            .change_context(errors::RoutingError::OpenRouterCallFailed)?;
-
-    routing_event.set_payment_connector(payment_connector.clone()); // check this in review
+    let response: RoutingResult<utils::RoutingEventsResponse<String>> =
+        utils::SRConfigApiClient::send_decision_engine_request(
+            state,
+            services::Method::Post,
+            "decide-gateway",
+            Some(open_router_req_body),
+            None,
+            Some(routing_events_wrapper),
+        )
+        .await;
 
     match response {
         Ok(resp) => {
-            let update_score_resp = String::from_utf8(resp.response.to_vec()).change_context(
-                errors::RoutingError::OpenRouterError(
-                    "Failed to parse the response from open_router".into(),
-                ),
-            )?;
+            let update_score_resp = resp.response.ok_or(errors::RoutingError::OpenRouterError(
+                "Failed to parse the response from open_router".into(),
+            ))?;
+
+            let mut routing_event = resp.event.ok_or(errors::RoutingError::OpenRouterError(
+                "Routing event is missing in the response from open_router".into(),
+            ))?;
 
             logger::debug!(
                 "open_router update_gateway_score response for gateway with id {}: {:?}",
@@ -1952,25 +1956,16 @@ pub async fn update_gateway_score_with_open_router(
                 update_score_resp
             );
 
-            routing_event.set_status_code(resp.status_code);
             routing_event.set_response_body(&update_score_resp);
+            routing_event.set_payment_connector(payment_connector.clone()); // check this in review
             state.event_handler().log_event(&routing_event);
 
             Ok(())
         }
         Err(err) => {
-            let err_resp: or_types::ErrorResponse = err
-                .response
-                .parse_struct("ErrorResponse")
-                .change_context(errors::RoutingError::OpenRouterError(
-                    "Failed to parse the response from open_router".into(),
-                ))?;
-            logger::error!("open_router_update_gateway_score_error: {:?}", err_resp);
+            logger::error!("open_router_update_gateway_score_error: {:?}", err);
 
-            routing_event.set_status_code(err.status_code);
-            routing_event.set_error(serde_json::json!({"error": err_resp.error_message}));
-            routing_event.set_error_response_body(&err_resp);
-            state.event_handler().log_event(&routing_event);
+            // state.event_handler().log_event(&routing_event);
 
             Err(errors::RoutingError::OpenRouterError(
                 "Failed to update gateway score in open_router".into(),

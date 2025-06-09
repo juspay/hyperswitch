@@ -1,19 +1,21 @@
 use std::collections::{HashMap, HashSet};
 
-use api_models::routing as api_routing;
+use api_models::{open_router as or_types, routing as api_routing};
 use async_trait::async_trait;
-use common_utils::id_type;
+use common_utils::{ext_traits::BytesExt, id_type};
 use diesel_models::{enums, routing_algorithm};
 use error_stack::ResultExt;
 use euclid::{backend::BackendInput, frontend::ast};
+use hyperswitch_interfaces::events::routing_api_logs as routing_events;
+use router_env::{log, tracing_actix_web::RequestId};
 use serde::{Deserialize, Serialize};
 
 use super::RoutingResult;
 use crate::{
     core::errors,
-    routes::SessionState,
+    routes::{app::SessionStateInfo, SessionState},
     services::{self, logger},
-    types::transformers::ForeignInto,
+    types::{self, transformers::ForeignInto},
 };
 
 // New Trait for handling Euclid API calls
@@ -25,10 +27,11 @@ pub trait DecisionEngineApiHandler {
         path: &str,
         request_body: Option<Req>, // Option to handle GET/DELETE requests without body
         timeout: Option<u64>,
-    ) -> RoutingResult<Res>
+        events_wrapper: Option<RoutingEventsWrapper<Req>>,
+    ) -> RoutingResult<RoutingEventsResponse<Res>>
     where
-        Req: Serialize + Send + Sync + 'static,
-        Res: serde::de::DeserializeOwned + Send + 'static + std::fmt::Debug;
+        Req: Serialize + Send + Sync + 'static + Clone,
+        Res: Serialize + serde::de::DeserializeOwned + Send + 'static + std::fmt::Debug + Clone;
 
     async fn send_decision_engine_request_without_response_parsing<Req>(
         state: &SessionState,
@@ -36,9 +39,10 @@ pub trait DecisionEngineApiHandler {
         path: &str,
         request_body: Option<Req>,
         timeout: Option<u64>,
+        events_wrapper: Option<RoutingEventsWrapper<Req>>,
     ) -> RoutingResult<()>
     where
-        Req: Serialize + Send + Sync + 'static;
+        Req: Serialize + Send + Sync + 'static + Clone;
 }
 
 // Struct to implement the DecisionEngineApiHandler trait
@@ -46,16 +50,20 @@ pub struct EuclidApiClient;
 
 pub struct ConfigApiClient;
 
-pub async fn build_and_send_decision_engine_http_request<Req>(
+pub struct SRConfigApiClient;
+
+pub async fn build_and_send_decision_engine_http_request<Req, Res>(
     state: &SessionState,
     http_method: services::Method,
     path: &str,
     request_body: Option<Req>,
     timeout: Option<u64>,
     context_message: &str,
-) -> RoutingResult<reqwest::Response>
+    events_wrapper: Option<RoutingEventsWrapper<Req>>,
+) -> RoutingResult<RoutingEventsResponse<Res>>
 where
-    Req: Serialize + Send + Sync + 'static,
+    Req: Serialize + Send + Sync + 'static + Clone,
+    Res: Serialize + serde::de::DeserializeOwned + std::fmt::Debug + Clone,
 {
     let decision_engine_base_url = &state.conf.open_router.url;
     let url = format!("{}/{}", decision_engine_base_url, path);
@@ -72,18 +80,75 @@ where
 
     let http_request = request_builder.build();
     logger::info!(?http_request, decision_engine_request_path = %path, "decision_engine: Constructed Decision Engine API request details ({})", context_message);
+    let should_parse_response = events_wrapper
+        .as_ref()
+        .map(|wrapper| wrapper.parse_response)
+        .unwrap_or(true);
 
-    state
-        .api_client
-        .send_request(state, http_request, timeout, false)
-        .await
-        .change_context(errors::RoutingError::DslExecutionError)
-        .attach_printable_lazy(|| {
-            format!(
-                "Decision Engine API call to path '{}' unresponsive ({})",
-                path, context_message
-            )
-        })
+    let closure = || async {
+        let response =
+            services::call_connector_api(state, http_request, "open_router_decide_gateway_call")
+                .await
+                .change_context(errors::RoutingError::OpenRouterCallFailed)?;
+
+        match response {
+            Ok(resp) => {
+                let resp = should_parse_response
+                    .then(|| {
+                        let response_type: Res = resp.response.parse_struct("Res").change_context(
+                            errors::RoutingError::OpenRouterError(
+                                "Failed to parse the response from open_router".into(),
+                            ),
+                        )?;
+
+                        Ok::<_, error_stack::Report<errors::RoutingError>>(response_type)
+                    })
+                    .transpose()?;
+
+                Ok(resp)
+            }
+            Err(err) => {
+                let err_resp: or_types::ErrorResponse = err
+                    .response
+                    .parse_struct("ErrorResponse")
+                    .change_context(errors::RoutingError::OpenRouterError(
+                        "Failed to parse the response from open_router".into(),
+                    ))?;
+
+                logger::error!(
+                    "decision_engine: Error response from Decision Engine API ({:?})",
+                    err_resp.error_message
+                );
+
+                Err(error_stack::report!(
+                    errors::RoutingError::RoutingEventsError {
+                        message: err_resp.error_message,
+                        status_code: err.status_code
+                    }
+                ))
+            }
+        }
+    };
+
+    let events_response = if let Some(wrapper) = events_wrapper {
+        routing_events_wrap(
+            state,
+            wrapper,
+            closure,
+            url.clone(),
+            routing_events::RoutingEngine::DecisionEngine,
+            routing_events::ApiMethod::Rest(http_method.clone()),
+        )
+        .await?
+    } else {
+        let resp = closure()
+            .await
+            .change_context(errors::RoutingError::OpenRouterCallFailed)?;
+
+        RoutingEventsResponse::new(None, resp)
+    };
+
+    Ok(events_response)
 }
 
 #[async_trait]
@@ -94,38 +159,34 @@ impl DecisionEngineApiHandler for EuclidApiClient {
         path: &str,
         request_body: Option<Req>, // Option to handle GET/DELETE requests without body
         timeout: Option<u64>,
-    ) -> RoutingResult<Res>
+        events_wrapper: Option<RoutingEventsWrapper<Req>>,
+    ) -> RoutingResult<RoutingEventsResponse<Res>>
     where
-        Req: Serialize + Send + Sync + 'static,
-        Res: serde::de::DeserializeOwned + Send + 'static + std::fmt::Debug,
+        Req: Serialize + Send + Sync + 'static + Clone,
+        Res: Serialize + serde::de::DeserializeOwned + Send + 'static + std::fmt::Debug + Clone,
     {
-        let response = build_and_send_decision_engine_http_request(
+        let event_response = build_and_send_decision_engine_http_request(
             state,
             http_method,
             path,
             request_body,
             timeout,
             "parsing response",
+            events_wrapper,
         )
         .await?;
-        logger::debug!(euclid_response = ?response, euclid_request_path = %path, "decision_engine_euclid: Received raw response from Euclid API");
+        // logger::debug!(euclid_response = ?event_response, euclid_request_path = %path, "decision_engine_euclid: Received raw response from Euclid API");
 
-        let parsed_response = response
-            .json::<Res>()
-            .await
-            .change_context(errors::RoutingError::GenericConversionError {
-                from: "ApiResponse".to_string(),
-                to: std::any::type_name::<Res>().to_string(),
-            })
-            .attach_printable_lazy(|| {
-                format!(
-                    "Unable to parse response of type '{}' received from Euclid API path: {}",
-                    std::any::type_name::<Res>(),
-                    path
-                )
-            })?;
+        let parsed_response =
+            event_response
+                .response
+                .as_ref()
+                .ok_or(errors::RoutingError::OpenRouterError(
+                    "Response from decision engine API is empty".to_string(),
+                ))?;
+
         logger::debug!(parsed_response = ?parsed_response, response_type = %std::any::type_name::<Res>(), euclid_request_path = %path, "decision_engine_euclid: Successfully parsed response from Euclid API");
-        Ok(parsed_response)
+        Ok(event_response)
     }
 
     async fn send_decision_engine_request_without_response_parsing<Req>(
@@ -134,19 +195,23 @@ impl DecisionEngineApiHandler for EuclidApiClient {
         path: &str,
         request_body: Option<Req>,
         timeout: Option<u64>,
+        events_wrapper: Option<RoutingEventsWrapper<Req>>,
     ) -> RoutingResult<()>
     where
-        Req: Serialize + Send + Sync + 'static,
+        Req: Serialize + Send + Sync + 'static + Clone,
     {
-        let response = build_and_send_decision_engine_http_request(
+        let event_response = build_and_send_decision_engine_http_request::<Req, ()>(
             state,
             http_method,
             path,
             request_body,
             timeout,
             "not parsing response",
+            events_wrapper,
         )
         .await?;
+
+        let response = event_response.response;
 
         logger::debug!(euclid_response = ?response, euclid_request_path = %path, "decision_engine_routing: Received raw response from Euclid API");
         Ok(())
@@ -161,38 +226,33 @@ impl DecisionEngineApiHandler for ConfigApiClient {
         path: &str,
         request_body: Option<Req>,
         timeout: Option<u64>,
-    ) -> RoutingResult<Res>
+        events_wrapper: Option<RoutingEventsWrapper<Req>>,
+    ) -> RoutingResult<RoutingEventsResponse<Res>>
     where
-        Req: Serialize + Send + Sync + 'static,
-        Res: serde::de::DeserializeOwned + Send + 'static + std::fmt::Debug,
+        Req: Serialize + Send + Sync + 'static + Clone,
+        Res: Serialize + serde::de::DeserializeOwned + Send + 'static + std::fmt::Debug + Clone,
     {
-        let response = build_and_send_decision_engine_http_request(
+        let events_response = build_and_send_decision_engine_http_request(
             state,
             http_method,
             path,
             request_body,
             timeout,
             "parsing response",
+            events_wrapper,
         )
         .await?;
-        logger::debug!(decision_engine_config_response = ?response, decision_engine_request_path = %path, "decision_engine_config: Received raw response from Decision Engine config API");
+        // logger::debug!(decision_engine_config_response = ?events_response, decision_engine_request_path = %path, "decision_engine_config: Received raw response from Decision Engine config API");
 
-        let parsed_response = response
-            .json::<Res>()
-            .await
-            .change_context(errors::RoutingError::GenericConversionError {
-                from: "ApiResponse".to_string(),
-                to: std::any::type_name::<Res>().to_string(),
-            })
-            .attach_printable_lazy(|| {
-                format!(
-                    "Unable to parse response of type '{}' received from Decision Engine config API path: {}",
-                    std::any::type_name::<Res>(),
-                    path
-                )
-            })?;
+        let parsed_response =
+            events_response
+                .response
+                .as_ref()
+                .ok_or(errors::RoutingError::OpenRouterError(
+                    "Response from decision engine API is empty".to_string(),
+                ))?;
         logger::debug!(parsed_response = ?parsed_response, response_type = %std::any::type_name::<Res>(), decision_engine_request_path = %path, "decision_engine_config: Successfully parsed response from Decision Engine config API");
-        Ok(parsed_response)
+        Ok(events_response)
     }
 
     async fn send_decision_engine_request_without_response_parsing<Req>(
@@ -201,19 +261,89 @@ impl DecisionEngineApiHandler for ConfigApiClient {
         path: &str,
         request_body: Option<Req>,
         timeout: Option<u64>,
+        events_wrapper: Option<RoutingEventsWrapper<Req>>,
     ) -> RoutingResult<()>
     where
-        Req: Serialize + Send + Sync + 'static,
+        Req: Serialize + Send + Sync + 'static + Clone,
     {
-        let response = build_and_send_decision_engine_http_request(
+        let event_response = build_and_send_decision_engine_http_request::<Req, ()>(
             state,
             http_method,
             path,
             request_body,
             timeout,
             "not parsing response",
+            events_wrapper,
         )
         .await?;
+
+        let response = event_response.response;
+
+        logger::debug!(decision_engine_response = ?response, decision_engine_request_path = %path, "decision_engine_config: Received raw response from Decision Engine config API");
+        Ok(())
+    }
+}
+
+#[async_trait]
+impl DecisionEngineApiHandler for SRConfigApiClient {
+    async fn send_decision_engine_request<Req, Res>(
+        state: &SessionState,
+        http_method: services::Method,
+        path: &str,
+        request_body: Option<Req>,
+        timeout: Option<u64>,
+        events_wrapper: Option<RoutingEventsWrapper<Req>>,
+    ) -> RoutingResult<RoutingEventsResponse<Res>>
+    where
+        Req: Serialize + Send + Sync + 'static + Clone,
+        Res: Serialize + serde::de::DeserializeOwned + Send + 'static + std::fmt::Debug + Clone,
+    {
+        let events_response = build_and_send_decision_engine_http_request(
+            state,
+            http_method,
+            path,
+            request_body,
+            timeout,
+            "parsing response",
+            events_wrapper,
+        )
+        .await?;
+        // logger::debug!(decision_engine_config_response = ?events_response, decision_engine_request_path = %path, "decision_engine_config: Received raw response from Decision Engine config API");
+
+        let parsed_response =
+            events_response
+                .response
+                .as_ref()
+                .ok_or(errors::RoutingError::OpenRouterError(
+                    "Response from decision engine API is empty".to_string(),
+                ))?;
+        logger::debug!(parsed_response = ?parsed_response, response_type = %std::any::type_name::<Res>(), decision_engine_request_path = %path, "decision_engine_config: Successfully parsed response from Decision Engine config API");
+        Ok(events_response)
+    }
+
+    async fn send_decision_engine_request_without_response_parsing<Req>(
+        state: &SessionState,
+        http_method: services::Method,
+        path: &str,
+        request_body: Option<Req>,
+        timeout: Option<u64>,
+        events_wrapper: Option<RoutingEventsWrapper<Req>>,
+    ) -> RoutingResult<()>
+    where
+        Req: Serialize + Send + Sync + 'static + Clone,
+    {
+        let event_response = build_and_send_decision_engine_http_request::<Req, ()>(
+            state,
+            http_method,
+            path,
+            request_body,
+            timeout,
+            "not parsing response",
+            events_wrapper,
+        )
+        .await?;
+
+        let response = event_response.response;
 
         logger::debug!(decision_engine_response = ?response, decision_engine_request_path = %path, "decision_engine_config: Received raw response from Decision Engine config API");
         Ok(())
@@ -226,19 +356,33 @@ pub async fn perform_decision_euclid_routing(
     state: &SessionState,
     input: BackendInput,
     created_by: String,
+    events_wrapper: RoutingEventsWrapper<RoutingEvaluateRequest>,
 ) -> RoutingResult<Vec<String>> {
     logger::debug!("decision_engine_euclid: evaluate api call for euclid routing evaluation");
 
-    let routing_request = convert_backend_input_to_routing_eval(created_by, input)?;
+    let mut events_wrapper = events_wrapper;
 
-    let euclid_response: RoutingEvaluateResponse = EuclidApiClient::send_decision_engine_request(
+    let routing_request = convert_backend_input_to_routing_eval(created_by, input)?;
+    events_wrapper.set_request_body(routing_request.clone());
+
+    let event_response = EuclidApiClient::send_decision_engine_request(
         state,
         services::Method::Post,
         "routing/evaluate",
         Some(routing_request),
         Some(EUCLID_API_TIMEOUT),
+        Some(events_wrapper),
     )
     .await?;
+
+    let euclid_response: RoutingEvaluateResponse =
+        event_response
+            .response
+            .ok_or(errors::RoutingError::OpenRouterError(
+                "Response from decision engine API is empty".to_string(),
+            ))?;
+
+    // Need to log euclid response event here
 
     logger::debug!(decision_engine_euclid_response=?euclid_response,"decision_engine_euclid");
     logger::debug!(decision_engine_euclid_selected_connector=?euclid_response.evaluated_output,"decision_engine_euclid");
@@ -253,14 +397,22 @@ pub async fn create_de_euclid_routing_algo(
     logger::debug!("decision_engine_euclid: create api call for euclid routing rule creation");
 
     logger::debug!(decision_engine_euclid_request=?routing_request,"decision_engine_euclid");
-    let euclid_response: RoutingDictionaryRecord = EuclidApiClient::send_decision_engine_request(
+    let events_response = EuclidApiClient::send_decision_engine_request(
         state,
         services::Method::Post,
         "routing/create",
         Some(routing_request.clone()),
         Some(EUCLID_API_TIMEOUT),
+        None,
     )
     .await?;
+
+    let euclid_response: RoutingDictionaryRecord =
+        events_response
+            .response
+            .ok_or(errors::RoutingError::OpenRouterError(
+                "Response from decision engine API is empty".to_string(),
+            ))?;
 
     logger::debug!(decision_engine_euclid_parsed_response=?euclid_response,"decision_engine_euclid");
     Ok(euclid_response.rule_id)
@@ -278,6 +430,7 @@ pub async fn link_de_euclid_routing_algorithm(
         "routing/activate",
         Some(routing_request.clone()),
         Some(EUCLID_API_TIMEOUT),
+        None,
     )
     .await?;
 
@@ -291,16 +444,24 @@ pub async fn list_de_euclid_routing_algorithms(
 ) -> RoutingResult<Vec<api_routing::RoutingDictionaryRecord>> {
     logger::debug!("decision_engine_euclid: list api call for euclid routing algorithms");
     let created_by = routing_list_request.created_by;
-    let response: Vec<RoutingAlgorithmRecord> = EuclidApiClient::send_decision_engine_request(
+    let events_response = EuclidApiClient::send_decision_engine_request(
         state,
         services::Method::Post,
         format!("routing/list/{created_by}").as_str(),
         None::<()>,
         Some(EUCLID_API_TIMEOUT),
+        None,
     )
     .await?;
 
-    Ok(response
+    let euclid_response: Vec<RoutingAlgorithmRecord> =
+        events_response
+            .response
+            .ok_or(errors::RoutingError::OpenRouterError(
+                "Response from decision engine API is empty".to_string(),
+            ))?;
+
+    Ok(euclid_response
         .into_iter()
         .map(routing_algorithm::RoutingProfileMetadata::from)
         .map(ForeignInto::foreign_into)
@@ -495,7 +656,7 @@ pub struct RoutingEvaluateRequest {
     pub parameters: HashMap<String, Option<ValueType>>,
 }
 
-#[derive(Debug, serde::Serialize, serde::Deserialize)]
+#[derive(Debug, serde::Serialize, serde::Deserialize, Clone)]
 pub struct RoutingEvaluateResponse {
     pub status: String,
     pub output: serde_json::Value,
@@ -800,4 +961,171 @@ fn convert_output(sel: ConnectorSelection) -> Output {
 
 fn stringify_choice(c: RoutableConnectorChoice) -> String {
     c.connector.to_string()
+}
+
+#[derive(Clone, Debug)]
+pub struct RoutingEventsWrapper<Req>
+where
+    Req: Serialize + Clone,
+{
+    pub tenant_id: id_type::TenantId,
+    pub request_id: Option<RequestId>,
+    pub payment_id: String,
+    pub profile_id: id_type::ProfileId,
+    pub merchant_id: id_type::MerchantId,
+    pub flow: String,
+    pub request: Option<Req>,
+    pub parse_response: bool,
+    pub log_event: bool,
+}
+
+#[derive(Debug)]
+pub struct RoutingEventsResponse<Res>
+where
+    Res: Serialize + serde::de::DeserializeOwned + Clone,
+{
+    pub event: Option<routing_events::RoutingEvent>,
+    pub response: Option<Res>,
+}
+
+impl<Res> RoutingEventsResponse<Res>
+where
+    Res: Serialize + serde::de::DeserializeOwned + Clone,
+{
+    pub fn new(event: Option<routing_events::RoutingEvent>, response: Option<Res>) -> Self {
+        Self { event, response }
+    }
+
+    pub fn set_response(&mut self, response: Res) {
+        self.response = Some(response);
+    }
+
+    pub fn set_event(&mut self, event: routing_events::RoutingEvent) {
+        self.event = Some(event);
+    }
+}
+
+impl<Req> RoutingEventsWrapper<Req>
+where
+    Req: Serialize + Clone,
+{
+    pub fn new(
+        tenant_id: id_type::TenantId,
+        request_id: Option<RequestId>,
+        payment_id: String,
+        profile_id: id_type::ProfileId,
+        merchant_id: id_type::MerchantId,
+        flow: String,
+        request: Option<Req>,
+        parse_response: bool,
+        log_event: bool,
+    ) -> Self {
+        Self {
+            tenant_id,
+            request_id,
+            payment_id,
+            profile_id,
+            merchant_id,
+            flow,
+            request,
+            parse_response,
+            log_event,
+        }
+    }
+
+    pub fn construct_event_builder(
+        &self,
+        url: String,
+        routing_engine: routing_events::RoutingEngine,
+        method: routing_events::ApiMethod,
+    ) -> RoutingResult<routing_events::RoutingEvent> {
+        let request = self
+            .request
+            .clone()
+            .ok_or(errors::RoutingError::RoutingEventsError {
+                message: "Request body is missing".to_string(),
+                status_code: 400,
+            })?;
+
+        let serialized_request = serde_json::to_value(&request)
+            .change_context(errors::RoutingError::SuccessBasedRoutingConfigError)
+            .attach_printable("Failed to serialize request body")?;
+
+        Ok(routing_events::RoutingEvent::new(
+            self.tenant_id.clone(),
+            "".to_string(),
+            &self.flow,
+            serialized_request,
+            url,
+            method,
+            self.payment_id.clone(),
+            self.profile_id.clone(),
+            self.merchant_id.clone(),
+            self.request_id,
+            routing_engine,
+        ))
+    }
+
+    pub fn set_log_event(&mut self, log_event: bool) {
+        self.log_event = log_event;
+    }
+
+    pub fn set_request_body(&mut self, request: Req) {
+        self.request = Some(request);
+    }
+}
+
+pub trait RoutingEventsInterface {
+    fn get_routable_connectors(&self) -> Option<Vec<RoutableConnectorChoice>>;
+    fn get_payment_connector(&self) -> Option<RoutableConnectorChoice>;
+}
+
+pub async fn routing_events_wrap<Req, Res, F1, HttpFut>(
+    state: &SessionState,
+    wrapper: RoutingEventsWrapper<Req>,
+    func: F1,
+    url: String,
+    routing_engine: routing_events::RoutingEngine,
+    method: routing_events::ApiMethod,
+) -> RoutingResult<RoutingEventsResponse<Res>>
+where
+    F1: FnOnce() -> HttpFut + Send,
+    Req: Serialize + Clone,
+    Res: Serialize + serde::de::DeserializeOwned + Clone,
+    HttpFut: futures::Future<Output = RoutingResult<Option<Res>>> + Send,
+{
+    let mut routing_event = wrapper.construct_event_builder(url, routing_engine, method)?;
+    let mut response = RoutingEventsResponse::new(None, None);
+
+    let resp = func().await;
+    match resp {
+        Ok(ok_resp) => {
+            if let Some(resp) = ok_resp {
+                routing_event.set_response_body(&resp);
+                // routing_event
+                //     .set_routable_connectors(ok_resp.get_routable_connectors().unwrap_or_default());
+                // routing_event.set_payment_connector(ok_resp.get_payment_connector());
+                routing_event.set_status_code(200);
+
+                response.set_response(resp.clone());
+                wrapper
+                    .log_event
+                    .then(|| state.event_handler().log_event(&routing_event));
+            }
+        }
+        Err(err) => {
+            // Need to figure out a generic way to log errors
+            routing_event
+                .set_error(serde_json::json!({"error": err.current_context().to_string()}));
+            routing_event.set_error_response_body(&err.current_context().to_string());
+            wrapper
+                .log_event
+                .then(|| state.event_handler().log_event(&routing_event));
+            // routing_event.set_status_code(err.current_context());
+        }
+    }
+
+    response.set_event(routing_event);
+
+    Ok(response)
 }

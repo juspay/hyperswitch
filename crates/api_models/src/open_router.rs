@@ -58,14 +58,14 @@ pub struct PaymentInfo {
     // cardSwitchProvider: Option<Secret<String>>,
 }
 
-#[derive(Debug, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Serialize, Deserialize, PartialEq, Clone)]
 pub struct DecidedGateway {
     pub gateway_priority_map: Option<HashMap<String, f64>>,
     pub debit_routing_output: Option<DebitRoutingOutput>,
     pub routing_approach: String,
 }
 
-#[derive(Debug, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Serialize, Deserialize, PartialEq, Clone)]
 pub struct DebitRoutingOutput {
     pub co_badged_card_networks: Vec<common_enums::CardNetwork>,
     pub issuer_country: common_enums::CountryAlpha2,
