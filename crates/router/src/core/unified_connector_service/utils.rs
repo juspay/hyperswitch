@@ -502,7 +502,7 @@ pub fn construct_router_data_from_ucs_authorize_response(
             charges: None,
         }),
         _ => Err(ErrorResponse {
-            code: hyperswitch_interfaces::consts::NO_ERROR_CODE.to_string(),
+            code: response.error_code().to_owned(),
             message: response.error_message().to_owned(),
             reason: Some(response.error_message().to_owned()),
             status_code: 500,
