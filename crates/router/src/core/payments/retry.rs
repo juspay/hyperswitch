@@ -85,7 +85,7 @@ where
     let should_step_up = if step_up_possible && is_no_three_ds_payment {
         is_step_up_enabled_for_merchant_connector(
             state,
-            merchant_context.get_merchant_account().get_id(),
+            merchant_context.get_processor_merchant_account().get_id(),
             original_connector_data.connector_name,
         )
         .await
@@ -126,7 +126,7 @@ where
                     retries = get_retries(
                         state,
                         retries,
-                        merchant_context.get_merchant_account().get_id(),
+                        merchant_context.get_processor_merchant_account().get_id(),
                         business_profile,
                     )
                     .await;
@@ -349,8 +349,8 @@ where
         state,
         connector.connector_name.to_string(),
         payment_data,
-        merchant_context.get_merchant_key_store(),
-        merchant_context.get_merchant_account().storage_scheme,
+        merchant_context.get_owner_merchant_key_store(),
+        merchant_context.get_owner_merchant_account().storage_scheme,
         router_data,
         is_step_up,
     )

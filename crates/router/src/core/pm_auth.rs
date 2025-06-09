@@ -116,10 +116,10 @@ pub async fn create_link_token(
             oss_helpers::get_address_by_id(
                 &state,
                 pi.billing_address_id.clone(),
-                merchant_context.get_merchant_key_store(),
+                merchant_context.get_owner_merchant_key_store(),
                 &pi.payment_id,
-                merchant_context.get_merchant_account().get_id(),
-                merchant_context.get_merchant_account().storage_scheme,
+                merchant_context.get_owner_merchant_account().get_id(),
+                merchant_context.get_owner_merchant_account().storage_scheme,
             )
             .await
         })
@@ -134,14 +134,14 @@ pub async fn create_link_token(
         .store
         .find_by_merchant_connector_account_merchant_id_merchant_connector_id(
             &(&state).into(),
-            merchant_context.get_merchant_account().get_id(),
+            merchant_context.get_processor_merchant_account().get_id(),
             &selected_config.mca_id,
-            merchant_context.get_merchant_key_store(),
+            merchant_context.get_processor_merchant_key_store(),
         )
         .await
         .change_context(ApiErrorResponse::MerchantConnectorAccountNotFound {
             id: merchant_context
-                .get_merchant_account()
+                .get_processor_merchant_account()
                 .get_id()
                 .get_string_repr()
                 .to_owned(),
@@ -157,7 +157,12 @@ pub async fn create_link_token(
 
     let router_data = pm_auth_types::LinkTokenRouterData {
         flow: std::marker::PhantomData,
-        merchant_id: Some(merchant_context.get_merchant_account().get_id().clone()),
+        merchant_id: Some(
+            merchant_context
+                .get_owner_merchant_account()
+                .get_id()
+                .clone(),
+        ),
         connector: Some(connector_name.to_string()),
         request: pm_auth_types::LinkTokenRequest {
             client_name: "HyperSwitch".to_string(),
@@ -256,14 +261,14 @@ pub async fn exchange_token_core(
         .store
         .find_by_merchant_connector_account_merchant_id_merchant_connector_id(
             &(&state).into(),
-            merchant_context.get_merchant_account().get_id(),
+            merchant_context.get_processor_merchant_account().get_id(),
             &config.mca_id,
-            merchant_context.get_merchant_key_store(),
+            merchant_context.get_processor_merchant_key_store(),
         )
         .await
         .change_context(ApiErrorResponse::MerchantConnectorAccountNotFound {
             id: merchant_context
-                .get_merchant_account()
+                .get_processor_merchant_account()
                 .get_id()
                 .get_string_repr()
                 .to_owned(),
@@ -271,9 +276,9 @@ pub async fn exchange_token_core(
 
     #[cfg(feature = "v2")]
     let merchant_connector_account: domain::MerchantConnectorAccount = {
-        let _ = merchant_context.get_merchant_account();
+        let _ = merchant_context.get_processor_merchant_account();
         let _ = connector;
-        let _ = merchant_context.get_merchant_key_store();
+        let _ = merchant_context.get_processor_merchant_key_store();
         todo!()
     };
 
@@ -328,9 +333,9 @@ async fn store_bank_details_in_payment_methods(
         .find_payment_intent_by_payment_id_merchant_id(
             &(&state).into(),
             &payload.payment_id,
-            merchant_context.get_merchant_account().get_id(),
-            merchant_context.get_merchant_key_store(),
-            merchant_context.get_merchant_account().storage_scheme,
+            merchant_context.get_owner_merchant_account().get_id(),
+            merchant_context.get_owner_merchant_key_store(),
+            merchant_context.get_owner_merchant_account().storage_scheme,
         )
         .await
         .to_not_found_response(ApiErrorResponse::PaymentNotFound)?;
@@ -346,9 +351,9 @@ async fn store_bank_details_in_payment_methods(
     let payment_methods = db
         .find_payment_method_by_customer_id_merchant_id_list(
             &((&state).into()),
-            merchant_context.get_merchant_key_store(),
+            merchant_context.get_owner_merchant_key_store(),
             &customer_id,
-            merchant_context.get_merchant_account().get_id(),
+            merchant_context.get_owner_merchant_account().get_id(),
             None,
         )
         .await
@@ -485,7 +490,7 @@ async fn store_bank_details_in_payment_methods(
 
             let encrypted_data = cards::create_encrypted_data(
                 &key_manager_state,
-                merchant_context.get_merchant_key_store(),
+                merchant_context.get_owner_merchant_key_store(),
                 payment_method_data,
             )
             .await
@@ -501,7 +506,7 @@ async fn store_bank_details_in_payment_methods(
             let payment_method_data = payment_methods::PaymentMethodsData::BankDetails(pmd);
             let encrypted_data = cards::create_encrypted_data(
                 &key_manager_state,
-                merchant_context.get_merchant_key_store(),
+                merchant_context.get_owner_merchant_key_store(),
                 Some(payment_method_data),
             )
             .await
@@ -526,7 +531,10 @@ async fn store_bank_details_in_payment_methods(
             ))]
             let pm_new = domain::PaymentMethod {
                 customer_id: customer_id.clone(),
-                merchant_id: merchant_context.get_merchant_account().get_id().clone(),
+                merchant_id: merchant_context
+                    .get_owner_merchant_account()
+                    .get_id()
+                    .clone(),
                 payment_method_id: pm_id,
                 payment_method: Some(enums::PaymentMethod::BankDebit),
                 payment_method_type: Some(creds.payment_method_type),
@@ -594,11 +602,11 @@ async fn store_bank_details_in_payment_methods(
 
     store_in_db(
         &state,
-        merchant_context.get_merchant_key_store(),
+        merchant_context.get_owner_merchant_key_store(),
         update_entries,
         new_entries,
         db,
-        merchant_context.get_merchant_account().storage_scheme,
+        merchant_context.get_owner_merchant_account().storage_scheme,
     )
     .await?;
 
@@ -674,7 +682,12 @@ pub async fn get_bank_account_creds(
 
     let router_data_bank_details = pm_auth_types::BankDetailsRouterData {
         flow: std::marker::PhantomData,
-        merchant_id: Some(merchant_context.get_merchant_account().get_id().clone()),
+        merchant_id: Some(
+            merchant_context
+                .get_owner_merchant_account()
+                .get_id()
+                .clone(),
+        ),
         connector: Some(connector_name.to_string()),
         request: pm_auth_types::BankAccountCredentialsRequest {
             access_token: access_token.clone(),

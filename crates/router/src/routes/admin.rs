@@ -5,7 +5,7 @@ use super::app::AppState;
 use crate::{
     core::{admin::*, api_locking},
     services::{api, authentication as auth, authorization::permissions::Permission},
-    types::{api::admin, domain},
+    types::api::admin,
 };
 
 #[cfg(all(feature = "olap", feature = "v1"))]
@@ -490,9 +490,7 @@ pub async fn connector_create(
         &req,
         payload,
         |state, auth_data, req, _| {
-            let merchant_context = domain::MerchantContext::NormalMerchant(Box::new(
-                domain::Context(auth_data.merchant_account, auth_data.key_store),
-            ));
+            let merchant_context = auth_data.clone().into();
             create_connector(state, req, merchant_context, auth_data.profile_id)
         },
         auth::auth_type(
@@ -525,9 +523,7 @@ pub async fn connector_create(
         &req,
         payload,
         |state, auth_data: auth::AuthenticationData, req, _| {
-            let merchant_context = domain::MerchantContext::NormalMerchant(Box::new(
-                domain::Context(auth_data.merchant_account, auth_data.key_store),
-            ));
+            let merchant_context = auth_data.clone().into();
             create_connector(state, req, merchant_context, None)
         },
         auth::auth_type(
@@ -625,17 +621,8 @@ pub async fn connector_retrieve(
         state,
         &req,
         payload,
-        |state,
-         auth::AuthenticationData {
-             merchant_account,
-             key_store,
-             ..
-         },
-         req,
-         _| {
-            let merchant_context = domain::MerchantContext::NormalMerchant(Box::new(
-                domain::Context(merchant_account, key_store),
-            ));
+        |state, auth: auth::AuthenticationData, req, _| {
+            let merchant_context = auth.into();
             retrieve_connector(state, merchant_context, req.id.clone())
         },
         auth::auth_type(
@@ -965,17 +952,8 @@ pub async fn connector_delete(
         state,
         &req,
         payload,
-        |state,
-         auth::AuthenticationData {
-             merchant_account,
-             key_store,
-             ..
-         },
-         req,
-         _| {
-            let merchant_context = domain::MerchantContext::NormalMerchant(Box::new(
-                domain::Context(merchant_account, key_store),
-            ));
+        |state, auth: auth::AuthenticationData, req, _| {
+            let merchant_context = auth.into();
             delete_connector(state, merchant_context, req.id)
         },
         auth::auth_type(

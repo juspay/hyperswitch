@@ -42,7 +42,7 @@ pub async fn do_gsm_multiple_connector_actions(
                 retries = get_retries(
                     state,
                     retries,
-                    merchant_context.get_merchant_account().get_id(),
+                    merchant_context.get_processor_merchant_account().get_id(),
                     PayoutRetryType::MultiConnector,
                 )
                 .await;
@@ -112,7 +112,7 @@ pub async fn do_gsm_single_connector_actions(
                 retries = get_retries(
                     state,
                     retries,
-                    merchant_context.get_merchant_account().get_id(),
+                    merchant_context.get_processor_merchant_account().get_id(),
                     PayoutRetryType::SingleConnector,
                 )
                 .await;
@@ -263,7 +263,7 @@ pub async fn modify_trackers(
             &payout_data.payouts,
             updated_payouts,
             &payout_data.payout_attempt,
-            merchant_context.get_merchant_account().storage_scheme,
+            merchant_context.get_owner_merchant_account().storage_scheme,
         )
         .await
         .change_context(errors::ApiErrorResponse::InternalServerError)
@@ -303,7 +303,7 @@ pub async fn modify_trackers(
         .insert_payout_attempt(
             payout_attempt_req,
             &payouts,
-            merchant_context.get_merchant_account().storage_scheme,
+            merchant_context.get_owner_merchant_account().storage_scheme,
         )
         .await
         .to_duplicate_response(errors::ApiErrorResponse::DuplicatePayout { payout_id })

@@ -186,27 +186,27 @@ pub async fn find_payment_intent_from_payment_id_type(
             .find_payment_intent_by_payment_id_merchant_id(
                 &key_manager_state,
                 &payment_id,
-                merchant_context.get_merchant_account().get_id(),
-                merchant_context.get_merchant_key_store(),
-                merchant_context.get_merchant_account().storage_scheme,
+                merchant_context.get_owner_merchant_account().get_id(),
+                merchant_context.get_owner_merchant_key_store(),
+                merchant_context.get_owner_merchant_account().storage_scheme,
             )
             .await
             .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound),
         payments::PaymentIdType::ConnectorTransactionId(connector_transaction_id) => {
             let attempt = db
                 .find_payment_attempt_by_merchant_id_connector_txn_id(
-                    merchant_context.get_merchant_account().get_id(),
+                    merchant_context.get_owner_merchant_account().get_id(),
                     &connector_transaction_id,
-                    merchant_context.get_merchant_account().storage_scheme,
+                    merchant_context.get_owner_merchant_account().storage_scheme,
                 )
                 .await
                 .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
             db.find_payment_intent_by_payment_id_merchant_id(
                 &key_manager_state,
                 &attempt.payment_id,
-                merchant_context.get_merchant_account().get_id(),
-                merchant_context.get_merchant_key_store(),
-                merchant_context.get_merchant_account().storage_scheme,
+                merchant_context.get_owner_merchant_account().get_id(),
+                merchant_context.get_owner_merchant_key_store(),
+                merchant_context.get_owner_merchant_account().storage_scheme,
             )
             .await
             .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)
@@ -215,17 +215,17 @@ pub async fn find_payment_intent_from_payment_id_type(
             let attempt = db
                 .find_payment_attempt_by_attempt_id_merchant_id(
                     &attempt_id,
-                    merchant_context.get_merchant_account().get_id(),
-                    merchant_context.get_merchant_account().storage_scheme,
+                    merchant_context.get_owner_merchant_account().get_id(),
+                    merchant_context.get_owner_merchant_account().storage_scheme,
                 )
                 .await
                 .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
             db.find_payment_intent_by_payment_id_merchant_id(
                 &key_manager_state,
                 &attempt.payment_id,
-                merchant_context.get_merchant_account().get_id(),
-                merchant_context.get_merchant_key_store(),
-                merchant_context.get_merchant_account().storage_scheme,
+                merchant_context.get_owner_merchant_account().get_id(),
+                merchant_context.get_owner_merchant_key_store(),
+                merchant_context.get_owner_merchant_account().storage_scheme,
             )
             .await
             .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)
@@ -247,18 +247,18 @@ pub async fn find_payment_intent_from_refund_id_type(
     let refund = match refund_id_type {
         webhooks::RefundIdType::RefundId(id) => db
             .find_refund_by_merchant_id_refund_id(
-                merchant_context.get_merchant_account().get_id(),
+                merchant_context.get_owner_merchant_account().get_id(),
                 &id,
-                merchant_context.get_merchant_account().storage_scheme,
+                merchant_context.get_owner_merchant_account().storage_scheme,
             )
             .await
             .to_not_found_response(errors::ApiErrorResponse::RefundNotFound)?,
         webhooks::RefundIdType::ConnectorRefundId(id) => db
             .find_refund_by_merchant_id_connector_refund_id_connector(
-                merchant_context.get_merchant_account().get_id(),
+                merchant_context.get_owner_merchant_account().get_id(),
                 &id,
                 connector_name,
-                merchant_context.get_merchant_account().storage_scheme,
+                merchant_context.get_owner_merchant_account().storage_scheme,
             )
             .await
             .to_not_found_response(errors::ApiErrorResponse::RefundNotFound)?,
@@ -266,17 +266,17 @@ pub async fn find_payment_intent_from_refund_id_type(
     let attempt = db
         .find_payment_attempt_by_attempt_id_merchant_id(
             &refund.attempt_id,
-            merchant_context.get_merchant_account().get_id(),
-            merchant_context.get_merchant_account().storage_scheme,
+            merchant_context.get_owner_merchant_account().get_id(),
+            merchant_context.get_owner_merchant_account().storage_scheme,
         )
         .await
         .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
     db.find_payment_intent_by_payment_id_merchant_id(
         &state.into(),
         &attempt.payment_id,
-        merchant_context.get_merchant_account().get_id(),
-        merchant_context.get_merchant_key_store(),
-        merchant_context.get_merchant_account().storage_scheme,
+        merchant_context.get_owner_merchant_account().get_id(),
+        merchant_context.get_owner_merchant_key_store(),
+        merchant_context.get_owner_merchant_account().storage_scheme,
     )
     .await
     .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)
@@ -292,17 +292,17 @@ pub async fn find_payment_intent_from_mandate_id_type(
     let mandate = match mandate_id_type {
         webhooks::MandateIdType::MandateId(mandate_id) => db
             .find_mandate_by_merchant_id_mandate_id(
-                merchant_context.get_merchant_account().get_id(),
+                merchant_context.get_owner_merchant_account().get_id(),
                 mandate_id.as_str(),
-                merchant_context.get_merchant_account().storage_scheme,
+                merchant_context.get_owner_merchant_account().storage_scheme,
             )
             .await
             .to_not_found_response(errors::ApiErrorResponse::MandateNotFound)?,
         webhooks::MandateIdType::ConnectorMandateId(connector_mandate_id) => db
             .find_mandate_by_merchant_id_connector_mandate_id(
-                merchant_context.get_merchant_account().get_id(),
+                merchant_context.get_owner_merchant_account().get_id(),
                 connector_mandate_id.as_str(),
-                merchant_context.get_merchant_account().storage_scheme,
+                merchant_context.get_owner_merchant_account().storage_scheme,
             )
             .await
             .to_not_found_response(errors::ApiErrorResponse::MandateNotFound)?,
@@ -313,9 +313,9 @@ pub async fn find_payment_intent_from_mandate_id_type(
             .original_payment_id
             .ok_or(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("original_payment_id not present in mandate record")?,
-        merchant_context.get_merchant_account().get_id(),
-        merchant_context.get_merchant_key_store(),
-        merchant_context.get_merchant_account().storage_scheme,
+        merchant_context.get_owner_merchant_account().get_id(),
+        merchant_context.get_owner_merchant_key_store(),
+        merchant_context.get_owner_merchant_account().storage_scheme,
     )
     .await
     .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)
@@ -331,14 +331,17 @@ pub async fn find_mca_from_authentication_id_type(
     let authentication = match authentication_id_type {
         webhooks::AuthenticationIdType::AuthenticationId(authentication_id) => db
             .find_authentication_by_merchant_id_authentication_id(
-                merchant_context.get_merchant_account().get_id(),
+                merchant_context.get_processor_merchant_account().get_id(),
                 authentication_id,
             )
             .await
             .to_not_found_response(errors::ApiErrorResponse::InternalServerError)?,
         webhooks::AuthenticationIdType::ConnectorAuthenticationId(connector_authentication_id) => {
             db.find_authentication_by_merchant_id_connector_authentication_id(
-                merchant_context.get_merchant_account().get_id().clone(),
+                merchant_context
+                    .get_processor_merchant_account()
+                    .get_id()
+                    .clone(),
                 connector_authentication_id,
             )
             .await
@@ -349,9 +352,9 @@ pub async fn find_mca_from_authentication_id_type(
     {
         db.find_by_merchant_connector_account_merchant_id_merchant_connector_id(
             &state.into(),
-            merchant_context.get_merchant_account().get_id(),
+            merchant_context.get_processor_merchant_account().get_id(),
             &authentication.merchant_connector_id,
-            merchant_context.get_merchant_key_store(),
+            merchant_context.get_processor_merchant_key_store(),
         )
         .await
         .to_not_found_response(
@@ -386,8 +389,8 @@ pub async fn get_mca_from_payment_intent(
     let payment_attempt = db
         .find_payment_attempt_by_attempt_id_merchant_id(
             &payment_intent.active_attempt.get_id(),
-            merchant_context.get_merchant_account().get_id(),
-            merchant_context.get_merchant_account().storage_scheme,
+            merchant_context.get_owner_merchant_account().get_id(),
+            merchant_context.get_owner_merchant_account().storage_scheme,
         )
         .await
         .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
@@ -410,9 +413,9 @@ pub async fn get_mca_from_payment_intent(
             {
                 db.find_by_merchant_connector_account_merchant_id_merchant_connector_id(
                     key_manager_state,
-                    merchant_context.get_merchant_account().get_id(),
+                    merchant_context.get_processor_merchant_account().get_id(),
                     &merchant_connector_id,
-                    merchant_context.get_merchant_key_store(),
+                    merchant_context.get_processor_merchant_key_store(),
                 )
                 .await
                 .to_not_found_response(
@@ -446,7 +449,7 @@ pub async fn get_mca_from_payment_intent(
                     key_manager_state,
                     &profile_id,
                     connector_name,
-                    merchant_context.get_merchant_key_store(),
+                    merchant_context.get_processor_merchant_key_store(),
                 )
                 .await
                 .to_not_found_response(
@@ -479,17 +482,17 @@ pub async fn get_mca_from_payout_attempt(
     let payout = match payout_id_type {
         webhooks::PayoutIdType::PayoutAttemptId(payout_attempt_id) => db
             .find_payout_attempt_by_merchant_id_payout_attempt_id(
-                merchant_context.get_merchant_account().get_id(),
+                merchant_context.get_owner_merchant_account().get_id(),
                 &payout_attempt_id,
-                merchant_context.get_merchant_account().storage_scheme,
+                merchant_context.get_owner_merchant_account().storage_scheme,
             )
             .await
             .to_not_found_response(errors::ApiErrorResponse::PayoutNotFound)?,
         webhooks::PayoutIdType::ConnectorPayoutId(connector_payout_id) => db
             .find_payout_attempt_by_merchant_id_connector_payout_id(
-                merchant_context.get_merchant_account().get_id(),
+                merchant_context.get_owner_merchant_account().get_id(),
                 &connector_payout_id,
-                merchant_context.get_merchant_account().storage_scheme,
+                merchant_context.get_owner_merchant_account().storage_scheme,
             )
             .await
             .to_not_found_response(errors::ApiErrorResponse::PayoutNotFound)?,
@@ -501,9 +504,9 @@ pub async fn get_mca_from_payout_attempt(
             {
                 db.find_by_merchant_connector_account_merchant_id_merchant_connector_id(
                     key_manager_state,
-                    merchant_context.get_merchant_account().get_id(),
+                    merchant_context.get_processor_merchant_account().get_id(),
                     &merchant_connector_id,
-                    merchant_context.get_merchant_key_store(),
+                    merchant_context.get_processor_merchant_key_store(),
                 )
                 .await
                 .to_not_found_response(
@@ -516,7 +519,7 @@ pub async fn get_mca_from_payout_attempt(
             {
                 //get mca using id
                 let _id = merchant_connector_id;
-                let _ = merchant_context.get_merchant_key_store();
+                let _ = merchant_context.get_processor_merchant_key_store();
                 let _ = connector_name;
                 let _ = key_manager_state;
                 todo!()
@@ -529,7 +532,7 @@ pub async fn get_mca_from_payout_attempt(
                     key_manager_state,
                     &payout.profile_id,
                     connector_name,
-                    merchant_context.get_merchant_key_store(),
+                    merchant_context.get_processor_merchant_key_store(),
                 )
                 .await
                 .to_not_found_response(
@@ -561,7 +564,7 @@ pub async fn get_mca_from_object_reference_id(
 
     #[cfg(feature = "v1")]
     let default_profile_id = merchant_context
-        .get_merchant_account()
+        .get_processor_merchant_account()
         .default_profile
         .as_ref();
 
@@ -576,7 +579,7 @@ pub async fn get_mca_from_object_reference_id(
                     &state.into(),
                     profile_id,
                     connector_name,
-                    merchant_context.get_merchant_key_store(),
+                    merchant_context.get_processor_merchant_key_store(),
                 )
                 .await
                 .to_not_found_response(
@@ -1264,7 +1267,7 @@ pub async fn trigger_refund_outgoing_webhook(
             .store
             .find_business_profile_by_profile_id(
                 key_manager_state,
-                merchant_context.get_merchant_key_store(),
+                merchant_context.get_processor_merchant_key_store(),
                 &profile_id,
             )
             .await

@@ -82,8 +82,8 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
         let db = &*state.store;
         let key_manager_state = &state.into();
         let ephemeral_key = Self::get_ephemeral_key(request, state, merchant_context).await;
-        let merchant_id = merchant_context.get_merchant_account().get_id();
-        let storage_scheme = merchant_context.get_merchant_account().storage_scheme;
+        let merchant_id = merchant_context.get_owner_merchant_account().get_id();
+        let storage_scheme = merchant_context.get_owner_merchant_account().storage_scheme;
 
         let money @ (amount, currency) = payments_create_request_validation(request)?;
 
@@ -125,9 +125,9 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
             core_utils::validate_and_get_business_profile(
                 db,
                 key_manager_state,
-                merchant_context.get_merchant_key_store(),
+                merchant_context.get_processor_merchant_key_store(),
                 Some(&profile_id),
-                merchant_id,
+                merchant_context.get_processor_merchant_account().get_id(),
             )
             .await?
         {
@@ -135,7 +135,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
         } else {
             db.find_business_profile_by_profile_id(
                 key_manager_state,
-                merchant_context.get_merchant_key_store(),
+                merchant_context.get_processor_merchant_key_store(),
                 &profile_id,
             )
             .await
@@ -193,9 +193,9 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
             None,
             merchant_id,
             customer_details.customer_id.as_ref(),
-            merchant_context.get_merchant_key_store(),
+            merchant_context.get_owner_merchant_key_store(),
             &payment_id,
-            merchant_context.get_merchant_account().storage_scheme,
+            merchant_context.get_owner_merchant_account().storage_scheme,
         )
         .await?;
 
@@ -205,9 +205,9 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
             None,
             merchant_id,
             customer_details.customer_id.as_ref(),
-            merchant_context.get_merchant_key_store(),
+            merchant_context.get_owner_merchant_key_store(),
             &payment_id,
-            merchant_context.get_merchant_account().storage_scheme,
+            merchant_context.get_owner_merchant_account().storage_scheme,
         )
         .await?;
 
@@ -221,9 +221,9 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
                 None,
                 merchant_id,
                 customer_details.customer_id.as_ref(),
-                merchant_context.get_merchant_key_store(),
+                merchant_context.get_owner_merchant_key_store(),
                 &payment_id,
-                merchant_context.get_merchant_account().storage_scheme,
+                merchant_context.get_owner_merchant_account().storage_scheme,
             )
             .await?;
 
@@ -258,7 +258,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
         let payment_link_data = match request.payment_link {
             Some(true) => {
                 let merchant_name = merchant_context
-                    .get_merchant_account()
+                    .get_owner_merchant_account()
                     .merchant_name
                     .clone()
                     .map(|name| name.into_inner().peek().to_owned())
@@ -316,7 +316,10 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
         let (payment_attempt_new, additional_payment_data) = Self::make_payment_attempt(
             &payment_id,
             merchant_id,
-            &merchant_context.get_merchant_account().organization_id,
+            merchant_context.get_processor_merchant_account().get_id(),
+            &merchant_context
+                .get_owner_merchant_account()
+                .organization_id,
             money,
             payment_method,
             payment_method_type,
@@ -327,10 +330,10 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
                 .as_ref()
                 .map(|address| address.address_id.clone()),
             &payment_method_info,
-            merchant_context.get_merchant_key_store(),
+            merchant_context.get_owner_merchant_key_store(),
             profile_id,
             &customer_acceptance,
-            merchant_context.get_merchant_account().storage_scheme,
+            merchant_context.get_owner_merchant_account().storage_scheme,
         )
         .await?;
 
@@ -338,7 +341,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
             .insert_payment_intent(
                 key_manager_state,
                 payment_intent_new,
-                merchant_context.get_merchant_key_store(),
+                merchant_context.get_owner_merchant_key_store(),
                 storage_scheme,
             )
             .await
@@ -480,7 +483,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
             .async_map(|mcd| async {
                 helpers::insert_merchant_connector_creds_to_config(
                     db,
-                    merchant_context.get_merchant_account().get_id(),
+                    merchant_context.get_processor_merchant_account().get_id(),
                     mcd,
                 )
                 .await
@@ -693,7 +696,7 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
                     key_manager_state,
                     &business_profile.merchant_id,
                     merchant_connector_id,
-                    merchant_context.get_merchant_key_store(),
+                    merchant_context.get_processor_merchant_key_store(),
                 )
                 .await
                 .to_not_found_response(
@@ -982,7 +985,7 @@ impl<F: Send + Clone + Sync> ValidateRequest<F, api::PaymentsRequest, PaymentDat
 
         let request_merchant_id = request.merchant_id.as_ref();
         helpers::validate_merchant_id(
-            merchant_context.get_merchant_account().get_id(),
+            merchant_context.get_owner_merchant_account().get_id(),
             request_merchant_id,
         )
         .change_context(errors::ApiErrorResponse::MerchantAccountNotFound)?;
@@ -1060,9 +1063,12 @@ impl<F: Send + Clone + Sync> ValidateRequest<F, api::PaymentsRequest, PaymentDat
         Ok((
             Box::new(self),
             operations::ValidateResult {
-                merchant_id: merchant_context.get_merchant_account().get_id().to_owned(),
+                merchant_id: merchant_context
+                    .get_owner_merchant_account()
+                    .get_id()
+                    .to_owned(),
                 payment_id,
-                storage_scheme: merchant_context.get_merchant_account().storage_scheme,
+                storage_scheme: merchant_context.get_owner_merchant_account().storage_scheme,
                 requeue: matches!(
                     request.retry_action,
                     Some(api_models::enums::RetryAction::Requeue)
@@ -1079,6 +1085,7 @@ impl PaymentCreate {
     pub async fn make_payment_attempt(
         payment_id: &common_utils::id_type::PaymentId,
         merchant_id: &common_utils::id_type::MerchantId,
+        processor_merchant_id: &common_utils::id_type::MerchantId,
         organization_id: &common_utils::id_type::OrganizationId,
         money: (api::Amount, enums::Currency),
         payment_method: Option<enums::PaymentMethod>,
@@ -1108,6 +1115,7 @@ impl PaymentCreate {
     pub async fn make_payment_attempt(
         payment_id: &common_utils::id_type::PaymentId,
         merchant_id: &common_utils::id_type::MerchantId,
+        processor_merchant_id: &common_utils::id_type::MerchantId,
         organization_id: &common_utils::id_type::OrganizationId,
         money: (api::Amount, enums::Currency),
         payment_method: Option<enums::PaymentMethod>,
@@ -1362,7 +1370,7 @@ impl PaymentCreate {
                 extended_authorization_applied: None,
                 capture_before: None,
                 card_discovery: None,
-                processor_merchant_id: merchant_id.to_owned(),
+                processor_merchant_id: processor_merchant_id.clone(),
                 created_by: None,
                 setup_future_usage_applied: request.setup_future_usage,
             },
@@ -1455,13 +1463,13 @@ impl PaymentCreate {
         );
 
         let key = merchant_context
-            .get_merchant_key_store()
+            .get_owner_merchant_key_store()
             .key
             .get_inner()
             .peek();
         let identifier = Identifier::Merchant(
             merchant_context
-                .get_merchant_key_store()
+                .get_owner_merchant_key_store()
                 .merchant_id
                 .clone(),
         );
@@ -1529,7 +1537,10 @@ impl PaymentCreate {
 
         Ok(storage::PaymentIntent {
             payment_id: payment_id.to_owned(),
-            merchant_id: merchant_context.get_merchant_account().get_id().to_owned(),
+            merchant_id: merchant_context
+                .get_owner_merchant_account()
+                .get_id()
+                .to_owned(),
             status,
             amount: MinorUnit::from(amount),
             currency,
@@ -1565,7 +1576,7 @@ impl PaymentCreate {
             payment_confirm_source: None,
             surcharge_applicable: None,
             updated_by: merchant_context
-                .get_merchant_account()
+                .get_owner_merchant_account()
                 .storage_scheme
                 .to_string(),
             request_incremental_authorization,
@@ -1583,7 +1594,7 @@ impl PaymentCreate {
             shipping_details: encrypted_data.shipping_details,
             is_payment_processor_token_flow,
             organization_id: merchant_context
-                .get_merchant_account()
+                .get_owner_merchant_account()
                 .organization_id
                 .clone(),
             shipping_cost: request.shipping_cost,
@@ -1591,7 +1602,10 @@ impl PaymentCreate {
             skip_external_tax_calculation,
             request_extended_authorization: request.request_extended_authorization,
             psd2_sca_exemption_type: request.psd2_sca_exemption_type,
-            processor_merchant_id: merchant_context.get_merchant_account().get_id().to_owned(),
+            processor_merchant_id: merchant_context
+                .get_processor_merchant_account()
+                .get_id()
+                .to_owned(),
             created_by: None,
             force_3ds_challenge: request.force_3ds_challenge,
             force_3ds_challenge_trigger: Some(force_3ds_challenge_trigger),
@@ -1612,7 +1626,7 @@ impl PaymentCreate {
                 state.clone(),
                 customer_id.clone(),
                 merchant_context
-                    .get_merchant_account()
+                    .get_owner_merchant_account()
                     .get_id()
                     .to_owned()
                     .clone(),

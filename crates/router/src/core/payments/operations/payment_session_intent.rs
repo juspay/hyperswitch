@@ -125,13 +125,13 @@ impl<F: Send + Clone + Sync> GetTracker<F, payments::PaymentIntentData<F>, Payme
     ) -> RouterResult<operations::GetTrackerResponse<payments::PaymentIntentData<F>>> {
         let db = &*state.store;
         let key_manager_state = &state.into();
-        let storage_scheme = merchant_context.get_merchant_account().storage_scheme;
+        let storage_scheme = merchant_context.get_owner_merchant_account().storage_scheme;
 
         let payment_intent = db
             .find_payment_intent_by_id(
                 key_manager_state,
                 payment_id,
-                merchant_context.get_merchant_key_store(),
+                merchant_context.get_owner_merchant_key_store(),
                 storage_scheme,
             )
             .await
@@ -210,8 +210,11 @@ impl<F: Send + Clone> ValidateRequest<F, PaymentsSessionRequest, payments::Payme
         merchant_context: &'a domain::MerchantContext,
     ) -> RouterResult<operations::ValidateResult> {
         Ok(operations::ValidateResult {
-            merchant_id: merchant_context.get_merchant_account().get_id().to_owned(),
-            storage_scheme: merchant_context.get_merchant_account().storage_scheme,
+            merchant_id: merchant_context
+                .get_owner_merchant_account()
+                .get_id()
+                .to_owned(),
+            storage_scheme: merchant_context.get_owner_merchant_account().storage_scheme,
             requeue: false,
         })
     }
@@ -282,9 +285,9 @@ impl<F: Clone + Send + Sync> Domain<F, PaymentsSessionRequest, payments::Payment
         let all_connector_accounts = db
             .find_merchant_connector_account_by_merchant_id_and_disabled_list(
                 &state.into(),
-                merchant_context.get_merchant_account().get_id(),
+                merchant_context.get_processor_merchant_account().get_id(),
                 false,
-                merchant_context.get_merchant_key_store(),
+                merchant_context.get_processor_merchant_key_store(),
             )
             .await
             .change_context(errors::ApiErrorResponse::InternalServerError)

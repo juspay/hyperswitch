@@ -26,14 +26,17 @@ pub async fn files_create_core(
     let file_key = format!(
         "{}/{}",
         merchant_context
-            .get_merchant_account()
+            .get_owner_merchant_account()
             .get_id()
             .get_string_repr(),
         file_id
     );
     let file_new = diesel_models::file::FileMetadataNew {
         file_id: file_id.clone(),
-        merchant_id: merchant_context.get_merchant_account().get_id().clone(),
+        merchant_id: merchant_context
+            .get_owner_merchant_account()
+            .get_id()
+            .clone(),
         file_name: create_file_request.file_name.clone(),
         file_size: create_file_request.file_size,
         file_type: create_file_request.file_type.to_string(),
@@ -92,7 +95,7 @@ pub async fn files_delete_core(
         .store
         .as_ref()
         .delete_file_metadata_by_merchant_id_file_id(
-            merchant_context.get_merchant_account().get_id(),
+            merchant_context.get_owner_merchant_account().get_id(),
             &req.file_id,
         )
         .await
@@ -110,7 +113,7 @@ pub async fn files_retrieve_core(
         .store
         .as_ref()
         .find_file_metadata_by_merchant_id_file_id(
-            merchant_context.get_merchant_account().get_id(),
+            merchant_context.get_owner_merchant_account().get_id(),
             &req.file_id,
         )
         .await

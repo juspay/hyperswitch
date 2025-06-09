@@ -257,7 +257,10 @@ pub async fn create_pm_collect_db_entry(
             .customer_id
             .get_string_repr()
             .to_string(),
-        merchant_id: merchant_context.get_merchant_account().get_id().to_owned(),
+        merchant_id: merchant_context
+            .get_owner_merchant_account()
+            .get_id()
+            .to_owned(),
         link_type: common_enums::GenericLinkType::PaymentMethodCollect,
         link_data,
         url: pm_collect_link_data.link.clone(),
@@ -349,8 +352,8 @@ pub async fn render_pm_collect_link(
                         &(&state).into(),
                         &customer_id,
                         &req.merchant_id,
-                        merchant_context.get_merchant_key_store(),
-                        merchant_context.get_merchant_account().storage_scheme,
+                        merchant_context.get_owner_merchant_key_store(),
+                        merchant_context.get_owner_merchant_account().storage_scheme,
                     )
                     .await
                     .change_context(errors::ApiErrorResponse::InvalidRequestData {
@@ -367,7 +370,7 @@ pub async fn render_pm_collect_link(
                 let js_data = payment_methods::PaymentMethodCollectLinkDetails {
                     publishable_key: Secret::new(
                         merchant_context
-                            .get_merchant_account()
+                            .get_owner_merchant_account()
                             .clone()
                             .publishable_key,
                     ),
@@ -912,16 +915,16 @@ pub async fn create_payment_method_core(
     req.validate()?;
 
     let db = &*state.store;
-    let merchant_id = merchant_context.get_merchant_account().get_id();
+    let merchant_id = merchant_context.get_owner_merchant_account().get_id();
     let customer_id = req.customer_id.to_owned();
     let key_manager_state = &(state).into();
 
     db.find_customer_by_global_id(
         key_manager_state,
         &customer_id,
-        merchant_context.get_merchant_account().get_id(),
-        merchant_context.get_merchant_key_store(),
-        merchant_context.get_merchant_account().storage_scheme,
+        merchant_context.get_owner_merchant_account().get_id(),
+        merchant_context.get_owner_merchant_key_store(),
+        merchant_context.get_owner_merchant_account().storage_scheme,
     )
     .await
     .to_not_found_response(errors::ApiErrorResponse::CustomerNotFound)
@@ -933,7 +936,7 @@ pub async fn create_payment_method_core(
         .async_map(|billing| {
             cards::create_encrypted_data(
                 key_manager_state,
-                merchant_context.get_merchant_key_store(),
+                merchant_context.get_owner_merchant_key_store(),
                 billing,
             )
         })
@@ -959,8 +962,8 @@ pub async fn create_payment_method_core(
         &customer_id,
         payment_method_id,
         merchant_id,
-        merchant_context.get_merchant_key_store(),
-        merchant_context.get_merchant_account().storage_scheme,
+        merchant_context.get_owner_merchant_key_store(),
+        merchant_context.get_owner_merchant_account().storage_scheme,
         payment_method_billing_address,
     )
     .await
@@ -994,7 +997,7 @@ pub async fn create_payment_method_core(
             let pm_update = create_pm_additional_data_update(
                 Some(&payment_method_data),
                 state,
-                merchant_context.get_merchant_key_store(),
+                merchant_context.get_owner_merchant_key_store(),
                 Some(vaulting_resp.vault_id.get_string_repr().clone()),
                 Some(fingerprint_id),
                 &payment_method,
@@ -1009,10 +1012,10 @@ pub async fn create_payment_method_core(
             let payment_method = db
                 .update_payment_method(
                     &(state.into()),
-                    merchant_context.get_merchant_key_store(),
+                    merchant_context.get_owner_merchant_key_store(),
                     payment_method,
                     pm_update,
-                    merchant_context.get_merchant_account().storage_scheme,
+                    merchant_context.get_owner_merchant_account().storage_scheme,
                 )
                 .await
                 .change_context(errors::ApiErrorResponse::InternalServerError)
@@ -1029,10 +1032,10 @@ pub async fn create_payment_method_core(
 
             db.update_payment_method(
                 &(state.into()),
-                merchant_context.get_merchant_key_store(),
+                merchant_context.get_owner_merchant_key_store(),
                 payment_method,
                 pm_update,
-                merchant_context.get_merchant_account().storage_scheme,
+                merchant_context.get_owner_merchant_account().storage_scheme,
             )
             .await
             .change_context(errors::ApiErrorResponse::InternalServerError)
@@ -1108,7 +1111,7 @@ pub async fn network_tokenize_and_vault_the_pmd(
         let key_manager_state = &(state).into();
         let network_token_pmd = cards::create_encrypted_data(
             key_manager_state,
-            merchant_context.get_merchant_key_store(),
+            merchant_context.get_owner_merchant_key_store(),
             network_token_vaulting_data.get_payment_methods_data(),
         )
         .await
@@ -1250,16 +1253,16 @@ pub async fn payment_method_intent_create(
     merchant_context: &domain::MerchantContext,
 ) -> RouterResponse<api::PaymentMethodResponse> {
     let db = &*state.store;
-    let merchant_id = merchant_context.get_merchant_account().get_id();
+    let merchant_id = merchant_context.get_owner_merchant_account().get_id();
     let customer_id = req.customer_id.to_owned();
     let key_manager_state = &(state).into();
 
     db.find_customer_by_global_id(
         key_manager_state,
         &customer_id,
-        merchant_context.get_merchant_account().get_id(),
-        merchant_context.get_merchant_key_store(),
-        merchant_context.get_merchant_account().storage_scheme,
+        merchant_context.get_owner_merchant_account().get_id(),
+        merchant_context.get_owner_merchant_key_store(),
+        merchant_context.get_owner_merchant_account().storage_scheme,
     )
     .await
     .to_not_found_response(errors::ApiErrorResponse::CustomerNotFound)
@@ -1271,7 +1274,7 @@ pub async fn payment_method_intent_create(
         .async_map(|billing| {
             cards::create_encrypted_data(
                 key_manager_state,
-                merchant_context.get_merchant_key_store(),
+                merchant_context.get_owner_merchant_key_store(),
                 billing,
             )
         })
@@ -1299,8 +1302,8 @@ pub async fn payment_method_intent_create(
         &customer_id,
         payment_method_id,
         merchant_id,
-        merchant_context.get_merchant_key_store(),
-        merchant_context.get_merchant_account().storage_scheme,
+        merchant_context.get_owner_merchant_key_store(),
+        merchant_context.get_owner_merchant_account().storage_scheme,
         payment_method_billing_address,
     )
     .await
@@ -1340,7 +1343,7 @@ pub async fn list_payment_methods_for_session(
     let payment_method_session = db
         .get_payment_methods_session(
             key_manager_state,
-            merchant_context.get_merchant_key_store(),
+            merchant_context.get_owner_merchant_key_store(),
             &payment_method_session_id,
         )
         .await
@@ -1351,7 +1354,7 @@ pub async fn list_payment_methods_for_session(
         .list_enabled_connector_accounts_by_profile_id(
             key_manager_state,
             profile.get_id(),
-            merchant_context.get_merchant_key_store(),
+            merchant_context.get_processor_merchant_key_store(),
             common_enums::ConnectorType::PaymentProcessor,
         )
         .await
@@ -1822,7 +1825,7 @@ pub async fn vault_payment_method(
     when(
         db.find_payment_method_by_fingerprint_id(
             &(state.into()),
-            merchant_context.get_merchant_key_store(),
+            merchant_context.get_owner_merchant_key_store(),
             &fingerprint_id_from_vault,
         )
         .await
@@ -1946,12 +1949,12 @@ pub async fn list_customer_payment_method_core(
     let saved_payment_methods = db
         .find_payment_method_by_global_customer_id_merchant_id_status(
             key_manager_state,
-            merchant_context.get_merchant_key_store(),
+            merchant_context.get_owner_merchant_key_store(),
             customer_id,
-            merchant_context.get_merchant_account().get_id(),
+            merchant_context.get_owner_merchant_account().get_id(),
             common_enums::PaymentMethodStatus::Active,
             None,
-            merchant_context.get_merchant_account().storage_scheme,
+            merchant_context.get_owner_merchant_account().storage_scheme,
         )
         .await
         .to_not_found_response(errors::ApiErrorResponse::PaymentMethodNotFound)?;
@@ -1978,7 +1981,7 @@ pub async fn get_total_payment_method_count_core(
 
     let total_count = db
         .get_payment_method_count_by_merchant_id_status(
-            merchant_context.get_merchant_account().get_id(),
+            merchant_context.get_owner_merchant_account().get_id(),
             common_enums::PaymentMethodStatus::Active,
         )
         .await
@@ -2005,9 +2008,9 @@ pub async fn retrieve_payment_method(
     let payment_method = db
         .find_payment_method(
             &((&state).into()),
-            merchant_context.get_merchant_key_store(),
+            merchant_context.get_owner_merchant_key_store(),
             &pm_id,
-            merchant_context.get_merchant_account().storage_scheme,
+            merchant_context.get_owner_merchant_account().storage_scheme,
         )
         .await
         .to_not_found_response(errors::ApiErrorResponse::PaymentMethodNotFound)?;
@@ -2050,9 +2053,9 @@ pub async fn update_payment_method_core(
     let payment_method = db
         .find_payment_method(
             &((state).into()),
-            merchant_context.get_merchant_key_store(),
+            merchant_context.get_owner_merchant_key_store(),
             payment_method_id,
-            merchant_context.get_merchant_account().storage_scheme,
+            merchant_context.get_owner_merchant_account().storage_scheme,
         )
         .await
         .to_not_found_response(errors::ApiErrorResponse::PaymentMethodNotFound)?;
@@ -2107,7 +2110,7 @@ pub async fn update_payment_method_core(
     let pm_update = create_pm_additional_data_update(
         vault_request_data.as_ref(),
         state,
-        merchant_context.get_merchant_key_store(),
+        merchant_context.get_owner_merchant_key_store(),
         vault_id,
         fingerprint_id,
         &payment_method,
@@ -2122,10 +2125,10 @@ pub async fn update_payment_method_core(
     let payment_method = db
         .update_payment_method(
             &((state).into()),
-            merchant_context.get_merchant_key_store(),
+            merchant_context.get_owner_merchant_key_store(),
             payment_method,
             pm_update,
-            merchant_context.get_merchant_account().storage_scheme,
+            merchant_context.get_owner_merchant_account().storage_scheme,
         )
         .await
         .change_context(errors::ApiErrorResponse::InternalServerError)
@@ -2166,9 +2169,9 @@ pub async fn delete_payment_method_core(
     let payment_method = db
         .find_payment_method(
             &((&state).into()),
-            merchant_context.get_merchant_key_store(),
+            merchant_context.get_owner_merchant_key_store(),
             &pm_id,
-            merchant_context.get_merchant_account().storage_scheme,
+            merchant_context.get_owner_merchant_account().storage_scheme,
         )
         .await
         .to_not_found_response(errors::ApiErrorResponse::PaymentMethodNotFound)?;
@@ -2188,9 +2191,9 @@ pub async fn delete_payment_method_core(
         .find_customer_by_global_id(
             key_manager_state,
             &payment_method.customer_id,
-            merchant_context.get_merchant_account().get_id(),
-            merchant_context.get_merchant_key_store(),
-            merchant_context.get_merchant_account().storage_scheme,
+            merchant_context.get_owner_merchant_account().get_id(),
+            merchant_context.get_owner_merchant_key_store(),
+            merchant_context.get_owner_merchant_account().storage_scheme,
         )
         .await
         .to_not_found_response(errors::ApiErrorResponse::InternalServerError)
@@ -2203,10 +2206,10 @@ pub async fn delete_payment_method_core(
 
     db.update_payment_method(
         &((&state).into()),
-        merchant_context.get_merchant_key_store(),
+        merchant_context.get_owner_merchant_key_store(),
         payment_method,
         pm_update,
-        merchant_context.get_merchant_account().storage_scheme,
+        merchant_context.get_owner_merchant_account().storage_scheme,
     )
     .await
     .change_context(errors::ApiErrorResponse::InternalServerError)
@@ -2345,9 +2348,9 @@ pub async fn payment_methods_session_create(
     db.find_customer_by_global_id(
         key_manager_state,
         &request.customer_id,
-        merchant_context.get_merchant_account().get_id(),
-        merchant_context.get_merchant_key_store(),
-        merchant_context.get_merchant_account().storage_scheme,
+        merchant_context.get_owner_merchant_account().get_id(),
+        merchant_context.get_owner_merchant_key_store(),
+        merchant_context.get_owner_merchant_account().storage_scheme,
     )
     .await
     .to_not_found_response(errors::ApiErrorResponse::CustomerNotFound)?;
@@ -2358,7 +2361,10 @@ pub async fn payment_methods_session_create(
             .attach_printable("Unable to generate GlobalPaymentMethodSessionId")?;
 
     let encrypted_data = request
-        .encrypt_data(key_manager_state, merchant_context.get_merchant_key_store())
+        .encrypt_data(
+            key_manager_state,
+            merchant_context.get_owner_merchant_key_store(),
+        )
         .await
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Failed to encrypt payment methods session data")?;
@@ -2384,7 +2390,7 @@ pub async fn payment_methods_session_create(
 
     let client_secret = payment_helpers::create_client_secret(
         &state,
-        merchant_context.get_merchant_account().get_id(),
+        merchant_context.get_owner_merchant_account().get_id(),
         util_types::authentication::ResourceId::PaymentMethodSession(
             payment_methods_session_id.clone(),
         ),
@@ -2408,7 +2414,7 @@ pub async fn payment_methods_session_create(
 
     db.insert_payment_methods_session(
         key_manager_state,
-        merchant_context.get_merchant_key_store(),
+        merchant_context.get_owner_merchant_key_store(),
         payment_method_session_domain_model.clone(),
         expires_in,
     )
@@ -2438,7 +2444,7 @@ pub async fn payment_methods_session_update(
     let existing_payment_method_session_state = db
         .get_payment_methods_session(
             key_manager_state,
-            merchant_context.get_merchant_key_store(),
+            merchant_context.get_owner_merchant_key_store(),
             &payment_method_session_id,
         )
         .await
@@ -2448,7 +2454,10 @@ pub async fn payment_methods_session_update(
         .attach_printable("Failed to retrieve payment methods session from db")?;
 
     let encrypted_data = request
-        .encrypt_data(key_manager_state, merchant_context.get_merchant_key_store())
+        .encrypt_data(
+            key_manager_state,
+            merchant_context.get_owner_merchant_key_store(),
+        )
         .await
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Failed to encrypt payment methods session data")?;
@@ -2474,7 +2483,7 @@ pub async fn payment_methods_session_update(
     let update_state_change = db
         .update_payment_method_session(
             key_manager_state,
-            merchant_context.get_merchant_key_store(),
+            merchant_context.get_owner_merchant_key_store(),
             &payment_method_session_id,
             payment_method_session_domain_model,
             existing_payment_method_session_state.clone(),
@@ -2503,7 +2512,7 @@ pub async fn payment_methods_session_retrieve(
     let payment_method_session_domain_model = db
         .get_payment_methods_session(
             key_manager_state,
-            merchant_context.get_merchant_key_store(),
+            merchant_context.get_owner_merchant_key_store(),
             &payment_method_session_id,
         )
         .await
@@ -2534,7 +2543,7 @@ pub async fn payment_methods_session_update_payment_method(
     // Validate if the session still exists
     db.get_payment_methods_session(
         key_manager_state,
-        merchant_context.get_merchant_key_store(),
+        merchant_context.get_owner_merchant_key_store(),
         &payment_method_session_id,
     )
     .await
@@ -2570,7 +2579,7 @@ pub async fn payment_methods_session_delete_payment_method(
     // Validate if the session still exists
     db.get_payment_methods_session(
         key_manager_state,
-        merchant_context.get_merchant_key_store(),
+        merchant_context.get_owner_merchant_key_store(),
         &payment_method_session_id,
     )
     .await
@@ -2676,7 +2685,7 @@ pub async fn payment_methods_session_confirm(
     let payment_method_session = db
         .get_payment_methods_session(
             key_manager_state,
-            merchant_context.get_merchant_key_store(),
+            merchant_context.get_owner_merchant_key_store(),
             &payment_method_session_id,
         )
         .await
@@ -2856,7 +2865,7 @@ async fn create_single_use_tokenization_flow(
         .find_merchant_connector_account_by_id(
             &(&state).into(),
             &connector_id,
-            merchant_context.get_merchant_key_store(),
+            merchant_context.get_processor_merchant_key_store(),
         )
         .await
         .to_not_found_response(errors::ApiErrorResponse::MerchantConnectorAccountNotFound {
@@ -2896,7 +2905,10 @@ async fn create_single_use_tokenization_flow(
     let mut router_data =
         types::RouterData::<api::PaymentMethodToken, _, types::PaymentsResponseData> {
             flow: std::marker::PhantomData,
-            merchant_id: merchant_context.get_merchant_account().get_id().clone(),
+            merchant_id: merchant_context
+                .get_owner_merchant_account()
+                .get_id()
+                .clone(),
             customer_id: None,
             connector_customer: None,
             connector: merchant_connector_account_details

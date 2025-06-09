@@ -217,7 +217,7 @@ where
                 let co_badged_card_data = payment_methods_data.get_co_badged_card_data();
 
                 let customer_id = customer_id.to_owned().get_required_value("customer_id")?;
-                let merchant_id = merchant_context.get_merchant_account().get_id();
+                let merchant_id = merchant_context.get_owner_merchant_account().get_id();
                 let is_network_tokenization_enabled =
                     business_profile.is_network_tokenization_enabled;
                 let (
@@ -278,7 +278,7 @@ where
                         .async_map(|pm| {
                             create_encrypted_data(
                                 &key_manager_state,
-                                merchant_context.get_merchant_key_store(),
+                                merchant_context.get_owner_merchant_key_store(),
                                 pm,
                             )
                         })
@@ -302,7 +302,7 @@ where
                             .async_map(|pm_card| {
                                 create_encrypted_data(
                                     &key_manager_state,
-                                    merchant_context.get_merchant_key_store(),
+                                    merchant_context.get_owner_merchant_key_store(),
                                     pm_card,
                                 )
                             })
@@ -320,7 +320,7 @@ where
                     .async_map(|address| {
                         create_encrypted_data(
                             &key_manager_state,
-                            merchant_context.get_merchant_key_store(),
+                            merchant_context.get_owner_merchant_key_store(),
                             address.clone(),
                         )
                     })
@@ -339,9 +339,11 @@ where
                                 let existing_pm_by_pmid = db
                                     .find_payment_method(
                                         &(state.into()),
-                                        merchant_context.get_merchant_key_store(),
+                                        merchant_context.get_owner_merchant_key_store(),
                                         &payment_method_id,
-                                        merchant_context.get_merchant_account().storage_scheme,
+                                        merchant_context
+                                            .get_owner_merchant_account()
+                                            .storage_scheme,
                                     )
                                     .await;
 
@@ -351,10 +353,10 @@ where
                                         let existing_pm_by_locker_id = db
                                             .find_payment_method_by_locker_id(
                                                 &(state.into()),
-                                                merchant_context.get_merchant_key_store(),
+                                                merchant_context.get_owner_merchant_key_store(),
                                                 &payment_method_id,
                                                 merchant_context
-                                                    .get_merchant_account()
+                                                    .get_owner_merchant_account()
                                                     .storage_scheme,
                                             )
                                             .await;
@@ -387,11 +389,11 @@ where
                                     )?;
                                     payment_methods::cards::update_payment_method_metadata_and_last_used(
                                         state,
-                                        merchant_context.get_merchant_key_store(),
+                                        merchant_context.get_owner_merchant_key_store(),
                                         db,
                                         pm.clone(),
                                         pm_metadata,
-                                        merchant_context.get_merchant_account().storage_scheme,
+                                        merchant_context.get_owner_merchant_account().storage_scheme,
                                     )
                                     .await
                                     .change_context(errors::ApiErrorResponse::InternalServerError)
@@ -441,9 +443,11 @@ where
                                     let existing_pm_by_pmid = db
                                         .find_payment_method(
                                             &(state.into()),
-                                            merchant_context.get_merchant_key_store(),
+                                            merchant_context.get_owner_merchant_key_store(),
                                             &payment_method_id,
-                                            merchant_context.get_merchant_account().storage_scheme,
+                                            merchant_context
+                                                .get_owner_merchant_account()
+                                                .storage_scheme,
                                         )
                                         .await;
 
@@ -453,10 +457,10 @@ where
                                             let existing_pm_by_locker_id = db
                                                 .find_payment_method_by_locker_id(
                                                     &(state.into()),
-                                                    merchant_context.get_merchant_key_store(),
+                                                    merchant_context.get_owner_merchant_key_store(),
                                                     &payment_method_id,
                                                     merchant_context
-                                                        .get_merchant_account()
+                                                        .get_owner_merchant_account()
                                                         .storage_scheme,
                                                 )
                                                 .await;
@@ -506,11 +510,11 @@ where
                                                 )?;
                                             payment_methods::cards::update_payment_method_connector_mandate_details(
                                             state,
-                                            merchant_context.get_merchant_key_store(),
+                                            merchant_context.get_owner_merchant_key_store(),
                                             db,
                                             pm.clone(),
                                             connector_mandate_details,
-                                            merchant_context.get_merchant_account().storage_scheme,
+                                            merchant_context.get_owner_merchant_account().storage_scheme,
                                         )
                                         .await
                                         .change_context(errors::ApiErrorResponse::InternalServerError)
@@ -586,7 +590,7 @@ where
                                     logger::error!(vault_err=?err);
                                     db.delete_payment_method_by_merchant_id_payment_method_id(
                                         &(state.into()),
-                                        merchant_context.get_merchant_key_store(),
+                                        merchant_context.get_owner_merchant_key_store(),
                                         merchant_id,
                                         &resp.payment_method_id,
                                     )
@@ -648,7 +652,7 @@ where
                                     .async_map(|pmd| {
                                         create_encrypted_data(
                                             &key_manager_state,
-                                            merchant_context.get_merchant_key_store(),
+                                            merchant_context.get_owner_merchant_key_store(),
                                             pmd,
                                         )
                                     })
@@ -659,11 +663,11 @@ where
 
                                 payment_methods::cards::update_payment_method_and_last_used(
                                     state,
-                                    merchant_context.get_merchant_key_store(),
+                                    merchant_context.get_owner_merchant_key_store(),
                                     db,
                                     existing_pm,
                                     pm_data_encrypted.map(Into::into),
-                                    merchant_context.get_merchant_account().storage_scheme,
+                                    merchant_context.get_owner_merchant_account().storage_scheme,
                                     card_scheme,
                                 )
                                 .await
@@ -684,7 +688,7 @@ where
                                 .store
                                 .find_payment_method_by_customer_id_merchant_id_list(
                                     &(state.into()),
-                                    merchant_context.get_merchant_key_store(),
+                                    merchant_context.get_owner_merchant_key_store(),
                                     &customer_id,
                                     merchant_id,
                                     None,
@@ -720,8 +724,8 @@ where
                             payment_methods::cards::update_last_used_at(
                                 &customer_saved_pm,
                                 state,
-                                merchant_context.get_merchant_account().storage_scheme,
-                                merchant_context.get_merchant_key_store(),
+                                merchant_context.get_owner_merchant_account().storage_scheme,
+                                merchant_context.get_owner_merchant_key_store(),
                             )
                             .await
                             .map_err(|e| {
@@ -918,7 +922,7 @@ async fn skip_saving_card_in_locker(
     api_models::payment_methods::PaymentMethodResponse,
     Option<payment_methods::transformers::DataDuplicationCheck>,
 )> {
-    let merchant_id = merchant_context.get_merchant_account().get_id();
+    let merchant_id = merchant_context.get_owner_merchant_account().get_id();
     let customer_id = payment_method_request
         .clone()
         .customer_id
@@ -1024,7 +1028,7 @@ pub async fn save_in_locker(
     Option<payment_methods::transformers::DataDuplicationCheck>,
 )> {
     payment_method_request.validate()?;
-    let merchant_id = merchant_context.get_merchant_account().get_id();
+    let merchant_id = merchant_context.get_owner_merchant_account().get_id();
     let customer_id = payment_method_request
         .customer_id
         .clone()

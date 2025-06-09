@@ -6,7 +6,6 @@ use crate::{
     core::{api_locking, blocklist},
     routes::AppState,
     services::{api, authentication as auth, authorization::permissions::Permission},
-    types::domain,
 };
 
 #[utoipa::path(
@@ -33,9 +32,7 @@ pub async fn add_entry_to_blocklist(
         &req,
         json_payload.into_inner(),
         |state, auth: auth::AuthenticationData, body, _| {
-            let merchant_context = domain::MerchantContext::NormalMerchant(Box::new(
-                domain::Context(auth.merchant_account, auth.key_store),
-            ));
+            let merchant_context = auth.into();
             blocklist::add_entry_to_blocklist(state, merchant_context, body)
         },
         auth::auth_type(
@@ -77,9 +74,7 @@ pub async fn remove_entry_from_blocklist(
         &req,
         json_payload.into_inner(),
         |state, auth: auth::AuthenticationData, body, _| {
-            let merchant_context = domain::MerchantContext::NormalMerchant(Box::new(
-                domain::Context(auth.merchant_account, auth.key_store),
-            ));
+            let merchant_context = auth.into();
             blocklist::remove_entry_from_blocklist(state, merchant_context, body)
         },
         auth::auth_type(
@@ -123,9 +118,7 @@ pub async fn list_blocked_payment_methods(
         &req,
         query_payload.into_inner(),
         |state, auth: auth::AuthenticationData, query, _| {
-            let merchant_context = domain::MerchantContext::NormalMerchant(Box::new(
-                domain::Context(auth.merchant_account, auth.key_store),
-            ));
+            let merchant_context = auth.into();
             blocklist::list_blocklist_entries(state, merchant_context, query)
         },
         auth::auth_type(
@@ -169,9 +162,7 @@ pub async fn toggle_blocklist_guard(
         &req,
         query_payload.into_inner(),
         |state, auth: auth::AuthenticationData, query, _| {
-            let merchant_context = domain::MerchantContext::NormalMerchant(Box::new(
-                domain::Context(auth.merchant_account, auth.key_store),
-            ));
+            let merchant_context = auth.into();
             blocklist::toggle_blocklist_guard(state, merchant_context, query)
         },
         auth::auth_type(

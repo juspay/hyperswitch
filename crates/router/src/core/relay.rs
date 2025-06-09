@@ -129,7 +129,7 @@ impl RelayInterface for RelayRefund {
     ) -> RouterResult<relay::RelayUpdate> {
         let connector_id = &relay_record.connector_id;
 
-        let merchant_id = merchant_context.get_merchant_account().get_id();
+        let merchant_id = merchant_context.get_processor_merchant_account().get_id();
 
         let connector_name = &connector_account.get_connector_name_as_string();
 
@@ -226,7 +226,7 @@ pub async fn relay<T: RelayInterface>(
 ) -> RouterResponse<relay_api_models::RelayResponse> {
     let db = state.store.as_ref();
     let key_manager_state = &(&state).into();
-    let merchant_id = merchant_context.get_merchant_account().get_id();
+    let merchant_id = merchant_context.get_owner_merchant_account().get_id();
     let connector_id = &req.connector_id;
 
     let profile_id_from_auth_layer = profile_id_optional.get_required_value("ProfileId")?;
@@ -234,7 +234,7 @@ pub async fn relay<T: RelayInterface>(
     let profile = db
         .find_business_profile_by_merchant_id_profile_id(
             key_manager_state,
-            merchant_context.get_merchant_key_store(),
+            merchant_context.get_processor_merchant_key_store(),
             merchant_id,
             &profile_id_from_auth_layer,
         )
@@ -249,7 +249,7 @@ pub async fn relay<T: RelayInterface>(
             key_manager_state,
             merchant_id,
             connector_id,
-            merchant_context.get_merchant_key_store(),
+            merchant_context.get_processor_merchant_key_store(),
         )
         .await
         .to_not_found_response(errors::ApiErrorResponse::MerchantConnectorAccountNotFound {
@@ -261,7 +261,7 @@ pub async fn relay<T: RelayInterface>(
         .find_merchant_connector_account_by_id(
             key_manager_state,
             connector_id,
-            merchant_context.get_merchant_key_store(),
+            merchant_context.get_processor_merchant_key_store(),
         )
         .await
         .to_not_found_response(errors::ApiErrorResponse::MerchantConnectorAccountNotFound {
@@ -275,7 +275,7 @@ pub async fn relay<T: RelayInterface>(
     let relay_record = db
         .insert_relay(
             key_manager_state,
-            merchant_context.get_merchant_key_store(),
+            merchant_context.get_owner_merchant_key_store(),
             relay_domain,
         )
         .await
@@ -294,7 +294,7 @@ pub async fn relay<T: RelayInterface>(
     let relay_update_record = db
         .update_relay(
             key_manager_state,
-            merchant_context.get_merchant_key_store(),
+            merchant_context.get_owner_merchant_key_store(),
             relay_record,
             relay_response,
         )
@@ -317,14 +317,14 @@ pub async fn relay_retrieve(
 ) -> RouterResponse<relay_api_models::RelayResponse> {
     let db = state.store.as_ref();
     let key_manager_state = &(&state).into();
-    let merchant_id = merchant_context.get_merchant_account().get_id();
+    let merchant_id = merchant_context.get_owner_merchant_account().get_id();
     let relay_id = &req.id;
 
     let profile_id_from_auth_layer = profile_id_optional.get_required_value("ProfileId")?;
 
     db.find_business_profile_by_merchant_id_profile_id(
         key_manager_state,
-        merchant_context.get_merchant_key_store(),
+        merchant_context.get_processor_merchant_key_store(),
         merchant_id,
         &profile_id_from_auth_layer,
     )
@@ -336,7 +336,7 @@ pub async fn relay_retrieve(
     let relay_record_result = db
         .find_relay_by_id(
             key_manager_state,
-            merchant_context.get_merchant_key_store(),
+            merchant_context.get_owner_merchant_key_store(),
             relay_id,
         )
         .await;
@@ -362,7 +362,7 @@ pub async fn relay_retrieve(
             key_manager_state,
             merchant_id,
             &relay_record.connector_id,
-            merchant_context.get_merchant_key_store(),
+            merchant_context.get_processor_merchant_key_store(),
         )
         .await
         .to_not_found_response(errors::ApiErrorResponse::MerchantConnectorAccountNotFound {
@@ -374,7 +374,7 @@ pub async fn relay_retrieve(
         .find_merchant_connector_account_by_id(
             key_manager_state,
             &relay_record.connector_id,
-            merchant_context.get_merchant_key_store(),
+            merchant_context.get_processor_merchant_key_store(),
         )
         .await
         .to_not_found_response(errors::ApiErrorResponse::MerchantConnectorAccountNotFound {
@@ -394,7 +394,7 @@ pub async fn relay_retrieve(
 
                 db.update_relay(
                     key_manager_state,
-                    merchant_context.get_merchant_key_store(),
+                    merchant_context.get_processor_merchant_key_store(),
                     relay_record,
                     relay_response,
                 )
@@ -427,7 +427,7 @@ pub async fn sync_relay_refund_with_gateway(
     connector_account: domain::MerchantConnectorAccount,
 ) -> RouterResult<relay::RelayUpdate> {
     let connector_id = &relay_record.connector_id;
-    let merchant_id = merchant_context.get_merchant_account().get_id();
+    let merchant_id = merchant_context.get_processor_merchant_account().get_id();
 
     #[cfg(feature = "v1")]
     let connector_name = &connector_account.connector_name;

@@ -99,8 +99,11 @@ impl<F: Send + Clone + Sync> ValidateRequest<F, PaymentsRetrieveRequest, Payment
         merchant_context: &'a domain::MerchantContext,
     ) -> RouterResult<operations::ValidateResult> {
         let validate_result = operations::ValidateResult {
-            merchant_id: merchant_context.get_merchant_account().get_id().to_owned(),
-            storage_scheme: merchant_context.get_merchant_account().storage_scheme,
+            merchant_id: merchant_context
+                .get_owner_merchant_account()
+                .get_id()
+                .to_owned(),
+            storage_scheme: merchant_context.get_owner_merchant_account().storage_scheme,
             requeue: false,
         };
 
@@ -125,13 +128,13 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentStatusData<F>, PaymentsRetriev
         let db = &*state.store;
         let key_manager_state = &state.into();
 
-        let storage_scheme = merchant_context.get_merchant_account().storage_scheme;
+        let storage_scheme = merchant_context.get_owner_merchant_account().storage_scheme;
 
         let payment_intent = db
             .find_payment_intent_by_id(
                 key_manager_state,
                 payment_id,
-                merchant_context.get_merchant_key_store(),
+                merchant_context.get_owner_merchant_key_store(),
                 storage_scheme,
             )
             .await
@@ -143,7 +146,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentStatusData<F>, PaymentsRetriev
             .async_map(|active_attempt| async {
                 db.find_payment_attempt_by_id(
                     key_manager_state,
-                    merchant_context.get_merchant_key_store(),
+                    merchant_context.get_owner_merchant_key_store(),
                     active_attempt,
                     storage_scheme,
                 )
@@ -183,7 +186,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentStatusData<F>, PaymentsRetriev
                     db.find_payment_attempts_by_payment_intent_id(
                         key_manager_state,
                         payment_id,
-                        merchant_context.get_merchant_key_store(),
+                        merchant_context.get_owner_merchant_key_store(),
                         storage_scheme,
                     )
                     .await

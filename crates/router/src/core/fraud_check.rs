@@ -184,7 +184,7 @@ where
 
     let db = &*state.store;
     match merchant_context
-        .get_merchant_account()
+        .get_processor_merchant_account()
         .frm_routing_algorithm
         .clone()
     {
@@ -212,7 +212,7 @@ where
                     &state.into(),
                     &profile_id,
                     &frm_routing_algorithm_struct.data,
-                    merchant_context.get_merchant_key_store(),
+                    merchant_context.get_processor_merchant_key_store(),
                 )
                 .await
                 .map_err(|error| {
@@ -221,7 +221,7 @@ where
                         error.change_context(
                             errors::ApiErrorResponse::MerchantConnectorAccountNotFound {
                                 id: merchant_context
-                                    .get_merchant_account()
+                                    .get_processor_merchant_account()
                                     .get_id()
                                     .get_string_repr()
                                     .to_owned(),
@@ -454,7 +454,7 @@ where
         amount: payment_data.get_amount(),
         payment_intent: payment_data.get_payment_intent().to_owned(),
         payment_attempt: payment_data.get_payment_attempt().to_owned(),
-        merchant_account: merchant_context.get_merchant_account().to_owned(),
+        merchant_account: merchant_context.get_processor_merchant_account().to_owned(),
         address: payment_data.get_address().clone(),
         connector_details: frm_connector_details.clone(),
         order_details,
@@ -532,7 +532,7 @@ where
                     .to_update_tracker()?
                     .update_tracker(
                         state,
-                        merchant_context.get_merchant_key_store(),
+                        merchant_context.get_owner_merchant_key_store(),
                         frm_data.clone(),
                         payment_data,
                         None,
@@ -610,7 +610,7 @@ where
                     .to_update_tracker()?
                     .update_tracker(
                         state,
-                        merchant_context.get_merchant_key_store(),
+                        merchant_context.get_owner_merchant_key_store(),
                         frm_data.to_owned(),
                         payment_data,
                         None,
@@ -644,7 +644,7 @@ where
                     .to_update_tracker()?
                     .update_tracker(
                         state,
-                        merchant_context.get_merchant_key_store(),
+                        merchant_context.get_owner_merchant_key_store(),
                         frm_data.to_owned(),
                         payment_data,
                         frm_suggestion,
@@ -776,9 +776,9 @@ pub async fn frm_fulfillment_core(
         .find_payment_intent_by_payment_id_merchant_id(
             &(&state).into(),
             &req.payment_id.clone(),
-            merchant_context.get_merchant_account().get_id(),
-            merchant_context.get_merchant_key_store(),
-            merchant_context.get_merchant_account().storage_scheme,
+            merchant_context.get_owner_merchant_account().get_id(),
+            merchant_context.get_owner_merchant_key_store(),
+            merchant_context.get_owner_merchant_account().storage_scheme,
         )
         .await
         .change_context(errors::ApiErrorResponse::PaymentNotFound)?;
@@ -790,7 +790,10 @@ pub async fn frm_fulfillment_core(
             let existing_fraud_check = db
                 .find_fraud_check_by_payment_id_if_present(
                     req.payment_id.clone(),
-                    merchant_context.get_merchant_account().get_id().clone(),
+                    merchant_context
+                        .get_owner_merchant_account()
+                        .get_id()
+                        .clone(),
                 )
                 .await
                 .change_context(invalid_request_error.to_owned())?;
@@ -837,8 +840,8 @@ pub async fn make_fulfillment_api_call(
     let payment_attempt = db
         .find_payment_attempt_by_attempt_id_merchant_id(
             &payment_intent.active_attempt.get_id(),
-            merchant_context.get_merchant_account().get_id(),
-            merchant_context.get_merchant_account().storage_scheme,
+            merchant_context.get_owner_merchant_account().get_id(),
+            merchant_context.get_owner_merchant_account().storage_scheme,
         )
         .await
         .change_context(errors::ApiErrorResponse::PaymentNotFound)?;

@@ -22,7 +22,7 @@ pub async fn retrieve_poll_status(
     let request_poll_id = req.poll_id;
     // prepend 'poll_{merchant_id}_' to restrict access to only fetching Poll IDs, as this is a freely passed string in the request
     let poll_id = super::utils::get_poll_id(
-        merchant_context.get_merchant_account().get_id(),
+        merchant_context.get_owner_merchant_account().get_id(),
         request_poll_id.clone(),
     );
     let redis_value = redis_conn

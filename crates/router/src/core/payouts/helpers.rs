@@ -251,7 +251,10 @@ pub async fn save_payout_data_to_locker(
                     card_type: None,
                 };
                 let payload = StoreLockerReq::LockerCard(StoreCardReq {
-                    merchant_id: merchant_context.get_merchant_account().get_id().clone(),
+                    merchant_id: merchant_context
+                        .get_owner_merchant_account()
+                        .get_id()
+                        .clone(),
                     merchant_customer_id: customer_id.to_owned(),
                     card: Card {
                         card_number: card.card_number.to_owned(),
@@ -275,7 +278,7 @@ pub async fn save_payout_data_to_locker(
             }
             _ => {
                 let key = merchant_context
-                    .get_merchant_key_store()
+                    .get_owner_merchant_key_store()
                     .key
                     .get_inner()
                     .peek();
@@ -296,7 +299,7 @@ pub async fn save_payout_data_to_locker(
                                 CryptoOperation::EncryptOptional(inner),
                                 Identifier::Merchant(
                                     merchant_context
-                                        .get_merchant_key_store()
+                                        .get_owner_merchant_key_store()
                                         .merchant_id
                                         .clone(),
                                 ),
@@ -316,7 +319,10 @@ pub async fn save_payout_data_to_locker(
                     Ok(hex::encode(e.peek()))
                 })?;
                 let payload = StoreLockerReq::LockerGeneric(StoreGenericReq {
-                    merchant_id: merchant_context.get_merchant_account().get_id().to_owned(),
+                    merchant_id: merchant_context
+                        .get_owner_merchant_account()
+                        .get_id()
+                        .to_owned(),
                     merchant_customer_id: customer_id.to_owned(),
                     enc_data,
                     ttl: state.conf.locker.ttl_for_storage_in_secs,
@@ -365,9 +371,9 @@ pub async fn save_payout_data_to_locker(
             let existing_pm_by_pmid = db
                 .find_payment_method(
                     &(state.into()),
-                    merchant_context.get_merchant_key_store(),
+                    merchant_context.get_owner_merchant_key_store(),
                     &locker_ref,
-                    merchant_context.get_merchant_account().storage_scheme,
+                    merchant_context.get_owner_merchant_account().storage_scheme,
                 )
                 .await;
 
@@ -388,9 +394,9 @@ pub async fn save_payout_data_to_locker(
                         match db
                             .find_payment_method_by_locker_id(
                                 &(state.into()),
-                                merchant_context.get_merchant_key_store(),
+                                merchant_context.get_owner_merchant_key_store(),
                                 &locker_ref,
-                                merchant_context.get_merchant_account().storage_scheme,
+                                merchant_context.get_owner_merchant_account().storage_scheme,
                             )
                             .await
                         {
@@ -524,7 +530,7 @@ pub async fn save_payout_data_to_locker(
                 Some(
                     cards::create_encrypted_data(
                         &key_manager_state,
-                        merchant_context.get_merchant_key_store(),
+                        merchant_context.get_owner_merchant_key_store(),
                         pm_data,
                     )
                     .await
@@ -571,7 +577,7 @@ pub async fn save_payout_data_to_locker(
                 customer_id,
                 &payment_method_id,
                 Some(stored_resp.card_reference.clone()),
-                merchant_context.get_merchant_account().get_id(),
+                merchant_context.get_owner_merchant_account().get_id(),
                 None,
                 None,
                 card_details_encrypted.clone(),
@@ -602,7 +608,7 @@ pub async fn save_payout_data_to_locker(
         cards::delete_card_from_hs_locker(
             state,
             customer_id,
-            merchant_context.get_merchant_account().get_id(),
+            merchant_context.get_owner_merchant_account().get_id(),
             card_reference,
         )
         .await
@@ -628,8 +634,8 @@ pub async fn save_payout_data_to_locker(
             logger::error!(vault_err=?err);
             db.delete_payment_method_by_merchant_id_payment_method_id(
                 &(state.into()),
-                merchant_context.get_merchant_key_store(),
-                merchant_context.get_merchant_account().get_id(),
+                merchant_context.get_owner_merchant_key_store(),
+                merchant_context.get_owner_merchant_account().get_id(),
                 &existing_pm.payment_method_id,
             )
             .await
@@ -647,10 +653,10 @@ pub async fn save_payout_data_to_locker(
         payout_data.payment_method = Some(
             db.update_payment_method(
                 &(state.into()),
-                merchant_context.get_merchant_key_store(),
+                merchant_context.get_owner_merchant_key_store(),
                 existing_pm,
                 pm_update,
-                merchant_context.get_merchant_account().storage_scheme,
+                merchant_context.get_owner_merchant_account().storage_scheme,
             )
             .await
             .change_context(errors::ApiErrorResponse::InternalServerError)
@@ -671,7 +677,7 @@ pub async fn save_payout_data_to_locker(
             payouts,
             updated_payout,
             &payout_data.payout_attempt,
-            merchant_context.get_merchant_account().storage_scheme,
+            merchant_context.get_owner_merchant_account().storage_scheme,
         )
         .await
         .change_context(errors::ApiErrorResponse::InternalServerError)
@@ -714,9 +720,9 @@ pub(super) async fn get_or_create_customer_details(
         .clone()
         .unwrap_or_else(generate_customer_id_of_default_length);
 
-    let merchant_id = merchant_context.get_merchant_account().get_id();
+    let merchant_id = merchant_context.get_owner_merchant_account().get_id();
     let key = merchant_context
-        .get_merchant_key_store()
+        .get_owner_merchant_key_store()
         .key
         .get_inner()
         .peek();
@@ -727,8 +733,8 @@ pub(super) async fn get_or_create_customer_details(
             key_manager_state,
             &customer_id,
             merchant_id,
-            merchant_context.get_merchant_key_store(),
-            merchant_context.get_merchant_account().storage_scheme,
+            merchant_context.get_owner_merchant_key_store(),
+            merchant_context.get_owner_merchant_account().storage_scheme,
         )
         .await
         .change_context(errors::ApiErrorResponse::InternalServerError)?
@@ -761,7 +767,7 @@ pub(super) async fn get_or_create_customer_details(
                     ),
                     Identifier::Merchant(
                         merchant_context
-                            .get_merchant_key_store()
+                            .get_owner_merchant_key_store()
                             .merchant_id
                             .clone(),
                     ),
@@ -805,8 +811,8 @@ pub(super) async fn get_or_create_customer_details(
                     db.insert_customer(
                         customer,
                         key_manager_state,
-                        merchant_context.get_merchant_key_store(),
-                        merchant_context.get_merchant_account().storage_scheme,
+                        merchant_context.get_owner_merchant_key_store(),
+                        merchant_context.get_owner_merchant_account().storage_scheme,
                     )
                     .await
                     .change_context(errors::ApiErrorResponse::InternalServerError)
@@ -856,9 +862,9 @@ pub async fn decide_payout_connector(
     let business_profile = core_utils::validate_and_get_business_profile(
         state.store.as_ref(),
         &(state).into(),
-        merchant_context.get_merchant_key_store(),
+        merchant_context.get_processor_merchant_key_store(),
         Some(&payout_attempt.profile_id),
-        merchant_context.get_merchant_account().get_id(),
+        merchant_context.get_processor_merchant_account().get_id(),
     )
     .await?
     .get_required_value("Profile")?;
@@ -873,7 +879,7 @@ pub async fn decide_payout_connector(
         if check_eligibility {
             connectors = routing::perform_eligibility_analysis_with_fallback(
                 state,
-                merchant_context.get_merchant_key_store(),
+                merchant_context.get_processor_merchant_key_store(),
                 connectors,
                 &TransactionData::Payout(payout_data),
                 eligible_connectors,
@@ -922,7 +928,7 @@ pub async fn decide_payout_connector(
         if check_eligibility {
             connectors = routing::perform_eligibility_analysis_with_fallback(
                 state,
-                merchant_context.get_merchant_key_store(),
+                merchant_context.get_processor_merchant_key_store(),
                 connectors,
                 &TransactionData::Payout(payout_data),
                 eligible_connectors,
@@ -1227,11 +1233,11 @@ pub async fn update_payouts_and_payout_attempt(
         state,
         req.billing.as_ref(),
         None,
-        merchant_context.get_merchant_account().get_id(),
+        merchant_context.get_owner_merchant_account().get_id(),
         customer_id.as_ref(),
-        merchant_context.get_merchant_key_store(),
+        merchant_context.get_owner_merchant_key_store(),
         &payout_id_as_payment_id_type,
-        merchant_context.get_merchant_account().storage_scheme,
+        merchant_context.get_owner_merchant_account().storage_scheme,
     )
     .await?;
     let address_id = if billing_address.is_some() {
@@ -1284,7 +1290,7 @@ pub async fn update_payouts_and_payout_attempt(
             &payouts,
             updated_payouts,
             &payout_attempt,
-            merchant_context.get_merchant_account().storage_scheme,
+            merchant_context.get_owner_merchant_account().storage_scheme,
         )
         .await
         .change_context(errors::ApiErrorResponse::InternalServerError)
@@ -1322,7 +1328,7 @@ pub async fn update_payouts_and_payout_attempt(
                 payout_attempt,
                 updated_payout_attempt,
                 &payout_data.payouts,
-                merchant_context.get_merchant_account().storage_scheme,
+                merchant_context.get_owner_merchant_account().storage_scheme,
             )
             .await
             .change_context(errors::ApiErrorResponse::InternalServerError)

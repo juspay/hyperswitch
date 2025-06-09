@@ -108,7 +108,7 @@ pub async fn generate_sample_data(
                 .store
                 .list_profile_by_merchant_id(
                     key_manager_state,
-                    merchant_context.get_merchant_key_store(),
+                    merchant_context.get_processor_merchant_key_store(),
                     merchant_id,
                 )
                 .await

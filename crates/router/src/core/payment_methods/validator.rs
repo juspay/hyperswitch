@@ -33,15 +33,18 @@ pub async fn validate_request_and_initiate_payment_method_collect_link(
     // Validate customer_id
     let db: &dyn StorageInterface = &*state.store;
     let customer_id = req.customer_id.clone();
-    let merchant_id = merchant_context.get_merchant_account().get_id().clone();
+    let merchant_id = merchant_context
+        .get_owner_merchant_account()
+        .get_id()
+        .clone();
     #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
     match db
         .find_customer_by_customer_id_merchant_id(
             &state.into(),
             &customer_id,
             &merchant_id,
-            merchant_context.get_merchant_key_store(),
-            merchant_context.get_merchant_account().storage_scheme,
+            merchant_context.get_owner_merchant_key_store(),
+            merchant_context.get_owner_merchant_account().storage_scheme,
         )
         .await
     {
@@ -75,7 +78,7 @@ pub async fn validate_request_and_initiate_payment_method_collect_link(
 
     #[cfg(feature = "v1")]
     let merchant_config = merchant_context
-        .get_merchant_account()
+        .get_owner_merchant_account()
         .pm_collect_link_config
         .as_ref()
         .map(|config| {

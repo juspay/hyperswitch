@@ -5,7 +5,7 @@ use super::app::AppState;
 use crate::{
     core::{admin::*, api_locking},
     services::{api, authentication as auth, authorization::permissions},
-    types::{api::admin, domain},
+    types::api::admin,
 };
 
 #[cfg(all(feature = "olap", feature = "v1"))]
@@ -26,9 +26,7 @@ pub async fn profile_create(
         &req,
         payload,
         |state, auth_data, req, _| {
-            let merchant_context = domain::MerchantContext::NormalMerchant(Box::new(
-                domain::Context(auth_data.merchant_account, auth_data.key_store),
-            ));
+            let merchant_context = auth_data.clone().into();
             create_profile(state, req, merchant_context)
         },
         auth::auth_type(
@@ -59,16 +57,8 @@ pub async fn profile_create(
         state,
         &req,
         payload,
-        |state,
-         auth::AuthenticationDataWithoutProfile {
-             merchant_account,
-             key_store,
-         },
-         req,
-         _| {
-            let merchant_context = domain::MerchantContext::NormalMerchant(Box::new(
-                domain::Context(merchant_account, key_store),
-            ));
+        |state, auth_data: auth::AuthenticationData, req, _| {
+            let merchant_context = auth_data.clone().into();
             create_profile(state, req, merchant_context)
         },
         auth::auth_type(

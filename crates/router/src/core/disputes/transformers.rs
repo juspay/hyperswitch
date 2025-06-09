@@ -206,7 +206,7 @@ pub async fn get_dispute_evidence_block(
     let file_metadata = state
         .store
         .find_file_metadata_by_merchant_id_file_id(
-            merchant_context.get_merchant_account().get_id(),
+            merchant_context.get_owner_merchant_account().get_id(),
             &file_id,
         )
         .await
