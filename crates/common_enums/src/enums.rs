@@ -2500,6 +2500,101 @@ pub enum DisputeStatus {
 
 #[derive(
     Clone,
+    Copy,
+    Debug,
+    Eq,
+    Hash,
+    PartialEq,
+    serde::Deserialize,
+    serde::Serialize,
+    strum::Display,
+    strum::EnumString,
+    strum::EnumIter,
+    strum::VariantNames,
+    ToSchema,
+)]
+#[serde(rename_all = "snake_case")]
+#[strum(serialize_all = "snake_case")]
+pub enum MerchantCategory {
+    #[serde(rename = "Grocery Stores, Supermarkets (5411)")]
+    GroceryStoresSupermarkets,
+    #[serde(rename = "Lodging-Hotels, Motels, Resorts-not elsewhere classified (7011)")]
+    LodgingHotelsMotelsResorts,
+    #[serde(rename = "Agricultural Cooperatives (0763)")]
+    AgriculturalCooperatives,
+    #[serde(rename = "Attorneys, Legal Services (8111)")]
+    AttorneysLegalServices,
+    #[serde(rename = "Office and Commercial Furniture (5021)")]
+    OfficeAndCommercialFurniture,
+    #[serde(rename = "Computer Network/Information Services (4816)")]
+    ComputerNetworkInformationServices,
+    #[serde(rename = "Shoe Stores (5661)")]
+    ShoeStores,
+}
+
+#[derive(
+    Clone,
+    Copy,
+    Debug,
+    Eq,
+    Hash,
+    PartialEq,
+    serde::Deserialize,
+    serde::Serialize,
+    strum::EnumIter,
+    ToSchema,
+)]
+pub enum MerchantCategoryCodeValue {
+    #[serde(rename = "5411")]
+    Mcc5411,
+    #[serde(rename = "7011")]
+    Mcc7011,
+    #[serde(rename = "0763")]
+    Mcc0763,
+    #[serde(rename = "8111")]
+    Mcc8111,
+    #[serde(rename = "5021")]
+    Mcc5021,
+    #[serde(rename = "4816")]
+    Mcc4816,
+    #[serde(rename = "5661")]
+    Mcc5661,
+}
+
+impl MerchantCategoryCodeValue {
+    pub fn to_code_value(&self) -> i32 {
+        match self {
+            Self::Mcc5411 => 5411,
+            Self::Mcc7011 => 7011,
+            Self::Mcc0763 => 763,
+            Self::Mcc8111 => 8111,
+            Self::Mcc5021 => 5021,
+            Self::Mcc4816 => 4816,
+            Self::Mcc5661 => 5661,
+        }
+    }
+
+    pub fn to_merchant_category_name(&self) -> MerchantCategory {
+        match self {
+            Self::Mcc5411 => MerchantCategory::GroceryStoresSupermarkets,
+            Self::Mcc7011 => MerchantCategory::LodgingHotelsMotelsResorts,
+            Self::Mcc0763 => MerchantCategory::AgriculturalCooperatives,
+            Self::Mcc8111 => MerchantCategory::AttorneysLegalServices,
+            Self::Mcc5021 => MerchantCategory::OfficeAndCommercialFurniture,
+            Self::Mcc4816 => MerchantCategory::ComputerNetworkInformationServices,
+            Self::Mcc5661 => MerchantCategory::ShoeStores,
+        }
+    }
+}
+
+#[derive(serde::Serialize, serde::Deserialize, Clone, Debug, PartialEq)]
+pub struct MerchantCategoryCodeWithName {
+    pub code: MerchantCategoryCodeValue,
+    pub name: MerchantCategory,
+}
+
+#[derive(
+    Clone,
     Debug,
     Eq,
     Default,
