@@ -1312,7 +1312,8 @@ pub async fn publish_revenue_recovery_event_to_kafka(
         pg_error_code: payment_attempt.error_code.clone(),
         network_advice_code: payment_attempt.network_advice_code.clone(),
         network_error_code: payment_attempt.network_decline_code.clone(),
-        first_pg_error_code: revenue_recovery_feature_metadata.and_then(|data| data.first_payment_attempt_pg_error_code.clone()),
+        first_pg_error_code: revenue_recovery_feature_metadata
+            .and_then(|data| data.first_payment_attempt_pg_error_code.clone()),
         first_network_advice_code: revenue_recovery_feature_metadata
             .and_then(|data| data.first_payment_attempt_network_advice_code.clone()),
         first_network_error_code: revenue_recovery_feature_metadata
@@ -1324,8 +1325,7 @@ pub async fn publish_revenue_recovery_event_to_kafka(
             .map(|data| &data.payment_method_subtype),
         card_network: revenue_recovery_feature_metadata.and_then(|data| data.card_network.as_ref()),
         card_issuer: revenue_recovery_feature_metadata.and_then(|data| data.card_issuer.clone()),
-        retry_count: revenue_recovery_feature_metadata
-            .map(|data| data.total_retry_count),
+        retry_count: revenue_recovery_feature_metadata.map(|data| data.total_retry_count),
         payment_gateway: revenue_recovery_feature_metadata.map(|data| data.connector),
     };
     state.event_handler.log_event(&event);

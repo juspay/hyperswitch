@@ -31,7 +31,7 @@ pub struct RevenueRecovery<'a> {
 
 impl super::KafkaMessage for RevenueRecovery<'_> {
     fn key(&self) -> String {
-                    self.attempt_id.to_string()
+        self.attempt_id.to_string()
     }
 
     fn event_type(&self) -> crate::events::EventType {

@@ -28,13 +28,13 @@ use hyperswitch_domain_models::{
     ApiModelToDieselModelConvertor,
 };
 use time::PrimitiveDateTime;
-use crate::core::webhooks::recovery_incoming as recovery_incoming_flow;
 
 use crate::{
     core::{
         errors::{self, RouterResult},
         payments::{self, helpers, operations::Operation},
         revenue_recovery::{self as revenue_recovery_core},
+        webhooks::recovery_incoming as recovery_incoming_flow,
     },
     db::StorageInterface,
     logger,
@@ -102,13 +102,15 @@ impl RevenueRecoveryPaymentsAttemptStatus {
     ) -> Result<(), errors::ProcessTrackerError> {
         let db = &*state.store;
 
-        let recovery_payment_intent = hyperswitch_domain_models::revenue_recovery::RecoveryPaymentIntent::from(
-            payment_intent,
-        );
+        let recovery_payment_intent =
+            hyperswitch_domain_models::revenue_recovery::RecoveryPaymentIntent::from(
+                payment_intent,
+            );
 
-        let recovery_payment_attempt = hyperswitch_domain_models::revenue_recovery::RecoveryPaymentAttempt::from(
-            &payment_attempt,
-        );
+        let recovery_payment_attempt =
+            hyperswitch_domain_models::revenue_recovery::RecoveryPaymentAttempt::from(
+                &payment_attempt,
+            );
 
         match self {
             Self::Succeeded => {
@@ -125,7 +127,9 @@ impl RevenueRecoveryPaymentsAttemptStatus {
                     state,
                     &recovery_payment_intent,
                     &recovery_payment_attempt,
-                ).await.change_context(errors::RecoveryError::KafkaEventPublishFailed)?;
+                )
+                .await
+                .change_context(errors::RecoveryError::KafkaEventPublishFailed)?;
 
                 // Record a successful transaction back to Billing Connector
                 // TODO: Add support for retrying failed outgoing recordback webhooks
@@ -153,7 +157,9 @@ impl RevenueRecoveryPaymentsAttemptStatus {
                     state,
                     &recovery_payment_intent,
                     &recovery_payment_attempt,
-                ).await.change_context(errors::RecoveryError::KafkaEventPublishFailed)?;
+                )
+                .await
+                .change_context(errors::RecoveryError::KafkaEventPublishFailed)?;
 
                 // get a reschedule time
                 let schedule_time = get_schedule_time_to_retry_mit_payments(
