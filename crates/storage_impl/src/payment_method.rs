@@ -275,7 +275,6 @@ impl<T: DatabaseStore> PaymentMethodInterface for KVRouterStore<T> {
             .await
     }
 
-    // Need to fix this once we start moving to v2 for payment method
     #[cfg(feature = "v2")]
     async fn find_payment_method_list_by_global_customer_id(
         &self,

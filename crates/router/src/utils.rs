@@ -45,8 +45,6 @@ use uuid::Uuid;
 
 pub use self::ext_traits::{OptionExt, ValidateCall};
 #[cfg(feature = "v1")]
-use crate::core::webhooks as webhooks_core;
-#[cfg(feature = "v1")]
 use crate::types::storage;
 use crate::{
     consts,
@@ -54,6 +52,7 @@ use crate::{
         authentication::types::ExternalThreeDSConnectorMetadata,
         errors::{self, CustomResult, RouterResult, StorageErrorExt},
         payments as payments_core,
+        webhooks as webhooks_core
     },
     headers::ACCEPT_LANGUAGE,
     logger,
@@ -62,7 +61,7 @@ use crate::{
     types::{
         self, domain,
         transformers::{ForeignFrom, ForeignInto},
-    },
+    }
 };
 
 pub mod error_parser {

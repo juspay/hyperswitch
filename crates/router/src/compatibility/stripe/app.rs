@@ -1,9 +1,7 @@
 use actix_web::{web, Scope};
 
 #[cfg(feature = "v1")]
-use super::customers::*;
-#[cfg(feature = "v1")]
-use super::{payment_intents::*, setup_intents::*};
+use super::{customers::*, payment_intents::*, setup_intents::*};
 use super::{refunds::*, webhooks::*};
 use crate::routes::{self, mandates, webhooks};
 

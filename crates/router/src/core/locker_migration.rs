@@ -12,13 +12,15 @@ use error_stack::ResultExt;
 use futures::TryFutureExt;
 
 #[cfg(feature = "v1")]
-use super::errors::StorageErrorExt;
+use super::{
+    errors::StorageErrorExt,
+    payment_methods::cards
+};
 #[cfg(feature = "v1")]
-use super::payment_methods::cards;
-#[cfg(feature = "v1")]
-use crate::services::logger;
-#[cfg(feature = "v1")]
-use crate::types::api;
+use crate::{
+    services::logger,
+    types::api
+};
 use crate::{errors, routes::SessionState, services, types::domain};
 
 #[cfg(feature = "v2")]

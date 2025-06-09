@@ -1,12 +1,10 @@
 use std::marker::PhantomData;
 
-// use api_models::{admin::ExtendedCardInfoConfig, enums::FrmSuggestion, payments::ExtendedCardInfo};
 #[cfg(feature = "v1")]
 use api_models::payment_methods::PaymentMethodsData;
 use api_models::{
     admin::ExtendedCardInfoConfig,
     enums::FrmSuggestion,
-    // payment_methods::PaymentMethodsData,
     payments::{ConnectorMandateReferenceId, ExtendedCardInfo, GetAddressFromPaymentMethodData},
 };
 use async_trait::async_trait;

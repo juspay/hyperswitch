@@ -1076,7 +1076,7 @@ impl ParentPaymentMethodToken {
     }
 }
 
-#[cfg(all(feature = "v1", feature = "olap", feature = "oltp"))]
+#[cfg(all(feature = "v1", any(feature = "olap", feature = "oltp")))]
 #[instrument(skip_all, fields(flow = ?Flow::TokenizeCard))]
 pub async fn tokenize_card_api(
     state: web::Data<AppState>,

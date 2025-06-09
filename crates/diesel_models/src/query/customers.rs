@@ -6,7 +6,6 @@ use diesel::BoolExpressionMethods;
 use diesel::{associations::HasTable, ExpressionMethods};
 
 use super::generics;
-// #[cfg(feature = "v1")]
 use crate::errors;
 #[cfg(feature = "v1")]
 use crate::schema::customers::dsl;
@@ -28,7 +27,6 @@ pub struct CustomerListConstraints {
     pub offset: Option<i64>,
 }
 
-// #[cfg(feature = "v2")]
 impl Customer {
     #[cfg(feature = "v2")]
     pub async fn update_by_id(

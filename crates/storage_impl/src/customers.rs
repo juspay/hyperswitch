@@ -713,7 +713,6 @@ impl<T: DatabaseStore> domain::CustomerInterface for RouterStore<T> {
 #[async_trait::async_trait]
 impl domain::CustomerInterface for MockDb {
     type Error = StorageError;
-    #[allow(clippy::panic)]
     #[cfg(feature = "v1")]
     async fn find_customer_optional_by_customer_id_merchant_id(
         &self,
@@ -730,7 +729,6 @@ impl domain::CustomerInterface for MockDb {
         .await
     }
 
-    #[allow(clippy::panic)]
     #[cfg(feature = "v1")]
     async fn find_customer_optional_with_redacted_customer_details_by_customer_id_merchant_id(
         &self,
@@ -747,7 +745,6 @@ impl domain::CustomerInterface for MockDb {
         .await
     }
 
-    #[allow(clippy::panic)]
     #[cfg(feature = "v2")]
     async fn find_optional_by_merchant_id_merchant_reference_id(
         &self,
