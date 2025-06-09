@@ -220,30 +220,6 @@ pub const AUTHENTICATION_SERVICE_ELIGIBLE_CONFIG: &str =
 /// Refund flow identifier used for performing GSM operations
 pub const REFUND_FLOW_STR: &str = "refund_flow";
 
-/// Default payment method session expiry
-pub const DEFAULT_PAYMENT_METHOD_SESSION_EXPIRY: u32 = 15 * 60; // 15 minutes
-
-/// Authorize flow identifier used for performing GSM operations
-pub const AUTHORIZE_FLOW_STR: &str = "Authorize";
-
-/// Protocol Version for encrypted Google Pay Token
-pub(crate) const PROTOCOL: &str = "ECv2";
-
-/// Sender ID for Google Pay Decryption
-pub(crate) const SENDER_ID: &[u8] = b"Google";
-
-/// Default value for the number of attempts to retry fetching forex rates
-pub const DEFAULT_ANALYTICS_FOREX_RETRY_ATTEMPTS: u64 = 3;
-
-/// Default payment intent id
-pub const IRRELEVANT_PAYMENT_INTENT_ID: &str = "irrelevant_payment_intent_id";
-
-/// Default payment attempt id
-pub const IRRELEVANT_PAYMENT_ATTEMPT_ID: &str = "irrelevant_payment_attempt_id";
-
-// Default payment method storing TTL in redis in seconds
-pub const DEFAULT_PAYMENT_METHOD_STORE_TTL: i64 = 86400; // 1 day
-
 /// Minimum IBAN length (country-dependent), as per ISO 13616 standard
 pub const IBAN_MIN_LENGTH: usize = 15;
 
@@ -276,3 +252,27 @@ pub const PLUSGIRO_MIN_LENGTH: usize = 2;
 
 /// Maximum length of Swedish Plusgiro number in digits
 pub const PLUSGIRO_MAX_LENGTH: usize = 8;
+
+/// Default payment method session expiry
+pub const DEFAULT_PAYMENT_METHOD_SESSION_EXPIRY: u32 = 15 * 60; // 15 minutes
+
+/// Authorize flow identifier used for performing GSM operations
+pub const AUTHORIZE_FLOW_STR: &str = "Authorize";
+
+/// Protocol Version for encrypted Google Pay Token
+pub(crate) const PROTOCOL: &str = "ECv2";
+
+/// Sender ID for Google Pay Decryption
+pub(crate) const SENDER_ID: &[u8] = b"Google";
+
+/// Default value for the number of attempts to retry fetching forex rates
+pub const DEFAULT_ANALYTICS_FOREX_RETRY_ATTEMPTS: u64 = 3;
+
+/// Default payment intent id
+pub const IRRELEVANT_PAYMENT_INTENT_ID: &str = "irrelevant_payment_intent_id";
+
+/// Default payment attempt id
+pub const IRRELEVANT_PAYMENT_ATTEMPT_ID: &str = "irrelevant_payment_attempt_id";
+
+// Default payment method storing TTL in redis in seconds
+pub const DEFAULT_PAYMENT_METHOD_STORE_TTL: i64 = 86400; // 1 day
