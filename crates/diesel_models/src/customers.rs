@@ -6,10 +6,7 @@ use time::PrimitiveDateTime;
 #[cfg(feature = "v1")]
 use crate::schema::customers;
 #[cfg(feature = "v2")]
-use crate::{
-    enums::DeleteStatus,
-    schema_v2::customers
-};
+use crate::{enums::DeleteStatus, schema_v2::customers};
 
 #[cfg(feature = "v1")]
 #[derive(

@@ -51,8 +51,7 @@ use crate::{
     core::{
         authentication::types::ExternalThreeDSConnectorMetadata,
         errors::{self, CustomResult, RouterResult, StorageErrorExt},
-        payments as payments_core,
-        webhooks as webhooks_core
+        payments as payments_core, webhooks as webhooks_core,
     },
     headers::ACCEPT_LANGUAGE,
     logger,
@@ -61,7 +60,7 @@ use crate::{
     types::{
         self, domain,
         transformers::{ForeignFrom, ForeignInto},
-    }
+    },
 };
 
 pub mod error_parser {

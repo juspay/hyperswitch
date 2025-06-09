@@ -1,6 +1,5 @@
 use common_utils::id_type;
-use diesel::BoolExpressionMethods;
-use diesel::{associations::HasTable, ExpressionMethods};
+use diesel::{associations::HasTable, BoolExpressionMethods, ExpressionMethods};
 
 use super::generics;
 #[cfg(feature = "v1")]
@@ -9,8 +8,7 @@ use crate::schema::customers::dsl;
 use crate::schema_v2::customers::dsl;
 use crate::{
     customers::{Customer, CustomerNew, CustomerUpdateInternal},
-    errors,
-    PgPooledConn, StorageResult,
+    errors, PgPooledConn, StorageResult,
 };
 
 impl CustomerNew {
