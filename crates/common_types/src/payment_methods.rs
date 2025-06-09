@@ -147,11 +147,11 @@ pub struct RequestPaymentMethodTypes {
     #[schema(example = 1313)]
     pub maximum_amount: Option<common_utils::types::MinorUnit>,
 
-    /// Boolean Option to enable recurring payments / mandates. Default is true.
+    /// Indicates whether the payment method supports recurring payments. Optional.
     #[schema(example = true)]
     pub recurring_enabled: Option<bool>,
 
-    /// Boolean Option to enable installment / EMI / BNPL payments. Default is true.
+    /// Indicates whether the payment method is eligible for installment payments (e.g., EMI, BNPL). Optional.
     #[schema(example = true)]
     pub installment_payment_enabled: Option<bool>,
 }
