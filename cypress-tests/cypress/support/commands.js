@@ -1644,18 +1644,6 @@ Cypress.Commands.add(
                   response.body[key]
                 );
               }
-              expect(response.body)
-                .to.have.property("next_action")
-                .to.have.property("redirect_to_url");
-              globalState.set(
-                "nextActionUrl",
-                response.body.next_action.redirect_to_url
-              );
-              for (const key in resData.body) {
-                expect(resData.body[key], [key]).to.deep.equal(
-                  response.body[key]
-                );
-              }
             } else if (response.body.authentication_type === "no_three_ds") {
               for (const key in resData.body) {
                 expect(resData.body[key], [key]).to.deep.equal(
@@ -2603,6 +2591,7 @@ Cypress.Commands.add(
     const merchant_connector_id = globalState.get(
       `${configInfo.merchantConnectorPrefix}Id`
     );
+    const setupFutureUsage = globalState.get("setupFutureUsage");
     for (const key in reqData) {
       requestBody[key] = reqData[key];
     }
@@ -2702,13 +2691,11 @@ Cypress.Commands.add(
               expect(response.body)
                 .to.have.property("next_action")
                 .to.have.property("redirect_to_url");
-
               const nextActionUrl = response.body.next_action.redirect_to_url;
               globalState.set(
                 "nextActionUrl",
                 response.body.next_action.redirect_to_url
               );
-
               cy.log(nextActionUrl);
               for (const key in resData.body) {
                 expect(resData.body[key], [key]).to.deep.equal(
@@ -2831,14 +2818,8 @@ Cypress.Commands.add(
                 .to.have.property("redirect_to_url");
               const nextActionUrl = response.body.next_action.redirect_to_url;
               cy.log(nextActionUrl);
-              globalState.set(
-                "nextActionUrl",
-                response.body.next_action.redirect_to_url
-              );
               for (const key in resData.body) {
-                expect(resData.body[key], [key]).to.deep.equal(
-                  response.body[key]
-                );
+                expect(resData.body[key], [key]).to.equal(response.body[key]);
               }
             } else if (response.body.authentication_type === "no_three_ds") {
               for (const key in resData.body) {
@@ -3025,14 +3006,8 @@ Cypress.Commands.add(
                 .to.have.property("redirect_to_url");
               const nextActionUrl = response.body.next_action.redirect_to_url;
               cy.log(nextActionUrl);
-              globalState.set(
-                "nextActionUrl",
-                response.body.next_action.redirect_to_url
-              );
               for (const key in resData.body) {
-                expect(resData.body[key], [key]).to.deep.equal(
-                  response.body[key]
-                );
+                expect(resData.body[key], [key]).to.equal(response.body[key]);
               }
             } else if (response.body.authentication_type === "no_three_ds") {
               for (const key in resData.body) {
@@ -3125,15 +3100,9 @@ Cypress.Commands.add(
                 .to.have.property("next_action")
                 .to.have.property("redirect_to_url");
               const nextActionUrl = response.body.next_action.redirect_to_url;
-              globalState.set(
-                "nextActionUrl",
-                response.body.next_action.redirect_to_url
-              );
               cy.log(nextActionUrl);
               for (const key in resData.body) {
-                expect(resData.body[key], [key]).to.deep.equal(
-                  response.body[key]
-                );
+                expect(resData.body[key], [key]).to.equal(response.body[key]);
               }
             } else if (response.body.authentication_type === "no_three_ds") {
               for (const key in resData.body) {
