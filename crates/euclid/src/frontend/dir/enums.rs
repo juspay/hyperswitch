@@ -1,4 +1,5 @@
 use strum::VariantNames;
+use utoipa::ToSchema;
 
 use crate::enums::collect_variants;
 pub use crate::enums::{
@@ -396,6 +397,7 @@ pub enum RewardType {
     strum::EnumString,
     serde::Serialize,
     serde::Deserialize,
+    ToSchema,
 )]
 #[serde(rename_all = "snake_case")]
 #[strum(serialize_all = "snake_case")]
@@ -417,6 +419,7 @@ pub enum CustomerDevicePlatform {
     strum::EnumString,
     serde::Serialize,
     serde::Deserialize,
+    ToSchema,
 )]
 #[serde(rename_all = "snake_case")]
 #[strum(serialize_all = "snake_case")]
@@ -440,6 +443,7 @@ pub enum CustomerDeviceType {
     strum::EnumString,
     serde::Serialize,
     serde::Deserialize,
+    ToSchema,
 )]
 #[serde(rename_all = "snake_case")]
 #[strum(serialize_all = "snake_case")]

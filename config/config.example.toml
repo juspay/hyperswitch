@@ -162,6 +162,11 @@ max_age = 365     # Max age of a refund in days.
 outgoing_enabled = true
 redis_lock_expiry_seconds = 180
 
+# Controls whether merchant ID authentication is enabled.
+# When enabled, payment endpoints will accept and require a x-merchant-id header in the request.
+[merchant_id_auth]
+merchant_id_auth_enabled = false
+
 # Validity of an Ephemeral Key in Hours
 [eph_key]
 validity = 1
@@ -225,6 +230,7 @@ gocardless.base_url = "https://api-sandbox.gocardless.com"
 gpayments.base_url = "https://{{merchant_endpoint_prefix}}-test.api.as1.gpayments.net"
 helcim.base_url = "https://api.helcim.com/"
 hipay.base_url = "https://stage-secure-gateway.hipay-tpp.com/rest/"
+hyperswitch_vault.base_url = "http://localhost:8080"
 hipay.secondary_base_url = "https://stage-secure2-vault.hipay-tpp.com/rest/"
 hipay.third_base_url = "https://stage-api-gateway.hipay.com/"
 iatapay.base_url = "https://sandbox.iata-pay.iata.org/api/v1"
@@ -291,6 +297,7 @@ wellsfargopayout.base_url = "https://api-sandbox.wellsfargo.com/"
 wise.base_url = "https://api.sandbox.transferwise.tech/"
 worldline.base_url = "https://eu.sandbox.api-ingenico.com/"
 worldpay.base_url = "https://try.access.worldpay.com/"
+worldpayvantiv.base_url = "https://www.testvantivcnp.com/sandbox/communicator/online"
 worldpayxml.base_url = "https://secure-test.worldpay.com/jsp/merchant/xml/paymentService.jsp"
 xendit.base_url = "https://api.xendit.co"
 zsl.base_url = "https://api.sitoffalb.net/"
@@ -346,6 +353,7 @@ cards = [
   "gpayments",
   "helcim",
   "hipay",
+  "hyperswitch_vault",
   "mollie",
     "moneris",
   "paypal",
@@ -359,6 +367,7 @@ cards = [
     "thunes",
     "tokenio",
   "worldpay",
+    "worldpayvantiv",
     "worldpayxml",
     "xendit",
   "zen",
@@ -815,7 +824,7 @@ credit = {country = "AU,NZ,CN,HK,IN,LK,KR,MY,SG,GB,BE,FR,DE,IT,ME,NL,PL,ES,ZA,AR
 debit = {country = "AU,NZ,CN,HK,IN,LK,KR,MY,SG,GB,BE,FR,DE,IT,ME,NL,PL,ES,ZA,AR,BR,CO,MX,PA,UY,US,CA", currency = "AFN,ALL,DZD,AOA,ARS,AMD,AWG,AUD,AZN,BSD,BHD,BDT,BBD,BYN,BZD,BMD,BTN,BOB,VES,BAM,BWP,BRL,BND,BGN,BIF,KHR,CAD,CVE,KYD,XAF,CLP,CNY,COP,KMF,CDF,CRC,HRK,CUP,CZK,DKK,DJF,DOP,XCD,EGP,ERN,ETB,EUR,FKP,FJD,XPF,GMD,GEL,GHS,GIP,GTQ,GNF,GYD,HTG,HNL,HKD,HUF,ISK,INR,IDR,IRR,IQD,ILS,JMD,JPY,JOD,KZT,KES,KGS,KWD,LAK,LBP,LSL,LRD,LYD,MOP,MKD,MGA,MWK,MYR,MVR,MRU,MUR,MXN,MDL,MNT,MAD,MZN,MMK,NAD,NPR,ANG,NZD,NIO,NGN,VUV,KPW,NOK,OMR,PKR,PAB,PGK,PYG,PEN,PHP,PLN,GBP,QAR,RON,RUB,RWF,SHP,SVC,WST,STN,SAR,RSD,SCR,SLL,SGD,SBD,SOS,ZAR,KRW,SSP,LKR,SDG,SRD,SZL,SEK,CHF,SYP,TWD,TJS,TZS,THB,TOP,TTD,TND,TRY,TMT,UGX,UAH,AED,USD,UYU,UZS,VND,XOF,YER,ZMW,ZWL"}
 
 [connector_customer]
-connector_list = "gocardless,stax,stripe,facilitapay"
+connector_list = "gocardless,stax,stripe,facilitapay,hyperswitch_vault"
 payout_connector_list = "nomupay,stripe,wise"
 
 [bank_config.online_banking_fpx]
@@ -1077,3 +1086,11 @@ retry_algorithm_type = "cascading" # type of retry algorithm
 [clone_connector_allowlist]
 merchant_ids = "merchant_ids"           # Comma-separated list of allowed merchant IDs
 connector_names = "connector_names"     # Comma-separated list of allowed connector names
+
+[infra_values]
+cluster = "CLUSTER"         # value of CLUSTER from deployment
+version = "HOSTNAME"        # value of HOSTNAME from deployment which tells its version
+
+[platform]
+enabled = false # Enable or disable platform features
+allow_connected_merchants = false # Enable or disable connected merchant account features

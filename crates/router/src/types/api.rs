@@ -478,6 +478,9 @@ impl ConnectorData {
                 enums::Connector::Helcim => {
                     Ok(ConnectorEnum::Old(Box::new(connector::Helcim::new())))
                 }
+                enums::Connector::HyperswitchVault => {
+                    Ok(ConnectorEnum::Old(Box::new(&connector::HyperswitchVault)))
+                }
                 enums::Connector::Iatapay => {
                     Ok(ConnectorEnum::Old(Box::new(connector::Iatapay::new())))
                 }
@@ -569,6 +572,9 @@ impl ConnectorData {
                 enums::Connector::Worldpay => {
                     Ok(ConnectorEnum::Old(Box::new(connector::Worldpay::new())))
                 }
+                enums::Connector::Worldpayvantiv => Ok(ConnectorEnum::Old(Box::new(
+                    connector::Worldpayvantiv::new(),
+                ))),
                 enums::Connector::Worldpayxml => {
                     Ok(ConnectorEnum::Old(Box::new(connector::Worldpayxml::new())))
                 }

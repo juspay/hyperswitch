@@ -1,0 +1,35 @@
+{
+  "method": "GET",
+  "header": [
+    {
+      "key": "version",
+      "value": "2020-03-14"
+    }
+  ],
+  "body": {
+    "mode": "urlencoded",
+    "urlencoded": [
+      {
+        "key": "options.add_full_gateway_response",
+        "value": "true",
+        "type": "text"
+      }
+    ]
+  },
+  "url": {
+    "raw": "https://sandbox.juspay.in/orders/{{order_id}}?options.add_full_gateway_response=true",
+    "host": [
+      "https://sandbox.juspay.in"
+    ],
+    "path": [
+      "orders",
+      "{{order_id}}"
+    ],
+    "query": [
+      {
+        "key": "options.add_full_gateway_response",
+        "value": "true"
+      }
+    ]
+  }
+}

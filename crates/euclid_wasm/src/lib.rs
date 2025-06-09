@@ -236,10 +236,22 @@ pub fn get_all_connectors() -> JsResult {
 
 #[wasm_bindgen(js_name = getAllKeys)]
 pub fn get_all_keys() -> JsResult {
+    let excluded_keys = [
+        "Connector",
+        // 3DS Decision Rule Keys should not be included in the payument routing keys
+        "issuer_name",
+        "issuer_country",
+        "customer_device_platform",
+        "customer_device_type",
+        "customer_device_display_size",
+        "acquirer_country",
+        "acquirer_fraud_rate",
+    ];
+
     let keys: Vec<&'static str> = dir::DirKeyKind::VARIANTS
         .iter()
         .copied()
-        .filter(|s| s != &"Connector")
+        .filter(|s| !excluded_keys.contains(s))
         .collect();
     Ok(serde_wasm_bindgen::to_value(&keys)?)
 }
@@ -263,8 +275,8 @@ pub fn get_surcharge_keys() -> JsResult {
     Ok(serde_wasm_bindgen::to_value(keys)?)
 }
 
-#[wasm_bindgen(js_name= getThreeDsDecisionRuleEngineKeys)]
-pub fn get_three_ds_decision_rule_engine_keys() -> JsResult {
+#[wasm_bindgen(js_name= getThreeDsDecisionRuleKeys)]
+pub fn get_three_ds_decision_rule_keys() -> JsResult {
     let keys = <ThreeDSDecisionRule as EuclidDirFilter>::ALLOWED;
     Ok(serde_wasm_bindgen::to_value(keys)?)
 }
