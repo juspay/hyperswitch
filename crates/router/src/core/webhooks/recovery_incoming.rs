@@ -172,57 +172,6 @@ pub async fn recovery_incoming_webhook_flow(
 
     router_env::logger::info!("Intent retry count: {:?}", intent_retry_count);
 
-    // // Temporary owned strings for optional error fields
-    // let error_code = recovery_attempt_from_payment_attempt
-    //     .as_ref()
-    //     .and_then(|a| a.error_code.clone());
-    // let temp_network_error_message = recovery_attempt_from_payment_attempt
-    //     .as_ref()
-    //     .and_then(|a| a.network_error_message.clone());
-    // let network_decline_code = recovery_attempt_from_payment_attempt
-    //     .as_ref()
-    //     .and_then(|a| a.network_decline_code.clone());
-
-    // let attempt_id_str = recovery_attempt_from_payment_attempt
-    //     .as_ref()
-    //     .map_or_else(|| "N/A".to_string(), |attempt| attempt.attempt_id.get_string_repr().to_string());
-
-    // let merchant_reference_id_str = recovery_intent_from_payment_attempt.merchant_reference_id.get_string_repr().to_string();
-    // state.event_handler.log_event(&RevenueRecovery{
-    //     merchant_id: &recovery_intent_from_payment_attempt.merchant_id,
-    //     invoice_id: merchant_reference_id_str, // Pass owned String
-    //     invoice_amount: recovery_intent_from_payment_attempt.invoice_amount,
-    //     invoice_currency: &recovery_intent_from_payment_attempt.invoice_currency,
-    //     invoice_due_date: recovery_intent_from_payment_attempt.created_at.map(|dt| dt.assume_utc()), // Assuming created_at can be used as invoice_due_date
-    //     invoice_date: recovery_intent_from_payment_attempt.created_at.map_or_else(time::OffsetDateTime::now_utc, |dt| dt.assume_utc()), // Assuming created_at can be used as invoice_date or now if not present
-    //     invoice_address: recovery_intent_from_payment_attempt.billing_address.as_ref().map(|addr| Encryptable::new(Secret::new(Value::from(addr.clone())), merchant_context.peek_storage_scheme())),
-    //     attempt_id: attempt_id_str, // Pass owned String
-    //     attempt_amount: recovery_attempt_from_payment_attempt
-    //         .as_ref()
-    //         .map_or(common_utils::types::MinorUnit::new(0), |attempt| attempt.amount),
-    //     attempt_currency: recovery_attempt_from_payment_attempt
-    //         .as_ref()
-    //         .map_or(&common_enums::Currency::default(), |attempt| &attempt.currency),
-    //     attempt_status: recovery_attempt_from_payment_attempt
-    //         .as_ref()
-    //         .map_or(&common_enums::AttemptStatus::default(), |attempt| &attempt.attempt_status),
-    //     attempt_error_code: temp_error_code, // Pass Option<String>
-    //     network_error_message: temp_network_error_message, // Pass Option<String>
-    //     network_error_code: temp_network_decline_code, // Pass Option<String>, Assuming network_decline_code can be used as network_error_code
-    //     attempt_created_at: recovery_attempt_from_payment_attempt
-    //         .as_ref()
-    //         .and_then(|attempt| attempt.transaction_created_at)
-    //         .map_or_else(time::OffsetDateTime::now_utc, |dt| dt.assume_utc()),
-    //     payment_method_type: recovery_attempt_from_payment_attempt
-    //         .as_ref()
-    //         .map(|attempt| &attempt.payment_method_type),
-    //     payment_method_subtype: recovery_attempt_from_payment_attempt
-    //         .as_ref()
-    //         .map(|attempt| &attempt.payment_method_sub_type),
-    //     card_network: None, // Placeholder, needs to be fetched if available
-    //     card_issuer: None, // Placeholder, needs to be fetched if available
-    // });
-
     match action {
         revenue_recovery::RecoveryAction::CancelInvoice => todo!(),
         revenue_recovery::RecoveryAction::ScheduleFailedPayment => {
