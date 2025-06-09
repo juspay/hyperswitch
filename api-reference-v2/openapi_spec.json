@@ -8149,6 +8149,7 @@
           "stripebilling",
           "taxjar",
           "threedsecureio",
+          "tokenio",
           "trustpay",
           "tsys",
           "vgs",
@@ -12807,16 +12808,19 @@
             "properties": {
               "iban": {
                 "type": "object",
+                "description": "IBAN-based account for international transfers",
                 "required": [
                   "iban",
                   "name"
                 ],
                 "properties": {
                   "iban": {
-                    "type": "string"
+                    "type": "string",
+                    "description": "International Bank Account Number (up to 34 characters)"
                   },
                   "name": {
-                    "type": "string"
+                    "type": "string",
+                    "description": "Account holder name"
                   },
                   "connector_recipient_id": {
                     "type": "string",
@@ -12834,6 +12838,7 @@
             "properties": {
               "bacs": {
                 "type": "object",
+                "description": "UK BACS payment system",
                 "required": [
                   "account_number",
                   "sort_code",
@@ -12841,13 +12846,215 @@
                 ],
                 "properties": {
                   "account_number": {
-                    "type": "string"
+                    "type": "string",
+                    "description": "8-digit UK account number"
                   },
                   "sort_code": {
-                    "type": "string"
+                    "type": "string",
+                    "description": "6-digit UK sort code",
+                    "example": "123456"
                   },
                   "name": {
-                    "type": "string"
+                    "type": "string",
+                    "description": "Account holder name"
+                  },
+                  "connector_recipient_id": {
+                    "type": "string",
+                    "nullable": true
+                  }
+                }
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "faster_payments"
+            ],
+            "properties": {
+              "faster_payments": {
+                "type": "object",
+                "description": "UK Faster Payments (instant transfers)",
+                "required": [
+                  "account_number",
+                  "sort_code",
+                  "name"
+                ],
+                "properties": {
+                  "account_number": {
+                    "type": "string",
+                    "description": "8-digit UK account number"
+                  },
+                  "sort_code": {
+                    "type": "string",
+                    "description": "6-digit UK sort code"
+                  },
+                  "name": {
+                    "type": "string",
+                    "description": "Account holder name"
+                  },
+                  "connector_recipient_id": {
+                    "type": "string",
+                    "nullable": true
+                  }
+                }
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "sepa"
+            ],
+            "properties": {
+              "sepa": {
+                "type": "object",
+                "description": "SEPA payments (Euro zone)",
+                "required": [
+                  "iban",
+                  "name"
+                ],
+                "properties": {
+                  "iban": {
+                    "type": "string",
+                    "description": "IBAN for SEPA transfers",
+                    "example": "FR1420041010050500013M02606"
+                  },
+                  "name": {
+                    "type": "string",
+                    "description": "Account holder name"
+                  },
+                  "connector_recipient_id": {
+                    "type": "string",
+                    "nullable": true
+                  }
+                }
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "sepa_instant"
+            ],
+            "properties": {
+              "sepa_instant": {
+                "type": "object",
+                "description": "SEPA Instant payments (10-second transfers)",
+                "required": [
+                  "iban",
+                  "name"
+                ],
+                "properties": {
+                  "iban": {
+                    "type": "string",
+                    "description": "IBAN for instant SEPA transfers",
+                    "example": "DE89370400440532013000"
+                  },
+                  "name": {
+                    "type": "string",
+                    "description": "Account holder name"
+                  },
+                  "connector_recipient_id": {
+                    "type": "string",
+                    "nullable": true
+                  }
+                }
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "elixir"
+            ],
+            "properties": {
+              "elixir": {
+                "type": "object",
+                "description": "Polish Elixir payment system",
+                "required": [
+                  "account_number",
+                  "iban",
+                  "name"
+                ],
+                "properties": {
+                  "account_number": {
+                    "type": "string",
+                    "description": "Polish account number (26 digits)",
+                    "example": "12345678901234567890123456"
+                  },
+                  "iban": {
+                    "type": "string",
+                    "description": "Polish IBAN (28 chars)",
+                    "example": "PL27114020040000300201355387"
+                  },
+                  "name": {
+                    "type": "string",
+                    "description": "Account holder name"
+                  },
+                  "connector_recipient_id": {
+                    "type": "string",
+                    "nullable": true
+                  }
+                }
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "bankgiro"
+            ],
+            "properties": {
+              "bankgiro": {
+                "type": "object",
+                "description": "Swedish Bankgiro system",
+                "required": [
+                  "number",
+                  "name"
+                ],
+                "properties": {
+                  "number": {
+                    "type": "string",
+                    "description": "Bankgiro number (7-8 digits)",
+                    "example": "5402-9656"
+                  },
+                  "name": {
+                    "type": "string",
+                    "description": "Account holder name",
+                    "example": "Erik Andersson"
+                  },
+                  "connector_recipient_id": {
+                    "type": "string",
+                    "nullable": true
+                  }
+                }
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "plusgiro"
+            ],
+            "properties": {
+              "plusgiro": {
+                "type": "object",
+                "description": "Swedish Plusgiro system",
+                "required": [
+                  "number",
+                  "name"
+                ],
+                "properties": {
+                  "number": {
+                    "type": "string",
+                    "description": "Plusgiro number (2-8 digits)",
+                    "example": "4789-2"
+                  },
+                  "name": {
+                    "type": "string",
+                    "description": "Account holder name",
+                    "example": "Anna Larsson"
                   },
                   "connector_recipient_id": {
                     "type": "string",
@@ -22085,6 +22292,7 @@
           "stripe",
           "stripebilling",
           "trustpay",
+          "tokenio",
           "tsys",
           "volt",
           "wellsfargo",
