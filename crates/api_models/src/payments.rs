@@ -8788,6 +8788,7 @@ mod null_object_test {
 
     use super::*;
 
+    #[allow(clippy::unwrap_used)]
     #[test]
     fn test_null_object_serialization() {
         let null_object = NullObject;
