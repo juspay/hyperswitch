@@ -14881,7 +14881,7 @@
           "customer_acceptance": {
             "allOf": [
               {
-                "$ref": "#/components/schemas/common_payments.CustomerAcceptance"
+                "$ref": "#/components/schemas/CustomerAcceptance"
               }
             ],
             "nullable": true
