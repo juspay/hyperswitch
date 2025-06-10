@@ -3043,7 +3043,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/PaymentMethodListResponse"
+                  "$ref": "#/components/schemas/PaymentMethodListResponseForSession"
                 }
               }
             }
@@ -8110,6 +8110,7 @@
           "gpayments",
           "hipay",
           "helcim",
+          "hyperswitch_vault",
           "inespay",
           "iatapay",
           "itaubank",
@@ -8149,6 +8150,7 @@
           "stripebilling",
           "taxjar",
           "threedsecureio",
+          "tokenio",
           "trustpay",
           "tsys",
           "vgs",
@@ -9472,24 +9474,30 @@
           }
         }
       },
-      "CustomerPaymentMethod": {
+      "CustomerPaymentMethodResponseItem": {
         "type": "object",
         "required": [
           "id",
+          "payment_token",
           "customer_id",
           "payment_method_type",
           "payment_method_subtype",
           "recurring_enabled",
           "created",
           "requires_cvv",
-          "is_default",
-          "psp_tokenization_enabled"
+          "last_used_at",
+          "is_default"
         ],
         "properties": {
           "id": {
             "type": "string",
             "description": "The unique identifier of the payment method.",
             "example": "12345_pm_01926c58bc6e77c09e809964e72af8c8"
+          },
+          "payment_token": {
+            "type": "string",
+            "description": "Temporary Token for payment method in vault which gets refreshed for every payment",
+            "example": "7ebf443f-a050-4067-84e5-e6f6d4800aef"
           },
           "customer_id": {
             "type": "string",
@@ -9554,18 +9562,6 @@
               }
             ],
             "nullable": true
-          },
-          "network_tokenization": {
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/NetworkTokenResponse"
-              }
-            ],
-            "nullable": true
-          },
-          "psp_tokenization_enabled": {
-            "type": "boolean",
-            "description": "Whether psp_tokenization is enabled for the payment_method, this will be true when at least\none multi-use token with status `Active` is available for the payment method"
           }
         }
       },
@@ -9578,7 +9574,7 @@
           "customer_payment_methods": {
             "type": "array",
             "items": {
-              "$ref": "#/components/schemas/CustomerPaymentMethod"
+              "$ref": "#/components/schemas/PaymentMethodResponseItem"
             },
             "description": "List of payment methods for customer"
           }
@@ -9762,14 +9758,6 @@
           "email"
         ],
         "properties": {
-          "merchant_reference_id": {
-            "type": "string",
-            "description": "The merchant identifier for the customer object.",
-            "example": "cus_y3oqhf46pyzuxjbcn2giaqnb44",
-            "nullable": true,
-            "maxLength": 64,
-            "minLength": 1
-          },
           "name": {
             "type": "string",
             "description": "The customer's name",
@@ -10711,6 +10699,14 @@
           "vault_connector_id": {
             "type": "string",
             "description": "Merchant Connector id to be stored for vault connector",
+            "nullable": true
+          },
+          "vault_sdk": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/VaultSdk"
+              }
+            ],
             "nullable": true
           }
         }
@@ -12210,6 +12206,33 @@
           }
         }
       },
+      "HyperswitchVaultSessionDetails": {
+        "type": "object",
+        "required": [
+          "payment_method_session_id",
+          "client_secret",
+          "publishable_key",
+          "profile_id"
+        ],
+        "properties": {
+          "payment_method_session_id": {
+            "type": "string",
+            "description": "Session ID for Hyperswitch Vault"
+          },
+          "client_secret": {
+            "type": "string",
+            "description": "Client secret for Hyperswitch Vault"
+          },
+          "publishable_key": {
+            "type": "string",
+            "description": "Publishable key for Hyperswitch Vault"
+          },
+          "profile_id": {
+            "type": "string",
+            "description": "Profile ID for Hyperswitch Vault"
+          }
+        }
+      },
       "IfStatement": {
         "type": "object",
         "description": "Represents an IF statement with conditions and optional nested IF statements\n\n```text\npayment.method = card {\npayment.method.cardtype = (credit, debit) {\npayment.method.network = (amex, rupay, diners)\n}\n}\n```",
@@ -12808,16 +12831,19 @@
             "properties": {
               "iban": {
                 "type": "object",
+                "description": "IBAN-based account for international transfers",
                 "required": [
                   "iban",
                   "name"
                 ],
                 "properties": {
                   "iban": {
-                    "type": "string"
+                    "type": "string",
+                    "description": "International Bank Account Number (up to 34 characters)"
                   },
                   "name": {
-                    "type": "string"
+                    "type": "string",
+                    "description": "Account holder name"
                   },
                   "connector_recipient_id": {
                     "type": "string",
@@ -12835,6 +12861,7 @@
             "properties": {
               "bacs": {
                 "type": "object",
+                "description": "UK BACS payment system",
                 "required": [
                   "account_number",
                   "sort_code",
@@ -12842,13 +12869,215 @@
                 ],
                 "properties": {
                   "account_number": {
-                    "type": "string"
+                    "type": "string",
+                    "description": "8-digit UK account number"
                   },
                   "sort_code": {
-                    "type": "string"
+                    "type": "string",
+                    "description": "6-digit UK sort code",
+                    "example": "123456"
                   },
                   "name": {
-                    "type": "string"
+                    "type": "string",
+                    "description": "Account holder name"
+                  },
+                  "connector_recipient_id": {
+                    "type": "string",
+                    "nullable": true
+                  }
+                }
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "faster_payments"
+            ],
+            "properties": {
+              "faster_payments": {
+                "type": "object",
+                "description": "UK Faster Payments (instant transfers)",
+                "required": [
+                  "account_number",
+                  "sort_code",
+                  "name"
+                ],
+                "properties": {
+                  "account_number": {
+                    "type": "string",
+                    "description": "8-digit UK account number"
+                  },
+                  "sort_code": {
+                    "type": "string",
+                    "description": "6-digit UK sort code"
+                  },
+                  "name": {
+                    "type": "string",
+                    "description": "Account holder name"
+                  },
+                  "connector_recipient_id": {
+                    "type": "string",
+                    "nullable": true
+                  }
+                }
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "sepa"
+            ],
+            "properties": {
+              "sepa": {
+                "type": "object",
+                "description": "SEPA payments (Euro zone)",
+                "required": [
+                  "iban",
+                  "name"
+                ],
+                "properties": {
+                  "iban": {
+                    "type": "string",
+                    "description": "IBAN for SEPA transfers",
+                    "example": "FR1420041010050500013M02606"
+                  },
+                  "name": {
+                    "type": "string",
+                    "description": "Account holder name"
+                  },
+                  "connector_recipient_id": {
+                    "type": "string",
+                    "nullable": true
+                  }
+                }
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "sepa_instant"
+            ],
+            "properties": {
+              "sepa_instant": {
+                "type": "object",
+                "description": "SEPA Instant payments (10-second transfers)",
+                "required": [
+                  "iban",
+                  "name"
+                ],
+                "properties": {
+                  "iban": {
+                    "type": "string",
+                    "description": "IBAN for instant SEPA transfers",
+                    "example": "DE89370400440532013000"
+                  },
+                  "name": {
+                    "type": "string",
+                    "description": "Account holder name"
+                  },
+                  "connector_recipient_id": {
+                    "type": "string",
+                    "nullable": true
+                  }
+                }
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "elixir"
+            ],
+            "properties": {
+              "elixir": {
+                "type": "object",
+                "description": "Polish Elixir payment system",
+                "required": [
+                  "account_number",
+                  "iban",
+                  "name"
+                ],
+                "properties": {
+                  "account_number": {
+                    "type": "string",
+                    "description": "Polish account number (26 digits)",
+                    "example": "12345678901234567890123456"
+                  },
+                  "iban": {
+                    "type": "string",
+                    "description": "Polish IBAN (28 chars)",
+                    "example": "PL27114020040000300201355387"
+                  },
+                  "name": {
+                    "type": "string",
+                    "description": "Account holder name"
+                  },
+                  "connector_recipient_id": {
+                    "type": "string",
+                    "nullable": true
+                  }
+                }
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "bankgiro"
+            ],
+            "properties": {
+              "bankgiro": {
+                "type": "object",
+                "description": "Swedish Bankgiro system",
+                "required": [
+                  "number",
+                  "name"
+                ],
+                "properties": {
+                  "number": {
+                    "type": "string",
+                    "description": "Bankgiro number (7-8 digits)",
+                    "example": "5402-9656"
+                  },
+                  "name": {
+                    "type": "string",
+                    "description": "Account holder name",
+                    "example": "Erik Andersson"
+                  },
+                  "connector_recipient_id": {
+                    "type": "string",
+                    "nullable": true
+                  }
+                }
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "plusgiro"
+            ],
+            "properties": {
+              "plusgiro": {
+                "type": "object",
+                "description": "Swedish Plusgiro system",
+                "required": [
+                  "number",
+                  "name"
+                ],
+                "properties": {
+                  "number": {
+                    "type": "string",
+                    "description": "Plusgiro number (2-8 digits)",
+                    "example": "4789-2"
+                  },
+                  "name": {
+                    "type": "string",
+                    "description": "Account holder name",
+                    "example": "Anna Larsson"
                   },
                   "connector_recipient_id": {
                     "type": "string",
@@ -16752,29 +16981,6 @@
         },
         "additionalProperties": false
       },
-      "PaymentMethodListResponse": {
-        "type": "object",
-        "required": [
-          "payment_methods_enabled",
-          "customer_payment_methods"
-        ],
-        "properties": {
-          "payment_methods_enabled": {
-            "type": "array",
-            "items": {
-              "$ref": "#/components/schemas/ResponsePaymentMethodTypes"
-            },
-            "description": "The list of payment methods that are enabled for the business profile"
-          },
-          "customer_payment_methods": {
-            "type": "array",
-            "items": {
-              "$ref": "#/components/schemas/CustomerPaymentMethod"
-            },
-            "description": "The list of saved payment methods of the customer"
-          }
-        }
-      },
       "PaymentMethodListResponseForPayments": {
         "type": "object",
         "required": [
@@ -16791,10 +16997,33 @@
           "customer_payment_methods": {
             "type": "array",
             "items": {
-              "$ref": "#/components/schemas/CustomerPaymentMethod"
+              "$ref": "#/components/schemas/CustomerPaymentMethodResponseItem"
             },
             "description": "The list of payment methods that are saved by the given customer\nThis field is only returned if the customer_id is provided in the request",
             "nullable": true
+          }
+        }
+      },
+      "PaymentMethodListResponseForSession": {
+        "type": "object",
+        "required": [
+          "payment_methods_enabled",
+          "customer_payment_methods"
+        ],
+        "properties": {
+          "payment_methods_enabled": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ResponsePaymentMethodTypes"
+            },
+            "description": "The list of payment methods that are enabled for the business profile"
+          },
+          "customer_payment_methods": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/CustomerPaymentMethodResponseItem"
+            },
+            "description": "The list of saved payment methods of the customer"
           }
         }
       },
@@ -16895,6 +17124,103 @@
             }
           }
         ]
+      },
+      "PaymentMethodResponseItem": {
+        "type": "object",
+        "required": [
+          "id",
+          "customer_id",
+          "payment_method_type",
+          "payment_method_subtype",
+          "recurring_enabled",
+          "created",
+          "requires_cvv",
+          "is_default",
+          "psp_tokenization_enabled"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "The unique identifier of the payment method.",
+            "example": "12345_pm_01926c58bc6e77c09e809964e72af8c8"
+          },
+          "customer_id": {
+            "type": "string",
+            "description": "The unique identifier of the customer.",
+            "example": "12345_cus_01926c58bc6e77c09e809964e72af8c8",
+            "maxLength": 64,
+            "minLength": 32
+          },
+          "payment_method_type": {
+            "$ref": "#/components/schemas/PaymentMethod"
+          },
+          "payment_method_subtype": {
+            "$ref": "#/components/schemas/PaymentMethodType"
+          },
+          "recurring_enabled": {
+            "type": "boolean",
+            "description": "Indicates whether the payment method is eligible for recurring payments",
+            "example": true
+          },
+          "payment_method_data": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PaymentMethodListData"
+              }
+            ],
+            "nullable": true
+          },
+          "bank": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/MaskedBankDetails"
+              }
+            ],
+            "nullable": true
+          },
+          "created": {
+            "type": "string",
+            "format": "date-time",
+            "description": "A timestamp (ISO 8601 code) that determines when the payment method was created",
+            "example": "2023-01-18T11:04:09.922Z"
+          },
+          "requires_cvv": {
+            "type": "boolean",
+            "description": "Whether this payment method requires CVV to be collected",
+            "example": true
+          },
+          "last_used_at": {
+            "type": "string",
+            "format": "date-time",
+            "description": "A timestamp (ISO 8601 code) that determines when the payment method was last used",
+            "example": "2024-02-24T11:04:09.922Z"
+          },
+          "is_default": {
+            "type": "boolean",
+            "description": "Indicates if the payment method has been set to default or not",
+            "example": true
+          },
+          "billing": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/Address"
+              }
+            ],
+            "nullable": true
+          },
+          "network_tokenization": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/NetworkTokenResponse"
+              }
+            ],
+            "nullable": true
+          },
+          "psp_tokenization_enabled": {
+            "type": "boolean",
+            "description": "Whether psp_tokenization is enabled for the payment_method, this will be true when at least\none multi-use token with status `Active` is available for the payment method"
+          }
+        }
       },
       "PaymentMethodSessionConfirmRequest": {
         "type": "object",
@@ -17617,6 +17943,12 @@
           "payment_method_id": {
             "type": "string",
             "description": "The payment_method_id to be associated with the payment",
+            "nullable": true
+          },
+          "payment_token": {
+            "type": "string",
+            "description": "Provide a reference to a stored payment method",
+            "example": "187282ab-40ef-47a9-9206-5099ba31e432",
             "nullable": true
           }
         },
@@ -18824,6 +19156,14 @@
               "$ref": "#/components/schemas/SessionToken"
             },
             "description": "The list of session token object"
+          },
+          "vault_details": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/VaultSessionDetails"
+              }
+            ],
+            "nullable": true
           }
         }
       },
@@ -21693,6 +22033,14 @@
               "payment_method_subtype": {
                 "$ref": "#/components/schemas/PaymentMethodType"
               },
+              "payment_experience": {
+                "allOf": [
+                  {
+                    "$ref": "#/components/schemas/PaymentExperience"
+                  }
+                ],
+                "nullable": true
+              },
               "required_fields": {
                 "allOf": [
                   {
@@ -22086,6 +22434,7 @@
           "stripe",
           "stripebilling",
           "trustpay",
+          "tokenio",
           "tsys",
           "volt",
           "wellsfargo",
@@ -24325,6 +24674,39 @@
           "propertyName": "type"
         }
       },
+      "VaultSdk": {
+        "type": "string",
+        "enum": [
+          "vgs_sdk",
+          "hyperswitch_sdk"
+        ]
+      },
+      "VaultSessionDetails": {
+        "oneOf": [
+          {
+            "type": "object",
+            "required": [
+              "vgs"
+            ],
+            "properties": {
+              "vgs": {
+                "$ref": "#/components/schemas/VgsSessionDetails"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "hyperswitch_vault"
+            ],
+            "properties": {
+              "hyperswitch_vault": {
+                "$ref": "#/components/schemas/HyperswitchVaultSessionDetails"
+              }
+            }
+          }
+        ]
+      },
       "Venmo": {
         "type": "object",
         "required": [
@@ -24347,6 +24729,23 @@
             "description": "mobile number linked to venmo account",
             "example": "******* 3349",
             "nullable": true
+          }
+        }
+      },
+      "VgsSessionDetails": {
+        "type": "object",
+        "required": [
+          "external_vault_id",
+          "sdk_env"
+        ],
+        "properties": {
+          "external_vault_id": {
+            "type": "string",
+            "description": "The identifier of the external vault"
+          },
+          "sdk_env": {
+            "type": "string",
+            "description": "The environment for the external vault initiation"
           }
         }
       },

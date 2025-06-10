@@ -1,0 +1,45 @@
+{
+  "method": "POST",
+  "header": [
+    {
+      "key": "Content-Type",
+      "value": "application/x-www-form-urlencoded"
+    }
+  ],
+  "body": {
+    "mode": "urlencoded",
+    "urlencoded": [
+      {
+        "key": "order_id",
+        "value": "order_{{$timestamp}}",
+        "type": "text"
+      },
+      {
+        "key": "amount",
+        "value": "6500",
+        "type": "text"
+      },
+      {
+        "key": "return_url",
+        "value": "https://www.google.co.in",
+        "type": "text"
+      },
+      {
+        "key": "customer_id",
+        "value": "cth_926bHs22Q3SSKbiA",
+        "type": "text"
+      },
+      {
+        "key": "currency",
+        "value": "AED",
+        "type": "text"
+      },
+      {
+        "key": "metadata.JUSPAY:gateway_reference_id",
+        "value": "noon-mandate",
+        "type": "text"
+      }
+    ]
+  },
+  "url": "https://sandbox.juspay.in/orders"
+}

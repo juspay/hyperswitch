@@ -44,6 +44,7 @@ pub enum ApiIdentifier {
     PaymentMethodSession,
     ProcessTracker,
     Proxy,
+    ThreeDsDecisionRule,
     GenericTokenization,
 }
 
@@ -344,6 +345,7 @@ impl From<Flow> for ApiIdentifier {
             Flow::RevenueRecoveryRetrieve => Self::ProcessTracker,
             Flow::Proxy => Self::Proxy,
 
+            Flow::ThreeDsDecisionRuleExecute => Self::ThreeDsDecisionRule,
             Flow::TokenizationCreate | Flow::TokenizationRetrieve => Self::GenericTokenization,
         }
     }
