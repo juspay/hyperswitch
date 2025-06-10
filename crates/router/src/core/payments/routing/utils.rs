@@ -87,7 +87,7 @@ where
 
     let closure = || async {
         let response =
-            services::call_connector_api(state, http_request, "open_router_decide_gateway_call")
+            services::call_connector_api(state, http_request, "Decision Engine API call")
                 .await
                 .change_context(errors::RoutingError::OpenRouterCallFailed)?;
 
@@ -104,6 +104,8 @@ where
                         Ok::<_, error_stack::Report<errors::RoutingError>>(response_type)
                     })
                     .transpose()?;
+
+                logger::debug!("success resp from decision engine: {:?}", resp);
 
                 Ok(resp)
             }
@@ -977,6 +979,15 @@ where
     pub request: Option<Req>,
     pub parse_response: bool,
     pub log_event: bool,
+}
+
+#[derive(Debug)]
+pub enum EventResponseType<Res>
+where
+    Res: Serialize + serde::de::DeserializeOwned + Clone,
+{
+    Structured(Res),
+    String(String),
 }
 
 #[derive(Debug)]

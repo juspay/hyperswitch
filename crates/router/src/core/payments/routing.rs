@@ -1947,16 +1947,17 @@ pub async fn update_gateway_score_with_open_router(
         false,
     );
 
-    let response: RoutingResult<utils::RoutingEventsResponse<String>> =
-        utils::SRConfigApiClient::send_decision_engine_request(
-            state,
-            services::Method::Post,
-            "decide-gateway",
-            Some(open_router_req_body),
-            None,
-            Some(routing_events_wrapper),
-        )
-        .await;
+    let response: RoutingResult<
+        utils::RoutingEventsResponse<or_types::UpdateGatewayScoreResponse>,
+    > = utils::SRConfigApiClient::send_decision_engine_request(
+        state,
+        services::Method::Post,
+        "update-gateway-score",
+        Some(open_router_req_body),
+        None,
+        Some(routing_events_wrapper),
+    )
+    .await;
 
     match response {
         Ok(resp) => {
@@ -1971,7 +1972,7 @@ pub async fn update_gateway_score_with_open_router(
             logger::debug!(
                 "open_router update_gateway_score response for gateway with id {}: {:?}",
                 payment_connector,
-                update_score_resp
+                update_score_resp.message
             );
 
             routing_event.set_response_body(&update_score_resp);
