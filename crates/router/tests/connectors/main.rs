@@ -74,6 +74,7 @@ mod payeezy;
 mod payme;
 mod payone;
 mod paypal;
+mod paysafe;
 mod paystack;
 mod payu;
 mod placetopay;
