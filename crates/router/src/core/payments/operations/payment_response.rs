@@ -2549,6 +2549,7 @@ impl<F: Clone> PostUpdateTracker<F, PaymentConfirmData<F>, types::PaymentsAuthor
         if let Some(payment_method) = &payment_data.payment_method {
             match attempt_status {
                 common_enums::AttemptStatus::AuthenticationFailed
+                | common_enums::AttemptStatus::AuthenticationPending
                 | common_enums::AttemptStatus::RouterDeclined
                 | common_enums::AttemptStatus::AuthorizationFailed
                 | common_enums::AttemptStatus::Voided
@@ -2558,10 +2559,10 @@ impl<F: Clone> PostUpdateTracker<F, PaymentConfirmData<F>, types::PaymentsAuthor
                 | common_enums::AttemptStatus::AutoRefunded
                 | common_enums::AttemptStatus::Unresolved
                 | common_enums::AttemptStatus::Pending
+                | common_enums::AttemptStatus::PaymentMethodAwaited
                 | common_enums::AttemptStatus::Failure => (),
 
                 common_enums::AttemptStatus::Started
-                | common_enums::AttemptStatus::AuthenticationPending
                 | common_enums::AttemptStatus::AuthenticationSuccessful
                 | common_enums::AttemptStatus::Authorized
                 | common_enums::AttemptStatus::Charged
@@ -2570,7 +2571,6 @@ impl<F: Clone> PostUpdateTracker<F, PaymentConfirmData<F>, types::PaymentsAuthor
                 | common_enums::AttemptStatus::PartialCharged
                 | common_enums::AttemptStatus::PartialChargedAndChargeable
                 | common_enums::AttemptStatus::CaptureInitiated
-                | common_enums::AttemptStatus::PaymentMethodAwaited
                 | common_enums::AttemptStatus::ConfirmationAwaited
                 | common_enums::AttemptStatus::DeviceDataCollectionPending => {
                     let pm_update_status = enums::PaymentMethodStatus::Active;
