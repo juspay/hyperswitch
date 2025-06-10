@@ -596,7 +596,7 @@ pub struct PaymentsIntentResponse {
     #[serde(with = "common_utils::custom_serde::iso8601")]
     pub expires_on: PrimitiveDateTime,
 
-    /// When is this intent created
+    /// Time at which the payment intent was created.
     #[serde(with = "common_utils::custom_serde::iso8601")]
     pub created_at: PrimitiveDateTime,
 
