@@ -79,18 +79,19 @@ const getUnsupportedExchange = () => ({
 });
 
 // Const to get PaymentExchange with overridden properties
-export const getCustomExchange = (overrides) => {
+export const getCustomExchange = (overrides, inheritFrom = null) => {
   const defaultExchange = getDefaultExchange();
+  const baseExchange = inheritFrom || defaultExchange;
 
   return {
-    ...defaultExchange,
+    ...baseExchange,
     ...(overrides.Configs ? { Configs: overrides.Configs } : {}),
     Request: {
-      ...defaultExchange.Request,
+      ...baseExchange.Request,
       ...(overrides.Request || {}),
     },
     Response: {
-      ...defaultExchange.Response,
+      ...baseExchange.Response,
       ...(overrides.Response || {}),
     },
     ...(overrides.ResponseCustom

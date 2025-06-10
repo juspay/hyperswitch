@@ -318,7 +318,7 @@ export const connectorDetails = {
   bank_transfer_pm: {
     PaymentIntent: getCustomExchange({
       Request: {
-        currency: "BRL",
+        currency: "USD",
       },
       Response: {
         status: 200,
@@ -350,6 +350,56 @@ export const connectorDetails = {
           },
         },
         currency: "BRL",
+      },
+    }),
+    InstantBankTransferFinland: getCustomExchange({
+      Request: {
+        payment_method: "bank_transfer",
+        payment_method_type: "instant_bank_transfer_finland",
+        payment_method_data: {
+          bank_transfer: {
+            instant_bank_transfer_finland: {},
+          },
+        },
+        billing: {
+          address: {
+            line1: "1467",
+            line2: "Harrison Street",
+            line3: "Harrison Street",
+            city: "San Fransico",
+            state: "California",
+            zip: "94122",
+            country: "FI",
+            first_name: "john",
+            last_name: "doe",
+          },
+        },
+        currency: "EUR",
+      },
+    }),
+    InstantBankTransferPoland: getCustomExchange({
+      Request: {
+        payment_method: "bank_transfer",
+        payment_method_type: "instant_bank_transfer_poland",
+        payment_method_data: {
+          bank_transfer: {
+            instant_bank_transfer_poland: {},
+          },
+        },
+        billing: {
+          address: {
+            line1: "1467",
+            line2: "Harrison Street",
+            line3: "Harrison Street",
+            city: "San Fransico",
+            state: "California",
+            zip: "94122",
+            country: "PL",
+            first_name: "john",
+            last_name: "doe",
+          },
+        },
+        currency: "PLN",
       },
     }),
   },
