@@ -1972,6 +1972,49 @@ pub struct Card {
     pub nick_name: Option<Secret<String>>,
 }
 
+#[derive(Default, Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
+pub struct ProxyCard {
+    /// The card number
+    #[schema(value_type = String, example = "4242424242424242")]
+    pub card_number: Secret<String>,
+
+    /// The card's expiry month
+    #[schema(value_type = String, example = "24")]
+    pub card_exp_month: Secret<String>,
+
+    /// The card's expiry year
+    #[schema(value_type = String, example = "24")]
+    pub card_exp_year: Secret<String>,
+
+    /// The card holder's name
+    #[schema(value_type = String, example = "John Test")]
+    pub card_holder_name: Option<Secret<String>>,
+
+    /// The CVC number for the card
+    #[schema(value_type = String, example = "242")]
+    pub card_cvc: Secret<String>,
+
+    /// The name of the issuer of card
+    #[schema(example = "chase")]
+    pub card_issuer: Option<String>,
+
+    /// The card network for the card
+    #[schema(value_type = Option<CardNetwork>, example = "Visa")]
+    pub card_network: Option<api_enums::CardNetwork>,
+
+    #[schema(example = "CREDIT")]
+    pub card_type: Option<String>,
+
+    #[schema(example = "INDIA")]
+    pub card_issuing_country: Option<String>,
+
+    #[schema(example = "JP_AMEX")]
+    pub bank_code: Option<String>,
+    /// The card holder's nick name
+    #[schema(value_type = Option<String>, example = "John Test")]
+    pub nick_name: Option<Secret<String>>,
+}
+
 #[cfg(feature = "v2")]
 impl TryFrom<payment_methods::CardDetail> for Card {
     type Error = error_stack::Report<ValidationError>;
@@ -2530,6 +2573,8 @@ pub struct PaymentMethodDataRequest {
 pub enum PaymentMethodData {
     #[schema(title = "Card")]
     Card(Card),
+    #[schema(title = "ExternalProxyCard")]
+    ExternalProxyCard(ProxyCard),
     #[schema(title = "CardRedirect")]
     CardRedirect(CardRedirectData),
     #[schema(title = "Wallet")]
