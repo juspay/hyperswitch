@@ -582,6 +582,7 @@ pub async fn link_routing_config(
                             business_profile.get_id(),
                             routing_algorithm.algorithm_data.clone(),
                             routing_types::DynamicRoutingType::SuccessRateBasedRouting,
+                            &mut dynamic_routing_ref,
                         )
                         .await
                         .change_context(errors::ApiErrorResponse::InternalServerError)
@@ -612,6 +613,7 @@ pub async fn link_routing_config(
                             business_profile.get_id(),
                             routing_algorithm.algorithm_data.clone(),
                             routing_types::DynamicRoutingType::EliminationRouting,
+                            &mut dynamic_routing_ref,
                         )
                         .await
                         .change_context(errors::ApiErrorResponse::InternalServerError)
@@ -1933,6 +1935,9 @@ pub async fn contract_based_dynamic_routing_setup(
             elimination_routing_algorithm: None,
             dynamic_routing_volume_split: None,
             contract_based_routing: Some(contract_algo),
+            is_merchant_created_in_decision_engine: dynamic_routing_algo_ref
+                .as_ref()
+                .is_some_and(|algo| algo.is_merchant_created_in_decision_engine),
         }
     };
 
