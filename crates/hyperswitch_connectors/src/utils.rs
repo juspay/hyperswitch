@@ -6440,7 +6440,7 @@ impl XmlSerializer {
         xml_version: &str,
         xml_encoding: Option<&str>,
         xml_standalone: Option<&str>,
-        xml_doc_type: &str,
+        xml_doc_type: Option<&str>,
     ) -> Result<Vec<u8>, error_stack::Report<errors::ConnectorError>> {
         let mut xml_bytes = Vec::new();
         let mut writer = Writer::new(std::io::Cursor::new(&mut xml_bytes));
@@ -6454,10 +6454,12 @@ impl XmlSerializer {
             .change_context(errors::ConnectorError::RequestEncodingFailed)
             .attach_printable("Failed to write XML declaration")?;
 
-        writer
-            .write_event(Event::DocType(BytesText::from_escaped(xml_doc_type)))
-            .change_context(errors::ConnectorError::RequestEncodingFailed)
-            .attach_printable("Failed to write the XML declaration")?;
+        if let Some(xml_doc_type_data) = xml_doc_type {
+            writer
+                .write_event(Event::DocType(BytesText::from_escaped(xml_doc_type_data)))
+                .change_context(errors::ConnectorError::RequestEncodingFailed)
+                .attach_printable("Failed to write the XML declaration")?;
+        };
 
         let xml_body = quick_xml::se::to_string(&item)
             .change_context(errors::ConnectorError::RequestEncodingFailed)

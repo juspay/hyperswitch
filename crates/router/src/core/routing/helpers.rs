@@ -30,9 +30,9 @@ use external_services::grpc_client::dynamic_routing::{
 use hyperswitch_domain_models::api::ApplicationResponse;
 #[cfg(all(feature = "v1", feature = "dynamic_routing"))]
 use hyperswitch_interfaces::events::routing_api_logs as routing_events;
-#[cfg(all(feature = "dynamic_routing", feature = "v1"))]
+#[cfg(feature = "v1")]
 use router_env::logger;
-#[cfg(all(feature = "dynamic_routing", feature = "v1"))]
+#[cfg(feature = "v1")]
 use router_env::{instrument, tracing};
 use rustc_hash::FxHashSet;
 use storage_impl::redis::cache;
@@ -52,15 +52,15 @@ use crate::{
     types::{domain, storage},
     utils::StringExt,
 };
+#[cfg(feature = "v1")]
+use crate::{
+    core::payments::routing::utils::{self as routing_utils, DecisionEngineApiHandler},
+    services,
+};
 #[cfg(all(feature = "dynamic_routing", feature = "v1"))]
 use crate::{
-    core::{
-        metrics as core_metrics,
-        payments::routing::utils::{self as routing_utils, DecisionEngineApiHandler},
-        routing,
-    },
+    core::{metrics as core_metrics, routing},
     routes::app::SessionStateInfo,
-    services,
     types::transformers::ForeignInto,
 };
 pub const SUCCESS_BASED_DYNAMIC_ROUTING_ALGORITHM: &str =
@@ -1452,7 +1452,7 @@ pub async fn push_metrics_with_update_window_for_contract_based_routing(
                     routing_events::RoutingEngine::IntelligentRouter,
                 );
 
-                let update_respose = client
+                let update_response = client
                     .update_contracts(
                         profile_id.get_string_repr().into(),
                         vec![request_label_info],
@@ -1474,7 +1474,7 @@ pub async fn push_metrics_with_update_window_for_contract_based_routing(
                     )?;
 
                 let event_response = routing_types::UpdateContractEventResponse {
-                        status: match update_respose.status {
+                        status: match update_response.status {
                             0 => routing_types::ContractUpdationStatusEventResponse::ContractUpdationSucceeded,
                             1 => routing_types::ContractUpdationStatusEventResponse::ContractUpdationFailed,
                             _ => {
@@ -1723,7 +1723,7 @@ pub async fn disable_dynamic_routing_algorithm(
     let db = state.store.as_ref();
     let key_manager_state = &state.into();
     let profile_id = business_profile.get_id().clone();
-    let (algorithm_id, dynamic_routing_algorithm, cache_entries_to_redact) =
+    let (algorithm_id, mut dynamic_routing_algorithm, cache_entries_to_redact) =
         match dynamic_routing_type {
             routing_types::DynamicRoutingType::SuccessRateBasedRouting => {
                 let Some(algorithm_ref) = dynamic_routing_algo_ref.success_based_algorithm else {
@@ -1760,6 +1760,8 @@ pub async fn disable_dynamic_routing_algorithm(
                         contract_based_routing: dynamic_routing_algo_ref.contract_based_routing,
                         dynamic_routing_volume_split: dynamic_routing_algo_ref
                             .dynamic_routing_volume_split,
+                        is_merchant_created_in_decision_engine: dynamic_routing_algo_ref
+                            .is_merchant_created_in_decision_engine,
                     },
                     cache_entries_to_redact,
                 )
@@ -1800,6 +1802,8 @@ pub async fn disable_dynamic_routing_algorithm(
                             },
                         ),
                         contract_based_routing: dynamic_routing_algo_ref.contract_based_routing,
+                        is_merchant_created_in_decision_engine: dynamic_routing_algo_ref
+                            .is_merchant_created_in_decision_engine,
                     },
                     cache_entries_to_redact,
                 )
@@ -1838,6 +1842,8 @@ pub async fn disable_dynamic_routing_algorithm(
                                 routing_types::DynamicAlgorithmWithTimestamp::new(None),
                             enabled_feature: routing_types::DynamicRoutingFeatures::None,
                         }),
+                        is_merchant_created_in_decision_engine: dynamic_routing_algo_ref
+                            .is_merchant_created_in_decision_engine,
                     },
                     cache_entries_to_redact,
                 )
@@ -1850,6 +1856,7 @@ pub async fn disable_dynamic_routing_algorithm(
             state,
             business_profile.get_id(),
             dynamic_routing_type,
+            &mut dynamic_routing_algorithm,
         )
         .await
         .change_context(errors::ApiErrorResponse::InternalServerError)
@@ -2088,6 +2095,7 @@ pub async fn default_specific_dynamic_routing_setup(
             state,
             business_profile.get_id(),
             dynamic_routing_type,
+            &mut dynamic_routing_algo_ref,
         )
         .await
         .change_context(errors::ApiErrorResponse::InternalServerError)
@@ -2203,6 +2211,7 @@ pub async fn enable_decision_engine_dynamic_routing_setup(
     state: &SessionState,
     profile_id: &id_type::ProfileId,
     dynamic_routing_type: routing_types::DynamicRoutingType,
+    dynamic_routing_algo_ref: &mut routing_types::DynamicRoutingAlgorithmRef,
 ) -> RouterResult<()> {
     logger::debug!(
         "performing call with open_router for profile {}",
@@ -2248,6 +2257,10 @@ pub async fn enable_decision_engine_dynamic_routing_setup(
         }
     };
 
+    // Create merchant in Decision Engine if it is not already created
+    create_merchant_in_decision_engine_if_not_exists(state, profile_id, dynamic_routing_algo_ref)
+        .await;
+
     routing_utils::ConfigApiClient::send_decision_engine_request::<_, String>(
         state,
         services::Method::Post,
@@ -2269,6 +2282,7 @@ pub async fn update_decision_engine_dynamic_routing_setup(
     profile_id: &id_type::ProfileId,
     request: serde_json::Value,
     dynamic_routing_type: routing_types::DynamicRoutingType,
+    dynamic_routing_algo_ref: &mut routing_types::DynamicRoutingAlgorithmRef,
 ) -> RouterResult<()> {
     logger::debug!(
         "performing call with open_router for profile {}",
@@ -2320,6 +2334,10 @@ pub async fn update_decision_engine_dynamic_routing_setup(
         }
     };
 
+    // Create merchant in Decision Engine if it is not already created
+    create_merchant_in_decision_engine_if_not_exists(state, profile_id, dynamic_routing_algo_ref)
+        .await;
+
     routing_utils::ConfigApiClient::send_decision_engine_request::<_, String>(
         state,
         services::Method::Post,
@@ -2340,6 +2358,7 @@ pub async fn disable_decision_engine_dynamic_routing_setup(
     state: &SessionState,
     profile_id: &id_type::ProfileId,
     dynamic_routing_type: routing_types::DynamicRoutingType,
+    dynamic_routing_algo_ref: &mut routing_types::DynamicRoutingAlgorithmRef,
 ) -> RouterResult<()> {
     logger::debug!(
         "performing call with open_router for profile {}",
@@ -2364,6 +2383,10 @@ pub async fn disable_decision_engine_dynamic_routing_setup(
         },
     };
 
+    // Create merchant in Decision Engine if it is not already created
+    create_merchant_in_decision_engine_if_not_exists(state, profile_id, dynamic_routing_algo_ref)
+        .await;
+
     routing_utils::ConfigApiClient::send_decision_engine_request::<_, String>(
         state,
         services::Method::Post,
@@ -2378,7 +2401,32 @@ pub async fn disable_decision_engine_dynamic_routing_setup(
     Ok(())
 }
 
-#[cfg(all(feature = "dynamic_routing", feature = "v1"))]
+#[cfg(feature = "v1")]
+#[instrument(skip_all)]
+pub async fn create_merchant_in_decision_engine_if_not_exists(
+    state: &SessionState,
+    profile_id: &id_type::ProfileId,
+    dynamic_routing_algo_ref: &mut routing_types::DynamicRoutingAlgorithmRef,
+) {
+    if !dynamic_routing_algo_ref.is_merchant_created_in_decision_engine {
+        logger::debug!(
+            "Creating merchant_account in decision engine for profile {}",
+            profile_id.get_string_repr()
+        );
+
+        create_decision_engine_merchant(state, profile_id)
+            .await
+            .map_err(|err| {
+                logger::warn!("Merchant creation error in decision_engine: {err:?}");
+            })
+            .ok();
+
+        // TODO: Update the status based on the status code or error message from the API call
+        dynamic_routing_algo_ref.update_merchant_creation_status_in_decision_engine(true);
+    }
+}
+
+#[cfg(feature = "v1")]
 #[instrument(skip_all)]
 pub async fn create_decision_engine_merchant(
     state: &SessionState,

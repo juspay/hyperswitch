@@ -263,6 +263,23 @@ impl ConnectorIntegration<CreateConnectorCustomer, ConnectorCustomerData, Paymen
                 .to_string()
                 .into(),
         )];
+        if let Some(common_types::payments::SplitPaymentsRequest::StripeSplitPayment(
+            stripe_split_payment,
+        )) = &req.request.split_payments
+        {
+            if stripe_split_payment.charge_type
+                == PaymentChargeType::Stripe(StripeChargeType::Direct)
+            {
+                let mut customer_account_header = vec![(
+                    STRIPE_COMPATIBLE_CONNECT_ACCOUNT.to_string(),
+                    stripe_split_payment
+                        .transfer_account_id
+                        .clone()
+                        .into_masked(),
+                )];
+                header.append(&mut customer_account_header);
+            }
+        }
         let mut api_key = self.get_auth_header(&req.connector_auth_type)?;
         header.append(&mut api_key);
         Ok(header)
@@ -389,6 +406,23 @@ impl ConnectorIntegration<PaymentMethodToken, PaymentMethodTokenizationData, Pay
             CONTENT_TYPE.to_string(),
             TokenizationType::get_content_type(self).to_string().into(),
         )];
+        if let Some(common_types::payments::SplitPaymentsRequest::StripeSplitPayment(
+            stripe_split_payment,
+        )) = &req.request.split_payments
+        {
+            if stripe_split_payment.charge_type
+                == PaymentChargeType::Stripe(StripeChargeType::Direct)
+            {
+                let mut customer_account_header = vec![(
+                    STRIPE_COMPATIBLE_CONNECT_ACCOUNT.to_string(),
+                    stripe_split_payment
+                        .transfer_account_id
+                        .clone()
+                        .into_masked(),
+                )];
+                header.append(&mut customer_account_header);
+            }
+        }
         let mut api_key = self.get_auth_header(&req.connector_auth_type)?;
         header.append(&mut api_key);
         Ok(header)
@@ -400,9 +434,19 @@ impl ConnectorIntegration<PaymentMethodToken, PaymentMethodTokenizationData, Pay
 
     fn get_url(
         &self,
-        _req: &TokenizationRouterData,
+        req: &TokenizationRouterData,
         connectors: &Connectors,
     ) -> CustomResult<String, ConnectorError> {
+        if matches!(
+            req.request.split_payments,
+            Some(common_types::payments::SplitPaymentsRequest::StripeSplitPayment(_))
+        ) {
+            return Ok(format!(
+                "{}{}",
+                self.base_url(connectors),
+                "v1/payment_methods"
+            ));
+        }
         Ok(format!("{}{}", self.base_url(connectors), "v1/tokens"))
     }
 
@@ -526,7 +570,6 @@ impl ConnectorIntegration<Capture, PaymentsCaptureData, PaymentsResponseData> fo
         connectors: &Connectors,
     ) -> CustomResult<String, ConnectorError> {
         let id = req.request.connector_transaction_id.as_str();
-
         Ok(format!(
             "{}{}/{}/capture",
             self.base_url(connectors),

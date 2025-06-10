@@ -19,6 +19,10 @@ use hyperswitch_domain_models::{
         unified_authentication_service::{
             Authenticate, AuthenticationConfirmation, PostAuthenticate, PreAuthenticate,
         },
+        vault::{
+            ExternalVaultCreateFlow, ExternalVaultDeleteFlow, ExternalVaultInsertFlow,
+            ExternalVaultRetrieveFlow,
+        },
         webhooks::VerifyWebhookSource,
         BillingConnectorInvoiceSync,
     },
@@ -40,7 +44,7 @@ use hyperswitch_domain_models::{
         PaymentsSessionData, PaymentsSyncData, PaymentsTaxCalculationData,
         PaymentsUpdateMetadataData, RefundsData, RetrieveFileRequestData,
         SdkPaymentsSessionUpdateData, SetupMandateRequestData, SubmitEvidenceRequestData,
-        UploadFileRequestData, VerifyWebhookSourceRequestData,
+        UploadFileRequestData, VaultRequestData, VerifyWebhookSourceRequestData,
     },
     router_response_types::{
         revenue_recovery::{
@@ -49,7 +53,8 @@ use hyperswitch_domain_models::{
         },
         AcceptDisputeResponse, DefendDisputeResponse, MandateRevokeResponseData,
         PaymentsResponseData, RefundsResponseData, RetrieveFileResponse, SubmitEvidenceResponse,
-        TaxCalculationResponseData, UploadFileResponse, VerifyWebhookSourceResponseData,
+        TaxCalculationResponseData, UploadFileResponse, VaultResponseData,
+        VerifyWebhookSourceResponseData,
     },
 };
 #[cfg(feature = "payouts")]
@@ -282,6 +287,19 @@ pub type BillingConnectorInvoiceSyncTypeV2 = dyn ConnectorIntegrationV2<
     BillingConnectorInvoiceSyncRequest,
     BillingConnectorInvoiceSyncResponse,
 >;
+
+/// Type alias for `ConnectorIntegration<ExternalVaultInsertFlow, VaultRequestData, VaultResponseData>`
+pub type ExternalVaultInsertType =
+    dyn ConnectorIntegration<ExternalVaultInsertFlow, VaultRequestData, VaultResponseData>;
+/// Type alias for `ConnectorIntegration<ExternalVaultRetrieveFlow, VaultRequestData, VaultResponseData>`
+pub type ExternalVaultRetrieveType =
+    dyn ConnectorIntegration<ExternalVaultRetrieveFlow, VaultRequestData, VaultResponseData>;
+/// Type alias for `ConnectorIntegration<ExternalVaultDeleteFlow, VaultRequestData, VaultResponseData>`
+pub type ExternalVaultDeleteType =
+    dyn ConnectorIntegration<ExternalVaultDeleteFlow, VaultRequestData, VaultResponseData>;
+/// Type alias for `ConnectorIntegration<ExternalVaultCreateFlow, VaultRequestData, VaultResponseData>`
+pub type ExternalVaultCreateType =
+    dyn ConnectorIntegration<ExternalVaultCreateFlow, VaultRequestData, VaultResponseData>;
 
 /// Proxy configuration structure
 #[derive(Debug, serde::Deserialize, Clone)]
