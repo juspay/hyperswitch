@@ -8,10 +8,9 @@ use crate::{
 impl ForeignFrom<AttemptStatus> for RevenueRecoveryPaymentsAttemptStatus {
     fn foreign_from(s: AttemptStatus) -> Self {
         match s {
-            AttemptStatus::Authorized
-            | AttemptStatus::Charged
-            | AttemptStatus::AutoRefunded
-            | AttemptStatus::IntegrityFailure => Self::Succeeded,
+            AttemptStatus::Authorized | AttemptStatus::Charged | AttemptStatus::AutoRefunded => {
+                Self::Succeeded
+            }
 
             AttemptStatus::Started
             | AttemptStatus::AuthenticationSuccessful
@@ -35,7 +34,8 @@ impl ForeignFrom<AttemptStatus> for RevenueRecoveryPaymentsAttemptStatus {
             | AttemptStatus::PaymentMethodAwaited
             | AttemptStatus::AuthenticationPending
             | AttemptStatus::DeviceDataCollectionPending
-            | AttemptStatus::Unresolved => Self::InvalidStatus(s.to_string()),
+            | AttemptStatus::Unresolved
+            | AttemptStatus::IntegrityFailure => Self::InvalidStatus(s.to_string()),
         }
     }
 }
