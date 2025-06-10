@@ -570,7 +570,7 @@ fn process_connector_for_networks(
 
 /// Finds a merchant connector account by ID
 fn find_merchant_connector_account(
-    mcas: &Vec<domain::MerchantConnectorAccount>,
+    mcas: &[domain::MerchantConnectorAccount],
     merchant_connector_id: &MerchantConnectorAccountId,
 ) -> Option<domain::MerchantConnectorAccount> {
     mcas.iter()
