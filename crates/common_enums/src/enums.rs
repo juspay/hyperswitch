@@ -239,7 +239,12 @@ pub enum RevenueRecoveryAlgorithmType {
     Cascading,
 }
 
-/// Pass this parameter to force 3DS or non 3DS auth for this payment. Some connectors will still force 3DS auth even in case of passing 'no_three_ds' here and vice versa. Default value is 'no_three_ds' if not set
+/// Specifies the type of cardholder authentication to be applied for a payment.
+///
+/// - `ThreeDs`: Requests 3D Secure (3DS) authentication. If the card is enrolled, 3DS authentication will be activated, potentially shifting chargeback liability to the issuer.
+/// - `NoThreeDs`: Indicates that 3D Secure authentication should not be performed. The liability for chargebacks typically remains with the merchant. This is often the default if not specified.
+///
+/// Note: The actual authentication behavior can also be influenced by merchant configuration and specific connector defaults. Some connectors might still enforce 3DS or bypass it regardless of this parameter.
 #[derive(
     Clone,
     Copy,
@@ -393,7 +398,10 @@ pub enum BlocklistDataKind {
     ExtendedCardBin,
 }
 
-/// Default value if not passed is set to 'automatic' which results in Auth and Capture in one single API request. Pass 'manual' or 'manual_multiple' in case you want do a separate Auth and Capture by first authorizing and placing a hold on your customer's funds so that you can use the Payments/Capture endpoint later to capture the authorized amount. Pass 'manual' if you want to only capture the amount later once or 'manual_multiple' if you want to capture the funds multiple times later. Both 'manual' and 'manual_multiple' are only supported by a specific list of processors
+
+/// Specifies how the payment is captured.
+/// - `automatic`: Funds are captured immediately after successful authorization. This is the default behavior if the field is omitted.
+/// - `manual`: Funds are authorized but not captured. A separate request to the `/payments/{payment_id}/capture` endpoint is required to capture the funds.
 #[derive(
     Clone,
     Copy,
@@ -414,16 +422,16 @@ pub enum BlocklistDataKind {
 #[serde(rename_all = "snake_case")]
 #[strum(serialize_all = "snake_case")]
 pub enum CaptureMethod {
-    /// Post the payment authorization, the capture will be executed on the full amount immediately
+    /// Post the payment authorization, the capture will be executed on the full amount immediately.
     #[default]
     Automatic,
-    /// The capture will happen only if the merchant triggers a Capture API request
+    /// The capture will happen only if the merchant triggers a Capture API request. Allows for a single capture of the authorized amount.
     Manual,
-    /// The capture will happen only if the merchant triggers a Capture API request
+    /// The capture will happen only if the merchant triggers a Capture API request. Allows for multiple partial captures up to the authorized amount.
     ManualMultiple,
-    /// The capture can be scheduled to automatically get triggered at a specific date & time
+    /// The capture can be scheduled to automatically get triggered at a specific date & time.
     Scheduled,
-    /// Handles separate auth and capture sequentially; same as `Automatic` for most connectors.
+    /// Handles separate auth and capture sequentially; effectively the same as `Automatic` for most connectors.
     SequentialAutomatic,
 }
 
@@ -492,7 +500,7 @@ pub enum CallConnectorAction {
     HandleResponse(Vec<u8>),
 }
 
-/// The three letter ISO currency code in uppercase. Eg: 'USD' for the United States Dollar.
+/// The three-letter ISO 4217 currency code (e.g., "USD", "EUR") for the payment amount. This field is mandatory for creating a payment.
 #[allow(clippy::upper_case_acronyms)]
 #[derive(
     Clone,
@@ -1553,7 +1561,9 @@ pub enum MerchantStorageScheme {
     RedisKv,
 }
 
-/// The status of the current payment that was made
+/// Represents the overall status of a payment intent.
+/// The status transitions through various states depending on the payment method, confirmation, capture method, and any subsequent actions (like customer authentication or manual capture).
+/// Possible values include `requires_payment_method`, `requires_confirmation`, `requires_action`, `processing`, `requires_capture`, `succeeded`, `failed`, `cancelled`.
 #[derive(
     Clone,
     Copy,
@@ -1637,9 +1647,10 @@ impl IntentStatus {
     }
 }
 
-/// Indicates that you intend to make future payments with the payment methods used for this Payment. Providing this parameter will attach the payment method to the Customer, if present, after the Payment is confirmed and any required actions from the user are complete.
-/// - On_session - Payment method saved only at hyperswitch when consent is provided by the user. CVV will asked during the returning user payment
-/// - Off_session - Payment method saved at both hyperswitch and Processor when consent is provided by the user. No input is required during the returning user payment.
+/// Specifies the type of cardholder authentication to be applied.
+/// - `three_ds`: Requests 3D Secure authentication.
+/// - `no_three_ds`: Indicates that 3D Secure authentication should not be performed.
+/// If omitted, the authentication behavior is determined by merchant configuration and connector defaults.
 #[derive(
     Clone,
     Copy,

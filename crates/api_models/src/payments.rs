@@ -902,16 +902,9 @@ pub struct PaymentsRequest {
     #[schema(value_type = Option<Vec<Connector>>, max_length = 255, example = json!(["stripe", "adyen"]))]
     pub connector: Option<Vec<api_enums::Connector>>,
 
-    /// Specifies how the payment is captured.
-    /// - `automatic`: Funds are captured immediately after successful authorization. This is the default behavior if the field is omitted.
-    /// - `manual`: Funds are authorized but not captured. A separate request to the `/payments/{payment_id}/capture` endpoint is required to capture the funds.
     #[schema(value_type = Option<CaptureMethod>, example = "automatic")]
     pub capture_method: Option<api_enums::CaptureMethod>,
 
-    /// Specifies the type of cardholder authentication to be applied.
-    /// - `three_ds`: Requests 3D Secure authentication.
-    /// - `no_three_ds`: Indicates that 3D Secure authentication should not be performed.
-    /// If omitted, the authentication behavior is determined by merchant configuration and connector defaults.
     #[schema(value_type = Option<AuthenticationType>, example = "no_three_ds", default = "three_ds")]
     pub authentication_type: Option<api_enums::AuthenticationType>,
 
@@ -968,14 +961,10 @@ pub struct PaymentsRequest {
     #[schema(example = "It's my first payment request")]
     pub description: Option<String>,
 
-    /// The URL to which you want the user to be redirected after the completion of the payment operation
-    #[schema(value_type = Option<String>, example = "https://hyperswitch.io", max_length = 2048)]
+    /// The URL to redirect the customer to after they complete the payment process or authentication. This is crucial for flows that involve off-site redirection (e.g., 3DS, some bank redirects, wallet payments).
+    #[schema(value_type = Option<String>, example = "https://hyperswitch.io")]
     pub return_url: Option<Url>,
 
-    /// Specifies an intent to save the payment method for future use.
-    /// - `on_session`: The payment method is saved for use during the current session, typically when the customer is present.
-    /// - `off_session`: The payment method is saved for later use, potentially for recurring or merchant-initiated transactions when the customer may not be present.
-    /// Setting this field can initiate mandate creation flows. The actual state of the saved payment method (e.g., if it's available for off-session use immediately) will be reflected in the payment response and depends on the payment flow and connector capabilities.
     #[schema(value_type = Option<FutureUsage>, example = "off_session")]
     pub setup_future_usage: Option<api_enums::FutureUsage>,
 
@@ -4814,7 +4803,6 @@ pub struct PaymentsResponse {
     #[schema(max_length = 255, example = "merchant_1668273825", value_type = String)]
     pub merchant_id: id_type::MerchantId,
 
-    /// The current status of the payment intent. Possible values include `requires_payment_method`, `requires_confirmation`, `requires_action`, `processing`, `requires_capture`, `succeeded`, `failed`, `cancelled`. The flow through these statuses depends on the payment method, `confirm` and `capture_method` parameters, and any subsequent actions.
     #[schema(value_type = IntentStatus, example = "failed", default = "requires_confirmation")]
     pub status: api_enums::IntentStatus,
 
@@ -5337,7 +5325,6 @@ pub struct PaymentsConfirmIntentRequest {
     #[schema(value_type = Option<String>)]
     pub payment_method_id: Option<id_type::GlobalPaymentMethodId>,
 
-    /// Provide a reference to a stored payment method
     #[schema(example = "187282ab-40ef-47a9-9206-5099ba31e432")]
     pub payment_token: Option<String>,
 }
@@ -7570,6 +7557,7 @@ pub struct PaymentsManualUpdateResponse {
 }
 
 #[derive(Debug, serde::Serialize, serde::Deserialize, Clone, ToSchema)]
+/// Indicates if 3DS method data was successfully completed or not
 pub enum ThreeDsCompletionIndicator {
     /// 3DS method successfully completed
     #[serde(rename = "Y")]
