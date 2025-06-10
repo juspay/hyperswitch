@@ -12630,7 +12630,7 @@
           "customer_acceptance": {
             "allOf": [
               {
-                "$ref": "#/components/schemas/CustomerAcceptance"
+                "$ref": "#/components/schemas/common_payments.CustomerAcceptance"
               }
             ],
             "nullable": true
@@ -14612,6 +14612,7 @@
       },
       "OnlineMandate": {
         "type": "object",
+        "description": "Details of online mandate",
         "required": [
           "ip_address",
           "user_agent"

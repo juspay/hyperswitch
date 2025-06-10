@@ -1,6 +1,7 @@
 use std::collections::HashMap;
 
 use api_models::{self, routing as routing_types};
+use common_types::payments as common_payments;
 use diesel_models::enums as storage_enums;
 use euclid::{enums as dsl_enums, frontend::ast as dsl_ast};
 use kgraph_utils::types;
@@ -31,11 +32,11 @@ impl ForeignFrom<storage_enums::CaptureMethod> for Option<dsl_enums::CaptureMeth
     }
 }
 
-impl ForeignFrom<api_models::payments::AcceptanceType> for dsl_enums::MandateAcceptanceType {
-    fn foreign_from(from: api_models::payments::AcceptanceType) -> Self {
+impl ForeignFrom<common_payments::AcceptanceType> for dsl_enums::MandateAcceptanceType {
+    fn foreign_from(from: common_payments::AcceptanceType) -> Self {
         match from {
-            api_models::payments::AcceptanceType::Online => Self::Online,
-            api_models::payments::AcceptanceType::Offline => Self::Offline,
+            common_payments::AcceptanceType::Online => Self::Online,
+            common_payments::AcceptanceType::Offline => Self::Offline,
         }
     }
 }

@@ -2,6 +2,7 @@ use std::{collections::HashMap, ops::Deref};
 
 use api_models::{self, enums as api_enums, payments};
 use common_enums::{enums, AttemptStatus, PaymentChargeType, StripeChargeType};
+use common_types::payments::AcceptanceType;
 use common_utils::{
     collect_missing_value_keys,
     errors::CustomResult,
@@ -12,7 +13,6 @@ use common_utils::{
 };
 use error_stack::ResultExt;
 use hyperswitch_domain_models::{
-    mandates::AcceptanceType,
     payment_method_data::{
         self, BankRedirectData, Card, CardRedirectData, GiftCardData, GooglePayWalletData,
         PayLaterData, PaymentMethodData, VoucherData, WalletData,
