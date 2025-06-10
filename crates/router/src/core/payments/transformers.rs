@@ -2491,12 +2491,7 @@ where
             })
             .unwrap_or_default(),
     );
-    let connector_name = payment_attempt
-        .connector
-        .as_ref()
-        .map(|c| c.as_str())
-        .unwrap_or_default();
-
+    let connector_name = payment_attempt.connector.as_deref().unwrap_or_default();
     let router_return_url = helpers::create_redirect_url(
         &base_url.to_string(),
         &payment_attempt,
