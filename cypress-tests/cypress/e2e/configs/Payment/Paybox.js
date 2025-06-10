@@ -51,25 +51,6 @@ const captureNotSupported = {
     "Capture Not allowed in case of Creating the Subscriber is not supported by Paybox",
 };
 
-const billing_data = {
-  address: {
-    line1: "1467",
-    line2: "Harrison Street\nApt 101",
-    line3: "Harrison Street\nApt 101",
-    city: "Paris",
-    state: "asd",
-    zip: "8008",
-    country: "FR",
-    first_name: "joseph",
-    last_name: "Doe",
-  },
-  phone: {
-    number: "9123456789",
-    country_code: "+91",
-  },
-  email: "example@email.com",
-};
-
 export const connectorDetails = {
   card_pm: {
     PaymentIntent: {
@@ -77,7 +58,6 @@ export const connectorDetails = {
         currency: "EUR",
         customer_acceptance: null,
         setup_future_usage: "on_session",
-        billing: billing_data,
       },
       Response: {
         status: 200,
@@ -93,7 +73,6 @@ export const connectorDetails = {
         authentication_type: "no_three_ds",
         customer_acceptance: null,
         setup_future_usage: "off_session",
-        billing: billing_data,
       },
       Response: {
         status: 200,
@@ -112,7 +91,6 @@ export const connectorDetails = {
         },
         customer_acceptance: null,
         setup_future_usage: "on_session",
-        billing: billing_data,
       },
       Response: {
         status: 200,
@@ -131,7 +109,6 @@ export const connectorDetails = {
         },
         customer_acceptance: null,
         setup_future_usage: "on_session",
-        billing: billing_data,
       },
       Response: {
         status: 200,
@@ -149,7 +126,6 @@ export const connectorDetails = {
         currency: "EUR",
         customer_acceptance: null,
         setup_future_usage: "on_session",
-        billing: billing_data,
       },
       Response: {
         status: 200,
@@ -168,7 +144,6 @@ export const connectorDetails = {
         currency: "EUR",
         customer_acceptance: null,
         setup_future_usage: "on_session",
-        billing: billing_data,
       },
       Response: {
         status: 200,
@@ -258,7 +233,6 @@ export const connectorDetails = {
         },
         currency: "EUR",
         mandate_data: singleUseMandateData,
-        billing: billing_data,
       },
       Response: {
         status: 400,
@@ -275,7 +249,6 @@ export const connectorDetails = {
         },
         currency: "EUR",
         mandate_data: singleUseMandateData,
-        billing: billing_data,
       },
       Response: {
         status: 200,
@@ -292,7 +265,6 @@ export const connectorDetails = {
         },
         currency: "EUR",
         mandate_data: singleUseMandateData,
-        billing: billing_data,
       },
       Response: {
         status: 400,
@@ -309,7 +281,6 @@ export const connectorDetails = {
         },
         currency: "EUR",
         mandate_data: singleUseMandateData,
-        billing: billing_data,
       },
       Response: {
         status: 200,
@@ -326,7 +297,6 @@ export const connectorDetails = {
         },
         currency: "EUR",
         mandate_data: multiUseMandateData,
-        billing: billing_data,
       },
       Response: {
         status: 200,
@@ -343,7 +313,6 @@ export const connectorDetails = {
         },
         currency: "EUR",
         mandate_data: multiUseMandateData,
-        billing: billing_data,
       },
       Response: {
         status: 200,
@@ -360,7 +329,6 @@ export const connectorDetails = {
         },
         currency: "EUR",
         mandate_data: multiUseMandateData,
-        billing: billing_data,
       },
       Response: {
         status: 400,
@@ -377,7 +345,6 @@ export const connectorDetails = {
         },
         currency: "EUR",
         mandate_data: multiUseMandateData,
-        billing: billing_data,
       },
       Response: {
         status: 200,
@@ -418,7 +385,6 @@ export const connectorDetails = {
         currency: "EUR",
         mandate_data: null,
         customer_acceptance: customerAcceptance,
-        billing: billing_data,
       },
       Response: {
         status: 400,
@@ -436,7 +402,6 @@ export const connectorDetails = {
         currency: "EUR",
         mandate_data: null,
         customer_acceptance: customerAcceptance,
-        billing: billing_data,
       },
       Response: {
         status: 200,
@@ -455,7 +420,6 @@ export const connectorDetails = {
         mandate_data: null,
         authentication_type: "three_ds",
         customer_acceptance: customerAcceptance,
-        billing: billing_data,
       },
       Response: {
         status: 400,
@@ -473,7 +437,6 @@ export const connectorDetails = {
         mandate_data: null,
         authentication_type: "three_ds",
         customer_acceptance: customerAcceptance,
-        billing: billing_data,
       },
       Response: {
         status: 200,
@@ -490,7 +453,6 @@ export const connectorDetails = {
         },
         currency: "EUR",
         mandate_data: singleUseMandateData,
-        billing: billing_data,
       },
       Response: {
         status: 200,
@@ -504,7 +466,6 @@ export const connectorDetails = {
         amount: 0,
         setup_future_usage: "off_session",
         currency: "EUR",
-        billing: billing_data,
       },
       Response: {
         status: 200,
@@ -522,7 +483,6 @@ export const connectorDetails = {
         payment_method_data: {
           card: successfulNo3DSCardDetails,
         },
-        billing: billing_data,
       },
       Response: {
         status: 200,
@@ -541,7 +501,6 @@ export const connectorDetails = {
         currency: "EUR",
         setup_future_usage: "on_session",
         customer_acceptance: customerAcceptance,
-        billing: billing_data,
       },
       Response: {
         status: 200,
@@ -559,7 +518,6 @@ export const connectorDetails = {
         },
         setup_future_usage: "off_session",
         customer_acceptance: customerAcceptance,
-        billing: billing_data,
       },
       Response: {
         status: 400,
@@ -577,7 +535,6 @@ export const connectorDetails = {
         },
         setup_future_usage: "off_session",
         customer_acceptance: customerAcceptance,
-        billing: billing_data,
       },
       Response: {
         status: 400,
@@ -595,7 +552,6 @@ export const connectorDetails = {
         },
         setup_future_usage: "off_session",
         customer_acceptance: customerAcceptance,
-        billing: billing_data,
       },
       Response: {
         status: 200,
@@ -635,7 +591,6 @@ export const connectorDetails = {
         currency: "EUR",
         setup_future_usage: "on_session",
         customer_acceptance: customerAcceptance,
-        billing: billing_data,
       },
       Response: {
         status: 200,
@@ -659,7 +614,6 @@ export const connectorDetails = {
             card_cvc: "123",
           },
         },
-        billing: billing_data,
       },
       Response: {
         status: 400,
@@ -687,7 +641,6 @@ export const connectorDetails = {
             card_cvc: "123",
           },
         },
-        billing: billing_data,
       },
       Response: {
         status: 400,
@@ -715,7 +668,6 @@ export const connectorDetails = {
             card_cvc: "123",
           },
         },
-        billing: billing_data,
       },
       Response: {
         status: 400,
@@ -743,7 +695,6 @@ export const connectorDetails = {
             card_cvc: "123456",
           },
         },
-        billing: billing_data,
       },
       Response: {
         status: 400,
@@ -771,7 +722,6 @@ export const connectorDetails = {
             card_cvc: "123456",
           },
         },
-        billing: billing_data,
       },
       Response: {
         status: 400,
@@ -801,7 +751,6 @@ export const connectorDetails = {
             card_cvc: "123456",
           },
         },
-        billing: billing_data,
       },
       Response: {
         status: 400,
@@ -830,7 +779,6 @@ export const connectorDetails = {
             card_cvc: "123456",
           },
         },
-        billing: billing_data,
       },
       Response: {
         status: 400,
@@ -860,7 +808,6 @@ export const connectorDetails = {
             card_cvc: "123",
           },
         },
-        billing: billing_data,
       },
       Response: {
         status: 400,
@@ -888,7 +835,6 @@ export const connectorDetails = {
             card_cvc: "123",
           },
         },
-        billing: billing_data,
       },
       Response: {
         status: 400,
@@ -947,7 +893,6 @@ export const connectorDetails = {
         },
         currency: "EUR",
         customer_acceptance: null,
-        billing: billing_data,
       },
       Response: {
         status: 400,
