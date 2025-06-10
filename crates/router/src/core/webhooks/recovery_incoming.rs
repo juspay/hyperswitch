@@ -620,7 +620,12 @@ impl RevenueRecoveryAttempt {
             .clone()
             .async_and_then(|isin| async move {
                 let issuer_identifier_number = isin.clone();
-                state.store.get_card_info(isin.as_str()).await.ok()
+                state
+                    .store
+                    .get_card_info(issuer_identifier_number.as_str())
+                    .await
+                    .map_err(|error| services::logger::warn!(card_info_error=?error))
+                    .ok()
             })
             .await
             .flatten();
