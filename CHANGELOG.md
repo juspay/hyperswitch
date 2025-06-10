@@ -4,6 +4,63 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2025.06.10.0
+
+### Features
+
+- **health:** Health check for Decision engine ([#8243](https://github.com/juspay/hyperswitch/pull/8243)) ([`5ab769d`](https://github.com/juspay/hyperswitch/commit/5ab769d1169857bc2760a24ebcfb90dca7d462b0))
+- **tokenio:** Add OpenBanking Redirection Flow ([#8152](https://github.com/juspay/hyperswitch/pull/8152)) ([`4c73d74`](https://github.com/juspay/hyperswitch/commit/4c73d74889472c1185fa85658ab462ea37f31f84))
+
+### Bug Fixes
+
+- Unified scarf setup ([#8238](https://github.com/juspay/hyperswitch/pull/8238)) ([`473344e`](https://github.com/juspay/hyperswitch/commit/473344e9b3e9fbb1d504c205b3a6982dbd908fec))
+
+### Refactors
+
+- **customers_v2:** Remove merchant reference id from v2 customer update ([#7879](https://github.com/juspay/hyperswitch/pull/7879)) ([`d6ad852`](https://github.com/juspay/hyperswitch/commit/d6ad8522988a1400e6fb7d683e6c4168824ed1de))
+
+### Miscellaneous Tasks
+
+- Update apple pay currency filter configs ([#8217](https://github.com/juspay/hyperswitch/pull/8217)) ([`78f1a7d`](https://github.com/juspay/hyperswitch/commit/78f1a7d57f1eb5781142f22860a09c0e4ec8d359))
+
+**Full Changelog:** [`2025.06.09.0...2025.06.10.0`](https://github.com/juspay/hyperswitch/compare/2025.06.09.0...2025.06.10.0)
+
+- - -
+
+## 2025.06.09.0
+
+### Features
+
+- **connector:**
+  - [STRIPE] Added Connector Tokenization Flow for Cards ([#8248](https://github.com/juspay/hyperswitch/pull/8248)) ([`8129260`](https://github.com/juspay/hyperswitch/commit/8129260238b48ec59a20c03d963d16664575cc12))
+  - Added recurring payments support for split payments in Stripe ([#8271](https://github.com/juspay/hyperswitch/pull/8271)) ([`6f75c4b`](https://github.com/juspay/hyperswitch/commit/6f75c4b699e053467d82bdd97795a5ddb5ac57c5))
+- **payment_methods:** Add `external_vault_details` for payments v2 sdk session call ([#8003](https://github.com/juspay/hyperswitch/pull/8003)) ([`d32c61a`](https://github.com/juspay/hyperswitch/commit/d32c61a25653d46a3d40adb8a6eff2fbbdbb608d))
+- **router:**
+  - Add merchantId authentication for Payments v2 ([#8239](https://github.com/juspay/hyperswitch/pull/8239)) ([`45d4ebf`](https://github.com/juspay/hyperswitch/commit/45d4ebfde33c778d3d6063c1c8d45ef6373a5afd))
+  - Save payment method on payments confirm (V2) ([#8090](https://github.com/juspay/hyperswitch/pull/8090)) ([`2c35639`](https://github.com/juspay/hyperswitch/commit/2c35639763982bfa2291cda0c2b6b0fd91f43d27))
+  - Add three_ds decision rule execute api ([#8148](https://github.com/juspay/hyperswitch/pull/8148)) ([`e90a95d`](https://github.com/juspay/hyperswitch/commit/e90a95de6f9e6ea13eca6a36e90eba1ebd24f64a))
+- **vsaas:** Enable onboarding of Standard Merchant Accounts in Platform Organization ([#8231](https://github.com/juspay/hyperswitch/pull/8231)) ([`cb3aba8`](https://github.com/juspay/hyperswitch/commit/cb3aba8d5a0ed7080af54d15d7690ad4115c8a3d))
+
+### Bug Fixes
+
+- **connector:**
+  - [facilitapay] cpf is a required field ([#8274](https://github.com/juspay/hyperswitch/pull/8274)) ([`65acf59`](https://github.com/juspay/hyperswitch/commit/65acf59886a51da0e3c9596f712ea3e5db549b57))
+  - [AUTHORIZEDOTNET] Remove country PM filters ([#8278](https://github.com/juspay/hyperswitch/pull/8278)) ([`e407d50`](https://github.com/juspay/hyperswitch/commit/e407d5094ded16e19b2284cc5634158522a444f2))
+- Fixed spell check ([#8227](https://github.com/juspay/hyperswitch/pull/8227)) ([`dbc1bbf`](https://github.com/juspay/hyperswitch/commit/dbc1bbf26a987ffced4c96a9fb3041e5ef163281))
+
+### Refactors
+
+- **config:** Redact config urls for hyperswitch vault ([#8276](https://github.com/juspay/hyperswitch/pull/8276)) ([`a64ee9e`](https://github.com/juspay/hyperswitch/commit/a64ee9ec073ec9d184383978de2a41e83c96d8cf))
+- **core:** Introduce new field in payment_intent to handle longer return_url ([#8135](https://github.com/juspay/hyperswitch/pull/8135)) ([`a88eebd`](https://github.com/juspay/hyperswitch/commit/a88eebdec7e24f1127b1c2f039b8f5a484758dc0))
+
+### Miscellaneous Tasks
+
+- **postman:** Update Postman collection files ([`ab24a11`](https://github.com/juspay/hyperswitch/commit/ab24a11d619749ff98982f773fc3627ef945b93c))
+
+**Full Changelog:** [`2025.06.06.0...2025.06.09.0`](https://github.com/juspay/hyperswitch/compare/2025.06.06.0...2025.06.09.0)
+
+- - -
+
 ## 2025.06.06.0
 
 ### Features

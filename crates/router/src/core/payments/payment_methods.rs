@@ -5,7 +5,7 @@ use common_utils::{ext_traits::OptionExt, id_type};
 use error_stack::ResultExt;
 
 use super::errors;
-use crate::{db::errors::StorageErrorExt, routes, types::domain};
+use crate::{core::payment_methods, db::errors::StorageErrorExt, routes, types::domain};
 
 #[cfg(all(
     feature = "v2",
@@ -46,12 +46,24 @@ pub async fn list_payment_methods(
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("error when fetching merchant connector accounts")?;
 
+    let customer_payment_methods = match &payment_intent.customer_id {
+        Some(customer_id) => Some(
+            payment_methods::list_customer_payment_methods_core(
+                &state,
+                &merchant_context,
+                customer_id,
+            )
+            .await?,
+        ),
+        None => None,
+    };
+
     let response =
         hyperswitch_domain_models::merchant_connector_account::FlattenedPaymentMethodsEnabled::from_payment_connectors_list(payment_connector_accounts)
             .perform_filtering()
             .get_required_fields(RequiredFieldsInput::new())
             .perform_surcharge_calculation()
-            .generate_response();
+            .generate_response(customer_payment_methods);
 
     Ok(hyperswitch_domain_models::api::ApplicationResponse::Json(
         response,
@@ -124,7 +136,12 @@ struct RequiredFieldsAndSurchargeForEnabledPaymentMethodTypes(
 );
 
 impl RequiredFieldsAndSurchargeForEnabledPaymentMethodTypes {
-    fn generate_response(self) -> api_models::payments::PaymentMethodListResponseForPayments {
+    fn generate_response(
+        self,
+        customer_payment_methods: Option<
+            Vec<api_models::payment_methods::CustomerPaymentMethodResponseItem>,
+        >,
+    ) -> api_models::payments::PaymentMethodListResponseForPayments {
         let response_payment_methods = self
             .0
             .into_iter()
@@ -142,7 +159,7 @@ impl RequiredFieldsAndSurchargeForEnabledPaymentMethodTypes {
 
         api_models::payments::PaymentMethodListResponseForPayments {
             payment_methods_enabled: response_payment_methods,
-            customer_payment_methods: None,
+            customer_payment_methods,
         }
     }
 }

@@ -1,6 +1,6 @@
 use std::collections::{HashMap, HashSet};
 
-use common_enums::{AuthenticationConnectors, UIWidgetFormLayout};
+use common_enums::{AuthenticationConnectors, UIWidgetFormLayout, VaultSdk};
 use common_types::primitive_wrappers;
 use common_utils::{encryption::Encryption, pii};
 use diesel::{AsChangeset, Identifiable, Insertable, Queryable, Selectable};
@@ -683,6 +683,7 @@ common_utils::impl_to_sql_from_sql_json!(AuthenticationConnectorDetails);
 #[diesel(sql_type = diesel::sql_types::Jsonb)]
 pub struct ExternalVaultConnectorDetails {
     pub vault_connector_id: common_utils::id_type::MerchantConnectorAccountId,
+    pub vault_sdk: Option<VaultSdk>,
 }
 
 common_utils::impl_to_sql_from_sql_json!(ExternalVaultConnectorDetails);
@@ -770,6 +771,7 @@ pub struct PaymentLinkConfigRequest {
     pub payment_form_label_type: Option<common_enums::PaymentLinkSdkLabelType>,
     pub show_card_terms: Option<common_enums::PaymentLinkShowSdkTerms>,
     pub is_setup_mandate_flow: Option<bool>,
+    pub color_icon_card_cvc_error: Option<String>,
 }
 
 #[derive(Clone, Debug, serde::Deserialize, serde::Serialize, PartialEq)]
