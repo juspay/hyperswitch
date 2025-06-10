@@ -50,11 +50,6 @@ function validateErrorMessage(response, resData) {
   }
 }
 
-function isConnectorWithout3DS(connectorId) {
-  const connectorsWithout3DS = ["bamboraapac", "aci"];
-  return connectorsWithout3DS.includes(connectorId);
-}
-
 Cypress.Commands.add("healthCheck", (globalState) => {
   const baseUrl = globalState.get("baseUrl");
   const url = `${baseUrl}/health`;
@@ -1632,38 +1627,17 @@ Cypress.Commands.add(
 
           if (response.body.capture_method === "automatic") {
             if (response.body.authentication_type === "three_ds") {
-              // Skip 3DS verification for connectors that do not support 3DS
-              if (isConnectorWithout3DS(globalState.get("connectorId"))) {
-                for (const key in resData.body) {
-                  expect(resData.body[key], [key]).to.deep.equal(
-                    response.body[key]
-                  );
-                }
-              } else {
-                expect(response.body)
-                  .to.have.property("next_action")
-                  .to.have.property("redirect_to_url");
-                globalState.set(
-                  "nextActionUrl",
-                  response.body.next_action.redirect_to_url
+              expect(response.body)
+                .to.have.property("next_action")
+                .to.have.property("redirect_to_url");
+              globalState.set(
+                "nextActionUrl",
+                response.body.next_action.redirect_to_url
+              );
+              for (const key in resData.body) {
+                expect(resData.body[key], [key]).to.deep.equal(
+                  response.body[key]
                 );
-                for (const key in resData.body) {
-                  expect(resData.body[key], [key]).to.deep.equal(
-                    response.body[key]
-                  );
-                }
-                expect(response.body)
-                  .to.have.property("next_action")
-                  .to.have.property("redirect_to_url");
-                globalState.set(
-                  "nextActionUrl",
-                  response.body.next_action.redirect_to_url
-                );
-                for (const key in resData.body) {
-                  expect(resData.body[key], [key]).to.deep.equal(
-                    response.body[key]
-                  );
-                }
               }
             } else if (response.body.authentication_type === "no_three_ds") {
               for (const key in resData.body) {
@@ -1687,26 +1661,17 @@ Cypress.Commands.add(
             }
           } else if (response.body.capture_method === "manual") {
             if (response.body.authentication_type === "three_ds") {
-              // Skip 3DS verification for connectors that do not support 3DS
-              if (isConnectorWithout3DS(globalState.get("connectorId"))) {
-                for (const key in resData.body) {
-                  expect(resData.body[key], [key]).to.deep.equal(
-                    response.body[key]
-                  );
-                }
-              } else {
-                expect(response.body)
-                  .to.have.property("next_action")
-                  .to.have.property("redirect_to_url");
-                globalState.set(
-                  "nextActionUrl",
-                  response.body.next_action.redirect_to_url
+              expect(response.body)
+                .to.have.property("next_action")
+                .to.have.property("redirect_to_url");
+              globalState.set(
+                "nextActionUrl",
+                response.body.next_action.redirect_to_url
+              );
+              for (const key in resData.body) {
+                expect(resData.body[key], [key]).to.deep.equal(
+                  response.body[key]
                 );
-                for (const key in resData.body) {
-                  expect(resData.body[key], [key]).to.deep.equal(
-                    response.body[key]
-                  );
-                }
               }
             } else if (response.body.authentication_type === "no_three_ds") {
               for (const key in resData.body) {
@@ -2087,26 +2052,17 @@ Cypress.Commands.add(
 
           if (response.body.capture_method === "automatic") {
             if (response.body.authentication_type === "three_ds") {
-              // Skip 3DS verification for connectors that do not support 3DS
-              if (isConnectorWithout3DS(globalState.get("connectorId"))) {
-                for (const key in resData.body) {
-                  expect(resData.body[key], [key]).to.deep.equal(
-                    response.body[key]
-                  );
-                }
-              } else {
-                expect(response.body)
-                  .to.have.property("next_action")
-                  .to.have.property("redirect_to_url");
-                globalState.set(
-                  "nextActionUrl",
-                  response.body.next_action.redirect_to_url
+              expect(response.body)
+                .to.have.property("next_action")
+                .to.have.property("redirect_to_url");
+              globalState.set(
+                "nextActionUrl",
+                response.body.next_action.redirect_to_url
+              );
+              for (const key in resData.body) {
+                expect(resData.body[key], [key]).to.deep.equal(
+                  response.body[key]
                 );
-                for (const key in resData.body) {
-                  expect(resData.body[key], [key]).to.deep.equal(
-                    response.body[key]
-                  );
-                }
               }
             } else if (response.body.authentication_type === "no_three_ds") {
               for (const key in resData.body) {
@@ -2121,26 +2077,17 @@ Cypress.Commands.add(
             }
           } else if (response.body.capture_method === "manual") {
             if (response.body.authentication_type === "three_ds") {
-              // Skip 3DS verification for connectors that do not support 3DS
-              if (isConnectorWithout3DS(globalState.get("connectorId"))) {
-                for (const key in resData.body) {
-                  expect(resData.body[key], [key]).to.deep.equal(
-                    response.body[key]
-                  );
-                }
-              } else {
-                expect(response.body)
-                  .to.have.property("next_action")
-                  .to.have.property("redirect_to_url");
-                globalState.set(
-                  "nextActionUrl",
-                  response.body.next_action.redirect_to_url
+              expect(response.body)
+                .to.have.property("next_action")
+                .to.have.property("redirect_to_url");
+              globalState.set(
+                "nextActionUrl",
+                response.body.next_action.redirect_to_url
+              );
+              for (const key in resData.body) {
+                expect(resData.body[key], [key]).to.deep.equal(
+                  response.body[key]
                 );
-                for (const key in resData.body) {
-                  expect(resData.body[key], [key]).to.deep.equal(
-                    response.body[key]
-                  );
-                }
               }
             } else if (response.body.authentication_type === "no_three_ds") {
               for (const key in resData.body) {
@@ -2236,31 +2183,22 @@ Cypress.Commands.add(
 
           if (response.body.capture_method === "automatic") {
             if (response.body.authentication_type === "three_ds") {
-              // Skip 3DS verification for connectors that do not support 3DS
-              if (isConnectorWithout3DS(globalState.get("connectorId"))) {
-                for (const key in resData.body) {
-                  expect(resData.body[key], [key]).to.deep.equal(
-                    response.body[key]
-                  );
-                }
-              } else {
-                expect(response.body)
-                  .to.have.property("next_action")
-                  .to.have.property("redirect_to_url");
-                globalState.set(
-                  "nextActionUrl",
-                  response.body.next_action.redirect_to_url
-                );
+              expect(response.body)
+                .to.have.property("next_action")
+                .to.have.property("redirect_to_url");
+              globalState.set(
+                "nextActionUrl",
+                response.body.next_action.redirect_to_url
+              );
 
-                if (
-                  response.body?.payment_method_id &&
-                  response.body.payment_method_id !== null
-                ) {
-                  expect(
-                    response.body.payment_method_status,
-                    "payment_method_status"
-                  ).to.equal("active");
-                }
+              if (
+                response.body?.payment_method_id &&
+                response.body.payment_method_id !== null
+              ) {
+                expect(
+                  response.body.payment_method_status,
+                  "payment_method_status"
+                ).to.equal("active");
               }
             } else if (response.body.authentication_type === "no_three_ds") {
               for (const key in resData.body) {
@@ -2301,27 +2239,13 @@ Cypress.Commands.add(
             }
           } else if (response.body.capture_method === "manual") {
             if (response.body.authentication_type === "three_ds") {
-              // Skip 3DS verification for connectors that do not support 3DS
-              if (isConnectorWithout3DS(globalState.get("connectorId"))) {
-                for (const key in resData.body) {
-                  expect(resData.body[key], [key]).to.deep.equal(
-                    response.body[key]
-                  );
-                }
-              } else {
-                expect(response.body)
-                  .to.have.property("next_action")
-                  .to.have.property("redirect_to_url");
-                globalState.set(
-                  "nextActionUrl",
-                  response.body.next_action.redirect_to_url
-                );
-                for (const key in resData.body) {
-                  expect(resData.body[key], [key]).to.deep.equal(
-                    response.body[key]
-                  );
-                }
-              }
+              expect(response.body)
+                .to.have.property("next_action")
+                .to.have.property("redirect_to_url");
+              globalState.set(
+                "nextActionUrl",
+                response.body.next_action.redirect_to_url
+              );
             } else if (response.body.authentication_type === "no_three_ds") {
               for (const key in resData.body) {
                 expect(resData.body[key], [key]).to.deep.equal(
@@ -2711,28 +2635,19 @@ Cypress.Commands.add(
           if (response.body.capture_method === "automatic") {
             expect(response.body).to.have.property("mandate_id");
             if (response.body.authentication_type === "three_ds") {
-              // Skip 3DS verification for connectors that do not support 3DS
-              if (isConnectorWithout3DS(globalState.get("connectorId"))) {
-                for (const key in resData.body) {
-                  expect(resData.body[key], [key]).to.deep.equal(
-                    response.body[key]
-                  );
-                }
-              } else {
-                expect(response.body)
-                  .to.have.property("next_action")
-                  .to.have.property("redirect_to_url");
-                const nextActionUrl = response.body.next_action.redirect_to_url;
-                globalState.set(
-                  "nextActionUrl",
-                  response.body.next_action.redirect_to_url
+              expect(response.body)
+                .to.have.property("next_action")
+                .to.have.property("redirect_to_url");
+              const nextActionUrl = response.body.next_action.redirect_to_url;
+              globalState.set(
+                "nextActionUrl",
+                response.body.next_action.redirect_to_url
+              );
+              cy.log(nextActionUrl);
+              for (const key in resData.body) {
+                expect(resData.body[key], [key]).to.deep.equal(
+                  response.body[key]
                 );
-                cy.log(nextActionUrl);
-                for (const key in resData.body) {
-                  expect(resData.body[key], [key]).to.deep.equal(
-                    response.body[key]
-                  );
-                }
               }
             } else if (response.body.authentication_type === "no_three_ds") {
               for (const key in resData.body) {
@@ -2758,30 +2673,19 @@ Cypress.Commands.add(
             }
           } else if (response.body.capture_method === "manual") {
             if (response.body.authentication_type === "three_ds") {
-              // Skip 3DS verification for all connectors that do not support 3DS
-              if (isConnectorWithout3DS(globalState.get("connectorId"))) {
-                for (const key in resData.body) {
-                  expect(resData.body[key], [key]).to.deep.equal(
-                    response.body[key]
-                  );
-                }
-              } else {
-                expect(response.body)
-                  .to.have.property("next_action")
-                  .to.have.property("redirect_to_url");
-
-                const nextActionUrl = response.body.next_action.redirect_to_url;
-                globalState.set(
-                  "nextActionUrl",
-                  response.body.next_action.redirect_to_url
+              expect(response.body)
+                .to.have.property("next_action")
+                .to.have.property("redirect_to_url");
+              const nextActionUrl = response.body.next_action.redirect_to_url;
+              globalState.set(
+                "nextActionUrl",
+                response.body.next_action.redirect_to_url
+              );
+              cy.log(nextActionUrl);
+              for (const key in resData.body) {
+                expect(resData.body[key], [key]).to.deep.equal(
+                  response.body[key]
                 );
-
-                cy.log(nextActionUrl);
-                for (const key in resData.body) {
-                  expect(resData.body[key], [key]).to.deep.equal(
-                    response.body[key]
-                  );
-                }
               }
             } else if (response.body.authentication_type === "no_three_ds") {
               for (const key in resData.body) {
@@ -2894,28 +2798,13 @@ Cypress.Commands.add(
             }
           } else if (response.body.capture_method === "manual") {
             if (response.body.authentication_type === "three_ds") {
-              // Skip 3DS verification for connectors that do not support 3DS
-              if (isConnectorWithout3DS(globalState.get("connectorId"))) {
-                for (const key in resData.body) {
-                  expect(resData.body[key], [key]).to.deep.equal(
-                    response.body[key]
-                  );
-                }
-              } else {
-                expect(response.body)
-                  .to.have.property("next_action")
-                  .to.have.property("redirect_to_url");
-                const nextActionUrl = response.body.next_action.redirect_to_url;
-                cy.log(nextActionUrl);
-                globalState.set(
-                  "nextActionUrl",
-                  response.body.next_action.redirect_to_url
-                );
-                for (const key in resData.body) {
-                  expect(resData.body[key], [key]).to.deep.equal(
-                    response.body[key]
-                  );
-                }
+              expect(response.body)
+                .to.have.property("next_action")
+                .to.have.property("redirect_to_url");
+              const nextActionUrl = response.body.next_action.redirect_to_url;
+              cy.log(nextActionUrl);
+              for (const key in resData.body) {
+                expect(resData.body[key], [key]).to.equal(response.body[key]);
               }
             } else if (response.body.authentication_type === "no_three_ds") {
               for (const key in resData.body) {
@@ -3090,28 +2979,13 @@ Cypress.Commands.add(
             }
           } else if (response.body.capture_method === "manual") {
             if (response.body.authentication_type === "three_ds") {
-              // Skip 3DS verification for connectors that do not support 3DS
-              if (isConnectorWithout3DS(globalState.get("connectorId"))) {
-                for (const key in resData.body) {
-                  expect(resData.body[key], [key]).to.deep.equal(
-                    response.body[key]
-                  );
-                }
-              } else {
-                expect(response.body)
-                  .to.have.property("next_action")
-                  .to.have.property("redirect_to_url");
-                const nextActionUrl = response.body.next_action.redirect_to_url;
-                cy.log(nextActionUrl);
-                globalState.set(
-                  "nextActionUrl",
-                  response.body.next_action.redirect_to_url
-                );
-                for (const key in resData.body) {
-                  expect(resData.body[key], [key]).to.deep.equal(
-                    response.body[key]
-                  );
-                }
+              expect(response.body)
+                .to.have.property("next_action")
+                .to.have.property("redirect_to_url");
+              const nextActionUrl = response.body.next_action.redirect_to_url;
+              cy.log(nextActionUrl);
+              for (const key in resData.body) {
+                expect(resData.body[key], [key]).to.equal(response.body[key]);
               }
             } else if (response.body.authentication_type === "no_three_ds") {
               for (const key in resData.body) {
@@ -3200,28 +3074,13 @@ Cypress.Commands.add(
             }
           } else if (response.body.capture_method === "manual") {
             if (response.body.authentication_type === "three_ds") {
-              // Skip 3DS verification for connectors that do not support 3DS
-              if (isConnectorWithout3DS(globalState.get("connectorId"))) {
-                for (const key in resData.body) {
-                  expect(resData.body[key], [key]).to.deep.equal(
-                    response.body[key]
-                  );
-                }
-              } else {
-                expect(response.body)
-                  .to.have.property("next_action")
-                  .to.have.property("redirect_to_url");
-                const nextActionUrl = response.body.next_action.redirect_to_url;
-                globalState.set(
-                  "nextActionUrl",
-                  response.body.next_action.redirect_to_url
-                );
-                cy.log(nextActionUrl);
-                for (const key in resData.body) {
-                  expect(resData.body[key], [key]).to.deep.equal(
-                    response.body[key]
-                  );
-                }
+              expect(response.body)
+                .to.have.property("next_action")
+                .to.have.property("redirect_to_url");
+              const nextActionUrl = response.body.next_action.redirect_to_url;
+              cy.log(nextActionUrl);
+              for (const key in resData.body) {
+                expect(resData.body[key], [key]).to.equal(response.body[key]);
               }
             } else if (response.body.authentication_type === "no_three_ds") {
               for (const key in resData.body) {
