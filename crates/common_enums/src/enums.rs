@@ -1646,10 +1646,10 @@ impl IntentStatus {
     }
 }
 
-/// Specifies the type of cardholder authentication to be applied.
-/// - `three_ds`: Requests 3D Secure authentication.
-/// - `no_three_ds`: Indicates that 3D Secure authentication should not be performed.
-/// If omitted, the authentication behavior is determined by merchant configuration and connector defaults.
+/// Specifies how the payment method can be used for future payments. 
+/// - `off_session`: The payment method can be used for future payments when the customer is not present. 
+/// - `on_session`: The payment method is intended for use only when the customer is present during checkout. 
+/// If omitted, defaults to `on_session`.
 #[derive(
     Clone,
     Copy,
