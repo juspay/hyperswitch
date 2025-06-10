@@ -20219,7 +20219,7 @@
           },
           "payment_id": {
             "type": "string",
-            "description": "Optional. A merchant-provided unique identifier for the payment, up to 30 characters long (e.g., \"pay_mbabizu24mvu3mela5njyhpit4\"). If provided, it ensures idempotency for the payment creation request. If omitted, Hyperswitch generates a unique ID for the payment.",
+            "description": "Optional. A merchant-provided unique identifier for the payment, contains 30 characters long (e.g., \"pay_mbabizu24mvu3mela5njyhpit4\"). If provided, it ensures idempotency for the payment creation request. If omitted, Hyperswitch generates a unique ID for the payment.",
             "example": "pay_mbabizu24mvu3mela5njyhpit4",
             "nullable": true,
             "maxLength": 30,
@@ -20307,7 +20307,7 @@
           },
           "return_url": {
             "type": "string",
-            "description": "The URL to which you want the user to be redirected after the completion of the payment operation",
+            "description": "The URL to redirect the customer to after they complete the payment process or authentication. This is crucial for flows that involve off-site redirection (e.g., 3DS, some bank redirects, wallet payments).",
             "example": "https://hyperswitch.io",
             "nullable": true
           },
@@ -20628,7 +20628,7 @@
           },
           "payment_id": {
             "type": "string",
-            "description": "Optional. A merchant-provided unique identifier for the payment, up to 30 characters long (e.g., \"pay_mbabizu24mvu3mela5njyhpit4\"). If provided, it ensures idempotency for the payment creation request. If omitted, Hyperswitch generates a unique ID for the payment.",
+            "description": "Optional. A merchant-provided unique identifier for the payment, contains 30 characters long (e.g., \"pay_mbabizu24mvu3mela5njyhpit4\"). If provided, it ensures idempotency for the payment creation request. If omitted, Hyperswitch generates a unique ID for the payment.",
             "example": "pay_mbabizu24mvu3mela5njyhpit4",
             "nullable": true,
             "maxLength": 30,
@@ -20716,7 +20716,7 @@
           },
           "return_url": {
             "type": "string",
-            "description": "The URL to which you want the user to be redirected after the completion of the payment operation",
+            "description": "The URL to redirect the customer to after they complete the payment process or authentication. This is crucial for flows that involve off-site redirection (e.g., 3DS, some bank redirects, wallet payments).",
             "example": "https://hyperswitch.io",
             "nullable": true
           },
@@ -21849,7 +21849,7 @@
           },
           "payment_id": {
             "type": "string",
-            "description": "Optional. A merchant-provided unique identifier for the payment, up to 30 characters long (e.g., \"pay_mbabizu24mvu3mela5njyhpit4\"). If provided, it ensures idempotency for the payment creation request. If omitted, Hyperswitch generates a unique ID for the payment.",
+            "description": "Optional. A merchant-provided unique identifier for the payment, contains 30 characters long (e.g., \"pay_mbabizu24mvu3mela5njyhpit4\"). If provided, it ensures idempotency for the payment creation request. If omitted, Hyperswitch generates a unique ID for the payment.",
             "example": "pay_mbabizu24mvu3mela5njyhpit4",
             "nullable": true,
             "maxLength": 30,
@@ -21983,7 +21983,7 @@
           },
           "return_url": {
             "type": "string",
-            "description": "The URL to which you want the user to be redirected after the completion of the payment operation",
+            "description": "The URL to redirect the customer to after they complete the payment process or authentication. This is crucial for flows that involve off-site redirection (e.g., 3DS, some bank redirects, wallet payments).",
             "example": "https://hyperswitch.io",
             "nullable": true
           },
@@ -23115,7 +23115,7 @@
           },
           "payment_id": {
             "type": "string",
-            "description": "Optional. A merchant-provided unique identifier for the payment, up to 30 characters long (e.g., \"pay_mbabizu24mvu3mela5njyhpit4\"). If provided, it ensures idempotency for the payment creation request. If omitted, Hyperswitch generates a unique ID for the payment.",
+            "description": "Optional. A merchant-provided unique identifier for the payment, contains 30 characters long (e.g., \"pay_mbabizu24mvu3mela5njyhpit4\"). If provided, it ensures idempotency for the payment creation request. If omitted, Hyperswitch generates a unique ID for the payment.",
             "example": "pay_mbabizu24mvu3mela5njyhpit4",
             "nullable": true,
             "maxLength": 30,
@@ -23203,7 +23203,7 @@
           },
           "return_url": {
             "type": "string",
-            "description": "The URL to which you want the user to be redirected after the completion of the payment operation",
+            "description": "The URL to redirect the customer to after they complete the payment process or authentication. This is crucial for flows that involve off-site redirection (e.g., 3DS, some bank redirects, wallet payments).",
             "example": "https://hyperswitch.io",
             "nullable": true
           },
@@ -28618,6 +28618,7 @@
       },
       "ThreeDsCompletionIndicator": {
         "type": "string",
+        "description": "Indicates if 3DS method data was successfully completed or not",
         "enum": [
           "Y",
           "N",
