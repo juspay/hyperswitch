@@ -1564,7 +1564,6 @@ pub enum MerchantStorageScheme {
 
 /// Represents the overall status of a payment intent.
 /// The status transitions through various states depending on the payment method, confirmation, capture method, and any subsequent actions (like customer authentication or manual capture).
-/// Possible values include `requires_payment_method`, `requires_confirmation`, `requires_action`, `processing`, `requires_capture`, `succeeded`, `failed`, `cancelled`.
 #[derive(
     Clone,
     Copy,

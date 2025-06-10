@@ -498,10 +498,7 @@ pub fn payments_update() {}
 /// Expected status transitions after confirmation:
 /// - `succeeded`: If authorization is successful and `capture_method` is `automatic`.
 /// - `requires_capture`: If authorization is successful and `capture_method` is `manual`.
-/// - `requires_action`: If further customer authentication (e.g., 3DS) is needed. The `next_action` field in the response provides details.
 /// - `failed`: If authorization fails.
-///
-///
 #[utoipa::path(
     post,
     path = "/payments/{payment_id}/confirm",
