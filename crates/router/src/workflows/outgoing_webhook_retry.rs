@@ -159,7 +159,7 @@ impl ProcessTrackerWorkflow<SessionState> for OutgoingWebhookRetryWorkflow {
                     )
                     .await?;
 
-                let merchant_context = domain::MerchantContext::NormalMerchant(Box::new(
+                let merchant_context = domain::MerchantContext::StandardMerchant(Box::new(
                     domain::Context(merchant_account.clone(), key_store.clone()),
                 ));
                 // TODO: Add request state for the PT flows as well
@@ -378,7 +378,7 @@ async fn get_outgoing_webhook_content_and_event_type(
         },
     };
 
-    let merchant_context = domain::MerchantContext::NormalMerchant(Box::new(domain::Context(
+    let merchant_context = domain::MerchantContext::StandardMerchant(Box::new(domain::Context(
         merchant_account.clone(),
         key_store.clone(),
     )));

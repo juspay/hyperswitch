@@ -1421,7 +1421,7 @@ pub async fn sync_refund_with_gateway_workflow(
             &key_store,
         )
         .await?;
-    let merchant_context = domain::MerchantContext::NormalMerchant(Box::new(domain::Context(
+    let merchant_context = domain::MerchantContext::StandardMerchant(Box::new(domain::Context(
         merchant_account.clone(),
         key_store.clone(),
     )));
@@ -1513,7 +1513,7 @@ pub async fn trigger_refund_execute_workflow(
         .await
         .to_not_found_response(errors::ApiErrorResponse::MerchantAccountNotFound)?;
 
-    let merchant_context = domain::MerchantContext::NormalMerchant(Box::new(domain::Context(
+    let merchant_context = domain::MerchantContext::StandardMerchant(Box::new(domain::Context(
         merchant_account.clone(),
         key_store.clone(),
     )));

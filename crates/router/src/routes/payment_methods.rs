@@ -279,7 +279,7 @@ pub async fn migrate_payment_method_api(
         |state, _, req, _| async move {
             let merchant_id = req.merchant_id.clone();
             let (key_store, merchant_account) = get_merchant_account(&state, &merchant_id).await?;
-            let merchant_context = domain::MerchantContext::NormalMerchant(Box::new(
+            let merchant_context = domain::MerchantContext::StandardMerchant(Box::new(
                 domain::Context(merchant_account, key_store),
             ));
             Box::pin(migrate_payment_method(
@@ -353,7 +353,7 @@ pub async fn migrate_payment_methods(
                 let (key_store, merchant_account) =
                     get_merchant_account(&state, &merchant_id).await?;
                 // Create customers if they are not already present
-                let merchant_context = domain::MerchantContext::NormalMerchant(Box::new(
+                let merchant_context = domain::MerchantContext::StandardMerchant(Box::new(
                     domain::Context(merchant_account.clone(), key_store.clone()),
                 ));
 
@@ -952,7 +952,7 @@ pub async fn default_payment_method_set_api(
             let merchant_id = auth.merchant_account.get_id();
             cards::PmCards {
                 state: &state,
-                merchant_context: &domain::MerchantContext::NormalMerchant(Box::new(
+                merchant_context: &domain::MerchantContext::StandardMerchant(Box::new(
                     domain::Context(auth.merchant_account.clone(), auth.key_store),
                 )),
             }
@@ -1096,7 +1096,7 @@ pub async fn tokenize_card_api(
         |state, _, req, _| async move {
             let merchant_id = req.merchant_id.clone();
             let (key_store, merchant_account) = get_merchant_account(&state, &merchant_id).await?;
-            let merchant_context = domain::MerchantContext::NormalMerchant(Box::new(
+            let merchant_context = domain::MerchantContext::StandardMerchant(Box::new(
                 domain::Context(merchant_account, key_store),
             ));
             let res = Box::pin(cards::tokenize_card_flow(
@@ -1145,7 +1145,7 @@ pub async fn tokenize_card_using_pm_api(
         |state, _, req, _| async move {
             let merchant_id = req.merchant_id.clone();
             let (key_store, merchant_account) = get_merchant_account(&state, &merchant_id).await?;
-            let merchant_context = domain::MerchantContext::NormalMerchant(Box::new(
+            let merchant_context = domain::MerchantContext::StandardMerchant(Box::new(
                 domain::Context(merchant_account, key_store),
             ));
             let res = Box::pin(cards::tokenize_card_flow(
@@ -1188,7 +1188,7 @@ pub async fn tokenize_card_batch_api(
             async move {
                 let (key_store, merchant_account) =
                     get_merchant_account(&state, &merchant_id).await?;
-                let merchant_context = domain::MerchantContext::NormalMerchant(Box::new(
+                let merchant_context = domain::MerchantContext::StandardMerchant(Box::new(
                     domain::Context(merchant_account, key_store),
                 ));
                 Box::pin(tokenize::tokenize_cards(&state, req, &merchant_context)).await
@@ -1248,9 +1248,7 @@ pub async fn payment_methods_session_update(
         |state, auth: auth::AuthenticationData, req, _| {
             let value = payment_method_session_id.clone();
             async move {
-                let merchant_context = domain::MerchantContext::NormalMerchant(Box::new(
-                    domain::Context(auth.merchant_account, auth.key_store),
-                ));
+                let merchant_context = auth.into();
                 payment_methods_routes::payment_methods_session_update(
                     state,
                     merchant_context,

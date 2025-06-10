@@ -17,7 +17,7 @@ use crate::{
     core::{api_locking, payments},
     routes,
     services::{api, authentication as auth},
-    types::{api as api_types, domain},
+    types::api as api_types,
 };
 
 #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
@@ -59,9 +59,7 @@ pub async fn setup_intents_create(
         &req,
         create_payment_req,
         |state, auth: auth::AuthenticationData, req, req_state| {
-            let merchant_context = domain::MerchantContext::NormalMerchant(Box::new(
-                domain::Context(auth.merchant_account, auth.key_store),
-            ));
+            let merchant_context = auth.into();
             payments::payments_core::<
                 api_types::SetupMandate,
                 api_types::PaymentsResponse,
@@ -140,9 +138,7 @@ pub async fn setup_intents_retrieve(
         &req,
         payload,
         |state, auth, payload, req_state| {
-            let merchant_context = domain::MerchantContext::NormalMerchant(Box::new(
-                domain::Context(auth.merchant_account, auth.key_store),
-            ));
+            let merchant_context = auth.into();
             payments::payments_core::<
                 api_types::PSync,
                 api_types::PaymentsResponse,
@@ -223,9 +219,7 @@ pub async fn setup_intents_update(
         &req,
         payload,
         |state, auth, req, req_state| {
-            let merchant_context = domain::MerchantContext::NormalMerchant(Box::new(
-                domain::Context(auth.merchant_account, auth.key_store),
-            ));
+            let merchant_context = auth.into();
             payments::payments_core::<
                 api_types::SetupMandate,
                 api_types::PaymentsResponse,
@@ -307,9 +301,7 @@ pub async fn setup_intents_confirm(
         &req,
         payload,
         |state, auth, req, req_state| {
-            let merchant_context = domain::MerchantContext::NormalMerchant(Box::new(
-                domain::Context(auth.merchant_account, auth.key_store),
-            ));
+            let merchant_context = auth.into();
             payments::payments_core::<
                 api_types::SetupMandate,
                 api_types::PaymentsResponse,

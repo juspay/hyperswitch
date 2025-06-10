@@ -14,7 +14,6 @@ use crate::{
     core::{api_locking, conditional_config, routing, surcharge_decision_config},
     routes::AppState,
     services::{api as oss_api, authentication as auth, authorization::permissions::Permission},
-    types::domain,
 };
 #[cfg(all(feature = "olap", feature = "v1"))]
 #[instrument(skip_all)]
@@ -924,9 +923,7 @@ pub async fn routing_retrieve_linked_config(
             &req,
             query.clone(),
             |state, auth: AuthenticationData, query_params, _| {
-                let merchant_context = domain::MerchantContext::NormalMerchant(Box::new(
-                    domain::Context(auth.merchant_account, auth.key_store),
-                ));
+                let merchant_context = auth.clone().into();
                 routing::retrieve_linked_routing_config(
                     state,
                     merchant_context,
@@ -958,9 +955,7 @@ pub async fn routing_retrieve_linked_config(
             &req,
             query.clone(),
             |state, auth: AuthenticationData, query_params, _| {
-                let merchant_context = domain::MerchantContext::NormalMerchant(Box::new(
-                    domain::Context(auth.merchant_account, auth.key_store),
-                ));
+                let merchant_context = auth.clone().into();
                 routing::retrieve_linked_routing_config(
                     state,
                     merchant_context,
@@ -1478,9 +1473,7 @@ pub async fn get_dynamic_routing_volume_split(
         &req,
         payload.clone(),
         |state, auth: auth::AuthenticationData, payload, _| {
-            let merchant_context = domain::MerchantContext::NormalMerchant(Box::new(
-                domain::Context(auth.merchant_account, auth.key_store),
-            ));
+            let merchant_context = auth.into();
             routing::retrieve_dynamic_routing_volume_split(
                 state,
                 merchant_context,

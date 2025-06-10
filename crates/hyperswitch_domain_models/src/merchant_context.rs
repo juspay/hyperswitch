@@ -9,7 +9,7 @@ pub use crate::{merchant_account::MerchantAccount, merchant_key_store::MerchantK
 #[derive(Clone, Debug)]
 pub enum MerchantContext {
     /// Represents a normal operation merchant context.
-    NormalMerchant(Box<Context>),
+    StandardMerchant(Box<Context>),
     /// Represents a platform account operating on behalf of a connected account.
     PlatformConnectedAccount(Box<PlatformConnectedAccountContext>),
 }
@@ -33,7 +33,7 @@ impl MerchantContext {
     /// In platform flow, this is the platform's account whose API keys/settings are used
     pub fn get_owner_merchant_account(&self) -> &MerchantAccount {
         match self {
-            Self::NormalMerchant(context) => &context.0,
+            Self::StandardMerchant(context) => &context.0,
             Self::PlatformConnectedAccount(context) => &context.platform_account_context.0,
         }
     }
@@ -42,7 +42,7 @@ impl MerchantContext {
     /// Used for decrypting secrets tied to the owner's configuration.
     pub fn get_owner_merchant_key_store(&self) -> &MerchantKeyStore {
         match self {
-            Self::NormalMerchant(context) => &context.1,
+            Self::StandardMerchant(context) => &context.1,
             Self::PlatformConnectedAccount(context) => &context.platform_account_context.1,
         }
     }
@@ -51,7 +51,7 @@ impl MerchantContext {
     /// In platform flow, this can be connected merchant whose connector credentials are used
     pub fn get_processor_merchant_account(&self) -> &MerchantAccount {
         match self {
-            Self::NormalMerchant(context) => &context.0,
+            Self::StandardMerchant(context) => &context.0,
             Self::PlatformConnectedAccount(context) => &context.connected_account_context.0,
         }
     }
@@ -60,7 +60,7 @@ impl MerchantContext {
     /// Used to access encrypted credentials of the processor merchant account, eg business profile
     pub fn get_processor_merchant_key_store(&self) -> &MerchantKeyStore {
         match self {
-            Self::NormalMerchant(context) => &context.1,
+            Self::StandardMerchant(context) => &context.1,
             Self::PlatformConnectedAccount(context) => &context.connected_account_context.1,
         }
     }

@@ -49,10 +49,9 @@ impl ProcessTrackerWorkflow<SessionState> for AttachPayoutAccountWorkflow {
 
         let request = api::payouts::PayoutRequest::PayoutRetrieveRequest(tracking_data);
 
-        let merchant_context = domain::MerchantContext::NormalMerchant(Box::new(domain::Context(
-            merchant_account.clone(),
-            key_store.clone(),
-        )));
+        let merchant_context = domain::MerchantContext::StandardMerchant(Box::new(
+            domain::Context(merchant_account.clone(), key_store.clone()),
+        ));
         let mut payout_data =
             payouts::make_payout_data(state, &merchant_context, None, &request, DEFAULT_LOCALE)
                 .await?;

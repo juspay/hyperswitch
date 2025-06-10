@@ -262,7 +262,7 @@ pub async fn create_merchant_account(
         .await
         .to_duplicate_response(errors::ApiErrorResponse::DuplicateMerchantAccount)?;
 
-    let merchant_context = domain::MerchantContext::NormalMerchant(Box::new(domain::Context(
+    let merchant_context = domain::MerchantContext::StandardMerchant(Box::new(domain::Context(
         merchant_account.clone(),
         key_store.clone(),
     )));
@@ -3450,7 +3450,7 @@ pub async fn update_connector(
         .await?;
     core_utils::validate_profile_id_from_auth_layer(profile_id, &mca)?;
 
-    let merchant_context = domain::MerchantContext::NormalMerchant(Box::new(domain::Context(
+    let merchant_context = domain::MerchantContext::StandardMerchant(Box::new(domain::Context(
         merchant_account.clone(),
         key_store.clone(),
     )));

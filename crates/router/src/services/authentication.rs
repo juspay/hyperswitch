@@ -90,19 +90,16 @@ pub struct AuthenticationData {
 impl From<AuthenticationData> for MerchantContext {
     fn from(val: AuthenticationData) -> Self {
         match val.platform_account_context {
-            Some(platform_context) => MerchantContext::PlatformConnectedAccount(Box::new(
-                PlatformConnectedAccountContext {
+            Some(platform_context) => {
+                Self::PlatformConnectedAccount(Box::new(PlatformConnectedAccountContext {
                     platform_account_context: Context(
                         platform_context.platform_account,
                         platform_context.key_store,
                     ),
                     connected_account_context: Context(val.merchant_account, val.key_store),
-                },
-            )),
-            None => MerchantContext::NormalMerchant(Box::new(Context(
-                val.merchant_account,
-                val.key_store,
-            ))),
+                }))
+            }
+            None => Self::StandardMerchant(Box::new(Context(val.merchant_account, val.key_store))),
         }
     }
 }
@@ -111,19 +108,16 @@ impl From<AuthenticationData> for MerchantContext {
 impl From<AuthenticationData> for MerchantContext {
     fn from(val: AuthenticationData) -> Self {
         match val.platform_account_context {
-            Some(platform_context) => MerchantContext::PlatformConnectedAccount(Box::new(
-                PlatformConnectedAccountContext {
+            Some(platform_context) => {
+                Self::PlatformConnectedAccount(Box::new(PlatformConnectedAccountContext {
                     platform_account_context: Context(
                         platform_context.platform_account,
                         platform_context.key_store,
                     ),
                     connected_account_context: Context(val.merchant_account, val.key_store),
-                },
-            )),
-            None => MerchantContext::NormalMerchant(Box::new(Context(
-                val.merchant_account,
-                val.key_store,
-            ))),
+                }))
+            }
+            None => Self::StandardMerchant(Box::new(Context(val.merchant_account, val.key_store))),
         }
     }
 }

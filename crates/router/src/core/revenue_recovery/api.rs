@@ -34,7 +34,7 @@ pub async fn call_psync_api(
         all_keys_required: None,
     };
     let merchant_context_from_revenue_recovery_data =
-        MerchantContext::NormalMerchant(Box::new(Context(
+        MerchantContext::StandardMerchant(Box::new(Context(
             revenue_recovery_data.merchant_account.clone(),
             revenue_recovery_data.key_store.clone(),
         )));
@@ -94,7 +94,7 @@ pub async fn call_proxy_api(
         req
     );
     let merchant_context_from_revenue_recovery_payment_data =
-        MerchantContext::NormalMerchant(Box::new(Context(
+        MerchantContext::StandardMerchant(Box::new(Context(
             revenue_recovery_payment_data.merchant_account.clone(),
             revenue_recovery_payment_data.key_store.clone(),
         )));
@@ -144,7 +144,7 @@ pub async fn update_payment_intent_api(
     // TODO : Use api handler instead of calling payments_intent_operation_core
     let operation = payments::operations::PaymentUpdateIntent;
     let merchant_context_from_revenue_recovery_payment_data =
-        MerchantContext::NormalMerchant(Box::new(Context(
+        MerchantContext::StandardMerchant(Box::new(Context(
             revenue_recovery_payment_data.merchant_account.clone(),
             revenue_recovery_payment_data.key_store.clone(),
         )));
@@ -195,7 +195,7 @@ pub async fn record_internal_attempt_api(
     );
 
     let merchant_context_from_revenue_recovery_payment_data =
-        MerchantContext::NormalMerchant(Box::new(Context(
+        MerchantContext::StandardMerchant(Box::new(Context(
             revenue_recovery_payment_data.merchant_account.clone(),
             revenue_recovery_payment_data.key_store.clone(),
         )));

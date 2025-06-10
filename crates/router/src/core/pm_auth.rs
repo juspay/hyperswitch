@@ -889,7 +889,7 @@ pub async fn retrieve_payment_method_from_auth_service(
     let BankAccountAccessCreds::AccessToken(access_token) =
         &auth_token.connector_details.access_token;
 
-    let merchant_context = domain::MerchantContext::NormalMerchant(Box::new(domain::Context(
+    let merchant_context = domain::MerchantContext::StandardMerchant(Box::new(domain::Context(
         merchant_account.clone(),
         key_store.clone(),
     )));

@@ -81,7 +81,7 @@ async fn payments_create_core() {
         .await
         .unwrap();
 
-    let merchant_context = MerchantContext::NormalMerchant(Box::new(Context(
+    let merchant_context = MerchantContext::StandardMerchant(Box::new(Context(
         merchant_account.clone(),
         key_store.clone(),
     )));
@@ -369,7 +369,7 @@ async fn payments_create_core_adyen_no_redirect() {
         .await
         .unwrap();
 
-    let merchant_context = MerchantContext::NormalMerchant(Box::new(Context(
+    let merchant_context = MerchantContext::StandardMerchant(Box::new(Context(
         merchant_account.clone(),
         key_store.clone(),
     )));

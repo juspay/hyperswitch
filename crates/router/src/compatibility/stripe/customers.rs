@@ -14,10 +14,7 @@ use crate::{
     core::{api_locking, customers, payment_methods::cards},
     routes,
     services::{api, authentication as auth},
-    types::{
-        api::{customers as customer_types, payment_methods},
-        domain,
-    },
+    types::api::{customers as customer_types, payment_methods},
 };
 
 #[cfg(all(
@@ -58,9 +55,7 @@ pub async fn customer_create(
         &req,
         create_cust_req,
         |state, auth: auth::AuthenticationData, req, _| {
-            let merchant_context = domain::MerchantContext::NormalMerchant(Box::new(
-                domain::Context(auth.merchant_account, auth.key_store),
-            ));
+            let merchant_context = auth.into();
             customers::create_customer(state, merchant_context, req)
         },
         &auth::HeaderAuth(auth::ApiKeyAuth {
@@ -102,9 +97,7 @@ pub async fn customer_retrieve(
         &req,
         customer_id,
         |state, auth: auth::AuthenticationData, customer_id, _| {
-            let merchant_context = domain::MerchantContext::NormalMerchant(Box::new(
-                domain::Context(auth.merchant_account, auth.key_store),
-            ));
+            let merchant_context = auth.into();
             customers::retrieve_customer(state, merchant_context, None, customer_id)
         },
         &auth::HeaderAuth(auth::ApiKeyAuth {
@@ -160,9 +153,7 @@ pub async fn customer_update(
         &req,
         request_internal,
         |state, auth: auth::AuthenticationData, request_internal, _| {
-            let merchant_context = domain::MerchantContext::NormalMerchant(Box::new(
-                domain::Context(auth.merchant_account, auth.key_store),
-            ));
+            let merchant_context = auth.into();
             customers::update_customer(state, merchant_context, request_internal)
         },
         &auth::HeaderAuth(auth::ApiKeyAuth {
@@ -204,9 +195,7 @@ pub async fn customer_delete(
         &req,
         customer_id,
         |state, auth: auth::AuthenticationData, customer_id, _| {
-            let merchant_context = domain::MerchantContext::NormalMerchant(Box::new(
-                domain::Context(auth.merchant_account, auth.key_store),
-            ));
+            let merchant_context = auth.into();
             customers::delete_customer(state, merchant_context, customer_id)
         },
         &auth::HeaderAuth(auth::ApiKeyAuth {
@@ -249,9 +238,7 @@ pub async fn list_customer_payment_method_api(
         &req,
         payload,
         |state, auth: auth::AuthenticationData, req, _| {
-            let merchant_context = domain::MerchantContext::NormalMerchant(Box::new(
-                domain::Context(auth.merchant_account, auth.key_store),
-            ));
+            let merchant_context = auth.into();
             cards::do_list_customer_pm_fetch_customer_if_not_passed(
                 state,
                 merchant_context,

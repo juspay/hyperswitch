@@ -91,7 +91,7 @@ pub async fn rust_locker_migration(
     let mut customers_moved = 0;
     let mut cards_moved = 0;
 
-    let merchant_context = domain::MerchantContext::NormalMerchant(Box::new(domain::Context(
+    let merchant_context = domain::MerchantContext::StandardMerchant(Box::new(domain::Context(
         merchant_account.clone(),
         key_store.clone(),
     )));
