@@ -346,7 +346,7 @@ pub struct NordeaPaymentsRequest {
     pub urgency: Option<PaymentsUrgency>,
 }
 
-#[derive(Debug, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Serialize, Deserialize, PartialEq, Clone)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum NordeaAuthenticationMethod {
     Mta,
@@ -366,7 +366,7 @@ pub enum NordeaAuthenticationMethod {
     QrtDk,
 }
 
-#[derive(Debug, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Serialize, Deserialize, PartialEq, Clone)]
 #[serde(rename_all = "snake_case")]
 pub enum NordeaConfirmLanguage {
     Fi,

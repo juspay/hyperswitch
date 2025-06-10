@@ -148,9 +148,9 @@ impl<'de> Deserialize<'de> for PaymentsUrgency {
     {
         let s = String::deserialize(deserializer)?.to_lowercase();
         match s.as_str() {
-            "standard" => Ok(PaymentsUrgency::Standard),
-            "express" => Ok(PaymentsUrgency::Express),
-            "sameday" => Ok(PaymentsUrgency::Sameday),
+            "standard" => Ok(Self::Standard),
+            "express" => Ok(Self::Express),
+            "sameday" => Ok(Self::Sameday),
             _ => Err(serde::de::Error::unknown_variant(
                 &s,
                 &["standard", "express", "sameday"],
