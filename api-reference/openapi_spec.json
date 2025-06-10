@@ -20307,7 +20307,7 @@
           },
           "return_url": {
             "type": "string",
-            "description": "The URL to redirect the customer to after they complete the payment process or authentication. This is crucial for flows that involve off-site redirection (e.g., 3DS, some bank redirects, wallet payments).",
+            "description": "The URL to which you want the user to be redirected after the completion of the payment operation",
             "example": "https://hyperswitch.io",
             "nullable": true,
             "maxLength": 2048
@@ -20717,7 +20717,7 @@
           },
           "return_url": {
             "type": "string",
-            "description": "The URL to redirect the customer to after they complete the payment process or authentication. This is crucial for flows that involve off-site redirection (e.g., 3DS, some bank redirects, wallet payments).",
+            "description": "The URL to which you want the user to be redirected after the completion of the payment operation",
             "example": "https://hyperswitch.io",
             "nullable": true,
             "maxLength": 2048
@@ -21985,7 +21985,7 @@
           },
           "return_url": {
             "type": "string",
-            "description": "The URL to redirect the customer to after they complete the payment process or authentication. This is crucial for flows that involve off-site redirection (e.g., 3DS, some bank redirects, wallet payments).",
+            "description": "The URL to which you want the user to be redirected after the completion of the payment operation",
             "example": "https://hyperswitch.io",
             "nullable": true,
             "maxLength": 2048
@@ -23206,7 +23206,7 @@
           },
           "return_url": {
             "type": "string",
-            "description": "The URL to redirect the customer to after they complete the payment process or authentication. This is crucial for flows that involve off-site redirection (e.g., 3DS, some bank redirects, wallet payments).",
+            "description": "The URL to which you want the user to be redirected after the completion of the payment operation",
             "example": "https://hyperswitch.io",
             "nullable": true,
             "maxLength": 2048
