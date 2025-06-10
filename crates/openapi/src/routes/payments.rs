@@ -381,9 +381,9 @@
                         "customer_id": "cus_abcdefgh",
                         "customer": {
                             "id": "cus_abcdefgh",
-                            "name": "John Dough", // Assuming customer name might be available if ID is
-                            "email": "john@example.com", // Assuming email might be available
-                            "phone": "9123456789" // Assuming phone might be available
+                            "name": "John Dough", 
+                            "email": "john@example.com", 
+                            "phone": "9123456789"
                         },
                         "billing": {
                             "address": {
