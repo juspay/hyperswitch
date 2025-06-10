@@ -223,6 +223,8 @@ diesel::table! {
         id -> Varchar,
         is_iframe_redirection_enabled -> Nullable<Bool>,
         three_ds_decision_rule_algorithm -> Nullable<Jsonb>,
+        #[max_length = 16]
+        merchant_category_code -> Nullable<Varchar>,
         #[max_length = 64]
         routing_algorithm_id -> Nullable<Varchar>,
         order_fulfillment_time -> Nullable<Int8>,
@@ -238,8 +240,6 @@ diesel::table! {
         external_vault_connector_details -> Nullable<Jsonb>,
         revenue_recovery_retry_algorithm_type -> Nullable<RevenueRecoveryAlgorithmType>,
         revenue_recovery_retry_algorithm_data -> Nullable<Jsonb>,
-        #[max_length = 16]
-        merchant_category_code -> Nullable<Varchar>,
     }
 }
 

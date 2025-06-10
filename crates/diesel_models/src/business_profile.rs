@@ -381,6 +381,7 @@ pub struct Profile {
     pub id: common_utils::id_type::ProfileId,
     pub is_iframe_redirection_enabled: Option<bool>,
     pub three_ds_decision_rule_algorithm: Option<serde_json::Value>,
+    pub merchant_category_code: Option<common_enums::MerchantCategoryCode>,
     pub routing_algorithm_id: Option<common_utils::id_type::RoutingId>,
     pub order_fulfillment_time: Option<i64>,
     pub order_fulfillment_time_origin: Option<common_enums::OrderFulfillmentTimeOrigin>,
@@ -394,7 +395,6 @@ pub struct Profile {
     pub external_vault_connector_details: Option<ExternalVaultConnectorDetails>,
     pub revenue_recovery_retry_algorithm_type: Option<common_enums::RevenueRecoveryAlgorithmType>,
     pub revenue_recovery_retry_algorithm_data: Option<RevenueRecoveryAlgorithmData>,
-    pub merchant_category_code: Option<common_enums::MerchantCategoryCode>,
 }
 
 impl Profile {
@@ -453,6 +453,7 @@ pub struct ProfileNew {
     pub is_clear_pan_retries_enabled: Option<bool>,
     pub is_debit_routing_enabled: bool,
     pub merchant_business_country: Option<common_enums::CountryAlpha2>,
+    pub merchant_category_code: Option<common_enums::MerchantCategoryCode>,
     pub routing_algorithm_id: Option<common_utils::id_type::RoutingId>,
     pub order_fulfillment_time: Option<i64>,
     pub order_fulfillment_time_origin: Option<common_enums::OrderFulfillmentTimeOrigin>,
