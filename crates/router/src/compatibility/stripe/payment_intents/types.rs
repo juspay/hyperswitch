@@ -423,7 +423,8 @@ impl From<api_enums::IntentStatus> for StripePaymentStatus {
             api_enums::IntentStatus::Failed => Self::Canceled,
             api_enums::IntentStatus::Processing => Self::Processing,
             api_enums::IntentStatus::RequiresCustomerAction
-            | api_enums::IntentStatus::RequiresMerchantAction => Self::RequiresAction,
+            | api_enums::IntentStatus::RequiresMerchantAction
+            | api_enums::IntentStatus::Conflicted => Self::RequiresAction,
             api_enums::IntentStatus::RequiresPaymentMethod => Self::RequiresPaymentMethod,
             api_enums::IntentStatus::RequiresConfirmation => Self::RequiresConfirmation,
             api_enums::IntentStatus::RequiresCapture
