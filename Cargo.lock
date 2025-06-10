@@ -3911,11 +3911,12 @@ dependencies = [
  "image",
  "iso_currency",
  "isocountry",
- "josekit 0.8.6",
+ "josekit",
  "lazy_static",
  "masking",
  "mime",
  "num-traits",
+ "openssl",
  "qrcode",
  "quick-xml",
  "rand 0.8.5",
@@ -4372,23 +4373,6 @@ checksum = "38f262f097c174adebe41eb73d66ae9c06b2844fb0da69969647bbddd9b0538a"
 dependencies = [
  "getrandom 0.3.3",
  "libc",
-]
-
-[[package]]
-name = "josekit"
-version = "0.8.6"
-source = "git+https://github.com/sumanmaji4/josekit-rs.git?rev=5ab54876c29a84f86aef8c169413a46026883efe#5ab54876c29a84f86aef8c169413a46026883efe"
-dependencies = [
- "anyhow",
- "base64 0.21.7",
- "flate2",
- "once_cell",
- "openssl",
- "regex",
- "serde",
- "serde_json",
- "thiserror 1.0.69",
- "time",
 ]
 
 [[package]]
@@ -5206,6 +5190,7 @@ dependencies = [
  "api_models",
  "common_types",
  "common_utils",
+ "euclid",
  "router_env",
  "serde_json",
  "utoipa",
@@ -6658,7 +6643,7 @@ dependencies = [
  "hyperswitch_domain_models",
  "hyperswitch_interfaces",
  "infer",
- "josekit 0.8.7",
+ "josekit",
  "jsonwebtoken",
  "kgraph_utils",
  "masking",
