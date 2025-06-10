@@ -62,7 +62,7 @@ use url::Url;
 use crate::{
     constants::headers,
     types::ResponseRouterData,
-    utils::{self, PaymentsAuthorizeRequestData},
+    utils::{self, PaymentsAuthorizeRequestData, RouterData as OtherRouterData},
 };
 
 #[derive(Clone)]
@@ -87,7 +87,7 @@ impl Nordea {
     }
 
     pub fn generate_digest(&self, payload: &[u8]) -> String {
-        let payload_digest = digest::digest(&digest::SHA256, &payload);
+        let payload_digest = digest::digest(&digest::SHA256, payload);
         format!("sha-256={}", consts::BASE64_ENGINE.encode(payload_digest))
     }
 
@@ -271,12 +271,12 @@ where
         if matches!(http_method, Method::Post | Method::Put | Method::Patch) {
             let nordea_request = self.get_request_body(req, connectors)?;
 
-            let sha256_digest = self.generate_digest_from_request(&nordea_request)?;
+            let sha256_digest = self.generate_digest_from_request(&nordea_request);
 
             // Add Digest header
             required_headers.push((
                 "Digest".to_string(),
-                format!("{}", sha256_digest).into_masked(),
+                sha256_digest.to_string().into_masked(),
             ));
 
             let signature = self.generate_signature(
