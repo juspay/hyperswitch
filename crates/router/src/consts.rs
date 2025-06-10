@@ -220,6 +220,39 @@ pub const AUTHENTICATION_SERVICE_ELIGIBLE_CONFIG: &str =
 /// Refund flow identifier used for performing GSM operations
 pub const REFUND_FLOW_STR: &str = "refund_flow";
 
+/// Minimum IBAN length (country-dependent), as per ISO 13616 standard
+pub const IBAN_MIN_LENGTH: usize = 15;
+
+/// Maximum IBAN length defined by the ISO 13616 standard (standard max)
+pub const IBAN_MAX_LENGTH: usize = 34;
+
+/// Minimum UK BACS account number length in digits
+pub const BACS_MIN_ACCOUNT_NUMBER_LENGTH: usize = 6;
+
+/// Maximum UK BACS account number length in digits
+pub const BACS_MAX_ACCOUNT_NUMBER_LENGTH: usize = 8;
+
+/// Fixed length of UK BACS sort code in digits (always 6)
+pub const BACS_SORT_CODE_LENGTH: usize = 6;
+
+/// Exact length of Polish Elixir system domestic account number (NRB) in digits
+pub const ELIXIR_ACCOUNT_NUMBER_LENGTH: usize = 26;
+
+/// Total length of Polish IBAN including country code and checksum (28 characters)
+pub const ELIXIR_IBAN_LENGTH: usize = 28;
+
+/// Minimum length of Swedish Bankgiro number in digits
+pub const BANKGIRO_MIN_LENGTH: usize = 7;
+
+/// Maximum length of Swedish Bankgiro number in digits
+pub const BANKGIRO_MAX_LENGTH: usize = 8;
+
+/// Minimum length of Swedish Plusgiro number in digits
+pub const PLUSGIRO_MIN_LENGTH: usize = 2;
+
+/// Maximum length of Swedish Plusgiro number in digits
+pub const PLUSGIRO_MAX_LENGTH: usize = 8;
+
 /// Default payment method session expiry
 pub const DEFAULT_PAYMENT_METHOD_SESSION_EXPIRY: u32 = 15 * 60; // 15 minutes
 
