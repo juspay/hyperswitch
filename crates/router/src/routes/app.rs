@@ -2661,7 +2661,7 @@ impl ProfileAcquirer {
             )
             .service(
                 web::resource("{profile_id}/{profile_acquirer_id}")
-                    .route(web::post().to(profile_acquirer::update_profile_acquirer)),
+                    .route(web::post().to(profile_acquirer::profile_acquirer_update)),
             )
     }
 }

@@ -5741,6 +5741,46 @@
         ]
       }
     },
+    "/profile_acquirers/{profile_id}/{profile_acquirer_id}": {
+      "post": {
+        "tags": [
+          "Profile Acquirer"
+        ],
+        "summary": "Profile Acquirer - Update",
+        "description": "Update a Profile Acquirer for accessing our APIs from your servers.",
+        "operationId": "Update a Profile Acquirer",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ProfileAcquirerUpdate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Profile Acquirer updated",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProfileAcquirerResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid data"
+          }
+        },
+        "security": [
+          {
+            "api_key": []
+          }
+        ]
+      }
+    },
     "/three_ds_decision/execute": {
       "post": {
         "tags": [
@@ -25034,6 +25074,48 @@
           }
         }
       },
+      "ProfileAcquirerUpdate": {
+        "type": "object",
+        "properties": {
+          "acquirer_assigned_merchant_id": {
+            "type": "string",
+            "example": "M987654321",
+            "nullable": true
+          },
+          "merchant_name": {
+            "type": "string",
+            "example": "Updated Retailer Name",
+            "nullable": true
+          },
+          "merchant_country_code": {
+            "type": "string",
+            "example": "CA",
+            "nullable": true
+          },
+          "network": {
+            "type": "string",
+            "example": "MASTERCARD",
+            "nullable": true
+          },
+          "acquirer_bin": {
+            "type": "string",
+            "example": "987654",
+            "nullable": true
+          },
+          "acquirer_ica": {
+            "type": "string",
+            "example": "501299",
+            "nullable": true
+          },
+          "acquirer_fraud_rate": {
+            "type": "number",
+            "format": "double",
+            "example": "0.02",
+            "nullable": true
+          }
+        },
+        "additionalProperties": false
+      },
       "ProfileCreate": {
         "type": "object",
         "properties": {
@@ -25556,11 +25638,11 @@
             "example": false
           },
           "acquirer_configs": {
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/AcquirerConfigMap"
-              }
-            ],
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ProfileAcquirerResponse"
+            },
+            "description": "Acquirer configs",
             "nullable": true
           }
         }

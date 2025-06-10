@@ -51,7 +51,7 @@ pub async fn create_profile_acquirer(
 
 #[cfg(all(feature = "olap", feature = "v1"))]
 #[instrument(skip_all, fields(flow = ?Flow::ProfileAcquirerUpdate))]
-pub async fn update_profile_acquirer(
+pub async fn profile_acquirer_update(
     state: web::Data<AppState>,
     req: HttpRequest,
     path: web::Path<(
