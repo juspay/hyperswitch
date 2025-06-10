@@ -563,7 +563,6 @@ impl<T: WorldpayPaymentsRequestData> TryFrom<(&WorldpayRouterData<&T>, &Secret<S
 pub struct WorldpayAuthType {
     pub(super) api_key: Secret<String>,
     pub(super) entity_id: Secret<String>,
-    pub(super) ca_certificate: Option<Secret<String>>,
 }
 
 impl TryFrom<&ConnectorAuthType> for WorldpayAuthType {
@@ -577,7 +576,6 @@ impl TryFrom<&ConnectorAuthType> for WorldpayAuthType {
                 Ok(Self {
                     api_key: Secret::new(auth_header),
                     entity_id: Secret::new("default".to_string()),
-                    ca_certificate: None,
                 })
             }
             ConnectorAuthType::SignatureKey {
@@ -590,21 +588,6 @@ impl TryFrom<&ConnectorAuthType> for WorldpayAuthType {
                 Ok(Self {
                     api_key: Secret::new(auth_header),
                     entity_id: api_secret.clone(),
-                    ca_certificate: None,
-                })
-            }
-            ConnectorAuthType::MultiAuthKey {
-                api_key,
-                key1,
-                api_secret,
-                key2,
-            } => {
-                let auth_key = format!("{}:{}", key1.peek(), api_key.peek());
-                let auth_header = format!("Basic {}", BASE64_ENGINE.encode(auth_key));
-                Ok(Self {
-                    api_key: Secret::new(auth_header),
-                    entity_id: api_secret.clone(),
-                    ca_certificate: Some(key2.clone()),
                 })
             }
             _ => Err(errors::ConnectorError::FailedToObtainAuthType)?,

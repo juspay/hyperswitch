@@ -50,6 +50,12 @@ function validateErrorMessage(response, resData) {
   }
 }
 
+//skip MIT using PMId if connector does not support MIT only
+export function shouldSkipMitUsingPMId(connectorId) {
+  const skipConnectors = ["fiuu"];
+  return skipConnectors.includes(connectorId);
+}
+
 Cypress.Commands.add("healthCheck", (globalState) => {
   const baseUrl = globalState.get("baseUrl");
   const url = `${baseUrl}/health`;
@@ -2138,8 +2144,15 @@ Cypress.Commands.add(
     saveCardConfirmBody.payment_token = globalState.get("paymentToken");
     saveCardConfirmBody.profile_id = profile_id;
 
-    if (reqData.billing === null) {
-      saveCardConfirmBody.billing = null;
+    // Include request data from config but exclude payment_method_data
+    if (reqData) {
+      const requestDataWithoutPMD = Object.fromEntries(
+        Object.entries(reqData).filter(
+          ([key]) =>
+            key !== "payment_method_data" && key !== "customer_acceptance"
+        )
+      );
+      Object.assign(saveCardConfirmBody, requestDataWithoutPMD);
     }
 
     cy.request({
@@ -2577,6 +2590,7 @@ Cypress.Commands.add(
     const merchant_connector_id = globalState.get(
       `${configInfo.merchantConnectorPrefix}Id`
     );
+
     for (const key in reqData) {
       requestBody[key] = reqData[key];
     }
@@ -2849,6 +2863,13 @@ Cypress.Commands.add(
     globalState,
     connector_agnostic_mit
   ) => {
+    if (shouldSkipMitUsingPMId(globalState.get("connectorId"))) {
+      cy.log(
+        `Skipping mitUsingPMId for connector: ${globalState.get("connectorId")}`
+      );
+      return;
+    }
+
     const {
       Configs: configs = {},
       Request: reqData,

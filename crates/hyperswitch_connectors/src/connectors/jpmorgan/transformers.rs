@@ -1,5 +1,8 @@
+use std::str::FromStr;
+
 use common_enums::enums::CaptureMethod;
 use common_utils::types::MinorUnit;
+use error_stack::{report, ResultExt};
 use hyperswitch_domain_models::{
     payment_method_data::PaymentMethodData,
     router_data::{AccessToken, ConnectorAuthType, RouterData},
@@ -12,7 +15,7 @@ use hyperswitch_domain_models::{
     },
 };
 use hyperswitch_interfaces::errors;
-use masking::Secret;
+use masking::{PeekInterface, Secret};
 use serde::{Deserialize, Serialize};
 
 use crate::{
@@ -102,8 +105,8 @@ pub struct JpmorganPaymentMethodType {
 #[derive(Default, Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Expiry {
-    month: Secret<String>,
-    year: Secret<String>,
+    month: Secret<i32>,
+    year: Secret<i32>,
 }
 
 #[derive(Serialize, Debug, Default, Deserialize)]
@@ -159,8 +162,15 @@ impl TryFrom<&JpmorganRouterData<&PaymentsAuthorizeRouterData>> for JpmorganPaym
                 let merchant = JpmorganMerchant { merchant_software };
 
                 let expiry: Expiry = Expiry {
-                    month: req_card.card_exp_month.clone(),
-                    year: req_card.get_expiry_year_4_digit(),
+                    month: Secret::new(
+                        req_card
+                            .card_exp_month
+                            .peek()
+                            .clone()
+                            .parse::<i32>()
+                            .change_context(errors::ConnectorError::RequestEncodingFailed)?,
+                    ),
+                    year: req_card.get_expiry_year_as_4_digit_i32()?,
                 };
 
                 let account_number = Secret::new(req_card.card_number.to_string());
@@ -639,11 +649,46 @@ impl TryFrom<RefundsResponseRouterData<RSync, JpmorganRefundSyncResponse>>
 }
 
 #[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
+pub enum ReversalReason {
+    NoResponse,
+    LateResponse,
+    UnableToDeliver,
+    CardDeclined,
+    MacNotVerified,
+    MacSyncError,
+    ZekSyncError,
+    SystemMalfunction,
+    SuspectedFraud,
+}
+
+impl FromStr for ReversalReason {
+    type Err = error_stack::Report<errors::ConnectorError>;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match s.to_uppercase().as_str() {
+            "NO_RESPONSE" => Ok(Self::NoResponse),
+            "LATE_RESPONSE" => Ok(Self::LateResponse),
+            "UNABLE_TO_DELIVER" => Ok(Self::UnableToDeliver),
+            "CARD_DECLINED" => Ok(Self::CardDeclined),
+            "MAC_NOT_VERIFIED" => Ok(Self::MacNotVerified),
+            "MAC_SYNC_ERROR" => Ok(Self::MacSyncError),
+            "ZEK_SYNC_ERROR" => Ok(Self::ZekSyncError),
+            "SYSTEM_MALFUNCTION" => Ok(Self::SystemMalfunction),
+            "SUSPECTED_FRAUD" => Ok(Self::SuspectedFraud),
+            _ => Err(report!(errors::ConnectorError::InvalidDataFormat {
+                field_name: "cancellation_reason",
+            })),
+        }
+    }
+}
+
+#[derive(Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct JpmorganCancelRequest {
     pub amount: Option<i64>,
     pub is_void: Option<bool>,
-    pub reversal_reason: Option<String>,
+    pub reversal_reason: Option<ReversalReason>,
 }
 
 impl TryFrom<JpmorganRouterData<&PaymentsCancelRouterData>> for JpmorganCancelRequest {
@@ -652,7 +697,13 @@ impl TryFrom<JpmorganRouterData<&PaymentsCancelRouterData>> for JpmorganCancelRe
         Ok(Self {
             amount: item.router_data.request.amount,
             is_void: Some(true),
-            reversal_reason: item.router_data.request.cancellation_reason.clone(),
+            reversal_reason: item
+                .router_data
+                .request
+                .cancellation_reason
+                .as_ref()
+                .map(|reason| ReversalReason::from_str(reason))
+                .transpose()?,
         })
     }
 }
