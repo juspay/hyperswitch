@@ -2947,7 +2947,6 @@ fn get_bank_debit_required_fields() -> HashMap<enums::PaymentMethodType, Connect
                 ),
                 (
                     Connector::Nordea,
-                    fields(vec![], vec![], vec![RequiredField::SepaBankDebitIban]),
                     RequiredFieldFinal {
                         mandate: HashMap::new(),
                         non_mandate: HashMap::new(),

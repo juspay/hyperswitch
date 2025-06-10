@@ -422,14 +422,43 @@ impl ConnectorIntegration<PreProcessing, PaymentsPreProcessingData, PaymentsResp
 
     fn get_url(
         &self,
-        _req: &PaymentsPreProcessingRouterData,
-        _connectors: &Connectors,
+        req: &PaymentsPreProcessingRouterData,
+        connectors: &Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        Ok(format!(
-            "{}{}",
-            self.base_url(_connectors),
-            "/personal/v5/payments/sepa-credit-transfer"
-        ))
+        // Determine the payment endpoint based on country and currency
+        let country = req.get_billing_country()?;
+
+        let currency =
+            req.request
+                .currency
+                .ok_or(errors::ConnectorError::MissingRequiredField {
+                    field_name: "currency",
+                })?;
+
+        let endpoint = match (country, currency) {
+            (api_models::enums::CountryAlpha2::FI, api_models::enums::Currency::EUR) => {
+                "/personal/v5/payments/sepa-credit-transfers"
+            }
+            (api_models::enums::CountryAlpha2::DK, api_models::enums::Currency::DKK) => {
+                "/personal/v5/payments/domestic-credit-transfers"
+            }
+            (
+                api_models::enums::CountryAlpha2::FI
+                | api_models::enums::CountryAlpha2::DK
+                | api_models::enums::CountryAlpha2::SE
+                | api_models::enums::CountryAlpha2::NO,
+                _,
+            ) => "/personal/v5/payments/cross-border-credit-transfers",
+            _ => {
+                return Err(errors::ConnectorError::NotSupported {
+                    message: format!("Country {:?} is not supported by Nordea", country),
+                    connector: "Nordea",
+                }
+                .into())
+            }
+        };
+
+        Ok(format!("{}{}", self.base_url(connectors), endpoint))
     }
 
     fn get_request_body(
@@ -539,7 +568,7 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
         Ok(format!(
             "{}{}",
             self.base_url(_connectors),
-            "/personal/v5/payments"
+            "/personal/v5/payments/confirm"
         ))
     }
 
