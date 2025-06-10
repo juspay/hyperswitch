@@ -10,6 +10,7 @@ use common_utils::{
 };
 use error_stack::{report, ResultExt};
 use hyperswitch_domain_models::{
+    network_tokenization::NetworkTokenNumber,
     payment_method_data::{BankRedirectData, BankTransferData, Card, PaymentMethodData},
     router_data::{AccessToken, ConnectorAuthType, ErrorResponse, RouterData},
     router_request_types::{BrowserInformation, PaymentsPreProcessingData, ResponseId},
@@ -29,8 +30,9 @@ use serde::{Deserialize, Serialize};
 use crate::{
     types::{RefundsResponseRouterData, ResponseRouterData},
     utils::{
-        self, AddressDetailsData, BrowserInformationData, CardData, PaymentsAuthorizeRequestData,
-        PaymentsPreProcessingRequestData, RouterData as OtherRouterData,
+        self, AddressDetailsData, BrowserInformationData, CardData, NetworkTokenData,
+        PaymentsAuthorizeRequestData, PaymentsPreProcessingRequestData,
+        RouterData as OtherRouterData,
     },
 };
 
@@ -224,6 +226,26 @@ pub enum TrustpayPaymentsRequest {
     CardsPaymentRequest(Box<PaymentRequestCards>),
     BankRedirectPaymentRequest(Box<PaymentRequestBankRedirect>),
     BankTransferPaymentRequest(Box<PaymentRequestBankTransfer>),
+    NetworkTokenPaymentRequest(Box<PaymentRequestNetworkToken>),
+}
+
+#[derive(Debug, Serialize, PartialEq)]
+pub struct PaymentRequestNetworkToken {
+    pub amount: StringMajorUnit,
+    pub currency: api_models::enums::Currency,
+    pub pan: NetworkTokenNumber,
+    #[serde(rename = "exp")]
+    pub expiry_date: Secret<String>,
+    #[serde(rename = "RedirectUrl")]
+    pub redirect_url: String,
+    #[serde(rename = "threeDSecureEnrollmentStatus")]
+    pub enrollment_status: char,
+    #[serde(rename = "threeDSecureEci")]
+    pub eci: String,
+    #[serde(rename = "threeDSecureAuthenticationStatus")]
+    pub authentication_status: char,
+    #[serde(rename = "threeDSecureVerificationId")]
+    pub verification_id: Secret<String>,
 }
 
 #[derive(Debug, Serialize, PartialEq)]
@@ -532,6 +554,28 @@ impl TryFrom<&TrustpayRouterData<&PaymentsAuthorizeRouterData>> for TrustpayPaym
                     auth,
                 )
             }
+            PaymentMethodData::NetworkToken(ref token_data) => {
+                Ok(Self::NetworkTokenPaymentRequest(
+                    Box::new(PaymentRequestNetworkToken {
+                        amount: item.amount.to_owned(),
+                        currency: item.router_data.request.currency,
+                        pan: token_data.get_network_token(),
+                        expiry_date: token_data
+                            .get_token_expiry_month_year_2_digit_with_delimiter("/".to_owned())?,
+                        redirect_url: item.router_data.request.get_router_return_url()?,
+                        enrollment_status: 'Y', // Set to 'Y' as UAS response doesn't provide this field
+                        eci: token_data.eci.clone().ok_or_else(|| {
+                            errors::ConnectorError::MissingRequiredField { field_name: "eci" }
+                        })?,
+                        authentication_status: 'Y', // Set to 'Y' since presence of token_cryptogram is already validated
+                        verification_id: token_data.get_cryptogram().ok_or_else(|| {
+                            errors::ConnectorError::MissingRequiredField {
+                                field_name: "verification_id",
+                            }
+                        })?,
+                    }),
+                ))
+            }
             PaymentMethodData::CardRedirect(_)
             | PaymentMethodData::Wallet(_)
             | PaymentMethodData::PayLater(_)
@@ -546,7 +590,6 @@ impl TryFrom<&TrustpayRouterData<&PaymentsAuthorizeRouterData>> for TrustpayPaym
             | PaymentMethodData::GiftCard(_)
             | PaymentMethodData::OpenBanking(_)
             | PaymentMethodData::CardToken(_)
-            | PaymentMethodData::NetworkToken(_)
             | PaymentMethodData::CardDetailsForNetworkTransactionId(_) => {
                 Err(errors::ConnectorError::NotImplemented(
                     utils::get_unimplemented_payment_method_error_message("trustpay"),
