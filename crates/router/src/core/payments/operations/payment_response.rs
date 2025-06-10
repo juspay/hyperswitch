@@ -2572,7 +2572,8 @@ impl<F: Clone> PostUpdateTracker<F, PaymentConfirmData<F>, types::PaymentsAuthor
                 | common_enums::AttemptStatus::CaptureInitiated
                 | common_enums::AttemptStatus::PaymentMethodAwaited
                 | common_enums::AttemptStatus::ConfirmationAwaited
-                | common_enums::AttemptStatus::DeviceDataCollectionPending => {
+                | common_enums::AttemptStatus::DeviceDataCollectionPending
+                | common_enums::AttemptStatus::IntegrityFailure => {
                     let pm_update_status = enums::PaymentMethodStatus::Active;
 
                     // payment_methods microservice call
