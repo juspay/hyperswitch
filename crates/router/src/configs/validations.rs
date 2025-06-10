@@ -305,3 +305,16 @@ impl super::settings::KeyManagerConfig {
         })
     }
 }
+
+impl super::settings::Platform {
+    pub fn validate(&self) -> Result<(), ApplicationError> {
+        use common_utils::fp_utils::when;
+
+        when(!self.enabled && self.allow_connected_merchants, || {
+            Err(ApplicationError::InvalidConfigurationValueError(
+                "platform.allow_connected_merchants cannot be true when platform.enabled is false"
+                    .into(),
+            ))
+        })
+    }
+}

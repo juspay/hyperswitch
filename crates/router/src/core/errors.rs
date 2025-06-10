@@ -384,6 +384,8 @@ pub enum RoutingError {
     OpenRouterCallFailed,
     #[error("Error from open_router: {0}")]
     OpenRouterError(String),
+    #[error("Invalid transaction type")]
+    InvalidTransactionType,
 }
 
 #[derive(Debug, Clone, thiserror::Error)]

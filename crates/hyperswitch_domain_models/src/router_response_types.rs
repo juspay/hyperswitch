@@ -542,6 +542,7 @@ pub enum AuthenticationResponseData {
         trans_status: common_enums::TransactionStatus,
         connector_metadata: Option<serde_json::Value>,
         ds_trans_id: Option<String>,
+        eci: Option<String>,
     },
     PostAuthNResponse {
         trans_status: common_enums::TransactionStatus,
@@ -614,6 +615,10 @@ impl SupportedPaymentMethodsExt for SupportedPaymentMethods {
 
 #[derive(Debug, Clone)]
 pub enum VaultResponseData {
+    ExternalVaultCreateResponse {
+        session_id: masking::Secret<String>,
+        client_secret: masking::Secret<String>,
+    },
     ExternalVaultInsertResponse {
         connector_vault_id: String,
         fingerprint_id: String,

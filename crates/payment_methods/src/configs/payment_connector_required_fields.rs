@@ -1478,6 +1478,10 @@ fn get_cards_required_fields() -> HashMap<Connector, RequiredFieldFinal> {
             ),
         ),
         (
+            Connector::Worldpayvantiv,
+            fields(vec![], card_basic(), vec![]),
+        ),
+        (
             Connector::Xendit,
             fields(
                 vec![],
@@ -3114,6 +3118,7 @@ fn get_bank_transfer_required_fields() -> HashMap<enums::PaymentMethodType, Conn
                             RequiredField::BillingAddressCountries(vec!["BR"]).to_tuple(),
                             RequiredField::BillingUserFirstName.to_tuple(),
                             RequiredField::BillingUserLastName.to_tuple(),
+                            RequiredField::PixCpf.to_tuple(),
                         ]),
                     },
                 ),

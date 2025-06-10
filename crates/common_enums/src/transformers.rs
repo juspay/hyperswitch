@@ -2095,7 +2095,7 @@ impl From<AttemptStatus> for IntentStatus {
                 Self::RequiresCustomerAction
             }
             AttemptStatus::Unresolved => Self::RequiresMerchantAction,
-
+            AttemptStatus::IntegrityFailure => Self::Conflicted,
             AttemptStatus::PartialCharged => Self::PartiallyCaptured,
             AttemptStatus::PartialChargedAndChargeable => Self::PartiallyCapturedAndCapturable,
             AttemptStatus::Started

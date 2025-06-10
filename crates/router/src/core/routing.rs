@@ -145,7 +145,7 @@ pub async fn retrieve_merchant_routing_dictionary(
     merchant_context: domain::MerchantContext,
     profile_id_list: Option<Vec<common_utils::id_type::ProfileId>>,
     query_params: RoutingRetrieveQuery,
-    transaction_type: &enums::TransactionType,
+    transaction_type: enums::TransactionType,
 ) -> RouterResponse<routing_types::RoutingKind> {
     metrics::ROUTING_MERCHANT_DICTIONARY_RETRIEVE.add(1, &[]);
 
@@ -153,7 +153,7 @@ pub async fn retrieve_merchant_routing_dictionary(
         .store
         .list_routing_algorithm_metadata_by_merchant_id_transaction_type(
             merchant_context.get_merchant_account().get_id(),
-            transaction_type,
+            &transaction_type,
             i64::from(query_params.limit.unwrap_or_default()),
             i64::from(query_params.offset.unwrap_or_default()),
         )
@@ -328,14 +328,16 @@ pub async fn create_routing_algorithm_under_profile(
 
     core_utils::validate_profile_id_from_auth_layer(authentication_profile_id, &business_profile)?;
 
-    helpers::validate_connectors_in_routing_config(
-        &state,
-        merchant_context.get_merchant_key_store(),
-        merchant_context.get_merchant_account().get_id(),
-        &profile_id,
-        &algorithm,
-    )
-    .await?;
+    if algorithm.should_validate_connectors_in_routing_config() {
+        helpers::validate_connectors_in_routing_config(
+            &state,
+            merchant_context.get_merchant_key_store(),
+            merchant_context.get_merchant_account().get_id(),
+            &profile_id,
+            &algorithm,
+        )
+        .await?;
+    }
 
     let mut decision_engine_routing_id: Option<String> = None;
 
@@ -471,7 +473,7 @@ pub async fn link_routing_config(
     merchant_context: domain::MerchantContext,
     authentication_profile_id: Option<common_utils::id_type::ProfileId>,
     algorithm_id: common_utils::id_type::RoutingId,
-    transaction_type: &enums::TransactionType,
+    transaction_type: enums::TransactionType,
 ) -> RouterResponse<routing_types::RoutingDictionaryRecord> {
     metrics::ROUTING_LINK_CONFIG.add(1, &[]);
     let db = state.store.as_ref();
@@ -576,6 +578,7 @@ pub async fn link_routing_config(
                             business_profile.get_id(),
                             routing_algorithm.algorithm_data.clone(),
                             routing_types::DynamicRoutingType::SuccessRateBasedRouting,
+                            &mut dynamic_routing_ref,
                         )
                         .await
                         .change_context(errors::ApiErrorResponse::InternalServerError)
@@ -606,6 +609,7 @@ pub async fn link_routing_config(
                             business_profile.get_id(),
                             routing_algorithm.algorithm_data.clone(),
                             routing_types::DynamicRoutingType::EliminationRouting,
+                            &mut dynamic_routing_ref,
                         )
                         .await
                         .change_context(errors::ApiErrorResponse::InternalServerError)
@@ -641,7 +645,8 @@ pub async fn link_routing_config(
         diesel_models::enums::RoutingAlgorithmKind::Single
         | diesel_models::enums::RoutingAlgorithmKind::Priority
         | diesel_models::enums::RoutingAlgorithmKind::Advanced
-        | diesel_models::enums::RoutingAlgorithmKind::VolumeSplit => {
+        | diesel_models::enums::RoutingAlgorithmKind::VolumeSplit
+        | diesel_models::enums::RoutingAlgorithmKind::ThreeDsDecisionRule => {
             let mut routing_ref: routing_types::RoutingAlgorithmRef = business_profile
                 .routing_algorithm
                 .clone()
@@ -653,7 +658,7 @@ pub async fn link_routing_config(
                 )?
                 .unwrap_or_default();
 
-            utils::when(routing_algorithm.algorithm_for != *transaction_type, || {
+            utils::when(routing_algorithm.algorithm_for != transaction_type, || {
                 Err(errors::ApiErrorResponse::PreconditionFailed {
                     message: format!(
                         "Cannot use {}'s routing algorithm for {} operation",
@@ -677,7 +682,7 @@ pub async fn link_routing_config(
                 merchant_context.get_merchant_key_store(),
                 business_profile.clone(),
                 routing_ref,
-                transaction_type,
+                &transaction_type,
             )
             .await?;
         }
@@ -815,6 +820,8 @@ pub async fn unlink_routing_config_under_profile(
         enums::TransactionType::Payment => business_profile.routing_algorithm_id.clone(),
         #[cfg(feature = "payouts")]
         enums::TransactionType::Payout => business_profile.payout_routing_algorithm_id.clone(),
+        // TODO: Handle ThreeDsAuthentication Transaction Type for Three DS Decision Rule Algorithm configuration
+        enums::TransactionType::ThreeDsAuthentication => todo!(),
     };
 
     if let Some(algorithm_id) = routing_algo_id {
@@ -849,7 +856,7 @@ pub async fn unlink_routing_config(
     merchant_context: domain::MerchantContext,
     request: routing_types::RoutingConfigRequest,
     authentication_profile_id: Option<common_utils::id_type::ProfileId>,
-    transaction_type: &enums::TransactionType,
+    transaction_type: enums::TransactionType,
 ) -> RouterResponse<routing_types::RoutingDictionaryRecord> {
     metrics::ROUTING_UNLINK_CONFIG.add(1, &[]);
 
@@ -883,6 +890,9 @@ pub async fn unlink_routing_config(
                 enums::TransactionType::Payment => business_profile.routing_algorithm.clone(),
                 #[cfg(feature = "payouts")]
                 enums::TransactionType::Payout => business_profile.payout_routing_algorithm.clone(),
+                enums::TransactionType::ThreeDsAuthentication => {
+                    business_profile.three_ds_decision_rule_algorithm.clone()
+                }
             }
             .map(|val| val.parse_value("RoutingAlgorithmRef"))
             .transpose()
@@ -916,7 +926,7 @@ pub async fn unlink_routing_config(
                         merchant_context.get_merchant_key_store(),
                         business_profile,
                         routing_algorithm,
-                        transaction_type,
+                        &transaction_type,
                     )
                     .await?;
 
@@ -1171,7 +1181,7 @@ pub async fn retrieve_linked_routing_config(
     merchant_context: domain::MerchantContext,
     authentication_profile_id: Option<common_utils::id_type::ProfileId>,
     query_params: routing_types::RoutingRetrieveLinkQuery,
-    transaction_type: &enums::TransactionType,
+    transaction_type: enums::TransactionType,
 ) -> RouterResponse<routing_types::LinkedRoutingConfigRetrieveResponse> {
     metrics::ROUTING_RETRIEVE_LINK_CONFIG.add(1, &[]);
 
@@ -1216,6 +1226,9 @@ pub async fn retrieve_linked_routing_config(
             enums::TransactionType::Payment => &business_profile.routing_algorithm,
             #[cfg(feature = "payouts")]
             enums::TransactionType::Payout => &business_profile.payout_routing_algorithm,
+            enums::TransactionType::ThreeDsAuthentication => {
+                &business_profile.three_ds_decision_rule_algorithm
+            }
         }
         .clone()
         .map(|val| val.parse_value("RoutingAlgorithmRef"))
@@ -1918,6 +1931,9 @@ pub async fn contract_based_dynamic_routing_setup(
             elimination_routing_algorithm: None,
             dynamic_routing_volume_split: None,
             contract_based_routing: Some(contract_algo),
+            is_merchant_created_in_decision_engine: dynamic_routing_algo_ref
+                .as_ref()
+                .is_some_and(|algo| algo.is_merchant_created_in_decision_engine),
         }
     };
 

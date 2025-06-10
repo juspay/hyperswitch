@@ -3,7 +3,7 @@ use common_enums::{
     self, AttemptStatus, AuthorizationStatus, CaptureMethod, Currency, FutureUsage,
     PaymentMethodStatus, RefundStatus,
 };
-use common_utils::{ext_traits::Encode, pii, types::MinorUnit};
+use common_utils::{date_time, ext_traits::Encode, pii, types::MinorUnit};
 use error_stack::ResultExt;
 use hyperswitch_domain_models::{
     address::AddressDetails,
@@ -163,23 +163,24 @@ pub struct Archipel3DS {
     three_ds_version: Option<common_utils::types::SemanticVersion>,
     authentication_value: Secret<String>,
     authentication_method: Option<Secret<String>>,
-    eci: Option<Secret<String>>,
+    eci: Option<String>,
 }
 
 impl From<AuthenticationData> for Archipel3DS {
     fn from(three_ds_data: AuthenticationData) -> Self {
+        let now = date_time::date_as_yyyymmddthhmmssmmmz().ok();
         Self {
             acs_trans_id: None,
             ds_trans_id: three_ds_data.ds_trans_id.map(Secret::new),
             three_ds_requestor_name: None,
-            three_ds_auth_date: None,
+            three_ds_auth_date: now,
             three_ds_auth_amt: None,
             three_ds_auth_status: None,
             three_ds_max_supported_version: THREE_DS_MAX_SUPPORTED_VERSION.into(),
             three_ds_version: three_ds_data.message_version,
             authentication_value: three_ds_data.cavv,
             authentication_method: None,
-            eci: three_ds_data.eci.map(Secret::new),
+            eci: three_ds_data.eci,
         }
     }
 }

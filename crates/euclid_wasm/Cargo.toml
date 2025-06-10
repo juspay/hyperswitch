@@ -30,12 +30,13 @@ hyperswitch_constraint_graph = { version = "0.1.0", path = "../hyperswitch_const
 kgraph_utils = { version = "0.1.0", path = "../kgraph_utils" }
 
 # Third party crates
-getrandom = { version = "0.2.12", features = ["js"] }
+getrandom = { version = "0.2.16", features = ["js"] }
 ron-parser = "0.1.4"
 serde = { version = "1.0", features = [] }
 serde-wasm-bindgen = "0.6.5"
 strum = { version = "0.26", features = ["derive"] }
-wasm-bindgen = { version = "0.2.99" }
+wasm-bindgen = { version = "0.2.100" }
+
 [package.metadata.wasm-pack.profile.release]
 wasm-opt = ["--enable-bulk-memory", "--enable-nontrapping-float-to-int"]
 

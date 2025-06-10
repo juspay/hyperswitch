@@ -131,6 +131,12 @@ impl<T> ConnectorErrorExt<T> for error_stack::Result<T, errors::ConnectorError> 
                 }
                 .into()
             }
+            errors::ConnectorError::CaptureMethodNotSupported => {
+                errors::ApiErrorResponse::NotSupported {
+                    message: "Capture Method Not Supported".to_owned(),
+                }
+                .into()
+            }
             errors::ConnectorError::FailedToObtainIntegrationUrl
             | errors::ConnectorError::RequestEncodingFailed
             | errors::ConnectorError::RequestEncodingFailedWithReason(_)
@@ -151,7 +157,6 @@ impl<T> ConnectorErrorExt<T> for error_stack::Result<T, errors::ConnectorError> 
             | errors::ConnectorError::NoConnectorWalletDetails
             | errors::ConnectorError::FailedToObtainCertificateKey
             | errors::ConnectorError::FlowNotSupported { .. }
-            | errors::ConnectorError::CaptureMethodNotSupported
             | errors::ConnectorError::MissingConnectorMandateID
             | errors::ConnectorError::MissingConnectorMandateMetadata
             | errors::ConnectorError::MissingConnectorTransactionID
@@ -234,6 +239,11 @@ impl<T> ConnectorErrorExt<T> for error_stack::Result<T, errors::ConnectorError> 
                 errors::ConnectorError::InvalidDataFormat { field_name } => {
                     errors::ApiErrorResponse::InvalidDataValue { field_name }
                 },
+                errors::ConnectorError::CaptureMethodNotSupported => {
+                    errors::ApiErrorResponse::NotSupported {
+                        message: "Capture Method Not Supported".to_owned(),
+                    }
+                }
                 errors::ConnectorError::InvalidWalletToken {wallet_name} => errors::ApiErrorResponse::InvalidWalletToken {wallet_name: wallet_name.to_string()},
                 errors::ConnectorError::CurrencyNotSupported { message, connector} => errors::ApiErrorResponse::CurrencyNotSupported { message: format!("Credentials for the currency {message} are not configured with the connector {connector}/hyperswitch") },
                 errors::ConnectorError::FailedToObtainAuthType =>  errors::ApiErrorResponse::InvalidConnectorConfiguration {config: "connector_account_details".to_string()},
@@ -252,7 +262,6 @@ impl<T> ConnectorErrorExt<T> for error_stack::Result<T, errors::ConnectorError> 
                 errors::ConnectorError::FailedToObtainCertificate |
                 errors::ConnectorError::NoConnectorMetaData | errors::ConnectorError::NoConnectorWalletDetails |
                 errors::ConnectorError::FailedToObtainCertificateKey |
-                errors::ConnectorError::CaptureMethodNotSupported |
                 errors::ConnectorError::MissingConnectorMandateID |
                 errors::ConnectorError::MissingConnectorMandateMetadata |
                 errors::ConnectorError::MissingConnectorTransactionID |
@@ -324,6 +333,11 @@ impl<T> ConnectorErrorExt<T> for error_stack::Result<T, errors::ConnectorError> 
                         wallet_name: wallet_name.to_string(),
                     }
                 }
+                errors::ConnectorError::CaptureMethodNotSupported => {
+                    errors::ApiErrorResponse::NotSupported {
+                        message: "Capture Method Not Supported".to_owned(),
+                    }
+                }
                 errors::ConnectorError::RequestEncodingFailed
                 | errors::ConnectorError::RequestEncodingFailedWithReason(_)
                 | errors::ConnectorError::ParsingFailed
@@ -343,7 +357,6 @@ impl<T> ConnectorErrorExt<T> for error_stack::Result<T, errors::ConnectorError> 
                 | errors::ConnectorError::NotImplemented(_)
                 | errors::ConnectorError::NotSupported { .. }
                 | errors::ConnectorError::FlowNotSupported { .. }
-                | errors::ConnectorError::CaptureMethodNotSupported
                 | errors::ConnectorError::MissingConnectorMandateID
                 | errors::ConnectorError::MissingConnectorMandateMetadata
                 | errors::ConnectorError::MissingConnectorTransactionID

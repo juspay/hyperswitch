@@ -1,0 +1,35 @@
+{
+  "method": "POST",
+  "header": [],
+  "body": {
+    "mode": "urlencoded",
+    "urlencoded": [
+      {
+        "key": "order_id",
+        "value": "order3_{{$timestamp}}",
+        "type": "text"
+      },
+      {
+        "key": "amount",
+        "value": "6500",
+        "type": "text"
+      },
+      {
+        "key": "return_url",
+        "value": "https://www.google.co.in",
+        "type": "text"
+      },
+      {
+        "key": "customer_id",
+        "value": "cth_926bHs22Q3SSKbiA",
+        "type": "text"
+      },
+      {
+        "key": "currency",
+        "value": "AED",
+        "type": "text"
+      }
+    ]
+  },
+  "url": "https://sandbox.juspay.in/orders"
+}

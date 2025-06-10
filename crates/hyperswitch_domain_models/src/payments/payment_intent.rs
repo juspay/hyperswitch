@@ -1209,7 +1209,7 @@ impl From<PaymentIntentUpdateInternal> for diesel_models::PaymentIntentUpdateInt
             status,
             amount_captured,
             customer_id,
-            return_url,
+            return_url: None, // deprecated
             setup_future_usage,
             off_session,
             metadata,
@@ -1242,6 +1242,7 @@ impl From<PaymentIntentUpdateInternal> for diesel_models::PaymentIntentUpdateInt
             tax_details,
             force_3ds_challenge,
             is_iframe_redirection_enabled,
+            extended_return_url: return_url,
         }
     }
 }
@@ -1936,6 +1937,7 @@ impl behaviour::Conversion for PaymentIntent {
             processor_merchant_id: Some(self.processor_merchant_id),
             created_by: self.created_by.map(|cb| cb.to_string()),
             is_iframe_redirection_enabled: self.is_iframe_redirection_enabled,
+            routing_algorithm_id: self.routing_algorithm_id,
         })
     }
 }
@@ -1956,7 +1958,7 @@ impl behaviour::Conversion for PaymentIntent {
             amount_captured: self.amount_captured,
             customer_id: self.customer_id,
             description: self.description,
-            return_url: self.return_url,
+            return_url: None, // deprecated
             metadata: self.metadata,
             connector_id: self.connector_id,
             shipping_address_id: self.shipping_address_id,
@@ -2009,6 +2011,7 @@ impl behaviour::Conversion for PaymentIntent {
             force_3ds_challenge: self.force_3ds_challenge,
             force_3ds_challenge_trigger: self.force_3ds_challenge_trigger,
             is_iframe_redirection_enabled: self.is_iframe_redirection_enabled,
+            extended_return_url: self.return_url,
         })
     }
 
@@ -2051,7 +2054,9 @@ impl behaviour::Conversion for PaymentIntent {
                 amount_captured: storage_model.amount_captured,
                 customer_id: storage_model.customer_id,
                 description: storage_model.description,
-                return_url: storage_model.return_url,
+                return_url: storage_model
+                    .extended_return_url
+                    .or(storage_model.return_url), // fallback to legacy
                 metadata: storage_model.metadata,
                 connector_id: storage_model.connector_id,
                 shipping_address_id: storage_model.shipping_address_id,
@@ -2125,7 +2130,7 @@ impl behaviour::Conversion for PaymentIntent {
             amount_captured: self.amount_captured,
             customer_id: self.customer_id,
             description: self.description,
-            return_url: self.return_url,
+            return_url: None, // deprecated
             metadata: self.metadata,
             connector_id: self.connector_id,
             shipping_address_id: self.shipping_address_id,
@@ -2178,6 +2183,7 @@ impl behaviour::Conversion for PaymentIntent {
             force_3ds_challenge: self.force_3ds_challenge,
             force_3ds_challenge_trigger: self.force_3ds_challenge_trigger,
             is_iframe_redirection_enabled: self.is_iframe_redirection_enabled,
+            extended_return_url: self.return_url,
         })
     }
 }

@@ -16,7 +16,7 @@ use common_utils::{
     errors::CustomResult,
     ext_traits::{ByteSliceExt, Encode, OptionExt, StringExt, ValueExt},
     pii::Email,
-    types::StringMajorUnit,
+    types::{FloatMajorUnit, StringMajorUnit},
 };
 use error_stack::ResultExt;
 use hyperswitch_domain_models::{
@@ -1031,7 +1031,7 @@ impl TryFrom<BluesnapWebhookObjectEventType> for IncomingWebhookEvent {
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct BluesnapDisputeWebhookBody {
-    pub invoice_charge_amount: f64,
+    pub invoice_charge_amount: FloatMajorUnit,
     pub currency: enums::Currency,
     pub reversal_reason: Option<String>,
     pub reversal_ref_num: String,

@@ -110,6 +110,7 @@ pub struct AuthenticationDetails {
     pub trans_status: common_enums::TransactionStatus,
     pub connector_metadata: Option<serde_json::Value>,
     pub ds_trans_id: Option<String>,
+    pub eci: Option<String>,
 }
 
 #[derive(serde::Serialize, serde::Deserialize, Debug, Clone)]

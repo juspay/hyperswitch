@@ -5,23 +5,29 @@ use super::{
     PaymentStartRedirectionRequest, PaymentsCreateIntentRequest, PaymentsGetIntentRequest,
     PaymentsIntentResponse, PaymentsRequest,
 };
+#[cfg(feature = "v2")]
+use crate::payment_methods::PaymentMethodListResponseForSession;
 #[cfg(feature = "v1")]
-use crate::payments::{
-    ExtendedCardInfoResponse, PaymentIdType, PaymentListFilterConstraints, PaymentListResponseV2,
-    PaymentsApproveRequest, PaymentsCancelRequest, PaymentsCaptureRequest,
-    PaymentsCompleteAuthorizeRequest, PaymentsDynamicTaxCalculationRequest,
-    PaymentsDynamicTaxCalculationResponse, PaymentsExternalAuthenticationRequest,
-    PaymentsExternalAuthenticationResponse, PaymentsIncrementalAuthorizationRequest,
-    PaymentsManualUpdateRequest, PaymentsManualUpdateResponse, PaymentsPostSessionTokensRequest,
-    PaymentsPostSessionTokensResponse, PaymentsRejectRequest, PaymentsRetrieveRequest,
-    PaymentsStartRequest, PaymentsUpdateMetadataRequest, PaymentsUpdateMetadataResponse,
+use crate::{
+    payment_methods::PaymentMethodListResponse,
+    payments::{
+        ExtendedCardInfoResponse, PaymentIdType, PaymentListFilterConstraints,
+        PaymentListResponseV2, PaymentsApproveRequest, PaymentsCancelRequest,
+        PaymentsCaptureRequest, PaymentsCompleteAuthorizeRequest,
+        PaymentsDynamicTaxCalculationRequest, PaymentsDynamicTaxCalculationResponse,
+        PaymentsExternalAuthenticationRequest, PaymentsExternalAuthenticationResponse,
+        PaymentsIncrementalAuthorizationRequest, PaymentsManualUpdateRequest,
+        PaymentsManualUpdateResponse, PaymentsPostSessionTokensRequest,
+        PaymentsPostSessionTokensResponse, PaymentsRejectRequest, PaymentsRetrieveRequest,
+        PaymentsStartRequest, PaymentsUpdateMetadataRequest, PaymentsUpdateMetadataResponse,
+    },
 };
 use crate::{
     payment_methods::{
         self, ListCountriesCurrenciesRequest, ListCountriesCurrenciesResponse,
         PaymentMethodCollectLinkRenderRequest, PaymentMethodCollectLinkRequest,
-        PaymentMethodCollectLinkResponse, PaymentMethodListRequest, PaymentMethodListResponse,
-        PaymentMethodMigrateResponse, PaymentMethodResponse, PaymentMethodUpdate,
+        PaymentMethodCollectLinkResponse, PaymentMethodListRequest, PaymentMethodMigrateResponse,
+        PaymentMethodResponse, PaymentMethodUpdate,
     },
     payments::{
         self, PaymentListConstraints, PaymentListFilters, PaymentListFiltersV2,
@@ -304,6 +310,8 @@ impl ApiEventMetric for PaymentMethodListRequest {
 impl ApiEventMetric for ListCountriesCurrenciesRequest {}
 
 impl ApiEventMetric for ListCountriesCurrenciesResponse {}
+
+#[cfg(feature = "v1")]
 impl ApiEventMetric for PaymentMethodListResponse {}
 
 #[cfg(feature = "v1")]
@@ -453,6 +461,9 @@ impl ApiEventMetric for payments::PaymentMethodListResponseForPayments {
         None
     }
 }
+
+#[cfg(feature = "v2")]
+impl ApiEventMetric for PaymentMethodListResponseForSession {}
 
 #[cfg(feature = "v2")]
 impl ApiEventMetric for payments::PaymentsCaptureResponse {

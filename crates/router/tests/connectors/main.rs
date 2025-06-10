@@ -47,6 +47,7 @@ mod gocardless;
 mod gpayments;
 mod helcim;
 mod hipay;
+mod hyperswitch_vault;
 mod iatapay;
 mod inespay;
 mod itaubank;
@@ -98,6 +99,7 @@ mod utils;
 mod vgs;
 mod volt;
 mod wellsfargo;
+mod worldpayvantiv;
 // mod wellsfargopayout;
 #[cfg(feature = "payouts")]
 mod wise;

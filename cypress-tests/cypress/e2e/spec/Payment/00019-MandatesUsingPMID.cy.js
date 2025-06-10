@@ -26,6 +26,10 @@ describe("Card - Mandates using Payment Method Id flow test", () => {
         }
       });
 
+      it("customer-create-call-test", () => {
+        cy.createCustomerCallTest(fixtures.customerCreateBody, globalState);
+      });
+
       it("Create No 3DS Payment Intent", () => {
         const data = getConnectorDetails(globalState.get("connectorId"))[
           "card_pm"

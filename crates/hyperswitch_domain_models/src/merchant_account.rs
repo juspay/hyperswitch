@@ -222,6 +222,14 @@ impl MerchantAccount {
     pub fn get_org_id(&self) -> &common_utils::id_type::OrganizationId {
         &self.organization_id
     }
+
+    /// Check whether the merchant account is a platform account
+    pub fn is_platform_account(&self) -> bool {
+        matches!(
+            self.merchant_account_type,
+            common_enums::MerchantAccountType::Platform
+        )
+    }
 }
 
 #[cfg(feature = "v1")]

@@ -9,9 +9,9 @@ repository = "https://github.com/juspay/hyperswitch.git"
 readme = "README.md"
 
 [dependencies]
-clap = { version = "4.1.8", features = ["derive"] }
-diesel = { version = "2.2.3", features = ["postgres"] }
-diesel_migrations = "2.1.0"
+clap = { version = "4.5.38", features = ["derive"] }
+diesel = { version = "2.2.10", features = ["postgres"] }
+diesel_migrations = "2.2.0"
 serde = { version = "1.0", features = ["derive"] }
 toml = "0.5"
 

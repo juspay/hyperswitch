@@ -29,7 +29,7 @@ pub struct CardTokenData {
 #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct CardTokenData {
-    pub payment_method_id: Option<common_utils::id_type::GlobalPaymentMethodId>,
+    pub payment_method_id: common_utils::id_type::GlobalPaymentMethodId,
     pub locker_id: Option<String>,
     pub token: String,
 }
@@ -53,6 +53,7 @@ pub struct WalletTokenData {
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 #[serde(tag = "kind", rename_all = "snake_case")]
+#[cfg(feature = "v1")]
 pub enum PaymentTokenData {
     // The variants 'Temporary' and 'Permanent' are added for backwards compatibility
     // with any tokenized data present in Redis at the time of deployment of this change
@@ -62,6 +63,15 @@ pub enum PaymentTokenData {
     PermanentCard(CardTokenData),
     AuthBankDebit(payment_methods::BankAccountTokenData),
     WalletToken(WalletTokenData),
+}
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+#[serde(tag = "kind", rename_all = "snake_case")]
+#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+pub enum PaymentTokenData {
+    TemporaryGeneric(GenericTokenData),
+    PermanentCard(CardTokenData),
+    AuthBankDebit(payment_methods::BankAccountTokenData),
 }
 
 impl PaymentTokenData {
@@ -85,7 +95,7 @@ impl PaymentTokenData {
 
     #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
     pub fn permanent_card(
-        payment_method_id: Option<common_utils::id_type::GlobalPaymentMethodId>,
+        payment_method_id: common_utils::id_type::GlobalPaymentMethodId,
         locker_id: Option<String>,
         token: String,
     ) -> Self {
@@ -100,12 +110,19 @@ impl PaymentTokenData {
         Self::TemporaryGeneric(GenericTokenData { token })
     }
 
+    #[cfg(feature = "v1")]
     pub fn wallet_token(payment_method_id: String) -> Self {
         Self::WalletToken(WalletTokenData { payment_method_id })
     }
 
+    #[cfg(feature = "v1")]
     pub fn is_permanent_card(&self) -> bool {
         matches!(self, Self::PermanentCard(_) | Self::Permanent(_))
+    }
+
+    #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+    pub fn is_permanent_card(&self) -> bool {
+        matches!(self, Self::PermanentCard(_))
     }
 }
 
@@ -126,6 +143,7 @@ pub struct PaymentMethodListContext {
 pub enum PaymentMethodListContext {
     Card {
         card_details: api::CardDetailFromLocker,
+        // TODO: Why can't these fields be mandatory?
         token_data: Option<PaymentTokenData>,
     },
     Bank {

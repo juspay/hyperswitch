@@ -158,6 +158,9 @@ pub struct Settings<S: SecretState> {
     #[cfg(feature = "v2")]
     pub revenue_recovery: revenue_recovery::RevenueRecoverySettings,
     pub clone_connector_allowlist: Option<CloneConnectorAllowlistConfig>,
+    pub merchant_id_auth: MerchantIdAuthSettings,
+    #[serde(default)]
+    pub infra_values: Option<HashMap<String, String>>,
 }
 
 #[derive(Debug, Deserialize, Clone, Default)]
@@ -188,6 +191,7 @@ pub struct CloneConnectorAllowlistConfig {
 #[derive(Debug, Deserialize, Clone, Default)]
 pub struct Platform {
     pub enabled: bool,
+    pub allow_connected_merchants: bool,
 }
 
 #[derive(Debug, Clone, Default, Deserialize)]
@@ -817,6 +821,12 @@ pub struct DrainerSettings {
 
 #[derive(Debug, Clone, Default, Deserialize)]
 #[serde(default)]
+pub struct MerchantIdAuthSettings {
+    pub merchant_id_auth_enabled: bool,
+}
+
+#[derive(Debug, Clone, Default, Deserialize)]
+#[serde(default)]
 pub struct WebhooksSettings {
     pub outgoing_enabled: bool,
     pub ignore_error: WebhookIgnoreErrorSettings,
@@ -1066,6 +1076,8 @@ impl Settings<SecuredSecret> {
             .storage
             .validate()
             .map_err(|err| ApplicationError::InvalidConfigurationValueError(err.to_string()))?;
+
+        self.platform.validate()?;
 
         Ok(())
     }
