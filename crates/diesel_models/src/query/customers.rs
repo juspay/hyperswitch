@@ -1,6 +1,7 @@
 use common_utils::id_type;
-use diesel::BoolExpressionMethods;
-use diesel::{associations::HasTable, ExpressionMethods};
+use diesel::{
+    associations::HasTable, BoolExpressionMethods, ExpressionMethods
+};
 
 use super::generics;
 #[cfg(feature = "v1")]

@@ -490,16 +490,10 @@ async fn store_bank_details_in_payment_methods(
             .change_context(ApiErrorResponse::InternalServerError)
             .attach_printable("Unable to encrypt customer details")?;
 
-            #[cfg(feature = "v1")]
             let pm_id = generate_id(consts::ID_LENGTH, "pm");
 
-            #[cfg(feature = "v2")]
-            let pm_id = common_utils::id_type::GlobalPaymentMethodId::generate("random_cell_id")
-                .change_context(errors::ApiErrorResponse::InternalServerError)
-                .attach_printable("Unable to generate GlobalPaymentMethodId")?;
-
             let now = common_utils::date_time::now();
-            #[cfg(feature = "v1")]
+            
             let pm_new = domain::PaymentMethod {
                 customer_id: customer_id.clone(),
                 merchant_id: merchant_context.get_merchant_account().get_id().clone(),
@@ -531,33 +525,6 @@ async fn store_bank_details_in_payment_methods(
                 client_secret: None,
                 payment_method_billing_address: None,
                 updated_by: None,
-                version: common_types::consts::API_VERSION,
-                network_token_requestor_reference_id: None,
-                network_token_locker_id: None,
-                network_token_payment_method_data: None,
-            };
-
-            #[cfg(feature = "v2")]
-            let pm_new = domain::PaymentMethod {
-                customer_id: customer_id.clone(),
-                merchant_id: merchant_context.get_merchant_account().get_id().clone(),
-                id: pm_id,
-                payment_method_type: Some(enums::PaymentMethod::BankDebit),
-                payment_method_subtype: Some(creds.payment_method_type),
-                status: enums::PaymentMethodStatus::Active,
-                metadata: None,
-                payment_method_data: Some(encrypted_data.into()),
-                created_at: now,
-                last_modified: now,
-                locker_id: None,
-                last_used_at: now,
-                connector_mandate_details: None,
-                customer_acceptance: None,
-                network_transaction_id: None,
-                client_secret: None,
-                payment_method_billing_address: None,
-                updated_by: None,
-                locker_fingerprint_id: None,
                 version: common_types::consts::API_VERSION,
                 network_token_requestor_reference_id: None,
                 network_token_locker_id: None,
