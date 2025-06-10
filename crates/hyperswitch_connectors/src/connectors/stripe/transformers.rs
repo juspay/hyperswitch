@@ -1117,6 +1117,7 @@ fn get_stripe_payment_method_type_from_wallet_data(
         )),
         WalletData::PaypalRedirect(_)
         | WalletData::AliPayQr(_)
+        | WalletData::AmazonPay(_)
         | WalletData::AliPayHkRedirect(_)
         | WalletData::MomoRedirect(_)
         | WalletData::KakaoPayRedirect(_)
@@ -1534,6 +1535,7 @@ impl TryFrom<(&WalletData, Option<PaymentMethodToken>)> for StripePaymentMethodD
                 .into(),
             ),
             WalletData::AliPayQr(_)
+            | WalletData::AmazonPay(_)
             | WalletData::AliPayHkRedirect(_)
             | WalletData::MomoRedirect(_)
             | WalletData::KakaoPayRedirect(_)
