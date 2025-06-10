@@ -11307,7 +11307,7 @@
       },
       "FutureUsage": {
         "type": "string",
-        "description": "Specifies the type of cardholder authentication to be applied.\n- `three_ds`: Requests 3D Secure authentication.\n- `no_three_ds`: Indicates that 3D Secure authentication should not be performed.\nIf omitted, the authentication behavior is determined by merchant configuration and connector defaults.",
+        "description": "Specifies how the payment method can be used for future payments.\n- `off_session`: The payment method can be used for future payments when the customer is not present.\n- `on_session`: The payment method is intended for use only when the customer is present during checkout.\nIf omitted, defaults to `on_session`.",
         "enum": [
           "off_session",
           "on_session"
