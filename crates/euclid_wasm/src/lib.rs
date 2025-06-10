@@ -102,7 +102,9 @@ pub fn get_merchant_category_code_with_name() -> JsResult {
         })
         .collect::<Vec<_>>();
 
-    Ok(serde_wasm_bindgen::to_value(&merchant_category_codes_with_name)?)
+    Ok(serde_wasm_bindgen::to_value(
+        &merchant_category_codes_with_name,
+    )?)
 }
 
 /// This function can be used by the frontend to provide the WASM with information about
