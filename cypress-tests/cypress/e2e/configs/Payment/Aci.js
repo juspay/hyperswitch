@@ -374,7 +374,6 @@ export const connectorDetails = {
         },
       },
     },
-
     SaveCardUse3DSAutoCaptureOffSession: {
       Configs: {
         TRIGGER_SKIP: true,
