@@ -140,10 +140,11 @@ pub async fn recovery_incoming_webhook_flow(
     // Publish event to Kafka
     if let Some(ref attempt) = recovery_attempt_from_payment_attempt {
         // Passing `merchant_context` here
-        let recovery_payment_tuple = &RecoveryPaymentTuple::new(&recovery_intent_from_payment_attempt,attempt);
+        let recovery_payment_tuple =
+            &RecoveryPaymentTuple::new(&recovery_intent_from_payment_attempt, attempt);
         RecoveryPaymentTuple::publish_revenue_recovery_event_to_kafka(
             &state,
-            recovery_payment_tuple
+            recovery_payment_tuple,
         )
         .await
         .map_err(|e| {
@@ -1258,12 +1259,12 @@ impl RecoveryPaymentTuple {
             .as_ref()
             .map(|id| id.get_string_repr().to_string());
         let attempt_id_str = payment_attempt.attempt_id.get_string_repr().to_string();
-    
+
         let revenue_recovery_feature_metadata = payment_intent
             .feature_metadata
             .as_ref()
             .and_then(|metadata| metadata.payment_revenue_recovery_metadata.as_ref());
-    
+
         let event = RevenueRecovery {
             merchant_id: &payment_intent.merchant_id,
             invoice_id: invoice_id_str,
@@ -1291,14 +1292,14 @@ impl RecoveryPaymentTuple {
                 .map(|data| &data.payment_method_type),
             payment_method_subtype: revenue_recovery_feature_metadata
                 .map(|data| &data.payment_method_subtype),
-            card_network: revenue_recovery_feature_metadata.and_then(|data| data.card_network.as_ref()),
-            card_issuer: revenue_recovery_feature_metadata.and_then(|data| data.card_issuer.clone()),
+            card_network: revenue_recovery_feature_metadata
+                .and_then(|data| data.card_network.as_ref()),
+            card_issuer: revenue_recovery_feature_metadata
+                .and_then(|data| data.card_issuer.clone()),
             retry_count: revenue_recovery_feature_metadata.map(|data| data.total_retry_count),
             payment_gateway: revenue_recovery_feature_metadata.map(|data| data.connector),
         };
         state.event_handler.log_event(&event);
         Ok(())
     }
-    
-
 }
