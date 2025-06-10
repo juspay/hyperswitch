@@ -22,25 +22,49 @@
           cargoToml = lib.importTOML ./Cargo.toml;
           rustVersion = cargoToml.workspace.package.rust-version;
           frameworks = pkgs.darwin.apple_sdk.frameworks;
+
+          # Define common development packages
+          commonDevPackages = with pkgs; [
+            just
+            nixd
+            openssl
+            pkg-config
+            rust-bin.stable.${rustVersion}.default
+            diesel-cli
+            jq
+            wasm-pack
+            python3
+            grcov
+            llvmPackages.bintools
+            curl
+            postgresql # for libpq
+            rust-analyzer
+          ] ++ lib.optionals stdenv.isDarwin [ 
+            frameworks.CoreServices
+            frameworks.Foundation
+          ];
+
         in
         {
           _module.args.pkgs = import inputs.nixpkgs {
             inherit system;
             overlays = [ inputs.cargo2nix.overlays.default (import inputs.rust-overlay) ];
           };
+
+          # Default development shell
           devShells.default = pkgs.mkShell {
-            name = "hyperswitch-shell";
-            packages = with pkgs; [
-              just
-              nixd
-              openssl
-              pkg-config
-              rust-bin.stable.${rustVersion}.default
-            ] ++ lib.optionals stdenv.isDarwin [
-              # arch might have issue finding these libs.
-              frameworks.CoreServices
-              frameworks.Foundation
-            ];
+            name = "hyperswitch-dev-shell"; # Renamed for clarity
+            packages = commonDevPackages;
+          };
+
+          # QA development shell
+          devShells.qa = pkgs.mkShell {
+            name = "hyperswitch-qa-shell";
+            packages = commonDevPackages ++ (with pkgs; [
+              nodejs          # For Cypress (npm)
+              gnuparallel     # For parallel test execution
+              cypress         # Cypress testing framework
+            ]);
           };
 
           /* For running external services

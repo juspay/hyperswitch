@@ -127,17 +127,50 @@ This will start the following services using `process-compose`
    - Creates database and an user to be used by the application
 - Redis
 
-### Develop in a Nix environment (coming soon)
+### Develop in a Nix environment
 
-Nix development environment ensures all the required project dependencies, including both the tools and services are readily available, eliminating the need for manual setup.
+The Nix development environment, defined in `flake.nix`, provides a consistent and reproducible setup with all necessary dependencies for building and testing Hyperswitch.
 
-Run below command in hyperswitch directory
+**Available Development Shells:**
 
-   ```shell
-   nix develop
-   ```
+Hyperswitch offers two distinct Nix shells tailored for different development activities:
 
-**NOTE:** This is a work in progress, and only a selected commands are available at the moment. Look in `flake.nix` (hyperswitch-shell) for a full list of packages.
+1.  **Default Development Shell (`hyperswitch-dev-shell`):**
+    *   **Purpose:** Designed for core development tasks, including compilation, database migrations, WebAssembly builds, code linting, formatting, and coverage generation.
+    *   **Key Packages:**
+        *   `rust-bin` (Rust toolchain)
+        *   `diesel-cli` (Database migrations)
+        *   `jq` (JSON processor)
+        *   `wasm-pack` (WebAssembly builds)
+        *   `grcov` (Code coverage)
+        *   `python3` (Scripting, serving reports)
+        *   `llvmPackages.bintools` (LLVM utilities for coverage)
+        *   `curl` (Data transfer utility)
+        *   `openssl` (Cryptography library)
+        *   `pkg-config` (Build utility)
+        *   `just` (Command runner)
+        *   `nixd` (Nix language server)
+    *   **Activation:**
+        ```shell
+        # Enter the default development shell
+        nix develop .#default
+        # Or, as it's the default:
+        # nix develop
+        ```
+    *   **Usage:** Within this shell, you can execute project scripts (e.g., Justfile recipes, shell scripts located in the `/scripts` directory) and standard development commands like `cargo build`, `just migrate`, etc.
+
+2.  **QA Shell (`hyperswitch-qa-shell`):**
+    *   **Purpose:** Extends the default shell with tools specifically required for Quality Assurance, primarily for executing Cypress end-to-end tests.
+    *   **Key Additional Packages:**
+        *   `nodejs` (Provides `npm` for Node.js package management)
+        *   `gnuparallel` (For parallel execution of test suites)
+        *   `cypress` (Cypress testing framework)
+    *   **Activation:**
+        ```shell
+        # Enter the QA development shell
+        nix develop .#qa
+        ```
+    *   **Usage:** This environment is suited for running Cypress tests (e.g., `npm run cypress:some-spec` from within the `cypress-tests` directory, or via `scripts/execute_cypress.sh`) and includes all capabilities of the default shell.
 
 ## Set up a Rust environment and other dependencies
 
