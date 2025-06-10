@@ -7,7 +7,7 @@ use common_utils::{
     ext_traits::{OptionExt, ValueExt},
     id_type,
 };
-use diesel_models::process_tracker::business_status;
+use diesel_models::{enums as diesel_enum, process_tracker::business_status};
 use error_stack::{self, ResultExt};
 use hyperswitch_domain_models::{payments::PaymentIntent, ApiModelToDieselModelConvertor};
 use scheduler::errors as sch_errors;
@@ -135,6 +135,7 @@ pub async fn perform_execute_payment(
                         revenue_recovery_payment_data.profile.get_id().clone(),
                         attempt_id.clone(),
                         storage::ProcessTrackerRunner::PassiveRecoveryWorkflow,
+                        tracking_data.revenue_recovery_retry,
                     )
                     .await?;
 
@@ -160,7 +161,7 @@ pub async fn perform_execute_payment(
         types::Decision::ReviewForFailedPayment(triggered_by) => {
             match triggered_by {
                 enums::TriggeredBy::Internal => {
-                    // requeue the current taks to update the fields for rescheduling a payment
+                    // requeue the current tasks to update the fields for rescheduling a payment
                     let pt_update = storage::ProcessTrackerUpdate::StatusUpdate {
                         status: enums::ProcessTrackerStatus::Pending,
                         business_status: Some(String::from(
@@ -196,6 +197,7 @@ pub async fn perform_execute_payment(
     Ok(())
 }
 
+#[allow(clippy::too_many_arguments)]
 async fn insert_psync_pcr_task_to_pt(
     billing_mca_id: id_type::MerchantConnectorAccountId,
     db: &dyn StorageInterface,
@@ -204,6 +206,7 @@ async fn insert_psync_pcr_task_to_pt(
     profile_id: id_type::ProfileId,
     payment_attempt_id: id_type::GlobalAttemptId,
     runner: storage::ProcessTrackerRunner,
+    revenue_recovery_retry: diesel_enum::RevenueRecoveryAlgorithmType,
 ) -> RouterResult<storage::ProcessTracker> {
     let task = PSYNC_WORKFLOW;
     let process_tracker_id = payment_attempt_id.get_psync_revenue_recovery_id(task, runner);
@@ -214,6 +217,7 @@ async fn insert_psync_pcr_task_to_pt(
         merchant_id,
         profile_id,
         payment_attempt_id,
+        revenue_recovery_retry,
     };
     let tag = ["REVENUE_RECOVERY"];
     let process_tracker_entry = storage::ProcessTrackerNew::new(
@@ -255,10 +259,8 @@ pub async fn perform_payments_sync(
         revenue_recovery_payment_data,
     )
     .await?;
-    // If there is an active_attempt id then there will be a payment attempt
-    let payment_attempt = psync_data
-        .payment_attempt
-        .get_required_value("Payment Attempt")?;
+
+    let payment_attempt = psync_data.payment_attempt;
     let mut revenue_recovery_metadata = payment_intent
         .feature_metadata
         .as_ref()

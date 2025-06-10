@@ -37,6 +37,12 @@ pub async fn payments_create(
 ) -> impl Responder {
     let flow = Flow::PaymentsCreate;
     let mut payload = json_payload.into_inner();
+    if let Err(err) = payload
+        .validate()
+        .map_err(|message| errors::ApiErrorResponse::InvalidRequestData { message })
+    {
+        return api::log_and_return_error_response(err.into());
+    };
 
     if let Some(api_enums::CaptureMethod::Scheduled) = payload.capture_method {
         return http_not_implemented();
@@ -220,10 +226,16 @@ pub async fn payments_get_intent(
                 header_payload.clone(),
             )
         },
-        &auth::V2ApiKeyAuth {
-            is_connected_allowed: false,
-            is_platform_allowed: false,
-        },
+        auth::api_or_client_auth(
+            &auth::V2ApiKeyAuth {
+                is_connected_allowed: false,
+                is_platform_allowed: false,
+            },
+            &auth::V2ClientAuth(common_utils::types::authentication::ResourceId::Payment(
+                global_payment_id.clone(),
+            )),
+            req.headers(),
+        ),
         api_locking::LockAction::NotApplicable,
     ))
     .await
@@ -244,6 +256,27 @@ pub async fn payments_create_and_confirm_intent(
         }
     };
 
+    let auth_type = if state.conf.merchant_id_auth.merchant_id_auth_enabled {
+        &auth::MerchantIdAuth
+    } else {
+        match env::which() {
+            env::Env::Production => &auth::V2ApiKeyAuth {
+                is_connected_allowed: false,
+                is_platform_allowed: false,
+            },
+            _ => auth::auth_type(
+                &auth::V2ApiKeyAuth {
+                    is_connected_allowed: false,
+                    is_platform_allowed: false,
+                },
+                &auth::JWTAuth {
+                    permission: Permission::ProfilePaymentWrite,
+                },
+                req.headers(),
+            ),
+        }
+    };
+
     Box::pin(api::server_wrap(
         flow,
         state,
@@ -260,22 +293,7 @@ pub async fn payments_create_and_confirm_intent(
                 header_payload.clone(),
             )
         },
-        match env::which() {
-            env::Env::Production => &auth::V2ApiKeyAuth {
-                is_connected_allowed: false,
-                is_platform_allowed: false,
-            },
-            _ => auth::auth_type(
-                &auth::V2ApiKeyAuth {
-                    is_connected_allowed: false,
-                    is_platform_allowed: false,
-                },
-                &auth::JWTAuth {
-                    permission: Permission::ProfilePaymentWrite,
-                },
-                req.headers(),
-            ),
-        },
+        auth_type,
         api_locking::LockAction::NotApplicable,
     ))
     .await
@@ -559,6 +577,12 @@ pub async fn payments_update(
 ) -> impl Responder {
     let flow = Flow::PaymentsUpdate;
     let mut payload = json_payload.into_inner();
+    if let Err(err) = payload
+        .validate()
+        .map_err(|message| errors::ApiErrorResponse::InvalidRequestData { message })
+    {
+        return api::log_and_return_error_response(err.into());
+    };
 
     if let Some(api_enums::CaptureMethod::Scheduled) = payload.capture_method {
         return http_not_implemented();
@@ -733,6 +757,12 @@ pub async fn payments_confirm(
 ) -> impl Responder {
     let flow = Flow::PaymentsConfirm;
     let mut payload = json_payload.into_inner();
+    if let Err(err) = payload
+        .validate()
+        .map_err(|message| errors::ApiErrorResponse::InvalidRequestData { message })
+    {
+        return api::log_and_return_error_response(err.into());
+    };
 
     if let Some(api_enums::CaptureMethod::Scheduled) = payload.capture_method {
         return http_not_implemented();
@@ -2652,9 +2682,16 @@ pub async fn payment_confirm_intent(
             ))
             .await
         },
-        &auth::V2ClientAuth(common_utils::types::authentication::ResourceId::Payment(
-            global_payment_id,
-        )),
+        auth::api_or_client_auth(
+            &auth::V2ApiKeyAuth {
+                is_connected_allowed: false,
+                is_platform_allowed: false,
+            },
+            &auth::V2ClientAuth(common_utils::types::authentication::ResourceId::Payment(
+                global_payment_id,
+            )),
+            req.headers(),
+        ),
         locking_action,
     ))
     .await

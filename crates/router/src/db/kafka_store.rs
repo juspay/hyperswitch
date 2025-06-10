@@ -80,6 +80,7 @@ use crate::{
         refund::RefundInterface,
         reverse_lookup::ReverseLookupInterface,
         routing_algorithm::RoutingAlgorithmInterface,
+        tokenization::TokenizationInterface,
         unified_translations::UnifiedTranslationsInterface,
         AccountsStorageInterface, CommonStorageInterface, GlobalStorageInterface,
         MasterKeyInterface, StorageInterface,
@@ -87,7 +88,6 @@ use crate::{
     services::{kafka::KafkaProducer, Store},
     types::{domain, storage, AccessToken},
 };
-
 #[derive(Debug, Clone, Serialize)]
 pub struct TenantID(pub String);
 
@@ -1866,7 +1866,12 @@ impl PaymentIntentInterface for KafkaStore {
 
         if let Err(er) = self
             .kafka_producer
-            .log_payment_intent(&intent, Some(this), self.tenant_id.clone())
+            .log_payment_intent(
+                &intent,
+                Some(this),
+                self.tenant_id.clone(),
+                state.infra_values.clone(),
+            )
             .await
         {
             logger::error!(message="Failed to add analytics entry for Payment Intent {intent:?}", error_message=?er);
@@ -1890,7 +1895,12 @@ impl PaymentIntentInterface for KafkaStore {
 
         if let Err(er) = self
             .kafka_producer
-            .log_payment_intent(&intent, None, self.tenant_id.clone())
+            .log_payment_intent(
+                &intent,
+                None,
+                self.tenant_id.clone(),
+                state.infra_values.clone(),
+            )
             .await
         {
             logger::error!(message="Failed to add analytics entry for Payment Intent {intent:?}", error_message=?er);
@@ -3596,7 +3606,12 @@ impl BatchSampleDataInterface for KafkaStore {
         for payment_intent in payment_intents_list.iter() {
             let _ = self
                 .kafka_producer
-                .log_payment_intent(payment_intent, None, self.tenant_id.clone())
+                .log_payment_intent(
+                    payment_intent,
+                    None,
+                    self.tenant_id.clone(),
+                    state.infra_values.clone(),
+                )
                 .await;
         }
         Ok(payment_intents_list)
@@ -3680,7 +3695,11 @@ impl BatchSampleDataInterface for KafkaStore {
         for payment_intent in payment_intents_list.iter() {
             let _ = self
                 .kafka_producer
-                .log_payment_intent_delete(payment_intent, self.tenant_id.clone())
+                .log_payment_intent_delete(
+                    payment_intent,
+                    self.tenant_id.clone(),
+                    state.infra_values.clone(),
+                )
                 .await;
         }
         Ok(payment_intents_list)
@@ -4234,3 +4253,34 @@ impl CallbackMapperInterface for KafkaStore {
         self.diesel_store.find_call_back_mapper_by_id(id).await
     }
 }
+
+#[cfg(all(feature = "v2", feature = "tokenization_v2"))]
+#[async_trait::async_trait]
+impl TokenizationInterface for KafkaStore {
+    async fn insert_tokenization(
+        &self,
+        tokenization: hyperswitch_domain_models::tokenization::Tokenization,
+        merchant_key_store: &hyperswitch_domain_models::merchant_key_store::MerchantKeyStore,
+        key_manager_state: &KeyManagerState,
+    ) -> CustomResult<hyperswitch_domain_models::tokenization::Tokenization, errors::StorageError>
+    {
+        self.diesel_store
+            .insert_tokenization(tokenization, merchant_key_store, key_manager_state)
+            .await
+    }
+
+    async fn get_entity_id_vault_id_by_token_id(
+        &self,
+        token: &id_type::GlobalTokenId,
+        merchant_key_store: &hyperswitch_domain_models::merchant_key_store::MerchantKeyStore,
+        key_manager_state: &KeyManagerState,
+    ) -> CustomResult<hyperswitch_domain_models::tokenization::Tokenization, errors::StorageError>
+    {
+        self.diesel_store
+            .get_entity_id_vault_id_by_token_id(token, merchant_key_store, key_manager_state)
+            .await
+    }
+}
+
+#[cfg(not(all(feature = "v2", feature = "tokenization_v2")))]
+impl TokenizationInterface for KafkaStore {}

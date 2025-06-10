@@ -40,6 +40,7 @@ pub async fn refund_create_core(
     state: SessionState,
     merchant_context: domain::MerchantContext,
     req: refunds::RefundsCreateRequest,
+    global_refund_id: id_type::GlobalRefundId,
 ) -> errors::RouterResponse<refunds::RefundResponse> {
     let db = &*state.store;
     let (payment_intent, payment_attempt, amount);
@@ -93,8 +94,6 @@ pub async fn refund_create_core(
         )
         .await
         .to_not_found_response(errors::ApiErrorResponse::SuccessfulPaymentNotFound)?;
-
-    let global_refund_id = id_type::GlobalRefundId::generate(&state.conf.cell_information.id);
 
     tracing::Span::current().record("global_refund_id", global_refund_id.get_string_repr());
 

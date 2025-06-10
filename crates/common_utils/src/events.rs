@@ -29,7 +29,7 @@ pub enum ApiEventsType {
     },
     #[cfg(feature = "v2")]
     Refund {
-        payment_id: id_type::GlobalPaymentId,
+        payment_id: Option<id_type::GlobalPaymentId>,
         refund_id: id_type::GlobalRefundId,
     },
     #[cfg(feature = "v1")]
@@ -121,7 +121,12 @@ pub enum ApiEventsType {
     PaymentMethodSession {
         payment_method_session_id: id_type::GlobalPaymentMethodSessionId,
     },
+    #[cfg(feature = "v2")]
+    Token {
+        token_id: Option<id_type::GlobalTokenId>,
+    },
     ProcessTracker,
+    ThreeDsDecisionRule,
 }
 
 impl ApiEventMetric for serde_json::Value {}

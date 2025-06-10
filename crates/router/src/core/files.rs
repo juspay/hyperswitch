@@ -31,7 +31,7 @@ pub async fn files_create_core(
             .get_string_repr(),
         file_id
     );
-    let file_new = diesel_models::file::FileMetadataNew {
+    let file_new: diesel_models::FileMetadataNew = diesel_models::file::FileMetadataNew {
         file_id: file_id.clone(),
         merchant_id: merchant_context
             .get_owner_merchant_account()

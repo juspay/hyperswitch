@@ -387,12 +387,11 @@ pub async fn initiate_secure_payment_link_flow(
                 payment_form_label_type: payment_link_config.payment_form_label_type,
                 show_card_terms: payment_link_config.show_card_terms,
             };
-            let js_script = format!(
-                "window.__PAYMENT_DETAILS = {}",
-                serde_json::to_string(&secure_payment_link_details)
-                    .change_context(errors::ApiErrorResponse::InternalServerError)
-                    .attach_printable("Failed to serialize PaymentLinkData")?
-            );
+            let payment_details_str = serde_json::to_string(&secure_payment_link_details)
+                .change_context(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable("Failed to serialize PaymentLinkData")?;
+            let url_encoded_str = urlencoding::encode(&payment_details_str);
+            let js_script = format!("window.__PAYMENT_DETAILS = '{}';", url_encoded_str);
             let html_meta_tags = get_meta_tags_html(&link_details);
             let payment_link_data = services::PaymentLinkFormData {
                 js_script,
@@ -491,7 +490,8 @@ fn get_js_script(payment_details: &PaymentLinkData) -> RouterResult<String> {
     let payment_details_str = serde_json::to_string(payment_details)
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Failed to serialize PaymentLinkData")?;
-    Ok(format!("window.__PAYMENT_DETAILS = {payment_details_str};"))
+    let url_encoded_str = urlencoding::encode(&payment_details_str);
+    Ok(format!("window.__PAYMENT_DETAILS = '{url_encoded_str}';"))
 }
 
 fn get_color_scheme_css(payment_link_config: &PaymentLinkConfig) -> String {

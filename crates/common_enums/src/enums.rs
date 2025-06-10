@@ -6,7 +6,9 @@ use std::{
     num::{ParseFloatError, TryFromIntError},
 };
 
-pub use accounts::{MerchantAccountType, MerchantProductType, OrganizationType};
+pub use accounts::{
+    MerchantAccountRequestType, MerchantAccountType, MerchantProductType, OrganizationType,
+};
 pub use payments::ProductType;
 use serde::{Deserialize, Serialize};
 pub use ui::*;
@@ -29,7 +31,7 @@ pub mod diesel_exports {
         DbRequestIncrementalAuthorization as RequestIncrementalAuthorization,
         DbScaExemptionType as ScaExemptionType,
         DbSuccessBasedRoutingConclusiveState as SuccessBasedRoutingConclusiveState,
-        DbWebhookDeliveryAttempt as WebhookDeliveryAttempt,
+        DbTokenizationFlag as TokenizationFlag, DbWebhookDeliveryAttempt as WebhookDeliveryAttempt,
     };
 }
 
@@ -216,6 +218,7 @@ pub enum CardDiscovery {
     Clone,
     Copy,
     Debug,
+    Default,
     Hash,
     Eq,
     PartialEq,
@@ -230,6 +233,7 @@ pub enum CardDiscovery {
 #[serde(rename_all = "snake_case")]
 #[strum(serialize_all = "snake_case")]
 pub enum RevenueRecoveryAlgorithmType {
+    #[default]
     Monitoring,
     Smart,
     Cascading,
@@ -465,7 +469,7 @@ pub enum ConnectorType {
     /// Represents billing processors that handle subscription management, invoicing,
     /// and recurring payments. Examples include Chargebee, Recurly, and Stripe Billing.
     BillingProcessor,
-    /// External Vault Connector
+    /// Represents vaulting processors that handle the storage and management of payment method data
     VaultProcessor,
 }
 
@@ -1920,6 +1924,7 @@ pub enum PaymentMethodType {
     OpenBankingPIS,
     DirectCarrierBilling,
     InstantBankTransfer,
+    RevolutPay,
 }
 
 impl PaymentMethodType {
@@ -2032,6 +2037,7 @@ impl PaymentMethodType {
             Self::Mifinity => "MiFinity",
             Self::OpenBankingPIS => "Open Banking PIS",
             Self::DirectCarrierBilling => "Direct Carrier Billing",
+            Self::RevolutPay => "RevolutPay",
         };
         display_name.to_string()
     }
@@ -2592,6 +2598,7 @@ pub enum CountryAlpha3 {
     strum::EnumString,
     Deserialize,
     Serialize,
+    utoipa::ToSchema,
 )]
 pub enum Country {
     Afghanistan,
@@ -7101,6 +7108,26 @@ impl AuthenticationConnectors {
 
 #[derive(
     Clone,
+    Copy,
+    Debug,
+    Eq,
+    Hash,
+    PartialEq,
+    serde::Serialize,
+    serde::Deserialize,
+    strum::Display,
+    strum::EnumString,
+    ToSchema,
+)]
+#[serde(rename_all = "snake_case")]
+#[strum(serialize_all = "snake_case")]
+pub enum VaultSdk {
+    VgsSdk,
+    HyperswitchSdk,
+}
+
+#[derive(
+    Clone,
     Debug,
     Eq,
     Default,
@@ -7227,6 +7254,13 @@ pub enum TransactionType {
     Payment,
     #[cfg(feature = "payouts")]
     Payout,
+    ThreeDsAuthentication,
+}
+
+impl TransactionType {
+    pub fn is_three_ds_authentication(self) -> bool {
+        matches!(self, Self::ThreeDsAuthentication)
+    }
 }
 
 #[derive(
@@ -8295,6 +8329,28 @@ pub enum ProcessTrackerRunner {
 pub enum CryptoPadding {
     PKCS7,
     ZeroPadding,
+}
+
+#[derive(
+    Clone,
+    Copy,
+    Debug,
+    Eq,
+    PartialEq,
+    serde::Deserialize,
+    serde::Serialize,
+    strum::Display,
+    strum::EnumString,
+    ToSchema,
+)]
+#[router_derive::diesel_enum(storage_type = "db_enum")]
+#[serde(rename_all = "snake_case")]
+#[strum(serialize_all = "snake_case")]
+pub enum TokenizationFlag {
+    /// Token is active and can be used for payments
+    Enabled,
+    /// Token is inactive and cannot be used for payments
+    Disabled,
 }
 
 /// The type of token data to fetch for get-token endpoint

@@ -188,6 +188,7 @@ pub async fn payment_method_update_api(
             payment_methods_routes::update_payment_method(
                 state,
                 merchant_context,
+                auth.profile,
                 req,
                 &payment_method_id,
             )
@@ -252,7 +253,7 @@ pub async fn payment_method_delete_api(
         payload,
         |state, auth: auth::AuthenticationData, pm, _| {
             let merchant_context = auth.into();
-            payment_methods_routes::delete_payment_method(state, pm, merchant_context)
+            payment_methods_routes::delete_payment_method(state, pm, merchant_context, auth.profile)
         },
         &auth::V2ApiKeyAuth {
             is_connected_allowed: false,
@@ -1009,6 +1010,17 @@ impl ParentPaymentMethodToken {
             ),
         }
     }
+
+    #[cfg(feature = "v2")]
+    pub fn return_key_for_token(
+        (parent_pm_token, payment_method): (&String, api_models::enums::PaymentMethod),
+    ) -> String {
+        format!(
+            "pm_token_{}_{}_hyperswitch",
+            parent_pm_token, payment_method
+        )
+    }
+
     pub async fn insert(
         &self,
         fulfillment_time: i64,
@@ -1423,6 +1435,7 @@ pub async fn payment_method_session_update_saved_payment_method(
             payment_methods_routes::payment_methods_session_update_payment_method(
                 state,
                 merchant_context,
+                auth.profile,
                 request.payment_method_session_id,
                 request.request,
             )
@@ -1466,6 +1479,7 @@ pub async fn payment_method_session_delete_saved_payment_method(
             payment_methods_routes::payment_methods_session_delete_payment_method(
                 state,
                 merchant_context,
+                auth.profile,
                 request.request.payment_method_id,
                 request.payment_method_session_id,
             )
