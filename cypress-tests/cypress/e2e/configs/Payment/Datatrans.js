@@ -43,7 +43,7 @@ const multiUseMandateData = {
   },
 };
 
-const payment_method_data_3ds = {
+const paymentMethodData3Ds = {
   card: {
     last4: "1111",
     card_type: "CREDIT",
@@ -61,7 +61,7 @@ const payment_method_data_3ds = {
   billing: null,
 };
 
-const payment_method_data_no3ds = {
+const paymentMethodDataNo3Ds = {
   card: {
     last4: "0018",
     card_type: "CREDIT",
@@ -79,7 +79,7 @@ const payment_method_data_no3ds = {
   billing: null,
 };
 
-const billing_with_newline = {
+const billingWithNewline = {
   address: {
     line1: "1467",
     line2: "Harrison Street\nApt 101",
@@ -146,14 +146,14 @@ export const connectorDetails = {
         currency: "USD",
         customer_acceptance: null,
         setup_future_usage: "on_session",
-        billing: billing_with_newline,
+        billing: billingWithNewline,
       },
       Response: {
         status: 200,
         body: {
           status: "requires_customer_action",
           setup_future_usage: "on_session",
-          payment_method_data: payment_method_data_no3ds,
+          payment_method_data: paymentMethodDataNo3Ds,
         },
       },
     },
@@ -170,14 +170,14 @@ export const connectorDetails = {
         currency: "USD",
         customer_acceptance: null,
         setup_future_usage: "on_session",
-        billing: billing_with_newline,
+        billing: billingWithNewline,
       },
       Response: {
         status: 200,
         body: {
           status: "requires_customer_action",
           setup_future_usage: "on_session",
-          payment_method_data: payment_method_data_3ds,
+          payment_method_data: paymentMethodData3Ds,
         },
       },
     },
@@ -190,14 +190,14 @@ export const connectorDetails = {
         currency: "USD",
         customer_acceptance: null,
         setup_future_usage: "on_session",
-        billing: billing_with_newline,
+        billing: billingWithNewline,
       },
       Response: {
         status: 200,
         body: {
           status: "requires_capture",
           attempt_count: 1,
-          payment_method_data: payment_method_data_no3ds,
+          payment_method_data: paymentMethodDataNo3Ds,
         },
       },
     },
@@ -210,14 +210,14 @@ export const connectorDetails = {
         currency: "USD",
         customer_acceptance: null,
         setup_future_usage: "on_session",
-        billing: billing_with_newline,
+        billing: billingWithNewline,
       },
       Response: {
         status: 200,
         body: {
           status: "succeeded",
           attempt_count: 1,
-          payment_method_data: payment_method_data_no3ds,
+          payment_method_data: paymentMethodDataNo3Ds,
         },
       },
     },
@@ -438,7 +438,7 @@ export const connectorDetails = {
         },
         currency: "USD",
         mandate_data: singleUseMandateData,
-        billing: billing_with_newline,
+        billing: billingWithNewline,
       },
       Response: {
         status: 200,
@@ -452,7 +452,7 @@ export const connectorDetails = {
         amount: 0,
         setup_future_usage: "off_session",
         currency: "USD",
-        billing: billing_with_newline,
+        billing: billingWithNewline,
       },
       Response: {
         status: 200,
@@ -462,7 +462,6 @@ export const connectorDetails = {
         },
       },
     },
-
     ZeroAuthConfirmPayment: {
       // 3DS elements are hidden and hence are not clickable in anyway
       Configs: {
@@ -477,7 +476,6 @@ export const connectorDetails = {
         mandate_data: singleUseMandateData,
       },
       Response: {
-        trigger_skip: true,
         status: 200,
         body: {
           status: "requires_customer_action",
@@ -645,7 +643,7 @@ export const connectorDetails = {
         mandate_data: null,
         authentication_type: "three_ds",
         customer_acceptance: customerAcceptance,
-        billing: billing_with_newline,
+        billing: billingWithNewline,
       },
       Response: {
         status: 200,
@@ -667,7 +665,7 @@ export const connectorDetails = {
         mandate_data: null,
         authentication_type: "three_ds",
         customer_acceptance: customerAcceptance,
-        billing: billing_with_newline,
+        billing: billingWithNewline,
       },
       Response: {
         status: 200,
