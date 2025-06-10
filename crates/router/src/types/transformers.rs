@@ -148,7 +148,7 @@ impl ForeignTryFrom<storage_enums::AttemptStatus> for storage_enums::CaptureStat
     ) -> errors::RouterResult<Self> {
         match attempt_status {
             storage_enums::AttemptStatus::Charged
-            | storage_enums::AttemptStatus::PartialCharged => Ok(Self::Charged),
+            | storage_enums::AttemptStatus::PartialCharged | storage_enums::AttemptStatus::IntegrityFailure => Ok(Self::Charged),
             storage_enums::AttemptStatus::Pending
             | storage_enums::AttemptStatus::CaptureInitiated => Ok(Self::Pending),
             storage_enums::AttemptStatus::Failure
@@ -171,7 +171,7 @@ impl ForeignTryFrom<storage_enums::AttemptStatus> for storage_enums::CaptureStat
             | storage_enums::AttemptStatus::PaymentMethodAwaited
             | storage_enums::AttemptStatus::ConfirmationAwaited
             | storage_enums::AttemptStatus::DeviceDataCollectionPending
-            | storage_enums::AttemptStatus::PartialChargedAndChargeable=> {
+            | storage_enums::AttemptStatus::PartialChargedAndChargeable => {
                 Err(errors::ApiErrorResponse::PreconditionFailed {
                     message: "AttemptStatus must be one of these for multiple partial captures [Charged, PartialCharged, Pending, CaptureInitiated, Failure, CaptureFailed]".into(),
                 }.into())
@@ -472,9 +472,8 @@ impl ForeignFrom<api_enums::IntentStatus> for Option<storage_enums::EventType> {
                 Some(storage_enums::EventType::PaymentProcessing)
             }
             api_enums::IntentStatus::RequiresMerchantAction
-            | api_enums::IntentStatus::RequiresCustomerAction => {
-                Some(storage_enums::EventType::ActionRequired)
-            }
+            | api_enums::IntentStatus::RequiresCustomerAction
+            | api_enums::IntentStatus::Conflicted => Some(storage_enums::EventType::ActionRequired),
             api_enums::IntentStatus::Cancelled => Some(storage_enums::EventType::PaymentCancelled),
             api_enums::IntentStatus::PartiallyCaptured
             | api_enums::IntentStatus::PartiallyCapturedAndCapturable => {
