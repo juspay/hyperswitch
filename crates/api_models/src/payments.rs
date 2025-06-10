@@ -608,7 +608,7 @@ pub struct PaymentsIntentResponse {
     #[schema(value_type = External3dsAuthenticationRequest)]
     pub request_external_three_ds_authentication: common_enums::External3dsAuthenticationRequest,
 
-    /// merchant id
+    /// The unique identifier for the merchant
     pub merchant_id: id_type::MerchantId,
 }
 
