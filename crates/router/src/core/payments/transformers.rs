@@ -2,7 +2,7 @@ use std::{fmt::Debug, marker::PhantomData, str::FromStr};
 
 use api_models::payments::{
     Address, ConnectorMandateReferenceId, CustomerDetails, CustomerDetailsResponse, FrmMessage,
-    RequestSurchargeDetails,
+    MandateIds, RequestSurchargeDetails,
 };
 use common_enums::{Currency, RequestIncrementalAuthorization};
 use common_utils::{
@@ -713,10 +713,30 @@ pub async fn construct_payment_router_data_for_sdk_session<'a>(
         .attach_printable(
             "Invalid global customer generated, not able to convert to reference id",
         )?;
+    let billing_address = payment_data
+        .payment_intent
+        .billing_address
+        .as_ref()
+        .map(|billing_address| billing_address.clone().into_inner());
+    // fetch email from customer or billing address (fallback)
     let email = customer
         .as_ref()
         .and_then(|customer| customer.email.clone())
-        .map(pii::Email::from);
+        .map(pii::Email::from)
+        .or(billing_address
+            .as_ref()
+            .and_then(|address| address.email.clone()));
+    // fetch customer name from customer or billing address (fallback)
+    let customer_name = customer
+        .as_ref()
+        .and_then(|customer| customer.name.clone())
+        .map(|name| name.into_inner())
+        .or(billing_address.and_then(|address| {
+            address
+                .address
+                .as_ref()
+                .and_then(|address_details| address_details.get_optional_full_name())
+        }));
     let order_details = payment_data
         .payment_intent
         .order_details
@@ -770,6 +790,7 @@ pub async fn construct_payment_router_data_for_sdk_session<'a>(
         email,
         minor_amount: payment_data.payment_intent.amount_details.order_amount,
         apple_pay_recurring_details,
+        customer_name,
     };
 
     // TODO: evaluate the fields in router data, if they are required or not
@@ -1636,6 +1657,7 @@ where
             Self {
                 session_token: payment_data.get_sessions_token(),
                 payment_id: payment_data.get_payment_intent().id.clone(),
+                vault_details: payment_data.get_optional_external_vault_session_details(),
             },
             vec![],
         )))
@@ -2491,6 +2513,13 @@ where
             })
             .unwrap_or_default(),
     );
+    let connector_name = payment_attempt.connector.as_deref().unwrap_or_default();
+    let router_return_url = helpers::create_redirect_url(
+        &base_url.to_string(),
+        &payment_attempt,
+        connector_name,
+        payment_data.get_creds_identifier(),
+    );
 
     let output = if payments::is_start_pay(&operation)
         && payment_attempt.authentication_data.is_some()
@@ -2585,6 +2614,7 @@ where
                             if payment_intent.is_iframe_redirection_enabled.unwrap_or(false) {
                                 api_models::payments::NextActionData::RedirectInsidePopup {
                                     popup_url: redirect_url,
+                                    redirect_response_url:router_return_url
                                 }
                             } else {
                                 api_models::payments::NextActionData::RedirectToUrl {
@@ -3366,6 +3396,17 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsAuthoriz
     }
 }
 
+fn get_off_session(
+    mandate_id: Option<&MandateIds>,
+    off_session_flag: Option<bool>,
+) -> Option<bool> {
+    match (mandate_id, off_session_flag) {
+        (_, Some(false)) => Some(false),
+        (Some(_), _) | (_, Some(true)) => Some(true),
+        (None, None) => None,
+    }
+}
+
 #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
 impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsAuthorizeData {
     type Error = error_stack::Report<errors::ApiErrorResponse>;
@@ -3520,12 +3561,16 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsAuthoriz
             })
             .transpose()?
             .map(pii::SecretSerdeValue::new);
+        let is_off_session = get_off_session(
+            payment_data.mandate_id.as_ref(),
+            payment_data.payment_intent.off_session,
+        );
 
         Ok(Self {
             payment_method_data: (payment_method_data.get_required_value("payment_method_data")?),
             setup_future_usage: payment_data.payment_attempt.setup_future_usage_applied,
             mandate_id: payment_data.mandate_id.clone(),
-            off_session: payment_data.mandate_id.as_ref().map(|_| true),
+            off_session: is_off_session,
             setup_mandate_details: payment_data.setup_mandate.clone(),
             confirm: payment_data.payment_attempt.confirm,
             statement_descriptor_suffix: payment_data.payment_intent.statement_descriptor_suffix,
@@ -4087,6 +4132,7 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsSessionD
             surcharge_details: payment_data.surcharge_details,
             email: payment_data.email,
             apple_pay_recurring_details,
+            customer_name: None,
         })
     }
 }
@@ -4172,6 +4218,7 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsSessionD
             email: payment_data.email,
             surcharge_details: payment_data.surcharge_details,
             apple_pay_recurring_details,
+            customer_name: None,
         })
     }
 }
@@ -4361,6 +4408,11 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::SetupMandateRequ
             .transpose()?
             .map(pii::SecretSerdeValue::new);
 
+        let is_off_session = get_off_session(
+            payment_data.mandate_id.as_ref(),
+            payment_data.payment_intent.off_session,
+        );
+
         Ok(Self {
             currency: payment_data.currency,
             confirm: true,
@@ -4371,7 +4423,7 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::SetupMandateRequ
                 .get_required_value("payment_method_data")?),
             statement_descriptor_suffix: payment_data.payment_intent.statement_descriptor_suffix,
             setup_future_usage: payment_data.payment_attempt.setup_future_usage_applied,
-            off_session: payment_data.mandate_id.as_ref().map(|_| true),
+            off_session: is_off_session,
             mandate_id: payment_data.mandate_id.clone(),
             setup_mandate_details: payment_data.setup_mandate,
             customer_acceptance: payment_data.customer_acceptance,
@@ -4505,10 +4557,16 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::CompleteAuthoriz
             .and_then(|braintree| braintree.merchant_account_id.clone());
         let merchant_config_currency =
             braintree_metadata.and_then(|braintree| braintree.merchant_config_currency);
+
+        let is_off_session = get_off_session(
+            payment_data.mandate_id.as_ref(),
+            payment_data.payment_intent.off_session,
+        );
+
         Ok(Self {
             setup_future_usage: payment_data.payment_intent.setup_future_usage,
             mandate_id: payment_data.mandate_id.clone(),
-            off_session: payment_data.mandate_id.as_ref().map(|_| true),
+            off_session: is_off_session,
             setup_mandate_details: payment_data.setup_mandate.clone(),
             confirm: payment_data.payment_attempt.confirm,
             statement_descriptor_suffix: payment_data.payment_intent.statement_descriptor_suffix,
@@ -4967,6 +5025,7 @@ impl ForeignFrom<api_models::admin::PaymentLinkConfigRequest>
             payment_form_label_type: config.payment_form_label_type,
             show_card_terms: config.show_card_terms,
             is_setup_mandate_flow: config.is_setup_mandate_flow,
+            color_icon_card_cvc_error: config.color_icon_card_cvc_error,
         }
     }
 }
@@ -5042,6 +5101,7 @@ impl ForeignFrom<diesel_models::PaymentLinkConfigRequestForPayments>
             payment_form_label_type: config.payment_form_label_type,
             show_card_terms: config.show_card_terms,
             is_setup_mandate_flow: config.is_setup_mandate_flow,
+            color_icon_card_cvc_error: config.color_icon_card_cvc_error,
         }
     }
 }
