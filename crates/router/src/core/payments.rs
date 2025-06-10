@@ -7003,7 +7003,7 @@ where
 
             connectors = routing::perform_eligibility_analysis_with_fallback(
                 &state.clone(),
-                merchant_context.get_merchant_key_store(),
+                merchant_context.get_processor_merchant_key_store(),
                 connectors,
                 &TransactionData::Payment(transaction_data),
                 eligible_connectors,
@@ -7062,7 +7062,7 @@ where
 
             connectors = routing::perform_eligibility_analysis_with_fallback(
                 &state,
-                merchant_context.get_merchant_key_store(),
+                merchant_context.get_processor_merchant_key_store(),
                 connectors,
                 &TransactionData::Payment(transaction_data),
                 eligible_connectors,

@@ -1582,9 +1582,9 @@ pub async fn retrieve_dynamic_routing_volume_split(
     let business_profile: domain::Profile = core_utils::validate_and_get_business_profile(
         db,
         key_manager_state,
-        merchant_context.get_merchant_key_store(),
+        merchant_context.get_processor_merchant_key_store(),
         Some(&profile_id),
-        merchant_context.get_merchant_account().get_id(),
+        merchant_context.get_processor_merchant_account().get_id(),
     )
     .await?
     .get_required_value("Profile")
