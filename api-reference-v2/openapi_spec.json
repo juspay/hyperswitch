@@ -15862,6 +15862,11 @@
             "type": "boolean",
             "description": "Boolean to control payment button text for setup mandate calls",
             "nullable": true
+          },
+          "color_icon_card_cvc_error": {
+            "type": "string",
+            "description": "Hex color for the CVC icon during error state",
+            "nullable": true
           }
         }
       },
@@ -16029,6 +16034,11 @@
           "is_setup_mandate_flow": {
             "type": "boolean",
             "description": "Boolean to control payment button text for setup mandate calls",
+            "nullable": true
+          },
+          "color_icon_card_cvc_error": {
+            "type": "string",
+            "description": "Hex color for the CVC icon during error state",
             "nullable": true
           }
         }

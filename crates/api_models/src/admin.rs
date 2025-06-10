@@ -3075,6 +3075,8 @@ pub struct PaymentLinkConfigRequest {
     pub show_card_terms: Option<api_enums::PaymentLinkShowSdkTerms>,
     /// Boolean to control payment button text for setup mandate calls
     pub is_setup_mandate_flow: Option<bool>,
+    /// Hex color for the CVC icon during error state
+    pub color_icon_card_cvc_error: Option<String>,
 }
 
 #[derive(Clone, Debug, serde::Deserialize, serde::Serialize, PartialEq, ToSchema)]
@@ -3172,6 +3174,8 @@ pub struct PaymentLinkConfig {
     pub show_card_terms: Option<api_enums::PaymentLinkShowSdkTerms>,
     /// Boolean to control payment button text for setup mandate calls
     pub is_setup_mandate_flow: Option<bool>,
+    /// Hex color for the CVC icon during error state
+    pub color_icon_card_cvc_error: Option<String>,
 }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, PartialEq, Eq)]
