@@ -2552,7 +2552,7 @@ pub enum MerchantCategory {
 #[router_derive::diesel_enum(storage_type = "text")]
 pub enum MerchantCategoryCode {
     #[serde(rename = "5411")]
-    #[strum(serialize = "5411")] 
+    #[strum(serialize = "5411")]
     Mcc5411,
     #[serde(rename = "7011")]
     #[strum(serialize = "7011")]

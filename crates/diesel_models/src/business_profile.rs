@@ -674,8 +674,7 @@ impl ProfileUpdateInternal {
             external_vault_connector_details: external_vault_connector_details
                 .or(source.external_vault_connector_details),
             three_ds_decision_rule_algorithm: None,
-            merchant_category_code: merchant_category_code
-                .or(source.merchant_category_code),
+            merchant_category_code: merchant_category_code.or(source.merchant_category_code),
         }
     }
 }
