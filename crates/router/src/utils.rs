@@ -63,7 +63,7 @@ use crate::{
     types::{
         self, domain,
         transformers::{ForeignFrom, ForeignInto},
-    }
+    },
 };
 
 pub mod error_parser {

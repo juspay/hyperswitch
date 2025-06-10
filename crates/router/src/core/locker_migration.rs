@@ -12,16 +12,10 @@ use error_stack::ResultExt;
 use futures::TryFutureExt;
 
 #[cfg(feature = "v1")]
-use super::{
-    errors::StorageErrorExt,
-    payment_methods::cards
-};
-#[cfg(feature = "v1")]
-use crate::{
-    services::logger,
-    types::api
-};
+use super::{errors::StorageErrorExt, payment_methods::cards};
 use crate::{errors, routes::SessionState, services, types::domain};
+#[cfg(feature = "v1")]
+use crate::{services::logger, types::api};
 
 #[cfg(feature = "v2")]
 pub async fn rust_locker_migration(
