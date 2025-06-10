@@ -197,6 +197,7 @@ impl ForeignTryFrom<domain::Profile> for ProfileResponse {
             is_debit_routing_enabled: Some(item.is_debit_routing_enabled),
             merchant_business_country: item.merchant_business_country,
             is_pre_network_tokenization_enabled: item.is_pre_network_tokenization_enabled,
+            merchant_category_code: item.merchant_category_code,
         })
     }
 }
@@ -281,6 +282,7 @@ impl ForeignTryFrom<domain::Profile> for ProfileResponse {
             external_vault_connector_details: item
                 .external_vault_connector_details
                 .map(ForeignInto::foreign_into),
+            merchant_category_code: item.merchant_category_code,
         })
     }
 }
@@ -448,5 +450,6 @@ pub async fn create_profile_from_merchant_account(
         is_pre_network_tokenization_enabled: request
             .is_pre_network_tokenization_enabled
             .unwrap_or_default(),
+        merchant_category_code: request.merchant_category_code,
     }))
 }

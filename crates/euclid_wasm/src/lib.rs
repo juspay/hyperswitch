@@ -34,7 +34,7 @@ use wasm_bindgen::prelude::*;
 use crate::utils::JsResultExt;
 type JsResult = Result<JsValue, JsValue>;
 use api_models::payment_methods::CountryCodeWithName;
-use common_enums::{CountryAlpha2, MerchantCategoryCodeValue, MerchantCategoryCodeWithName};
+use common_enums::{CountryAlpha2, MerchantCategoryCode, MerchantCategoryCodeWithName};
 use strum::IntoEnumIterator;
 
 struct SeedData {
@@ -95,7 +95,7 @@ pub fn get_two_letter_country_code() -> JsResult {
 /// along with their names.
 #[wasm_bindgen(js_name=getMerchantCategoryCodeWithName)]
 pub fn get_merchant_category_code_with_name() -> JsResult {
-    let merchant_category_codes_with_name = MerchantCategoryCodeValue::iter()
+    let merchant_category_codes_with_name = MerchantCategoryCode::iter()
         .map(|mcc_value| MerchantCategoryCodeWithName {
             code: mcc_value,
             name: mcc_value.to_merchant_category_name(),

@@ -2397,7 +2397,7 @@ pub enum CardType {
 
 #[derive(Debug, Clone, Serialize, Deserialize, strum::EnumString, strum::Display)]
 #[serde(rename_all = "snake_case")]
-pub enum MerchantCategoryCode {
+pub enum DecisionEngineMerchantCategoryCode {
     #[serde(rename = "merchant_category_code_0001")]
     Mcc0001,
 }
@@ -2543,39 +2543,38 @@ pub enum MerchantCategory {
     PartialEq,
     serde::Deserialize,
     serde::Serialize,
+    strum::Display,
+    strum::EnumString,
     strum::EnumIter,
+    strum::VariantNames,
     ToSchema,
 )]
-pub enum MerchantCategoryCodeValue {
+#[router_derive::diesel_enum(storage_type = "text")]
+pub enum MerchantCategoryCode {
     #[serde(rename = "5411")]
+    #[strum(serialize = "5411")] 
     Mcc5411,
     #[serde(rename = "7011")]
+    #[strum(serialize = "7011")]
     Mcc7011,
     #[serde(rename = "0763")]
+    #[strum(serialize = "0763")]
     Mcc0763,
     #[serde(rename = "8111")]
+    #[strum(serialize = "8111")]
     Mcc8111,
     #[serde(rename = "5021")]
+    #[strum(serialize = "5021")]
     Mcc5021,
     #[serde(rename = "4816")]
+    #[strum(serialize = "4816")]
     Mcc4816,
     #[serde(rename = "5661")]
+    #[strum(serialize = "5661")]
     Mcc5661,
 }
 
-impl MerchantCategoryCodeValue {
-    pub fn to_code_value(&self) -> i32 {
-        match self {
-            Self::Mcc5411 => 5411,
-            Self::Mcc7011 => 7011,
-            Self::Mcc0763 => 763,
-            Self::Mcc8111 => 8111,
-            Self::Mcc5021 => 5021,
-            Self::Mcc4816 => 4816,
-            Self::Mcc5661 => 5661,
-        }
-    }
-
+impl MerchantCategoryCode {
     pub fn to_merchant_category_name(&self) -> MerchantCategory {
         match self {
             Self::Mcc5411 => MerchantCategory::GroceryStoresSupermarkets,
@@ -2591,7 +2590,7 @@ impl MerchantCategoryCodeValue {
 
 #[derive(serde::Serialize, serde::Deserialize, Clone, Debug, PartialEq)]
 pub struct MerchantCategoryCodeWithName {
-    pub code: MerchantCategoryCodeValue,
+    pub code: MerchantCategoryCode,
     pub name: MerchantCategory,
 }
 

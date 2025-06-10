@@ -107,7 +107,7 @@ impl TryFrom<(payment_methods::CoBadgedCardData, String)> for DebitRoutingReques
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct CoBadgedCardRequest {
-    pub merchant_category_code: common_enums::MerchantCategoryCode,
+    pub merchant_category_code: common_enums::DecisionEngineMerchantCategoryCode,
     pub acquirer_country: common_enums::CountryAlpha2,
     pub co_badged_card_data: Option<DebitRoutingRequestData>,
 }

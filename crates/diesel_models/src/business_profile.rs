@@ -74,6 +74,7 @@ pub struct Profile {
     pub is_iframe_redirection_enabled: Option<bool>,
     pub is_pre_network_tokenization_enabled: Option<bool>,
     pub three_ds_decision_rule_algorithm: Option<serde_json::Value>,
+    pub merchant_category_code: Option<common_enums::MerchantCategoryCode>,
 }
 
 #[cfg(feature = "v1")]
@@ -129,6 +130,7 @@ pub struct ProfileNew {
     pub id: Option<common_utils::id_type::ProfileId>,
     pub is_iframe_redirection_enabled: Option<bool>,
     pub is_pre_network_tokenization_enabled: Option<bool>,
+    pub merchant_category_code: Option<common_enums::MerchantCategoryCode>,
 }
 
 #[cfg(feature = "v1")]
@@ -183,6 +185,7 @@ pub struct ProfileUpdateInternal {
     pub is_iframe_redirection_enabled: Option<bool>,
     pub is_pre_network_tokenization_enabled: Option<bool>,
     pub three_ds_decision_rule_algorithm: Option<serde_json::Value>,
+    pub merchant_category_code: Option<common_enums::MerchantCategoryCode>,
 }
 
 #[cfg(feature = "v1")]
@@ -234,6 +237,7 @@ impl ProfileUpdateInternal {
             is_iframe_redirection_enabled,
             is_pre_network_tokenization_enabled,
             three_ds_decision_rule_algorithm,
+            merchant_category_code,
         } = self;
         Profile {
             profile_id: source.profile_id,
@@ -316,6 +320,7 @@ impl ProfileUpdateInternal {
                 .or(source.is_pre_network_tokenization_enabled),
             three_ds_decision_rule_algorithm: three_ds_decision_rule_algorithm
                 .or(source.three_ds_decision_rule_algorithm),
+            merchant_category_code: merchant_category_code.or(source.merchant_category_code),
         }
     }
 }
@@ -389,6 +394,7 @@ pub struct Profile {
     pub external_vault_connector_details: Option<ExternalVaultConnectorDetails>,
     pub revenue_recovery_retry_algorithm_type: Option<common_enums::RevenueRecoveryAlgorithmType>,
     pub revenue_recovery_retry_algorithm_data: Option<RevenueRecoveryAlgorithmData>,
+    pub merchant_category_code: Option<common_enums::MerchantCategoryCode>,
 }
 
 impl Profile {
@@ -462,6 +468,7 @@ pub struct ProfileNew {
     pub is_iframe_redirection_enabled: Option<bool>,
     pub is_external_vault_enabled: Option<bool>,
     pub external_vault_connector_details: Option<ExternalVaultConnectorDetails>,
+    pub merchant_category_code: Option<common_enums::MerchantCategoryCode>,
 }
 
 #[cfg(feature = "v2")]
@@ -519,6 +526,7 @@ pub struct ProfileUpdateInternal {
     pub is_iframe_redirection_enabled: Option<bool>,
     pub is_external_vault_enabled: Option<bool>,
     pub external_vault_connector_details: Option<ExternalVaultConnectorDetails>,
+    pub merchant_category_code: Option<common_enums::MerchantCategoryCode>,
 }
 
 #[cfg(feature = "v2")]
@@ -573,6 +581,7 @@ impl ProfileUpdateInternal {
             is_iframe_redirection_enabled,
             is_external_vault_enabled,
             external_vault_connector_details,
+            merchant_category_code,
         } = self;
         Profile {
             id: source.id,
@@ -665,6 +674,8 @@ impl ProfileUpdateInternal {
             external_vault_connector_details: external_vault_connector_details
                 .or(source.external_vault_connector_details),
             three_ds_decision_rule_algorithm: None,
+            merchant_category_code: merchant_category_code
+                .or(source.merchant_category_code),
         }
     }
 }
