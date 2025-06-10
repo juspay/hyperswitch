@@ -493,7 +493,7 @@ async fn store_bank_details_in_payment_methods(
             let pm_id = generate_id(consts::ID_LENGTH, "pm");
 
             let now = common_utils::date_time::now();
-            
+
             let pm_new = domain::PaymentMethod {
                 customer_id: customer_id.clone(),
                 merchant_id: merchant_context.get_merchant_account().get_id().clone(),
