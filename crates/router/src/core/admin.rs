@@ -2377,7 +2377,7 @@ impl MerchantConnectorAccountUpdateBridge for api_models::admin::MerchantConnect
                     &self.connector_type,
                     &mca.connector_name,
                     types::AdditionalMerchantData::foreign_from(data.clone()),
-                    merchant_context.get_merchant_key_store(),
+                    merchant_context.get_processor_merchant_key_store(),
                 )
                 .await?,
             )

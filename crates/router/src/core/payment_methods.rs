@@ -1983,9 +1983,9 @@ pub async fn vault_payment_method(
             let merchant_connector_account =
                 payments_core::helpers::get_merchant_connector_account(
                     state,
-                    merchant_context.get_merchant_account().get_id(),
+                    merchant_context.get_processor_merchant_account().get_id(),
                     None,
-                    merchant_context.get_merchant_key_store(),
+                    merchant_context.get_processor_merchant_key_store(),
                     profile.get_id(),
                     "",
                     Some(&external_vault_source),
@@ -1998,7 +1998,7 @@ pub async fn vault_payment_method(
             vault_payment_method_external(
                 state,
                 pmd,
-                merchant_context.get_merchant_account(),
+                merchant_context.get_processor_merchant_account(),
                 merchant_connector_account,
             )
             .await
@@ -2176,12 +2176,12 @@ pub async fn list_customer_payment_methods_core(
     let saved_payment_methods = db
         .find_payment_method_by_global_customer_id_merchant_id_status(
             key_manager_state,
-            merchant_context.get_merchant_key_store(),
+            merchant_context.get_owner_merchant_key_store(),
             customer_id,
-            merchant_context.get_merchant_account().get_id(),
+            merchant_context.get_owner_merchant_account().get_id(),
             common_enums::PaymentMethodStatus::Active,
             None,
-            merchant_context.get_merchant_account().storage_scheme,
+            merchant_context.get_owner_merchant_account().storage_scheme,
         )
         .await
         .to_not_found_response(errors::ApiErrorResponse::PaymentMethodNotFound)?;
@@ -3099,8 +3099,8 @@ pub async fn payment_methods_session_confirm(
         Some(tokenization_data) => {
             let tokenization_response = tokenization_core::create_vault_token_core(
                 state.clone(),
-                &merchant_context.get_merchant_account().clone(),
-                &merchant_context.get_merchant_key_store().clone(),
+                &merchant_context.get_owner_merchant_account().clone(),
+                &merchant_context.get_owner_merchant_key_store().clone(),
                 api_models::tokenization::GenericTokenizationRequest {
                     customer_id: customer_id.clone(),
                     token_request: tokenization_data,

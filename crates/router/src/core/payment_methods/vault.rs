@@ -1511,12 +1511,12 @@ pub async fn retrieve_payment_method_from_vault_using_payment_token(
     let db = &*state.store;
     let key_manager_state = &state.into();
 
-    let storage_scheme = merchant_context.get_merchant_account().storage_scheme;
+    let storage_scheme = merchant_context.get_owner_merchant_account().storage_scheme;
 
     let payment_method = db
         .find_payment_method(
             key_manager_state,
-            merchant_context.get_merchant_key_store(),
+            merchant_context.get_owner_merchant_key_store(),
             &payment_method_id,
             storage_scheme,
         )
@@ -1571,9 +1571,9 @@ pub async fn retrieve_payment_method_from_vault(
             let merchant_connector_account =
                 payments_core::helpers::get_merchant_connector_account(
                     state,
-                    merchant_context.get_merchant_account().get_id(),
+                    merchant_context.get_processor_merchant_account().get_id(),
                     None,
-                    merchant_context.get_merchant_key_store(),
+                    merchant_context.get_processor_merchant_key_store(),
                     profile.get_id(),
                     "",
                     external_vault_source,
@@ -1585,7 +1585,7 @@ pub async fn retrieve_payment_method_from_vault(
 
             retrieve_payment_method_from_vault_external(
                 state,
-                merchant_context.get_merchant_account(),
+                merchant_context.get_processor_merchant_account(),
                 pm,
                 merchant_connector_account,
             )
@@ -1747,9 +1747,9 @@ pub async fn delete_payment_method_data_from_vault(
             let merchant_connector_account =
                 payments_core::helpers::get_merchant_connector_account(
                     state,
-                    merchant_context.get_merchant_account().get_id(),
+                    merchant_context.get_processor_merchant_account().get_id(),
                     None,
-                    merchant_context.get_merchant_key_store(),
+                    merchant_context.get_processor_merchant_key_store(),
                     profile.get_id(),
                     "",
                     external_vault_source,
@@ -1761,7 +1761,7 @@ pub async fn delete_payment_method_data_from_vault(
 
             delete_payment_method_data_from_vault_external(
                 state,
-                merchant_context.get_merchant_account(),
+                merchant_context.get_processor_merchant_account(),
                 merchant_connector_account,
                 vault_id.clone(),
             )

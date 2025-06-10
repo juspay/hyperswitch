@@ -184,7 +184,7 @@ pub async fn payment_method_update_api(
         &req,
         payload,
         |state, auth: auth::AuthenticationData, req, _| {
-            let merchant_context = auth.into();
+            let merchant_context = auth.clone().into();
             payment_methods_routes::update_payment_method(
                 state,
                 merchant_context,
@@ -252,7 +252,7 @@ pub async fn payment_method_delete_api(
         &req,
         payload,
         |state, auth: auth::AuthenticationData, pm, _| {
-            let merchant_context = auth.into();
+            let merchant_context = auth.clone().into();
             payment_methods_routes::delete_payment_method(state, pm, merchant_context, auth.profile)
         },
         &auth::V2ApiKeyAuth {
@@ -1431,7 +1431,7 @@ pub async fn payment_method_session_update_saved_payment_method(
         &req,
         request,
         |state, auth: auth::AuthenticationData, request, _| {
-            let merchant_context = auth.into();
+            let merchant_context = auth.clone().into();
             payment_methods_routes::payment_methods_session_update_payment_method(
                 state,
                 merchant_context,
@@ -1475,7 +1475,7 @@ pub async fn payment_method_session_delete_saved_payment_method(
         &req,
         request,
         |state, auth: auth::AuthenticationData, request, _| {
-            let merchant_context = auth.into();
+            let merchant_context = auth.clone().into();
             payment_methods_routes::payment_methods_session_delete_payment_method(
                 state,
                 merchant_context,

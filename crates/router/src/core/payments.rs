@@ -294,8 +294,8 @@ where
                     state,
                     payment_data,
                     router_data,
-                    merchant_context.get_merchant_key_store(),
-                    merchant_context.get_merchant_account().storage_scheme,
+                    merchant_context.get_owner_merchant_key_store(),
+                    merchant_context.get_owner_merchant_account().storage_scheme,
                 )
                 .await?
         }
@@ -7672,7 +7672,7 @@ pub async fn route_connector_v2_for_payments(
 
     let connectors = routing::perform_static_routing_v1(
         state,
-        merchant_context.get_merchant_account().get_id(),
+        merchant_context.get_processor_merchant_account().get_id(),
         routing_algorithm_id,
         business_profile,
         &TransactionData::Payment(transaction_data.clone()),
@@ -7682,7 +7682,7 @@ pub async fn route_connector_v2_for_payments(
 
     let connectors = routing::perform_eligibility_analysis_with_fallback(
         &state.clone(),
-        merchant_context.get_merchant_key_store(),
+        merchant_context.get_processor_merchant_key_store(),
         connectors,
         &TransactionData::Payment(transaction_data),
         None,

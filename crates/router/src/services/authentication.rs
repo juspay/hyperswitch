@@ -964,7 +964,11 @@ where
 
         let auth = AuthenticationData {
             merchant_account: merchant_account.clone(),
-            platform_merchant_account: Some(merchant_account.clone()),
+            platform_account_context: Some(PlatformAccountContext {
+                platform_account: merchant_account.clone(),
+                key_store: key_store.clone(),
+            }),
+            // platform_merchant_account: Some(merchant_account.clone()),
             key_store,
             profile_id: None,
         };
@@ -1076,7 +1080,7 @@ where
                 .attach_printable("API key has expired");
         }
 
-        let (_, platform_merchant) =
+        let (platform_key_store, platform_merchant) =
             Self::fetch_key_store_and_account(&stored_api_key.merchant_id, state).await?;
 
         if !(state.conf().platform.enabled && platform_merchant.is_platform_account()) {
@@ -1094,7 +1098,10 @@ where
 
         let auth = AuthenticationData {
             merchant_account: route_merchant,
-            platform_merchant_account: Some(platform_merchant.clone()),
+            platform_account_context: Some(PlatformAccountContext {
+                platform_account: platform_merchant.clone(),
+                key_store: platform_key_store.clone(),
+            }),
             key_store: route_key_store,
             profile_id: None,
         };

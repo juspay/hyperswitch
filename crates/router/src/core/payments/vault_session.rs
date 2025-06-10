@@ -78,9 +78,9 @@ where
 
         let merchant_connector_account = helpers::get_merchant_connector_account_v2(
             state,
-            merchant_context.get_merchant_account().get_id(),
+            merchant_context.get_processor_merchant_account().get_id(),
             None,
-            merchant_context.get_merchant_key_store(),
+            merchant_context.get_processor_merchant_key_store(),
             external_vault_source,
         )
         .await?;
@@ -106,8 +106,8 @@ where
                     customer,
                     &customer_merchant_id,
                     updated_customer,
-                    merchant_context.get_merchant_key_store(),
-                    merchant_context.get_merchant_account().storage_scheme,
+                    merchant_context.get_owner_merchant_key_store(),
+                    merchant_context.get_owner_merchant_account().storage_scheme,
                 )
                 .await
                 .change_context(errors::ApiErrorResponse::InternalServerError)
@@ -353,7 +353,7 @@ where
 
     let mut router_data = core_utils::construct_vault_router_data(
         state,
-        merchant_context.get_merchant_account(),
+        merchant_context.get_processor_merchant_account(),
         merchant_connector_account_type,
         None,
         None,
