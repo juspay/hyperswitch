@@ -1563,19 +1563,17 @@ pub async fn retrieve_payment_method_from_vault(
             let external_vault_source = pm.external_vault_source.as_ref();
 
             let merchant_connector_account =
-                payments_core::helpers::get_merchant_connector_account(
-                    state,
-                    merchant_context.get_merchant_account().get_id(),
-                    None,
-                    merchant_context.get_merchant_key_store(),
-                    profile.get_id(),
-                    "",
-                    external_vault_source,
-                )
-                .await
-                .attach_printable(
-                    "failed to fetch merchant connector account for external vault retrieve",
-                )?;
+                domain::MerchantConnectorAccountTypeDetails::MerchantConnectorAccount(Box::new(
+                    payments_core::helpers::get_merchant_connector_account_v2(
+                        state,
+                        merchant_context.get_merchant_key_store(),
+                        external_vault_source,
+                    )
+                    .await
+                    .attach_printable(
+                        "failed to fetch merchant connector account for external vault retrieve",
+                    )?,
+                ));
 
             retrieve_payment_method_from_vault_external(
                 state,
@@ -1736,19 +1734,17 @@ pub async fn delete_payment_method_data_from_vault(
             let external_vault_source = pm.external_vault_source.as_ref();
 
             let merchant_connector_account =
-                payments_core::helpers::get_merchant_connector_account(
-                    state,
-                    merchant_context.get_merchant_account().get_id(),
-                    None,
-                    merchant_context.get_merchant_key_store(),
-                    profile.get_id(),
-                    "",
-                    external_vault_source,
-                )
-                .await
-                .attach_printable(
-                    "failed to fetch merchant connector account for external vault delete",
-                )?;
+                domain::MerchantConnectorAccountTypeDetails::MerchantConnectorAccount(Box::new(
+                    payments_core::helpers::get_merchant_connector_account_v2(
+                        state,
+                        merchant_context.get_merchant_key_store(),
+                        external_vault_source,
+                    )
+                    .await
+                    .attach_printable(
+                        "failed to fetch merchant connector account for external vault delete",
+                    )?,
+                ));
 
             delete_payment_method_data_from_vault_external(
                 state,

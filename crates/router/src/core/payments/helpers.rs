@@ -7341,47 +7341,23 @@ pub async fn allow_payment_update_enabled_for_client_auth(
 }
 
 #[cfg(feature = "v2")]
-pub async fn get_merchant_connector_account_details<F, D>(
+#[instrument(skip_all)]
+pub async fn get_merchant_connector_account_v2(
     state: &SessionState,
-    payment_data: &D,
+    key_store: &domain::MerchantKeyStore,
     merchant_connector_id: Option<&id_type::MerchantConnectorAccountId>,
-    merchant_context: &domain::MerchantContext,
-) -> RouterResult<domain::MerchantConnectorAccountTypeDetails>
-where
-    F: Send + Clone + Sync,
-    D: payments::OperationSessionGetters<F> + Send + Sync,
-{
-    match payment_data.get_merchant_connector_details() {
-        Some(api_details) => {
-            Ok(domain::MerchantConnectorAccountTypeDetails::MerchantConnectorDetails(api_details))
-        }
-        None => {
-            let merchant_connector_id = merchant_connector_id
-                .get_required_value("merchant_connector_id")
-                .change_context(errors::ApiErrorResponse::InternalServerError)
-                .attach_printable("connector id is not set")?;
-
-            let key_manager_state = state.into();
-
-            let merchant_connector_account = state
-                .store
-                .find_merchant_connector_account_by_id(
-                    &key_manager_state,
-                    merchant_connector_id,
-                    merchant_context.get_merchant_key_store(),
-                )
-                .await
-                .to_not_found_response(
-                    errors::ApiErrorResponse::MerchantConnectorAccountNotFound {
-                        id: merchant_connector_id.get_string_repr().to_owned(),
-                    },
-                )?;
-
-            Ok(
-                domain::MerchantConnectorAccountTypeDetails::MerchantConnectorAccount(Box::new(
-                    merchant_connector_account.clone(),
-                )),
-            )
-        }
+) -> RouterResult<domain::MerchantConnectorAccount> {
+    let db = &*state.store;
+    match merchant_connector_id {
+        Some(merchant_connector_id) => db
+            .find_merchant_connector_account_by_id(&state.into(), merchant_connector_id, key_store)
+            .await
+            .to_not_found_response(errors::ApiErrorResponse::MerchantConnectorAccountNotFound {
+                id: merchant_connector_id.get_string_repr().to_string(),
+            }),
+        None => Err(errors::ApiErrorResponse::MissingRequiredField {
+            field_name: "merchant_connector_id",
+        })
+        .attach_printable("merchant_connector_id is not provided"),
     }
 }

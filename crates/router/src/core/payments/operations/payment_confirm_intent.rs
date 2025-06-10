@@ -568,7 +568,10 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentConfirmData<F>, PaymentsConfirmInt
                     status: attempt_status,
                     updated_by: storage_scheme.to_string(),
                     connector,
-                    merchant_connector_id,
+                    merchant_connector_id: merchant_connector_id.ok_or_else( || {
+                        error_stack::report!(errors::ApiErrorResponse::InternalServerError)
+                            .attach_printable("Merchant connector id is none when constructing response")
+                    })?,
                     authentication_type,
                     payment_method_id : payment_method.get_id().clone()
                 }

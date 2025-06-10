@@ -76,13 +76,15 @@ where
             .as_ref()
             .map(|details| &details.vault_connector_id);
 
-        let merchant_connector_account = helpers::get_merchant_connector_account_details(
-            state,
-            payment_data,
-            external_vault_source,
-            &merchant_context,
-        )
-        .await?;
+        let merchant_connector_account =
+            domain::MerchantConnectorAccountTypeDetails::MerchantConnectorAccount(Box::new(
+                helpers::get_merchant_connector_account_v2(
+                    state,
+                    merchant_context.get_merchant_key_store(),
+                    external_vault_source,
+                )
+                .await?,
+            ));
 
         let updated_customer = call_create_connector_customer_if_required(
             state,
@@ -167,7 +169,7 @@ where
                     state,
                     &connector,
                     customer,
-                    &merchant_connector_account_type,
+                    merchant_connector_account_type,
                 );
 
             if should_call_connector {

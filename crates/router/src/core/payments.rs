@@ -3583,13 +3583,15 @@ where
 {
     let stime_connector = Instant::now();
 
-    let merchant_connector_account = helpers::get_merchant_connector_account_details(
-        state,
-        payment_data,
-        connector.merchant_connector_id.as_ref(),
-        merchant_context,
-    )
-    .await?;
+    let merchant_connector_account =
+        domain::MerchantConnectorAccountTypeDetails::MerchantConnectorAccount(Box::new(
+            helpers::get_merchant_connector_account_v2(
+                state,
+                merchant_context.get_merchant_key_store(),
+                connector.merchant_connector_id.as_ref(),
+            )
+            .await?,
+        ));
 
     let updated_customer = call_create_connector_customer_if_required(
         state,
@@ -3889,13 +3891,15 @@ where
 {
     let stime_connector = Instant::now();
 
-    let merchant_connector_account = helpers::get_merchant_connector_account_details(
-        state,
-        payment_data,
-        connector.merchant_connector_id.as_ref(),
-        merchant_context,
-    )
-    .await?;
+    let merchant_connector_account =
+        domain::MerchantConnectorAccountTypeDetails::MerchantConnectorAccount(Box::new(
+            helpers::get_merchant_connector_account_v2(
+                state,
+                merchant_context.get_merchant_key_store(),
+                connector.merchant_connector_id.as_ref(),
+            )
+            .await?,
+        ));
 
     let mut router_data = payment_data
         .construct_router_data(
@@ -4001,13 +4005,17 @@ where
 {
     let stime_connector = Instant::now();
 
-    let merchant_connector_account = helpers::get_merchant_connector_account_details(
-        state,
-        payment_data,
-        connector.merchant_connector_id.as_ref(),
-        merchant_context,
-    )
-    .await?;
+    let merchant_connector_details =
+        payment_data
+            .get_merchant_connector_details()
+            .ok_or_else(|| {
+                error_stack::report!(errors::ApiErrorResponse::InternalServerError)
+                    .attach_printable("Merchant connector details not found in payment data")
+            })?;
+    let merchant_connector_account =
+        domain::MerchantConnectorAccountTypeDetails::MerchantConnectorDetails(
+            merchant_connector_details,
+        );
 
     let mut router_data = payment_data
         .construct_router_data(
@@ -4350,16 +4358,18 @@ where
     let call_connectors_start_time = Instant::now();
     let mut join_handlers = Vec::with_capacity(connectors.len());
     for session_connector_data in connectors.iter() {
-        let merchant_connector_account = helpers::get_merchant_connector_account_details(
-            state,
-            &payment_data,
-            session_connector_data
-                .connector
-                .merchant_connector_id
-                .as_ref(),
-            merchant_context,
-        )
-        .await?;
+        let merchant_connector_account =
+            domain::MerchantConnectorAccountTypeDetails::MerchantConnectorAccount(Box::new(
+                helpers::get_merchant_connector_account_v2(
+                    state,
+                    merchant_context.get_merchant_key_store(),
+                    session_connector_data
+                        .connector
+                        .merchant_connector_id
+                        .as_ref(),
+                )
+                .await?,
+            ));
 
         let connector_id = session_connector_data.connector.connector.id();
         let router_data = payment_data

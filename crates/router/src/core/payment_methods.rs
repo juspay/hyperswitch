@@ -1978,19 +1978,17 @@ pub async fn vault_payment_method(
                 .attach_printable("mca_id not present for external vault")?;
 
             let merchant_connector_account =
-                payments_core::helpers::get_merchant_connector_account(
-                    state,
-                    merchant_context.get_merchant_account().get_id(),
-                    None,
-                    merchant_context.get_merchant_key_store(),
-                    profile.get_id(),
-                    "",
-                    Some(&external_vault_source),
-                )
-                .await
-                .attach_printable(
-                    "failed to fetch merchant connector account for external vault insert",
-                )?;
+                domain::MerchantConnectorAccountTypeDetails::MerchantConnectorAccount(Box::new(
+                    payments_core::helpers::get_merchant_connector_account_v2(
+                        state,
+                        merchant_context.get_merchant_key_store(),
+                        Some(&external_vault_source),
+                    )
+                    .await
+                    .attach_printable(
+                        "failed to fetch merchant connector account for external vault insert",
+                    )?,
+                ));
 
             vault_payment_method_external(
                 state,
