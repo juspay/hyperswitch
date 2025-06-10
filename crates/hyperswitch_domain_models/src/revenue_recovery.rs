@@ -105,6 +105,7 @@ pub struct RecoveryPaymentIntent {
     pub billing_address: Option<api_payments::Address>,
 }
 
+#[derive(Clone)]
 pub struct RecoveryPaymentAttempt {
     pub attempt_id: id_type::GlobalAttemptId,
     pub attempt_status: common_enums::AttemptStatus,

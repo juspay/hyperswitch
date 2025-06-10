@@ -308,12 +308,8 @@ sinks:
           - card_issuer
           - retry_count
           - payment_gateway
-    key_prefix: "{{ .merchant_id }}/%M/%d_%H_%M_%S"
+    key_prefix: "{{ .merchant_id }}/%Y/%M/%Y%m%dT%H%M%S"
     timezone: "Europe/London"
-    auth: 
-      access_key_id: "ACCESS_KEY_ID"
-      secret_access_key: "SECRET_ACCESS_KEY"
-      assume_role: AWS_ROLE
     server_side_encryption: aws:kms
     request:
       max_retries: 3

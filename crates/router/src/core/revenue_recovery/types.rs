@@ -112,6 +112,11 @@ impl RevenueRecoveryPaymentsAttemptStatus {
                 &payment_attempt,
             );
 
+        let recovery_payment_tuple = recovery_incoming_flow::RecoveryPaymentTuple::new(
+            &recovery_payment_intent,
+            &recovery_payment_attempt,
+        );
+
         match self {
             Self::Succeeded => {
                 // finish psync task as the payment was a success
@@ -123,10 +128,9 @@ impl RevenueRecoveryPaymentsAttemptStatus {
                     .await?;
 
                 // publish events to kafka
-                recovery_incoming_flow::publish_revenue_recovery_event_to_kafka(
+                recovery_incoming_flow::RecoveryPaymentTuple::publish_revenue_recovery_event_to_kafka(
                     state,
-                    &recovery_payment_intent,
-                    &recovery_payment_attempt,
+                    &recovery_payment_tuple,
                 )
                 .await
                 .change_context(errors::RecoveryError::KafkaEventPublishFailed)?;
@@ -153,10 +157,9 @@ impl RevenueRecoveryPaymentsAttemptStatus {
                     .await?;
 
                 // publish events to kafka
-                recovery_incoming_flow::publish_revenue_recovery_event_to_kafka(
+                recovery_incoming_flow::RecoveryPaymentTuple::publish_revenue_recovery_event_to_kafka(
                     state,
-                    &recovery_payment_intent,
-                    &recovery_payment_attempt,
+                    &recovery_payment_tuple,
                 )
                 .await
                 .change_context(errors::RecoveryError::KafkaEventPublishFailed)?;
