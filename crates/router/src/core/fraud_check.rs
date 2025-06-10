@@ -532,7 +532,7 @@ where
                     .to_update_tracker()?
                     .update_tracker(
                         state,
-                        merchant_context.get_owner_merchant_key_store(),
+                        merchant_context.get_processor_merchant_key_store(),
                         frm_data.clone(),
                         payment_data,
                         None,

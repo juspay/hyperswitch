@@ -71,7 +71,6 @@ pub struct AuthenticationData {
     pub profile_id: Option<id_type::ProfileId>,
 }
 
-#[cfg(feature = "v1")]
 #[derive(Clone, Debug)]
 pub struct PlatformAccountContext {
     pub platform_account: domain::MerchantAccount,
@@ -87,50 +86,43 @@ pub struct AuthenticationData {
     pub profile: domain::Profile,
 }
 
-#[cfg(feature = "v2")]
-#[derive(Clone, Debug)]
-pub struct PlatformAccountContext {
-    pub platform_account: domain::MerchantAccount,
-    pub key_store: domain::MerchantKeyStore,
-}
-
 #[cfg(feature = "v1")]
-impl Into<MerchantContext> for AuthenticationData {
-    fn into(self) -> MerchantContext {
-        match self.platform_account_context {
+impl From<AuthenticationData> for MerchantContext {
+    fn from(val: AuthenticationData) -> Self {
+        match val.platform_account_context {
             Some(platform_context) => MerchantContext::PlatformConnectedAccount(Box::new(
                 PlatformConnectedAccountContext {
                     platform_account_context: Context(
                         platform_context.platform_account,
                         platform_context.key_store,
                     ),
-                    connected_account_context: Context(self.merchant_account, self.key_store),
+                    connected_account_context: Context(val.merchant_account, val.key_store),
                 },
             )),
             None => MerchantContext::NormalMerchant(Box::new(Context(
-                self.merchant_account,
-                self.key_store,
+                val.merchant_account,
+                val.key_store,
             ))),
         }
     }
 }
 
 #[cfg(feature = "v2")]
-impl Into<MerchantContext> for AuthenticationData {
-    fn into(self) -> MerchantContext {
-        match self.platform_account_context {
+impl From<AuthenticationData> for MerchantContext {
+    fn from(val: AuthenticationData) -> Self {
+        match val.platform_account_context {
             Some(platform_context) => MerchantContext::PlatformConnectedAccount(Box::new(
                 PlatformConnectedAccountContext {
                     platform_account_context: Context(
                         platform_context.platform_account,
                         platform_context.key_store,
                     ),
-                    connected_account_context: Context(self.merchant_account, self.key_store),
+                    connected_account_context: Context(val.merchant_account, val.key_store),
                 },
             )),
             None => MerchantContext::NormalMerchant(Box::new(Context(
-                self.merchant_account,
-                self.key_store,
+                val.merchant_account,
+                val.key_store,
             ))),
         }
     }

@@ -133,7 +133,7 @@ impl CustomerCreateBridge for customers::CustomerRequest {
             merchant_id,
             customer_id: merchant_reference_id.as_ref(),
             storage_scheme: merchant_context.get_owner_merchant_account().storage_scheme,
-            key_store: merchant_context.get_processor_merchant_key_store(),
+            key_store: merchant_context.get_owner_merchant_key_store(),
             key_manager_state,
             state,
         };
