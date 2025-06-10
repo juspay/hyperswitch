@@ -555,8 +555,8 @@ impl TryFrom<&TrustpayRouterData<&PaymentsAuthorizeRouterData>> for TrustpayPaym
                 )
             }
             PaymentMethodData::NetworkToken(ref token_data) => {
-                Ok(Self::NetworkTokenPaymentRequest(
-                    Box::new(PaymentRequestNetworkToken {
+                Ok(Self::NetworkTokenPaymentRequest(Box::new(
+                    PaymentRequestNetworkToken {
                         amount: item.amount.to_owned(),
                         currency: item.router_data.request.currency,
                         pan: token_data.get_network_token(),
@@ -573,8 +573,8 @@ impl TryFrom<&TrustpayRouterData<&PaymentsAuthorizeRouterData>> for TrustpayPaym
                                 field_name: "verification_id",
                             }
                         })?,
-                    }),
-                ))
+                    },
+                )))
             }
             PaymentMethodData::CardRedirect(_)
             | PaymentMethodData::Wallet(_)
