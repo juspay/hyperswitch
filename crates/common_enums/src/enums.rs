@@ -398,7 +398,6 @@ pub enum BlocklistDataKind {
     ExtendedCardBin,
 }
 
-
 /// Specifies how the payment is captured.
 /// - `automatic`: Funds are captured immediately after successful authorization. This is the default behavior if the field is omitted.
 /// - `manual`: Funds are authorized but not captured. A separate request to the `/payments/{payment_id}/capture` endpoint is required to capture the funds.
