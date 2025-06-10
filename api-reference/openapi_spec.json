@@ -6808,7 +6808,8 @@
           "failure",
           "payment_method_awaited",
           "confirmation_awaited",
-          "device_data_collection_pending"
+          "device_data_collection_pending",
+          "integrity_failure"
         ]
       },
       "AuthenticationConnectorDetails": {
@@ -14608,7 +14609,8 @@
           "requires_confirmation",
           "requires_capture",
           "partially_captured",
-          "partially_captured_and_capturable"
+          "partially_captured_and_capturable",
+          "conflicted"
         ]
       },
       "IssuerData": {
