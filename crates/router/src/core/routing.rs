@@ -1457,9 +1457,9 @@ pub async fn toggle_specific_dynamic_routing(
     let business_profile: domain::Profile = core_utils::validate_and_get_business_profile(
         db,
         key_manager_state,
-        merchant_context.get_merchant_key_store(),
+        merchant_context.get_processor_merchant_key_store(),
         Some(&profile_id),
-        merchant_context.get_merchant_account().get_id(),
+        merchant_context.get_processor_merchant_account().get_id(),
     )
     .await?
     .get_required_value("Profile")
@@ -1487,7 +1487,7 @@ pub async fn toggle_specific_dynamic_routing(
             // 3. If not present in db then create a new default entry
             helpers::enable_dynamic_routing_algorithm(
                 &state,
-                merchant_context.get_merchant_key_store().clone(),
+                merchant_context.get_processor_merchant_key_store().clone(),
                 business_profile,
                 feature_to_enable,
                 dynamic_routing_algo_ref,
@@ -1499,7 +1499,7 @@ pub async fn toggle_specific_dynamic_routing(
             // disable specific dynamic routing for the requested profile
             helpers::disable_dynamic_routing_algorithm(
                 &state,
-                merchant_context.get_merchant_key_store().clone(),
+                merchant_context.get_processor_merchant_key_store().clone(),
                 business_profile,
                 dynamic_routing_algo_ref,
                 dynamic_routing_type,
@@ -1829,9 +1829,9 @@ pub async fn contract_based_dynamic_routing_setup(
     let business_profile: domain::Profile = core_utils::validate_and_get_business_profile(
         db,
         key_manager_state,
-        merchant_context.get_merchant_key_store(),
+        merchant_context.get_processor_merchant_key_store(),
         Some(&profile_id),
-        merchant_context.get_merchant_account().get_id(),
+        merchant_context.get_processor_merchant_account().get_id(),
     )
     .await?
     .get_required_value("Profile")
@@ -1880,7 +1880,7 @@ pub async fn contract_based_dynamic_routing_setup(
             .attach_printable("Failed to get dynamic_routing_algo_ref")?;
         return helpers::disable_dynamic_routing_algorithm(
             &state,
-            merchant_context.get_merchant_key_store().clone(),
+            merchant_context.get_processor_merchant_key_store().clone(),
             business_profile,
             algorithm,
             routing_types::DynamicRoutingType::ContractBasedRouting,
@@ -1966,9 +1966,9 @@ pub async fn contract_based_dynamic_routing_setup(
                 let mca = db
                     .find_by_merchant_connector_account_merchant_id_merchant_connector_id(
                         key_manager_state,
-                        merchant_context.get_merchant_account().get_id(),
+                        merchant_context.get_processor_merchant_account().get_id(),
                         &mca_id,
-                        merchant_context.get_merchant_key_store(),
+                        merchant_context.get_processor_merchant_key_store(),
                     )
                     .await
                     .change_context(errors::ApiErrorResponse::MerchantConnectorAccountNotFound {
@@ -1999,7 +1999,7 @@ pub async fn contract_based_dynamic_routing_setup(
     helpers::update_business_profile_active_dynamic_algorithm_ref(
         db,
         key_manager_state,
-        merchant_context.get_merchant_key_store(),
+        merchant_context.get_processor_merchant_key_store(),
         business_profile,
         final_algorithm,
     )
@@ -2053,9 +2053,9 @@ pub async fn contract_based_routing_update_configs(
             let mca = db
                 .find_by_merchant_connector_account_merchant_id_merchant_connector_id(
                     key_manager_state,
-                    merchant_context.get_merchant_account().get_id(),
+                    merchant_context.get_processor_merchant_account().get_id(),
                     &info.mca_id,
-                    merchant_context.get_merchant_key_store(),
+                    merchant_context.get_processor_merchant_key_store(),
                 )
                 .await
                 .change_context(errors::ApiErrorResponse::MerchantConnectorAccountNotFound {
