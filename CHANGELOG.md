@@ -4,6 +4,16 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2025.06.04.0-hotfix3
+
+### Features
+
+- **connector:** [STRIPE] Added Connector Tokenization Flow for Cards ([#8292](https://github.com/juspay/hyperswitch/pull/8292)) ([`a2c5874`](https://github.com/juspay/hyperswitch/commit/a2c5874351e2335713d7ee772bfa82b254be8ae4))
+
+**Full Changelog:** [`2025.06.04.0-hotfix2...2025.06.04.0-hotfix3`](https://github.com/juspay/hyperswitch/compare/2025.06.04.0-hotfix2...2025.06.04.0-hotfix3)
+
+- - -
+
 ## 2025.06.04.0-hotfix2
 
 ### Bug Fixes
