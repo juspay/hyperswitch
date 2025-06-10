@@ -44,6 +44,24 @@ const multiUseMandateData = {
   },
 };
 
+const billingAddress = {
+  address: {
+    line1: "1467",
+    line2: "Harrison Street",
+    line3: "Harrison Street",
+    city: "San Fransico",
+    state: "California",
+    zip: "94122",
+    country: "NL",
+    first_name: "joseph",
+    last_name: "Doe",
+  },
+  phone: {
+    number: "9123456789",
+    country_code: "+91",
+  },
+};
+
 export const connectorDetails = {
   card_pm: {
     PaymentIntent: {
@@ -447,6 +465,64 @@ export const connectorDetails = {
             "Field is card.expiryYear and the message is must match ^[0-9]{4}$",
           unified_code: "UE_9000",
           unified_message: "Something went wrong",
+        },
+      },
+    },
+  },
+  bank_redirect_pm: {
+    PaymentIntent: {
+      Request: {
+        currency: "EUR",
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_payment_method",
+        },
+      },
+    },
+    Ideal: {
+      Request: {
+        payment_method: "bank_redirect",
+        payment_method_type: "ideal",
+        payment_method_data: {
+          bank_redirect: {
+            ideal: {
+              bank_name: "ing",
+            },
+          },
+        },
+        billing: billingAddress,
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_customer_action",
+        },
+      },
+    },
+    Przelewy24: {
+      Request: {
+        payment_method: "bank_redirect",
+        payment_method_type: "przelewy24",
+        payment_method_data: {
+          bank_redirect: {
+            przelewy24: {
+              bank_name: "citi",
+              billing_details: {
+                email: "guest@juspay.in",
+              },
+            },
+          },
+        },
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "failed",
+          error_code: "200.100.103",
+          error_message:
+            "invalid Request Message. The request contains structural errors",
         },
       },
     },
