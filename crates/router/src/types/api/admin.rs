@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::collections::{BTreeMap, HashMap};
 
 #[cfg(feature = "v2")]
 pub use api_models::admin;
@@ -35,6 +35,32 @@ use crate::{
     },
     utils,
 };
+
+#[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
+pub struct ProfileAcquirerConfigs {
+    pub acquirer_config_map: Option<common_types::domain::AcquirerConfigMap>,
+    pub profile_id: common_utils::id_type::ProfileId,
+}
+
+impl From<ProfileAcquirerConfigs> for Vec<api_models::profile_acquirer::ProfileAcquirerResponse> {
+    fn from(item: ProfileAcquirerConfigs) -> Self {
+        item.acquirer_config_map
+            .map(|config_map_val| {
+                let mut vec: Vec<_> = config_map_val.0.into_iter().collect();
+                vec.sort_by_key(|k| k.0.clone());
+                vec.into_iter()
+                    .map(|(profile_acquirer_id, acquirer_config)| {
+                        api_models::profile_acquirer::ProfileAcquirerResponse::from((
+                            profile_acquirer_id,
+                            &item.profile_id,
+                            &acquirer_config,
+                        ))
+                    })
+                    .collect::<Vec<api_models::profile_acquirer::ProfileAcquirerResponse>>()
+            })
+            .unwrap_or_default()
+    }
+}
 
 impl ForeignFrom<diesel_models::organization::Organization> for OrganizationResponse {
     fn foreign_from(org: diesel_models::organization::Organization) -> Self {
@@ -148,7 +174,7 @@ impl ForeignTryFrom<domain::Profile> for ProfileResponse {
 
         Ok(Self {
             merchant_id: item.merchant_id,
-            profile_id,
+            profile_id: profile_id.clone(),
             profile_name: item.profile_name,
             return_url: item.return_url,
             enable_payment_response_hash: item.enable_payment_response_hash,
@@ -197,7 +223,13 @@ impl ForeignTryFrom<domain::Profile> for ProfileResponse {
             is_debit_routing_enabled: Some(item.is_debit_routing_enabled),
             merchant_business_country: item.merchant_business_country,
             is_pre_network_tokenization_enabled: item.is_pre_network_tokenization_enabled,
-            acquirer_configs: item.acquirer_config_map,
+            acquirer_configs: Some(
+                ProfileAcquirerConfigs {
+                    acquirer_config_map: item.acquirer_config_map.clone(),
+                    profile_id: profile_id.clone(),
+                }
+                .into(),
+            ),
         })
     }
 }

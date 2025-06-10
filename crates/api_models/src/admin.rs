@@ -22,6 +22,7 @@ use crate::routing;
 use crate::{
     consts::{MAX_ORDER_FULFILLMENT_EXPIRY, MIN_ORDER_FULFILLMENT_EXPIRY},
     enums as api_enums, payment_methods,
+    profile_acquirer::ProfileAcquirerResponse,
 };
 
 #[derive(Clone, Debug, Deserialize, ToSchema, Serialize)]
@@ -2325,8 +2326,8 @@ pub struct ProfileResponse {
     pub is_pre_network_tokenization_enabled: bool,
 
     /// Acquirer configs
-    #[schema(value_type = Option<AcquirerConfigMap>)]
-    pub acquirer_configs: Option<common_types::domain::AcquirerConfigMap>,
+    #[schema(value_type = Option<Vec<ProfileAcquirerResponse>>)]
+    pub acquirer_configs: Option<Vec<ProfileAcquirerResponse>>,
 }
 
 #[cfg(feature = "v2")]

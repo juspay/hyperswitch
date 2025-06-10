@@ -205,6 +205,7 @@ Never share your secret api keys. Keep them guarded and secure.
 
         // Routes for profile acquirer account
         routes::profile_acquirer::profile_acquirer_create,
+        routes::profile_acquirer::update_profile_acquirer, // Added new route
 
         // Routes for 3DS Decision Rule
         routes::three_ds_decision_rule::three_ds_decision_rule_execute,
@@ -779,6 +780,7 @@ Never share your secret api keys. Keep them guarded and secure.
         api_models::open_router::DecisionEngineSRSubLevelInputConfig,
         api_models::open_router::DecisionEngineEliminationData,
         api_models::profile_acquirer::ProfileAcquirerCreate,
+        api_models::profile_acquirer::ProfileAcquirerUpdate, // Added new schema
         api_models::profile_acquirer::ProfileAcquirerResponse,
         euclid::frontend::dir::enums::CustomerDevicePlatform,
         euclid::frontend::dir::enums::CustomerDeviceType,
