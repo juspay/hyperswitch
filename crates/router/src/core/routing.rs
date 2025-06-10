@@ -2293,9 +2293,8 @@ pub async fn migrate_rules_for_profile(
     use api_models::routing::StaticRoutingAlgorithm as EuclidAlgorithm;
 
     use crate::services::logger;
-    metrics::ROUTING_RETRIEVE_LINK_CONFIG.add(1, &[]);
 
-    let profile_id = query_params.profile_id;
+    let profile_id = query_params.profile_id.clone();
     let db = state.store.as_ref();
     let key_manager_state = &(&state).into();
     let merchant_key_store = merchant_context.get_merchant_key_store();
@@ -2318,7 +2317,7 @@ pub async fn migrate_rules_for_profile(
         .store
         .list_routing_algorithm_metadata_by_profile_id(
             &profile_id,
-            i64::from(query_params.limit.unwrap_or_default()),
+            i64::from(query_params.validated_limit()),
             i64::from(query_params.offset.unwrap_or_default()),
         )
         .await
@@ -2327,7 +2326,10 @@ pub async fn migrate_rules_for_profile(
     let mut response_list = Vec::new();
     let mut error_list = Vec::new();
 
-    for routing_metadata in routing_metadatas {
+    for routing_metadata in routing_metadatas
+        .into_iter()
+        .filter(|algo| algo.metadata_is_advanced_rule_for_payments())
+    {
         match db
             .find_routing_algorithm_by_profile_id_algorithm_id(
                 &profile_id,

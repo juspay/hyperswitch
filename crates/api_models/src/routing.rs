@@ -1291,6 +1291,12 @@ pub struct RuleMigrationQuery {
     pub offset: Option<u32>,
 }
 
+impl RuleMigrationQuery {
+    pub fn validated_limit(&self) -> u32 {
+        self.limit.unwrap_or(50).min(1000)
+    }
+}
+
 #[derive(Debug, serde::Serialize)]
 pub struct RuleMigrationResult {
     pub success: Vec<RuleMigrationResponse>,
