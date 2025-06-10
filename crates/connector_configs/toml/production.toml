@@ -3300,11 +3300,10 @@ merchant_secret="Source verification key"
   payment_method_type = "google_pay"
 [[worldpay.wallet]]
   payment_method_type = "apple_pay"
-[worldpay.connector_auth.MultiAuthKey]
+[worldpay.connector_auth.SignatureKey]
 key1="Username"
 api_key="Password"
 api_secret="Merchant Identifier"
-key2="Worldpay's CA Certificate"
 [worldpay.metadata.merchant_name]
 name="merchant_name"
 label="Name of the merchant to de displayed during 3DS challenge"
