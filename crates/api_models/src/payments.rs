@@ -8169,7 +8169,6 @@ pub struct PaymentLinkDetails {
     pub payment_button_text_colour: Option<String>,
     pub background_colour: Option<String>,
     pub sdk_ui_rules: Option<HashMap<String, HashMap<String, String>>>,
-    pub payment_link_ui_rules: Option<HashMap<String, HashMap<String, String>>>,
     pub status: api_enums::IntentStatus,
     pub enable_button_only_on_form_ready: bool,
     pub payment_form_header_text: Option<String>,
@@ -8178,6 +8177,7 @@ pub struct PaymentLinkDetails {
     pub is_setup_mandate_flow: Option<bool>,
     pub capture_method: Option<common_enums::CaptureMethod>,
     pub setup_future_usage_applied: Option<common_enums::FutureUsage>,
+    pub color_icon_card_cvc_error: Option<String>,
 }
 
 #[derive(Debug, serde::Serialize, Clone)]
@@ -8194,11 +8194,11 @@ pub struct SecurePaymentLinkDetails {
     pub payment_button_text_colour: Option<String>,
     pub background_colour: Option<String>,
     pub sdk_ui_rules: Option<HashMap<String, HashMap<String, String>>>,
-    pub payment_link_ui_rules: Option<HashMap<String, HashMap<String, String>>>,
     pub enable_button_only_on_form_ready: bool,
     pub payment_form_header_text: Option<String>,
     pub payment_form_label_type: Option<api_enums::PaymentLinkSdkLabelType>,
     pub show_card_terms: Option<api_enums::PaymentLinkShowSdkTerms>,
+    pub color_icon_card_cvc_error: Option<String>,
 }
 
 #[derive(Debug, serde::Serialize)]

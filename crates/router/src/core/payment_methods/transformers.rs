@@ -430,8 +430,8 @@ pub fn mk_add_bank_response_hs(
         card: None,
         metadata: req.metadata,
         created: Some(common_utils::date_time::now()),
-        recurring_enabled: false,           // [#256]
-        installment_payment_enabled: false, // #[#256]
+        recurring_enabled: Some(false),           // [#256]
+        installment_payment_enabled: Some(false), // #[#256]
         payment_experience: Some(vec![api_models::enums::PaymentExperience::RedirectToUrl]),
         last_used_at: Some(common_utils::date_time::now()),
         client_secret: None,
@@ -493,8 +493,8 @@ pub fn mk_add_card_response_hs(
         card: Some(card),
         metadata: req.metadata,
         created: Some(common_utils::date_time::now()),
-        recurring_enabled: false,           // [#256]
-        installment_payment_enabled: false, // #[#256]
+        recurring_enabled: Some(false),           // [#256]
+        installment_payment_enabled: Some(false), // #[#256]
         payment_experience: Some(vec![api_models::enums::PaymentExperience::RedirectToUrl]),
         last_used_at: Some(common_utils::date_time::now()), // [#256]
         client_secret: req.client_secret,
@@ -598,7 +598,7 @@ pub fn generate_payment_method_response(
         payment_method_type: payment_method.get_payment_method_type(),
         payment_method_subtype: payment_method.get_payment_method_subtype(),
         created: Some(payment_method.created_at),
-        recurring_enabled: false,
+        recurring_enabled: Some(false),
         last_used_at: Some(payment_method.last_used_at),
         payment_method_data: pmd,
         connector_tokens,
@@ -1054,7 +1054,7 @@ impl transformers::ForeignTryFrom<domain::PaymentMethod> for PaymentMethodRespon
         });
 
         // TODO: check how we can get this field
-        let recurring_enabled = true;
+        let recurring_enabled = Some(true);
 
         let psp_tokenization_enabled = item.connector_mandate_details.and_then(|details| {
             details.payments.map(|payments| {

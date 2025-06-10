@@ -4828,7 +4828,8 @@
           "failure",
           "payment_method_awaited",
           "confirmation_awaited",
-          "device_data_collection_pending"
+          "device_data_collection_pending",
+          "integrity_failure"
         ]
       },
       "AuthenticationConnectorDetails": {
@@ -12419,7 +12420,8 @@
           "requires_confirmation",
           "requires_capture",
           "partially_captured",
-          "partially_captured_and_capturable"
+          "partially_captured_and_capturable",
+          "conflicted"
         ]
       },
       "JCSVoucherData": {
@@ -15906,6 +15908,11 @@
             "type": "boolean",
             "description": "Boolean to control payment button text for setup mandate calls",
             "nullable": true
+          },
+          "color_icon_card_cvc_error": {
+            "type": "string",
+            "description": "Hex color for the CVC icon during error state",
+            "nullable": true
           }
         }
       },
@@ -16073,6 +16080,11 @@
           "is_setup_mandate_flow": {
             "type": "boolean",
             "description": "Boolean to control payment button text for setup mandate calls",
+            "nullable": true
+          },
+          "color_icon_card_cvc_error": {
+            "type": "string",
+            "description": "Hex color for the CVC icon during error state",
             "nullable": true
           }
         }
@@ -16999,7 +17011,7 @@
           },
           "recurring_enabled": {
             "type": "boolean",
-            "description": "Indicates whether the payment method is eligible for recurring payments",
+            "description": "Indicates whether the payment method supports recurring payments. Optional.",
             "example": true,
             "nullable": true
           },
@@ -17077,8 +17089,7 @@
           "id",
           "merchant_id",
           "customer_id",
-          "payment_method_type",
-          "recurring_enabled"
+          "payment_method_type"
         ],
         "properties": {
           "id": {
@@ -17111,8 +17122,9 @@
           },
           "recurring_enabled": {
             "type": "boolean",
-            "description": "Indicates whether the payment method is eligible for recurring payments",
-            "example": true
+            "description": "Indicates whether the payment method supports recurring payments. Optional.",
+            "example": true,
+            "nullable": true
           },
           "created": {
             "type": "string",
@@ -17176,7 +17188,6 @@
           "customer_id",
           "payment_method_type",
           "payment_method_subtype",
-          "recurring_enabled",
           "created",
           "requires_cvv",
           "is_default",
@@ -17203,8 +17214,9 @@
           },
           "recurring_enabled": {
             "type": "boolean",
-            "description": "Indicates whether the payment method is eligible for recurring payments",
-            "example": true
+            "description": "Indicates whether the payment method supports recurring payments. Optional.",
+            "example": true,
+            "nullable": true
           },
           "payment_method_data": {
             "allOf": [
@@ -20968,6 +20980,7 @@
           "is_iframe_redirection_enabled": {
             "type": "boolean",
             "description": "Indicates if the redirection has to open in the iframe",
+            "example": false,
             "nullable": true
           },
           "is_external_vault_enabled": {
@@ -21236,6 +21249,7 @@
           "is_iframe_redirection_enabled": {
             "type": "boolean",
             "description": "Indicates if the redirection has to open in the iframe",
+            "example": false,
             "nullable": true
           },
           "is_external_vault_enabled": {
@@ -21889,9 +21903,7 @@
       "RequestPaymentMethodTypes": {
         "type": "object",
         "required": [
-          "payment_method_type",
-          "recurring_enabled",
-          "installment_payment_enabled"
+          "payment_method_type"
         ],
         "properties": {
           "payment_method_type": {
@@ -21946,15 +21958,15 @@
           },
           "recurring_enabled": {
             "type": "boolean",
-            "description": "Boolean to enable recurring payments / mandates. Default is true.",
-            "default": true,
-            "example": false
+            "description": "Indicates whether the payment method supports recurring payments. Optional.",
+            "example": false,
+            "nullable": true
           },
           "installment_payment_enabled": {
             "type": "boolean",
-            "description": "Boolean to enable installment / EMI / BNPL payments. Default is true.",
-            "default": true,
-            "example": false
+            "description": "Indicates whether the payment method is eligible for installment payments (e.g., EMI, BNPL). Optional.",
+            "example": true,
+            "nullable": true
           }
         }
       },
