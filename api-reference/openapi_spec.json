@@ -17,6 +17,10 @@
     {
       "url": "https://sandbox.hyperswitch.io",
       "description": "Sandbox Environment"
+    },
+    {
+      "url": "http://localhost:8080",
+      "description": "Local Environment"
     }
   ],
   "paths": {
@@ -1759,12 +1763,12 @@
               "examples": {
                 "Disable KV for Merchant": {
                   "value": {
-                    "kv_enabled": "false"
+                    "kv_enabled": false
                   }
                 },
                 "Enable KV for Merchant": {
                   "value": {
-                    "kv_enabled": "true"
+                    "kv_enabled": true
                   }
                 }
               }
