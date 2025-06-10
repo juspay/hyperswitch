@@ -641,7 +641,7 @@
           "Payments"
         ],
         "summary": "Payments - Confirm",
-        "description": "Confirms a payment intent that was previously created with `confirm: false`. This action attempts to authorize the payment with the payment processor.\n\nExpected status transitions after confirmation:\n- `succeeded`: If authorization is successful and `capture_method` is `automatic`.\n- `requires_capture`: If authorization is successful and `capture_method` is `manual`.\n- `requires_action`: If further customer authentication (e.g., 3DS) is needed. The `next_action` field in the response provides details.\n- `failed`: If authorization fails.\n\n",
+        "description": "Confirms a payment intent that was previously created with `confirm: false`. This action attempts to authorize the payment with the payment processor.\n\nExpected status transitions after confirmation:\n- `succeeded`: If authorization is successful and `capture_method` is `automatic`.\n- `requires_capture`: If authorization is successful and `capture_method` is `manual`.\n- `failed`: If authorization fails.",
         "operationId": "Confirm a Payment",
         "parameters": [
           {
@@ -14854,7 +14854,7 @@
       },
       "IntentStatus": {
         "type": "string",
-        "description": "Represents the overall status of a payment intent.\nThe status transitions through various states depending on the payment method, confirmation, capture method, and any subsequent actions (like customer authentication or manual capture).\nPossible values include `requires_payment_method`, `requires_confirmation`, `requires_action`, `processing`, `requires_capture`, `succeeded`, `failed`, `cancelled`.",
+        "description": "Represents the overall status of a payment intent.\nThe status transitions through various states depending on the payment method, confirmation, capture method, and any subsequent actions (like customer authentication or manual capture).",
         "enum": [
           "succeeded",
           "failed",

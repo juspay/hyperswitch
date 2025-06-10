@@ -12364,7 +12364,7 @@
       },
       "IntentStatus": {
         "type": "string",
-        "description": "Represents the overall status of a payment intent.\nThe status transitions through various states depending on the payment method, confirmation, capture method, and any subsequent actions (like customer authentication or manual capture).\nPossible values include `requires_payment_method`, `requires_confirmation`, `requires_action`, `processing`, `requires_capture`, `succeeded`, `failed`, `cancelled`.",
+        "description": "Represents the overall status of a payment intent.\nThe status transitions through various states depending on the payment method, confirmation, capture method, and any subsequent actions (like customer authentication or manual capture).",
         "enum": [
           "succeeded",
           "failed",
