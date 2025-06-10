@@ -138,7 +138,6 @@ pub struct PaymentMethod {
     pub object: RecurlyPaymentObject,
     pub card_type: common_enums::CardNetwork,
     pub first_six: String,
-    pub cc_bin_country: common_enums::CountryAlpha2,
 }
 
 #[derive(Debug, Serialize, Deserialize)]

@@ -459,7 +459,6 @@ pub enum StripebillingPaymentMethod {
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct StripeBillingCardDetails {
     pub network: StripebillingCardNetwork,
-    pub country: common_enums::CountryAlpha2,
     pub funding: StripebillingFundingTypes,
 }
 
@@ -560,6 +559,7 @@ impl
                     card_network: Some(common_enums::CardNetwork::from(
                         charge_details.payment_method_details.card_details.network,
                     )),
+                    // Todo: Fetch Card issuer details. Generally in the other billing connector we are getting card_issuer using the card bin info. But stripe dosent provide any such details. We should find a way for stripe billing case
                     card_isin: None,
                 },
             ),

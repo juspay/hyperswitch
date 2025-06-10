@@ -949,43 +949,46 @@ where
         let payment_intent_feature_metadata = self.payment_intent.get_feature_metadata();
         let revenue_recovery = self.payment_intent.get_revenue_recovery_metadata();
         let payment_attempt_connector = self.payment_attempt.connector.clone();
-        let first_pg_error_code = revenue_recovery.as_ref().and_then(|data| {
-            data.first_payment_attempt_pg_error_code
-                .clone()
-                .or_else(|| {
-                    self.payment_attempt
+
+        let feature_metadata_first_pg_error_code = revenue_recovery
+            .as_ref()
+            .and_then(|data| data.first_payment_attempt_pg_error_code.clone());
+
+        let (first_pg_error_code, first_network_advice_code, first_network_decline_code) =
+            feature_metadata_first_pg_error_code.map_or_else(
+                || {
+                    let first_pg_error_code = self
+                        .payment_attempt
                         .error
                         .as_ref()
-                        .map(|error| error.code.clone())
-                })
-        });
+                        .map(|error| error.code.clone());
+                    let first_network_advice_code = self
+                        .payment_attempt
+                        .error
+                        .as_ref()
+                        .and_then(|error| error.network_advice_code.clone());
+                    let first_network_decline_code = self
+                        .payment_attempt
+                        .error
+                        .as_ref()
+                        .and_then(|error| error.network_decline_code.clone());
+                    (
+                        first_pg_error_code,
+                        first_network_advice_code,
+                        first_network_decline_code,
+                    )
+                },
+                |pg_code| {
+                    let advice_code = revenue_recovery
+                        .as_ref()
+                        .and_then(|data| data.first_payment_attempt_network_advice_code.clone());
+                    let decline_code = revenue_recovery
+                        .as_ref()
+                        .and_then(|data| data.first_payment_attempt_network_decline_code.clone());
+                    (Some(pg_code), advice_code, decline_code)
+                },
+            );
 
-        let (first_network_advice_code, first_network_decline_code) =
-            if first_pg_error_code.is_some() {
-                let advice_code = revenue_recovery.as_ref().and_then(|data| {
-                    data.first_payment_attempt_network_advice_code
-                        .clone()
-                        .or_else(|| {
-                            self.payment_attempt
-                                .error
-                                .as_ref()
-                                .map(|error| error.code.clone())
-                        })
-                });
-                let decline_code = revenue_recovery.as_ref().and_then(|data| {
-                    data.first_payment_attempt_network_decline_code
-                        .clone()
-                        .or_else(|| {
-                            self.payment_attempt
-                                .error
-                                .as_ref()
-                                .map(|error| error.code.clone())
-                        })
-                });
-                (advice_code, decline_code)
-            } else {
-                (None, None)
-            };
         let payment_revenue_recovery_metadata = match payment_attempt_connector {
             Some(connector) => Some(diesel_models::types::PaymentRevenueRecoveryMetadata {
                 // Update retry count by one.

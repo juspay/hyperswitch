@@ -337,7 +337,6 @@ pub struct ChargebeeCardDetails {
     funding_type: ChargebeeFundingType,
     brand: common_enums::CardNetwork,
     iin: String,
-    billing_country: common_enums::CountryAlpha2,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
