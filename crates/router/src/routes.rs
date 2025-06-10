@@ -44,8 +44,6 @@ pub mod poll;
 pub mod profiles;
 #[cfg(feature = "recon")]
 pub mod recon;
-#[cfg(feature = "v2")]
-pub mod recovery_decider;
 pub mod refunds;
 #[cfg(feature = "olap")]
 pub mod routing;
@@ -75,8 +73,6 @@ pub mod process_tracker;
 #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
 pub mod proxy;
 
-#[cfg(feature = "v2")]
-pub use self::app::Decider;
 #[cfg(feature = "dummy_connector")]
 pub use self::app::DummyConnector;
 #[cfg(feature = "v2")]

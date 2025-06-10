@@ -47,45 +47,13 @@ pub enum RecoveryDeciderError {
     ConfigError(String),
 }
 
+#[async_trait::async_trait]
 #[allow(missing_docs)]
-/// Client for interacting with the Recovery Decider gRPC service.
-#[derive(Debug, Clone)]
-pub struct RecoveryDeciderClient {
-    client: DeciderClient<Client>,
-}
-
-impl RecoveryDeciderClient {
+#[allow(clippy::too_many_arguments)]
+pub trait RecoveryDeciderClientInterface: dyn_clone::DynClone + Send + Sync + std::fmt::Debug {
     #[allow(missing_docs)]
-    pub async fn get_recovery_decider_connection(
-        config: RecoveryDeciderClientConfig,
-        hyper_client: Client,
-    ) -> Result<Self, Report<RecoveryDeciderError>> {
-        let host = config.host;
-        let port = config.port;
-
-        if host.is_empty() {
-            return Err(Report::new(RecoveryDeciderError::ConfigError(
-                "Host is not configured for Recovery Decider client".to_string(),
-            )));
-        }
-
-        let uri_string = format!("http://{}:{}", host, port);
-        let uri = uri_string
-            .parse::<tonic::transport::Uri>()
-            .map_err(Report::from)
-            .change_context_lazy(|| {
-                RecoveryDeciderError::ConfigError(format!("Invalid URI: {}", uri_string))
-            })?;
-
-        let service_client = DeciderClient::with_origin(hyper_client, uri);
-
-        Ok(Self {
-            client: service_client,
-        })
-    }
-
-    #[allow(clippy::too_many_arguments, missing_docs)]
-    pub async fn decide_on_retry(
+    #[allow(clippy::too_many_arguments)]
+    async fn decide_on_retry(
         &mut self,
         first_error_message: String,
         billing_state: String,
@@ -94,6 +62,63 @@ impl RecoveryDeciderClient {
         card_issuer: String,
         start_time: Option<prost_types::Timestamp>,
         end_time: Option<prost_types::Timestamp>,
+        retry_count: f64,
+        headers: GrpcHeaders,
+    ) -> RecoveryDeciderResult<DeciderResponseForSerde>;
+}
+
+dyn_clone::clone_trait_object!(RecoveryDeciderClientInterface);
+
+#[allow(missing_docs)]
+/// Configuration for the Recovery Decider gRPC client.
+#[derive(Debug, Default, Clone, serde::Deserialize, serde::Serialize)]
+pub struct RecoveryDeciderClientConfig {
+    pub host: String,
+    pub port: u16,
+}
+
+impl RecoveryDeciderClientConfig {
+    #[allow(missing_docs)]
+pub fn get_recovery_decider_connection(
+    &self,
+    hyper_client: Client,
+) -> Result<DeciderClient<Client>, Report<RecoveryDeciderError>> {
+    let host = &self.host;
+    let port = self.port;
+
+    if host.is_empty() {
+        return Err(Report::new(RecoveryDeciderError::ConfigError(
+            "Host is not configured for Recovery Decider client".to_string(),
+        )));
+    }
+
+    let uri_string = format!("http://{}:{}", host, port);
+    let uri = uri_string
+        .parse::<tonic::transport::Uri>()
+        .map_err(Report::from)
+        .change_context_lazy(|| {
+            RecoveryDeciderError::ConfigError(format!("Invalid URI: {}", uri_string))
+        })?;
+
+    let service_client = DeciderClient::with_origin(hyper_client, uri);
+
+    Ok(service_client)
+}
+}
+
+#[async_trait::async_trait]
+impl RecoveryDeciderClientInterface for DeciderClient<Client> {
+    #[allow(clippy::too_many_arguments, missing_docs)]
+    async fn decide_on_retry(
+        &mut self,
+        first_error_message: String,
+        billing_state: String,
+        card_funding: String,
+        card_network: String,
+        card_issuer: String,
+        start_time: Option<prost_types::Timestamp>,
+        end_time: Option<prost_types::Timestamp>,
+        retry_count: f64,
         headers: GrpcHeaders,
     ) -> RecoveryDeciderResult<DeciderResponseForSerde> {
         let request_data = DeciderRequest {
@@ -104,13 +129,13 @@ impl RecoveryDeciderClient {
             card_issuer,
             start_time,
             end_time,
+            retry_count,
         };
         let request = grpc_client::create_grpc_request(request_data, headers);
 
         logger::debug!(decider_request =?request);
 
         let grpc_response = self
-            .client
             .decide(request)
             .await
             .map_err(|status| {
@@ -128,23 +153,6 @@ impl RecoveryDeciderClient {
         };
 
         Ok(response_for_serde)
-    }
-}
-
-#[allow(missing_docs)]
-/// Configuration for the Recovery Decider gRPC client.
-#[derive(Debug, Clone, serde::Deserialize, serde::Serialize)]
-pub struct RecoveryDeciderClientConfig {
-    pub host: String,
-    pub port: u16,
-}
-
-impl Default for RecoveryDeciderClientConfig {
-    fn default() -> Self {
-        Self {
-            host: "localhost".to_string(), // Default host for recovery Decider
-            port: 50052,                   // Default port for recovery Decider
-        }
     }
 }
 

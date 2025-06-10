@@ -36,20 +36,92 @@ pub enum TrainerError {
     ConfigError(String),
 }
 
+#[async_trait::async_trait]
 #[allow(missing_docs)]
-#[derive(Debug, Clone)]
-pub struct TrainerClient {
-    client: TrainerServiceClient<Client>,
+pub trait TrainerClientInterface: dyn_clone::DynClone + Send + Sync + std::fmt::Debug {
+    async fn get_training(
+        &mut self,
+        model_version_tag: String,
+        enable_incremental_learning: bool,
+        headers: GrpcHeaders,
+    ) -> TrainerResult<TriggerTrainingResponse>;
+
+    async fn get_the_training_job_status(
+        &mut self,
+        job_id: String,
+        headers: GrpcHeaders,
+    ) -> TrainerResult<GetTrainingJobStatusResponse>;
 }
 
-impl TrainerClient {
+dyn_clone::clone_trait_object!(TrainerClientInterface);
+
+#[async_trait::async_trait]
+impl TrainerClientInterface for TrainerServiceClient<Client> {
+    async fn get_training(
+        &mut self,
+        model_version_tag: String,
+        enable_incremental_learning: bool,
+        headers: GrpcHeaders,
+    ) -> TrainerResult<TriggerTrainingResponse> {
+        let request_data = TriggerTrainingRequest {
+            model_version_tag,
+            enable_incremental_learning,
+        };
+        let request = grpc_client::create_grpc_request(request_data, headers);
+
+        logger::debug!(trainer_trigger_training_request =?request);
+
+        let response = self
+            .trigger_training(request)
+            .await
+            .map_err(|status| {
+                logger::error!(grpc_error =?status, "Trainer service TriggerTraining call failed");
+                TrainerError::ServiceError(status.message().to_string())
+            })?
+            .into_inner();
+
+        Ok(response)
+    }
+
+    async fn get_the_training_job_status(
+        &mut self,
+        job_id: String,
+        headers: GrpcHeaders,
+    ) -> TrainerResult<GetTrainingJobStatusResponse> {
+        let request_data = GetTrainingJobStatusRequest { job_id };
+        let request = grpc_client::create_grpc_request(request_data, headers);
+
+        logger::debug!(trainer_get_status_request =?request);
+
+        let response = self
+            .get_training_job_status(request)
+            .await
+            .map_err(|status| {
+                logger::error!(grpc_error =?status, "Trainer service GetTrainingJobStatus call failed");
+                TrainerError::ServiceError(status.message().to_string())
+            })?
+            .into_inner();
+
+        logger::debug!(trainer_get_status_response =?response);
+        Ok(response)
+    }
+}
+
+#[allow(missing_docs)]
+#[derive(Debug, Default, Clone, serde::Deserialize, serde::Serialize)]
+pub struct TrainerClientConfig {
+    pub host: String,
+    pub port: u16,
+}
+
+impl TrainerClientConfig {
     #[allow(missing_docs)]
-    pub async fn get_trainer_connection(
-        config: TrainerClientConfig,
+    pub fn get_trainer_service_client(
+        &self,
         hyper_client: Client,
-    ) -> Result<Self, Report<TrainerError>> {
-        let host = config.host;
-        let port = config.port;
+    ) -> Result<TrainerServiceClient<Client>, Report<TrainerError>> {
+        let host = &self.host;
+        let port = self.port;
 
         if host.is_empty() {
             return Err(Report::new(TrainerError::ConfigError(
@@ -66,79 +138,7 @@ impl TrainerClient {
             })?;
 
         let service_client = TrainerServiceClient::with_origin(hyper_client, uri);
-
-        Ok(Self {
-            client: service_client,
-        })
-    }
-
-    #[allow(missing_docs)]
-    pub async fn get_trigger_training(
-        &mut self,
-        model_version_tag: String,
-        enable_incremental_learning: bool,
-        headers: GrpcHeaders,
-    ) -> TrainerResult<TriggerTrainingResponse> {
-        let request_data = TriggerTrainingRequest {
-            model_version_tag,
-            enable_incremental_learning,
-        };
-        let request = grpc_client::create_grpc_request(request_data, headers);
-
-        logger::debug!(trainer_trigger_training_request =?request);
-
-        let response = self
-            .client
-            .trigger_training(request)
-            .await
-            .map_err(|status| {
-                logger::error!(grpc_error =?status, "Trainer service TriggerTraining call failed");
-                TrainerError::ServiceError(status.message().to_string())
-            })?
-            .into_inner();
-
-        Ok(response)
-    }
-
-    #[allow(missing_docs)]
-    pub async fn get_the_training_job_status(
-        &mut self,
-        job_id: String,
-        headers: GrpcHeaders,
-    ) -> TrainerResult<GetTrainingJobStatusResponse> {
-        let request_data = GetTrainingJobStatusRequest { job_id };
-        let request = grpc_client::create_grpc_request(request_data, headers);
-
-        logger::debug!(trainer_get_status_request =?request);
-
-        let response = self
-            .client
-            .get_training_job_status(request)
-            .await
-            .map_err(|status| {
-                logger::error!(grpc_error =?status, "Trainer service GetTrainingJobStatus call failed");
-                TrainerError::ServiceError(status.message().to_string())
-            })?
-            .into_inner();
-
-        logger::debug!(trainer_get_status_response =?response);
-        Ok(response)
-    }
-}
-
-#[allow(missing_docs)]
-#[derive(Debug, Clone, serde::Deserialize, serde::Serialize)]
-pub struct TrainerClientConfig {
-    pub host: String,
-    pub port: u16,
-}
-
-impl Default for TrainerClientConfig {
-    fn default() -> Self {
-        Self {
-            host: "localhost".to_string(), // Default host for trainer service
-            port: 50051, // Default port for trainer service (assuming different from recovery)
-        }
+        Ok(service_client)
     }
 }
 

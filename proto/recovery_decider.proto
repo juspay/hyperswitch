@@ -16,6 +16,7 @@ message DeciderRequest {
   string card_issuer = 5;
   google.protobuf.Timestamp start_time = 6;
   google.protobuf.Timestamp end_time = 7;
+  double retry_count = 8;
 }
 
 message DeciderResponse {

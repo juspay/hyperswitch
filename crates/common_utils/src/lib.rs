@@ -42,6 +42,7 @@ pub mod date_time {
     #[cfg(feature = "async_ext")]
     use std::time::Instant;
     use std::{marker::PhantomData, num::NonZeroU8};
+    use prost_types::Timestamp;
 
     use masking::{Deserialize, Serialize};
     use time::{
@@ -202,6 +203,28 @@ pub mod date_time {
             let output = format!("{year}{month:02}{day:02}{hour:02}{minute:02}{second:02}");
             f.write_str(&output)
         }
+    }
+
+    /// Converts a `time::PrimitiveDateTime` to a `prost_types::Timestamp`.
+    /// Assumes UTC for the conversion.
+    pub fn convert_to_prost_timestamp(dt: PrimitiveDateTime) -> Timestamp {
+        let odt = dt.assume_utc();
+        Timestamp {
+            seconds: odt.unix_timestamp(),
+            // This conversion is safe as nanoseconds (0..999_999_999) always fit within an i32.
+            #[allow(clippy::as_conversions)]
+            nanos: odt.nanosecond() as i32,
+        }
+    }
+
+    /// Converts a `prost_types::Timestamp` to an `Option<time::PrimitiveDateTime>`.
+    /// Returns `None` if the timestamp is out of range for `OffsetDateTime`.
+    pub fn convert_from_prost_timestamp(ts: &Timestamp) -> Option<PrimitiveDateTime> {
+        OffsetDateTime::from_unix_timestamp_nanos(
+            i128::from(ts.seconds) * 1_000_000_000 + i128::from(ts.nanos)
+        )
+        .ok()
+        .map(|odt| PrimitiveDateTime::new(odt.date(), odt.time()))
     }
 }
 

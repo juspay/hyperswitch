@@ -247,11 +247,6 @@ pub fn mk_app(
         server_app = server_app.service(routes::Trainer::server(state.clone()));
     }
 
-    #[cfg(feature = "v2")]
-    {
-        server_app = server_app.service(routes::Decider::server(state.clone()));
-    }
-
     server_app = server_app.service(routes::Cache::server(state.clone()));
     server_app = server_app.service(routes::Health::server(state.clone()));
 

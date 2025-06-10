@@ -8,9 +8,19 @@ use common_utils::{
 #[cfg(feature = "v2")]
 use error_stack::ResultExt;
 #[cfg(feature = "v2")]
-use hyperswitch_domain_models::payments::PaymentIntentData;
+use hyperswitch_domain_models::{
+    payment_method_data::PaymentMethodData,
+    payments::{payment_attempt::PaymentAttempt, PaymentConfirmData, PaymentIntent, PaymentIntentData},
+    router_flow_types::Authorize,
+};
 #[cfg(feature = "v2")]
 use router_env::logger;
+#[cfg(feature = "v2")]
+use masking::PeekInterface;
+#[cfg(feature = "v2")]
+use external_services::grpc_client::{self as external_grpc_client, GrpcHeaders};
+#[cfg(feature = "v2")]
+use common_utils::date_time;
 use scheduler::{consumer::workflows::ProcessTrackerWorkflow, errors};
 #[cfg(feature = "v2")]
 use scheduler::{types::process_data, utils as scheduler_utils};
@@ -85,13 +95,13 @@ impl ProcessTrackerWorkflow<SessionState> for ExecutePcrWorkflow {
 
         match process.name.as_deref() {
             Some("EXECUTE_WORKFLOW") => {
-                pcr::perform_execute_payment(
+                Box::pin(pcr::perform_execute_payment(
                     state,
                     &process,
                     &tracking_data,
                     &revenue_recovery_payment_data,
                     &payment_data.payment_intent,
-                )
+                ))
                 .await
             }
             Some("PSYNC_WORKFLOW") => {
@@ -199,4 +209,174 @@ pub(crate) async fn get_schedule_time_to_retry_mit_payments(
         scheduler_utils::get_pcr_payments_retry_schedule_time(mapping, merchant_id, retry_count);
 
     scheduler_utils::get_time_from_delta(time_delta)
+}
+
+#[cfg(feature = "v2")]
+pub(crate) async fn get_schedule_time_for_smart_retry(
+    state: &SessionState,
+    payment_attempt: &PaymentAttempt,
+    payment_intent: &PaymentIntent,
+    retry_count: i32,
+) -> Option<time::PrimitiveDateTime> {
+    let mut first_error_message = payment_attempt
+        .error
+        .as_ref()
+        .map_or(String::new(), |error| error.message.clone());
+
+    let mut billing_state = payment_intent
+        .billing_address
+        .as_ref()
+        .and_then(|addr_enc| addr_enc.get_inner().address.as_ref())
+        .and_then(|details| details.state.as_ref())
+        .map(|state_from_address| state_from_address.peek().clone())
+        .unwrap_or_default();
+
+    let mut card_funding_str = String::new();
+    let mut card_network_str = String::new();
+    let mut card_issuer_str = String::new();
+
+    // New Log 1: Check if payment_method_data itself is None
+    if payment_attempt.payment_method_data.is_none() {
+        logger::debug!(
+            payment_intent_id = ?payment_intent.get_id(),
+            attempt_id = ?payment_attempt.get_id(),
+            message = "payment_attempt.payment_method_data is None"
+        );
+    }
+
+    if let Some(pm_data_value) = payment_attempt.payment_method_data.as_ref() {
+        logger::debug!(
+            payment_intent_id = ?payment_intent.get_id(),
+            attempt_id = ?payment_attempt.get_id(),
+            pm_data_value_peek = ?pm_data_value.peek(), 
+            message = "Attempting to parse payment_method_data"
+        );
+        match pm_data_value
+            .peek()
+            .clone()
+            .parse_value::<PaymentMethodData>("PaymentMethodData")
+        {
+            Ok(PaymentMethodData::Card(card_details)) => {
+                logger::debug!(
+                    payment_intent_id = ?payment_intent.get_id(),
+                    attempt_id = ?payment_attempt.get_id(),
+                    card_details_type = ?card_details.card_type,
+                    card_details_network = ?card_details.card_network,
+                    card_details_issuer = ?card_details.card_issuer,
+                    message = "Raw card details from PaymentMethodData::Card"
+                );
+                card_funding_str = card_details.card_type.clone().unwrap_or_default();
+                card_network_str = card_details
+                    .card_network
+                    .map_or(String::new(), |cn| cn.to_string());
+                card_issuer_str =
+                    card_details.card_issuer.clone().unwrap_or_default();
+            }
+            Ok(_) => {
+                logger::warn!("Payment method data is not for a card for recovery decider.")
+            }
+            Err(e) => {
+                logger::error!("Failed to parse payment_method_data for recovery decider: {:?}",e)
+            }
+        }
+    }
+
+    let start_time_primitive = payment_intent.created_at;
+    // 1 hr after the actual start time
+    let modified_start_time_primitive = start_time_primitive.saturating_add(time::Duration::hours(1));
+    let start_time_proto =
+        date_time::convert_to_prost_timestamp(modified_start_time_primitive);
+    
+    // Calculate end_time as start_time + 30 days
+    let end_time_primitive = start_time_primitive.saturating_add(time::Duration::days(30));
+    let end_time_proto = 
+        date_time::convert_to_prost_timestamp(end_time_primitive);
+
+    if first_error_message.is_empty() {
+        logger::debug!(payment_intent_id = ?payment_intent.get_id(), attempt_id = ?payment_attempt.get_id(), "First error message is empty, using default 'card_declined'");
+        first_error_message = "card_declined".to_string();
+    }
+    if billing_state.is_empty() {
+        logger::debug!(payment_intent_id = ?payment_intent.get_id(), attempt_id = ?payment_attempt.get_id(), "Billing state is empty, using default 'CA'");
+        billing_state = "CA".to_string();
+    }
+    if card_funding_str.is_empty() {
+        logger::debug!(payment_intent_id = ?payment_intent.get_id(), attempt_id = ?payment_attempt.get_id(), "Card funding is empty, using default 'credit'");
+        card_funding_str = "credit".to_string();
+    }
+    if card_network_str.is_empty() {
+        logger::debug!(payment_intent_id = ?payment_intent.get_id(), attempt_id = ?payment_attempt.get_id(), "Card network is empty, using default 'Visa'");
+        card_network_str = "Visa".to_string();
+    }
+    if card_issuer_str.is_empty() {
+        logger::debug!(payment_intent_id = ?payment_intent.get_id(), attempt_id = ?payment_attempt.get_id(), "Card issuer is empty, using default 'AMEX'");
+        card_issuer_str = "AMEX".to_string();
+    }
+
+    logger::debug!(
+        payment_intent_id = ?payment_intent.get_id(),
+        attempt_id = ?payment_attempt.get_id(),
+        message = "Card details for Recovery DeciderRequest",
+        first_error_message = %first_error_message,
+        billing_state = %billing_state,
+        card_funding = %card_funding_str,
+        card_network = %card_network_str,
+        card_issuer = %card_issuer_str
+    );
+
+    let decider_request = external_grpc_client::recovery_decider_client::DeciderRequest {
+        first_error_message,
+        billing_state,
+        card_funding: card_funding_str,
+        card_network: card_network_str,
+        card_issuer: card_issuer_str,
+        start_time: Some(start_time_proto),
+        end_time: Some(end_time_proto),
+        retry_count: retry_count.into()
+    };
+
+    let headers = state.get_grpc_headers();
+
+    // Clone the gRPC client into a mutable local variable, this is necessary because `decide_on_retry` requires `&mut self`,
+    // and we need an owned, mutable instance to call it.
+    let mut client = state.grpc_client.recovery_decider_client.clone();
+
+    match client
+        .decide_on_retry(
+            decider_request.first_error_message,
+            decider_request.billing_state,
+            decider_request.card_funding,
+            decider_request.card_network,
+            decider_request.card_issuer,
+            decider_request.start_time,
+            decider_request.end_time,
+            decider_request.retry_count,
+            headers,
+        )
+        .await
+    {
+        Ok(response_for_serde) => {
+            response_for_serde
+                .retry_flag
+                .then_some(())
+                .and(response_for_serde.retry_time)
+                .and_then(|serializable_timestamp| {
+                    let prost_ts = serializable_timestamp.into();
+                    
+                    date_time::convert_from_prost_timestamp(&prost_ts)
+                        .or_else(|| {
+                            logger::error!(
+                                "Failed to convert prost timestamp for recovery decider. Timestamp: {:?}",
+                                prost_ts
+                            );
+                            None
+                        })
+                })
+        }
+        
+        Err(e) => {
+            logger::error!("Recovery decider gRPC call failed: {:?}", e);
+            None
+        }
+    }
 }

@@ -4,10 +4,20 @@ use common_enums::enums;
 use common_utils::id_type;
 use hyperswitch_domain_models::{
     business_profile, merchant_account, merchant_connector_account, merchant_key_store,
+    payment_method_data::{Card, PaymentMethodData},
+    payments::{payment_attempt::PaymentAttempt, PaymentIntent},
 };
+use common_utils::ext_traits::ValueExt;
+use masking::PeekInterface;
+use prost_types::Timestamp;
 use router_env::logger;
 
-use crate::{db::StorageInterface, workflows::revenue_recovery};
+use external_services::grpc_client::{self as external_grpc_client, GrpcHeaders};
+use crate::{
+    db::StorageInterface,
+    routes::SessionState,
+    workflows::revenue_recovery,
+};
 #[derive(serde::Serialize, serde::Deserialize, Debug)]
 pub struct RevenueRecoveryWorkflowTrackingData {
     pub merchant_id: id_type::MerchantId,
@@ -29,9 +39,12 @@ pub struct RevenueRecoveryPaymentData {
 impl RevenueRecoveryPaymentData {
     pub async fn get_schedule_time_based_on_retry_type(
         &self,
+        state: &SessionState,
         db: &dyn StorageInterface,
         merchant_id: &id_type::MerchantId,
         retry_count: i32,
+        payment_attempt: &PaymentAttempt,
+        payment_intent: &PaymentIntent,
     ) -> Option<time::PrimitiveDateTime> {
         match self.retry_algorithm {
             enums::RevenueRecoveryAlgorithmType::Monitoring => {
@@ -47,12 +60,18 @@ impl RevenueRecoveryPaymentData {
                 .await
             }
             enums::RevenueRecoveryAlgorithmType::Smart => {
-                // TODO: Integrate the smart retry call to return back a schedule time
-                None
+                revenue_recovery::get_schedule_time_for_smart_retry(
+                    state,
+                    payment_attempt,
+                    payment_intent,
+                    retry_count,
+                )
+                .await
             }
         }
     }
 }
+
 #[derive(Debug, serde::Deserialize, Clone, Default)]
 pub struct RevenueRecoverySettings {
     pub monitoring_threshold_in_seconds: i64,

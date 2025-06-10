@@ -26,14 +26,16 @@ use hyper::body::Bytes;
 #[cfg(any(feature = "dynamic_routing", feature = "v2"))]
 use hyper_util::client::legacy::connect::HttpConnector;
 #[cfg(feature = "v2")]
-use recovery_decider_client::{RecoveryDeciderClient, RecoveryDeciderClientConfig};
+use recovery_decider_client::{
+    RecoveryDeciderClientConfig, RecoveryDeciderClientInterface,
+};
 #[cfg(any(feature = "dynamic_routing", feature = "v2"))]
 use router_env::logger;
 use serde;
 #[cfg(any(feature = "dynamic_routing", feature = "v2"))]
 use tonic::Status;
 #[cfg(feature = "v2")]
-use trainer_client::{TrainerClient, TrainerClientConfig};
+use trainer_client::{TrainerClientConfig, TrainerClientInterface};
 
 #[cfg(any(feature = "dynamic_routing", feature = "v2"))]
 /// Hyper based Client type for maintaining connection pool for all gRPC services
@@ -50,10 +52,10 @@ pub struct GrpcClients {
     pub health_client: HealthCheckClient,
     #[cfg(feature = "v2")]
     #[allow(missing_docs)]
-    pub recovery_decider_client: RecoveryDeciderClient,
+    pub recovery_decider_client: Box<dyn RecoveryDeciderClientInterface>,
     #[cfg(feature = "v2")]
     #[allow(missing_docs)]
-    pub trainer_client: TrainerClient,
+    pub trainer_client: Box<dyn TrainerClientInterface>,
 }
 
 /// Type that contains the configs required to construct a  gRPC client with its respective services.
@@ -63,11 +65,9 @@ pub struct GrpcClientSettings {
     /// Configs for Dynamic Routing Client
     pub dynamic_routing_client: DynamicRoutingClientConfig,
     #[cfg(feature = "v2")]
-    #[serde(default)]
     /// Configs for Recovery Decider Client
     pub recovery_decider_client: RecoveryDeciderClientConfig,
     #[cfg(feature = "v2")]
-    #[serde(default)]
     /// Configs for Trainer Client
     pub trainer_client: TrainerClientConfig,
 }
@@ -100,21 +100,28 @@ impl GrpcClientSettings {
             .expect("Failed to build gRPC connections");
 
         #[cfg(feature = "v2")]
-        let recovery_decider_client = {
-            let config = self.recovery_decider_client.clone();
-
-            RecoveryDeciderClient::get_recovery_decider_connection(config, client.clone())
-                .await
-                .expect("Failed to establish a connection with the Recovery Decider Server")
-        };
+        let recovery_decider_client = self
+                .recovery_decider_client
+                .get_recovery_decider_connection(client.clone())
+                .map(|client| {
+                    #[allow(clippy::as_conversions)]
+                    {
+                        Box::new(client) as Box<dyn RecoveryDeciderClientInterface>
+                    }
+                })
+                .expect("Failed to establish a connection with the Recovery Decider Server");
 
         #[cfg(feature = "v2")]
-        let trainer_client = {
-            let config = self.trainer_client.clone();
-            TrainerClient::get_trainer_connection(config, client.clone())
-                .await
-                .expect("Failed to establish a connection with the Trainer Server")
-        };
+        let trainer_client = self
+            .trainer_client
+            .get_trainer_service_client(client.clone())
+            .map(|client| {
+                #[allow(clippy::as_conversions)]
+                {
+                    Box::new(client) as Box<dyn TrainerClientInterface>
+                }
+            })
+            .expect("Failed to establish a connection with the Trainer Server");
 
         Arc::new(GrpcClients {
             #[cfg(feature = "dynamic_routing")]
@@ -182,7 +189,7 @@ pub(crate) fn create_grpc_request<T: Debug>(message: T, headers: GrpcHeaders) ->
     let mut request = tonic::Request::new(message);
     request.add_headers_to_grpc_request(headers);
 
-    logger::info!(dynamic_routing_request=?request);
+    logger::info!(request=?request);
 
     request
 }

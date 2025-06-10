@@ -38,7 +38,7 @@ pub async fn trigger_training_job(
             logger::debug!(%model_version_tag, %enable_incremental_learning, "Calling trainer_client.trigger_training");
 
             let response = trainer_client
-                .get_trigger_training(
+                .get_training(
                     model_version_tag,
                     enable_incremental_learning,
                     grpc_headers,
@@ -61,7 +61,7 @@ pub async fn trigger_training_job(
 
 #[cfg(feature = "v2")]
 #[instrument(skip_all, fields(flow = ?Flow::GetTrainingJobStatus))]
-pub async fn get_training_job_status(
+pub async fn get_the_training_job_status(
     state: web::Data<crate::AppState>,
     http_req: actix_web::HttpRequest,
     path: web::Path<String>,
