@@ -174,10 +174,8 @@ pub struct PaymentRevenueRecoveryMetadata {
     pub connector: common_enums::connector_enums::Connector,
     /// Time at which next invoice will be created
     pub invoice_next_billing_time: Option<time::PrimitiveDateTime>,
-    /// Card Network
-    pub card_network: Option<common_enums::enums::CardNetwork>,
-    /// Card Issuer
-    pub card_issuer: Option<String>,
+    /// Extra Payment Method Details that are needed to be stored
+    pub billing_connector_payment_method_details: BillingConnectorPaymentMethodDetails,
     /// First Payment Attempt Payment Gateway Error Code
     pub first_payment_attempt_pg_error_code: Option<String>,
     /// First Payment Attempt Network Error Code
@@ -193,4 +191,19 @@ pub struct BillingConnectorPaymentDetails {
     pub payment_processor_token: String,
     /// Billing Connector's Customer Id
     pub connector_customer_id: String,
+}
+
+#[cfg(feature = "v2")]
+#[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]
+pub enum BillingConnectorPaymentMethodDetails {
+    Card(BillingConnectorAdditionalCardInfo)
+}
+
+#[cfg(feature = "v2")]
+#[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]
+pub struct BillingConnectorAdditionalCardInfo {
+    /// Card Network
+    pub card_network: Option<common_enums::enums::CardNetwork>,
+    /// Card Issuer
+    pub card_issuer: Option<String>
 }

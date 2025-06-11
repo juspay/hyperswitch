@@ -4881,6 +4881,26 @@ impl ForeignFrom<&diesel_models::types::BillingConnectorPaymentDetails>
 }
 
 #[cfg(feature = "v2")]
+impl ForeignFrom<&diesel_models::types::BillingConnectorPaymentMethodDetails>
+    for api_models::payments::BillingConnectorPaymentMethodDetails
+{
+    fn foreign_from(
+        metadata: &diesel_models::types::BillingConnectorPaymentMethodDetails,
+    ) -> Self {
+        match metadata {
+            diesel_models::types::BillingConnectorPaymentMethodDetails::Card(card_details) => {
+                Self::Card(
+                    api_models::payments::BillingConnectorAdditionalCardInfo {
+                        card_issuer: card_details.card_issuer.clone(),
+                        card_network: card_details.card_network.clone(),
+                    },
+                )
+            }
+        }
+    }
+}
+
+#[cfg(feature = "v2")]
 impl ForeignFrom<&hyperswitch_domain_models::payments::payment_attempt::ErrorDetails>
     for api_models::payments::ErrorDetails
 {
@@ -4945,8 +4965,10 @@ impl ForeignFrom<&diesel_models::types::FeatureMetadata> for api_models::payment
                         ),
                     invoice_next_billing_time: payment_revenue_recovery_metadata
                         .invoice_next_billing_time,
-                    card_issuer: payment_revenue_recovery_metadata.card_issuer.clone(),
-                    card_network: payment_revenue_recovery_metadata.card_network.clone(),
+                    billing_connector_payment_method_details: api_models::payments::BillingConnectorPaymentMethodDetails::foreign_from(
+                        &payment_revenue_recovery_metadata
+                            .billing_connector_payment_method_details,
+                    ),
                     first_payment_attempt_network_advice_code: payment_revenue_recovery_metadata
                         .first_payment_attempt_network_advice_code
                         .clone(),

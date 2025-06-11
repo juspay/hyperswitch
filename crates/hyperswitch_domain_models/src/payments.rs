@@ -1007,6 +1007,13 @@ where
                     (Some(pg_code), advice_code, decline_code)
                 },
             );
+        
+        let billing_connector_payment_method_details = diesel_models::types::BillingConnectorPaymentMethodDetails::Card(
+            diesel_models::types::BillingConnectorAdditionalCardInfo {
+                card_network: self.revenue_recovery_data.card_network.clone(),
+                card_issuer: self.revenue_recovery_data.card_issuer.clone(),
+            }
+        );
 
         let payment_revenue_recovery_metadata = match payment_attempt_connector {
             Some(connector) => Some(diesel_models::types::PaymentRevenueRecoveryMetadata {
@@ -1042,8 +1049,7 @@ where
                     errors::api_error_response::ApiErrorResponse::InternalServerError
                 })?,
                 invoice_next_billing_time: self.revenue_recovery_data.invoice_next_billing_time,
-                card_network: self.revenue_recovery_data.card_network.clone(),
-                card_issuer: self.revenue_recovery_data.card_issuer.clone(),
+                billing_connector_payment_method_details,
                 first_payment_attempt_network_advice_code: first_network_advice_code,
                 first_payment_attempt_network_decline_code: first_network_decline_code,
                 first_payment_attempt_pg_error_code: first_pg_error_code,

@@ -8678,14 +8678,11 @@ pub struct PaymentRevenueRecoveryMetadata {
     /// The name of the payment connector through which the payment attempt was made.
     #[schema(value_type = Connector, example = "stripe")]
     pub connector: common_enums::connector_enums::Connector,
+    #[schema(value_type = BillingConnectorPaymentMethodDetails)]
+    /// Extra Payment Method Details that are needed to be stored
+    pub billing_connector_payment_method_details: BillingConnectorPaymentMethodDetails,
     /// Invoice Next billing time
     pub invoice_next_billing_time: Option<PrimitiveDateTime>,
-    #[schema(value_type = CardNetwork, example = "Visa")]
-    /// Card Network
-    pub card_network: Option<common_enums::CardNetwork>,
-    /// Card Issuer
-    #[schema(value_type = Option<String>, example = "JP MORGAN CHASE")]
-    pub card_issuer: Option<String>,
     /// First Payment Attempt Payment Gateway Error Code
     #[schema(value_type = Option<String>, example = "card_declined")]
     pub first_payment_attempt_pg_error_code: Option<String>,
@@ -8696,6 +8693,26 @@ pub struct PaymentRevenueRecoveryMetadata {
     #[schema(value_type = Option<String>, example = "02")]
     pub first_payment_attempt_network_advice_code: Option<String>,
 }
+
+#[cfg(feature = "v2")]
+#[derive(Debug, Clone, PartialEq, Deserialize, Serialize, ToSchema)]
+pub enum BillingConnectorPaymentMethodDetails {
+    Card(BillingConnectorAdditionalCardInfo)
+}
+
+#[cfg(feature = "v2")]
+#[derive(Debug, Clone, PartialEq, Deserialize, Serialize, ToSchema)]
+pub struct BillingConnectorAdditionalCardInfo {
+    #[schema(value_type = CardNetwork, example = "Visa")]
+    /// Card Network
+    pub card_network: Option<common_enums::enums::CardNetwork>,
+    #[schema(value_type = Option<String>, example = "JP MORGAN CHASE")]
+    /// Card Issuer
+    pub card_issuer: Option<String>
+}
+
+
+
 #[cfg(feature = "v2")]
 impl PaymentRevenueRecoveryMetadata {
     pub fn set_payment_transmission_field_for_api_request(
