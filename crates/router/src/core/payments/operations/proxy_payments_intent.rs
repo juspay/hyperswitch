@@ -45,7 +45,8 @@ impl ValidateStatusForOperation for PaymentProxyIntent {
             //Failed state is included here so that in PCR, retries can be done for failed payments, otherwise for a failed attempt it was asking for new payment_intent
             common_enums::IntentStatus::RequiresPaymentMethod
             | common_enums::IntentStatus::Failed => Ok(()),
-            common_enums::IntentStatus::Succeeded
+            common_enums::IntentStatus::Conflicted
+            | common_enums::IntentStatus::Succeeded
             | common_enums::IntentStatus::Cancelled
             | common_enums::IntentStatus::RequiresCustomerAction
             | common_enums::IntentStatus::RequiresMerchantAction
@@ -260,6 +261,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentConfirmData<F>, ProxyPaymentsR
             payment_method_data: Some(PaymentMethodData::MandatePayment),
             payment_address,
             mandate_data: Some(mandate_data_input),
+            payment_method: None,
         };
 
         let get_trackers_response = operations::GetTrackerResponse { payment_data };
