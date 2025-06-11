@@ -26,7 +26,7 @@
           "Payments"
         ],
         "summary": "Payments - Create",
-        "description": "**Creates a payment object when amount and currency are passed.**\n\nThis API is also used to create a mandate by passing the `mandate_object`.\n\nDepending on the user journey you wish to achieve, you may opt to complete all the steps in a single request **by attaching a payment method, setting `confirm=true` and `capture_method = automatic`** in the *Payments/Create API* request.\n\nOtherwise, To completely process a payment you will have to **create a payment, attach a payment method, confirm and capture funds**. For that you could use the following sequence of API requests -\n\n1. Payments - Create\n\n2. Payments - Update\n\n3. Payments - Confirm\n\n4. Payments - Capture.\n\nYou will require the 'API - Key' from the Hyperswitch dashboard to make the first call, and use the 'client secret' returned in this API along with your 'publishable key' to make subsequent API calls from your client.\n\nThis page lists the various combinations in which the Payments - Create API can be used and the details about the various fields in the requests and responses.",
+        "description": "Creates a payment resource, which represents a customer's intent to pay.\nThis endpoint is the starting point for various payment flows:\n",
         "operationId": "Create a Payment",
         "requestBody": {
           "content": {
@@ -35,79 +35,13 @@
                 "$ref": "#/components/schemas/PaymentsCreateRequest"
               },
               "examples": {
-                "Create a 3DS payment": {
+                "1. Create a payment with minimal fields": {
                   "value": {
                     "amount": 6540,
-                    "authentication_type": "three_ds",
                     "currency": "USD"
                   }
                 },
-                "Create a manual capture payment": {
-                  "value": {
-                    "amount": 6540,
-                    "billing": {
-                      "address": {
-                        "city": "San Fransico",
-                        "country": "US",
-                        "first_name": "joseph",
-                        "last_name": "Doe",
-                        "line1": "1467",
-                        "line2": "Harrison Street",
-                        "line3": "Harrison Street",
-                        "state": "California",
-                        "zip": "94122"
-                      },
-                      "phone": {
-                        "country_code": "+91",
-                        "number": "9123456789"
-                      }
-                    },
-                    "currency": "USD",
-                    "customer": {
-                      "id": "cus_abcdefgh"
-                    }
-                  }
-                },
-                "Create a payment and save the card": {
-                  "value": {
-                    "amount": 6540,
-                    "authentication_type": "no_three_ds",
-                    "confirm": true,
-                    "currency": "USD",
-                    "customer_acceptance": {
-                      "acceptance_type": "online",
-                      "accepted_at": "1963-05-03T04:07:52.723Z",
-                      "online": {
-                        "ip_address": "127.0.0.1",
-                        "user_agent": "amet irure esse"
-                      }
-                    },
-                    "customer_id": "StripeCustomer123",
-                    "payment_method": "card",
-                    "payment_method_data": {
-                      "card": {
-                        "card_cvc": "123",
-                        "card_exp_month": "10",
-                        "card_exp_year": "25",
-                        "card_holder_name": "joseph Doe",
-                        "card_number": "4242424242424242"
-                      }
-                    },
-                    "setup_future_usage": "off_session"
-                  }
-                },
-                "Create a payment using an already saved card's token": {
-                  "value": {
-                    "amount": 6540,
-                    "card_cvc": "123",
-                    "client_secret": "{{client_secret}}",
-                    "confirm": true,
-                    "currency": "USD",
-                    "payment_method": "card",
-                    "payment_token": "{{payment_token}}"
-                  }
-                },
-                "Create a payment with customer details and metadata": {
+                "2. Create a payment with customer details and metadata": {
                   "value": {
                     "amount": 6540,
                     "currency": "USD",
@@ -127,24 +61,21 @@
                     "statement_descriptor_suffix": "JS"
                   }
                 },
-                "Create a payment with minimal fields": {
+                "3. Create a 3DS payment": {
                   "value": {
                     "amount": 6540,
+                    "authentication_type": "three_ds",
                     "currency": "USD"
                   }
                 },
-                "Create a recurring payment with mandate_id": {
+                "4. Create a manual capture payment (basic)": {
                   "value": {
                     "amount": 6540,
-                    "authentication_type": "no_three_ds",
-                    "confirm": true,
-                    "currency": "USD",
-                    "customer_id": "StripeCustomer",
-                    "mandate_id": "{{mandate_id}}",
-                    "off_session": true
+                    "capture_method": "manual",
+                    "currency": "USD"
                   }
                 },
-                "Create a setup mandate payment": {
+                "5. Create a setup mandate payment": {
                   "value": {
                     "amount": 6540,
                     "authentication_type": "no_three_ds",
@@ -187,6 +118,82 @@
                     },
                     "setup_future_usage": "off_session"
                   }
+                },
+                "6. Create a recurring payment with mandate_id": {
+                  "value": {
+                    "amount": 6540,
+                    "authentication_type": "no_three_ds",
+                    "confirm": true,
+                    "currency": "USD",
+                    "customer_id": "StripeCustomer",
+                    "mandate_id": "{{mandate_id}}",
+                    "off_session": true
+                  }
+                },
+                "7. Create a payment and save the card": {
+                  "value": {
+                    "amount": 6540,
+                    "authentication_type": "no_three_ds",
+                    "confirm": true,
+                    "currency": "USD",
+                    "customer_acceptance": {
+                      "acceptance_type": "online",
+                      "accepted_at": "1963-05-03T04:07:52.723Z",
+                      "online": {
+                        "ip_address": "127.0.0.1",
+                        "user_agent": "amet irure esse"
+                      }
+                    },
+                    "customer_id": "StripeCustomer123",
+                    "payment_method": "card",
+                    "payment_method_data": {
+                      "card": {
+                        "card_cvc": "123",
+                        "card_exp_month": "10",
+                        "card_exp_year": "25",
+                        "card_holder_name": "joseph Doe",
+                        "card_number": "4242424242424242"
+                      }
+                    },
+                    "setup_future_usage": "off_session"
+                  }
+                },
+                "8. Create a payment using an already saved card's token": {
+                  "value": {
+                    "amount": 6540,
+                    "card_cvc": "123",
+                    "client_secret": "{{client_secret}}",
+                    "confirm": true,
+                    "currency": "USD",
+                    "payment_method": "card",
+                    "payment_token": "{{payment_token}}"
+                  }
+                },
+                "9. Create a payment with billing details": {
+                  "value": {
+                    "amount": 6540,
+                    "billing": {
+                      "address": {
+                        "city": "San Fransico",
+                        "country": "US",
+                        "first_name": "joseph",
+                        "last_name": "Doe",
+                        "line1": "1467",
+                        "line2": "Harrison Street",
+                        "line3": "Harrison Street",
+                        "state": "California",
+                        "zip": "94122"
+                      },
+                      "phone": {
+                        "country_code": "+91",
+                        "number": "9123456789"
+                      }
+                    },
+                    "currency": "USD",
+                    "customer": {
+                      "id": "cus_abcdefgh"
+                    }
+                  }
                 }
               }
             }
@@ -200,6 +207,255 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/PaymentsCreateResponseOpenApi"
+                },
+                "examples": {
+                  "1. Response for minimal payment creation (requires payment method)": {
+                    "value": {
+                      "amount": 6540,
+                      "amount_capturable": 6540,
+                      "attempt_count": 1,
+                      "client_secret": "pay_syxxxxxxxxxxxx_secret_szzzzzzzzzzz",
+                      "created": "2023-10-26T10:00:00Z",
+                      "currency": "USD",
+                      "expires_on": "2023-10-26T10:15:00Z",
+                      "merchant_id": "merchant_myyyyyyyyyyyy",
+                      "payment_id": "pay_syxxxxxxxxxxxx",
+                      "profile_id": "pro_pzzzzzzzzzzz",
+                      "status": "requires_payment_method"
+                    }
+                  },
+                  "2. Response for payment with customer details (requires payment method)": {
+                    "value": {
+                      "amount": 6540,
+                      "attempt_count": 1,
+                      "client_secret": "pay_custmeta_xxxxxxxxxxxx_secret_szzzzzzzzzzz",
+                      "created": "2023-10-26T10:05:00Z",
+                      "currency": "USD",
+                      "customer": {
+                        "email": "john@example.com",
+                        "id": "cus_abcdefgh",
+                        "name": "John Dough",
+                        "phone": "9123456789"
+                      },
+                      "customer_id": "cus_abcdefgh",
+                      "description": "Its my first payment request",
+                      "ephemeral_key": {
+                        "customer_id": "cus_abcdefgh",
+                        "secret": "epk_ephemeralxxxxxxxxxxxx"
+                      },
+                      "expires_on": "2023-10-26T10:20:00Z",
+                      "merchant_id": "merchant_myyyyyyyyyyyy",
+                      "metadata": {
+                        "udf1": "some-value",
+                        "udf2": "some-value"
+                      },
+                      "payment_id": "pay_custmeta_xxxxxxxxxxxx",
+                      "profile_id": "pro_pzzzzzzzzzzz",
+                      "statement_descriptor_name": "joseph",
+                      "statement_descriptor_suffix": "JS",
+                      "status": "requires_payment_method"
+                    }
+                  },
+                  "3. Response for 3DS payment creation (requires payment method)": {
+                    "value": {
+                      "amount": 6540,
+                      "attempt_count": 1,
+                      "authentication_type": "three_ds",
+                      "client_secret": "pay_3ds_xxxxxxxxxxxx_secret_szzzzzzzzzzz",
+                      "created": "2023-10-26T10:10:00Z",
+                      "currency": "USD",
+                      "expires_on": "2023-10-26T10:25:00Z",
+                      "merchant_id": "merchant_myyyyyyyyyyyy",
+                      "payment_id": "pay_3ds_xxxxxxxxxxxx",
+                      "profile_id": "pro_pzzzzzzzzzzz",
+                      "status": "requires_payment_method"
+                    }
+                  },
+                  "4. Response for basic manual capture payment (requires payment method)": {
+                    "value": {
+                      "amount": 6540,
+                      "attempt_count": 1,
+                      "capture_method": "manual",
+                      "client_secret": "pay_manualcap_xxxxxxxxxxxx_secret_szzzzzzzzzzz",
+                      "created": "2023-10-26T10:15:00Z",
+                      "currency": "USD",
+                      "expires_on": "2023-10-26T10:30:00Z",
+                      "merchant_id": "merchant_myyyyyyyyyyyy",
+                      "payment_id": "pay_manualcap_xxxxxxxxxxxx",
+                      "profile_id": "pro_pzzzzzzzzzzz",
+                      "status": "requires_payment_method"
+                    }
+                  },
+                  "5. Response for successful setup mandate payment": {
+                    "value": {
+                      "amount": 6540,
+                      "amount_capturable": 0,
+                      "amount_received": 6540,
+                      "attempt_count": 1,
+                      "authentication_type": "no_three_ds",
+                      "client_secret": "pay_mandatesetup_xxxxxxxxxxxx_secret_szzzzzzzzzzz",
+                      "connector": "fauxpay",
+                      "connector_transaction_id": "txn_connectortransidxxxx",
+                      "created": "2023-10-26T10:20:00Z",
+                      "currency": "USD",
+                      "customer_id": "StripeCustomer123",
+                      "ephemeral_key": {
+                        "customer_id": "StripeCustomer123",
+                        "secret": "epk_ephemeralxxxxxxxxxxxx"
+                      },
+                      "mandate_data": {
+                        "customer_acceptance": {
+                          "acceptance_type": "online",
+                          "accepted_at": "1963-05-03T04:07:52.723Z",
+                          "online": {
+                            "ip_address": "127.0.0.1",
+                            "user_agent": "amet irure esse"
+                          }
+                        },
+                        "mandate_type": {
+                          "single_use": {
+                            "amount": 6540,
+                            "currency": "USD"
+                          }
+                        }
+                      },
+                      "mandate_id": "man_xxxxxxxxxxxx",
+                      "merchant_connector_id": "mca_mcaconnectorxxxx",
+                      "merchant_id": "merchant_myyyyyyyyyyyy",
+                      "payment_id": "pay_mandatesetup_xxxxxxxxxxxx",
+                      "payment_method": "card",
+                      "payment_method_data": {
+                        "card": {
+                          "card_exp_month": "10",
+                          "card_exp_year": "25",
+                          "card_holder_name": "joseph Doe",
+                          "last4": "4242"
+                        }
+                      },
+                      "profile_id": "pro_pzzzzzzzzzzz",
+                      "setup_future_usage": "on_session",
+                      "status": "succeeded"
+                    }
+                  },
+                  "6. Response for successful recurring payment with mandate_id": {
+                    "value": {
+                      "amount": 6540,
+                      "amount_capturable": 0,
+                      "amount_received": 6540,
+                      "attempt_count": 1,
+                      "authentication_type": "no_three_ds",
+                      "client_secret": "pay_recurring_xxxxxxxxxxxx_secret_szzzzzzzzzzz",
+                      "connector": "fauxpay",
+                      "connector_transaction_id": "txn_connectortransidxxxx",
+                      "created": "2023-10-26T10:22:00Z",
+                      "currency": "USD",
+                      "customer_id": "StripeCustomer",
+                      "mandate_id": "{{mandate_id}}",
+                      "merchant_connector_id": "mca_mcaconnectorxxxx",
+                      "merchant_id": "merchant_myyyyyyyyyyyy",
+                      "off_session": true,
+                      "payment_id": "pay_recurring_xxxxxxxxxxxx",
+                      "payment_method": "card",
+                      "profile_id": "pro_pzzzzzzzzzzz",
+                      "status": "succeeded"
+                    }
+                  },
+                  "7. Response for successful payment with card saved": {
+                    "value": {
+                      "amount": 6540,
+                      "amount_capturable": 0,
+                      "amount_received": 6540,
+                      "attempt_count": 1,
+                      "authentication_type": "no_three_ds",
+                      "client_secret": "pay_savecard_xxxxxxxxxxxx_secret_szzzzzzzzzzz",
+                      "connector": "fauxpay",
+                      "connector_transaction_id": "txn_connectortransidxxxx",
+                      "created": "2023-10-26T10:25:00Z",
+                      "currency": "USD",
+                      "customer_id": "StripeCustomer123",
+                      "ephemeral_key": {
+                        "customer_id": "StripeCustomer123",
+                        "secret": "epk_ephemeralxxxxxxxxxxxx"
+                      },
+                      "merchant_connector_id": "mca_mcaconnectorxxxx",
+                      "merchant_id": "merchant_myyyyyyyyyyyy",
+                      "payment_id": "pay_savecard_xxxxxxxxxxxx",
+                      "payment_method": "card",
+                      "payment_method_data": {
+                        "card": {
+                          "card_exp_month": "10",
+                          "card_exp_year": "25",
+                          "card_holder_name": "joseph Doe",
+                          "last4": "4242"
+                        }
+                      },
+                      "payment_token": null,
+                      "profile_id": "pro_pzzzzzzzzzzz",
+                      "setup_future_usage": "on_session",
+                      "status": "succeeded"
+                    }
+                  },
+                  "8. Response for successful payment using saved card token": {
+                    "value": {
+                      "amount": 6540,
+                      "amount_capturable": 0,
+                      "amount_received": 6540,
+                      "attempt_count": 1,
+                      "client_secret": "pay_token_xxxxxxxxxxxx_secret_szzzzzzzzzzz",
+                      "connector": "fauxpay",
+                      "connector_transaction_id": "txn_connectortransidxxxx",
+                      "created": "2023-10-26T10:27:00Z",
+                      "currency": "USD",
+                      "merchant_connector_id": "mca_mcaconnectorxxxx",
+                      "merchant_id": "merchant_myyyyyyyyyyyy",
+                      "payment_id": "pay_token_xxxxxxxxxxxx",
+                      "payment_method": "card",
+                      "payment_token": "{{payment_token}}",
+                      "profile_id": "pro_pzzzzzzzzzzz",
+                      "status": "succeeded"
+                    }
+                  },
+                  "9. Response for payment with billing details (requires payment method)": {
+                    "value": {
+                      "amount": 6540,
+                      "attempt_count": 1,
+                      "billing": {
+                        "address": {
+                          "city": "San Fransico",
+                          "country": "US",
+                          "first_name": "joseph",
+                          "last_name": "Doe",
+                          "line1": "1467",
+                          "line2": "Harrison Street",
+                          "state": "California",
+                          "zip": "94122"
+                        },
+                        "phone": {
+                          "country_code": "+91",
+                          "number": "9123456789"
+                        }
+                      },
+                      "client_secret": "pay_manualbill_xxxxxxxxxxxx_secret_szzzzzzzzzzz",
+                      "created": "2023-10-26T10:30:00Z",
+                      "currency": "USD",
+                      "customer": {
+                        "email": "john@example.com",
+                        "id": "cus_abcdefgh",
+                        "name": "John Dough",
+                        "phone": "9123456789"
+                      },
+                      "customer_id": "cus_abcdefgh",
+                      "ephemeral_key": {
+                        "customer_id": "cus_abcdefgh",
+                        "secret": "epk_ephemeralxxxxxxxxxxxx"
+                      },
+                      "expires_on": "2023-10-26T10:45:00Z",
+                      "merchant_id": "merchant_myyyyyyyyyyyy",
+                      "payment_id": "pay_manualbill_xxxxxxxxxxxx",
+                      "profile_id": "pro_pzzzzzzzzzzz",
+                      "status": "requires_payment_method"
+                    }
+                  }
                 }
               }
             }
@@ -385,7 +641,7 @@
           "Payments"
         ],
         "summary": "Payments - Confirm",
-        "description": "**Use this API to confirm the payment and forward the payment to the payment processor.**\n\nAlternatively you can confirm the payment within the *Payments/Create* API by setting `confirm=true`. After confirmation, the payment could either:\n\n1. fail with `failed` status or\n\n2. transition to a `requires_customer_action` status with a `next_action` block or\n\n3. succeed with either `succeeded` in case of automatic capture or `requires_capture` in case of manual capture",
+        "description": "Confirms a payment intent that was previously created with `confirm: false`. This action attempts to authorize the payment with the payment processor.\n\nExpected status transitions after confirmation:\n- `succeeded`: If authorization is successful and `capture_method` is `automatic`.\n- `requires_capture`: If authorization is successful and `capture_method` is `manual`.\n- `failed`: If authorization fails.",
         "operationId": "Confirm a Payment",
         "parameters": [
           {
@@ -464,7 +720,7 @@
           "Payments"
         ],
         "summary": "Payments - Capture",
-        "description": "To capture the funds for an uncaptured payment",
+        "description": "Captures the funds for a previously authorized payment intent where `capture_method` was set to `manual` and the payment is in a `requires_capture` state.\n\nUpon successful capture, the payment status usually transitions to `succeeded`.\nThe `amount_to_capture` can be specified in the request body; it must be less than or equal to the payment's `amount_capturable`. If omitted, the full capturable amount is captured.\n\nA payment must be in a capturable state (e.g., `requires_capture`). Attempting to capture an already `succeeded` (and fully captured) payment or one in an invalid state will lead to an error.\n",
         "operationId": "Capture a Payment",
         "parameters": [
           {
@@ -6154,7 +6410,7 @@
         "properties": {
           "city": {
             "type": "string",
-            "description": "The address city",
+            "description": "The city, district, suburb, town, or village of the address.",
             "example": "New York",
             "nullable": true,
             "maxLength": 50
@@ -6169,21 +6425,21 @@
           },
           "line1": {
             "type": "string",
-            "description": "The first line of the address",
+            "description": "The first line of the street address or P.O. Box.",
             "example": "123, King Street",
             "nullable": true,
             "maxLength": 200
           },
           "line2": {
             "type": "string",
-            "description": "The second line of the address",
+            "description": "The second line of the street address or P.O. Box (e.g., apartment, suite, unit, or building).",
             "example": "Powelson Avenue",
             "nullable": true,
             "maxLength": 50
           },
           "line3": {
             "type": "string",
-            "description": "The third line of the address",
+            "description": "The third line of the street address, if applicable.",
             "example": "Bridgewater",
             "nullable": true,
             "maxLength": 50
@@ -6860,7 +7116,7 @@
       },
       "AuthenticationType": {
         "type": "string",
-        "description": "Pass this parameter to force 3DS or non 3DS auth for this payment. Some connectors will still force 3DS auth even in case of passing 'no_three_ds' here and vice versa. Default value is 'no_three_ds' if not set",
+        "description": "Specifies the type of cardholder authentication to be applied for a payment.\n\n- `ThreeDs`: Requests 3D Secure (3DS) authentication. If the card is enrolled, 3DS authentication will be activated, potentially shifting chargeback liability to the issuer.\n- `NoThreeDs`: Indicates that 3D Secure authentication should not be performed. The liability for chargebacks typically remains with the merchant. This is often the default if not specified.\n\nNote: The actual authentication behavior can also be influenced by merchant configuration and specific connector defaults. Some connectors might still enforce 3DS or bypass it regardless of this parameter.",
         "enum": [
           "three_ds",
           "no_three_ds"
@@ -9020,7 +9276,7 @@
       },
       "CaptureMethod": {
         "type": "string",
-        "description": "Default value if not passed is set to 'automatic' which results in Auth and Capture in one single API request. Pass 'manual' or 'manual_multiple' in case you want do a separate Auth and Capture by first authorizing and placing a hold on your customer's funds so that you can use the Payments/Capture endpoint later to capture the authorized amount. Pass 'manual' if you want to only capture the amount later once or 'manual_multiple' if you want to capture the funds multiple times later. Both 'manual' and 'manual_multiple' are only supported by a specific list of processors",
+        "description": "Specifies how the payment is captured.\n- `automatic`: Funds are captured immediately after successful authorization. This is the default behavior if the field is omitted.\n- `manual`: Funds are authorized but not captured. A separate request to the `/payments/{payment_id}/capture` endpoint is required to capture the funds.",
         "enum": [
           "automatic",
           "manual",
@@ -9042,7 +9298,7 @@
         "properties": {
           "capture_id": {
             "type": "string",
-            "description": "Unique identifier for the capture"
+            "description": "A unique identifier for this specific capture operation."
           },
           "status": {
             "$ref": "#/components/schemas/CaptureStatus"
@@ -9063,11 +9319,11 @@
           },
           "connector": {
             "type": "string",
-            "description": "The connector used for the payment"
+            "description": "The name of the payment connector that processed this capture."
           },
           "authorized_attempt_id": {
             "type": "string",
-            "description": "Unique identifier for the parent attempt on which this capture is made"
+            "description": "The ID of the payment attempt that was successfully authorized and subsequently captured by this operation."
           },
           "connector_capture_id": {
             "type": "string",
@@ -9081,22 +9337,22 @@
           },
           "error_message": {
             "type": "string",
-            "description": "If there was an error while calling the connector the error message is received here",
+            "description": "A human-readable message from the connector explaining why this capture operation failed, if applicable.",
             "nullable": true
           },
           "error_code": {
             "type": "string",
-            "description": "If there was an error while calling the connectors the code is received here",
+            "description": "The error code returned by the connector if this capture operation failed. This code is connector-specific.",
             "nullable": true
           },
           "error_reason": {
             "type": "string",
-            "description": "If there was an error while calling the connectors the reason is received here",
+            "description": "A more detailed reason from the connector explaining the capture failure, if available.",
             "nullable": true
           },
           "reference_id": {
             "type": "string",
-            "description": "Reference to the capture at connector side",
+            "description": "The connector's own reference or transaction ID for this specific capture operation. Useful for reconciliation.",
             "nullable": true
           }
         }
@@ -11303,7 +11559,7 @@
       },
       "Currency": {
         "type": "string",
-        "description": "The three letter ISO currency code in uppercase. Eg: 'USD' for the United States Dollar.",
+        "description": "The three-letter ISO 4217 currency code (e.g., \"USD\", \"EUR\") for the payment amount. This field is mandatory for creating a payment.",
         "enum": [
           "AED",
           "AFN",
@@ -13613,7 +13869,7 @@
       },
       "FutureUsage": {
         "type": "string",
-        "description": "Indicates that you intend to make future payments with the payment methods used for this Payment. Providing this parameter will attach the payment method to the Customer, if present, after the Payment is confirmed and any required actions from the user are complete.\n- On_session - Payment method saved only at hyperswitch when consent is provided by the user. CVV will asked during the returning user payment\n- Off_session - Payment method saved at both hyperswitch and Processor when consent is provided by the user. No input is required during the returning user payment.",
+        "description": "Specifies how the payment method can be used for future payments.\n- `off_session`: The payment method can be used for future payments when the customer is not present.\n- `on_session`: The payment method is intended for use only when the customer is present during checkout.\nIf omitted, defaults to `on_session`.",
         "enum": [
           "off_session",
           "on_session"
@@ -14598,7 +14854,7 @@
       },
       "IntentStatus": {
         "type": "string",
-        "description": "The status of the current payment that was made",
+        "description": "Represents the overall status of a payment intent.\nThe status transitions through various states depending on the payment method, confirmation, capture method, and any subsequent actions (like customer authentication or manual capture).",
         "enum": [
           "succeeded",
           "failed",
@@ -17868,7 +18124,7 @@
         "properties": {
           "attempt_id": {
             "type": "string",
-            "description": "Unique identifier for the attempt"
+            "description": "A unique identifier for this specific payment attempt."
           },
           "status": {
             "$ref": "#/components/schemas/AttemptStatus"
@@ -17896,12 +18152,12 @@
           },
           "connector": {
             "type": "string",
-            "description": "The connector used for the payment",
+            "description": "The name of the payment connector (e.g., 'stripe', 'adyen') used for this attempt.",
             "nullable": true
           },
           "error_message": {
             "type": "string",
-            "description": "If there was an error while calling the connector, the error message is received here",
+            "description": "A human-readable message from the connector explaining the error, if one occurred during this payment attempt.",
             "nullable": true
           },
           "payment_method": {
@@ -17953,17 +18209,17 @@
           },
           "mandate_id": {
             "type": "string",
-            "description": "A unique identifier to link the payment to a mandate, can be use instead of payment_method_data",
+            "description": "If this payment attempt is associated with a mandate (e.g., for a recurring or subsequent payment), this field will contain the ID of that mandate.",
             "nullable": true
           },
           "error_code": {
             "type": "string",
-            "description": "If there was an error while calling the connectors the error code is received here",
+            "description": "The error code returned by the connector if this payment attempt failed. This code is specific to the connector.",
             "nullable": true
           },
           "payment_token": {
             "type": "string",
-            "description": "Provide a reference to a stored payment method",
+            "description": "If a tokenized (saved) payment method was used for this attempt, this field contains the payment token representing that payment method.",
             "nullable": true
           },
           "connector_metadata": {
@@ -17988,7 +18244,7 @@
           },
           "reference_id": {
             "type": "string",
-            "description": "Reference to the payment at connector side",
+            "description": "The connector's own reference or transaction ID for this specific payment attempt. Useful for reconciliation with the connector.",
             "example": "993672945374576J",
             "nullable": true
           },
@@ -19861,34 +20117,32 @@
       },
       "PaymentsCaptureRequest": {
         "type": "object",
-        "required": [
-          "amount_to_capture"
-        ],
         "properties": {
           "merchant_id": {
             "type": "string",
-            "description": "The unique identifier for the merchant",
+            "description": "The unique identifier for the merchant. This is usually inferred from the API key.",
             "nullable": true
           },
           "amount_to_capture": {
             "type": "integer",
             "format": "int64",
-            "description": "The Amount to be captured/ debited from the user's payment method. If not passed the full amount will be captured.",
-            "example": 6540
+            "description": "The amount to capture, in the lowest denomination of the currency. If omitted, the entire `amount_capturable` of the payment will be captured. Must be less than or equal to the current `amount_capturable`.",
+            "example": 6540,
+            "nullable": true
           },
           "refund_uncaptured_amount": {
             "type": "boolean",
-            "description": "Decider to refund the uncaptured amount",
+            "description": "Decider to refund the uncaptured amount. (Currently not fully supported or behavior may vary by connector).",
             "nullable": true
           },
           "statement_descriptor_suffix": {
             "type": "string",
-            "description": "Provides information about a card payment that customers see on their statements.",
+            "description": "A dynamic suffix that appears on your customer's credit card statement. This is concatenated with the (shortened) descriptor prefix set on your account to form the complete statement descriptor. The combined length should not exceed connector-specific limits (typically 22 characters).",
             "nullable": true
           },
           "statement_descriptor_prefix": {
             "type": "string",
-            "description": "Concatenated with the statement descriptor suffix that’s set on the account to form the complete statement descriptor.",
+            "description": "An optional prefix for the statement descriptor that appears on your customer's credit card statement. This can override the default prefix set on your merchant account. The combined length of prefix and suffix should not exceed connector-specific limits (typically 22 characters).",
             "nullable": true
           },
           "merchant_connector_details": {
@@ -19935,7 +20189,7 @@
           "amount": {
             "type": "integer",
             "format": "int64",
-            "description": "The payment amount. Amount for the payment in the lowest denomination of the currency, (i.e) in cents for USD denomination, in yen for JPY denomination etc. E.g., Pass 100 to charge $1.00 and 1 for 1¥ since ¥ is a zero-decimal currency. Read more about [the Decimal and Non-Decimal Currencies](https://github.com/juspay/hyperswitch/wiki/Decimal-and-Non%E2%80%90Decimal-Currencies)",
+            "description": "The primary amount for the payment, provided in the lowest denomination of the specified currency (e.g., 6540 for $65.40 USD). This field is mandatory for creating a payment.",
             "example": 6540,
             "nullable": true,
             "minimum": 0
@@ -19943,7 +20197,7 @@
           "order_tax_amount": {
             "type": "integer",
             "format": "int64",
-            "description": "Total tax amount applicable to the order",
+            "description": "Total tax amount applicable to the order, in the lowest denomination of the currency.",
             "example": 6540,
             "nullable": true
           },
@@ -19958,7 +20212,7 @@
           "amount_to_capture": {
             "type": "integer",
             "format": "int64",
-            "description": "The Amount to be captured / debited from the users payment method. It shall be in lowest denomination of the currency. (i.e) in cents for USD denomination, in paisa for INR denomination etc., If not provided, the default amount_to_capture will be the payment amount. Also, it must be less than or equal to the original payment account.",
+            "description": "The amount to be captured from the user's payment method, in the lowest denomination. If not provided, and `capture_method` is `automatic`, the full payment `amount` will be captured. If `capture_method` is `manual`, this can be specified in the `/capture` call. Must be less than or equal to the authorized amount.",
             "example": 6540,
             "nullable": true
           },
@@ -19971,7 +20225,7 @@
           },
           "payment_id": {
             "type": "string",
-            "description": "Unique identifier for the payment. This ensures idempotency for multiple payments\nthat have been done by a single merchant. The value for this field can be specified in the request, it will be auto generated otherwise and returned in the API response.",
+            "description": "Optional. A merchant-provided unique identifier for the payment, contains 30 characters long (e.g., \"pay_mbabizu24mvu3mela5njyhpit4\"). If provided, it ensures idempotency for the payment creation request. If omitted, Hyperswitch generates a unique ID for the payment.",
             "example": "pay_mbabizu24mvu3mela5njyhpit4",
             "nullable": true,
             "maxLength": 30,
@@ -20024,7 +20278,7 @@
           },
           "confirm": {
             "type": "boolean",
-            "description": "Whether to confirm the payment (if applicable). It can be used to completely process a payment by attaching a payment method, setting `confirm=true` and `capture_method = automatic` in the *Payments/Create API* request itself.",
+            "description": "If set to `true`, Hyperswitch attempts to confirm and authorize the payment immediately after creation, provided sufficient payment method details are included. If `false` or omitted (default is `false`), the payment is created with a status such as `requires_payment_method` or `requires_confirmation`, and a separate `POST /payments/{payment_id}/confirm` call is necessary to proceed with authorization.",
             "default": false,
             "example": true,
             "nullable": true
@@ -20053,13 +20307,13 @@
           },
           "description": {
             "type": "string",
-            "description": "A description for the payment",
+            "description": "An arbitrary string attached to the payment. Often useful for displaying to users or for your own internal record-keeping.",
             "example": "It's my first payment request",
             "nullable": true
           },
           "return_url": {
             "type": "string",
-            "description": "The URL to which you want the user to be redirected after the completion of the payment operation",
+            "description": "The URL to redirect the customer to after they complete the payment process or authentication. This is crucial for flows that involve off-site redirection (e.g., 3DS, some bank redirects, wallet payments).",
             "example": "https://hyperswitch.io",
             "nullable": true,
             "maxLength": 2048
@@ -20291,7 +20545,7 @@
           },
           "merchant_order_reference_id": {
             "type": "string",
-            "description": "Merchant's identifier for the payment/invoice. This will be sent to the connector\nif the connector provides support to accept multiple reference ids.\nIn case the connector supports only one reference id, Hyperswitch's Payment ID will be sent as reference.",
+            "description": "Your unique identifier for this payment or order. This ID helps you reconcile payments on your system. If provided, it is passed to the connector if supported.",
             "example": "Custom_Order_id_123",
             "nullable": true,
             "maxLength": 255
@@ -20352,13 +20606,13 @@
           "amount": {
             "type": "integer",
             "format": "int64",
-            "description": "The payment amount. Amount for the payment in the lowest denomination of the currency, (i.e) in cents for USD denomination, in yen for JPY denomination etc. E.g., Pass 100 to charge $1.00 and 1 for 1¥ since ¥ is a zero-decimal currency. Read more about [the Decimal and Non-Decimal Currencies](https://github.com/juspay/hyperswitch/wiki/Decimal-and-Non%E2%80%90Decimal-Currencies)",
+            "description": "The primary amount for the payment, provided in the lowest denomination of the specified currency (e.g., 6540 for $65.40 USD). This field is mandatory for creating a payment.",
             "minimum": 0
           },
           "order_tax_amount": {
             "type": "integer",
             "format": "int64",
-            "description": "Total tax amount applicable to the order",
+            "description": "Total tax amount applicable to the order, in the lowest denomination of the currency.",
             "example": 6540,
             "nullable": true
           },
@@ -20368,7 +20622,7 @@
           "amount_to_capture": {
             "type": "integer",
             "format": "int64",
-            "description": "The Amount to be captured / debited from the users payment method. It shall be in lowest denomination of the currency. (i.e) in cents for USD denomination, in paisa for INR denomination etc., If not provided, the default amount_to_capture will be the payment amount. Also, it must be less than or equal to the original payment account.",
+            "description": "The amount to be captured from the user's payment method, in the lowest denomination. If not provided, and `capture_method` is `automatic`, the full payment `amount` will be captured. If `capture_method` is `manual`, this can be specified in the `/capture` call. Must be less than or equal to the authorized amount.",
             "example": 6540,
             "nullable": true
           },
@@ -20381,7 +20635,7 @@
           },
           "payment_id": {
             "type": "string",
-            "description": "Unique identifier for the payment. This ensures idempotency for multiple payments\nthat have been done by a single merchant. The value for this field can be specified in the request, it will be auto generated otherwise and returned in the API response.",
+            "description": "Optional. A merchant-provided unique identifier for the payment, contains 30 characters long (e.g., \"pay_mbabizu24mvu3mela5njyhpit4\"). If provided, it ensures idempotency for the payment creation request. If omitted, Hyperswitch generates a unique ID for the payment.",
             "example": "pay_mbabizu24mvu3mela5njyhpit4",
             "nullable": true,
             "maxLength": 30,
@@ -20434,7 +20688,7 @@
           },
           "confirm": {
             "type": "boolean",
-            "description": "Whether to confirm the payment (if applicable). It can be used to completely process a payment by attaching a payment method, setting `confirm=true` and `capture_method = automatic` in the *Payments/Create API* request itself.",
+            "description": "If set to `true`, Hyperswitch attempts to confirm and authorize the payment immediately after creation, provided sufficient payment method details are included. If `false` or omitted (default is `false`), the payment is created with a status such as `requires_payment_method` or `requires_confirmation`, and a separate `POST /payments/{payment_id}/confirm` call is necessary to proceed with authorization.",
             "default": false,
             "example": true,
             "nullable": true
@@ -20463,13 +20717,13 @@
           },
           "description": {
             "type": "string",
-            "description": "A description for the payment",
+            "description": "An arbitrary string attached to the payment. Often useful for displaying to users or for your own internal record-keeping.",
             "example": "It's my first payment request",
             "nullable": true
           },
           "return_url": {
             "type": "string",
-            "description": "The URL to which you want the user to be redirected after the completion of the payment operation",
+            "description": "The URL to redirect the customer to after they complete the payment process or authentication. This is crucial for flows that involve off-site redirection (e.g., 3DS, some bank redirects, wallet payments).",
             "example": "https://hyperswitch.io",
             "nullable": true,
             "maxLength": 2048
@@ -20714,7 +20968,7 @@
           },
           "merchant_order_reference_id": {
             "type": "string",
-            "description": "Merchant's identifier for the payment/invoice. This will be sent to the connector\nif the connector provides support to accept multiple reference ids.\nIn case the connector supports only one reference id, Hyperswitch's Payment ID will be sent as reference.",
+            "description": "Your unique identifier for this payment or order. This ID helps you reconcile payments on your system. If provided, it is passed to the connector if supported.",
             "example": "Custom_Order_id_123",
             "nullable": true,
             "maxLength": 255
@@ -20822,33 +21076,33 @@
           "amount_capturable": {
             "type": "integer",
             "format": "int64",
-            "description": "The maximum amount that could be captured from the payment",
+            "description": "The amount (in minor units) that can still be captured for this payment. This is relevant when `capture_method` is `manual`. Once fully captured, or if `capture_method` is `automatic` and payment succeeded, this will be 0.",
             "example": 6540,
             "minimum": 100
           },
           "amount_received": {
             "type": "integer",
             "format": "int64",
-            "description": "The amount which is already captured from the payment, this helps in the cases where merchants can't capture all capturable amount at once.",
+            "description": "The total amount (in minor units) that has been captured for this payment. For `fauxpay` sandbox connector, this might reflect the authorized amount if `status` is `succeeded` even if `capture_method` was `manual`.",
             "example": 6540,
             "nullable": true
           },
           "connector": {
             "type": "string",
-            "description": "The connector used for the payment",
+            "description": "The name of the payment connector (e.g., 'stripe', 'adyen') that processed or is processing this payment.",
             "example": "stripe",
             "nullable": true
           },
           "client_secret": {
             "type": "string",
-            "description": "It's a token used for client side verification.",
+            "description": "A secret token unique to this payment intent. It is primarily used by client-side applications (e.g., Hyperswitch SDKs) to authenticate actions like confirming the payment or handling next actions. This secret should be handled carefully and not exposed publicly beyond its intended client-side use.",
             "example": "pay_U42c409qyHwOkWo3vK60_secret_el9ksDkiB8hi6j9N78yo",
             "nullable": true
           },
           "created": {
             "type": "string",
             "format": "date-time",
-            "description": "Time when the payment was created",
+            "description": "Timestamp indicating when this payment intent was created, in ISO 8601 format.",
             "example": "2022-09-10T10:11:12Z",
             "nullable": true
           },
@@ -20866,7 +21120,7 @@
           },
           "description": {
             "type": "string",
-            "description": "A description of the payment",
+            "description": "An arbitrary string providing a description for the payment, often useful for display or internal record-keeping.",
             "example": "It's my first payment request",
             "nullable": true
           },
@@ -20875,7 +21129,7 @@
             "items": {
               "$ref": "#/components/schemas/RefundResponse"
             },
-            "description": "List of refunds that happened on this intent, as same payment intent can have multiple refund requests depending on the nature of order",
+            "description": "An array of refund objects associated with this payment. Empty or null if no refunds have been processed.",
             "nullable": true
           },
           "disputes": {
@@ -21044,18 +21298,18 @@
           },
           "cancellation_reason": {
             "type": "string",
-            "description": "If the payment was cancelled the reason will be provided here",
+            "description": "If the payment intent was cancelled, this field provides a textual reason for the cancellation (e.g., \"requested_by_customer\", \"abandoned\").",
             "nullable": true
           },
           "error_code": {
             "type": "string",
-            "description": "If there was an error while calling the connectors the code is received here",
+            "description": "The connector-specific error code from the last failed payment attempt associated with this payment intent.",
             "example": "E0001",
             "nullable": true
           },
           "error_message": {
             "type": "string",
-            "description": "If there was an error while calling the connector the error message is received here",
+            "description": "A human-readable error message from the last failed payment attempt associated with this payment intent.",
             "example": "Failed while verifying the card",
             "nullable": true
           },
@@ -21077,7 +21331,7 @@
           },
           "connector_label": {
             "type": "string",
-            "description": "The connector used for this payment along with the country and business details",
+            "description": "A label identifying the specific merchant connector account (MCA) used for this payment. This often combines the connector name, business country, and a custom label (e.g., \"stripe_US_primary\").",
             "example": "stripe_US_food",
             "nullable": true
           },
@@ -21091,12 +21345,12 @@
           },
           "business_label": {
             "type": "string",
-            "description": "The business label of merchant for this payment",
+            "description": "The label identifying the specific business unit or profile under which this payment was processed by the merchant.",
             "nullable": true
           },
           "business_sub_label": {
             "type": "string",
-            "description": "The business_sub_label for this payment",
+            "description": "An optional sub-label for further categorization of the business unit or profile used for this payment.",
             "nullable": true
           },
           "allowed_payment_method_types": {
@@ -21251,7 +21505,7 @@
           },
           "payment_method_id": {
             "type": "string",
-            "description": "Identifier for Payment Method used for the payment",
+            "description": "A unique identifier for the payment method used in this payment. If the payment method was saved or tokenized, this ID can be used to reference it for future transactions or recurring payments.",
             "nullable": true
           },
           "payment_method_status": {
@@ -21567,7 +21821,7 @@
           "amount": {
             "type": "integer",
             "format": "int64",
-            "description": "The payment amount. Amount for the payment in the lowest denomination of the currency, (i.e) in cents for USD denomination, in yen for JPY denomination etc. E.g., Pass 100 to charge $1.00 and 1 for 1¥ since ¥ is a zero-decimal currency. Read more about [the Decimal and Non-Decimal Currencies](https://github.com/juspay/hyperswitch/wiki/Decimal-and-Non%E2%80%90Decimal-Currencies)",
+            "description": "The primary amount for the payment, provided in the lowest denomination of the specified currency (e.g., 6540 for $65.40 USD). This field is mandatory for creating a payment.",
             "example": 6540,
             "nullable": true,
             "minimum": 0
@@ -21575,7 +21829,7 @@
           "order_tax_amount": {
             "type": "integer",
             "format": "int64",
-            "description": "Total tax amount applicable to the order",
+            "description": "Total tax amount applicable to the order, in the lowest denomination of the currency.",
             "example": 6540,
             "nullable": true
           },
@@ -21590,7 +21844,7 @@
           "amount_to_capture": {
             "type": "integer",
             "format": "int64",
-            "description": "The Amount to be captured / debited from the users payment method. It shall be in lowest denomination of the currency. (i.e) in cents for USD denomination, in paisa for INR denomination etc., If not provided, the default amount_to_capture will be the payment amount. Also, it must be less than or equal to the original payment account.",
+            "description": "The amount to be captured from the user's payment method, in the lowest denomination. If not provided, and `capture_method` is `automatic`, the full payment `amount` will be captured. If `capture_method` is `manual`, this can be specified in the `/capture` call. Must be less than or equal to the authorized amount.",
             "example": 6540,
             "nullable": true
           },
@@ -21603,7 +21857,7 @@
           },
           "payment_id": {
             "type": "string",
-            "description": "Unique identifier for the payment. This ensures idempotency for multiple payments\nthat have been done by a single merchant. The value for this field can be specified in the request, it will be auto generated otherwise and returned in the API response.",
+            "description": "Optional. A merchant-provided unique identifier for the payment, contains 30 characters long (e.g., \"pay_mbabizu24mvu3mela5njyhpit4\"). If provided, it ensures idempotency for the payment creation request. If omitted, Hyperswitch generates a unique ID for the payment.",
             "example": "pay_mbabizu24mvu3mela5njyhpit4",
             "nullable": true,
             "maxLength": 30,
@@ -21670,7 +21924,7 @@
           },
           "confirm": {
             "type": "boolean",
-            "description": "Whether to confirm the payment (if applicable). It can be used to completely process a payment by attaching a payment method, setting `confirm=true` and `capture_method = automatic` in the *Payments/Create API* request itself.",
+            "description": "If set to `true`, Hyperswitch attempts to confirm and authorize the payment immediately after creation, provided sufficient payment method details are included. If `false` or omitted (default is `false`), the payment is created with a status such as `requires_payment_method` or `requires_confirmation`, and a separate `POST /payments/{payment_id}/confirm` call is necessary to proceed with authorization.",
             "default": false,
             "example": true,
             "nullable": true
@@ -21731,13 +21985,13 @@
           },
           "description": {
             "type": "string",
-            "description": "A description for the payment",
+            "description": "An arbitrary string attached to the payment. Often useful for displaying to users or for your own internal record-keeping.",
             "example": "It's my first payment request",
             "nullable": true
           },
           "return_url": {
             "type": "string",
-            "description": "The URL to which you want the user to be redirected after the completion of the payment operation",
+            "description": "The URL to redirect the customer to after they complete the payment process or authentication. This is crucial for flows that involve off-site redirection (e.g., 3DS, some bank redirects, wallet payments).",
             "example": "https://hyperswitch.io",
             "nullable": true,
             "maxLength": 2048
@@ -22015,7 +22269,7 @@
           },
           "merchant_order_reference_id": {
             "type": "string",
-            "description": "Merchant's identifier for the payment/invoice. This will be sent to the connector\nif the connector provides support to accept multiple reference ids.\nIn case the connector supports only one reference id, Hyperswitch's Payment ID will be sent as reference.",
+            "description": "Your unique identifier for this payment or order. This ID helps you reconcile payments on your system. If provided, it is passed to the connector if supported.",
             "example": "Custom_Order_id_123",
             "nullable": true,
             "maxLength": 255
@@ -22124,33 +22378,33 @@
           "amount_capturable": {
             "type": "integer",
             "format": "int64",
-            "description": "The maximum amount that could be captured from the payment",
+            "description": "The amount (in minor units) that can still be captured for this payment. This is relevant when `capture_method` is `manual`. Once fully captured, or if `capture_method` is `automatic` and payment succeeded, this will be 0.",
             "example": 6540,
             "minimum": 100
           },
           "amount_received": {
             "type": "integer",
             "format": "int64",
-            "description": "The amount which is already captured from the payment, this helps in the cases where merchants can't capture all capturable amount at once.",
+            "description": "The total amount (in minor units) that has been captured for this payment. For `fauxpay` sandbox connector, this might reflect the authorized amount if `status` is `succeeded` even if `capture_method` was `manual`.",
             "example": 6540,
             "nullable": true
           },
           "connector": {
             "type": "string",
-            "description": "The connector used for the payment",
+            "description": "The name of the payment connector (e.g., 'stripe', 'adyen') that processed or is processing this payment.",
             "example": "stripe",
             "nullable": true
           },
           "client_secret": {
             "type": "string",
-            "description": "It's a token used for client side verification.",
+            "description": "A secret token unique to this payment intent. It is primarily used by client-side applications (e.g., Hyperswitch SDKs) to authenticate actions like confirming the payment or handling next actions. This secret should be handled carefully and not exposed publicly beyond its intended client-side use.",
             "example": "pay_U42c409qyHwOkWo3vK60_secret_el9ksDkiB8hi6j9N78yo",
             "nullable": true
           },
           "created": {
             "type": "string",
             "format": "date-time",
-            "description": "Time when the payment was created",
+            "description": "Timestamp indicating when this payment intent was created, in ISO 8601 format.",
             "example": "2022-09-10T10:11:12Z",
             "nullable": true
           },
@@ -22176,7 +22430,7 @@
           },
           "description": {
             "type": "string",
-            "description": "A description of the payment",
+            "description": "An arbitrary string providing a description for the payment, often useful for display or internal record-keeping.",
             "example": "It's my first payment request",
             "nullable": true
           },
@@ -22185,7 +22439,7 @@
             "items": {
               "$ref": "#/components/schemas/RefundResponse"
             },
-            "description": "List of refunds that happened on this intent, as same payment intent can have multiple refund requests depending on the nature of order",
+            "description": "An array of refund objects associated with this payment. Empty or null if no refunds have been processed.",
             "nullable": true
           },
           "disputes": {
@@ -22361,18 +22615,18 @@
           },
           "cancellation_reason": {
             "type": "string",
-            "description": "If the payment was cancelled the reason will be provided here",
+            "description": "If the payment intent was cancelled, this field provides a textual reason for the cancellation (e.g., \"requested_by_customer\", \"abandoned\").",
             "nullable": true
           },
           "error_code": {
             "type": "string",
-            "description": "If there was an error while calling the connectors the code is received here",
+            "description": "The connector-specific error code from the last failed payment attempt associated with this payment intent.",
             "example": "E0001",
             "nullable": true
           },
           "error_message": {
             "type": "string",
-            "description": "If there was an error while calling the connector the error message is received here",
+            "description": "A human-readable error message from the last failed payment attempt associated with this payment intent.",
             "example": "Failed while verifying the card",
             "nullable": true
           },
@@ -22404,7 +22658,7 @@
           },
           "connector_label": {
             "type": "string",
-            "description": "The connector used for this payment along with the country and business details",
+            "description": "A label identifying the specific merchant connector account (MCA) used for this payment. This often combines the connector name, business country, and a custom label (e.g., \"stripe_US_primary\").",
             "example": "stripe_US_food",
             "nullable": true
           },
@@ -22418,12 +22672,12 @@
           },
           "business_label": {
             "type": "string",
-            "description": "The business label of merchant for this payment",
+            "description": "The label identifying the specific business unit or profile under which this payment was processed by the merchant.",
             "nullable": true
           },
           "business_sub_label": {
             "type": "string",
-            "description": "The business_sub_label for this payment",
+            "description": "An optional sub-label for further categorization of the business unit or profile used for this payment.",
             "nullable": true
           },
           "allowed_payment_method_types": {
@@ -22578,7 +22832,7 @@
           },
           "payment_method_id": {
             "type": "string",
-            "description": "Identifier for Payment Method used for the payment",
+            "description": "A unique identifier for the payment method used in this payment. If the payment method was saved or tokenized, this ID can be used to reference it for future transactions or recurring payments.",
             "nullable": true
           },
           "payment_method_status": {
@@ -22702,12 +22956,12 @@
           },
           "param": {
             "type": "string",
-            "description": "The parameters passed to a retrieve request",
+            "description": "Optional query parameters that might be specific to a connector or flow, passed through during the retrieve operation. Use with caution and refer to specific connector documentation if applicable.",
             "nullable": true
           },
           "connector": {
             "type": "string",
-            "description": "The name of the connector",
+            "description": "Optionally specifies the connector to be used for a 'force_sync' retrieve operation. If provided, Hyperswitch will attempt to sync the payment status from this specific connector.",
             "nullable": true
           },
           "merchant_connector_details": {
@@ -22834,7 +23088,7 @@
           "amount": {
             "type": "integer",
             "format": "int64",
-            "description": "The payment amount. Amount for the payment in the lowest denomination of the currency, (i.e) in cents for USD denomination, in yen for JPY denomination etc. E.g., Pass 100 to charge $1.00 and 1 for 1¥ since ¥ is a zero-decimal currency. Read more about [the Decimal and Non-Decimal Currencies](https://github.com/juspay/hyperswitch/wiki/Decimal-and-Non%E2%80%90Decimal-Currencies)",
+            "description": "The primary amount for the payment, provided in the lowest denomination of the specified currency (e.g., 6540 for $65.40 USD). This field is mandatory for creating a payment.",
             "example": 6540,
             "nullable": true,
             "minimum": 0
@@ -22842,7 +23096,7 @@
           "order_tax_amount": {
             "type": "integer",
             "format": "int64",
-            "description": "Total tax amount applicable to the order",
+            "description": "Total tax amount applicable to the order, in the lowest denomination of the currency.",
             "example": 6540,
             "nullable": true
           },
@@ -22857,7 +23111,7 @@
           "amount_to_capture": {
             "type": "integer",
             "format": "int64",
-            "description": "The Amount to be captured / debited from the users payment method. It shall be in lowest denomination of the currency. (i.e) in cents for USD denomination, in paisa for INR denomination etc., If not provided, the default amount_to_capture will be the payment amount. Also, it must be less than or equal to the original payment account.",
+            "description": "The amount to be captured from the user's payment method, in the lowest denomination. If not provided, and `capture_method` is `automatic`, the full payment `amount` will be captured. If `capture_method` is `manual`, this can be specified in the `/capture` call. Must be less than or equal to the authorized amount.",
             "example": 6540,
             "nullable": true
           },
@@ -22870,7 +23124,7 @@
           },
           "payment_id": {
             "type": "string",
-            "description": "Unique identifier for the payment. This ensures idempotency for multiple payments\nthat have been done by a single merchant. The value for this field can be specified in the request, it will be auto generated otherwise and returned in the API response.",
+            "description": "Optional. A merchant-provided unique identifier for the payment, contains 30 characters long (e.g., \"pay_mbabizu24mvu3mela5njyhpit4\"). If provided, it ensures idempotency for the payment creation request. If omitted, Hyperswitch generates a unique ID for the payment.",
             "example": "pay_mbabizu24mvu3mela5njyhpit4",
             "nullable": true,
             "maxLength": 30,
@@ -22923,7 +23177,7 @@
           },
           "confirm": {
             "type": "boolean",
-            "description": "Whether to confirm the payment (if applicable). It can be used to completely process a payment by attaching a payment method, setting `confirm=true` and `capture_method = automatic` in the *Payments/Create API* request itself.",
+            "description": "If set to `true`, Hyperswitch attempts to confirm and authorize the payment immediately after creation, provided sufficient payment method details are included. If `false` or omitted (default is `false`), the payment is created with a status such as `requires_payment_method` or `requires_confirmation`, and a separate `POST /payments/{payment_id}/confirm` call is necessary to proceed with authorization.",
             "default": false,
             "example": true,
             "nullable": true
@@ -22952,13 +23206,13 @@
           },
           "description": {
             "type": "string",
-            "description": "A description for the payment",
+            "description": "An arbitrary string attached to the payment. Often useful for displaying to users or for your own internal record-keeping.",
             "example": "It's my first payment request",
             "nullable": true
           },
           "return_url": {
             "type": "string",
-            "description": "The URL to which you want the user to be redirected after the completion of the payment operation",
+            "description": "The URL to redirect the customer to after they complete the payment process or authentication. This is crucial for flows that involve off-site redirection (e.g., 3DS, some bank redirects, wallet payments).",
             "example": "https://hyperswitch.io",
             "nullable": true,
             "maxLength": 2048
@@ -23185,7 +23439,7 @@
           },
           "merchant_order_reference_id": {
             "type": "string",
-            "description": "Merchant's identifier for the payment/invoice. This will be sent to the connector\nif the connector provides support to accept multiple reference ids.\nIn case the connector supports only one reference id, Hyperswitch's Payment ID will be sent as reference.",
+            "description": "Your unique identifier for this payment or order. This ID helps you reconcile payments on your system. If provided, it is passed to the connector if supported.",
             "example": "Custom_Order_id_123",
             "nullable": true,
             "maxLength": 255
@@ -28374,6 +28628,7 @@
       },
       "ThreeDsCompletionIndicator": {
         "type": "string",
+        "description": "Indicates if 3DS method data was successfully completed or not",
         "enum": [
           "Y",
           "N",
