@@ -964,7 +964,7 @@ pub struct PaymentsRequest {
     pub description: Option<String>,
 
     /// The URL to which you want the user to be redirected after the completion of the payment operation
-    #[schema(value_type = Option<String>, example = "https://hyperswitch.io")]
+    #[schema(value_type = Option<String>, example = "https://hyperswitch.io", max_length = 2048)]
     pub return_url: Option<Url>,
 
     #[schema(value_type = Option<FutureUsage>, example = "off_session")]
@@ -4499,6 +4499,7 @@ pub enum NextActionData {
     #[cfg(feature = "v1")]
     RedirectInsidePopup {
         popup_url: String,
+        redirect_response_url: String,
     },
     /// Contains the url for redirection flow
     #[cfg(feature = "v2")]
@@ -5328,6 +5329,10 @@ pub struct PaymentsConfirmIntentRequest {
     /// The payment_method_id to be associated with the payment
     #[schema(value_type = Option<String>)]
     pub payment_method_id: Option<id_type::GlobalPaymentMethodId>,
+
+    /// Provide a reference to a stored payment method
+    #[schema(example = "187282ab-40ef-47a9-9206-5099ba31e432")]
+    pub payment_token: Option<String>,
 }
 
 #[cfg(feature = "v2")]
@@ -5550,6 +5555,7 @@ impl From<&PaymentsRequest> for PaymentsConfirmIntentRequest {
             customer_acceptance: request.customer_acceptance.clone(),
             browser_info: request.browser_info.clone(),
             payment_method_id: request.payment_method_id.clone(),
+            payment_token: None,
         }
     }
 }
@@ -7005,6 +7011,38 @@ pub enum SessionToken {
 }
 
 #[derive(Debug, Clone, Eq, PartialEq, serde::Serialize, ToSchema)]
+#[serde(rename_all = "snake_case")]
+pub enum VaultSessionDetails {
+    Vgs(VgsSessionDetails),
+    HyperswitchVault(HyperswitchVaultSessionDetails),
+}
+
+#[derive(Debug, Clone, Eq, PartialEq, serde::Serialize, ToSchema)]
+pub struct VgsSessionDetails {
+    /// The identifier of the external vault
+    #[schema(value_type = String)]
+    pub external_vault_id: Secret<String>,
+    /// The environment for the external vault initiation
+    pub sdk_env: String,
+}
+
+#[derive(Debug, Clone, Eq, PartialEq, serde::Serialize, ToSchema)]
+pub struct HyperswitchVaultSessionDetails {
+    /// Session ID for Hyperswitch Vault
+    #[schema(value_type = String)]
+    pub payment_method_session_id: Secret<String>,
+    /// Client secret for Hyperswitch Vault
+    #[schema(value_type = String)]
+    pub client_secret: Secret<String>,
+    /// Publishable key for Hyperswitch Vault
+    #[schema(value_type = String)]
+    pub publishable_key: Secret<String>,
+    /// Profile ID for Hyperswitch Vault
+    #[schema(value_type = String)]
+    pub profile_id: Secret<String>,
+}
+
+#[derive(Debug, Clone, Eq, PartialEq, serde::Serialize, ToSchema)]
 #[serde(rename_all = "lowercase")]
 pub struct PazeSessionTokenResponse {
     /// Paze Client ID
@@ -7392,6 +7430,8 @@ pub struct PaymentsSessionResponse {
     pub payment_id: id_type::GlobalPaymentId,
     /// The list of session token object
     pub session_token: Vec<SessionToken>,
+    /// External vault session details
+    pub vault_details: Option<VaultSessionDetails>,
 }
 
 #[derive(Default, Debug, serde::Deserialize, serde::Serialize, Clone, ToSchema)]
@@ -7590,8 +7630,8 @@ pub struct PaymentMethodListResponseForPayments {
 
     /// The list of payment methods that are saved by the given customer
     /// This field is only returned if the customer_id is provided in the request
-    #[schema(value_type = Option<Vec<CustomerPaymentMethod>>)]
-    pub customer_payment_methods: Option<Vec<payment_methods::CustomerPaymentMethod>>,
+    #[schema(value_type = Option<Vec<CustomerPaymentMethodResponseItem>>)]
+    pub customer_payment_methods: Option<Vec<payment_methods::CustomerPaymentMethodResponseItem>>,
 }
 
 #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
@@ -7604,6 +7644,10 @@ pub struct ResponsePaymentMethodTypesForPayments {
     /// The payment method subtype enabled
     #[schema(example = "klarna", value_type = PaymentMethodType)]
     pub payment_method_subtype: common_enums::PaymentMethodType,
+
+    /// The payment experience for the payment method
+    #[schema(value_type = Option<PaymentExperience>)]
+    pub payment_experience: Option<common_enums::PaymentExperience>,
 
     /// payment method subtype specific information
     #[serde(flatten)]
@@ -8116,7 +8160,6 @@ pub struct PaymentLinkDetails {
     pub payment_button_text_colour: Option<String>,
     pub background_colour: Option<String>,
     pub sdk_ui_rules: Option<HashMap<String, HashMap<String, String>>>,
-    pub payment_link_ui_rules: Option<HashMap<String, HashMap<String, String>>>,
     pub status: api_enums::IntentStatus,
     pub enable_button_only_on_form_ready: bool,
     pub payment_form_header_text: Option<String>,
@@ -8125,6 +8168,7 @@ pub struct PaymentLinkDetails {
     pub is_setup_mandate_flow: Option<bool>,
     pub capture_method: Option<common_enums::CaptureMethod>,
     pub setup_future_usage_applied: Option<common_enums::FutureUsage>,
+    pub color_icon_card_cvc_error: Option<String>,
 }
 
 #[derive(Debug, serde::Serialize, Clone)]
@@ -8141,11 +8185,11 @@ pub struct SecurePaymentLinkDetails {
     pub payment_button_text_colour: Option<String>,
     pub background_colour: Option<String>,
     pub sdk_ui_rules: Option<HashMap<String, HashMap<String, String>>>,
-    pub payment_link_ui_rules: Option<HashMap<String, HashMap<String, String>>>,
     pub enable_button_only_on_form_ready: bool,
     pub payment_form_header_text: Option<String>,
     pub payment_form_label_type: Option<api_enums::PaymentLinkSdkLabelType>,
     pub show_card_terms: Option<api_enums::PaymentLinkShowSdkTerms>,
+    pub color_icon_card_cvc_error: Option<String>,
 }
 
 #[derive(Debug, serde::Serialize)]

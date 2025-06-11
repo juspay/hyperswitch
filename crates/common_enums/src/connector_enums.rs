@@ -140,7 +140,7 @@ pub enum RoutableConnectors {
     // Taxjar,
     Trustpay,
     // Thunes
-    // Tokenio,
+    Tokenio,
     // Tsys,
     Tsys,
     // UnifiedAuthenticationService,
@@ -254,6 +254,7 @@ pub enum Connector {
     Gpayments,
     Hipay,
     Helcim,
+    HyperswitchVault,
     Inespay,
     Iatapay,
     Itaubank,
@@ -298,6 +299,7 @@ pub enum Connector {
     Threedsecureio,
     // Tokenio,
     //Thunes,
+    Tokenio,
     Trustpay,
     Tsys,
     // UnifiedAuthenticationService,
@@ -425,6 +427,7 @@ impl Connector {
             | Self::Gpayments
             | Self::Hipay
             | Self::Helcim
+            | Self::HyperswitchVault
             | Self::Iatapay
 			| Self::Inespay
             | Self::Itaubank
@@ -485,6 +488,7 @@ impl Connector {
             | Self::CtpMastercard
             | Self::CtpVisa
             | Self::Noon
+            | Self::Tokenio
             | Self::Stripe
             | Self::Datatrans => false,
             Self::Checkout | Self::Nmi |Self::Cybersource | Self::Archipel => true,
@@ -619,6 +623,7 @@ impl From<RoutableConnectors> for Connector {
             RoutableConnectors::Stax => Self::Stax,
             RoutableConnectors::Stripe => Self::Stripe,
             RoutableConnectors::Stripebilling => Self::Stripebilling,
+            RoutableConnectors::Tokenio => Self::Tokenio,
             RoutableConnectors::Trustpay => Self::Trustpay,
             // RoutableConnectors::Tokenio => Self::Tokenio,
             RoutableConnectors::Tsys => Self::Tsys,
@@ -733,7 +738,7 @@ impl TryFrom<Connector> for RoutableConnectors {
             Connector::Stax => Ok(Self::Stax),
             Connector::Stripe => Ok(Self::Stripe),
             Connector::Stripebilling => Ok(Self::Stripebilling),
-            // Connector::Tokenio => Ok(Self::Tokenio),
+            Connector::Tokenio => Ok(Self::Tokenio),
             Connector::Trustpay => Ok(Self::Trustpay),
             Connector::Tsys => Ok(Self::Tsys),
             Connector::Volt => Ok(Self::Volt),
@@ -754,6 +759,7 @@ impl TryFrom<Connector> for RoutableConnectors {
             Connector::Redsys => Ok(Self::Redsys),
             Connector::CtpMastercard
             | Connector::Gpayments
+            | Connector::HyperswitchVault
             | Connector::Juspaythreedsserver
             | Connector::Netcetera
             | Connector::Taxjar
