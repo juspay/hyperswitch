@@ -477,20 +477,12 @@ impl ForeignTryFrom<payments_grpc::AttemptStatus> for AttemptStatus {
     fn foreign_try_from(grpc_status: payments_grpc::AttemptStatus) -> Result<Self, Self::Error> {
         match grpc_status {
             payments_grpc::AttemptStatus::Started => Ok(AttemptStatus::Started),
-            payments_grpc::AttemptStatus::AuthenticationFailed => {
-                Ok(AttemptStatus::AuthenticationFailed)
-            }
+            payments_grpc::AttemptStatus::AuthenticationFailed => Ok(AttemptStatus::AuthenticationFailed),
             payments_grpc::AttemptStatus::RouterDeclined => Ok(AttemptStatus::RouterDeclined),
-            payments_grpc::AttemptStatus::AuthenticationPending => {
-                Ok(AttemptStatus::AuthenticationPending)
-            }
-            payments_grpc::AttemptStatus::AuthenticationSuccessful => {
-                Ok(AttemptStatus::AuthenticationSuccessful)
-            }
+            payments_grpc::AttemptStatus::AuthenticationPending => Ok(AttemptStatus::AuthenticationPending),
+            payments_grpc::AttemptStatus::AuthenticationSuccessful => Ok(AttemptStatus::AuthenticationSuccessful),
             payments_grpc::AttemptStatus::Authorized => Ok(AttemptStatus::Authorized),
-            payments_grpc::AttemptStatus::AuthorizationFailed => {
-                Ok(AttemptStatus::AuthenticationFailed)
-            }
+            payments_grpc::AttemptStatus::AuthorizationFailed => Ok(AttemptStatus::AuthorizationFailed),
             payments_grpc::AttemptStatus::Charged => Ok(AttemptStatus::Charged),
             payments_grpc::AttemptStatus::Authorizing => Ok(AttemptStatus::Authorizing),
             payments_grpc::AttemptStatus::CodInitiated => Ok(AttemptStatus::CodInitiated),
@@ -501,21 +493,13 @@ impl ForeignTryFrom<payments_grpc::AttemptStatus> for AttemptStatus {
             payments_grpc::AttemptStatus::VoidFailed => Ok(AttemptStatus::VoidFailed),
             payments_grpc::AttemptStatus::AutoRefunded => Ok(AttemptStatus::AutoRefunded),
             payments_grpc::AttemptStatus::PartialCharged => Ok(AttemptStatus::PartialCharged),
-            payments_grpc::AttemptStatus::PartialChargedAndChargeable => {
-                Ok(AttemptStatus::PartialChargedAndChargeable)
-            }
+            payments_grpc::AttemptStatus::PartialChargedAndChargeable => Ok(AttemptStatus::PartialChargedAndChargeable),
             payments_grpc::AttemptStatus::Unresolved => Ok(AttemptStatus::Unresolved),
             payments_grpc::AttemptStatus::Pending => Ok(AttemptStatus::Pending),
             payments_grpc::AttemptStatus::Failure => Ok(AttemptStatus::Failure),
-            payments_grpc::AttemptStatus::PaymentMethodAwaited => {
-                Ok(AttemptStatus::PaymentMethodAwaited)
-            }
-            payments_grpc::AttemptStatus::ConfirmationAwaited => {
-                Ok(AttemptStatus::ConfirmationAwaited)
-            }
-            payments_grpc::AttemptStatus::DeviceDataCollectionPending => {
-                Ok(AttemptStatus::DeviceDataCollectionPending)
-            }
+            payments_grpc::AttemptStatus::PaymentMethodAwaited => Ok(AttemptStatus::PaymentMethodAwaited),
+            payments_grpc::AttemptStatus::ConfirmationAwaited => Ok(AttemptStatus::ConfirmationAwaited),
+            payments_grpc::AttemptStatus::DeviceDataCollectionPending => Ok(AttemptStatus::DeviceDataCollectionPending),
         }
     }
 }
