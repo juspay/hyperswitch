@@ -289,6 +289,7 @@ api_key = "API Key"
 [nordea]
 api_key = "Client Secret"
 key1 = "Client ID"
+api_secret = "eIDAS Private Key"
 
 [novalnet]
 api_key="API Key"
