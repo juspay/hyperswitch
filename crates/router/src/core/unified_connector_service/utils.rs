@@ -484,20 +484,14 @@ impl ForeignTryFrom<payments_grpc::AttemptStatus> for AttemptStatus {
     fn foreign_try_from(grpc_status: payments_grpc::AttemptStatus) -> Result<Self, Self::Error> {
         match grpc_status {
             payments_grpc::AttemptStatus::Started => Ok(Self::Started),
-            payments_grpc::AttemptStatus::AuthenticationFailed => {
-                Ok(Self::AuthenticationFailed)
-            }
+            payments_grpc::AttemptStatus::AuthenticationFailed => Ok(Self::AuthenticationFailed),
             payments_grpc::AttemptStatus::RouterDeclined => Ok(Self::RouterDeclined),
-            payments_grpc::AttemptStatus::AuthenticationPending => {
-                Ok(Self::AuthenticationPending)
-            }
+            payments_grpc::AttemptStatus::AuthenticationPending => Ok(Self::AuthenticationPending),
             payments_grpc::AttemptStatus::AuthenticationSuccessful => {
                 Ok(Self::AuthenticationSuccessful)
             }
             payments_grpc::AttemptStatus::Authorized => Ok(Self::Authorized),
-            payments_grpc::AttemptStatus::AuthorizationFailed => {
-                Ok(Self::AuthorizationFailed)
-            }
+            payments_grpc::AttemptStatus::AuthorizationFailed => Ok(Self::AuthorizationFailed),
             payments_grpc::AttemptStatus::Charged => Ok(Self::Charged),
             payments_grpc::AttemptStatus::Authorizing => Ok(Self::Authorizing),
             payments_grpc::AttemptStatus::CodInitiated => Ok(Self::CodInitiated),
@@ -514,12 +508,8 @@ impl ForeignTryFrom<payments_grpc::AttemptStatus> for AttemptStatus {
             payments_grpc::AttemptStatus::Unresolved => Ok(Self::Unresolved),
             payments_grpc::AttemptStatus::Pending => Ok(Self::Pending),
             payments_grpc::AttemptStatus::Failure => Ok(Self::Failure),
-            payments_grpc::AttemptStatus::PaymentMethodAwaited => {
-                Ok(Self::PaymentMethodAwaited)
-            }
-            payments_grpc::AttemptStatus::ConfirmationAwaited => {
-                Ok(Self::ConfirmationAwaited)
-            }
+            payments_grpc::AttemptStatus::PaymentMethodAwaited => Ok(Self::PaymentMethodAwaited),
+            payments_grpc::AttemptStatus::ConfirmationAwaited => Ok(Self::ConfirmationAwaited),
             payments_grpc::AttemptStatus::DeviceDataCollectionPending => {
                 Ok(Self::DeviceDataCollectionPending)
             }
