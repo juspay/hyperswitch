@@ -1146,7 +1146,7 @@ port = 8000
 service = "dynamo"
 
 [grpc_client.trainer_client]
-host = "0.0.0.0"
+host = "127.0.0.1"
 port = 50051
 
 [theme.storage]
