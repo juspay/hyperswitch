@@ -4,6 +4,16 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2025.05.28.0-hotfix4
+
+### Refactors
+
+- **core:** Introduce new field in payment_intent to handle longer return_url ([#8321](https://github.com/juspay/hyperswitch/pull/8321)) ([`148e3d3`](https://github.com/juspay/hyperswitch/commit/148e3d36148d303f94bf13668a0d924a34e3869e))
+
+**Full Changelog:** [`2025.05.28.0-hotfix3...2025.05.28.0-hotfix4`](https://github.com/juspay/hyperswitch/compare/2025.05.28.0-hotfix3...2025.05.28.0-hotfix4)
+
+- - -
+
 ## 2025.05.28.0-hotfix3
 
 ### Revert
