@@ -777,6 +777,7 @@ pub struct PaymentLinkConfigRequest {
     pub payment_form_label_type: Option<common_enums::PaymentLinkSdkLabelType>,
     pub show_card_terms: Option<common_enums::PaymentLinkShowSdkTerms>,
     pub is_setup_mandate_flow: Option<bool>,
+    pub color_icon_card_cvc_error: Option<String>,
 }
 
 #[derive(Clone, Debug, serde::Deserialize, serde::Serialize, PartialEq)]

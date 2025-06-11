@@ -1,0 +1,55 @@
+{
+  "method": "POST",
+  "header": [
+    {
+      "key": "Content-Type",
+      "value": "application/x-www-form-urlencoded"
+    }
+  ],
+  "body": {
+    "mode": "urlencoded",
+    "urlencoded": [
+      {
+        "key": "order.order_id",
+        "value": "order_{{$timestamp}}",
+        "type": "text"
+      },
+      {
+        "key": "merchant_id",
+        "value": "global_installment",
+        "type": "text"
+      },
+      {
+        "key": "order.amount",
+        "value": "1",
+        "type": "text"
+      },
+      {
+        "key": "order.currency",
+        "value": "AED",
+        "type": "text"
+      },
+      {
+        "key": "order.customer_id",
+        "value": "cst_zqqmw0v4exfbhvvj2zzdzg",
+        "type": "text"
+      },
+      {
+        "key": "format",
+        "value": "json",
+        "type": "text"
+      },
+      {
+        "key": "mandate_id",
+        "value": "jeBrzCo792xrHaAocBMiZM",
+        "type": "text"
+      },
+      {
+        "key": "order.return_url",
+        "value": "https://google.co.in",
+        "type": "text"
+      }
+    ]
+  },
+  "url": "https://sandbox.juspay.in/txns"
+}
