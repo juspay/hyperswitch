@@ -1887,9 +1887,54 @@
             "api_key": []
           }
         ]
+      },
+      "get": {
+        "tags": [
+          "Merchant Connector Account"
+        ],
+        "summary": "Merchant Connector - List",
+        "description": "List Merchant Connector Details for the merchant",
+        "operationId": "List all Merchant Connectors",
+        "parameters": [
+          {
+            "name": "account_id",
+            "in": "path",
+            "description": "The unique identifier for the merchant account",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Merchant Connector list retrieved successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/MerchantConnectorListResponse"
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized request"
+          },
+          "404": {
+            "description": "Merchant Connector does not exist in records"
+          }
+        },
+        "security": [
+          {
+            "api_key": []
+          }
+        ]
       }
     },
-    "/accounts/{account_id}/connectors/{connector_id}": {
+    "/account/{account_id}/connectors/{merchant_connector_id}": {
       "get": {
         "tags": [
           "Merchant Connector Account"
@@ -1908,13 +1953,12 @@
             }
           },
           {
-            "name": "connector_id",
+            "name": "merchant_connector_id",
             "in": "path",
             "description": "The unique identifier for the Merchant Connector",
             "required": true,
             "schema": {
-              "type": "integer",
-              "format": "int32"
+              "type": "string"
             }
           }
         ],
@@ -1960,13 +2004,12 @@
             }
           },
           {
-            "name": "connector_id",
+            "name": "merchant_connector_id",
             "in": "path",
             "description": "The unique identifier for the Merchant Connector",
             "required": true,
             "schema": {
-              "type": "integer",
-              "format": "int32"
+              "type": "string"
             }
           }
         ],
@@ -2041,13 +2084,12 @@
             }
           },
           {
-            "name": "connector_id",
+            "name": "merchant_connector_id",
             "in": "path",
             "description": "The unique identifier for the Merchant Connector",
             "required": true,
             "schema": {
-              "type": "integer",
-              "format": "int32"
+              "type": "string"
             }
           }
         ],
@@ -2072,53 +2114,6 @@
         "security": [
           {
             "admin_api_key": []
-          }
-        ]
-      }
-    },
-    "/accounts/{account_id}/connectors": {
-      "get": {
-        "tags": [
-          "Merchant Connector Account"
-        ],
-        "summary": "Merchant Connector - List",
-        "description": "List Merchant Connector Details for the merchant",
-        "operationId": "List all Merchant Connectors",
-        "parameters": [
-          {
-            "name": "account_id",
-            "in": "path",
-            "description": "The unique identifier for the merchant account",
-            "required": true,
-            "schema": {
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Merchant Connector list retrieved successfully",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "array",
-                  "items": {
-                    "$ref": "#/components/schemas/MerchantConnectorListResponse"
-                  }
-                }
-              }
-            }
-          },
-          "401": {
-            "description": "Unauthorized request"
-          },
-          "404": {
-            "description": "Merchant Connector does not exist in records"
-          }
-        },
-        "security": [
-          {
-            "api_key": []
           }
         ]
       }
