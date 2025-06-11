@@ -62,6 +62,93 @@
                 )
             ),
             (
+              "Create a Stripe Split Payments CIT call" = (
+                value = json!({
+                  "amount": 200,
+                  "currency": "USD",
+                  "profile_id": "pro_abcdefghijklmnop",
+                  "confirm": true,
+                  "capture_method": "automatic",
+                  "amount_to_capture": 200,
+                  "customer_id": "StripeCustomer123",
+                  "setup_future_usage": "off_session",
+                  "customer_acceptance": {
+                      "acceptance_type": "offline",
+                      "accepted_at": "1963-05-03T04:07:52.723Z",
+                      "online": {
+                          "ip_address": "125.0.0.1",
+                          "user_agent": "amet irure esse"
+                      }
+                  },
+                  "authentication_type": "no_three_ds",
+                  "return_url": "https://hyperswitch.io",
+                  "name": "John Doe",
+                  "phone": "999999999",
+                  "phone_country_code": "+65",
+                  "description": "Its my first payment request",
+                  "payment_method": "card",
+                  "payment_method_type": "debit",
+                  "payment_method_data": {
+                      "card": {
+                          "card_number": "4242424242424242",
+                          "card_exp_month": "09",
+                          "card_exp_year": "25",
+                          "card_holder_name": "joseph Doe",
+                          "card_cvc": "123"
+                      }
+                  },
+                  "billing": {
+                      "address": {
+                          "line1": "1467",
+                          "line2": "Harrison Street",
+                          "line3": "Harrison Street",
+                          "city": "San Fransico",
+                          "state": "California",
+                          "zip": "94122",
+                          "country": "US",
+                          "first_name": "joseph",
+                          "last_name": "Doe"
+                      },
+                      "phone": {
+                          "number": "9999999999",
+                          "country_code": "+91"
+                      }
+                  },
+                  "split_payments": {
+                      "stripe_split_payment": {
+                          "charge_type": "direct",
+                          "application_fees": 100,
+                          "transfer_account_id": "acct_123456789"
+                      }
+                  }
+              })
+              )
+            ),
+            (
+              "Create a Stripe Split Payments MIT call" = (
+                value = json!({
+                  "amount": 200,
+                  "currency": "USD",
+                  "profile_id": "pro_abcdefghijklmnop",
+                  "customer_id": "StripeCustomer123",
+                  "description": "Subsequent Mandate Test Payment (MIT from New CIT Demo)",
+                  "confirm": true,
+                  "off_session": true,
+                  "recurring_details": {
+                      "type": "payment_method_id",
+                      "data": "pm_123456789" 
+                  },
+                  "split_payments": {
+                      "stripe_split_payment": {
+                          "charge_type": "direct",
+                          "application_fees": 11,
+                          "transfer_account_id": "acct_123456789"
+                      }
+                  }
+              })
+              )
+            ),
+            (
                 "Create a manual capture payment" = (
                     value = json!({
                     "amount": 6540,
