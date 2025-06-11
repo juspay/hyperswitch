@@ -84,7 +84,7 @@ impl
             profile_id: profile_id.clone(),
             acquirer_assigned_merchant_id: acquirer_config.acquirer_assigned_merchant_id.clone(),
             merchant_name: acquirer_config.merchant_name.clone(),
-            merchant_country_code: acquirer_config.merchant_country_code.into(),
+            merchant_country_code: acquirer_config.merchant_country_code,
             network: acquirer_config.network.clone(),
             acquirer_bin: acquirer_config.acquirer_bin.clone(),
             acquirer_ica: acquirer_config.acquirer_ica.clone(),
