@@ -228,7 +228,7 @@ function bankRedirectRedirection(
                 );
             }
             break;
-            
+
           case "paypal":
             if (["eps", "ideal", "giropay"].includes(paymentMethodType)) {
               cy.get('button[name="Successful"][value="SUCCEEDED"]').click();
