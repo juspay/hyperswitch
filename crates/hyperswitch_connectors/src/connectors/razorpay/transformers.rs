@@ -407,6 +407,7 @@ impl
             | PaymentMethodData::OpenBanking(_)
             | PaymentMethodData::CardToken(_)
             | PaymentMethodData::NetworkToken(_)
+            | PaymentMethodData::ExternalProxyCardData(_)
             | PaymentMethodData::CardDetailsForNetworkTransactionId(_) => {
                 Err(errors::ConnectorError::NotImplemented("Payment methods".to_string()).into())
             }
