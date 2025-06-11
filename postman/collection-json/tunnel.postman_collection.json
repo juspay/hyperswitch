@@ -1,0 +1,1553 @@
+{
+  "event": [
+    {
+      "listen": "prerequest",
+      "script": {
+        "exec": [
+          ""
+        ],
+        "type": "text/javascript"
+      }
+    },
+    {
+      "listen": "test",
+      "script": {
+        "exec": [
+          ""
+        ],
+        "type": "text/javascript"
+      }
+    }
+  ],
+  "item": [
+    {
+      "name": "Normal Payment",
+      "item": [
+        {
+          "name": "Create-Order",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "// Validate status 2xx",
+                  "pm.test(\"[POST]::/payments - Status code is 2xx\", function () {",
+                  "  pm.response.to.be.success;",
+                  "});",
+                  "",
+                  "// Validate if response has JSON Body",
+                  "pm.test(\"[POST]::/payments - Response has JSON Body\", function () {",
+                  "  pm.response.to.have.jsonBody();",
+                  "});",
+                  "",
+                  "// Set response object as internal variable",
+                  "let jsonData = {};",
+                  "try {",
+                  "  jsonData = pm.response.json();",
+                  "} catch (e) {}",
+                  "",
+                  "// pm.collectionVariables - Set order_id as variable for jsonData.order_id",
+                  "if (jsonData?.order_id) {",
+                  "  pm.collectionVariables.set(\"order_id\", jsonData.order_id);",
+                  "  console.log(",
+                  "    \"- use {{order_id}} as collection variable for value\",",
+                  "    jsonData.order_id,",
+                  "  );",
+                  "} else {",
+                  "  console.log(",
+                  "    \"INFO - Unable to assign variable {{order_id}}, as jsonData.payment_id is undefined.\",",
+                  "  );",
+                  "}",
+                  "",
+                  "// Response body should have value \"CREATED\" for \"status\"",
+                  "if (jsonData?.status) {",
+                  "  pm.test(",
+                  "    \"[POST]::/payments - Content check if value for 'status' matches 'CREATED'\",",
+                  "    function () {",
+                  "      pm.expect(jsonData.status).to.eql(\"CREATED\");",
+                  "    },",
+                  "  );",
+                  "}",
+                  "",
+                  "// Response body should contain order_id",
+                  "if (jsonData?.order_id) {",
+                  "  pm.test(",
+                  "    \"[POST]::/payments - Content check if 'order_id' is present and not empty\",",
+                  "    function () {",
+                  "      pm.expect(jsonData.order_id).to.be.a(\"string\").and.not.empty;",
+                  "    },",
+                  "  );",
+                  "} else {",
+                  "  pm.test(",
+                  "    \"[POST]::/payments - Response body does not contain 'order_id' field\",",
+                  "    function () {",
+                  "      pm.expect.fail(\"The 'order_id' field was not found in the response body.\");",
+                  "    },",
+                  "  );",
+                  "}",
+                  "",
+                  "",
+                  "",
+                  ""
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/x-www-form-urlencoded"
+              }
+            ],
+            "body": {
+              "mode": "urlencoded",
+              "urlencoded": [
+                {
+                  "key": "order_id",
+                  "value": "order_{{$timestamp}}",
+                  "type": "text"
+                },
+                {
+                  "key": "amount",
+                  "value": "6500",
+                  "type": "text"
+                },
+                {
+                  "key": "return_url",
+                  "value": "https://www.google.co.in",
+                  "type": "text"
+                },
+                {
+                  "key": "customer_id",
+                  "value": "cth_926bHs22Q3SSKbiA",
+                  "type": "text"
+                },
+                {
+                  "key": "currency",
+                  "value": "AED",
+                  "type": "text"
+                },
+                {
+                  "key": "metadata.JUSPAY:gateway_reference_id",
+                  "value": "noon-mandate",
+                  "type": "text"
+                }
+              ]
+            },
+            "url": "https://sandbox.juspay.in/orders"
+          },
+          "response": []
+        },
+        {
+          "name": "Create-Transaction",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "// Validate status 2xx",
+                  "pm.test(\"[POST]::/payments - Status code is 2xx\", function () {",
+                  "  pm.response.to.be.success;",
+                  "});",
+                  "",
+                  "// Validate if response has JSON Body",
+                  "pm.test(\"[POST]::/payments - Response has JSON Body\", function () {",
+                  "  pm.response.to.have.jsonBody();",
+                  "});",
+                  "",
+                  "// Set response object as internal variable",
+                  "let jsonData = {};",
+                  "try {",
+                  "  jsonData = pm.response.json();",
+                  "} catch (e) {}",
+                  "",
+                  "// pm.collectionVariables - Set order_id as variable for jsonData.order_id",
+                  "if (jsonData?.order_id) {",
+                  "  pm.collectionVariables.set(\"order_id\", jsonData.order_id);",
+                  "  console.log(",
+                  "    \"- use {{order_id}} as collection variable for value\",",
+                  "    jsonData.order_id,",
+                  "  );",
+                  "} else {",
+                  "  console.log(",
+                  "    \"INFO - Unable to assign variable {{order_id}}, as jsonData.payment_id is undefined.\",",
+                  "  );",
+                  "}",
+                  "",
+                  "// Response body should have value \"PENDING_VBV\" for \"status\"",
+                  "if (jsonData?.status) {",
+                  "  pm.test(",
+                  "    \"[POST]::/payments - Content check if value for 'status' matches 'PENDING_VBV'\",",
+                  "    function () {",
+                  "      pm.expect(jsonData.status).to.eql(\"PENDING_VBV\");",
+                  "    },",
+                  "  );",
+                  "}",
+                  "",
+                  "// Response body should have \"payment.authentication.url\"",
+                  "pm.test(",
+                  "  \"[POST]::/payments - Content check if 'payment.authentication.url' exists\",",
+                  "  function () {",
+                  "    pm.expect(typeof jsonData.payment.authentication.url !== \"undefined\").to.be",
+                  "      .true;",
+                  "  },",
+                  ");",
+                  "",
+                  "// Response body should contain order_id",
+                  "if (jsonData?.order_id) {",
+                  "  pm.test(",
+                  "    \"[POST]::/payments - Content check if 'order_id' is present and not empty\",",
+                  "    function () {",
+                  "      pm.expect(jsonData.order_id).to.be.a(\"string\").and.not.empty;",
+                  "    },",
+                  "  );",
+                  "} else {",
+                  "  pm.test(",
+                  "    \"[POST]::/payments - Response body does not contain 'order_id' field\",",
+                  "    function () {",
+                  "      pm.expect.fail(\"The 'order_id' field was not found in the response body.\");",
+                  "    },",
+                  "  );",
+                  "}",
+                  "",
+                  "//Response body should have \"payment.authentication\" object",
+                  "pm.test(\"Authentication object is not null\", function () {",
+                  "    pm.expect(jsonData.payment.authentication).to.not.be.null;",
+                  "});",
+                  "",
+                  "pm.test(\"Authentication object has 'url' property\", function () {",
+                  "    pm.expect(jsonData.payment.authentication).to.have.property('url');",
+                  "});",
+                  "",
+                  "const targetUrl = jsonData.payment.authentication.url; ",
+                  "",
+                  "const expectedSegment = \"/v2/pay/start\";",
+                  "",
+                  "pm.test(`URL contains \"${expectedSegment}\"`, function () {",
+                  "    pm.expect(targetUrl).to.include(expectedSegment);",
+                  "});",
+                  ""
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/x-www-form-urlencoded"
+              },
+              {
+                "key": "X-Auth-Scope",
+                "value": "DASHBOARD"
+              }
+            ],
+            "body": {
+              "mode": "urlencoded",
+              "urlencoded": [
+                {
+                  "key": "merchant_id",
+                  "value": "global_installment",
+                  "type": "text"
+                },
+                {
+                  "key": "payment_method_type",
+                  "value": "CARD",
+                  "type": "text"
+                },
+                {
+                  "key": "payment_method",
+                  "value": "VISA",
+                  "type": "text"
+                },
+                {
+                  "key": "card_number",
+                  "value": "4456530000001096",
+                  "type": "text"
+                },
+                {
+                  "key": "card_exp_month",
+                  "value": "12",
+                  "type": "text"
+                },
+                {
+                  "key": "card_exp_year",
+                  "value": "2030",
+                  "type": "text"
+                },
+                {
+                  "key": "name_on_card",
+                  "value": "sahkal poddar",
+                  "type": "text"
+                },
+                {
+                  "key": "card_security_code",
+                  "value": "123",
+                  "type": "text"
+                },
+                {
+                  "key": "redirect_after_payment",
+                  "value": "false",
+                  "type": "text"
+                },
+                {
+                  "key": "format",
+                  "value": "json",
+                  "type": "text"
+                },
+                {
+                  "key": "order_id",
+                  "value": "{{order_id}}",
+                  "type": "text"
+                }
+              ]
+            },
+            "url": "https://sandbox.juspay.in/txns"
+          },
+          "response": []
+        },
+        {
+          "name": "Retrieve-Order",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "// Validate status 2xx",
+                  "pm.test(\"[POST]::/payments - Status code is 2xx\", function () {",
+                  "  pm.response.to.be.success;",
+                  "});",
+                  "",
+                  "// Validate if response has JSON Body",
+                  "pm.test(\"[POST]::/payments - Response has JSON Body\", function () {",
+                  "  pm.response.to.have.jsonBody();",
+                  "});",
+                  "",
+                  "// Set response object as internal variable",
+                  "let jsonData = {};",
+                  "try {",
+                  "  jsonData = pm.response.json();",
+                  "} catch (e) {}",
+                  "",
+                  "// pm.collectionVariables - Set order_id as variable for jsonData.order_id",
+                  "if (jsonData?.order_id) {",
+                  "  pm.collectionVariables.set(\"order_id\", jsonData.order_id);",
+                  "  console.log(",
+                  "    \"- use {{order_id}} as collection variable for value\",",
+                  "    jsonData.order_id,",
+                  "  );",
+                  "} else {",
+                  "  console.log(",
+                  "    \"INFO - Unable to assign variable {{order_id}}, as jsonData.payment_id is undefined.\",",
+                  "  );",
+                  "}",
+                  "",
+                  "// Response body should have value \"PENDING_VBV\" for \"status\"",
+                  "if (jsonData?.status) {",
+                  "  pm.test(",
+                  "    \"[POST]::/payments - Content check if value for 'status' matches 'PENDING_VBV'\",",
+                  "    function () {",
+                  "      pm.expect(jsonData.status).to.eql(\"PENDING_VBV\");",
+                  "    },",
+                  "  );",
+                  "}",
+                  "",
+                  "// Check if bank_error_code and bank_error_message are empty strings",
+                  "pm.test(\"Bank error code is an empty string\", function () {",
+                  "    pm.expect(jsonData.bank_error_code).to.eql(\"\");",
+                  "});",
+                  "",
+                  "pm.test(\"Bank error message is an empty string\", function () {",
+                  "    pm.expect(jsonData.bank_error_message).to.eql(\"\");",
+                  "});",
+                  "",
+                  "// 3. Verify txn_detail.error_code and txn_detail.error_message",
+                  "pm.test(\"Txn Detail error_code is null\", function () {",
+                  "    pm.expect(jsonData.txn_detail.error_code).to.be.null;",
+                  "});",
+                  "",
+                  "pm.test(\"Txn Detail error_message is an empty string\", function () {",
+                  "    pm.expect(jsonData.txn_detail.error_message).to.eql(\"\");",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "version",
+                "value": "2020-03-14"
+              }
+            ],
+            "body": {
+              "mode": "urlencoded",
+              "urlencoded": [
+                {
+                  "key": "options.add_full_gateway_response",
+                  "value": "true",
+                  "type": "text"
+                }
+              ]
+            },
+            "url": {
+              "raw": "https://sandbox.juspay.in/orders/{{order_id}}?options.add_full_gateway_response=true",
+              "host": [
+                "https://sandbox.juspay.in"
+              ],
+              "path": [
+                "orders",
+                "{{order_id}}"
+              ],
+              "query": [
+                {
+                  "key": "options.add_full_gateway_response",
+                  "value": "true"
+                }
+              ]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Mandate Payment",
+      "item": [
+        {
+          "name": "Create-Order",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "// Validate status 2xx",
+                  "pm.test(\"[POST]::/payments - Status code is 2xx\", function () {",
+                  "  pm.response.to.be.success;",
+                  "});",
+                  "",
+                  "// Validate if response has JSON Body",
+                  "pm.test(\"[POST]::/payments - Response has JSON Body\", function () {",
+                  "  pm.response.to.have.jsonBody();",
+                  "});",
+                  "",
+                  "// Set response object as internal variable",
+                  "let jsonData = {};",
+                  "try {",
+                  "  jsonData = pm.response.json();",
+                  "} catch (e) {}",
+                  "",
+                  "// pm.collectionVariables - Set order_id as variable for jsonData.order_id",
+                  "if (jsonData?.order_id) {",
+                  "  pm.collectionVariables.set(\"order_id\", jsonData.order_id);",
+                  "  console.log(",
+                  "    \"- use {{order_id}} as collection variable for value\",",
+                  "    jsonData.order_id,",
+                  "  );",
+                  "} else {",
+                  "  console.log(",
+                  "    \"INFO - Unable to assign variable {{order_id}}, as jsonData.payment_id is undefined.\",",
+                  "  );",
+                  "}",
+                  "",
+                  "// Response body should have value \"CREATED\" for \"status\"",
+                  "if (jsonData?.status) {",
+                  "  pm.test(",
+                  "    \"[POST]::/payments - Content check if value for 'status' matches 'CREATED'\",",
+                  "    function () {",
+                  "      pm.expect(jsonData.status).to.eql(\"CREATED\");",
+                  "    },",
+                  "  );",
+                  "}",
+                  "",
+                  "// Response body should contain order_id",
+                  "if (jsonData?.order_id) {",
+                  "  pm.test(",
+                  "    \"[POST]::/payments - Content check if 'order_id' is present and not empty\",",
+                  "    function () {",
+                  "      pm.expect(jsonData.order_id).to.be.a(\"string\").and.not.empty;",
+                  "    },",
+                  "  );",
+                  "} else {",
+                  "  pm.test(",
+                  "    \"[POST]::/payments - Response body does not contain 'order_id' field\",",
+                  "    function () {",
+                  "      pm.expect.fail(\"The 'order_id' field was not found in the response body.\");",
+                  "    },",
+                  "  );",
+                  "}",
+                  "",
+                  "",
+                  ""
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/x-www-form-urlencoded"
+              }
+            ],
+            "body": {
+              "mode": "urlencoded",
+              "urlencoded": [
+                {
+                  "key": "order_id",
+                  "value": "order1_{{$timestamp}}",
+                  "type": "text"
+                },
+                {
+                  "key": "amount",
+                  "value": "6500",
+                  "type": "text"
+                },
+                {
+                  "key": "return_url",
+                  "value": "https://www.google.co.in",
+                  "type": "text"
+                },
+                {
+                  "key": "customer_id",
+                  "value": "cth_926bHs22Q3SSKbiA",
+                  "type": "text"
+                },
+                {
+                  "key": "currency",
+                  "value": "AED",
+                  "type": "text"
+                },
+                {
+                  "key": "metadata.JUSPAY:gateway_reference_id",
+                  "value": "noon-mandate",
+                  "type": "text"
+                },
+                {
+                  "key": "options.create_mandate",
+                  "value": "REQUIRED",
+                  "type": "text"
+                },
+                {
+                  "key": "mandate_max_amount",
+                  "value": "10000000",
+                  "type": "text"
+                }
+              ]
+            },
+            "url": "https://sandbox.juspay.in/orders"
+          },
+          "response": []
+        },
+        {
+          "name": "Create-Mandate Transaction",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "// Validate status 2xx",
+                  "pm.test(\"[POST]::/payments - Status code is 2xx\", function () {",
+                  "  pm.response.to.be.success;",
+                  "});",
+                  "",
+                  "// Validate if response has JSON Body",
+                  "pm.test(\"[POST]::/payments - Response has JSON Body\", function () {",
+                  "  pm.response.to.have.jsonBody();",
+                  "});",
+                  "",
+                  "// Set response object as internal variable",
+                  "let jsonData = {};",
+                  "try {",
+                  "  jsonData = pm.response.json();",
+                  "} catch (e) {}",
+                  "",
+                  "// pm.collectionVariables - Set order_id as variable for jsonData.order_id",
+                  "if (jsonData?.order_id) {",
+                  "  pm.collectionVariables.set(\"order_id\", jsonData.order_id);",
+                  "  console.log(",
+                  "    \"- use {{order_id}} as collection variable for value\",",
+                  "    jsonData.order_id,",
+                  "  );",
+                  "} else {",
+                  "  console.log(",
+                  "    \"INFO - Unable to assign variable {{order_id}}, as jsonData.payment_id is undefined.\",",
+                  "  );",
+                  "}",
+                  "",
+                  "// pm.collectionVariables - Set order_id as variable for jsonData.mandate_id",
+                  "if (jsonData?.mandate_id) {",
+                  "  pm.collectionVariables.set(\"mandate_id\", jsonData.mandate_id);",
+                  "  console.log(",
+                  "    \"- use {{mandate_id}} as collection variable for value\",",
+                  "    jsonData.mandate_id,",
+                  "  );",
+                  "} else {",
+                  "  console.log(",
+                  "    \"INFO - Unable to assign variable {{mandate_id}}, as jsonData.mandate_id is undefined.\",",
+                  "  );",
+                  "}",
+                  "",
+                  "// Response body should have value \"PENDING_VBV\" for \"status\"",
+                  "if (jsonData?.status) {",
+                  "  pm.test(",
+                  "    \"[POST]::/payments - Content check if value for 'status' matches 'PENDING_VBV'\",",
+                  "    function () {",
+                  "      pm.expect(jsonData.status).to.eql(\"PENDING_VBV\");",
+                  "    },",
+                  "  );",
+                  "}",
+                  "",
+                  "// Response body should have \"payment.authentication.url\"",
+                  "pm.test(",
+                  "  \"[POST]::/payments - Content check if 'payment.authentication.url' exists\",",
+                  "  function () {",
+                  "    pm.expect(typeof jsonData.payment.authentication.url !== \"undefined\").to.be",
+                  "      .true;",
+                  "  },",
+                  ");",
+                  "",
+                  "// Response body should contain order_id",
+                  "if (jsonData?.order_id) {",
+                  "  pm.test(",
+                  "    \"[POST]::/payments - Content check if 'order_id' is present and not empty\",",
+                  "    function () {",
+                  "      pm.expect(jsonData.order_id).to.be.a(\"string\").and.not.empty;",
+                  "    },",
+                  "  );",
+                  "} else {",
+                  "  pm.test(",
+                  "    \"[POST]::/payments - Response body does not contain 'order_id' field\",",
+                  "    function () {",
+                  "      pm.expect.fail(\"The 'order_id' field was not found in the response body.\");",
+                  "    },",
+                  "  );",
+                  "}",
+                  "",
+                  "const responseJson = pm.response.json();",
+                  "",
+                  "//Response body should have \"payment.authentication\" object",
+                  "pm.test(\"Authentication object is not null\", function () {",
+                  "    pm.expect(responseJson.payment.authentication).to.not.be.null;",
+                  "});",
+                  "",
+                  "//Response body should have \"payment.authentication.url\" property",
+                  "pm.test(\"Authentication object has 'url' property\", function () {",
+                  "    pm.expect(responseJson.payment.authentication).to.have.property('url');",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/x-www-form-urlencoded"
+              }
+            ],
+            "body": {
+              "mode": "urlencoded",
+              "urlencoded": [
+                {
+                  "key": "order_id",
+                  "value": "{{order_id}}",
+                  "type": "text"
+                },
+                {
+                  "key": "merchant_id",
+                  "value": "global_installment",
+                  "type": "text"
+                },
+                {
+                  "key": "payment_method_type",
+                  "value": "CARD",
+                  "type": "text"
+                },
+                {
+                  "key": "payment_method",
+                  "value": "VISA",
+                  "type": "text"
+                },
+                {
+                  "key": "card_number",
+                  "value": "4456530000001096",
+                  "type": "text"
+                },
+                {
+                  "key": "card_exp_month",
+                  "value": "04",
+                  "type": "text"
+                },
+                {
+                  "key": "card_exp_year",
+                  "value": "2030",
+                  "type": "text"
+                },
+                {
+                  "key": "name_on_card",
+                  "value": "Malav Shah",
+                  "type": "text"
+                },
+                {
+                  "key": "card_security_code",
+                  "value": "100",
+                  "type": "text"
+                },
+                {
+                  "key": "should_create_mandate",
+                  "value": "true",
+                  "type": "text"
+                },
+                {
+                  "key": "save_to_locker",
+                  "value": "true",
+                  "type": "text"
+                },
+                {
+                  "key": "redirect_after_payment",
+                  "value": "true",
+                  "type": "text"
+                },
+                {
+                  "key": "format",
+                  "value": "json",
+                  "type": "text"
+                },
+                {
+                  "key": "auth_type",
+                  "value": "THREE_DS",
+                  "type": "text"
+                },
+                {
+                  "key": "mandate_type",
+                  "value": "MANDATE",
+                  "type": "text"
+                },
+                {
+                  "key": "metadata.JUSPAY:gateway_reference_id",
+                  "value": "noon-mandate",
+                  "type": "text"
+                }
+              ]
+            },
+            "url": "https://sandbox.juspay.in/txns"
+          },
+          "response": []
+        },
+        {
+          "name": "Retrieve-Order",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "// Validate status 2xx",
+                  "pm.test(\"[POST]::/payments - Status code is 2xx\", function () {",
+                  "  pm.response.to.be.success;",
+                  "});",
+                  "",
+                  "// Validate if response has JSON Body",
+                  "pm.test(\"[POST]::/payments - Response has JSON Body\", function () {",
+                  "  pm.response.to.have.jsonBody();",
+                  "});",
+                  "",
+                  "// Set response object as internal variable",
+                  "let jsonData = {};",
+                  "try {",
+                  "  jsonData = pm.response.json();",
+                  "} catch (e) {}",
+                  "",
+                  "// pm.collectionVariables - Set order_id as variable for jsonData.order_id",
+                  "if (jsonData?.order_id) {",
+                  "  pm.collectionVariables.set(\"order_id\", jsonData.order_id);",
+                  "  console.log(",
+                  "    \"- use {{order_id}} as collection variable for value\",",
+                  "    jsonData.order_id,",
+                  "  );",
+                  "} else {",
+                  "  console.log(",
+                  "    \"INFO - Unable to assign variable {{order_id}}, as jsonData.payment_id is undefined.\",",
+                  "  );",
+                  "}",
+                  "",
+                  "// Response body should have value \"PENDING_VBV\" for \"status\"",
+                  "if (jsonData?.status) {",
+                  "  pm.test(",
+                  "    \"[POST]::/payments - Content check if value for 'status' matches 'PENDING_VBV'\",",
+                  "    function () {",
+                  "      pm.expect(jsonData.status).to.eql(\"PENDING_VBV\");",
+                  "    },",
+                  "  );",
+                  "}",
+                  "",
+                  "// Check if bank_error_code and bank_error_message are empty strings",
+                  "pm.test(\"Bank error code is an empty string\", function () {",
+                  "    pm.expect(jsonData.bank_error_code).to.eql(\"\");",
+                  "});",
+                  "",
+                  "pm.test(\"Bank error message is an empty string\", function () {",
+                  "    pm.expect(jsonData.bank_error_message).to.eql(\"\");",
+                  "});",
+                  ""
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "body": {
+              "mode": "urlencoded",
+              "urlencoded": [
+                {
+                  "key": "options.add_full_gateway_response",
+                  "value": "true",
+                  "type": "text"
+                }
+              ]
+            },
+            "url": {
+              "raw": "https://sandbox.juspay.in/orders/{{order_id}}?options.add_full_gateway_response=true",
+              "host": [
+                "https://sandbox.juspay.in"
+              ],
+              "path": [
+                "orders",
+                "{{order_id}}"
+              ],
+              "query": [
+                {
+                  "key": "options.add_full_gateway_response",
+                  "value": "true"
+                }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Create-Recurring Mandate Transaction",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "// Validate status 2xx",
+                  "pm.test(\"[POST]::/payments - Status code is 2xx\", function () {",
+                  "  pm.response.to.be.success;",
+                  "});",
+                  "",
+                  "// Validate if response has JSON Body",
+                  "pm.test(\"[POST]::/payments - Response has JSON Body\", function () {",
+                  "  pm.response.to.have.jsonBody();",
+                  "});",
+                  "",
+                  "// Set response object as internal variable",
+                  "let jsonData = {};",
+                  "try {",
+                  "  jsonData = pm.response.json();",
+                  "} catch (e) {}",
+                  "",
+                  "// pm.collectionVariables - Set order_id as variable for jsonData.order_id",
+                  "if (jsonData?.order_id) {",
+                  "  pm.collectionVariables.set(\"order_id\", jsonData.order_id);",
+                  "  console.log(",
+                  "    \"- use {{order_id}} as collection variable for value\",",
+                  "    jsonData.order_id,",
+                  "  );",
+                  "} else {",
+                  "  console.log(",
+                  "    \"INFO - Unable to assign variable {{order_id}}, as jsonData.payment_id is undefined.\",",
+                  "  );",
+                  "}",
+                  "",
+                  "// pm.collectionVariables - Set order_id as variable for jsonData.mandate_id",
+                  "if (jsonData?.mandate_id) {",
+                  "  pm.collectionVariables.set(\"mandate_id\", jsonData.mandate_id);",
+                  "  console.log(",
+                  "    \"- use {{mandate_id}} as collection variable for value\",",
+                  "    jsonData.mandate_id,",
+                  "  );",
+                  "} else {",
+                  "  console.log(",
+                  "    \"INFO - Unable to assign variable {{mandate_id}}, as jsonData.mandate_id is undefined.\",",
+                  "  );",
+                  "}",
+                  "",
+                  "// Response body should have value \"CHARGED\" for \"status\"",
+                  "if (jsonData?.status) {",
+                  "  pm.test(",
+                  "    \"[POST]::/payments - Content check if value for 'status' matches 'CHARGED'\",",
+                  "    function () {",
+                  "      pm.expect(jsonData.status).to.eql(\"CHARGED\");",
+                  "    },",
+                  "  );",
+                  "}",
+                  "",
+                  "// Response body should have \"payment.authentication.url\"",
+                  "pm.test(",
+                  "  \"[POST]::/payments - Content check if 'payment.authentication.url' exists\",",
+                  "  function () {",
+                  "    pm.expect(typeof jsonData.payment.authentication.url !== \"undefined\").to.be",
+                  "      .true;",
+                  "  },",
+                  ");",
+                  "",
+                  "// Response body should contain order_id",
+                  "if (jsonData?.order_id) {",
+                  "  pm.test(",
+                  "    \"[POST]::/payments - Content check if 'order_id' is present and not empty\",",
+                  "    function () {",
+                  "      pm.expect(jsonData.order_id).to.be.a(\"string\").and.not.empty;",
+                  "    },",
+                  "  );",
+                  "} else {",
+                  "  pm.test(",
+                  "    \"[POST]::/payments - Response body does not contain 'order_id' field\",",
+                  "    function () {",
+                  "      pm.expect.fail(\"The 'order_id' field was not found in the response body.\");",
+                  "    },",
+                  "  );",
+                  "}",
+                  "",
+                  "//Response body should have \"payment.authentication\" object",
+                  "pm.test(\"Authentication object is not null\", function () {",
+                  "    pm.expect(jsonData.payment.authentication).to.not.be.null;",
+                  "});",
+                  "",
+                  "pm.test(\"Authentication object has 'url' property\", function () {",
+                  "    pm.expect(jsonData.payment.authentication).to.have.property('url');",
+                  "});",
+                  "",
+                  "const targetUrl = jsonData.payment.authentication.url; ",
+                  "",
+                  "const expectedSegment = \"/v2/pay/finish\";",
+                  "",
+                  "pm.test(`URL contains \"${expectedSegment}\"`, function () {",
+                  "    pm.expect(targetUrl).to.include(expectedSegment);",
+                  "});",
+                  ""
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/x-www-form-urlencoded"
+              }
+            ],
+            "body": {
+              "mode": "urlencoded",
+              "urlencoded": [
+                {
+                  "key": "order.order_id",
+                  "value": "order_{{$timestamp}}",
+                  "type": "text"
+                },
+                {
+                  "key": "merchant_id",
+                  "value": "global_installment",
+                  "type": "text"
+                },
+                {
+                  "key": "order.amount",
+                  "value": "1",
+                  "type": "text"
+                },
+                {
+                  "key": "order.currency",
+                  "value": "AED",
+                  "type": "text"
+                },
+                {
+                  "key": "order.customer_id",
+                  "value": "cst_zqqmw0v4exfbhvvj2zzdzg",
+                  "type": "text"
+                },
+                {
+                  "key": "format",
+                  "value": "json",
+                  "type": "text"
+                },
+                {
+                  "key": "mandate_id",
+                  "value": "jeBrzCo792xrHaAocBMiZM",
+                  "type": "text"
+                },
+                {
+                  "key": "order.return_url",
+                  "value": "https://google.co.in",
+                  "type": "text"
+                }
+              ]
+            },
+            "url": "https://sandbox.juspay.in/txns"
+          },
+          "response": []
+        },
+        {
+          "name": "Retrieve-Order-copy",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "// Validate status 2xx",
+                  "pm.test(\"[POST]::/payments - Status code is 2xx\", function () {",
+                  "  pm.response.to.be.success;",
+                  "});",
+                  "",
+                  "// Validate if response has JSON Body",
+                  "pm.test(\"[POST]::/payments - Response has JSON Body\", function () {",
+                  "  pm.response.to.have.jsonBody();",
+                  "});",
+                  "",
+                  "// Set response object as internal variable",
+                  "let jsonData = {};",
+                  "try {",
+                  "  jsonData = pm.response.json();",
+                  "} catch (e) {}",
+                  "",
+                  "// pm.collectionVariables - Set order_id as variable for jsonData.order_id",
+                  "if (jsonData?.order_id) {",
+                  "  pm.collectionVariables.set(\"order_id\", jsonData.order_id);",
+                  "  console.log(",
+                  "    \"- use {{order_id}} as collection variable for value\",",
+                  "    jsonData.order_id,",
+                  "  );",
+                  "} else {",
+                  "  console.log(",
+                  "    \"INFO - Unable to assign variable {{order_id}}, as jsonData.payment_id is undefined.\",",
+                  "  );",
+                  "}",
+                  "",
+                  "// Response body should have value \"CHARGED\" for \"status\"",
+                  "if (jsonData?.status) {",
+                  "  pm.test(",
+                  "    \"[POST]::/payments - Content check if value for 'status' matches 'CHARGED'\",",
+                  "    function () {",
+                  "      pm.expect(jsonData.status).to.eql(\"CHARGED\");",
+                  "    },",
+                  "  );",
+                  "}",
+                  "",
+                  "// Check if bank_error_code and bank_error_message are empty strings",
+                  "pm.test(\"Bank error code is an empty string\", function () {",
+                  "    pm.expect(jsonData.bank_error_code).to.eql(\"\");",
+                  "});",
+                  "",
+                  "pm.test(\"Bank error message is an empty string\", function () {",
+                  "    pm.expect(jsonData.bank_error_message).to.eql(\"\");",
+                  "});",
+                  ""
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "body": {
+              "mode": "urlencoded",
+              "urlencoded": [
+                {
+                  "key": "options.add_full_gateway_response",
+                  "value": "true",
+                  "type": "text"
+                }
+              ]
+            },
+            "url": {
+              "raw": "https://sandbox.juspay.in/orders/{{order_id}}?options.add_full_gateway_response=true",
+              "host": [
+                "https://sandbox.juspay.in"
+              ],
+              "path": [
+                "orders",
+                "{{order_id}}"
+              ],
+              "query": [
+                {
+                  "key": "options.add_full_gateway_response",
+                  "value": "true"
+                }
+              ]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Refund",
+      "item": [
+        {
+          "name": "Create-Order",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "// Validate status 2xx",
+                  "pm.test(\"[POST]::/payments - Status code is 2xx\", function () {",
+                  "  pm.response.to.be.success;",
+                  "});",
+                  "",
+                  "// Validate if response has JSON Body",
+                  "pm.test(\"[POST]::/payments - Response has JSON Body\", function () {",
+                  "  pm.response.to.have.jsonBody();",
+                  "});",
+                  "",
+                  "// Set response object as internal variable",
+                  "let jsonData = {};",
+                  "try {",
+                  "  jsonData = pm.response.json();",
+                  "} catch (e) {}",
+                  "",
+                  "// pm.collectionVariables - Set order_id as variable for jsonData.order_id",
+                  "if (jsonData?.order_id) {",
+                  "  pm.collectionVariables.set(\"order_id\", jsonData.order_id);",
+                  "  console.log(",
+                  "    \"- use {{order_id}} as collection variable for value\",",
+                  "    jsonData.order_id,",
+                  "  );",
+                  "} else {",
+                  "  console.log(",
+                  "    \"INFO - Unable to assign variable {{order_id}}, as jsonData.payment_id is undefined.\",",
+                  "  );",
+                  "}",
+                  "",
+                  "// Response body should have value \"CREATED\" for \"status\"",
+                  "if (jsonData?.status) {",
+                  "  pm.test(",
+                  "    \"[POST]::/payments - Content check if value for 'status' matches 'CREATED'\",",
+                  "    function () {",
+                  "      pm.expect(jsonData.status).to.eql(\"CREATED\");",
+                  "    },",
+                  "  );",
+                  "}",
+                  "",
+                  "// Response body should contain order_id",
+                  "if (jsonData?.order_id) {",
+                  "  pm.test(",
+                  "    \"[POST]::/payments - Content check if 'order_id' is present and not empty\",",
+                  "    function () {",
+                  "      pm.expect(jsonData.order_id).to.be.a(\"string\").and.not.empty;",
+                  "    },",
+                  "  );",
+                  "} else {",
+                  "  pm.test(",
+                  "    \"[POST]::/payments - Response body does not contain 'order_id' field\",",
+                  "    function () {",
+                  "      pm.expect.fail(\"The 'order_id' field was not found in the response body.\");",
+                  "    },",
+                  "  );",
+                  "}",
+                  "",
+                  ""
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "urlencoded",
+              "urlencoded": [
+                {
+                  "key": "order_id",
+                  "value": "order3_{{$timestamp}}",
+                  "type": "text"
+                },
+                {
+                  "key": "amount",
+                  "value": "6500",
+                  "type": "text"
+                },
+                {
+                  "key": "return_url",
+                  "value": "https://www.google.co.in",
+                  "type": "text"
+                },
+                {
+                  "key": "customer_id",
+                  "value": "cth_926bHs22Q3SSKbiA",
+                  "type": "text"
+                },
+                {
+                  "key": "currency",
+                  "value": "AED",
+                  "type": "text"
+                }
+              ]
+            },
+            "url": "https://sandbox.juspay.in/orders"
+          },
+          "response": []
+        },
+        {
+          "name": "Create-Recurring Mandate Transaction",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "// Validate status 2xx",
+                  "pm.test(\"[POST]::/payments - Status code is 2xx\", function () {",
+                  "  pm.response.to.be.success;",
+                  "});",
+                  "",
+                  "// Validate if response has JSON Body",
+                  "pm.test(\"[POST]::/payments - Response has JSON Body\", function () {",
+                  "  pm.response.to.have.jsonBody();",
+                  "});",
+                  "",
+                  "// Set response object as internal variable",
+                  "let jsonData = {};",
+                  "try {",
+                  "  jsonData = pm.response.json();",
+                  "} catch (e) {}",
+                  "",
+                  "// pm.collectionVariables - Set order_id as variable for jsonData.order_id",
+                  "if (jsonData?.order_id) {",
+                  "  pm.collectionVariables.set(\"order_id\", jsonData.order_id);",
+                  "  console.log(",
+                  "    \"- use {{order_id}} as collection variable for value\",",
+                  "    jsonData.order_id,",
+                  "  );",
+                  "} else {",
+                  "  console.log(",
+                  "    \"INFO - Unable to assign variable {{order_id}}, as jsonData.payment_id is undefined.\",",
+                  "  );",
+                  "}",
+                  "",
+                  "// pm.collectionVariables - Set order_id as variable for jsonData.mandate_id",
+                  "if (jsonData?.mandate_id) {",
+                  "  pm.collectionVariables.set(\"mandate_id\", jsonData.mandate_id);",
+                  "  console.log(",
+                  "    \"- use {{mandate_id}} as collection variable for value\",",
+                  "    jsonData.mandate_id,",
+                  "  );",
+                  "} else {",
+                  "  console.log(",
+                  "    \"INFO - Unable to assign variable {{mandate_id}}, as jsonData.mandate_id is undefined.\",",
+                  "  );",
+                  "}",
+                  "",
+                  "// Response body should have value \"CHARGED\" for \"status\"",
+                  "if (jsonData?.status) {",
+                  "  pm.test(",
+                  "    \"[POST]::/payments - Content check if value for 'status' matches 'CHARGED'\",",
+                  "    function () {",
+                  "      pm.expect(jsonData.status).to.eql(\"CHARGED\");",
+                  "    },",
+                  "  );",
+                  "}",
+                  "",
+                  "// Response body should have \"payment.authentication.url\"",
+                  "pm.test(",
+                  "  \"[POST]::/payments - Content check if 'payment.authentication.url' exists\",",
+                  "  function () {",
+                  "    pm.expect(typeof jsonData.payment.authentication.url !== \"undefined\").to.be",
+                  "      .true;",
+                  "  },",
+                  ");",
+                  ""
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/x-www-form-urlencoded"
+              }
+            ],
+            "body": {
+              "mode": "urlencoded",
+              "urlencoded": [
+                {
+                  "key": "order.order_id",
+                  "value": "order_{{$timestamp}}",
+                  "type": "text"
+                },
+                {
+                  "key": "merchant_id",
+                  "value": "global_installment",
+                  "type": "text"
+                },
+                {
+                  "key": "order.amount",
+                  "value": "1",
+                  "type": "text"
+                },
+                {
+                  "key": "order.currency",
+                  "value": "AED",
+                  "type": "text"
+                },
+                {
+                  "key": "order.customer_id",
+                  "value": "cst_zqqmw0v4exfbhvvj2zzdzg",
+                  "type": "text"
+                },
+                {
+                  "key": "format",
+                  "value": "json",
+                  "type": "text"
+                },
+                {
+                  "key": "mandate_id",
+                  "value": "jeBrzCo792xrHaAocBMiZM",
+                  "type": "text"
+                },
+                {
+                  "key": "order.return_url",
+                  "value": "https://google.co.in",
+                  "type": "text"
+                }
+              ]
+            },
+            "url": "https://sandbox.juspay.in/txns"
+          },
+          "response": []
+        },
+        {
+          "name": "Create-Refund",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "// Validate status 2xx",
+                  "pm.test(\"[POST]::/payments - Status code is 2xx\", function () {",
+                  "  pm.response.to.be.success;",
+                  "});",
+                  "",
+                  "// Validate if response has JSON Body",
+                  "pm.test(\"[POST]::/payments - Response has JSON Body\", function () {",
+                  "  pm.response.to.have.jsonBody();",
+                  "});",
+                  "",
+                  "// Set response object as internal variable",
+                  "let jsonData = {};",
+                  "try {",
+                  "  jsonData = pm.response.json();",
+                  "} catch (e) {}",
+                  "",
+                  "// pm.collectionVariables - Set order_id as variable for jsonData.order_id",
+                  "if (jsonData?.order_id) {",
+                  "  pm.collectionVariables.set(\"order_id\", jsonData.order_id);",
+                  "  console.log(",
+                  "    \"- use {{order_id}} as collection variable for value\",",
+                  "    jsonData.order_id,",
+                  "  );",
+                  "} else {",
+                  "  console.log(",
+                  "    \"INFO - Unable to assign variable {{order_id}}, as jsonData.payment_id is undefined.\",",
+                  "  );",
+                  "}",
+                  "",
+                  "// Check if the 'refunds' array exists and is not empty",
+                  "pm.test(\"Refunds array exists and is not empty\", function () {",
+                  "    pm.expect(jsonData.refunds).to.be.an('array').and.to.have.lengthOf.at.least(1);",
+                  "});",
+                  "",
+                  "const refundBody = jsonData.refunds[0];",
+                  "",
+                  "// Verify refund status",
+                  "pm.test(\"Refund status is 'PENDING'\", function () {",
+                  "    pm.expect(refundBody.status).to.eql(\"PENDING\");",
+                  "});",
+                  "",
+                  "pm.test(\"Refund amount is 1\", function () {",
+                  "    pm.expect(refundBody.amount).to.eql(1);",
+                  "});",
+                  "",
+                  ""
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "urlencoded",
+              "urlencoded": [
+                {
+                  "key": "unique_request_id",
+                  "value": "refund__{{$isoTimestamp}}",
+                  "type": "text"
+                },
+                {
+                  "key": "amount",
+                  "value": "1",
+                  "type": "text"
+                }
+              ]
+            },
+            "url": "https://sandbox.juspay.in/orders/{{order_id}}/refunds"
+          },
+          "response": []
+        },
+        {
+          "name": "Retrieve-Order",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "// Validate status 2xx",
+                  "pm.test(\"[POST]::/payments - Status code is 2xx\", function () {",
+                  "  pm.response.to.be.success;",
+                  "});",
+                  "",
+                  "// Validate if response has JSON Body",
+                  "pm.test(\"[POST]::/payments - Response has JSON Body\", function () {",
+                  "  pm.response.to.have.jsonBody();",
+                  "});",
+                  "",
+                  "// Set response object as internal variable",
+                  "let jsonData = {};",
+                  "try {",
+                  "  jsonData = pm.response.json();",
+                  "} catch (e) {}",
+                  "",
+                  "// pm.collectionVariables - Set order_id as variable for jsonData.order_id",
+                  "if (jsonData?.order_id) {",
+                  "  pm.collectionVariables.set(\"order_id\", jsonData.order_id);",
+                  "  console.log(",
+                  "    \"- use {{order_id}} as collection variable for value\",",
+                  "    jsonData.order_id,",
+                  "  );",
+                  "} else {",
+                  "  console.log(",
+                  "    \"INFO - Unable to assign variable {{order_id}}, as jsonData.payment_id is undefined.\",",
+                  "  );",
+                  "}",
+                  "",
+                  "// Response body should have value \"CHARGED\" for \"status\"",
+                  "if (jsonData?.status) {",
+                  "  pm.test(",
+                  "    \"[POST]::/payments - Content check if value for 'status' matches 'CHARGED'\",",
+                  "    function () {",
+                  "      pm.expect(jsonData.status).to.eql(\"CHARGED\");",
+                  "    },",
+                  "  );",
+                  "}",
+                  "",
+                  "// Check if bank_error_code and bank_error_message are empty strings",
+                  "pm.test(\"Bank error code is an empty string\", function () {",
+                  "    pm.expect(jsonData.bank_error_code).to.eql(\"\");",
+                  "});",
+                  "",
+                  "pm.test(\"Bank error message is an empty string\", function () {",
+                  "    pm.expect(jsonData.bank_error_message).to.eql(\"\");",
+                  "});",
+                  ""
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "body": {
+              "mode": "urlencoded",
+              "urlencoded": [
+                {
+                  "key": "options.add_full_gateway_response",
+                  "value": "true",
+                  "type": "text"
+                }
+              ]
+            },
+            "url": {
+              "raw": "https://sandbox.juspay.in/orders/{{order_id}}?options.add_full_gateway_response=true",
+              "host": [
+                "https://sandbox.juspay.in"
+              ],
+              "path": [
+                "orders",
+                "{{order_id}}"
+              ],
+              "query": [
+                {
+                  "key": "options.add_full_gateway_response",
+                  "value": "true"
+                }
+              ]
+            }
+          },
+          "response": []
+        }
+      ]
+    }
+  ],
+  "auth": {
+    "type": "basic",
+    "basic": {
+      "username": "{{merchant_api_key}}"
+    }
+  },
+  "info": {
+    "_postman_id": "5dcdcc88-49b3-43e6-868e-6d2dbf036348",
+    "name": "tunnel",
+    "schema": "https://schema.getpostman.com/json/collection/v2.0.0/collection.json",
+    "_exporter_id": "24206034"
+  },
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "https://sandbox.juspay.in",
+      "type": "string"
+    },
+    {
+      "key": "order_id",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "api_key",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "mandate_id",
+      "value": "",
+      "type": "string"
+    }
+  ]
+}

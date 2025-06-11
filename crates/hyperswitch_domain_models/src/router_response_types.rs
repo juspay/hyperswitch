@@ -77,6 +77,9 @@ pub enum PaymentsResponseData {
     PaymentResourceUpdateResponse {
         status: common_enums::PaymentResourceUpdateStatus,
     },
+    PaymentsCreateOrderResponse {
+        order_id: String,
+    },
 }
 
 #[derive(Debug, Clone)]

@@ -27,9 +27,11 @@ use hyperswitch_domain_models::{
 };
 #[cfg(all(feature = "v2", feature = "refunds_v2"))]
 use masking::ExposeOptionInterface;
+use masking::Secret;
 #[cfg(feature = "payouts")]
 use masking::{ExposeInterface, PeekInterface};
 use maud::{html, PreEscaped};
+use regex::Regex;
 use router_env::{instrument, tracing};
 use uuid::Uuid;
 
@@ -2071,4 +2073,202 @@ pub async fn construct_vault_router_data<F>(
     };
 
     Ok(router_data)
+}
+
+pub fn validate_bank_account_data(data: &types::MerchantAccountData) -> RouterResult<()> {
+    match data {
+        types::MerchantAccountData::Iban { iban, .. } => validate_iban(iban),
+
+        types::MerchantAccountData::Sepa { iban, .. } => validate_iban(iban),
+
+        types::MerchantAccountData::SepaInstant { iban, .. } => validate_iban(iban),
+
+        types::MerchantAccountData::Bacs {
+            account_number,
+            sort_code,
+            ..
+        } => validate_uk_account(account_number, sort_code),
+
+        types::MerchantAccountData::FasterPayments {
+            account_number,
+            sort_code,
+            ..
+        } => validate_uk_account(account_number, sort_code),
+
+        types::MerchantAccountData::Elixir { iban, .. } => validate_elixir_account(iban),
+
+        types::MerchantAccountData::Bankgiro { number, .. } => validate_bankgiro_number(number),
+
+        types::MerchantAccountData::Plusgiro { number, .. } => validate_plusgiro_number(number),
+    }
+}
+
+fn validate_iban(iban: &Secret<String>) -> RouterResult<()> {
+    let iban_str = iban.peek();
+
+    if iban_str.len() > consts::IBAN_MAX_LENGTH || iban_str.len() < consts::IBAN_MIN_LENGTH {
+        return Err(errors::ApiErrorResponse::InvalidRequestData {
+            message: format!(
+                "IBAN length must be between {} and {} characters",
+                consts::IBAN_MIN_LENGTH,
+                consts::IBAN_MAX_LENGTH
+            ),
+        }
+        .into());
+    }
+
+    if iban.peek().len() > consts::IBAN_MAX_LENGTH {
+        return Err(errors::ApiErrorResponse::InvalidRequestData {
+            message: "IBAN length must be up to 34 characters".to_string(),
+        }
+        .into());
+    }
+    let pattern = Regex::new(r"^[A-Z0-9]*$")
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("failed to create regex pattern")?;
+
+    let mut iban = iban.peek().to_string();
+
+    if !pattern.is_match(iban.as_str()) {
+        return Err(errors::ApiErrorResponse::InvalidRequestData {
+            message: "IBAN data must be alphanumeric".to_string(),
+        }
+        .into());
+    }
+
+    // MOD check
+    let first_4 = iban.chars().take(4).collect::<String>();
+    iban.push_str(first_4.as_str());
+    let len = iban.len();
+
+    let rearranged_iban = iban
+        .chars()
+        .rev()
+        .take(len - 4)
+        .collect::<String>()
+        .chars()
+        .rev()
+        .collect::<String>();
+
+    let mut result = String::new();
+
+    rearranged_iban.chars().for_each(|c| {
+        if c.is_ascii_uppercase() {
+            let digit = (u32::from(c) - u32::from('A')) + 10;
+            result.push_str(&format!("{:02}", digit));
+        } else {
+            result.push(c);
+        }
+    });
+
+    let num = result
+        .parse::<u128>()
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("failed to validate IBAN")?;
+
+    if num % 97 != 1 {
+        return Err(errors::ApiErrorResponse::InvalidRequestData {
+            message: "Invalid IBAN".to_string(),
+        }
+        .into());
+    }
+
+    Ok(())
+}
+
+fn validate_uk_account(
+    account_number: &Secret<String>,
+    sort_code: &Secret<String>,
+) -> RouterResult<()> {
+    if account_number.peek().len() > consts::BACS_MAX_ACCOUNT_NUMBER_LENGTH
+        || sort_code.peek().len() != consts::BACS_SORT_CODE_LENGTH
+    {
+        return Err(errors::ApiErrorResponse::InvalidRequestData {
+            message: "Invalid BACS numbers".to_string(),
+        }
+        .into());
+    }
+
+    Ok(())
+}
+
+fn validate_elixir_account(iban: &Secret<String>) -> RouterResult<()> {
+    let iban_str = iban.peek();
+
+    // Validate IBAN first
+    validate_iban(iban)?;
+
+    // Check if IBAN is Polish
+    if !iban_str.starts_with("PL") {
+        return Err(errors::ApiErrorResponse::InvalidRequestData {
+            message: "Elixir IBAN must be Polish (PL)".to_string(),
+        }
+        .into());
+    }
+
+    // Validate IBAN length for Poland
+    if iban_str.len() != consts::ELIXIR_IBAN_LENGTH {
+        return Err(errors::ApiErrorResponse::InvalidRequestData {
+            message: "Polish IBAN must be 28 characters".to_string(),
+        }
+        .into());
+    }
+
+    Ok(())
+}
+
+fn validate_bankgiro_number(number: &Secret<String>) -> RouterResult<()> {
+    let num_str = number.peek();
+    let clean_number = num_str.replace("-", "").replace(" ", "");
+
+    // Length validation
+    if clean_number.len() < consts::BANKGIRO_MIN_LENGTH
+        || clean_number.len() > consts::BANKGIRO_MAX_LENGTH
+    {
+        return Err(errors::ApiErrorResponse::InvalidRequestData {
+            message: format!(
+                "Bankgiro number must be between {} and {} digits",
+                consts::BANKGIRO_MIN_LENGTH,
+                consts::BANKGIRO_MAX_LENGTH
+            ),
+        }
+        .into());
+    }
+
+    // Must be numeric
+    if !clean_number.chars().all(|c| c.is_ascii_digit()) {
+        return Err(errors::ApiErrorResponse::InvalidRequestData {
+            message: "Bankgiro number must be numeric".to_string(),
+        }
+        .into());
+    }
+    Ok(())
+}
+
+fn validate_plusgiro_number(number: &Secret<String>) -> RouterResult<()> {
+    let num_str = number.peek();
+    let clean_number = num_str.replace("-", "").replace(" ", "");
+
+    // Length validation
+    if clean_number.len() < consts::PLUSGIRO_MIN_LENGTH
+        || clean_number.len() > consts::PLUSGIRO_MAX_LENGTH
+    {
+        return Err(errors::ApiErrorResponse::InvalidRequestData {
+            message: format!(
+                "Plusgiro number must be between {} and {} digits",
+                consts::PLUSGIRO_MIN_LENGTH,
+                consts::PLUSGIRO_MAX_LENGTH
+            ),
+        }
+        .into());
+    }
+
+    // Must be numeric
+    if !clean_number.chars().all(|c| c.is_ascii_digit()) {
+        return Err(errors::ApiErrorResponse::InvalidRequestData {
+            message: "Plusgiro number must be numeric".to_string(),
+        }
+        .into());
+    }
+    Ok(())
 }
