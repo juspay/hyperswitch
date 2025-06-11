@@ -47,6 +47,7 @@ pub mod recon;
 pub mod refunds;
 #[cfg(feature = "olap")]
 pub mod routing;
+pub mod three_ds_decision_rule;
 pub mod tokenization;
 #[cfg(feature = "v2")]
 pub mod trainer;
@@ -89,8 +90,8 @@ pub use self::app::{
     ApiKeys, AppState, ApplePayCertificatesMigration, Cache, Cards, Configs, ConnectorOnboarding,
     Customers, Disputes, EphemeralKey, FeatureMatrix, Files, Forex, Gsm, Health, Hypersense,
     Mandates, MerchantAccount, MerchantConnectorAccount, PaymentLink, PaymentMethods, Payments,
-    Poll, ProcessTracker, Profile, ProfileNew, Refunds, Relay, RelayWebhooks, SessionState, User,
-    Webhooks,
+    Poll, ProcessTracker, Profile, ProfileNew, Refunds, Relay, RelayWebhooks, SessionState,
+    ThreeDsDecisionRule, User, Webhooks,
 };
 #[cfg(feature = "olap")]
 pub use self::app::{Blocklist, Organization, Routing, Verify, WebhookEvents};
