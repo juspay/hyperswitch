@@ -9483,7 +9483,6 @@
           "customer_id",
           "payment_method_type",
           "payment_method_subtype",
-          "recurring_enabled",
           "created",
           "requires_cvv",
           "last_used_at",
@@ -9515,8 +9514,9 @@
           },
           "recurring_enabled": {
             "type": "boolean",
-            "description": "Indicates whether the payment method is eligible for recurring payments",
-            "example": true
+            "description": "Indicates whether the payment method supports recurring payments. Optional.",
+            "example": true,
+            "nullable": true
           },
           "payment_method_data": {
             "allOf": [
@@ -17144,6 +17144,7 @@
           "customer_id",
           "payment_method_type",
           "payment_method_subtype",
+          "recurring_enabled",
           "created",
           "requires_cvv",
           "is_default",
@@ -17170,9 +17171,8 @@
           },
           "recurring_enabled": {
             "type": "boolean",
-            "description": "Indicates whether the payment method supports recurring payments. Optional.",
-            "example": true,
-            "nullable": true
+            "description": "Indicates whether the payment method is eligible for recurring payments",
+            "example": true
           },
           "payment_method_data": {
             "allOf": [
