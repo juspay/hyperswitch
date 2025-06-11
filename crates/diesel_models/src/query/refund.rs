@@ -1,16 +1,15 @@
 use diesel::{associations::HasTable, BoolExpressionMethods, ExpressionMethods, Table};
 
 use super::generics;
+#[cfg(feature = "v1")]
+use crate::schema::refund::dsl;
+#[cfg(feature = "v2")]
+use crate::schema_v2::refund::dsl;
 use crate::{
     errors,
     refund::{Refund, RefundNew, RefundUpdate, RefundUpdateInternal},
     PgPooledConn, StorageResult,
 };
-#[cfg(feature = "v1")]
-use crate::schema::refund::dsl;
-#[cfg(feature = "v2")]
-use crate::schema_v2::refund::dsl;
-
 
 impl RefundNew {
     pub async fn insert(self, conn: &PgPooledConn) -> StorageResult<Refund> {
