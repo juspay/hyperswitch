@@ -194,10 +194,7 @@ impl ForeignTryFrom<&RouterData<Authorize, PaymentsAuthorizeData, PaymentsRespon
     fn foreign_try_from(
         router_data: &RouterData<Authorize, PaymentsAuthorizeData, PaymentsResponseData>,
     ) -> Result<Self, Self::Error> {
-        let currency =
-            payments_grpc::Currency::from_str_name(&router_data.request.currency.to_string())
-                .ok_or_else(|| ApiErrorResponse::InternalServerError)
-                .attach_printable("Failed to parse currency")?;
+        let currency = payments_grpc::Currency::foreign_try_from(router_data.request.currency)?;
 
         let payment_method =
             payments_grpc::PaymentMethod::foreign_try_from(router_data.payment_method)?;
@@ -244,6 +241,16 @@ impl ForeignTryFrom<&RouterData<Authorize, PaymentsAuthorizeData, PaymentsRespon
             browser_info,
             ..Default::default()
         })
+    }
+}
+
+impl ForeignTryFrom<common_enums::Currency> for payments_grpc::Currency {
+    type Error = error_stack::Report<ApiErrorResponse>;
+
+    fn foreign_try_from(currency: common_enums::Currency) -> Result<Self, Self::Error> {
+        payments_grpc::Currency::from_str_name(&currency.to_string())
+            .ok_or_else(|| ApiErrorResponse::InternalServerError)
+            .attach_printable("Failed to parse currency")
     }
 }
 
