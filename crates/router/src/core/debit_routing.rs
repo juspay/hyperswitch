@@ -622,10 +622,8 @@ fn extract_debit_networks(
         for val in values {
             let payment_methods_enabled: api_models::admin::PaymentMethodsEnabled =
                 serde_json::from_value(val.peek().to_owned())
-                    .inspect_err(|err| {
-                        logger::error!("Failed to parse payment_methods_enabled: {}", err);
-                    })
-                    .change_context(errors::ApiErrorResponse::InternalServerError)?;
+                    .change_context(errors::ApiErrorResponse::InternalServerError)
+                    .attach_printable("Failed to parse enabled payment methods for a merchant connector account in debit routing flow")?;
 
             if let Some(types) = payment_methods_enabled.payment_method_types {
                 for method_type in types {
