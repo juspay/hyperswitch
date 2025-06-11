@@ -4828,7 +4828,8 @@
           "failure",
           "payment_method_awaited",
           "confirmation_awaited",
-          "device_data_collection_pending"
+          "device_data_collection_pending",
+          "integrity_failure"
         ]
       },
       "AuthenticationConnectorDetails": {
@@ -9482,6 +9483,7 @@
           "customer_id",
           "payment_method_type",
           "payment_method_subtype",
+          "recurring_enabled",
           "created",
           "requires_cvv",
           "last_used_at",
@@ -9513,9 +9515,8 @@
           },
           "recurring_enabled": {
             "type": "boolean",
-            "description": "Indicates whether the payment method supports recurring payments. Optional.",
-            "example": true,
-            "nullable": true
+            "description": "Indicates whether the payment method is eligible for recurring payments",
+            "example": true
           },
           "payment_method_data": {
             "allOf": [
@@ -12375,7 +12376,8 @@
           "requires_confirmation",
           "requires_capture",
           "partially_captured",
-          "partially_captured_and_capturable"
+          "partially_captured_and_capturable",
+          "conflicted"
         ]
       },
       "JCSVoucherData": {
@@ -17142,7 +17144,6 @@
           "customer_id",
           "payment_method_type",
           "payment_method_subtype",
-          "recurring_enabled",
           "created",
           "requires_cvv",
           "is_default",
@@ -17169,8 +17170,9 @@
           },
           "recurring_enabled": {
             "type": "boolean",
-            "description": "Indicates whether the payment method is eligible for recurring payments",
-            "example": true
+            "description": "Indicates whether the payment method supports recurring payments. Optional.",
+            "example": true,
+            "nullable": true
           },
           "payment_method_data": {
             "allOf": [

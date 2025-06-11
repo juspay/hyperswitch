@@ -315,7 +315,8 @@ impl From<api_enums::IntentStatus> for StripeSetupStatus {
             api_enums::IntentStatus::Failed => Self::Canceled,
             api_enums::IntentStatus::Processing => Self::Processing,
             api_enums::IntentStatus::RequiresCustomerAction => Self::RequiresAction,
-            api_enums::IntentStatus::RequiresMerchantAction => Self::RequiresAction,
+            api_enums::IntentStatus::RequiresMerchantAction
+            | api_enums::IntentStatus::Conflicted => Self::RequiresAction,
             api_enums::IntentStatus::RequiresPaymentMethod => Self::RequiresPaymentMethod,
             api_enums::IntentStatus::RequiresConfirmation => Self::RequiresConfirmation,
             api_enums::IntentStatus::RequiresCapture
@@ -410,7 +411,7 @@ pub(crate) fn into_stripe_next_action(
                 },
             }
         }
-        payments::NextActionData::RedirectInsidePopup { popup_url } => {
+        payments::NextActionData::RedirectInsidePopup { popup_url, .. } => {
             StripeNextAction::RedirectToUrl {
                 redirect_to_url: RedirectUrl {
                     return_url,
