@@ -2431,7 +2431,7 @@ pub struct ProfileResponse {
     /// Acquirer configs
     #[schema(value_type = Option<Vec<ProfileAcquirerResponse>>)]
     pub acquirer_configs: Option<Vec<ProfileAcquirerResponse>>,
-    
+
     /// Indicates if the redirection has to open in the iframe
     #[schema(example = false)]
     pub is_iframe_redirection_enabled: Option<bool>,

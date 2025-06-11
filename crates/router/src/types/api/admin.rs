@@ -42,22 +42,23 @@ pub struct ProfileAcquirerConfigs {
     pub profile_id: common_utils::id_type::ProfileId,
 }
 
-impl From<ProfileAcquirerConfigs> for Option<Vec<api_models::profile_acquirer::ProfileAcquirerResponse>> {
+impl From<ProfileAcquirerConfigs>
+    for Option<Vec<api_models::profile_acquirer::ProfileAcquirerResponse>>
+{
     fn from(item: ProfileAcquirerConfigs) -> Self {
-        item.acquirer_config_map
-            .map(|config_map_val| {
-                let mut vec: Vec<_> = config_map_val.0.into_iter().collect();
-                vec.sort_by_key(|k| k.0.clone());
-                vec.into_iter()
-                    .map(|(profile_acquirer_id, acquirer_config)| {
-                        api_models::profile_acquirer::ProfileAcquirerResponse::from((
-                            profile_acquirer_id,
-                            &item.profile_id,
-                            &acquirer_config,
-                        ))
-                    })
-                    .collect::<Vec<api_models::profile_acquirer::ProfileAcquirerResponse>>()
-            })
+        item.acquirer_config_map.map(|config_map_val| {
+            let mut vec: Vec<_> = config_map_val.0.into_iter().collect();
+            vec.sort_by_key(|k| k.0.clone());
+            vec.into_iter()
+                .map(|(profile_acquirer_id, acquirer_config)| {
+                    api_models::profile_acquirer::ProfileAcquirerResponse::from((
+                        profile_acquirer_id,
+                        &item.profile_id,
+                        &acquirer_config,
+                    ))
+                })
+                .collect::<Vec<api_models::profile_acquirer::ProfileAcquirerResponse>>()
+        })
     }
 }
 
@@ -222,12 +223,11 @@ impl ForeignTryFrom<domain::Profile> for ProfileResponse {
             is_debit_routing_enabled: Some(item.is_debit_routing_enabled),
             merchant_business_country: item.merchant_business_country,
             is_pre_network_tokenization_enabled: item.is_pre_network_tokenization_enabled,
-            acquirer_configs:
-                ProfileAcquirerConfigs {
-                    acquirer_config_map: item.acquirer_config_map.clone(),
-                    profile_id: profile_id.clone(),
-                }
-                .into(),
+            acquirer_configs: ProfileAcquirerConfigs {
+                acquirer_config_map: item.acquirer_config_map.clone(),
+                profile_id: profile_id.clone(),
+            }
+            .into(),
             is_iframe_redirection_enabled: item.is_iframe_redirection_enabled,
         })
     }
