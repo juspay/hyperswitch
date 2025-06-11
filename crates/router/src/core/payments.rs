@@ -3209,13 +3209,8 @@ where
 {
     let stime_connector = Instant::now();
 
-    if let Some(mut client) = should_call_unified_connector_service(
-        state,
-        merchant_context,
-        merchant_connector_account.clone(),
-        &router_data,
-    )
-    .await?
+    if let Some(mut client) =
+        should_call_unified_connector_service(state, merchant_context, &router_data).await?
     {
         let _ = router_data
             .call_unified_connector_service(merchant_connector_account.clone(), &mut client)
