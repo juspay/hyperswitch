@@ -465,6 +465,8 @@ pub struct PaymentAttempt {
     pub charges: Option<common_types::payments::ConnectorChargeResponseData>,
     /// Additional data that might be required by hyperswitch, to enable some specific features.
     pub feature_metadata: Option<PaymentAttemptFeatureMetadata>,
+    /// surcharge algorithm id
+    pub surcharge_algorithm_id: Option<id_type::SurchargeRoutingId>,
     /// merchant who owns the credentials of the processor, i.e. processor owner
     pub processor_merchant_id: id_type::MerchantId,
     /// merchantwho invoked the resource based api (identifier) and through what source (Api, Jwt(Dashboard))
@@ -605,6 +607,7 @@ impl PaymentAttempt {
             id,
             card_discovery: None,
             feature_metadata: None,
+            surcharge_algorithm_id: None,
             processor_merchant_id: payment_intent.merchant_id.clone(),
             created_by: None,
         })
@@ -694,6 +697,7 @@ impl PaymentAttempt {
             feature_metadata: None,
             id,
             card_discovery: None,
+            surcharge_algorithm_id: None,
             processor_merchant_id: payment_intent.merchant_id.clone(),
             created_by: None,
         })
@@ -793,6 +797,7 @@ impl PaymentAttempt {
             }),
             card_discovery: None,
             charges: None,
+            surcharge_algorithm_id: None,
             processor_merchant_id: payment_intent.merchant_id.clone(),
             created_by: None,
         })
@@ -887,6 +892,7 @@ pub struct PaymentAttempt {
     pub charges: Option<common_types::payments::ConnectorChargeResponseData>,
     pub issuer_error_code: Option<String>,
     pub issuer_error_message: Option<String>,
+    pub surcharge_algorithm_id: Option<id_type::SurchargeRoutingId>,
     /// merchant who owns the credentials of the processor, i.e. processor owner
     pub processor_merchant_id: id_type::MerchantId,
     /// merchantwho invoked the resource based api (identifier) and through what source (Api, Jwt(Dashboard))
@@ -1141,6 +1147,7 @@ pub struct PaymentAttemptNew {
     pub extended_authorization_applied: Option<ExtendedAuthorizationAppliedBool>,
     pub capture_before: Option<PrimitiveDateTime>,
     pub card_discovery: Option<common_enums::CardDiscovery>,
+    pub surcharge_algorithm_id: Option<id_type::SurchargeRoutingId>,
     /// merchant who owns the credentials of the processor, i.e. processor owner
     pub processor_merchant_id: id_type::MerchantId,
     /// merchantwho invoked the resource based api (identifier) and through what source (Api, Jwt(Dashboard))
@@ -1901,6 +1908,7 @@ impl behaviour::Conversion for PaymentAttempt {
             charges: self.charges,
             issuer_error_code: self.issuer_error_code,
             issuer_error_message: self.issuer_error_message,
+            surcharge_algorithm_id: self.surcharge_algorithm_id,
             setup_future_usage_applied: self.setup_future_usage_applied,
             // Below fields are deprecated. Please add any new fields above this line.
             connector_transaction_data: None,
@@ -1994,6 +2002,7 @@ impl behaviour::Conversion for PaymentAttempt {
                 charges: storage_model.charges,
                 issuer_error_code: storage_model.issuer_error_code,
                 issuer_error_message: storage_model.issuer_error_message,
+                surcharge_algorithm_id: storage_model.surcharge_algorithm_id,
                 processor_merchant_id: storage_model
                     .processor_merchant_id
                     .unwrap_or(storage_model.merchant_id),
@@ -2086,6 +2095,7 @@ impl behaviour::Conversion for PaymentAttempt {
             extended_authorization_applied: self.extended_authorization_applied,
             capture_before: self.capture_before,
             card_discovery: self.card_discovery,
+            surcharge_algorithm_id: self.surcharge_algorithm_id,
             processor_merchant_id: Some(self.processor_merchant_id),
             created_by: self.created_by.map(|cb| cb.to_string()),
             setup_future_usage_applied: self.setup_future_usage_applied,
@@ -2157,6 +2167,7 @@ impl behaviour::Conversion for PaymentAttempt {
             connector_token_details,
             card_discovery,
             charges,
+            surcharge_algorithm_id,
             feature_metadata,
             processor_merchant_id,
             created_by,
@@ -2242,6 +2253,7 @@ impl behaviour::Conversion for PaymentAttempt {
             extended_authorization_applied: None,
             capture_before: None,
             charges,
+            surcharge_algorithm_id,
             feature_metadata,
             network_advice_code: error
                 .as_ref()
@@ -2370,6 +2382,7 @@ impl behaviour::Conversion for PaymentAttempt {
                 connector_token_details: storage_model.connector_token_details,
                 card_discovery: storage_model.card_discovery,
                 feature_metadata: storage_model.feature_metadata.map(From::from),
+                surcharge_algorithm_id: storage_model.surcharge_algorithm_id,
                 processor_merchant_id: storage_model
                     .processor_merchant_id
                     .unwrap_or(storage_model.merchant_id),
@@ -2432,6 +2445,7 @@ impl behaviour::Conversion for PaymentAttempt {
             card_discovery,
             charges,
             feature_metadata,
+            surcharge_algorithm_id,
             processor_merchant_id,
             created_by,
         } = self;
@@ -2514,6 +2528,7 @@ impl behaviour::Conversion for PaymentAttempt {
             capture_before: None,
             feature_metadata: feature_metadata.as_ref().map(From::from),
             connector,
+            surcharge_algorithm_id,
             network_advice_code: error_details
                 .as_ref()
                 .and_then(|details| details.network_advice_code.clone()),

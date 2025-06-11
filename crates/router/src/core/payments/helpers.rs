@@ -4410,6 +4410,7 @@ impl AttemptType {
             extended_authorization_applied: None,
             capture_before: None,
             card_discovery: None,
+            surcharge_algorithm_id: None,
             processor_merchant_id: old_payment_attempt.processor_merchant_id,
             created_by: old_payment_attempt.created_by,
             setup_future_usage_applied: None,

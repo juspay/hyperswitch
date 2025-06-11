@@ -217,6 +217,8 @@ diesel::table! {
         card_testing_secret_key -> Nullable<Bytea>,
         is_clear_pan_retries_enabled -> Bool,
         force_3ds_challenge -> Nullable<Bool>,
+        #[max_length = 64]
+        active_surcharge_algorithm_id -> Nullable<Varchar>,
         is_debit_routing_enabled -> Bool,
         merchant_business_country -> Nullable<CountryAlpha2>,
         #[max_length = 64]
@@ -887,6 +889,8 @@ diesel::table! {
         card_discovery -> Nullable<CardDiscovery>,
         charges -> Nullable<Jsonb>,
         #[max_length = 64]
+        surcharge_algorithm_id -> Nullable<Varchar>,
+        #[max_length = 64]
         processor_merchant_id -> Nullable<Varchar>,
         #[max_length = 255]
         created_by -> Nullable<Varchar>,
@@ -1344,6 +1348,8 @@ diesel::table! {
         created_at -> Timestamp,
         modified_at -> Timestamp,
         algorithm_for -> TransactionType,
+        #[max_length = 64]
+        algorithm_type -> Varchar,
         #[max_length = 64]
         decision_engine_routing_id -> Nullable<Varchar>,
     }

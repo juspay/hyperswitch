@@ -4046,6 +4046,7 @@ impl ProfileCreateBridge for api::ProfileCreate {
                 .attach_printable("error while generating card testing secret key")?,
             is_clear_pan_retries_enabled: self.is_clear_pan_retries_enabled.unwrap_or_default(),
             force_3ds_challenge: self.force_3ds_challenge.unwrap_or_default(),
+            active_surcharge_algorithm_id: self.active_surcharge_algorithm_id,
             is_debit_routing_enabled: self.is_debit_routing_enabled.unwrap_or_default(),
             merchant_business_country: self.merchant_business_country,
             is_iframe_redirection_enabled: self.is_iframe_redirection_enabled,
@@ -4191,6 +4192,7 @@ impl ProfileCreateBridge for api::ProfileCreate {
                 .change_context(errors::ApiErrorResponse::InternalServerError)
                 .attach_printable("error while generating card testing secret key")?,
             is_clear_pan_retries_enabled: self.is_clear_pan_retries_enabled.unwrap_or_default(),
+            active_surcharge_algorithm_id: self.active_surcharge_algorithm_id,
             is_debit_routing_enabled: self.is_debit_routing_enabled.unwrap_or_default(),
             merchant_business_country: self.merchant_business_country,
             revenue_recovery_retry_algorithm_type: None,
@@ -4528,9 +4530,10 @@ impl ProfileUpdateBridge for api::ProfileUpdate {
                     .map(ForeignInto::foreign_into),
                 card_testing_secret_key,
                 is_clear_pan_retries_enabled: self.is_clear_pan_retries_enabled,
-                force_3ds_challenge: self.force_3ds_challenge, //
+                force_3ds_challenge: self.force_3ds_challenge,
                 is_debit_routing_enabled: self.is_debit_routing_enabled,
                 merchant_business_country: self.merchant_business_country,
+                active_surcharge_algorithm_id: self.active_surcharge_algorithm_id,
                 is_iframe_redirection_enabled: self.is_iframe_redirection_enabled,
                 is_pre_network_tokenization_enabled: self.is_pre_network_tokenization_enabled,
             },

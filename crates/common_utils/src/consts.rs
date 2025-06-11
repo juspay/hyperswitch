@@ -183,6 +183,14 @@ pub const SOAP_ENV_NAMESPACE: &str = "http://schemas.xmlsoap.org/soap/envelope/"
 /// Length of generated tokens
 pub const TOKEN_LENGTH: usize = 32;
 
+/// Algorithm type for Routing
+pub const ALGORITHM_TYPE_ROUTING: common_enums::AlgorithmType =
+    common_enums::AlgorithmType::Routing;
+
+/// Algorithm Type for Surcharge
+pub const ALGORITHM_TYPE_SURCHARGE: common_enums::AlgorithmType =
+    common_enums::AlgorithmType::Surcharge;
+
 /// The tag name used for identifying the host in metrics.
 pub const METRICS_HOST_TAG_NAME: &str = "host";
 

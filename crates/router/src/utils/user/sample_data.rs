@@ -378,6 +378,7 @@ pub async fn generate_sample_data(
             extended_authorization_applied: None,
             capture_before: None,
             card_discovery: None,
+            surcharge_algorithm_id: None,
             processor_merchant_id: Some(merchant_id.clone()),
             created_by: None,
             setup_future_usage_applied: None,
