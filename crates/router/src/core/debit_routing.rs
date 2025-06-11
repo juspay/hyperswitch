@@ -532,7 +532,7 @@ async fn fetch_merchant_connector_accounts(
 /// Processes a single connector to find matching networks
 fn process_connector_for_networks(
     connector_data: &api::ConnectorRoutingData,
-    mcas_for_profile: &Vec<domain::MerchantConnectorAccount>,
+    mcas_for_profile: &[domain::MerchantConnectorAccount],
     fee_sorted_debit_networks: &[common_enums::CardNetwork],
     debit_routing_config: &settings::DebitRoutingConfig,
     has_us_local_network: &mut bool,
