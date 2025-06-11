@@ -330,17 +330,18 @@ export const payment_methods_enabled = [
 
 export const connectorDetails = {
   bank_transfer_pm: {
-    PaymentIntent: (paymentMethodType) => getCustomExchange({
-      Request: {
-        currency: getCurrency(paymentMethodType),
-      },
-      Response: {
-        status: 200,
-        body: {
-          status: "requires_payment_method",
+    PaymentIntent: (paymentMethodType) =>
+      getCustomExchange({
+        Request: {
+          currency: getCurrency(paymentMethodType),
         },
-      },
-    }),
+        Response: {
+          status: 200,
+          body: {
+            status: "requires_payment_method",
+          },
+        },
+      }),
     Pix: getCustomExchange({
       Request: {
         payment_method: "bank_transfer",
@@ -418,17 +419,18 @@ export const connectorDetails = {
     }),
   },
   bank_redirect_pm: {
-    PaymentIntent: (paymentMethodType) => getCustomExchange({
-      Request: {
-        currency: getCurrency(paymentMethodType),
-      },
-      Response: {
-        status: 200,
-        body: {
-          status: "requires_payment_method",
+    PaymentIntent: (paymentMethodType) =>
+      getCustomExchange({
+        Request: {
+          currency: getCurrency(paymentMethodType),
         },
-      },
-    }),
+        Response: {
+          status: 200,
+          body: {
+            status: "requires_payment_method",
+          },
+        },
+      }),
     Ideal: getCustomExchange({
       Request: {
         payment_method: "bank_redirect",

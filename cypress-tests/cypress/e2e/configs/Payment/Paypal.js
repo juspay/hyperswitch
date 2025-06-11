@@ -1,5 +1,3 @@
-import { getCustomExchange } from "./Modifiers";
-
 const successfulNo3DSCardDetails = {
   card_number: "4012000033330026",
   card_exp_month: "01",

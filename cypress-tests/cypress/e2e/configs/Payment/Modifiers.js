@@ -111,13 +111,13 @@ const CURRENCY_MAP = {
   // Polish payment methods
   Blik: "PLN",
   InstantBankTransferPoland: "PLN",
-  
-  // Brazilian payment methods  
+
+  // Brazilian payment methods
   Pix: "BRL",
-  
+
   // European payment methods (EUR)
   Eps: "EUR",
-  Giropay: "EUR", 
+  Giropay: "EUR",
   Ideal: "EUR",
   InstantBankTransferFinland: "EUR",
   Klarna: "EUR",

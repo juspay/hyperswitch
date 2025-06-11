@@ -72,6 +72,8 @@ function bankTransferRedirection(
   paymentMethodType,
   nextActionType
 ) {
+  let verifyUrl = true; // Default to true, can be set to false based on conditions
+
   switch (nextActionType) {
     case "qr_code_url":
       cy.request(redirectionUrl.href).then((response) => {
@@ -85,12 +87,12 @@ function bankTransferRedirection(
                 });
                 break;
               default:
-                verifyReturnUrl(redirectionUrl, expectedUrl, true);
+                verifyReturnUrl(redirectionUrl, expectedUrl, verifyUrl);
               // expected_redirection can be used here to handle other payment methods
             }
             break;
           default:
-            verifyReturnUrl(redirectionUrl, expectedUrl, true);
+            verifyReturnUrl(redirectionUrl, expectedUrl, verifyUrl);
         }
       });
       break;
@@ -104,7 +106,7 @@ function bankTransferRedirection(
               });
               break;
             default:
-              verifyReturnUrl(redirectionUrl, expectedUrl, true);
+              verifyReturnUrl(redirectionUrl, expectedUrl, verifyUrl);
           }
           break;
         case "itaubank":
@@ -115,11 +117,11 @@ function bankTransferRedirection(
               });
               break;
             default:
-              verifyReturnUrl(redirectionUrl, expectedUrl, true);
+              verifyReturnUrl(redirectionUrl, expectedUrl, verifyUrl);
           }
           break;
         default:
-          verifyReturnUrl(redirectionUrl, expectedUrl, true);
+          verifyReturnUrl(redirectionUrl, expectedUrl, verifyUrl);
       }
       break;
     case "redirect_to_url":
@@ -134,7 +136,7 @@ function bankTransferRedirection(
           switch (connectorId) {
             case "trustpay":
               // Suppress cross-origin JavaScript errors from TrustPay's website
-              cy.on("uncaught:exception", (err, _runnable) => {
+              cy.on("uncaught:exception", (err) => {
                 // Trustpay javascript devs have skill issues
                 if (
                   err.message.includes("$ is not defined") ||
@@ -163,7 +165,7 @@ function bankTransferRedirection(
               verifyUrl = false;
               break;
             default:
-              verifyReturnUrl(redirectionUrl, validExpectedUrl, true);
+              verifyReturnUrl(redirectionUrl, expectedUrl, verifyUrl);
           }
         },
         { paymentMethodType }
