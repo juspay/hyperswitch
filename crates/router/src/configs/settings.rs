@@ -182,7 +182,7 @@ pub struct OpenRouter {
 
 #[derive(Debug, Deserialize, Clone, Default)]
 pub struct UnifiedConnectorService {
-    pub url: String,
+    pub base_url: String,
 }
 
 #[derive(Debug, Deserialize, Clone, Default)]

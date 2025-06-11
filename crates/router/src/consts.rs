@@ -307,3 +307,6 @@ pub const PSD2_COUNTRIES: [Country; 27] = [
     Country::Spain,
     Country::Sweden,
 ];
+
+// Rollout percentage config prefix
+pub const UCS_ROLLOUT_PERCENT_CONFIG_PREFIX: &str = "UCS_ROLLOUT_CONFIG";

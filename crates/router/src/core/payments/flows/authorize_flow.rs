@@ -5,7 +5,9 @@ use hyperswitch_domain_models::errors::api_error_response::ApiErrorResponse;
 #[cfg(feature = "v2")]
 use hyperswitch_domain_models::payments::PaymentConfirmData;
 use masking::ExposeInterface;
-use rust_grpc_client::payments::payment_service_client::PaymentServiceClient;
+use rust_grpc_client::payments::{
+    self as payments_grpc, payment_service_client::PaymentServiceClient,
+};
 
 // use router_env::tracing::Instrument;
 use super::{ConstructFlowSpecificData, Feature};
@@ -17,8 +19,7 @@ use crate::{
             self, access_token, customers, helpers, tokenization, transformers, PaymentData,
         },
         unified_connector_service::utils::{
-            construct_router_data_from_ucs_authorize_response, construct_ucs_authorize_request,
-            construct_ucs_request_metadata,
+            construct_ucs_request_metadata, handle_unified_connector_service_response,
         },
     },
     logger,
@@ -427,7 +428,7 @@ impl Feature<api::Authorize, types::PaymentsAuthorizeData> for types::PaymentsAu
         merchant_connector_account: helpers::MerchantConnectorAccountType,
         client: &mut PaymentServiceClient<tonic::transport::Channel>,
     ) -> RouterResult<()> {
-        let request = construct_ucs_authorize_request(self)?;
+        let request = payments_grpc::PaymentsAuthorizeRequest::foreign_try_from(self)?;
 
         let mut request = tonic::Request::new(request);
 
@@ -443,7 +444,7 @@ impl Feature<api::Authorize, types::PaymentsAuthorizeData> for types::PaymentsAu
 
         let payment_authorize_response = response.into_inner();
 
-        construct_router_data_from_ucs_authorize_response(payment_authorize_response, self)?;
+        handle_unified_connector_service_response(payment_authorize_response, self)?;
 
         Ok(())
     }

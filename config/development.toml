@@ -1171,7 +1171,7 @@ enabled = false
 url = "http://localhost:8080"
 
 [unified_connector_service]
-url = "http://localhost:8000/"
+base_url = "http://localhost:8000/"
 
 [revenue_recovery]
 monitoring_threshold_in_seconds = 2592000
