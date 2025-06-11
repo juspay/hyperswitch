@@ -190,6 +190,20 @@ export const payment_methods_enabled = [
         recurring_enabled: false,
         installment_payment_enabled: true,
       },
+      {
+        payment_method_type: "instant_bank_transfer_finland",
+        minimum_amount: 1,
+        maximum_amount: 68607706,
+        recurring_enabled: true,
+        installment_payment_enabled: true,
+      },
+      {
+        payment_method_type: "instant_bank_transfer_poland",
+        minimum_amount: 1,
+        maximum_amount: 68607706,
+        recurring_enabled: true,
+        installment_payment_enabled: true,
+      },
     ],
   },
   {

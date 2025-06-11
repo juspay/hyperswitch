@@ -122,6 +122,54 @@ function bankTransferRedirection(
           verifyReturnUrl(redirectionUrl, expectedUrl, true);
       }
       break;
+    case "redirect_to_url":
+      cy.visit(redirectionUrl.href);
+      waitForRedirect(redirectionUrl.href); // Wait for the first redirect
+
+      handleFlow(
+        redirectionUrl,
+        expectedUrl,
+        connectorId,
+        ({ connectorId, paymentMethodType }) => {
+          switch (connectorId) {
+            case "trustpay":
+              // Suppress cross-origin JavaScript errors from TrustPay's website
+              cy.on("uncaught:exception", (err, _runnable) => {
+                // Trustpay javascript devs have skill issues
+                if (
+                  err.message.includes("$ is not defined") ||
+                  err.message.includes("mainController is not defined") ||
+                  err.message.includes("jQuery") ||
+                  err.message.includes("aapi.trustpay.eu")
+                ) {
+                  return false; // Prevent test failure
+                }
+                return true;
+              });
+
+              // Trustpay bank redirects never reach the terminal state
+              switch (paymentMethodType) {
+                case "instant_bank_transfer_finland":
+                  cy.log("Trustpay Instant Bank Transfer through Finland");
+                  break;
+                case "instant_bank_transfer_poland":
+                  cy.log("Trustpay Instant Bank Transfer through Finland");
+                  break;
+                default:
+                  throw new Error(
+                    `Unsupported Trustpay payment method type: ${paymentMethodType}`
+                  );
+              }
+              verifyUrl = false;
+              break;
+            default:
+              verifyReturnUrl(redirectionUrl, validExpectedUrl, true);
+          }
+        },
+        { paymentMethodType }
+      );
+      break;
+
     default:
       verifyReturnUrl(redirectionUrl, expectedUrl, true);
   }
