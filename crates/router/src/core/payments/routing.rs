@@ -30,13 +30,12 @@ use euclid::{
 #[cfg(all(feature = "v1", feature = "dynamic_routing"))]
 use external_services::grpc_client::dynamic_routing::{
     contract_routing_client::ContractBasedDynamicRouting,
-    elimination_based_client::{EliminationBasedRouting, EliminationResponse},
-    success_rate_client::SuccessBasedDynamicRouting,
-    DynamicRoutingError,
+    elimination_based_client::EliminationBasedRouting,
+    success_rate_client::SuccessBasedDynamicRouting, DynamicRoutingError,
 };
 use hyperswitch_domain_models::address::Address;
 #[cfg(all(feature = "v1", feature = "dynamic_routing"))]
-use hyperswitch_interfaces::events::routing_api_logs::{ApiMethod, RoutingEngine, RoutingEvent};
+use hyperswitch_interfaces::events::routing_api_logs::{ApiMethod, RoutingEngine};
 use kgraph_utils::{
     mca as mca_graph,
     transformers::{IntoContext, IntoDirValue},
@@ -58,8 +57,6 @@ use crate::core::admin;
 use crate::core::payouts;
 #[cfg(feature = "v1")]
 use crate::core::routing::transformers::OpenRouterDecideGatewayRequestExt;
-#[cfg(all(feature = "v1", feature = "dynamic_routing"))]
-use crate::headers;
 #[cfg(all(feature = "v1", feature = "dynamic_routing"))]
 use crate::routes::app::SessionStateInfo;
 use crate::{
@@ -1876,7 +1873,7 @@ pub async fn perform_decide_gateway_call_with_open_router(
 
             routing_event.set_response_body(&decided_gateway);
             routing_event.set_routing_approach(
-                api_routing::RoutingApproach::from_decision_engine_approach(
+                utils::RoutingApproach::from_decision_engine_approach(
                     &decided_gateway.routing_approach,
                 )
                 .to_string(),
@@ -2047,88 +2044,91 @@ pub async fn perform_success_based_routing(
                     .ok_or(errors::RoutingError::SuccessBasedRoutingParamsNotFoundError)?,
             );
 
-        let event_request = api_routing::CalSuccessRateEventRequest {
+        let event_request = utils::CalSuccessRateEventRequest {
             id: profile_id.get_string_repr().to_string(),
             params: success_based_routing_config_params.clone(),
             labels: routable_connectors
                 .iter()
                 .map(|conn_choice| conn_choice.to_string())
                 .collect::<Vec<_>>(),
-            config: success_based_routing_configs.config.as_ref().map(|conf| {
-                api_routing::CalSuccessRateConfigEventRequest {
-                    min_aggregates_size: conf.min_aggregates_size,
-                    default_success_rate: conf.default_success_rate,
-                    specificity_level: conf.specificity_level,
-                    exploration_percent: conf.exploration_percent,
-                }
-            }),
+            config: success_based_routing_configs
+                .config
+                .as_ref()
+                .map(utils::CalSuccessRateConfigEventRequest::from),
         };
 
-        let serialized_request = serde_json::to_value(&event_request)
-            .change_context(errors::RoutingError::SuccessBasedRoutingConfigError)
-            .attach_printable("unable to serialize success_based_routing_config_params")?;
-
-        let mut routing_event = RoutingEvent::new(
+        let routing_events_wrapper = utils::RoutingEventsWrapper::new(
             state.tenant.tenant_id.clone(),
-            "".to_string(),
-            "Intelligent-router FetchSuccessRate",
-            serialized_request,
-            "SuccessRateCalculator.FetchSuccessRate".to_string(),
-            ApiMethod::Grpc,
+            state.request_id,
             payment_id.get_string_repr().to_string(),
             profile_id.to_owned(),
             merchant_id.to_owned(),
-            state.request_id,
-            RoutingEngine::IntelligentRouter,
+            "Intelligent-Router CalculateSuccessRate".to_string(),
+            Some(event_request.clone()),
+            true,
+            false,
         );
 
-        let success_based_connectors = client
-            .calculate_success_rate(
-                profile_id.get_string_repr().into(),
-                success_based_routing_configs,
-                success_based_routing_config_params,
-                routable_connectors,
-                state.get_grpc_headers(),
-            )
-            .await
-            .inspect_err(|e| {
-                routing_event
-                    .set_error(serde_json::json!({"error": e.current_context().to_string()}));
-                state.event_handler().log_event(&routing_event);
-            })
-            .change_context(errors::RoutingError::SuccessRateCalculationError)
-            .attach_printable(
-                "unable to calculate/fetch success rate from dynamic routing service",
-            )?;
-
-        let event_response = api_routing::CalSuccessRateEventResponse {
-            labels_with_score: success_based_connectors
-                .labels_with_score
-                .iter()
-                .map(
-                    |label_with_score| api_routing::LabelWithScoreEventResponse {
-                        label: label_with_score.label.clone(),
-                        score: label_with_score.score,
-                    },
+        let closure = || async {
+            let success_based_connectors_result = client
+                .calculate_success_rate(
+                    profile_id.get_string_repr().into(),
+                    success_based_routing_configs,
+                    success_based_routing_config_params,
+                    routable_connectors,
+                    state.get_grpc_headers(),
                 )
-                .collect(),
-            routing_approach: match success_based_connectors.routing_approach {
-                0 => api_routing::RoutingApproach::Exploration,
-                1 => api_routing::RoutingApproach::Exploitation,
-                _ => {
-                    return Err(errors::RoutingError::GenericNotFoundError {
-                        field: "routing_approach".to_string(),
-                    })
-                    .change_context(errors::RoutingError::GenericNotFoundError {
-                        field: "unknown routing approach from dynamic routing service".to_string(),
-                    })
-                    .attach_printable("unknown routing approach from dynamic routing service")
+                .await
+                .change_context(errors::RoutingError::SuccessRateCalculationError)
+                .attach_printable(
+                    "unable to calculate/fetch success rate from dynamic routing service",
+                );
+
+            match success_based_connectors_result {
+                Ok(success_response) => {
+                    let updated_resp = utils::CalSuccessRateEventResponse::try_from(
+                        &success_response,
+                    )
+                    .change_context(errors::RoutingError::SuccessBasedRoutingConfigError)
+                    .attach_printable(
+                        "unable to convert SuccessBasedConnectors to CalSuccessRateEventResponse",
+                    )?;
+
+                    Ok(Some(updated_resp))
                 }
-            },
+                Err(e) => {
+                    logger::error!(
+                        "unable to calculate/fetch success rate from dynamic routing service: {:?}",
+                        e.current_context()
+                    );
+
+                    Err(error_stack::report!(
+                        errors::RoutingError::SuccessRateCalculationError
+                    ))
+                }
+            }
         };
 
-        routing_event.set_response_body(&event_response);
-        routing_event.set_routing_approach(event_response.routing_approach.to_string());
+        let events_response = utils::routing_events_wrap(
+            state,
+            routing_events_wrapper,
+            closure,
+            "SuccessRateCalculator.FetchSuccessRate".to_string(),
+            RoutingEngine::IntelligentRouter,
+            ApiMethod::Grpc,
+        )
+        .await?;
+
+        let success_based_connectors: utils::CalSuccessRateEventResponse = events_response
+            .response
+            .ok_or(errors::RoutingError::SuccessRateCalculationError)?;
+
+        // Need to log error case
+        let mut routing_event = events_response
+            .event
+            .ok_or(errors::RoutingError::SuccessRateCalculationError)?;
+
+        routing_event.set_routing_approach(success_based_connectors.routing_approach.to_string());
 
         let mut connectors = Vec::with_capacity(success_based_connectors.labels_with_score.len());
         for label_with_score in success_based_connectors.labels_with_score {
@@ -2222,7 +2222,7 @@ pub async fn perform_elimination_routing(
                     .ok_or(errors::RoutingError::EliminationBasedRoutingParamsNotFoundError)?,
             );
 
-        let event_request = api_routing::EliminationRoutingEventRequest {
+        let event_request = utils::EliminationRoutingEventRequest {
             id: profile_id.get_string_repr().to_string(),
             params: elimination_routing_config_params.clone(),
             labels: routable_connectors
@@ -2232,80 +2232,73 @@ pub async fn perform_elimination_routing(
             config: elimination_routing_config
                 .elimination_analyser_config
                 .as_ref()
-                .map(|conf| api_routing::EliminationRoutingEventBucketConfig {
-                    bucket_leak_interval_in_secs: conf.bucket_leak_interval_in_secs,
-                    bucket_size: conf.bucket_size,
-                }),
+                .map(utils::EliminationRoutingEventBucketConfig::from),
         };
 
-        let serialized_request = serde_json::to_value(&event_request)
-            .change_context(errors::RoutingError::SuccessBasedRoutingConfigError)
-            .attach_printable("unable to serialize EliminationRoutingEventRequest")?;
-
-        let mut routing_event = RoutingEvent::new(
+        let routing_events_wrapper = utils::RoutingEventsWrapper::new(
             state.tenant.tenant_id.clone(),
-            "".to_string(),
-            "Intelligent-router GetEliminationStatus",
-            serialized_request,
-            "EliminationAnalyser.GetEliminationStatus".to_string(),
-            ApiMethod::Grpc,
+            state.request_id,
             payment_id.get_string_repr().to_string(),
             profile_id.to_owned(),
             merchant_id.to_owned(),
-            state.request_id,
-            RoutingEngine::IntelligentRouter,
+            "Intelligent-Router PerformEliminationRouting".to_string(),
+            Some(event_request.clone()),
+            true,
+            false,
         );
 
-        let elimination_based_connectors: EliminationResponse = client
-            .perform_elimination_routing(
-                profile_id.get_string_repr().to_string(),
-                elimination_routing_config_params,
-                routable_connectors.clone(),
-                elimination_routing_config.elimination_analyser_config,
-                state.get_grpc_headers(),
-            )
-            .await
-            .inspect_err(|e| {
-                routing_event
-                    .set_error(serde_json::json!({"error": e.current_context().to_string()}));
-                state.event_handler().log_event(&routing_event);
-            })
-            .change_context(errors::RoutingError::EliminationRoutingCalculationError)
-            .attach_printable(
-                "unable to analyze/fetch elimination routing from dynamic routing service",
-            )?;
-
-        let event_response = api_routing::EliminationEventResponse {
-            labels_with_status: elimination_based_connectors
-                .labels_with_status
-                .iter()
-                .map(
-                    |label_with_status| api_routing::LabelWithStatusEliminationEventResponse {
-                        label: label_with_status.label.clone(),
-                        elimination_information: label_with_status
-                            .elimination_information
-                            .as_ref()
-                            .map(|info| api_routing::EliminationInformationEventResponse {
-                                entity: info.entity.as_ref().map(|entity_info| {
-                                    api_routing::BucketInformationEventResponse {
-                                        is_eliminated: entity_info.is_eliminated,
-                                        bucket_name: entity_info.bucket_name.clone(),
-                                    }
-                                }),
-                                global: info.global.as_ref().map(|global_info| {
-                                    api_routing::BucketInformationEventResponse {
-                                        is_eliminated: global_info.is_eliminated,
-                                        bucket_name: global_info.bucket_name.clone(),
-                                    }
-                                }),
-                            }),
-                    },
+        let closure = || async {
+            let elimination_based_connectors_result = client
+                .perform_elimination_routing(
+                    profile_id.get_string_repr().to_string(),
+                    elimination_routing_config_params,
+                    routable_connectors.clone(),
+                    elimination_routing_config.elimination_analyser_config,
+                    state.get_grpc_headers(),
                 )
-                .collect(),
+                .await
+                .change_context(errors::RoutingError::EliminationRoutingCalculationError)
+                .attach_printable(
+                    "unable to analyze/fetch elimination routing from dynamic routing service",
+                );
+
+            match elimination_based_connectors_result {
+                Ok(elimination_response) => Ok(Some(utils::EliminationEventResponse::from(
+                    &elimination_response,
+                ))),
+                Err(e) => {
+                    logger::error!(
+                        "unable to analyze/fetch elimination routing from dynamic routing service: {:?}",
+                        e.current_context()
+                    );
+
+                    Err(error_stack::report!(
+                        errors::RoutingError::EliminationRoutingCalculationError
+                    ))
+                }
+            }
         };
 
-        routing_event.set_response_body(&event_response);
-        routing_event.set_routing_approach(api_routing::RoutingApproach::Elimination.to_string());
+        let events_response = utils::routing_events_wrap(
+            state,
+            routing_events_wrapper,
+            closure,
+            "EliminationAnalyser.GetEliminationStatus".to_string(),
+            RoutingEngine::IntelligentRouter,
+            ApiMethod::Grpc,
+        )
+        .await?;
+
+        let elimination_based_connectors: utils::EliminationEventResponse = events_response
+            .response
+            .ok_or(errors::RoutingError::EliminationRoutingCalculationError)?;
+
+        // Need to log error case
+        let mut routing_event = events_response
+            .event
+            .ok_or(errors::RoutingError::EliminationRoutingCalculationError)?;
+
+        routing_event.set_routing_approach(utils::RoutingApproach::Elimination.to_string());
 
         let mut connectors =
             Vec::with_capacity(elimination_based_connectors.labels_with_status.len());
@@ -2435,7 +2428,7 @@ pub async fn perform_contract_based_routing(
             })
             .collect::<Vec<_>>();
 
-        let event_request = api_routing::CalContractScoreEventRequest {
+        let event_request = utils::CalContractScoreEventRequest {
             id: profile_id.get_string_repr().to_string(),
             params: "".to_string(),
             labels: contract_based_connectors
@@ -2445,66 +2438,37 @@ pub async fn perform_contract_based_routing(
             config: Some(contract_based_routing_configs.clone()),
         };
 
-        let serialized_request = serde_json::to_value(&event_request)
-            .change_context(errors::RoutingError::SuccessBasedRoutingConfigError)
-            .attach_printable("unable to serialize EliminationRoutingEventRequest")?;
-
-        let mut routing_event = RoutingEvent::new(
+        let routing_events_wrapper = utils::RoutingEventsWrapper::new(
             state.tenant.tenant_id.clone(),
-            "".to_string(),
-            "Intelligent-router CalContractScore",
-            serialized_request,
-            "ContractScoreCalculator.FetchContractScore".to_string(),
-            ApiMethod::Grpc,
+            state.request_id,
             payment_id.get_string_repr().to_string(),
             profile_id.to_owned(),
             merchant_id.to_owned(),
-            state.request_id,
-            RoutingEngine::IntelligentRouter,
+            "Intelligent-Router PerformContractRouting".to_string(),
+            Some(event_request.clone()),
+            true,
+            false,
         );
 
-        let contract_based_connectors_result = client
-            .calculate_contract_score(
-                profile_id.get_string_repr().into(),
-                contract_based_routing_configs.clone(),
-                "".to_string(),
-                contract_based_connectors,
-                state.get_grpc_headers(),
-            )
-            .await
-            .inspect_err(|e| {
-                routing_event
-                    .set_error(serde_json::json!({"error": e.current_context().to_string()}));
-                routing_event
-                    .set_routing_approach(api_routing::RoutingApproach::ContractBased.to_string());
-                state.event_handler().log_event(&routing_event);
-            })
-            .attach_printable(
-                "unable to calculate/fetch contract score from dynamic routing service",
-            );
+        let closure = || async {
+            let contract_based_connectors_result = client
+                .calculate_contract_score(
+                    profile_id.get_string_repr().into(),
+                    contract_based_routing_configs.clone(),
+                    "".to_string(),
+                    contract_based_connectors,
+                    state.get_grpc_headers(),
+                )
+                .await
+                .attach_printable(
+                    "unable to calculate/fetch contract score from dynamic routing service",
+                );
 
-        let contract_based_connectors = match contract_based_connectors_result {
-            Ok(resp) => {
-                let event_response = api_routing::CalContractScoreEventResponse {
-                    labels_with_score: resp
-                        .labels_with_score
-                        .iter()
-                        .map(|label_with_score| api_routing::ScoreDataEventResponse {
-                            score: label_with_score.score,
-                            label: label_with_score.label.clone(),
-                            current_count: label_with_score.current_count,
-                        })
-                        .collect(),
-                };
-
-                routing_event.set_response_body(&event_response);
-                routing_event
-                    .set_routing_approach(api_routing::RoutingApproach::ContractBased.to_string());
-                resp
-            }
-            Err(err) => match err.current_context() {
-                DynamicRoutingError::ContractNotFound => {
-                    client
+            let contract_based_connectors = match contract_based_connectors_result {
+                Ok(resp) => Some(utils::CalContractScoreEventResponse::from(&resp)),
+                Err(err) => match err.current_context() {
+                    DynamicRoutingError::ContractNotFound => {
+                        client
                             .update_contracts(
                                 profile_id.get_string_repr().into(),
                                 label_info,
@@ -2518,19 +2482,46 @@ pub async fn perform_contract_based_routing(
                             .attach_printable(
                                 "unable to update contract based routing window in dynamic routing service",
                             )?;
-                    return Err((errors::RoutingError::ContractScoreCalculationError {
-                        err: err.to_string(),
-                    })
-                    .into());
-                }
-                _ => {
-                    return Err((errors::RoutingError::ContractScoreCalculationError {
-                        err: err.to_string(),
-                    })
-                    .into())
-                }
-            },
+                        return Err((errors::RoutingError::ContractScoreCalculationError {
+                            err: err.to_string(),
+                        })
+                        .into());
+                    }
+                    _ => {
+                        return Err((errors::RoutingError::ContractScoreCalculationError {
+                            err: err.to_string(),
+                        })
+                        .into())
+                    }
+                },
+            };
+
+            Ok(contract_based_connectors)
         };
+
+        let events_response = utils::routing_events_wrap(
+            state,
+            routing_events_wrapper,
+            closure,
+            "ContractScoreCalculator.FetchContractScore".to_string(),
+            RoutingEngine::IntelligentRouter,
+            ApiMethod::Grpc,
+        )
+        .await?;
+
+        let contract_based_connectors: utils::CalContractScoreEventResponse = events_response
+            .response
+            .ok_or(errors::RoutingError::ContractScoreCalculationError {
+                err: "CalContractScoreEventResponse not found".to_string(),
+            })?;
+
+        // Need to log error case
+        let mut routing_event =
+            events_response
+                .event
+                .ok_or(errors::RoutingError::ContractScoreCalculationError {
+                    err: "RoutingEvent not found for ContractRouting".to_string(),
+                })?;
 
         let mut connectors = Vec::with_capacity(contract_based_connectors.labels_with_score.len());
 

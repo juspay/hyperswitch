@@ -6,8 +6,9 @@ use common_utils::{ext_traits::BytesExt, id_type};
 use diesel_models::{enums, routing_algorithm};
 use error_stack::ResultExt;
 use euclid::{backend::BackendInput, frontend::ast};
+use external_services::grpc_client::dynamic_routing as ir_client;
 use hyperswitch_interfaces::events::routing_api_logs as routing_events;
-use router_env::{log, tracing_actix_web::RequestId};
+use router_env::tracing_actix_web::RequestId;
 use serde::{Deserialize, Serialize};
 
 use super::RoutingResult;
@@ -15,7 +16,7 @@ use crate::{
     core::errors,
     routes::{app::SessionStateInfo, SessionState},
     services::{self, logger},
-    types::{self, transformers::ForeignInto},
+    types::transformers::ForeignInto,
 };
 
 // New Trait for handling Euclid API calls
@@ -57,7 +58,7 @@ pub async fn build_and_send_decision_engine_http_request<Req, Res>(
     http_method: services::Method,
     path: &str,
     request_body: Option<Req>,
-    timeout: Option<u64>,
+    _timeout: Option<u64>,
     context_message: &str,
     events_wrapper: Option<RoutingEventsWrapper<Req>>,
 ) -> RoutingResult<RoutingEventsResponse<Res>>
@@ -139,7 +140,7 @@ where
             closure,
             url.clone(),
             routing_events::RoutingEngine::DecisionEngine,
-            routing_events::ApiMethod::Rest(http_method.clone()),
+            routing_events::ApiMethod::Rest(http_method),
         )
         .await?
     } else {
@@ -1139,4 +1140,444 @@ where
     response.set_event(routing_event);
 
     Ok(response)
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub struct CalSuccessRateConfigEventRequest {
+    pub min_aggregates_size: Option<u32>,
+    pub default_success_rate: Option<f64>,
+    pub specificity_level: api_routing::SuccessRateSpecificityLevel,
+    pub exploration_percent: Option<f64>,
+}
+
+impl From<&api_routing::SuccessBasedRoutingConfigBody> for CalSuccessRateConfigEventRequest {
+    fn from(value: &api_routing::SuccessBasedRoutingConfigBody) -> Self {
+        Self {
+            min_aggregates_size: value.min_aggregates_size,
+            default_success_rate: value.default_success_rate,
+            specificity_level: value.specificity_level,
+            exploration_percent: value.exploration_percent,
+        }
+    }
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub struct CalSuccessRateEventRequest {
+    pub id: String,
+    pub params: String,
+    pub labels: Vec<String>,
+    pub config: Option<CalSuccessRateConfigEventRequest>,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub struct EliminationRoutingEventBucketConfig {
+    pub bucket_size: Option<u64>,
+    pub bucket_leak_interval_in_secs: Option<u64>,
+}
+
+impl From<&api_routing::EliminationAnalyserConfig> for EliminationRoutingEventBucketConfig {
+    fn from(value: &api_routing::EliminationAnalyserConfig) -> Self {
+        Self {
+            bucket_size: value.bucket_size,
+            bucket_leak_interval_in_secs: value.bucket_leak_interval_in_secs,
+        }
+    }
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub struct EliminationRoutingEventRequest {
+    pub id: String,
+    pub params: String,
+    pub labels: Vec<String>,
+    pub config: Option<EliminationRoutingEventBucketConfig>,
+}
+
+/// API-1 types
+#[derive(Clone, Debug, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub struct CalContractScoreEventRequest {
+    pub id: String,
+    pub params: String,
+    pub labels: Vec<String>,
+    pub config: Option<api_routing::ContractBasedRoutingConfig>,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub struct LabelWithScoreEventResponse {
+    pub score: f64,
+    pub label: String,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub struct CalSuccessRateEventResponse {
+    pub labels_with_score: Vec<LabelWithScoreEventResponse>,
+    pub routing_approach: RoutingApproach,
+}
+
+impl TryFrom<&ir_client::success_rate_client::CalSuccessRateResponse>
+    for CalSuccessRateEventResponse
+{
+    type Error = errors::RoutingError;
+
+    fn try_from(
+        value: &ir_client::success_rate_client::CalSuccessRateResponse,
+    ) -> Result<Self, Self::Error> {
+        Ok(Self {
+            labels_with_score: value
+                .labels_with_score
+                .iter()
+                .map(|l| LabelWithScoreEventResponse {
+                    score: l.score,
+                    label: l.label.clone(),
+                })
+                .collect(),
+            routing_approach: match value.routing_approach {
+                0 => RoutingApproach::Exploration,
+                1 => RoutingApproach::Exploitation,
+                _ => {
+                    return Err(errors::RoutingError::GenericNotFoundError {
+                        field: "unknown routing approach from dynamic routing service".to_string(),
+                    })
+                }
+            },
+        })
+    }
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum RoutingApproach {
+    Exploitation,
+    Exploration,
+    Elimination,
+    ContractBased,
+    Default,
+}
+
+impl RoutingApproach {
+    pub fn from_decision_engine_approach(approach: &str) -> Self {
+        match approach {
+            "SR_SELECTION_V3_ROUTING" => Self::Exploitation,
+            "SR_V3_HEDGING" => Self::Exploration,
+            _ => Self::Default,
+        }
+    }
+}
+
+impl std::fmt::Display for RoutingApproach {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::Exploitation => write!(f, "Exploitation"),
+            Self::Exploration => write!(f, "Exploration"),
+            Self::Elimination => write!(f, "Elimination"),
+            Self::ContractBased => write!(f, "ContractBased"),
+            Self::Default => write!(f, "Default"),
+        }
+    }
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub struct BucketInformationEventResponse {
+    pub is_eliminated: bool,
+    pub bucket_name: Vec<String>,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub struct EliminationInformationEventResponse {
+    pub entity: Option<BucketInformationEventResponse>,
+    pub global: Option<BucketInformationEventResponse>,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub struct LabelWithStatusEliminationEventResponse {
+    pub label: String,
+    pub elimination_information: Option<EliminationInformationEventResponse>,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub struct EliminationEventResponse {
+    pub labels_with_status: Vec<LabelWithStatusEliminationEventResponse>,
+}
+
+impl From<&ir_client::elimination_based_client::EliminationResponse> for EliminationEventResponse {
+    fn from(value: &ir_client::elimination_based_client::EliminationResponse) -> Self {
+        Self {
+            labels_with_status: value
+                .labels_with_status
+                .iter()
+                .map(
+                    |label_with_status| LabelWithStatusEliminationEventResponse {
+                        label: label_with_status.label.clone(),
+                        elimination_information: label_with_status
+                            .elimination_information
+                            .as_ref()
+                            .map(|info| EliminationInformationEventResponse {
+                                entity: info.entity.as_ref().map(|entity_info| {
+                                    BucketInformationEventResponse {
+                                        is_eliminated: entity_info.is_eliminated,
+                                        bucket_name: entity_info.bucket_name.clone(),
+                                    }
+                                }),
+                                global: info.global.as_ref().map(|global_info| {
+                                    BucketInformationEventResponse {
+                                        is_eliminated: global_info.is_eliminated,
+                                        bucket_name: global_info.bucket_name.clone(),
+                                    }
+                                }),
+                            }),
+                    },
+                )
+                .collect(),
+        }
+    }
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub struct ScoreDataEventResponse {
+    pub score: f64,
+    pub label: String,
+    pub current_count: u64,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub struct CalContractScoreEventResponse {
+    pub labels_with_score: Vec<ScoreDataEventResponse>,
+}
+
+impl From<&ir_client::contract_routing_client::CalContractScoreResponse>
+    for CalContractScoreEventResponse
+{
+    fn from(value: &ir_client::contract_routing_client::CalContractScoreResponse) -> Self {
+        Self {
+            labels_with_score: value
+                .labels_with_score
+                .iter()
+                .map(|label_with_score| ScoreDataEventResponse {
+                    score: label_with_score.score,
+                    label: label_with_score.label.clone(),
+                    current_count: label_with_score.current_count,
+                })
+                .collect(),
+        }
+    }
+}
+
+#[derive(Clone, Copy, Debug, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub struct CalGlobalSuccessRateConfigEventRequest {
+    pub entity_min_aggregates_size: u32,
+    pub entity_default_success_rate: f64,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub struct CalGlobalSuccessRateEventRequest {
+    pub entity_id: String,
+    pub entity_params: String,
+    pub entity_labels: Vec<String>,
+    pub global_labels: Vec<String>,
+    pub config: Option<CalGlobalSuccessRateConfigEventRequest>,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub struct UpdateSuccessRateWindowConfig {
+    pub max_aggregates_size: Option<u32>,
+    pub current_block_threshold: Option<api_routing::CurrentBlockThreshold>,
+}
+
+impl From<&api_routing::SuccessBasedRoutingConfigBody> for UpdateSuccessRateWindowConfig {
+    fn from(value: &api_routing::SuccessBasedRoutingConfigBody) -> Self {
+        Self {
+            max_aggregates_size: value.max_aggregates_size,
+            current_block_threshold: value.current_block_threshold.clone(),
+        }
+    }
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub struct UpdateLabelWithStatusEventRequest {
+    pub label: String,
+    pub status: bool,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub struct UpdateSuccessRateWindowEventRequest {
+    pub id: String,
+    pub params: String,
+    pub labels_with_status: Vec<UpdateLabelWithStatusEventRequest>,
+    pub config: Option<UpdateSuccessRateWindowConfig>,
+    pub global_labels_with_status: Vec<UpdateLabelWithStatusEventRequest>,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub struct UpdateSuccessRateWindowEventResponse {
+    pub status: UpdationStatusEventResponse,
+}
+
+impl TryFrom<&ir_client::success_rate_client::UpdateSuccessRateWindowResponse>
+    for UpdateSuccessRateWindowEventResponse
+{
+    type Error = errors::RoutingError;
+
+    fn try_from(
+        value: &ir_client::success_rate_client::UpdateSuccessRateWindowResponse,
+    ) -> Result<Self, Self::Error> {
+        Ok(Self {
+            status: match value.status {
+                0 => UpdationStatusEventResponse::WindowUpdationSucceeded,
+                1 => UpdationStatusEventResponse::WindowUpdationFailed,
+                _ => {
+                    return Err(errors::RoutingError::GenericNotFoundError {
+                        field: "unknown updation status from dynamic routing service".to_string(),
+                    })
+                }
+            },
+        })
+    }
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum UpdationStatusEventResponse {
+    WindowUpdationSucceeded,
+    WindowUpdationFailed,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub struct LabelWithBucketNameEventRequest {
+    pub label: String,
+    pub bucket_name: String,
+}
+
+impl From<&api_routing::RoutableConnectorChoiceWithBucketName> for LabelWithBucketNameEventRequest {
+    fn from(value: &api_routing::RoutableConnectorChoiceWithBucketName) -> Self {
+        Self {
+            label: value.routable_connector_choice.to_string(),
+            bucket_name: value.bucket_name.clone(),
+        }
+    }
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub struct UpdateEliminationBucketEventRequest {
+    pub id: String,
+    pub params: String,
+    pub labels_with_bucket_name: Vec<LabelWithBucketNameEventRequest>,
+    pub config: Option<EliminationRoutingEventBucketConfig>,
+}
+
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub struct UpdateEliminationBucketEventResponse {
+    pub status: EliminationUpdationStatusEventResponse,
+}
+
+impl TryFrom<&ir_client::elimination_based_client::UpdateEliminationBucketResponse>
+    for UpdateEliminationBucketEventResponse
+{
+    type Error = errors::RoutingError;
+
+    fn try_from(
+        value: &ir_client::elimination_based_client::UpdateEliminationBucketResponse,
+    ) -> Result<Self, Self::Error> {
+        Ok(Self {
+            status: match value.status {
+                0 => EliminationUpdationStatusEventResponse::BucketUpdationSucceeded,
+                1 => EliminationUpdationStatusEventResponse::BucketUpdationFailed,
+                _ => {
+                    return Err(errors::RoutingError::GenericNotFoundError {
+                        field: "unknown updation status from dynamic routing service".to_string(),
+                    })
+                }
+            },
+        })
+    }
+}
+
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum EliminationUpdationStatusEventResponse {
+    BucketUpdationSucceeded,
+    BucketUpdationFailed,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub struct ContractLabelInformationEventRequest {
+    pub label: String,
+    pub target_count: u64,
+    pub target_time: u64,
+    pub current_count: u64,
+}
+
+impl From<&api_routing::LabelInformation> for ContractLabelInformationEventRequest {
+    fn from(value: &api_routing::LabelInformation) -> Self {
+        Self {
+            label: value.label.clone(),
+            target_count: value.target_count,
+            target_time: value.target_time,
+            current_count: 1,
+        }
+    }
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub struct UpdateContractRequestEventRequest {
+    pub id: String,
+    pub params: String,
+    pub labels_information: Vec<ContractLabelInformationEventRequest>,
+}
+
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub struct UpdateContractEventResponse {
+    pub status: ContractUpdationStatusEventResponse,
+}
+
+impl TryFrom<&ir_client::contract_routing_client::UpdateContractResponse>
+    for UpdateContractEventResponse
+{
+    type Error = errors::RoutingError;
+
+    fn try_from(
+        value: &ir_client::contract_routing_client::UpdateContractResponse,
+    ) -> Result<Self, Self::Error> {
+        Ok(Self {
+            status: match value.status {
+                0 => ContractUpdationStatusEventResponse::ContractUpdationSucceeded,
+                1 => ContractUpdationStatusEventResponse::ContractUpdationFailed,
+                _ => {
+                    return Err(errors::RoutingError::GenericNotFoundError {
+                        field: "unknown updation status from dynamic routing service".to_string(),
+                    })
+                }
+            },
+        })
+    }
+}
+
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum ContractUpdationStatusEventResponse {
+    ContractUpdationSucceeded,
+    ContractUpdationFailed,
 }
