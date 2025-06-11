@@ -962,7 +962,7 @@ pub struct PaymentsRequest {
     pub description: Option<String>,
 
     /// The URL to redirect the customer to after they complete the payment process or authentication. This is crucial for flows that involve off-site redirection (e.g., 3DS, some bank redirects, wallet payments).
-    #[schema(value_type = Option<String>, example = "https://hyperswitch.io"), max_length = 2048)]
+    #[schema(value_type = Option<String>, example = "https://hyperswitch.io", max_length = 2048)]
     pub return_url: Option<Url>,
 
     #[schema(value_type = Option<FutureUsage>, example = "off_session")]
