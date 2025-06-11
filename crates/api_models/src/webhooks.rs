@@ -129,6 +129,7 @@ pub enum WebhookResponseTracker {
         mandate_id: String,
         status: common_enums::MandateStatus,
     },
+    #[cfg(feature = "v1")]
     PaymentMethod {
         payment_method_id: String,
         status: common_enums::PaymentMethodStatus,
