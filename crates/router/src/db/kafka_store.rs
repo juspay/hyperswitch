@@ -10,8 +10,7 @@ use common_utils::{
 #[cfg(feature = "v2")]
 use diesel_models::ephemeral_key::{ClientSecretType, ClientSecretTypeNew};
 use diesel_models::{
-    enums,
-    enums::ProcessTrackerStatus,
+    enums::{self, ProcessTrackerStatus},
     ephemeral_key::{EphemeralKey, EphemeralKeyNew},
     reverse_lookup::{ReverseLookup, ReverseLookupNew},
     user_role as user_storage,
@@ -1866,7 +1865,12 @@ impl PaymentIntentInterface for KafkaStore {
 
         if let Err(er) = self
             .kafka_producer
-            .log_payment_intent(&intent, Some(this), self.tenant_id.clone())
+            .log_payment_intent(
+                &intent,
+                Some(this),
+                self.tenant_id.clone(),
+                state.infra_values.clone(),
+            )
             .await
         {
             logger::error!(message="Failed to add analytics entry for Payment Intent {intent:?}", error_message=?er);
@@ -1890,7 +1894,12 @@ impl PaymentIntentInterface for KafkaStore {
 
         if let Err(er) = self
             .kafka_producer
-            .log_payment_intent(&intent, None, self.tenant_id.clone())
+            .log_payment_intent(
+                &intent,
+                None,
+                self.tenant_id.clone(),
+                state.infra_values.clone(),
+            )
             .await
         {
             logger::error!(message="Failed to add analytics entry for Payment Intent {intent:?}", error_message=?er);
@@ -3596,7 +3605,12 @@ impl BatchSampleDataInterface for KafkaStore {
         for payment_intent in payment_intents_list.iter() {
             let _ = self
                 .kafka_producer
-                .log_payment_intent(payment_intent, None, self.tenant_id.clone())
+                .log_payment_intent(
+                    payment_intent,
+                    None,
+                    self.tenant_id.clone(),
+                    state.infra_values.clone(),
+                )
                 .await;
         }
         Ok(payment_intents_list)
@@ -3680,7 +3694,11 @@ impl BatchSampleDataInterface for KafkaStore {
         for payment_intent in payment_intents_list.iter() {
             let _ = self
                 .kafka_producer
-                .log_payment_intent_delete(payment_intent, self.tenant_id.clone())
+                .log_payment_intent_delete(
+                    payment_intent,
+                    self.tenant_id.clone(),
+                    state.infra_values.clone(),
+                )
                 .await;
         }
         Ok(payment_intents_list)

@@ -32,6 +32,7 @@ pub mod payouts;
 pub mod pm_auth;
 pub mod poll;
 pub mod process_tracker;
+pub mod profile_acquirer;
 #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
 pub mod proxy;
 #[cfg(feature = "recon")]
@@ -40,6 +41,7 @@ pub mod refunds;
 pub mod relay;
 pub mod routing;
 pub mod surcharge_decision_configs;
+pub mod three_ds_decision_rule;
 #[cfg(feature = "tokenization_v2")]
 pub mod tokenization;
 pub mod user;

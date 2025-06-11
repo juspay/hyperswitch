@@ -132,7 +132,8 @@ pub fn mk_app(
             {
                 server_app = server_app
                     .service(routes::ProfileNew::server(state.clone()))
-                    .service(routes::Forex::server(state.clone()));
+                    .service(routes::Forex::server(state.clone()))
+                    .service(routes::ProfileAcquirer::server(state.clone()));
             }
 
             server_app = server_app.service(routes::Profile::server(state.clone()));
@@ -145,7 +146,8 @@ pub fn mk_app(
             .service(routes::RelayWebhooks::server(state.clone()))
             .service(routes::Webhooks::server(state.clone()))
             .service(routes::Hypersense::server(state.clone()))
-            .service(routes::Relay::server(state.clone()));
+            .service(routes::Relay::server(state.clone()))
+            .service(routes::ThreeDsDecisionRule::server(state.clone()));
 
         #[cfg(feature = "oltp")]
         {
