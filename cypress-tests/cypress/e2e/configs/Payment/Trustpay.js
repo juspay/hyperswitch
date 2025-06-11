@@ -533,17 +533,6 @@ export const connectorDetails = {
     },
   },
   bank_redirect_pm: {
-    PaymentIntent: getCustomExchange({
-      Request: {
-        currency: "EUR",
-      },
-      Response: {
-        status: 200,
-        body: {
-          status: "requires_payment_method",
-        },
-      },
-    }),
     Ideal: {
       Request: {
         payment_method: "bank_redirect",
@@ -727,17 +716,6 @@ export const connectorDetails = {
     },
   },
   bank_transfer_pm: {
-    PaymentIntent: getCustomExchange({
-      Request: {
-        currency: "USD",
-      },
-      Response: {
-        status: 200,
-        body: {
-          status: "requires_payment_method",
-        },
-      },
-    }),
     InstantBankTransferFinland: getCustomExchange(
       {
         Response: {

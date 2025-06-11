@@ -1,5 +1,5 @@
 // This file is the default. To override, add to connector.js
-import { getCustomExchange } from "./Modifiers";
+import { getCustomExchange, getCurrency } from "./Modifiers";
 
 export const customerAcceptance = {
   acceptance_type: "offline",
@@ -316,9 +316,9 @@ export const payment_methods_enabled = [
 
 export const connectorDetails = {
   bank_transfer_pm: {
-    PaymentIntent: getCustomExchange({
+    PaymentIntent: (paymentMethodType) => getCustomExchange({
       Request: {
-        currency: "USD",
+        currency: getCurrency(paymentMethodType),
       },
       Response: {
         status: 200,
@@ -404,9 +404,9 @@ export const connectorDetails = {
     }),
   },
   bank_redirect_pm: {
-    PaymentIntent: getCustomExchange({
+    PaymentIntent: (paymentMethodType) => getCustomExchange({
       Request: {
-        currency: "EUR",
+        currency: getCurrency(paymentMethodType),
       },
       Response: {
         status: 200,
@@ -538,17 +538,6 @@ export const connectorDetails = {
               },
             },
           },
-        },
-      },
-    }),
-    BlikPaymentIntent: getCustomExchange({
-      Request: {
-        currency: "PLN",
-      },
-      Response: {
-        status: 200,
-        body: {
-          status: "requires_payment_method",
         },
       },
     }),

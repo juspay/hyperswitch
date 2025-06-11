@@ -105,3 +105,26 @@ export const getCustomExchange = (overrides, inheritFrom = null) => {
 export const updateDefaultStatusCode = () => {
   return getUnsupportedExchange().Response;
 };
+
+// Currency map with logical grouping
+const CURRENCY_MAP = {
+  // Polish payment methods
+  Blik: "PLN",
+  InstantBankTransferPoland: "PLN",
+  
+  // Brazilian payment methods  
+  Pix: "BRL",
+  
+  // European payment methods (EUR)
+  Eps: "EUR",
+  Giropay: "EUR", 
+  Ideal: "EUR",
+  InstantBankTransferFinland: "EUR",
+  Klarna: "EUR",
+  Przelewy24: "EUR",
+  Sofort: "EUR",
+};
+
+export const getCurrency = (paymentMethodType) => {
+  return CURRENCY_MAP[paymentMethodType] || "USD";
+};

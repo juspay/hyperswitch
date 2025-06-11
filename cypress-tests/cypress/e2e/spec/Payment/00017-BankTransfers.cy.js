@@ -27,7 +27,7 @@ describe("Bank Transfers", () => {
     it("create-payment-call-test", () => {
       const data = getConnectorDetails(globalState.get("connectorId"))[
         "bank_transfer_pm"
-      ]["PaymentIntent"];
+      ]["PaymentIntent"]("Pix");
 
       cy.createPaymentIntentTest(
         fixtures.createPaymentBody,
@@ -83,7 +83,7 @@ describe("Bank Transfers", () => {
     it("create-payment-call-test", () => {
       const data = getConnectorDetails(globalState.get("connectorId"))[
         "bank_transfer_pm"
-      ]["PaymentIntent"];
+      ]["PaymentIntent"]("InstantBankTransferFinland");
 
       cy.createPaymentIntentTest(
         fixtures.createPaymentBody,
@@ -139,7 +139,7 @@ describe("Bank Transfers", () => {
     it("create-payment-call-test", () => {
       const data = getConnectorDetails(globalState.get("connectorId"))[
         "bank_transfer_pm"
-      ]["PaymentIntent"];
+      ]["PaymentIntent"]("InstantBankTransferPoland");
 
       cy.createPaymentIntentTest(
         fixtures.createPaymentBody,
