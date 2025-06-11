@@ -2294,7 +2294,7 @@ pub async fn migrate_rules_for_profile(
     state: SessionState,
     merchant_context: domain::MerchantContext,
     query_params: routing_types::RuleMigrationQuery,
-) -> RouterResponse<routing_types::RuleMigrationResult> {
+) -> RouterResult<routing_types::RuleMigrationResult> {
     use api_models::routing::StaticRoutingAlgorithm as EuclidAlgorithm;
 
     use crate::services::logger;
@@ -2411,10 +2411,8 @@ pub async fn migrate_rules_for_profile(
             }
         }
     }
-    Ok(service_api::ApplicationResponse::Json(
-        routing_types::RuleMigrationResult {
-            success: response_list,
-            errors: error_list,
-        },
-    ))
+    Ok(routing_types::RuleMigrationResult {
+        success: response_list,
+        errors: error_list,
+    })
 }

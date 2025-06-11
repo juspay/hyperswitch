@@ -1536,6 +1536,7 @@ pub enum ContractUpdationStatusEventResponse {
 #[derive(Clone, Debug, serde::Deserialize, serde::Serialize)]
 pub struct RuleMigrationQuery {
     pub profile_id: common_utils::id_type::ProfileId,
+    pub merchant_id: common_utils::id_type::MerchantId,
     pub limit: Option<u32>,
     pub offset: Option<u32>,
 }
