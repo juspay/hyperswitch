@@ -1,13 +1,5 @@
+import { customerAcceptance } from "./Commons";
 import { getCustomExchange } from "./Modifiers";
-
-export const customerAcceptance = {
-  acceptance_type: "offline",
-  accepted_at: "1963-05-03T04:07:52.723Z",
-  online: {
-    ip_address: "127.0.0.1",
-    user_agent: "amet irure esse",
-  },
-};
 
 const successful3DSCardDetails = {
   card_number: "4761739090000088",
@@ -63,6 +55,7 @@ export const connectorDetails = {
         status: 200,
         body: {
           status: "requires_customer_action",
+          payment_method_data: paymentMethodData3DSResponse,
         },
       },
     },
@@ -81,6 +74,7 @@ export const connectorDetails = {
         status: 200,
         body: {
           status: "requires_customer_action",
+          payment_method_data: paymentMethodData3DSResponse,
         },
       },
     },
