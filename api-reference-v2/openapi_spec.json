@@ -3990,7 +3990,7 @@
         "properties": {
           "city": {
             "type": "string",
-            "description": "The address city",
+            "description": "The city, district, suburb, town, or village of the address.",
             "example": "New York",
             "nullable": true,
             "maxLength": 50
@@ -4005,21 +4005,21 @@
           },
           "line1": {
             "type": "string",
-            "description": "The first line of the address",
+            "description": "The first line of the street address or P.O. Box.",
             "example": "123, King Street",
             "nullable": true,
             "maxLength": 200
           },
           "line2": {
             "type": "string",
-            "description": "The second line of the address",
+            "description": "The second line of the street address or P.O. Box (e.g., apartment, suite, unit, or building).",
             "example": "Powelson Avenue",
             "nullable": true,
             "maxLength": 50
           },
           "line3": {
             "type": "string",
-            "description": "The third line of the address",
+            "description": "The third line of the street address, if applicable.",
             "example": "Bridgewater",
             "nullable": true,
             "maxLength": 50
@@ -4828,7 +4828,8 @@
           "failure",
           "payment_method_awaited",
           "confirmation_awaited",
-          "device_data_collection_pending"
+          "device_data_collection_pending",
+          "integrity_failure"
         ]
       },
       "AuthenticationConnectorDetails": {
@@ -4898,7 +4899,7 @@
       },
       "AuthenticationType": {
         "type": "string",
-        "description": "Pass this parameter to force 3DS or non 3DS auth for this payment. Some connectors will still force 3DS auth even in case of passing 'no_three_ds' here and vice versa. Default value is 'no_three_ds' if not set",
+        "description": "Specifies the type of cardholder authentication to be applied for a payment.\n\n- `ThreeDs`: Requests 3D Secure (3DS) authentication. If the card is enrolled, 3DS authentication will be activated, potentially shifting chargeback liability to the issuer.\n- `NoThreeDs`: Indicates that 3D Secure authentication should not be performed. The liability for chargebacks typically remains with the merchant. This is often the default if not specified.\n\nNote: The actual authentication behavior can also be influenced by merchant configuration and specific connector defaults. Some connectors might still enforce 3DS or bypass it regardless of this parameter.",
         "enum": [
           "three_ds",
           "no_three_ds"
@@ -7080,7 +7081,7 @@
       },
       "CaptureMethod": {
         "type": "string",
-        "description": "Default value if not passed is set to 'automatic' which results in Auth and Capture in one single API request. Pass 'manual' or 'manual_multiple' in case you want do a separate Auth and Capture by first authorizing and placing a hold on your customer's funds so that you can use the Payments/Capture endpoint later to capture the authorized amount. Pass 'manual' if you want to only capture the amount later once or 'manual_multiple' if you want to capture the funds multiple times later. Both 'manual' and 'manual_multiple' are only supported by a specific list of processors",
+        "description": "Specifies how the payment is captured.\n- `automatic`: Funds are captured immediately after successful authorization. This is the default behavior if the field is omitted.\n- `manual`: Funds are authorized but not captured. A separate request to the `/payments/{payment_id}/capture` endpoint is required to capture the funds.",
         "enum": [
           "automatic",
           "manual",
@@ -7102,7 +7103,7 @@
         "properties": {
           "capture_id": {
             "type": "string",
-            "description": "Unique identifier for the capture"
+            "description": "A unique identifier for this specific capture operation."
           },
           "status": {
             "$ref": "#/components/schemas/CaptureStatus"
@@ -7123,11 +7124,11 @@
           },
           "connector": {
             "type": "string",
-            "description": "The connector used for the payment"
+            "description": "The name of the payment connector that processed this capture."
           },
           "authorized_attempt_id": {
             "type": "string",
-            "description": "Unique identifier for the parent attempt on which this capture is made"
+            "description": "The ID of the payment attempt that was successfully authorized and subsequently captured by this operation."
           },
           "connector_capture_id": {
             "type": "string",
@@ -7141,22 +7142,22 @@
           },
           "error_message": {
             "type": "string",
-            "description": "If there was an error while calling the connector the error message is received here",
+            "description": "A human-readable message from the connector explaining why this capture operation failed, if applicable.",
             "nullable": true
           },
           "error_code": {
             "type": "string",
-            "description": "If there was an error while calling the connectors the code is received here",
+            "description": "The error code returned by the connector if this capture operation failed. This code is connector-specific.",
             "nullable": true
           },
           "error_reason": {
             "type": "string",
-            "description": "If there was an error while calling the connectors the reason is received here",
+            "description": "A more detailed reason from the connector explaining the capture failure, if available.",
             "nullable": true
           },
           "reference_id": {
             "type": "string",
-            "description": "Reference to the capture at connector side",
+            "description": "The connector's own reference or transaction ID for this specific capture operation. Useful for reconciliation.",
             "nullable": true
           }
         }
@@ -9147,7 +9148,7 @@
       },
       "Currency": {
         "type": "string",
-        "description": "The three letter ISO currency code in uppercase. Eg: 'USD' for the United States Dollar.",
+        "description": "The three-letter ISO 4217 currency code (e.g., \"USD\", \"EUR\") for the payment amount. This field is mandatory for creating a payment.",
         "enum": [
           "AED",
           "AFN",
@@ -11307,7 +11308,7 @@
       },
       "FutureUsage": {
         "type": "string",
-        "description": "Indicates that you intend to make future payments with the payment methods used for this Payment. Providing this parameter will attach the payment method to the Customer, if present, after the Payment is confirmed and any required actions from the user are complete.\n- On_session - Payment method saved only at hyperswitch when consent is provided by the user. CVV will asked during the returning user payment\n- Off_session - Payment method saved at both hyperswitch and Processor when consent is provided by the user. No input is required during the returning user payment.",
+        "description": "Specifies how the payment method can be used for future payments.\n- `off_session`: The payment method can be used for future payments when the customer is not present.\n- `on_session`: The payment method is intended for use only when the customer is present during checkout.\nIf omitted, defaults to `on_session`.",
         "enum": [
           "off_session",
           "on_session"
@@ -12363,7 +12364,7 @@
       },
       "IntentStatus": {
         "type": "string",
-        "description": "The status of the current payment that was made",
+        "description": "Represents the overall status of a payment intent.\nThe status transitions through various states depending on the payment method, confirmation, capture method, and any subsequent actions (like customer authentication or manual capture).",
         "enum": [
           "succeeded",
           "failed",
@@ -12375,7 +12376,8 @@
           "requires_confirmation",
           "requires_capture",
           "partially_captured",
-          "partially_captured_and_capturable"
+          "partially_captured_and_capturable",
+          "conflicted"
         ]
       },
       "JCSVoucherData": {
@@ -15862,6 +15864,11 @@
             "type": "boolean",
             "description": "Boolean to control payment button text for setup mandate calls",
             "nullable": true
+          },
+          "color_icon_card_cvc_error": {
+            "type": "string",
+            "description": "Hex color for the CVC icon during error state",
+            "nullable": true
           }
         }
       },
@@ -16029,6 +16036,11 @@
           "is_setup_mandate_flow": {
             "type": "boolean",
             "description": "Boolean to control payment button text for setup mandate calls",
+            "nullable": true
+          },
+          "color_icon_card_cvc_error": {
+            "type": "string",
+            "description": "Hex color for the CVC icon during error state",
             "nullable": true
           }
         }
@@ -16955,7 +16967,7 @@
           },
           "recurring_enabled": {
             "type": "boolean",
-            "description": "Indicates whether the payment method is eligible for recurring payments",
+            "description": "Indicates whether the payment method supports recurring payments. Optional.",
             "example": true,
             "nullable": true
           },
@@ -17033,8 +17045,7 @@
           "id",
           "merchant_id",
           "customer_id",
-          "payment_method_type",
-          "recurring_enabled"
+          "payment_method_type"
         ],
         "properties": {
           "id": {
@@ -17067,8 +17078,9 @@
           },
           "recurring_enabled": {
             "type": "boolean",
-            "description": "Indicates whether the payment method is eligible for recurring payments",
-            "example": true
+            "description": "Indicates whether the payment method supports recurring payments. Optional.",
+            "example": true,
+            "nullable": true
           },
           "created": {
             "type": "string",
@@ -17132,7 +17144,6 @@
           "customer_id",
           "payment_method_type",
           "payment_method_subtype",
-          "recurring_enabled",
           "created",
           "requires_cvv",
           "is_default",
@@ -17159,8 +17170,9 @@
           },
           "recurring_enabled": {
             "type": "boolean",
-            "description": "Indicates whether the payment method is eligible for recurring payments",
-            "example": true
+            "description": "Indicates whether the payment method supports recurring payments. Optional.",
+            "example": true,
+            "nullable": true
           },
           "payment_method_data": {
             "allOf": [
@@ -17947,7 +17959,6 @@
           },
           "payment_token": {
             "type": "string",
-            "description": "Provide a reference to a stored payment method",
             "example": "187282ab-40ef-47a9-9206-5099ba31e432",
             "nullable": true
           }
@@ -20922,6 +20933,7 @@
           "is_iframe_redirection_enabled": {
             "type": "boolean",
             "description": "Indicates if the redirection has to open in the iframe",
+            "example": false,
             "nullable": true
           },
           "is_external_vault_enabled": {
@@ -21190,6 +21202,7 @@
           "is_iframe_redirection_enabled": {
             "type": "boolean",
             "description": "Indicates if the redirection has to open in the iframe",
+            "example": false,
             "nullable": true
           },
           "is_external_vault_enabled": {
@@ -21843,9 +21856,7 @@
       "RequestPaymentMethodTypes": {
         "type": "object",
         "required": [
-          "payment_method_type",
-          "recurring_enabled",
-          "installment_payment_enabled"
+          "payment_method_type"
         ],
         "properties": {
           "payment_method_type": {
@@ -21900,15 +21911,15 @@
           },
           "recurring_enabled": {
             "type": "boolean",
-            "description": "Boolean to enable recurring payments / mandates. Default is true.",
-            "default": true,
-            "example": false
+            "description": "Indicates whether the payment method supports recurring payments. Optional.",
+            "example": false,
+            "nullable": true
           },
           "installment_payment_enabled": {
             "type": "boolean",
-            "description": "Boolean to enable installment / EMI / BNPL payments. Default is true.",
-            "default": true,
-            "example": false
+            "description": "Indicates whether the payment method is eligible for installment payments (e.g., EMI, BNPL). Optional.",
+            "example": true,
+            "nullable": true
           }
         }
       },
@@ -24016,6 +24027,7 @@
       },
       "ThreeDsCompletionIndicator": {
         "type": "string",
+        "description": "Indicates if 3DS method data was successfully completed or not",
         "enum": [
           "Y",
           "N",

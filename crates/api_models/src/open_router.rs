@@ -153,6 +153,11 @@ pub struct UpdateScorePayload {
     pub payment_id: id_type::PaymentId,
 }
 
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct UpdateScoreResponse {
+    pub message: String,
+}
+
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum TxnStatus {

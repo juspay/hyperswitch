@@ -4,6 +4,35 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2025.06.11.0
+
+### Features
+
+- **connector:** [TRUSTPAY] Added Integrity Checks for PSync & RSync flows & Added New Variants in AttemptStatus & IntentStatus ([#8096](https://github.com/juspay/hyperswitch/pull/8096)) ([`a76a9c1`](https://github.com/juspay/hyperswitch/commit/a76a9c1514e503d5a73fc45ee99f530ff233ef68))
+- **core:** Make installment_payment_enabled,recurring_enabled Optional ([#8201](https://github.com/juspay/hyperswitch/pull/8201)) ([`171ca3b`](https://github.com/juspay/hyperswitch/commit/171ca3b5645d8b0b7715939c46509cfa03af12ae))
+
+### Bug Fixes
+
+- **connector:**
+  - Removed forked josekit dependency from payout connector Nomupay ([#8183](https://github.com/juspay/hyperswitch/pull/8183)) ([`b1628f7`](https://github.com/juspay/hyperswitch/commit/b1628f798146e8222bc9bac72f7928a3d9285af3))
+  - [jpmorgan] 5xx during payment authorize and `cancellation_reason` ([#8282](https://github.com/juspay/hyperswitch/pull/8282)) ([`80206ee`](https://github.com/juspay/hyperswitch/commit/80206eed4234e851d1609e9cf6832b8fda68976e))
+  - [STRIPE] Throwing Missing Required Field Error if connector_customer is not present ([#8309](https://github.com/juspay/hyperswitch/pull/8309)) ([`c3a7f5c`](https://github.com/juspay/hyperswitch/commit/c3a7f5c43db48689092c1da5ff8ecbd32a862e84))
+  - Add RedirectInsidePopup response redirection URL ([#8257](https://github.com/juspay/hyperswitch/pull/8257)) ([`df34ff4`](https://github.com/juspay/hyperswitch/commit/df34ff43dcdb8facd4b9e670c81d0aa125639e4c))
+- **cypress:** Fix itaubank, datatrans and facilitapay ([#8229](https://github.com/juspay/hyperswitch/pull/8229)) ([`e0ea1b4`](https://github.com/juspay/hyperswitch/commit/e0ea1b48321181457a12ed6172edd4bc46506792))
+- Payment link styling for dynamic classes ([#8273](https://github.com/juspay/hyperswitch/pull/8273)) ([`be3fc6c`](https://github.com/juspay/hyperswitch/commit/be3fc6c742014f3304631b2efd6d8beb72b924f8))
+
+### Refactors
+
+- **connectors:** [worldpayvantiv] replace sandbox url with pre-live url and fix typo ([#8286](https://github.com/juspay/hyperswitch/pull/8286)) ([`67a42f0`](https://github.com/juspay/hyperswitch/commit/67a42f0c27157f876698982a6b5f0a1cd3e15ffb))
+
+### Revert
+
+- **connector:** [Worldpay] add root CA certificate ([#8224](https://github.com/juspay/hyperswitch/pull/8224)) ([`dab4058`](https://github.com/juspay/hyperswitch/commit/dab4058bfc94d9883a298930040324d22bb71a7c))
+
+**Full Changelog:** [`2025.06.10.0...2025.06.11.0`](https://github.com/juspay/hyperswitch/compare/2025.06.10.0...2025.06.11.0)
+
+- - -
+
 ## 2025.06.10.0
 
 ### Features
