@@ -44,7 +44,7 @@ pub struct StripeSplitPaymentRequest {
 
     /// Platform fees to be collected on the payment
     #[schema(value_type = i64, example = 6540)]
-    pub application_fees: MinorUnit,
+    pub application_fees: Option<MinorUnit>,
 
     /// Identifier for the reseller's account where the funds were transferred
     pub transfer_account_id: String,
@@ -139,7 +139,7 @@ pub struct StripeChargeResponseData {
 
     /// Platform fees collected on the payment
     #[schema(value_type = i64, example = 6540)]
-    pub application_fees: MinorUnit,
+    pub application_fees: Option<MinorUnit>,
 
     /// Identifier for the reseller's account where the funds were transferred
     pub transfer_account_id: String,
