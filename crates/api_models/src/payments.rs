@@ -7657,7 +7657,7 @@ pub struct ResponsePaymentMethodTypesForPayments {
     /// Required fields for the payment_method_type.
     /// This is the union of all the required fields for the payment method type enabled in all the connectors.
     #[schema(value_type = Option<RequiredFieldInfo>)]
-    pub required_fields: Option<Vec<payment_methods::RequiredFieldInfo>>,
+    pub required_fields: Vec<payment_methods::RequiredFieldInfo>,
 
     /// surcharge details for this payment method type if exists
     #[schema(value_type = Option<SurchargeDetailsResponse>)]
