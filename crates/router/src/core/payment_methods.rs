@@ -14,6 +14,7 @@ pub mod vault;
 use std::collections::HashSet;
 use std::{borrow::Cow, str::FromStr};
 
+use ::payment_methods::controller::PaymentMethodsController;
 #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
 pub use api_models::enums as api_enums;
 pub use api_models::enums::Connector;
@@ -94,7 +95,6 @@ use crate::{
     },
     utils::ext_traits::OptionExt,
 };
-use ::payment_methods::controller::PaymentMethodsController;
 use crate::{
     consts,
     core::{
@@ -3246,7 +3246,9 @@ pub struct PaymentMethodCreateWrapper(pub payment_methods::PaymentMethodCreate);
 
 #[cfg(feature = "v1")]
 impl From<(&payment_methods::CardDetail, &domain::PaymentMethod)> for PaymentMethodCreateWrapper {
-    fn from((data, payment_method): (&payment_methods::CardDetail, &domain::PaymentMethod)) -> Self {
+    fn from(
+        (data, payment_method): (&payment_methods::CardDetail, &domain::PaymentMethod),
+    ) -> Self {
         PaymentMethodCreateWrapper(payment_methods::PaymentMethodCreate {
             customer_id: Some(payment_method.customer_id.clone()),
             payment_method: payment_method.payment_method,
@@ -3272,7 +3274,7 @@ impl From<(&payment_methods::CardDetail, &domain::PaymentMethod)> for PaymentMet
 
 #[cfg(feature = "v1")]
 impl PaymentMethodCreateWrapper {
-    fn get_inner(self ) -> payment_methods::PaymentMethodCreate {
+    fn get_inner(self) -> payment_methods::PaymentMethodCreate {
         self.0
     }
 }
@@ -3366,8 +3368,6 @@ pub async fn handle_metadata_update(
     card.card_exp_year = metadata.expiry_year.clone();
     card.card_exp_month = metadata.expiry_month.clone();
 
-
-
     let card_network = card
         .card_brand
         .map(|card_brand| enums::CardNetwork::from_str(&card_brand))
@@ -3388,33 +3388,29 @@ pub async fn handle_metadata_update(
         card_type: None,
     };
 
-    let payment_method_request: payment_methods::PaymentMethodCreate = 
+    let payment_method_request: payment_methods::PaymentMethodCreate =
         PaymentMethodCreateWrapper::from((&card_data, payment_method)).get_inner();
 
-    let pm_cards=cards::PmCards {
+    let pm_cards = cards::PmCards {
         state,
         merchant_context,
     };
 
     pm_cards
-    .delete_card_from_locker(customer_id, merchant_id, &locker_id)
-    .await
-    .change_context(errors::ApiErrorResponse::InternalServerError)
-    .attach_printable("Failed to delete network token")?;
+        .delete_card_from_locker(customer_id, merchant_id, &locker_id)
+        .await
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Failed to delete network token")?;
 
-    let (res, _) = pm_cards.add_card_to_locker(
-        payment_method_request,
-        &card_data,
-        customer_id,
-        None,
-    )
-    .await
-    .change_context(errors::ApiErrorResponse::InternalServerError)
-    .attach_printable("Failed to add network token")?;
+    let (res, _) = pm_cards
+        .add_card_to_locker(payment_method_request, &card_data, customer_id, None)
+        .await
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Failed to add network token")?;
 
     let pm_details = res.card.as_ref().map(|card| {
-        payment_methods::PaymentMethodsData::Card(payment_methods::CardDetailsPaymentMethod::from((
-            card.clone(), None)
+        payment_methods::PaymentMethodsData::Card(payment_methods::CardDetailsPaymentMethod::from(
+            (card.clone(), None),
         ))
     });
     let key_manager_state = state.into();

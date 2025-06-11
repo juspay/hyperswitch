@@ -707,9 +707,9 @@ async fn network_token_incoming_webhooks_core<W: types::OutgoingWebhookType>(
 
     let response__ = get_response_data(response.clone());
 
-    let (merchant_id, payment_method_id, _customer_id) =response
+    let (merchant_id, payment_method_id, _customer_id) = response
         .fetch_merchant_id_payment_method_id_customer_id_from_callback_mapper(state)
-            .await?;
+        .await?;
 
     metrics::WEBHOOK_SOURCE_VERIFIED_COUNT.add(
         1,
