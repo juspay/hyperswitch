@@ -20,14 +20,15 @@ pub use api_models::payment_methods::{
 ))]
 pub use api_models::payment_methods::{
     CardDetail, CardDetailFromLocker, CardDetailsPaymentMethod, CardNetworkTokenizeRequest,
-    CardNetworkTokenizeResponse, CustomerPaymentMethod, CustomerPaymentMethodsListResponse,
-    DefaultPaymentMethod, DeleteTokenizeByTokenRequest, GetTokenizePayloadRequest,
-    GetTokenizePayloadResponse, ListCountriesCurrenciesRequest, MigrateCardDetail,
-    PaymentMethodCollectLinkRenderRequest, PaymentMethodCollectLinkRequest, PaymentMethodCreate,
-    PaymentMethodCreateData, PaymentMethodDeleteResponse, PaymentMethodId,
-    PaymentMethodListRequest, PaymentMethodListResponse, PaymentMethodMigrate,
-    PaymentMethodMigrateResponse, PaymentMethodResponse, PaymentMethodUpdate, PaymentMethodsData,
-    TokenizeCardRequest, TokenizeDataRequest, TokenizePayloadEncrypted, TokenizePayloadRequest,
+    CardNetworkTokenizeResponse, ConnectorCustomerDetails, CustomerPaymentMethod,
+    CustomerPaymentMethodsListResponse, DefaultPaymentMethod, DeleteTokenizeByTokenRequest,
+    GetTokenizePayloadRequest, GetTokenizePayloadResponse, ListCountriesCurrenciesRequest,
+    MigrateCardDetail, PaymentMethodCollectLinkRenderRequest, PaymentMethodCollectLinkRequest,
+    PaymentMethodCreate, PaymentMethodCreateData, PaymentMethodCustomerMigrate,
+    PaymentMethodDeleteResponse, PaymentMethodId, PaymentMethodListRequest,
+    PaymentMethodListResponse, PaymentMethodMigrate, PaymentMethodMigrateResponse,
+    PaymentMethodResponse, PaymentMethodUpdate, PaymentMethodsData, TokenizeCardRequest,
+    TokenizeDataRequest, TokenizePayloadEncrypted, TokenizePayloadRequest,
     TokenizePaymentMethodRequest, TokenizedCardValue1, TokenizedCardValue2, TokenizedWalletValue1,
     TokenizedWalletValue2,
 };

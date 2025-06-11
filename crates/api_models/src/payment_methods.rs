@@ -2538,6 +2538,7 @@ pub struct PaymentMethodRecord {
     pub payment_method_type: Option<api_enums::PaymentMethodType>,
     pub nick_name: masking::Secret<String>,
     pub payment_instrument_id: Option<masking::Secret<String>>,
+    pub connector_customer_id: Option<String>,
     pub card_number_masked: masking::Secret<String>,
     pub card_expiry_month: masking::Secret<String>,
     pub card_expiry_year: masking::Secret<String>,
@@ -2561,6 +2562,18 @@ pub struct PaymentMethodRecord {
     pub network_token_expiry_month: Option<masking::Secret<String>>,
     pub network_token_expiry_year: Option<masking::Secret<String>>,
     pub network_token_requestor_ref_id: Option<String>,
+}
+
+#[derive(Debug, Clone, serde::Deserialize, serde::Serialize)]
+pub struct ConnectorCustomerDetails {
+    pub connector_customer_id: String,
+    pub merchant_connector_id: id_type::MerchantConnectorAccountId,
+}
+
+#[derive(Debug, Clone, serde::Deserialize, serde::Serialize)]
+pub struct PaymentMethodCustomerMigrate {
+    pub customer: customers::CustomerRequest,
+    pub connector_customer_details: Option<ConnectorCustomerDetails>,
 }
 
 #[derive(Debug, Default, serde::Serialize)]
@@ -2737,29 +2750,40 @@ impl
 }
 
 #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
-impl From<(PaymentMethodRecord, id_type::MerchantId)> for customers::CustomerRequest {
+impl From<(PaymentMethodRecord, id_type::MerchantId)> for PaymentMethodCustomerMigrate {
     fn from(value: (PaymentMethodRecord, id_type::MerchantId)) -> Self {
         let (record, merchant_id) = value;
         Self {
-            customer_id: Some(record.customer_id),
-            merchant_id,
-            name: record.name,
-            email: record.email,
-            phone: record.phone,
-            description: None,
-            phone_country_code: record.phone_country_code,
-            address: Some(payments::AddressDetails {
-                city: Some(record.billing_address_city),
-                country: record.billing_address_country,
-                line1: Some(record.billing_address_line1),
-                line2: record.billing_address_line2,
-                state: Some(record.billing_address_state),
-                line3: record.billing_address_line3,
-                zip: Some(record.billing_address_zip),
-                first_name: Some(record.billing_address_first_name),
-                last_name: Some(record.billing_address_last_name),
-            }),
-            metadata: None,
+            customer: customers::CustomerRequest {
+                customer_id: Some(record.customer_id),
+                merchant_id,
+                name: record.name,
+                email: record.email,
+                phone: record.phone,
+                description: None,
+                phone_country_code: record.phone_country_code,
+                address: Some(payments::AddressDetails {
+                    city: Some(record.billing_address_city),
+                    country: record.billing_address_country,
+                    line1: Some(record.billing_address_line1),
+                    line2: record.billing_address_line2,
+                    state: Some(record.billing_address_state),
+                    line3: record.billing_address_line3,
+                    zip: Some(record.billing_address_zip),
+                    first_name: Some(record.billing_address_first_name),
+                    last_name: Some(record.billing_address_last_name),
+                }),
+                metadata: None,
+            },
+            connector_customer_details: record
+                .connector_customer_id
+                .zip(record.merchant_connector_id)
+                .map(
+                    |(connector_customer_id, merchant_connector_id)| ConnectorCustomerDetails {
+                        connector_customer_id,
+                        merchant_connector_id,
+                    },
+                ),
         }
     }
 }

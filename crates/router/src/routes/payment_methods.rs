@@ -17,6 +17,11 @@ use hyperswitch_domain_models::{
 use router_env::{instrument, logger, tracing, Flow};
 
 use super::app::{AppState, SessionState};
+#[cfg(all(
+    any(feature = "v1", feature = "v2", feature = "olap", feature = "oltp"),
+    not(feature = "customer_v2")
+))]
+use crate::core::{customers, payment_methods::tokenize};
 use crate::{
     core::{
         api_locking,
@@ -29,14 +34,6 @@ use crate::{
         domain,
         storage::payment_method::PaymentTokenData,
     },
-};
-#[cfg(all(
-    any(feature = "v1", feature = "v2", feature = "olap", feature = "oltp"),
-    not(feature = "customer_v2")
-))]
-use crate::{
-    core::{customers, payment_methods::tokenize},
-    types::api::customers::CustomerRequest,
 };
 
 #[cfg(all(
@@ -372,7 +369,12 @@ pub async fn migrate_payment_methods(
                 customers::migrate_customers(
                     state.clone(),
                     req.iter()
-                        .map(|e| CustomerRequest::from((e.clone(), merchant_id.clone())))
+                        .map(|e| {
+                            payment_methods::PaymentMethodCustomerMigrate::from((
+                                e.clone(),
+                                merchant_id.clone(),
+                            ))
+                        })
                         .collect(),
                     merchant_context.clone(),
                 )
