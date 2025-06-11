@@ -2570,6 +2570,7 @@ pub struct ConnectorCustomerDetails {
     pub merchant_connector_id: id_type::MerchantConnectorAccountId,
 }
 
+#[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
 #[derive(Debug, Clone, serde::Deserialize, serde::Serialize)]
 pub struct PaymentMethodCustomerMigrate {
     pub customer: customers::CustomerRequest,
