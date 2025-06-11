@@ -49,6 +49,8 @@ pub mod refunds;
 pub mod routing;
 pub mod three_ds_decision_rule;
 pub mod tokenization;
+#[cfg(feature = "v2")]
+pub mod recovery_trainer;
 #[cfg(feature = "olap")]
 pub mod user;
 #[cfg(feature = "olap")]
@@ -82,6 +84,8 @@ pub use self::app::Proxy;
 pub use self::app::Recon;
 #[cfg(feature = "v2")]
 pub use self::app::Tokenization;
+#[cfg(feature = "v2")]
+pub use self::app::Trainer;
 pub use self::app::{
     ApiKeys, AppState, ApplePayCertificatesMigration, Cache, Cards, Configs, ConnectorOnboarding,
     Customers, Disputes, EphemeralKey, FeatureMatrix, Files, Forex, Gsm, Health, Hypersense,

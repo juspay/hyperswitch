@@ -1145,6 +1145,10 @@ host = "localhost"
 port = 8000
 service = "dynamo"
 
+[grpc_client.trainer_client]
+host = "0.0.0.0"
+port = 50051
+
 [theme.storage]
 file_storage_backend = "file_system" # Theme storage backend to be used
 

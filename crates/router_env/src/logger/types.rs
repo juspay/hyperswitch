@@ -596,6 +596,10 @@ pub enum Flow {
     Proxy,
     /// ThreeDs Decision Rule Execute flow
     ThreeDsDecisionRuleExecute,
+    //Recovery Trainer flow
+    TriggerTrainingJob,
+    //Recovery Trainer Job status flow
+    GetTrainingJobStatus,
 }
 
 /// Trait for providing generic behaviour to flow metric

@@ -65,6 +65,8 @@ use super::{
     admin, api_keys, cache::*, connector_onboarding, disputes, files, gsm, health::*, profiles,
     relay, user, user_role,
 };
+#[cfg(feature = "v2")]
+use super::recovery_trainer;
 #[cfg(feature = "v1")]
 use super::{apple_pay_certificates_migration, blocklist, payment_link, webhook_events};
 #[cfg(any(feature = "olap", feature = "oltp"))]
@@ -703,6 +705,22 @@ impl Proxy {
         web::scope("/proxy")
             .app_data(web::Data::new(state))
             .service(web::resource("").route(web::post().to(proxy::proxy)))
+    }
+}
+
+#[cfg(feature = "v2")]
+pub struct Trainer;
+
+#[cfg(feature = "v2")]
+impl Trainer {
+    pub fn server(state: AppState) -> Scope {
+        web::scope("/trainer")
+            .app_data(web::Data::new(state))
+            .service(web::resource("/jobs").route(web::post().to(recovery_trainer::trigger_training_job)))
+            .service(
+                web::resource("/jobs/{job_id}")
+                    .route(web::get().to(recovery_trainer::get_the_training_job_status)),
+            )
     }
 }
 
