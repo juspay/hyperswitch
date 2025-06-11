@@ -4,6 +4,16 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2025.06.09.0-hotfix1
+
+### Bug Fixes
+
+- **connector:** [STRIPE] Throwing Missing Required Field Error if connector_customer is not present ([#8313](https://github.com/juspay/hyperswitch/pull/8313)) ([`ad8f9fe`](https://github.com/juspay/hyperswitch/commit/ad8f9fe2e94769461e1b940892145eea75c5822d))
+
+**Full Changelog:** [`2025.06.09.0...2025.06.09.0-hotfix1`](https://github.com/juspay/hyperswitch/compare/2025.06.09.0...2025.06.09.0-hotfix1)
+
+- - -
+
 ## 2025.06.09.0
 
 ### Features
