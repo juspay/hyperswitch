@@ -61,6 +61,7 @@ pub mod verification;
 pub mod verify_connector;
 pub mod webhooks;
 
+pub mod profile_acquirer;
 pub mod unified_authentication_service;
 
 #[cfg(feature = "v2")]

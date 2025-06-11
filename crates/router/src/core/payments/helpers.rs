@@ -4212,7 +4212,8 @@ pub fn get_attempt_type(
                     | enums::AttemptStatus::Voided
                     | enums::AttemptStatus::AutoRefunded
                     | enums::AttemptStatus::PaymentMethodAwaited
-                    | enums::AttemptStatus::DeviceDataCollectionPending => {
+                    | enums::AttemptStatus::DeviceDataCollectionPending
+                    | enums::AttemptStatus::IntegrityFailure => {
                         metrics::MANUAL_RETRY_VALIDATION_FAILED.add(
                             1,
                             router_env::metric_attributes!((
@@ -4267,7 +4268,8 @@ pub fn get_attempt_type(
         | enums::IntentStatus::PartiallyCaptured
         | enums::IntentStatus::PartiallyCapturedAndCapturable
         | enums::IntentStatus::Processing
-        | enums::IntentStatus::Succeeded => {
+        | enums::IntentStatus::Succeeded
+        | enums::IntentStatus::Conflicted => {
             Err(report!(errors::ApiErrorResponse::PreconditionFailed {
                 message: format!(
                     "You cannot {action} this payment because it has status {}",
@@ -4511,7 +4513,8 @@ pub fn is_manual_retry_allowed(
             | enums::AttemptStatus::Voided
             | enums::AttemptStatus::AutoRefunded
             | enums::AttemptStatus::PaymentMethodAwaited
-            | enums::AttemptStatus::DeviceDataCollectionPending => {
+            | enums::AttemptStatus::DeviceDataCollectionPending
+            | storage_enums::AttemptStatus::IntegrityFailure => {
                 logger::error!("Payment Attempt should not be in this state because Attempt to Intent status mapping doesn't allow it");
                 None
             }
@@ -4529,7 +4532,8 @@ pub fn is_manual_retry_allowed(
         | enums::IntentStatus::PartiallyCaptured
         | enums::IntentStatus::PartiallyCapturedAndCapturable
         | enums::IntentStatus::Processing
-        | enums::IntentStatus::Succeeded => Some(false),
+        | enums::IntentStatus::Succeeded
+        | enums::IntentStatus::Conflicted => Some(false),
 
         enums::IntentStatus::RequiresCustomerAction
         | enums::IntentStatus::RequiresMerchantAction

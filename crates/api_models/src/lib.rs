@@ -32,6 +32,7 @@ pub mod payouts;
 pub mod pm_auth;
 pub mod poll;
 pub mod process_tracker;
+pub mod profile_acquirer;
 #[cfg(feature = "v2")]
 pub mod proxy;
 #[cfg(feature = "recon")]
