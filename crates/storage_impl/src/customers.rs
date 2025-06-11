@@ -29,9 +29,7 @@ mod label {
     pub(super) const MODEL_NAME: &'static str = "customer_v2";
     pub(super) const CLUSTER_LABEL: &'static str = "cust"; // Matches existing field key prefix
 
-    pub(super) fn get_global_id_label(
-        global_customer_id: &id_type::GlobalCustomerId,
-    ) -> String {
+    pub(super) fn get_global_id_label(global_customer_id: &id_type::GlobalCustomerId) -> String {
         format!(
             "customer_global_id_{}",
             global_customer_id.get_string_repr()
@@ -334,10 +332,7 @@ impl<T: DatabaseStore> domain::CustomerInterface for kv_router_store::KVRouterSt
         // Reverse lookup for merchant_id + merchant_reference_id (if merchant_reference_id exists)
         if let Some(ref merchant_ref_id) = new_customer.merchant_reference_id {
             let reverse_lookup_merchant_scoped_id =
-               label::get_merchant_scoped_id_label(
-                        &new_customer.merchant_id,
-                        merchant_ref_id,
-                    );
+                label::get_merchant_scoped_id_label(&new_customer.merchant_id, merchant_ref_id);
             reverse_lookups.push(reverse_lookup_merchant_scoped_id);
         }
 

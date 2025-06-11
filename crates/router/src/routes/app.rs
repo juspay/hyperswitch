@@ -1543,7 +1543,7 @@ impl MerchantAccount {
                     .service(
                         web::resource("/kv")
                             .route(web::post().to(admin::merchant_account_toggle_kv))
-                            .route(web::get().to(admin::merchant_account_kv_status))
+                            .route(web::get().to(admin::merchant_account_kv_status)),
                     ),
             )
     }

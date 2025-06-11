@@ -82,7 +82,6 @@ pub async fn dummy_connector_payment(
     .await
 }
 
-
 #[cfg(all(feature = "dummy_connector", feature = "v2"))]
 #[instrument(skip_all, fields(flow = ?types::Flow::DummyPaymentCreate))]
 pub async fn dummy_connector_payment(
