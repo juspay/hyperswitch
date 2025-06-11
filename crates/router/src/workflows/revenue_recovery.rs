@@ -235,7 +235,7 @@ pub(crate) async fn get_schedule_time_for_smart_retry(
     let mut card_network_str = String::new();
     let mut card_issuer_str = String::new();
 
-    // New Log 1: Check if payment_method_data itself is None
+    // Check if payment_method_data itself is None
     if payment_attempt.payment_method_data.is_none() {
         logger::debug!(
             payment_intent_id = ?payment_intent.get_id(),
@@ -291,27 +291,6 @@ pub(crate) async fn get_schedule_time_for_smart_retry(
     let end_time_primitive = start_time_primitive.saturating_add(time::Duration::days(30));
     let end_time_proto = 
         date_time::convert_to_prost_timestamp(end_time_primitive);
-
-    if first_error_message.is_empty() {
-        logger::debug!(payment_intent_id = ?payment_intent.get_id(), attempt_id = ?payment_attempt.get_id(), "First error message is empty, using default 'card_declined'");
-        first_error_message = "card_declined".to_string();
-    }
-    if billing_state.is_empty() {
-        logger::debug!(payment_intent_id = ?payment_intent.get_id(), attempt_id = ?payment_attempt.get_id(), "Billing state is empty, using default 'CA'");
-        billing_state = "CA".to_string();
-    }
-    if card_funding_str.is_empty() {
-        logger::debug!(payment_intent_id = ?payment_intent.get_id(), attempt_id = ?payment_attempt.get_id(), "Card funding is empty, using default 'credit'");
-        card_funding_str = "credit".to_string();
-    }
-    if card_network_str.is_empty() {
-        logger::debug!(payment_intent_id = ?payment_intent.get_id(), attempt_id = ?payment_attempt.get_id(), "Card network is empty, using default 'Visa'");
-        card_network_str = "Visa".to_string();
-    }
-    if card_issuer_str.is_empty() {
-        logger::debug!(payment_intent_id = ?payment_intent.get_id(), attempt_id = ?payment_attempt.get_id(), "Card issuer is empty, using default 'AMEX'");
-        card_issuer_str = "AMEX".to_string();
-    }
 
     logger::debug!(
         payment_intent_id = ?payment_intent.get_id(),
