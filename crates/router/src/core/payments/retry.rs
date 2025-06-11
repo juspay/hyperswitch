@@ -784,7 +784,8 @@ impl<F: Send + Clone + Sync, FData: Send + Sync>
                 | storage_enums::AttemptStatus::PaymentMethodAwaited
                 | storage_enums::AttemptStatus::ConfirmationAwaited
                 | storage_enums::AttemptStatus::Unresolved
-                | storage_enums::AttemptStatus::DeviceDataCollectionPending => false,
+                | storage_enums::AttemptStatus::DeviceDataCollectionPending
+                | storage_enums::AttemptStatus::IntegrityFailure => false,
 
                 storage_enums::AttemptStatus::AuthenticationFailed
                 | storage_enums::AttemptStatus::AuthorizationFailed
