@@ -537,23 +537,18 @@ fn process_connector_for_networks(
     debit_routing_config: &settings::DebitRoutingConfig,
     has_us_local_network: &mut bool,
 ) -> CustomResult<Option<Vec<api::ConnectorRoutingData>>, errors::ApiErrorResponse> {
-    let merchant_connector_id = match &connector_data.connector_data.merchant_connector_id {
-        Some(id) => id,
-        None => {
-            logger::warn!("Skipping connector with missing merchant_connector_id");
-            return Ok(None);
-        }
+    let Some(merchant_connector_id) = &connector_data.connector_data.merchant_connector_id else {
+        logger::warn!("Skipping connector with missing merchant_connector_id");
+        return Ok(None);
     };
 
-    let account = match find_merchant_connector_account(mcas_for_profile, merchant_connector_id) {
-        Some(account) => account,
-        None => {
-            logger::warn!(
-                "No MCA found for merchant_connector_id: {:?}",
-                merchant_connector_id
-            );
-            return Ok(None);
-        }
+    let Some(account) = find_merchant_connector_account(mcas_for_profile, merchant_connector_id)
+    else {
+        logger::warn!(
+            "No MCA found for merchant_connector_id: {:?}",
+            merchant_connector_id
+        );
+        return Ok(None);
     };
 
     let merchant_debit_networks = extract_debit_networks(&account)?;
