@@ -8770,7 +8770,7 @@ pub struct PaymentsAttemptRecordRequest {
     /// card_network
     pub card_network: Option<common_enums::CardNetwork>,
 
-    #[schema( example = "Chase" )]
+    #[schema(example = "Chase")]
     /// Card Issuer
     pub card_issuer: Option<String>,
 }
