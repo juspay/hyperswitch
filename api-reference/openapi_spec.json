@@ -25785,6 +25785,8 @@
                 "$ref": "#/components/schemas/AcquirerConfigMap"
               }
             ],
+            "nullable": true
+          },
           "is_iframe_redirection_enabled": {
             "type": "boolean",
             "description": "Indicates if the redirection has to open in the iframe",
