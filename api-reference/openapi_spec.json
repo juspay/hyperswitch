@@ -25440,7 +25440,7 @@
             "type": "number",
             "format": "double",
             "description": "Fraud rate for the particular acquirer configuration",
-            "example": "0.01"
+            "example": 0.01
           },
           "profile_id": {
             "type": "string",
@@ -25502,7 +25502,7 @@
             "type": "number",
             "format": "double",
             "description": "Fraud rate for the particular acquirer configuration",
-            "example": "0.01"
+            "example": 0.01
           },
           "profile_id": {
             "type": "string",

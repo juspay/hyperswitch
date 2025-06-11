@@ -24,7 +24,7 @@ pub struct ProfileAcquirerCreate {
     #[schema(value_type= Option<String>,example = "401288")]
     pub acquirer_ica: Option<String>,
     /// Fraud rate for the particular acquirer configuration
-    #[schema(value_type= f64,example = "0.01")]
+    #[schema(value_type= f64,example = 0.01)]
     pub acquirer_fraud_rate: f64,
     /// Parent profile id to link the acquirer account with
     #[schema(value_type= String,example = "pro_ky0yNyOXXlA5hF8JzE5q")]
@@ -55,7 +55,7 @@ pub struct ProfileAcquirerResponse {
     #[schema(value_type= Option<String>,example = "401288")]
     pub acquirer_ica: Option<String>,
     /// Fraud rate for the particular acquirer configuration
-    #[schema(value_type= f64,example = "0.01")]
+    #[schema(value_type= f64,example = 0.01)]
     pub acquirer_fraud_rate: f64,
     /// Parent profile id to link the acquirer account with
     #[schema(value_type= String,example = "pro_ky0yNyOXXlA5hF8JzE5q")]
