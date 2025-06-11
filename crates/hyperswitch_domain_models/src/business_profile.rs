@@ -1033,8 +1033,6 @@ pub struct ProfileSetter {
 #[cfg(feature = "v2")]
 impl From<ProfileSetter> for Profile {
     fn from(value: ProfileSetter) -> Self {
-        use serde::de::value;
-
         Self {
             id: value.id,
             merchant_id: value.merchant_id,

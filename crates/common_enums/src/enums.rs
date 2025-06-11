@@ -2515,8 +2515,6 @@ pub enum DisputeStatus {
     strum::VariantNames,
     ToSchema,
 )]
-#[serde(rename_all = "snake_case")]
-#[strum(serialize_all = "snake_case")]
 pub enum MerchantCategory {
     #[serde(rename = "Grocery Stores, Supermarkets (5411)")]
     GroceryStoresSupermarkets,
