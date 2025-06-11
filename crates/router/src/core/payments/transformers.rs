@@ -2513,6 +2513,13 @@ where
             })
             .unwrap_or_default(),
     );
+    let connector_name = payment_attempt.connector.as_deref().unwrap_or_default();
+    let router_return_url = helpers::create_redirect_url(
+        &base_url.to_string(),
+        &payment_attempt,
+        connector_name,
+        payment_data.get_creds_identifier(),
+    );
 
     let output = if payments::is_start_pay(&operation)
         && payment_attempt.authentication_data.is_some()
@@ -2607,6 +2614,7 @@ where
                             if payment_intent.is_iframe_redirection_enabled.unwrap_or(false) {
                                 api_models::payments::NextActionData::RedirectInsidePopup {
                                     popup_url: redirect_url,
+                                    redirect_response_url:router_return_url
                                 }
                             } else {
                                 api_models::payments::NextActionData::RedirectToUrl {
@@ -5017,6 +5025,7 @@ impl ForeignFrom<api_models::admin::PaymentLinkConfigRequest>
             payment_form_label_type: config.payment_form_label_type,
             show_card_terms: config.show_card_terms,
             is_setup_mandate_flow: config.is_setup_mandate_flow,
+            color_icon_card_cvc_error: config.color_icon_card_cvc_error,
         }
     }
 }
@@ -5092,6 +5101,7 @@ impl ForeignFrom<diesel_models::PaymentLinkConfigRequestForPayments>
             payment_form_label_type: config.payment_form_label_type,
             show_card_terms: config.show_card_terms,
             is_setup_mandate_flow: config.is_setup_mandate_flow,
+            color_icon_card_cvc_error: config.color_icon_card_cvc_error,
         }
     }
 }

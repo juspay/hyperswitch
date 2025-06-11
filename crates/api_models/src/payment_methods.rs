@@ -848,13 +848,13 @@ pub struct PaymentMethodResponse {
     #[schema(example = json!({"last4": "1142","exp_month": "03","exp_year": "2030"}))]
     pub card: Option<CardDetailFromLocker>,
 
-    /// Indicates whether the payment method is eligible for recurring payments
+    /// Indicates whether the payment method supports recurring payments. Optional.
     #[schema(example = true)]
-    pub recurring_enabled: bool,
+    pub recurring_enabled: Option<bool>,
 
-    /// Indicates whether the payment method is eligible for installment payments
+    /// Indicates whether the payment method is eligible for installment payments (e.g., EMI, BNPL). Optional.
     #[schema(example = true)]
-    pub installment_payment_enabled: bool,
+    pub installment_payment_enabled: Option<bool>,
 
     /// Type of payment experience enabled with the connector
     #[schema(value_type = Option<Vec<PaymentExperience>>, example = json!(["redirect_to_url"]))]
@@ -941,9 +941,9 @@ pub struct PaymentMethodResponse {
     #[schema(value_type = Option<PaymentMethodType>, example = "credit")]
     pub payment_method_subtype: Option<api_enums::PaymentMethodType>,
 
-    /// Indicates whether the payment method is eligible for recurring payments
+    /// Indicates whether the payment method supports recurring payments. Optional.
     #[schema(example = true)]
-    pub recurring_enabled: bool,
+    pub recurring_enabled: Option<bool>,
 
     /// A timestamp (ISO 8601 code) that determines when the payment method was created
     #[schema(value_type = Option<PrimitiveDateTime>, example = "2023-01-18T11:04:09.922Z")]
@@ -1611,13 +1611,13 @@ pub struct RequestPaymentMethodTypes {
     #[schema(example = 1313)]
     pub maximum_amount: Option<MinorUnit>,
 
-    /// Boolean to enable recurring payments / mandates. Default is true.
-    #[schema(default = true, example = false)]
-    pub recurring_enabled: bool,
+    /// Indicates whether the payment method supports recurring payments. Optional.
+    #[schema(example = false)]
+    pub recurring_enabled: Option<bool>,
 
-    /// Boolean to enable installment / EMI / BNPL payments. Default is true.
-    #[schema(default = true, example = false)]
-    pub installment_payment_enabled: bool,
+    /// Indicates whether the payment method is eligible for installment payments (e.g., EMI, BNPL). Optional.
+    #[schema(example = true)]
+    pub installment_payment_enabled: Option<bool>,
 }
 impl RequestPaymentMethodTypes {
     /// Get payment_method_type
@@ -1651,11 +1651,11 @@ pub struct PaymentMethodListRequest {
     #[schema(example = 60)]
     pub amount: Option<MinorUnit>,
 
-    /// Indicates whether the payment method is eligible for recurring payments
+    /// Indicates whether the payment method supports recurring payments. Optional.
     #[schema(example = true)]
     pub recurring_enabled: Option<bool>,
 
-    /// Indicates whether the payment method is eligible for installment payments
+    /// Indicates whether the payment method is eligible for installment payments (e.g., EMI, BNPL). Optional.
     #[schema(example = true)]
     pub installment_payment_enabled: Option<bool>,
 
@@ -1774,7 +1774,7 @@ pub struct PaymentMethodListRequest {
     #[schema(value_type = Option<Vec<Currency>>,example = json!(["USD", "EUR"]))]
     pub accepted_currencies: Option<Vec<api_enums::Currency>>,
 
-    /// Indicates whether the payment method is eligible for recurring payments
+    /// Indicates whether the payment method supports recurring payments. Optional.
     #[schema(example = true)]
     pub recurring_enabled: Option<bool>,
 
@@ -2096,9 +2096,9 @@ pub struct PaymentMethodResponseItem {
     #[schema(value_type = PaymentMethodType,example = "credit")]
     pub payment_method_subtype: api_enums::PaymentMethodType,
 
-    /// Indicates whether the payment method is eligible for recurring payments
+    /// Indicates whether the payment method supports recurring payments. Optional.
     #[schema(example = true)]
-    pub recurring_enabled: bool,
+    pub recurring_enabled: Option<bool>,
 
     /// PaymentMethod Data from locker
     pub payment_method_data: Option<PaymentMethodListData>,
@@ -2242,13 +2242,13 @@ pub struct CustomerPaymentMethod {
     #[schema(value_type = Option<PaymentMethodIssuerCode>,example = "jp_applepay")]
     pub payment_method_issuer_code: Option<api_enums::PaymentMethodIssuerCode>,
 
-    /// Indicates whether the payment method is eligible for recurring payments
+    /// Indicates whether the payment method supports recurring payments. Optional.
     #[schema(example = true)]
-    pub recurring_enabled: bool,
+    pub recurring_enabled: Option<bool>,
 
-    /// Indicates whether the payment method is eligible for installment payments
+    /// Indicates whether the payment method is eligible for installment payments (e.g., EMI, BNPL). Optional.
     #[schema(example = true)]
-    pub installment_payment_enabled: bool,
+    pub installment_payment_enabled: Option<bool>,
 
     /// Type of payment experience enabled with the connector
     #[schema(value_type = Option<Vec<PaymentExperience>>,example = json!(["redirect_to_url"]))]
