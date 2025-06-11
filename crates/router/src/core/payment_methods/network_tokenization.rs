@@ -9,7 +9,7 @@ use api_models::payment_methods as api_payment_methods;
 use cards::{CardNumber, NetworkToken};
 use common_utils::{
     errors::CustomResult,
-    ext_traits::{BytesExt, Encode},
+    ext_traits::{ByteSliceExt, BytesExt, Encode, ValueExt},
     id_type,
     metrics::utils::record_operation_time,
     request::RequestContent,
@@ -27,6 +27,7 @@ use hyperswitch_domain_models::payment_method_data::{
 };
 use josekit::jwe;
 use masking::{ExposeInterface, Mask, PeekInterface, Secret};
+use serde::{Deserialize, Serialize};
 
 use super::transformers::DeleteCardResp;
 use crate::{
@@ -951,4 +952,58 @@ pub async fn delete_network_token_from_locker_and_token_service(
     _network_token_requestor_reference_id: String,
 ) -> errors::RouterResult<DeleteCardResp> {
     todo!()
+}
+
+pub fn get_network_token_resource_object(
+    request_details: &api::IncomingWebhookRequestDetails<'_>,
+) -> CustomResult<Box<dyn masking::ErasedMaskSerialize>, errors::NetworkTokenizationError> {
+    let response: NetworkTokenWebhookResponse = request_details
+        .body
+        .parse_struct("NetworkTokenWebhookResponse")
+        .change_context(errors::NetworkTokenizationError::ResponseDeserializationFailed)?;
+    Ok(Box::new(response))
+}
+
+#[derive(Debug, Clone, Deserialize, Serialize)]
+#[serde(untagged)]
+pub enum NetworkTokenWebhookResponse {
+    PanMetadataUpdate(pm_types::PanMetadataUpdateBody),
+    NetworkTokenMetadataUpdate(pm_types::NetworkTokenMetaDataUpdateBody),
+}
+
+impl NetworkTokenWebhookResponse {
+    fn get_network_token_requestor_ref_id(&self) -> String {
+        match self {
+            Self::PanMetadataUpdate(data) => data.card.card_reference.clone(),
+            Self::NetworkTokenMetadataUpdate(data) => data.token.card_reference.clone(),
+        }
+    }
+
+    pub async fn fetch_merchant_id_payment_method_id_customer_id_from_callback_mapper(
+        &self,
+        state: &routes::SessionState,
+    ) -> errors::RouterResult<(id_type::MerchantId, String, id_type::CustomerId)> {
+        let network_token_requestor_ref_id = &self.get_network_token_requestor_ref_id();
+
+        let db = &*state.store;
+        let callback_mapper_data = db
+            .find_call_back_mapper_by_id(network_token_requestor_ref_id)
+            .await
+            .change_context(errors::ApiErrorResponse::InternalServerError)?;
+
+        let callback_data: domain::callback_mapper::CallBackMapperData = callback_mapper_data
+            .data
+            .parse_value("CallbackMapperData")
+            .change_context(errors::ApiErrorResponse::InvalidDataValue {
+                field_name: "callback mapper data",
+            })?;
+
+        match callback_data {
+            domain::callback_mapper::CallBackMapperData::NetworkTokenWebhook {
+                merchant_id,
+                payment_method_id,
+                customer_id,
+            } => Ok((merchant_id, payment_method_id, customer_id)),
+        }
+    }
 }
