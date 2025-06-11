@@ -2225,7 +2225,8 @@ impl FrmTransactionRouterDataRequest for fraud_check::FrmTransactionRouterData {
             | storage_enums::AttemptStatus::Pending
             | storage_enums::AttemptStatus::PaymentMethodAwaited
             | storage_enums::AttemptStatus::ConfirmationAwaited
-            | storage_enums::AttemptStatus::DeviceDataCollectionPending => None,
+            | storage_enums::AttemptStatus::DeviceDataCollectionPending
+            | storage_enums::AttemptStatus::IntegrityFailure => None,
         }
     }
 }
@@ -2255,7 +2256,8 @@ pub fn is_payment_failure(status: enums::AttemptStatus) -> bool {
         | common_enums::AttemptStatus::Pending
         | common_enums::AttemptStatus::PaymentMethodAwaited
         | common_enums::AttemptStatus::ConfirmationAwaited
-        | common_enums::AttemptStatus::DeviceDataCollectionPending => false,
+        | common_enums::AttemptStatus::DeviceDataCollectionPending
+        | common_enums::AttemptStatus::IntegrityFailure => false,
     }
 }
 

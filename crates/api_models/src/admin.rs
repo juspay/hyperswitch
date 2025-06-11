@@ -2116,6 +2116,7 @@ pub struct ProfileCreate {
     pub merchant_business_country: Option<api_enums::CountryAlpha2>,
 
     /// Indicates if the redirection has to open in the iframe
+    #[schema(example = false)]
     pub is_iframe_redirection_enabled: Option<bool>,
 
     /// Indicates if pre network tokenization is enabled or not
@@ -2254,6 +2255,7 @@ pub struct ProfileCreate {
     pub merchant_business_country: Option<api_enums::CountryAlpha2>,
 
     /// Indicates if the redirection has to open in the iframe
+    #[schema(example = false)]
     pub is_iframe_redirection_enabled: Option<bool>,
 
     /// Indicates if external vault is enabled or not.
@@ -2424,6 +2426,10 @@ pub struct ProfileResponse {
     /// Indicates if pre network tokenization is enabled or not
     #[schema(default = false, example = false)]
     pub is_pre_network_tokenization_enabled: bool,
+
+    /// Indicates if the redirection has to open in the iframe
+    #[schema(example = false)]
+    pub is_iframe_redirection_enabled: Option<bool>,
 }
 
 #[cfg(feature = "v2")]
@@ -2566,6 +2572,7 @@ pub struct ProfileResponse {
     pub merchant_business_country: Option<api_enums::CountryAlpha2>,
 
     /// Indicates if the redirection has to open in the iframe
+    #[schema(example = false)]
     pub is_iframe_redirection_enabled: Option<bool>,
 
     /// Indicates if external vault is enabled or not.
@@ -2723,6 +2730,7 @@ pub struct ProfileUpdate {
     pub merchant_business_country: Option<api_enums::CountryAlpha2>,
 
     /// Indicates if the redirection has to open in the iframe
+    #[schema(example = false)]
     pub is_iframe_redirection_enabled: Option<bool>,
 
     /// Indicates if pre network tokenization is enabled or not
@@ -3067,6 +3075,8 @@ pub struct PaymentLinkConfigRequest {
     pub show_card_terms: Option<api_enums::PaymentLinkShowSdkTerms>,
     /// Boolean to control payment button text for setup mandate calls
     pub is_setup_mandate_flow: Option<bool>,
+    /// Hex color for the CVC icon during error state
+    pub color_icon_card_cvc_error: Option<String>,
 }
 
 #[derive(Clone, Debug, serde::Deserialize, serde::Serialize, PartialEq, ToSchema)]
@@ -3164,6 +3174,8 @@ pub struct PaymentLinkConfig {
     pub show_card_terms: Option<api_enums::PaymentLinkShowSdkTerms>,
     /// Boolean to control payment button text for setup mandate calls
     pub is_setup_mandate_flow: Option<bool>,
+    /// Hex color for the CVC icon during error state
+    pub color_icon_card_cvc_error: Option<String>,
 }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, PartialEq, Eq)]
