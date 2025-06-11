@@ -368,8 +368,8 @@ scarf_call
 show_banner
 detect_docker_compose
 check_prerequisites
-source .oneclick-setup.env
 setup_config
+source .oneclick-setup.env
 select_profile
 start_services
 check_services_health
