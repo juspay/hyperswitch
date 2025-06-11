@@ -211,10 +211,10 @@ impl ForeignTryFrom<&RouterData<Authorize, PaymentsAuthorizeData, PaymentsRespon
             .request
             .browser_info
             .clone()
-            .map(|info| payments_grpc::BrowserInformation::foreign_try_from(info))
+            .map(payments_grpc::BrowserInformation::foreign_try_from)
             .transpose()?;
 
-        Ok(payments_grpc::PaymentsAuthorizeRequest {
+        Ok(Self {
             amount: router_data.request.amount,
             currency: currency.into(),
             payment_method: payment_method.into(),
@@ -248,7 +248,7 @@ impl ForeignTryFrom<common_enums::Currency> for payments_grpc::Currency {
     type Error = error_stack::Report<ApiErrorResponse>;
 
     fn foreign_try_from(currency: common_enums::Currency) -> Result<Self, Self::Error> {
-        payments_grpc::Currency::from_str_name(&currency.to_string())
+        Self::from_str_name(&currency.to_string())
             .ok_or_else(|| ApiErrorResponse::InternalServerError)
             .attach_printable("Failed to parse currency")
     }
@@ -259,7 +259,7 @@ impl ForeignTryFrom<PaymentMethod> for payments_grpc::PaymentMethod {
 
     fn foreign_try_from(payment_method: PaymentMethod) -> Result<Self, Self::Error> {
         match payment_method {
-            PaymentMethod::Card => Ok(payments_grpc::PaymentMethod::Card),
+            PaymentMethod::Card => Ok(Self::Card),
             _ => Err(ApiErrorResponse::InternalServerError)
                 .attach_printable(format!("Unsupported payment method: {:?}", payment_method)),
         }
@@ -276,7 +276,7 @@ impl ForeignTryFrom<hyperswitch_domain_models::payment_method_data::PaymentMetho
     ) -> Result<Self, Self::Error> {
         match payment_method_data {
             hyperswitch_domain_models::payment_method_data::PaymentMethodData::Card(card) => {
-                Ok(payments_grpc::PaymentMethodData {
+                Ok(Self {
                     data: Some(payments_grpc::payment_method_data::Data::Card(
                         payments_grpc::Card {
                             card_number: card.card_number.get_card_no(),
@@ -431,7 +431,7 @@ impl ForeignTryFrom<hyperswitch_domain_models::payment_address::PaymentAddress>
                 None
             };
 
-        Ok(payments_grpc::PaymentAddress {
+        Ok(Self {
             shipping: shipping.clone(),
             billing: billing.clone(),
             unified_payment_method_billing: unified_payment_method_billing.clone(),
@@ -445,8 +445,8 @@ impl ForeignTryFrom<AuthenticationType> for payments_grpc::AuthenticationType {
 
     fn foreign_try_from(auth_type: AuthenticationType) -> Result<Self, Self::Error> {
         match auth_type {
-            AuthenticationType::ThreeDs => Ok(payments_grpc::AuthenticationType::ThreeDs),
-            AuthenticationType::NoThreeDs => Ok(payments_grpc::AuthenticationType::NoThreeDs),
+            AuthenticationType::ThreeDs => Ok(Self::ThreeDs),
+            AuthenticationType::NoThreeDs => Ok(Self::NoThreeDs),
         }
     }
 }
@@ -459,7 +459,7 @@ impl ForeignTryFrom<hyperswitch_domain_models::router_request_types::BrowserInfo
     fn foreign_try_from(
         browser_info: hyperswitch_domain_models::router_request_types::BrowserInformation,
     ) -> Result<Self, Self::Error> {
-        Ok(payments_grpc::BrowserInformation {
+        Ok(Self {
             color_depth: browser_info.color_depth.map(|v| v.into()),
             java_enabled: browser_info.java_enabled,
             java_script_enabled: browser_info.java_script_enabled,
@@ -483,45 +483,45 @@ impl ForeignTryFrom<payments_grpc::AttemptStatus> for AttemptStatus {
 
     fn foreign_try_from(grpc_status: payments_grpc::AttemptStatus) -> Result<Self, Self::Error> {
         match grpc_status {
-            payments_grpc::AttemptStatus::Started => Ok(AttemptStatus::Started),
+            payments_grpc::AttemptStatus::Started => Ok(Self::Started),
             payments_grpc::AttemptStatus::AuthenticationFailed => {
-                Ok(AttemptStatus::AuthenticationFailed)
+                Ok(Self::AuthenticationFailed)
             }
-            payments_grpc::AttemptStatus::RouterDeclined => Ok(AttemptStatus::RouterDeclined),
+            payments_grpc::AttemptStatus::RouterDeclined => Ok(Self::RouterDeclined),
             payments_grpc::AttemptStatus::AuthenticationPending => {
-                Ok(AttemptStatus::AuthenticationPending)
+                Ok(Self::AuthenticationPending)
             }
             payments_grpc::AttemptStatus::AuthenticationSuccessful => {
-                Ok(AttemptStatus::AuthenticationSuccessful)
+                Ok(Self::AuthenticationSuccessful)
             }
-            payments_grpc::AttemptStatus::Authorized => Ok(AttemptStatus::Authorized),
+            payments_grpc::AttemptStatus::Authorized => Ok(Self::Authorized),
             payments_grpc::AttemptStatus::AuthorizationFailed => {
-                Ok(AttemptStatus::AuthorizationFailed)
+                Ok(Self::AuthorizationFailed)
             }
-            payments_grpc::AttemptStatus::Charged => Ok(AttemptStatus::Charged),
-            payments_grpc::AttemptStatus::Authorizing => Ok(AttemptStatus::Authorizing),
-            payments_grpc::AttemptStatus::CodInitiated => Ok(AttemptStatus::CodInitiated),
-            payments_grpc::AttemptStatus::Voided => Ok(AttemptStatus::Voided),
-            payments_grpc::AttemptStatus::VoidInitiated => Ok(AttemptStatus::VoidInitiated),
-            payments_grpc::AttemptStatus::CaptureInitiated => Ok(AttemptStatus::CaptureInitiated),
-            payments_grpc::AttemptStatus::CaptureFailed => Ok(AttemptStatus::CaptureFailed),
-            payments_grpc::AttemptStatus::VoidFailed => Ok(AttemptStatus::VoidFailed),
-            payments_grpc::AttemptStatus::AutoRefunded => Ok(AttemptStatus::AutoRefunded),
-            payments_grpc::AttemptStatus::PartialCharged => Ok(AttemptStatus::PartialCharged),
+            payments_grpc::AttemptStatus::Charged => Ok(Self::Charged),
+            payments_grpc::AttemptStatus::Authorizing => Ok(Self::Authorizing),
+            payments_grpc::AttemptStatus::CodInitiated => Ok(Self::CodInitiated),
+            payments_grpc::AttemptStatus::Voided => Ok(Self::Voided),
+            payments_grpc::AttemptStatus::VoidInitiated => Ok(Self::VoidInitiated),
+            payments_grpc::AttemptStatus::CaptureInitiated => Ok(Self::CaptureInitiated),
+            payments_grpc::AttemptStatus::CaptureFailed => Ok(Self::CaptureFailed),
+            payments_grpc::AttemptStatus::VoidFailed => Ok(Self::VoidFailed),
+            payments_grpc::AttemptStatus::AutoRefunded => Ok(Self::AutoRefunded),
+            payments_grpc::AttemptStatus::PartialCharged => Ok(Self::PartialCharged),
             payments_grpc::AttemptStatus::PartialChargedAndChargeable => {
-                Ok(AttemptStatus::PartialChargedAndChargeable)
+                Ok(Self::PartialChargedAndChargeable)
             }
-            payments_grpc::AttemptStatus::Unresolved => Ok(AttemptStatus::Unresolved),
-            payments_grpc::AttemptStatus::Pending => Ok(AttemptStatus::Pending),
-            payments_grpc::AttemptStatus::Failure => Ok(AttemptStatus::Failure),
+            payments_grpc::AttemptStatus::Unresolved => Ok(Self::Unresolved),
+            payments_grpc::AttemptStatus::Pending => Ok(Self::Pending),
+            payments_grpc::AttemptStatus::Failure => Ok(Self::Failure),
             payments_grpc::AttemptStatus::PaymentMethodAwaited => {
-                Ok(AttemptStatus::PaymentMethodAwaited)
+                Ok(Self::PaymentMethodAwaited)
             }
             payments_grpc::AttemptStatus::ConfirmationAwaited => {
-                Ok(AttemptStatus::ConfirmationAwaited)
+                Ok(Self::ConfirmationAwaited)
             }
             payments_grpc::AttemptStatus::DeviceDataCollectionPending => {
-                Ok(AttemptStatus::DeviceDataCollectionPending)
+                Ok(Self::DeviceDataCollectionPending)
             }
         }
     }
