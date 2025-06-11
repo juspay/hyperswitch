@@ -22,13 +22,13 @@ use http_body_util::combinators::UnsyncBoxBody;
 use hyper::body::Bytes;
 #[cfg(any(feature = "dynamic_routing", feature = "v2"))]
 use hyper_util::client::legacy::connect::HttpConnector;
+#[cfg(feature = "v2")]
+use recovery_trainer_client::{TrainerClientConfig, TrainerClientInterface};
 #[cfg(any(feature = "dynamic_routing", feature = "v2"))]
 use router_env::logger;
 use serde;
 #[cfg(any(feature = "dynamic_routing", feature = "v2"))]
 use tonic::Status;
-#[cfg(feature = "v2")]
-use recovery_trainer_client::{TrainerClientConfig, TrainerClientInterface};
 
 #[cfg(any(feature = "dynamic_routing", feature = "v2"))]
 /// Hyper based Client type for maintaining connection pool for all gRPC services
@@ -84,7 +84,6 @@ impl GrpcClientSettings {
         let health_client = HealthCheckClient::build_connections(self, client.clone())
             .await
             .expect("Failed to build gRPC connections");
-
 
         #[cfg(feature = "v2")]
         let trainer_client = self

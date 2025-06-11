@@ -49,6 +49,8 @@ use super::pm_auth;
 use super::poll;
 #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
 use super::proxy;
+#[cfg(feature = "v2")]
+use super::recovery_trainer;
 #[cfg(all(feature = "v2", feature = "revenue_recovery", feature = "oltp"))]
 use super::recovery_webhooks::*;
 #[cfg(all(feature = "oltp", feature = "v2"))]
@@ -65,8 +67,6 @@ use super::{
     admin, api_keys, cache::*, connector_onboarding, disputes, files, gsm, health::*, profiles,
     relay, user, user_role,
 };
-#[cfg(feature = "v2")]
-use super::recovery_trainer;
 #[cfg(feature = "v1")]
 use super::{apple_pay_certificates_migration, blocklist, payment_link, webhook_events};
 #[cfg(any(feature = "olap", feature = "oltp"))]
@@ -716,7 +716,10 @@ impl Trainer {
     pub fn server(state: AppState) -> Scope {
         web::scope("/trainer")
             .app_data(web::Data::new(state))
-            .service(web::resource("/jobs").route(web::post().to(recovery_trainer::trigger_training_job)))
+            .service(
+                web::resource("/jobs")
+                    .route(web::post().to(recovery_trainer::trigger_training_job)),
+            )
             .service(
                 web::resource("/jobs/{job_id}")
                     .route(web::get().to(recovery_trainer::get_the_training_job_status)),

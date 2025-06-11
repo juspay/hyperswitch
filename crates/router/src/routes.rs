@@ -44,13 +44,13 @@ pub mod poll;
 pub mod profiles;
 #[cfg(feature = "recon")]
 pub mod recon;
+#[cfg(feature = "v2")]
+pub mod recovery_trainer;
 pub mod refunds;
 #[cfg(feature = "olap")]
 pub mod routing;
 pub mod three_ds_decision_rule;
 pub mod tokenization;
-#[cfg(feature = "v2")]
-pub mod recovery_trainer;
 #[cfg(feature = "olap")]
 pub mod user;
 #[cfg(feature = "olap")]
