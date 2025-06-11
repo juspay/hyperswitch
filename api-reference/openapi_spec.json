@@ -20315,7 +20315,8 @@
             "type": "string",
             "description": "The URL to redirect the customer to after they complete the payment process or authentication. This is crucial for flows that involve off-site redirection (e.g., 3DS, some bank redirects, wallet payments).",
             "example": "https://hyperswitch.io",
-            "nullable": true
+            "nullable": true,
+            "maxLength": 2048
           },
           "setup_future_usage": {
             "allOf": [
@@ -20724,7 +20725,8 @@
             "type": "string",
             "description": "The URL to redirect the customer to after they complete the payment process or authentication. This is crucial for flows that involve off-site redirection (e.g., 3DS, some bank redirects, wallet payments).",
             "example": "https://hyperswitch.io",
-            "nullable": true
+            "nullable": true,
+            "maxLength": 2048
           },
           "setup_future_usage": {
             "allOf": [
@@ -21991,7 +21993,8 @@
             "type": "string",
             "description": "The URL to redirect the customer to after they complete the payment process or authentication. This is crucial for flows that involve off-site redirection (e.g., 3DS, some bank redirects, wallet payments).",
             "example": "https://hyperswitch.io",
-            "nullable": true
+            "nullable": true,
+            "maxLength": 2048
           },
           "setup_future_usage": {
             "allOf": [
@@ -23211,7 +23214,8 @@
             "type": "string",
             "description": "The URL to redirect the customer to after they complete the payment process or authentication. This is crucial for flows that involve off-site redirection (e.g., 3DS, some bank redirects, wallet payments).",
             "example": "https://hyperswitch.io",
-            "nullable": true
+            "nullable": true,
+            "maxLength": 2048
           },
           "setup_future_usage": {
             "allOf": [
