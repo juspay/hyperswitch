@@ -46,7 +46,6 @@ pub enum ApiIdentifier {
     Proxy,
     ThreeDsDecisionRule,
     GenericTokenization,
-    TrainerClient,
     DeciderClient,
 }
 
@@ -64,8 +63,6 @@ impl From<Flow> for ApiIdentifier {
             Flow::OrganizationCreate | Flow::OrganizationRetrieve | Flow::OrganizationUpdate => {
                 Self::Organization
             }
-
-            Flow::TriggerTrainingJob | Flow::GetTrainingJobStatus => Self::TrainerClient,
 
             Flow::RecoveryDeciderShouldRetry => Self::DeciderClient,
 

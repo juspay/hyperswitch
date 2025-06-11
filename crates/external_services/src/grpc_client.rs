@@ -7,9 +7,6 @@ pub mod health_check_client;
 /// gRPC based Recovery Trainer Client interface implementation
 #[cfg(feature = "v2")]
 pub mod recovery_decider_client;
-/// gRPC based Trainer Client interface implementation
-#[cfg(feature = "v2")]
-pub mod trainer_client;
 
 use std::{fmt::Debug, sync::Arc};
 
@@ -32,8 +29,6 @@ use router_env::logger;
 use serde;
 #[cfg(any(feature = "dynamic_routing", feature = "v2"))]
 use tonic::Status;
-#[cfg(feature = "v2")]
-use trainer_client::{TrainerClientConfig, TrainerClientInterface};
 
 #[cfg(any(feature = "dynamic_routing", feature = "v2"))]
 /// Hyper based Client type for maintaining connection pool for all gRPC services
@@ -51,9 +46,6 @@ pub struct GrpcClients {
     #[cfg(feature = "v2")]
     #[allow(missing_docs)]
     pub recovery_decider_client: Box<dyn RecoveryDeciderClientInterface>,
-    #[cfg(feature = "v2")]
-    #[allow(missing_docs)]
-    pub trainer_client: Box<dyn TrainerClientInterface>,
 }
 
 /// Type that contains the configs required to construct a  gRPC client with its respective services.
@@ -65,9 +57,6 @@ pub struct GrpcClientSettings {
     #[cfg(feature = "v2")]
     /// Configs for Recovery Decider Client
     pub recovery_decider_client: RecoveryDeciderClientConfig,
-    #[cfg(feature = "v2")]
-    /// Configs for Trainer Client
-    pub trainer_client: TrainerClientConfig,
 }
 
 impl GrpcClientSettings {
@@ -109,18 +98,6 @@ impl GrpcClientSettings {
             })
             .expect("Failed to establish a connection with the Recovery Decider Server");
 
-        #[cfg(feature = "v2")]
-        let trainer_client = self
-            .trainer_client
-            .get_trainer_service_client(client.clone())
-            .map(|client| {
-                #[allow(clippy::as_conversions)]
-                {
-                    Box::new(client) as Box<dyn TrainerClientInterface>
-                }
-            })
-            .expect("Failed to establish a connection with the Trainer Server");
-
         Arc::new(GrpcClients {
             #[cfg(feature = "dynamic_routing")]
             dynamic_routing: dynamic_routing_connection,
@@ -128,8 +105,6 @@ impl GrpcClientSettings {
             health_client,
             #[cfg(feature = "v2")]
             recovery_decider_client,
-            #[cfg(feature = "v2")]
-            trainer_client,
         })
     }
 }
