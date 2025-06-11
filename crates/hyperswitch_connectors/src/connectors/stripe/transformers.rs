@@ -1971,12 +1971,6 @@ impl TryFrom<(&PaymentsAuthorizeRouterData, MinorUnit)> for PaymentIntentRequest
             (None, None) => None,
         };
 
-        let customer_id = item.connector_customer.clone().ok_or_else(|| {
-            ConnectorError::MissingRequiredField {
-                field_name: "connector_customer",
-            }
-        })?;
-
         Ok(Self {
             amount,                                      //hopefully we don't loose some cents here
             currency: item.request.currency.to_string(), //we need to copy the value and not transfer ownership
@@ -1996,10 +1990,18 @@ impl TryFrom<(&PaymentsAuthorizeRouterData, MinorUnit)> for PaymentIntentRequest
             payment_data,
             payment_method_options,
             payment_method: pm,
-            customer: Some(Secret::new(customer_id)),
+            customer: item.connector_customer.clone().map(Secret::new),
             setup_mandate_details,
             off_session: item.request.off_session,
-            setup_future_usage,
+            setup_future_usage: match (
+                item.request.split_payments.as_ref(),
+                item.request.setup_future_usage,
+                item.request.customer_acceptance.as_ref(),
+            ) {
+                (Some(_), Some(usage), Some(_)) => Some(usage),
+                _ => setup_future_usage,
+            },
+
             payment_method_types,
             expand: Some(ExpandableObjects::LatestCharge),
             browser_info,

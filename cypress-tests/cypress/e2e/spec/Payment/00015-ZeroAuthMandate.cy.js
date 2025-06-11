@@ -26,6 +26,10 @@ describe("Card - SingleUse Mandates flow test", () => {
         }
       });
 
+      it("customer-create-call-test", () => {
+        cy.createCustomerCallTest(fixtures.customerCreateBody, globalState);
+      });
+
       it("Confirm No 3DS CIT", () => {
         const data = getConnectorDetails(globalState.get("connectorId"))[
           "card_pm"

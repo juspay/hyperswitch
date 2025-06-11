@@ -1571,7 +1571,7 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
                         None,
                         Some(storage::PaymentAttemptUpdate::ErrorUpdate {
                             connector: None,
-                            status: enums::AttemptStatus::Pending,
+                            status: enums::AttemptStatus::IntegrityFailure,
                             error_message: Some(Some("Integrity Check Failed!".to_string())),
                             error_code: Some(Some("IE".to_string())),
                             error_reason: Some(Some(format!(
@@ -2572,7 +2572,8 @@ impl<F: Clone> PostUpdateTracker<F, PaymentConfirmData<F>, types::PaymentsAuthor
                 | common_enums::AttemptStatus::CaptureInitiated
                 | common_enums::AttemptStatus::PaymentMethodAwaited
                 | common_enums::AttemptStatus::ConfirmationAwaited
-                | common_enums::AttemptStatus::DeviceDataCollectionPending => {
+                | common_enums::AttemptStatus::DeviceDataCollectionPending
+                | common_enums::AttemptStatus::IntegrityFailure => {
                     let pm_update_status = enums::PaymentMethodStatus::Active;
 
                     // payment_methods microservice call

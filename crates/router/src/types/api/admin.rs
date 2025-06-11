@@ -1,4 +1,4 @@
-use std::collections::{BTreeMap, HashMap};
+use std::collections::HashMap;
 
 #[cfg(feature = "v2")]
 pub use api_models::admin;
@@ -42,7 +42,7 @@ pub struct ProfileAcquirerConfigs {
     pub profile_id: common_utils::id_type::ProfileId,
 }
 
-impl From<ProfileAcquirerConfigs> for Vec<api_models::profile_acquirer::ProfileAcquirerResponse> {
+impl From<ProfileAcquirerConfigs> for Option<Vec<api_models::profile_acquirer::ProfileAcquirerResponse>> {
     fn from(item: ProfileAcquirerConfigs) -> Self {
         item.acquirer_config_map
             .map(|config_map_val| {
@@ -58,7 +58,6 @@ impl From<ProfileAcquirerConfigs> for Vec<api_models::profile_acquirer::ProfileA
                     })
                     .collect::<Vec<api_models::profile_acquirer::ProfileAcquirerResponse>>()
             })
-            .unwrap_or_default()
     }
 }
 
@@ -223,13 +222,13 @@ impl ForeignTryFrom<domain::Profile> for ProfileResponse {
             is_debit_routing_enabled: Some(item.is_debit_routing_enabled),
             merchant_business_country: item.merchant_business_country,
             is_pre_network_tokenization_enabled: item.is_pre_network_tokenization_enabled,
-            acquirer_configs: Some(
+            acquirer_configs:
                 ProfileAcquirerConfigs {
                     acquirer_config_map: item.acquirer_config_map.clone(),
                     profile_id: profile_id.clone(),
                 }
                 .into(),
-            ),
+            is_iframe_redirection_enabled: item.is_iframe_redirection_enabled,
         })
     }
 }

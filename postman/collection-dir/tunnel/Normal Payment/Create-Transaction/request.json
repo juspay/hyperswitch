@@ -1,0 +1,74 @@
+{
+  "method": "POST",
+  "header": [
+    {
+      "key": "Content-Type",
+      "value": "application/x-www-form-urlencoded"
+    },
+    {
+      "key": "X-Auth-Scope",
+      "value": "DASHBOARD"
+    }
+  ],
+  "body": {
+    "mode": "urlencoded",
+    "urlencoded": [
+      {
+        "key": "merchant_id",
+        "value": "global_installment",
+        "type": "text"
+      },
+      {
+        "key": "payment_method_type",
+        "value": "CARD",
+        "type": "text"
+      },
+      {
+        "key": "payment_method",
+        "value": "VISA",
+        "type": "text"
+      },
+      {
+        "key": "card_number",
+        "value": "4456530000001096",
+        "type": "text"
+      },
+      {
+        "key": "card_exp_month",
+        "value": "12",
+        "type": "text"
+      },
+      {
+        "key": "card_exp_year",
+        "value": "2030",
+        "type": "text"
+      },
+      {
+        "key": "name_on_card",
+        "value": "sahkal poddar",
+        "type": "text"
+      },
+      {
+        "key": "card_security_code",
+        "value": "123",
+        "type": "text"
+      },
+      {
+        "key": "redirect_after_payment",
+        "value": "false",
+        "type": "text"
+      },
+      {
+        "key": "format",
+        "value": "json",
+        "type": "text"
+      },
+      {
+        "key": "order_id",
+        "value": "{{order_id}}",
+        "type": "text"
+      }
+    ]
+  },
+  "url": "https://sandbox.juspay.in/txns"
+}
