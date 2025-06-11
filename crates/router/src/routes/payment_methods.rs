@@ -1012,6 +1012,17 @@ impl ParentPaymentMethodToken {
             ),
         }
     }
+
+    #[cfg(feature = "v2")]
+    pub fn return_key_for_token(
+        (parent_pm_token, payment_method): (&String, api_models::enums::PaymentMethod),
+    ) -> String {
+        format!(
+            "pm_token_{}_{}_hyperswitch",
+            parent_pm_token, payment_method
+        )
+    }
+
     pub async fn insert(
         &self,
         fulfillment_time: i64,

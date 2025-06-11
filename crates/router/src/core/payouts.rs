@@ -372,13 +372,13 @@ pub async fn payouts_confirm_core(
     merchant_context: domain::MerchantContext,
     req: payouts::PayoutCreateRequest,
 ) -> RouterResponse<payouts::PayoutCreateResponse> {
-    let mut payout_data = make_payout_data(
+    let mut payout_data = Box::pin(make_payout_data(
         &state,
         &merchant_context,
         None,
         &payouts::PayoutRequest::PayoutCreateRequest(Box::new(req.to_owned())),
         &state.locale,
-    )
+    ))
     .await?;
     let payout_attempt = payout_data.payout_attempt.to_owned();
     let status = payout_attempt.status;
@@ -435,13 +435,13 @@ pub async fn payouts_update_core(
     req: payouts::PayoutCreateRequest,
 ) -> RouterResponse<payouts::PayoutCreateResponse> {
     let payout_id = req.payout_id.clone().get_required_value("payout_id")?;
-    let mut payout_data = make_payout_data(
+    let mut payout_data = Box::pin(make_payout_data(
         &state,
         &merchant_context,
         None,
         &payouts::PayoutRequest::PayoutCreateRequest(Box::new(req.to_owned())),
         &state.locale,
-    )
+    ))
     .await?;
 
     let payout_attempt = payout_data.payout_attempt.to_owned();
@@ -509,13 +509,13 @@ pub async fn payouts_retrieve_core(
     profile_id: Option<common_utils::id_type::ProfileId>,
     req: payouts::PayoutRetrieveRequest,
 ) -> RouterResponse<payouts::PayoutCreateResponse> {
-    let mut payout_data = make_payout_data(
+    let mut payout_data = Box::pin(make_payout_data(
         &state,
         &merchant_context,
         profile_id,
         &payouts::PayoutRequest::PayoutRetrieveRequest(req.to_owned()),
         &state.locale,
-    )
+    ))
     .await?;
     let payout_attempt = payout_data.payout_attempt.to_owned();
     let status = payout_attempt.status;
@@ -550,13 +550,13 @@ pub async fn payouts_cancel_core(
     merchant_context: domain::MerchantContext,
     req: payouts::PayoutActionRequest,
 ) -> RouterResponse<payouts::PayoutCreateResponse> {
-    let mut payout_data = make_payout_data(
+    let mut payout_data = Box::pin(make_payout_data(
         &state,
         &merchant_context,
         None,
         &payouts::PayoutRequest::PayoutActionRequest(req.to_owned()),
         &state.locale,
-    )
+    ))
     .await?;
 
     let payout_attempt = payout_data.payout_attempt.to_owned();
@@ -641,13 +641,13 @@ pub async fn payouts_fulfill_core(
     merchant_context: domain::MerchantContext,
     req: payouts::PayoutActionRequest,
 ) -> RouterResponse<payouts::PayoutCreateResponse> {
-    let mut payout_data = make_payout_data(
+    let mut payout_data = Box::pin(make_payout_data(
         &state,
         &merchant_context,
         None,
         &payouts::PayoutRequest::PayoutActionRequest(req.to_owned()),
         &state.locale,
-    )
+    ))
     .await?;
 
     let payout_attempt = payout_data.payout_attempt.to_owned();

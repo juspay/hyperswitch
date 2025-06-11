@@ -824,13 +824,13 @@ pub struct PaymentMethodResponse {
     #[schema(example = json!({"last4": "1142","exp_month": "03","exp_year": "2030"}))]
     pub card: Option<CardDetailFromLocker>,
 
-    /// Indicates whether the payment method is eligible for recurring payments
+    /// Indicates whether the payment method supports recurring payments. Optional.
     #[schema(example = true)]
-    pub recurring_enabled: bool,
+    pub recurring_enabled: Option<bool>,
 
-    /// Indicates whether the payment method is eligible for installment payments
+    /// Indicates whether the payment method is eligible for installment payments (e.g., EMI, BNPL). Optional.
     #[schema(example = true)]
-    pub installment_payment_enabled: bool,
+    pub installment_payment_enabled: Option<bool>,
 
     /// Type of payment experience enabled with the connector
     #[schema(value_type = Option<Vec<PaymentExperience>>, example = json!(["redirect_to_url"]))]
@@ -918,9 +918,9 @@ pub struct PaymentMethodResponse {
     #[schema(value_type = Option<PaymentMethodType>, example = "credit")]
     pub payment_method_subtype: Option<api_enums::PaymentMethodType>,
 
-    /// Indicates whether the payment method is eligible for recurring payments
+    /// Indicates whether the payment method supports recurring payments. Optional.
     #[schema(example = true)]
-    pub recurring_enabled: bool,
+    pub recurring_enabled: Option<bool>,
 
     /// A timestamp (ISO 8601 code) that determines when the payment method was created
     #[schema(value_type = Option<PrimitiveDateTime>, example = "2023-01-18T11:04:09.922Z")]
@@ -1196,12 +1196,12 @@ impl From<CardDetailFromLocker> for payments::AdditionalCardInfo {
 
 #[cfg(feature = "v2")]
 #[derive(Debug, serde::Serialize, ToSchema)]
-pub struct PaymentMethodListResponse {
+pub struct PaymentMethodListResponseForSession {
     /// The list of payment methods that are enabled for the business profile
     pub payment_methods_enabled: Vec<ResponsePaymentMethodTypes>,
 
     /// The list of saved payment methods of the customer
-    pub customer_payment_methods: Vec<CustomerPaymentMethod>,
+    pub customer_payment_methods: Vec<CustomerPaymentMethodResponseItem>,
 }
 
 #[cfg(feature = "v1")]
@@ -1573,13 +1573,13 @@ pub struct RequestPaymentMethodTypes {
     #[schema(example = 1313)]
     pub maximum_amount: Option<MinorUnit>,
 
-    /// Boolean to enable recurring payments / mandates. Default is true.
-    #[schema(default = true, example = false)]
-    pub recurring_enabled: bool,
+    /// Indicates whether the payment method supports recurring payments. Optional.
+    #[schema(example = false)]
+    pub recurring_enabled: Option<bool>,
 
-    /// Boolean to enable installment / EMI / BNPL payments. Default is true.
-    #[schema(default = true, example = false)]
-    pub installment_payment_enabled: bool,
+    /// Indicates whether the payment method is eligible for installment payments (e.g., EMI, BNPL). Optional.
+    #[schema(example = true)]
+    pub installment_payment_enabled: Option<bool>,
 }
 impl RequestPaymentMethodTypes {
     /// Get payment_method_type
@@ -1610,11 +1610,11 @@ pub struct PaymentMethodListRequest {
     #[schema(example = 60)]
     pub amount: Option<MinorUnit>,
 
-    /// Indicates whether the payment method is eligible for recurring payments
+    /// Indicates whether the payment method supports recurring payments. Optional.
     #[schema(example = true)]
     pub recurring_enabled: Option<bool>,
 
-    /// Indicates whether the payment method is eligible for installment payments
+    /// Indicates whether the payment method is eligible for installment payments (e.g., EMI, BNPL). Optional.
     #[schema(example = true)]
     pub installment_payment_enabled: Option<bool>,
 
@@ -1730,7 +1730,7 @@ pub struct PaymentMethodListRequest {
     #[schema(value_type = Option<Vec<Currency>>,example = json!(["USD", "EUR"]))]
     pub accepted_currencies: Option<Vec<api_enums::Currency>>,
 
-    /// Indicates whether the payment method is eligible for recurring payments
+    /// Indicates whether the payment method supports recurring payments. Optional.
     #[schema(example = true)]
     pub recurring_enabled: Option<bool>,
 
@@ -1883,11 +1883,12 @@ pub struct CustomerPaymentMethodsListResponse {
     pub is_guest_customer: Option<bool>,
 }
 
+// OLAP PML Response
 #[cfg(feature = "v2")]
 #[derive(Debug, serde::Serialize, ToSchema)]
 pub struct CustomerPaymentMethodsListResponse {
     /// List of payment methods for customer
-    pub customer_payment_methods: Vec<CustomerPaymentMethod>,
+    pub customer_payment_methods: Vec<PaymentMethodResponseItem>,
 }
 
 #[cfg(feature = "v2")]
@@ -2023,10 +2024,79 @@ pub struct CustomerDefaultPaymentMethodResponse {
 
 #[cfg(feature = "v2")]
 #[derive(Debug, Clone, serde::Serialize, ToSchema)]
-pub struct CustomerPaymentMethod {
+pub struct PaymentMethodResponseItem {
     /// The unique identifier of the payment method.
     #[schema(value_type = String, example = "12345_pm_01926c58bc6e77c09e809964e72af8c8")]
     pub id: id_type::GlobalPaymentMethodId,
+
+    /// The unique identifier of the customer.
+    #[schema(
+        min_length = 32,
+        max_length = 64,
+        example = "12345_cus_01926c58bc6e77c09e809964e72af8c8",
+        value_type = String
+    )]
+    pub customer_id: id_type::GlobalCustomerId,
+
+    /// The type of payment method use for the payment.
+    #[schema(value_type = PaymentMethod,example = "card")]
+    pub payment_method_type: api_enums::PaymentMethod,
+
+    /// This is a sub-category of payment method.
+    #[schema(value_type = PaymentMethodType,example = "credit")]
+    pub payment_method_subtype: api_enums::PaymentMethodType,
+
+    /// Indicates whether the payment method supports recurring payments. Optional.
+    #[schema(example = true)]
+    pub recurring_enabled: Option<bool>,
+
+    /// PaymentMethod Data from locker
+    pub payment_method_data: Option<PaymentMethodListData>,
+
+    /// Masked bank details from PM auth services
+    #[schema(example = json!({"mask": "0000"}))]
+    pub bank: Option<MaskedBankDetails>,
+
+    /// A timestamp (ISO 8601 code) that determines when the payment method was created
+    #[schema(value_type = PrimitiveDateTime, example = "2023-01-18T11:04:09.922Z")]
+    #[serde(with = "common_utils::custom_serde::iso8601")]
+    pub created: time::PrimitiveDateTime,
+
+    /// Whether this payment method requires CVV to be collected
+    #[schema(example = true)]
+    pub requires_cvv: bool,
+
+    ///  A timestamp (ISO 8601 code) that determines when the payment method was last used
+    #[schema(value_type = PrimitiveDateTime,example = "2024-02-24T11:04:09.922Z")]
+    #[serde(default, with = "common_utils::custom_serde::iso8601")]
+    pub last_used_at: time::PrimitiveDateTime,
+
+    /// Indicates if the payment method has been set to default or not
+    #[schema(example = true)]
+    pub is_default: bool,
+
+    /// The billing details of the payment method
+    #[schema(value_type = Option<Address>)]
+    pub billing: Option<payments::Address>,
+
+    ///The network token details for the payment method
+    pub network_tokenization: Option<NetworkTokenResponse>,
+
+    /// Whether psp_tokenization is enabled for the payment_method, this will be true when at least
+    /// one multi-use token with status `Active` is available for the payment method
+    pub psp_tokenization_enabled: bool,
+}
+
+#[cfg(feature = "v2")]
+#[derive(Debug, Clone, serde::Serialize, ToSchema)]
+pub struct CustomerPaymentMethodResponseItem {
+    /// The unique identifier of the payment method.
+    #[schema(value_type = String, example = "12345_pm_01926c58bc6e77c09e809964e72af8c8")]
+    pub id: id_type::GlobalPaymentMethodId,
+
+    /// Temporary Token for payment method in vault which gets refreshed for every payment   
+    #[schema(example = "7ebf443f-a050-4067-84e5-e6f6d4800aef")]
+    pub payment_token: String,
 
     /// The unique identifier of the customer.
     #[schema(
@@ -2067,7 +2137,7 @@ pub struct CustomerPaymentMethod {
 
     ///  A timestamp (ISO 8601 code) that determines when the payment method was last used
     #[schema(value_type = PrimitiveDateTime,example = "2024-02-24T11:04:09.922Z")]
-    #[serde(default, with = "common_utils::custom_serde::iso8601")]
+    #[serde(with = "common_utils::custom_serde::iso8601")]
     pub last_used_at: time::PrimitiveDateTime,
 
     /// Indicates if the payment method has been set to default or not
@@ -2077,13 +2147,6 @@ pub struct CustomerPaymentMethod {
     /// The billing details of the payment method
     #[schema(value_type = Option<Address>)]
     pub billing: Option<payments::Address>,
-
-    ///The network token details for the payment method
-    pub network_tokenization: Option<NetworkTokenResponse>,
-
-    /// Whether psp_tokenization is enabled for the payment_method, this will be true when at least
-    /// one multi-use token with status `Active` is available for the payment method
-    pub psp_tokenization_enabled: bool,
 }
 
 #[cfg(feature = "v2")]
@@ -2126,13 +2189,13 @@ pub struct CustomerPaymentMethod {
     #[schema(value_type = Option<PaymentMethodIssuerCode>,example = "jp_applepay")]
     pub payment_method_issuer_code: Option<api_enums::PaymentMethodIssuerCode>,
 
-    /// Indicates whether the payment method is eligible for recurring payments
+    /// Indicates whether the payment method supports recurring payments. Optional.
     #[schema(example = true)]
-    pub recurring_enabled: bool,
+    pub recurring_enabled: Option<bool>,
 
-    /// Indicates whether the payment method is eligible for installment payments
+    /// Indicates whether the payment method is eligible for installment payments (e.g., EMI, BNPL). Optional.
     #[schema(example = true)]
-    pub installment_payment_enabled: bool,
+    pub installment_payment_enabled: Option<bool>,
 
     /// Type of payment experience enabled with the connector
     #[schema(value_type = Option<Vec<PaymentExperience>>,example = json!(["redirect_to_url"]))]

@@ -478,6 +478,9 @@ impl ConnectorData {
                 enums::Connector::Helcim => {
                     Ok(ConnectorEnum::Old(Box::new(connector::Helcim::new())))
                 }
+                enums::Connector::HyperswitchVault => {
+                    Ok(ConnectorEnum::Old(Box::new(&connector::HyperswitchVault)))
+                }
                 enums::Connector::Iatapay => {
                     Ok(ConnectorEnum::Old(Box::new(connector::Iatapay::new())))
                 }
@@ -569,9 +572,9 @@ impl ConnectorData {
                 enums::Connector::Worldpay => {
                     Ok(ConnectorEnum::Old(Box::new(connector::Worldpay::new())))
                 }
-                // enums::Connector::Worldpayvantiv => {
-                //     Ok(ConnectorEnum::Old(Box::new(connector::Worldpayvantiv::new())))
-                // }
+                enums::Connector::Worldpayvantiv => Ok(ConnectorEnum::Old(Box::new(
+                    connector::Worldpayvantiv::new(),
+                ))),
                 enums::Connector::Worldpayxml => {
                     Ok(ConnectorEnum::Old(Box::new(connector::Worldpayxml::new())))
                 }
@@ -600,7 +603,9 @@ impl ConnectorData {
                     Ok(ConnectorEnum::Old(Box::new(connector::Paystack::new())))
                 }
                 // enums::Connector::Thunes => Ok(ConnectorEnum::Old(Box::new(connector::Thunes))),
-                // enums::Connector::Tokenio => Ok(ConnectorEnum::Old(Box::new(connector::Tokenio))),
+                enums::Connector::Tokenio => {
+                    Ok(ConnectorEnum::Old(Box::new(connector::Tokenio::new())))
+                }
                 enums::Connector::Trustpay => {
                     Ok(ConnectorEnum::Old(Box::new(connector::Trustpay::new())))
                 }

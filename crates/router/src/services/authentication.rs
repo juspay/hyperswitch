@@ -712,7 +712,9 @@ where
     ) -> RouterResult<(Option<AuthenticationDataWithOrg>, AuthenticationType)> {
         // Step 1: Admin API Key and API Key Fallback (if allowed)
         if self.is_admin_auth_allowed {
-            let admin_auth = AdminApiAuthWithApiKeyFallback;
+            let admin_auth = AdminApiAuthWithApiKeyFallback {
+                organization_id: self.organization_id.clone(),
+            };
             match admin_auth
                 .authenticate_and_fetch(request_headers, state)
                 .await
@@ -1664,7 +1666,9 @@ where
 }
 
 #[derive(Debug, Default)]
-pub struct AdminApiAuthWithApiKeyFallback;
+pub struct AdminApiAuthWithApiKeyFallback {
+    pub organization_id: Option<id_type::OrganizationId>,
+}
 
 #[cfg(feature = "v1")]
 #[async_trait]
@@ -1738,6 +1742,16 @@ where
             )
             .await
             .to_not_found_response(errors::ApiErrorResponse::Unauthorized)?;
+
+        if let Some(ref organization_id) = self.organization_id {
+            if organization_id != merchant.get_org_id() {
+                return Err(
+                    report!(errors::ApiErrorResponse::Unauthorized).attach_printable(
+                        "Organization ID from request and merchant account does not match",
+                    ),
+                );
+            }
+        }
 
         if fallback_merchant_ids
             .merchant_ids
@@ -2181,6 +2195,7 @@ where
 }
 
 #[derive(Debug)]
+#[cfg(feature = "v1")]
 pub struct MerchantIdAuth(pub id_type::MerchantId);
 
 #[cfg(feature = "v1")]
@@ -2230,6 +2245,10 @@ where
     }
 }
 
+#[derive(Debug)]
+#[cfg(feature = "v2")]
+pub struct MerchantIdAuth;
+
 #[cfg(feature = "v2")]
 #[async_trait]
 impl<A> AuthenticateAndFetch<AuthenticationData, A> for MerchantIdAuth
@@ -2246,6 +2265,8 @@ where
         }
 
         let key_manager_state = &(&state.session_state()).into();
+        let merchant_id = HeaderMapStruct::new(request_headers)
+            .get_id_type_from_header::<id_type::MerchantId>(headers::X_MERCHANT_ID)?;
         let profile_id =
             get_id_type_by_key_from_headers(headers::X_PROFILE_ID.to_string(), request_headers)?
                 .get_required_value(headers::X_PROFILE_ID)?;
@@ -2253,7 +2274,7 @@ where
             .store()
             .get_merchant_key_store_by_merchant_id(
                 key_manager_state,
-                &self.0,
+                &merchant_id,
                 &state.store().get_master_key().to_vec().into(),
             )
             .await
@@ -2264,14 +2285,14 @@ where
             .find_business_profile_by_merchant_id_profile_id(
                 key_manager_state,
                 &key_store,
-                &self.0,
+                &merchant_id,
                 &profile_id,
             )
             .await
             .to_not_found_response(errors::ApiErrorResponse::Unauthorized)?;
         let merchant = state
             .store()
-            .find_merchant_account_by_merchant_id(key_manager_state, &self.0, &key_store)
+            .find_merchant_account_by_merchant_id(key_manager_state, &merchant_id, &key_store)
             .await
             .to_not_found_response(errors::ApiErrorResponse::Unauthorized)?;
 

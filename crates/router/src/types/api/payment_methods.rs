@@ -1,19 +1,18 @@
 #[cfg(feature = "v2")]
 pub use api_models::payment_methods::{
     CardDetail, CardDetailFromLocker, CardDetailsPaymentMethod, CardNetworkTokenizeRequest,
-    CardNetworkTokenizeResponse, CardType, CustomerPaymentMethod,
-    CustomerPaymentMethodsListResponse, DeleteTokenizeByTokenRequest, GetTokenizePayloadRequest,
-    GetTokenizePayloadResponse, ListCountriesCurrenciesRequest, MigrateCardDetail,
-    NetworkTokenDetailsPaymentMethod, NetworkTokenDetailsResponse, NetworkTokenResponse,
-    PaymentMethodCollectLinkRenderRequest, PaymentMethodCollectLinkRequest, PaymentMethodCreate,
-    PaymentMethodCreateData, PaymentMethodDeleteResponse, PaymentMethodId,
-    PaymentMethodIntentConfirm, PaymentMethodIntentCreate, PaymentMethodListData,
-    PaymentMethodListRequest, PaymentMethodListResponse, PaymentMethodMigrate,
-    PaymentMethodMigrateResponse, PaymentMethodResponse, PaymentMethodResponseData,
-    PaymentMethodUpdate, PaymentMethodUpdateData, PaymentMethodsData, TokenDataResponse,
-    TokenDetailsResponse, TokenizePayloadEncrypted, TokenizePayloadRequest, TokenizedCardValue1,
-    TokenizedCardValue2, TokenizedWalletValue1, TokenizedWalletValue2,
-    TotalPaymentMethodCountResponse,
+    CardNetworkTokenizeResponse, CardType, CustomerPaymentMethodResponseItem,
+    DeleteTokenizeByTokenRequest, GetTokenizePayloadRequest, GetTokenizePayloadResponse,
+    ListCountriesCurrenciesRequest, MigrateCardDetail, NetworkTokenDetailsPaymentMethod,
+    NetworkTokenDetailsResponse, NetworkTokenResponse, PaymentMethodCollectLinkRenderRequest,
+    PaymentMethodCollectLinkRequest, PaymentMethodCreate, PaymentMethodCreateData,
+    PaymentMethodDeleteResponse, PaymentMethodId, PaymentMethodIntentConfirm,
+    PaymentMethodIntentCreate, PaymentMethodListData, PaymentMethodListRequest,
+    PaymentMethodListResponseForSession, PaymentMethodMigrate, PaymentMethodMigrateResponse,
+    PaymentMethodResponse, PaymentMethodResponseData, PaymentMethodUpdate, PaymentMethodUpdateData,
+    PaymentMethodsData, TokenDataResponse, TokenDetailsResponse, TokenizePayloadEncrypted,
+    TokenizePayloadRequest, TokenizedCardValue1, TokenizedCardValue2, TokenizedWalletValue1,
+    TokenizedWalletValue2, TotalPaymentMethodCountResponse,
 };
 #[cfg(feature = "v1")]
 pub use api_models::payment_methods::{

@@ -6,7 +6,9 @@ use std::{
     num::{ParseFloatError, TryFromIntError},
 };
 
-pub use accounts::{MerchantAccountType, MerchantProductType, OrganizationType};
+pub use accounts::{
+    MerchantAccountRequestType, MerchantAccountType, MerchantProductType, OrganizationType,
+};
 pub use payments::ProductType;
 use serde::{Deserialize, Serialize};
 pub use ui::*;
@@ -153,6 +155,7 @@ pub enum AttemptStatus {
     PaymentMethodAwaited,
     ConfirmationAwaited,
     DeviceDataCollectionPending,
+    IntegrityFailure,
 }
 
 impl AttemptStatus {
@@ -181,7 +184,8 @@ impl AttemptStatus {
             | Self::Pending
             | Self::PaymentMethodAwaited
             | Self::ConfirmationAwaited
-            | Self::DeviceDataCollectionPending => false,
+            | Self::DeviceDataCollectionPending
+            | Self::IntegrityFailure => false,
         }
     }
 }
@@ -237,7 +241,12 @@ pub enum RevenueRecoveryAlgorithmType {
     Cascading,
 }
 
-/// Pass this parameter to force 3DS or non 3DS auth for this payment. Some connectors will still force 3DS auth even in case of passing 'no_three_ds' here and vice versa. Default value is 'no_three_ds' if not set
+/// Specifies the type of cardholder authentication to be applied for a payment.
+///
+/// - `ThreeDs`: Requests 3D Secure (3DS) authentication. If the card is enrolled, 3DS authentication will be activated, potentially shifting chargeback liability to the issuer.
+/// - `NoThreeDs`: Indicates that 3D Secure authentication should not be performed. The liability for chargebacks typically remains with the merchant. This is often the default if not specified.
+///
+/// Note: The actual authentication behavior can also be influenced by merchant configuration and specific connector defaults. Some connectors might still enforce 3DS or bypass it regardless of this parameter.
 #[derive(
     Clone,
     Copy,
@@ -391,7 +400,9 @@ pub enum BlocklistDataKind {
     ExtendedCardBin,
 }
 
-/// Default value if not passed is set to 'automatic' which results in Auth and Capture in one single API request. Pass 'manual' or 'manual_multiple' in case you want do a separate Auth and Capture by first authorizing and placing a hold on your customer's funds so that you can use the Payments/Capture endpoint later to capture the authorized amount. Pass 'manual' if you want to only capture the amount later once or 'manual_multiple' if you want to capture the funds multiple times later. Both 'manual' and 'manual_multiple' are only supported by a specific list of processors
+/// Specifies how the payment is captured.
+/// - `automatic`: Funds are captured immediately after successful authorization. This is the default behavior if the field is omitted.
+/// - `manual`: Funds are authorized but not captured. A separate request to the `/payments/{payment_id}/capture` endpoint is required to capture the funds.
 #[derive(
     Clone,
     Copy,
@@ -412,16 +423,16 @@ pub enum BlocklistDataKind {
 #[serde(rename_all = "snake_case")]
 #[strum(serialize_all = "snake_case")]
 pub enum CaptureMethod {
-    /// Post the payment authorization, the capture will be executed on the full amount immediately
+    /// Post the payment authorization, the capture will be executed on the full amount immediately.
     #[default]
     Automatic,
-    /// The capture will happen only if the merchant triggers a Capture API request
+    /// The capture will happen only if the merchant triggers a Capture API request. Allows for a single capture of the authorized amount.
     Manual,
-    /// The capture will happen only if the merchant triggers a Capture API request
+    /// The capture will happen only if the merchant triggers a Capture API request. Allows for multiple partial captures up to the authorized amount.
     ManualMultiple,
-    /// The capture can be scheduled to automatically get triggered at a specific date & time
+    /// The capture can be scheduled to automatically get triggered at a specific date & time.
     Scheduled,
-    /// Handles separate auth and capture sequentially; same as `Automatic` for most connectors.
+    /// Handles separate auth and capture sequentially; effectively the same as `Automatic` for most connectors.
     SequentialAutomatic,
 }
 
@@ -490,7 +501,7 @@ pub enum CallConnectorAction {
     HandleResponse(Vec<u8>),
 }
 
-/// The three letter ISO currency code in uppercase. Eg: 'USD' for the United States Dollar.
+/// The three-letter ISO 4217 currency code (e.g., "USD", "EUR") for the payment amount. This field is mandatory for creating a payment.
 #[allow(clippy::upper_case_acronyms)]
 #[derive(
     Clone,
@@ -1551,7 +1562,8 @@ pub enum MerchantStorageScheme {
     RedisKv,
 }
 
-/// The status of the current payment that was made
+/// Represents the overall status of a payment intent.
+/// The status transitions through various states depending on the payment method, confirmation, capture method, and any subsequent actions (like customer authentication or manual capture).
 #[derive(
     Clone,
     Copy,
@@ -1597,6 +1609,8 @@ pub enum IntentStatus {
     PartiallyCaptured,
     /// The payment has been captured partially and the remaining amount is capturable
     PartiallyCapturedAndCapturable,
+    /// There has been a discrepancy between the amount/currency sent in the request and the amount/currency received by the processor
+    Conflicted,
 }
 
 impl IntentStatus {
@@ -1610,7 +1624,8 @@ impl IntentStatus {
             | Self::RequiresPaymentMethod
             | Self::RequiresConfirmation
             | Self::RequiresCapture
-            | Self::PartiallyCapturedAndCapturable => false,
+            | Self::PartiallyCapturedAndCapturable
+            | Self::Conflicted => false,
         }
     }
 
@@ -1625,7 +1640,7 @@ impl IntentStatus {
             | Self::Failed
             | Self::Cancelled
             |  Self::PartiallyCaptured
-            |  Self::RequiresCapture => false,
+            |  Self::RequiresCapture | Self::Conflicted => false,
             Self::Processing
             | Self::RequiresCustomerAction
             | Self::RequiresMerchantAction
@@ -1635,9 +1650,10 @@ impl IntentStatus {
     }
 }
 
-/// Indicates that you intend to make future payments with the payment methods used for this Payment. Providing this parameter will attach the payment method to the Customer, if present, after the Payment is confirmed and any required actions from the user are complete.
-/// - On_session - Payment method saved only at hyperswitch when consent is provided by the user. CVV will asked during the returning user payment
-/// - Off_session - Payment method saved at both hyperswitch and Processor when consent is provided by the user. No input is required during the returning user payment.
+/// Specifies how the payment method can be used for future payments.
+/// - `off_session`: The payment method can be used for future payments when the customer is not present.
+/// - `on_session`: The payment method is intended for use only when the customer is present during checkout.
+/// If omitted, defaults to `on_session`.
 #[derive(
     Clone,
     Copy,
@@ -1745,7 +1761,8 @@ impl From<AttemptStatus> for PaymentMethodStatus {
             | AttemptStatus::PartialCharged
             | AttemptStatus::PartialChargedAndChargeable
             | AttemptStatus::ConfirmationAwaited
-            | AttemptStatus::DeviceDataCollectionPending => Self::Inactive,
+            | AttemptStatus::DeviceDataCollectionPending
+            | AttemptStatus::IntegrityFailure => Self::Inactive,
             AttemptStatus::Charged | AttemptStatus::Authorized => Self::Active,
         }
     }
@@ -2596,6 +2613,7 @@ pub enum CountryAlpha3 {
     strum::EnumString,
     Deserialize,
     Serialize,
+    utoipa::ToSchema,
 )]
 pub enum Country {
     Afghanistan,
@@ -7101,6 +7119,26 @@ impl AuthenticationConnectors {
             Self::Gpayments => true,
         }
     }
+}
+
+#[derive(
+    Clone,
+    Copy,
+    Debug,
+    Eq,
+    Hash,
+    PartialEq,
+    serde::Serialize,
+    serde::Deserialize,
+    strum::Display,
+    strum::EnumString,
+    ToSchema,
+)]
+#[serde(rename_all = "snake_case")]
+#[strum(serialize_all = "snake_case")]
+pub enum VaultSdk {
+    VgsSdk,
+    HyperswitchSdk,
 }
 
 #[derive(

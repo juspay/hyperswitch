@@ -81,6 +81,8 @@ use crate::routes::cards_info::{
 use crate::routes::feature_matrix;
 #[cfg(all(feature = "frm", feature = "oltp"))]
 use crate::routes::fraud_check as frm_routes;
+#[cfg(all(feature = "olap", feature = "v1"))]
+use crate::routes::profile_acquirer;
 #[cfg(all(feature = "recon", feature = "olap"))]
 use crate::routes::recon as recon_routes;
 pub use crate::{
@@ -95,7 +97,7 @@ pub use crate::{
 use crate::{
     configs::{secrets_transformers, Settings},
     db::kafka_store::{KafkaStore, TenantID},
-    routes::hypersense as hypersense_routes,
+    routes::{hypersense as hypersense_routes, three_ds_decision_rule},
 };
 
 #[derive(Clone)]
@@ -1195,7 +1197,7 @@ impl Refunds {
         #[cfg(feature = "olap")]
         {
             route =
-                route.service(web::resource("/list").route(web::get().to(refunds::refunds_list)));
+                route.service(web::resource("/list").route(web::post().to(refunds::refunds_list)));
         }
         #[cfg(feature = "oltp")]
         {
@@ -2157,6 +2159,20 @@ impl Gsm {
     }
 }
 
+pub struct ThreeDsDecisionRule;
+
+#[cfg(feature = "oltp")]
+impl ThreeDsDecisionRule {
+    pub fn server(state: AppState) -> Scope {
+        web::scope("/three_ds_decision")
+            .app_data(web::Data::new(state))
+            .service(
+                web::resource("/execute")
+                    .route(web::post().to(three_ds_decision_rule::execute_decision_rule)),
+            )
+    }
+}
+
 #[cfg(feature = "olap")]
 pub struct Verify;
 
@@ -2241,7 +2257,6 @@ impl User {
             .service(
                 web::resource("/tenant_signup").route(web::post().to(user::create_tenant_user)),
             )
-            .service(web::resource("/create_platform").route(web::post().to(user::create_platform)))
             .service(web::resource("/create_org").route(web::post().to(user::user_org_create)))
             .service(
                 web::resource("/create_merchant")
@@ -2268,6 +2283,12 @@ impl User {
                     .route(web::get().to(user::get_multiple_dashboard_metadata))
                     .route(web::post().to(user::set_dashboard_metadata)),
             );
+
+        if state.conf.platform.enabled {
+            route = route.service(
+                web::resource("/create_platform").route(web::post().to(user::create_platform)),
+            )
+        }
 
         route = route
             .service(web::scope("/key").service(
@@ -2597,6 +2618,20 @@ impl ProcessTracker {
             .service(
                 web::resource("/{revenue_recovery_id}")
                     .route(web::get().to(revenue_recovery::revenue_recovery_pt_retrieve_api)),
+            )
+    }
+}
+
+#[cfg(feature = "olap")]
+pub struct ProfileAcquirer;
+
+#[cfg(all(feature = "olap", feature = "v1"))]
+impl ProfileAcquirer {
+    pub fn server(state: AppState) -> Scope {
+        web::scope("/profile_acquirer")
+            .app_data(web::Data::new(state))
+            .service(
+                web::resource("").route(web::post().to(profile_acquirer::create_profile_acquirer)),
             )
     }
 }

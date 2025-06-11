@@ -49,6 +49,7 @@ pub mod refunds_v2;
 pub mod debit_routing;
 pub mod routing;
 pub mod surcharge_decision_config;
+pub mod three_ds_decision_rule;
 #[cfg(feature = "olap")]
 pub mod user;
 #[cfg(feature = "olap")]
@@ -60,6 +61,7 @@ pub mod verification;
 pub mod verify_connector;
 pub mod webhooks;
 
+pub mod profile_acquirer;
 pub mod unified_authentication_service;
 
 #[cfg(feature = "v2")]
