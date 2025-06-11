@@ -3365,7 +3365,7 @@
       }
     },
     "/v2/refunds/list": {
-      "get": {
+      "post": {
         "tags": [
           "Refunds"
         ],
