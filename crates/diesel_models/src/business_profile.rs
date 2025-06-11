@@ -469,7 +469,6 @@ pub struct ProfileNew {
     pub is_iframe_redirection_enabled: Option<bool>,
     pub is_external_vault_enabled: Option<bool>,
     pub external_vault_connector_details: Option<ExternalVaultConnectorDetails>,
-    pub merchant_category_code: Option<common_enums::MerchantCategoryCode>,
 }
 
 #[cfg(feature = "v2")]
@@ -513,6 +512,7 @@ pub struct ProfileUpdateInternal {
     pub is_clear_pan_retries_enabled: Option<bool>,
     pub is_debit_routing_enabled: Option<bool>,
     pub merchant_business_country: Option<common_enums::CountryAlpha2>,
+    pub merchant_category_code: Option<common_enums::MerchantCategoryCode>,
     pub routing_algorithm_id: Option<common_utils::id_type::RoutingId>,
     pub order_fulfillment_time: Option<i64>,
     pub order_fulfillment_time_origin: Option<common_enums::OrderFulfillmentTimeOrigin>,
@@ -527,7 +527,6 @@ pub struct ProfileUpdateInternal {
     pub is_iframe_redirection_enabled: Option<bool>,
     pub is_external_vault_enabled: Option<bool>,
     pub external_vault_connector_details: Option<ExternalVaultConnectorDetails>,
-    pub merchant_category_code: Option<common_enums::MerchantCategoryCode>,
 }
 
 #[cfg(feature = "v2")]
