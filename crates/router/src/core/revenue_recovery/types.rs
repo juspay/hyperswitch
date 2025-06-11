@@ -12,7 +12,9 @@ use common_utils::{
     ext_traits::{OptionExt, ValueExt},
     id_type,
 };
-use diesel_models::{enums, payment_intent, process_tracker::business_status, types as diesel_types};
+use diesel_models::{
+    enums, payment_intent, process_tracker::business_status, types as diesel_types,
+};
 use error_stack::{self, ResultExt};
 use hyperswitch_domain_models::{
     business_profile, merchant_connector_account,
@@ -499,7 +501,7 @@ impl Action {
                         process.clone(),
                         revenue_recovery_payment_data,
                         &payment_attempt,
-                        &payment_intent
+                        &payment_intent,
                     )
                     .await
                 }
@@ -698,7 +700,14 @@ impl Action {
     ) -> RecoveryResult<Self> {
         let next_retry_count = pt.retry_count + 1;
         let schedule_time = revenue_recovery_payment_data
-            .get_schedule_time_based_on_retry_type(state, db, merchant_id, next_retry_count, payment_attempt, payment_intent)
+            .get_schedule_time_based_on_retry_type(
+                state,
+                db,
+                merchant_id,
+                next_retry_count,
+                payment_attempt,
+                payment_intent,
+            )
             .await;
 
         match schedule_time {

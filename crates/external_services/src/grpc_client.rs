@@ -26,9 +26,7 @@ use hyper::body::Bytes;
 #[cfg(any(feature = "dynamic_routing", feature = "v2"))]
 use hyper_util::client::legacy::connect::HttpConnector;
 #[cfg(feature = "v2")]
-use recovery_decider_client::{
-    RecoveryDeciderClientConfig, RecoveryDeciderClientInterface,
-};
+use recovery_decider_client::{RecoveryDeciderClientConfig, RecoveryDeciderClientInterface};
 #[cfg(any(feature = "dynamic_routing", feature = "v2"))]
 use router_env::logger;
 use serde;
@@ -101,15 +99,15 @@ impl GrpcClientSettings {
 
         #[cfg(feature = "v2")]
         let recovery_decider_client = self
-                .recovery_decider_client
-                .get_recovery_decider_connection(client.clone())
-                .map(|client| {
-                    #[allow(clippy::as_conversions)]
-                    {
-                        Box::new(client) as Box<dyn RecoveryDeciderClientInterface>
-                    }
-                })
-                .expect("Failed to establish a connection with the Recovery Decider Server");
+            .recovery_decider_client
+            .get_recovery_decider_connection(client.clone())
+            .map(|client| {
+                #[allow(clippy::as_conversions)]
+                {
+                    Box::new(client) as Box<dyn RecoveryDeciderClientInterface>
+                }
+            })
+            .expect("Failed to establish a connection with the Recovery Decider Server");
 
         #[cfg(feature = "v2")]
         let trainer_client = self

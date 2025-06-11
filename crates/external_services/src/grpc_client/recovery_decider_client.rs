@@ -50,7 +50,9 @@ pub enum RecoveryDeciderError {
 #[async_trait::async_trait]
 #[allow(missing_docs)]
 #[allow(clippy::too_many_arguments)]
-pub trait RecoveryDeciderClientInterface: dyn_clone::DynClone + Send + Sync + std::fmt::Debug {
+pub trait RecoveryDeciderClientInterface:
+    dyn_clone::DynClone + Send + Sync + std::fmt::Debug
+{
     #[allow(missing_docs)]
     #[allow(clippy::too_many_arguments)]
     async fn decide_on_retry(
@@ -79,31 +81,31 @@ pub struct RecoveryDeciderClientConfig {
 
 impl RecoveryDeciderClientConfig {
     #[allow(missing_docs)]
-pub fn get_recovery_decider_connection(
-    &self,
-    hyper_client: Client,
-) -> Result<DeciderClient<Client>, Report<RecoveryDeciderError>> {
-    let host = &self.host;
-    let port = self.port;
+    pub fn get_recovery_decider_connection(
+        &self,
+        hyper_client: Client,
+    ) -> Result<DeciderClient<Client>, Report<RecoveryDeciderError>> {
+        let host = &self.host;
+        let port = self.port;
 
-    if host.is_empty() {
-        return Err(Report::new(RecoveryDeciderError::ConfigError(
-            "Host is not configured for Recovery Decider client".to_string(),
-        )));
+        if host.is_empty() {
+            return Err(Report::new(RecoveryDeciderError::ConfigError(
+                "Host is not configured for Recovery Decider client".to_string(),
+            )));
+        }
+
+        let uri_string = format!("http://{}:{}", host, port);
+        let uri = uri_string
+            .parse::<tonic::transport::Uri>()
+            .map_err(Report::from)
+            .change_context_lazy(|| {
+                RecoveryDeciderError::ConfigError(format!("Invalid URI: {}", uri_string))
+            })?;
+
+        let service_client = DeciderClient::with_origin(hyper_client, uri);
+
+        Ok(service_client)
     }
-
-    let uri_string = format!("http://{}:{}", host, port);
-    let uri = uri_string
-        .parse::<tonic::transport::Uri>()
-        .map_err(Report::from)
-        .change_context_lazy(|| {
-            RecoveryDeciderError::ConfigError(format!("Invalid URI: {}", uri_string))
-        })?;
-
-    let service_client = DeciderClient::with_origin(hyper_client, uri);
-
-    Ok(service_client)
-}
 }
 
 #[async_trait::async_trait]

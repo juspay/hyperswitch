@@ -1,23 +1,18 @@
 use std::fmt::Debug;
 
 use common_enums::enums;
-use common_utils::id_type;
+use common_utils::{ext_traits::ValueExt, id_type};
+use external_services::grpc_client::{self as external_grpc_client, GrpcHeaders};
 use hyperswitch_domain_models::{
     business_profile, merchant_account, merchant_connector_account, merchant_key_store,
     payment_method_data::{Card, PaymentMethodData},
     payments::{payment_attempt::PaymentAttempt, PaymentIntent},
 };
-use common_utils::ext_traits::ValueExt;
 use masking::PeekInterface;
 use prost_types::Timestamp;
 use router_env::logger;
 
-use external_services::grpc_client::{self as external_grpc_client, GrpcHeaders};
-use crate::{
-    db::StorageInterface,
-    routes::SessionState,
-    workflows::revenue_recovery,
-};
+use crate::{db::StorageInterface, routes::SessionState, workflows::revenue_recovery};
 #[derive(serde::Serialize, serde::Deserialize, Debug)]
 pub struct RevenueRecoveryWorkflowTrackingData {
     pub merchant_id: id_type::MerchantId,

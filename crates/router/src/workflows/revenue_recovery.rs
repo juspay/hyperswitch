@@ -1,6 +1,8 @@
 #[cfg(feature = "v2")]
 use api_models::payments::PaymentsGetIntentRequest;
 #[cfg(feature = "v2")]
+use common_utils::date_time;
+#[cfg(feature = "v2")]
 use common_utils::{
     ext_traits::{StringExt, ValueExt},
     id_type,
@@ -8,19 +10,19 @@ use common_utils::{
 #[cfg(feature = "v2")]
 use error_stack::ResultExt;
 #[cfg(feature = "v2")]
+use external_services::grpc_client::{self as external_grpc_client, GrpcHeaders};
+#[cfg(feature = "v2")]
 use hyperswitch_domain_models::{
     payment_method_data::PaymentMethodData,
-    payments::{payment_attempt::PaymentAttempt, PaymentConfirmData, PaymentIntent, PaymentIntentData},
+    payments::{
+        payment_attempt::PaymentAttempt, PaymentConfirmData, PaymentIntent, PaymentIntentData,
+    },
     router_flow_types::Authorize,
 };
 #[cfg(feature = "v2")]
-use router_env::logger;
-#[cfg(feature = "v2")]
 use masking::PeekInterface;
 #[cfg(feature = "v2")]
-use external_services::grpc_client::{self as external_grpc_client, GrpcHeaders};
-#[cfg(feature = "v2")]
-use common_utils::date_time;
+use router_env::logger;
 use scheduler::{consumer::workflows::ProcessTrackerWorkflow, errors};
 #[cfg(feature = "v2")]
 use scheduler::{types::process_data, utils as scheduler_utils};
@@ -248,7 +250,7 @@ pub(crate) async fn get_schedule_time_for_smart_retry(
         logger::debug!(
             payment_intent_id = ?payment_intent.get_id(),
             attempt_id = ?payment_attempt.get_id(),
-            pm_data_value_peek = ?pm_data_value.peek(), 
+            pm_data_value_peek = ?pm_data_value.peek(),
             message = "Attempting to parse payment_method_data"
         );
         match pm_data_value
@@ -269,28 +271,29 @@ pub(crate) async fn get_schedule_time_for_smart_retry(
                 card_network_str = card_details
                     .card_network
                     .map_or(String::new(), |cn| cn.to_string());
-                card_issuer_str =
-                    card_details.card_issuer.clone().unwrap_or_default();
+                card_issuer_str = card_details.card_issuer.clone().unwrap_or_default();
             }
             Ok(_) => {
                 logger::warn!("Payment method data is not for a card for recovery decider.")
             }
             Err(e) => {
-                logger::error!("Failed to parse payment_method_data for recovery decider: {:?}",e)
+                logger::error!(
+                    "Failed to parse payment_method_data for recovery decider: {:?}",
+                    e
+                )
             }
         }
     }
 
     let start_time_primitive = payment_intent.created_at;
     // 1 hr after the actual start time
-    let modified_start_time_primitive = start_time_primitive.saturating_add(time::Duration::hours(1));
-    let start_time_proto =
-        date_time::convert_to_prost_timestamp(modified_start_time_primitive);
-    
+    let modified_start_time_primitive =
+        start_time_primitive.saturating_add(time::Duration::hours(1));
+    let start_time_proto = date_time::convert_to_prost_timestamp(modified_start_time_primitive);
+
     // Calculate end_time as start_time + 30 days
     let end_time_primitive = start_time_primitive.saturating_add(time::Duration::days(30));
-    let end_time_proto = 
-        date_time::convert_to_prost_timestamp(end_time_primitive);
+    let end_time_proto = date_time::convert_to_prost_timestamp(end_time_primitive);
 
     logger::debug!(
         payment_intent_id = ?payment_intent.get_id(),
@@ -311,7 +314,7 @@ pub(crate) async fn get_schedule_time_for_smart_retry(
         card_issuer: card_issuer_str,
         start_time: Some(start_time_proto),
         end_time: Some(end_time_proto),
-        retry_count: retry_count.into()
+        retry_count: retry_count.into(),
     };
 
     let headers = state.get_grpc_headers();
@@ -334,25 +337,22 @@ pub(crate) async fn get_schedule_time_for_smart_retry(
         )
         .await
     {
-        Ok(response_for_serde) => {
-            response_for_serde
-                .retry_flag
-                .then_some(())
-                .and(response_for_serde.retry_time)
-                .and_then(|serializable_timestamp| {
-                    let prost_ts = serializable_timestamp.into();
-                    
-                    date_time::convert_from_prost_timestamp(&prost_ts)
-                        .or_else(|| {
-                            logger::error!(
-                                "Failed to convert prost timestamp for recovery decider. Timestamp: {:?}",
-                                prost_ts
-                            );
-                            None
-                        })
+        Ok(response_for_serde) => response_for_serde
+            .retry_flag
+            .then_some(())
+            .and(response_for_serde.retry_time)
+            .and_then(|serializable_timestamp| {
+                let prost_ts = serializable_timestamp.into();
+
+                date_time::convert_from_prost_timestamp(&prost_ts).or_else(|| {
+                    logger::error!(
+                        "Failed to convert prost timestamp for recovery decider. Timestamp: {:?}",
+                        prost_ts
+                    );
+                    None
                 })
-        }
-        
+            }),
+
         Err(e) => {
             logger::error!("Recovery decider gRPC call failed: {:?}", e);
             None

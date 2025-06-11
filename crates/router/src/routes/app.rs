@@ -712,7 +712,6 @@ impl Trainer {
     }
 }
 
-
 #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
 pub struct Proxy;
 
