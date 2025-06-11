@@ -290,7 +290,9 @@ sinks:
           - invoice_currency
           - invoice_due_date
           - invoice_date
-          - invoice_address
+          - billing_city
+          - billing_country
+          - billing_state
           - attempt_id
           - attempt_amount
           - attempt_currency
@@ -308,12 +310,9 @@ sinks:
           - card_issuer
           - retry_count
           - payment_gateway
-    key_prefix: "{{ .merchant_id }}/%Y/%M/%Y%m%dT%H%M%S"
+    key_prefix: "{{ .merchant_id }}/"
     timezone: "Europe/London"
-    server_side_encryption: aws:kms
-    request:
-      max_retries: 3
-      retry_delay_secs: 5
+
     filename_append_uuid: false
-    filename_time_format: "%"
+    filename_time_format: "%Y/%m/%+"
     filename_extension: csv

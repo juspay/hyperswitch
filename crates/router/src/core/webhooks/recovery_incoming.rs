@@ -2,7 +2,6 @@ use std::{marker::PhantomData, str::FromStr};
 
 use api_models::{enums as api_enums, payments as api_payments, webhooks};
 use common_utils::{
-    crypto::Encryptable,
     ext_traits::{AsyncExt, ValueExt},
     id_type,
 };
@@ -14,9 +13,8 @@ use hyperswitch_domain_models::{
     router_response_types::revenue_recovery as revenue_recovery_response, types as router_types,
 };
 use hyperswitch_interfaces::webhooks as interface_webhooks;
-use masking::Secret;
+use masking::PeekInterface;
 use router_env::{instrument, tracing};
-use serde_json::Value;
 use services::kafka::revenue_recovery::RevenueRecovery;
 
 use crate::{
@@ -1265,6 +1263,25 @@ impl RecoveryPaymentTuple {
             .as_ref()
             .and_then(|metadata| metadata.payment_revenue_recovery_metadata.as_ref());
 
+        let billing_city = payment_intent
+            .billing_address
+            .as_ref()
+            .and_then(|billing_address| billing_address.address.as_ref())
+            .and_then(|address| address.city.clone());
+
+        let billing_state = payment_intent
+            .billing_address
+            .as_ref()
+            .and_then(|billing_address| billing_address.address.as_ref())
+            .and_then(|address| address.state.clone())
+            .map(|state| state.peek().clone());
+
+        let billing_country = payment_intent
+            .billing_address
+            .as_ref()
+            .and_then(|billing_address| billing_address.address.as_ref())
+            .and_then(|address| address.country);
+
         let event = RevenueRecovery {
             merchant_id: &payment_intent.merchant_id,
             invoice_id: invoice_id_str,
@@ -1273,7 +1290,9 @@ impl RecoveryPaymentTuple {
             invoice_date: payment_intent.created_at,
             invoice_due_date: revenue_recovery_feature_metadata
                 .and_then(|data| data.invoice_next_billing_time),
-            invoice_address: payment_intent.billing_address.clone(),
+            billing_city,
+            billing_country: billing_country.as_ref(),
+            billing_state,
             attempt_id: attempt_id_str,
             attempt_amount: payment_attempt.amount,
             attempt_currency: &payment_intent.invoice_currency.clone(),
