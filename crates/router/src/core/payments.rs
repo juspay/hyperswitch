@@ -6987,16 +6987,17 @@ where
             );
 
             return route_connector_v1_for_payments(
-                &state, 
-                merchant_context, 
-                business_profile, 
-                payment_data, 
-                transaction_data, 
-                routing_data, 
-                eligible_connectors, 
+                &state,
+                merchant_context,
+                business_profile,
+                payment_data,
+                transaction_data,
+                routing_data,
+                eligible_connectors,
                 mandate_type,
                 Some(connectors),
-            ).await
+            )
+            .await
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Failed to route connector for payments");
         }
@@ -7049,16 +7050,17 @@ where
             );
 
             return route_connector_v1_for_payments(
-                &state, 
-                merchant_context, 
-                business_profile, 
-                payment_data, 
-                transaction_data, 
-                routing_data, 
-                eligible_connectors, 
-                mandate_type, 
-            Some(connectors),
-            ).await
+                &state,
+                merchant_context,
+                business_profile,
+                payment_data,
+                transaction_data,
+                routing_data,
+                eligible_connectors,
+                mandate_type,
+                Some(connectors),
+            )
+            .await
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Failed to route connector for payments");
         }
@@ -7746,7 +7748,6 @@ where
         .map(|mut straight_through_connectors| {
             straight_through_connectors.extend(connectors.clone());
             straight_through_connectors
-        
         })
         .unwrap_or_else(|| connectors);
 
