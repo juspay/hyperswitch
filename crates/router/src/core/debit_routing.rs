@@ -2,9 +2,11 @@ use std::{collections::HashSet, fmt::Debug};
 
 use api_models::{enums as api_enums, open_router};
 use common_enums::enums;
-use common_utils::{errors::CustomResult, id_type, types::keymanager::KeyManagerState};
+use common_utils::{
+    errors::CustomResult, ext_traits::ValueExt, id_type, types::keymanager::KeyManagerState,
+};
 use error_stack::ResultExt;
-use masking::{PeekInterface, Secret};
+use masking::Secret;
 
 use super::{
     payments::{OperationSessionGetters, OperationSessionSetters},
@@ -621,7 +623,7 @@ fn extract_debit_networks(
     if let Some(values) = &account.payment_methods_enabled {
         for val in values {
             let payment_methods_enabled: api_models::admin::PaymentMethodsEnabled =
-                serde_json::from_value(val.peek().to_owned())
+                val.to_owned().parse_value("PaymentMethodsEnabled")
                     .change_context(errors::ApiErrorResponse::InternalServerError)
                     .attach_printable("Failed to parse enabled payment methods for a merchant connector account in debit routing flow")?;
 
