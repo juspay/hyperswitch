@@ -1,9 +1,13 @@
 use async_trait::async_trait;
 use common_enums as enums;
+use error_stack::ResultExt;
 use hyperswitch_domain_models::errors::api_error_response::ApiErrorResponse;
 #[cfg(feature = "v2")]
 use hyperswitch_domain_models::payments::PaymentConfirmData;
 use masking::ExposeInterface;
+use rust_grpc_client::payments::{
+    self as payments_grpc, payment_service_client::PaymentServiceClient,
+};
 
 // use router_env::tracing::Instrument;
 use super::{ConstructFlowSpecificData, Feature};
@@ -13,6 +17,9 @@ use crate::{
         mandate,
         payments::{
             self, access_token, customers, helpers, tokenization, transformers, PaymentData,
+        },
+        unified_connector_service::utils::{
+            construct_ucs_request_metadata, handle_unified_connector_service_response,
         },
     },
     logger,
@@ -414,6 +421,32 @@ impl Feature<api::Authorize, types::PaymentsAuthorizeData> for types::PaymentsAu
             }
             _ => Ok((None, true)),
         }
+    }
+
+    async fn call_unified_connector_service<'a>(
+        &mut self,
+        merchant_connector_account: helpers::MerchantConnectorAccountType,
+        client: &mut PaymentServiceClient<tonic::transport::Channel>,
+    ) -> RouterResult<()> {
+        let request = payments_grpc::PaymentsAuthorizeRequest::foreign_try_from(self)?;
+
+        let mut request = tonic::Request::new(request);
+
+        let metadata = request.metadata_mut();
+
+        construct_ucs_request_metadata(metadata, merchant_connector_account)?;
+
+        let response = client
+            .payment_authorize(request)
+            .await
+            .change_context(ApiErrorResponse::InternalServerError)
+            .attach_printable("Failed to authorize payment")?;
+
+        let payment_authorize_response = response.into_inner();
+
+        handle_unified_connector_service_response(payment_authorize_response, self)?;
+
+        Ok(())
     }
 }
 
