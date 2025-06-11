@@ -25,7 +25,7 @@ pub async fn customers_create(
             let merchant_context = domain::MerchantContext::NormalMerchant(Box::new(
                 domain::Context(auth.merchant_account, auth.key_store),
             ));
-            create_customer(state, merchant_context, req)
+            create_customer(state, merchant_context, req, None)
         },
         auth::auth_type(
             &auth::V2ApiKeyAuth {
