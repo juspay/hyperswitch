@@ -913,6 +913,8 @@ diesel::table! {
         #[max_length = 32]
         network_decline_code -> Nullable<Varchar>,
         network_error_message -> Nullable<Text>,
+        #[max_length = 255]
+        connector_request_reference_id -> Nullable<Varchar>,
     }
 }
 
