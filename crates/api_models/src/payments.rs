@@ -8697,7 +8697,7 @@ pub struct PaymentRevenueRecoveryMetadata {
 #[cfg(feature = "v2")]
 #[derive(Debug, Clone, PartialEq, Deserialize, Serialize, ToSchema)]
 pub enum BillingConnectorPaymentMethodDetails {
-    Card(BillingConnectorAdditionalCardInfo)
+    Card(BillingConnectorAdditionalCardInfo),
 }
 
 #[cfg(feature = "v2")]
@@ -8708,10 +8708,8 @@ pub struct BillingConnectorAdditionalCardInfo {
     pub card_network: Option<common_enums::enums::CardNetwork>,
     #[schema(value_type = Option<String>, example = "JP MORGAN CHASE")]
     /// Card Issuer
-    pub card_issuer: Option<String>
+    pub card_issuer: Option<String>,
 }
-
-
 
 #[cfg(feature = "v2")]
 impl PaymentRevenueRecoveryMetadata {

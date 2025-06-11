@@ -196,7 +196,7 @@ pub struct BillingConnectorPaymentDetails {
 #[cfg(feature = "v2")]
 #[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]
 pub enum BillingConnectorPaymentMethodDetails {
-    Card(BillingConnectorAdditionalCardInfo)
+    Card(BillingConnectorAdditionalCardInfo),
 }
 
 #[cfg(feature = "v2")]
@@ -205,5 +205,5 @@ pub struct BillingConnectorAdditionalCardInfo {
     /// Card Network
     pub card_network: Option<common_enums::enums::CardNetwork>,
     /// Card Issuer
-    pub card_issuer: Option<String>
+    pub card_issuer: Option<String>,
 }

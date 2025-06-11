@@ -55,17 +55,20 @@ use api_models::payments::{
 };
 #[cfg(feature = "v2")]
 use api_models::payments::{
-    BillingConnectorPaymentDetails as ApiBillingConnectorPaymentDetails,
-    PaymentRevenueRecoveryMetadata as ApiRevenueRecoveryMetadata,
     BillingConnectorAdditionalCardInfo as ApiBillingConnectorAdditionalCardInfo,
+    BillingConnectorPaymentDetails as ApiBillingConnectorPaymentDetails,
     BillingConnectorPaymentMethodDetails as ApiBillingConnectorPaymentMethodDetails,
+    PaymentRevenueRecoveryMetadata as ApiRevenueRecoveryMetadata,
 };
 use diesel_models::types::{
     ApplePayRecurringDetails, ApplePayRegularBillingDetails, FeatureMetadata,
     OrderDetailsWithAmount, RecurringPaymentIntervalUnit, RedirectResponse,
 };
 #[cfg(feature = "v2")]
-use diesel_models::types::{BillingConnectorPaymentDetails, PaymentRevenueRecoveryMetadata, BillingConnectorAdditionalCardInfo, BillingConnectorPaymentMethodDetails};
+use diesel_models::types::{
+    BillingConnectorAdditionalCardInfo, BillingConnectorPaymentDetails,
+    BillingConnectorPaymentMethodDetails, PaymentRevenueRecoveryMetadata,
+};
 
 #[derive(Clone, Debug, Eq, PartialEq, serde::Serialize)]
 pub enum RemoteStorageObject<T: ForeignIDRef> {
@@ -292,14 +295,16 @@ impl ApiModelToDieselModelConvertor<ApiBillingConnectorPaymentMethodDetails>
 {
     fn convert_from(from: ApiBillingConnectorPaymentMethodDetails) -> Self {
         match from {
-            ApiBillingConnectorPaymentMethodDetails::Card(data) => Self::Card(BillingConnectorAdditionalCardInfo::convert_from(data)),
+            ApiBillingConnectorPaymentMethodDetails::Card(data) => {
+                Self::Card(BillingConnectorAdditionalCardInfo::convert_from(data))
+            }
         }
     }
 
     fn convert_back(self) -> ApiBillingConnectorPaymentMethodDetails {
-        match self{
+        match self {
             Self::Card(data) => ApiBillingConnectorPaymentMethodDetails::Card(data.convert_back()),
-        }    
+        }
     }
 }
 
@@ -318,9 +323,10 @@ impl ApiModelToDieselModelConvertor<ApiRevenueRecoveryMetadata> for PaymentReven
             payment_method_subtype: from.payment_method_subtype,
             connector: from.connector,
             invoice_next_billing_time: from.invoice_next_billing_time,
-            billing_connector_payment_method_details: BillingConnectorPaymentMethodDetails::convert_from(
-                from.billing_connector_payment_method_details,
-            ),
+            billing_connector_payment_method_details:
+                BillingConnectorPaymentMethodDetails::convert_from(
+                    from.billing_connector_payment_method_details,
+                ),
             first_payment_attempt_network_advice_code: from
                 .first_payment_attempt_network_advice_code,
             first_payment_attempt_network_decline_code: from
@@ -342,7 +348,9 @@ impl ApiModelToDieselModelConvertor<ApiRevenueRecoveryMetadata> for PaymentReven
             payment_method_subtype: self.payment_method_subtype,
             connector: self.connector,
             invoice_next_billing_time: self.invoice_next_billing_time,
-            billing_connector_payment_method_details: self.billing_connector_payment_method_details.convert_back(),
+            billing_connector_payment_method_details: self
+                .billing_connector_payment_method_details
+                .convert_back(),
             first_payment_attempt_network_advice_code: self
                 .first_payment_attempt_network_advice_code,
             first_payment_attempt_network_decline_code: self
@@ -351,8 +359,6 @@ impl ApiModelToDieselModelConvertor<ApiRevenueRecoveryMetadata> for PaymentReven
         }
     }
 }
-
-
 
 #[cfg(feature = "v2")]
 impl ApiModelToDieselModelConvertor<ApiBillingConnectorPaymentDetails>
