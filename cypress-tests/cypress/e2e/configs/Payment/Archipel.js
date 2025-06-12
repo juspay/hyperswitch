@@ -1,7 +1,8 @@
-import { customerAcceptance,
+import {
+  customerAcceptance,
   singleUseMandateData,
-  multiUseMandateData
- } from "./Commons.js";
+  multiUseMandateData,
+} from "./Commons.js";
 
 const successfulNo3DSCardDetails = {
   card_number: "5185570141917102",
@@ -27,7 +28,7 @@ const billingDetails = {
     number: "9123456789",
     country_code: "+91",
   },
-}
+};
 
 const paymentMethodDataNo3DSResponse = {
   card: {
