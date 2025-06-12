@@ -74,6 +74,7 @@ pub struct Profile {
     pub is_iframe_redirection_enabled: Option<bool>,
     pub is_pre_network_tokenization_enabled: Option<bool>,
     pub three_ds_decision_rule_algorithm: Option<serde_json::Value>,
+    pub acquirer_config_map: Option<common_types::domain::AcquirerConfigMap>,
     pub merchant_category_code: Option<common_enums::MerchantCategoryCode>,
 }
 
@@ -185,6 +186,7 @@ pub struct ProfileUpdateInternal {
     pub is_iframe_redirection_enabled: Option<bool>,
     pub is_pre_network_tokenization_enabled: Option<bool>,
     pub three_ds_decision_rule_algorithm: Option<serde_json::Value>,
+    pub acquirer_config_map: Option<common_types::domain::AcquirerConfigMap>,
     pub merchant_category_code: Option<common_enums::MerchantCategoryCode>,
 }
 
@@ -237,6 +239,7 @@ impl ProfileUpdateInternal {
             is_iframe_redirection_enabled,
             is_pre_network_tokenization_enabled,
             three_ds_decision_rule_algorithm,
+            acquirer_config_map,
             merchant_category_code,
         } = self;
         Profile {
@@ -320,6 +323,7 @@ impl ProfileUpdateInternal {
                 .or(source.is_pre_network_tokenization_enabled),
             three_ds_decision_rule_algorithm: three_ds_decision_rule_algorithm
                 .or(source.three_ds_decision_rule_algorithm),
+            acquirer_config_map: acquirer_config_map.or(source.acquirer_config_map),
             merchant_category_code: merchant_category_code.or(source.merchant_category_code),
         }
     }
@@ -381,6 +385,7 @@ pub struct Profile {
     pub id: common_utils::id_type::ProfileId,
     pub is_iframe_redirection_enabled: Option<bool>,
     pub three_ds_decision_rule_algorithm: Option<serde_json::Value>,
+    pub acquirer_config_map: Option<common_types::domain::AcquirerConfigMap>,
     pub merchant_category_code: Option<common_enums::MerchantCategoryCode>,
     pub routing_algorithm_id: Option<common_utils::id_type::RoutingId>,
     pub order_fulfillment_time: Option<i64>,
@@ -674,6 +679,7 @@ impl ProfileUpdateInternal {
             external_vault_connector_details: external_vault_connector_details
                 .or(source.external_vault_connector_details),
             three_ds_decision_rule_algorithm: None,
+            acquirer_config_map: None,
             merchant_category_code: merchant_category_code.or(source.merchant_category_code),
         }
     }

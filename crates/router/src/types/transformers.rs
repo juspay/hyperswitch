@@ -80,10 +80,7 @@ impl ForeignFrom<api_models::refunds::RefundType> for storage_enums::RefundType 
     }
 }
 
-#[cfg(all(
-    any(feature = "v1", feature = "v2"),
-    not(feature = "payment_methods_v2")
-))]
+#[cfg(feature = "v1")]
 impl
     ForeignFrom<(
         Option<payment_methods::CardDetailFromLocker>,
@@ -116,7 +113,7 @@ impl
     }
 }
 
-#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+#[cfg(feature = "v2")]
 impl
     ForeignFrom<(
         Option<payment_methods::CardDetailFromLocker>,
@@ -1905,14 +1902,14 @@ impl ForeignFrom<storage::GatewayStatusMap> for gsm_api_types::GsmResponse {
     }
 }
 
-#[cfg(all(feature = "v2", feature = "customer_v2"))]
+#[cfg(feature = "v2")]
 impl ForeignFrom<&domain::Customer> for payments::CustomerDetailsResponse {
     fn foreign_from(_customer: &domain::Customer) -> Self {
         todo!()
     }
 }
 
-#[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
+#[cfg(feature = "v1")]
 impl ForeignFrom<&domain::Customer> for payments::CustomerDetailsResponse {
     fn foreign_from(customer: &domain::Customer) -> Self {
         Self {

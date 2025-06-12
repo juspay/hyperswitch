@@ -2435,6 +2435,10 @@ pub struct ProfileResponse {
     #[schema(default = false, example = false)]
     pub is_pre_network_tokenization_enabled: bool,
 
+    /// Acquirer configs
+    #[schema(value_type = Option<AcquirerConfigMap>)]
+    pub acquirer_configs: Option<common_types::domain::AcquirerConfigMap>,
+
     /// Indicates if the redirection has to open in the iframe
     #[schema(example = false)]
     pub is_iframe_redirection_enabled: Option<bool>,
