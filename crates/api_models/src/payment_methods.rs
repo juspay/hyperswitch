@@ -1,5 +1,5 @@
 use std::collections::{HashMap, HashSet};
-#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+#[cfg(feature = "v2")]
 use std::str::FromStr;
 
 use cards::CardNumber;
@@ -24,10 +24,7 @@ use crate::{
     payments::{self, BankCodeResponse},
 };
 
-#[cfg(all(
-    any(feature = "v1", feature = "v2"),
-    not(feature = "payment_methods_v2")
-))]
+#[cfg(feature = "v1")]
 #[derive(Debug, serde::Deserialize, serde::Serialize, Clone, ToSchema)]
 #[serde(deny_unknown_fields)]
 pub struct PaymentMethodCreate {
@@ -104,7 +101,7 @@ pub struct PaymentMethodCreate {
     pub network_transaction_id: Option<String>,
 }
 
-#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+#[cfg(feature = "v2")]
 #[derive(Debug, serde::Deserialize, serde::Serialize, Clone, ToSchema)]
 #[serde(deny_unknown_fields)]
 pub struct PaymentMethodCreate {
@@ -145,7 +142,7 @@ pub struct PaymentMethodCreate {
     pub network_tokenization: Option<common_types::payment_methods::NetworkTokenization>,
 }
 
-#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+#[cfg(feature = "v2")]
 #[derive(Debug, serde::Deserialize, serde::Serialize, Clone, ToSchema)]
 #[serde(deny_unknown_fields)]
 pub struct PaymentMethodIntentCreate {
@@ -167,7 +164,7 @@ pub struct PaymentMethodIntentCreate {
     pub customer_id: id_type::GlobalCustomerId,
 }
 
-#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+#[cfg(feature = "v2")]
 #[derive(Debug, serde::Deserialize, serde::Serialize, Clone, ToSchema)]
 #[serde(deny_unknown_fields)]
 pub struct PaymentMethodIntentConfirm {
@@ -187,7 +184,7 @@ pub struct PaymentMethodIntentConfirm {
     pub payment_method_subtype: api_enums::PaymentMethodType,
 }
 
-#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+#[cfg(feature = "v2")]
 impl PaymentMethodIntentConfirm {
     pub fn validate_payment_method_data_against_payment_method(
         payment_method_type: api_enums::PaymentMethod,
@@ -203,14 +200,14 @@ impl PaymentMethodIntentConfirm {
 }
 
 /// This struct is used internally only
-#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+#[cfg(feature = "v2")]
 #[derive(Debug, serde::Deserialize, serde::Serialize, Clone)]
 pub struct PaymentMethodIntentConfirmInternal {
     pub id: id_type::GlobalPaymentMethodId,
     pub request: PaymentMethodIntentConfirm,
 }
 
-#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+#[cfg(feature = "v2")]
 impl From<PaymentMethodIntentConfirmInternal> for PaymentMethodIntentConfirm {
     fn from(item: PaymentMethodIntentConfirmInternal) -> Self {
         item.request
@@ -387,10 +384,7 @@ where
     }))
 }
 
-#[cfg(all(
-    any(feature = "v1", feature = "v2"),
-    not(feature = "payment_methods_v2")
-))]
+#[cfg(feature = "v1")]
 impl PaymentMethodCreate {
     pub fn get_payment_method_create_from_payment_method_migrate(
         card_number: CardNumber,
@@ -439,7 +433,7 @@ impl PaymentMethodCreate {
     }
 }
 
-#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+#[cfg(feature = "v2")]
 impl PaymentMethodCreate {
     pub fn validate_payment_method_data_against_payment_method(
         payment_method_type: api_enums::PaymentMethod,
@@ -463,10 +457,7 @@ impl PaymentMethodCreate {
     }
 }
 
-#[cfg(all(
-    any(feature = "v1", feature = "v2"),
-    not(feature = "payment_methods_v2")
-))]
+#[cfg(feature = "v1")]
 #[derive(Debug, serde::Deserialize, serde::Serialize, Clone, ToSchema)]
 #[serde(deny_unknown_fields)]
 pub struct PaymentMethodUpdate {
@@ -483,7 +474,7 @@ pub struct PaymentMethodUpdate {
     pub client_secret: Option<String>,
 }
 
-#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+#[cfg(feature = "v2")]
 #[derive(Debug, serde::Deserialize, serde::Serialize, Clone, ToSchema)]
 #[serde(deny_unknown_fields)]
 pub struct PaymentMethodUpdate {
@@ -494,7 +485,7 @@ pub struct PaymentMethodUpdate {
     pub connector_token_details: Option<ConnectorTokenDetails>,
 }
 
-#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+#[cfg(feature = "v2")]
 #[derive(Debug, serde::Deserialize, serde::Serialize, Clone, ToSchema)]
 #[serde(deny_unknown_fields)]
 #[serde(rename_all = "snake_case")]
@@ -503,7 +494,7 @@ pub enum PaymentMethodUpdateData {
     Card(CardDetailUpdate),
 }
 
-#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+#[cfg(feature = "v2")]
 #[derive(Debug, serde::Deserialize, serde::Serialize, Clone, ToSchema)]
 #[serde(deny_unknown_fields)]
 #[serde(rename_all = "snake_case")]
@@ -512,10 +503,7 @@ pub enum PaymentMethodCreateData {
     Card(CardDetail),
 }
 
-#[cfg(all(
-    any(feature = "v1", feature = "v2"),
-    not(feature = "payment_methods_v2")
-))]
+#[cfg(feature = "v1")]
 #[derive(Debug, serde::Deserialize, serde::Serialize, Clone, ToSchema)]
 #[serde(deny_unknown_fields)]
 #[serde(rename_all = "snake_case")]
@@ -524,10 +512,7 @@ pub enum PaymentMethodCreateData {
     Card(CardDetail),
 }
 
-#[cfg(all(
-    any(feature = "v1", feature = "v2"),
-    not(feature = "payment_methods_v2")
-))]
+#[cfg(feature = "v1")]
 #[derive(Debug, serde::Deserialize, serde::Serialize, Clone, ToSchema)]
 #[serde(deny_unknown_fields)]
 pub struct CardDetail {
@@ -587,7 +572,7 @@ pub enum CardType {
 // but when vaulting the card, we do not need cvc to be collected from the user
 // This is because, the vaulted payment method can be used for future transactions in the presence of the customer
 // when the customer is on_session again, the cvc can be collected from the customer
-#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+#[cfg(feature = "v2")]
 #[derive(Debug, serde::Deserialize, serde::Serialize, Clone, ToSchema)]
 #[serde(deny_unknown_fields)]
 pub struct CardDetail {
@@ -715,10 +700,7 @@ pub struct MigrateNetworkTokenDetail {
     pub network_token_requestor_ref_id: String,
 }
 
-#[cfg(all(
-    any(feature = "v1", feature = "v2"),
-    not(feature = "payment_methods_v2")
-))]
+#[cfg(feature = "v1")]
 #[derive(Debug, serde::Deserialize, serde::Serialize, Clone, ToSchema)]
 #[serde(deny_unknown_fields)]
 pub struct CardDetailUpdate {
@@ -739,10 +721,7 @@ pub struct CardDetailUpdate {
     pub nick_name: Option<masking::Secret<String>>,
 }
 
-#[cfg(all(
-    any(feature = "v1", feature = "v2"),
-    not(feature = "payment_methods_v2")
-))]
+#[cfg(feature = "v1")]
 impl CardDetailUpdate {
     pub fn apply(&self, card_data_from_locker: Card) -> CardDetail {
         CardDetail {
@@ -771,7 +750,7 @@ impl CardDetailUpdate {
     }
 }
 
-#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+#[cfg(feature = "v2")]
 #[derive(Debug, serde::Deserialize, serde::Serialize, Clone, ToSchema)]
 #[serde(deny_unknown_fields)]
 pub struct CardDetailUpdate {
@@ -784,7 +763,7 @@ pub struct CardDetailUpdate {
     pub nick_name: Option<masking::Secret<String>>,
 }
 
-#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+#[cfg(feature = "v2")]
 impl CardDetailUpdate {
     pub fn apply(&self, card_data_from_locker: Card) -> CardDetail {
         CardDetail {
@@ -808,7 +787,7 @@ impl CardDetailUpdate {
     }
 }
 
-#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+#[cfg(feature = "v2")]
 #[derive(Debug, serde::Deserialize, serde::Serialize, Clone, ToSchema)]
 #[serde(deny_unknown_fields)]
 #[serde(rename_all = "snake_case")]
@@ -817,10 +796,7 @@ pub enum PaymentMethodResponseData {
     Card(CardDetailFromLocker),
 }
 
-#[cfg(all(
-    any(feature = "v1", feature = "v2"),
-    not(feature = "payment_methods_v2")
-))]
+#[cfg(feature = "v1")]
 #[derive(Debug, serde::Deserialize, serde::Serialize, ToSchema)]
 pub struct PaymentMethodResponse {
     /// Unique identifier for a merchant
@@ -882,7 +858,7 @@ pub struct PaymentMethodResponse {
     pub client_secret: Option<String>,
 }
 
-#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+#[cfg(feature = "v2")]
 #[derive(Debug, serde::Deserialize, serde::Serialize, ToSchema, Clone)]
 pub struct ConnectorTokenDetails {
     /// The unique identifier of the connector account through which the token was generated
@@ -912,7 +888,8 @@ pub struct ConnectorTokenDetails {
     /// The value of the connector token. This token can be used to make merchant initiated payments ( MIT ), directly with the connector.
     pub token: masking::Secret<String>,
 }
-#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+
+#[cfg(feature = "v2")]
 #[derive(Debug, serde::Serialize, serde::Deserialize, ToSchema, Clone)]
 pub struct PaymentMethodResponse {
     /// The unique identifier of the Payment method
@@ -1089,10 +1066,7 @@ pub struct Card {
     pub nick_name: Option<String>,
 }
 
-#[cfg(all(
-    any(feature = "v1", feature = "v2"),
-    not(feature = "payment_methods_v2")
-))]
+#[cfg(feature = "v1")]
 #[derive(Debug, serde::Deserialize, serde::Serialize, Clone, ToSchema)]
 pub struct CardDetailFromLocker {
     pub scheme: Option<String>,
@@ -1129,7 +1103,7 @@ pub struct CardDetailFromLocker {
     pub saved_to_locker: bool,
 }
 
-#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+#[cfg(feature = "v2")]
 #[derive(Debug, serde::Deserialize, serde::Serialize, Clone, ToSchema)]
 pub struct CardDetailFromLocker {
     #[schema(value_type = Option<CountryAlpha2>)]
@@ -1163,7 +1137,7 @@ pub struct CardDetailFromLocker {
     pub saved_to_locker: bool,
 }
 
-#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+#[cfg(feature = "v2")]
 #[derive(Debug, serde::Deserialize, serde::Serialize, Clone, ToSchema)]
 pub struct NetworkTokenResponse {
     pub payment_method_data: NetworkTokenDetailsPaymentMethod,
@@ -1173,10 +1147,7 @@ fn saved_in_locker_default() -> bool {
     true
 }
 
-#[cfg(all(
-    any(feature = "v1", feature = "v2"),
-    not(feature = "payment_methods_v2")
-))]
+#[cfg(feature = "v1")]
 impl From<CardDetailFromLocker> for payments::AdditionalCardInfo {
     fn from(item: CardDetailFromLocker) -> Self {
         Self {
@@ -1199,7 +1170,7 @@ impl From<CardDetailFromLocker> for payments::AdditionalCardInfo {
     }
 }
 
-#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+#[cfg(feature = "v2")]
 impl From<CardDetailFromLocker> for payments::AdditionalCardInfo {
     fn from(item: CardDetailFromLocker) -> Self {
         Self {
@@ -1232,10 +1203,7 @@ pub struct PaymentMethodListResponseForSession {
     pub customer_payment_methods: Vec<CustomerPaymentMethodResponseItem>,
 }
 
-#[cfg(all(
-    any(feature = "v1", feature = "v2"),
-    not(feature = "payment_methods_v2")
-))]
+#[cfg(feature = "v1")]
 impl From<CardDetailsPaymentMethod> for CardDetailFromLocker {
     fn from(item: CardDetailsPaymentMethod) -> Self {
         Self {
@@ -1258,7 +1226,7 @@ impl From<CardDetailsPaymentMethod> for CardDetailFromLocker {
     }
 }
 
-#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+#[cfg(feature = "v2")]
 impl From<CardDetailsPaymentMethod> for CardDetailFromLocker {
     fn from(item: CardDetailsPaymentMethod) -> Self {
         Self {
@@ -1285,7 +1253,7 @@ impl From<CardDetailsPaymentMethod> for CardDetailFromLocker {
     }
 }
 
-#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+#[cfg(feature = "v2")]
 impl From<CardDetail> for CardDetailFromLocker {
     fn from(item: CardDetail) -> Self {
         Self {
@@ -1306,7 +1274,7 @@ impl From<CardDetail> for CardDetailFromLocker {
     }
 }
 
-#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+#[cfg(feature = "v2")]
 impl From<CardDetail> for CardDetailsPaymentMethod {
     fn from(item: CardDetail) -> Self {
         Self {
@@ -1326,10 +1294,7 @@ impl From<CardDetail> for CardDetailsPaymentMethod {
     }
 }
 
-#[cfg(all(
-    any(feature = "v1", feature = "v2"),
-    not(feature = "payment_methods_v2")
-))]
+#[cfg(feature = "v1")]
 impl From<(CardDetailFromLocker, Option<&CoBadgedCardData>)> for CardDetailsPaymentMethod {
     fn from(
         (item, co_badged_card_data): (CardDetailFromLocker, Option<&CoBadgedCardData>),
@@ -1351,7 +1316,7 @@ impl From<(CardDetailFromLocker, Option<&CoBadgedCardData>)> for CardDetailsPaym
     }
 }
 
-#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+#[cfg(feature = "v2")]
 impl From<CardDetailFromLocker> for CardDetailsPaymentMethod {
     fn from(item: CardDetailFromLocker) -> Self {
         Self {
@@ -1401,10 +1366,7 @@ pub struct BankDebitTypes {
     pub eligible_connectors: Vec<String>,
 }
 
-#[cfg(all(
-    any(feature = "v1", feature = "v2"),
-    not(feature = "payment_methods_v2")
-))]
+#[cfg(feature = "v1")]
 #[derive(Debug, Clone, serde::Serialize, ToSchema, PartialEq)]
 pub struct ResponsePaymentMethodTypes {
     /// The payment method type enabled
@@ -1436,7 +1398,7 @@ pub struct ResponsePaymentMethodTypes {
     pub pm_auth_connector: Option<String>,
 }
 
-#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+#[cfg(feature = "v2")]
 #[derive(Debug, Clone, serde::Serialize, ToSchema, PartialEq)]
 #[serde(untagged)] // Untagged used for serialization only
 pub enum PaymentMethodSubtypeSpecificData {
@@ -1448,7 +1410,7 @@ pub enum PaymentMethodSubtypeSpecificData {
     Bank { bank_names: Vec<BankCodeResponse> },
 }
 
-#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+#[cfg(feature = "v2")]
 #[derive(Debug, Clone, serde::Serialize, ToSchema, PartialEq)]
 pub struct ResponsePaymentMethodTypes {
     /// The payment method type enabled
@@ -1626,10 +1588,7 @@ impl RequestPaymentMethodTypes {
     }
 }
 
-#[cfg(all(
-    any(feature = "v1", feature = "v2"),
-    not(feature = "payment_methods_v2")
-))]
+#[cfg(feature = "v1")]
 //List Payment Method
 #[derive(Debug, Clone, serde::Serialize, Default, ToSchema)]
 #[serde(deny_unknown_fields)]
@@ -1667,10 +1626,7 @@ pub struct PaymentMethodListRequest {
     pub limit: Option<i64>,
 }
 
-#[cfg(all(
-    any(feature = "v1", feature = "v2"),
-    not(feature = "payment_methods_v2")
-))]
+#[cfg(feature = "v1")]
 impl<'de> serde::Deserialize<'de> for PaymentMethodListRequest {
     fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
     where
@@ -1752,7 +1708,7 @@ impl<'de> serde::Deserialize<'de> for PaymentMethodListRequest {
     }
 }
 
-#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+#[cfg(feature = "v2")]
 //List Payment Method
 #[derive(Debug, Clone, serde::Serialize, Default, ToSchema)]
 #[serde(deny_unknown_fields)]
@@ -1786,7 +1742,7 @@ pub struct PaymentMethodListRequest {
     pub limit: Option<i64>,
 }
 
-#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+#[cfg(feature = "v2")]
 impl<'de> serde::Deserialize<'de> for PaymentMethodListRequest {
     fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
     where
@@ -1917,10 +1873,7 @@ pub struct PaymentMethodListResponse {
     pub is_tax_calculation_enabled: bool,
 }
 
-#[cfg(all(
-    any(feature = "v2", feature = "v1"),
-    not(feature = "payment_methods_v2")
-))]
+#[cfg(feature = "v1")]
 #[derive(Debug, serde::Serialize, ToSchema)]
 pub struct CustomerPaymentMethodsListResponse {
     /// List of payment methods for customer
@@ -1930,14 +1883,14 @@ pub struct CustomerPaymentMethodsListResponse {
 }
 
 // OLAP PML Response
-#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+#[cfg(feature = "v2")]
 #[derive(Debug, serde::Serialize, ToSchema)]
 pub struct CustomerPaymentMethodsListResponse {
     /// List of payment methods for customer
     pub customer_payment_methods: Vec<PaymentMethodResponseItem>,
 }
 
-#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+#[cfg(feature = "v2")]
 #[derive(Debug, Clone, serde::Deserialize, serde::Serialize, ToSchema)]
 #[serde(deny_unknown_fields)]
 pub struct GetTokenDataRequest {
@@ -1945,10 +1898,10 @@ pub struct GetTokenDataRequest {
     pub token_type: api_enums::TokenDataType,
 }
 
-#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+#[cfg(feature = "v2")]
 impl common_utils::events::ApiEventMetric for GetTokenDataRequest {}
 
-#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+#[cfg(feature = "v2")]
 #[derive(Debug, serde::Serialize, ToSchema)]
 pub struct TokenDataResponse {
     /// The unique identifier of the payment method.
@@ -1963,17 +1916,17 @@ pub struct TokenDataResponse {
     pub token_details: TokenDetailsResponse,
 }
 
-#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+#[cfg(feature = "v2")]
 impl common_utils::events::ApiEventMetric for TokenDataResponse {}
 
-#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+#[cfg(feature = "v2")]
 #[derive(Debug, serde::Serialize, ToSchema)]
 #[serde(untagged)]
 pub enum TokenDetailsResponse {
     NetworkTokenDetails(NetworkTokenDetailsResponse),
 }
 
-#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+#[cfg(feature = "v2")]
 #[derive(Debug, serde::Serialize, ToSchema)]
 pub struct NetworkTokenDetailsResponse {
     /// Network token generated against the Card Number
@@ -2021,20 +1974,17 @@ pub struct NetworkTokenDetailsResponse {
     pub eci: Option<String>,
 }
 
-#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+#[cfg(feature = "v2")]
 #[derive(Debug, serde::Serialize, ToSchema)]
 pub struct TotalPaymentMethodCountResponse {
     /// total count of payment methods under the merchant
     pub total_count: i64,
 }
 
-#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+#[cfg(feature = "v2")]
 impl common_utils::events::ApiEventMetric for TotalPaymentMethodCountResponse {}
 
-#[cfg(all(
-    any(feature = "v2", feature = "v1"),
-    not(feature = "payment_methods_v2")
-))]
+#[cfg(feature = "v1")]
 #[derive(Debug, serde::Serialize, ToSchema)]
 pub struct PaymentMethodDeleteResponse {
     /// The unique identifier of the Payment method
@@ -2046,7 +1996,7 @@ pub struct PaymentMethodDeleteResponse {
     pub deleted: bool,
 }
 
-#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+#[cfg(feature = "v2")]
 #[derive(Debug, serde::Serialize, ToSchema)]
 pub struct PaymentMethodDeleteResponse {
     /// The unique identifier of the Payment method
@@ -2071,7 +2021,7 @@ pub struct CustomerDefaultPaymentMethodResponse {
     pub payment_method_type: Option<api_enums::PaymentMethodType>,
 }
 
-#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+#[cfg(feature = "v2")]
 #[derive(Debug, Clone, serde::Serialize, ToSchema)]
 pub struct PaymentMethodResponseItem {
     /// The unique identifier of the payment method.
@@ -2136,7 +2086,7 @@ pub struct PaymentMethodResponseItem {
     pub psp_tokenization_enabled: bool,
 }
 
-#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+#[cfg(feature = "v2")]
 #[derive(Debug, Clone, serde::Serialize, ToSchema)]
 pub struct CustomerPaymentMethodResponseItem {
     /// The unique identifier of the payment method.
@@ -2198,7 +2148,7 @@ pub struct CustomerPaymentMethodResponseItem {
     pub billing: Option<payments::Address>,
 }
 
-#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+#[cfg(feature = "v2")]
 #[derive(Debug, Clone, serde::Serialize, ToSchema)]
 #[serde(rename_all = "snake_case")]
 pub enum PaymentMethodListData {
@@ -2208,10 +2158,7 @@ pub enum PaymentMethodListData {
     Bank(payouts::Bank),
 }
 
-#[cfg(all(
-    any(feature = "v2", feature = "v1"),
-    not(feature = "payment_methods_v2")
-))]
+#[cfg(feature = "v1")]
 #[derive(Debug, Clone, serde::Serialize, ToSchema)]
 pub struct CustomerPaymentMethod {
     /// Token for payment method in temporary card locker which gets refreshed often
@@ -2602,19 +2549,13 @@ pub enum MigrationStatus {
     Failed,
 }
 
-#[cfg(all(
-    any(feature = "v2", feature = "v1"),
-    not(feature = "payment_methods_v2")
-))]
+#[cfg(feature = "v1")]
 type PaymentMethodMigrationResponseType = (
     Result<PaymentMethodMigrateResponse, String>,
     PaymentMethodRecord,
 );
 
-#[cfg(all(
-    any(feature = "v2", feature = "v1"),
-    not(feature = "payment_methods_v2")
-))]
+#[cfg(feature = "v1")]
 impl From<PaymentMethodMigrationResponseType> for PaymentMethodMigrationResponse {
     fn from((response, record): PaymentMethodMigrationResponseType) -> Self {
         match response {
@@ -2748,7 +2689,7 @@ impl
     }
 }
 
-#[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
+#[cfg(feature = "v1")]
 impl From<(PaymentMethodRecord, id_type::MerchantId)> for PaymentMethodCustomerMigrate {
     fn from(value: (PaymentMethodRecord, id_type::MerchantId)) -> Self {
         let (record, merchant_id) = value;

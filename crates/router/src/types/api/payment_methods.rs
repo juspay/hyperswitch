@@ -1,4 +1,4 @@
-#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+#[cfg(feature = "v2")]
 pub use api_models::payment_methods::{
     CardDetail, CardDetailFromLocker, CardDetailsPaymentMethod, CardNetworkTokenizeRequest,
     CardNetworkTokenizeResponse, CardType, ConnectorCustomerDetails,
@@ -15,10 +15,7 @@ pub use api_models::payment_methods::{
     TokenizedCardValue2, TokenizedWalletValue1, TokenizedWalletValue2,
     TotalPaymentMethodCountResponse,
 };
-#[cfg(all(
-    any(feature = "v2", feature = "v1"),
-    not(feature = "payment_methods_v2")
-))]
+#[cfg(feature = "v1")]
 pub use api_models::payment_methods::{
     CardDetail, CardDetailFromLocker, CardDetailsPaymentMethod, CardNetworkTokenizeRequest,
     CardNetworkTokenizeResponse, ConnectorCustomerDetails, CustomerPaymentMethod,
@@ -39,7 +36,7 @@ use crate::core::{
     errors::{self, RouterResult},
     payments::helpers::validate_payment_method_type_against_payment_method,
 };
-#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+#[cfg(feature = "v2")]
 use crate::utils;
 
 pub(crate) trait PaymentMethodCreateExt {
@@ -47,10 +44,7 @@ pub(crate) trait PaymentMethodCreateExt {
 }
 
 // convert self.payment_method_type to payment_method and compare it against self.payment_method
-#[cfg(all(
-    any(feature = "v2", feature = "v1"),
-    not(feature = "payment_methods_v2")
-))]
+#[cfg(feature = "v1")]
 impl PaymentMethodCreateExt for PaymentMethodCreate {
     fn validate(&self) -> RouterResult<()> {
         if let Some(pm) = self.payment_method {
@@ -67,7 +61,7 @@ impl PaymentMethodCreateExt for PaymentMethodCreate {
     }
 }
 
-#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+#[cfg(feature = "v2")]
 impl PaymentMethodCreateExt for PaymentMethodCreate {
     fn validate(&self) -> RouterResult<()> {
         utils::when(
@@ -99,7 +93,7 @@ impl PaymentMethodCreateExt for PaymentMethodCreate {
     }
 }
 
-#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+#[cfg(feature = "v2")]
 impl PaymentMethodCreateExt for PaymentMethodIntentConfirm {
     fn validate(&self) -> RouterResult<()> {
         utils::when(
