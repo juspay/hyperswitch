@@ -1,7 +1,6 @@
 //! Secrets management util module
 
 use common_utils::errors::CustomResult;
-#[cfg(feature = "hashicorp-vault")]
 use error_stack::ResultExt;
 use hyperswitch_interfaces::secrets_interface::{
     SecretManagementInterface, SecretsManagementError,
@@ -11,6 +10,8 @@ use hyperswitch_interfaces::secrets_interface::{
 use crate::aws_kms;
 #[cfg(feature = "hashicorp-vault")]
 use crate::hashicorp_vault;
+#[cfg(feature = "gcp_kms")]
+use crate::gcp_kms;
 use crate::no_encryption::core::NoEncryption;
 
 /// Enum representing configuration options for secrets management.
@@ -32,6 +33,13 @@ pub enum SecretsManagementConfig {
         hc_vault: hashicorp_vault::core::HashiCorpVaultConfig,
     },
 
+    /// Google Cloud KMS configuration
+    #[cfg(feature = "gcp_kms")]
+    GcpKms {
+        /// GCP KMS config
+        gcp_kms: gcp_kms::core::GcpKmsConfig,
+    },
+
     /// Variant representing no encryption
     #[default]
     NoEncryption,
@@ -45,6 +53,8 @@ impl SecretsManagementConfig {
             Self::AwsKms { aws_kms } => aws_kms.validate(),
             #[cfg(feature = "hashicorp-vault")]
             Self::HashiCorpVault { hc_vault } => hc_vault.validate(),
+            #[cfg(feature = "gcp_kms")]
+            Self::GcpKms { gcp_kms } => gcp_kms.validate(),
             Self::NoEncryption => Ok(()),
         }
     }
@@ -63,6 +73,10 @@ impl SecretsManagementConfig {
                 hashicorp_vault::core::HashiCorpVault::new(hc_vault)
                     .change_context(SecretsManagementError::ClientCreationFailed)
                     .map(|inner| -> Box<dyn SecretManagementInterface> { Box::new(inner) })
+            }
+            #[cfg(feature = "gcp_kms")]
+            Self::GcpKms { gcp_kms } => {
+                Ok(Box::new(gcp_kms::core::GcpKmsClient::new(gcp_kms).await.change_context(SecretsManagementError::ClientCreationFailed)?))
             }
             Self::NoEncryption => Ok(Box::new(NoEncryption)),
         }

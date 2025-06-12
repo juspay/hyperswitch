@@ -9,6 +9,7 @@ license.workspace = true
 
 [features]
 aws_kms = ["dep:aws-config", "dep:aws-sdk-kms"]
+gcp_kms = ["dep:google-cloud-kms", "dep:tonic"]
 email = ["dep:aws-config"]
 aws_s3 = ["dep:aws-config", "dep:aws-sdk-s3"]
 hashicorp-vault = ["dep:vaultrs"]
@@ -36,6 +37,7 @@ aws-sdk-sts = "1.51.0"
 aws-sdk-s3 = { version = "1.65.0", optional = true }
 aws-smithy-runtime = "1.8.3"
 base64 = "0.22.1"
+google-cloud-kms = { version = "0.6.0", optional = true, features = ["auth"] }
 dyn-clone = "1.0.19"
 error-stack = "0.4.1"
 hex = "0.4.3"
