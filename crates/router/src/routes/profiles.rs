@@ -26,7 +26,7 @@ pub async fn profile_create(
         &req,
         payload,
         |state, auth_data, req, _| {
-            let merchant_context = auth_data.clone().into();
+            let merchant_context = auth_data.into();
             create_profile(state, req, merchant_context)
         },
         auth::auth_type(
@@ -58,7 +58,7 @@ pub async fn profile_create(
         &req,
         payload,
         |state, auth_data: auth::AuthenticationData, req, _| {
-            let merchant_context = auth_data.clone().into();
+            let merchant_context = auth_data.into();
             create_profile(state, req, merchant_context)
         },
         auth::auth_type(

@@ -541,7 +541,7 @@ pub async fn connector_create(
         &req,
         payload,
         |state, auth_data: auth::AuthenticationData, req, _| {
-            let merchant_context = auth_data.clone().into();
+            let merchant_context = auth_data.into();
             create_connector(state, req, merchant_context, None)
         },
         auth::auth_type(

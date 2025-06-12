@@ -4005,7 +4005,7 @@ impl ProfileCreateBridge for api::ProfileCreate {
             #[cfg(not(feature = "payouts"))]
             payout_routing_algorithm: None,
             is_recon_enabled: merchant_context
-                .get_owner_merchant_account()
+                .get_processor_merchant_account()
                 .is_recon_enabled,
             applepay_verified_domains: self.applepay_verified_domains,
             payment_link_config,

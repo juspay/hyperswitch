@@ -2598,8 +2598,8 @@ pub async fn payments_start_redirection(
         state,
         &req,
         payment_start_redirection_request.clone(),
-        |state, auth_data: auth::AuthenticationData, _req, req_state| async {
-            let merchant_context = auth_data.into();
+        |state, auth: auth::AuthenticationData, _req, req_state| async {
+            let merchant_context = auth.into();
             payments::payment_start_redirection(
                 state,
                 merchant_context,

@@ -212,7 +212,7 @@ where
                     &state.into(),
                     &profile_id,
                     &frm_routing_algorithm_struct.data,
-                    merchant_context.get_processor_merchant_key_store(),
+                    merchant_context.get_owner_merchant_key_store(),
                 )
                 .await
                 .map_err(|error| {

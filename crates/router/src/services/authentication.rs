@@ -18,7 +18,7 @@ use common_utils::{date_time, fp_utils, id_type};
 use diesel_models::ephemeral_key;
 use error_stack::{report, ResultExt};
 use hyperswitch_domain_models::merchant_context::{
-    Context, MerchantContext, PlatformConnectedAccountContext,
+    Context, MerchantContext, PlatformAndConnectedMerchantContext,
 };
 use jsonwebtoken::{decode, Algorithm, DecodingKey, Validation};
 #[cfg(feature = "v2")]
@@ -86,30 +86,11 @@ pub struct AuthenticationData {
     pub profile: domain::Profile,
 }
 
-#[cfg(feature = "v1")]
 impl From<AuthenticationData> for MerchantContext {
     fn from(val: AuthenticationData) -> Self {
         match val.platform_account_context {
             Some(platform_context) => {
-                Self::PlatformConnectedAccount(Box::new(PlatformConnectedAccountContext {
-                    platform_account_context: Context(
-                        platform_context.platform_account,
-                        platform_context.key_store,
-                    ),
-                    connected_account_context: Context(val.merchant_account, val.key_store),
-                }))
-            }
-            None => Self::StandardMerchant(Box::new(Context(val.merchant_account, val.key_store))),
-        }
-    }
-}
-
-#[cfg(feature = "v2")]
-impl From<AuthenticationData> for MerchantContext {
-    fn from(val: AuthenticationData) -> Self {
-        match val.platform_account_context {
-            Some(platform_context) => {
-                Self::PlatformConnectedAccount(Box::new(PlatformConnectedAccountContext {
+                Self::PlatformAndConnectedMerchant(Box::new(PlatformAndConnectedMerchantContext {
                     platform_account_context: Context(
                         platform_context.platform_account,
                         platform_context.key_store,
@@ -954,7 +935,6 @@ where
                 platform_account: merchant_account.clone(),
                 key_store: key_store.clone(),
             }),
-            // platform_merchant_account: Some(merchant_account.clone()),
             key_store,
             profile_id: None,
         };

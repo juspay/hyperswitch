@@ -226,7 +226,7 @@ pub async fn relay<T: RelayInterface>(
 ) -> RouterResponse<relay_api_models::RelayResponse> {
     let db = state.store.as_ref();
     let key_manager_state = &(&state).into();
-    let merchant_id = merchant_context.get_owner_merchant_account().get_id();
+    let merchant_id = merchant_context.get_processor_merchant_account().get_id();
     let connector_id = &req.connector_id;
 
     let profile_id_from_auth_layer = profile_id_optional.get_required_value("ProfileId")?;
@@ -317,7 +317,7 @@ pub async fn relay_retrieve(
 ) -> RouterResponse<relay_api_models::RelayResponse> {
     let db = state.store.as_ref();
     let key_manager_state = &(&state).into();
-    let merchant_id = merchant_context.get_owner_merchant_account().get_id();
+    let merchant_id = merchant_context.get_processor_merchant_account().get_id();
     let relay_id = &req.id;
 
     let profile_id_from_auth_layer = profile_id_optional.get_required_value("ProfileId")?;
