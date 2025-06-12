@@ -102,6 +102,23 @@ pub mod pii {
     pub use masking::*;
 }
 
+/// Constructs and configures an Actix-web application with middleware and route services based on enabled features.
+///
+/// The returned application includes JSON payload configuration, error handling, and middleware for CORS, request IDs, metrics, and tracing. Route services are registered conditionally according to compile-time feature flags and API versioning, enabling modular support for payments, customers, webhooks, analytics, Stripe APIs, reconciliation, trainers, and more.
+///
+/// # Parameters
+/// - `state`: Shared application state used by route handlers.
+/// - `request_body_limit`: Maximum allowed size for incoming JSON request bodies, in bytes.
+///
+/// # Returns
+/// An Actix-web `App` instance ready for use in an HTTP server.
+///
+/// # Examples
+///
+/// ```
+/// let app_state = AppState::new(config);
+/// let app = mk_app(app_state, 1024 * 1024);
+/// ```
 pub fn mk_app(
     state: AppState,
     request_body_limit: usize,

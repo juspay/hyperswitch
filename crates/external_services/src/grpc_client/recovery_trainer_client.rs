@@ -57,6 +57,26 @@ dyn_clone::clone_trait_object!(TrainerClientInterface);
 
 #[async_trait::async_trait]
 impl TrainerClientInterface for TrainerServiceClient<Client> {
+    /// Triggers a training job on the Trainer service with the specified model version and incremental learning option.
+    ///
+    /// # Parameters
+    /// - `model_version_tag`: The version tag of the model to be trained.
+    /// - `enable_incremental_learning`: Whether to enable incremental learning for this training job.
+    ///
+    /// # Returns
+    /// A result containing the response from the Trainer service if successful, or a `TrainerError` if the operation fails.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// let mut client = TrainerServiceClient::connect("http://localhost:50051").await.unwrap();
+    /// let headers = GrpcHeaders::default();
+    /// let response = client
+    ///     .get_training("v1.2.3".to_string(), true, headers)
+    ///     .await
+    ///     .unwrap();
+    /// assert!(response.job_id.len() > 0);
+    /// ```
     async fn get_training(
         &mut self,
         model_version_tag: String,
@@ -83,6 +103,24 @@ impl TrainerClientInterface for TrainerServiceClient<Client> {
         Ok(response)
     }
 
+    /// Retrieves the status of a training job from the Trainer service by job ID.
+    ///
+    /// Sends a gRPC request to fetch the current status of the specified training job.
+    ///
+    /// # Parameters
+    /// - `job_id`: The unique identifier of the training job whose status is being queried.
+    ///
+    /// # Returns
+    /// A result containing the training job status response on success, or a `TrainerError` if the request fails.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// let mut client = TrainerServiceClient::connect("http://localhost:50051").await.unwrap();
+    /// let headers = GrpcHeaders::default();
+    /// let response = client.get_the_training_job_status("job-123".to_string(), headers).await;
+    /// assert!(response.is_ok());
+    /// ```
     async fn get_the_training_job_status(
         &mut self,
         job_id: String,
@@ -116,6 +154,9 @@ pub struct TrainerClientConfig {
 
 impl TrainerClientConfig {
     #[allow(missing_docs)]
+    /// Creates a `TrainerServiceClient` using the provided HTTP client and the configuration's host and port.
+    ///
+    /// Returns an error if the host is empty or the constructed URI is invalid.
     pub fn get_trainer_service_client(
         &self,
         hyper_client: Client,
@@ -143,18 +184,27 @@ impl TrainerClientConfig {
 }
 
 impl common_utils::events::ApiEventMetric for TriggerTrainingResponse {
+    /// Returns the API event type associated with this request or response.
+    ///
+    /// Always returns `Some(ApiEventsType::Miscellaneous)`.
     fn get_api_event_type(&self) -> Option<common_utils::events::ApiEventsType> {
         Some(common_utils::events::ApiEventsType::Miscellaneous)
     }
 }
 
 impl common_utils::events::ApiEventMetric for TriggerTrainingRequest {
+    /// Returns the API event type associated with this request or response.
+    ///
+    /// Always returns `Some(ApiEventsType::Miscellaneous)`.
     fn get_api_event_type(&self) -> Option<common_utils::events::ApiEventsType> {
         Some(common_utils::events::ApiEventsType::Miscellaneous)
     }
 }
 
 impl common_utils::events::ApiEventMetric for GetTrainingJobStatusResponse {
+    /// Returns the API event type associated with this request or response.
+    ///
+    /// Always returns `Some(ApiEventsType::Miscellaneous)`.
     fn get_api_event_type(&self) -> Option<common_utils::events::ApiEventsType> {
         Some(common_utils::events::ApiEventsType::Miscellaneous)
     }

@@ -12,6 +12,36 @@ use crate::{
 
 #[cfg(feature = "v2")]
 #[instrument(skip_all, fields(flow = ?Flow::TriggerTrainingJob))]
+/// Handles an HTTP request to trigger a new training job via the gRPC trainer service.
+///
+/// Accepts a JSON payload describing the training job parameters, initiates the training job using the gRPC trainer client, and returns the result as a JSON response. Requires admin API authentication.
+///
+/// # Examples
+///
+/// ```
+/// // Example Actix-web test for the endpoint
+/// use actix_web::{test, web, App};
+/// use recovery_trainer_client::TriggerTrainingRequest;
+///
+/// let app = test::init_service(
+///     App::new().route(
+///         "/trigger-training",
+///         web::post().to(trigger_training_job),
+///     ),
+/// )
+/// .await;
+///
+/// let req = test::TestRequest::post()
+///     .uri("/trigger-training")
+///     .set_json(&TriggerTrainingRequest {
+///         model_version_tag: "v1.0".to_string(),
+///         enable_incremental_learning: false,
+///     })
+///     .to_request();
+///
+/// let resp = test::call_service(&app, req).await;
+/// assert!(resp.status().is_success());
+/// ```
 pub async fn trigger_training_job(
     state: web::Data<crate::AppState>,
     http_req: actix_web::HttpRequest,
@@ -61,6 +91,19 @@ pub async fn trigger_training_job(
 
 #[cfg(feature = "v2")]
 #[instrument(skip_all, fields(flow = ?Flow::GetTrainingJobStatus))]
+/// Retrieves the status of a training job by job ID.
+///
+/// This endpoint accepts a job ID as a path parameter, queries the external trainer service for the status of the corresponding training job, and returns the result as a JSON response. Requires admin API authentication.
+///
+/// # Examples
+///
+/// ```
+/// // Example Actix-web route registration
+/// app.route(
+///     "/api/v2/recovery_trainer/job_status/{job_id}",
+///     web::get().to(get_the_training_job_status),
+/// );
+/// ```
 pub async fn get_the_training_job_status(
     state: web::Data<crate::AppState>,
     http_req: actix_web::HttpRequest,
