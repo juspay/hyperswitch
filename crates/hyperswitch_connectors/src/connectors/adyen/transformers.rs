@@ -2,7 +2,7 @@
 use api_models::payouts::{self, PayoutMethodData};
 use api_models::{
     enums,
-    payments::{self, QrCodeInformation, VoucherNextStepData},
+    payments::{self, PollConfig, QrCodeInformation, VoucherNextStepData},
 };
 use cards::CardNumber;
 use common_enums::enums as storage_enums;
@@ -90,11 +90,13 @@ impl TryFrom<&Option<common_utils::pii::SecretSerdeValue>> for AdyenConnectorMet
     fn try_from(
         meta_data: &Option<common_utils::pii::SecretSerdeValue>,
     ) -> Result<Self, Self::Error> {
-        let metadata: Self = utils::to_connector_meta_from_secret::<Self>(meta_data.clone())
-            .change_context(errors::ConnectorError::InvalidConnectorConfig {
-                config: "metadata",
-            })?;
-        Ok(metadata)
+        match meta_data {
+            Some(metadata) => utils::to_connector_meta_from_secret::<Self>(Some(metadata.clone()))
+                .change_context(errors::ConnectorError::InvalidConnectorConfig {
+                    config: "metadata",
+                }),
+            None => Ok(Self::default()),
+        }
     }
 }
 
@@ -4227,6 +4229,7 @@ pub fn get_qr_metadata(
 pub struct WaitScreenData {
     display_from_timestamp: i128,
     display_to_timestamp: Option<i128>,
+    poll_config: Option<PollConfig>,
 }
 
 pub fn get_wait_screen_metadata(
@@ -4237,14 +4240,16 @@ pub fn get_wait_screen_metadata(
             let current_time = OffsetDateTime::now_utc().unix_timestamp_nanos();
             Ok(Some(serde_json::json!(WaitScreenData {
                 display_from_timestamp: current_time,
-                display_to_timestamp: Some(current_time + Duration::minutes(1).whole_nanoseconds())
+                display_to_timestamp: Some(current_time + Duration::minutes(1).whole_nanoseconds()),
+                poll_config: None
             })))
         }
         PaymentType::Mbway => {
             let current_time = OffsetDateTime::now_utc().unix_timestamp_nanos();
             Ok(Some(serde_json::json!(WaitScreenData {
                 display_from_timestamp: current_time,
-                display_to_timestamp: None
+                display_to_timestamp: None,
+                poll_config: None
             })))
         }
         PaymentType::Affirm
