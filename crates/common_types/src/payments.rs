@@ -13,7 +13,6 @@ use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
 
 use crate::domain::{AdyenSplitData, XenditSplitSubMerchantData};
-
 #[derive(
     Serialize, Deserialize, Debug, Clone, PartialEq, Eq, FromSqlRow, AsExpression, ToSchema,
 )]

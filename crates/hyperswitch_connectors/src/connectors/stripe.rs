@@ -864,7 +864,7 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
         req: &PaymentsAuthorizeRouterData,
         _connectors: &Connectors,
     ) -> CustomResult<Vec<(String, Maskable<String>)>, ConnectorError> {
-        let stripe_split_payment = stripe::StripeSplitPaymentRequest::try_from(req)?;
+        let stripe_split_payment_metadata = stripe::StripeSplitPaymentRequest::try_from(req)?;
 
         let mut header = vec![(
             CONTENT_TYPE.to_string(),
@@ -876,11 +876,30 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
         let mut api_key = self.get_auth_header(&req.connector_auth_type)?;
         header.append(&mut api_key);
 
-        if stripe_split_payment.charge_type == PaymentChargeType::Stripe(StripeChargeType::Direct) {
-            header.push((
+        if let Some(common_types::payments::SplitPaymentsRequest::StripeSplitPayment(
+            stripe_split_payment,
+        )) = &req.request.split_payments
+        {
+            if stripe_split_payment.charge_type
+                == PaymentChargeType::Stripe(StripeChargeType::Direct)
+            {
+                let mut customer_account_header = vec![(
+                    STRIPE_COMPATIBLE_CONNECT_ACCOUNT.to_string(),
+                    stripe_split_payment
+                        .transfer_account_id
+                        .clone()
+                        .into_masked(),
+                )];
+                header.append(&mut customer_account_header);
+            }
+        } else if let Some(transfer_account_id) =
+            stripe_split_payment_metadata.transfer_account_id.clone()
+        {
+            let mut customer_account_header = vec![(
                 STRIPE_COMPATIBLE_CONNECT_ACCOUNT.to_string(),
-                stripe_split_payment.transfer_account_id.into_masked(),
-            ));
+                transfer_account_id.into_masked(),
+            )];
+            header.append(&mut customer_account_header);
         }
         Ok(header)
     }
