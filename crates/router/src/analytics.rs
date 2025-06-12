@@ -2820,6 +2820,7 @@ pub mod routes {
         .await
     }
 
+    #[cfg(feature = "v1")]
     pub async fn get_org_auth_event_sankey(
         state: web::Data<AppState>,
         req: actix_web::HttpRequest,
@@ -2834,23 +2835,29 @@ pub mod routes {
             payload,
             |state, auth: AuthenticationData, req, _| async move {
                 let org_id = auth.merchant_account.get_org_id();
-                let merchant_id = auth.merchant_account.get_id();
-                let auth: AuthInfo = AuthInfo::MerchantLevel {
+                let auth: AuthInfo = AuthInfo::OrgLevel {
                     org_id: org_id.clone(),
-                    merchant_ids: vec![merchant_id.clone()],
                 };
                 analytics::auth_events::get_sankey(&state.pool, &auth, req)
                     .await
                     .map(ApplicationResponse::Json)
             },
-            &auth::JWTAuth {
-                permission: Permission::OrganizationAnalyticsRead,
-            },
+            auth::auth_type(
+                &auth::PlatformOrgAdminAuth {
+                    is_admin_auth_allowed: false,
+                    organization_id: None,
+                },
+                &auth::JWTAuth {
+                    permission: Permission::OrganizationAnalyticsRead,
+                },
+                req.headers(),
+            ),
             api_locking::LockAction::NotApplicable,
         ))
         .await
     }
 
+    #[cfg(feature = "v1")]
     pub async fn get_profile_auth_event_sankey(
         state: web::Data<AppState>,
         req: actix_web::HttpRequest,
@@ -2866,9 +2873,14 @@ pub mod routes {
             |state, auth: AuthenticationData, req, _| async move {
                 let org_id = auth.merchant_account.get_org_id();
                 let merchant_id = auth.merchant_account.get_id();
-                let auth: AuthInfo = AuthInfo::MerchantLevel {
+                let profile_id = auth
+                    .profile_id
+                    .ok_or(report!(UserErrors::JwtProfileIdMissing))
+                    .change_context(AnalyticsError::AccessForbiddenError)?;
+                let auth: AuthInfo = AuthInfo::ProfileLevel {
                     org_id: org_id.clone(),
-                    merchant_ids: vec![merchant_id.clone()],
+                    merchant_id: merchant_id.clone(),
+                    profile_ids: vec![profile_id.clone()],
                 };
                 analytics::auth_events::get_sankey(&state.pool, &auth, req)
                     .await
