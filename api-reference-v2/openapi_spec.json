@@ -13195,6 +13195,18 @@
         },
         "additionalProperties": false
       },
+      "MerchantCategoryCode": {
+        "type": "string",
+        "enum": [
+          "5411",
+          "7011",
+          "0763",
+          "8111",
+          "5021",
+          "4816",
+          "5661"
+        ]
+      },
       "MerchantConnectorAccountFeatureMetadata": {
         "type": "object",
         "description": "Feature metadata for merchant connector account",
@@ -21005,6 +21017,14 @@
               }
             ],
             "nullable": true
+          },
+          "merchant_category_code": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/MerchantCategoryCode"
+              }
+            ],
+            "nullable": true
           }
         },
         "additionalProperties": false
@@ -21271,6 +21291,14 @@
             "allOf": [
               {
                 "$ref": "#/components/schemas/ExternalVaultConnectorDetails"
+              }
+            ],
+            "nullable": true
+          },
+          "merchant_category_code": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/MerchantCategoryCode"
               }
             ],
             "nullable": true
