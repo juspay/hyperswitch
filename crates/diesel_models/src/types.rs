@@ -195,6 +195,7 @@ pub struct BillingConnectorPaymentDetails {
 
 #[cfg(feature = "v2")]
 #[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]
+#[serde(tag = "type", content = "value")]
 pub enum BillingConnectorPaymentMethodDetails {
     Card(BillingConnectorAdditionalCardInfo),
 }

@@ -8688,6 +8688,7 @@ pub struct PaymentRevenueRecoveryMetadata {
     /// Extra Payment Method Details that are needed to be stored
     pub billing_connector_payment_method_details: Option<BillingConnectorPaymentMethodDetails>,
     /// Invoice Next billing time
+    #[serde(default, with = "common_utils::custom_serde::iso8601::option")]
     pub invoice_next_billing_time: Option<PrimitiveDateTime>,
     /// First Payment Attempt Payment Gateway Error Code
     #[schema(value_type = Option<String>, example = "card_declined")]
@@ -8702,6 +8703,7 @@ pub struct PaymentRevenueRecoveryMetadata {
 
 #[cfg(feature = "v2")]
 #[derive(Debug, Clone, PartialEq, Deserialize, Serialize, ToSchema)]
+#[serde(tag = "type", content = "value")]
 pub enum BillingConnectorPaymentMethodDetails {
     Card(BillingConnectorAdditionalCardInfo),
 }
