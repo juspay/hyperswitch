@@ -4,16 +4,17 @@ use hyperswitch_domain_models::{
     router_data_v2::PaymentFlowData,
     router_flow_types::payments::{
         Approve, Authorize, AuthorizeSessionToken, CalculateTax, Capture, CompleteAuthorize,
-        CreateConnectorCustomer, IncrementalAuthorization, PSync, PaymentMethodToken,
+        CreateConnectorCustomer, CreateOrder, IncrementalAuthorization, PSync, PaymentMethodToken,
         PostProcessing, PostSessionTokens, PreProcessing, Reject, SdkSessionUpdate, Session,
         SetupMandate, UpdateMetadata, Void,
     },
     router_request_types::{
         AuthorizeSessionTokenData, CompleteAuthorizeData, ConnectorCustomerData,
-        PaymentMethodTokenizationData, PaymentsApproveData, PaymentsAuthorizeData,
-        PaymentsCancelData, PaymentsCaptureData, PaymentsIncrementalAuthorizationData,
-        PaymentsPostProcessingData, PaymentsPostSessionTokensData, PaymentsPreProcessingData,
-        PaymentsRejectData, PaymentsSessionData, PaymentsSyncData, PaymentsTaxCalculationData,
+        CreateOrderRequestData, PaymentMethodTokenizationData, PaymentsApproveData,
+        PaymentsAuthorizeData, PaymentsCancelData, PaymentsCaptureData,
+        PaymentsIncrementalAuthorizationData, PaymentsPostProcessingData,
+        PaymentsPostSessionTokensData, PaymentsPreProcessingData, PaymentsRejectData,
+        PaymentsSessionData, PaymentsSyncData, PaymentsTaxCalculationData,
         PaymentsUpdateMetadataData, SdkPaymentsSessionUpdateData, SetupMandateRequestData,
     },
     router_response_types::{PaymentsResponseData, TaxCalculationResponseData},
@@ -126,6 +127,12 @@ pub trait PaymentPostSessionTokensV2:
 {
 }
 
+/// trait ConnectorCreateOrderV2
+pub trait PaymentCreateOrderV2:
+    ConnectorIntegrationV2<CreateOrder, PaymentFlowData, CreateOrderRequestData, PaymentsResponseData>
+{
+}
+
 /// trait PaymentUpdateMetadataV2
 pub trait PaymentUpdateMetadataV2:
     ConnectorIntegrationV2<
@@ -216,5 +223,6 @@ pub trait PaymentV2:
     + PaymentSessionUpdateV2
     + PaymentPostSessionTokensV2
     + PaymentUpdateMetadataV2
+    + PaymentCreateOrderV2
 {
 }

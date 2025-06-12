@@ -579,6 +579,7 @@ pub trait ConnectorActions: Connector {
             Ok(types::PaymentsResponseData::IncrementalAuthorizationResponse { .. }) => None,
             Ok(types::PaymentsResponseData::PostProcessingResponse { .. }) => None,
             Ok(types::PaymentsResponseData::PaymentResourceUpdateResponse { .. }) => None,
+            Ok(types::PaymentsResponseData::PaymentsCreateOrderResponse { .. }) => None,
             Err(_) => None,
         }
     }
@@ -997,6 +998,7 @@ impl Default for PaymentAuthorizeType {
             merchant_account_id: None,
             merchant_config_currency: None,
             connector_testing_data: None,
+            order_id: None,
         };
         Self(data)
     }
@@ -1144,6 +1146,7 @@ pub fn get_connector_transaction_id(
         Ok(types::PaymentsResponseData::IncrementalAuthorizationResponse { .. }) => None,
         Ok(types::PaymentsResponseData::PostProcessingResponse { .. }) => None,
         Ok(types::PaymentsResponseData::PaymentResourceUpdateResponse { .. }) => None,
+        Ok(types::PaymentsResponseData::PaymentsCreateOrderResponse { .. }) => None,
         Err(_) => None,
     }
 }

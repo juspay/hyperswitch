@@ -4537,6 +4537,7 @@ pub enum NextActionData {
     WaitScreenInformation {
         display_from_timestamp: i128,
         display_to_timestamp: Option<i128>,
+        poll_config: Option<PollConfig>,
     },
     /// Contains the information regarding three_ds_method_data submission, three_ds authentication, and authorization flows
     ThreeDsInvoke {
@@ -4697,6 +4698,15 @@ pub struct QrCodeNextStepsInstruction {
 pub struct WaitScreenInstructions {
     pub display_from_timestamp: i128,
     pub display_to_timestamp: Option<i128>,
+    pub poll_config: Option<PollConfig>,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq, serde::Serialize, serde::Deserialize, ToSchema)]
+pub struct PollConfig {
+    /// Interval of the poll
+    pub delay_in_secs: u16,
+    /// Frequency of the poll
+    pub frequency: u16,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq, serde::Serialize, serde::Deserialize, ToSchema)]
@@ -7630,7 +7640,7 @@ pub struct PaymentMethodListResponseForPayments {
     pub customer_payment_methods: Option<Vec<payment_methods::CustomerPaymentMethodResponseItem>>,
 }
 
-#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+#[cfg(feature = "v2")]
 #[derive(Debug, Clone, serde::Serialize, ToSchema, PartialEq)]
 pub struct ResponsePaymentMethodTypesForPayments {
     /// The payment method type enabled

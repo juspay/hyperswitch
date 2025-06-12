@@ -566,6 +566,7 @@ Never share your secret api keys. Keep them guarded and secure.
         api_models::payments::ThreeDsData,
         api_models::payments::ThreeDsMethodData,
         api_models::payments::PollConfigResponse,
+        api_models::payments::PollConfig,
         api_models::payments::ExternalAuthenticationDetailsResponse,
         api_models::payments::ExtendedCardInfo,
         api_models::payment_methods::RequiredFieldInfo,
@@ -780,7 +781,7 @@ Never share your secret api keys. Keep them guarded and secure.
         api_models::open_router::DecisionEngineSRSubLevelInputConfig,
         api_models::open_router::DecisionEngineEliminationData,
         api_models::profile_acquirer::ProfileAcquirerCreate,
-        api_models::profile_acquirer::ProfileAcquirerUpdate, // Added new schema
+        api_models::profile_acquirer::ProfileAcquirerUpdate,
         api_models::profile_acquirer::ProfileAcquirerResponse,
         euclid::frontend::dir::enums::CustomerDevicePlatform,
         euclid::frontend::dir::enums::CustomerDeviceType,

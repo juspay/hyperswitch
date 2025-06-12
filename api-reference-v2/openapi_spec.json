@@ -3365,7 +3365,7 @@
       }
     },
     "/v2/refunds/list": {
-      "get": {
+      "post": {
         "tags": [
           "Refunds"
         ],
@@ -14417,6 +14417,14 @@
                 "type": "integer",
                 "nullable": true
               },
+              "poll_config": {
+                "allOf": [
+                  {
+                    "$ref": "#/components/schemas/PollConfig"
+                  }
+                ],
+                "nullable": true
+              },
               "type": {
                 "type": "string",
                 "enum": [
@@ -20617,6 +20625,27 @@
             "description": "Partially masked destination bank account number",
             "example": "********-****-460b-****-f23b4e71c97b",
             "nullable": true
+          }
+        }
+      },
+      "PollConfig": {
+        "type": "object",
+        "required": [
+          "delay_in_secs",
+          "frequency"
+        ],
+        "properties": {
+          "delay_in_secs": {
+            "type": "integer",
+            "format": "int32",
+            "description": "Interval of the poll",
+            "minimum": 0
+          },
+          "frequency": {
+            "type": "integer",
+            "format": "int32",
+            "description": "Frequency of the poll",
+            "minimum": 0
           }
         }
       },
