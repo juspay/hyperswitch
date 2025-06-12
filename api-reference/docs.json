@@ -232,7 +232,7 @@
             "version": "2.0.0 [BETA]",
             "groups": [
               {
-                "group": "Get Started",
+                "group": "Get Started [BETA]",
                 "pages": ["introduction"]
               },
               {
@@ -244,122 +244,137 @@
                 ]
               },
               {
-                "group": "Payments",
+                "group": "Payments Core APIs",
                 "pages": [
-                  "v2/payments/payments--create-intent",
-                  "v2/payments/payments--get-intent",
-                  "v2/payments/payments--update-intent",
-                  "v2/payments/payments--session-token",
-                  "v2/payments/payments--payment-methods-list",
-                  "v2/payments/payments--confirm-intent",
-                  "v2/payments/payments--get",
-                  "v2/payments/payments--create-and-confirm-intent",
-                  "v2/payments/payments--list"
+                  {
+                    "group": "Payments",
+                    "pages": [
+                      "v2/payments/payments--create-intent",
+                      "v2/payments/payments--get-intent",
+                      "v2/payments/payments--update-intent",
+                      "v2/payments/payments--session-token",
+                      "v2/payments/payments--payment-methods-list",
+                      "v2/payments/payments--confirm-intent",
+                      "v2/payments/payments--get",
+                      "v2/payments/payments--create-and-confirm-intent",
+                      "v2/payments/payments--list"
+                    ]
+                  },
+                  {
+                    "group": "Payment Methods",
+                    "pages": [
+                      "v2/payment-methods/payment-method--create",
+                      "v2/payment-methods/payment-method--create-intent",
+                      "v2/payment-methods/payment-method--payment-methods-list",
+                      "v2/payment-methods/payment-method--confirm-intent",
+                      "v2/payment-methods/payment-method--update",
+                      "v2/payment-methods/payment-method--retrieve",
+                      "v2/payment-methods/payment-method--delete",
+                      "v2/payment-methods/list-saved-payment-methods-for-a-customer"
+                    ]
+                  },
+                  {
+                    "group": "Payment Method Session",
+                    "pages": [
+                      "v2/payment-method-session/payment-method-session--create",
+                      "v2/payment-method-session/payment-method-session--retrieve",
+                      "v2/payment-method-session/payment-method-session--list-payment-methods",
+                      "v2/payment-method-session/payment-method-session--update-a-saved-payment-method",
+                      "v2/payment-method-session/payment-method-session--confirm-a-payment-method-session",
+                      "v2/payment-method-session/payment-method-session--delete-a-saved-payment-method"
+                    ]
+                  },
+                  {
+                    "group": "Customers",
+                    "pages": [
+                      "v2/customers/customers--create",
+                      "v2/customers/customers--retrieve",
+                      "v2/customers/customers--update",
+                      "v2/customers/customers--delete",
+                      "v2/customers/customers--list",
+                      "v2/customers/customers--list-saved-payment-methods"
+                    ]
+                  },
+                  {
+                    "group": "Refunds",
+                    "pages": ["v2/refunds/refunds--create"]
+                  }
                 ]
               },
               {
-                "group": "Payment Methods",
+                "group": "Account management APIs",
                 "pages": [
-                  "v2/payment-methods/payment-method--create",
-                  "v2/payment-methods/payment-method--create-intent",
-                  "v2/payment-methods/payment-method--payment-methods-list",
-                  "v2/payment-methods/payment-method--confirm-intent",
-                  "v2/payment-methods/payment-method--update",
-                  "v2/payment-methods/payment-method--retrieve",
-                  "v2/payment-methods/payment-method--delete",
-                  "v2/payment-methods/list-saved-payment-methods-for-a-customer"
+                  {
+                    "group": "Organization",
+                    "pages": [
+                      "v2/organization/organization--create",
+                      "v2/organization/organization--retrieve",
+                      "v2/organization/organization--update",
+                      "v2/organization/organization--merchant-account--list"
+                    ]
+                  },
+                  {
+                    "group": "Merchant Account",
+                    "pages": [
+                      "v2/merchant-account/merchant-account--create",
+                      "v2/merchant-account/merchant-account--retrieve",
+                      "v2/merchant-account/merchant-account--update",
+                      "v2/merchant-account/business-profile--list"
+                    ]
+                  },
+                  {
+                    "group": "Profile",
+                    "pages": [
+                      "v2/profile/profile--create",
+                      "v2/profile/profile--update",
+                      "v2/profile/profile--activate-routing-algorithm",
+                      "v2/profile/profile--update-default-fallback-routing-algorithm",
+                      "v2/profile/profile--deactivate-routing-algorithm",
+                      "v2/profile/profile--retrieve",
+                      "v2/profile/merchant-connector--list",
+                      "v2/profile/profile--retrieve-active-routing-algorithm",
+                      "v2/profile/profile--retrieve-default-fallback-routing-algorithm"
+                    ]
+                  },
+                  {
+                    "group": "Connector Account",
+                    "pages": [
+                      "v2/connector-account/connector-account--create",
+                      "v2/connector-account/connector-account--retrieve",
+                      "v2/connector-account/connector-account--update"
+                    ]
+                  },
+                  {
+                    "group": "API Key",
+                    "pages": [
+                      "v2/api-key/api-key--create",
+                      "v2/api-key/api-key--retrieve",
+                      "v2/api-key/api-key--update",
+                      "v2/api-key/api-key--revoke",
+                      "v2/api-key/api-key--list"
+                    ]
+                  },
+                  {
+                    "group": "Routing",
+                    "pages": [
+                      "v2/routing/routing--create",
+                      "v2/routing/routing--retrieve"
+                    ]
+                  }
                 ]
               },
               {
-                "group": "Payment Method Session",
+                "group": "Other APIs",
                 "pages": [
-                  "v2/payment-method-session/payment-method-session--create",
-                  "v2/payment-method-session/payment-method-session--retrieve",
-                  "v2/payment-method-session/payment-method-session--list-payment-methods",
-                  "v2/payment-method-session/payment-method-session--update-a-saved-payment-method",
-                  "v2/payment-method-session/payment-method-session--confirm-a-payment-method-session",
-                  "v2/payment-method-session/payment-method-session--delete-a-saved-payment-method"
+                  {
+                    "group": "Proxy",
+                    "pages": ["v2/proxy/proxy"]
+                  },
+                  {
+                    "group": "Tokenization",
+                    "pages": ["v2/tokenization/tokenization--create"]
+                  }
                 ]
-              },
-              {
-                "group": "Organization",
-                "pages": [
-                  "v2/organization/organization--create",
-                  "v2/organization/organization--retrieve",
-                  "v2/organization/organization--update",
-                  "v2/organization/organization--merchant-account--list"
-                ]
-              },
-              {
-                "group": "Merchant Account",
-                "pages": [
-                  "v2/merchant-account/merchant-account--create",
-                  "v2/merchant-account/merchant-account--retrieve",
-                  "v2/merchant-account/merchant-account--update",
-                  "v2/merchant-account/business-profile--list"
-                ]
-              },
-              {
-                "group": "Profile",
-                "pages": [
-                  "v2/profile/profile--create",
-                  "v2/profile/profile--update",
-                  "v2/profile/profile--activate-routing-algorithm",
-                  "v2/profile/profile--update-default-fallback-routing-algorithm",
-                  "v2/profile/profile--deactivate-routing-algorithm",
-                  "v2/profile/profile--retrieve",
-                  "v2/profile/merchant-connector--list",
-                  "v2/profile/profile--retrieve-active-routing-algorithm",
-                  "v2/profile/profile--retrieve-default-fallback-routing-algorithm"
-                ]
-              },
-              {
-                "group": "Connector Account",
-                "pages": [
-                  "v2/connector-account/connector-account--create",
-                  "v2/connector-account/connector-account--retrieve",
-                  "v2/connector-account/connector-account--update"
-                ]
-              },
-              {
-                "group": "API Key",
-                "pages": [
-                  "v2/api-key/api-key--create",
-                  "v2/api-key/api-key--retrieve",
-                  "v2/api-key/api-key--update",
-                  "v2/api-key/api-key--revoke",
-                  "v2/api-key/api-key--list"
-                ]
-              },
-              {
-                "group": "Routing",
-                "pages": [
-                  "v2/routing/routing--create",
-                  "v2/routing/routing--retrieve"
-                ]
-              },
-              {
-                "group": "Customers",
-                "pages": [
-                  "v2/customers/customers--create",
-                  "v2/customers/customers--retrieve",
-                  "v2/customers/customers--update",
-                  "v2/customers/customers--delete",
-                  "v2/customers/customers--list",
-                  "v2/customers/customers--list-saved-payment-methods"
-                ]
-              },
-              {
-                "group": "Refunds",
-                "pages": ["v2/refunds/refunds--create"]
-              },
-              {
-                "group": "Proxy",
-                "pages": ["v2/proxy/proxy"]
-              },
-              {
-                "group": "Tokenization",
-                "pages": ["v2/tokenization/tokenization--create"]
               }
             ]
           }
