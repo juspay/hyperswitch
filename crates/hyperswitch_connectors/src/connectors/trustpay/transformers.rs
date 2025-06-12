@@ -6,7 +6,7 @@ use common_utils::{
     errors::CustomResult,
     pii::{self, Email},
     request::Method,
-    types::StringMajorUnit,
+    types::{FloatMajorUnit, StringMajorUnit},
 };
 use error_stack::{report, ResultExt};
 use hyperswitch_domain_models::{
@@ -1896,7 +1896,7 @@ impl TryFrom<WebhookStatus> for enums::RefundStatus {
 #[derive(Default, Debug, Serialize, Deserialize, Eq, PartialEq, Clone)]
 #[serde(rename_all = "PascalCase")]
 pub struct WebhookReferences {
-    pub merchant_reference: String,
+    pub merchant_reference: Option<String>,
     pub payment_id: Option<String>,
     pub payment_request_id: Option<String>,
 }
@@ -1904,7 +1904,7 @@ pub struct WebhookReferences {
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 #[serde(rename_all = "PascalCase")]
 pub struct WebhookAmount {
-    pub amount: f64,
+    pub amount: FloatMajorUnit,
     pub currency: enums::Currency,
 }
 
