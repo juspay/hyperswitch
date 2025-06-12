@@ -16,11 +16,10 @@ use masking::PeekInterface;
 use serde::de;
 use utoipa::{schema, ToSchema};
 
-use crate::customers;
 #[cfg(feature = "payouts")]
 use crate::payouts;
 use crate::{
-    admin, enums as api_enums,
+    admin, customers, enums as api_enums,
     payments::{self, BankCodeResponse},
 };
 
