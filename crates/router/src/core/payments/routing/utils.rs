@@ -1092,19 +1092,19 @@ pub trait RoutingEventsInterface {
     fn get_payment_connector(&self) -> Option<RoutableConnectorChoice>;
 }
 
-pub async fn routing_events_wrap<Req, Res, F1, HttpFut>(
+pub async fn routing_events_wrap<Req, Res, F, Fut>(
     state: &SessionState,
     wrapper: RoutingEventsWrapper<Req>,
-    func: F1,
+    func: F,
     url: String,
     routing_engine: routing_events::RoutingEngine,
     method: routing_events::ApiMethod,
 ) -> RoutingResult<RoutingEventsResponse<Res>>
 where
-    F1: FnOnce() -> HttpFut + Send,
+    F: FnOnce() -> Fut + Send,
     Req: Serialize + Clone,
     Res: Serialize + serde::de::DeserializeOwned + Clone,
-    HttpFut: futures::Future<Output = RoutingResult<Option<Res>>> + Send,
+    Fut: futures::Future<Output = RoutingResult<Option<Res>>> + Send,
 {
     let mut routing_event = wrapper.construct_event_builder(url, routing_engine, method)?;
     let mut response = RoutingEventsResponse::new(None, None);
