@@ -1007,13 +1007,15 @@ where
                     (Some(pg_code), advice_code, decline_code)
                 },
             );
-        
-        let billing_connector_payment_method_details = Some(diesel_models::types::BillingConnectorPaymentMethodDetails::Card(
-            diesel_models::types::BillingConnectorAdditionalCardInfo {
-                card_network: self.revenue_recovery_data.card_network.clone(),
-                card_issuer: self.revenue_recovery_data.card_issuer.clone(),
-            }
-        ));
+
+        let billing_connector_payment_method_details = Some(
+            diesel_models::types::BillingConnectorPaymentMethodDetails::Card(
+                diesel_models::types::BillingConnectorAdditionalCardInfo {
+                    card_network: self.revenue_recovery_data.card_network.clone(),
+                    card_issuer: self.revenue_recovery_data.card_issuer.clone(),
+                },
+            ),
+        );
 
         let payment_revenue_recovery_metadata = match payment_attempt_connector {
             Some(connector) => Some(diesel_models::types::PaymentRevenueRecoveryMetadata {
