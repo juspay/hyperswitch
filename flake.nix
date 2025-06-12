@@ -20,29 +20,37 @@
       perSystem = { self', pkgs, lib, system, ... }:
         let
           cargoToml = lib.importTOML ./Cargo.toml;
-          rustVersion = cargoToml.workspace.package.rust-version;
-          frameworks = pkgs.darwin.apple_sdk.frameworks;
+          rustDevVersion = "1.84.0";
+          rustMsrv = cargoToml.workspace.package.rust-version;
 
-          # Define common development packages
-          commonDevPackages = with pkgs; [
+          # Common packages
+          base = with pkgs; [
+            diesel-cli
             just
-            nixd
+            jq
             openssl
             pkg-config
-            rust-bin.stable.${rustVersion}.default
-            diesel-cli
-            jq
-            wasm-pack
-            python3
-            grcov
-            llvmPackages.bintools
-            curl
             postgresql # for libpq
-            rust-analyzer
-          ] ++ lib.optionals stdenv.isDarwin [ 
-            frameworks.CoreServices
-            frameworks.Foundation
           ];
+
+          # Minimal packages for running hyperswitch
+          runPackages = base ++ (with pkgs; [
+            rust-bin.stable.${rustMsrv}.default
+          ]);
+
+          # Development packages
+          devPackages = base ++ (with pkgs; [
+            nixd
+            rust-bin.stable.${rustDevVersion}.default
+            swagger-cli
+          ]);
+
+          # QA packages
+          qaPackages = devPackages ++ (with pkgs; [
+            nodejs
+            gnuparallel
+            cypress
+          ]);
 
         in
         {
@@ -51,20 +59,22 @@
             overlays = [ inputs.cargo2nix.overlays.default (import inputs.rust-overlay) ];
           };
 
-          # Default development shell
+          # Minimal shell
           devShells.default = pkgs.mkShell {
-            name = "hyperswitch-dev-shell"; # Renamed for clarity
-            packages = commonDevPackages;
+            name = "hyperswitch-shell";
+            packages = base;
+          };
+
+          # Development shell
+          devShells.dev = pkgs.mkShell {
+            name = "hyperswitch-dev-shell";
+            packages = devPackages;
           };
 
           # QA development shell
           devShells.qa = pkgs.mkShell {
             name = "hyperswitch-qa-shell";
-            packages = commonDevPackages ++ (with pkgs; [
-              nodejs          # For Cypress (npm)
-              gnuparallel     # For parallel test execution
-              cypress         # Cypress testing framework
-            ]);
+            packages = qaPackages;
           };
 
           /* For running external services
