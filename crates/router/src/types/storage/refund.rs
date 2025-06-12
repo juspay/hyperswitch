@@ -6,7 +6,7 @@ use diesel::{associations::HasTable, BoolExpressionMethods, ExpressionMethods, Q
 use diesel_models::schema::refund::dsl;
 #[cfg(feature = "v2")]
 use diesel_models::schema_v2::refund::dsl;
-pub use diesel_models::{
+use diesel_models::{
     enums::{Currency, RefundStatus},
     errors,
     query::generics::db_metrics,
