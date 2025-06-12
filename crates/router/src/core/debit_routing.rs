@@ -315,7 +315,7 @@ pub async fn get_debit_routing_output<
             }
 
             let co_badged_card_request = open_router::CoBadgedCardRequest {
-                merchant_category_code: enums::MerchantCategoryCode::Mcc0001,
+                merchant_category_code: enums::DecisionEngineMerchantCategoryCode::Mcc0001,
                 acquirer_country,
                 co_badged_card_data,
             };

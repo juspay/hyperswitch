@@ -16133,6 +16133,18 @@
         },
         "additionalProperties": false
       },
+      "MerchantCategoryCode": {
+        "type": "string",
+        "enum": [
+          "5411",
+          "7011",
+          "0763",
+          "8111",
+          "5021",
+          "4816",
+          "5661"
+        ]
+      },
       "MerchantConnectorCreate": {
         "type": "object",
         "description": "Create a new Merchant Connector for the merchant account. The connector could be a payment processor / facilitator / acquirer or specialized services like Fraud / Accounting etc.\"",
@@ -25777,6 +25789,14 @@
             "type": "boolean",
             "description": "Indicates if pre network tokenization is enabled or not",
             "nullable": true
+          },
+          "merchant_category_code": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/MerchantCategoryCode"
+              }
+            ],
+            "nullable": true
           }
         },
         "additionalProperties": false
@@ -26074,6 +26094,14 @@
             "type": "boolean",
             "description": "Indicates if the redirection has to open in the iframe",
             "example": false,
+            "nullable": true
+          },
+          "merchant_category_code": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/MerchantCategoryCode"
+              }
+            ],
             "nullable": true
           }
         }
