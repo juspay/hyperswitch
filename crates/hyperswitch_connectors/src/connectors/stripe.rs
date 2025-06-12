@@ -908,7 +908,7 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
                 // connector_metadata is Secret<serde_json::Value>, so we need to clone and expose it
                 let metadata_value = connector_metadata.clone().expose();
                 // Check if it's an object and get the external_vault_url
-                if let Some(url_value) = metadata_value.get("external_vault_url") {
+                if let Some(url_value) = metadata_value.get("proxy_url") {
                     if let Some(url_str) = url_value.as_str() {
                         return Ok(format!("{}{}", url_str, "v1/payment_intents"));
                     }
