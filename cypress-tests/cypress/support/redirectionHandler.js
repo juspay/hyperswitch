@@ -215,6 +215,20 @@ function bankRedirectRedirection(
             }
             break;
 
+          case "aci":
+            switch (paymentMethodType) {
+              case "ideal":
+                cy.get('input[type="submit"][value="Confirm Transaction"]')
+                  .should("be.visible")
+                  .click();
+                break;
+              default:
+                throw new Error(
+                  `Unsupported ACI payment method type in handleFlow: ${paymentMethodType}`
+                );
+            }
+            break;
+
           case "paypal":
             if (["eps", "ideal", "giropay"].includes(paymentMethodType)) {
               cy.get('button[name="Successful"][value="SUCCEEDED"]').click();
