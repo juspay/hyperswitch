@@ -61,12 +61,107 @@ sed -i '' -e "s/\(pub enum Connector {\)/\1\n\t${payment_gateway_camelcase},/" c
 sed -i '' -e "/\/\/ Add Separate authentication support for connectors/{N;s/\(.*\)\n/\1\n\t\t\t| Self::${payment_gateway_camelcase}\n/;}" crates/api_models/src/connector_enums.rs
 sed -i '' -e "s/\(match connector_name {\)/\1\n\t\tapi_enums::Connector::${payment_gateway_camelcase} => {${payment_gateway}::transformers::${payment_gateway_camelcase}AuthType::try_from(val)?;Ok(())}/" $src/core/admin.rs
 sed -i '' -e "s/\(pub enum Connector {\)/\1\n\t${payment_gateway_camelcase},/" crates/euclid/src/enums.rs
-sed -i'' -e "s/^default_imp_for_\(.*\)/default_imp_for_\1\n\tconnectors::${payment_gateway_camelcase},/" crates/hyperswitch_connectors/src/default_implementations.rs
-sed -i'' -e "s/^default_imp_for_\(.*\)/default_imp_for_\1\n\tconnectors::${payment_gateway_camelcase},/" crates/hyperswitch_connectors/src/default_implementations_v2.rs
+
+default_impl_files=(
+  "crates/hyperswitch_connectors/src/default_implementations.rs"
+  "crates/hyperswitch_connectors/src/default_implementations_v2.rs"
+)
+
+for file in "${default_impl_files[@]}"; do
+  tmpfile="${file}.tmp"
+
+  awk -v prev="$previous_connector_camelcase" -v new="$payment_gateway_camelcase" '
+  BEGIN { in_macro = 0 }
+  {
+    if ($0 ~ /^default_imp_for_.*!\s*[\({]$/) {
+      in_macro = 1
+      inserted = 0
+      found_prev = 0
+      found_new = 0
+      macro_lines_count = 0
+      delete macro_lines
+
+      macro_header = $0
+      macro_open = ($0 ~ /\{$/) ? "{" : "("
+      macro_close = (macro_open == "{") ? "}" : ");"
+      next
+    }
+
+    if (in_macro) {
+      if ((macro_close == "}" && $0 ~ /^[[:space:]]*}[[:space:]]*$/) ||
+          (macro_close == ");" && $0 ~ /^[[:space:]]*\);[[:space:]]*$/)) {
+
+        for (i = 1; i <= macro_lines_count; i++) {
+          line = macro_lines[i]
+          clean = line
+          gsub(/^[ \t]+/, "", clean)
+          gsub(/[ \t]+$/, "", clean)
+          if (clean == "connectors::" prev ",") found_prev = 1
+          if (clean == "connectors::" new ",") found_new = 1
+        }
+
+        print macro_header
+
+        if (!found_prev && !found_new) {
+          print "    connectors::" new ","
+          inserted = 1
+        }
+
+        for (i = 1; i <= macro_lines_count; i++) {
+          line = macro_lines[i]
+          clean = line
+          gsub(/^[ \t]+/, "", clean)
+          gsub(/[ \t]+$/, "", clean)
+
+          print "    " clean
+
+          if (!inserted && clean == "connectors::" prev ",") {
+            if (!found_new) {
+              print "    connectors::" new ","
+              inserted = 1
+            }
+          }
+        }
+
+        print $0
+        in_macro = 0
+        next
+      }
+
+      macro_lines[++macro_lines_count] = $0
+      next
+    }
+
+    print $0
+  }' "$file" > "$tmpfile" && mv "$tmpfile" "$file"
+done
+
+
+sed -i '' -e "\$a\\
+\\
+[${payment_gateway}]\\
+[${payment_gateway}.connector_auth.HeaderKey]\\
+api_key = \\\"API Key\\\"" crates/connector_configs/toml/sandbox.toml
+
+sed -i '' -e "\$a\\
+\\
+[${payment_gateway}]\\
+[${payment_gateway}.connector_auth.HeaderKey]\\
+api_key = \\\"API Key\\\"" crates/connector_configs/toml/development.toml
+
+sed -i '' -e "\$a\\
+\\
+[${payment_gateway}]\\
+[${payment_gateway}.connector_auth.HeaderKey]\\
+api_key = \\\"API Key\\\"" crates/connector_configs/toml/production.toml
+
 sed -i'' -e "s/^default_imp_for_connector_request_id!(/default_imp_for_connector_request_id!(\n    connectors::${payment_gateway_camelcase},/" $src/core/payments/flows.rs
 sed -i'' -e "s/^default_imp_for_fraud_check!(/default_imp_for_fraud_check!(\n    connectors::${payment_gateway_camelcase},/" $src/core/payments/flows.rs
 sed -i'' -e "s/^default_imp_for_connector_authentication!(/default_imp_for_connector_authentication!(\n    connectors::${payment_gateway_camelcase},/" $src/core/payments/flows.rs
-sed -i'' -e "/pub struct ConnectorConfig {/ s/{/{\n    pub ${payment_gateway}: Option<ConnectorTomlConfig>,/" crates/connector_configs/src/connector.rs
+sed -i'' -e "/pub ${previous_connector}: Option<ConnectorTomlConfig>,/a\\
+    pub ${payment_gateway}: Option<ConnectorTomlConfig>,
+" crates/connector_configs/src/connector.rs
+
 sed -i'' -e "/mod utils;/ s/mod utils;/mod ${payment_gateway};\nmod utils;/" crates/router/tests/connectors/main.rs
 sed -i'' -e "s/^default_imp_for_new_connector_integration_payouts!(/default_imp_for_new_connector_integration_payouts!(\n    connector::${payment_gateway_camelcase},/" crates/router/src/core/payments/connector_integration_v2_impls.rs
 sed -i'' -e "s/^default_imp_for_new_connector_integration_frm!(/default_imp_for_new_connector_integration_frm!(\n    connector::${payment_gateway_camelcase},/" crates/router/src/core/payments/connector_integration_v2_impls.rs
