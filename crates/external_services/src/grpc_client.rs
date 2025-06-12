@@ -65,6 +65,23 @@ impl GrpcClientSettings {
     /// This function will panic if it fails to establish a connection with the gRPC server.
     /// This function will be called at service startup.
     #[allow(clippy::expect_used)]
+    /// Asynchronously constructs and returns a shared instance of all enabled gRPC clients.
+    ///
+    /// Initializes and connects the required gRPC clients based on enabled features, including dynamic routing, health check, and trainer clients. Panics if any client connection fails.
+    ///
+    /// # Returns
+    /// An `Arc<GrpcClients>` containing all successfully connected gRPC client interfaces.
+    ///
+    /// # Panics
+    /// Panics if any gRPC client connection cannot be established.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// let settings = GrpcClientSettings::default();
+    /// let clients = settings.get_grpc_client_interface().await;
+    /// // Use `clients` to access the enabled gRPC services.
+    /// ```
     pub async fn get_grpc_client_interface(&self) -> Arc<GrpcClients> {
         // Define the hyper client if any gRPC feature is enabled
         #[cfg(any(feature = "dynamic_routing", feature = "v2"))]
@@ -126,6 +143,9 @@ pub(crate) trait AddHeaders {
 #[cfg(any(feature = "dynamic_routing", feature = "v2"))]
 impl<T> AddHeaders for tonic::Request<T> {
     #[track_caller]
+    /// Adds tenant and optional request ID headers to the gRPC request metadata.
+    ///
+    /// Parses and appends the tenant ID and, if present, the request ID from the provided `GrpcHeaders` to the request's metadata. Invalid header values are ignored and logged as warnings.
     fn add_headers_to_grpc_request(&mut self, headers: GrpcHeaders) {
         headers.tenant_id
             .parse()
@@ -155,6 +175,21 @@ impl<T> AddHeaders for tonic::Request<T> {
 }
 
 #[cfg(any(feature = "dynamic_routing", feature = "v2"))]
+/// Constructs a tonic gRPC request with the specified message and attaches provided gRPC headers.
+///
+/// The function creates a new `tonic::Request` containing the given message and injects metadata headers such as tenant ID and optional request ID from the provided `GrpcHeaders`.
+///
+/// # Examples
+///
+/// ```
+/// let headers = GrpcHeaders {
+///     tenant_id: "tenant-123".to_string(),
+///     request_id: Some("req-456".to_string()),
+/// };
+/// let message = MyGrpcMessage::default();
+/// let request = create_grpc_request(message, headers);
+/// assert_eq!(request.metadata().get("x-tenant-id").unwrap(), "tenant-123");
+/// ```
 pub(crate) fn create_grpc_request<T: Debug>(message: T, headers: GrpcHeaders) -> tonic::Request<T> {
     let mut request = tonic::Request::new(message);
     request.add_headers_to_grpc_request(headers);

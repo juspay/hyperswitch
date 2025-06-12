@@ -1,4 +1,11 @@
 #[allow(clippy::expect_used)]
+/// Entry point for the build script.
+///
+/// Conditionally compiles protobuf files if the "dynamic_routing" or "v2" feature is enabled.
+///
+/// # Returns
+///
+/// Returns `Ok(())` if successful, or propagates errors encountered during proto compilation.
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     #[cfg(any(feature = "dynamic_routing", feature = "v2"))]
     compile_protos()?;
@@ -7,6 +14,20 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 }
 
 #[cfg(any(feature = "dynamic_routing", feature = "v2"))]
+/// Compiles protobuf files required for enabled features using tonic-build.
+///
+/// Dynamically selects and compiles `.proto` files based on the "dynamic_routing" and "v2" feature flags. Applies custom Rust derive attributes to specific protobuf message types and outputs generated code to the directory specified by the `OUT_DIR` environment variable.
+///
+/// # Errors
+///
+/// Returns an error if the `OUT_DIR` environment variable is missing or if protobuf compilation fails.
+///
+/// # Examples
+///
+/// ```no_run
+/// // This function is intended to be called from a build script.
+/// compile_protos().unwrap();
+/// ```
 fn compile_protos() -> Result<(), Box<dyn std::error::Error>> {
     let mut proto_files_to_compile = Vec::new();
     let proto_base_path = router_env::workspace_path().join("proto");

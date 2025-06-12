@@ -50,6 +50,25 @@ pub enum ApiIdentifier {
 }
 
 impl From<Flow> for ApiIdentifier {
+    /// Maps a `Flow` variant to its corresponding `ApiIdentifier` category.
+    ///
+    /// This function provides an exhaustive mapping from each `Flow` enum variant to an `ApiIdentifier` variant, categorizing flows by their API domain. Each group of related flows is mapped to a single API identifier, enabling consistent categorization across the application.
+    ///
+    /// # Parameters
+    /// - `flow`: The `Flow` variant to be mapped.
+    ///
+    /// # Returns
+    /// The `ApiIdentifier` variant representing the API category for the given flow.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use router_env::Flow;
+    /// use crate::routes::lock_utils::ApiIdentifier;
+    ///
+    /// let api_id = ApiIdentifier::from(Flow::PaymentsCreate);
+    /// assert_eq!(api_id, ApiIdentifier::Payments);
+    /// ```
     fn from(flow: Flow) -> Self {
         match flow {
             Flow::MerchantsAccountCreate

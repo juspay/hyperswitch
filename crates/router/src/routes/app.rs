@@ -701,6 +701,9 @@ pub struct Proxy;
 
 #[cfg(all(feature = "oltp", feature = "v2", feature = "payment_methods_v2"))]
 impl Proxy {
+    /// Returns an Actix-web scope for the `/proxy` endpoint with a POST route.
+    ///
+    /// The scope is configured with the provided application state and exposes a single POST endpoint at `/proxy` for proxying requests.
     pub fn server(state: AppState) -> Scope {
         web::scope("/proxy")
             .app_data(web::Data::new(state))
@@ -713,6 +716,17 @@ pub struct Trainer;
 
 #[cfg(feature = "v2")]
 impl Trainer {
+    /// Returns an Actix-web scope for trainer job management endpoints.
+    ///
+    /// The scope is mounted at `/trainer` and provides endpoints to trigger a new training job and to retrieve the status of an existing training job.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use actix_web::App;
+    /// let app_state = AppState::default();
+    /// let app = App::new().service(Trainer::server(app_state));
+    /// ```
     pub fn server(state: AppState) -> Scope {
         web::scope("/trainer")
             .app_data(web::Data::new(state))
@@ -729,6 +743,21 @@ impl Trainer {
 
 #[cfg(feature = "v1")]
 impl Payments {
+    /// Returns an Actix-web `Scope` for the `/payments` path, registering all payment-related endpoints.
+    ///
+    /// The registered routes depend on enabled features:
+    /// - With the `olap` feature, endpoints for listing, filtering, aggregating, and manually updating payments are included.
+    /// - With the `oltp` feature, endpoints for creating, retrieving, updating, confirming, canceling, capturing, approving, rejecting payments, handling redirects, session tokens, 3DS authentication, tax calculation, and metadata updates are included.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use actix_web::App;
+    /// use my_crate::{AppState, payments};
+    ///
+    /// let state = AppState::new(...);
+    /// let app = App::new().service(payments::server(state));
+    /// ```
     pub fn server(state: AppState) -> Scope {
         let mut route = web::scope("/payments").app_data(web::Data::new(state));
 
