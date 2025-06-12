@@ -65,11 +65,6 @@ pub struct DecidedGateway {
     pub routing_approach: String,
 }
 
-#[derive(Debug, Serialize, Deserialize, Clone)]
-pub struct UpdateGatewayScoreResponse {
-    pub message: String,
-}
-
 #[derive(Debug, Serialize, Deserialize, PartialEq, Clone)]
 pub struct DebitRoutingOutput {
     pub co_badged_card_networks: Vec<common_enums::CardNetwork>,

@@ -498,7 +498,7 @@ pub async fn perform_static_routing_v1(
                 payment_id,
                 business_profile.get_id().to_owned(),
                 business_profile.merchant_id.to_owned(),
-                "Perform Debit Routing flow".to_string(),
+                "Perform Euclid Static Routing flow".to_string(),
                 None,
                 true,
                 true,
