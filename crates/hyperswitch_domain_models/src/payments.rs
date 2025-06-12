@@ -902,7 +902,7 @@ where
 {
     pub flow: PhantomData<F>,
     pub payment_intent: PaymentIntent,
-    pub payment_attempt: PaymentAttempt,
+    pub payment_attempt: Option<PaymentAttempt>,
     pub payment_address: payment_address::PaymentAddress,
     pub attempts: Option<Vec<PaymentAttempt>>,
     /// Should the payment status be synced with connector
@@ -1007,14 +1007,13 @@ where
                     (Some(pg_code), advice_code, decline_code)
                 },
             );
-
-        let billing_connector_payment_method_details =
-            diesel_models::types::BillingConnectorPaymentMethodDetails::Card(
-                diesel_models::types::BillingConnectorAdditionalCardInfo {
-                    card_network: self.revenue_recovery_data.card_network.clone(),
-                    card_issuer: self.revenue_recovery_data.card_issuer.clone(),
-                },
-            );
+        
+        let billing_connector_payment_method_details = Some(diesel_models::types::BillingConnectorPaymentMethodDetails::Card(
+            diesel_models::types::BillingConnectorAdditionalCardInfo {
+                card_network: self.revenue_recovery_data.card_network.clone(),
+                card_issuer: self.revenue_recovery_data.card_issuer.clone(),
+            }
+        ));
 
         let payment_revenue_recovery_metadata = match payment_attempt_connector {
             Some(connector) => Some(diesel_models::types::PaymentRevenueRecoveryMetadata {

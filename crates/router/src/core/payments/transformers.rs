@@ -4981,11 +4981,8 @@ impl ForeignFrom<&diesel_models::types::FeatureMetadata> for api_models::payment
                         ),
                     invoice_next_billing_time: payment_revenue_recovery_metadata
                         .invoice_next_billing_time,
-                    billing_connector_payment_method_details:
-                        api_models::payments::BillingConnectorPaymentMethodDetails::foreign_from(
-                            &payment_revenue_recovery_metadata
-                                .billing_connector_payment_method_details,
-                        ),
+                        billing_connector_payment_method_details:payment_revenue_recovery_metadata
+                        .billing_connector_payment_method_details.as_ref().map(api_models::payments::BillingConnectorPaymentMethodDetails::foreign_from),
                     first_payment_attempt_network_advice_code: payment_revenue_recovery_metadata
                         .first_payment_attempt_network_advice_code
                         .clone(),

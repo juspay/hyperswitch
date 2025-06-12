@@ -8686,7 +8686,7 @@ pub struct PaymentRevenueRecoveryMetadata {
     pub connector: common_enums::connector_enums::Connector,
     #[schema(value_type = BillingConnectorPaymentMethodDetails)]
     /// Extra Payment Method Details that are needed to be stored
-    pub billing_connector_payment_method_details: BillingConnectorPaymentMethodDetails,
+    pub billing_connector_payment_method_details: Option<BillingConnectorPaymentMethodDetails>,
     /// Invoice Next billing time
     pub invoice_next_billing_time: Option<PrimitiveDateTime>,
     /// First Payment Attempt Payment Gateway Error Code

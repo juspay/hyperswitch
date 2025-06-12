@@ -175,7 +175,7 @@ pub struct PaymentRevenueRecoveryMetadata {
     /// Time at which next invoice will be created
     pub invoice_next_billing_time: Option<time::PrimitiveDateTime>,
     /// Extra Payment Method Details that are needed to be stored
-    pub billing_connector_payment_method_details: BillingConnectorPaymentMethodDetails,
+    pub billing_connector_payment_method_details: Option<BillingConnectorPaymentMethodDetails>,
     /// First Payment Attempt Payment Gateway Error Code
     pub first_payment_attempt_pg_error_code: Option<String>,
     /// First Payment Attempt Network Error Code

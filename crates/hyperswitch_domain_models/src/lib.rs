@@ -323,10 +323,7 @@ impl ApiModelToDieselModelConvertor<ApiRevenueRecoveryMetadata> for PaymentReven
             payment_method_subtype: from.payment_method_subtype,
             connector: from.connector,
             invoice_next_billing_time: from.invoice_next_billing_time,
-            billing_connector_payment_method_details:
-                BillingConnectorPaymentMethodDetails::convert_from(
-                    from.billing_connector_payment_method_details,
-                ),
+            billing_connector_payment_method_details: from.billing_connector_payment_method_details.map(BillingConnectorPaymentMethodDetails::convert_from),
             first_payment_attempt_network_advice_code: from
                 .first_payment_attempt_network_advice_code,
             first_payment_attempt_network_decline_code: from
@@ -348,9 +345,7 @@ impl ApiModelToDieselModelConvertor<ApiRevenueRecoveryMetadata> for PaymentReven
             payment_method_subtype: self.payment_method_subtype,
             connector: self.connector,
             invoice_next_billing_time: self.invoice_next_billing_time,
-            billing_connector_payment_method_details: self
-                .billing_connector_payment_method_details
-                .convert_back(),
+            billing_connector_payment_method_details: self.billing_connector_payment_method_details.map(|data| data.convert_back()),
             first_payment_attempt_network_advice_code: self
                 .first_payment_attempt_network_advice_code,
             first_payment_attempt_network_decline_code: self
