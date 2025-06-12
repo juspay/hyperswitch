@@ -1,4 +1,7 @@
-import { customerAcceptance } from "./Commons.js";
+import { customerAcceptance,
+  singleUseMandateData,
+  multiUseMandateData
+ } from "./Commons.js";
 
 const successfulNo3DSCardDetails = {
   card_number: "5185570141917102",
@@ -8,25 +11,23 @@ const successfulNo3DSCardDetails = {
   card_cvc: "123",
 };
 
-const singleUseMandateData = {
-  customer_acceptance: customerAcceptance,
-  mandate_type: {
-    single_use: {
-      amount: 8000,
-      currency: "USD",
-    },
+const billingDetails = {
+  address: {
+    line1: "1467",
+    line2: "CA",
+    line3: "CA",
+    city: "Florence",
+    state: "Tuscany",
+    zip: "12345",
+    first_name: "Max",
+    last_name: "Mustermann",
   },
-};
-
-const multiUseMandateData = {
-  customer_acceptance: customerAcceptance,
-  mandate_type: {
-    multi_use: {
-      amount: 8000,
-      currency: "USD",
-    },
+  email: "mauro.morandi@nexi.it",
+  phone: {
+    number: "9123456789",
+    country_code: "+91",
   },
-};
+}
 
 const paymentMethodDataNo3DSResponse = {
   card: {
@@ -66,23 +67,7 @@ export const connectorDetails = {
     PaymentIntentOffSession: {
       Request: {
         currency: "USD",
-        billing: {
-          address: {
-            line1: "1467",
-            line2: "CA",
-            line3: "CA",
-            city: "Florence",
-            state: "Tuscany",
-            zip: "12345",
-            first_name: "Max",
-            last_name: "Mustermann",
-          },
-          email: "mauro.morandi@nexi.it",
-          phone: {
-            number: "9123456789",
-            country_code: "+91",
-          },
-        },
+        billing: billingDetails,
       },
       Response: {
         status: 200,
