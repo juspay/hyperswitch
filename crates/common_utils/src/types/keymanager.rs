@@ -49,6 +49,7 @@ pub struct KeyManagerState {
     pub ca: Secret<String>,
     #[cfg(feature = "keymanager_mtls")]
     pub cert: Secret<String>,
+    pub infra_values: Option<serde_json::Value>,
 }
 
 pub trait GetKeymanagerTenant {
