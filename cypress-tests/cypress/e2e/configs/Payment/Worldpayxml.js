@@ -1,4 +1,7 @@
-import { customerAcceptance } from "./Commons";
+import { customerAcceptance,
+  singleUseMandateData,
+  multiUseMandateData
+ } from "./Commons";
 import { getCustomExchange } from "./Modifiers";
 
 const successfulNo3DSCardDetails = {
@@ -12,26 +15,6 @@ const successfulNo3DSCardDetails = {
 const successful3DSTestCardDetails = {
   ...successfulNo3DSCardDetails,
   card_number: "4242424242424242",
-};
-
-const singleUseMandateData = {
-  customer_acceptance: customerAcceptance,
-  mandate_type: {
-    single_use: {
-      amount: 8000,
-      currency: "USD",
-    },
-  },
-};
-
-const multiUseMandateData = {
-  customer_acceptance: customerAcceptance,
-  mandate_type: {
-    multi_use: {
-      amount: 8000,
-      currency: "USD",
-    },
-  },
 };
 
 export const connectorDetails = {
@@ -429,8 +412,8 @@ export const connectorDetails = {
           error: {
             type: "invalid_request",
             message:
-              "No eligible connector was found for the current payment method configuration",
-            code: "IR_39",
+              "A payment token or payment method data or ctp service details is required",
+            code: "IR_06",
           },
         },
       },
