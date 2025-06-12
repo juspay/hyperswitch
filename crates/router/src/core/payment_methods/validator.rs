@@ -15,7 +15,7 @@ use crate::{
     utils,
 };
 
-#[cfg(all(feature = "v2", feature = "customer_v2"))]
+#[cfg(feature = "v2")]
 pub async fn validate_request_and_initiate_payment_method_collect_link(
     _state: &SessionState,
     _merchant_context: &domain::MerchantContext,
@@ -24,7 +24,7 @@ pub async fn validate_request_and_initiate_payment_method_collect_link(
     todo!()
 }
 
-#[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
+#[cfg(feature = "v1")]
 pub async fn validate_request_and_initiate_payment_method_collect_link(
     state: &SessionState,
     merchant_context: &domain::MerchantContext,
@@ -37,7 +37,7 @@ pub async fn validate_request_and_initiate_payment_method_collect_link(
         .get_owner_merchant_account()
         .get_id()
         .clone();
-    #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
+    #[cfg(feature = "v1")]
     match db
         .find_customer_by_customer_id_merchant_id(
             &state.into(),

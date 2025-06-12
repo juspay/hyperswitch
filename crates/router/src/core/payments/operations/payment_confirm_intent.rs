@@ -3,6 +3,7 @@ use async_trait::async_trait;
 use common_utils::{ext_traits::Encode, fp_utils::when, types::keymanager::ToEncryptable};
 use error_stack::ResultExt;
 use hyperswitch_domain_models::payments::PaymentConfirmData;
+use hyperswitch_interfaces::api::ConnectorSpecifications;
 use masking::{ExposeOptionInterface, PeekInterface};
 use router_env::{instrument, tracing};
 
@@ -21,7 +22,7 @@ use crate::{
         utils as core_utils,
     },
     routes::{app::ReqState, SessionState},
-    services,
+    services::{self, connector_integration_interface::ConnectorEnum},
     types::{
         self,
         api::{self, ConnectorCallType, PaymentIdTypeExt},
@@ -43,6 +44,7 @@ impl ValidateStatusForOperation for PaymentIntentConfirm {
         match intent_status {
             common_enums::IntentStatus::RequiresPaymentMethod => Ok(()),
             common_enums::IntentStatus::Succeeded
+            | common_enums::IntentStatus::Conflicted
             | common_enums::IntentStatus::Failed
             | common_enums::IntentStatus::Cancelled
             | common_enums::IntentStatus::Processing
@@ -370,6 +372,25 @@ impl<F: Clone + Send + Sync> Domain<F, PaymentsConfirmIntentRequest, PaymentConf
         .await
     }
 
+    #[instrument(skip_all)]
+    async fn populate_payment_data<'a>(
+        &'a self,
+        state: &SessionState,
+        payment_data: &mut PaymentConfirmData<F>,
+        _merchant_context: &domain::MerchantContext,
+        business_profile: &domain::Profile,
+        connector_data: &api::ConnectorData,
+    ) -> CustomResult<(), errors::ApiErrorResponse> {
+        let connector_request_reference_id = connector_data
+            .connector
+            .generate_connector_request_reference_id(
+                &payment_data.payment_intent,
+                &payment_data.payment_attempt,
+            );
+        payment_data.set_connector_request_reference_id(Some(connector_request_reference_id));
+        Ok(())
+    }
+
     #[cfg(feature = "v2")]
     async fn create_or_fetch_payment_method<'a>(
         &'a self,
@@ -541,6 +562,11 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentConfirmData<F>, PaymentsConfirmInt
 
         let authentication_type = payment_data.payment_attempt.authentication_type;
 
+        let connector_request_reference_id = payment_data
+            .payment_attempt
+            .connector_request_reference_id
+            .clone();
+
         let payment_attempt_update = match &payment_data.payment_method {
             Some(payment_method) => {
                 hyperswitch_domain_models::payments::payment_attempt::PaymentAttemptUpdate::ConfirmIntentTokenized {
@@ -559,6 +585,7 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentConfirmData<F>, PaymentsConfirmInt
                     connector,
                     merchant_connector_id,
                     authentication_type,
+                    connector_request_reference_id,
                 }
             }
         };

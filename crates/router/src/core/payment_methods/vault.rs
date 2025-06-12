@@ -1,5 +1,5 @@
 use common_enums::PaymentMethodType;
-#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+#[cfg(feature = "v2")]
 use common_utils::request;
 use common_utils::{
     crypto::{DecodeMessage, EncodeMessage, GcmAes256},
@@ -8,7 +8,7 @@ use common_utils::{
     pii::Email,
 };
 use error_stack::{report, ResultExt};
-#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+#[cfg(feature = "v2")]
 use hyperswitch_domain_models::{
     router_data_v2::flow_common_types::VaultConnectorFlowData,
     router_flow_types::{ExternalVaultDeleteFlow, ExternalVaultRetrieveFlow},
@@ -31,7 +31,7 @@ use crate::{
     },
     utils::StringExt,
 };
-#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+#[cfg(feature = "v2")]
 use crate::{
     core::{
         errors::ConnectorErrorExt,
@@ -1201,7 +1201,7 @@ pub async fn delete_tokenized_data(
     }
 }
 
-#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+#[cfg(feature = "v2")]
 async fn create_vault_request<R: pm_types::VaultingInterface>(
     jwekey: &settings::Jwekey,
     locker: &settings::Locker,
@@ -1235,7 +1235,7 @@ async fn create_vault_request<R: pm_types::VaultingInterface>(
     Ok(request)
 }
 
-#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+#[cfg(feature = "v2")]
 #[instrument(skip_all)]
 pub async fn call_to_vault<V: pm_types::VaultingInterface>(
     state: &routes::SessionState,
@@ -1268,7 +1268,7 @@ pub async fn call_to_vault<V: pm_types::VaultingInterface>(
     Ok(decrypted_payload)
 }
 
-#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+#[cfg(feature = "v2")]
 #[instrument(skip_all)]
 pub async fn get_fingerprint_id_from_vault<D: domain::VaultingDataInterface + serde::Serialize>(
     state: &routes::SessionState,
@@ -1297,7 +1297,7 @@ pub async fn get_fingerprint_id_from_vault<D: domain::VaultingDataInterface + se
     Ok(fingerprint_resp.fingerprint_id)
 }
 
-#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+#[cfg(feature = "v2")]
 #[instrument(skip_all)]
 pub async fn add_payment_method_to_vault(
     state: &routes::SessionState,
@@ -1332,7 +1332,7 @@ pub async fn add_payment_method_to_vault(
     Ok(stored_pm_resp)
 }
 
-#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+#[cfg(feature = "v2")]
 #[instrument(skip_all)]
 pub async fn retrieve_payment_method_from_vault_internal(
     state: &routes::SessionState,
@@ -1387,7 +1387,7 @@ pub async fn retrieve_value_from_vault(
     Ok(stored_resp)
 }
 
-#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+#[cfg(feature = "v2")]
 #[instrument(skip_all)]
 pub async fn retrieve_payment_method_from_vault_external(
     state: &routes::SessionState,
@@ -1452,7 +1452,7 @@ pub async fn retrieve_payment_method_from_vault_external(
     )
 }
 
-#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+#[cfg(feature = "v2")]
 pub fn get_vault_response_for_retrieve_payment_method_data<F>(
     router_data: VaultRouterData<F>,
 ) -> RouterResult<pm_types::VaultRetrieveResponse> {
@@ -1473,7 +1473,7 @@ pub fn get_vault_response_for_retrieve_payment_method_data<F>(
     }
 }
 
-#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+#[cfg(feature = "v2")]
 #[instrument(skip_all)]
 pub async fn retrieve_payment_method_from_vault_using_payment_token(
     state: &routes::SessionState,
@@ -1533,7 +1533,7 @@ pub async fn retrieve_payment_method_from_vault_using_payment_token(
     Ok((payment_method, vault_data))
 }
 
-#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+#[cfg(feature = "v2")]
 #[instrument(skip_all)]
 pub async fn delete_payment_token(
     state: &routes::SessionState,
@@ -1554,7 +1554,7 @@ pub async fn delete_payment_token(
     Ok(())
 }
 
-#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+#[cfg(feature = "v2")]
 #[instrument(skip_all)]
 pub async fn retrieve_payment_method_from_vault(
     state: &routes::SessionState,
@@ -1608,7 +1608,7 @@ pub async fn retrieve_payment_method_from_vault(
     }
 }
 
-#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+#[cfg(feature = "v2")]
 pub async fn delete_payment_method_data_from_vault_internal(
     state: &routes::SessionState,
     merchant_context: &domain::MerchantContext,
@@ -1638,7 +1638,7 @@ pub async fn delete_payment_method_data_from_vault_internal(
     Ok(stored_pm_resp)
 }
 
-#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+#[cfg(feature = "v2")]
 pub async fn delete_payment_method_data_from_vault_external(
     state: &routes::SessionState,
     merchant_account: &domain::MerchantAccount,
@@ -1700,7 +1700,7 @@ pub async fn delete_payment_method_data_from_vault_external(
     )
 }
 
-#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+#[cfg(feature = "v2")]
 pub fn get_vault_response_for_delete_payment_method_data<F>(
     router_data: VaultRouterData<F>,
     merchant_id: id_type::MerchantId,
@@ -1725,7 +1725,7 @@ pub fn get_vault_response_for_delete_payment_method_data<F>(
     }
 }
 
-#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+#[cfg(feature = "v2")]
 pub async fn delete_payment_method_data_from_vault(
     state: &routes::SessionState,
     merchant_context: &domain::MerchantContext,

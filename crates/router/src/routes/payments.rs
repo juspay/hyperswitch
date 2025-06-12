@@ -3023,7 +3023,7 @@ pub async fn payments_capture(
     .await
 }
 
-#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+#[cfg(feature = "v2")]
 #[instrument(skip_all, fields(flow = ?Flow::PaymentMethodsList))]
 pub async fn list_payment_methods(
     state: web::Data<app::AppState>,

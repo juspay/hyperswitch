@@ -1,16 +1,48 @@
+const successfulNo3DSCardDetails = {
+  card_number: "4242424242424242",
+  card_exp_month: "10",
+  card_exp_year: "30",
+  card_holder_name: "John",
+  card_cvc: "737",
+};
+
+const mandateNotSupported = {
+  status: 400,
+  body: {
+    error: {
+      type: "invalid_request",
+      message: "setup mandate flow not supported",
+      code: "IR_20",
+    },
+  },
+};
+
 export const connectorDetails = {
   card_pm: {
-    ZeroAuthMandate: {
+    ZeroAuthPaymentIntent: {
+      Request: {
+        currency: "USD",
+      },
       Response: {
-        status: 400,
+        status: 200,
         body: {
-          error: {
-            type: "invalid_request",
-            message: "setup mandate flow not supported",
-            code: "IR_20",
-          },
+          status: "requires_payment_method",
         },
       },
+    },
+    ZeroAuthConfirmPayment: {
+      Request: {
+        payment_type: "setup_mandate",
+        payment_method: "card",
+        payment_method_type: "credit",
+        payment_method_data: {
+          card: successfulNo3DSCardDetails,
+        },
+      },
+      Response: mandateNotSupported,
+    },
+    ZeroAuthMandate: {
+      Response: mandateNotSupported,
     },
   },
   bank_transfer_pm: {

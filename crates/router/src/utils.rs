@@ -26,7 +26,7 @@ pub use common_utils::{
     id_type, pii,
     validation::validate_email,
 };
-#[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
+#[cfg(feature = "v1")]
 use common_utils::{
     type_name,
     types::keymanager::{Identifier, ToEncryptable},
@@ -34,7 +34,7 @@ use common_utils::{
 use error_stack::ResultExt;
 pub use hyperswitch_connectors::utils::QrImage;
 use hyperswitch_domain_models::payments::PaymentIntent;
-#[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
+#[cfg(feature = "v1")]
 use hyperswitch_domain_models::type_encryption::{crypto_operation, CryptoOperation};
 use masking::{ExposeInterface, SwitchStrategy};
 use nanoid::nanoid;
@@ -44,10 +44,6 @@ use tracing_futures::Instrument;
 use uuid::Uuid;
 
 pub use self::ext_traits::{OptionExt, ValidateCall};
-#[cfg(feature = "v1")]
-use crate::core::webhooks as webhooks_core;
-#[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
-use crate::types::storage;
 use crate::{
     consts,
     core::{
@@ -64,6 +60,8 @@ use crate::{
         transformers::{ForeignFrom, ForeignInto},
     },
 };
+#[cfg(feature = "v1")]
+use crate::{core::webhooks as webhooks_core, types::storage};
 
 pub mod error_parser {
     use std::fmt::Display;
@@ -724,7 +722,7 @@ pub fn add_connector_http_status_code_metrics(option_status_code: Option<u16>) {
     }
 }
 
-#[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
+#[cfg(feature = "v1")]
 #[async_trait::async_trait]
 pub trait CustomerAddress {
     async fn get_address_update(
@@ -747,7 +745,7 @@ pub trait CustomerAddress {
     ) -> CustomResult<domain::CustomerAddress, common_utils::errors::CryptoError>;
 }
 
-#[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
+#[cfg(feature = "v1")]
 #[async_trait::async_trait]
 impl CustomerAddress for api_models::customers::CustomerRequest {
     async fn get_address_update(
@@ -883,7 +881,7 @@ impl CustomerAddress for api_models::customers::CustomerRequest {
     }
 }
 
-#[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
+#[cfg(feature = "v1")]
 #[async_trait::async_trait]
 impl CustomerAddress for api_models::customers::CustomerUpdateRequest {
     async fn get_address_update(
