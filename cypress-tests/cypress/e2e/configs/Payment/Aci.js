@@ -470,17 +470,6 @@ export const connectorDetails = {
     },
   },
   bank_redirect_pm: {
-    PaymentIntent: {
-      Request: {
-        currency: "EUR",
-      },
-      Response: {
-        status: 200,
-        body: {
-          status: "requires_payment_method",
-        },
-      },
-    },
     Ideal: {
       Request: {
         payment_method: "bank_redirect",
