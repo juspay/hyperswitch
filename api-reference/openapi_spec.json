@@ -6009,7 +6009,7 @@
           {
             "name": "profile_id",
             "in": "path",
-            "description": "The unique identifier for the Profile id",
+            "description": "The unique identifier for the Profile",
             "required": true,
             "schema": {
               "type": "string"
@@ -6018,7 +6018,7 @@
           {
             "name": "profile_acquirer_id",
             "in": "path",
-            "description": "The unique identifier for the Profile Acquirer id",
+            "description": "The unique identifier for the Profile Acquirer",
             "required": true,
             "schema": {
               "type": "string"
