@@ -1,5 +1,5 @@
 use actix_web::{web, HttpRequest, HttpResponse};
-use api_models::profile_acquirer::{ProfileAcquirerCreate, ProfileAcquirerUpdate}; // Added ProfileAcquirerUpdate
+use api_models::profile_acquirer::{ProfileAcquirerCreate, ProfileAcquirerUpdate};
 use router_env::{instrument, tracing, Flow};
 
 use super::app::AppState;

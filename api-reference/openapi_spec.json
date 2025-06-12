@@ -6005,6 +6005,26 @@
         "summary": "Profile Acquirer - Update",
         "description": "Update a Profile Acquirer for accessing our APIs from your servers.",
         "operationId": "Update a Profile Acquirer",
+        "parameters": [
+          {
+            "name": "profile_id",
+            "in": "path",
+            "description": "The unique identifier for the Profile id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "profile_acquirer_id",
+            "in": "path",
+            "description": "The unique identifier for the Profile Acquirer id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
         "requestBody": {
           "content": {
             "application/json": {

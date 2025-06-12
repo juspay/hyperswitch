@@ -101,7 +101,7 @@ pub enum ApiErrorResponse {
     MerchantConnectorAccountNotFound { id: String },
     #[error(error_type = ErrorType::ObjectNotFound, code = "HE_02", message = "Business profile with the given id  '{id}' does not exist in our records")]
     ProfileNotFound { id: String },
-    #[error(error_type = ErrorType::ObjectNotFound, code = "PA_01", message = "Profile acquirer with id '{profile_acquirer_id}' not found for profile '{profile_id}'.")]
+    #[error(error_type = ErrorType::ObjectNotFound, code = "HE_02", message = "Profile acquirer with id '{profile_acquirer_id}' not found for profile '{profile_id}'.")]
     ProfileAcquirerNotFound {
         profile_acquirer_id: String,
         profile_id: String,
@@ -427,7 +427,7 @@ impl ErrorSwitch<api_models::errors::types::ApiErrorResponse> for ApiErrorRespon
                 AER::NotFound(ApiError::new("HE", 2, format!("Business profile with the given id {id} does not exist"), None))
             }
             Self::ProfileAcquirerNotFound { profile_acquirer_id, profile_id } => {
-                AER::NotFound(ApiError::new("PA", 1, format!("Profile acquirer with id '{profile_acquirer_id}' not found for profile '{profile_id}'."), None))
+                AER::NotFound(ApiError::new("HE", 2, format!("Profile acquirer with id '{profile_acquirer_id}' not found for profile '{profile_id}'."), None))
             }
             Self::PollNotFound { .. } => {
                 AER::NotFound(ApiError::new("HE", 2, "Poll does not exist in our records", None))

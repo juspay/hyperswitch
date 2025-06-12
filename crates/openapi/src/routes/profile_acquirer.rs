@@ -24,6 +24,10 @@ pub async fn profile_acquirer_create() { /* … */
 #[utoipa::path(
     post,
     path = "/profile_acquirers/{profile_id}/{profile_acquirer_id}",
+    params (
+        ("profile_id" = String, Path, description = "The unique identifier for the Profile id"),
+        ("profile_acquirer_id" = String, Path, description = "The unique identifier for the Profile Acquirer id")
+    ),
     request_body = ProfileAcquirerUpdate,
     responses(
         (status = 200, description = "Profile Acquirer updated", body = ProfileAcquirerResponse),
