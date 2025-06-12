@@ -65,7 +65,7 @@ pub enum RoutableConnectors {
     Archipel,
     Authorizedotnet,
     Bankofamerica,
-    // Barclaycard,
+    Barclaycard,
     Billwerk,
     Bitpay,
     Bambora,
@@ -140,7 +140,7 @@ pub enum RoutableConnectors {
     // Taxjar,
     Trustpay,
     // Thunes
-    // Tokenio,
+    Tokenio,
     // Tsys,
     Tsys,
     // UnifiedAuthenticationService,
@@ -151,7 +151,8 @@ pub enum RoutableConnectors {
     Wise,
     Worldline,
     Worldpay,
-    // Worldpayxml,
+    Worldpayvantiv,
+    Worldpayxml,
     Xendit,
     Zen,
     Plaid,
@@ -220,7 +221,7 @@ pub enum Connector {
     Bambora,
     Bamboraapac,
     Bankofamerica,
-    // Barclaycard,
+    Barclaycard,
     Billwerk,
     Bitpay,
     Bluesnap,
@@ -253,6 +254,7 @@ pub enum Connector {
     Gpayments,
     Hipay,
     Helcim,
+    HyperswitchVault,
     Inespay,
     Iatapay,
     Itaubank,
@@ -297,6 +299,7 @@ pub enum Connector {
     Threedsecureio,
     // Tokenio,
     //Thunes,
+    Tokenio,
     Trustpay,
     Tsys,
     // UnifiedAuthenticationService,
@@ -307,7 +310,8 @@ pub enum Connector {
     Wise,
     Worldline,
     Worldpay,
-    // Worldpayxml,
+    Worldpayvantiv,
+    Worldpayxml,
     Signifyd,
     Plaid,
     Riskified,
@@ -367,6 +371,9 @@ impl Connector {
                 | (Self::Facilitapay, _)
         )
     }
+    pub fn requires_order_creation_before_payment(self, payment_method: PaymentMethod) -> bool {
+        matches!((self, payment_method), (Self::Razorpay, PaymentMethod::Upi))
+    }
     pub fn supports_file_storage_module(self) -> bool {
         matches!(self, Self::Stripe | Self::Checkout)
     }
@@ -395,7 +402,7 @@ impl Connector {
             | Self::Bambora
             | Self::Bamboraapac
             | Self::Bankofamerica
-            // | Self::Barclaycard
+            | Self::Barclaycard
             | Self::Billwerk
             | Self::Bitpay
             | Self::Bluesnap
@@ -423,6 +430,7 @@ impl Connector {
             | Self::Gpayments
             | Self::Hipay
             | Self::Helcim
+            | Self::HyperswitchVault
             | Self::Iatapay
 			| Self::Inespay
             | Self::Itaubank
@@ -469,7 +477,8 @@ impl Connector {
             | Self::Wise
             | Self::Worldline
             | Self::Worldpay
-            // | Self::Worldpayxml
+            | Self::Worldpayvantiv
+            | Self::Worldpayxml
             | Self::Xendit
             | Self::Zen
             | Self::Zsl
@@ -482,6 +491,7 @@ impl Connector {
             | Self::CtpMastercard
             | Self::CtpVisa
             | Self::Noon
+            | Self::Tokenio
             | Self::Stripe
             | Self::Datatrans => false,
             Self::Checkout | Self::Nmi |Self::Cybersource | Self::Archipel => true,
@@ -549,7 +559,7 @@ impl From<RoutableConnectors> for Connector {
             RoutableConnectors::Archipel => Self::Archipel,
             RoutableConnectors::Authorizedotnet => Self::Authorizedotnet,
             RoutableConnectors::Bankofamerica => Self::Bankofamerica,
-            // RoutableConnectors::Barclaycard => Self::Barclaycard,
+            RoutableConnectors::Barclaycard => Self::Barclaycard,
             RoutableConnectors::Billwerk => Self::Billwerk,
             RoutableConnectors::Bitpay => Self::Bitpay,
             RoutableConnectors::Bambora => Self::Bambora,
@@ -616,6 +626,7 @@ impl From<RoutableConnectors> for Connector {
             RoutableConnectors::Stax => Self::Stax,
             RoutableConnectors::Stripe => Self::Stripe,
             RoutableConnectors::Stripebilling => Self::Stripebilling,
+            RoutableConnectors::Tokenio => Self::Tokenio,
             RoutableConnectors::Trustpay => Self::Trustpay,
             // RoutableConnectors::Tokenio => Self::Tokenio,
             RoutableConnectors::Tsys => Self::Tsys,
@@ -624,7 +635,8 @@ impl From<RoutableConnectors> for Connector {
             RoutableConnectors::Wise => Self::Wise,
             RoutableConnectors::Worldline => Self::Worldline,
             RoutableConnectors::Worldpay => Self::Worldpay,
-            // RoutableConnectors::Worldpayxml => Self::Worldpayxml,
+            RoutableConnectors::Worldpayvantiv => Self::Worldpayvantiv,
+            RoutableConnectors::Worldpayxml => Self::Worldpayxml,
             RoutableConnectors::Zen => Self::Zen,
             RoutableConnectors::Plaid => Self::Plaid,
             RoutableConnectors::Zsl => Self::Zsl,
@@ -664,7 +676,7 @@ impl TryFrom<Connector> for RoutableConnectors {
             Connector::Archipel => Ok(Self::Archipel),
             Connector::Authorizedotnet => Ok(Self::Authorizedotnet),
             Connector::Bankofamerica => Ok(Self::Bankofamerica),
-            // Connector::Barclaycard => Ok(Self::Barclaycard),
+            Connector::Barclaycard => Ok(Self::Barclaycard),
             Connector::Billwerk => Ok(Self::Billwerk),
             Connector::Bitpay => Ok(Self::Bitpay),
             Connector::Bambora => Ok(Self::Bambora),
@@ -729,7 +741,7 @@ impl TryFrom<Connector> for RoutableConnectors {
             Connector::Stax => Ok(Self::Stax),
             Connector::Stripe => Ok(Self::Stripe),
             Connector::Stripebilling => Ok(Self::Stripebilling),
-            // Connector::Tokenio => Ok(Self::Tokenio),
+            Connector::Tokenio => Ok(Self::Tokenio),
             Connector::Trustpay => Ok(Self::Trustpay),
             Connector::Tsys => Ok(Self::Tsys),
             Connector::Volt => Ok(Self::Volt),
@@ -737,7 +749,8 @@ impl TryFrom<Connector> for RoutableConnectors {
             Connector::Wise => Ok(Self::Wise),
             Connector::Worldline => Ok(Self::Worldline),
             Connector::Worldpay => Ok(Self::Worldpay),
-            // Connector::Worldpayxml => Ok(Self::Worldpayxml),
+            Connector::Worldpayvantiv => Ok(Self::Worldpayvantiv),
+            Connector::Worldpayxml => Ok(Self::Worldpayxml),
             Connector::Xendit => Ok(Self::Xendit),
             Connector::Zen => Ok(Self::Zen),
             Connector::Plaid => Ok(Self::Plaid),
@@ -749,6 +762,7 @@ impl TryFrom<Connector> for RoutableConnectors {
             Connector::Redsys => Ok(Self::Redsys),
             Connector::CtpMastercard
             | Connector::Gpayments
+            | Connector::HyperswitchVault
             | Connector::Juspaythreedsserver
             | Connector::Netcetera
             | Connector::Taxjar

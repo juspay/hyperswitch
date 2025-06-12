@@ -61,7 +61,9 @@ use hyperswitch_domain_models::{PayoutAttemptInterface, PayoutsInterface};
 use masking::PeekInterface;
 use redis_interface::errors::RedisError;
 use router_env::logger;
-use storage_impl::{errors::StorageError, redis::kv_store::RedisConnInterface, MockDb};
+use storage_impl::{
+    errors::StorageError, redis::kv_store::RedisConnInterface, tokenization, MockDb,
+};
 
 pub use self::kafka_store::KafkaStore;
 use self::{fraud_check::FraudCheckInterface, organization::OrganizationInterface};
@@ -139,6 +141,7 @@ pub trait StorageInterface:
     + relay::RelayInterface
     + user::theme::ThemeInterface
     + payment_method_session::PaymentMethodsSessionInterface
+    + tokenization::TokenizationInterface
     + 'static
 {
     fn get_scheduler_db(&self) -> Box<dyn scheduler::SchedulerInterface>;

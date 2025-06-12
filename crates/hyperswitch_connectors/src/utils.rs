@@ -67,10 +67,14 @@ use hyperswitch_domain_models::{
 use hyperswitch_interfaces::{api, consts, errors, types::Response};
 use image::{DynamicImage, ImageBuffer, ImageFormat, Luma, Rgba};
 use masking::{ExposeInterface, PeekInterface, Secret};
+use quick_xml::{
+    events::{BytesDecl, BytesText, Event},
+    Writer,
+};
 use rand::Rng;
 use regex::Regex;
 use router_env::logger;
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use time::PrimitiveDateTime;
 use unicode_normalization::UnicodeNormalization;
@@ -131,15 +135,6 @@ pub(crate) fn to_currency_base_unit(
     currency
         .to_currency_base_unit(amount)
         .change_context(errors::ConnectorError::ParsingFailed)
-}
-
-pub(crate) fn to_currency_lower_unit(
-    amount: String,
-    currency: enums::Currency,
-) -> Result<String, error_stack::Report<errors::ConnectorError>> {
-    currency
-        .to_currency_lower_unit(amount)
-        .change_context(errors::ConnectorError::ResponseHandlingFailed)
 }
 
 pub trait ConnectorErrorTypeMapping {
@@ -445,7 +440,8 @@ pub(crate) fn is_payment_failure(status: AttemptStatus) -> bool {
         | AttemptStatus::Pending
         | AttemptStatus::PaymentMethodAwaited
         | AttemptStatus::ConfirmationAwaited
-        | AttemptStatus::DeviceDataCollectionPending => false,
+        | AttemptStatus::DeviceDataCollectionPending
+        | AttemptStatus::IntegrityFailure => false,
     }
 }
 
@@ -1689,6 +1685,7 @@ pub trait PaymentsAuthorizeRequestData {
     fn get_connector_mandate_id(&self) -> Result<String, Error>;
     fn get_complete_authorize_url(&self) -> Result<String, Error>;
     fn get_ip_address_as_optional(&self) -> Option<Secret<String, IpAddress>>;
+    fn get_optional_user_agent(&self) -> Option<String>;
     fn get_original_amount(&self) -> i64;
     fn get_surcharge_amount(&self) -> Option<i64>;
     fn get_tax_on_surcharge_amount(&self) -> Option<i64>;
@@ -1707,6 +1704,7 @@ pub trait PaymentsAuthorizeRequestData {
         &self,
     ) -> Result<enums::CardNetwork, Error>;
     fn get_connector_testing_data(&self) -> Option<pii::SecretSerdeValue>;
+    fn get_order_id(&self) -> Result<String, errors::ConnectorError>;
 }
 
 impl PaymentsAuthorizeRequestData for PaymentsAuthorizeData {
@@ -1807,6 +1805,11 @@ impl PaymentsAuthorizeRequestData for PaymentsAuthorizeData {
                 .ip_address
                 .map(|ip| Secret::new(ip.to_string()))
         })
+    }
+    fn get_optional_user_agent(&self) -> Option<String> {
+        self.browser_info
+            .clone()
+            .and_then(|browser_info| browser_info.user_agent)
     }
     fn get_original_amount(&self) -> i64 {
         self.surcharge_details
@@ -1929,6 +1932,12 @@ impl PaymentsAuthorizeRequestData for PaymentsAuthorizeData {
     }
     fn get_connector_testing_data(&self) -> Option<pii::SecretSerdeValue> {
         self.connector_testing_data.clone()
+    }
+
+    fn get_order_id(&self) -> Result<String, errors::ConnectorError> {
+        self.order_id
+            .to_owned()
+            .ok_or(errors::ConnectorError::RequestEncodingFailed)
     }
 }
 
@@ -5492,6 +5501,7 @@ pub enum PaymentMethodDataType {
     NetworkTransactionIdAndCardDetails,
     DirectCarrierBilling,
     InstantBankTransfer,
+    RevolutPay,
 }
 
 impl From<PaymentMethodData> for PaymentMethodDataType {
@@ -5542,6 +5552,7 @@ impl From<PaymentMethodData> for PaymentMethodDataType {
                 payment_method_data::WalletData::CashappQr(_) => Self::CashappQr,
                 payment_method_data::WalletData::SwishQr(_) => Self::SwishQr,
                 payment_method_data::WalletData::Mifinity(_) => Self::Mifinity,
+                payment_method_data::WalletData::RevolutPay(_) => Self::RevolutPay,
             },
             PaymentMethodData::PayLater(pay_later_data) => match pay_later_data {
                 payment_method_data::PayLaterData::KlarnaRedirect { .. } => Self::KlarnaRedirect,
@@ -6134,6 +6145,7 @@ pub(crate) fn convert_setup_mandate_router_data_to_authorize_router_data(
         merchant_account_id: None,
         merchant_config_currency: None,
         connector_testing_data: data.request.connector_testing_data.clone(),
+        order_id: None,
     }
 }
 
@@ -6230,7 +6242,8 @@ impl FrmTransactionRouterDataRequest for FrmTransactionRouterData {
             AttemptStatus::AuthenticationSuccessful
             | AttemptStatus::PartialChargedAndChargeable
             | AttemptStatus::Authorized
-            | AttemptStatus::Charged => Some(true),
+            | AttemptStatus::Charged
+            | AttemptStatus::IntegrityFailure => Some(true),
 
             AttemptStatus::Started
             | AttemptStatus::AuthenticationPending
@@ -6487,5 +6500,46 @@ impl SplitPaymentData for PaymentsCancelData {
 impl SplitPaymentData for SetupMandateRequestData {
     fn get_split_payment_data(&self) -> Option<common_types::payments::SplitPaymentsRequest> {
         None
+    }
+}
+
+pub struct XmlSerializer;
+impl XmlSerializer {
+    pub fn serialize_to_xml_bytes<T: Serialize>(
+        item: &T,
+        xml_version: &str,
+        xml_encoding: Option<&str>,
+        xml_standalone: Option<&str>,
+        xml_doc_type: Option<&str>,
+    ) -> Result<Vec<u8>, error_stack::Report<errors::ConnectorError>> {
+        let mut xml_bytes = Vec::new();
+        let mut writer = Writer::new(std::io::Cursor::new(&mut xml_bytes));
+
+        writer
+            .write_event(Event::Decl(BytesDecl::new(
+                xml_version,
+                xml_encoding,
+                xml_standalone,
+            )))
+            .change_context(errors::ConnectorError::RequestEncodingFailed)
+            .attach_printable("Failed to write XML declaration")?;
+
+        if let Some(xml_doc_type_data) = xml_doc_type {
+            writer
+                .write_event(Event::DocType(BytesText::from_escaped(xml_doc_type_data)))
+                .change_context(errors::ConnectorError::RequestEncodingFailed)
+                .attach_printable("Failed to write the XML declaration")?;
+        };
+
+        let xml_body = quick_xml::se::to_string(&item)
+            .change_context(errors::ConnectorError::RequestEncodingFailed)
+            .attach_printable("Failed to serialize the XML body")?;
+
+        writer
+            .write_event(Event::Text(BytesText::from_escaped(xml_body)))
+            .change_context(errors::ConnectorError::RequestEncodingFailed)
+            .attach_printable("Failed to serialize the XML body")?;
+
+        Ok(xml_bytes)
     }
 }

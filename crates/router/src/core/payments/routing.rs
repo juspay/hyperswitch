@@ -31,10 +31,12 @@ use euclid::{
 use external_services::grpc_client::dynamic_routing::{
     contract_routing_client::ContractBasedDynamicRouting,
     elimination_based_client::{EliminationBasedRouting, EliminationResponse},
-    success_rate_client::{CalSuccessRateResponse, SuccessBasedDynamicRouting},
+    success_rate_client::SuccessBasedDynamicRouting,
     DynamicRoutingError,
 };
 use hyperswitch_domain_models::address::Address;
+#[cfg(all(feature = "v1", feature = "dynamic_routing"))]
+use hyperswitch_interfaces::events::routing_api_logs::{ApiMethod, RoutingEngine, RoutingEvent};
 use kgraph_utils::{
     mca as mca_graph,
     transformers::{IntoContext, IntoDirValue},
@@ -58,6 +60,8 @@ use crate::core::payouts;
 use crate::core::routing::transformers::OpenRouterDecideGatewayRequestExt;
 #[cfg(all(feature = "v1", feature = "dynamic_routing"))]
 use crate::headers;
+#[cfg(all(feature = "v1", feature = "dynamic_routing"))]
+use crate::routes::app::SessionStateInfo;
 use crate::{
     core::{
         errors, errors as oss_errors, payments::routing::utils::DecisionEngineApiHandler, routing,
@@ -192,6 +196,9 @@ pub fn make_dsl_input_for_payouts(
         metadata,
         payment,
         payment_method,
+        acquirer_data: None,
+        customer_device_data: None,
+        issuer_data: None,
     })
 }
 
@@ -304,6 +311,9 @@ pub fn make_dsl_input(
         payment: payment_input,
         payment_method: payment_method_input,
         mandate: mandate_data,
+        acquirer_data: None,
+        customer_device_data: None,
+        issuer_data: None,
     })
 }
 
@@ -415,6 +425,9 @@ pub fn make_dsl_input(
         payment: payment_input,
         payment_method: payment_method_input,
         mandate: mandate_data,
+        acquirer_data: None,
+        customer_device_data: None,
+        issuer_data: None,
     })
 }
 
@@ -518,6 +531,9 @@ async fn ensure_algorithm_cached_v1(
                     profile_id.get_string_repr()
                 )
             }
+            common_enums::TransactionType::ThreeDsAuthentication => {
+                Err(errors::RoutingError::InvalidTransactionType)?
+            }
         }
     };
 
@@ -577,15 +593,15 @@ fn execute_dsl_and_get_connector_v1(
     backend_input: dsl_inputs::BackendInput,
     interpreter: &backend::VirInterpreterBackend<ConnectorSelection>,
 ) -> RoutingResult<Vec<routing_types::RoutableConnectorChoice>> {
-    let routing_output: routing_types::RoutingAlgorithm = interpreter
+    let routing_output: routing_types::StaticRoutingAlgorithm = interpreter
         .execute(backend_input)
         .map(|out| out.connector_selection.foreign_into())
         .change_context(errors::RoutingError::DslExecutionError)?;
 
     Ok(match routing_output {
-        routing_types::RoutingAlgorithm::Priority(plist) => plist,
+        routing_types::StaticRoutingAlgorithm::Priority(plist) => plist,
 
-        routing_types::RoutingAlgorithm::VolumeSplit(splits) => perform_volume_split(splits)
+        routing_types::StaticRoutingAlgorithm::VolumeSplit(splits) => perform_volume_split(splits)
             .change_context(errors::RoutingError::DslFinalConnectorSelectionFailed)?,
 
         _ => Err(errors::RoutingError::DslIncorrectSelectionAlgorithm)
@@ -605,7 +621,7 @@ pub async fn refresh_routing_cache_v1(
             .find_routing_algorithm_by_profile_id_algorithm_id(profile_id, algorithm_id)
             .await
             .change_context(errors::RoutingError::DslMissingInDb)?;
-        let algorithm: routing_types::RoutingAlgorithm = algorithm
+        let algorithm: routing_types::StaticRoutingAlgorithm = algorithm
             .algorithm_data
             .parse_value("RoutingAlgorithm")
             .change_context(errors::RoutingError::DslParsingError)?;
@@ -613,17 +629,21 @@ pub async fn refresh_routing_cache_v1(
     };
 
     let cached_algorithm = match algorithm {
-        routing_types::RoutingAlgorithm::Single(conn) => CachedAlgorithm::Single(conn),
-        routing_types::RoutingAlgorithm::Priority(plist) => CachedAlgorithm::Priority(plist),
-        routing_types::RoutingAlgorithm::VolumeSplit(splits) => {
+        routing_types::StaticRoutingAlgorithm::Single(conn) => CachedAlgorithm::Single(conn),
+        routing_types::StaticRoutingAlgorithm::Priority(plist) => CachedAlgorithm::Priority(plist),
+        routing_types::StaticRoutingAlgorithm::VolumeSplit(splits) => {
             CachedAlgorithm::VolumeSplit(splits)
         }
-        routing_types::RoutingAlgorithm::Advanced(program) => {
+        routing_types::StaticRoutingAlgorithm::Advanced(program) => {
             let interpreter = backend::VirInterpreterBackend::with_program(program)
                 .change_context(errors::RoutingError::DslBackendInitError)
                 .attach_printable("Error initializing DSL interpreter backend")?;
 
             CachedAlgorithm::Advanced(interpreter)
+        }
+        api_models::routing::StaticRoutingAlgorithm::ThreeDsDecisionRule(_program) => {
+            Err(errors::RoutingError::InvalidRoutingAlgorithmStructure)
+                .attach_printable("Unsupported algorithm received")?
         }
     };
 
@@ -722,6 +742,9 @@ pub async fn get_merchant_cgraph(
                     profile_id.get_string_repr()
                 )
             }
+            api_enums::TransactionType::ThreeDsAuthentication => {
+                Err(errors::RoutingError::InvalidTransactionType)?
+            }
         }
     };
 
@@ -776,12 +799,18 @@ pub async fn refresh_cgraph_cache(
             merchant_connector_accounts
                 .retain(|mca| mca.connector_type == storage_enums::ConnectorType::PayoutProcessor);
         }
+        api_enums::TransactionType::ThreeDsAuthentication => {
+            Err(errors::RoutingError::InvalidTransactionType)?
+        }
     };
 
     let connector_type = match transaction_type {
         api_enums::TransactionType::Payment => common_enums::ConnectorType::PaymentProcessor,
         #[cfg(feature = "payouts")]
         api_enums::TransactionType::Payout => common_enums::ConnectorType::PayoutProcessor,
+        api_enums::TransactionType::ThreeDsAuthentication => {
+            Err(errors::RoutingError::InvalidTransactionType)?
+        }
     };
 
     let merchant_connector_accounts = merchant_connector_accounts
@@ -1063,6 +1092,9 @@ pub async fn perform_session_flow_routing<'a>(
             mandate_type: None,
             payment_type: None,
         },
+        acquirer_data: None,
+        customer_device_data: None,
+        issuer_data: None,
     };
 
     for connector_data in session_input.chosen.iter() {
@@ -1207,6 +1239,9 @@ pub async fn perform_session_flow_routing(
             mandate_type: None,
             payment_type: None,
         },
+        acquirer_data: None,
+        customer_device_data: None,
+        issuer_data: None,
     };
 
     for connector_data in session_input.chosen.iter() {
@@ -1509,6 +1544,9 @@ pub fn make_dsl_input_for_surcharge(
         payment: payment_input,
         payment_method: payment_method_input,
         mandate: mandate_data,
+        acquirer_data: None,
+        customer_device_data: None,
+        issuer_data: None,
     };
     Ok(backend_input)
 }
@@ -1567,6 +1605,7 @@ pub async fn perform_dynamic_routing_with_open_router(
                     state,
                     connector.clone(),
                     profile.get_id(),
+                    &payment_data.merchant_id,
                     &payment_data.payment_id,
                     common_enums::AttemptStatus::AuthenticationPending,
                 )
@@ -1646,6 +1685,7 @@ pub async fn perform_dynamic_routing_with_intelligent_router(
     routable_connectors: Vec<api_routing::RoutableConnectorChoice>,
     profile: &domain::Profile,
     dynamic_routing_config_params_interpolator: routing::helpers::DynamicRoutingConfigParamsInterpolator,
+    payment_attempt: &oss_storage::PaymentAttempt,
 ) -> RoutingResult<Vec<api_routing::RoutableConnectorChoice>> {
     let dynamic_routing_algo_ref: api_routing::DynamicRoutingAlgorithmRef = profile
         .dynamic_routing_algorithm
@@ -1674,6 +1714,8 @@ pub async fn perform_dynamic_routing_with_intelligent_router(
                 state,
                 routable_connectors.clone(),
                 profile.get_id(),
+                &payment_attempt.merchant_id,
+                &payment_attempt.payment_id,
                 dynamic_routing_config_params_interpolator.clone(),
                 algorithm.clone(),
             )
@@ -1695,6 +1737,8 @@ pub async fn perform_dynamic_routing_with_intelligent_router(
                         state,
                         routable_connectors.clone(),
                         profile.get_id(),
+                        &payment_attempt.merchant_id,
+                        &payment_attempt.payment_id,
                         dynamic_routing_config_params_interpolator.clone(),
                         algorithm.clone(),
                     )
@@ -1716,6 +1760,8 @@ pub async fn perform_dynamic_routing_with_intelligent_router(
                 state,
                 connector_list.clone(),
                 profile.get_id(),
+                &payment_attempt.merchant_id,
+                &payment_attempt.payment_id,
                 dynamic_routing_config_params_interpolator.clone(),
                 algorithm.clone(),
             )
@@ -1751,6 +1797,10 @@ pub async fn perform_decide_gateway_call_with_open_router(
         is_elimination_enabled,
     );
 
+    let serialized_request = serde_json::to_value(&open_router_req_body)
+        .change_context(errors::RoutingError::OpenRouterCallFailed)
+        .attach_printable("Failed to serialize open_router request body")?;
+
     let url = format!("{}/{}", &state.conf.open_router.url, "decide-gateway");
     let mut request = request::Request::new(services::Method::Post, &url);
     request.add_header(headers::CONTENT_TYPE, "application/json".into());
@@ -1762,8 +1812,27 @@ pub async fn perform_decide_gateway_call_with_open_router(
         open_router_req_body,
     )));
 
+    let mut routing_event = RoutingEvent::new(
+        state.tenant.tenant_id.clone(),
+        "".to_string(),
+        "open_router_decide_gateway_call",
+        serialized_request,
+        url.clone(),
+        ApiMethod::Rest(services::Method::Post),
+        payment_attempt.payment_id.get_string_repr().to_string(),
+        profile_id.to_owned(),
+        payment_attempt.merchant_id.to_owned(),
+        state.request_id,
+        RoutingEngine::DecisionEngine,
+    );
+
     let response = services::call_connector_api(state, request, "open_router_decide_gateway_call")
         .await
+        .inspect_err(|err| {
+            routing_event
+                .set_error(serde_json::json!({"error": err.current_context().to_string()}));
+            state.event_handler().log_event(&routing_event);
+        })
         .change_context(errors::RoutingError::OpenRouterCallFailed)?;
 
     let sr_sorted_connectors = match response {
@@ -1775,11 +1844,17 @@ pub async fn perform_decide_gateway_call_with_open_router(
                     "Failed to parse the response from open_router".into(),
                 ))?;
 
+            routing_event.set_status_code(resp.status_code);
+            routing_event.set_response_body(&decided_gateway);
+            routing_event.set_routing_approach(
+                api_routing::RoutingApproach::from_decision_engine_approach(
+                    &decided_gateway.routing_approach,
+                )
+                .to_string(),
+            );
+
             if let Some(gateway_priority_map) = decided_gateway.gateway_priority_map {
-                logger::debug!(
-                    "open_router decide_gateway call response: {:?}",
-                    gateway_priority_map
-                );
+                logger::debug!(gateway_priority_map=?gateway_priority_map, routing_approach=decided_gateway.routing_approach, "open_router decide_gateway call response");
                 routable_connectors.sort_by(|connector_choice_a, connector_choice_b| {
                     let connector_choice_a_score = gateway_priority_map
                         .get(&connector_choice_a.to_string())
@@ -1794,6 +1869,10 @@ pub async fn perform_decide_gateway_call_with_open_router(
                         .unwrap_or(std::cmp::Ordering::Equal)
                 });
             }
+
+            routing_event.set_routable_connectors(routable_connectors.clone());
+            state.event_handler().log_event(&routing_event);
+
             Ok(routable_connectors)
         }
         Err(err) => {
@@ -1804,6 +1883,12 @@ pub async fn perform_decide_gateway_call_with_open_router(
                     "Failed to parse the response from open_router".into(),
                 ))?;
             logger::error!("open_router_error_response: {:?}", err_resp);
+
+            routing_event.set_status_code(err.status_code);
+            routing_event.set_error(serde_json::json!({"error": err_resp.error_message}));
+            routing_event.set_error_response_body(&err_resp);
+            state.event_handler().log_event(&routing_event);
+
             Err(errors::RoutingError::OpenRouterError(
                 "Failed to perform decide_gateway call in open_router".into(),
             ))
@@ -1819,6 +1904,7 @@ pub async fn update_gateway_score_with_open_router(
     state: &SessionState,
     payment_connector: api_routing::RoutableConnectorChoice,
     profile_id: &common_utils::id_type::ProfileId,
+    merchant_id: &common_utils::id_type::MerchantId,
     payment_id: &common_utils::id_type::PaymentId,
     payment_status: common_enums::AttemptStatus,
 ) -> RoutingResult<()> {
@@ -1828,6 +1914,10 @@ pub async fn update_gateway_score_with_open_router(
         status: payment_status.foreign_into(),
         payment_id: payment_id.clone(),
     };
+
+    let serialized_request = serde_json::to_value(&open_router_req_body)
+        .change_context(errors::RoutingError::OpenRouterCallFailed)
+        .attach_printable("Failed to serialize open_router request body")?;
 
     let url = format!("{}/{}", &state.conf.open_router.url, "update-gateway-score");
     let mut request = request::Request::new(services::Method::Post, &url);
@@ -1840,24 +1930,50 @@ pub async fn update_gateway_score_with_open_router(
         open_router_req_body,
     )));
 
+    let mut routing_event = RoutingEvent::new(
+        state.tenant.tenant_id.clone(),
+        "".to_string(),
+        "open_router_update_gateway_score_call",
+        serialized_request,
+        url.clone(),
+        ApiMethod::Rest(services::Method::Post),
+        payment_id.get_string_repr().to_string(),
+        profile_id.to_owned(),
+        merchant_id.to_owned(),
+        state.request_id,
+        RoutingEngine::DecisionEngine,
+    );
+
     let response =
         services::call_connector_api(state, request, "open_router_update_gateway_score_call")
             .await
+            .inspect_err(|err| {
+                routing_event
+                    .set_error(serde_json::json!({"error": err.current_context().to_string()}));
+                state.event_handler().log_event(&routing_event);
+            })
             .change_context(errors::RoutingError::OpenRouterCallFailed)?;
+
+    routing_event.set_payment_connector(payment_connector.clone()); // check this in review
 
     match response {
         Ok(resp) => {
-            let update_score_resp = String::from_utf8(resp.response.to_vec()).change_context(
-                errors::RoutingError::OpenRouterError(
+            let update_score_resp = resp
+                .response
+                .parse_struct::<or_types::UpdateScoreResponse>("UpdateScoreResponse")
+                .change_context(errors::RoutingError::OpenRouterError(
                     "Failed to parse the response from open_router".into(),
-                ),
-            )?;
+                ))?;
 
             logger::debug!(
                 "open_router update_gateway_score response for gateway with id {}: {:?}",
                 payment_connector,
                 update_score_resp
             );
+
+            routing_event.set_status_code(resp.status_code);
+            routing_event.set_response_body(&update_score_resp);
+            state.event_handler().log_event(&routing_event);
 
             Ok(())
         }
@@ -1869,6 +1985,12 @@ pub async fn update_gateway_score_with_open_router(
                     "Failed to parse the response from open_router".into(),
                 ))?;
             logger::error!("open_router_update_gateway_score_error: {:?}", err_resp);
+
+            routing_event.set_status_code(err.status_code);
+            routing_event.set_error(serde_json::json!({"error": err_resp.error_message}));
+            routing_event.set_error_response_body(&err_resp);
+            state.event_handler().log_event(&routing_event);
+
             Err(errors::RoutingError::OpenRouterError(
                 "Failed to update gateway score in open_router".into(),
             ))
@@ -1885,6 +2007,8 @@ pub async fn perform_success_based_routing(
     state: &SessionState,
     routable_connectors: Vec<api_routing::RoutableConnectorChoice>,
     profile_id: &common_utils::id_type::ProfileId,
+    merchant_id: &common_utils::id_type::MerchantId,
+    payment_id: &common_utils::id_type::PaymentId,
     success_based_routing_config_params_interpolator: routing::helpers::DynamicRoutingConfigParamsInterpolator,
     success_based_algo_ref: api_routing::SuccessBasedAlgorithm,
 ) -> RoutingResult<Vec<api_routing::RoutableConnectorChoice>> {
@@ -1928,7 +2052,42 @@ pub async fn perform_success_based_routing(
                     .ok_or(errors::RoutingError::SuccessBasedRoutingParamsNotFoundError)?,
             );
 
-        let success_based_connectors: CalSuccessRateResponse = client
+        let event_request = api_routing::CalSuccessRateEventRequest {
+            id: profile_id.get_string_repr().to_string(),
+            params: success_based_routing_config_params.clone(),
+            labels: routable_connectors
+                .iter()
+                .map(|conn_choice| conn_choice.to_string())
+                .collect::<Vec<_>>(),
+            config: success_based_routing_configs.config.as_ref().map(|conf| {
+                api_routing::CalSuccessRateConfigEventRequest {
+                    min_aggregates_size: conf.min_aggregates_size,
+                    default_success_rate: conf.default_success_rate,
+                    specificity_level: conf.specificity_level,
+                    exploration_percent: conf.exploration_percent,
+                }
+            }),
+        };
+
+        let serialized_request = serde_json::to_value(&event_request)
+            .change_context(errors::RoutingError::SuccessBasedRoutingConfigError)
+            .attach_printable("unable to serialize success_based_routing_config_params")?;
+
+        let mut routing_event = RoutingEvent::new(
+            state.tenant.tenant_id.clone(),
+            "".to_string(),
+            "Intelligent-router FetchSuccessRate",
+            serialized_request,
+            "SuccessRateCalculator.FetchSuccessRate".to_string(),
+            ApiMethod::Grpc,
+            payment_id.get_string_repr().to_string(),
+            profile_id.to_owned(),
+            merchant_id.to_owned(),
+            state.request_id,
+            RoutingEngine::IntelligentRouter,
+        );
+
+        let success_based_connectors = client
             .calculate_success_rate(
                 profile_id.get_string_repr().into(),
                 success_based_routing_configs,
@@ -1937,10 +2096,44 @@ pub async fn perform_success_based_routing(
                 state.get_grpc_headers(),
             )
             .await
+            .inspect_err(|e| {
+                routing_event
+                    .set_error(serde_json::json!({"error": e.current_context().to_string()}));
+                state.event_handler().log_event(&routing_event);
+            })
             .change_context(errors::RoutingError::SuccessRateCalculationError)
             .attach_printable(
                 "unable to calculate/fetch success rate from dynamic routing service",
             )?;
+
+        let event_response = api_routing::CalSuccessRateEventResponse {
+            labels_with_score: success_based_connectors
+                .labels_with_score
+                .iter()
+                .map(
+                    |label_with_score| api_routing::LabelWithScoreEventResponse {
+                        label: label_with_score.label.clone(),
+                        score: label_with_score.score,
+                    },
+                )
+                .collect(),
+            routing_approach: match success_based_connectors.routing_approach {
+                0 => api_routing::RoutingApproach::Exploration,
+                1 => api_routing::RoutingApproach::Exploitation,
+                _ => {
+                    return Err(errors::RoutingError::GenericNotFoundError {
+                        field: "routing_approach".to_string(),
+                    })
+                    .change_context(errors::RoutingError::GenericNotFoundError {
+                        field: "unknown routing approach from dynamic routing service".to_string(),
+                    })
+                    .attach_printable("unknown routing approach from dynamic routing service")
+                }
+            },
+        };
+
+        routing_event.set_response_body(&event_response);
+        routing_event.set_routing_approach(event_response.routing_approach.to_string());
 
         let mut connectors = Vec::with_capacity(success_based_connectors.labels_with_score.len());
         for label_with_score in success_based_connectors.labels_with_score {
@@ -1971,6 +2164,10 @@ pub async fn perform_success_based_routing(
             });
         }
         logger::debug!(success_based_routing_connectors=?connectors);
+
+        routing_event.set_status_code(200);
+        routing_event.set_routable_connectors(connectors.clone());
+        state.event_handler().log_event(&routing_event);
         Ok(connectors)
     } else {
         Ok(routable_connectors)
@@ -1983,6 +2180,8 @@ pub async fn perform_elimination_routing(
     state: &SessionState,
     routable_connectors: Vec<api_routing::RoutableConnectorChoice>,
     profile_id: &common_utils::id_type::ProfileId,
+    merchant_id: &common_utils::id_type::MerchantId,
+    payment_id: &common_utils::id_type::PaymentId,
     elimination_routing_configs_params_interpolator: routing::helpers::DynamicRoutingConfigParamsInterpolator,
     elimination_algo_ref: api_routing::EliminationRoutingAlgorithm,
 ) -> RoutingResult<Vec<api_routing::RoutableConnectorChoice>> {
@@ -2028,6 +2227,40 @@ pub async fn perform_elimination_routing(
                     .ok_or(errors::RoutingError::EliminationBasedRoutingParamsNotFoundError)?,
             );
 
+        let event_request = api_routing::EliminationRoutingEventRequest {
+            id: profile_id.get_string_repr().to_string(),
+            params: elimination_routing_config_params.clone(),
+            labels: routable_connectors
+                .iter()
+                .map(|conn_choice| conn_choice.to_string())
+                .collect::<Vec<_>>(),
+            config: elimination_routing_config
+                .elimination_analyser_config
+                .as_ref()
+                .map(|conf| api_routing::EliminationRoutingEventBucketConfig {
+                    bucket_leak_interval_in_secs: conf.bucket_leak_interval_in_secs,
+                    bucket_size: conf.bucket_size,
+                }),
+        };
+
+        let serialized_request = serde_json::to_value(&event_request)
+            .change_context(errors::RoutingError::SuccessBasedRoutingConfigError)
+            .attach_printable("unable to serialize EliminationRoutingEventRequest")?;
+
+        let mut routing_event = RoutingEvent::new(
+            state.tenant.tenant_id.clone(),
+            "".to_string(),
+            "Intelligent-router GetEliminationStatus",
+            serialized_request,
+            "EliminationAnalyser.GetEliminationStatus".to_string(),
+            ApiMethod::Grpc,
+            payment_id.get_string_repr().to_string(),
+            profile_id.to_owned(),
+            merchant_id.to_owned(),
+            state.request_id,
+            RoutingEngine::IntelligentRouter,
+        );
+
         let elimination_based_connectors: EliminationResponse = client
             .perform_elimination_routing(
                 profile_id.get_string_repr().to_string(),
@@ -2037,10 +2270,48 @@ pub async fn perform_elimination_routing(
                 state.get_grpc_headers(),
             )
             .await
+            .inspect_err(|e| {
+                routing_event
+                    .set_error(serde_json::json!({"error": e.current_context().to_string()}));
+                state.event_handler().log_event(&routing_event);
+            })
             .change_context(errors::RoutingError::EliminationRoutingCalculationError)
             .attach_printable(
                 "unable to analyze/fetch elimination routing from dynamic routing service",
             )?;
+
+        let event_response = api_routing::EliminationEventResponse {
+            labels_with_status: elimination_based_connectors
+                .labels_with_status
+                .iter()
+                .map(
+                    |label_with_status| api_routing::LabelWithStatusEliminationEventResponse {
+                        label: label_with_status.label.clone(),
+                        elimination_information: label_with_status
+                            .elimination_information
+                            .as_ref()
+                            .map(|info| api_routing::EliminationInformationEventResponse {
+                                entity: info.entity.as_ref().map(|entity_info| {
+                                    api_routing::BucketInformationEventResponse {
+                                        is_eliminated: entity_info.is_eliminated,
+                                        bucket_name: entity_info.bucket_name.clone(),
+                                    }
+                                }),
+                                global: info.global.as_ref().map(|global_info| {
+                                    api_routing::BucketInformationEventResponse {
+                                        is_eliminated: global_info.is_eliminated,
+                                        bucket_name: global_info.bucket_name.clone(),
+                                    }
+                                }),
+                            }),
+                    },
+                )
+                .collect(),
+        };
+
+        routing_event.set_response_body(&event_response);
+        routing_event.set_routing_approach(api_routing::RoutingApproach::Elimination.to_string());
+
         let mut connectors =
             Vec::with_capacity(elimination_based_connectors.labels_with_status.len());
         let mut eliminated_connectors =
@@ -2092,6 +2363,10 @@ pub async fn perform_elimination_routing(
         }
         logger::debug!(dynamic_eliminated_connectors=?eliminated_connectors);
         logger::debug!(dynamic_elimination_based_routing_connectors=?connectors);
+
+        routing_event.set_status_code(200);
+        routing_event.set_routable_connectors(connectors.clone());
+        state.event_handler().log_event(&routing_event);
         Ok(connectors)
     } else {
         Ok(routable_connectors)
@@ -2103,6 +2378,8 @@ pub async fn perform_contract_based_routing(
     state: &SessionState,
     routable_connectors: Vec<api_routing::RoutableConnectorChoice>,
     profile_id: &common_utils::id_type::ProfileId,
+    merchant_id: &common_utils::id_type::MerchantId,
+    payment_id: &common_utils::id_type::PaymentId,
     _dynamic_routing_config_params_interpolator: routing::helpers::DynamicRoutingConfigParamsInterpolator,
     contract_based_algo_ref: api_routing::ContractRoutingAlgorithm,
 ) -> RoutingResult<Vec<api_routing::RoutableConnectorChoice>> {
@@ -2163,6 +2440,34 @@ pub async fn perform_contract_based_routing(
             })
             .collect::<Vec<_>>();
 
+        let event_request = api_routing::CalContractScoreEventRequest {
+            id: profile_id.get_string_repr().to_string(),
+            params: "".to_string(),
+            labels: contract_based_connectors
+                .iter()
+                .map(|conn_choice| conn_choice.to_string())
+                .collect::<Vec<_>>(),
+            config: Some(contract_based_routing_configs.clone()),
+        };
+
+        let serialized_request = serde_json::to_value(&event_request)
+            .change_context(errors::RoutingError::SuccessBasedRoutingConfigError)
+            .attach_printable("unable to serialize EliminationRoutingEventRequest")?;
+
+        let mut routing_event = RoutingEvent::new(
+            state.tenant.tenant_id.clone(),
+            "".to_string(),
+            "Intelligent-router CalContractScore",
+            serialized_request,
+            "ContractScoreCalculator.FetchContractScore".to_string(),
+            ApiMethod::Grpc,
+            payment_id.get_string_repr().to_string(),
+            profile_id.to_owned(),
+            merchant_id.to_owned(),
+            state.request_id,
+            RoutingEngine::IntelligentRouter,
+        );
+
         let contract_based_connectors_result = client
             .calculate_contract_score(
                 profile_id.get_string_repr().into(),
@@ -2172,12 +2477,36 @@ pub async fn perform_contract_based_routing(
                 state.get_grpc_headers(),
             )
             .await
+            .inspect_err(|e| {
+                routing_event
+                    .set_error(serde_json::json!({"error": e.current_context().to_string()}));
+                routing_event
+                    .set_routing_approach(api_routing::RoutingApproach::ContractBased.to_string());
+                state.event_handler().log_event(&routing_event);
+            })
             .attach_printable(
                 "unable to calculate/fetch contract score from dynamic routing service",
             );
 
         let contract_based_connectors = match contract_based_connectors_result {
-            Ok(resp) => resp,
+            Ok(resp) => {
+                let event_response = api_routing::CalContractScoreEventResponse {
+                    labels_with_score: resp
+                        .labels_with_score
+                        .iter()
+                        .map(|label_with_score| api_routing::ScoreDataEventResponse {
+                            score: label_with_score.score,
+                            label: label_with_score.label.clone(),
+                            current_count: label_with_score.current_count,
+                        })
+                        .collect(),
+                };
+
+                routing_event.set_response_body(&event_response);
+                routing_event
+                    .set_routing_approach(api_routing::RoutingApproach::ContractBased.to_string());
+                resp
+            }
             Err(err) => match err.current_context() {
                 DynamicRoutingError::ContractNotFound => {
                     client
@@ -2242,6 +2571,10 @@ pub async fn perform_contract_based_routing(
         connectors.append(&mut other_connectors);
 
         logger::debug!(contract_based_routing_connectors=?connectors);
+
+        routing_event.set_status_code(200);
+        routing_event.set_routable_connectors(connectors.clone());
+        state.event_handler().log_event(&routing_event);
         Ok(connectors)
     } else {
         Ok(routable_connectors)
