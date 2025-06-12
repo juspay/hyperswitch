@@ -351,7 +351,7 @@ pub async fn construct_payment_router_data_for_authorize<'a>(
         // TODO: Create unified address
         address: payment_data.payment_address.clone(),
         auth_type: payment_data.payment_attempt.authentication_type,
-        connector_meta_data: None,
+        connector_meta_data: merchant_connector_account.get_metadata(),
         connector_wallets_details: None,
         request,
         response: Err(hyperswitch_domain_models::router_data::ErrorResponse::default()),
