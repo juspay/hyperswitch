@@ -254,11 +254,27 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentConfirmData<F>, ProxyPaymentsR
                 ),
             ),
         };
+
+        let card_info = payment_attempt
+            .payment_method_data
+            .as_ref()
+            .and_then(|secret_value| {
+                serde_json::from_value::<hyperswitch_domain_models::payment_method_data::PaymentMethodData>(
+                    secret_value.peek().clone(),
+                )
+                .ok()
+            })
+            .and_then(|pm_data| match pm_data {
+                hyperswitch_domain_models::payment_method_data::PaymentMethodData::Card(card_details) => Some(card_details),
+                _ => None,
+            })
+            .unwrap_or_default(); // If any step fails or not a card, use default Card
+
         let payment_data = PaymentConfirmData {
             flow: std::marker::PhantomData,
             payment_intent,
             payment_attempt,
-            payment_method_data: Some(PaymentMethodData::MandatePayment),
+            payment_method_data: Some(PaymentMethodData::Card(card_info)),
             payment_address,
             mandate_data: Some(mandate_data_input),
             payment_method: None,
