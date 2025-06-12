@@ -382,12 +382,18 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentConfirmData<F>, ProxyPaymentsReque
             .authentication_type
             .unwrap_or_default();
 
+        let connector_request_reference_id = payment_data
+            .payment_attempt
+            .connector_request_reference_id
+            .clone();
+
         let payment_attempt_update = hyperswitch_domain_models::payments::payment_attempt::PaymentAttemptUpdate::ConfirmIntent {
             status: attempt_status,
             updated_by: storage_scheme.to_string(),
             connector,
             merchant_connector_id,
             authentication_type,
+            connector_request_reference_id,
         };
 
         let updated_payment_intent = db
