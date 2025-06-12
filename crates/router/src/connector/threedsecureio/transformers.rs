@@ -306,10 +306,19 @@ impl TryFrom<&ThreedsecureioRouterData<&types::authentication::ConnectorAuthenti
             )?),
             DeviceChannel::Browser => None,
         };
-        let (acquirer_bin, acquirer_merchant_id) = pre_authentication_data
+        let acquirer_metadata = connector_meta_data
+            .acquirer_bin
+            .clone()
+            .zip(connector_meta_data.acquirer_merchant_id.clone());
+        let acquirer_data = if let Some(acquirer_metadata) = acquirer_metadata {
+            Some((acquirer_metadata.0, acquirer_metadata.1))
+        } else {
+            pre_authentication_data
             .acquirer_bin
             .clone()
             .zip(pre_authentication_data.acquirer_merchant_id.clone())
+        };
+        let (acquirer_bin, acquirer_merchant_id) = acquirer_data
             .get_required_value("acquirer_details")
             .change_context(errors::ConnectorError::MissingRequiredField {
                 field_name: "acquirer_details",
@@ -575,6 +584,9 @@ pub struct ThreeDSecureIoMetaData {
     pub mcc: String,
     pub merchant_country_code: String,
     pub merchant_name: String,
+    pub acquirer_bin: Option<String>,
+    pub acquirer_merchant_id: Option<String>,
+    pub acquirer_country_code: Option<String>,
 }
 
 #[derive(Debug, Serialize, Deserialize)]

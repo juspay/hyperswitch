@@ -1030,6 +1030,7 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
                     payment_data.authentication_provider.clone(),
                 ))
                 .await?;
+                payment_data.payment_attempt.connector = Some(authentication.authentication_connector.clone());
                 if authentication.is_separate_authn_required()
                     || authentication.authentication_status.is_failed()
                 {

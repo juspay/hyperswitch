@@ -2453,7 +2453,7 @@ where
             net_amount: payment_attempt.get_total_amount(),
             amount_capturable: payment_attempt.amount_capturable,
             amount_received: payment_intent.amount_captured,
-            connector: None,
+            connector: payment_attempt.connector.clone(),
             client_secret: payment_data
                 .get_payment_intent()
                 .client_secret

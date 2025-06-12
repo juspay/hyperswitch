@@ -79,7 +79,7 @@ pub async fn perform_authentication(
         .map_err(|err| ApiErrorResponse::ExternalConnectorError {
             code: err.code,
             message: err.message,
-            connector: "juspaythreedsserver".to_string(),
+            connector: authentication_connector,
             status_code: err.status_code,
             reason: err.reason,
         })?;
