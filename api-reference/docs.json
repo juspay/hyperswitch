@@ -236,7 +236,7 @@
                 "pages": ["introduction"]
               },
               {
-                "group": "Essentials",
+                "group": "Essentials [BETA]",
                 "pages": [
                   "essentials/error_codes",
                   "essentials/rate_limit",
@@ -244,7 +244,7 @@
                 ]
               },
               {
-                "group": "Payments Core APIs",
+                "group": "Payments Core APIs [BETA]",
                 "pages": [
                   {
                     "group": "Payments",
@@ -302,7 +302,7 @@
                 ]
               },
               {
-                "group": "Account management APIs",
+                "group": "Account management APIs [BETA]",
                 "pages": [
                   {
                     "group": "Organization",
@@ -364,7 +364,7 @@
                 ]
               },
               {
-                "group": "Other APIs",
+                "group": "Other APIs [BETA]",
                 "pages": [
                   {
                     "group": "Proxy",
