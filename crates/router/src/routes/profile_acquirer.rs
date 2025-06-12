@@ -26,11 +26,7 @@ pub async fn create_profile_acquirer(
         |state: super::SessionState, auth, req, _| {
             let merchant_context = auth.into();
 
-            crate::core::profile_acquirer::create_profile_acquirer(
-                state,
-                req,
-                merchant_context,
-            )
+            crate::core::profile_acquirer::create_profile_acquirer(state, req, merchant_context)
         },
         auth::auth_type(
             &auth::HeaderAuth(auth::ApiKeyAuth {
