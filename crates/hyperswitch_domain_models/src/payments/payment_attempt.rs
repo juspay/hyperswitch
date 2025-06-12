@@ -2,7 +2,7 @@
 use api_models::enums::Connector;
 use common_enums as storage_enums;
 #[cfg(feature = "v2")]
-use common_types::payments as common_payments;
+use common_types::payments as common_payments_types;
 use common_types::primitive_wrappers::{
     ExtendedAuthorizationAppliedBool, RequestExtendedAuthorizationBool,
 };
@@ -437,7 +437,7 @@ pub struct PaymentAttempt {
     pub client_source: Option<String>,
     pub client_version: Option<String>,
     // TODO: use a type here instead of value
-    pub customer_acceptance: Option<common_payments::CustomerAcceptance>,
+    pub customer_acceptance: Option<common_payments_types::CustomerAcceptance>,
     /// The profile id for the payment attempt. This will be derived from payment intent.
     pub profile_id: id_type::ProfileId,
     /// The organization id for the payment attempt. This will be derived from payment intent.

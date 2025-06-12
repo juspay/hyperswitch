@@ -33,7 +33,7 @@ use api_models::{
     payments::{self as payments_api},
 };
 pub use common_enums::enums::CallConnectorAction;
-use common_types::payments as common_payments;
+use common_types::payments as common_payments_types;
 use common_utils::{
     ext_traits::{AsyncExt, StringExt},
     id_type, pii,
@@ -5635,7 +5635,7 @@ where
     pub mandate_connector: Option<MandateConnectorDetails>,
     pub currency: storage_enums::Currency,
     pub setup_mandate: Option<MandateData>,
-    pub customer_acceptance: Option<common_payments::CustomerAcceptance>,
+    pub customer_acceptance: Option<common_payments_types::CustomerAcceptance>,
     pub address: PaymentAddress,
     pub token: Option<String>,
     pub token_data: Option<storage::PaymentTokenData>,

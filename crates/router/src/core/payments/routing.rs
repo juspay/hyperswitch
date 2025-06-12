@@ -15,7 +15,7 @@ use api_models::{
     enums::{self as api_enums, CountryAlpha2},
     routing::ConnectorSelection,
 };
-use common_types::payments as common_payments;
+use common_types::payments as common_payments_types;
 #[cfg(all(feature = "v1", feature = "dynamic_routing"))]
 use common_utils::ext_traits::AsyncExt;
 #[cfg(all(feature = "v1", feature = "dynamic_routing"))]
@@ -214,10 +214,10 @@ pub fn make_dsl_input(
                     .customer_acceptance
                     .as_ref()
                     .map(|customer_accept| match customer_accept.acceptance_type {
-                        common_payments::AcceptanceType::Online => {
+                        common_payments_types::AcceptanceType::Online => {
                             euclid_enums::MandateAcceptanceType::Online
                         }
-                        common_payments::AcceptanceType::Offline => {
+                        common_payments_types::AcceptanceType::Offline => {
                             euclid_enums::MandateAcceptanceType::Offline
                         }
                     })
@@ -329,10 +329,10 @@ pub fn make_dsl_input(
                     .customer_acceptance
                     .as_ref()
                     .map(|cat| match cat.acceptance_type {
-                        common_payments::AcceptanceType::Online => {
+                        common_payments_types::AcceptanceType::Online => {
                             euclid_enums::MandateAcceptanceType::Online
                         }
-                        common_payments::AcceptanceType::Offline => {
+                        common_payments_types::AcceptanceType::Offline => {
                             euclid_enums::MandateAcceptanceType::Offline
                         }
                     })

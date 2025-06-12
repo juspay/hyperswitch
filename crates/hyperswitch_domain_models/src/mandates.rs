@@ -4,7 +4,7 @@ use api_models::payments::{
     MandateAmountData as ApiMandateAmountData, MandateData as ApiMandateData, MandateType,
 };
 use common_enums::Currency;
-use common_types::payments as common_payments;
+use common_types::payments as common_payments_types;
 use common_utils::{
     date_time,
     errors::{CustomResult, ParsingError},
@@ -59,7 +59,7 @@ pub struct MandateData {
     /// A way to update the mandate's payment method details
     pub update_mandate_id: Option<String>,
     /// A consent from the customer to store the payment method
-    pub customer_acceptance: Option<common_payments::CustomerAcceptance>,
+    pub customer_acceptance: Option<common_payments_types::CustomerAcceptance>,
     /// A way to select the type of mandate used
     pub mandate_type: Option<MandateDataType>,
 }

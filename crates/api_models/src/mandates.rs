@@ -1,4 +1,4 @@
-use common_types::payments as common_payments;
+use common_types::payments as common_payments_types;
 use masking::Secret;
 use serde::{Deserialize, Serialize};
 use time::PrimitiveDateTime;
@@ -43,7 +43,7 @@ pub struct MandateResponse {
     pub card: Option<MandateCardDetails>,
     /// Details about the customer’s acceptance
     #[schema(value_type = Option<CustomerAcceptance>)]
-    pub customer_acceptance: Option<common_payments::CustomerAcceptance>,
+    pub customer_acceptance: Option<common_payments_types::CustomerAcceptance>,
 }
 
 #[derive(Default, Debug, Deserialize, Serialize, ToSchema, Clone)]

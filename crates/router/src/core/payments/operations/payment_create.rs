@@ -5,7 +5,7 @@ use api_models::{
     payments::GetAddressFromPaymentMethodData,
 };
 use async_trait::async_trait;
-use common_types::payments as common_payments;
+use common_types::payments as common_payments_types;
 use common_utils::{
     ext_traits::{AsyncExt, Encode, ValueExt},
     type_name,
@@ -1117,7 +1117,7 @@ impl PaymentCreate {
         payment_method_info: &Option<domain::PaymentMethod>,
         key_store: &domain::MerchantKeyStore,
         profile_id: common_utils::id_type::ProfileId,
-        customer_acceptance: &Option<common_payments::CustomerAcceptance>,
+        customer_acceptance: &Option<common_payments_types::CustomerAcceptance>,
         storage_scheme: enums::MerchantStorageScheme,
     ) -> RouterResult<(
         storage::PaymentAttemptNew,

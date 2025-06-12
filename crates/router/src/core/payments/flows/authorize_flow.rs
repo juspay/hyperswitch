@@ -1,6 +1,6 @@
 use async_trait::async_trait;
 use common_enums as enums;
-use common_types::payments as common_payments;
+use common_types::payments as common_payments_types;
 use hyperswitch_domain_models::errors::api_error_response::ApiErrorResponse;
 #[cfg(feature = "v2")]
 use hyperswitch_domain_models::payments::PaymentConfirmData;
@@ -499,7 +499,7 @@ impl mandate::MandateBehaviour for types::PaymentsAuthorizeData {
     fn set_mandate_id(&mut self, new_mandate_id: Option<api_models::payments::MandateIds>) {
         self.mandate_id = new_mandate_id;
     }
-    fn get_customer_acceptance(&self) -> Option<common_payments::CustomerAcceptance> {
+    fn get_customer_acceptance(&self) -> Option<common_payments_types::CustomerAcceptance> {
         self.customer_acceptance.clone()
     }
 }

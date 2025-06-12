@@ -1,7 +1,7 @@
 use std::str::FromStr;
 
 use api_models::payments;
-use common_types::payments as common_payments;
+use common_types::payments as common_payments_types;
 use common_utils::{
     crypto::Encryptable,
     date_time,
@@ -766,11 +766,11 @@ impl ForeignTryFrom<(Option<MandateData>, Option<String>)> for Option<payments::
                     },
                 ))),
             },
-            customer_acceptance: Some(common_payments::CustomerAcceptance {
-                acceptance_type: common_payments::AcceptanceType::Online,
+            customer_acceptance: Some(common_payments_types::CustomerAcceptance {
+                acceptance_type: common_payments_types::AcceptanceType::Online,
                 accepted_at: mandate.customer_acceptance.accepted_at,
                 online: mandate.customer_acceptance.online.map(|online| {
-                    common_payments::OnlineMandate {
+                    common_payments_types::OnlineMandate {
                         ip_address: Some(online.ip_address),
                         user_agent: online.user_agent,
                     }
