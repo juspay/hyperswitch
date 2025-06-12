@@ -105,10 +105,7 @@ pub async fn update_cards_info(
     .await
 }
 
-#[cfg(all(
-    any(feature = "v1", feature = "v2", feature = "olap", feature = "oltp"),
-    not(feature = "customer_v2")
-))]
+#[cfg(all(feature = "v1", any(feature = "olap", feature = "oltp")))]
 #[instrument(skip_all, fields(flow = ?Flow::CardsInfoMigrate))]
 pub async fn migrate_cards_info(
     state: web::Data<AppState>,
