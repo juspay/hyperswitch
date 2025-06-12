@@ -272,6 +272,7 @@ impl ApiModelToDieselModelConvertor<ApiApplePayRecurringDetails> for ApplePayRec
     }
 }
 
+#[cfg(feature = "v2")]
 impl ApiModelToDieselModelConvertor<ApiBillingConnectorAdditionalCardInfo>
     for BillingConnectorAdditionalCardInfo
 {
@@ -290,6 +291,7 @@ impl ApiModelToDieselModelConvertor<ApiBillingConnectorAdditionalCardInfo>
     }
 }
 
+#[cfg(feature = "v2")]
 impl ApiModelToDieselModelConvertor<ApiBillingConnectorPaymentMethodDetails>
     for BillingConnectorPaymentMethodDetails
 {
