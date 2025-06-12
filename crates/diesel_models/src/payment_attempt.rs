@@ -114,6 +114,7 @@ pub struct PaymentAttempt {
     pub network_decline_code: Option<String>,
     /// A string indicating how to proceed with an network error if payment gateway provide one. This is used to understand the network error code better.
     pub network_error_message: Option<String>,
+    pub connector_request_reference_id: Option<String>,
 }
 
 #[cfg(feature = "v1")]
@@ -342,6 +343,7 @@ pub struct PaymentAttemptNew {
     pub network_error_message: Option<String>,
     pub processor_merchant_id: Option<id_type::MerchantId>,
     pub created_by: Option<String>,
+    pub connector_request_reference_id: Option<String>,
 }
 
 #[cfg(feature = "v1")]
@@ -873,6 +875,7 @@ pub struct PaymentAttemptUpdateInternal {
     pub network_decline_code: Option<String>,
     pub network_advice_code: Option<String>,
     pub network_error_message: Option<String>,
+    pub connector_request_reference_id: Option<String>,
 }
 
 #[cfg(feature = "v1")]

@@ -471,6 +471,7 @@ pub struct PaymentAttempt {
     pub processor_merchant_id: id_type::MerchantId,
     /// merchantwho invoked the resource based api (identifier) and through what source (Api, Jwt(Dashboard))
     pub created_by: Option<CreatedBy>,
+    pub connector_request_reference_id: Option<String>,
 }
 
 impl PaymentAttempt {
@@ -602,6 +603,7 @@ impl PaymentAttempt {
             feature_metadata: None,
             processor_merchant_id: payment_intent.merchant_id.clone(),
             created_by: None,
+            connector_request_reference_id: None,
         })
     }
 
@@ -691,6 +693,7 @@ impl PaymentAttempt {
             card_discovery: None,
             processor_merchant_id: payment_intent.merchant_id.clone(),
             created_by: None,
+            connector_request_reference_id: None,
         })
     }
 
@@ -790,6 +793,7 @@ impl PaymentAttempt {
             charges: None,
             processor_merchant_id: payment_intent.merchant_id.clone(),
             created_by: None,
+            connector_request_reference_id: None,
         })
     }
 
@@ -1750,6 +1754,7 @@ pub enum PaymentAttemptUpdate {
         connector: String,
         merchant_connector_id: id_type::MerchantConnectorAccountId,
         authentication_type: storage_enums::AuthenticationType,
+        connector_request_reference_id: Option<String>,
     },
     /// Update the payment attempt on confirming the intent, before calling the connector, when payment_method_id is present
     ConfirmIntentTokenized {
@@ -2155,6 +2160,7 @@ impl behaviour::Conversion for PaymentAttempt {
             feature_metadata,
             processor_merchant_id,
             created_by,
+            connector_request_reference_id,
         } = self;
 
         let AttemptAmountDetails {
@@ -2249,6 +2255,7 @@ impl behaviour::Conversion for PaymentAttempt {
                 .and_then(|details| details.network_error_message.clone()),
             processor_merchant_id: Some(processor_merchant_id),
             created_by: created_by.map(|cb| cb.to_string()),
+            connector_request_reference_id,
         })
     }
 
@@ -2371,6 +2378,7 @@ impl behaviour::Conversion for PaymentAttempt {
                 created_by: storage_model
                     .created_by
                     .and_then(|created_by| created_by.parse::<CreatedBy>().ok()),
+                connector_request_reference_id: storage_model.connector_request_reference_id,
             })
         }
         .await
@@ -2429,6 +2437,7 @@ impl behaviour::Conversion for PaymentAttempt {
             feature_metadata,
             processor_merchant_id,
             created_by,
+            connector_request_reference_id,
         } = self;
 
         let card_network = payment_method_data
@@ -2520,6 +2529,7 @@ impl behaviour::Conversion for PaymentAttempt {
                 .and_then(|details| details.network_error_message.clone()),
             processor_merchant_id: Some(processor_merchant_id),
             created_by: created_by.map(|cb| cb.to_string()),
+            connector_request_reference_id,
         })
     }
 }
@@ -2534,6 +2544,7 @@ impl From<PaymentAttemptUpdate> for diesel_models::PaymentAttemptUpdateInternal 
                 connector,
                 merchant_connector_id,
                 authentication_type,
+                connector_request_reference_id,
             } => Self {
                 status: Some(status),
                 payment_method_id: None,
@@ -2558,6 +2569,7 @@ impl From<PaymentAttemptUpdate> for diesel_models::PaymentAttemptUpdateInternal 
                 network_advice_code: None,
                 network_decline_code: None,
                 network_error_message: None,
+                connector_request_reference_id,
             },
             PaymentAttemptUpdate::ErrorUpdate {
                 status,
@@ -2589,6 +2601,7 @@ impl From<PaymentAttemptUpdate> for diesel_models::PaymentAttemptUpdateInternal 
                 network_advice_code: error.network_advice_code,
                 network_decline_code: error.network_decline_code,
                 network_error_message: error.network_error_message,
+                connector_request_reference_id: None,
             },
             PaymentAttemptUpdate::ConfirmIntentResponse(confirm_intent_response_update) => {
                 let ConfirmIntentResponseUpdate {
@@ -2625,6 +2638,7 @@ impl From<PaymentAttemptUpdate> for diesel_models::PaymentAttemptUpdateInternal 
                     network_advice_code: None,
                     network_decline_code: None,
                     network_error_message: None,
+                    connector_request_reference_id: None,
                 }
             }
             PaymentAttemptUpdate::SyncUpdate {
@@ -2655,6 +2669,7 @@ impl From<PaymentAttemptUpdate> for diesel_models::PaymentAttemptUpdateInternal 
                 network_advice_code: None,
                 network_decline_code: None,
                 network_error_message: None,
+                connector_request_reference_id: None,
             },
             PaymentAttemptUpdate::CaptureUpdate {
                 status,
@@ -2684,6 +2699,7 @@ impl From<PaymentAttemptUpdate> for diesel_models::PaymentAttemptUpdateInternal 
                 network_advice_code: None,
                 network_decline_code: None,
                 network_error_message: None,
+                connector_request_reference_id: None,
             },
             PaymentAttemptUpdate::PreCaptureUpdate {
                 amount_to_capture,
@@ -2712,6 +2728,7 @@ impl From<PaymentAttemptUpdate> for diesel_models::PaymentAttemptUpdateInternal 
                 network_advice_code: None,
                 network_decline_code: None,
                 network_error_message: None,
+                connector_request_reference_id: None,
             },
             PaymentAttemptUpdate::ConfirmIntentTokenized {
                 status,
@@ -2744,6 +2761,7 @@ impl From<PaymentAttemptUpdate> for diesel_models::PaymentAttemptUpdateInternal 
                 network_advice_code: None,
                 network_decline_code: None,
                 network_error_message: None,
+                connector_request_reference_id: None,
             },
         }
     }

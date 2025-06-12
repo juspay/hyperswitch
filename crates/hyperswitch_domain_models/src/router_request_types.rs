@@ -79,6 +79,7 @@ pub struct PaymentsAuthorizeData {
     pub merchant_account_id: Option<Secret<String>>,
     pub merchant_config_currency: Option<storage_enums::Currency>,
     pub connector_testing_data: Option<pii::SecretSerdeValue>,
+    pub order_id: Option<String>,
 }
 #[derive(Debug, Clone)]
 pub struct PaymentsPostSessionTokensData {
@@ -312,6 +313,23 @@ impl TryFrom<CompleteAuthorizeData> for PaymentMethodTokenizationData {
             currency: data.currency,
             amount: Some(data.amount),
             split_payments: None,
+        })
+    }
+}
+
+#[derive(Debug, Clone)]
+pub struct CreateOrderRequestData {
+    pub minor_amount: MinorUnit,
+    pub currency: storage_enums::Currency,
+}
+
+impl TryFrom<PaymentsAuthorizeData> for CreateOrderRequestData {
+    type Error = error_stack::Report<ApiErrorResponse>;
+
+    fn try_from(data: PaymentsAuthorizeData) -> Result<Self, Self::Error> {
+        Ok(Self {
+            minor_amount: data.minor_amount,
+            currency: data.currency,
         })
     }
 }
