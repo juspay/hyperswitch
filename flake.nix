@@ -20,7 +20,7 @@
       perSystem = { self', pkgs, lib, system, ... }:
         let
           cargoToml = lib.importTOML ./Cargo.toml;
-          rustDevVersion = "1.84.0";
+          rustDevVersion = "1.87.0";
           rustMsrv = cargoToml.workspace.package.rust-version;
 
           # Common packages
@@ -47,9 +47,9 @@
 
           # QA packages
           qaPackages = devPackages ++ (with pkgs; [
-            nodejs
-            gnuparallel
             cypress
+            nodejs
+            parallel
           ]);
 
         in

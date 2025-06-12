@@ -147,7 +147,7 @@ Hyperswitch offers three distinct Nix shells tailored for different activities:
       nix develop .#dev
     ```
    * **Purpose:** Extends the default shell with packages required during active development of the project.
-   * **Usage:** Within this shell, you can run clippy checks and validate OpenAPI specs. This shell uses the latest version of `rust`.
+   * **Usage:** Within this shell, you can run clippy checks and validate OpenAPI specs. This shell uses the latest version of `rust` at the time of commit.
 
 3. **QA Shell (`hyperswitch-qa-shell`):**
    ```shell
