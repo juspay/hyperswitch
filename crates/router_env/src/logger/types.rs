@@ -594,6 +594,7 @@ pub enum Flow {
     CloneConnector,
     ///Proxy Flow
     Proxy,
+    ProfileAcquirerCreate,
     /// ThreeDs Decision Rule Execute flow
     ThreeDsDecisionRuleExecute,
 }

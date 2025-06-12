@@ -6,9 +6,9 @@ use api_models::{
     payment_methods::RequestPaymentMethodTypes,
 };
 use common_enums::enums;
-#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+#[cfg(feature = "v2")]
 use common_utils::ext_traits::{OptionExt, StringExt};
-#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+#[cfg(feature = "v2")]
 use error_stack::ResultExt;
 use euclid::frontend::dir;
 use hyperswitch_constraint_graph as cgraph;
@@ -17,7 +17,7 @@ use masking::ExposeInterface;
 use storage_impl::redis::cache::{CacheKey, PM_FILTERS_CGRAPH_CACHE};
 
 use crate::{configs::settings, routes::SessionState};
-#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+#[cfg(feature = "v2")]
 use crate::{
     db::{
         errors,
@@ -811,7 +811,7 @@ fn compile_accepted_currency_for_mca(
     ))
 }
 
-#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+#[cfg(feature = "v2")]
 pub(super) async fn retrieve_payment_token_data(
     state: &SessionState,
     token: String,
@@ -850,7 +850,7 @@ pub(super) async fn retrieve_payment_token_data(
         .attach_printable("failed to deserialize hyperswitch token data")
 }
 
-#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+#[cfg(feature = "v2")]
 pub(super) async fn delete_payment_token_data(
     state: &SessionState,
     key_for_token: &str,
