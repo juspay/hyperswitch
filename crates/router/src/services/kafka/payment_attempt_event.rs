@@ -259,23 +259,21 @@ impl<'a> KafkaPaymentAttemptEvent<'a> {
             processor_merchant_id,
             created_by,
         } = attempt;
+
         let (connector_payment_id, connector_payment_data) = connector_payment_id
             .clone()
             .map(types::ConnectorTransactionId::form_id_and_data)
             .map(|(txn_id, txn_data)| (Some(txn_id), txn_data))
             .unwrap_or((None, None));
+
         Self {
-            payment_id: payment_id,
-            merchant_id: merchant_id,
+            payment_id,
+            merchant_id,
             attempt_id: id,
             status: *status,
-            // currently only net_amount is available from amount_details
             amount: amount_details.get_net_amount(),
             connector: connector.as_ref(),
-            error_message: attempt
-                .error
-                .as_ref()
-                .map(|error_details| &error_details.message),
+            error_message: error.as_ref().map(|error_details| &error_details.message),
             surcharge_amount: amount_details.get_surcharge_amount(),
             tax_amount: amount_details.get_tax_on_surcharge(),
             payment_method_id: payment_method_id.as_ref(),
@@ -288,36 +286,29 @@ impl<'a> KafkaPaymentAttemptEvent<'a> {
             cancellation_reason: cancellation_reason.as_ref(),
             amount_to_capture: amount_details.get_amount_to_capture(),
             browser_info: browser_info.as_ref(),
-            error_code: attempt
-                .error
-                .as_ref()
-                .map(|error_details| &error_details.code),
+            error_code: error.as_ref().map(|error_details| &error_details.code),
             connector_metadata: connector_metadata.as_ref().map(|v| v.peek().to_string()),
             payment_experience: payment_experience.as_ref(),
             payment_method_type: payment_method_subtype,
             payment_method_data: payment_method_data.as_ref().map(|v| v.peek().to_string()),
-            error_reason: attempt
-                .error
+            error_reason: error
                 .as_ref()
                 .and_then(|error_details| error_details.reason.as_ref()),
             multiple_capture_count: *multiple_capture_count,
             amount_capturable: amount_details.get_amount_capturable(),
             merchant_connector_id: merchant_connector_id.as_ref(),
             net_amount: amount_details.get_net_amount(),
-            unified_code: attempt
-                .error
+            unified_code: error
                 .as_ref()
                 .and_then(|error_details| error_details.unified_code.as_ref()),
-            unified_message: attempt
-                .error
+            unified_message: error
                 .as_ref()
                 .and_then(|error_details| error_details.unified_message.as_ref()),
             client_source: client_source.as_ref(),
             client_version: client_version.as_ref(),
-            profile_id: profile_id,
-            organization_id: organization_id,
-            card_network: attempt
-                .payment_method_data
+            profile_id,
+            organization_id,
+            card_network: payment_method_data
                 .as_ref()
                 .map(|data| data.peek())
                 .and_then(|data| data.as_object())
@@ -327,11 +318,10 @@ impl<'a> KafkaPaymentAttemptEvent<'a> {
                 .and_then(|network| network.as_str())
                 .map(|network| network.to_string()),
             card_discovery: card_discovery.map(|discovery| discovery.to_string()),
-
             payment_token: payment_token.clone(),
             preprocessing_step_id: preprocessing_step_id.clone(),
             connector_response_reference_id: connector_response_reference_id.clone(),
-            updated_by: updated_by,
+            updated_by,
             encoded_data: encoded_data.as_ref(),
             external_three_ds_authentication_attempted: *external_three_ds_authentication_attempted,
             authentication_connector: authentication_connector.clone(),
@@ -341,10 +331,10 @@ impl<'a> KafkaPaymentAttemptEvent<'a> {
             shipping_cost: amount_details.get_shipping_cost(),
             order_tax_amount: amount_details.get_order_tax_amount(),
             charges: charges.clone(),
-            processor_merchant_id: processor_merchant_id,
+            processor_merchant_id,
             created_by: created_by.as_ref(),
             payment_method_type_v2: *payment_method_type,
-            connector_payment_id: connector_payment_id.as_ref().map(|id| id.clone()),
+            connector_payment_id: connector_payment_id.as_ref().cloned(),
             payment_method_subtype: *payment_method_subtype,
             routing_result: routing_result.clone(),
             authentication_applied: *authentication_applied,
@@ -354,7 +344,7 @@ impl<'a> KafkaPaymentAttemptEvent<'a> {
                 .as_ref()
                 .map(|v| masking::Secret::new(v.get_inner())),
             redirection_data: redirection_data.as_ref(),
-            connector_payment_data: connector_payment_data,
+            connector_payment_data,
             connector_token_details: connector_token_details.as_ref(),
             feature_metadata: feature_metadata.as_ref(),
             network_advice_code: error

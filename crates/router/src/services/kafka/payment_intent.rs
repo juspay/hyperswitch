@@ -232,7 +232,7 @@ impl<'a> KafkaPaymentIntent<'a> {
 
         Self {
             payment_id: id,
-            merchant_id: merchant_id,
+            merchant_id,
             status: *status,
             amount: amount_details.order_amount,
             currency: amount_details.currency,
@@ -249,16 +249,15 @@ impl<'a> KafkaPaymentIntent<'a> {
             off_session: setup_future_usage.is_off_session(),
             active_attempt_id: active_attempt_id.as_ref(),
             attempt_count: *attempt_count,
-            profile_id: profile_id,
+            profile_id,
             customer_email: None,
             feature_metadata: feature_metadata.as_ref(),
-            organization_id: organization_id,
-
+            organization_id,
             order_details: order_details.as_ref(),
             allowed_payment_method_types: allowed_payment_method_types.as_ref(),
             connector_metadata: connector_metadata.as_ref(),
             payment_link_id: payment_link_id.as_ref(),
-            updated_by: updated_by,
+            updated_by,
             surcharge_applicable: None,
             request_incremental_authorization: *request_incremental_authorization,
             authorization_count: *authorization_count,
@@ -279,7 +278,7 @@ impl<'a> KafkaPaymentIntent<'a> {
             platform_merchant_id: None,
             force_3ds_challenge: *force_3ds_challenge,
             force_3ds_challenge_trigger: *force_3ds_challenge_trigger,
-            processor_merchant_id: processor_merchant_id,
+            processor_merchant_id,
             created_by: created_by.as_ref(),
             is_iframe_redirection_enabled: *is_iframe_redirection_enabled,
             merchant_reference_id: merchant_reference_id.as_ref(),
@@ -300,7 +299,6 @@ impl<'a> KafkaPaymentIntent<'a> {
             customer_present: *customer_present,
             routing_algorithm_id: routing_algorithm_id.as_ref(),
             payment_link_config: payment_link_config.as_ref(),
-
             infra_values,
         }
     }

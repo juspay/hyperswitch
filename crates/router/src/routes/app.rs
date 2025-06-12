@@ -1167,7 +1167,7 @@ impl Refunds {
 
         #[cfg(feature = "olap")]
         {
-            route = route
+            route = routes
                 .service(web::resource("/list").route(web::post().to(refunds_list)))
                 .service(web::resource("/profile/list").route(web::post().to(refunds_list_profile)))
                 .service(web::resource("/filter").route(web::post().to(refunds_filter_list)))
