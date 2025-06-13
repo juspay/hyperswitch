@@ -776,7 +776,7 @@ where
                                             .get_merchant_account()
                                             .get_id()
                                             .clone(),
-                                        customer_id: customer_id,
+                                        customer_id,
                                         payment_method_id: resp.payment_method_id.clone(),
                                     };
                                     let callback_mapper = CallbackMapper::new(

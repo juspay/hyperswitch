@@ -719,8 +719,8 @@ async fn network_token_incoming_webhooks_core<W: types::OutgoingWebhookType>(
             .await?;
     let payment_method = payment_methods::fetch_payment_method_for_network_token_webhooks(
         state,
-        &merchant_context.get_merchant_account(),
-        &merchant_context.get_merchant_key_store(),
+        merchant_context.get_merchant_account(),
+        merchant_context.get_merchant_key_store(),
         &payment_method_id,
     )
     .await?;

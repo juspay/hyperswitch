@@ -3249,7 +3249,7 @@ impl From<(&payment_methods::CardDetail, &domain::PaymentMethod)> for PaymentMet
     fn from(
         (data, payment_method): (&payment_methods::CardDetail, &domain::PaymentMethod),
     ) -> Self {
-        PaymentMethodCreateWrapper(payment_methods::PaymentMethodCreate {
+        Self(payment_methods::PaymentMethodCreate {
             customer_id: Some(payment_method.customer_id.clone()),
             payment_method: payment_method.payment_method,
             payment_method_type: payment_method.payment_method_type,
