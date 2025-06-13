@@ -20,7 +20,7 @@ use masking::{PeekInterface, Secret, SwitchStrategy};
 use rustc_hash::FxHashMap;
 use time::PrimitiveDateTime;
 
-#[cfg(all(feature = "v2", feature = "customer_v2"))]
+#[cfg(feature = "v2")]
 use crate::merchant_connector_account::MerchantConnectorAccountTypeDetails;
 use crate::{behaviour, merchant_key_store::MerchantKeyStore, type_encryption as types};
 
