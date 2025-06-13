@@ -193,8 +193,8 @@ pub enum ConnectorError {
     InvalidDataFormat { field_name: &'static str },
     #[error("Payment Method data / Payment Method Type / Payment Experience Mismatch ")]
     MismatchedPaymentData,
-    #[error("transfer_account_id/application_fees/charge_type sent in request doesn't match with the values used during mandate creation ")]
-    MandatePaymentDataMismatch,
+    #[error("Fields like {fields} doesn't match with the ones used during mandate creation")]
+    MandatePaymentDataMismatch { fields: String },
     #[error("Failed to parse Wallet token")]
     InvalidWalletToken { wallet_name: String },
     #[error("Missing Connector Related Transaction ID")]

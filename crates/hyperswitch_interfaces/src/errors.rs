@@ -125,8 +125,8 @@ pub enum ConnectorError {
         error_message: String,
         error_object: serde_json::Value,
     },
-    #[error("transfer_account_id/application_fees/charge_type sent in request doesn't match with the values used during mandate creation ")]
-    MandatePaymentDataMismatch,
+    #[error("Fields like {fields} doesn't match with the ones used during mandate creation")]
+    MandatePaymentDataMismatch { fields: String },
 }
 
 impl ConnectorError {

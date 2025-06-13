@@ -864,8 +864,6 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
         req: &PaymentsAuthorizeRouterData,
         _connectors: &Connectors,
     ) -> CustomResult<Vec<(String, Maskable<String>)>, ConnectorError> {
-        let stripe_split_payment_metadata = stripe::StripeSplitPaymentRequest::try_from(req)?;
-
         let mut header = vec![(
             CONTENT_TYPE.to_string(),
             PaymentsAuthorizeType::get_content_type(self)
@@ -876,6 +874,9 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
         let mut api_key = self.get_auth_header(&req.connector_auth_type)?;
         header.append(&mut api_key);
 
+        let stripe_split_payment_metadata = stripe::StripeSplitPaymentRequest::try_from(req)?;
+
+        // if the request has split payment object, then append the transfer account id in headers in charge_type is Direct
         if let Some(common_types::payments::SplitPaymentsRequest::StripeSplitPayment(
             stripe_split_payment,
         )) = &req.request.split_payments
@@ -892,7 +893,9 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
                 )];
                 header.append(&mut customer_account_header);
             }
-        } else if let Some(transfer_account_id) =
+        }
+        // if request doesn't have transfer_account_id, but stripe_split_payment_metadata has it, append it
+        else if let Some(transfer_account_id) =
             stripe_split_payment_metadata.transfer_account_id.clone()
         {
             let mut customer_account_header = vec![(

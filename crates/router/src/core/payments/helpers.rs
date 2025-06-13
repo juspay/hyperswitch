@@ -7033,7 +7033,7 @@ pub fn validate_platform_request_for_marketplace(
                 if stripe_split_payment
                     .application_fees
                     .as_ref()
-                    .map_or(MinorUnit::zero(), |f| *f)
+                    .map_or(MinorUnit::zero(), |amount| *amount)
                     .get_amount_as_i64()
                     != 0
                 {
@@ -7046,7 +7046,7 @@ pub fn validate_platform_request_for_marketplace(
                 if stripe_split_payment
                     .application_fees
                     .as_ref()
-                    .map_or(MinorUnit::zero(), |f| *f)
+                    .map_or(MinorUnit::zero(), |amount| *amount)
                     .get_amount_as_i64()
                     > amount.into()
                 {

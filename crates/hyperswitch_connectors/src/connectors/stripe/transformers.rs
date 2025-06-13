@@ -2203,6 +2203,7 @@ impl TryFrom<&PaymentsAuthorizeRouterData> for StripeSplitPaymentRequest {
     type Error = error_stack::Report<ConnectorError>;
 
     fn try_from(item: &PaymentsAuthorizeRouterData) -> Result<Self, Self::Error> {
+        //extracting mandate metadata from CIT call if CIT call was a Split Payment
         let from_metadata = item
             .request
             .mandate_id
@@ -2219,6 +2220,7 @@ impl TryFrom<&PaymentsAuthorizeRouterData> for StripeSplitPaymentRequest {
                 serde_json::from_value::<Self>(json_value).ok()
             });
 
+        // If the Split Payment Request in MIT mismatches with the metadata from CIT, throw an error
         if from_metadata.is_some() && item.request.split_payments.is_some() {
             let mut mit_charge_type = None;
             let mut mit_application_fees = None;
@@ -2238,12 +2240,16 @@ impl TryFrom<&PaymentsAuthorizeRouterData> for StripeSplitPaymentRequest {
                         .as_ref()
                         .and_then(|m| m.transfer_account_id.clone())
             {
+                let mismatched_fields = ["transfer_account_id", "application_fees", "charge_type"];
+
+                let field_str = mismatched_fields.join(", ");
                 return Err(error_stack::Report::from(
-                    ConnectorError::MandatePaymentDataMismatch,
+                    ConnectorError::MandatePaymentDataMismatch { fields: field_str },
                 ));
             }
         }
 
+        // If Mandate Metadata from CIT call has something, populate it
         let (charge_type, mut transfer_account_id, application_fees) =
             if let Some(ref metadata) = from_metadata {
                 (
@@ -2255,6 +2261,7 @@ impl TryFrom<&PaymentsAuthorizeRouterData> for StripeSplitPaymentRequest {
                 (None, None, None)
             };
 
+        // If Charge Type is Destination, transfer_account_id need not be appended in headers
         if charge_type == Some(PaymentChargeType::Stripe(StripeChargeType::Destination)) {
             transfer_account_id = None;
         }

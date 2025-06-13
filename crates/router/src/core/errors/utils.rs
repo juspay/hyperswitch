@@ -171,7 +171,7 @@ impl<T> ConnectorErrorExt<T> for error_stack::Result<T, errors::ConnectorError> 
             | errors::ConnectorError::DateFormattingFailed
             | errors::ConnectorError::InvalidDataFormat { .. }
             | errors::ConnectorError::MismatchedPaymentData
-            | errors::ConnectorError::MandatePaymentDataMismatch
+            | errors::ConnectorError::MandatePaymentDataMismatch { .. }
             | errors::ConnectorError::InvalidWalletToken { .. }
             | errors::ConnectorError::MissingConnectorRelatedTransactionID { .. }
             | errors::ConnectorError::FileValidationFailed { .. }
@@ -226,10 +226,9 @@ impl<T> ConnectorErrorExt<T> for error_stack::Result<T, errors::ConnectorError> 
                             "payment_method_data, payment_method_type and payment_experience does not match",
                     }
                 },
-                errors::ConnectorError::MandatePaymentDataMismatch => {
-                    errors::ApiErrorResponse::InvalidDataValue {
-                        field_name:
-                            "transfer_account_id/application_fees/charge_type sent in request doesn't match with the values used during mandate creation",
+                errors::ConnectorError::MandatePaymentDataMismatch {fields}=> {
+                    errors::ApiErrorResponse::MandatePaymentDataMismatch {
+                        fields: fields.to_owned(),
                     }
                 },
                 errors::ConnectorError::NotSupported { message, connector } => {
@@ -370,7 +369,7 @@ impl<T> ConnectorErrorExt<T> for error_stack::Result<T, errors::ConnectorError> 
                 | errors::ConnectorError::DateFormattingFailed
                 | errors::ConnectorError::InvalidDataFormat { .. }
                 | errors::ConnectorError::MismatchedPaymentData
-                | errors::ConnectorError::MandatePaymentDataMismatch
+                | errors::ConnectorError::MandatePaymentDataMismatch { .. }
                 | errors::ConnectorError::MissingConnectorRelatedTransactionID { .. }
                 | errors::ConnectorError::FileValidationFailed { .. }
                 | errors::ConnectorError::MissingConnectorRedirectionPayload { .. }
