@@ -332,6 +332,8 @@ impl ConnectorValidation for Adyen {
                 | PaymentMethodType::LocalBankRedirect
                 | PaymentMethodType::OpenBankingPIS
                 | PaymentMethodType::InstantBankTransfer
+                | PaymentMethodType::InstantBankTransferFinland
+                | PaymentMethodType::InstantBankTransferPoland
                 | PaymentMethodType::SepaBankTransfer
                 | PaymentMethodType::ProxyCard
                 | PaymentMethodType::RevolutPay => {
