@@ -62,8 +62,6 @@ use hyperswitch_domain_models::{
 use masking::{ExposeOptionInterface, PeekInterface, Secret};
 #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
 use masking::{PeekInterface, Secret};
-#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
-use masking::{PeekInterface, Secret};
 use router_env::{instrument, tracing};
 use time::Duration;
 
@@ -88,7 +86,6 @@ use crate::{
         self,
         api::{self, payment_methods::PaymentMethodCreateExt},
         domain::types as domain_types,
-        payment_methods as pm_types,
         storage::{ephemeral_key, PaymentMethodListContext},
         transformers::{ForeignFrom, ForeignTryFrom},
         Tokenizable,

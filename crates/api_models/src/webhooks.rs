@@ -155,6 +155,7 @@ impl WebhookResponseTracker {
         }
     }
 
+    #[cfg(feature = "v1")]
     pub fn get_payment_method_id(&self) -> Option<String> {
         match self {
             Self::PaymentMethod {
@@ -177,7 +178,7 @@ impl WebhookResponseTracker {
             Self::Payment { payment_id, .. }
             | Self::Refund { payment_id, .. }
             | Self::Dispute { payment_id, .. } => Some(payment_id.to_owned()),
-            Self::NoEffect | Self::Mandate { .. } | Self::PaymentMethod { .. } => None,
+            Self::NoEffect | Self::Mandate { .. } => None,
             #[cfg(feature = "payouts")]
             Self::Payout { .. } => None,
             Self::Relay { .. } => None,
