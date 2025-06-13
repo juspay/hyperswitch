@@ -180,6 +180,8 @@ pub enum Flow {
     PaymentsConfirmIntent,
     /// Payments create and confirm intent flow
     PaymentsCreateAndConfirmIntent,
+    /// Payments Recovery Should Retry Test
+    RecoveryDeciderShouldRetry,
     #[cfg(feature = "payouts")]
     /// Payouts create flow
     PayoutsCreate,
