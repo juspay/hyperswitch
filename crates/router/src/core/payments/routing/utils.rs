@@ -658,6 +658,7 @@ pub struct Program {
 #[derive(Clone, Debug, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub struct RoutingRule {
+    pub rule_id: Option<String>,
     pub name: String,
     pub description: Option<String>,
     pub metadata: Option<RoutingMetadata>,
