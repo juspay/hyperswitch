@@ -823,6 +823,8 @@ impl TryFrom<enums::PaymentMethodType> for StripePaymentMethodType {
             | enums::PaymentMethodType::PayEasy
             | enums::PaymentMethodType::LocalBankTransfer
             | enums::PaymentMethodType::InstantBankTransfer
+            | enums::PaymentMethodType::InstantBankTransferFinland
+            | enums::PaymentMethodType::InstantBankTransferPoland
             | enums::PaymentMethodType::SepaBankTransfer
             | enums::PaymentMethodType::Walley
             | enums::PaymentMethodType::Fps
@@ -1339,6 +1341,8 @@ fn create_stripe_payment_method(
             payment_method_data::BankTransferData::Pse {}
             | payment_method_data::BankTransferData::LocalBankTransfer { .. }
             | payment_method_data::BankTransferData::InstantBankTransfer {}
+            | payment_method_data::BankTransferData::InstantBankTransferFinland { .. }
+            | payment_method_data::BankTransferData::InstantBankTransferPoland { .. }
             | payment_method_data::BankTransferData::PermataBankTransfer { .. }
             | payment_method_data::BankTransferData::BcaBankTransfer { .. }
             | payment_method_data::BankTransferData::BniVaBankTransfer { .. }
@@ -4082,6 +4086,8 @@ impl
                 | payment_method_data::BankTransferData::DanamonVaBankTransfer { .. }
                 | payment_method_data::BankTransferData::LocalBankTransfer { .. }
                 | payment_method_data::BankTransferData::InstantBankTransfer {}
+                | payment_method_data::BankTransferData::InstantBankTransferFinland {}
+                | payment_method_data::BankTransferData::InstantBankTransferPoland {}
                 | payment_method_data::BankTransferData::MandiriVaBankTransfer { .. } => {
                     Err(ConnectorError::NotImplemented(
                         get_unimplemented_payment_method_error_message("stripe"),

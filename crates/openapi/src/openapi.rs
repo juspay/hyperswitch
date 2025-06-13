@@ -203,6 +203,10 @@ Never share your secret api keys. Keep them guarded and secure.
         // Routes for poll apis
         routes::poll::retrieve_poll_status,
 
+        // Routes for profile acquirer account
+        routes::profile_acquirer::profile_acquirer_create,
+        routes::profile_acquirer::profile_acquirer_update,
+
         // Routes for 3DS Decision Rule
         routes::three_ds_decision_rule::three_ds_decision_rule_execute,
     ),
@@ -274,6 +278,8 @@ Never share your secret api keys. Keep them guarded and secure.
         api_models::payment_methods::PaymentMethodResponse,
         api_models::payment_methods::CustomerPaymentMethod,
         common_types::three_ds_decision_rule_engine::ThreeDSDecisionRule,
+        common_types::domain::AcquirerConfigMap,
+        common_types::domain::AcquirerConfig,
         api_models::payment_methods::PaymentMethodListResponse,
         api_models::payment_methods::ResponsePaymentMethodsEnabled,
         api_models::payment_methods::ResponsePaymentMethodTypes,
@@ -319,6 +325,7 @@ Never share your secret api keys. Keep them guarded and secure.
         api_models::enums::BankType,
         api_models::enums::BankHolderType,
         api_models::enums::CardNetwork,
+        api_models::enums::MerchantCategoryCode,
         api_models::enums::DisputeStage,
         api_models::enums::DisputeStatus,
         api_models::enums::CountryAlpha2,
@@ -560,6 +567,7 @@ Never share your secret api keys. Keep them guarded and secure.
         api_models::payments::ThreeDsData,
         api_models::payments::ThreeDsMethodData,
         api_models::payments::PollConfigResponse,
+        api_models::payments::PollConfig,
         api_models::payments::ExternalAuthenticationDetailsResponse,
         api_models::payments::ExtendedCardInfo,
         api_models::payment_methods::RequiredFieldInfo,
@@ -773,6 +781,9 @@ Never share your secret api keys. Keep them guarded and secure.
         api_models::open_router::DecisionEngineGatewayWiseExtraScore,
         api_models::open_router::DecisionEngineSRSubLevelInputConfig,
         api_models::open_router::DecisionEngineEliminationData,
+        api_models::profile_acquirer::ProfileAcquirerCreate,
+        api_models::profile_acquirer::ProfileAcquirerUpdate,
+        api_models::profile_acquirer::ProfileAcquirerResponse,
         euclid::frontend::dir::enums::CustomerDevicePlatform,
         euclid::frontend::dir::enums::CustomerDeviceType,
         euclid::frontend::dir::enums::CustomerDeviceDisplaySize,
