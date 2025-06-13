@@ -2738,6 +2738,12 @@ impl GetPaymentMethodType for BankTransferData {
             Self::Pse {} => api_enums::PaymentMethodType::Pse,
             Self::LocalBankTransfer { .. } => api_enums::PaymentMethodType::LocalBankTransfer,
             Self::InstantBankTransfer {} => api_enums::PaymentMethodType::InstantBankTransfer,
+            Self::InstantBankTransferFinland {} => {
+                api_enums::PaymentMethodType::InstantBankTransferFinland
+            }
+            Self::InstantBankTransferPoland {} => {
+                api_enums::PaymentMethodType::InstantBankTransferPoland
+            }
         }
     }
 }
@@ -3403,6 +3409,8 @@ pub enum BankTransferData {
         bank_code: Option<String>,
     },
     InstantBankTransfer {},
+    InstantBankTransferFinland {},
+    InstantBankTransferPoland {},
 }
 
 #[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
@@ -3473,7 +3481,9 @@ impl GetAddressFromPaymentMethodData for BankTransferData {
             Self::LocalBankTransfer { .. }
             | Self::Pix { .. }
             | Self::Pse {}
-            | Self::InstantBankTransfer {} => None,
+            | Self::InstantBankTransfer {}
+            | Self::InstantBankTransferFinland {}
+            | Self::InstantBankTransferPoland {} => None,
         }
     }
 }

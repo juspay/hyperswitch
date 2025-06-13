@@ -288,6 +288,7 @@ Never share your secret api keys. Keep them guarded and secure.
         api_models::enums::BankType,
         api_models::enums::BankHolderType,
         api_models::enums::CardNetwork,
+        api_models::enums::MerchantCategoryCode,
         api_models::enums::TokenDataType,
         api_models::enums::DisputeStage,
         api_models::enums::DisputeStatus,
