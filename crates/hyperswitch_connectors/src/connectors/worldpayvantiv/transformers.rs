@@ -150,6 +150,18 @@ pub struct Capture {
     pub amount: MinorUnit,
 }
 
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct BillToAddressData {
+    pub name: Secret<String>,
+    pub address_line1: Option<Secret<String>>,
+    pub city: Option<String>,
+    pub state: Option<Secret<String>>,
+    pub zip: Option<Secret<String>>,
+    pub email: Option<common_utils::pii::Email>,
+    pub phone: Option<Secret<String>>,
+}
+
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Authorization {
@@ -157,9 +169,12 @@ pub struct Authorization {
     pub id: String,
     #[serde(rename = "@reportGroup")]
     pub report_group: String,
+    #[serde(rename = "@customerId")]
+    pub customer_id: Option<String>,
     pub order_id: String,
     pub amount: MinorUnit,
     pub order_source: OrderSource,
+    pub bill_to_address: Option<BillToAddressData>,
     pub card: WorldpayvantivCardData,
 }
 
@@ -170,9 +185,12 @@ pub struct Sale {
     pub id: String,
     #[serde(rename = "@reportGroup")]
     pub report_group: String,
+    #[serde(rename = "@customerId")]
+    pub customer_id: Option<String>,
     pub order_id: String,
     pub amount: MinorUnit,
     pub order_source: OrderSource,
+    pub bill_to_address: Option<BillToAddressData>,
     pub card: WorldpayvantivCardData,
 }
 
@@ -183,6 +201,8 @@ pub struct RefundRequest {
     pub report_group: String,
     #[serde(rename = "@id")]
     pub id: String,
+    #[serde(rename = "@customerId")]
+    pub customer_id: Option<String>,
     pub cnp_txn_id: String,
     pub amount: MinorUnit,
 }
@@ -194,6 +214,8 @@ pub struct TransactionQuery {
     pub report_group: String,
     #[serde(rename = "@id")]
     pub id: String,
+    #[serde(rename = "@customerId")]
+    pub customer_id: Option<String>,
     pub orig_cnp_txn_id: String,
 }
 
@@ -306,6 +328,10 @@ impl TryFrom<&PaymentsSyncRouterData> for CnpOnlineRequest {
         let query_transaction = Some(TransactionQuery {
             id: api_call_id,
             report_group,
+            customer_id: item
+                .customer_id
+                .clone()
+                .map(|customer_id| customer_id.get_string_repr().to_string()),
             orig_cnp_txn_id: item
                 .request
                 .connector_transaction_id
@@ -554,6 +580,27 @@ impl<F> TryFrom<ResponseRouterData<F, CnpOnlineResponse, PaymentsSyncData, Payme
     }
 }
 
+fn get_bill_to_address(item: &PaymentsAuthorizeRouterData) -> Option<BillToAddressData> {
+    let billing_address = item.get_optional_billing();
+    billing_address.and_then(|billing_address| {
+        billing_address.address.clone().and_then(|address| {
+            let full_name = address.get_optional_full_name();
+            match full_name {
+                Some(name) => Some(BillToAddressData {
+                    name,
+                    address_line1: item.get_optional_billing_line1(),
+                    city: item.get_optional_billing_city(),
+                    state: item.get_optional_billing_state(),
+                    zip: item.get_optional_billing_zip(),
+                    email: item.get_optional_billing_email(),
+                    phone: item.get_optional_billing_phone_number(),
+                }),
+                None => None,
+            }
+        })
+    })
+}
+
 impl TryFrom<&WorldpayvantivRouterData<&PaymentsAuthorizeRouterData>> for CnpOnlineRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
@@ -606,15 +653,24 @@ impl TryFrom<&WorldpayvantivRouterData<&PaymentsAuthorizeRouterData>> for CnpOnl
                 format!("auth_{:?}", connector_utils::generate_12_digit_number())
             };
 
+        let customer_id = item
+            .router_data
+            .customer_id
+            .clone()
+            .map(|customer_id| customer_id.get_string_repr().to_string());
+        let bill_to_address = get_bill_to_address(&item.router_data);
+
         let (authorization, sale) = if item.router_data.request.is_auto_capture()? {
             (
                 None,
                 Some(Sale {
                     id: api_call_id.clone(),
                     report_group: report_group.clone(),
+                    customer_id,
                     order_id: item.router_data.payment_id.clone(),
                     amount: item.amount,
                     order_source: OrderSource::Ecommerce,
+                    bill_to_address,
                     card: card.clone(),
                 }),
             )
@@ -623,9 +679,11 @@ impl TryFrom<&WorldpayvantivRouterData<&PaymentsAuthorizeRouterData>> for CnpOnl
                 Some(Authorization {
                     id: api_call_id.clone(),
                     report_group: report_group.clone(),
+                    customer_id,
                     order_id: item.router_data.payment_id.clone(),
                     amount: item.amount,
                     order_source: OrderSource::Ecommerce,
+                    bill_to_address,
                     card: card.clone(),
                 }),
                 None,
@@ -705,10 +763,17 @@ impl<F> TryFrom<&WorldpayvantivRouterData<&RefundsRouterData<F>>> for CnpOnlineR
             ),
         )?;
 
+        let customer_id = item
+            .router_data
+            .customer_id
+            .clone()
+            .map(|customer_id| customer_id.get_string_repr().to_string());
+
         let api_call_id = format!("ref_{:?}", connector_utils::generate_12_digit_number());
         let credit = Some(RefundRequest {
             id: api_call_id,
             report_group,
+            customer_id,
             cnp_txn_id: item.router_data.request.connector_transaction_id.clone(),
             amount: item.amount,
         });
@@ -745,10 +810,16 @@ impl TryFrom<&RefundSyncRouterData> for CnpOnlineRequest {
                 "Failed to obtain report_group from metadata".to_string(),
             ),
         )?;
+        let customer_id = item
+            .customer_id
+            .clone()
+            .map(|customer_id| customer_id.get_string_repr().to_string());
+
         let api_call_id = format!("rsync_{:?}", connector_utils::generate_12_digit_number());
         let query_transaction = Some(TransactionQuery {
             id: api_call_id,
             report_group,
+            customer_id,
             orig_cnp_txn_id: item.request.get_connector_refund_id()?,
         });
 
@@ -795,18 +866,23 @@ pub struct CnpOnlineResponse {
 pub struct CaptureResponse {
     #[serde(rename = "@id")]
     pub id: String,
-
     #[serde(rename = "@reportGroup")]
     pub report_group: String,
-
+    #[serde(rename = "@customerId")]
+    pub customer_id: Option<String>,
     #[serde(rename = "cnpTxnId")]
     pub cnp_txn_id: String,
-
     pub response: WorldpayvantivResponseCode,
-
     pub response_time: String,
-
     pub message: String,
+    pub location: Option<String>,
+}
+
+#[derive(Debug, Serialize, Deserialize, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub struct FraudResult {
+    pub avs_result: String,
+    pub card_validation_result: String,
 }
 
 #[derive(Debug, Serialize, Deserialize, PartialEq)]
@@ -816,14 +892,17 @@ pub struct AuthorizationResponse {
     pub id: String,
     #[serde(rename = "@reportGroup")]
     pub report_group: String,
+    #[serde(rename = "@customerId")]
+    pub customer_id: Option<String>,
     pub cnp_txn_id: String,
     pub order_id: String,
     #[serde(rename = "response")]
     pub response_code: WorldpayvantivResponseCode,
     pub message: String,
     pub response_time: String,
-    pub auth_code: Secret<String>,
-    pub network_transaction_id: Secret<String>,
+    pub auth_code: Option<Secret<String>>,
+    pub fraud_result: Option<FraudResult>,
+    pub network_transaction_id: Option<Secret<String>>,
 }
 
 #[derive(Debug, Serialize, Deserialize, PartialEq)]
@@ -833,14 +912,17 @@ pub struct SaleResponse {
     pub id: String,
     #[serde(rename = "@reportGroup")]
     pub report_group: String,
+    #[serde(rename = "@customerId")]
+    pub customer_id: Option<String>,
     pub cnp_txn_id: String,
     pub order_id: String,
     #[serde(rename = "response")]
     pub response_code: WorldpayvantivResponseCode,
     pub message: String,
     pub response_time: String,
-    pub auth_code: Secret<String>,
-    pub network_transaction_id: Secret<String>,
+    pub auth_code: Option<Secret<String>>,
+    pub fraud_result: Option<FraudResult>,
+    pub network_transaction_id: Option<Secret<String>>,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -850,11 +932,14 @@ pub struct VoidResponse {
     pub id: String,
     #[serde(rename = "@reportGroup")]
     pub report_group: String,
+    #[serde(rename = "@customerId")]
+    pub customer_id: Option<String>,
     pub cnp_txn_id: String,
     pub response: WorldpayvantivResponseCode,
     pub response_time: String,
     pub post_date: String,
     pub message: String,
+    pub location: Option<String>,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -864,6 +949,8 @@ pub struct QueryTransactionResponse {
     pub id: String,
     #[serde(rename = "@reportGroup")]
     pub report_group: String,
+    #[serde(rename = "@customerId")]
+    pub customer_id: Option<String>,
     pub response: WorldpayvantivResponseCode,
     pub response_time: String,
     pub message: String,
@@ -889,14 +976,19 @@ pub struct CreditResponse {
     pub id: String,
     #[serde(rename = "@reportGroup")]
     pub report_group: String,
+    #[serde(rename = "@customerId")]
+    pub customer_id: Option<String>,
     pub cnp_txn_id: String,
     pub response: WorldpayvantivResponseCode,
     pub response_time: String,
     pub message: String,
+    pub location: Option<String>,
 }
 
 impl<F> TryFrom<ResponseRouterData<F, CnpOnlineResponse, PaymentsCaptureData, PaymentsResponseData>>
     for RouterData<F, PaymentsCaptureData, PaymentsResponseData>
+where
+    F: Send,
 {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
