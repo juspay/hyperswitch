@@ -4,6 +4,23 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2025.06.13.0
+
+### Features
+
+- **authentication:** Create api for update profile acquirer ([#8307](https://github.com/juspay/hyperswitch/pull/8307)) ([`d33e344`](https://github.com/juspay/hyperswitch/commit/d33e344f82ca63e217c54893816218d60166a6cd))
+- **dashboard:** Added wasm changes for threedsecure.io for collecting acquirer_bin, acquirer_merchant_id and acquirer_country_code in MCA ([#8330](https://github.com/juspay/hyperswitch/pull/8330)) ([`4318c93`](https://github.com/juspay/hyperswitch/commit/4318c934dd3d51e312e16fc524294982a33294d0))
+- **router:** Add `merchant_category_code` in business profile ([#8296](https://github.com/juspay/hyperswitch/pull/8296)) ([`0f14279`](https://github.com/juspay/hyperswitch/commit/0f14279866350fff86deb6c9fd3d39765f4709e2))
+
+### Refactors
+
+- **debit_routing:** Filter debit networks based on merchant connector account configuration ([#8175](https://github.com/juspay/hyperswitch/pull/8175)) ([`5f97b7b`](https://github.com/juspay/hyperswitch/commit/5f97b7bce57766745cb64270921b0f38951df6ae))
+- Add result type for Program ([#8179](https://github.com/juspay/hyperswitch/pull/8179)) ([`261818f`](https://github.com/juspay/hyperswitch/commit/261818f215787bb0247a8b67e02856f690d47c71))
+
+**Full Changelog:** [`2025.06.12.0...2025.06.13.0`](https://github.com/juspay/hyperswitch/compare/2025.06.12.0...2025.06.13.0)
+
+- - -
+
 ## 2025.06.12.0
 
 ### Features

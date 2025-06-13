@@ -595,6 +595,7 @@ pub enum Flow {
     ///Proxy Flow
     Proxy,
     ProfileAcquirerCreate,
+    ProfileAcquirerUpdate,
     /// ThreeDs Decision Rule Execute flow
     ThreeDsDecisionRuleExecute,
 }

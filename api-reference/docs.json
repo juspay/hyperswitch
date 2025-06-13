@@ -485,6 +485,10 @@
       {
         "label": "Contact Us",
         "href": "https://inviter.co/hyperswitch-slack"
+      },
+      {
+        "label": "Explore with Deepwiki",
+        "href": "https://deepwiki.com/juspay/hyperswitch"
       }
     ],
     "primary": {

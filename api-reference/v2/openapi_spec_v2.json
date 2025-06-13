@@ -6265,6 +6265,28 @@
                 "type": "object"
               }
             }
+          },
+          {
+            "type": "object",
+            "required": [
+              "instant_bank_transfer_finland"
+            ],
+            "properties": {
+              "instant_bank_transfer_finland": {
+                "type": "object"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "instant_bank_transfer_poland"
+            ],
+            "properties": {
+              "instant_bank_transfer_poland": {
+                "type": "object"
+              }
+            }
           }
         ]
       },
@@ -6585,6 +6607,28 @@
             ],
             "properties": {
               "instant_bank_transfer": {
+                "type": "object"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "instant_bank_transfer_finland"
+            ],
+            "properties": {
+              "instant_bank_transfer_finland": {
+                "type": "object"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "instant_bank_transfer_poland"
+            ],
+            "properties": {
+              "instant_bank_transfer_poland": {
                 "type": "object"
               }
             }
@@ -13195,6 +13239,18 @@
         },
         "additionalProperties": false
       },
+      "MerchantCategoryCode": {
+        "type": "string",
+        "enum": [
+          "5411",
+          "7011",
+          "0763",
+          "8111",
+          "5021",
+          "4816",
+          "5661"
+        ]
+      },
       "MerchantConnectorAccountFeatureMetadata": {
         "type": "object",
         "description": "Feature metadata for merchant connector account",
@@ -17601,6 +17657,8 @@
           "open_banking_pis",
           "direct_carrier_billing",
           "instant_bank_transfer",
+          "instant_bank_transfer_finland",
+          "instant_bank_transfer_poland",
           "revolut_pay"
         ]
       },
@@ -20977,6 +21035,14 @@
               }
             ],
             "nullable": true
+          },
+          "merchant_category_code": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/MerchantCategoryCode"
+              }
+            ],
+            "nullable": true
           }
         },
         "additionalProperties": false
@@ -21243,6 +21309,14 @@
             "allOf": [
               {
                 "$ref": "#/components/schemas/ExternalVaultConnectorDetails"
+              }
+            ],
+            "nullable": true
+          },
+          "merchant_category_code": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/MerchantCategoryCode"
               }
             ],
             "nullable": true
@@ -23833,6 +23907,10 @@
           "exploration_percent": {
             "type": "number",
             "format": "double",
+            "nullable": true
+          },
+          "shuffle_on_tie_during_exploitation": {
+            "type": "boolean",
             "nullable": true
           }
         }
