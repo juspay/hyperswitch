@@ -14,6 +14,9 @@ use common_utils::{date_time, fp_utils, id_type};
 #[cfg(feature = "v2")]
 use diesel_models::ephemeral_key;
 use error_stack::{report, ResultExt};
+use hyperswitch_domain_models::merchant_context::{
+    Context, MerchantContext, PlatformAndConnectedMerchantContext,
+};
 use jsonwebtoken::{decode, Algorithm, DecodingKey, Validation};
 #[cfg(feature = "v2")]
 use masking::ExposeInterface;
@@ -60,18 +63,41 @@ mod detached;
 #[derive(Clone, Debug)]
 pub struct AuthenticationData {
     pub merchant_account: domain::MerchantAccount,
-    pub platform_merchant_account: Option<domain::MerchantAccount>,
+    pub platform_account_context: Option<PlatformAccountContext>,
     pub key_store: domain::MerchantKeyStore,
     pub profile_id: Option<id_type::ProfileId>,
+}
+
+#[derive(Clone, Debug)]
+pub struct PlatformAccountContext {
+    pub platform_account: domain::MerchantAccount,
+    pub key_store: domain::MerchantKeyStore,
 }
 
 #[cfg(feature = "v2")]
 #[derive(Clone, Debug)]
 pub struct AuthenticationData {
     pub merchant_account: domain::MerchantAccount,
+    pub platform_account_context: Option<PlatformAccountContext>,
     pub key_store: domain::MerchantKeyStore,
     pub profile: domain::Profile,
-    pub platform_merchant_account: Option<domain::MerchantAccount>,
+}
+
+impl From<AuthenticationData> for MerchantContext {
+    fn from(val: AuthenticationData) -> Self {
+        match val.platform_account_context {
+            Some(platform_context) => {
+                Self::PlatformAndConnectedMerchant(Box::new(PlatformAndConnectedMerchantContext {
+                    platform_account_context: Context(
+                        platform_context.platform_account,
+                        platform_context.key_store,
+                    ),
+                    connected_account_context: Context(val.merchant_account, val.key_store),
+                }))
+            }
+            None => Self::StandardMerchant(Box::new(Context(val.merchant_account, val.key_store))),
+        }
+    }
 }
 
 #[derive(Clone, Debug)]
@@ -494,6 +520,14 @@ where
             .attach_printable("Platform not authorized to access the resource");
         }
 
+        let platform_account_context =
+            platform_merchant_account
+                .clone()
+                .map(|platform_account| PlatformAccountContext {
+                    platform_account,
+                    key_store: key_store.clone(),
+                });
+
         let key_store = if platform_merchant_account.is_some() {
             state
                 .store()
@@ -517,7 +551,7 @@ where
 
         let auth = AuthenticationData {
             merchant_account: merchant,
-            platform_merchant_account,
+            platform_account_context,
             key_store,
             profile,
         };
@@ -620,6 +654,14 @@ where
             .attach_printable("Platform not authorized to access the resource");
         }
 
+        let platform_account_context =
+            platform_merchant_account
+                .clone()
+                .map(|platform_account| PlatformAccountContext {
+                    platform_account,
+                    key_store: key_store.clone(),
+                });
+
         let key_store = if platform_merchant_account.is_some() {
             state
                 .store()
@@ -637,7 +679,7 @@ where
 
         let auth = AuthenticationData {
             merchant_account: merchant,
-            platform_merchant_account,
+            platform_account_context,
             key_store,
             profile_id,
         };
@@ -886,7 +928,10 @@ where
 
         let auth = AuthenticationData {
             merchant_account: merchant_account.clone(),
-            platform_merchant_account: Some(merchant_account.clone()),
+            platform_account_context: Some(PlatformAccountContext {
+                platform_account: merchant_account.clone(),
+                key_store: key_store.clone(),
+            }),
             key_store,
             profile_id: None,
         };
@@ -998,7 +1043,7 @@ where
                 .attach_printable("API key has expired");
         }
 
-        let (_, platform_merchant) =
+        let (platform_key_store, platform_merchant) =
             Self::fetch_key_store_and_account(&stored_api_key.merchant_id, state).await?;
 
         if !(state.conf().platform.enabled && platform_merchant.is_platform_account()) {
@@ -1016,7 +1061,10 @@ where
 
         let auth = AuthenticationData {
             merchant_account: route_merchant,
-            platform_merchant_account: Some(platform_merchant.clone()),
+            platform_account_context: Some(PlatformAccountContext {
+                platform_account: platform_merchant.clone(),
+                key_store: platform_key_store.clone(),
+            }),
             key_store: route_key_store,
             profile_id: None,
         };
@@ -1188,7 +1236,7 @@ where
 
         let auth_data_v2 = AuthenticationData {
             merchant_account: auth_data.merchant_account,
-            platform_merchant_account: auth_data.platform_merchant_account,
+            platform_account_context: None,
             key_store: auth_data.key_store,
             profile,
         };
@@ -1234,6 +1282,14 @@ where
         (merchant, None)
     };
 
+    let platform_account_context =
+        platform_merchant_account
+            .clone()
+            .map(|platform_account| PlatformAccountContext {
+                platform_account,
+                key_store: key_store.clone(),
+            });
+
     let key_store = if platform_merchant_account.is_some() {
         state
             .store()
@@ -1251,7 +1307,7 @@ where
 
     let auth = AuthenticationData {
         merchant_account: merchant,
-        platform_merchant_account,
+        platform_account_context,
         key_store,
         profile_id,
     };
@@ -1539,7 +1595,7 @@ where
 
         let auth = AuthenticationData {
             merchant_account: merchant,
-            platform_merchant_account: None,
+            platform_account_context: None,
             key_store,
             profile_id: None,
         };
@@ -1602,9 +1658,9 @@ where
 
         let auth = AuthenticationData {
             merchant_account: merchant,
+            platform_account_context: None,
             key_store,
             profile,
-            platform_merchant_account: None,
         };
 
         Ok((
@@ -1826,7 +1882,7 @@ where
                 Self::fetch_merchant_key_store_and_account(&merchant_id_from_route, state).await?;
             let auth = AuthenticationData {
                 merchant_account: merchant,
-                platform_merchant_account: None,
+                platform_account_context: None,
                 key_store,
                 profile_id: None,
             };
@@ -1877,7 +1933,7 @@ where
             if api_key_merchant.get_org_id() == route_merchant.get_org_id() {
                 let auth = AuthenticationData {
                     merchant_account: route_merchant,
-                    platform_merchant_account: None,
+                    platform_account_context: None,
                     key_store: route_key_store,
                     profile_id: None,
                 };
@@ -2040,7 +2096,7 @@ where
 
         let auth = AuthenticationData {
             merchant_account: merchant,
-            platform_merchant_account: None,
+            platform_account_context: None,
             key_store,
             profile_id: None,
         };
@@ -2104,9 +2160,9 @@ where
 
         let auth = AuthenticationData {
             merchant_account: merchant,
+            platform_account_context: None,
             key_store,
             profile,
-            platform_merchant_account: None,
         };
         Ok((
             auth,
@@ -2232,7 +2288,7 @@ where
 
         let auth = AuthenticationData {
             merchant_account: merchant,
-            platform_merchant_account: None,
+            platform_account_context: None,
             key_store,
             profile_id: None,
         };
@@ -2298,9 +2354,9 @@ where
 
         let auth = AuthenticationData {
             merchant_account: merchant,
+            platform_account_context: None,
             key_store,
             profile,
-            platform_merchant_account: None,
         };
         Ok((
             auth.clone(),
@@ -2362,9 +2418,9 @@ where
 
         let auth = AuthenticationData {
             merchant_account: merchant,
+            platform_account_context: None,
             key_store,
             profile,
-            platform_merchant_account: None,
         };
         Ok((
             auth.clone(),
@@ -2422,9 +2478,9 @@ where
         Ok((
             AuthenticationData {
                 merchant_account,
+                platform_account_context: None,
                 key_store,
                 profile,
-                platform_merchant_account: None,
             },
             AuthenticationType::PublishableKey { merchant_id },
         ))
@@ -2530,6 +2586,14 @@ where
             .attach_printable("Platform not authorized to access the resource");
         }
 
+        let platform_account_context =
+            platform_merchant_account
+                .clone()
+                .map(|platform_account| PlatformAccountContext {
+                    platform_account,
+                    key_store: key_store.clone(),
+                });
+
         let key_store = if platform_merchant_account.is_some() {
             state
                 .store()
@@ -2553,7 +2617,7 @@ where
 
         let auth = AuthenticationData {
             merchant_account: merchant,
-            platform_merchant_account,
+            platform_account_context,
             key_store,
             profile,
         };
@@ -2671,9 +2735,9 @@ where
         Ok((
             AuthenticationData {
                 merchant_account,
+                platform_account_context: None,
                 key_store,
                 profile,
-                platform_merchant_account: None,
             },
             AuthenticationType::PublishableKey { merchant_id },
         ))
@@ -2737,7 +2801,7 @@ where
                 (
                     AuthenticationData {
                         merchant_account,
-                        platform_merchant_account: None,
+                        platform_account_context: None,
                         key_store,
                         profile_id: None,
                     },
@@ -2784,9 +2848,9 @@ where
         Ok((
             AuthenticationData {
                 merchant_account,
+                platform_account_context: None,
                 key_store,
                 profile,
-                platform_merchant_account: None,
             },
             AuthenticationType::PublishableKey { merchant_id },
         ))
@@ -3115,7 +3179,7 @@ where
 
         let auth = AuthenticationData {
             merchant_account: merchant,
-            platform_merchant_account: None,
+            platform_account_context: None,
             key_store,
             profile_id: Some(payload.profile_id),
         };
@@ -3240,9 +3304,9 @@ where
 
         let auth = AuthenticationData {
             merchant_account: merchant,
+            platform_account_context: None,
             key_store,
             profile,
-            platform_merchant_account: None,
         };
 
         Ok((
@@ -3409,7 +3473,7 @@ where
 
         let auth = AuthenticationData {
             merchant_account: merchant,
-            platform_merchant_account: None,
+            platform_account_context: None,
             key_store,
             profile_id: Some(payload.profile_id),
         };
@@ -3483,9 +3547,9 @@ where
 
         let auth = AuthenticationData {
             merchant_account: merchant,
+            platform_account_context: None,
             key_store,
             profile,
-            platform_merchant_account: None,
         };
         Ok((
             auth.clone(),
@@ -3620,7 +3684,7 @@ where
 
         let auth = AuthenticationData {
             merchant_account: merchant,
-            platform_merchant_account: None,
+            platform_account_context: None,
             key_store,
             profile_id: Some(payload.profile_id),
         };
@@ -3692,7 +3756,7 @@ where
             // if both of them are same then proceed with the profile id present in the request
             let auth = AuthenticationData {
                 merchant_account: merchant,
-                platform_merchant_account: None,
+                platform_account_context: None,
                 key_store,
                 profile_id: Some(self.profile_id.clone()),
             };
@@ -3764,9 +3828,9 @@ where
 
         let auth = AuthenticationData {
             merchant_account: merchant,
+            platform_account_context: None,
             key_store,
             profile,
-            platform_merchant_account: None,
         };
         Ok((
             auth.clone(),
@@ -3855,7 +3919,7 @@ where
         let merchant_id = merchant.get_id().clone();
         let auth = AuthenticationData {
             merchant_account: merchant,
-            platform_merchant_account: None,
+            platform_account_context: None,
             key_store,
             profile_id: Some(payload.profile_id),
         };
@@ -3930,9 +3994,9 @@ where
         let merchant_id = merchant.get_id().clone();
         let auth = AuthenticationData {
             merchant_account: merchant,
+            platform_account_context: None,
             key_store,
             profile,
-            platform_merchant_account: None,
         };
         Ok((
             auth,
@@ -3993,7 +4057,7 @@ where
 
         let auth = AuthenticationData {
             merchant_account: merchant,
-            platform_merchant_account: None,
+            platform_account_context: None,
             key_store,
             profile_id: Some(payload.profile_id),
         };
@@ -4112,7 +4176,7 @@ where
 
         let auth = AuthenticationData {
             merchant_account: merchant,
-            platform_merchant_account: None,
+            platform_account_context: None,
             key_store,
             profile_id: Some(payload.profile_id),
         };

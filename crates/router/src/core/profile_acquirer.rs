@@ -18,7 +18,7 @@ pub async fn create_profile_acquirer(
     let db = state.store.as_ref();
     let profile_acquirer_id = common_utils::generate_profile_acquirer_id_of_default_length();
     let key_manager_state: KeyManagerState = (&state).into();
-    let merchant_key_store = merchant_context.get_merchant_key_store();
+    let merchant_key_store = merchant_context.get_processor_merchant_key_store();
 
     let mut business_profile = db
         .find_business_profile_by_profile_id(

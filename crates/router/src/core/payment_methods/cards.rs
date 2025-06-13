@@ -137,8 +137,10 @@ impl PaymentMethodsController for PmCards<'_> {
                 &self.state.into(),
                 customer_id,
                 merchant_id,
-                self.merchant_context.get_merchant_key_store(),
-                self.merchant_context.get_merchant_account().storage_scheme,
+                self.merchant_context.get_owner_merchant_key_store(),
+                self.merchant_context
+                    .get_owner_merchant_account()
+                    .storage_scheme,
             )
             .await
             .to_not_found_response(errors::ApiErrorResponse::CustomerNotFound)?;
@@ -153,7 +155,7 @@ impl PaymentMethodsController for PmCards<'_> {
         let response = db
             .insert_payment_method(
                 &self.state.into(),
-                self.merchant_context.get_merchant_key_store(),
+                self.merchant_context.get_owner_merchant_key_store(),
                 domain::PaymentMethod {
                     customer_id: customer_id.to_owned(),
                     merchant_id: merchant_id.to_owned(),
@@ -190,7 +192,9 @@ impl PaymentMethodsController for PmCards<'_> {
                     network_token_locker_id,
                     network_token_payment_method_data,
                 },
-                self.merchant_context.get_merchant_account().storage_scheme,
+                self.merchant_context
+                    .get_owner_merchant_account()
+                    .storage_scheme,
             )
             .await
             .change_context(errors::ApiErrorResponse::InternalServerError)
@@ -270,7 +274,9 @@ impl PaymentMethodsController for PmCards<'_> {
                     key_manager_state,
                     key_store,
                     &payment_method_id,
-                    self.merchant_context.get_merchant_account().storage_scheme,
+                    self.merchant_context
+                        .get_owner_merchant_account()
+                        .storage_scheme,
                 )
                 .await;
 
@@ -282,7 +288,9 @@ impl PaymentMethodsController for PmCards<'_> {
                             key_manager_state,
                             key_store,
                             &payment_method_id,
-                            self.merchant_context.get_merchant_account().storage_scheme,
+                            self.merchant_context
+                                .get_owner_merchant_account()
+                                .storage_scheme,
                         )
                         .await;
 
@@ -308,7 +316,7 @@ impl PaymentMethodsController for PmCards<'_> {
                         resp,
                         &req,
                         key_store,
-                        self.merchant_context.get_merchant_account().get_id(),
+                        self.merchant_context.get_owner_merchant_account().get_id(),
                         customer_id,
                         resp.metadata.clone().map(|val| val.expose()),
                         None,
@@ -414,7 +422,9 @@ impl PaymentMethodsController for PmCards<'_> {
                         &self.state.into(),
                         key_store,
                         &pm_id,
-                        self.merchant_context.get_merchant_account().storage_scheme,
+                        self.merchant_context
+                            .get_owner_merchant_account()
+                            .storage_scheme,
                     )
                     .await
                     .change_context(errors::ApiErrorResponse::InternalServerError)
@@ -428,7 +438,9 @@ impl PaymentMethodsController for PmCards<'_> {
                     key_store,
                     existing_pm,
                     pm_update,
-                    self.merchant_context.get_merchant_account().storage_scheme,
+                    self.merchant_context
+                        .get_owner_merchant_account()
+                        .storage_scheme,
                 )
                 .await
                 .change_context(errors::ApiErrorResponse::InternalServerError)
@@ -577,7 +589,7 @@ impl PaymentMethodsController for PmCards<'_> {
             payment_methods::StoreLockerReq::LockerGeneric(payment_methods::StoreGenericReq {
                 merchant_id: self
                     .merchant_context
-                    .get_merchant_account()
+                    .get_owner_merchant_account()
                     .get_id()
                     .to_owned(),
                 merchant_customer_id: customer_id.to_owned(),
@@ -595,7 +607,7 @@ impl PaymentMethodsController for PmCards<'_> {
             bank.clone(),
             store_resp.card_reference,
             req,
-            self.merchant_context.get_merchant_account().get_id(),
+            self.merchant_context.get_owner_merchant_account().get_id(),
         );
         Ok((payment_method_resp, store_resp.duplication_check))
     }
@@ -689,7 +701,7 @@ impl PaymentMethodsController for PmCards<'_> {
         let payload = payment_methods::StoreLockerReq::LockerCard(payment_methods::StoreCardReq {
             merchant_id: self
                 .merchant_context
-                .get_merchant_account()
+                .get_owner_merchant_account()
                 .get_id()
                 .to_owned(),
             merchant_customer_id: customer_id.to_owned(),
@@ -713,7 +725,7 @@ impl PaymentMethodsController for PmCards<'_> {
             card.clone(),
             store_card_payload.card_reference,
             req,
-            self.merchant_context.get_merchant_account().get_id(),
+            self.merchant_context.get_owner_merchant_account().get_id(),
         );
         Ok((payment_method_resp, store_card_payload.duplication_check))
     }
@@ -787,8 +799,10 @@ impl PaymentMethodsController for PmCards<'_> {
                 key_manager_state,
                 customer_id,
                 merchant_id,
-                self.merchant_context.get_merchant_key_store(),
-                self.merchant_context.get_merchant_account().storage_scheme,
+                self.merchant_context.get_owner_merchant_key_store(),
+                self.merchant_context
+                    .get_owner_merchant_account()
+                    .storage_scheme,
             )
             .await
             .to_not_found_response(errors::ApiErrorResponse::CustomerNotFound)?;
@@ -796,9 +810,11 @@ impl PaymentMethodsController for PmCards<'_> {
         let payment_method = db
             .find_payment_method(
                 &(self.state.into()),
-                self.merchant_context.get_merchant_key_store(),
+                self.merchant_context.get_owner_merchant_key_store(),
                 &payment_method_id,
-                self.merchant_context.get_merchant_account().storage_scheme,
+                self.merchant_context
+                    .get_owner_merchant_account()
+                    .storage_scheme,
             )
             .await
             .to_not_found_response(errors::ApiErrorResponse::PaymentMethodNotFound)?;
@@ -839,8 +855,10 @@ impl PaymentMethodsController for PmCards<'_> {
                 merchant_id.to_owned(),
                 customer,
                 customer_update,
-                self.merchant_context.get_merchant_key_store(),
-                self.merchant_context.get_merchant_account().storage_scheme,
+                self.merchant_context.get_owner_merchant_key_store(),
+                self.merchant_context
+                    .get_owner_merchant_account()
+                    .storage_scheme,
             )
             .await
             .change_context(errors::ApiErrorResponse::InternalServerError)
@@ -902,9 +920,11 @@ impl PaymentMethodsController for PmCards<'_> {
         let pm = db
             .find_payment_method(
                 &self.state.into(),
-                self.merchant_context.get_merchant_key_store(),
+                self.merchant_context.get_owner_merchant_key_store(),
                 &pm.payment_method_id,
-                self.merchant_context.get_merchant_account().storage_scheme,
+                self.merchant_context
+                    .get_owner_merchant_account()
+                    .storage_scheme,
             )
             .await
             .to_not_found_response(errors::ApiErrorResponse::PaymentMethodNotFound)?;
@@ -962,9 +982,11 @@ impl PaymentMethodsController for PmCards<'_> {
         let key = db
             .find_payment_method(
                 key_manager_state,
-                self.merchant_context.get_merchant_key_store(),
+                self.merchant_context.get_owner_merchant_key_store(),
                 pm_id.payment_method_id.as_str(),
-                self.merchant_context.get_merchant_account().storage_scheme,
+                self.merchant_context
+                    .get_owner_merchant_account()
+                    .storage_scheme,
             )
             .await
             .to_not_found_response(errors::ApiErrorResponse::PaymentMethodNotFound)?;
@@ -973,9 +995,11 @@ impl PaymentMethodsController for PmCards<'_> {
             .find_customer_by_customer_id_merchant_id(
                 key_manager_state,
                 &key.customer_id,
-                self.merchant_context.get_merchant_account().get_id(),
-                self.merchant_context.get_merchant_key_store(),
-                self.merchant_context.get_merchant_account().storage_scheme,
+                self.merchant_context.get_owner_merchant_account().get_id(),
+                self.merchant_context.get_owner_merchant_key_store(),
+                self.merchant_context
+                    .get_owner_merchant_account()
+                    .storage_scheme,
             )
             .await
             .to_not_found_response(errors::ApiErrorResponse::InternalServerError)
@@ -1020,8 +1044,8 @@ impl PaymentMethodsController for PmCards<'_> {
 
         db.delete_payment_method_by_merchant_id_payment_method_id(
             &(self.state.into()),
-            self.merchant_context.get_merchant_key_store(),
-            self.merchant_context.get_merchant_account().get_id(),
+            self.merchant_context.get_owner_merchant_key_store(),
+            self.merchant_context.get_owner_merchant_account().get_id(),
             pm_id.payment_method_id.as_str(),
         )
         .await
@@ -1037,8 +1061,10 @@ impl PaymentMethodsController for PmCards<'_> {
                 key.merchant_id,
                 customer,
                 customer_update,
-                self.merchant_context.get_merchant_key_store(),
-                self.merchant_context.get_merchant_account().storage_scheme,
+                self.merchant_context.get_owner_merchant_key_store(),
+                self.merchant_context
+                    .get_owner_merchant_account()
+                    .storage_scheme,
             )
             .await
             .change_context(errors::ApiErrorResponse::InternalServerError)
@@ -1061,7 +1087,7 @@ impl PaymentMethodsController for PmCards<'_> {
     ) -> errors::RouterResponse<api::PaymentMethodResponse> {
         req.validate()?;
         let db = &*self.state.store;
-        let merchant_id = self.merchant_context.get_merchant_account().get_id();
+        let merchant_id = self.merchant_context.get_owner_merchant_account().get_id();
         let customer_id = req.customer_id.clone().get_required_value("customer_id")?;
         let payment_method = req.payment_method.get_required_value("payment_method")?;
         let key_manager_state = self.state.into();
@@ -1071,7 +1097,7 @@ impl PaymentMethodsController for PmCards<'_> {
             .async_map(|billing| {
                 create_encrypted_data(
                     &key_manager_state,
-                    self.merchant_context.get_merchant_key_store(),
+                    self.merchant_context.get_owner_merchant_key_store(),
                     billing,
                 )
             })
@@ -1092,7 +1118,7 @@ impl PaymentMethodsController for PmCards<'_> {
                 Some(bank) => self
                     .add_bank_to_locker(
                         req.clone(),
-                        self.merchant_context.get_merchant_key_store(),
+                        self.merchant_context.get_owner_merchant_key_store(),
                         &bank,
                         &customer_id,
                     )
@@ -1138,7 +1164,7 @@ impl PaymentMethodsController for PmCards<'_> {
                             req.clone(),
                             &mut resp,
                             &customer_id,
-                            self.merchant_context.get_merchant_key_store(),
+                            self.merchant_context.get_owner_merchant_key_store(),
                         )
                         .await?;
 
@@ -1151,7 +1177,7 @@ impl PaymentMethodsController for PmCards<'_> {
                                 req.clone(),
                                 &mut resp,
                                 &customer_id,
-                                self.merchant_context.get_merchant_key_store(),
+                                self.merchant_context.get_owner_merchant_key_store(),
                             )
                             .await?;
 
@@ -1186,7 +1212,7 @@ impl PaymentMethodsController for PmCards<'_> {
                             logger::error!(vault_err=?err);
                             db.delete_payment_method_by_merchant_id_payment_method_id(
                                 &(self.state.into()),
-                                self.merchant_context.get_merchant_key_store(),
+                                self.merchant_context.get_owner_merchant_key_store(),
                                 merchant_id,
                                 &resp.payment_method_id,
                             )
@@ -1236,7 +1262,7 @@ impl PaymentMethodsController for PmCards<'_> {
                                 .async_map(|updated_pmd| {
                                     create_encrypted_data(
                                         &key_manager_state,
-                                        self.merchant_context.get_merchant_key_store(),
+                                        self.merchant_context.get_owner_merchant_key_store(),
                                         updated_pmd,
                                     )
                                 })
@@ -1251,10 +1277,12 @@ impl PaymentMethodsController for PmCards<'_> {
 
                         db.update_payment_method(
                             &(self.state.into()),
-                            self.merchant_context.get_merchant_key_store(),
+                            self.merchant_context.get_owner_merchant_key_store(),
                             existing_pm,
                             pm_update,
-                            self.merchant_context.get_merchant_account().storage_scheme,
+                            self.merchant_context
+                                .get_owner_merchant_account()
+                                .storage_scheme,
                         )
                         .await
                         .change_context(errors::ApiErrorResponse::InternalServerError)
@@ -1279,7 +1307,7 @@ impl PaymentMethodsController for PmCards<'_> {
                     .insert_payment_method(
                         &resp,
                         req,
-                        self.merchant_context.get_merchant_key_store(),
+                        self.merchant_context.get_owner_merchant_key_store(),
                         merchant_id,
                         &customer_id,
                         pm_metadata.cloned(),
@@ -1309,7 +1337,7 @@ pub async fn get_client_secret_or_add_payment_method(
     req: api::PaymentMethodCreate,
     merchant_context: &domain::MerchantContext,
 ) -> errors::RouterResponse<api::PaymentMethodResponse> {
-    let merchant_id = merchant_context.get_merchant_account().get_id();
+    let merchant_id = merchant_context.get_owner_merchant_account().get_id();
     let customer_id = req.customer_id.clone().get_required_value("customer_id")?;
     let cards = PmCards {
         state,
@@ -1326,7 +1354,7 @@ pub async fn get_client_secret_or_add_payment_method(
         .async_map(|billing| {
             create_encrypted_data(
                 &key_manager_state,
-                merchant_context.get_merchant_key_store(),
+                merchant_context.get_owner_merchant_key_store(),
                 billing,
             )
         })
@@ -1443,9 +1471,9 @@ pub async fn add_payment_method_data(
     let payment_method = db
         .find_payment_method(
             &((&state).into()),
-            merchant_context.get_merchant_key_store(),
+            merchant_context.get_owner_merchant_key_store(),
             pm_id.as_str(),
-            merchant_context.get_merchant_account().storage_scheme,
+            merchant_context.get_owner_merchant_account().storage_scheme,
         )
         .await
         .change_context(errors::ApiErrorResponse::PaymentMethodNotFound)
@@ -1461,9 +1489,9 @@ pub async fn add_payment_method_data(
         .find_customer_by_customer_id_merchant_id(
             &(&state).into(),
             &customer_id,
-            merchant_context.get_merchant_account().get_id(),
-            merchant_context.get_merchant_key_store(),
-            merchant_context.get_merchant_account().storage_scheme,
+            merchant_context.get_owner_merchant_account().get_id(),
+            merchant_context.get_owner_merchant_key_store(),
+            merchant_context.get_owner_merchant_account().storage_scheme,
         )
         .await
         .to_not_found_response(errors::ApiErrorResponse::CustomerNotFound)?;
@@ -1491,10 +1519,10 @@ pub async fn add_payment_method_data(
 
                         db.update_payment_method(
                             &((&state).into()),
-                            merchant_context.get_merchant_key_store(),
+                            merchant_context.get_owner_merchant_key_store(),
                             payment_method,
                             pm_update,
-                            merchant_context.get_merchant_account().storage_scheme,
+                            merchant_context.get_owner_merchant_account().storage_scheme,
                         )
                         .await
                         .change_context(errors::ApiErrorResponse::InternalServerError)
@@ -1505,7 +1533,7 @@ pub async fn add_payment_method_data(
                                 req.clone(),
                                 &mut pm_resp,
                                 &customer_id,
-                                merchant_context.get_merchant_key_store(),
+                                merchant_context.get_owner_merchant_key_store(),
                             )
                             .await?;
 
@@ -1542,7 +1570,7 @@ pub async fn add_payment_method_data(
                         let pm_data_encrypted: Encryptable<Secret<serde_json::Value>> =
                             create_encrypted_data(
                                 &key_manager_state,
-                                merchant_context.get_merchant_key_store(),
+                                merchant_context.get_owner_merchant_key_store(),
                                 PaymentMethodsData::Card(updated_card),
                             )
                             .await
@@ -1563,10 +1591,10 @@ pub async fn add_payment_method_data(
 
                         db.update_payment_method(
                             &((&state).into()),
-                            merchant_context.get_merchant_key_store(),
+                            merchant_context.get_owner_merchant_key_store(),
                             payment_method,
                             pm_update,
-                            merchant_context.get_merchant_account().storage_scheme,
+                            merchant_context.get_owner_merchant_account().storage_scheme,
                         )
                         .await
                         .change_context(errors::ApiErrorResponse::InternalServerError)
@@ -1575,7 +1603,7 @@ pub async fn add_payment_method_data(
                         if customer.default_payment_method_id.is_none() {
                             let _ = cards
                                 .set_default_payment_method(
-                                    merchant_context.get_merchant_account().get_id(),
+                                    merchant_context.get_owner_merchant_account().get_id(),
                                     &customer_id,
                                     pm_id,
                                 )
@@ -1598,10 +1626,10 @@ pub async fn add_payment_method_data(
 
                     db.update_payment_method(
                         &((&state).into()),
-                        merchant_context.get_merchant_key_store(),
+                        merchant_context.get_owner_merchant_key_store(),
                         payment_method,
                         pm_update,
-                        merchant_context.get_merchant_account().storage_scheme,
+                        merchant_context.get_owner_merchant_account().storage_scheme,
                     )
                     .await
                     .change_context(errors::ApiErrorResponse::InternalServerError)
@@ -1629,9 +1657,9 @@ pub async fn update_customer_payment_method(
         let pm = db
             .find_payment_method(
                 &((&state).into()),
-                merchant_context.get_merchant_key_store(),
+                merchant_context.get_owner_merchant_key_store(),
                 payment_method_id,
-                merchant_context.get_merchant_account().storage_scheme,
+                merchant_context.get_owner_merchant_account().storage_scheme,
             )
             .await
             .to_not_found_response(errors::ApiErrorResponse::PaymentMethodNotFound)?;
@@ -1786,7 +1814,7 @@ pub async fn update_customer_payment_method(
                 .async_map(|updated_pmd| {
                     create_encrypted_data(
                         &key_manager_state,
-                        merchant_context.get_merchant_key_store(),
+                        merchant_context.get_owner_merchant_key_store(),
                         updated_pmd,
                     )
                 })
@@ -1805,10 +1833,10 @@ pub async fn update_customer_payment_method(
 
             db.update_payment_method(
                 &((&state).into()),
-                merchant_context.get_merchant_key_store(),
+                merchant_context.get_owner_merchant_key_store(),
                 pm,
                 pm_update,
-                merchant_context.get_merchant_account().storage_scheme,
+                merchant_context.get_owner_merchant_account().storage_scheme,
             )
             .await
             .change_context(errors::ApiErrorResponse::InternalServerError)
@@ -2588,10 +2616,10 @@ pub async fn list_payment_methods(
             helpers::get_address_by_id(
                 &state,
                 pi.shipping_address_id.clone(),
-                merchant_context.get_merchant_key_store(),
+                merchant_context.get_owner_merchant_key_store(),
                 &pi.payment_id,
-                merchant_context.get_merchant_account().get_id(),
-                merchant_context.get_merchant_account().storage_scheme,
+                merchant_context.get_owner_merchant_account().get_id(),
+                merchant_context.get_owner_merchant_account().storage_scheme,
             )
             .await
         })
@@ -2605,10 +2633,10 @@ pub async fn list_payment_methods(
             helpers::get_address_by_id(
                 &state,
                 pi.billing_address_id.clone(),
-                merchant_context.get_merchant_key_store(),
+                merchant_context.get_owner_merchant_key_store(),
                 &pi.payment_id,
-                merchant_context.get_merchant_account().get_id(),
-                merchant_context.get_merchant_account().storage_scheme,
+                merchant_context.get_owner_merchant_account().get_id(),
+                merchant_context.get_owner_merchant_account().storage_scheme,
             )
             .await
         })
@@ -2626,8 +2654,8 @@ pub async fn list_payment_methods(
                         key_manager_state,
                         cust,
                         &pi.merchant_id,
-                        merchant_context.get_merchant_key_store(),
-                        merchant_context.get_merchant_account().storage_scheme,
+                        merchant_context.get_owner_merchant_key_store(),
+                        merchant_context.get_owner_merchant_account().storage_scheme,
                     )
                     .await
                     .to_not_found_response(errors::ApiErrorResponse::CustomerNotFound)
@@ -2644,7 +2672,7 @@ pub async fn list_payment_methods(
                 &pi.payment_id,
                 &pi.merchant_id,
                 &pi.active_attempt.get_id(),
-                merchant_context.get_merchant_account().storage_scheme,
+                merchant_context.get_owner_merchant_account().storage_scheme,
             )
             .await
             .change_context(errors::ApiErrorResponse::PaymentNotFound)
@@ -2675,9 +2703,9 @@ pub async fn list_payment_methods(
     let all_mcas = db
         .find_merchant_connector_account_by_merchant_id_and_disabled_list(
             key_manager_state,
-            merchant_context.get_merchant_account().get_id(),
+            merchant_context.get_processor_merchant_account().get_id(),
             false,
-            merchant_context.get_merchant_key_store(),
+            merchant_context.get_processor_merchant_key_store(),
         )
         .await
         .to_not_found_response(errors::ApiErrorResponse::MerchantAccountNotFound)?;
@@ -2692,7 +2720,7 @@ pub async fn list_payment_methods(
     let business_profile = db
         .find_business_profile_by_profile_id(
             key_manager_state,
-            merchant_context.get_merchant_key_store(),
+            merchant_context.get_processor_merchant_key_store(),
             profile_id,
         )
         .await
@@ -2713,7 +2741,7 @@ pub async fn list_payment_methods(
         format!(
             "pm_filters_cgraph_{}_{}",
             merchant_context
-                .get_merchant_account()
+                .get_owner_merchant_account()
                 .get_id()
                 .get_string_repr(),
             profile_id.get_string_repr()
@@ -2839,8 +2867,8 @@ pub async fn list_payment_methods(
         let sfr = SessionFlowRoutingInput {
             state: &state,
             country: billing_address.clone().and_then(|ad| ad.country),
-            key_store: merchant_context.get_merchant_key_store(),
-            merchant_account: merchant_context.get_merchant_account(),
+            key_store: merchant_context.get_processor_merchant_key_store(),
+            merchant_account: merchant_context.get_processor_merchant_account(),
             payment_attempt,
             payment_intent,
             chosen,
@@ -3021,7 +3049,7 @@ pub async fn list_payment_methods(
             straight_through_algorithm: Some(encoded),
             amount_capturable: None,
             updated_by: merchant_context
-                .get_merchant_account()
+                .get_owner_merchant_account()
                 .storage_scheme
                 .to_string(),
             merchant_connector_id: None,
@@ -3034,7 +3062,7 @@ pub async fn list_payment_methods(
             .update_payment_attempt_with_attempt_id(
                 payment_attempt.clone(),
                 attempt_update,
-                merchant_context.get_merchant_account().storage_scheme,
+                merchant_context.get_owner_merchant_account().storage_scheme,
             )
             .await
             .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
@@ -3491,7 +3519,7 @@ pub async fn list_payment_methods(
         api::PaymentMethodListResponse {
             redirect_url: business_profile.return_url.clone(),
             merchant_name: merchant_context
-                .get_merchant_account()
+                .get_owner_merchant_account()
                 .merchant_name
                 .to_owned(),
             payment_type,
@@ -3584,9 +3612,9 @@ async fn validate_payment_method_and_client_secret(
     let payment_method = db
         .find_payment_method(
             &(state.into()),
-            merchant_context.get_merchant_key_store(),
+            merchant_context.get_owner_merchant_key_store(),
             pm_id,
-            merchant_context.get_merchant_account().storage_scheme,
+            merchant_context.get_owner_merchant_account().storage_scheme,
         )
         .await
         .change_context(errors::ApiErrorResponse::PaymentMethodNotFound)
@@ -3615,7 +3643,7 @@ pub async fn call_surcharge_decision_management(
 ) -> errors::RouterResult<api_surcharge_decision_configs::MerchantSurchargeConfigs> {
     #[cfg(feature = "v1")]
     let algorithm_ref: routing_types::RoutingAlgorithmRef = merchant_context
-        .get_merchant_account()
+        .get_processor_merchant_account()
         .routing_algorithm
         .clone()
         .map(|val| val.parse_value("routing algorithm"))
@@ -3652,12 +3680,12 @@ pub async fn call_surcharge_decision_management(
                 storage::PaymentIntentUpdate::SurchargeApplicableUpdate {
                     surcharge_applicable: true,
                     updated_by: merchant_context
-                        .get_merchant_account()
+                        .get_owner_merchant_account()
                         .storage_scheme
                         .to_string(),
                 },
-                merchant_context.get_merchant_key_store(),
-                merchant_context.get_merchant_account().storage_scheme,
+                merchant_context.get_owner_merchant_key_store(),
+                merchant_context.get_owner_merchant_account().storage_scheme,
             )
             .await
             .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)
@@ -3677,7 +3705,7 @@ pub async fn call_surcharge_decision_management_for_saved_card(
 ) -> errors::RouterResult<()> {
     #[cfg(feature = "v1")]
     let algorithm_ref: routing_types::RoutingAlgorithmRef = merchant_context
-        .get_merchant_account()
+        .get_processor_merchant_account()
         .routing_algorithm
         .clone()
         .map(|val| val.parse_value("routing algorithm"))
@@ -3711,12 +3739,12 @@ pub async fn call_surcharge_decision_management_for_saved_card(
                 storage::PaymentIntentUpdate::SurchargeApplicableUpdate {
                     surcharge_applicable: true,
                     updated_by: merchant_context
-                        .get_merchant_account()
+                        .get_owner_merchant_account()
                         .storage_scheme
                         .to_string(),
                 },
-                merchant_context.get_merchant_key_store(),
-                merchant_context.get_merchant_account().storage_scheme,
+                merchant_context.get_owner_merchant_key_store(),
+                merchant_context.get_owner_merchant_account().storage_scheme,
             )
             .await
             .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)
@@ -4131,9 +4159,9 @@ pub async fn list_customer_payment_method(
         .find_customer_by_customer_id_merchant_id(
             &state.into(),
             customer_id,
-            merchant_context.get_merchant_account().get_id(),
-            merchant_context.get_merchant_key_store(),
-            merchant_context.get_merchant_account().storage_scheme,
+            merchant_context.get_owner_merchant_account().get_id(),
+            merchant_context.get_owner_merchant_key_store(),
+            merchant_context.get_owner_merchant_account().storage_scheme,
         )
         .await
         .to_not_found_response(errors::ApiErrorResponse::CustomerNotFound)?;
@@ -4141,7 +4169,7 @@ pub async fn list_customer_payment_method(
     let is_requires_cvv = db
         .find_config_by_key_unwrap_or(
             &merchant_context
-                .get_merchant_account()
+                .get_owner_merchant_account()
                 .get_id()
                 .get_requires_cvv_key(),
             Some("true".to_string()),
@@ -4155,12 +4183,12 @@ pub async fn list_customer_payment_method(
     let resp = db
         .find_payment_method_by_customer_id_merchant_id_status(
             &(state.into()),
-            merchant_context.get_merchant_key_store(),
+            merchant_context.get_owner_merchant_key_store(),
             customer_id,
-            merchant_context.get_merchant_account().get_id(),
+            merchant_context.get_owner_merchant_account().get_id(),
             common_enums::PaymentMethodStatus::Active,
             limit,
-            merchant_context.get_merchant_account().storage_scheme,
+            merchant_context.get_owner_merchant_account().storage_scheme,
         )
         .await
         .to_not_found_response(errors::ApiErrorResponse::PaymentMethodNotFound)?;
@@ -4181,9 +4209,9 @@ pub async fn list_customer_payment_method(
     let business_profile = core_utils::validate_and_get_business_profile(
         db,
         key_manager_state,
-        merchant_context.get_merchant_key_store(),
+        merchant_context.get_processor_merchant_key_store(),
         profile_id.as_ref(),
-        merchant_context.get_merchant_account().get_id(),
+        merchant_context.get_processor_merchant_account().get_id(),
     )
     .await?;
 
@@ -4202,7 +4230,7 @@ pub async fn list_customer_payment_method(
         let pm_list_context = get_pm_list_context(
             state,
             &payment_method,
-            merchant_context.get_merchant_key_store(),
+            merchant_context.get_owner_merchant_key_store(),
             &pm,
             Some(parent_payment_method_token.clone()),
             true,
@@ -4240,9 +4268,9 @@ pub async fn list_customer_payment_method(
             .attach_printable("Failed to deserialize to Payment Mandate Reference ")?;
         let mca_enabled = get_mca_status(
             state,
-            merchant_context.get_merchant_key_store(),
+            merchant_context.get_processor_merchant_key_store(),
             profile_id.clone(),
-            merchant_context.get_merchant_account().get_id(),
+            merchant_context.get_processor_merchant_account().get_id(),
             is_connector_agnostic_mit_enabled,
             Some(connector_mandate_details),
             pm.network_transaction_id.as_ref(),
@@ -4461,9 +4489,9 @@ async fn perform_surcharge_ops(
                 .store
                 .find_payment_attempt_by_payment_id_merchant_id_attempt_id(
                     payment_intent.get_id(),
-                    merchant_context.get_merchant_account().get_id(),
+                    merchant_context.get_owner_merchant_account().get_id(),
                     &payment_intent.active_attempt.get_id(),
-                    merchant_context.get_merchant_account().storage_scheme,
+                    merchant_context.get_owner_merchant_account().storage_scheme,
                 )
                 .await
                 .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)

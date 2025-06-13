@@ -23,9 +23,9 @@ pub async fn get_profile_id_for_mandate(
             .find_payment_intent_by_payment_id_merchant_id(
                 &state.into(),
                 payment_id,
-                merchant_context.get_merchant_account().get_id(),
-                merchant_context.get_merchant_key_store(),
-                merchant_context.get_merchant_account().storage_scheme,
+                merchant_context.get_owner_merchant_account().get_id(),
+                merchant_context.get_owner_merchant_key_store(),
+                merchant_context.get_owner_merchant_account().storage_scheme,
             )
             .await
             .change_context(errors::ApiErrorResponse::PaymentNotFound)?;

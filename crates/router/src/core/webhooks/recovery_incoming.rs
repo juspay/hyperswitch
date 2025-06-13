@@ -166,7 +166,7 @@ pub async fn recovery_incoming_webhook_flow(
                     handle_monitoring_threshold(
                         &state,
                         &business_profile,
-                        merchant_context.get_merchant_key_store(),
+                        merchant_context.get_processor_merchant_key_store(),
                     )
                     .await
                 }
@@ -274,7 +274,10 @@ async fn handle_schedule_failed_payment(
             RevenueRecoveryAttempt::insert_execute_pcr_task(
                 &billing_connector_account.get_id(),
                 &*state.store,
-                merchant_context.get_merchant_account().get_id().to_owned(),
+                merchant_context
+                    .get_processor_merchant_account()
+                    .get_id()
+                    .to_owned(),
                 recovery_intent_from_payment_attempt.clone(),
                 business_profile.get_id().to_owned(),
                 intent_retry_count,
@@ -702,7 +705,7 @@ impl RevenueRecoveryAttempt {
                 let payment_merchant_connector_account = invoice_transaction_details
                     .find_payment_merchant_connector_account(
                         state,
-                        merchant_context.get_merchant_key_store(),
+                        merchant_context.get_processor_merchant_key_store(),
                         billing_connector_account,
                     )
                     .await?;

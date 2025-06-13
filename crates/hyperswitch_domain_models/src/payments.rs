@@ -595,7 +595,10 @@ impl PaymentIntent {
 
         Ok(Self {
             id: payment_id.clone(),
-            merchant_id: merchant_context.get_merchant_account().get_id().clone(),
+            merchant_id: merchant_context
+                .get_owner_merchant_account()
+                .get_id()
+                .clone(),
             // Intent status would be RequiresPaymentMethod because we are creating a new payment intent
             status: common_enums::IntentStatus::RequiresPaymentMethod,
             amount_details: AmountDetails::from(request.amount_details),
@@ -620,7 +623,7 @@ impl PaymentIntent {
             payment_link_id: None,
             frm_merchant_decision: None,
             updated_by: merchant_context
-                .get_merchant_account()
+                .get_owner_merchant_account()
                 .storage_scheme
                 .to_string(),
             request_incremental_authorization,
@@ -657,7 +660,7 @@ impl PaymentIntent {
             authentication_type: request.authentication_type,
             prerouting_algorithm: None,
             organization_id: merchant_context
-                .get_merchant_account()
+                .get_owner_merchant_account()
                 .organization_id
                 .clone(),
             enable_payment_link: request.payment_link_enabled.unwrap_or_default(),
@@ -670,7 +673,10 @@ impl PaymentIntent {
             split_payments: None,
             force_3ds_challenge: None,
             force_3ds_challenge_trigger: None,
-            processor_merchant_id: merchant_context.get_merchant_account().get_id().clone(),
+            processor_merchant_id: merchant_context
+                .get_processor_merchant_account()
+                .get_id()
+                .clone(),
             created_by: None,
             is_iframe_redirection_enabled: None,
         })

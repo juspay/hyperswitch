@@ -47,13 +47,13 @@ pub async fn create_customer(
 
     let merchant_reference_id = customer_data.get_merchant_reference_id();
 
-    let merchant_id = merchant_context.get_merchant_account().get_id();
+    let merchant_id = merchant_context.get_owner_merchant_account().get_id();
 
     let merchant_reference_id_customer = MerchantReferenceIdForCustomer {
         merchant_reference_id: merchant_reference_id.as_ref(),
         merchant_id,
-        merchant_account: merchant_context.get_merchant_account(),
-        key_store: merchant_context.get_merchant_key_store(),
+        merchant_account: merchant_context.get_owner_merchant_account(),
+        key_store: merchant_context.get_owner_merchant_key_store(),
         key_manager_state,
     };
 
@@ -81,8 +81,8 @@ pub async fn create_customer(
         .insert_customer(
             domain_customer,
             key_manager_state,
-            merchant_context.get_merchant_key_store(),
-            merchant_context.get_merchant_account().storage_scheme,
+            merchant_context.get_owner_merchant_key_store(),
+            merchant_context.get_owner_merchant_account().storage_scheme,
         )
         .await
         .to_duplicate_response(errors::CustomersErrorResponse::CustomerAlreadyExists)?;
@@ -120,9 +120,9 @@ impl CustomerCreateBridge for customers::CustomerRequest {
     ) -> errors::CustomResult<domain::Customer, errors::CustomersErrorResponse> {
         // Setting default billing address to Db
         let address = self.get_address();
-        let merchant_id = merchant_context.get_merchant_account().get_id();
+        let merchant_id = merchant_context.get_owner_merchant_account().get_id();
         let key = merchant_context
-            .get_merchant_key_store()
+            .get_owner_merchant_key_store()
             .key
             .get_inner()
             .peek();
@@ -132,8 +132,8 @@ impl CustomerCreateBridge for customers::CustomerRequest {
             customer_data: self,
             merchant_id,
             customer_id: merchant_reference_id.as_ref(),
-            storage_scheme: merchant_context.get_merchant_account().storage_scheme,
-            key_store: merchant_context.get_merchant_key_store(),
+            storage_scheme: merchant_context.get_owner_merchant_account().storage_scheme,
+            key_store: merchant_context.get_owner_merchant_key_store(),
             key_manager_state,
             state,
         };
@@ -156,7 +156,7 @@ impl CustomerCreateBridge for customers::CustomerRequest {
             ),
             Identifier::Merchant(
                 merchant_context
-                    .get_merchant_key_store()
+                    .get_owner_merchant_key_store()
                     .merchant_id
                     .clone(),
             ),
@@ -225,7 +225,7 @@ impl CustomerCreateBridge for customers::CustomerRequest {
             .async_map(|billing_address| {
                 create_encrypted_data(
                     key_state,
-                    merchant_context.get_merchant_key_store(),
+                    merchant_context.get_owner_merchant_key_store(),
                     billing_address,
                 )
             })
@@ -238,7 +238,7 @@ impl CustomerCreateBridge for customers::CustomerRequest {
             .async_map(|shipping_address| {
                 create_encrypted_data(
                     key_state,
-                    merchant_context.get_merchant_key_store(),
+                    merchant_context.get_owner_merchant_key_store(),
                     shipping_address,
                 )
             })
@@ -247,9 +247,12 @@ impl CustomerCreateBridge for customers::CustomerRequest {
             .change_context(errors::CustomersErrorResponse::InternalServerError)
             .attach_printable("Unable to encrypt default customer shipping address")?;
 
-        let merchant_id = merchant_context.get_merchant_account().get_id().clone();
+        let merchant_id = merchant_context
+            .get_owner_merchant_account()
+            .get_id()
+            .clone();
         let key = merchant_context
-            .get_merchant_key_store()
+            .get_owner_merchant_key_store()
             .key
             .get_inner()
             .peek();
@@ -268,7 +271,7 @@ impl CustomerCreateBridge for customers::CustomerRequest {
             ),
             Identifier::Merchant(
                 merchant_context
-                    .get_merchant_key_store()
+                    .get_owner_merchant_key_store()
                     .merchant_id
                     .clone(),
             ),
@@ -485,9 +488,9 @@ pub async fn retrieve_customer(
         .find_customer_optional_with_redacted_customer_details_by_customer_id_merchant_id(
             key_manager_state,
             &customer_id,
-            merchant_context.get_merchant_account().get_id(),
-            merchant_context.get_merchant_key_store(),
-            merchant_context.get_merchant_account().storage_scheme,
+            merchant_context.get_owner_merchant_account().get_id(),
+            merchant_context.get_owner_merchant_key_store(),
+            merchant_context.get_owner_merchant_account().storage_scheme,
         )
         .await
         .switch()?
@@ -498,7 +501,7 @@ pub async fn retrieve_customer(
             db.find_address_by_address_id(
                 key_manager_state,
                 address_id,
-                merchant_context.get_merchant_key_store(),
+                merchant_context.get_owner_merchant_key_store(),
             )
             .await
             .switch()?,
@@ -524,9 +527,9 @@ pub async fn retrieve_customer(
         .find_customer_by_global_id(
             key_manager_state,
             &id,
-            merchant_context.get_merchant_account().get_id(),
-            merchant_context.get_merchant_key_store(),
-            merchant_context.get_merchant_account().storage_scheme,
+            merchant_context.get_owner_merchant_account().get_id(),
+            merchant_context.get_owner_merchant_key_store(),
+            merchant_context.get_owner_merchant_account().storage_scheme,
         )
         .await
         .switch()?;
@@ -610,9 +613,9 @@ impl CustomerDeleteBridge for id_type::GlobalCustomerId {
             .find_customer_by_global_id(
                 key_manager_state,
                 self,
-                merchant_context.get_merchant_account().get_id(),
-                merchant_context.get_merchant_key_store(),
-                merchant_context.get_merchant_account().storage_scheme,
+                merchant_context.get_owner_merchant_account().get_id(),
+                merchant_context.get_owner_merchant_key_store(),
+                merchant_context.get_owner_merchant_account().storage_scheme,
             )
             .await
             .switch()?;
@@ -630,7 +633,7 @@ impl CustomerDeleteBridge for id_type::GlobalCustomerId {
         match db
             .find_payment_method_list_by_global_customer_id(
                 key_manager_state,
-                merchant_context.get_merchant_key_store(),
+                merchant_context.get_owner_merchant_key_store(),
                 self,
                 None,
             )
@@ -643,7 +646,7 @@ impl CustomerDeleteBridge for id_type::GlobalCustomerId {
                         cards::delete_card_by_locker_id(
                             state,
                             self,
-                            merchant_context.get_merchant_account().get_id(),
+                            merchant_context.get_owner_merchant_account().get_id(),
                         )
                         .await
                         .switch()?;
@@ -673,14 +676,14 @@ impl CustomerDeleteBridge for id_type::GlobalCustomerId {
         };
 
         let key = merchant_context
-            .get_merchant_key_store()
+            .get_owner_merchant_key_store()
             .key
             .get_inner()
             .peek();
 
         let identifier = Identifier::Merchant(
             merchant_context
-                .get_merchant_key_store()
+                .get_owner_merchant_key_store()
                 .merchant_id
                 .clone(),
         );
@@ -722,10 +725,10 @@ impl CustomerDeleteBridge for id_type::GlobalCustomerId {
             key_manager_state,
             self,
             customer_orig,
-            merchant_context.get_merchant_account().get_id(),
+            merchant_context.get_owner_merchant_account().get_id(),
             updated_customer,
-            merchant_context.get_merchant_key_store(),
-            merchant_context.get_merchant_account().storage_scheme,
+            merchant_context.get_owner_merchant_key_store(),
+            merchant_context.get_owner_merchant_account().storage_scheme,
         )
         .await
         .switch()?;
@@ -786,16 +789,16 @@ impl CustomerDeleteBridge for id_type::CustomerId {
             .find_customer_by_customer_id_merchant_id(
                 key_manager_state,
                 self,
-                merchant_context.get_merchant_account().get_id(),
-                merchant_context.get_merchant_key_store(),
-                merchant_context.get_merchant_account().storage_scheme,
+                merchant_context.get_owner_merchant_account().get_id(),
+                merchant_context.get_owner_merchant_key_store(),
+                merchant_context.get_owner_merchant_account().storage_scheme,
             )
             .await
             .switch()?;
 
         let customer_mandates = db
             .find_mandate_by_merchant_id_customer_id(
-                merchant_context.get_merchant_account().get_id(),
+                merchant_context.get_owner_merchant_account().get_id(),
                 self,
             )
             .await
@@ -810,9 +813,9 @@ impl CustomerDeleteBridge for id_type::CustomerId {
         match db
             .find_payment_method_by_customer_id_merchant_id_list(
                 key_manager_state,
-                merchant_context.get_merchant_key_store(),
+                merchant_context.get_owner_merchant_key_store(),
                 self,
-                merchant_context.get_merchant_account().get_id(),
+                merchant_context.get_owner_merchant_account().get_id(),
                 None,
             )
             .await
@@ -827,7 +830,7 @@ impl CustomerDeleteBridge for id_type::CustomerId {
                         }
                         .delete_card_from_locker(
                             self,
-                            merchant_context.get_merchant_account().get_id(),
+                            merchant_context.get_owner_merchant_account().get_id(),
                             pm.locker_id.as_ref().unwrap_or(&pm.payment_method_id),
                         )
                         .await
@@ -838,7 +841,7 @@ impl CustomerDeleteBridge for id_type::CustomerId {
                             network_tokenization::delete_network_token_from_locker_and_token_service(
                             state,
                             self,
-                            merchant_context.get_merchant_account().get_id(),
+                            merchant_context.get_owner_merchant_account().get_id(),
                             pm.payment_method_id.clone(),
                             pm.network_token_locker_id,
                             network_token_ref_id,
@@ -851,8 +854,8 @@ impl CustomerDeleteBridge for id_type::CustomerId {
 
                     db.delete_payment_method_by_merchant_id_payment_method_id(
                         key_manager_state,
-                        merchant_context.get_merchant_key_store(),
-                        merchant_context.get_merchant_account().get_id(),
+                        merchant_context.get_owner_merchant_key_store(),
+                        merchant_context.get_owner_merchant_account().get_id(),
                         &pm.payment_method_id,
                     )
                     .await
@@ -876,13 +879,13 @@ impl CustomerDeleteBridge for id_type::CustomerId {
         };
 
         let key = merchant_context
-            .get_merchant_key_store()
+            .get_owner_merchant_key_store()
             .key
             .get_inner()
             .peek();
         let identifier = Identifier::Merchant(
             merchant_context
-                .get_merchant_key_store()
+                .get_owner_merchant_key_store()
                 .merchant_id
                 .clone(),
         );
@@ -918,7 +921,7 @@ impl CustomerDeleteBridge for id_type::CustomerId {
             phone_number: Some(redacted_encrypted_value.clone()),
             country_code: Some(REDACTED.to_string()),
             updated_by: merchant_context
-                .get_merchant_account()
+                .get_owner_merchant_account()
                 .storage_scheme
                 .to_string(),
             email: Some(redacted_encrypted_email),
@@ -928,9 +931,9 @@ impl CustomerDeleteBridge for id_type::CustomerId {
             .update_address_by_merchant_id_customer_id(
                 key_manager_state,
                 self,
-                merchant_context.get_merchant_account().get_id(),
+                merchant_context.get_owner_merchant_account().get_id(),
                 update_address,
-                merchant_context.get_merchant_key_store(),
+                merchant_context.get_owner_merchant_key_store(),
             )
             .await
         {
@@ -971,11 +974,14 @@ impl CustomerDeleteBridge for id_type::CustomerId {
         db.update_customer_by_customer_id_merchant_id(
             key_manager_state,
             self.clone(),
-            merchant_context.get_merchant_account().get_id().to_owned(),
+            merchant_context
+                .get_owner_merchant_account()
+                .get_id()
+                .to_owned(),
             customer_orig,
             updated_customer,
-            merchant_context.get_merchant_key_store(),
-            merchant_context.get_merchant_account().storage_scheme,
+            merchant_context.get_owner_merchant_key_store(),
+            merchant_context.get_owner_merchant_account().storage_scheme,
         )
         .await
         .switch()?;
@@ -1004,16 +1010,16 @@ pub async fn update_customer(
     #[cfg(feature = "v1")]
     let verify_id_for_update_customer = VerifyIdForUpdateCustomer {
         merchant_reference_id: &update_customer.customer_id,
-        merchant_account: merchant_context.get_merchant_account(),
-        key_store: merchant_context.get_merchant_key_store(),
+        merchant_account: merchant_context.get_owner_merchant_account(),
+        key_store: merchant_context.get_owner_merchant_key_store(),
         key_manager_state,
     };
 
     #[cfg(feature = "v2")]
     let verify_id_for_update_customer = VerifyIdForUpdateCustomer {
         id: &update_customer.id,
-        merchant_account: merchant_context.get_merchant_account(),
-        key_store: merchant_context.get_merchant_key_store(),
+        merchant_account: merchant_context.get_owner_merchant_account(),
+        key_store: merchant_context.get_owner_merchant_key_store(),
         key_manager_state,
     };
 
@@ -1219,8 +1225,8 @@ impl CustomerUpdateBridge for customers::CustomerUpdateRequest {
     ) -> errors::CustomResult<domain::Customer, errors::CustomersErrorResponse> {
         let update_address_for_update_customer = AddressStructForDbUpdate {
             update_customer: self,
-            merchant_account: merchant_context.get_merchant_account(),
-            key_store: merchant_context.get_merchant_key_store(),
+            merchant_account: merchant_context.get_owner_merchant_account(),
+            key_store: merchant_context.get_owner_merchant_key_store(),
             key_manager_state,
             state,
             domain_customer,
@@ -1231,7 +1237,7 @@ impl CustomerUpdateBridge for customers::CustomerUpdateRequest {
             .await?;
 
         let key = merchant_context
-            .get_merchant_key_store()
+            .get_owner_merchant_key_store()
             .key
             .get_inner()
             .peek();
@@ -1253,7 +1259,7 @@ impl CustomerUpdateBridge for customers::CustomerUpdateRequest {
             ),
             Identifier::Merchant(
                 merchant_context
-                    .get_merchant_key_store()
+                    .get_owner_merchant_key_store()
                     .merchant_id
                     .clone(),
             ),
@@ -1271,7 +1277,10 @@ impl CustomerUpdateBridge for customers::CustomerUpdateRequest {
             .update_customer_by_customer_id_merchant_id(
                 key_manager_state,
                 domain_customer.customer_id.to_owned(),
-                merchant_context.get_merchant_account().get_id().to_owned(),
+                merchant_context
+                    .get_owner_merchant_account()
+                    .get_id()
+                    .to_owned(),
                 domain_customer.to_owned(),
                 storage::CustomerUpdate::Update {
                     name: encryptable_customer.name,
@@ -1290,8 +1299,8 @@ impl CustomerUpdateBridge for customers::CustomerUpdateRequest {
                     connector_customer: Box::new(None),
                     address_id: address.clone().map(|addr| addr.address_id),
                 },
-                merchant_context.get_merchant_key_store(),
-                merchant_context.get_merchant_account().storage_scheme,
+                merchant_context.get_owner_merchant_key_store(),
+                merchant_context.get_owner_merchant_account().storage_scheme,
             )
             .await
             .switch()?;
@@ -1326,7 +1335,7 @@ impl CustomerUpdateBridge for customers::CustomerUpdateRequest {
             .async_map(|billing_address| {
                 create_encrypted_data(
                     key_manager_state,
-                    merchant_context.get_merchant_key_store(),
+                    merchant_context.get_owner_merchant_key_store(),
                     billing_address,
                 )
             })
@@ -1340,7 +1349,7 @@ impl CustomerUpdateBridge for customers::CustomerUpdateRequest {
             .async_map(|shipping_address| {
                 create_encrypted_data(
                     key_manager_state,
-                    merchant_context.get_merchant_key_store(),
+                    merchant_context.get_owner_merchant_key_store(),
                     shipping_address,
                 )
             })
@@ -1350,7 +1359,7 @@ impl CustomerUpdateBridge for customers::CustomerUpdateRequest {
             .attach_printable("Unable to encrypt default customer shipping address")?;
 
         let key = merchant_context
-            .get_merchant_key_store()
+            .get_owner_merchant_key_store()
             .key
             .get_inner()
             .peek();
@@ -1372,7 +1381,7 @@ impl CustomerUpdateBridge for customers::CustomerUpdateRequest {
             ),
             Identifier::Merchant(
                 merchant_context
-                    .get_merchant_key_store()
+                    .get_owner_merchant_key_store()
                     .merchant_id
                     .clone(),
             ),
@@ -1391,7 +1400,7 @@ impl CustomerUpdateBridge for customers::CustomerUpdateRequest {
                 key_manager_state,
                 &domain_customer.id,
                 domain_customer.to_owned(),
-                merchant_context.get_merchant_account().get_id(),
+                merchant_context.get_owner_merchant_account().get_id(),
                 storage::CustomerUpdate::Update(Box::new(storage::CustomerGeneralUpdate {
                     name: encryptable_customer.name,
                     email: Box::new(encryptable_customer.email.map(|email| {
@@ -1412,8 +1421,8 @@ impl CustomerUpdateBridge for customers::CustomerUpdateRequest {
                     default_payment_method_id: Some(self.default_payment_method_id.clone()),
                     status: None,
                 })),
-                merchant_context.get_merchant_key_store(),
-                merchant_context.get_merchant_account().storage_scheme,
+                merchant_context.get_owner_merchant_key_store(),
+                merchant_context.get_owner_merchant_account().storage_scheme,
             )
             .await
             .switch()?;

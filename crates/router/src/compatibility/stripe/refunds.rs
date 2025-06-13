@@ -7,7 +7,6 @@ use router_env::{instrument, tracing, Flow, Tag};
 use crate::{
     compatibility::{stripe::errors, wrap},
     core::{api_locking, refunds},
-    db::domain,
     logger, routes,
     services::{api, authentication as auth},
     types::api::refunds as refund_types,
@@ -51,9 +50,7 @@ pub async fn refund_create(
         &req,
         create_refund_req,
         |state, auth: auth::AuthenticationData, req, _| {
-            let merchant_context = domain::MerchantContext::NormalMerchant(Box::new(
-                domain::Context(auth.merchant_account, auth.key_store),
-            ));
+            let merchant_context = auth.into();
             refunds::refund_create_core(state, merchant_context, None, req)
         },
         &auth::HeaderAuth(auth::ApiKeyAuth {
@@ -101,9 +98,7 @@ pub async fn refund_retrieve_with_gateway_creds(
         &req,
         refund_request,
         |state, auth: auth::AuthenticationData, refund_request, _| {
-            let merchant_context = domain::MerchantContext::NormalMerchant(Box::new(
-                domain::Context(auth.merchant_account, auth.key_store),
-            ));
+            let merchant_context = auth.into();
             refunds::refund_response_wrapper(
                 state,
                 merchant_context,
@@ -149,9 +144,7 @@ pub async fn refund_retrieve(
         &req,
         refund_request,
         |state, auth: auth::AuthenticationData, refund_request, _| {
-            let merchant_context = domain::MerchantContext::NormalMerchant(Box::new(
-                domain::Context(auth.merchant_account, auth.key_store),
-            ));
+            let merchant_context = auth.into();
             refunds::refund_response_wrapper(
                 state,
                 merchant_context,
@@ -195,9 +188,7 @@ pub async fn refund_update(
         &req,
         create_refund_update_req,
         |state, auth: auth::AuthenticationData, req, _| {
-            let merchant_context = domain::MerchantContext::NormalMerchant(Box::new(
-                domain::Context(auth.merchant_account, auth.key_store),
-            ));
+            let merchant_context = auth.into();
             refunds::refund_update_core(state, merchant_context, req)
         },
         &auth::HeaderAuth(auth::ApiKeyAuth {

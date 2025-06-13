@@ -251,8 +251,8 @@ where
             data,
             customer,
             state,
-            merchant_account: merchant_context.get_merchant_account(),
-            key_store: merchant_context.get_merchant_key_store(),
+            merchant_account: merchant_context.get_owner_merchant_account(),
+            key_store: merchant_context.get_owner_merchant_key_store(),
         }
     }
     async fn encrypt_card(

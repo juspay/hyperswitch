@@ -8,7 +8,6 @@ use crate::{
         webhooks::{self, types},
     },
     services::{api, authentication as auth},
-    types::domain,
 };
 
 #[instrument(skip_all, fields(flow = ?Flow::IncomingWebhookReceive))]
@@ -28,9 +27,7 @@ pub async fn receive_incoming_webhook<W: types::OutgoingWebhookType>(
         &req,
         (),
         |state, auth, _, req_state| {
-            let merchant_context = domain::MerchantContext::NormalMerchant(Box::new(
-                domain::Context(auth.merchant_account, auth.key_store),
-            ));
+            let merchant_context = auth.into();
             webhooks::incoming_webhooks_wrapper::<W>(
                 &flow,
                 state.to_owned(),
@@ -69,9 +66,7 @@ pub async fn receive_incoming_relay_webhook<W: types::OutgoingWebhookType>(
         &req,
         (),
         |state, auth, _, req_state| {
-            let merchant_context = domain::MerchantContext::NormalMerchant(Box::new(
-                domain::Context(auth.merchant_account, auth.key_store),
-            ));
+            let merchant_context = auth.into();
             webhooks::incoming_webhooks_wrapper::<W>(
                 &flow,
                 state.to_owned(),
@@ -111,9 +106,7 @@ pub async fn receive_incoming_relay_webhook<W: types::OutgoingWebhookType>(
         &req,
         (),
         |state, auth, _, req_state| {
-            let merchant_context = domain::MerchantContext::NormalMerchant(Box::new(
-                domain::Context(auth.merchant_account, auth.key_store),
-            ));
+            let merchant_context = auth.clone().into();
             webhooks::incoming_webhooks_wrapper::<W>(
                 &flow,
                 state.to_owned(),
@@ -156,9 +149,7 @@ pub async fn receive_incoming_webhook<W: types::OutgoingWebhookType>(
         &req,
         (),
         |state, auth, _, req_state| {
-            let merchant_context = domain::MerchantContext::NormalMerchant(Box::new(
-                domain::Context(auth.merchant_account, auth.key_store),
-            ));
+            let merchant_context = auth.clone().into();
             webhooks::incoming_webhooks_wrapper::<W>(
                 &flow,
                 state.to_owned(),

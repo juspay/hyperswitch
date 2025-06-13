@@ -37,7 +37,7 @@ pub async fn retrieve_dispute(
     let dispute = state
         .store
         .find_dispute_by_merchant_id_dispute_id(
-            merchant_context.get_merchant_account().get_id(),
+            merchant_context.get_owner_merchant_account().get_id(),
             &req.dispute_id,
         )
         .await
@@ -60,7 +60,7 @@ pub async fn retrieve_disputes_list(
     let disputes = state
         .store
         .find_disputes_by_constraints(
-            merchant_context.get_merchant_account().get_id(),
+            merchant_context.get_owner_merchant_account().get_id(),
             dispute_list_constraints,
         )
         .await
@@ -94,7 +94,10 @@ pub async fn get_filters_for_disputes(
     let merchant_connector_accounts = if let services::ApplicationResponse::Json(data) =
         super::admin::list_payment_connectors(
             state,
-            merchant_context.get_merchant_account().get_id().to_owned(),
+            merchant_context
+                .get_processor_merchant_account()
+                .get_id()
+                .to_owned(),
             profile_id_list,
         )
         .await?
@@ -150,7 +153,7 @@ pub async fn accept_dispute(
     let dispute = state
         .store
         .find_dispute_by_merchant_id_dispute_id(
-            merchant_context.get_merchant_account().get_id(),
+            merchant_context.get_owner_merchant_account().get_id(),
             &req.dispute_id,
         )
         .await
@@ -177,9 +180,9 @@ pub async fn accept_dispute(
         .find_payment_intent_by_payment_id_merchant_id(
             &(&state).into(),
             &dispute.payment_id,
-            merchant_context.get_merchant_account().get_id(),
-            merchant_context.get_merchant_key_store(),
-            merchant_context.get_merchant_account().storage_scheme,
+            merchant_context.get_owner_merchant_account().get_id(),
+            merchant_context.get_owner_merchant_key_store(),
+            merchant_context.get_owner_merchant_account().storage_scheme,
         )
         .await
         .change_context(errors::ApiErrorResponse::PaymentNotFound)?;
@@ -187,8 +190,8 @@ pub async fn accept_dispute(
     let payment_attempt = db
         .find_payment_attempt_by_attempt_id_merchant_id(
             &dispute.attempt_id,
-            merchant_context.get_merchant_account().get_id(),
-            merchant_context.get_merchant_account().storage_scheme,
+            merchant_context.get_owner_merchant_account().get_id(),
+            merchant_context.get_owner_merchant_account().storage_scheme,
         )
         .await
         .change_context(errors::ApiErrorResponse::PaymentNotFound)?;
@@ -270,7 +273,7 @@ pub async fn submit_evidence(
     let dispute = state
         .store
         .find_dispute_by_merchant_id_dispute_id(
-            merchant_context.get_merchant_account().get_id(),
+            merchant_context.get_owner_merchant_account().get_id(),
             &req.dispute_id,
         )
         .await
@@ -299,9 +302,9 @@ pub async fn submit_evidence(
         .find_payment_intent_by_payment_id_merchant_id(
             &(&state).into(),
             &dispute.payment_id,
-            merchant_context.get_merchant_account().get_id(),
-            merchant_context.get_merchant_key_store(),
-            merchant_context.get_merchant_account().storage_scheme,
+            merchant_context.get_owner_merchant_account().get_id(),
+            merchant_context.get_owner_merchant_key_store(),
+            merchant_context.get_owner_merchant_account().storage_scheme,
         )
         .await
         .change_context(errors::ApiErrorResponse::PaymentNotFound)?;
@@ -309,8 +312,8 @@ pub async fn submit_evidence(
     let payment_attempt = db
         .find_payment_attempt_by_attempt_id_merchant_id(
             &dispute.attempt_id,
-            merchant_context.get_merchant_account().get_id(),
-            merchant_context.get_merchant_account().storage_scheme,
+            merchant_context.get_owner_merchant_account().get_id(),
+            merchant_context.get_owner_merchant_account().storage_scheme,
         )
         .await
         .change_context(errors::ApiErrorResponse::PaymentNotFound)?;
@@ -435,7 +438,7 @@ pub async fn attach_evidence(
         .ok_or(errors::ApiErrorResponse::MissingDisputeId)?;
     let dispute = db
         .find_dispute_by_merchant_id_dispute_id(
-            merchant_context.get_merchant_account().get_id(),
+            merchant_context.get_owner_merchant_account().get_id(),
             &dispute_id,
         )
         .await
@@ -506,7 +509,7 @@ pub async fn retrieve_dispute_evidence(
     let dispute = state
         .store
         .find_dispute_by_merchant_id_dispute_id(
-            merchant_context.get_merchant_account().get_id(),
+            merchant_context.get_owner_merchant_account().get_id(),
             &req.dispute_id,
         )
         .await
@@ -534,7 +537,7 @@ pub async fn delete_evidence(
     let dispute = state
         .store
         .find_dispute_by_merchant_id_dispute_id(
-            merchant_context.get_merchant_account().get_id(),
+            merchant_context.get_owner_merchant_account().get_id(),
             &dispute_id,
         )
         .await
@@ -579,7 +582,7 @@ pub async fn get_aggregates_for_disputes(
     let db = state.store.as_ref();
     let dispute_status_with_count = db
         .get_dispute_status_with_count(
-            merchant_context.get_merchant_account().get_id(),
+            merchant_context.get_owner_merchant_account().get_id(),
             profile_id_list,
             &time_range,
         )
