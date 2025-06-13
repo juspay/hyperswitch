@@ -299,24 +299,26 @@ check_services_health() {
     HYPERSWITCH_BASE_URL="http://localhost:8080"
     HYPERSWITCH_HEALTH_URL="${HYPERSWITCH_BASE_URL}/health"
     HYPERSWITCH_DEEP_HEALTH_URL="${HYPERSWITCH_BASE_URL}/health/ready"
-
+    local is_success=true
     # Basic health check
-    health_response=$(curl --silent --fail "${HYPERSWITCH_HEALTH_URL}") || exit 0
+    health_response=$(curl --silent --fail "${HYPERSWITCH_HEALTH_URL}") || is_success=false
     if [ "${health_response}" != "health is good" ]; then
-        exit 0
+        is_success=false
     fi
 
     # Deep health check
-    deep_health_response=$(curl --silent "${HYPERSWITCH_DEEP_HEALTH_URL}") || exit 0
+    deep_health_response=$(curl --silent --fail "${HYPERSWITCH_DEEP_HEALTH_URL}") || is_success=false
     if [[ "$(echo "${deep_health_response}" | jq --raw-output '.error')" != "null" ]]; then
-        exit 0
+        is_success=false
     fi
 
     # Extract version
-    VERSION=$(curl --silent --output /dev/null --request GET --write-out '%header{x-hyperswitch-version}' "${HYPERSWITCH_BASE_URL}" | sed 's/-dirty$//')
-    INSTALLATION_STATUS="success"
+    if [ "${is_success}" = true ]; then
+        VERSION=$(curl --silent --output /dev/null --request GET --write-out '%header{x-hyperswitch-version}' "${HYPERSWITCH_BASE_URL}" | sed 's/-dirty$//')
+        INSTALLATION_STATUS="success"
+        scarf_call
+    fi
     print_access_info
-    scarf_call
 }
 
 print_access_info() {
@@ -368,8 +370,8 @@ scarf_call
 show_banner
 detect_docker_compose
 check_prerequisites
-source .oneclick-setup.env
 setup_config
+source .oneclick-setup.env
 select_profile
 start_services
 check_services_health
