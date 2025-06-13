@@ -1191,61 +1191,6 @@ pub trait RoutingEventsInterface {
     fn get_payment_connector(&self) -> Option<RoutableConnectorChoice>;
 }
 
-// pub async fn routing_events_wrap<Req, Res, F, Fut>(
-//     state: &SessionState,
-//     wrapper: RoutingEventsWrapper<Req>,
-//     func: F,
-//     url: String,
-//     routing_engine: routing_events::RoutingEngine,
-//     method: routing_events::ApiMethod,
-// ) -> RoutingResult<RoutingEventsResponse<Res>>
-// where
-//     F: FnOnce() -> Fut + Send,
-//     Req: Serialize + Clone,
-//     Res: Serialize + serde::de::DeserializeOwned + Clone,
-//     Fut: futures::Future<Output = RoutingResult<Option<Res>>> + Send,
-// {
-//     let mut routing_event = wrapper.construct_event_builder(url, routing_engine, method)?;
-//     let mut response = RoutingEventsResponse::new(None, None);
-
-//     let resp = func().await;
-//     match resp {
-//         Ok(ok_resp) => {
-//             if let Some(resp) = ok_resp {
-//                 routing_event.set_response_body(&resp);
-//                 // routing_event
-//                 //     .set_routable_connectors(ok_resp.get_routable_connectors().unwrap_or_default());
-//                 // routing_event.set_payment_connector(ok_resp.get_payment_connector());
-//                 routing_event.set_status_code(200);
-
-//                 response.set_response(resp.clone());
-//                 wrapper
-//                     .log_event
-//                     .then(|| state.event_handler().log_event(&routing_event));
-//             }
-//         }
-//         Err(err) => {
-//             // Need to figure out a generic way to log errors
-//             routing_event
-//                 .set_error(serde_json::json!({"error": err.current_context().to_string()}));
-
-//             match err.current_context() {
-//                 errors::RoutingError::RoutingEventsError { status_code, .. } => {
-//                     routing_event.set_status_code(*status_code);
-//                 }
-//                 _ => {
-//                     routing_event.set_status_code(500);
-//                 }
-//             }
-//             state.event_handler().log_event(&routing_event)
-//         }
-//     }
-
-//     response.set_event(routing_event);
-
-//     Ok(response)
-// }
-
 #[derive(Clone, Debug, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub struct CalSuccessRateConfigEventRequest {
