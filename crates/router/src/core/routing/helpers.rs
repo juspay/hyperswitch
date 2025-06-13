@@ -1142,7 +1142,7 @@ pub async fn push_metrics_with_update_window_for_success_based_routing(
                             routing_utils::UpdateSuccessRateWindowEventResponse::try_from(
                                 &update_response,
                             )
-                            .change_context(errors::RoutingError::SuccessRateCalculationError)?;
+                            .change_context(errors::RoutingError::RoutingEventsError { message: "Unable to convert to UpdateSuccessRateWindowEventResponse from UpdateSuccessRateWindowResponse".to_string(), status_code: 500 })?;
                         Ok(Some(updated_resp))
                     }
                     Err(err) => {
@@ -1151,10 +1151,7 @@ pub async fn push_metrics_with_update_window_for_success_based_routing(
                             err.current_context()
                         );
 
-                        // have to refactor errors
-                        Err(error_stack::report!(
-                            errors::RoutingError::SuccessRateCalculationError
-                        ))
+                        Err(err)
                     }
                 }
             };
@@ -1172,12 +1169,23 @@ pub async fn push_metrics_with_update_window_for_success_based_routing(
 
             let _response: routing_utils::UpdateSuccessRateWindowEventResponse = events_response
                 .response
-                .ok_or(errors::ApiErrorResponse::InternalServerError)?;
+                .ok_or(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable(
+                    "UpdateSuccessRateWindowEventResponse not found in RoutingEventResponse",
+                )?;
 
-            // Need to log error case
             let mut routing_event = events_response
                 .event
-                .ok_or(errors::ApiErrorResponse::InternalServerError)?;
+                .ok_or(errors::RoutingError::RoutingEventsError {
+                    message:
+                        "SR-Intelligent-Router: RoutingEvent not found in RoutingEventsResponse"
+                            .to_string(),
+                    status_code: 500,
+                })
+                .change_context(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable(
+                    "SR-Intelligent-Router: RoutingEvent not found in RoutingEventsResponse",
+                )?;
 
             routing_event.set_status_code(200);
             routing_event.set_payment_connector(routable_connector); // we can do this inside the event wrap by implementing an interface on the req type
@@ -1310,9 +1318,7 @@ pub async fn update_window_for_elimination_routing(
                     Ok(resp) => {
                         let updated_resp =
                             routing_utils::UpdateEliminationBucketEventResponse::try_from(&resp)
-                                .change_context(
-                                    errors::RoutingError::EliminationRoutingCalculationError,
-                                )?;
+                            .change_context(errors::RoutingError::RoutingEventsError { message: "Unable to convert to UpdateEliminationBucketEventResponse from UpdateEliminationBucketResponse".to_string(), status_code: 500 })?;
 
                         Ok(Some(updated_resp))
                     }
@@ -1322,10 +1328,7 @@ pub async fn update_window_for_elimination_routing(
                             err.current_context()
                         );
 
-                        // have to refactor errors
-                        Err(error_stack::report!(
-                            errors::RoutingError::EliminationRoutingCalculationError
-                        ))
+                        Err(err)
                     }
                 }
             };
@@ -1343,12 +1346,21 @@ pub async fn update_window_for_elimination_routing(
 
             let _response: routing_utils::UpdateEliminationBucketEventResponse = events_response
                 .response
-                .ok_or(errors::ApiErrorResponse::InternalServerError)?;
+                .ok_or(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable(
+                    "UpdateEliminationBucketEventResponse not found in RoutingEventResponse",
+                )?;
 
-            // Need to log error case
             let mut routing_event = events_response
                 .event
-                .ok_or(errors::ApiErrorResponse::InternalServerError)?;
+                .ok_or(errors::RoutingError::RoutingEventsError {
+                    message:
+                        "Elimination-Intelligent-Router: RoutingEvent not found in RoutingEventsResponse"
+                            .to_string(),
+                    status_code: 500,
+                })
+                .change_context(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable("Elimination-Intelligent-Router: RoutingEvent not found in RoutingEventsResponse")?;
 
             routing_event.set_status_code(200);
             routing_event.set_payment_connector(routing_types::RoutableConnectorChoice {
@@ -1499,9 +1511,7 @@ pub async fn push_metrics_with_update_window_for_contract_based_routing(
                         Ok(resp) => {
                             let updated_resp =
                                 routing_utils::UpdateContractEventResponse::try_from(&resp)
-                                    .change_context(
-                                        errors::RoutingError::ContractScoreUpdationError,
-                                    )?;
+                                .change_context(errors::RoutingError::RoutingEventsError { message: "Unable to convert to UpdateContractEventResponse from UpdateContractResponse".to_string(), status_code: 500 })?;
                             Ok(Some(updated_resp))
                         }
                         Err(err) => {
@@ -1531,12 +1541,21 @@ pub async fn push_metrics_with_update_window_for_contract_based_routing(
 
                 let _response: routing_utils::UpdateContractEventResponse = events_response
                     .response
-                    .ok_or(errors::ApiErrorResponse::InternalServerError)?;
+                    .ok_or(errors::ApiErrorResponse::InternalServerError)
+                    .attach_printable(
+                        "UpdateContractEventResponse not found in RoutingEventResponse",
+                    )?;
 
-                // Need to log error case
                 let mut routing_event = events_response
                     .event
-                    .ok_or(errors::ApiErrorResponse::InternalServerError)?;
+                    .ok_or(errors::RoutingError::RoutingEventsError {
+                        message:
+                            "ContractRouting-Intelligent-Router: RoutingEvent not found in RoutingEventsResponse"
+                                .to_string(),
+                        status_code: 500,
+                    })
+                    .change_context(errors::ApiErrorResponse::InternalServerError)
+                    .attach_printable("ContractRouting-Intelligent-Router: RoutingEvent not found in RoutingEventsResponse")?;
 
                 routing_event.set_payment_connector(routing_types::RoutableConnectorChoice {
                     choice_kind: api_models::routing::RoutableChoiceKind::FullStruct,

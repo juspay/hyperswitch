@@ -96,11 +96,12 @@ where
             Ok(resp) => {
                 let resp = should_parse_response
                     .then(|| {
-                        let response_type: Res = resp.response.parse_struct("Res").change_context(
-                            errors::RoutingError::OpenRouterError(
+                        let response_type: Res = resp
+                            .response
+                            .parse_struct(std::any::type_name::<Res>())
+                            .change_context(errors::RoutingError::OpenRouterError(
                                 "Failed to parse the response from open_router".into(),
-                            ),
-                        )?;
+                            ))?;
 
                         Ok::<_, error_stack::Report<errors::RoutingError>>(response_type)
                     })
@@ -1129,11 +1130,16 @@ where
             // Need to figure out a generic way to log errors
             routing_event
                 .set_error(serde_json::json!({"error": err.current_context().to_string()}));
-            routing_event.set_error_response_body(&err.current_context().to_string());
-            wrapper
-                .log_event
-                .then(|| state.event_handler().log_event(&routing_event));
-            // routing_event.set_status_code(err.current_context());
+
+            match err.current_context() {
+                errors::RoutingError::RoutingEventsError { status_code, .. } => {
+                    routing_event.set_status_code(*status_code);
+                }
+                _ => {
+                    routing_event.set_status_code(500);
+                }
+            }
+            state.event_handler().log_event(&routing_event)
         }
     }
 

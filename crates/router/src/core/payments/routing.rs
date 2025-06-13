@@ -1867,9 +1867,11 @@ pub async fn perform_decide_gateway_call_with_open_router(
                     "Empty response received from open_router".into(),
                 ))?;
 
-            let mut routing_event = resp.event.ok_or(errors::RoutingError::OpenRouterError(
-                "Routing event is missing in the response from open_router".into(),
-            ))?;
+            let mut routing_event = resp.event.ok_or(errors::RoutingError::RoutingEventsError {
+                message: "Decision-Engine: RoutingEvent not found in RoutingEventsResponse"
+                    .to_string(),
+                status_code: 500,
+            })?;
 
             routing_event.set_response_body(&decided_gateway);
             routing_event.set_routing_approach(
@@ -1903,8 +1905,6 @@ pub async fn perform_decide_gateway_call_with_open_router(
         }
         Err(err) => {
             logger::error!("open_router_error_response: {:?}", err);
-
-            // state.event_handler().log_event(&routing_event);
 
             Err(errors::RoutingError::OpenRouterError(
                 "Failed to perform decide_gateway call in open_router".into(),
@@ -1961,9 +1961,11 @@ pub async fn update_gateway_score_with_open_router(
                 "Failed to parse the response from open_router".into(),
             ))?;
 
-            let mut routing_event = resp.event.ok_or(errors::RoutingError::OpenRouterError(
-                "Routing event is missing in the response from open_router".into(),
-            ))?;
+            let mut routing_event = resp.event.ok_or(errors::RoutingError::RoutingEventsError {
+                message: "Decision-Engine: RoutingEvent not found in RoutingEventsResponse"
+                    .to_string(),
+                status_code: 500,
+            })?;
 
             logger::debug!(
                 "open_router update_gateway_score response for gateway with id {}: {:?}",
@@ -1979,8 +1981,6 @@ pub async fn update_gateway_score_with_open_router(
         }
         Err(err) => {
             logger::error!("open_router_update_gateway_score_error: {:?}", err);
-
-            // state.event_handler().log_event(&routing_event);
 
             Err(errors::RoutingError::OpenRouterError(
                 "Failed to update gateway score in open_router".into(),
@@ -2088,7 +2088,7 @@ pub async fn perform_success_based_routing(
                     let updated_resp = utils::CalSuccessRateEventResponse::try_from(
                         &success_response,
                     )
-                    .change_context(errors::RoutingError::SuccessBasedRoutingConfigError)
+                    .change_context(errors::RoutingError::RoutingEventsError { message: "unable to convert SuccessBasedConnectors to CalSuccessRateEventResponse".to_string(), status_code: 500 })
                     .attach_printable(
                         "unable to convert SuccessBasedConnectors to CalSuccessRateEventResponse",
                     )?;
@@ -2123,9 +2123,15 @@ pub async fn perform_success_based_routing(
             .ok_or(errors::RoutingError::SuccessRateCalculationError)?;
 
         // Need to log error case
-        let mut routing_event = events_response
-            .event
-            .ok_or(errors::RoutingError::SuccessRateCalculationError)?;
+        let mut routing_event =
+            events_response
+                .event
+                .ok_or(errors::RoutingError::RoutingEventsError {
+                    message:
+                        "SR-Intelligent-Router: RoutingEvent not found in RoutingEventsResponse"
+                            .to_string(),
+                    status_code: 500,
+                })?;
 
         routing_event.set_routing_approach(success_based_connectors.routing_approach.to_string());
 
@@ -2292,10 +2298,14 @@ pub async fn perform_elimination_routing(
             .response
             .ok_or(errors::RoutingError::EliminationRoutingCalculationError)?;
 
-        // Need to log error case
         let mut routing_event = events_response
             .event
-            .ok_or(errors::RoutingError::EliminationRoutingCalculationError)?;
+            .ok_or(errors::RoutingError::RoutingEventsError {
+            message:
+                "Elimination-Intelligent-Router: RoutingEvent not found in RoutingEventsResponse"
+                    .to_string(),
+            status_code: 500,
+        })?;
 
         routing_event.set_routing_approach(utils::RoutingApproach::Elimination.to_string());
 
@@ -2514,13 +2524,14 @@ pub async fn perform_contract_based_routing(
                 err: "CalContractScoreEventResponse not found".to_string(),
             })?;
 
-        // Need to log error case
-        let mut routing_event =
-            events_response
-                .event
-                .ok_or(errors::RoutingError::ContractScoreCalculationError {
-                    err: "RoutingEvent not found for ContractRouting".to_string(),
-                })?;
+        let mut routing_event = events_response
+            .event
+            .ok_or(errors::RoutingError::RoutingEventsError {
+            message:
+                "ContractRouting-Intelligent-Router: RoutingEvent not found in RoutingEventsResponse"
+                    .to_string(),
+            status_code: 500,
+        })?;
 
         let mut connectors = Vec::with_capacity(contract_based_connectors.labels_with_score.len());
 

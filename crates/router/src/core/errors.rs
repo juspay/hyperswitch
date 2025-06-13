@@ -386,7 +386,7 @@ pub enum RoutingError {
     OpenRouterError(String),
     #[error("Invalid transaction type")]
     InvalidTransactionType,
-    #[error("Error from Routing service: {message}")]
+    #[error("Routing events error: {message}, status code: {status_code}")]
     RoutingEventsError { message: String, status_code: u16 },
 }
 
