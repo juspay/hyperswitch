@@ -2770,6 +2770,12 @@ impl GetPaymentMethodType for BankTransferData {
             Self::Pse {} => api_enums::PaymentMethodType::Pse,
             Self::LocalBankTransfer { .. } => api_enums::PaymentMethodType::LocalBankTransfer,
             Self::InstantBankTransfer {} => api_enums::PaymentMethodType::InstantBankTransfer,
+            Self::InstantBankTransferFinland {} => {
+                api_enums::PaymentMethodType::InstantBankTransferFinland
+            }
+            Self::InstantBankTransferPoland {} => {
+                api_enums::PaymentMethodType::InstantBankTransferPoland
+            }
         }
     }
 }
@@ -3435,6 +3441,8 @@ pub enum BankTransferData {
         bank_code: Option<String>,
     },
     InstantBankTransfer {},
+    InstantBankTransferFinland {},
+    InstantBankTransferPoland {},
 }
 
 #[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
@@ -3505,7 +3513,9 @@ impl GetAddressFromPaymentMethodData for BankTransferData {
             Self::LocalBankTransfer { .. }
             | Self::Pix { .. }
             | Self::Pse {}
-            | Self::InstantBankTransfer {} => None,
+            | Self::InstantBankTransfer {}
+            | Self::InstantBankTransferFinland {}
+            | Self::InstantBankTransferPoland {} => None,
         }
     }
 }
@@ -4537,6 +4547,7 @@ pub enum NextActionData {
     WaitScreenInformation {
         display_from_timestamp: i128,
         display_to_timestamp: Option<i128>,
+        poll_config: Option<PollConfig>,
     },
     /// Contains the information regarding three_ds_method_data submission, three_ds authentication, and authorization flows
     ThreeDsInvoke {
@@ -4697,6 +4708,15 @@ pub struct QrCodeNextStepsInstruction {
 pub struct WaitScreenInstructions {
     pub display_from_timestamp: i128,
     pub display_to_timestamp: Option<i128>,
+    pub poll_config: Option<PollConfig>,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq, serde::Serialize, serde::Deserialize, ToSchema)]
+pub struct PollConfig {
+    /// Interval of the poll
+    pub delay_in_secs: u16,
+    /// Frequency of the poll
+    pub frequency: u16,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq, serde::Serialize, serde::Deserialize, ToSchema)]
@@ -7630,7 +7650,7 @@ pub struct PaymentMethodListResponseForPayments {
     pub customer_payment_methods: Option<Vec<payment_methods::CustomerPaymentMethodResponseItem>>,
 }
 
-#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+#[cfg(feature = "v2")]
 #[derive(Debug, Clone, serde::Serialize, ToSchema, PartialEq)]
 pub struct ResponsePaymentMethodTypesForPayments {
     /// The payment method type enabled

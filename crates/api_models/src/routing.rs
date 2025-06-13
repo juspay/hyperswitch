@@ -1016,6 +1016,7 @@ impl Default for SuccessBasedRoutingConfig {
                 }),
                 specificity_level: SuccessRateSpecificityLevel::default(),
                 exploration_percent: Some(20.0),
+                shuffle_on_tie_during_exploitation: Some(false),
             }),
             decision_engine_configs: None,
         }
@@ -1044,6 +1045,7 @@ pub struct SuccessBasedRoutingConfigBody {
     #[serde(default)]
     pub specificity_level: SuccessRateSpecificityLevel,
     pub exploration_percent: Option<f64>,
+    pub shuffle_on_tie_during_exploitation: Option<bool>,
 }
 
 #[derive(serde::Serialize, serde::Deserialize, Debug, Clone, ToSchema)]
@@ -1173,6 +1175,9 @@ impl SuccessBasedRoutingConfigBody {
         if let Some(exploration_percent) = new.exploration_percent {
             self.exploration_percent = Some(exploration_percent);
         }
+        if let Some(shuffle_on_tie_during_exploitation) = new.shuffle_on_tie_during_exploitation {
+            self.shuffle_on_tie_during_exploitation = Some(shuffle_on_tie_during_exploitation);
+        }
     }
 }
 
@@ -1286,6 +1291,143 @@ impl RoutableConnectorChoiceWithBucketName {
         Self {
             routable_connector_choice,
             bucket_name,
+        }
+    }
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub struct CalSuccessRateConfigEventRequest {
+    pub min_aggregates_size: Option<u32>,
+    pub default_success_rate: Option<f64>,
+    pub specificity_level: SuccessRateSpecificityLevel,
+    pub exploration_percent: Option<f64>,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub struct CalSuccessRateEventRequest {
+    pub id: String,
+    pub params: String,
+    pub labels: Vec<String>,
+    pub config: Option<CalSuccessRateConfigEventRequest>,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub struct EliminationRoutingEventBucketConfig {
+    pub bucket_size: Option<u64>,
+    pub bucket_leak_interval_in_secs: Option<u64>,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub struct EliminationRoutingEventRequest {
+    pub id: String,
+    pub params: String,
+    pub labels: Vec<String>,
+    pub config: Option<EliminationRoutingEventBucketConfig>,
+}
+
+/// API-1 types
+#[derive(Clone, Debug, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub struct CalContractScoreEventRequest {
+    pub id: String,
+    pub params: String,
+    pub labels: Vec<String>,
+    pub config: Option<ContractBasedRoutingConfig>,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub struct LabelWithScoreEventResponse {
+    pub score: f64,
+    pub label: String,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub struct CalSuccessRateEventResponse {
+    pub labels_with_score: Vec<LabelWithScoreEventResponse>,
+    pub routing_approach: RoutingApproach,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum RoutingApproach {
+    Exploitation,
+    Exploration,
+    Elimination,
+    ContractBased,
+    Default,
+}
+
+impl RoutingApproach {
+    pub fn from_decision_engine_approach(approach: &str) -> Self {
+        match approach {
+            "SR_SELECTION_V3_ROUTING" => Self::Exploitation,
+            "SR_V3_HEDGING" => Self::Exploration,
+            _ => Self::Default,
+        }
+    }
+}
+
+impl std::fmt::Display for RoutingApproach {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::Exploitation => write!(f, "Exploitation"),
+            Self::Exploration => write!(f, "Exploration"),
+            Self::Elimination => write!(f, "Elimination"),
+            Self::ContractBased => write!(f, "ContractBased"),
+            Self::Default => write!(f, "Default"),
+        }
+    }
+}
+#[derive(Clone, Debug, serde::Deserialize, serde::Serialize)]
+pub struct RuleMigrationQuery {
+    pub profile_id: common_utils::id_type::ProfileId,
+    pub merchant_id: common_utils::id_type::MerchantId,
+    pub limit: Option<u32>,
+    pub offset: Option<u32>,
+}
+
+impl RuleMigrationQuery {
+    pub fn validated_limit(&self) -> u32 {
+        self.limit.unwrap_or(50).min(1000)
+    }
+}
+
+#[derive(Debug, serde::Serialize)]
+pub struct RuleMigrationResult {
+    pub success: Vec<RuleMigrationResponse>,
+    pub errors: Vec<RuleMigrationError>,
+}
+
+#[derive(Debug, serde::Serialize)]
+pub struct RuleMigrationResponse {
+    pub profile_id: common_utils::id_type::ProfileId,
+    pub euclid_algorithm_id: common_utils::id_type::RoutingId,
+    pub decision_engine_algorithm_id: String,
+}
+
+#[derive(Debug, serde::Serialize)]
+pub struct RuleMigrationError {
+    pub profile_id: common_utils::id_type::ProfileId,
+    pub algorithm_id: common_utils::id_type::RoutingId,
+    pub error: String,
+}
+
+impl RuleMigrationResponse {
+    pub fn new(
+        profile_id: common_utils::id_type::ProfileId,
+        euclid_algorithm_id: common_utils::id_type::RoutingId,
+        decision_engine_algorithm_id: String,
+    ) -> Self {
+        Self {
+            profile_id,
+            euclid_algorithm_id,
+            decision_engine_algorithm_id,
         }
     }
 }

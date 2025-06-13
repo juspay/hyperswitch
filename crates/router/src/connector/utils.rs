@@ -2535,6 +2535,8 @@ pub enum PaymentMethodDataType {
     NetworkToken,
     DirectCarrierBilling,
     InstantBankTransfer,
+    InstantBankTransferFinland,
+    InstantBankTransferPoland,
     RevolutPay,
 }
 
@@ -2690,6 +2692,12 @@ impl From<domain::payments::PaymentMethodData> for PaymentMethodDataType {
                     domain::payments::BankTransferData::InstantBankTransfer {} => {
                         Self::InstantBankTransfer
                     }
+                    domain::payments::BankTransferData::InstantBankTransferFinland {} => {
+                        Self::InstantBankTransferFinland
+                    }
+                    domain::payments::BankTransferData::InstantBankTransferPoland {} => {
+                        Self::InstantBankTransferPoland
+                    }
                 }
             }
             domain::payments::PaymentMethodData::Crypto(_) => Self::Crypto,
@@ -2764,23 +2772,17 @@ pub trait NetworkTokenData {
 }
 
 impl NetworkTokenData for domain::NetworkTokenData {
-    #[cfg(all(
-        any(feature = "v1", feature = "v2"),
-        not(feature = "payment_methods_v2")
-    ))]
+    #[cfg(feature = "v1")]
     fn get_card_issuer(&self) -> Result<CardIssuer, Error> {
         get_card_issuer(self.token_number.peek())
     }
 
-    #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+    #[cfg(feature = "v2")]
     fn get_card_issuer(&self) -> Result<CardIssuer, Error> {
         get_card_issuer(self.network_token.peek())
     }
 
-    #[cfg(all(
-        any(feature = "v1", feature = "v2"),
-        not(feature = "payment_methods_v2")
-    ))]
+    #[cfg(feature = "v1")]
     fn get_expiry_year_4_digit(&self) -> Secret<String> {
         let mut year = self.token_exp_year.peek().clone();
         if year.len() == 2 {
@@ -2789,7 +2791,7 @@ impl NetworkTokenData for domain::NetworkTokenData {
         Secret::new(year)
     }
 
-    #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+    #[cfg(feature = "v2")]
     fn get_expiry_year_4_digit(&self) -> Secret<String> {
         let mut year = self.network_token_exp_year.peek().clone();
         if year.len() == 2 {
@@ -2798,54 +2800,42 @@ impl NetworkTokenData for domain::NetworkTokenData {
         Secret::new(year)
     }
 
-    #[cfg(all(
-        any(feature = "v1", feature = "v2"),
-        not(feature = "payment_methods_v2")
-    ))]
+    #[cfg(feature = "v1")]
     fn get_network_token(&self) -> NetworkTokenNumber {
         self.token_number.clone()
     }
 
-    #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+    #[cfg(feature = "v2")]
     fn get_network_token(&self) -> NetworkTokenNumber {
         self.network_token.clone()
     }
 
-    #[cfg(all(
-        any(feature = "v1", feature = "v2"),
-        not(feature = "payment_methods_v2")
-    ))]
+    #[cfg(feature = "v1")]
     fn get_network_token_expiry_month(&self) -> Secret<String> {
         self.token_exp_month.clone()
     }
 
-    #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+    #[cfg(feature = "v2")]
     fn get_network_token_expiry_month(&self) -> Secret<String> {
         self.network_token_exp_month.clone()
     }
 
-    #[cfg(all(
-        any(feature = "v1", feature = "v2"),
-        not(feature = "payment_methods_v2")
-    ))]
+    #[cfg(feature = "v1")]
     fn get_network_token_expiry_year(&self) -> Secret<String> {
         self.token_exp_year.clone()
     }
 
-    #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+    #[cfg(feature = "v2")]
     fn get_network_token_expiry_year(&self) -> Secret<String> {
         self.network_token_exp_year.clone()
     }
 
-    #[cfg(all(
-        any(feature = "v1", feature = "v2"),
-        not(feature = "payment_methods_v2")
-    ))]
+    #[cfg(feature = "v1")]
     fn get_cryptogram(&self) -> Option<Secret<String>> {
         self.token_cryptogram.clone()
     }
 
-    #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+    #[cfg(feature = "v2")]
     fn get_cryptogram(&self) -> Option<Secret<String>> {
         self.cryptogram.clone()
     }
