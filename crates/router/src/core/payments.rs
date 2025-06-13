@@ -4037,7 +4037,7 @@ where
             merchant_connector_details,
         );
 
-        operation
+    operation
         .to_domain()?
         .populate_payment_data(
             state,
