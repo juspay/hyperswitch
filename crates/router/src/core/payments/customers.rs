@@ -74,7 +74,7 @@ pub async fn create_connector_customer<F: Clone, T: Clone>(
     Ok(connector_customer_id)
 }
 
-#[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
+#[cfg(feature = "v1")]
 pub fn should_call_connector_create_customer<'a>(
     state: &SessionState,
     connector: &api::ConnectorData,
@@ -99,7 +99,7 @@ pub fn should_call_connector_create_customer<'a>(
     }
 }
 
-#[cfg(all(feature = "v2", feature = "customer_v2"))]
+#[cfg(feature = "v2")]
 pub fn should_call_connector_create_customer<'a>(
     state: &SessionState,
     connector: &api::ConnectorData,
@@ -130,7 +130,7 @@ pub fn should_call_connector_create_customer<'a>(
     }
 }
 
-#[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
+#[cfg(feature = "v1")]
 #[instrument]
 pub async fn update_connector_customer_in_customers(
     connector_label: &str,
@@ -157,7 +157,7 @@ pub async fn update_connector_customer_in_customers(
         )
 }
 
-#[cfg(all(feature = "v2", feature = "customer_v2"))]
+#[cfg(feature = "v2")]
 #[instrument]
 pub async fn update_connector_customer_in_customers(
     merchant_connector_account: &domain::MerchantConnectorAccountTypeDetails,

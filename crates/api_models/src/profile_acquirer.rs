@@ -31,7 +31,7 @@ pub struct ProfileAcquirerCreate {
     pub profile_id: common_utils::id_type::ProfileId,
 }
 
-#[derive(Debug, Serialize, Deserialize, ToSchema)]
+#[derive(Debug, Serialize, Deserialize, ToSchema, Clone)]
 pub struct ProfileAcquirerResponse {
     /// The unique identifier of the profile acquirer
     #[schema(value_type= String,example = "pro_acq_LCRdERuylQvNQ4qh3QE0")]
@@ -64,3 +64,52 @@ pub struct ProfileAcquirerResponse {
 
 impl common_utils::events::ApiEventMetric for ProfileAcquirerCreate {}
 impl common_utils::events::ApiEventMetric for ProfileAcquirerResponse {}
+
+impl
+    From<(
+        common_utils::id_type::ProfileAcquirerId,
+        &common_utils::id_type::ProfileId,
+        &common_types::domain::AcquirerConfig,
+    )> for ProfileAcquirerResponse
+{
+    fn from(
+        (profile_acquirer_id, profile_id, acquirer_config): (
+            common_utils::id_type::ProfileAcquirerId,
+            &common_utils::id_type::ProfileId,
+            &common_types::domain::AcquirerConfig,
+        ),
+    ) -> Self {
+        Self {
+            profile_acquirer_id,
+            profile_id: profile_id.clone(),
+            acquirer_assigned_merchant_id: acquirer_config.acquirer_assigned_merchant_id.clone(),
+            merchant_name: acquirer_config.merchant_name.clone(),
+            merchant_country_code: acquirer_config.merchant_country_code,
+            network: acquirer_config.network.clone(),
+            acquirer_bin: acquirer_config.acquirer_bin.clone(),
+            acquirer_ica: acquirer_config.acquirer_ica.clone(),
+            acquirer_fraud_rate: acquirer_config.acquirer_fraud_rate,
+        }
+    }
+}
+
+#[derive(Debug, Serialize, Deserialize, ToSchema)]
+#[serde(deny_unknown_fields)]
+pub struct ProfileAcquirerUpdate {
+    #[schema(value_type = Option<String>, example = "M987654321")]
+    pub acquirer_assigned_merchant_id: Option<String>,
+    #[schema(value_type = Option<String>, example = "Updated Retailer Name")]
+    pub merchant_name: Option<String>,
+    #[schema(value_type = Option<String>, example = "CA")]
+    pub merchant_country_code: Option<enums::CountryAlpha2>,
+    #[schema(value_type = Option<String>, example = "MASTERCARD")]
+    pub network: Option<common_enums::enums::CardNetwork>,
+    #[schema(value_type = Option<String>, example = "987654")]
+    pub acquirer_bin: Option<String>,
+    #[schema(value_type = Option<String>, example = "501299")]
+    pub acquirer_ica: Option<String>,
+    #[schema(value_type = Option<f64>, example = "0.02")]
+    pub acquirer_fraud_rate: Option<f64>,
+}
+
+impl common_utils::events::ApiEventMetric for ProfileAcquirerUpdate {}

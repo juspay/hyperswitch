@@ -373,7 +373,7 @@ impl ConfigInterface for KafkaStore {
 #[async_trait::async_trait]
 impl CustomerInterface for KafkaStore {
     type Error = errors::StorageError;
-    #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
+    #[cfg(feature = "v1")]
     async fn delete_customer_by_customer_id_merchant_id(
         &self,
         customer_id: &id_type::CustomerId,
@@ -384,7 +384,7 @@ impl CustomerInterface for KafkaStore {
             .await
     }
 
-    #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
+    #[cfg(feature = "v1")]
     async fn find_customer_optional_by_customer_id_merchant_id(
         &self,
         state: &KeyManagerState,
@@ -404,7 +404,7 @@ impl CustomerInterface for KafkaStore {
             .await
     }
 
-    #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
+    #[cfg(feature = "v1")]
     async fn find_customer_optional_with_redacted_customer_details_by_customer_id_merchant_id(
         &self,
         state: &KeyManagerState,
@@ -424,7 +424,7 @@ impl CustomerInterface for KafkaStore {
             .await
     }
 
-    #[cfg(all(feature = "v2", feature = "customer_v2"))]
+    #[cfg(feature = "v2")]
     async fn find_optional_by_merchant_id_merchant_reference_id(
         &self,
         state: &KeyManagerState,
@@ -444,7 +444,7 @@ impl CustomerInterface for KafkaStore {
             .await
     }
 
-    #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
+    #[cfg(feature = "v1")]
     async fn update_customer_by_customer_id_merchant_id(
         &self,
         state: &KeyManagerState,
@@ -468,7 +468,7 @@ impl CustomerInterface for KafkaStore {
             .await
     }
 
-    #[cfg(all(feature = "v2", feature = "customer_v2"))]
+    #[cfg(feature = "v2")]
     async fn update_customer_by_global_id(
         &self,
         state: &KeyManagerState,
@@ -504,7 +504,7 @@ impl CustomerInterface for KafkaStore {
             .await
     }
 
-    #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
+    #[cfg(feature = "v1")]
     async fn find_customer_by_customer_id_merchant_id(
         &self,
         state: &KeyManagerState,
@@ -524,7 +524,7 @@ impl CustomerInterface for KafkaStore {
             .await
     }
 
-    #[cfg(all(feature = "v2", feature = "customer_v2"))]
+    #[cfg(feature = "v2")]
     async fn find_customer_by_merchant_reference_id_merchant_id(
         &self,
         state: &KeyManagerState,
@@ -544,7 +544,7 @@ impl CustomerInterface for KafkaStore {
             .await
     }
 
-    #[cfg(all(feature = "v2", feature = "customer_v2"))]
+    #[cfg(feature = "v2")]
     async fn find_customer_by_global_id(
         &self,
         state: &KeyManagerState,
@@ -946,7 +946,7 @@ impl MandateInterface for KafkaStore {
             .await
     }
 
-    #[cfg(all(feature = "v2", feature = "customer_v2"))]
+    #[cfg(feature = "v2")]
     async fn find_mandate_by_global_customer_id(
         &self,
         id: &id_type::GlobalCustomerId,
@@ -2100,10 +2100,7 @@ impl PaymentIntentInterface for KafkaStore {
 #[async_trait::async_trait]
 impl PaymentMethodInterface for KafkaStore {
     type Error = errors::StorageError;
-    #[cfg(all(
-        any(feature = "v2", feature = "v1"),
-        not(feature = "payment_methods_v2")
-    ))]
+    #[cfg(feature = "v1")]
     async fn find_payment_method(
         &self,
         state: &KeyManagerState,
@@ -2116,7 +2113,7 @@ impl PaymentMethodInterface for KafkaStore {
             .await
     }
 
-    #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+    #[cfg(feature = "v2")]
     async fn find_payment_method(
         &self,
         state: &KeyManagerState,
@@ -2129,10 +2126,7 @@ impl PaymentMethodInterface for KafkaStore {
             .await
     }
 
-    #[cfg(all(
-        any(feature = "v1", feature = "v2"),
-        not(feature = "payment_methods_v2")
-    ))]
+    #[cfg(feature = "v1")]
     async fn find_payment_method_by_customer_id_merchant_id_list(
         &self,
         state: &KeyManagerState,
@@ -2152,7 +2146,7 @@ impl PaymentMethodInterface for KafkaStore {
             .await
     }
 
-    #[cfg(all(feature = "v2", feature = "customer_v2"))]
+    #[cfg(feature = "v2")]
     async fn find_payment_method_list_by_global_customer_id(
         &self,
         state: &KeyManagerState,
@@ -2165,10 +2159,7 @@ impl PaymentMethodInterface for KafkaStore {
             .await
     }
 
-    #[cfg(all(
-        any(feature = "v1", feature = "v2"),
-        not(feature = "payment_methods_v2")
-    ))]
+    #[cfg(feature = "v1")]
     async fn find_payment_method_by_customer_id_merchant_id_status(
         &self,
         state: &KeyManagerState,
@@ -2192,7 +2183,7 @@ impl PaymentMethodInterface for KafkaStore {
             .await
     }
 
-    #[cfg(all(feature = "v2", feature = "customer_v2"))]
+    #[cfg(feature = "v2")]
     async fn find_payment_method_by_global_customer_id_merchant_id_status(
         &self,
         state: &KeyManagerState,
@@ -2216,10 +2207,7 @@ impl PaymentMethodInterface for KafkaStore {
             .await
     }
 
-    #[cfg(all(
-        any(feature = "v1", feature = "v2"),
-        not(feature = "payment_methods_v2")
-    ))]
+    #[cfg(feature = "v1")]
     async fn get_payment_method_count_by_customer_id_merchant_id_status(
         &self,
         customer_id: &id_type::CustomerId,
@@ -2245,10 +2233,7 @@ impl PaymentMethodInterface for KafkaStore {
             .await
     }
 
-    #[cfg(all(
-        any(feature = "v1", feature = "v2"),
-        not(feature = "payment_methods_v2")
-    ))]
+    #[cfg(feature = "v1")]
     async fn find_payment_method_by_locker_id(
         &self,
         state: &KeyManagerState,
@@ -2292,10 +2277,7 @@ impl PaymentMethodInterface for KafkaStore {
             .await
     }
 
-    #[cfg(all(
-        any(feature = "v1", feature = "v2"),
-        not(feature = "payment_methods_v2")
-    ))]
+    #[cfg(feature = "v1")]
     async fn delete_payment_method_by_merchant_id_payment_method_id(
         &self,
         state: &KeyManagerState,
@@ -2313,7 +2295,7 @@ impl PaymentMethodInterface for KafkaStore {
             .await
     }
 
-    #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+    #[cfg(feature = "v2")]
     async fn delete_payment_method(
         &self,
         state: &KeyManagerState,
@@ -2325,7 +2307,7 @@ impl PaymentMethodInterface for KafkaStore {
             .await
     }
 
-    #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+    #[cfg(feature = "v2")]
     async fn find_payment_method_by_fingerprint_id(
         &self,
         state: &KeyManagerState,

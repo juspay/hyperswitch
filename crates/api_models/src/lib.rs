@@ -33,7 +33,7 @@ pub mod pm_auth;
 pub mod poll;
 pub mod process_tracker;
 pub mod profile_acquirer;
-#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+#[cfg(feature = "v2")]
 pub mod proxy;
 #[cfg(feature = "recon")]
 pub mod recon;
