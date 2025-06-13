@@ -193,7 +193,7 @@ pub enum ConnectorError {
     InvalidDataFormat { field_name: &'static str },
     #[error("Payment Method data / Payment Method Type / Payment Experience Mismatch ")]
     MismatchedPaymentData,
-    #[error("Field like {fields} doesn't match with the ones used during mandate creation")]
+    #[error("Field {fields} doesn't match with the ones used during mandate creation")]
     MandatePaymentDataMismatch { fields: String },
     #[error("Failed to parse Wallet token")]
     InvalidWalletToken { wallet_name: String },
