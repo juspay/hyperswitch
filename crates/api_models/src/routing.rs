@@ -1016,6 +1016,7 @@ impl Default for SuccessBasedRoutingConfig {
                 }),
                 specificity_level: SuccessRateSpecificityLevel::default(),
                 exploration_percent: Some(20.0),
+                shuffle_on_tie_during_exploitation: Some(false),
             }),
             decision_engine_configs: None,
         }
@@ -1044,6 +1045,7 @@ pub struct SuccessBasedRoutingConfigBody {
     #[serde(default)]
     pub specificity_level: SuccessRateSpecificityLevel,
     pub exploration_percent: Option<f64>,
+    pub shuffle_on_tie_during_exploitation: Option<bool>,
 }
 
 #[derive(serde::Serialize, serde::Deserialize, Debug, Clone, ToSchema)]
@@ -1172,6 +1174,9 @@ impl SuccessBasedRoutingConfigBody {
         self.specificity_level = new.specificity_level;
         if let Some(exploration_percent) = new.exploration_percent {
             self.exploration_percent = Some(exploration_percent);
+        }
+        if let Some(shuffle_on_tie_during_exploitation) = new.shuffle_on_tie_during_exploitation {
+            self.shuffle_on_tie_during_exploitation = Some(shuffle_on_tie_during_exploitation);
         }
     }
 }
