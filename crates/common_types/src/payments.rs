@@ -3,13 +3,15 @@
 use std::collections::HashMap;
 
 use common_enums::enums;
-use common_utils::{errors, events, impl_to_sql_from_sql_json, types::MinorUnit};
+use common_utils::{date_time, errors, events, impl_to_sql_from_sql_json, pii, types::MinorUnit};
 use diesel::{sql_types::Jsonb, AsExpression, FromSqlRow};
 use euclid::frontend::{
     ast::Program,
     dir::{DirKeyKind, EuclidDirFilter},
 };
+use masking::{PeekInterface, Secret};
 use serde::{Deserialize, Serialize};
+use time::PrimitiveDateTime;
 use utoipa::ToSchema;
 
 use crate::domain::{AdyenSplitData, XenditSplitSubMerchantData};
@@ -100,6 +102,88 @@ impl EuclidDirFilter for ConditionalConfigs {
 }
 
 impl_to_sql_from_sql_json!(ConditionalConfigs);
+
+/// This "CustomerAcceptance" object is passed during Payments-Confirm request, it enlists the type, time, and mode of acceptance properties related to an acceptance done by the customer. The customer_acceptance sub object is usually passed by the SDK or client.
+#[derive(
+    Default,
+    Eq,
+    PartialEq,
+    Debug,
+    serde::Deserialize,
+    serde::Serialize,
+    Clone,
+    AsExpression,
+    ToSchema,
+)]
+#[serde(deny_unknown_fields)]
+#[diesel(sql_type = Jsonb)]
+pub struct CustomerAcceptance {
+    /// Type of acceptance provided by the
+    #[schema(example = "online")]
+    pub acceptance_type: AcceptanceType,
+    /// Specifying when the customer acceptance was provided
+    #[schema(example = "2022-09-10T10:11:12Z")]
+    #[serde(default, with = "common_utils::custom_serde::iso8601::option")]
+    pub accepted_at: Option<PrimitiveDateTime>,
+    /// Information required for online mandate generation
+    pub online: Option<OnlineMandate>,
+}
+
+impl_to_sql_from_sql_json!(CustomerAcceptance);
+
+impl CustomerAcceptance {
+    /// Get the IP address
+    pub fn get_ip_address(&self) -> Option<String> {
+        self.online
+            .as_ref()
+            .and_then(|data| data.ip_address.as_ref().map(|ip| ip.peek().to_owned()))
+    }
+
+    /// Get the User Agent
+    pub fn get_user_agent(&self) -> Option<String> {
+        self.online.as_ref().map(|data| data.user_agent.clone())
+    }
+
+    /// Get when the customer acceptance was provided
+    pub fn get_accepted_at(&self) -> PrimitiveDateTime {
+        self.accepted_at.unwrap_or_else(date_time::now)
+    }
+}
+
+#[derive(Default, Debug, serde::Deserialize, serde::Serialize, PartialEq, Eq, Clone, ToSchema)]
+#[serde(rename_all = "lowercase")]
+/// This is used to indicate if the mandate was accepted online or offline
+pub enum AcceptanceType {
+    /// Online
+    Online,
+    /// Offline
+    #[default]
+    Offline,
+}
+
+#[derive(
+    Default,
+    Eq,
+    PartialEq,
+    Debug,
+    serde::Deserialize,
+    serde::Serialize,
+    AsExpression,
+    Clone,
+    ToSchema,
+)]
+#[serde(deny_unknown_fields)]
+/// Details of online mandate
+#[diesel(sql_type = Jsonb)]
+pub struct OnlineMandate {
+    /// Ip address of the customer machine from which the mandate was created
+    #[schema(value_type = String, example = "123.32.25.123")]
+    pub ip_address: Option<Secret<String, pii::IpAddress>>,
+    /// The user-agent of the customer's browser
+    pub user_agent: String,
+}
+
+impl_to_sql_from_sql_json!(OnlineMandate);
 
 #[derive(Serialize, Deserialize, Debug, Clone, FromSqlRow, AsExpression, ToSchema)]
 #[diesel(sql_type = Jsonb)]
