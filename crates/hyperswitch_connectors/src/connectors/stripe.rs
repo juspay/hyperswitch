@@ -902,25 +902,7 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
         req: &PaymentsAuthorizeRouterData,
         connectors: &Connectors,
     ) -> CustomResult<String, ConnectorError> {
-        // Check for external vault URL when using ExternalProxyCardData
-        if let PaymentMethodData::ExternalProxyCardData(_) = &req.request.payment_method_data {
-            if let Some(connector_metadata) = &req.connector_meta_data {
-                // connector_metadata is Secret<serde_json::Value>, so we need to clone and expose it
-                let metadata_value = connector_metadata.clone().expose();
-                // Check if it's an object and get the external_vault_url
-                if let Some(url_value) = metadata_value.get("proxy_url") {
-                    if let Some(url_str) = url_value.as_str() {
-                        return Ok(format!("{}{}", url_str, "v1/payment_intents"));
-                    }
-                }
-            }
-        }
-        // Default URL for all other cases
-        Ok(format!(
-            "{}{}",
-            self.base_url(connectors),
-            "v1/payment_intents"
-        ))
+        Ok(format!( "{}{}", self.base_url(connectors), "v1/payment_intents" ))
     }
 
     fn get_request_body(
@@ -943,18 +925,40 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
         req: &PaymentsAuthorizeRouterData,
         connectors: &Connectors,
     ) -> CustomResult<Option<Request>, ConnectorError> {
-        Ok(Some(
-            RequestBuilder::new()
-                .method(Method::Post)
-                .url(&PaymentsAuthorizeType::get_url(self, req, connectors)?)
-                .attach_default_headers()
-                .headers(PaymentsAuthorizeType::get_headers(self, req, connectors)?)
-                .set_body(PaymentsAuthorizeType::get_request_body(
-                    self, req, connectors,
-                )?)
-                .build(),
-        ))
+        let mut request_builder = RequestBuilder::new()
+            .method(Method::Post)
+            .url(&PaymentsAuthorizeType::get_url(self, req, connectors)?)
+            .attach_default_headers()
+            .headers(PaymentsAuthorizeType::get_headers(self, req, connectors)?)
+            .set_body(PaymentsAuthorizeType::get_request_body(
+                self, req, connectors,
+            )?);
+    
+        // Add proxy and certificate handling for ExternalProxyCardData
+        if let PaymentMethodData::ExternalProxyCardData(_) = &req.request.payment_method_data {
+            if let Some(connector_metadata) = &req.connector_meta_data {
+                let metadata_value = connector_metadata.clone().expose();
+                
+                // Add certificate configuration
+                if let Some(cert_value) = metadata_value.get("certificate_path") {
+                    if let Some(cert_path) = cert_value.as_str() {
+                        // Add CA certificate
+                        request_builder = request_builder.add_ca_certificate_pem(Some(cert_path.to_string().into()));
+                    }
+                }
+
+                if let Some(proxy_url) = metadata_value.get("external_proxy_url") {
+                    if let Some(proxy_url) = proxy_url.as_str() {
+                        // Add Proxy URL
+                        request_builder = request_builder.add_merchant_proxy_url(Some(proxy_url.to_string().into()));
+                    }
+                }
+            }
+        }
+    
+        Ok(Some(request_builder.build()))
     }
+
 
     fn handle_response(
         &self,

@@ -49,6 +49,7 @@ pub struct Request {
     pub certificate_key: Option<Secret<String>>,
     pub body: Option<RequestContent>,
     pub ca_certificate: Option<Secret<String>>,
+    pub merchant_proxy_url: Option<Secret<String>>,
 }
 
 impl std::fmt::Debug for RequestContent {
@@ -93,6 +94,7 @@ impl Request {
             certificate_key: None,
             body: None,
             ca_certificate: None,
+            merchant_proxy_url: None,
         }
     }
 
@@ -115,6 +117,10 @@ impl Request {
     pub fn add_certificate_key(&mut self, certificate_key: Option<Secret<String>>) {
         self.certificate = certificate_key;
     }
+
+    pub fn add_merchant_proxy_url(&mut self, merchant_url: Option<Secret<String>>) {
+        self.merchant_proxy_url = merchant_url;
+    }
 }
 
 #[derive(Debug)]
@@ -126,6 +132,7 @@ pub struct RequestBuilder {
     pub certificate_key: Option<Secret<String>>,
     pub body: Option<RequestContent>,
     pub ca_certificate: Option<Secret<String>>,
+    pub merchant_proxy_url: Option<Secret<String>>,
 }
 
 impl RequestBuilder {
@@ -138,6 +145,7 @@ impl RequestBuilder {
             certificate_key: None,
             body: None,
             ca_certificate: None,
+            merchant_proxy_url: None,
         }
     }
 
@@ -191,6 +199,11 @@ impl RequestBuilder {
         self
     }
 
+    pub fn add_merchant_proxy_url(mut self, url: Option<Secret<String>>) -> Self {
+        self.merchant_proxy_url = url;
+        self
+    }
+
     pub fn build(self) -> Request {
         Request {
             method: self.method,
@@ -200,6 +213,7 @@ impl RequestBuilder {
             certificate_key: self.certificate_key,
             body: self.body,
             ca_certificate: self.ca_certificate,
+            merchant_proxy_url: self.merchant_proxy_url,
         }
     }
 }

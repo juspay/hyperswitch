@@ -30,6 +30,7 @@ pub async fn send_request(
         request.certificate,
         request.certificate_key,
         request.ca_certificate,
+        request.merchant_proxy_url,
     )?;
 
     let headers = request.headers.construct_header_map()?;

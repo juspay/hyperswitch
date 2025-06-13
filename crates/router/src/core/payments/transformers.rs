@@ -362,7 +362,7 @@ pub async fn construct_payment_router_data_for_authorize<'a>(
         reference_id: None,
         payment_method_status: None,
         payment_method_token: None,
-        connector_customer: connector_customer_id,
+        connector_customer: connector_customer_id.clone(),
         recurring_mandate_payment_data: None,
         // TODO: This has to be generated as the reference id based on the connector configuration
         // Some connectros might not accept accept the global id. This has to be done when generating the reference id
@@ -391,6 +391,11 @@ pub async fn construct_payment_router_data_for_authorize<'a>(
         psd2_sca_exemption_type: None,
         whole_connector_response: None,
     };
+    crate::logger::debug!(?router_data, "Constructed router data for authorize");
+    crate::logger::debug!(
+        "Connector Customer Object: {:?}",
+        customer.clone()
+    );
 
     Ok(router_data)
 }
