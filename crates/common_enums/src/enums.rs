@@ -1737,6 +1737,7 @@ pub enum PaymentMethodStatus {
     AwaitingData,
 }
 
+#[cfg(feature = "v1")]
 impl From<AttemptStatus> for PaymentMethodStatus {
     fn from(attempt_status: AttemptStatus) -> Self {
         match attempt_status {
@@ -1764,6 +1765,40 @@ impl From<AttemptStatus> for PaymentMethodStatus {
             | AttemptStatus::DeviceDataCollectionPending
             | AttemptStatus::IntegrityFailure => Self::Inactive,
             AttemptStatus::Charged | AttemptStatus::Authorized => Self::Active,
+        }
+    }
+}
+
+#[cfg(feature = "v2")]
+impl From<&AttemptStatus> for PaymentMethodStatus {
+    fn from(attempt_status: &AttemptStatus) -> Self {
+        match attempt_status {
+            AttemptStatus::AuthenticationFailed
+            | AttemptStatus::RouterDeclined
+            | AttemptStatus::AuthorizationFailed
+            | AttemptStatus::Voided
+            | AttemptStatus::VoidInitiated
+            | AttemptStatus::CaptureFailed
+            | AttemptStatus::VoidFailed
+            | AttemptStatus::AutoRefunded
+            | AttemptStatus::Unresolved
+            | AttemptStatus::Pending
+            | AttemptStatus::Failure
+            | AttemptStatus::Started
+            | AttemptStatus::AuthenticationPending
+            | AttemptStatus::CodInitiated
+            | AttemptStatus::PaymentMethodAwaited
+            | AttemptStatus::ConfirmationAwaited
+            | AttemptStatus::DeviceDataCollectionPending
+            | AttemptStatus::IntegrityFailure => Self::Inactive,
+
+            AttemptStatus::AuthenticationSuccessful
+            | AttemptStatus::Authorized
+            | AttemptStatus::Charged
+            | AttemptStatus::Authorizing
+            | AttemptStatus::PartialCharged
+            | AttemptStatus::PartialChargedAndChargeable
+            | AttemptStatus::CaptureInitiated => Self::Active,
         }
     }
 }
