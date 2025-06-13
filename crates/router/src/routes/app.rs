@@ -2634,5 +2634,9 @@ impl ProfileAcquirer {
             .service(
                 web::resource("").route(web::post().to(profile_acquirer::create_profile_acquirer)),
             )
+            .service(
+                web::resource("/{profile_id}/{profile_acquirer_id}")
+                    .route(web::post().to(profile_acquirer::profile_acquirer_update)),
+            )
     }
 }

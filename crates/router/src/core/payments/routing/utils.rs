@@ -1,6 +1,9 @@
 use std::collections::{HashMap, HashSet};
 
-use api_models::routing as api_routing;
+use api_models::{
+    routing as api_routing,
+    routing::{ConnectorSelection, RoutableConnectorChoice},
+};
 use async_trait::async_trait;
 use common_utils::id_type;
 use diesel_models::{enums, routing_algorithm};
@@ -712,48 +715,70 @@ impl From<RoutingAlgorithmRecord> for routing_algorithm::RoutingProfileMetadata 
         }
     }
 }
-use api_models::routing::{ConnectorSelection, RoutableConnectorChoice};
-impl From<ast::Program<ConnectorSelection>> for Program {
-    fn from(p: ast::Program<ConnectorSelection>) -> Self {
-        Self {
+
+impl TryFrom<ast::Program<ConnectorSelection>> for Program {
+    type Error = error_stack::Report<errors::RoutingError>;
+
+    fn try_from(p: ast::Program<ConnectorSelection>) -> Result<Self, Self::Error> {
+        let rules = p
+            .rules
+            .into_iter()
+            .map(convert_rule)
+            .collect::<Result<Vec<_>, _>>()?;
+
+        Ok(Self {
             globals: HashMap::new(),
             default_selection: convert_output(p.default_selection),
-            rules: p.rules.into_iter().map(convert_rule).collect(),
+            rules,
             metadata: Some(p.metadata),
-        }
+        })
     }
 }
 
-fn convert_rule(rule: ast::Rule<ConnectorSelection>) -> Rule {
+fn convert_rule(rule: ast::Rule<ConnectorSelection>) -> RoutingResult<Rule> {
     let routing_type = match &rule.connector_selection {
         ConnectorSelection::Priority(_) => RoutingType::Priority,
         ConnectorSelection::VolumeSplit(_) => RoutingType::VolumeSplit,
     };
 
-    Rule {
+    Ok(Rule {
         name: rule.name,
         routing_type,
         output: convert_output(rule.connector_selection),
-        statements: rule.statements.into_iter().map(convert_if_stmt).collect(),
-    }
+        statements: rule
+            .statements
+            .into_iter()
+            .map(convert_if_stmt)
+            .collect::<RoutingResult<Vec<IfStatement>>>()?,
+    })
 }
 
-fn convert_if_stmt(stmt: ast::IfStatement) -> IfStatement {
-    IfStatement {
-        condition: stmt.condition.into_iter().map(convert_comparison).collect(),
+fn convert_if_stmt(stmt: ast::IfStatement) -> RoutingResult<IfStatement> {
+    Ok(IfStatement {
+        condition: stmt
+            .condition
+            .into_iter()
+            .map(convert_comparison)
+            .collect::<RoutingResult<Vec<Comparison>>>()?,
+
         nested: stmt
             .nested
-            .map(|v| v.into_iter().map(convert_if_stmt).collect()),
-    }
+            .map(|v| {
+                v.into_iter()
+                    .map(convert_if_stmt)
+                    .collect::<RoutingResult<Vec<IfStatement>>>()
+            })
+            .transpose()?,
+    })
 }
 
-fn convert_comparison(c: ast::Comparison) -> Comparison {
-    Comparison {
+fn convert_comparison(c: ast::Comparison) -> RoutingResult<Comparison> {
+    Ok(Comparison {
         lhs: c.lhs,
         comparison: convert_comparison_type(c.comparison),
-        value: convert_value(c.value),
+        value: convert_value(c.value)?,
         metadata: c.metadata,
-    }
+    })
 }
 
 fn convert_comparison_type(ct: ast::ComparisonType) -> ComparisonType {
@@ -767,18 +792,21 @@ fn convert_comparison_type(ct: ast::ComparisonType) -> ComparisonType {
     }
 }
 
-#[allow(clippy::unimplemented)]
-fn convert_value(v: ast::ValueType) -> ValueType {
+fn convert_value(v: ast::ValueType) -> RoutingResult<ValueType> {
     use ast::ValueType::*;
     match v {
-        Number(n) => ValueType::Number(n.get_amount_as_i64().try_into().unwrap_or_default()),
-        EnumVariant(e) => ValueType::EnumVariant(e),
-        MetadataVariant(m) => ValueType::MetadataVariant(MetadataValue {
+        Number(n) => Ok(ValueType::Number(
+            n.get_amount_as_i64().try_into().unwrap_or_default(),
+        )),
+        EnumVariant(e) => Ok(ValueType::EnumVariant(e)),
+        MetadataVariant(m) => Ok(ValueType::MetadataVariant(MetadataValue {
             key: m.key,
             value: m.value,
-        }),
-        StrValue(s) => ValueType::StrValue(s),
-        _ => unimplemented!(), // GlobalRef(r) => ValueType::GlobalRef(r),
+        })),
+        StrValue(s) => Ok(ValueType::StrValue(s)),
+        _ => Err(error_stack::Report::new(
+            errors::RoutingError::InvalidRoutingAlgorithmStructure,
+        )),
     }
 }
 

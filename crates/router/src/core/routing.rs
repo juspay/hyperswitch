@@ -342,26 +342,32 @@ pub async fn create_routing_algorithm_under_profile(
     let mut decision_engine_routing_id: Option<String> = None;
 
     if let Some(EuclidAlgorithm::Advanced(program)) = request.algorithm.clone() {
-        let internal_program: Program = program.into();
-        let routing_rule = RoutingRule {
-            name: name.clone(),
-            description: Some(description.clone()),
-            created_by: profile_id.get_string_repr().to_string(),
-            algorithm: internal_program,
-            metadata: Some(RoutingMetadata {
-                kind: algorithm.get_kind().foreign_into(),
-                algorithm_for: transaction_type.to_owned(),
-            }),
-        };
+        match program.try_into() {
+            Ok(internal_program) => {
+                let routing_rule = RoutingRule {
+                    name: name.clone(),
+                    description: Some(description.clone()),
+                    created_by: profile_id.get_string_repr().to_string(),
+                    algorithm: internal_program,
+                    metadata: Some(RoutingMetadata {
+                        kind: algorithm.get_kind().foreign_into(),
+                        algorithm_for: transaction_type.to_owned(),
+                    }),
+                };
 
-        decision_engine_routing_id = create_de_euclid_routing_algo(&state, &routing_rule)
-            .await
-            .map_err(|e| {
+                decision_engine_routing_id = create_de_euclid_routing_algo(&state, &routing_rule)
+                    .await
+                    .map_err(|e| {
+                        // errors are ignored as this is just for diff checking as of now (optional flow).
+                        logger::error!(decision_engine_error=?e,decision_engine_euclid_request=?routing_rule, "failed to create rule in decision_engine");
+                    })
+                    .ok();
+            }
+            Err(e) => {
                 // errors are ignored as this is just for diff checking as of now (optional flow).
                 logger::error!(decision_engine_error=?e, "decision_engine_euclid");
-                logger::debug!(decision_engine_request=?routing_rule, "decision_engine_euclid");
-            })
-            .ok();
+            }
+        };
     }
 
     if decision_engine_routing_id.is_some() {
