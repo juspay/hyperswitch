@@ -3881,7 +3881,6 @@ pub async fn filter_payment_methods(
                             .unwrap_or(false)
                     {
                         payment_intent.map(|intent| intent.amount).map(|amount| {
-                            dbg!("Payment intent amount:", amount);
                             if amount == MinorUnit::zero() {
                                 if configs
                                     .zero_mandates
