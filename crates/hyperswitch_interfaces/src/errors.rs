@@ -125,7 +125,7 @@ pub enum ConnectorError {
         error_message: String,
         error_object: serde_json::Value,
     },
-    #[error("Fields like {fields} doesn't match with the ones used during mandate creation")]
+    #[error("Field like {fields} doesn't match with the ones used during mandate creation")]
     MandatePaymentDataMismatch { fields: String },
 }
 
