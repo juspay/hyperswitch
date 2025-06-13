@@ -17,8 +17,6 @@ use api_models::{
 };
 #[cfg(all(feature = "v1", feature = "dynamic_routing"))]
 use common_utils::ext_traits::AsyncExt;
-#[cfg(all(feature = "v1", feature = "dynamic_routing"))]
-use common_utils::{ext_traits::BytesExt, request};
 use diesel_models::enums as storage_enums;
 use error_stack::ResultExt;
 use euclid::{
@@ -1850,7 +1848,7 @@ pub async fn perform_decide_gateway_call_with_open_router(
     );
 
     let response: RoutingResult<utils::RoutingEventsResponse<DecidedGateway>> =
-        utils::SRConfigApiClient::send_decision_engine_request(
+        utils::SRApiClient::send_decision_engine_request(
             state,
             services::Method::Post,
             "decide-gateway",
@@ -1945,7 +1943,7 @@ pub async fn update_gateway_score_with_open_router(
     );
 
     let response: RoutingResult<utils::RoutingEventsResponse<or_types::UpdateScoreResponse>> =
-        utils::SRConfigApiClient::send_decision_engine_request(
+        utils::SRApiClient::send_decision_engine_request(
             state,
             services::Method::Post,
             "update-gateway-score",
@@ -2108,15 +2106,14 @@ pub async fn perform_success_based_routing(
             }
         };
 
-        let events_response = utils::routing_events_wrap(
-            state,
-            routing_events_wrapper,
-            closure,
-            "SuccessRateCalculator.FetchSuccessRate".to_string(),
-            RoutingEngine::IntelligentRouter,
-            ApiMethod::Grpc,
-        )
-        .await?;
+        let events_response = routing_events_wrapper
+            .construct_event_builder(
+                "SuccessRateCalculator.FetchSuccessRate".to_string(),
+                RoutingEngine::IntelligentRouter,
+                ApiMethod::Grpc,
+            )?
+            .trigger_event(state, closure)
+            .await?;
 
         let success_based_connectors: utils::CalSuccessRateEventResponse = events_response
             .response
@@ -2284,15 +2281,14 @@ pub async fn perform_elimination_routing(
             }
         };
 
-        let events_response = utils::routing_events_wrap(
-            state,
-            routing_events_wrapper,
-            closure,
-            "EliminationAnalyser.GetEliminationStatus".to_string(),
-            RoutingEngine::IntelligentRouter,
-            ApiMethod::Grpc,
-        )
-        .await?;
+        let events_response = routing_events_wrapper
+            .construct_event_builder(
+                "EliminationAnalyser.GetEliminationStatus".to_string(),
+                RoutingEngine::IntelligentRouter,
+                ApiMethod::Grpc,
+            )?
+            .trigger_event(state, closure)
+            .await?;
 
         let elimination_based_connectors: utils::EliminationEventResponse = events_response
             .response
@@ -2508,15 +2504,14 @@ pub async fn perform_contract_based_routing(
             Ok(contract_based_connectors)
         };
 
-        let events_response = utils::routing_events_wrap(
-            state,
-            routing_events_wrapper,
-            closure,
-            "ContractScoreCalculator.FetchContractScore".to_string(),
-            RoutingEngine::IntelligentRouter,
-            ApiMethod::Grpc,
-        )
-        .await?;
+        let events_response = routing_events_wrapper
+            .construct_event_builder(
+                "ContractScoreCalculator.FetchContractScore".to_string(),
+                RoutingEngine::IntelligentRouter,
+                ApiMethod::Grpc,
+            )?
+            .trigger_event(state, closure)
+            .await?;
 
         let contract_based_connectors: utils::CalContractScoreEventResponse = events_response
             .response

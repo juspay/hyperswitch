@@ -1156,19 +1156,22 @@ pub async fn push_metrics_with_update_window_for_success_based_routing(
                 }
             };
 
-            let events_response = routing_utils::routing_events_wrap(
-                state,
-                routing_events_wrapper,
-                closure,
-                "SuccessRateCalculator.UpdateSuccessRateWindow".to_string(),
-                routing_events::RoutingEngine::IntelligentRouter,
-                routing_events::ApiMethod::Grpc,
-            )
-            .await
-            .change_context(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable(
-                "SR-Intelligent-Router: Failed to update success rate in Intelligent-Router",
-            )?;
+            let events_response = routing_events_wrapper
+                .construct_event_builder(
+                    "SuccessRateCalculator.UpdateSuccessRateWindow".to_string(),
+                    routing_events::RoutingEngine::IntelligentRouter,
+                    routing_events::ApiMethod::Grpc,
+                )
+                .change_context(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable(
+                    "SR-Intelligent-Router: Failed to update success rate in Intelligent-Router",
+                )?
+                .trigger_event(state, closure)
+                .await
+                .change_context(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable(
+                    "SR-Intelligent-Router: Failed to update success rate in Intelligent-Router",
+                )?;
 
             let _response: routing_utils::UpdateSuccessRateWindowEventResponse = events_response
                 .response
@@ -1336,14 +1339,12 @@ pub async fn update_window_for_elimination_routing(
                 }
             };
 
-            let events_response = routing_utils::routing_events_wrap(
-                state,
-                routing_events_wrapper,
-                closure,
-                "EliminationAnalyser.UpdateEliminationBucket".to_string(),
-                routing_events::RoutingEngine::IntelligentRouter,
-                routing_events::ApiMethod::Grpc,
-            )
+            let events_response = routing_events_wrapper.construct_event_builder( "EliminationAnalyser.UpdateEliminationBucket".to_string(),
+            routing_events::RoutingEngine::IntelligentRouter,
+            routing_events::ApiMethod::Grpc)
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Elimination-Intelligent-Router: Failed to update elimination bucket in Intelligent-Router")?
+            .trigger_event(state, closure)
             .await
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Elimination-Intelligent-Router: Failed to update elimination bucket in Intelligent-Router")?;
@@ -1532,14 +1533,12 @@ pub async fn push_metrics_with_update_window_for_contract_based_routing(
                     }
                 };
 
-                let events_response = routing_utils::routing_events_wrap(
-                    state,
-                    routing_events_wrapper,
-                    closure,
-                    "ContractScoreCalculator.UpdateContract".to_string(),
-                    routing_events::RoutingEngine::IntelligentRouter,
-                    routing_events::ApiMethod::Grpc,
-                )
+                let events_response = routing_events_wrapper.construct_event_builder( "ContractScoreCalculator.UpdateContract".to_string(),
+                routing_events::RoutingEngine::IntelligentRouter,
+                routing_events::ApiMethod::Grpc)
+                .change_context(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable("ContractRouting-Intelligent-Router: Failed to contruct RoutingEventsBuilder")?
+                .trigger_event(state, closure)
                 .await
                 .change_context(errors::ApiErrorResponse::InternalServerError)
                 .attach_printable("ContractRouting-Intelligent-Router: Failed to update contract scores in Intelligent-Router")?;

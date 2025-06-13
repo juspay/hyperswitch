@@ -6,6 +6,7 @@ use common_utils::{ext_traits::BytesExt, id_type};
 use diesel_models::{enums, routing_algorithm};
 use error_stack::ResultExt;
 use euclid::{backend::BackendInput, frontend::ast};
+#[cfg(all(feature = "v1", feature = "dynamic_routing"))]
 use external_services::grpc_client::dynamic_routing as ir_client;
 use hyperswitch_interfaces::events::routing_api_logs as routing_events;
 use router_env::tracing_actix_web::RequestId;
@@ -51,7 +52,7 @@ pub struct EuclidApiClient;
 
 pub struct ConfigApiClient;
 
-pub struct SRConfigApiClient;
+pub struct SRApiClient;
 
 pub async fn build_and_send_decision_engine_http_request<Req, Res>(
     state: &SessionState,
@@ -135,15 +136,14 @@ where
     };
 
     let events_response = if let Some(wrapper) = events_wrapper {
-        routing_events_wrap(
-            state,
-            wrapper,
-            closure,
-            url.clone(),
-            routing_events::RoutingEngine::DecisionEngine,
-            routing_events::ApiMethod::Rest(http_method),
-        )
-        .await?
+        wrapper
+            .construct_event_builder(
+                url,
+                routing_events::RoutingEngine::DecisionEngine,
+                routing_events::ApiMethod::Rest(http_method),
+            )?
+            .trigger_event(state, closure)
+            .await?
     } else {
         let resp = closure()
             .await
@@ -179,7 +179,6 @@ impl DecisionEngineApiHandler for EuclidApiClient {
             events_wrapper,
         )
         .await?;
-        // logger::debug!(euclid_response = ?event_response, euclid_request_path = %path, "decision_engine_euclid: Received raw response from Euclid API");
 
         let parsed_response =
             event_response
@@ -246,7 +245,6 @@ impl DecisionEngineApiHandler for ConfigApiClient {
             events_wrapper,
         )
         .await?;
-        // logger::debug!(decision_engine_config_response = ?events_response, decision_engine_request_path = %path, "decision_engine_config: Received raw response from Decision Engine config API");
 
         let parsed_response =
             events_response
@@ -289,7 +287,7 @@ impl DecisionEngineApiHandler for ConfigApiClient {
 }
 
 #[async_trait]
-impl DecisionEngineApiHandler for SRConfigApiClient {
+impl DecisionEngineApiHandler for SRApiClient {
     async fn send_decision_engine_request<Req, Res>(
         state: &SessionState,
         http_method: services::Method,
@@ -967,7 +965,7 @@ fn stringify_choice(c: RoutableConnectorChoice) -> String {
     c.connector.to_string()
 }
 
-#[derive(Clone, Debug)]
+#[derive(Debug)]
 pub struct RoutingEventsWrapper<Req>
 where
     Req: Serialize + Clone,
@@ -981,6 +979,7 @@ where
     pub request: Option<Req>,
     pub parse_response: bool,
     pub log_event: bool,
+    pub routing_event: Option<routing_events::RoutingEvent>,
 }
 
 #[derive(Debug)]
@@ -1022,6 +1021,7 @@ impl<Req> RoutingEventsWrapper<Req>
 where
     Req: Serialize + Clone,
 {
+    #[allow(clippy::too_many_arguments)]
     pub fn new(
         tenant_id: id_type::TenantId,
         request_id: Option<RequestId>,
@@ -1043,16 +1043,18 @@ where
             request,
             parse_response,
             log_event,
+            routing_event: None,
         }
     }
 
     pub fn construct_event_builder(
-        &self,
+        self,
         url: String,
         routing_engine: routing_events::RoutingEngine,
         method: routing_events::ApiMethod,
-    ) -> RoutingResult<routing_events::RoutingEvent> {
-        let request = self
+    ) -> RoutingResult<Self> {
+        let mut wrapper = self;
+        let request = wrapper
             .request
             .clone()
             .ok_or(errors::RoutingError::RoutingEventsError {
@@ -1061,22 +1063,85 @@ where
             })?;
 
         let serialized_request = serde_json::to_value(&request)
-            .change_context(errors::RoutingError::SuccessBasedRoutingConfigError)
+            .change_context(errors::RoutingError::RoutingEventsError {
+                message: "Failed to serialize RoutingRequest".to_string(),
+                status_code: 500,
+            })
             .attach_printable("Failed to serialize request body")?;
 
-        Ok(routing_events::RoutingEvent::new(
-            self.tenant_id.clone(),
+        let routing_event = routing_events::RoutingEvent::new(
+            wrapper.tenant_id.clone(),
             "".to_string(),
-            &self.flow,
+            &wrapper.flow,
             serialized_request,
             url,
             method,
-            self.payment_id.clone(),
-            self.profile_id.clone(),
-            self.merchant_id.clone(),
-            self.request_id,
+            wrapper.payment_id.clone(),
+            wrapper.profile_id.clone(),
+            wrapper.merchant_id.clone(),
+            wrapper.request_id,
             routing_engine,
-        ))
+        );
+
+        wrapper.set_routing_event(routing_event);
+
+        Ok(wrapper)
+    }
+
+    pub async fn trigger_event<Res, F, Fut>(
+        self,
+        state: &SessionState,
+        func: F,
+    ) -> RoutingResult<RoutingEventsResponse<Res>>
+    where
+        F: FnOnce() -> Fut + Send,
+        Res: Serialize + serde::de::DeserializeOwned + Clone,
+        Fut: futures::Future<Output = RoutingResult<Option<Res>>> + Send,
+    {
+        let mut routing_event =
+            self.routing_event
+                .ok_or(errors::RoutingError::RoutingEventsError {
+                    message: "Routing event is missing".to_string(),
+                    status_code: 500,
+                })?;
+
+        let mut response = RoutingEventsResponse::new(None, None);
+
+        let resp = func().await;
+        match resp {
+            Ok(ok_resp) => {
+                if let Some(resp) = ok_resp {
+                    routing_event.set_response_body(&resp);
+                    // routing_event
+                    //     .set_routable_connectors(ok_resp.get_routable_connectors().unwrap_or_default());
+                    // routing_event.set_payment_connector(ok_resp.get_payment_connector());
+                    routing_event.set_status_code(200);
+
+                    response.set_response(resp.clone());
+                    self.log_event
+                        .then(|| state.event_handler().log_event(&routing_event));
+                }
+            }
+            Err(err) => {
+                // Need to figure out a generic way to log errors
+                routing_event
+                    .set_error(serde_json::json!({"error": err.current_context().to_string()}));
+
+                match err.current_context() {
+                    errors::RoutingError::RoutingEventsError { status_code, .. } => {
+                        routing_event.set_status_code(*status_code);
+                    }
+                    _ => {
+                        routing_event.set_status_code(500);
+                    }
+                }
+                state.event_handler().log_event(&routing_event)
+            }
+        }
+
+        response.set_event(routing_event);
+
+        Ok(response)
     }
 
     pub fn set_log_event(&mut self, log_event: bool) {
@@ -1086,6 +1151,10 @@ where
     pub fn set_request_body(&mut self, request: Req) {
         self.request = Some(request);
     }
+
+    pub fn set_routing_event(&mut self, routing_event: routing_events::RoutingEvent) {
+        self.routing_event = Some(routing_event);
+    }
 }
 
 pub trait RoutingEventsInterface {
@@ -1093,60 +1162,60 @@ pub trait RoutingEventsInterface {
     fn get_payment_connector(&self) -> Option<RoutableConnectorChoice>;
 }
 
-pub async fn routing_events_wrap<Req, Res, F, Fut>(
-    state: &SessionState,
-    wrapper: RoutingEventsWrapper<Req>,
-    func: F,
-    url: String,
-    routing_engine: routing_events::RoutingEngine,
-    method: routing_events::ApiMethod,
-) -> RoutingResult<RoutingEventsResponse<Res>>
-where
-    F: FnOnce() -> Fut + Send,
-    Req: Serialize + Clone,
-    Res: Serialize + serde::de::DeserializeOwned + Clone,
-    Fut: futures::Future<Output = RoutingResult<Option<Res>>> + Send,
-{
-    let mut routing_event = wrapper.construct_event_builder(url, routing_engine, method)?;
-    let mut response = RoutingEventsResponse::new(None, None);
+// pub async fn routing_events_wrap<Req, Res, F, Fut>(
+//     state: &SessionState,
+//     wrapper: RoutingEventsWrapper<Req>,
+//     func: F,
+//     url: String,
+//     routing_engine: routing_events::RoutingEngine,
+//     method: routing_events::ApiMethod,
+// ) -> RoutingResult<RoutingEventsResponse<Res>>
+// where
+//     F: FnOnce() -> Fut + Send,
+//     Req: Serialize + Clone,
+//     Res: Serialize + serde::de::DeserializeOwned + Clone,
+//     Fut: futures::Future<Output = RoutingResult<Option<Res>>> + Send,
+// {
+//     let mut routing_event = wrapper.construct_event_builder(url, routing_engine, method)?;
+//     let mut response = RoutingEventsResponse::new(None, None);
 
-    let resp = func().await;
-    match resp {
-        Ok(ok_resp) => {
-            if let Some(resp) = ok_resp {
-                routing_event.set_response_body(&resp);
-                // routing_event
-                //     .set_routable_connectors(ok_resp.get_routable_connectors().unwrap_or_default());
-                // routing_event.set_payment_connector(ok_resp.get_payment_connector());
-                routing_event.set_status_code(200);
+//     let resp = func().await;
+//     match resp {
+//         Ok(ok_resp) => {
+//             if let Some(resp) = ok_resp {
+//                 routing_event.set_response_body(&resp);
+//                 // routing_event
+//                 //     .set_routable_connectors(ok_resp.get_routable_connectors().unwrap_or_default());
+//                 // routing_event.set_payment_connector(ok_resp.get_payment_connector());
+//                 routing_event.set_status_code(200);
 
-                response.set_response(resp.clone());
-                wrapper
-                    .log_event
-                    .then(|| state.event_handler().log_event(&routing_event));
-            }
-        }
-        Err(err) => {
-            // Need to figure out a generic way to log errors
-            routing_event
-                .set_error(serde_json::json!({"error": err.current_context().to_string()}));
+//                 response.set_response(resp.clone());
+//                 wrapper
+//                     .log_event
+//                     .then(|| state.event_handler().log_event(&routing_event));
+//             }
+//         }
+//         Err(err) => {
+//             // Need to figure out a generic way to log errors
+//             routing_event
+//                 .set_error(serde_json::json!({"error": err.current_context().to_string()}));
 
-            match err.current_context() {
-                errors::RoutingError::RoutingEventsError { status_code, .. } => {
-                    routing_event.set_status_code(*status_code);
-                }
-                _ => {
-                    routing_event.set_status_code(500);
-                }
-            }
-            state.event_handler().log_event(&routing_event)
-        }
-    }
+//             match err.current_context() {
+//                 errors::RoutingError::RoutingEventsError { status_code, .. } => {
+//                     routing_event.set_status_code(*status_code);
+//                 }
+//                 _ => {
+//                     routing_event.set_status_code(500);
+//                 }
+//             }
+//             state.event_handler().log_event(&routing_event)
+//         }
+//     }
 
-    response.set_event(routing_event);
+//     response.set_event(routing_event);
 
-    Ok(response)
-}
+//     Ok(response)
+// }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
@@ -1226,6 +1295,7 @@ pub struct CalSuccessRateEventResponse {
     pub routing_approach: RoutingApproach,
 }
 
+#[cfg(all(feature = "v1", feature = "dynamic_routing"))]
 impl TryFrom<&ir_client::success_rate_client::CalSuccessRateResponse>
     for CalSuccessRateEventResponse
 {
@@ -1315,6 +1385,7 @@ pub struct EliminationEventResponse {
     pub labels_with_status: Vec<LabelWithStatusEliminationEventResponse>,
 }
 
+#[cfg(all(feature = "v1", feature = "dynamic_routing"))]
 impl From<&ir_client::elimination_based_client::EliminationResponse> for EliminationEventResponse {
     fn from(value: &ir_client::elimination_based_client::EliminationResponse) -> Self {
         Self {
@@ -1362,6 +1433,7 @@ pub struct CalContractScoreEventResponse {
     pub labels_with_score: Vec<ScoreDataEventResponse>,
 }
 
+#[cfg(all(feature = "v1", feature = "dynamic_routing"))]
 impl From<&ir_client::contract_routing_client::CalContractScoreResponse>
     for CalContractScoreEventResponse
 {
@@ -1436,6 +1508,7 @@ pub struct UpdateSuccessRateWindowEventResponse {
     pub status: UpdationStatusEventResponse,
 }
 
+#[cfg(all(feature = "v1", feature = "dynamic_routing"))]
 impl TryFrom<&ir_client::success_rate_client::UpdateSuccessRateWindowResponse>
     for UpdateSuccessRateWindowEventResponse
 {
@@ -1496,6 +1569,7 @@ pub struct UpdateEliminationBucketEventResponse {
     pub status: EliminationUpdationStatusEventResponse,
 }
 
+#[cfg(all(feature = "v1", feature = "dynamic_routing"))]
 impl TryFrom<&ir_client::elimination_based_client::UpdateEliminationBucketResponse>
     for UpdateEliminationBucketEventResponse
 {
@@ -1559,6 +1633,7 @@ pub struct UpdateContractEventResponse {
     pub status: ContractUpdationStatusEventResponse,
 }
 
+#[cfg(all(feature = "v1", feature = "dynamic_routing"))]
 impl TryFrom<&ir_client::contract_routing_client::UpdateContractResponse>
     for UpdateContractEventResponse
 {
