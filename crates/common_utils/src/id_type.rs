@@ -12,6 +12,7 @@ mod merchant_connector_account;
 mod organization;
 mod payment;
 mod profile;
+mod profile_acquirer;
 mod refunds;
 mod relay;
 mod routing;
@@ -48,6 +49,7 @@ pub use self::{
     organization::OrganizationId,
     payment::{PaymentId, PaymentReferenceId},
     profile::ProfileId,
+    profile_acquirer::ProfileAcquirerId,
     refunds::RefundReferenceId,
     relay::RelayId,
     routing::RoutingId,

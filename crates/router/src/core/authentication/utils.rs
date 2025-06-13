@@ -95,6 +95,7 @@ pub async fn update_trackers<F: Clone, Req>(
                 trans_status,
                 connector_metadata,
                 ds_trans_id,
+                eci,
             } => {
                 authentication_value
                     .async_map(|auth_val| {
@@ -126,6 +127,7 @@ pub async fn update_trackers<F: Clone, Req>(
                     authentication_status,
                     connector_metadata,
                     ds_trans_id,
+                    eci,
                 }
             }
             AuthenticationResponseData::PostAuthNResponse {

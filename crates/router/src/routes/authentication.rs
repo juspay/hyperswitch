@@ -10,7 +10,6 @@ use crate::{
 };
 
 #[instrument(skip_all, fields(flow = ?Flow::AuthenticationCreate))]
-#[cfg(feature = "v1")]
 pub async fn authentication_create(
     state: web::Data<app::AppState>,
     req: HttpRequest,

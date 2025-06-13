@@ -45,6 +45,8 @@ pub enum ApiIdentifier {
     ProcessTracker,
     Authentication,
     Proxy,
+    ProfileAcquirer,
+    ThreeDsDecisionRule,
     GenericTokenization,
 }
 
@@ -347,6 +349,8 @@ impl From<Flow> for ApiIdentifier {
             Flow::AuthenticationCreate => Self::Authentication,
             Flow::Proxy => Self::Proxy,
 
+            Flow::ProfileAcquirerCreate | Flow::ProfileAcquirerUpdate => Self::ProfileAcquirer,
+            Flow::ThreeDsDecisionRuleExecute => Self::ThreeDsDecisionRule,
             Flow::TokenizationCreate | Flow::TokenizationRetrieve => Self::GenericTokenization,
         }
     }

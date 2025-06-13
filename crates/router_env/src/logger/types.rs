@@ -595,6 +595,10 @@ pub enum Flow {
     AuthenticationCreate, // Added new flow
     ///Proxy Flow
     Proxy,
+    ProfileAcquirerCreate,
+    ProfileAcquirerUpdate,
+    /// ThreeDs Decision Rule Execute flow
+    ThreeDsDecisionRuleExecute,
 }
 
 /// Trait for providing generic behaviour to flow metric

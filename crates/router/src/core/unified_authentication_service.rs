@@ -479,10 +479,6 @@ impl<F: Clone + Sync> UnifiedAuthenticationService<F> for ExternalAuthentication
     }
 }
 
-#[cfg(all(
-    any(feature = "v1", feature = "v2"),
-    not(feature = "payment_methods_v2")
-))]
 #[allow(clippy::too_many_arguments)]
 pub async fn create_new_authentication(
     state: &SessionState,
@@ -566,7 +562,6 @@ pub async fn create_new_authentication(
 }
 
 // Modular authentication
-#[cfg(feature = "v1")]
 pub async fn authentication_create_core(
     state: SessionState,
     merchant_context: domain::MerchantContext,

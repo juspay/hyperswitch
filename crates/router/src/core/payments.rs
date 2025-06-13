@@ -13,6 +13,8 @@ pub mod session_operation;
 pub mod tokenization;
 pub mod transformers;
 pub mod types;
+#[cfg(feature = "v2")]
+pub mod vault_session;
 #[cfg(feature = "olap")]
 use std::collections::HashMap;
 use std::{
@@ -92,6 +94,8 @@ use super::{
 use crate::core::debit_routing;
 #[cfg(feature = "frm")]
 use crate::core::fraud_check as frm_core;
+#[cfg(feature = "v2")]
+use crate::core::payment_methods::vault;
 #[cfg(feature = "v1")]
 use crate::core::routing::helpers as routing_helpers;
 #[cfg(all(feature = "v1", feature = "dynamic_routing"))]
@@ -123,7 +127,7 @@ use crate::{
     },
     workflows::payment_sync,
 };
-#[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
+#[cfg(feature = "v1")]
 use crate::{
     core::authentication as authentication_core,
     types::{api::authentication, BrowserInformation},
@@ -168,6 +172,11 @@ where
 
     // Get the trackers related to track the state of the payment
     let operations::GetTrackerResponse { mut payment_data } = get_tracker_response;
+
+    operation
+        .to_domain()?
+        .create_or_fetch_payment_method(state, &merchant_context, profile, &mut payment_data)
+        .await?;
 
     let (_operation, customer) = operation
         .to_domain()?
@@ -241,10 +250,74 @@ where
                 )
                 .await?
         }
-        ConnectorCallType::Retryable(vec) => todo!(),
+        ConnectorCallType::Retryable(connectors) => {
+            let mut connectors = connectors.clone().into_iter();
+            let connector_data = get_connector_data(&mut connectors)?;
+            let router_data = call_connector_service(
+                state,
+                req_state.clone(),
+                &merchant_context,
+                connector_data.connector_data.clone(),
+                &operation,
+                &mut payment_data,
+                &customer,
+                call_connector_action.clone(),
+                None,
+                header_payload.clone(),
+                #[cfg(feature = "frm")]
+                None,
+                #[cfg(not(feature = "frm"))]
+                None,
+                profile,
+                false,
+                false, //should_retry_with_pan is set to false in case of PreDetermined ConnectorCallType
+                req.get_all_keys_required(),
+            )
+            .await?;
+
+            let payments_response_operation = Box::new(PaymentResponse);
+
+            payments_response_operation
+                .to_post_update_tracker()?
+                .save_pm_and_mandate(
+                    state,
+                    &router_data,
+                    &merchant_context,
+                    &mut payment_data,
+                    profile,
+                )
+                .await?;
+
+            payments_response_operation
+                .to_post_update_tracker()?
+                .update_tracker(
+                    state,
+                    payment_data,
+                    router_data,
+                    merchant_context.get_merchant_key_store(),
+                    merchant_context.get_merchant_account().storage_scheme,
+                )
+                .await?
+        }
         ConnectorCallType::SessionMultiple(vec) => todo!(),
         ConnectorCallType::Skip => payment_data,
     };
+
+    let payment_intent_status = payment_data.get_payment_intent().status;
+
+    // Delete the tokens after payment
+    payment_data
+        .get_payment_attempt()
+        .payment_token
+        .as_ref()
+        .zip(Some(payment_data.get_payment_attempt().payment_method_type))
+        .map(ParentPaymentMethodToken::return_key_for_token)
+        .async_map(|key_for_token| async move {
+            let _ = vault::delete_payment_token(state, &key_for_token, payment_intent_status)
+                .await
+                .inspect_err(|err| logger::error!("Failed to delete payment_token: {:?}", err));
+        })
+        .await;
 
     Ok((payment_data, req, customer, None, None))
 }
@@ -1808,7 +1881,7 @@ pub async fn record_attempt_core(
     let default_payment_status_data = PaymentStatusData {
         flow: PhantomData,
         payment_intent: payment_data.payment_intent.clone(),
-        payment_attempt: Some(payment_data.payment_attempt.clone()),
+        payment_attempt: payment_data.payment_attempt.clone(),
         attempts: None,
         should_sync_with_connector: false,
         payment_address: payment_data.payment_address.clone(),
@@ -1839,7 +1912,7 @@ pub async fn record_attempt_core(
                 payment_data: PaymentStatusData {
                     flow: PhantomData,
                     payment_intent: payment_data.payment_intent.clone(),
-                    payment_attempt: Some(payment_data.payment_attempt.clone()),
+                    payment_attempt: payment_data.payment_attempt.clone(),
                     attempts: None,
                     should_sync_with_connector: true,
                     payment_address: payment_data.payment_address.clone(),
@@ -1863,9 +1936,7 @@ pub async fn record_attempt_core(
     let record_payment_data = domain_payments::PaymentAttemptRecordData {
         flow: PhantomData,
         payment_intent: payment_status_data.payment_intent,
-        payment_attempt: payment_status_data
-            .payment_attempt
-            .unwrap_or(payment_data.payment_attempt.clone()),
+        payment_attempt: payment_status_data.payment_attempt,
         revenue_recovery_data: payment_data.revenue_recovery_data.clone(),
         payment_address: payment_data.payment_address.clone(),
     };
@@ -2475,7 +2546,7 @@ impl PaymentRedirectFlow for PaymentRedirectCompleteAuthorize {
                     .clone()
                     .and_then(|next_action_data| match next_action_data {
                         api_models::payments::NextActionData::RedirectToUrl { redirect_to_url } => Some(redirect_to_url),
-                        api_models::payments::NextActionData::RedirectInsidePopup{popup_url} => Some(popup_url),
+                        api_models::payments::NextActionData::RedirectInsidePopup{popup_url, ..} => Some(popup_url),
                         api_models::payments::NextActionData::DisplayBankTransferInformation { .. } => None,
                         api_models::payments::NextActionData::ThirdPartySdkSessionToken { .. } => None,
                         api_models::payments::NextActionData::QrCodeInformation{..} => None,
@@ -2664,6 +2735,7 @@ impl ValidateStatusForOperation for &PaymentRedirectSync {
         match intent_status {
             common_enums::IntentStatus::RequiresCustomerAction => Ok(()),
             common_enums::IntentStatus::Succeeded
+            | common_enums::IntentStatus::Conflicted
             | common_enums::IntentStatus::Failed
             | common_enums::IntentStatus::Cancelled
             | common_enums::IntentStatus::Processing
@@ -2730,11 +2802,7 @@ impl PaymentRedirectFlow for PaymentRedirectSync {
         let payment_data = &get_tracker_response.payment_data;
         self.validate_status_for_operation(payment_data.payment_intent.status)?;
 
-        let payment_attempt = payment_data
-            .payment_attempt
-            .as_ref()
-            .ok_or(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable("payment_attempt not found in get_tracker_response")?;
+        let payment_attempt = payment_data.payment_attempt.clone();
 
         let connector = payment_attempt
             .connector
@@ -3252,6 +3320,10 @@ where
         &call_connector_action,
     );
 
+    let should_continue_further = router_data
+        .create_order_at_connector(state, &connector, should_continue_further)
+        .await?;
+
     let updated_customer = call_create_connector_customer_if_required(
         state,
         customer,
@@ -3434,6 +3506,17 @@ where
             id: merchant_connector_id.get_string_repr().to_owned(),
         })?;
 
+    operation
+        .to_domain()?
+        .populate_payment_data(
+            state,
+            payment_data,
+            merchant_context,
+            business_profile,
+            &connector,
+        )
+        .await?;
+
     let updated_customer = call_create_connector_customer_if_required(
         state,
         customer,
@@ -3471,6 +3554,10 @@ where
         &mut router_data,
         &call_connector_action,
     );
+
+    let should_continue_further = router_data
+        .create_order_at_connector(state, &connector, should_continue_further)
+        .await?;
 
     // In case of authorize flow, pre-task and post-tasks are being called in build request
     // if we do not want to proceed further, then the function will return Ok(None, false)
@@ -5171,6 +5258,7 @@ async fn decide_payment_method_tokenize_action(
     state: &SessionState,
     connector_name: &str,
     payment_method: storage::enums::PaymentMethod,
+    payment_intent_data: payments::PaymentIntent,
     pm_parent_token: Option<&str>,
     is_connector_tokenization_enabled: bool,
     apple_pay_flow: Option<domain::ApplePayFlow>,
@@ -5206,6 +5294,11 @@ async fn decide_payment_method_tokenize_action(
                 }
             }
         }
+    } else if matches!(
+        payment_intent_data.split_payments,
+        Some(common_types::payments::SplitPaymentsRequest::StripeSplitPayment(_))
+    ) {
+        Ok(TokenizationAction::TokenizeInConnector)
     } else {
         match pm_parent_token {
             None => Ok(match (is_connector_tokenization_enabled, apple_pay_flow) {
@@ -5375,6 +5468,7 @@ where
                 state,
                 &connector,
                 payment_method,
+                payment_data.get_payment_intent().clone(),
                 payment_data.get_token(),
                 is_connector_tokenization_enabled,
                 apple_pay_flow,
@@ -6577,23 +6671,167 @@ where
     Ok(decided_connector)
 }
 
-#[allow(clippy::too_many_arguments)]
 #[cfg(feature = "v2")]
-pub async fn decide_connector<F, D>(
-    state: SessionState,
+#[allow(clippy::too_many_arguments)]
+pub async fn connector_selection<F, D>(
+    state: &SessionState,
     merchant_context: &domain::MerchantContext,
     business_profile: &domain::Profile,
     payment_data: &mut D,
-    request_straight_through: Option<api::routing::StraightThroughAlgorithm>,
-    routing_data: &mut storage::RoutingData,
-    eligible_connectors: Option<Vec<enums::RoutableConnectors>>,
     mandate_type: Option<api::MandateTransactionType>,
 ) -> RouterResult<ConnectorCallType>
 where
     F: Send + Clone,
     D: OperationSessionGetters<F> + OperationSessionSetters<F> + Send + Sync + Clone,
 {
-    todo!()
+    let mut routing_data = storage::RoutingData {
+        routed_through: payment_data.get_payment_attempt().connector.clone(),
+
+        merchant_connector_id: payment_data
+            .get_payment_attempt()
+            .merchant_connector_id
+            .clone(),
+        pre_routing_connector_choice: payment_data.get_pre_routing_result().and_then(
+            |pre_routing_results| {
+                pre_routing_results
+                    .get(&payment_data.get_payment_attempt().payment_method_subtype)
+                    .cloned()
+            },
+        ),
+
+        algorithm_requested: payment_data
+            .get_payment_intent()
+            .routing_algorithm_id
+            .clone(),
+    };
+
+    let payment_dsl_input = core_routing::PaymentsDslInput::new(
+        None,
+        payment_data.get_payment_attempt(),
+        payment_data.get_payment_intent(),
+        payment_data.get_payment_method_data(),
+        payment_data.get_address(),
+        None,
+        payment_data.get_currency(),
+    );
+
+    let decided_connector = decide_connector(
+        state.clone(),
+        merchant_context,
+        business_profile,
+        &mut routing_data,
+        payment_dsl_input,
+        mandate_type,
+    )
+    .await?;
+
+    payment_data.set_connector_in_payment_attempt(routing_data.routed_through);
+
+    payment_data.set_merchant_connector_id_in_attempt(routing_data.merchant_connector_id);
+
+    Ok(decided_connector)
+}
+
+#[allow(clippy::too_many_arguments)]
+#[cfg(feature = "v2")]
+pub async fn decide_connector(
+    state: SessionState,
+    merchant_context: &domain::MerchantContext,
+    business_profile: &domain::Profile,
+    routing_data: &mut storage::RoutingData,
+    payment_dsl_input: core_routing::PaymentsDslInput<'_>,
+    mandate_type: Option<api::MandateTransactionType>,
+) -> RouterResult<ConnectorCallType> {
+    // If the connector was already decided previously, use the same connector
+    // This is in case of flows like payments_sync, payments_cancel where the successive operations
+    // with the connector have to be made using the same connector account.
+
+    let predetermined_info_cloned = routing_data
+        .routed_through
+        .as_ref()
+        .zip(routing_data.merchant_connector_id.as_ref())
+        .map(|(cn_ref, mci_ref)| (cn_ref.clone(), mci_ref.clone()));
+
+    match (
+        predetermined_info_cloned,
+        routing_data.pre_routing_connector_choice.as_ref(),
+    ) {
+        // Condition 1: Connector was already decided previously
+        (Some((owned_connector_name, owned_merchant_connector_id)), _) => {
+            api::ConnectorData::get_connector_by_name(
+                &state.conf.connectors,
+                &owned_connector_name,
+                api::GetToken::Connector,
+                Some(owned_merchant_connector_id.clone()),
+            )
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Invalid connector name received in 'routed_through'")
+            .map(|connector_data| {
+                routing_data.routed_through = Some(owned_connector_name);
+                ConnectorCallType::PreDetermined(connector_data.into())
+            })
+        }
+        // Condition 2: Pre-routing connector choice
+        (None, Some(routable_connector_choice)) => {
+            let routable_connector_list = match routable_connector_choice {
+                storage::PreRoutingConnectorChoice::Single(routable_connector) => {
+                    vec![routable_connector.clone()]
+                }
+                storage::PreRoutingConnectorChoice::Multiple(routable_connector_list) => {
+                    routable_connector_list.clone()
+                }
+            };
+
+            routable_connector_list
+                .first()
+                .ok_or_else(|| {
+                    report!(errors::ApiErrorResponse::IncorrectPaymentMethodConfiguration)
+                        .attach_printable("No first routable connector in pre_routing_connector_choice")
+                })
+                .and_then(|first_routable_connector| {
+                    routing_data.routed_through = Some(first_routable_connector.connector.to_string());
+                    routing_data
+                        .merchant_connector_id
+                        .clone_from(&first_routable_connector.merchant_connector_id);
+
+                    let pre_routing_connector_data_list_result: RouterResult<Vec<api::ConnectorData>> = routable_connector_list
+                        .iter()
+                        .map(|connector_choice| {
+                            api::ConnectorData::get_connector_by_name(
+                                &state.conf.connectors,
+                                &connector_choice.connector.to_string(),
+                                api::GetToken::Connector,
+                                connector_choice.merchant_connector_id.clone(),
+                            )
+                            .change_context(errors::ApiErrorResponse::InternalServerError)
+                            .attach_printable("Invalid connector name received while processing pre_routing_connector_choice")
+                        })
+                        .collect::<Result<Vec<_>, _>>(); // Collects into RouterResult<Vec<ConnectorData>>
+
+                    pre_routing_connector_data_list_result
+                        .and_then(|list| {
+                            list.first()
+                                .cloned()
+                                .ok_or_else(|| {
+                                    report!(errors::ApiErrorResponse::IncorrectPaymentMethodConfiguration)
+                                        .attach_printable("Empty pre_routing_connector_data_list after mapping")
+                                })
+                                .map(|first_data| ConnectorCallType::PreDetermined(first_data.into()))
+                        })
+                })
+        }
+        (None, None) => {
+            route_connector_v2_for_payments(
+                &state,
+                merchant_context,
+                business_profile,
+                payment_dsl_input,
+                routing_data,
+                mandate_type,
+            )
+            .await
+        }
+    }
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -6746,7 +6984,7 @@ where
     }
 
     if let Some(routing_algorithm) = request_straight_through {
-        let (connectors, check_eligibility) = routing::perform_straight_through_routing(
+        let (mut connectors, check_eligibility) = routing::perform_straight_through_routing(
             &routing_algorithm,
             payment_data.get_creds_identifier(),
         )
@@ -6754,34 +6992,58 @@ where
         .attach_printable("Failed execution of straight through routing")?;
 
         if check_eligibility {
-            let new_pd = payment_data.clone();
             let transaction_data = core_routing::PaymentsDslInput::new(
-                new_pd.get_setup_mandate(),
-                new_pd.get_payment_attempt(),
-                new_pd.get_payment_intent(),
-                new_pd.get_payment_method_data(),
-                new_pd.get_address(),
-                new_pd.get_recurring_details(),
-                new_pd.get_currency(),
+                payment_data.get_setup_mandate(),
+                payment_data.get_payment_attempt(),
+                payment_data.get_payment_intent(),
+                payment_data.get_payment_method_data(),
+                payment_data.get_address(),
+                payment_data.get_recurring_details(),
+                payment_data.get_currency(),
             );
 
-            return route_connector_v1_for_payments(
-                &state,
-                merchant_context,
-                business_profile,
-                payment_data,
-                transaction_data,
-                routing_data,
+            connectors = routing::perform_eligibility_analysis_with_fallback(
+                &state.clone(),
+                merchant_context.get_merchant_key_store(),
+                connectors,
+                &TransactionData::Payment(transaction_data),
                 eligible_connectors,
-                mandate_type,
-                Some(connectors),
+                business_profile,
             )
-            .await;
+            .await
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("failed eligibility analysis and fallback")?;
         }
+
+        let connector_data = connectors
+            .into_iter()
+            .map(|conn| {
+                api::ConnectorData::get_connector_by_name(
+                    &state.conf.connectors,
+                    &conn.connector.to_string(),
+                    api::GetToken::Connector,
+                    conn.merchant_connector_id.clone(),
+                )
+                .map(|connector_data| connector_data.into())
+            })
+            .collect::<CustomResult<Vec<_>, _>>()
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Invalid connector name received")?;
+
+        return decide_multiplex_connector_for_normal_or_recurring_payment(
+            &state,
+            payment_data,
+            routing_data,
+            connector_data,
+            mandate_type,
+            business_profile.is_connector_agnostic_mit_enabled,
+            business_profile.is_network_tokenization_enabled,
+        )
+        .await;
     }
 
     if let Some(ref routing_algorithm) = routing_data.routing_info.algorithm {
-        let (connectors, check_eligibility) = routing::perform_straight_through_routing(
+        let (mut connectors, check_eligibility) = routing::perform_straight_through_routing(
             routing_algorithm,
             payment_data.get_creds_identifier(),
         )
@@ -6789,30 +7051,54 @@ where
         .attach_printable("Failed execution of straight through routing")?;
 
         if check_eligibility {
-            let new_pd = payment_data.clone();
             let transaction_data = core_routing::PaymentsDslInput::new(
-                new_pd.get_setup_mandate(),
-                new_pd.get_payment_attempt(),
-                new_pd.get_payment_intent(),
-                new_pd.get_payment_method_data(),
-                new_pd.get_address(),
-                new_pd.get_recurring_details(),
-                new_pd.get_currency(),
+                payment_data.get_setup_mandate(),
+                payment_data.get_payment_attempt(),
+                payment_data.get_payment_intent(),
+                payment_data.get_payment_method_data(),
+                payment_data.get_address(),
+                payment_data.get_recurring_details(),
+                payment_data.get_currency(),
             );
 
-            return route_connector_v1_for_payments(
+            connectors = routing::perform_eligibility_analysis_with_fallback(
                 &state,
-                merchant_context,
-                business_profile,
-                payment_data,
-                transaction_data,
-                routing_data,
+                merchant_context.get_merchant_key_store(),
+                connectors,
+                &TransactionData::Payment(transaction_data),
                 eligible_connectors,
-                mandate_type,
-                Some(connectors),
+                business_profile,
             )
-            .await;
+            .await
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("failed eligibility analysis and fallback")?;
         }
+
+        let connector_data = connectors
+            .into_iter()
+            .map(|conn| {
+                api::ConnectorData::get_connector_by_name(
+                    &state.conf.connectors,
+                    &conn.connector.to_string(),
+                    api::GetToken::Connector,
+                    conn.merchant_connector_id,
+                )
+                .map(|connector_data| connector_data.into())
+            })
+            .collect::<CustomResult<Vec<_>, _>>()
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Invalid connector name received")?;
+
+        return decide_multiplex_connector_for_normal_or_recurring_payment(
+            &state,
+            payment_data,
+            routing_data,
+            connector_data,
+            mandate_type,
+            business_profile.is_connector_agnostic_mit_enabled,
+            business_profile.is_network_tokenization_enabled,
+        )
+        .await;
     }
 
     let new_pd = payment_data.clone();
@@ -6835,24 +7121,8 @@ where
         routing_data,
         eligible_connectors,
         mandate_type,
-        None,
     )
     .await
-}
-
-#[cfg(feature = "v2")]
-pub async fn decide_multiplex_connector_for_normal_or_recurring_payment<F: Clone, D>(
-    state: &SessionState,
-    payment_data: &mut D,
-    routing_data: &mut storage::RoutingData,
-    connectors: Vec<api::ConnectorData>,
-    mandate_type: Option<api::MandateTransactionType>,
-    is_connector_agnostic_mit_enabled: Option<bool>,
-) -> RouterResult<ConnectorCallType>
-where
-    D: OperationSessionGetters<F> + OperationSessionSetters<F> + Send + Sync + Clone,
-{
-    todo!()
 }
 
 #[cfg(feature = "v1")]
@@ -7008,7 +7278,6 @@ where
                 Err(errors::ApiErrorResponse::IncorrectPaymentMethodConfiguration.into())
             }
         }
-
         _ => {
             helpers::override_setup_future_usage_to_on_session(&*state.store, payment_data).await?;
 
@@ -7028,26 +7297,7 @@ where
     }
 }
 
-#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
-#[allow(clippy::too_many_arguments)]
-pub async fn decide_connector_for_normal_or_recurring_payment<F: Clone, D>(
-    state: &SessionState,
-    payment_data: &mut D,
-    routing_data: &mut storage::RoutingData,
-    connectors: Vec<api::ConnectorData>,
-    is_connector_agnostic_mit_enabled: Option<bool>,
-    payment_method_info: &domain::PaymentMethod,
-) -> RouterResult<ConnectorCallType>
-where
-    D: OperationSessionGetters<F> + OperationSessionSetters<F> + Send + Sync + Clone,
-{
-    todo!()
-}
-
-#[cfg(all(
-    any(feature = "v2", feature = "v1"),
-    not(feature = "payment_methods_v2")
-))]
+#[cfg(feature = "v1")]
 #[allow(clippy::too_many_arguments)]
 pub async fn decide_connector_for_normal_or_recurring_payment<F: Clone, D>(
     state: &SessionState,
@@ -7403,6 +7653,60 @@ where
     })
 }
 
+#[cfg(feature = "v2")]
+#[allow(clippy::too_many_arguments)]
+pub async fn route_connector_v2_for_payments(
+    state: &SessionState,
+    merchant_context: &domain::MerchantContext,
+    business_profile: &domain::Profile,
+    transaction_data: core_routing::PaymentsDslInput<'_>,
+    routing_data: &mut storage::RoutingData,
+    _mandate_type: Option<api::MandateTransactionType>,
+) -> RouterResult<ConnectorCallType> {
+    let routing_algorithm_id = routing_data
+        .algorithm_requested
+        .as_ref()
+        .or(business_profile.routing_algorithm_id.as_ref());
+
+    let connectors = routing::perform_static_routing_v1(
+        state,
+        merchant_context.get_merchant_account().get_id(),
+        routing_algorithm_id,
+        business_profile,
+        &TransactionData::Payment(transaction_data.clone()),
+    )
+    .await
+    .change_context(errors::ApiErrorResponse::InternalServerError)?;
+
+    let connectors = routing::perform_eligibility_analysis_with_fallback(
+        &state.clone(),
+        merchant_context.get_merchant_key_store(),
+        connectors,
+        &TransactionData::Payment(transaction_data),
+        None,
+        business_profile,
+    )
+    .await
+    .change_context(errors::ApiErrorResponse::InternalServerError)
+    .attach_printable("failed eligibility analysis and fallback")?;
+
+    connectors
+        .first()
+        .map(|conn| {
+            routing_data.routed_through = Some(conn.connector.to_string());
+            routing_data.merchant_connector_id = conn.merchant_connector_id.clone();
+            api::ConnectorData::get_connector_by_name(
+                &state.conf.connectors,
+                &conn.connector.to_string(),
+                api::GetToken::Connector,
+                conn.merchant_connector_id.clone(),
+            )
+        })
+        .ok_or(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Invalid connector name received")?
+        .map(|connector_data| ConnectorCallType::PreDetermined(connector_data.into()))
+}
+
 #[cfg(feature = "v1")]
 #[allow(clippy::too_many_arguments)]
 pub async fn route_connector_v1_for_payments<F, D>(
@@ -7414,7 +7718,6 @@ pub async fn route_connector_v1_for_payments<F, D>(
     routing_data: &mut storage::RoutingData,
     eligible_connectors: Option<Vec<enums::RoutableConnectors>>,
     mandate_type: Option<api::MandateTransactionType>,
-    connector_list: Option<Vec<api_models::routing::RoutableConnectorChoice>>,
 ) -> RouterResult<ConnectorCallType>
 where
     F: Send + Clone,
@@ -7432,7 +7735,7 @@ where
         algorithm_ref.algorithm_id
     };
 
-    let mut connectors = routing::perform_static_routing_v1(
+    let connectors = routing::perform_static_routing_v1(
         state,
         merchant_context.get_merchant_account().get_id(),
         routing_algorithm_id.as_ref(),
@@ -7442,20 +7745,10 @@ where
     .await
     .change_context(errors::ApiErrorResponse::InternalServerError)?;
 
-    // adds straight through connectors to the list of connectors in the active routing algorithm
-    // and perform eligibility analysis on the combined set of connectors
-
-    connectors = connector_list
-        .map(|mut straight_through_connectors| {
-            straight_through_connectors.extend(connectors.clone());
-            straight_through_connectors
-        })
-        .unwrap_or_else(|| connectors);
-
     #[cfg(all(feature = "v1", feature = "dynamic_routing"))]
     let payment_attempt = transaction_data.payment_attempt.clone();
 
-    connectors = routing::perform_eligibility_analysis_with_fallback(
+    let connectors = routing::perform_eligibility_analysis_with_fallback(
         &state.clone(),
         merchant_context.get_merchant_key_store(),
         connectors,
@@ -7542,6 +7835,7 @@ where
                     connectors.clone(),
                     business_profile,
                     dynamic_routing_config_params_interpolator,
+                    payment_data.get_payment_attempt(),
                 )
                 .await
                 .map_err(|e| logger::error!(dynamic_routing_error=?e))
@@ -7666,7 +7960,7 @@ pub async fn route_connector_v1_for_payouts(
     Ok(ConnectorCallType::Retryable(connector_data))
 }
 
-#[cfg(all(feature = "v2", feature = "customer_v2"))]
+#[cfg(feature = "v2")]
 pub async fn payment_external_authentication(
     _state: SessionState,
     _merchant_context: domain::MerchantContext,
@@ -7675,7 +7969,7 @@ pub async fn payment_external_authentication(
     todo!()
 }
 
-#[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
+#[cfg(feature = "v1")]
 #[instrument(skip_all)]
 pub async fn payment_external_authentication<F: Clone + Sync>(
     state: SessionState,
@@ -8253,7 +8547,6 @@ pub trait OperationSessionGetters<F> {
     fn get_capture_method(&self) -> Option<enums::CaptureMethod>;
     fn get_merchant_connector_id_in_attempt(&self) -> Option<id_type::MerchantConnectorAccountId>;
 
-    #[cfg(feature = "v1")]
     fn get_connector_customer_id(&self) -> Option<String>;
     fn get_whole_connector_response(&self) -> Option<String>;
 
@@ -8262,6 +8555,14 @@ pub trait OperationSessionGetters<F> {
 
     #[cfg(feature = "v2")]
     fn get_optional_payment_attempt(&self) -> Option<&storage::PaymentAttempt>;
+
+    #[cfg(feature = "v2")]
+    fn get_pre_routing_result(
+        &self,
+    ) -> Option<HashMap<enums::PaymentMethodType, domain::PreRoutingConnectorChoice>>;
+
+    #[cfg(feature = "v2")]
+    fn get_optional_external_vault_session_details(&self) -> Option<api::VaultSessionDetails>;
 }
 
 pub trait OperationSessionSetters<F> {
@@ -8310,10 +8611,26 @@ pub trait OperationSessionSetters<F> {
         &mut self,
         straight_through_algorithm: serde_json::Value,
     );
+
+    #[cfg(feature = "v2")]
+    fn set_prerouting_algorithm_in_payment_intent(
+        &mut self,
+        straight_through_algorithm: storage::PaymentRoutingInfo,
+    );
+
     fn set_connector_in_payment_attempt(&mut self, connector: Option<String>);
 
     #[cfg(feature = "v1")]
     fn set_vault_operation(&mut self, vault_operation: domain_payments::VaultOperation);
+
+    #[cfg(feature = "v2")]
+    fn set_connector_request_reference_id(&mut self, reference_id: Option<String>);
+
+    #[cfg(feature = "v2")]
+    fn set_vault_session_details(
+        &mut self,
+        external_vault_session_details: Option<api::VaultSessionDetails>,
+    );
 }
 
 #[cfg(feature = "v1")]
@@ -8464,7 +8781,6 @@ impl<F: Clone> OperationSessionGetters<F> for PaymentData<F> {
         self.vault_operation.as_ref()
     }
 
-    #[cfg(feature = "v1")]
     fn get_connector_customer_id(&self) -> Option<String> {
         self.connector_customer_id.clone()
     }
@@ -8722,6 +9038,10 @@ impl<F: Clone> OperationSessionGetters<F> for PaymentIntentData<F> {
         todo!()
     }
 
+    fn get_connector_customer_id(&self) -> Option<String> {
+        self.connector_customer_id.clone()
+    }
+
     fn get_billing_address(&self) -> Option<hyperswitch_domain_models::address::Address> {
         todo!()
     }
@@ -8761,10 +9081,26 @@ impl<F: Clone> OperationSessionGetters<F> for PaymentIntentData<F> {
     fn get_whole_connector_response(&self) -> Option<String> {
         todo!();
     }
+
+    fn get_pre_routing_result(
+        &self,
+    ) -> Option<HashMap<enums::PaymentMethodType, domain::PreRoutingConnectorChoice>> {
+        None
+    }
+
+    fn get_optional_external_vault_session_details(&self) -> Option<api::VaultSessionDetails> {
+        self.vault_session_details.clone()
+    }
 }
 
 #[cfg(feature = "v2")]
 impl<F: Clone> OperationSessionSetters<F> for PaymentIntentData<F> {
+    fn set_prerouting_algorithm_in_payment_intent(
+        &mut self,
+        straight_through_algorithm: storage::PaymentRoutingInfo,
+    ) {
+        self.payment_intent.prerouting_algorithm = Some(straight_through_algorithm);
+    }
     // Setters Implementation
     fn set_payment_intent(&mut self, payment_intent: storage::PaymentIntent) {
         self.payment_intent = payment_intent;
@@ -8803,8 +9139,8 @@ impl<F: Clone> OperationSessionSetters<F> for PaymentIntentData<F> {
         todo!()
     }
 
-    fn set_connector_customer_id(&mut self, _customer_id: Option<String>) {
-        todo!()
+    fn set_connector_customer_id(&mut self, customer_id: Option<String>) {
+        self.connector_customer_id = customer_id;
     }
 
     fn push_sessions_token(&mut self, token: api::SessionToken) {
@@ -8858,6 +9194,17 @@ impl<F: Clone> OperationSessionSetters<F> for PaymentIntentData<F> {
 
     fn set_connector_in_payment_attempt(&mut self, _connector: Option<String>) {
         todo!()
+    }
+
+    fn set_connector_request_reference_id(&mut self, reference_id: Option<String>) {
+        todo!()
+    }
+
+    fn set_vault_session_details(
+        &mut self,
+        vault_session_details: Option<api::VaultSessionDetails>,
+    ) {
+        self.vault_session_details = vault_session_details;
     }
 }
 
@@ -8965,6 +9312,10 @@ impl<F: Clone> OperationSessionGetters<F> for PaymentConfirmData<F> {
         self.payment_attempt.merchant_connector_id.clone()
     }
 
+    fn get_connector_customer_id(&self) -> Option<String> {
+        todo!()
+    }
+
     fn get_billing_address(&self) -> Option<hyperswitch_domain_models::address::Address> {
         todo!()
     }
@@ -9004,10 +9355,30 @@ impl<F: Clone> OperationSessionGetters<F> for PaymentConfirmData<F> {
     fn get_whole_connector_response(&self) -> Option<String> {
         todo!()
     }
+
+    fn get_pre_routing_result(
+        &self,
+    ) -> Option<HashMap<enums::PaymentMethodType, domain::PreRoutingConnectorChoice>> {
+        self.get_payment_intent()
+            .prerouting_algorithm
+            .clone()
+            .and_then(|pre_routing_algorithm| pre_routing_algorithm.pre_routing_results)
+    }
+
+    fn get_optional_external_vault_session_details(&self) -> Option<api::VaultSessionDetails> {
+        todo!()
+    }
 }
 
 #[cfg(feature = "v2")]
 impl<F: Clone> OperationSessionSetters<F> for PaymentConfirmData<F> {
+    #[cfg(feature = "v2")]
+    fn set_prerouting_algorithm_in_payment_intent(
+        &mut self,
+        straight_through_algorithm: storage::PaymentRoutingInfo,
+    ) {
+        self.payment_intent.prerouting_algorithm = Some(straight_through_algorithm);
+    }
     // Setters Implementation
     fn set_payment_intent(&mut self, payment_intent: storage::PaymentIntent) {
         self.payment_intent = payment_intent;
@@ -9103,13 +9474,24 @@ impl<F: Clone> OperationSessionSetters<F> for PaymentConfirmData<F> {
     fn set_connector_in_payment_attempt(&mut self, connector: Option<String>) {
         self.payment_attempt.connector = connector;
     }
+
+    fn set_connector_request_reference_id(&mut self, reference_id: Option<String>) {
+        self.payment_attempt.connector_request_reference_id = reference_id;
+    }
+
+    fn set_vault_session_details(
+        &mut self,
+        external_vault_session_details: Option<api::VaultSessionDetails>,
+    ) {
+        todo!()
+    }
 }
 
 #[cfg(feature = "v2")]
 impl<F: Clone> OperationSessionGetters<F> for PaymentStatusData<F> {
     #[track_caller]
     fn get_payment_attempt(&self) -> &storage::PaymentAttempt {
-        todo!()
+        &self.payment_attempt
     }
     fn get_client_secret(&self) -> &Option<Secret<String>> {
         todo!()
@@ -9209,6 +9591,10 @@ impl<F: Clone> OperationSessionGetters<F> for PaymentStatusData<F> {
         todo!()
     }
 
+    fn get_connector_customer_id(&self) -> Option<String> {
+        todo!()
+    }
+
     fn get_billing_address(&self) -> Option<hyperswitch_domain_models::address::Address> {
         todo!()
     }
@@ -9238,7 +9624,7 @@ impl<F: Clone> OperationSessionGetters<F> for PaymentStatusData<F> {
     }
 
     fn get_optional_payment_attempt(&self) -> Option<&storage::PaymentAttempt> {
-        self.payment_attempt.as_ref()
+        Some(&self.payment_attempt)
     }
 
     fn get_all_keys_required(&self) -> Option<bool> {
@@ -9248,10 +9634,27 @@ impl<F: Clone> OperationSessionGetters<F> for PaymentStatusData<F> {
     fn get_whole_connector_response(&self) -> Option<String> {
         todo!()
     }
+
+    fn get_pre_routing_result(
+        &self,
+    ) -> Option<HashMap<enums::PaymentMethodType, domain::PreRoutingConnectorChoice>> {
+        None
+    }
+
+    fn get_optional_external_vault_session_details(&self) -> Option<api::VaultSessionDetails> {
+        todo!()
+    }
 }
 
 #[cfg(feature = "v2")]
 impl<F: Clone> OperationSessionSetters<F> for PaymentStatusData<F> {
+    #[cfg(feature = "v2")]
+    fn set_prerouting_algorithm_in_payment_intent(
+        &mut self,
+        straight_through_algorithm: storage::PaymentRoutingInfo,
+    ) {
+        self.payment_intent.prerouting_algorithm = Some(straight_through_algorithm);
+    }
     fn set_payment_intent(&mut self, payment_intent: storage::PaymentIntent) {
         self.payment_intent = payment_intent;
     }
@@ -9259,7 +9662,7 @@ impl<F: Clone> OperationSessionSetters<F> for PaymentStatusData<F> {
         todo!()
     }
     fn set_payment_attempt(&mut self, payment_attempt: storage::PaymentAttempt) {
-        self.payment_attempt = Some(payment_attempt);
+        self.payment_attempt = payment_attempt;
     }
 
     fn set_payment_method_data(&mut self, _payment_method_data: Option<domain::PaymentMethodData>) {
@@ -9344,6 +9747,17 @@ impl<F: Clone> OperationSessionSetters<F> for PaymentStatusData<F> {
     }
 
     fn set_connector_in_payment_attempt(&mut self, connector: Option<String>) {
+        todo!()
+    }
+
+    fn set_connector_request_reference_id(&mut self, reference_id: Option<String>) {
+        todo!()
+    }
+
+    fn set_vault_session_details(
+        &mut self,
+        external_vault_session_details: Option<api::VaultSessionDetails>,
+    ) {
         todo!()
     }
 }
@@ -9453,6 +9867,10 @@ impl<F: Clone> OperationSessionGetters<F> for PaymentCaptureData<F> {
         todo!()
     }
 
+    fn get_connector_customer_id(&self) -> Option<String> {
+        todo!()
+    }
+
     fn get_billing_address(&self) -> Option<hyperswitch_domain_models::address::Address> {
         todo!()
     }
@@ -9493,10 +9911,26 @@ impl<F: Clone> OperationSessionGetters<F> for PaymentCaptureData<F> {
     fn get_whole_connector_response(&self) -> Option<String> {
         todo!();
     }
+    fn get_pre_routing_result(
+        &self,
+    ) -> Option<HashMap<enums::PaymentMethodType, domain::PreRoutingConnectorChoice>> {
+        None
+    }
+
+    fn get_optional_external_vault_session_details(&self) -> Option<api::VaultSessionDetails> {
+        todo!()
+    }
 }
 
 #[cfg(feature = "v2")]
 impl<F: Clone> OperationSessionSetters<F> for PaymentCaptureData<F> {
+    #[cfg(feature = "v2")]
+    fn set_prerouting_algorithm_in_payment_intent(
+        &mut self,
+        straight_through_algorithm: storage::PaymentRoutingInfo,
+    ) {
+        self.payment_intent.prerouting_algorithm = Some(straight_through_algorithm);
+    }
     fn set_payment_intent(&mut self, payment_intent: storage::PaymentIntent) {
         self.payment_intent = payment_intent;
     }
@@ -9589,6 +10023,17 @@ impl<F: Clone> OperationSessionSetters<F> for PaymentCaptureData<F> {
     }
 
     fn set_connector_in_payment_attempt(&mut self, connector: Option<String>) {
+        todo!()
+    }
+
+    fn set_connector_request_reference_id(&mut self, reference_id: Option<String>) {
+        todo!()
+    }
+
+    fn set_vault_session_details(
+        &mut self,
+        external_vault_session_details: Option<api::VaultSessionDetails>,
+    ) {
         todo!()
     }
 }

@@ -132,7 +132,8 @@ pub fn mk_app(
             {
                 server_app = server_app
                     .service(routes::ProfileNew::server(state.clone()))
-                    .service(routes::Forex::server(state.clone()));
+                    .service(routes::Forex::server(state.clone()))
+                    .service(routes::ProfileAcquirer::server(state.clone()));
             }
 
             server_app = server_app.service(routes::Profile::server(state.clone()));
@@ -145,7 +146,8 @@ pub fn mk_app(
             .service(routes::RelayWebhooks::server(state.clone()))
             .service(routes::Webhooks::server(state.clone()))
             .service(routes::Hypersense::server(state.clone()))
-            .service(routes::Relay::server(state.clone()));
+            .service(routes::Relay::server(state.clone()))
+            .service(routes::ThreeDsDecisionRule::server(state.clone()));
 
         #[cfg(feature = "oltp")]
         {
@@ -175,11 +177,7 @@ pub fn mk_app(
     {
         server_app = server_app.service(routes::EphemeralKey::server(state.clone()))
     }
-    #[cfg(all(
-        feature = "oltp",
-        any(feature = "v1", feature = "v2"),
-        not(feature = "customer_v2")
-    ))]
+    #[cfg(all(feature = "oltp", feature = "v1"))]
     {
         server_app = server_app.service(routes::Poll::server(state.clone()))
     }
@@ -222,18 +220,14 @@ pub fn mk_app(
             .service(routes::PayoutLink::server(state.clone()));
     }
 
-    #[cfg(all(
-        feature = "stripe",
-        any(feature = "v1", feature = "v2"),
-        not(feature = "customer_v2")
-    ))]
+    #[cfg(all(feature = "stripe", feature = "v1"))]
     {
         server_app = server_app
             .service(routes::StripeApis::server(state.clone()))
             .service(routes::Cards::server(state.clone()));
     }
 
-    #[cfg(all(feature = "oltp", feature = "v2", feature = "payment_methods_v2"))]
+    #[cfg(all(feature = "oltp", feature = "v2"))]
     {
         server_app = server_app.service(routes::Proxy::server(state.clone()));
     }
