@@ -705,8 +705,6 @@ async fn network_token_incoming_webhooks_core<W: types::OutgoingWebhookType>(
         .parse_struct("NetworkTokenWebhookResponse")
         .change_context(errors::ApiErrorResponse::WebhookUnprocessableEntity)?;
 
-    let response__ = get_response_data(response.clone());
-
     let (merchant_id, payment_method_id, _customer_id) = response
         .fetch_merchant_id_payment_method_id_customer_id_from_callback_mapper(state)
         .await?;
@@ -727,7 +725,9 @@ async fn network_token_incoming_webhooks_core<W: types::OutgoingWebhookType>(
     )
     .await?;
 
-    let webhook_resp_tracker = response__
+    let response_data = get_response_data(response.clone());
+
+    let webhook_resp_tracker = response_data
         .update_payment_method(state, &payment_method, &merchant_context)
         .await?;
 
@@ -738,40 +738,6 @@ async fn network_token_incoming_webhooks_core<W: types::OutgoingWebhookType>(
         merchant_id.clone(),
     ))
 }
-
-// pub async fn fetch_merchant_id_payment_method_id_customer_id_from_callback_mapper<
-//     T: NetworkTokenWebhookResponseExt + ?Sized,
-// >(
-//     state: &SessionState,
-//     d: &T,
-// ) -> errors::RouterResult<(
-//     common_utils::id_type::MerchantId,
-//     String,
-//     common_utils::id_type::CustomerId,
-// )> {
-//     let network_token_requestor_ref_id = &T::get_network_token_requestor_ref_id(d);
-
-//     let db = &*state.store;
-//     let callback_mapper_data = db
-//         .find_call_back_mapper_by_id(network_token_requestor_ref_id)
-//         .await
-//         .change_context(errors::ApiErrorResponse::InternalServerError)?;
-
-//     let callback_data: domain::callback_mapper::CallBackMapperData = callback_mapper_data
-//         .data
-//         .parse_value("CallbackMapperData")
-//         .change_context(errors::ApiErrorResponse::InvalidDataValue {
-//             field_name: "callback mapper data",
-//         })?;
-
-//     match callback_data {
-//         domain::callback_mapper::CallBackMapperData::NetworkTokenWebhook {
-//             merchant_id,
-//             payment_method_id,
-//             customer_id,
-//         } => Ok((merchant_id, payment_method_id, customer_id)),
-//     }
-// }
 
 fn get_response_data(
     data: network_tokenization::NetworkTokenWebhookResponse,
@@ -856,9 +822,6 @@ impl NetworkTokenWebhookResponseExt for pm_types::PanMetadataUpdateBody {
 
 #[async_trait]
 impl NetworkTokenWebhookResponseExt for pm_types::NetworkTokenMetaDataUpdateBody {
-    // fn get_network_token_requestor_ref_id(&self) -> String {
-    //     self.token.card_reference.clone()
-    // }
 
     fn decrypt_payment_method_data(
         &self,

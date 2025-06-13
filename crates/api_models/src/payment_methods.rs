@@ -1090,6 +1090,23 @@ pub struct Card {
     pub nick_name: Option<String>,
 }
 
+#[cfg(feature = "v1")]
+impl From<(Card, Option<common_enums::CardNetwork>)> for CardDetail {
+    fn from((card, card_network): (Card, Option<common_enums::CardNetwork>)) -> Self {
+        Self {
+            card_number: card.card_number.clone(),
+            card_exp_month: card.card_exp_month.clone(),
+            card_exp_year: card.card_exp_year.clone(),
+            card_holder_name: card.name_on_card.clone(),
+            nick_name: card.nick_name.map(masking::Secret::new),
+            card_issuing_country: None,
+            card_network,
+            card_issuer: None,
+            card_type: None,
+        }
+    }
+}
+
 #[cfg(all(
     any(feature = "v1", feature = "v2"),
     not(feature = "payment_methods_v2")

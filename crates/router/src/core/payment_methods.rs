@@ -25,7 +25,7 @@ use api_models::{payment_methods, webhooks::WebhookResponseTracker};
 use common_utils::{
     consts::DEFAULT_LOCALE,
     crypto::Encryptable,
-    ext_traits::{Encode, OptionExt},
+    ext_traits::{Encode, OptionExt, AsyncExt},
     fp_utils::when,
     id_type,
 };
@@ -3346,7 +3346,7 @@ pub async fn handle_metadata_update(
     decrypted_data: payment_methods::CardDetailFromLocker,
     is_pan_update: bool,
 ) -> RouterResult<WebhookResponseTracker> {
-    use common_utils::ext_traits::AsyncExt;
+    
 
     let merchant_id = merchant_context.get_merchant_account().get_id();
     let customer_id = &payment_method.customer_id;
@@ -3370,23 +3370,15 @@ pub async fn handle_metadata_update(
 
     let card_network = card
         .card_brand
+        .clone()
         .map(|card_brand| enums::CardNetwork::from_str(&card_brand))
         .transpose()
         .change_context(errors::ApiErrorResponse::InvalidDataValue {
             field_name: "card network",
         })?;
 
-    let card_data = payment_methods::CardDetail {
-        card_number: card.card_number.clone(),
-        card_exp_month: card.card_exp_month.clone(),
-        card_exp_year: card.card_exp_year.clone(),
-        card_holder_name: None,
-        nick_name: None,
-        card_issuing_country: None,
-        card_network,
-        card_issuer: None,
-        card_type: None,
-    };
+
+    let card_data = payment_methods::CardDetail::from((card, card_network));
 
     let payment_method_request: payment_methods::PaymentMethodCreate =
         PaymentMethodCreateWrapper::from((&card_data, payment_method)).get_inner();

@@ -9,11 +9,12 @@ use api_models::payment_methods as api_payment_methods;
 use cards::{CardNumber, NetworkToken};
 use common_utils::{
     errors::CustomResult,
-    ext_traits::{ByteSliceExt, BytesExt, Encode, ValueExt},
+    ext_traits::{ByteSliceExt, BytesExt, Encode},
     id_type,
     metrics::utils::record_operation_time,
     request::RequestContent,
 };
+use common_types::callback_mapper::CallbackMapperData;
 #[cfg(all(
     any(feature = "v1", feature = "v2"),
     not(feature = "payment_methods_v2")
@@ -991,15 +992,15 @@ impl NetworkTokenWebhookResponse {
             .await
             .change_context(errors::ApiErrorResponse::InternalServerError)?;
 
-        let callback_data: domain::callback_mapper::CallBackMapperData = callback_mapper_data
-            .data
-            .parse_value("CallbackMapperData")
-            .change_context(errors::ApiErrorResponse::InvalidDataValue {
-                field_name: "callback mapper data",
-            })?;
+        // let callback_data: domain::callback_mapper::CallbackMapperData = callback_mapper_data
+        //     .data
+        //     .parse_value("CallbackMapperData")
+        //     .change_context(errors::ApiErrorResponse::InvalidDataValue {
+        //         field_name: "callback mapper data",
+        //     })?;
 
-        match callback_data {
-            domain::callback_mapper::CallBackMapperData::NetworkTokenWebhook {
+        match callback_mapper_data.data {
+            CallbackMapperData::NetworkTokenWebhook {
                 merchant_id,
                 payment_method_id,
                 customer_id,

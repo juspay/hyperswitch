@@ -8342,3 +8342,12 @@ pub enum TokenDataType {
     /// Fetch network token for the given payment method
     NetworkToken,
 }
+
+#[derive(
+    Clone, Copy, Debug, Eq, PartialEq, serde::Serialize, serde::Deserialize, ToSchema, strum::Display, strum::EnumString, Hash
+)]
+#[serde(rename_all = "snake_case")]
+#[router_derive::diesel_enum(storage_type = "text")]
+pub enum CallbackMapperIdType{
+    NetworkTokenRequestorRefernceID
+}
