@@ -3078,6 +3078,9 @@ pub async fn list_payment_methods(
     let mut bank_transfer_consolidated_hm =
         HashMap::<api_enums::PaymentMethodType, Vec<String>>::new();
 
+    let mut open_banking_consolidated_hm =
+        HashMap::<api_enums::PaymentMethodType, Vec<String>>::new();
+
     // All the required fields will be stored here and later filtered out based on business profile config
     let mut required_fields_hm = HashMap::<
         api_enums::PaymentMethod,
@@ -3233,6 +3236,16 @@ pub async fn list_payment_methods(
                 vector_of_connectors.push(connector);
             } else {
                 banks_consolidated_hm.insert(element.payment_method_type, vec![connector]);
+            }
+        }
+        if element.payment_method == api_enums::PaymentMethod::OpenBanking {
+            let connector = element.connector.clone();
+            if let Some(vector_of_connectors) =
+                open_banking_consolidated_hm.get_mut(&element.payment_method_type)
+            {
+                vector_of_connectors.push(connector);
+            } else {
+                open_banking_consolidated_hm.insert(element.payment_method_type, vec![connector]);
             }
         }
 
@@ -3439,6 +3452,41 @@ pub async fn list_payment_methods(
         payment_method_responses.push(ResponsePaymentMethodsEnabled {
             payment_method: api_enums::PaymentMethod::BankTransfer,
             payment_method_types: bank_transfer_payment_method_types,
+        });
+    }
+    let mut open_banking_payment_method_types = vec![];
+
+    for key in open_banking_consolidated_hm.iter() {
+        let payment_method_type = *key.0;
+        let connectors = key.1.clone();
+        open_banking_payment_method_types.push({
+            ResponsePaymentMethodTypes {
+                payment_method_type,
+                bank_names: None,
+                payment_experience: None,
+                card_networks: None,
+                bank_debits: None,
+                bank_transfers: Some(api_models::payment_methods::BankTransferTypes {
+                    eligible_connectors: connectors,
+                }),
+                // Required fields for OpenBanking payment method
+                required_fields: required_fields_hm
+                    .get(&api_enums::PaymentMethod::OpenBanking)
+                    .and_then(|inner_hm| inner_hm.get(key.0))
+                    .cloned(),
+                surcharge_details: None,
+                pm_auth_connector: pmt_to_auth_connector
+                    .get(&enums::PaymentMethod::OpenBanking)
+                    .and_then(|pm_map| pm_map.get(key.0))
+                    .cloned(),
+            }
+        })
+    }
+
+    if !open_banking_payment_method_types.is_empty() {
+        payment_method_responses.push(ResponsePaymentMethodsEnabled {
+            payment_method: api_enums::PaymentMethod::OpenBanking,
+            payment_method_types: open_banking_payment_method_types,
         });
     }
     let currency = payment_intent.as_ref().and_then(|pi| pi.currency);
@@ -3833,6 +3881,7 @@ pub async fn filter_payment_methods(
                             .unwrap_or(false)
                     {
                         payment_intent.map(|intent| intent.amount).map(|amount| {
+                            dbg!("Payment intent amount:", amount);
                             if amount == MinorUnit::zero() {
                                 if configs
                                     .zero_mandates
