@@ -195,7 +195,7 @@ pub struct PaymentAttemptBatchNew {
     pub net_amount: Option<MinorUnit>,
     pub external_three_ds_authentication_attempted: Option<bool>,
     pub authentication_connector: Option<String>,
-    pub authentication_id: Option<String>,
+    pub authentication_id: Option<common_utils::id_type::AuthenticationId>,
     pub mandate_data: Option<MandateDetails>,
     pub payment_method_billing_address_id: Option<String>,
     pub fingerprint_id: Option<String>,

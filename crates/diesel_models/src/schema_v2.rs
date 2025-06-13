@@ -67,7 +67,7 @@ diesel::table! {
         #[max_length = 64]
         merchant_id -> Varchar,
         #[max_length = 64]
-        authentication_connector -> Varchar,
+        authentication_connector -> Nullable<Varchar>,
         #[max_length = 64]
         connector_authentication_id -> Nullable<Varchar>,
         authentication_data -> Nullable<Jsonb>,
@@ -113,7 +113,7 @@ diesel::table! {
         #[max_length = 255]
         payment_id -> Nullable<Varchar>,
         #[max_length = 128]
-        merchant_connector_id -> Varchar,
+        merchant_connector_id -> Nullable<Varchar>,
         #[max_length = 64]
         ds_trans_id -> Nullable<Varchar>,
         #[max_length = 128]
@@ -123,6 +123,10 @@ diesel::table! {
         service_details -> Nullable<Jsonb>,
         #[max_length = 32]
         organization_id -> Varchar,
+        #[max_length = 128]
+        authentication_client_secret -> Nullable<Varchar>,
+        force_3ds_challenge -> Nullable<Bool>,
+        psd2_sca_exemption_type -> Nullable<ScaExemptionType>,
     }
 }
 

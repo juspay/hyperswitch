@@ -594,6 +594,7 @@ pub enum Flow {
     TokenizationRetrieve,
     /// Clone Connector flow
     CloneConnector,
+    AuthenticationCreate, // Added new flow
     ///Proxy Flow
     Proxy,
     ProfileAcquirerCreate,
