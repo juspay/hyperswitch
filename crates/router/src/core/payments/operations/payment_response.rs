@@ -2171,6 +2171,13 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
                         .map_err(|e| logger::error!(open_router_update_gateway_score_err=?e))
                         .ok();
                     } else {
+                        let should_perform_sr_update =
+                            routing_helpers::should_perform_update_gateway_score(
+                                &state,
+                                &gsm_error_category,
+                            )
+                            .await;
+
                         routing_helpers::push_metrics_with_update_window_for_success_based_routing(
                             &state,
                             &payment_attempt,
@@ -2178,6 +2185,7 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
                             &profile_id,
                             dynamic_routing_algo_ref.clone(),
                             dynamic_routing_config_params_interpolator.clone(),
+                            should_perform_sr_update,
                         )
                         .await
                         .map_err(|e| logger::error!(success_based_routing_metrics_error=?e))
@@ -2185,7 +2193,6 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
 
                         if let Some(gsm_error_category) = gsm_error_category {
                             if gsm_error_category.should_perform_elimination_routing() {
-                                logger::info!("Performing update window for elimination routing");
                                 routing_helpers::update_window_for_elimination_routing(
                                     &state,
                                     &payment_attempt,
