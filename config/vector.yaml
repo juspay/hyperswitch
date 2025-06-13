@@ -28,6 +28,15 @@ sources:
       - hyperswitch-dispute-events
     decoding:
       codec: json
+  
+  revenue_events:
+    type: kafka
+    bootstrap_servers: kafka0:29092
+    group_id: hyperswitch_revenue_recovery
+    topics:
+      - hyperswitch-revenue-recovery-events
+    decoding:
+      codec: json
 
   sessionized_kafka_tx_events:
     type: kafka
@@ -260,3 +269,50 @@ sinks:
     bootstrap_servers: kafka0:29092
     topic: hyper-sdk-logs
     key_field: ".merchant_id"
+
+  revenue_recovery_s3:
+    type: aws_s3
+    inputs:
+      - revenue_events
+    bucket: BUCKET_NAME
+    region: us-east-1
+    content_type: json
+    batch:
+      max_events: 1000
+      timeout_secs: 86400
+    encoding:
+      codec: csv
+      csv:
+        fields:
+          - merchant_id
+          - invoice_id
+          - invoice_amount
+          - invoice_currency
+          - invoice_due_date
+          - invoice_date
+          - billing_city
+          - billing_country
+          - billing_state
+          - attempt_id
+          - attempt_amount
+          - attempt_currency
+          - attempt_status
+          - pg_error_code
+          - network_advice_code
+          - network_error_code
+          - first_pg_error_code
+          - first_network_advice_code
+          - first_network_error_code
+          - attempt_created_at
+          - payment_method_type
+          - payment_method_subtype
+          - card_network
+          - card_issuer
+          - retry_count
+          - payment_gateway
+    key_prefix: "{{ .merchant_id }}/"
+    timezone: "Europe/London"
+
+    filename_append_uuid: false
+    filename_time_format: "%Y/%m/%+"
+    filename_extension: csv
