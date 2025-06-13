@@ -384,6 +384,8 @@ pub enum RoutingError {
     OpenRouterCallFailed,
     #[error("Error from open_router: {0}")]
     OpenRouterError(String),
+    #[error("Decision engine responded with validation error: {0}")]
+    DecisionEngineValidationError(String),
     #[error("Invalid transaction type")]
     InvalidTransactionType,
 }
