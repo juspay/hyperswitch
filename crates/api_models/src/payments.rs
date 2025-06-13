@@ -271,7 +271,7 @@ pub struct PaymentsCreateIntentRequest {
     pub force_3ds_challenge: Option<bool>,
 
     /// Merchant connector details used to make payments.
-    #[schema(value_type = Option<Secret<String>>)]
+    #[schema(value_type = Option<MerchantConnectorDetails>)]
     pub merchant_connector_details: Option<MerchantConnectorDetails>,
 }
 
@@ -279,9 +279,16 @@ pub struct PaymentsCreateIntentRequest {
 #[cfg(feature = "v2")]
 pub struct MerchantConnectorDetails {
     /// The connector used for the payment
+    #[schema(value_type = Connector)]
     pub connector_name: api_enums::Connector,
 
     /// The merchant connector credentials used for the payment
+    #[schema(value_type = Object, example = r#"{
+        "merchant_connector_creds": {
+            "auth_type": "HeaderKey",
+            "api_key":"sk_test_xxxxxexamplexxxxxx12345"
+        },
+    }"#)]
     pub merchant_connector_creds: pii::SecretSerdeValue,
 }
 
@@ -5364,7 +5371,7 @@ pub struct PaymentsConfirmIntentRequest {
     pub payment_token: Option<String>,
 
     /// Merchant connector details used to make payments.
-    #[schema(value_type = Option<Secret<String>>)]
+    #[schema(value_type = Option<MerchantConnectorDetails>)]
     pub merchant_connector_details: Option<MerchantConnectorDetails>,
 }
 
@@ -5540,7 +5547,7 @@ pub struct PaymentsRequest {
     pub is_iframe_redirection_enabled: Option<bool>,
 
     /// Merchant connector details used to make payments.
-    #[schema(value_type = Option<Secret<String>>)]
+    #[schema(value_type = Option<MerchantConnectorDetails>)]
     pub merchant_connector_details: Option<MerchantConnectorDetails>,
 }
 
@@ -5620,7 +5627,7 @@ pub struct PaymentsRetrieveRequest {
     /// If enabled, provides whole connector response
     pub all_keys_required: Option<bool>,
     /// Merchant connector details used to make payments.
-    #[schema(value_type = Option<Secret<String>>)]
+    #[schema(value_type = Option<MerchantConnectorDetails>)]
     pub merchant_connector_details: Option<MerchantConnectorDetails>,
 }
 
@@ -5641,7 +5648,7 @@ pub struct PaymentsRetrieveRequestWithMerchantConnectorDetails {
     /// If enabled, provides whole connector response
     pub all_keys_required: Option<bool>,
     /// Merchant connector details used to make payments.
-    #[schema(value_type = Option<Secret<String>>)]
+    #[schema(value_type = Option<MerchantConnectorDetails>)]
     pub merchant_connector_details: Option<MerchantConnectorDetails>,
 }
 

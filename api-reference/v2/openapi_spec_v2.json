@@ -13400,16 +13400,17 @@
       },
       "MerchantConnectorDetails": {
         "type": "object",
+        "required": [
+          "connector_name",
+          "merchant_connector_creds"
+        ],
         "properties": {
-          "connector_account_details": {
-            "type": "object",
-            "description": "Account details of the Connector. You can specify up to 50 keys, with key names up to 40 characters long and values up to 500 characters long. Useful for storing additional, structured information on an object.",
-            "nullable": true
+          "connector_name": {
+            "$ref": "#/components/schemas/Connector"
           },
-          "metadata": {
+          "merchant_connector_creds": {
             "type": "object",
-            "description": "Metadata is useful for storing additional, unstructured information on an object.",
-            "nullable": true
+            "description": "The merchant connector credentials used for the payment"
           }
         }
       },
@@ -18027,6 +18028,14 @@
             "type": "string",
             "example": "187282ab-40ef-47a9-9206-5099ba31e432",
             "nullable": true
+          },
+          "merchant_connector_details": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/MerchantConnectorDetails"
+              }
+            ],
+            "nullable": true
           }
         },
         "additionalProperties": false
@@ -18223,6 +18232,14 @@
           "force_3ds_challenge": {
             "type": "boolean",
             "description": "Indicates if 3ds challenge is forced",
+            "nullable": true
+          },
+          "merchant_connector_details": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/MerchantConnectorDetails"
+              }
+            ],
             "nullable": true
           }
         },
@@ -19010,6 +19027,14 @@
             "type": "boolean",
             "description": "Indicates if the redirection has to open in the iframe",
             "nullable": true
+          },
+          "merchant_connector_details": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/MerchantConnectorDetails"
+              }
+            ],
+            "nullable": true
           }
         },
         "additionalProperties": false
@@ -19186,6 +19211,14 @@
             "type": "boolean",
             "description": "Indicates if the redirection has to open in the iframe",
             "nullable": true
+          },
+          "merchant_reference_id": {
+            "type": "string",
+            "description": "Unique identifier for the payment. This ensures idempotency for multiple payments\nthat have been done by a single merchant.",
+            "example": "pay_mbabizu24mvu3mela5njyhpit4",
+            "nullable": true,
+            "maxLength": 30,
+            "minLength": 30
           }
         }
       },
@@ -19209,6 +19242,45 @@
           "all_keys_required": {
             "type": "boolean",
             "description": "If enabled, provides whole connector response",
+            "nullable": true
+          },
+          "merchant_connector_details": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/MerchantConnectorDetails"
+              }
+            ],
+            "nullable": true
+          }
+        }
+      },
+      "PaymentsRetrieveRequestWithMerchantConnectorDetails": {
+        "type": "object",
+        "properties": {
+          "force_sync": {
+            "type": "boolean",
+            "description": "A boolean used to indicate if the payment status should be fetched from the connector\nIf this is set to true, the status will be fetched from the connector"
+          },
+          "expand_attempts": {
+            "type": "boolean",
+            "description": "A boolean used to indicate if all the attempts needs to be fetched for the intent.\nIf this is set to true, attempts list will be available in the response."
+          },
+          "param": {
+            "type": "string",
+            "description": "These are the query params that are sent in case of redirect response.\nThese can be ingested by the connector to take necessary actions.",
+            "nullable": true
+          },
+          "all_keys_required": {
+            "type": "boolean",
+            "description": "If enabled, provides whole connector response",
+            "nullable": true
+          },
+          "merchant_connector_details": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/MerchantConnectorDetails"
+              }
+            ],
             "nullable": true
           }
         }
@@ -19240,6 +19312,29 @@
                 "$ref": "#/components/schemas/VaultSessionDetails"
               }
             ],
+            "nullable": true
+          }
+        }
+      },
+      "PaymentsStatusRequest": {
+        "type": "object",
+        "properties": {
+          "force_sync": {
+            "type": "boolean",
+            "description": "A boolean used to indicate if the payment status should be fetched from the connector\nIf this is set to true, the status will be fetched from the connector"
+          },
+          "expand_attempts": {
+            "type": "boolean",
+            "description": "A boolean used to indicate if all the attempts needs to be fetched for the intent.\nIf this is set to true, attempts list will be available in the response."
+          },
+          "param": {
+            "type": "string",
+            "description": "These are the query params that are sent in case of redirect response.\nThese can be ingested by the connector to take necessary actions.",
+            "nullable": true
+          },
+          "all_keys_required": {
+            "type": "boolean",
+            "description": "If enabled, provides whole connector response",
             "nullable": true
           }
         }
