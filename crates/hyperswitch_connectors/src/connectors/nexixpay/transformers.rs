@@ -27,6 +27,7 @@ use hyperswitch_domain_models::{
 };
 use hyperswitch_interfaces::{consts::NO_ERROR_CODE, errors};
 use masking::{ExposeInterface, Secret};
+use rand::distributions::{Alphanumeric, DistString};
 use serde::{Deserialize, Serialize};
 use strum::Display;
 
@@ -39,6 +40,12 @@ use crate::{
         PaymentsSetupMandateRequestData, RouterData as _,
     },
 };
+
+const MAX_ORDER_ID_LENGTH: usize = 18;
+
+fn get_random_string() -> String {
+    Alphanumeric.sample_string(&mut rand::thread_rng(), MAX_ORDER_ID_LENGTH)
+}
 
 pub struct NexixpayRouterData<T> {
     pub amount: StringMinorUnit,
@@ -480,6 +487,12 @@ impl TryFrom<&NexixpayRouterData<&PaymentsAuthorizeRouterData>> for NexixpayPaym
     fn try_from(
         item: &NexixpayRouterData<&PaymentsAuthorizeRouterData>,
     ) -> Result<Self, Self::Error> {
+        let order_id =
+            if item.router_data.connector_request_reference_id.len() <= MAX_ORDER_ID_LENGTH {
+                item.router_data.connector_request_reference_id.clone()
+            } else {
+                get_random_string()
+            };
         let billing_address_street = match (
             item.router_data.get_optional_billing_line1(),
             item.router_data.get_optional_billing_line2(),
@@ -533,7 +546,7 @@ impl TryFrom<&NexixpayRouterData<&PaymentsAuthorizeRouterData>> for NexixpayPaym
             shipping_address: shipping_address.clone(),
         };
         let order = Order {
-            order_id: item.router_data.connector_request_reference_id.clone(),
+            order_id,
             amount: item.amount.clone(),
             currency: item.router_data.request.currency,
             description: item.router_data.description.clone(),
@@ -1089,7 +1102,12 @@ impl TryFrom<&NexixpayRouterData<&PaymentsCompleteAuthorizeRouterData>>
             )?;
         let capture_type = get_nexixpay_capture_type(item.router_data.request.capture_method)?;
 
-        let order_id = item.router_data.connector_request_reference_id.clone();
+        let order_id =
+            if item.router_data.connector_request_reference_id.len() <= MAX_ORDER_ID_LENGTH {
+                item.router_data.connector_request_reference_id.clone()
+            } else {
+                get_random_string()
+            };
         let amount = item.amount.clone();
         let billing_address_street = match (
             item.router_data.get_optional_billing_line1(),
