@@ -103,7 +103,7 @@ pub async fn incoming_webhooks_wrapper<W: types::OutgoingWebhookType>(
     let response_value = serde_json::to_value(&webhooks_response_tracker)
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Could not convert webhook effect to string")?;
-
+    let infra = state.infra_components.clone();
     let api_event = ApiEvent::new(
         state.tenant.tenant_id.clone(),
         Some(merchant_context.get_merchant_account().get_id().clone()),
@@ -119,6 +119,7 @@ pub async fn incoming_webhooks_wrapper<W: types::OutgoingWebhookType>(
         api_event,
         req,
         req.method(),
+        infra,
     );
     state.event_handler().log_event(&api_event);
     Ok(application_response)
@@ -821,13 +822,13 @@ async fn payouts_incoming_webhook_flow(
                 payout_id: payouts.payout_id.clone(),
             });
 
-        let payout_data = payouts::make_payout_data(
+        let payout_data = Box::pin(payouts::make_payout_data(
             &state,
             &merchant_context,
             None,
             &action_req,
             common_utils::consts::DEFAULT_LOCALE,
-        )
+        ))
         .await?;
 
         let updated_payout_attempt = db

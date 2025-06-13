@@ -1,16 +1,30 @@
 use std::collections::HashMap;
 
 use api_models::{enums as api_enums, routing};
+use common_utils::id_type;
 use serde;
 
+#[cfg(feature = "v1")]
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct RoutingData {
     pub routed_through: Option<String>,
 
-    pub merchant_connector_id: Option<common_utils::id_type::MerchantConnectorAccountId>,
+    pub merchant_connector_id: Option<id_type::MerchantConnectorAccountId>,
 
     pub routing_info: PaymentRoutingInfo,
     pub algorithm: Option<routing::StraightThroughAlgorithm>,
+}
+
+#[cfg(feature = "v2")]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct RoutingData {
+    // TODO: change this to RoutableConnectors enum
+    pub routed_through: Option<String>,
+    pub merchant_connector_id: Option<id_type::MerchantConnectorAccountId>,
+
+    pub pre_routing_connector_choice: Option<PreRoutingConnectorChoice>,
+
+    pub algorithm_requested: Option<id_type::RoutingId>,
 }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, PartialEq)]

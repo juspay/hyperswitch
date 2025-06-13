@@ -1,9 +1,10 @@
 use api_models::{enums::FrmSuggestion, payments::PaymentsConfirmIntentRequest};
 use async_trait::async_trait;
-use common_utils::{ext_traits::Encode, types::keymanager::ToEncryptable};
+use common_utils::{ext_traits::Encode, fp_utils::when, types::keymanager::ToEncryptable};
 use error_stack::ResultExt;
 use hyperswitch_domain_models::payments::PaymentConfirmData;
-use masking::PeekInterface;
+use hyperswitch_interfaces::api::ConnectorSpecifications;
+use masking::{ExposeOptionInterface, PeekInterface};
 use router_env::{instrument, tracing};
 
 use super::{Domain, GetTracker, Operation, UpdateTracker, ValidateRequest};
@@ -11,6 +12,7 @@ use crate::{
     core::{
         admin,
         errors::{self, CustomResult, RouterResult, StorageErrorExt},
+        payment_methods,
         payments::{
             self, call_decision_manager, helpers,
             operations::{self, ValidateStatusForOperation},
@@ -20,7 +22,7 @@ use crate::{
         utils as core_utils,
     },
     routes::{app::ReqState, SessionState},
-    services,
+    services::{self, connector_integration_interface::ConnectorEnum},
     types::{
         self,
         api::{self, ConnectorCallType, PaymentIdTypeExt},
@@ -42,6 +44,7 @@ impl ValidateStatusForOperation for PaymentIntentConfirm {
         match intent_status {
             common_enums::IntentStatus::RequiresPaymentMethod => Ok(()),
             common_enums::IntentStatus::Succeeded
+            | common_enums::IntentStatus::Conflicted
             | common_enums::IntentStatus::Failed
             | common_enums::IntentStatus::Cancelled
             | common_enums::IntentStatus::Processing
@@ -225,6 +228,23 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentConfirmData<F>, PaymentsConfir
             .clone()
             .map(hyperswitch_domain_models::payment_method_data::PaymentMethodData::from);
 
+        if request.payment_token.is_some() {
+            when(
+                !matches!(
+                    payment_method_data,
+                    Some(domain::payment_method_data::PaymentMethodData::CardToken(_))
+                ),
+                || {
+                    Err(errors::ApiErrorResponse::InvalidDataValue {
+                        field_name: "payment_method_data",
+                    })
+                    .attach_printable(
+                        "payment_method_data should be card_token when a token is passed",
+                    )
+                },
+            )?;
+        };
+
         let payment_address = hyperswitch_domain_models::payment_address::PaymentAddress::new(
             payment_intent
                 .shipping_address
@@ -248,6 +268,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentConfirmData<F>, PaymentsConfir
             payment_method_data,
             payment_address,
             mandate_data: None,
+            payment_method: None,
         };
 
         let get_trackers_response = operations::GetTrackerResponse { payment_data };
@@ -338,34 +359,152 @@ impl<F: Clone + Send + Sync> Domain<F, PaymentsConfirmIntentRequest, PaymentConf
         // TODO: do not take the whole payment data here
         payment_data: &mut PaymentConfirmData<F>,
     ) -> CustomResult<ConnectorCallType, errors::ApiErrorResponse> {
-        use crate::core::payments::OperationSessionSetters;
+        payments::connector_selection(
+            state,
+            merchant_context,
+            business_profile,
+            payment_data,
+            None,
+        )
+        .await
+    }
 
-        let fallback_config = admin::ProfileWrapper::new(business_profile.clone())
-            .get_default_fallback_list_of_connector_under_profile()
-            .change_context(errors::RoutingError::FallbackConfigFetchFailed)
-            .change_context(errors::ApiErrorResponse::InternalServerError)?;
+    #[instrument(skip_all)]
+    async fn populate_payment_data<'a>(
+        &'a self,
+        state: &SessionState,
+        payment_data: &mut PaymentConfirmData<F>,
+        _merchant_context: &domain::MerchantContext,
+        business_profile: &domain::Profile,
+        connector_data: &api::ConnectorData,
+    ) -> CustomResult<(), errors::ApiErrorResponse> {
+        let connector_request_reference_id = connector_data
+            .connector
+            .generate_connector_request_reference_id(
+                &payment_data.payment_intent,
+                &payment_data.payment_attempt,
+            );
+        payment_data.set_connector_request_reference_id(Some(connector_request_reference_id));
+        Ok(())
+    }
 
-        let first_chosen_connector = fallback_config
-            .first()
-            .ok_or(errors::ApiErrorResponse::IncorrectPaymentMethodConfiguration)?;
+    #[cfg(feature = "v2")]
+    async fn create_or_fetch_payment_method<'a>(
+        &'a self,
+        state: &SessionState,
+        merchant_context: &domain::MerchantContext,
+        business_profile: &domain::Profile,
+        payment_data: &mut PaymentConfirmData<F>,
+    ) -> CustomResult<(), errors::ApiErrorResponse> {
+        let (payment_method, payment_method_data) = match (
+            &payment_data.payment_attempt.payment_token,
+            &payment_data.payment_method_data,
+            &payment_data.payment_attempt.customer_acceptance,
+        ) {
+            (
+                Some(payment_token),
+                Some(domain::payment_method_data::PaymentMethodData::CardToken(card_token)),
+                None,
+            ) => {
+                let (card_cvc, card_holder_name) = {
+                    (
+                        card_token
+                            .card_cvc
+                            .clone()
+                            .ok_or(errors::ApiErrorResponse::InvalidDataValue {
+                                field_name: "card_cvc",
+                            })
+                            .attach_printable("card_cvc not provided")?,
+                        card_token.card_holder_name.clone(),
+                    )
+                };
 
-        let connector_name = first_chosen_connector.connector.to_string();
-        let merchant_connector_id = first_chosen_connector
-            .merchant_connector_id
-            .clone()
-            .get_required_value("merchant_connector_id")?;
+                let (payment_method, vault_data) =
+                    payment_methods::vault::retrieve_payment_method_from_vault_using_payment_token(
+                        state,
+                        merchant_context,
+                        business_profile,
+                        payment_token,
+                        &payment_data.payment_attempt.payment_method_type,
+                    )
+                    .await
+                    .change_context(errors::ApiErrorResponse::InternalServerError)
+                    .attach_printable("Failed to retrieve payment method from vault")?;
 
-        payment_data.set_connector_in_payment_attempt(Some(connector_name.to_string()));
-        payment_data.set_merchant_connector_id_in_attempt(Some(merchant_connector_id.clone()));
+                match vault_data {
+                    domain::vault::PaymentMethodVaultingData::Card(card_detail) => {
+                        let pm_data_from_vault =
+                            domain::payment_method_data::PaymentMethodData::Card(
+                                domain::payment_method_data::Card::from((
+                                    card_detail,
+                                    card_cvc,
+                                    card_holder_name,
+                                )),
+                            );
 
-        let connector_data = api::ConnectorData::get_connector_by_name(
-            &state.conf.connectors,
-            &connector_name,
-            api::GetToken::Connector,
-            Some(merchant_connector_id),
-        )?;
+                        (Some(payment_method), Some(pm_data_from_vault))
+                    }
+                    _ => Err(errors::ApiErrorResponse::NotImplemented {
+                        message: errors::NotImplementedMessage::Reason(
+                            "Non-card Tokenization not implemented".to_string(),
+                        ),
+                    })?,
+                }
+            }
 
-        Ok(ConnectorCallType::PreDetermined(connector_data.into()))
+            (Some(_payment_token), _, _) => Err(errors::ApiErrorResponse::InvalidDataValue {
+                field_name: "payment_method_data",
+            })
+            .attach_printable("payment_method_data should be card_token when a token is passed")?,
+
+            (None, Some(domain::PaymentMethodData::Card(card)), Some(_customer_acceptance)) => {
+                let customer_id = match &payment_data.payment_intent.customer_id {
+                    Some(customer_id) => customer_id.clone(),
+                    None => {
+                        return Err(errors::ApiErrorResponse::InvalidDataValue {
+                            field_name: "customer_id",
+                        })
+                        .attach_printable("customer_id not provided");
+                    }
+                };
+
+                let pm_create_data =
+                    api::PaymentMethodCreateData::Card(api::CardDetail::from(card.clone()));
+
+                let req = api::PaymentMethodCreate {
+                    payment_method_type: payment_data.payment_attempt.payment_method_type,
+                    payment_method_subtype: payment_data.payment_attempt.payment_method_subtype,
+                    metadata: None,
+                    customer_id,
+                    payment_method_data: pm_create_data,
+                    billing: None,
+                    psp_tokenization: None,
+                    network_tokenization: None,
+                };
+
+                let (_pm_response, payment_method) = payment_methods::create_payment_method_core(
+                    state,
+                    &state.get_req_state(),
+                    req,
+                    merchant_context,
+                    business_profile,
+                )
+                .await?;
+
+                // Don't modify payment_method_data in this case, only the payment_method and payment_method_id
+                (Some(payment_method), None)
+            }
+            _ => (None, None), // Pass payment_data unmodified for any other case
+        };
+
+        if let Some(pm_data) = payment_method_data {
+            payment_data.update_payment_method_data(pm_data);
+        }
+        if let Some(pm) = payment_method {
+            payment_data.update_payment_method_and_pm_id(pm.get_id().clone(), pm);
+        }
+
+        Ok(())
     }
 }
 
@@ -420,12 +559,32 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentConfirmData<F>, PaymentsConfirmInt
 
         let authentication_type = payment_data.payment_attempt.authentication_type;
 
-        let payment_attempt_update = hyperswitch_domain_models::payments::payment_attempt::PaymentAttemptUpdate::ConfirmIntent {
-            status: attempt_status,
-            updated_by: storage_scheme.to_string(),
-            connector,
-            merchant_connector_id,
-            authentication_type,
+        let connector_request_reference_id = payment_data
+            .payment_attempt
+            .connector_request_reference_id
+            .clone();
+
+        let payment_attempt_update = match &payment_data.payment_method {
+            Some(payment_method) => {
+                hyperswitch_domain_models::payments::payment_attempt::PaymentAttemptUpdate::ConfirmIntentTokenized {
+                    status: attempt_status,
+                    updated_by: storage_scheme.to_string(),
+                    connector,
+                    merchant_connector_id,
+                    authentication_type,
+                    payment_method_id : payment_method.get_id().clone()
+                }
+            }
+            None => {
+                hyperswitch_domain_models::payments::payment_attempt::PaymentAttemptUpdate::ConfirmIntent {
+                    status: attempt_status,
+                    updated_by: storage_scheme.to_string(),
+                    connector,
+                    merchant_connector_id,
+                    authentication_type,
+                    connector_request_reference_id,
+                }
+            }
         };
 
         let updated_payment_intent = db

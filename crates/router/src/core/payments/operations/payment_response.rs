@@ -119,7 +119,7 @@ impl<F: Send + Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsAuthor
         Ok(payment_data)
     }
 
-    #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+    #[cfg(feature = "v2")]
     async fn save_pm_and_mandate<'b>(
         &self,
         state: &SessionState,
@@ -134,10 +134,7 @@ impl<F: Send + Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsAuthor
         todo!()
     }
 
-    #[cfg(all(
-        any(feature = "v2", feature = "v1"),
-        not(feature = "payment_methods_v2")
-    ))]
+    #[cfg(feature = "v1")]
     async fn save_pm_and_mandate<'b>(
         &self,
         state: &SessionState,
@@ -1571,7 +1568,7 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
                         None,
                         Some(storage::PaymentAttemptUpdate::ErrorUpdate {
                             connector: None,
-                            status: enums::AttemptStatus::Pending,
+                            status: enums::AttemptStatus::IntegrityFailure,
                             error_message: Some(Some("Integrity Check Failed!".to_string())),
                             error_code: Some(Some("IE".to_string())),
                             error_reason: Some(Some(format!(
@@ -1933,6 +1930,9 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
                             }
                             None => (None, None, None),
                         },
+                        types::PaymentsResponseData::PaymentsCreateOrderResponse { .. } => {
+                            (None, None, None)
+                        }
                     }
                 }
             }
@@ -2272,7 +2272,7 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
     }
 }
 
-#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+#[cfg(feature = "v2")]
 async fn update_payment_method_status_and_ntid<F: Clone>(
     state: &SessionState,
     key_store: &domain::MerchantKeyStore,
@@ -2284,10 +2284,7 @@ async fn update_payment_method_status_and_ntid<F: Clone>(
     todo!()
 }
 
-#[cfg(all(
-    any(feature = "v2", feature = "v1"),
-    not(feature = "payment_methods_v2")
-))]
+#[cfg(feature = "v1")]
 async fn update_payment_method_status_and_ntid<F: Clone>(
     state: &SessionState,
     key_store: &domain::MerchantKeyStore,
@@ -2541,8 +2538,55 @@ impl<F: Clone> PostUpdateTracker<F, PaymentConfirmData<F>, types::PaymentsAuthor
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Unable to update payment attempt")?;
 
+        let attempt_status = updated_payment_attempt.status;
+
         payment_data.payment_intent = updated_payment_intent;
         payment_data.payment_attempt = updated_payment_attempt;
+
+        if let Some(payment_method) = &payment_data.payment_method {
+            match attempt_status {
+                common_enums::AttemptStatus::AuthenticationFailed
+                | common_enums::AttemptStatus::RouterDeclined
+                | common_enums::AttemptStatus::AuthorizationFailed
+                | common_enums::AttemptStatus::Voided
+                | common_enums::AttemptStatus::VoidInitiated
+                | common_enums::AttemptStatus::CaptureFailed
+                | common_enums::AttemptStatus::VoidFailed
+                | common_enums::AttemptStatus::AutoRefunded
+                | common_enums::AttemptStatus::Unresolved
+                | common_enums::AttemptStatus::Pending
+                | common_enums::AttemptStatus::Failure => (),
+
+                common_enums::AttemptStatus::Started
+                | common_enums::AttemptStatus::AuthenticationPending
+                | common_enums::AttemptStatus::AuthenticationSuccessful
+                | common_enums::AttemptStatus::Authorized
+                | common_enums::AttemptStatus::Charged
+                | common_enums::AttemptStatus::Authorizing
+                | common_enums::AttemptStatus::CodInitiated
+                | common_enums::AttemptStatus::PartialCharged
+                | common_enums::AttemptStatus::PartialChargedAndChargeable
+                | common_enums::AttemptStatus::CaptureInitiated
+                | common_enums::AttemptStatus::PaymentMethodAwaited
+                | common_enums::AttemptStatus::ConfirmationAwaited
+                | common_enums::AttemptStatus::DeviceDataCollectionPending
+                | common_enums::AttemptStatus::IntegrityFailure => {
+                    let pm_update_status = enums::PaymentMethodStatus::Active;
+
+                    // payment_methods microservice call
+                    payment_methods::update_payment_method_status_internal(
+                        state,
+                        key_store,
+                        storage_scheme,
+                        pm_update_status,
+                        payment_method.get_id(),
+                    )
+                    .await
+                    .change_context(errors::ApiErrorResponse::InternalServerError)
+                    .attach_printable("Failed to update payment method status")?;
+                }
+            }
+        }
 
         Ok(payment_data)
     }

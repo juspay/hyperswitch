@@ -163,6 +163,8 @@ impl TryFrom<&ZslRouterData<&types::PaymentsAuthorizeRouterData>> for ZslPayment
                 | BankTransferData::MandiriVaBankTransfer { .. }
                 | BankTransferData::Pix { .. }
                 | BankTransferData::Pse {}
+                | BankTransferData::InstantBankTransferFinland {}
+                | BankTransferData::InstantBankTransferPoland {}
                 | BankTransferData::InstantBankTransfer {} => {
                     Err(errors::ConnectorError::NotImplemented(
                         get_unimplemented_payment_method_error_message(
