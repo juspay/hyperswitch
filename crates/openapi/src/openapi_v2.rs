@@ -351,6 +351,8 @@ Never share your secret api keys. Keep them guarded and secure.
         api_models::payments::AliPayQr,
         api_models::payments::PaymentAttemptFeatureMetadata,
         api_models::payments::PaymentAttemptRevenueRecoveryData,
+        api_models::payments::BillingConnectorPaymentMethodDetails,
+        api_models::payments::BillingConnectorAdditionalCardInfo,
         api_models::payments::AliPayRedirection,
         api_models::payments::MomoRedirection,
         api_models::payments::TouchNGoRedirection,
