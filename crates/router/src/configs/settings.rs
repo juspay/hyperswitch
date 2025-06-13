@@ -11,6 +11,7 @@ pub use common_utils::request::Proxy;
 use common_utils::{ext_traits::ConfigExt, id_type, types::theme::EmailThemeConfig};
 use config::{Environment, File};
 use error_stack::ResultExt;
+use hyperswitch_routing::state as routing;
 #[cfg(feature = "email")]
 use external_services::email::EmailSettings;
 use external_services::{
@@ -148,14 +149,9 @@ pub struct Settings<S: SecretState> {
     pub theme: ThemeSettings,
     pub platform: Platform,
     pub authentication_providers: AuthenticationProviders,
-    pub open_router: OpenRouter,
+    pub open_router: routing::OpenRouter,
 }
 
-#[derive(Debug, Deserialize, Clone, Default)]
-pub struct OpenRouter {
-    pub enabled: bool,
-    pub url: String,
-}
 #[derive(Debug, Deserialize, Clone, Default)]
 pub struct Platform {
     pub enabled: bool,

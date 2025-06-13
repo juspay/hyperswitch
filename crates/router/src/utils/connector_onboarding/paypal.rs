@@ -8,6 +8,7 @@ use crate::{
     routes::SessionState,
     types,
     types::api::{
+        ConnectorDataExt,
         enums,
         verify_connector::{self as verify_connector_types, VerifyConnector},
     },

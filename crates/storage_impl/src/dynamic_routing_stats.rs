@@ -1,5 +1,5 @@
 use common_utils::errors::CustomResult;
-use diesel_models::dynamic_routing_stats;
+pub use diesel_models::dynamic_routing_stats;
 use error_stack::report;
 use hyperswitch_domain_models::db::dynamic_routing_stats::DynamicRoutingStatsInterface;
 use router_env::{instrument, tracing};

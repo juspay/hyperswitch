@@ -41,7 +41,7 @@ use crate::{
     },
     types::{
         api::{
-            self, mandates::MandateResponseExt, ConnectorCommon, ConnectorData, GetToken,
+            self, ConnectorDataExt, mandates::MandateResponseExt, ConnectorCommon, ConnectorData, GetToken,
             IncomingWebhook,
         },
         domain,

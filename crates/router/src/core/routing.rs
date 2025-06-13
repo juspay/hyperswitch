@@ -5,22 +5,10 @@ use crate::SessionState;
 use error_stack::ResultExt;
 
 use crate::types::transformers::ForeignTryFrom;
+use crate::types::api::ConnectorDataExt;
 use api_models::enums as api_enums;
-#[cfg(all(feature = "v1", feature = "dynamic_routing"))]
-use api_models::routing::DynamicRoutingAlgoAccessor;
-#[cfg(all(feature = "v1", feature = "dynamic_routing"))]
-use common_utils::ext_traits::AsyncExt;
 use diesel_models::enums as storage_enums;
-#[cfg(all(feature = "v1", feature = "dynamic_routing"))]
-use external_services::grpc_client::dynamic_routing::{
-    contract_routing_client::ContractBasedDynamicRouting,
-    success_rate_client::SuccessBasedDynamicRouting,
-};
 use hyperswitch_domain_models::{merchant_account, merchant_connector_account, merchant_key_store};
-#[cfg(all(feature = "v1", feature = "dynamic_routing"))]
-use router_env::logger;
-#[cfg(all(feature = "v1", feature = "dynamic_routing"))]
-use storage_impl::redis::cache;
 
 #[cfg(feature = "payouts")]
 use super::payouts;
@@ -29,12 +17,6 @@ use crate::{core::admin, utils::ValueExt};
 use common_utils::errors::CustomResult;
 pub use hyperswitch_routing::{core_logic::*, errors, state};
 
-pub enum TransactionData<'a> {
-    Payment(PaymentsDslInput<'a>),
-    #[cfg(feature = "payouts")]
-    Payout(&'a payouts::PayoutData),
-}
-
 #[derive(Clone)]
 pub struct MerchantConnectorHandler<'a> {
     pub state: &'a SessionState,
@@ -42,6 +24,11 @@ pub struct MerchantConnectorHandler<'a> {
 
 #[derive(Clone)]
 pub struct MerchantAccountHandler<'a> {
+    pub state: &'a SessionState,
+}
+
+#[derive(Clone)]
+pub struct ConnectorHandler<'a> {
     pub state: &'a SessionState,
 }
 
@@ -118,6 +105,27 @@ impl state::MerchantConnectorInterface for MerchantConnectorHandler<'_> {
             })
             .attach_printable("unable to retrieve merchant connectors")
     }
+    async fn find_by_merchant_connector_account_merchant_id_merchant_connector_id(
+        &self,
+        merchant_id: &common_utils::id_type::MerchantId,
+        merchant_connector_id: &common_utils::id_type::MerchantConnectorAccountId,
+        key_store: &merchant_key_store::MerchantKeyStore,
+    ) -> CustomResult<merchant_connector_account::MerchantConnectorAccount, errors::ApiErrorResponse>
+    {
+        self.state
+            .store
+            .find_by_merchant_connector_account_merchant_id_merchant_connector_id(
+                &self.state.into(),
+                merchant_id,
+                merchant_connector_id,
+                key_store,
+            )
+            .await
+            .change_context(errors::ApiErrorResponse::MerchantConnectorAccountNotFound {
+                id: merchant_connector_id.get_string_repr().to_owned(),
+            })
+            .attach_printable("unable to retrieve merchant connector account")
+    }
 }
 
 #[async_trait::async_trait]
@@ -138,5 +146,21 @@ impl state::MerchantAccountInterface for MerchantAccountHandler<'_> {
             .await
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Failed to update routing algorithm ref in merchant account")
+    }
+}
+
+impl state::ConnectorHandlerInterface for ConnectorHandler<'_> {
+    fn get_connector_by_name(
+        &self,
+        connector_name: String,
+        get_token: hyperswitch_interfaces::session_connector_data::GetToken,
+        merchant_connector_id: Option<common_utils::id_type::MerchantConnectorAccountId>,
+    ) -> CustomResult<hyperswitch_interfaces::session_connector_data::ConnectorData, errors::ApiErrorResponse> {
+        hyperswitch_interfaces::session_connector_data::ConnectorData::get_connector_by_name(
+                &self.state.conf.connectors,
+                &connector_name,
+                get_token,
+                merchant_connector_id,
+            )
     }
 }

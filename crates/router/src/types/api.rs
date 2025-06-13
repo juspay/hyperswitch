@@ -36,7 +36,7 @@ pub mod payments_v2;
 pub mod payouts_v2;
 pub mod refunds_v2;
 
-use std::{fmt::Debug, str::FromStr};
+use std::{str::FromStr};
 
 use api_models::routing::{self as api_routing, RoutableConnectorChoice};
 use common_enums::RoutableConnectors;
@@ -67,8 +67,10 @@ pub use hyperswitch_interfaces::{
         CurrencyUnit,
     },
     connector_integration_v2::{BoxedConnectorV2, ConnectorV2},
+    session_connector_data::{
+        ConnectorData, SessionConnectorData, SessionConnectorDatas, GetToken,
+    },
 };
-use rustc_hash::FxHashMap;
 
 #[cfg(feature = "frm")]
 pub use self::fraud_check::*;
@@ -82,7 +84,7 @@ pub use self::{
 use super::transformers::ForeignTryFrom;
 use crate::{
     configs::settings::Connectors,
-    connector, consts,
+    connector,
     core::{
         errors::{self, CustomResult},
         payments::types as payments_types,
@@ -99,91 +101,8 @@ pub enum ConnectorCallType {
     Skip,
 }
 
-// Normal flow will call the connector and follow the flow specific operations (capture, authorize)
-// SessionTokenFromMetadata will avoid calling the connector instead create the session token ( for sdk )
-#[derive(Clone, Eq, PartialEq, Debug)]
-pub enum GetToken {
-    GpayMetadata,
-    SamsungPayMetadata,
-    ApplePayMetadata,
-    PaypalSdkMetadata,
-    PazeMetadata,
-    Connector,
-}
 
-/// Routing algorithm will output merchant connector identifier instead of connector name
-/// In order to support backwards compatibility for older routing algorithms and merchant accounts
-/// the support for connector name is retained
-#[derive(Clone, Debug)]
-pub struct ConnectorData {
-    pub connector: ConnectorEnum,
-    pub connector_name: types::Connector,
-    pub get_token: GetToken,
-    pub merchant_connector_id: Option<common_utils::id_type::MerchantConnectorAccountId>,
-}
 
-#[derive(Clone, Debug)]
-pub struct SessionConnectorData {
-    pub payment_method_sub_type: api_enums::PaymentMethodType,
-    pub payment_method_type: api_enums::PaymentMethod,
-    pub connector: ConnectorData,
-    pub business_sub_label: Option<String>,
-}
-
-impl SessionConnectorData {
-    pub fn new(
-        payment_method_sub_type: api_enums::PaymentMethodType,
-        connector: ConnectorData,
-        business_sub_label: Option<String>,
-        payment_method_type: api_enums::PaymentMethod,
-    ) -> Self {
-        Self {
-            payment_method_sub_type,
-            connector,
-            business_sub_label,
-            payment_method_type,
-        }
-    }
-}
-
-common_utils::create_list_wrapper!(
-    SessionConnectorDatas,
-    SessionConnectorData,
-    impl_functions: {
-        pub fn apply_filter_for_session_routing(&self) -> Self {
-            let routing_enabled_pmts = &consts::ROUTING_ENABLED_PAYMENT_METHOD_TYPES;
-            let routing_enabled_pms = &consts::ROUTING_ENABLED_PAYMENT_METHODS;
-            self
-                .iter()
-                .filter(|connector_data| {
-                    routing_enabled_pmts.contains(&connector_data.payment_method_sub_type)
-                        || routing_enabled_pms.contains(&connector_data.payment_method_type)
-                })
-                .cloned()
-                .collect()
-        }
-        pub fn filter_and_validate_for_session_flow(self, routing_results: &FxHashMap<api_enums::PaymentMethodType, Vec<routing::SessionRoutingChoice>>) -> Result<Self, errors::ApiErrorResponse> {
-            let mut final_list = Self::new(Vec::new());
-            let routing_enabled_pmts = &consts::ROUTING_ENABLED_PAYMENT_METHOD_TYPES;
-            for connector_data in self {
-                if !routing_enabled_pmts.contains(&connector_data.payment_method_sub_type) {
-                    final_list.push(connector_data);
-                } else if let Some(choice) = routing_results.get(&connector_data.payment_method_sub_type) {
-                    let routing_choice = choice
-                        .first()
-                        .ok_or(errors::ApiErrorResponse::InternalServerError)?;
-                    if connector_data.connector.connector_name == routing_choice.connector.connector_name
-                        && connector_data.connector.merchant_connector_id
-                            == routing_choice.connector.merchant_connector_id
-                    {
-                        final_list.push(connector_data);
-                    }
-                }
-            }
-            Ok(final_list)
-        }
-    }
-);
 
 pub fn convert_connector_data_to_routable_connectors(
     connectors: &[ConnectorData],
@@ -243,9 +162,32 @@ pub enum ConnectorChoice {
     StraightThrough(serde_json::Value),
     Decide,
 }
-
-impl ConnectorData {
-    pub fn get_connector_by_name(
+pub trait ConnectorDataExt {
+    fn get_connector_by_name(
+        connectors: &Connectors,
+        name: &str,
+        connector_type: GetToken,
+        connector_id: Option<common_utils::id_type::MerchantConnectorAccountId>,
+    ) -> CustomResult<Self, errors::ApiErrorResponse>
+    where
+        Self: Sized;
+    
+    fn get_payout_connector_by_name(
+        connectors: &Connectors,
+        name: &str,
+        connector_type: GetToken,
+        connector_id: Option<common_utils::id_type::MerchantConnectorAccountId>,
+    ) -> CustomResult<Self, errors::ApiErrorResponse>
+    where
+        Self: Sized;
+    fn convert_connector(
+        connector_name: &str,
+    ) -> CustomResult<ConnectorEnum, errors::ApiErrorResponse>
+    where
+        Self: Sized;
+}
+impl ConnectorDataExt for ConnectorData {
+    fn get_connector_by_name(
         _connectors: &Connectors,
         name: &str,
         connector_type: GetToken,
@@ -265,7 +207,7 @@ impl ConnectorData {
     }
 
     #[cfg(feature = "payouts")]
-    pub fn get_payout_connector_by_name(
+    fn get_payout_connector_by_name(
         _connectors: &Connectors,
         name: &str,
         connector_type: GetToken,
@@ -285,7 +227,7 @@ impl ConnectorData {
         })
     }
 
-    pub fn convert_connector(
+    fn convert_connector(
         connector_name: &str,
     ) -> CustomResult<ConnectorEnum, errors::ApiErrorResponse> {
         match enums::Connector::from_str(connector_name) {

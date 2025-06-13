@@ -18,7 +18,7 @@ use crate::{
     routes::SessionState,
     services,
     types::{
-        api::{self, disputes},
+        api::{self, ConnectorDataExt, disputes},
         domain,
         storage::enums as storage_enums,
         transformers::ForeignFrom,

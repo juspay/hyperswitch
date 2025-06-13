@@ -3,6 +3,9 @@
 use crate::helpers;
 use std::collections::HashSet;
 
+use crate::types;
+
+use crate::errors::AppResult;
 use crate::errors::RouterResult;
 use crate::errors::RoutingError;
 use crate::external_decision_engines::euclid::compare_and_log_result;
@@ -15,16 +18,15 @@ use crate::external_decision_engines::euclid::Program;
 use crate::external_decision_engines::euclid::RoutingMetadata;
 use crate::external_decision_engines::euclid::RoutingRule;
 use crate::metrics;
-use crate::errors::AppResponse;
-use crate::transformers::ForeignTryFrom;
-use common_utils::ext_traits::OptionExt;
-use common_utils::ext_traits::ValueExt;
 use crate::payment_routing as payments_routing;
 use crate::state::RoutingState;
 use crate::transformers::ForeignInto;
-use storage_impl::errors::StorageErrorExt;
+use crate::transformers::ForeignTryFrom;
 use crate::utils as core_utils;
 use crate::DYNAMIC_ROUTING_MAX_VOLUME;
+use common_utils::ext_traits::OptionExt;
+use common_utils::ext_traits::ValueExt;
+use storage_impl::errors::StorageErrorExt;
 
 use api_models::routing as api;
 #[cfg(all(feature = "v1", feature = "dynamic_routing"))]
@@ -54,8 +56,6 @@ use hyperswitch_domain_models::{
     payment_method_data,
     payments::{self, payment_attempt},
 };
-#[cfg(all(feature = "v1", feature = "dynamic_routing"))]
-use router_env::logger;
 use rustc_hash::FxHashSet;
 #[cfg(all(feature = "v1", feature = "dynamic_routing"))]
 use storage_impl::redis::cache;
@@ -97,6 +97,22 @@ impl<'a> PaymentsDslInput<'a> {
             address,
             recurring_details,
             currency,
+        }
+    }
+}
+
+pub enum TransactionData<'a> {
+    Payment(PaymentsDslInput<'a>),
+    #[cfg(feature = "payouts")]
+    Payout(&'a types::PayoutData),
+}
+
+impl From<&TransactionData<'_>> for storage_enums::TransactionType {
+    fn from(value: &TransactionData<'_>) -> Self {
+        match value {
+            TransactionData::Payment(_) => Self::Payment,
+            #[cfg(feature = "payouts")]
+            TransactionData::Payout(_) => Self::Payout,
         }
     }
 }
@@ -147,7 +163,7 @@ pub async fn retrieve_merchant_routing_dictionary(
     profile_id_list: Option<Vec<common_utils::id_type::ProfileId>>,
     query_params: RoutingRetrieveQuery,
     transaction_type: &enums::TransactionType,
-) -> AppResponse<routing_types::RoutingKind> {
+) -> AppResult<routing_types::RoutingKind> {
     metrics::ROUTING_MERCHANT_DICTIONARY_RETRIEVE.add(1, &[]);
 
     let routing_metadata: Vec<storage_models::RoutingProfileMetadata> = state
@@ -275,7 +291,7 @@ pub async fn create_routing_algorithm_under_profile(
     authentication_profile_id: Option<common_utils::id_type::ProfileId>,
     request: routing_types::RoutingConfigRequest,
     transaction_type: enums::TransactionType,
-) -> AppResponse<routing_types::RoutingDictionaryRecord> {
+) -> AppResult<routing_types::RoutingDictionaryRecord> {
     use api_models::routing::RoutingAlgorithm as EuclidAlgorithm;
 
     // use crate::services::logger;
@@ -469,7 +485,7 @@ pub async fn link_routing_config(
     authentication_profile_id: Option<common_utils::id_type::ProfileId>,
     algorithm_id: common_utils::id_type::RoutingId,
     transaction_type: &enums::TransactionType,
-) -> AppResponse<routing_types::RoutingDictionaryRecord> {
+) -> AppResult<routing_types::RoutingDictionaryRecord> {
     metrics::ROUTING_LINK_CONFIG.add(1, &[]);
     let db = state.store.as_ref();
     let key_manager_state = &(&state).into();
@@ -708,7 +724,7 @@ pub async fn retrieve_routing_algorithm_from_algorithm_id(
     merchant_context: merchant_context::MerchantContext,
     authentication_profile_id: Option<common_utils::id_type::ProfileId>,
     algorithm_id: common_utils::id_type::RoutingId,
-) -> AppResponse<routing_types::MerchantRoutingAlgorithm> {
+) -> AppResult<routing_types::MerchantRoutingAlgorithm> {
     metrics::ROUTING_RETRIEVE_CONFIG.add(1, &[]);
     let db = state.store.as_ref();
     let key_manager_state = &(&state).into();
@@ -802,7 +818,7 @@ pub async fn unlink_routing_config(
     request: routing_types::RoutingConfigRequest,
     authentication_profile_id: Option<common_utils::id_type::ProfileId>,
     transaction_type: &enums::TransactionType,
-) -> AppResponse<routing_types::RoutingDictionaryRecord> {
+) -> AppResult<routing_types::RoutingDictionaryRecord> {
     metrics::ROUTING_UNLINK_CONFIG.add(1, &[]);
 
     let db = state.store.as_ref();
@@ -968,7 +984,7 @@ pub async fn update_default_routing_config(
     merchant_context: merchant_context::MerchantContext,
     updated_config: Vec<routing_types::RoutableConnectorChoice>,
     transaction_type: &enums::TransactionType,
-) -> AppResponse<Vec<routing_types::RoutableConnectorChoice>> {
+) -> AppResult<Vec<routing_types::RoutableConnectorChoice>> {
     metrics::ROUTING_UPDATE_CONFIG.add(1, &[]);
     let db = state.store.as_ref();
     let default_config = helpers::get_merchant_default_config(
@@ -1007,7 +1023,7 @@ pub async fn update_default_routing_config(
     })?;
 
     helpers::update_merchant_default_config(
-        db,
+        state.store.as_ref(),
         merchant_context
             .get_merchant_account()
             .get_id()
@@ -1053,9 +1069,8 @@ pub async fn retrieve_default_routing_config(
     profile_id: Option<common_utils::id_type::ProfileId>,
     merchant_context: merchant_context::MerchantContext,
     transaction_type: &enums::TransactionType,
-) -> AppResponse<Vec<routing_types::RoutableConnectorChoice>> {
+) -> AppResult<Vec<routing_types::RoutableConnectorChoice>> {
     metrics::ROUTING_RETRIEVE_DEFAULT_CONFIG.add(1, &[]);
-    let db = state.store.as_ref();
     let id = profile_id
         .map(|profile_id| profile_id.get_string_repr().to_owned())
         .unwrap_or_else(|| {
@@ -1066,7 +1081,7 @@ pub async fn retrieve_default_routing_config(
                 .to_string()
         });
 
-    helpers::get_merchant_default_config(db, &id, transaction_type)
+    helpers::get_merchant_default_config(state.store, &id, transaction_type)
         .await
         .map(|conn_choice| {
             metrics::ROUTING_RETRIEVE_DEFAULT_CONFIG_SUCCESS_RESPONSE.add(1, &[]);
@@ -1124,7 +1139,7 @@ pub async fn retrieve_linked_routing_config(
     authentication_profile_id: Option<common_utils::id_type::ProfileId>,
     query_params: routing_types::RoutingRetrieveLinkQuery,
     transaction_type: &enums::TransactionType,
-) -> AppResponse<routing_types::LinkedRoutingConfigRetrieveResponse> {
+) -> AppResult<routing_types::LinkedRoutingConfigRetrieveResponse> {
     metrics::ROUTING_RETRIEVE_LINK_CONFIG.add(1, &[]);
     let db = state.store.as_ref();
     let key_manager_state = &(&state).into();
@@ -1198,7 +1213,7 @@ pub async fn retrieve_default_routing_config_for_profiles(
     state: RoutingState<'_>,
     merchant_context: merchant_context::MerchantContext,
     transaction_type: &enums::TransactionType,
-) -> AppResponse<Vec<routing_types::ProfileDefaultRoutingConfig>> {
+) -> AppResult<Vec<routing_types::ProfileDefaultRoutingConfig>> {
     metrics::ROUTING_RETRIEVE_CONFIG_FOR_PROFILE.add(1, &[]);
     let db = state.store.as_ref();
     let key_manager_state = &(&state).into();
@@ -1217,7 +1232,7 @@ pub async fn retrieve_default_routing_config_for_profiles(
         .iter()
         .map(|prof| {
             helpers::get_merchant_default_config(
-                db,
+                state.store,
                 prof.get_id().get_string_repr(),
                 transaction_type,
             )
@@ -1250,7 +1265,7 @@ pub async fn update_default_routing_config_for_profile(
     updated_config: Vec<routing_types::RoutableConnectorChoice>,
     profile_id: common_utils::id_type::ProfileId,
     transaction_type: &enums::TransactionType,
-) -> AppResponse<routing_types::ProfileDefaultRoutingConfig> {
+) -> AppResult<routing_types::ProfileDefaultRoutingConfig> {
     metrics::ROUTING_UPDATE_CONFIG_FOR_PROFILE.add(1, &[]);
 
     let db = state.store.as_ref();
@@ -1336,7 +1351,7 @@ pub async fn toggle_specific_dynamic_routing(
     feature_to_enable: routing::DynamicRoutingFeatures,
     profile_id: common_utils::id_type::ProfileId,
     dynamic_routing_type: routing::DynamicRoutingType,
-) -> RouterResult<routing_types::RoutingDictionaryRecord> {
+) -> AppResult<routing_types::RoutingDictionaryRecord> {
     metrics::ROUTING_CREATE_REQUEST_RECEIVED.add(
         1,
         router_env::metric_attributes!(("profile_id", profile_id.clone())),
@@ -1406,7 +1421,7 @@ pub async fn configure_dynamic_routing_volume_split(
     merchant_context: merchant_context::MerchantContext,
     profile_id: common_utils::id_type::ProfileId,
     routing_info: routing::RoutingVolumeSplit,
-) -> AppResponse<()> {
+) -> AppResult<()> {
     metrics::ROUTING_CREATE_REQUEST_RECEIVED.add(
         1,
         router_env::metric_attributes!(("profile_id", profile_id.clone())),
@@ -1465,7 +1480,7 @@ pub async fn success_based_routing_update_configs(
     request: routing_types::SuccessBasedRoutingConfig,
     algorithm_id: common_utils::id_type::RoutingId,
     profile_id: common_utils::id_type::ProfileId,
-) -> RouterResult<routing_types::RoutingDictionaryRecord> {
+) -> AppResult<routing_types::RoutingDictionaryRecord> {
     metrics::ROUTING_UPDATE_CONFIG_FOR_PROFILE.add(
         1,
         router_env::metric_attributes!(("profile_id", profile_id.clone())),
@@ -1498,6 +1513,7 @@ pub async fn success_based_routing_update_configs(
         created_at: timestamp,
         modified_at: timestamp,
         algorithm_for: dynamic_routing_algo_to_update.algorithm_for,
+        decision_engine_routing_id: None,
     };
     let record = db
         .insert_routing_algorithm(algo)
@@ -1613,6 +1629,9 @@ pub async fn contract_based_dynamic_routing_setup(
         let algorithm = dynamic_routing_algo_ref
             .clone()
             .get_required_value("dynamic_routing_algo_ref")
+            .change_context(errors::ApiErrorResponse::MissingRequiredField {
+                field_name: "dynamic_routing_algo_ref",
+            })
             .attach_printable("Failed to get dynamic_routing_algo_ref")?;
         return helpers::disable_dynamic_routing_algorithm(
             &state,
@@ -1626,6 +1645,9 @@ pub async fn contract_based_dynamic_routing_setup(
 
     let config = config
         .get_required_value("ContractBasedRoutingConfig")
+        .change_context(errors::ApiErrorResponse::MissingRequiredField {
+            field_name: "ContractBasedRoutingConfig",
+        })
         .attach_printable("Failed to get ContractBasedRoutingConfig from request")?;
 
     let merchant_id = business_profile.merchant_id.clone();
@@ -1643,6 +1665,7 @@ pub async fn contract_based_dynamic_routing_setup(
         created_at: timestamp,
         modified_at: timestamp,
         algorithm_for: common_enums::TransactionType::Payment,
+        decision_engine_routing_id: None,
     };
 
     // 1. if dynamic_routing_algo_ref already present, insert contract based algo and disable success based
@@ -1695,9 +1718,8 @@ pub async fn contract_based_dynamic_routing_setup(
             .map(|info| async {
                 let mca_id = info.mca_id.clone();
                 let label = info.label.clone();
-                let mca = db
+                let mca = state.mca_handler
                     .find_by_merchant_connector_account_merchant_id_merchant_connector_id(
-                        key_manager_state,
                         merchant_context.get_merchant_account().get_id(),
                         &mca_id,
                         merchant_context.get_merchant_key_store(),
@@ -1753,13 +1775,12 @@ pub async fn contract_based_routing_update_configs(
     merchant_context: merchant_context::MerchantContext,
     algorithm_id: common_utils::id_type::RoutingId,
     profile_id: common_utils::id_type::ProfileId,
-) -> RouterResult<routing_types::RoutingDictionaryRecord> {
+) -> AppResult<routing_types::RoutingDictionaryRecord> {
     metrics::ROUTING_UPDATE_CONFIG_FOR_PROFILE.add(
         1,
         router_env::metric_attributes!(("profile_id", profile_id.get_string_repr().to_owned())),
     );
     let db = state.store.as_ref();
-    let key_manager_state = &(&state).into();
 
     let dynamic_routing_algo_to_update = db
         .find_routing_algorithm_by_profile_id_algorithm_id(&profile_id, &algorithm_id)
@@ -1776,9 +1797,8 @@ pub async fn contract_based_routing_update_configs(
     let mut contained_mca = Vec::new();
     if let Some(info_vec) = &request.label_info {
         for info in info_vec {
-            let mca = db
+            let mca = state.mca_handler
                 .find_by_merchant_connector_account_merchant_id_merchant_connector_id(
-                    key_manager_state,
                     merchant_context.get_merchant_account().get_id(),
                     &info.mca_id,
                     merchant_context.get_merchant_key_store(),
@@ -1824,6 +1844,7 @@ pub async fn contract_based_routing_update_configs(
         created_at: timestamp,
         modified_at: timestamp,
         algorithm_for: dynamic_routing_algo_to_update.algorithm_for,
+        decision_engine_routing_id: None,
     };
     let record = db
         .insert_routing_algorithm(algo)
@@ -1929,7 +1950,7 @@ impl GetRoutableConnectorsForChoice for DecideConnector {
         business_profile: &business_profile::Profile,
     ) -> RouterResult<RoutableConnectors> {
         let fallback_config = helpers::get_merchant_default_config(
-            state.store.as_ref(),
+            state.store,
             business_profile.get_id().get_string_repr(),
             &common_enums::TransactionType::Payment,
         )

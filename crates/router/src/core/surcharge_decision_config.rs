@@ -94,7 +94,7 @@ pub async fn upsert_surcharge_decision_config(
             algo_id.update_surcharge_config_id(key.clone());
             let config_key = cache::CacheKind::Surcharge(surcharge_cache_key.into());
             update_merchant_active_algorithm_ref(
-                &state,
+                &((&state).into()),
                 merchant_context.get_merchant_key_store(),
                 config_key,
                 algo_id,
@@ -136,7 +136,7 @@ pub async fn upsert_surcharge_decision_config(
             algo_id.update_surcharge_config_id(key.clone());
             let config_key = cache::CacheKind::Surcharge(surcharge_cache_key.into());
             update_merchant_active_algorithm_ref(
-                &state,
+                &((&state).into()),
                 merchant_context.get_merchant_key_store(),
                 config_key,
                 algo_id,
@@ -193,7 +193,7 @@ pub async fn delete_surcharge_decision_config(
         .get_surcharge_dsk_key();
     let config_key = cache::CacheKind::Surcharge(surcharge_cache_key.into());
     update_merchant_active_algorithm_ref(
-        &state,
+        &((&state).into()),
         merchant_context.get_merchant_key_store(),
         config_key,
         algo_id,

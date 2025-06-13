@@ -8,7 +8,10 @@ use common_utils::ext_traits::ValueExt;
 use euclid::frontend::ast as dsl_ast;
 #[cfg(all(feature = "v1", feature = "dynamic_routing"))]
 use hyperswitch_domain_models::{
-    merchant_connector_account, payments::payment_attempt::PaymentAttempt,
+     payments::payment_attempt::PaymentAttempt,
+};
+use api_models::{
+    routing as routing_types,
 };
 use storage_impl::routing_algorithm::{common_enums, storage_models as storage_enums};
 
@@ -149,16 +152,6 @@ impl ForeignFrom<RoutingAlgorithmKind> for common_enums::RoutingAlgorithmKind {
     }
 }
 
-// impl From<&routing::TransactionData<'_>> for common_enums::enums::TransactionType {
-//     fn from(value: &routing::TransactionData<'_>) -> Self {
-//         match value {
-//             routing::TransactionData::Payment(_) => Self::Payment,
-//             #[cfg(feature = "payouts")]
-//             routing::TransactionData::Payout(_) => Self::Payout,
-//         }
-//     }
-// }
-
 #[cfg(all(feature = "v1", feature = "dynamic_routing"))]
 pub trait OpenRouterDecideGatewayRequestExt {
     fn construct_sr_request(
@@ -183,7 +176,7 @@ impl OpenRouterDecideGatewayRequestExt for OpenRouterDecideGatewayRequest {
             payment_info: PaymentInfo {
                 payment_id: attempt.payment_id.clone(),
                 amount: attempt.net_amount.get_order_amount(),
-                currency: attempt.currency.unwrap_or(storage_enums::Currency::USD),
+                currency: attempt.currency.unwrap_or(common_enums::enums::Currency::USD),
                 payment_type: "ORDER_PAYMENT".to_string(),
                 // payment_method_type: attempt.payment_method_type.clone().unwrap(),
                 payment_method_type: "UPI".into(), // TODO: once open-router makes this field string, we can send from attempt
@@ -467,5 +460,15 @@ impl ForeignTryFrom<domain::MerchantConnectorAccount>
             feature_metadata,
         };
         Ok(response)
+    }
+}
+
+impl ForeignFrom<routing_types::ConnectorSelection> for routing_types::RoutingAlgorithm {
+    fn foreign_from(value: routing_types::ConnectorSelection) -> Self {
+        match value {
+            routing_types::ConnectorSelection::Priority(connectors) => Self::Priority(connectors),
+
+            routing_types::ConnectorSelection::VolumeSplit(splits) => Self::VolumeSplit(splits),
+        }
     }
 }

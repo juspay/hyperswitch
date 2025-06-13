@@ -98,16 +98,6 @@ impl ForeignFrom<RoutingAlgorithmKind> for storage_enums::RoutingAlgorithmKind {
     }
 }
 
-impl From<&routing::TransactionData<'_>> for storage_enums::TransactionType {
-    fn from(value: &routing::TransactionData<'_>) -> Self {
-        match value {
-            routing::TransactionData::Payment(_) => Self::Payment,
-            #[cfg(feature = "payouts")]
-            routing::TransactionData::Payout(_) => Self::Payout,
-        }
-    }
-}
-
 #[cfg(all(feature = "v1", feature = "dynamic_routing"))]
 pub trait OpenRouterDecideGatewayRequestExt {
     fn construct_sr_request(

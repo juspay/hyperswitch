@@ -9,8 +9,8 @@ description = "Core routing logic for Hyperswitch"
 
 [features]
 default = ["v1", "payouts", "dynamic_routing"]
-v1 = ["hyperswitch_domain_models/v1", "storage_impl/v1", "common_utils/v1", "kgraph_utils/v1"]
-v2 = ["kgraph_utils/v2"]
+v1 = ["hyperswitch_domain_models/v1", "storage_impl/v1", "common_utils/v1", "kgraph_utils/v1","hyperswitch_interfaces/v1"]
+v2 = ["kgraph_utils/v2","hyperswitch_interfaces/v2"]
 dynamic_routing = ["external_services/dynamic_routing", "storage_impl/dynamic_routing", "api_models/dynamic_routing"]
 payouts = ["api_models/payouts", "common_enums/payouts", "hyperswitch_domain_models/payouts", "storage_impl/payouts"]
 
@@ -20,6 +20,7 @@ api_models = { path = "../api_models" }
 connector_configs = { path = "../connector_configs" }
 common_enums = { version = "0.1.0", path = "../common_enums" }
 common_utils = { path = "../common_utils" }
+hyperswitch_interfaces = { version = "0.1.0", path = "../hyperswitch_interfaces", default-features = false }
 hyperswitch_constraint_graph = { version = "0.1.0", path = "../hyperswitch_constraint_graph" }
 hyperswitch_domain_models = { path = "../hyperswitch_domain_models" }
 kgraph_utils = { version = "0.1.0", path = "../kgraph_utils" }
@@ -35,6 +36,7 @@ dyn-clone = "1.0.17"
 error-stack = { version = "0.4.1", features = ["spantrace"] }
 futures = "0.3.30"
 rand = "0.8.5"
+rand_chacha = "0.3.1"
 reqwest = { version = "0.11.27", features = ["json", "rustls-tls", "gzip", "multipart"] }
 rustc-hash = "1.1.0"
 serde = { version = "1.0.197", features = ["derive"] }

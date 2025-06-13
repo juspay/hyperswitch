@@ -13,7 +13,7 @@ use crate::{
     core::{api_locking::LockAction, errors::RouterResponse},
     services::{api, authentication as auth, connector_integration_interface::ConnectorEnum},
     settings,
-    types::api::{self as api_types, payments as payment_types},
+    types::api::{self as api_types,ConnectorDataExt, payments as payment_types},
 };
 
 #[instrument(skip_all)]

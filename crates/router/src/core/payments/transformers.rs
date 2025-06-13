@@ -39,7 +39,7 @@ use crate::{
     services::{self, RedirectForm},
     types::{
         self,
-        api::{self, ConnectorTransactionId},
+        api::{self, ConnectorDataExt, ConnectorTransactionId},
         domain,
         storage::{self, enums},
         transformers::{ForeignFrom, ForeignInto, ForeignTryFrom},

@@ -11,7 +11,7 @@ use crate::{
     },
     routes::SessionState,
     services,
-    types::{self, api, domain, transformers::ForeignTryFrom},
+    types::{self, api::{self, ConnectorDataExt}, domain, transformers::ForeignTryFrom},
 };
 
 pub async fn read_string(field: &mut Field) -> Option<String> {

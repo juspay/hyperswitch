@@ -161,7 +161,7 @@ pub async fn upsert_conditional_config(
             algo_id.update_conditional_config_id(key.clone());
             let config_key = cache::CacheKind::DecisionManager(key.into());
             update_merchant_active_algorithm_ref(
-                &state,
+                &((&state).into()),
                 merchant_context.get_merchant_key_store(),
                 config_key,
                 algo_id,
@@ -202,7 +202,7 @@ pub async fn upsert_conditional_config(
             algo_id.update_conditional_config_id(key.clone());
             let config_key = cache::CacheKind::DecisionManager(key.into());
             update_merchant_active_algorithm_ref(
-                &state,
+                &((&state).into()),
                 merchant_context.get_merchant_key_store(),
                 config_key,
                 algo_id,
@@ -254,7 +254,7 @@ pub async fn delete_conditional_config(
     algo_id.config_algo_id = None;
     let config_key = cache::CacheKind::DecisionManager(key.clone().into());
     update_merchant_active_algorithm_ref(
-        &state,
+        &((&state).into()),
         merchant_context.get_merchant_key_store(),
         config_key,
         algo_id,

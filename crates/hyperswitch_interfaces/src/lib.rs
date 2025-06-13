@@ -21,5 +21,7 @@ pub mod events;
 pub mod integrity;
 pub mod metrics;
 pub mod secrets_interface;
+/// Session state and related functionalities
+pub mod session_connector_data;
 pub mod types;
 pub mod webhooks;

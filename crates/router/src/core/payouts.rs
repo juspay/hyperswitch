@@ -30,6 +30,7 @@ use error_stack::{report, ResultExt};
 #[cfg(feature = "olap")]
 use futures::future::join_all;
 use hyperswitch_domain_models::payment_methods::PaymentMethod;
+use hyperswitch_routing::types as routing_types;
 use masking::{PeekInterface, Secret};
 #[cfg(feature = "payout_retry")]
 use retry::GsmValidation;
@@ -55,7 +56,7 @@ use crate::{
     services,
     types::{
         self,
-        api::{self, payments as payment_api_types, payouts},
+        api::{self, payments as payment_api_types, payouts, ConnectorDataExt},
         domain,
         storage::{self, PaymentRoutingInfo},
         transformers::ForeignFrom,
@@ -78,6 +79,24 @@ pub struct PayoutData {
     pub payout_link: Option<PayoutLink>,
     pub current_locale: String,
     pub payment_method: Option<PaymentMethod>,
+}
+
+impl From<&PayoutData> for routing_types::PayoutData {
+    fn from(payout_data: &PayoutData) -> Self {
+        routing_types::PayoutData {
+            payment_method: payout_data.payment_method,
+            payouts: payout_data.payouts,
+            payout_attempt: payout_data.payout_attempt,
+            payout_method_type: payout_data.payment_method.and_then(|pm| {
+                pm.payment_method_type
+                    .map(api_enums::PaymentMethodType::foreign_from)
+            }),
+            profile_id: payout_data.profile_id,
+            billing_country: payout_data
+                .billing_address
+                .and_then(|address| address.country.map(api_enums::Country::from_alpha2)),
+        }
+    }
 }
 
 // ********************************************** CORE FLOWS **********************************************

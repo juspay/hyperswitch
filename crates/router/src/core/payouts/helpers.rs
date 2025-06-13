@@ -37,7 +37,7 @@ use crate::{
     routes::{metrics, SessionState},
     services,
     types::{
-        api::{self, enums as api_enums},
+        api::{self, ConnectorDataExt, enums as api_enums},
         domain::{self, types::AsyncLift},
         storage,
         transformers::ForeignFrom,
@@ -868,10 +868,10 @@ pub async fn decide_payout_connector(
 
         if check_eligibility {
             connectors = routing::perform_eligibility_analysis_with_fallback(
-                state,
+                &(state.into()),
                 merchant_context.get_merchant_key_store(),
                 connectors,
-                &TransactionData::Payout(payout_data),
+                &TransactionData::Payout(&(payout_data.into())),
                 eligible_connectors,
                 &business_profile,
             )
@@ -916,10 +916,10 @@ pub async fn decide_payout_connector(
 
         if check_eligibility {
             connectors = routing::perform_eligibility_analysis_with_fallback(
-                state,
+                &(state.into()),
                 merchant_context.get_merchant_key_store(),
                 connectors,
-                &TransactionData::Payout(payout_data),
+                &TransactionData::Payout(payout_data.into()),
                 eligible_connectors,
                 &business_profile,
             )

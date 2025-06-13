@@ -84,7 +84,7 @@ use self::{
     conditional_configs::perform_decision_management,
     flows::{ConstructFlowSpecificData, Feature},
     operations::{BoxedOperation, Operation, PaymentResponse},
-    routing::{self as self_routing, SessionFlowRoutingInput},
+    routing::SessionFlowRoutingInput,
 };
 use super::{
     errors::StorageErrorExt, payment_methods::surcharge_decision_configs, routing::TransactionData,
@@ -112,7 +112,7 @@ use crate::{
     services::{self, api::Authenticate, ConnectorRedirectResponse},
     types::{
         self as router_types,
-        api::{self, ConnectorCallType, ConnectorCommon},
+        api::{self, ConnectorDataExt, ConnectorCallType, ConnectorCommon},
         domain,
         storage::{self, enums as storage_enums, payment_attempt::PaymentAttemptExt},
         transformers::ForeignTryInto,
@@ -6529,7 +6529,7 @@ where
             );
 
             connectors = routing::perform_eligibility_analysis_with_fallback(
-                &state.clone(),
+                &((&state).into()),
                 merchant_context.get_merchant_key_store(),
                 connectors,
                 &TransactionData::Payment(transaction_data),
@@ -6587,7 +6587,7 @@ where
             );
 
             connectors = routing::perform_eligibility_analysis_with_fallback(
-                &state,
+                &((&state).into()),
                 merchant_context.get_merchant_key_store(),
                 connectors,
                 &TransactionData::Payment(transaction_data),
@@ -7124,7 +7124,7 @@ where
 {
     let chosen = connectors.apply_filter_for_session_routing();
     let sfr = SessionFlowRoutingInput {
-        state: &state,
+        state: &((&state).into()),
         country: payment_data
             .get_address()
             .get_payment_method_billing()
@@ -7136,7 +7136,7 @@ where
         payment_intent: payment_data.get_payment_intent(),
         chosen,
     };
-    let result = self_routing::perform_session_flow_routing(
+    let result = payment_routing::perform_session_flow_routing(
         sfr,
         business_profile,
         &enums::TransactionType::Payment,
@@ -7226,7 +7226,7 @@ where
     };
 
     let connectors = routing::perform_static_routing_v1(
-        state,
+        &(state.into()),
         merchant_context.get_merchant_account().get_id(),
         routing_algorithm_id.as_ref(),
         business_profile,
@@ -7239,7 +7239,7 @@ where
     let payment_attempt = transaction_data.payment_attempt.clone();
 
     let connectors = routing::perform_eligibility_analysis_with_fallback(
-        &state.clone(),
+        &(state.into()),
         merchant_context.get_merchant_key_store(),
         connectors,
         &TransactionData::Payment(transaction_data),
@@ -7279,7 +7279,7 @@ where
         if routing_choice.routing_type.is_dynamic_routing() {
             if state.conf.open_router.enabled {
                 routing::perform_open_routing(
-                    state,
+                    &(state.into()),
                     connectors.clone(),
                     business_profile,
                     payment_attempt,
@@ -7321,7 +7321,7 @@ where
                     );
 
                 routing::perform_dynamic_routing(
-                    state,
+                    &(state.into()),
                     connectors.clone(),
                     business_profile,
                     dynamic_routing_config_params_interpolator,
@@ -7401,19 +7401,19 @@ pub async fn route_connector_v1_for_payouts(
     };
 
     let connectors = routing::perform_static_routing_v1(
-        state,
+        &(state.into()),
         merchant_context.get_merchant_account().get_id(),
         routing_algorithm_id.as_ref(),
         business_profile,
-        &TransactionData::Payout(transaction_data),
+        &TransactionData::Payout(transaction_data.into()),
     )
     .await
     .change_context(errors::ApiErrorResponse::InternalServerError)?;
     let connectors = routing::perform_eligibility_analysis_with_fallback(
-        &state.clone(),
+        &(state.into()),
         merchant_context.get_merchant_key_store(),
         connectors,
-        &TransactionData::Payout(transaction_data),
+        &TransactionData::Payout(routing_types::PayoutData::from(transaction_data)),
         eligible_connectors,
         business_profile,
     )

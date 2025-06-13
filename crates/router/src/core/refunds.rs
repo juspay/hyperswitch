@@ -34,7 +34,7 @@ use crate::{
     services,
     types::{
         self,
-        api::{self, refunds},
+        api::{self, ConnectorDataExt, refunds},
         domain,
         storage::{self, enums},
         transformers::{ForeignFrom, ForeignInto},

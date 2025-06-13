@@ -1,80 +1,97 @@
 use error_stack::Result;
 use thiserror::Error;
-use hyperswitch_domain_models::api::ApplicationResponse;
+use hyperswitch_domain_models::api as domain_api;
 pub use hyperswitch_domain_models::errors::api_error_response::ApiErrorResponse;
 
 // Define a generic error type for this crate
-#[derive(Debug, Error)]
+#[derive(Debug, Clone, Error)]
 pub enum RoutingError {
-    #[error("DSL execution failed")]
-    DslExecutionError,
-    #[error("DSL parsing error")]
-    DslParsingError,
-    #[error("DSL backend initialization error")]
-    DslBackendInitError,
-    #[error("DSL missing in DB")]
-    DslMissingInDb,
-    #[error("DSL final connector selection failed")]
-    DslFinalConnectorSelectionFailed,
-    #[error("DSL incorrect selection algorithm")]
-    DslIncorrectSelectionAlgorithm,
-    #[error("Metadata parsing error")]
-    MetadataParsingError,
-    #[error("Fallback config fetch failed")]
-    FallbackConfigFetchFailed,
-    #[error("Connector selection failed")]
+    #[error("Merchant routing algorithm not found in cache")]
+    CacheMiss,
+    #[error("Final connector selection failed")]
     ConnectorSelectionFailed,
-    #[error("KGraph cache refresh failed")]
+    #[error("[DSL] Missing required field in payment data: '{field_name}'")]
+    DslMissingRequiredField { field_name: String },
+    #[error("The lock on the DSL cache is most probably poisoned")]
+    DslCachePoisoned,
+    #[error("Expected DSL to be saved in DB but did not find")]
+    DslMissingInDb,
+    #[error("Unable to parse DSL from JSON")]
+    DslParsingError,
+    #[error("Failed to initialize DSL backend")]
+    DslBackendInitError,
+    #[error("Error updating merchant with latest dsl cache contents")]
+    DslMerchantUpdateError,
+    #[error("Error executing the DSL")]
+    DslExecutionError,
+    #[error("Final connector selection failed")]
+    DslFinalConnectorSelectionFailed,
+    #[error("[DSL] Received incorrect selection algorithm as DSL output")]
+    DslIncorrectSelectionAlgorithm,
+    #[error("there was an error saving/retrieving values from the kgraph cache")]
+    KgraphCacheFailure,
+    #[error("failed to refresh the kgraph cache")]
     KgraphCacheRefreshFailed,
-    #[error("KGraph analysis error")]
+    #[error("there was an error during the kgraph analysis phase")]
     KgraphAnalysisError,
-    #[error("Invalid connector name: {0}")]
-    InvalidConnectorName(String),
-    #[error("Generic not found error: {field}")]
-    GenericNotFoundError { field: String },
-    #[error("Deserialization error from {from} to {to}")]
-    DeserializationError { from: String, to: String },
-    #[error("Success rate client initialization error")]
-    SuccessRateClientInitializationError,
-    #[error("Success rate calculation error")]
-    SuccessRateCalculationError,
-    #[error("Success based routing config error")]
-    SuccessBasedRoutingConfigError,
-    #[error("Success based routing params not found")]
-    SuccessBasedRoutingParamsNotFoundError,
-    #[error("Elimination client initialization error")]
-    EliminationClientInitializationError,
-    #[error("Elimination routing config error")]
-    EliminationRoutingConfigError,
-    #[error("Elimination based routing params not found")]
-    EliminationBasedRoutingParamsNotFoundError,
-    #[error("Elimination routing calculation error")]
-    EliminationRoutingCalculationError,
-    #[error("Contract routing client initialization error")]
-    ContractRoutingClientInitializationError,
-    #[error("Contract based routing config error")]
-    ContractBasedRoutingConfigError,
-    #[error("Contract score calculation error: {err}")]
-    ContractScoreCalculationError{ err: String },
-    #[error("Contract score updation error")]
-    ContractScoreUpdationError,
-    #[error("Invalid success based connector label: {0}")]
-    InvalidSuccessBasedConnectorLabel(String),
-    #[error("Invalid elimination based connector label: {0}")]
-    InvalidEliminationBasedConnectorLabel(String),
-    #[error("Invalid contract based connector label: {0}")]
-    InvalidContractBasedConnectorLabel(String),
-    #[error("Open Router call failed for algorithm: {algo}")]
-    OpenRouterCallFailed{ algo: String },
-    #[error("Open Router error: {0}")]
-    OpenRouterError(String),
-    #[error("Generic conversion error from {from} to {to}")]
-    GenericConversionError { from: String, to: String },
-    #[error("Profile ID missing")]
+    #[error("'profile_id' was not provided")]
     ProfileIdMissing,
-    #[error("Invalid routing algorithm structure")]
+    #[error("the profile was not found in the database")]
+    ProfileNotFound,
+    #[error("failed to fetch the fallback config for the merchant")]
+    FallbackConfigFetchFailed,
+    #[error("Invalid connector name received: '{0}'")]
+    InvalidConnectorName(String),
+    #[error("The routing algorithm in merchant account had invalid structure")]
     InvalidRoutingAlgorithmStructure,
-    // Add other specific routing errors as needed
+    #[error("Volume split failed")]
+    VolumeSplitFailed,
+    #[error("Unable to parse metadata")]
+    MetadataParsingError,
+    #[error("Unable to retrieve success based routing config")]
+    SuccessBasedRoutingConfigError,
+    #[error("Params not found in success based routing config")]
+    SuccessBasedRoutingParamsNotFoundError,
+    #[error("Unable to calculate success based routing config from dynamic routing service")]
+    SuccessRateCalculationError,
+    #[error("Success rate client from dynamic routing gRPC service not initialized")]
+    SuccessRateClientInitializationError,
+    #[error("Elimination client from dynamic routing gRPC service not initialized")]
+    EliminationClientInitializationError,
+    #[error("Unable to analyze elimination routing config from dynamic routing service")]
+    EliminationRoutingCalculationError,
+    #[error("Params not found in elimination based routing config")]
+    EliminationBasedRoutingParamsNotFoundError,
+    #[error("Unable to retrieve elimination based routing config")]
+    EliminationRoutingConfigError,
+    #[error(
+        "Invalid elimination based connector label received from dynamic routing service: '{0}'"
+    )]
+    InvalidEliminationBasedConnectorLabel(String),
+    #[error("Unable to convert from '{from}' to '{to}'")]
+    GenericConversionError { from: String, to: String },
+    #[error("Invalid success based connector label received from dynamic routing service: '{0}'")]
+    InvalidSuccessBasedConnectorLabel(String),
+    #[error("unable to find '{field}'")]
+    GenericNotFoundError { field: String },
+    #[error("Unable to deserialize from '{from}' to '{to}'")]
+    DeserializationError { from: String, to: String },
+    #[error("Unable to retrieve contract based routing config")]
+    ContractBasedRoutingConfigError,
+    #[error("Params not found in contract based routing config")]
+    ContractBasedRoutingParamsNotFoundError,
+    #[error("Unable to calculate contract score from dynamic routing service: '{err}'")]
+    ContractScoreCalculationError { err: String },
+    #[error("Unable to update contract score on dynamic routing service")]
+    ContractScoreUpdationError,
+    #[error("contract routing client from dynamic routing gRPC service not initialized")]
+    ContractRoutingClientInitializationError,
+    #[error("Invalid contract based connector label received from dynamic routing service: '{0}'")]
+    InvalidContractBasedConnectorLabel(String),
+    #[error("Failed to perform {algo} in open_router")]
+    OpenRouterCallFailed { algo: String },
+    #[error("Error from open_router: {0}")]
+    OpenRouterError(String),
 }
 
 // Define a storage error type, possibly mirroring or wrapping storage_impl::errors::StorageError
@@ -106,52 +123,27 @@ pub enum ApiClientError {
 // Type alias for Results in this crate
 pub type RouterResult<T> = common_utils::errors::CustomResult<T, ApiErrorResponse>;
 pub type RouterResponse<T> = common_utils::errors::CustomResult<T, RoutingError>;
-pub type AppResponse<T> = common_utils::errors::CustomResult<ApplicationResponse<T>, ApiErrorResponse>;
+pub type AppResult<T> = common_utils::errors::CustomResult<domain_api::ApplicationResponse<T>, ApiErrorResponse>;
+pub type ApplicationResult<T> = Result<T, common_enums::enums::ApplicationError>;
+pub type ApplicationResponse<T> = ApplicationResult<domain_api::ApplicationResponse<T>>;
 pub type StorageResult<T> = Result<T, StorageError>; // Specific for storage operations if needed
 
+// Adding a type alias for RoutingResult for clarity
+pub type RoutingResult<T> = common_utils::errors::CustomResult<T, RoutingError>;
 
+// // Implementation of From trait for error conversion
+// impl From<RoutingError> for ApiErrorResponse {
+//     fn from(err: RoutingError) -> Self {
+//         match err {
+//             RoutingError::FallbackConfigFetchFailed => Self::InternalServerError,
+//             RoutingError::ProfileIdMissing => Self::MissingRequiredField { field_name: "profile_id".to_string() },
+//             RoutingError::ConnectorSelectionFailed => Self::InternalServerError,
+//             // Map other errors as appropriate
+//             _ => Self::InternalServerError,
+//         }
+//     }
+// }
 
-// Implement Clone for error types if needed for error_stack contexts
-impl Clone for RoutingError {
-    fn clone(&self) -> Self {
-        match self {
-            Self::DslExecutionError => Self::DslExecutionError,
-            Self::DslParsingError => Self::DslParsingError,
-            Self::DslBackendInitError => Self::DslBackendInitError,
-            Self::DslMissingInDb => Self::DslMissingInDb,
-            Self::DslFinalConnectorSelectionFailed => Self::DslFinalConnectorSelectionFailed,
-            Self::DslIncorrectSelectionAlgorithm => Self::DslIncorrectSelectionAlgorithm,
-            Self::MetadataParsingError => Self::MetadataParsingError,
-            Self::FallbackConfigFetchFailed => Self::FallbackConfigFetchFailed,
-            Self::ConnectorSelectionFailed => Self::ConnectorSelectionFailed,
-            Self::KgraphCacheRefreshFailed => Self::KgraphCacheRefreshFailed,
-            Self::KgraphAnalysisError => Self::KgraphAnalysisError,
-            Self::InvalidConnectorName(s) => Self::InvalidConnectorName(s.clone()),
-            Self::GenericNotFoundError{field} => Self::GenericNotFoundError{field: field.clone()},
-            Self::DeserializationError{from, to} => Self::DeserializationError{from: from.clone(), to: to.clone()},
-            Self::SuccessRateClientInitializationError => Self::SuccessRateClientInitializationError,
-            Self::SuccessRateCalculationError => Self::SuccessRateCalculationError,
-            Self::SuccessBasedRoutingConfigError => Self::SuccessBasedRoutingConfigError,
-            Self::SuccessBasedRoutingParamsNotFoundError => Self::SuccessBasedRoutingParamsNotFoundError,
-            Self::EliminationClientInitializationError => Self::EliminationClientInitializationError,
-            Self::EliminationRoutingConfigError => Self::EliminationRoutingConfigError,
-            Self::EliminationBasedRoutingParamsNotFoundError => Self::EliminationBasedRoutingParamsNotFoundError,
-            Self::EliminationRoutingCalculationError => Self::EliminationRoutingCalculationError,
-            Self::ContractRoutingClientInitializationError => Self::ContractRoutingClientInitializationError,
-            Self::ContractBasedRoutingConfigError => Self::ContractBasedRoutingConfigError,
-            Self::ContractScoreCalculationError{err} => Self::ContractScoreCalculationError{err: err.clone()},
-            Self::ContractScoreUpdationError => Self::ContractScoreUpdationError,
-            Self::InvalidSuccessBasedConnectorLabel(s) => Self::InvalidSuccessBasedConnectorLabel(s.clone()),
-            Self::InvalidEliminationBasedConnectorLabel(s) => Self::InvalidEliminationBasedConnectorLabel(s.clone()),
-            Self::InvalidContractBasedConnectorLabel(s) => Self::InvalidContractBasedConnectorLabel(s.clone()),
-            Self::OpenRouterCallFailed{algo} => Self::OpenRouterCallFailed{algo: algo.clone()},
-            Self::OpenRouterError(s) => Self::OpenRouterError(s.clone()),
-            Self::GenericConversionError{from, to} => Self::GenericConversionError{from: from.clone(), to: to.clone()},
-            Self::ProfileIdMissing => Self::ProfileIdMissing,
-            Self::InvalidRoutingAlgorithmStructure => Self::InvalidRoutingAlgorithmStructure,
-        }
-    }
-}
 impl Clone for StorageError {
      fn clone(&self) -> Self {
         match self {
@@ -162,6 +154,7 @@ impl Clone for StorageError {
         }
     }
 }
+
 impl Clone for ApiClientError {
     fn clone(&self) -> Self {
         match self {

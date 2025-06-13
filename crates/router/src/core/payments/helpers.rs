@@ -76,7 +76,7 @@ use crate::{
     routes::{metrics, payment_methods as payment_methods_handler, SessionState},
     services,
     types::{
-        api::{self, admin, enums as api_enums, MandateValidationFieldsExt},
+        api::{self, ConnectorDataExt, admin, enums as api_enums, MandateValidationFieldsExt},
         domain::{self, types},
         storage::{self, enums as storage_enums, ephemeral_key, CardTokenData},
         transformers::{ForeignFrom, ForeignTryFrom},
@@ -5465,7 +5465,7 @@ where
         }
         #[cfg(feature = "v1")]
         let fallback_connetors_list = crate::core::routing::helpers::get_merchant_default_config(
-            &*state.clone().store,
+            state.store.get_routing_store(),
             profile_id.get_string_repr(),
             &api_enums::TransactionType::Payment,
         )

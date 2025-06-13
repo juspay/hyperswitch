@@ -1,15 +1,15 @@
 acknowledgements:
   enabled: true
-enrichment_tables:
-  sdk_map:
-    type: file
-    file:
-      path: /etc/vector/config/sdk_map.csv
-      encoding:
-        type: csv
-    schema:
-      publishable_key: string
-      merchant_id: string
+# enrichment_tables:
+#   sdk_map:
+#     type: file
+#     file:
+#       path: /etc/vector/config/sdk_map.csv
+#       encoding:
+#         type: csv
+#     schema:
+#       publishable_key: string
+#       merchant_id: string
 
 
 api:
@@ -42,6 +42,12 @@ sources:
     type: docker_logs
     include_labels:
       - "logs=promtail"
+
+  host_server_logs:
+    type: file
+    include: [ "/host-logs/tmp.log" ] # Path inside the vector container
+    # You might need to add a 'start_at_beginning: true' if you want to read the whole file on startup
+    # Or configure multiline options if your logs span multiple lines
 
   vector_metrics:
     type: internal_metrics
@@ -107,8 +113,8 @@ transforms:
       .before_transform = now()
 
       merchant_id = .merchant_id
-      row = get_enrichment_table_record!("sdk_map", { "publishable_key" : merchant_id }, case_sensitive: true) 
-      .merchant_id = row.merchant_id
+      # row = get_enrichment_table_record!("sdk_map", { "publishable_key" : merchant_id }, case_sensitive: true) 
+      # .merchant_id = row.merchant_id
 
       .after_transform = now()
 
@@ -233,6 +239,7 @@ sinks:
     type: loki
     inputs:
       - parsed_hs_server_logs
+      - host_server_logs
     endpoint: http://loki:3100
     labels:
       source: vector

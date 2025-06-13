@@ -1,20 +1,17 @@
 use std::collections::{HashMap, HashSet};
 
+use crate::errors::RouterResponse;
+use crate::types;
+use crate::{errors, state::RoutingState, transformers::ForeignInto};
 use api_models::routing as api_routing;
 use async_trait::async_trait;
 use common_utils::id_type;
-use storage_impl::routing_algorithm::storage_models;
 use error_stack::ResultExt;
 use euclid::{backend::BackendInput, frontend::ast};
 use router_env;
-use crate::errors::RouterResponse;
-use storage_impl::routing_algorithm::common_enums as enums;
 use serde::{Deserialize, Serialize};
-use crate::{
-    state::RoutingState,
-    errors,
-    transformers::ForeignInto,
-};
+use storage_impl::routing_algorithm::common_enums as enums;
+use storage_impl::routing_algorithm::storage_models;
 
 #[async_trait]
 pub trait EuclidApiHandler {
@@ -67,11 +64,19 @@ impl EuclidApiClientStructure {
             request_builder = request_builder.set_body(body);
         }
 
-        let http_request = request_builder.build();
+        let http_request = request_builder
+            .header(types::CONTENT_TYPE, "application/json".into())
+            .header(
+                common_utils::consts::TENANT_HEADER,
+                state.tenant.tenant_id.get_string_repr(),
+            )
+            .build();
+
         router_env::logger::info!(?http_request, euclid_request_path = %path, "Constructed Euclid API request details ({})", context_message);
 
-        state.api_client
-            .send_request(state.conf.proxy.clone(), http_request, timeout, false) 
+        state
+            .api_client
+            .send_request(state.conf.proxy.clone(), http_request, timeout, false)
             .await
             .change_context(errors::RoutingError::DslExecutionError)
             .attach_printable_lazy(|| {
@@ -151,7 +156,7 @@ impl EuclidApiHandler for EuclidApiClientStructure {
 }
 
 //TODO: will be converted to configs
-const EUCLID_API_TIMEOUT: u64 = 5;
+pub const EUCLID_API_TIMEOUT: u64 = 5;
 // const EUCLID_BASE_URL: &str = "http://localhost:8082"; // This should come from config
 
 // These functions will need to accept http_client and euclid_base_url
@@ -566,6 +571,12 @@ pub struct RoutingDictionaryRecord {
     pub name: String,
     pub created_at: time::PrimitiveDateTime,  // time crate
     pub modified_at: time::PrimitiveDateTime, // time crate
+}
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub struct UpdateGatewayScoreResponse {
+    pub response: String,
 }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]

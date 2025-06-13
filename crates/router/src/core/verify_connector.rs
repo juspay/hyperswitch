@@ -8,6 +8,7 @@ use crate::{
     types::{
         api::{
             self,
+            ConnectorDataExt,
             verify_connector::{self as types, VerifyConnector},
         },
         transformers::ForeignInto,

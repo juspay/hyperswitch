@@ -2148,7 +2148,7 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
             tokio::spawn(
                 async move {
                     routing_helpers::push_metrics_with_update_window_for_success_based_routing(
-                        &state,
+                        &((&state).into()),
                         &payment_attempt,
                         routable_connectors.clone(),
                         &profile_id,
@@ -2163,7 +2163,7 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
                         if gsm_error_category.should_perform_elimination_routing() {
                             logger::info!("Performing update window for elimination routing");
                             routing_helpers::update_window_for_elimination_routing(
-                                &state,
+                                &((&state).into()),
                                 &payment_attempt,
                                 &profile_id,
                                 dynamic_routing_algo_ref.clone(),
@@ -2177,7 +2177,7 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
                     };
 
                     routing_helpers::push_metrics_with_update_window_for_contract_based_routing(
-                        &state,
+                        &((&state).into()),
                         &payment_attempt,
                         routable_connectors,
                         &profile_id,

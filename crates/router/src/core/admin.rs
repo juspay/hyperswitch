@@ -1943,14 +1943,14 @@ impl MerchantDefaultConfigUpdate<'_> {
         &self,
     ) -> RouterResult<()> {
         let mut default_routing_config = routing::helpers::get_merchant_default_config(
-            self.store,
+            self.store.get_routing_store(),
             self.merchant_id.get_string_repr(),
             self.transaction_type,
         )
         .await?;
 
         let mut default_routing_config_for_profile = routing::helpers::get_merchant_default_config(
-            self.store,
+            self.store.get_routing_store(),
             self.profile_id.get_string_repr(),
             self.transaction_type,
         )
@@ -1965,7 +1965,7 @@ impl MerchantDefaultConfigUpdate<'_> {
             if !default_routing_config.contains(&choice) {
                 default_routing_config.push(choice.clone());
                 routing::helpers::update_merchant_default_config(
-                    self.store,
+                    self.store.get_routing_store(),
                     self.merchant_id.get_string_repr(),
                     default_routing_config.clone(),
                     self.transaction_type,
@@ -1975,7 +1975,7 @@ impl MerchantDefaultConfigUpdate<'_> {
             if !default_routing_config_for_profile.contains(&choice.clone()) {
                 default_routing_config_for_profile.push(choice);
                 routing::helpers::update_merchant_default_config(
-                    self.store,
+                    self.store.get_routing_store(),
                     self.profile_id.get_string_repr(),
                     default_routing_config_for_profile.clone(),
                     self.transaction_type,
@@ -1990,14 +1990,14 @@ impl MerchantDefaultConfigUpdate<'_> {
         &self,
     ) -> RouterResult<()> {
         let mut default_routing_config = routing::helpers::get_merchant_default_config(
-            self.store,
+            self.store.get_routing_store(),
             self.merchant_id.get_string_repr(),
             self.transaction_type,
         )
         .await?;
 
         let mut default_routing_config_for_profile = routing::helpers::get_merchant_default_config(
-            self.store,
+            self.store.get_routing_store(),
             self.profile_id.get_string_repr(),
             self.transaction_type,
         )
@@ -2014,7 +2014,7 @@ impl MerchantDefaultConfigUpdate<'_> {
                     mca.merchant_connector_id.as_ref() != Some(self.merchant_connector_id)
                 });
                 routing::helpers::update_merchant_default_config(
-                    self.store,
+                    self.store.get_routing_store(),
                     self.merchant_id.get_string_repr(),
                     default_routing_config.clone(),
                     self.transaction_type,
@@ -2026,7 +2026,7 @@ impl MerchantDefaultConfigUpdate<'_> {
                     mca.merchant_connector_id.as_ref() != Some(self.merchant_connector_id)
                 });
                 routing::helpers::update_merchant_default_config(
-                    self.store,
+                    self.store.get_routing_store(),
                     self.profile_id.get_string_repr(),
                     default_routing_config_for_profile.clone(),
                     self.transaction_type,

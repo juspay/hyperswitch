@@ -16,7 +16,7 @@ use crate::{
     routes::{app::ReqState, SessionState},
     services,
     types::{
-        api::{self, PaymentIdTypeExt},
+        api::{self, ConnectorDataExt, PaymentIdTypeExt},
         domain,
         storage::{self, enums as storage_enums},
     },
@@ -502,15 +502,3 @@ where
     }
 }
 
-impl From<api_models::enums::PaymentMethodType> for api::GetToken {
-    fn from(value: api_models::enums::PaymentMethodType) -> Self {
-        match value {
-            api_models::enums::PaymentMethodType::GooglePay => Self::GpayMetadata,
-            api_models::enums::PaymentMethodType::ApplePay => Self::ApplePayMetadata,
-            api_models::enums::PaymentMethodType::SamsungPay => Self::SamsungPayMetadata,
-            api_models::enums::PaymentMethodType::Paypal => Self::PaypalSdkMetadata,
-            api_models::enums::PaymentMethodType::Paze => Self::PazeMetadata,
-            _ => Self::Connector,
-        }
-    }
-}

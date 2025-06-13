@@ -19,6 +19,7 @@ use crate::{
     types::{
         self,
         api::{
+            ConnectorDataExt,
             mandates::{self, MandateResponseExt},
             ConnectorData, GetToken,
         },

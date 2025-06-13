@@ -832,7 +832,7 @@ outgoing_enabled = true
 redis_lock_expiry_seconds = 180             # 3 * 60 seconds
 
 [events.kafka]
-brokers = ["localhost:9092"]
+brokers = ["kafka0:9092"]
 fraud_check_analytics_topic = "hyperswitch-fraud-check-events"
 intent_analytics_topic = "hyperswitch-payment-intent-events"
 attempt_analytics_topic = "hyperswitch-payment-attempt-events"
@@ -880,7 +880,7 @@ partner_id = ""
 enabled = true
 
 [events]
-source = "logs"
+source = "kafka"
 
 [file_storage]
 file_storage_backend = "file_system"

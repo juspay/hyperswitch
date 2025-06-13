@@ -6,6 +6,7 @@ pub mod payment_routing;
 pub mod state;
 pub mod helpers;
 pub mod utils;
+pub mod types;
 pub mod transformers;
 
 /// Max volume split for Dynamic routing

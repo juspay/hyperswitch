@@ -16,7 +16,7 @@ use crate::{
     routes::SessionState,
     services,
     types::{
-        api::{self},
+        api::{self, ConnectorDataExt},
         domain,
     },
     utils::OptionExt,

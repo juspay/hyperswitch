@@ -1227,17 +1227,17 @@ pub async fn toggle_success_based_routing(
         |state,
          auth: auth::AuthenticationData,
          wrapper: routing_types::ToggleDynamicRoutingWrapper,
-         _| {
+         _| async move {
             let merchant_context = domain::MerchantContext::NormalMerchant(Box::new(
                 domain::Context(auth.merchant_account, auth.key_store),
             ));
-            routing::toggle_specific_dynamic_routing(
-                state,
+            Box::pin(routing::toggle_specific_dynamic_routing(
+                (&state).into(),
                 merchant_context,
                 wrapper.feature_to_enable,
                 wrapper.profile_id,
                 api_models::routing::DynamicRoutingType::SuccessRateBasedRouting,
-            )
+            )).await
         },
         auth::auth_type(
             &auth::HeaderAuth(auth::ApiKeyAuth {
@@ -1274,9 +1274,9 @@ pub async fn success_based_routing_update_configs(
         state,
         &req,
         routing_payload_wrapper.clone(),
-        |state, _, wrapper: routing_types::SuccessBasedRoutingPayloadWrapper, _| async {
+        |state, _, wrapper: routing_types::SuccessBasedRoutingPayloadWrapper, _| async move {
             Box::pin(routing::success_based_routing_update_configs(
-                state,
+                (&state).into(),
                 wrapper.updated_config,
                 wrapper.algorithm_id,
                 wrapper.profile_id,
@@ -1327,7 +1327,7 @@ pub async fn contract_based_routing_setup_config(
                 domain::Context(auth.merchant_account, auth.key_store),
             ));
             Box::pin(routing::contract_based_dynamic_routing_setup(
-                state,
+                (&state).into(),
                 merchant_context,
                 wrapper.profile_id,
                 wrapper.features_to_enable,
@@ -1373,12 +1373,12 @@ pub async fn contract_based_routing_update_configs(
         |state,
          auth: auth::AuthenticationData,
          wrapper: routing_types::ContractBasedRoutingPayloadWrapper,
-         _| async {
+         _| async move {
             let merchant_context = domain::MerchantContext::NormalMerchant(Box::new(
                 domain::Context(auth.merchant_account, auth.key_store),
             ));
             Box::pin(routing::contract_based_routing_update_configs(
-                state,
+                (&state).into(),
                 wrapper.updated_config,
                 merchant_context,
                 wrapper.algorithm_id,
@@ -1423,17 +1423,17 @@ pub async fn toggle_elimination_routing(
         |state,
          auth: auth::AuthenticationData,
          wrapper: routing_types::ToggleDynamicRoutingWrapper,
-         _| {
+         _| async move{
             let merchant_context = domain::MerchantContext::NormalMerchant(Box::new(
                 domain::Context(auth.merchant_account, auth.key_store),
             ));
-            routing::toggle_specific_dynamic_routing(
-                state,
+            Box::pin(routing::toggle_specific_dynamic_routing(
+                (&state).into(),
                 merchant_context,
                 wrapper.feature_to_enable,
                 wrapper.profile_id,
                 api_models::routing::DynamicRoutingType::EliminationRouting,
-            )
+            )).await
         },
         auth::auth_type(
             &auth::HeaderAuth(auth::ApiKeyAuth {

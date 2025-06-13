@@ -110,7 +110,7 @@ use crate::{
     routes::{self, metrics, payment_methods::ParentPaymentMethodToken},
     services,
     types::{
-        api::{self, routing as routing_types, PaymentMethodCreateExt},
+        api::{self, routing as routing_types, ConnectorDataExt, PaymentMethodCreateExt},
         domain::{self, Profile},
         storage::{self, enums, PaymentMethodListContext, PaymentTokenData},
         transformers::{ForeignFrom, ForeignTryFrom},
@@ -3520,7 +3520,7 @@ pub async fn list_payment_methods(
             }
         }
         let sfr = SessionFlowRoutingInput {
-            state: &state,
+            state: &((&state).into()),
             country: billing_address.clone().and_then(|ad| ad.country),
             key_store: merchant_context.get_merchant_key_store(),
             merchant_account: merchant_context.get_merchant_account(),
