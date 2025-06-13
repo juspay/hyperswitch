@@ -8703,7 +8703,7 @@ pub struct PaymentRevenueRecoveryMetadata {
 
 #[cfg(feature = "v2")]
 #[derive(Debug, Clone, PartialEq, Deserialize, Serialize, ToSchema)]
-#[serde(rename_all="snake_case", tag = "type", content = "value")]
+#[serde(rename_all = "snake_case", tag = "type", content = "value")]
 pub enum BillingConnectorPaymentMethodDetails {
     Card(BillingConnectorAdditionalCardInfo),
 }
