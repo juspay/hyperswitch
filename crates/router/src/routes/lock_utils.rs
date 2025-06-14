@@ -44,6 +44,7 @@ pub enum ApiIdentifier {
     PaymentMethodSession,
     ProcessTracker,
     Proxy,
+    TrainerClient,
     ProfileAcquirer,
     ThreeDsDecisionRule,
     GenericTokenization,
@@ -63,6 +64,8 @@ impl From<Flow> for ApiIdentifier {
             Flow::OrganizationCreate | Flow::OrganizationRetrieve | Flow::OrganizationUpdate => {
                 Self::Organization
             }
+
+            Flow::TriggerTrainingJob | Flow::GetTrainingJobStatus => Self::TrainerClient,
 
             Flow::RoutingCreateConfig
             | Flow::RoutingLinkConfig
