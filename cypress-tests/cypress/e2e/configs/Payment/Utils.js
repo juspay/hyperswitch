@@ -337,9 +337,13 @@ export const CONNECTOR_LISTS = {
   // Exclusion lists (skip these connectors)
   EXCLUDE: {
     CONNECTOR_AGNOSTIC_NTID: [
+      "bamboraapac",
       "bankofamerica",
       "braintree",
+      "facilitapay",
       "fiuu",
+      "fiserv",
+      "jpmorgan",
       "paypal",
       "worldpayxml",
     ],
