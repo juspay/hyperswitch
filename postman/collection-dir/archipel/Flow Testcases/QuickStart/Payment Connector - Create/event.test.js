@@ -62,10 +62,10 @@ pm.test(
 );
 
 pm.test(
-    "[POST]::/account/:account_id/connectors - Validate auth_type is NoKey",
+    "[POST]::/account/:account_id/connectors - Validate auth_type is HeaderKey",
     function () {
         pm.expect(jsonData.connector_account_details.auth_type).to.equal(
-            "NoKey"
+            "HeaderKey"
         );
     },
 );
