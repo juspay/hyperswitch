@@ -22,6 +22,7 @@ use crate::routing;
 use crate::{
     consts::{MAX_ORDER_FULFILLMENT_EXPIRY, MIN_ORDER_FULFILLMENT_EXPIRY},
     enums as api_enums, payment_methods,
+    profile_acquirer::ProfileAcquirerResponse,
 };
 
 #[derive(Clone, Debug, Deserialize, ToSchema, Serialize)]
@@ -58,7 +59,7 @@ pub struct MerchantAccountCreate {
 
     /// The routing algorithm to be  used for routing payouts to desired connectors
     #[cfg(feature = "payouts")]
-    #[schema(value_type = Option<RoutingAlgorithm>,example = json!({"type": "single", "data": "wise"}))]
+    #[schema(value_type = Option<StaticRoutingAlgorithm>,example = json!({"type": "single", "data": "wise"}))]
     pub payout_routing_algorithm: Option<serde_json::Value>,
 
     /// A boolean value to indicate if the merchant is a sub-merchant under a master or a parent merchant. By default, its value is false.
@@ -112,6 +113,10 @@ pub struct MerchantAccountCreate {
     /// Product Type of this merchant account
     #[schema(value_type = Option<MerchantProductType>, example = "Orchestration")]
     pub product_type: Option<api_enums::MerchantProductType>,
+
+    /// Merchant Account Type of this merchant account
+    #[schema(value_type = Option<MerchantAccountRequestType>, example = "standard")]
+    pub merchant_account_type: Option<api_enums::MerchantAccountRequestType>,
 }
 
 #[cfg(feature = "v1")]
@@ -165,8 +170,9 @@ impl MerchantAccountCreate {
     pub fn parse_routing_algorithm(&self) -> CustomResult<(), errors::ParsingError> {
         match self.routing_algorithm {
             Some(ref routing_algorithm) => {
-                let _: routing::RoutingAlgorithm =
-                    routing_algorithm.clone().parse_value("RoutingAlgorithm")?;
+                let _: routing::StaticRoutingAlgorithm = routing_algorithm
+                    .clone()
+                    .parse_value("StaticRoutingAlgorithm")?;
                 Ok(())
             }
             None => Ok(()),
@@ -282,6 +288,17 @@ pub struct AuthenticationConnectorDetails {
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize, ToSchema)]
+pub struct ExternalVaultConnectorDetails {
+    /// Merchant Connector id to be stored for vault connector
+    #[schema(value_type = Option<String>)]
+    pub vault_connector_id: id_type::MerchantConnectorAccountId,
+
+    /// External vault to be used for storing payment method information
+    #[schema(value_type = Option<VaultSdk>)]
+    pub vault_sdk: Option<common_enums::VaultSdk>,
+}
+
+#[derive(Clone, Debug, Deserialize, Serialize, ToSchema)]
 pub struct MerchantAccountMetadata {
     pub compatible_connector: Option<api_enums::Connector>,
 
@@ -318,7 +335,7 @@ pub struct MerchantAccountUpdate {
 
     /// The routing algorithm to be used to process the incoming request from merchant to outgoing payment processor or payment method. The default is 'Custom'
     #[cfg(feature = "payouts")]
-    #[schema(value_type = Option<RoutingAlgorithm>,example = json!({"type": "single", "data": "wise"}))]
+    #[schema(value_type = Option<StaticRoutingAlgorithm>,example = json!({"type": "single", "data": "wise"}))]
     pub payout_routing_algorithm: Option<serde_json::Value>,
 
     /// A boolean value to indicate if the merchant is a sub-merchant under a master or a parent merchant. By default, its value is false.
@@ -418,8 +435,9 @@ impl MerchantAccountUpdate {
     pub fn parse_routing_algorithm(&self) -> CustomResult<(), errors::ParsingError> {
         match self.routing_algorithm {
             Some(ref routing_algorithm) => {
-                let _: routing::RoutingAlgorithm =
-                    routing_algorithm.clone().parse_value("RoutingAlgorithm")?;
+                let _: routing::StaticRoutingAlgorithm = routing_algorithm
+                    .clone()
+                    .parse_value("StaticRoutingAlgorithm")?;
                 Ok(())
             }
             None => Ok(()),
@@ -510,7 +528,7 @@ pub struct MerchantAccountResponse {
 
     /// The routing algorithm to be used to process the incoming request from merchant to outgoing payment processor or payment method. The default is 'Custom'
     #[cfg(feature = "payouts")]
-    #[schema(value_type = Option<RoutingAlgorithm>,example = json!({"type": "single", "data": "wise"}))]
+    #[schema(value_type = Option<StaticRoutingAlgorithm>,example = json!({"type": "single", "data": "wise"}))]
     pub payout_routing_algorithm: Option<serde_json::Value>,
 
     /// A boolean value to indicate if the merchant is a sub-merchant under a master or a parent merchant. By default, its value is false.
@@ -538,7 +556,7 @@ pub struct MerchantAccountResponse {
     pub primary_business_details: Vec<PrimaryBusinessDetails>,
 
     /// The frm routing algorithm to be used to process the incoming request from merchant to outgoing payment FRM.
-    #[schema(value_type = Option<RoutingAlgorithm>, max_length = 255, example = r#"{"type": "single", "data": "stripe" }"#)]
+    #[schema(value_type = Option<StaticRoutingAlgorithm>, max_length = 255, example = r#"{"type": "single", "data": "stripe" }"#)]
     pub frm_routing_algorithm: Option<serde_json::Value>,
 
     /// The organization id merchant is associated with
@@ -563,6 +581,10 @@ pub struct MerchantAccountResponse {
     /// Product Type of this merchant account
     #[schema(value_type = Option<MerchantProductType>, example = "Orchestration")]
     pub product_type: Option<api_enums::MerchantProductType>,
+
+    /// Merchant Account Type of this merchant account
+    #[schema(value_type = MerchantAccountType, example = "standard")]
+    pub merchant_account_type: api_enums::MerchantAccountType,
 }
 
 #[cfg(feature = "v2")]
@@ -980,21 +1002,122 @@ pub struct RevenueRecoveryMetadata {
 #[derive(Debug, Clone, serde::Deserialize, serde::Serialize, ToSchema)]
 #[serde(rename_all = "snake_case")]
 pub enum MerchantAccountData {
+    /// IBAN-based account for international transfers
     Iban {
-        #[schema(value_type= String)]
+        /// International Bank Account Number (up to 34 characters)
+        #[schema(value_type = String)]
         iban: Secret<String>,
+
+        /// Account holder name
         name: String,
-        #[schema(value_type= Option<String>)]
+        #[schema(value_type = Option<String>)]
         #[serde(skip_serializing_if = "Option::is_none")]
         connector_recipient_id: Option<Secret<String>>,
     },
+    /// UK BACS payment system
     Bacs {
-        #[schema(value_type= String)]
+        /// 8-digit UK account number
+        #[schema(value_type = String)]
         account_number: Secret<String>,
-        #[schema(value_type= String)]
+
+        /// 6-digit UK sort code
+        #[schema(value_type = String, example = "123456")]
         sort_code: Secret<String>,
+
+        /// Account holder name
         name: String,
-        #[schema(value_type= Option<String>)]
+
+        #[schema(value_type = Option<String>)]
+        #[serde(skip_serializing_if = "Option::is_none")]
+        connector_recipient_id: Option<Secret<String>>,
+    },
+    /// UK Faster Payments (instant transfers)
+    FasterPayments {
+        /// 8-digit UK account number
+        #[schema(value_type = String)]
+        account_number: Secret<String>,
+        /// 6-digit UK sort code
+        #[schema(value_type = String)]
+        sort_code: Secret<String>,
+
+        /// Account holder name
+        name: String,
+
+        #[schema(value_type = Option<String>)]
+        #[serde(skip_serializing_if = "Option::is_none")]
+        connector_recipient_id: Option<Secret<String>>,
+    },
+
+    /// SEPA payments (Euro zone)
+    Sepa {
+        /// IBAN for SEPA transfers
+        #[schema(value_type = String, example = "FR1420041010050500013M02606")]
+        iban: Secret<String>,
+        /// Account holder name
+        name: String,
+        #[schema(value_type = Option<String>)]
+        #[serde(skip_serializing_if = "Option::is_none")]
+        connector_recipient_id: Option<Secret<String>>,
+    },
+
+    /// SEPA Instant payments (10-second transfers)
+    SepaInstant {
+        /// IBAN for instant SEPA transfers
+        #[schema(value_type = String, example = "DE89370400440532013000")]
+        iban: Secret<String>,
+
+        /// Account holder name
+        name: String,
+
+        #[schema(value_type = Option<String>)]
+        #[serde(skip_serializing_if = "Option::is_none")]
+        connector_recipient_id: Option<Secret<String>>,
+    },
+
+    /// Polish Elixir payment system
+    Elixir {
+        /// Polish account number (26 digits)
+        #[schema(value_type = String, example = "12345678901234567890123456")]
+        account_number: Secret<String>,
+
+        /// Polish IBAN (28 chars)
+        #[schema(value_type = String, example = "PL27114020040000300201355387")]
+        iban: Secret<String>,
+
+        /// Account holder name
+        name: String,
+
+        #[schema(value_type = Option<String>)]
+        #[serde(skip_serializing_if = "Option::is_none")]
+        connector_recipient_id: Option<Secret<String>>,
+    },
+
+    /// Swedish Bankgiro system
+    Bankgiro {
+        /// Bankgiro number (7-8 digits)
+        #[schema(value_type = String, example = "5402-9656")]
+        number: Secret<String>,
+
+        /// Account holder name
+        #[schema(example = "Erik Andersson")]
+        name: String,
+
+        #[schema(value_type = Option<String>)]
+        #[serde(skip_serializing_if = "Option::is_none")]
+        connector_recipient_id: Option<Secret<String>>,
+    },
+
+    /// Swedish Plusgiro system
+    Plusgiro {
+        /// Plusgiro number (2-8 digits)
+        #[schema(value_type = String, example = "4789-2")]
+        number: Secret<String>,
+
+        /// Account holder name
+        #[schema(example = "Anna Larsson")]
+        name: String,
+
+        #[schema(value_type = Option<String>)]
         #[serde(skip_serializing_if = "Option::is_none")]
         connector_recipient_id: Option<Secret<String>>,
     },
@@ -1890,7 +2013,7 @@ pub struct ProfileCreate {
 
     /// The routing algorithm to be used to process the incoming request from merchant to outgoing payment processor or payment method. The default is 'Custom'
     #[cfg(feature = "payouts")]
-    #[schema(value_type = Option<RoutingAlgorithm>,example = json!({"type": "single", "data": "wise"}))]
+    #[schema(value_type = Option<StaticRoutingAlgorithm>,example = json!({"type": "single", "data": "wise"}))]
     pub payout_routing_algorithm: Option<serde_json::Value>,
 
     /// Verified Apple Pay domains for a particular profile
@@ -1992,6 +2115,17 @@ pub struct ProfileCreate {
     //Merchant country for the profile
     #[schema(value_type = Option<CountryAlpha2>, example = "US")]
     pub merchant_business_country: Option<api_enums::CountryAlpha2>,
+
+    /// Indicates if the redirection has to open in the iframe
+    #[schema(example = false)]
+    pub is_iframe_redirection_enabled: Option<bool>,
+
+    /// Indicates if pre network tokenization is enabled or not
+    pub is_pre_network_tokenization_enabled: Option<bool>,
+
+    /// Four-digit code assigned based on business type to determine processing fees and risk level
+    #[schema(value_type = Option<MerchantCategoryCode>, example = "5411")]
+    pub merchant_category_code: Option<api_enums::MerchantCategoryCode>,
 }
 
 #[nutype::nutype(
@@ -2124,6 +2258,20 @@ pub struct ProfileCreate {
     //Merchant country for the profile
     #[schema(value_type = Option<CountryAlpha2>, example = "US")]
     pub merchant_business_country: Option<api_enums::CountryAlpha2>,
+
+    /// Indicates if the redirection has to open in the iframe
+    #[schema(example = false)]
+    pub is_iframe_redirection_enabled: Option<bool>,
+
+    /// Indicates if external vault is enabled or not.
+    pub is_external_vault_enabled: Option<bool>,
+
+    /// External Vault Connector Details
+    pub external_vault_connector_details: Option<ExternalVaultConnectorDetails>,
+
+    /// Four-digit code assigned based on business type to determine processing fees and risk level
+    #[schema(value_type = Option<MerchantCategoryCode>, example = "5411")]
+    pub merchant_category_code: Option<api_enums::MerchantCategoryCode>,
 }
 
 #[cfg(feature = "v1")]
@@ -2177,7 +2325,7 @@ pub struct ProfileResponse {
 
     /// The routing algorithm to be used to process the incoming request from merchant to outgoing payment processor or payment method. The default is 'Custom'
     #[cfg(feature = "payouts")]
-    #[schema(value_type = Option<RoutingAlgorithm>,example = json!({"type": "single", "data": "wise"}))]
+    #[schema(value_type = Option<StaticRoutingAlgorithm>,example = json!({"type": "single", "data": "wise"}))]
     pub payout_routing_algorithm: Option<serde_json::Value>,
 
     /// Verified Apple Pay domains for a particular profile
@@ -2283,6 +2431,22 @@ pub struct ProfileResponse {
     //Merchant country for the profile
     #[schema(value_type = Option<CountryAlpha2>, example = "US")]
     pub merchant_business_country: Option<api_enums::CountryAlpha2>,
+
+    /// Indicates if pre network tokenization is enabled or not
+    #[schema(default = false, example = false)]
+    pub is_pre_network_tokenization_enabled: bool,
+
+    /// Acquirer configs
+    #[schema(value_type = Option<Vec<ProfileAcquirerResponse>>)]
+    pub acquirer_configs: Option<Vec<ProfileAcquirerResponse>>,
+
+    /// Indicates if the redirection has to open in the iframe
+    #[schema(example = false)]
+    pub is_iframe_redirection_enabled: Option<bool>,
+
+    /// Four-digit code assigned based on business type to determine processing fees and risk level
+    #[schema(value_type = Option<MerchantCategoryCode>, example = "5411")]
+    pub merchant_category_code: Option<api_enums::MerchantCategoryCode>,
 }
 
 #[cfg(feature = "v2")]
@@ -2423,6 +2587,20 @@ pub struct ProfileResponse {
     //Merchant country for the profile
     #[schema(value_type = Option<CountryAlpha2>, example = "US")]
     pub merchant_business_country: Option<api_enums::CountryAlpha2>,
+
+    /// Indicates if the redirection has to open in the iframe
+    #[schema(example = false)]
+    pub is_iframe_redirection_enabled: Option<bool>,
+
+    /// Indicates if external vault is enabled or not.
+    pub is_external_vault_enabled: Option<bool>,
+
+    /// External Vault Connector Details
+    pub external_vault_connector_details: Option<ExternalVaultConnectorDetails>,
+
+    /// Four-digit code assigned based on business type to determine processing fees and risk level
+    #[schema(value_type = Option<MerchantCategoryCode>, example = "5411")]
+    pub merchant_category_code: Option<api_enums::MerchantCategoryCode>,
 }
 
 #[cfg(feature = "v1")]
@@ -2469,7 +2647,7 @@ pub struct ProfileUpdate {
 
     /// The routing algorithm to be used to process the incoming request from merchant to outgoing payment processor or payment method. The default is 'Custom'
     #[cfg(feature = "payouts")]
-    #[schema(value_type = Option<RoutingAlgorithm>,example = json!({"type": "single", "data": "wise"}))]
+    #[schema(value_type = Option<StaticRoutingAlgorithm>,example = json!({"type": "single", "data": "wise"}))]
     pub payout_routing_algorithm: Option<serde_json::Value>,
 
     /// Verified Apple Pay domains for a particular profile
@@ -2571,6 +2749,18 @@ pub struct ProfileUpdate {
     //Merchant country for the profile
     #[schema(value_type = Option<CountryAlpha2>, example = "US")]
     pub merchant_business_country: Option<api_enums::CountryAlpha2>,
+
+    /// Indicates if the redirection has to open in the iframe
+    #[schema(example = false)]
+    pub is_iframe_redirection_enabled: Option<bool>,
+
+    /// Indicates if pre network tokenization is enabled or not
+    #[schema(default = false, example = false)]
+    pub is_pre_network_tokenization_enabled: Option<bool>,
+
+    /// Four-digit code assigned based on business type to determine processing fees and risk level
+    #[schema(value_type = Option<MerchantCategoryCode>, example = "5411")]
+    pub merchant_category_code: Option<api_enums::MerchantCategoryCode>,
 }
 
 #[cfg(feature = "v2")]
@@ -2697,6 +2887,16 @@ pub struct ProfileUpdate {
     //Merchant country for the profile
     #[schema(value_type = Option<CountryAlpha2>, example = "US")]
     pub merchant_business_country: Option<api_enums::CountryAlpha2>,
+
+    /// Indicates if external vault is enabled or not.
+    pub is_external_vault_enabled: Option<bool>,
+
+    /// External Vault Connector Details
+    pub external_vault_connector_details: Option<ExternalVaultConnectorDetails>,
+
+    /// Four-digit code assigned based on business type to determine processing fees and risk level
+    #[schema(value_type = Option<MerchantCategoryCode>, example = "5411")]
+    pub merchant_category_code: Option<api_enums::MerchantCategoryCode>,
 }
 
 #[derive(Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
@@ -2904,6 +3104,8 @@ pub struct PaymentLinkConfigRequest {
     pub show_card_terms: Option<api_enums::PaymentLinkShowSdkTerms>,
     /// Boolean to control payment button text for setup mandate calls
     pub is_setup_mandate_flow: Option<bool>,
+    /// Hex color for the CVC icon during error state
+    pub color_icon_card_cvc_error: Option<String>,
 }
 
 #[derive(Clone, Debug, serde::Deserialize, serde::Serialize, PartialEq, ToSchema)]
@@ -3001,6 +3203,8 @@ pub struct PaymentLinkConfig {
     pub show_card_terms: Option<api_enums::PaymentLinkShowSdkTerms>,
     /// Boolean to control payment button text for setup mandate calls
     pub is_setup_mandate_flow: Option<bool>,
+    /// Hex color for the CVC icon during error state
+    pub color_icon_card_cvc_error: Option<String>,
 }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, PartialEq, Eq)]

@@ -10,7 +10,7 @@ use hyperswitch_domain_models::{
         mandate_revoke::MandateRevoke,
         payments::{
             Authorize, AuthorizeSessionToken, Balance, CalculateTax, Capture, CompleteAuthorize,
-            CreateConnectorCustomer, IncrementalAuthorization, InitPayment, PSync,
+            CreateConnectorCustomer, CreateOrder, IncrementalAuthorization, InitPayment, PSync,
             PaymentMethodToken, PostProcessing, PostSessionTokens, PreProcessing, SdkSessionUpdate,
             Session, SetupMandate, UpdateMetadata, Void,
         },
@@ -18,6 +18,10 @@ use hyperswitch_domain_models::{
         revenue_recovery::{BillingConnectorPaymentsSync, RecoveryRecordBack},
         unified_authentication_service::{
             Authenticate, AuthenticationConfirmation, PostAuthenticate, PreAuthenticate,
+        },
+        vault::{
+            ExternalVaultCreateFlow, ExternalVaultDeleteFlow, ExternalVaultInsertFlow,
+            ExternalVaultRetrieveFlow,
         },
         webhooks::VerifyWebhookSource,
         BillingConnectorInvoiceSync,
@@ -33,14 +37,15 @@ use hyperswitch_domain_models::{
             UasPreAuthenticationRequestData,
         },
         AcceptDisputeRequestData, AccessTokenRequestData, AuthorizeSessionTokenData,
-        CompleteAuthorizeData, ConnectorCustomerData, DefendDisputeRequestData,
-        MandateRevokeRequestData, PaymentMethodTokenizationData, PaymentsAuthorizeData,
-        PaymentsCancelData, PaymentsCaptureData, PaymentsIncrementalAuthorizationData,
-        PaymentsPostProcessingData, PaymentsPostSessionTokensData, PaymentsPreProcessingData,
-        PaymentsSessionData, PaymentsSyncData, PaymentsTaxCalculationData,
-        PaymentsUpdateMetadataData, RefundsData, RetrieveFileRequestData,
-        SdkPaymentsSessionUpdateData, SetupMandateRequestData, SubmitEvidenceRequestData,
-        UploadFileRequestData, VerifyWebhookSourceRequestData,
+        CompleteAuthorizeData, ConnectorCustomerData, CreateOrderRequestData,
+        DefendDisputeRequestData, MandateRevokeRequestData, PaymentMethodTokenizationData,
+        PaymentsAuthorizeData, PaymentsCancelData, PaymentsCaptureData,
+        PaymentsIncrementalAuthorizationData, PaymentsPostProcessingData,
+        PaymentsPostSessionTokensData, PaymentsPreProcessingData, PaymentsSessionData,
+        PaymentsSyncData, PaymentsTaxCalculationData, PaymentsUpdateMetadataData, RefundsData,
+        RetrieveFileRequestData, SdkPaymentsSessionUpdateData, SetupMandateRequestData,
+        SubmitEvidenceRequestData, UploadFileRequestData, VaultRequestData,
+        VerifyWebhookSourceRequestData,
     },
     router_response_types::{
         revenue_recovery::{
@@ -49,7 +54,8 @@ use hyperswitch_domain_models::{
         },
         AcceptDisputeResponse, DefendDisputeResponse, MandateRevokeResponseData,
         PaymentsResponseData, RefundsResponseData, RetrieveFileResponse, SubmitEvidenceResponse,
-        TaxCalculationResponseData, UploadFileResponse, VerifyWebhookSourceResponseData,
+        TaxCalculationResponseData, UploadFileResponse, VaultResponseData,
+        VerifyWebhookSourceResponseData,
     },
 };
 #[cfg(feature = "payouts")]
@@ -98,6 +104,9 @@ pub type SetupMandateType =
 /// Type alias for `ConnectorIntegration<MandateRevoke, MandateRevokeRequestData, MandateRevokeResponseData>`
 pub type MandateRevokeType =
     dyn ConnectorIntegration<MandateRevoke, MandateRevokeRequestData, MandateRevokeResponseData>;
+/// Type alias for `ConnectorIntegration<CreateOrder, CreateOrderRequestData, PaymentsResponseData>`
+pub type CreateOrderType =
+    dyn ConnectorIntegration<CreateOrder, CreateOrderRequestData, PaymentsResponseData>;
 /// Type alias for `ConnectorIntegration<PreProcessing, PaymentsPreProcessingData, PaymentsResponseData>`
 pub type PaymentsPreProcessingType =
     dyn ConnectorIntegration<PreProcessing, PaymentsPreProcessingData, PaymentsResponseData>;
@@ -282,3 +291,44 @@ pub type BillingConnectorInvoiceSyncTypeV2 = dyn ConnectorIntegrationV2<
     BillingConnectorInvoiceSyncRequest,
     BillingConnectorInvoiceSyncResponse,
 >;
+
+/// Type alias for `ConnectorIntegration<ExternalVaultInsertFlow, VaultRequestData, VaultResponseData>`
+pub type ExternalVaultInsertType =
+    dyn ConnectorIntegration<ExternalVaultInsertFlow, VaultRequestData, VaultResponseData>;
+/// Type alias for `ConnectorIntegration<ExternalVaultRetrieveFlow, VaultRequestData, VaultResponseData>`
+pub type ExternalVaultRetrieveType =
+    dyn ConnectorIntegration<ExternalVaultRetrieveFlow, VaultRequestData, VaultResponseData>;
+/// Type alias for `ConnectorIntegration<ExternalVaultDeleteFlow, VaultRequestData, VaultResponseData>`
+pub type ExternalVaultDeleteType =
+    dyn ConnectorIntegration<ExternalVaultDeleteFlow, VaultRequestData, VaultResponseData>;
+/// Type alias for `ConnectorIntegration<ExternalVaultCreateFlow, VaultRequestData, VaultResponseData>`
+pub type ExternalVaultCreateType =
+    dyn ConnectorIntegration<ExternalVaultCreateFlow, VaultRequestData, VaultResponseData>;
+
+/// Proxy configuration structure
+#[derive(Debug, serde::Deserialize, Clone)]
+#[serde(default)]
+pub struct Proxy {
+    /// The URL of the HTTP proxy server.
+    pub http_url: Option<String>,
+
+    /// The URL of the HTTPS proxy server.
+    pub https_url: Option<String>,
+
+    /// The timeout duration (in seconds) for idle connections in the proxy pool.
+    pub idle_pool_connection_timeout: Option<u64>,
+
+    /// A comma-separated list of hosts that should bypass the proxy.
+    pub bypass_proxy_hosts: Option<String>,
+}
+
+impl Default for Proxy {
+    fn default() -> Self {
+        Self {
+            http_url: Default::default(),
+            https_url: Default::default(),
+            idle_pool_connection_timeout: Some(90),
+            bypass_proxy_hosts: Default::default(),
+        }
+    }
+}

@@ -73,8 +73,8 @@ impl<'a> NetworkTokenizationBuilder<'a, TokenizeWithPmId> {
             payment_method_id: payment_method.payment_method_id.clone(),
             payment_method: payment_method.payment_method,
             payment_method_type: payment_method.payment_method_type,
-            recurring_enabled: true,
-            installment_payment_enabled: false,
+            recurring_enabled: Some(true),
+            installment_payment_enabled: Some(false),
             metadata: payment_method.metadata.clone(),
             created: Some(payment_method.created_at),
             last_used_at: Some(payment_method.last_used_at),
@@ -151,6 +151,7 @@ impl<'a> NetworkTokenizationBuilder<'a, PmValidated> {
             card_issuing_country: optional_card_info
                 .as_ref()
                 .and_then(|card_info| card_info.card_issuing_country.clone()),
+            co_badged_card_data: None,
         };
         NetworkTokenizationBuilder {
             state: std::marker::PhantomData,
@@ -226,8 +227,8 @@ impl<'a> NetworkTokenizationBuilder<'a, PmTokenStored> {
             payment_method_id: payment_method.payment_method_id.clone(),
             payment_method: payment_method.payment_method,
             payment_method_type: payment_method.payment_method_type,
-            recurring_enabled: true,
-            installment_payment_enabled: false,
+            recurring_enabled: Some(true),
+            installment_payment_enabled: Some(false),
             metadata: payment_method.metadata.clone(),
             created: Some(payment_method.created_at),
             last_used_at: Some(payment_method.last_used_at),

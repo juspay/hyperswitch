@@ -1061,7 +1061,16 @@ impl Default for RequiredFields {
                     enums::PaymentMethodType::UpiCollect,
                     connectors(vec![(
                         Connector::Razorpay,
-                        fields(vec![], vec![], vec![RequiredField::UpiCollectVpaId]),
+                        fields(
+                            vec![],
+                            vec![],
+                            vec![
+                                RequiredField::UpiCollectVpaId,
+                                RequiredField::BillingEmail,
+                                RequiredField::BillingPhone,
+                                RequiredField::BillingPhoneCountryCode,
+                            ],
+                        ),
                     )]),
                 )])),
             ),
@@ -1476,6 +1485,10 @@ fn get_cards_required_fields() -> HashMap<Connector, RequiredFieldFinal> {
                     RequiredField::BillingUserFirstName,
                 ],
             ),
+        ),
+        (
+            Connector::Worldpayvantiv,
+            fields(vec![], card_basic(), vec![]),
         ),
         (
             Connector::Xendit,
@@ -3103,6 +3116,7 @@ fn get_bank_transfer_required_fields() -> HashMap<enums::PaymentMethodType, Conn
                             RequiredField::BillingAddressCountries(vec!["BR"]).to_tuple(),
                             RequiredField::BillingUserFirstName.to_tuple(),
                             RequiredField::BillingUserLastName.to_tuple(),
+                            RequiredField::PixCpf.to_tuple(),
                         ]),
                     },
                 ),
@@ -3220,6 +3234,56 @@ fn get_bank_transfer_required_fields() -> HashMap<enums::PaymentMethodType, Conn
                         RequiredField::BillingAddressCity,
                         RequiredField::BillingAddressZip,
                         RequiredField::BillingAddressCountries(vec!["ALL"]),
+                    ],
+                ),
+            )]),
+        ),
+        (
+            enums::PaymentMethodType::InstantBankTransferFinland,
+            connectors(vec![(
+                Connector::Trustpay,
+                fields(
+                    vec![],
+                    vec![],
+                    vec![
+                        RequiredField::Email,
+                        RequiredField::BillingFirstName(
+                            "billing_first_name",
+                            FieldType::UserBillingName,
+                        ),
+                        RequiredField::BillingLastName(
+                            "billing_last_name",
+                            FieldType::UserBillingName,
+                        ),
+                        RequiredField::BillingAddressLine1,
+                        RequiredField::BillingAddressCity,
+                        RequiredField::BillingAddressZip,
+                        RequiredField::BillingAddressCountries(vec!["FI"]),
+                    ],
+                ),
+            )]),
+        ),
+        (
+            enums::PaymentMethodType::InstantBankTransferPoland,
+            connectors(vec![(
+                Connector::Trustpay,
+                fields(
+                    vec![],
+                    vec![],
+                    vec![
+                        RequiredField::Email,
+                        RequiredField::BillingFirstName(
+                            "billing_first_name",
+                            FieldType::UserBillingName,
+                        ),
+                        RequiredField::BillingLastName(
+                            "billing_last_name",
+                            FieldType::UserBillingName,
+                        ),
+                        RequiredField::BillingAddressLine1,
+                        RequiredField::BillingAddressCity,
+                        RequiredField::BillingAddressZip,
+                        RequiredField::BillingAddressCountries(vec!["PL"]),
                     ],
                 ),
             )]),

@@ -35,6 +35,7 @@ impl ValidateStatusForOperation for PaymentsCapture {
             common_enums::IntentStatus::RequiresCapture
             | common_enums::IntentStatus::PartiallyCapturedAndCapturable => Ok(()),
             common_enums::IntentStatus::Succeeded
+            | common_enums::IntentStatus::Conflicted
             | common_enums::IntentStatus::Failed
             | common_enums::IntentStatus::Cancelled
             | common_enums::IntentStatus::Processing
@@ -288,7 +289,7 @@ impl<F: Clone + Send> Domain<F, PaymentsCaptureRequest, PaymentCaptureData<F>> f
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Invalid connector name received")?;
 
-        Ok(ConnectorCallType::PreDetermined(connector_data))
+        Ok(ConnectorCallType::PreDetermined(connector_data.into()))
     }
 }
 

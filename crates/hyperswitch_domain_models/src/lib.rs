@@ -5,11 +5,13 @@ pub mod bulk_tokenization;
 pub mod business_profile;
 pub mod callback_mapper;
 pub mod card_testing_guard_data;
+pub mod cards_info;
 pub mod configs;
 pub mod consts;
 pub mod customer;
 pub mod disputes;
 pub mod errors;
+pub mod ext_traits;
 pub mod mandates;
 pub mod merchant_account;
 pub mod merchant_connector_account;
@@ -32,9 +34,10 @@ pub mod router_flow_types;
 pub mod router_request_types;
 pub mod router_response_types;
 pub mod routing;
+#[cfg(feature = "tokenization_v2")]
+pub mod tokenization;
 pub mod type_encryption;
 pub mod types;
-#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
 pub mod vault;
 
 #[cfg(not(feature = "payouts"))]
@@ -429,6 +432,7 @@ impl ApiModelToDieselModelConvertor<api_models::admin::PaymentLinkConfigRequest>
             payment_form_label_type: item.payment_form_label_type,
             show_card_terms: item.show_card_terms,
             is_setup_mandate_flow: item.is_setup_mandate_flow,
+            color_icon_card_cvc_error: item.color_icon_card_cvc_error,
         }
     }
     fn convert_back(self) -> api_models::admin::PaymentLinkConfigRequest {
@@ -457,6 +461,7 @@ impl ApiModelToDieselModelConvertor<api_models::admin::PaymentLinkConfigRequest>
             payment_form_label_type,
             show_card_terms,
             is_setup_mandate_flow,
+            color_icon_card_cvc_error,
         } = self;
         api_models::admin::PaymentLinkConfigRequest {
             theme,
@@ -489,6 +494,7 @@ impl ApiModelToDieselModelConvertor<api_models::admin::PaymentLinkConfigRequest>
             payment_form_label_type,
             show_card_terms,
             is_setup_mandate_flow,
+            color_icon_card_cvc_error,
         }
     }
 }

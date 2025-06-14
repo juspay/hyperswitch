@@ -26,7 +26,9 @@ use crate::{
             self,
             transformers::{GenerateResponse, ToResponse},
         },
-        webhooks::utils::construct_webhook_router_data,
+        webhooks::{
+            create_event_and_trigger_outgoing_webhook, utils::construct_webhook_router_data,
+        },
     },
     db::StorageInterface,
     events::api_logs::ApiEvent,
@@ -95,6 +97,8 @@ pub async fn incoming_webhooks_wrapper<W: types::OutgoingWebhookType>(
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Could not convert webhook effect to string")?;
 
+    let infra = state.infra_components.clone();
+
     let api_event = ApiEvent::new(
         state.tenant.tenant_id.clone(),
         Some(merchant_context.get_merchant_account().get_id().clone()),
@@ -110,6 +114,7 @@ pub async fn incoming_webhooks_wrapper<W: types::OutgoingWebhookType>(
         api_event,
         req,
         req.method(),
+        infra,
     );
     state.event_handler().log_event(&api_event);
     Ok(application_response)
@@ -468,6 +473,7 @@ async fn payments_incoming_webhook_flow(
                         force_sync: true,
                         expand_attempts: false,
                         param: None,
+                        all_keys_required: None,
                     },
                     get_trackers_response,
                     consume_or_trigger_flow,
@@ -531,22 +537,21 @@ async fn payments_incoming_webhook_flow(
             let event_type: Option<enums::EventType> = payments_response.status.foreign_into();
 
             // If event is NOT an UnsupportedEvent, trigger Outgoing Webhook
-            if let Some(_outgoing_event_type) = event_type {
-                let _primary_object_created_at = payments_response.created;
+            if let Some(outgoing_event_type) = event_type {
+                let primary_object_created_at = payments_response.created;
                 // TODO: trigger an outgoing webhook to merchant
-                // Box::pin(super::create_event_and_trigger_outgoing_webhook(
-                //     state,
-                //     merchant_account,
-                //     profile,
-                //     &key_store,
-                //     outgoing_event_type,
-                //     enums::EventClass::Payments,
-                //     payment_id.get_string_repr().to_owned(),
-                //     enums::EventObjectType::PaymentDetails,
-                //     api::OutgoingWebhookContent::PaymentDetails(Box::new(payments_response)),
-                //     Some(primary_object_created_at),
-                // ))
-                // .await?;
+                Box::pin(create_event_and_trigger_outgoing_webhook(
+                    state,
+                    profile,
+                    merchant_context.get_merchant_key_store(),
+                    outgoing_event_type,
+                    enums::EventClass::Payments,
+                    payment_id.get_string_repr().to_owned(),
+                    enums::EventObjectType::PaymentDetails,
+                    api::OutgoingWebhookContent::PaymentDetails(Box::new(payments_response)),
+                    primary_object_created_at,
+                ))
+                .await?;
             };
 
             let response = WebhookResponseTracker::Payment { payment_id, status };
@@ -669,7 +674,7 @@ where
         payment_data: PaymentStatusData {
             flow: PhantomData,
             payment_intent,
-            payment_attempt: Some(payment_attempt),
+            payment_attempt,
             attempts: None,
             should_sync_with_connector: true,
             payment_address,
@@ -725,6 +730,7 @@ async fn verify_webhook_source_verification_call(
         connector_integration,
         &router_data,
         payments::CallConnectorAction::Trigger,
+        None,
         None,
     )
     .await?;

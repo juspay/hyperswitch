@@ -23,7 +23,6 @@ pub mod gsm;
 pub mod health_check;
 pub mod locker_migration;
 pub mod mandates;
-#[cfg(feature = "dynamic_routing")]
 pub mod open_router;
 pub mod organization;
 pub mod payment_methods;
@@ -33,12 +32,18 @@ pub mod payouts;
 pub mod pm_auth;
 pub mod poll;
 pub mod process_tracker;
+pub mod profile_acquirer;
+#[cfg(feature = "v2")]
+pub mod proxy;
 #[cfg(feature = "recon")]
 pub mod recon;
 pub mod refunds;
 pub mod relay;
 pub mod routing;
 pub mod surcharge_decision_configs;
+pub mod three_ds_decision_rule;
+#[cfg(feature = "tokenization_v2")]
+pub mod tokenization;
 pub mod user;
 pub mod user_role;
 pub mod verifications;

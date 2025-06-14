@@ -84,6 +84,14 @@ merchant_secret="Source verification key"
 [[adyen.debit]]
   payment_method_type = "Visa"
 [[adyen.debit]]
+  payment_method_type = "Nyce"
+[[adyen.debit]]
+  payment_method_type = "Pulse"
+[[adyen.debit]]
+  payment_method_type = "Star"
+[[adyen.debit]]
+  payment_method_type = "Accel"
+[[adyen.debit]]
   payment_method_type = "Interac"
 [[adyen.debit]]
   payment_method_type = "AmericanExpress"
@@ -941,6 +949,51 @@ required=true
 type="MultiSelect"
 options=["visa","masterCard","amex","discover"]
 
+[barclaycard]
+[[barclaycard.credit]]
+  payment_method_type = "Mastercard"
+[[barclaycard.credit]]
+  payment_method_type = "Visa"
+[[barclaycard.credit]]
+  payment_method_type = "AmericanExpress"
+[[barclaycard.credit]]
+  payment_method_type = "JCB"
+[[barclaycard.credit]]
+  payment_method_type = "Discover"
+[[barclaycard.credit]]
+  payment_method_type = "Maestro"
+[[barclaycard.credit]]
+  payment_method_type = "Interac"
+[[barclaycard.credit]]
+  payment_method_type = "DinersClub"
+[[barclaycard.credit]]
+  payment_method_type = "CartesBancaires"
+[[barclaycard.credit]]
+  payment_method_type = "UnionPay"
+[[barclaycard.debit]]
+  payment_method_type = "Mastercard"
+[[barclaycard.debit]]
+  payment_method_type = "Visa"
+[[barclaycard.debit]]
+  payment_method_type = "AmericanExpress"
+[[barclaycard.debit]]
+  payment_method_type = "JCB"
+[[barclaycard.debit]]
+  payment_method_type = "Discover"
+[[barclaycard.debit]]
+  payment_method_type = "Maestro"
+[[barclaycard.debit]]
+  payment_method_type = "Interac"
+[[barclaycard.debit]]
+  payment_method_type = "DinersClub"
+[[barclaycard.debit]]
+  payment_method_type = "CartesBancaires"
+[[barclaycard.debit]]
+  payment_method_type = "UnionPay"
+[barclaycard.connector_auth.SignatureKey]
+api_key="Key"
+key1="Merchant ID"
+api_secret="Shared Secret"
 
 [bitpay]
 [[bitpay.crypto]]
@@ -968,24 +1021,6 @@ merchant_secret="Source verification key"
 [[bluesnap.credit]]
   payment_method_type = "CartesBancaires"
 [[bluesnap.credit]]
-  payment_method_type = "UnionPay"
-[[bluesnap.debit]]
-  payment_method_type = "Mastercard"
-[[bluesnap.debit]]
-  payment_method_type = "Visa"
-[[bluesnap.debit]]
-  payment_method_type = "Interac"
-[[bluesnap.debit]]
-  payment_method_type = "AmericanExpress"
-[[bluesnap.debit]]
-  payment_method_type = "JCB"
-[[bluesnap.debit]]
-  payment_method_type = "DinersClub"
-[[bluesnap.debit]]
-  payment_method_type = "Discover"
-[[bluesnap.debit]]
-  payment_method_type = "CartesBancaires"
-[[bluesnap.debit]]
   payment_method_type = "UnionPay"
 [[bluesnap.wallet]]
   payment_method_type = "google_pay"
@@ -1498,6 +1533,13 @@ type="Text"
 api_key="API Key"
 [coinbase.connector_webhook_details]
 merchant_secret="Source verification key"
+[coinbase.metadata.pricing_type]
+name="pricing_type"
+label="Select the pricing type Example: fixed_price,no_price"
+placeholder="Select the pricing type Example: fixed_price,no_price"
+required=true
+type="Select"
+options=["fixed_price","no_price"]
 
 [coingate]
 [[coingate.crypto]]
@@ -3970,6 +4012,8 @@ merchant_secret="Source verification key"
   payment_method_type = "ali_pay"
 [[stripe.wallet]]
   payment_method_type = "cashapp"
+[[stripe.wallet]]
+  payment_method_type = "revolut_pay"
 is_verifiable = true
 [stripe.connector_auth.HeaderKey]
 api_key="Secret Key"
@@ -4240,6 +4284,10 @@ merchant_secret="Source verification key"
   payment_method_type = "sepa_bank_transfer"
 [[trustpay.bank_transfer]]
   payment_method_type = "instant_bank_transfer"
+[[trustpay.bank_transfer]]
+  payment_method_type = "instant_bank_transfer_finland"
+[[trustpay.bank_transfer]]
+  payment_method_type = "instant_bank_transfer_poland"
 [trustpay.connector_auth.SignatureKey]
 api_key="API Key"
 key1="Project ID"
@@ -5039,6 +5087,24 @@ label="Pull Mechanism Enabled"
 placeholder="Enter Pull Mechanism Enabled"
 required=false
 type="Toggle"
+[threedsecureio.metadata.acquirer_bin]
+name="acquirer_bin"
+label="Acquirer BIN"
+placeholder="Enter Acquirer BIN"
+required=true
+type="Text"
+[threedsecureio.metadata.acquirer_merchant_id]
+name="acquirer_merchant_id"
+label="Acquirer Merchant ID"
+placeholder="Enter Acquirer Merchant ID"
+required=true
+type="Text"
+[threedsecureio.metadata.acquirer_country_code]
+name="acquirer_country_code"
+label="Acquirer Country Code"
+placeholder="Enter Acquirer Country Code"
+required=false
+type="Text"
 
 [netcetera]
 [netcetera.connector_auth.CertificateAuth]
@@ -5454,6 +5520,171 @@ options=["Hyperswitch"]
 [fiuu.connector_webhook_details]
 merchant_secret="Source verification key"
 
+[tokenio]
+[[tokenio.open_banking]]
+  payment_method_type = "open_banking_pis"
+[tokenio.connector_webhook_details]
+merchant_secret="Tokenio Public Key"
+[tokenio.connector_auth.MultiAuthKey]
+api_key="Key Id"
+api_secret="Private Key"
+key1="Merchant Id"
+key2="Key Algorithm"
+[tokenio.additional_merchant_data.open_banking_recipient_data]
+name="open_banking_recipient_data"
+label="Open Banking Recipient Data"
+placeholder="Enter Open Banking Recipient Data"
+required=true
+type="Select"
+options=["account_data"]
+[tokenio.additional_merchant_data.account_data]
+name="account_data"
+label="Bank scheme"
+placeholder="Enter account_data"
+required=true
+type="Select"
+options=["iban","bacs","faster_payments","sepa","sepa_instant","elixir","bankgiro","plusgiro"]
+
+[tokenio.additional_merchant_data.iban]
+name="iban"
+label="IBAN"
+placeholder="Enter IBAN"
+required=true
+type="Text"
+
+[tokenio.additional_merchant_data.iban_name]
+name="iban.name"
+label="Account Holder Name"
+placeholder="Enter account holder name"
+required=true
+type="Text"
+
+# BACS Configuration
+[tokenio.additional_merchant_data.bacs_sort_code]
+name="bacs.sort_code"
+label="Sort Code"
+placeholder="Enter sort code (e.g., 12-34-56)"
+required=true
+type="Text"
+
+[tokenio.additional_merchant_data.bacs_account_number]
+name="bacs.account_number"
+label="Account Number"
+placeholder="Enter account number"
+required=true
+type="Text"
+
+[tokenio.additional_merchant_data.bacs_name]
+name="bacs.name"
+label="Account Holder Name"
+placeholder="Enter account holder name"
+required=true
+type="Text"
+
+# Faster Payments Configuration
+[tokenio.additional_merchant_data.faster_payments_sort_code]
+name="faster_payments.sort_code"
+label="Sort Code"
+placeholder="Enter sort code (e.g., 12-34-56)"
+required=true
+type="Text"
+
+[tokenio.additional_merchant_data.faster_payments_account_number]
+name="faster_payments.account_number"
+label="Account Number"
+placeholder="Enter account number"
+required=true
+type="Text"
+
+[tokenio.additional_merchant_data.faster_payments_name]
+name="faster_payments.name"
+label="Account Holder Name"
+placeholder="Enter account holder name"
+required=true
+type="Text"
+
+# SEPA Configuration
+[tokenio.additional_merchant_data.sepa_iban]
+name="sepa.iban"
+label="IBAN"
+placeholder="Enter IBAN"
+required=true
+type="Text"
+
+[tokenio.additional_merchant_data.sepa_name]
+name="sepa.name"
+label="Account Holder Name"
+placeholder="Enter account holder name"
+required=true
+type="Text"
+
+# SEPA Instant Configuration
+[tokenio.additional_merchant_data.sepa_instant_iban]
+name="sepa_instant.iban"
+label="IBAN"
+placeholder="Enter IBAN"
+required=true
+type="Text"
+
+[tokenio.additional_merchant_data.sepa_instant_name]
+name="sepa_instant.name"
+label="Account Holder Name"
+placeholder="Enter account holder name"
+required=true
+type="Text"
+
+# Elixir Configuration
+[tokenio.additional_merchant_data.elixir_account_number]
+name="elixir.account_number"
+label="Account Number"
+placeholder="Enter account number"
+required=true
+type="Text"
+
+[tokenio.additional_merchant_data.elixir_iban]
+name="elixir.iban"
+label="IBAN"
+placeholder="Enter IBAN"
+required=true
+type="Text"
+
+[tokenio.additional_merchant_data.elixir_name]
+name="elixir.name"
+label="Account Holder Name"
+placeholder="Enter account holder name"
+required=true
+type="Text"
+
+# Bankgiro Configuration
+[tokenio.additional_merchant_data.bankgiro_number]
+name="bankgiro.number"
+label="Bankgiro Number"
+placeholder="Enter bankgiro number"
+required=true
+type="Text"
+
+[tokenio.additional_merchant_data.bankgiro_name]
+name="bankgiro.name"
+label="Account Holder Name"
+placeholder="Enter account holder name"
+required=true
+type="Text"
+
+# Plusgiro Configuration
+[tokenio.additional_merchant_data.plusgiro_number]
+name="plusgiro.number"
+label="Plusgiro Number"
+placeholder="Enter plusgiro number"
+required=true
+type="Text"
+
+[tokenio.additional_merchant_data.plusgiro_name]
+name="plusgiro.name"
+label="Account Holder Name"
+placeholder="Enter account holder name"
+required=true
+type="Text"
+
 [elavon]
 [[elavon.credit]]
   payment_method_type = "Mastercard"
@@ -5791,6 +6022,202 @@ api_secret = "Secret Key"
 [facilitapay]
 [[facilitapay.bank_transfer]]
   payment_method_type = "pix"
-[facilitapay.connector_auth.Bodykey]
+[facilitapay.connector_auth.BodyKey]
   api_key="Password"
   key1="Username"
+
+[archipel]
+[archipel.connector_auth.HeaderKey]
+api_key="Enter CA Certificate PEM"
+[[archipel.credit]]
+payment_method_type = "Mastercard"
+[[archipel.credit]]
+payment_method_type = "Visa"
+[[archipel.credit]]
+payment_method_type = "AmericanExpress"
+[[archipel.credit]]
+payment_method_type = "DinersClub"
+[[archipel.credit]]
+payment_method_type = "Discover"
+[[archipel.credit]]
+payment_method_type = "CartesBancaires"
+[[archipel.debit]]
+payment_method_type = "Mastercard"
+[[archipel.debit]]
+payment_method_type = "Visa"
+[[archipel.debit]]
+payment_method_type = "AmericanExpress"
+[[archipel.debit]]
+payment_method_type = "DinersClub"
+[[archipel.debit]]
+payment_method_type = "Discover"
+[[archipel.debit]]
+payment_method_type = "CartesBancaires"
+[[archipel.wallet]]
+payment_method_type = "apple_pay"
+[archipel.metadata.tenant_id]
+name="tenant_id"
+label="Tenant ID"
+placeholder="Enter Archipel tenantID"
+required=true
+type="Text"
+[archipel.metadata.platform_url]
+name="platform_url"
+label="Platform Endpoint Prefix"
+placeholder="E.g. 192.0.0.1:8080"
+required=true
+type="Text"
+[[archipel.metadata.apple_pay]]
+name="certificate"
+label="Merchant Certificate (Base64 Encoded)"
+placeholder="Enter Merchant Certificate (Base64 Encoded)"
+required=true
+type="Text"
+[[archipel.metadata.apple_pay]]
+name="certificate_keys"
+label="Merchant PrivateKey (Base64 Encoded)"
+placeholder="Enter Merchant PrivateKey (Base64 Encoded)"
+required=true
+type="Text"
+[[archipel.metadata.apple_pay]]
+name="merchant_identifier"
+label="Apple Merchant Identifier"
+placeholder="Enter Apple Merchant Identifier"
+required=true
+type="Text"
+[[archipel.metadata.apple_pay]]
+name="display_name"
+label="Display Name"
+placeholder="Enter Display Name"
+required=true
+type="Text"
+[[archipel.metadata.apple_pay]]
+name="initiative"
+label="Domain"
+placeholder="Enter Domain"
+required=true
+type="Select"
+options=["web","ios"]
+[[archipel.metadata.apple_pay]]
+name="initiative_context"
+label="Domain Name"
+placeholder="Enter Domain Name"
+required=true
+type="Text"
+[[archipel.metadata.apple_pay]]
+name="merchant_business_country"
+label="Merchant Business Country"
+placeholder="Enter Merchant Business Country"
+required=true
+type="Select"
+options=[]
+[[archipel.metadata.apple_pay]]
+name="payment_processing_details_at"
+label="Payment Processing Details At"
+placeholder="Enter Payment Processing Details At"
+required=true
+type="Radio"
+options=["Hyperswitch"]
+
+[archipel.metadata.acquirer_bin]
+name = "acquirer_bin"
+label = "Acquirer Bin"
+placeholder = "Enter Acquirer Bin"
+required = false
+type = "Text"
+[archipel.metadata.acquirer_merchant_id]
+name = "acquirer_merchant_id"
+label = "Acquirer Merchant ID"
+placeholder = "Enter Acquirer Merchant ID"
+required = false
+type = "Text"
+
+
+[worldpayxml]
+[[worldpayxml.credit]]
+  payment_method_type = "Mastercard"
+[[worldpayxml.credit]]
+  payment_method_type = "Visa"
+[[worldpayxml.credit]]
+  payment_method_type = "Interac"
+[[worldpayxml.credit]]
+  payment_method_type = "AmericanExpress"
+[[worldpayxml.credit]]
+  payment_method_type = "JCB"
+[[worldpayxml.credit]]
+  payment_method_type = "DinersClub"
+[[worldpayxml.credit]]
+  payment_method_type = "Discover"
+[[worldpayxml.credit]]
+  payment_method_type = "CartesBancaires"
+[[worldpayxml.credit]]
+  payment_method_type = "UnionPay"
+[[worldpayxml.debit]]
+  payment_method_type = "Mastercard"
+[[worldpayxml.debit]]
+  payment_method_type = "Visa"
+[[worldpayxml.debit]]
+  payment_method_type = "Interac"
+[[worldpayxml.debit]]
+  payment_method_type = "AmericanExpress"
+[[worldpayxml.debit]]
+  payment_method_type = "JCB"
+[[worldpayxml.debit]]
+  payment_method_type = "DinersClub"
+[[worldpayxml.debit]]
+  payment_method_type = "Discover"
+[[worldpayxml.debit]]
+  payment_method_type = "CartesBancaires"
+[[worldpayxml.debit]]
+  payment_method_type = "UnionPay"
+
+[worldpayxml.connector_auth.SignatureKey]
+api_secret="Merchant Code"
+api_key="API Username"
+key1="API Password"
+
+[worldpayvantiv]
+[[worldpayvantiv.credit]]
+  payment_method_type = "Mastercard"
+[[worldpayvantiv.credit]]
+  payment_method_type = "Visa"
+[[worldpayvantiv.credit]]
+  payment_method_type = "AmericanExpress"
+[[worldpayvantiv.credit]]
+  payment_method_type = "JCB"
+[[worldpayvantiv.credit]]
+  payment_method_type = "DinersClub"
+[[worldpayvantiv.credit]]
+  payment_method_type = "Discover"
+[[worldpayvantiv.debit]]
+  payment_method_type = "Mastercard"
+[[worldpayvantiv.debit]]
+  payment_method_type = "Visa"
+[[worldpayvantiv.debit]]
+  payment_method_type = "AmericanExpress"
+[[worldpayvantiv.debit]]
+  payment_method_type = "JCB"
+[[worldpayvantiv.debit]]
+  payment_method_type = "DinersClub"
+[[worldpayvantiv.debit]]
+  payment_method_type = "Discover"
+
+[worldpayvantiv.connector_auth.SignatureKey]
+api_key="Username"
+api_secret="Password"
+key1="Merchant ID"
+
+[worldpayvantiv.metadata.report_group]
+name="report_group"
+label="Default Report Group"
+placeholder="Enter Default Report Group"
+required=true
+type="Text"
+
+[worldpayvantiv.metadata.merchant_config_currency]
+name="merchant_config_currency"
+label="Currency"
+placeholder="Enter Currency"
+required=true
+type="Select"
+options=[]

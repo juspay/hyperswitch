@@ -88,6 +88,9 @@ pub trait ConnectorErrorExt<T> {
     #[cfg(feature = "payouts")]
     #[track_caller]
     fn to_payout_failed_response(self) -> error_stack::Result<T, errors::ApiErrorResponse>;
+    #[cfg(feature = "v2")]
+    #[track_caller]
+    fn to_vault_failed_response(self) -> error_stack::Result<T, errors::ApiErrorResponse>;
 
     // Validates if the result, is Ok(..) or WebhookEventTypeNotFound all the other error variants
     // are cascaded while these two event types are handled via `Option`
@@ -128,6 +131,12 @@ impl<T> ConnectorErrorExt<T> for error_stack::Result<T, errors::ConnectorError> 
                 }
                 .into()
             }
+            errors::ConnectorError::CaptureMethodNotSupported => {
+                errors::ApiErrorResponse::NotSupported {
+                    message: "Capture Method Not Supported".to_owned(),
+                }
+                .into()
+            }
             errors::ConnectorError::FailedToObtainIntegrationUrl
             | errors::ConnectorError::RequestEncodingFailed
             | errors::ConnectorError::RequestEncodingFailedWithReason(_)
@@ -148,7 +157,6 @@ impl<T> ConnectorErrorExt<T> for error_stack::Result<T, errors::ConnectorError> 
             | errors::ConnectorError::NoConnectorWalletDetails
             | errors::ConnectorError::FailedToObtainCertificateKey
             | errors::ConnectorError::FlowNotSupported { .. }
-            | errors::ConnectorError::CaptureMethodNotSupported
             | errors::ConnectorError::MissingConnectorMandateID
             | errors::ConnectorError::MissingConnectorMandateMetadata
             | errors::ConnectorError::MissingConnectorTransactionID
@@ -231,6 +239,11 @@ impl<T> ConnectorErrorExt<T> for error_stack::Result<T, errors::ConnectorError> 
                 errors::ConnectorError::InvalidDataFormat { field_name } => {
                     errors::ApiErrorResponse::InvalidDataValue { field_name }
                 },
+                errors::ConnectorError::CaptureMethodNotSupported => {
+                    errors::ApiErrorResponse::NotSupported {
+                        message: "Capture Method Not Supported".to_owned(),
+                    }
+                }
                 errors::ConnectorError::InvalidWalletToken {wallet_name} => errors::ApiErrorResponse::InvalidWalletToken {wallet_name: wallet_name.to_string()},
                 errors::ConnectorError::CurrencyNotSupported { message, connector} => errors::ApiErrorResponse::CurrencyNotSupported { message: format!("Credentials for the currency {message} are not configured with the connector {connector}/hyperswitch") },
                 errors::ConnectorError::FailedToObtainAuthType =>  errors::ApiErrorResponse::InvalidConnectorConfiguration {config: "connector_account_details".to_string()},
@@ -249,7 +262,6 @@ impl<T> ConnectorErrorExt<T> for error_stack::Result<T, errors::ConnectorError> 
                 errors::ConnectorError::FailedToObtainCertificate |
                 errors::ConnectorError::NoConnectorMetaData | errors::ConnectorError::NoConnectorWalletDetails |
                 errors::ConnectorError::FailedToObtainCertificateKey |
-                errors::ConnectorError::CaptureMethodNotSupported |
                 errors::ConnectorError::MissingConnectorMandateID |
                 errors::ConnectorError::MissingConnectorMandateMetadata |
                 errors::ConnectorError::MissingConnectorTransactionID |
@@ -321,6 +333,11 @@ impl<T> ConnectorErrorExt<T> for error_stack::Result<T, errors::ConnectorError> 
                         wallet_name: wallet_name.to_string(),
                     }
                 }
+                errors::ConnectorError::CaptureMethodNotSupported => {
+                    errors::ApiErrorResponse::NotSupported {
+                        message: "Capture Method Not Supported".to_owned(),
+                    }
+                }
                 errors::ConnectorError::RequestEncodingFailed
                 | errors::ConnectorError::RequestEncodingFailedWithReason(_)
                 | errors::ConnectorError::ParsingFailed
@@ -340,7 +357,6 @@ impl<T> ConnectorErrorExt<T> for error_stack::Result<T, errors::ConnectorError> 
                 | errors::ConnectorError::NotImplemented(_)
                 | errors::ConnectorError::NotSupported { .. }
                 | errors::ConnectorError::FlowNotSupported { .. }
-                | errors::ConnectorError::CaptureMethodNotSupported
                 | errors::ConnectorError::MissingConnectorMandateID
                 | errors::ConnectorError::MissingConnectorMandateMetadata
                 | errors::ConnectorError::MissingConnectorTransactionID
@@ -429,6 +445,42 @@ impl<T> ConnectorErrorExt<T> for error_stack::Result<T, errors::ConnectorError> 
                         }
                     };
                     errors::ApiErrorResponse::PayoutFailed { data }
+                }
+                errors::ConnectorError::MissingRequiredField { field_name } => {
+                    errors::ApiErrorResponse::MissingRequiredField { field_name }
+                }
+                errors::ConnectorError::MissingRequiredFields { field_names } => {
+                    errors::ApiErrorResponse::MissingRequiredFields {
+                        field_names: field_names.to_vec(),
+                    }
+                }
+                errors::ConnectorError::NotSupported { message, connector } => {
+                    errors::ApiErrorResponse::NotSupported {
+                        message: format!("{} by {}", message, connector),
+                    }
+                }
+                errors::ConnectorError::NotImplemented(reason) => {
+                    errors::ApiErrorResponse::NotImplemented {
+                        message: errors::NotImplementedMessage::Reason(reason.to_string()),
+                    }
+                }
+                errors::ConnectorError::InvalidConnectorConfig { config } => {
+                    errors::ApiErrorResponse::InvalidConnectorConfiguration {
+                        config: config.to_string(),
+                    }
+                }
+                _ => errors::ApiErrorResponse::InternalServerError,
+            };
+            err.change_context(error)
+        })
+    }
+
+    #[cfg(feature = "v2")]
+    fn to_vault_failed_response(self) -> error_stack::Result<T, errors::ApiErrorResponse> {
+        self.map_err(|err| {
+            let error = match err.current_context() {
+                errors::ConnectorError::ProcessingStepFailed(_) => {
+                    errors::ApiErrorResponse::ExternalVaultFailed
                 }
                 errors::ConnectorError::MissingRequiredField { field_name } => {
                     errors::ApiErrorResponse::MissingRequiredField { field_name }

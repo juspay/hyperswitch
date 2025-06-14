@@ -45,7 +45,8 @@ impl ValidateStatusForOperation for PaymentProxyIntent {
             //Failed state is included here so that in PCR, retries can be done for failed payments, otherwise for a failed attempt it was asking for new payment_intent
             common_enums::IntentStatus::RequiresPaymentMethod
             | common_enums::IntentStatus::Failed => Ok(()),
-            common_enums::IntentStatus::Succeeded
+            common_enums::IntentStatus::Conflicted
+            | common_enums::IntentStatus::Succeeded
             | common_enums::IntentStatus::Cancelled
             | common_enums::IntentStatus::RequiresCustomerAction
             | common_enums::IntentStatus::RequiresMerchantAction
@@ -260,6 +261,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentConfirmData<F>, ProxyPaymentsR
             payment_method_data: Some(PaymentMethodData::MandatePayment),
             payment_address,
             mandate_data: Some(mandate_data_input),
+            payment_method: None,
         };
 
         let get_trackers_response = operations::GetTrackerResponse { payment_data };
@@ -318,7 +320,7 @@ impl<F: Clone + Send + Sync> Domain<F, ProxyPaymentsRequest, PaymentConfirmData<
                 merchant_connector_id,
             )?;
 
-            Ok(ConnectorCallType::PreDetermined(connector_data))
+            Ok(ConnectorCallType::PreDetermined(connector_data.into()))
         } else {
             Err(error_stack::Report::new(
                 errors::ApiErrorResponse::InternalServerError,
@@ -380,12 +382,18 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentConfirmData<F>, ProxyPaymentsReque
             .authentication_type
             .unwrap_or_default();
 
+        let connector_request_reference_id = payment_data
+            .payment_attempt
+            .connector_request_reference_id
+            .clone();
+
         let payment_attempt_update = hyperswitch_domain_models::payments::payment_attempt::PaymentAttemptUpdate::ConfirmIntent {
             status: attempt_status,
             updated_by: storage_scheme.to_string(),
             connector,
             merchant_connector_id,
             authentication_type,
+            connector_request_reference_id,
         };
 
         let updated_payment_intent = db

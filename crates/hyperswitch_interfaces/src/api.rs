@@ -22,6 +22,8 @@ pub mod refunds;
 pub mod refunds_v2;
 pub mod revenue_recovery;
 pub mod revenue_recovery_v2;
+pub mod vault;
+pub mod vault_v2;
 
 use std::fmt::Debug;
 
@@ -71,7 +73,7 @@ pub use self::fraud_check_v2::*;
 pub use self::payouts::*;
 #[cfg(feature = "payouts")]
 pub use self::payouts_v2::*;
-pub use self::{payments::*, refunds::*};
+pub use self::{payments::*, refunds::*, vault::*, vault_v2::*};
 use crate::{
     connector_integration_v2::ConnectorIntegrationV2, consts, errors,
     events::connector_api_logs::ConnectorEvent, metrics, types, webhooks,
@@ -96,6 +98,7 @@ pub trait Connector:
     + TaxCalculation
     + UnifiedAuthenticationService
     + revenue_recovery::RevenueRecovery
+    + ExternalVault
 {
 }
 
@@ -116,7 +119,8 @@ impl<
             + authentication::ExternalAuthentication
             + TaxCalculation
             + UnifiedAuthenticationService
-            + revenue_recovery::RevenueRecovery,
+            + revenue_recovery::RevenueRecovery
+            + ExternalVault,
     > Connector for T
 {
 }
@@ -377,6 +381,20 @@ pub trait ConnectorSpecifications {
     /// About the connector
     fn get_connector_about(&self) -> Option<&'static ConnectorInfo> {
         None
+    }
+
+    #[cfg(feature = "v2")]
+    /// Generate connector request reference ID
+    fn generate_connector_request_reference_id(
+        &self,
+        payment_intent: &hyperswitch_domain_models::payments::PaymentIntent,
+        payment_attempt: &hyperswitch_domain_models::payments::payment_attempt::PaymentAttempt,
+    ) -> String {
+        payment_intent
+            .merchant_reference_id
+            .as_ref()
+            .map(|id| id.get_string_repr().to_owned())
+            .unwrap_or_else(|| payment_attempt.id.get_string_repr().to_owned())
     }
 }
 

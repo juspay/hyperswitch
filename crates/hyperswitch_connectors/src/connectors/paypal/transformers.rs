@@ -1068,6 +1068,7 @@ impl TryFrom<&PaypalRouterData<&PaymentsAuthorizeRouterData>> for PaypalPayments
                 | WalletData::CashappQr(_)
                 | WalletData::SwishQr(_)
                 | WalletData::Mifinity(_)
+                | WalletData::RevolutPay(_)
                 | WalletData::Paze(_) => Err(errors::ConnectorError::NotImplemented(
                     utils::get_unimplemented_payment_method_error_message("Paypal"),
                 ))?,
@@ -1230,8 +1231,11 @@ impl TryFrom<&PaypalRouterData<&PaymentsAuthorizeRouterData>> for PaypalPayments
                     | enums::PaymentMethodType::PayEasy
                     | enums::PaymentMethodType::LocalBankTransfer
                     | enums::PaymentMethodType::InstantBankTransfer
+                    | enums::PaymentMethodType::InstantBankTransferFinland
+                    | enums::PaymentMethodType::InstantBankTransferPoland
                     | enums::PaymentMethodType::Mifinity
-                    | enums::PaymentMethodType::Paze => {
+                    | enums::PaymentMethodType::Paze
+                    | enums::PaymentMethodType::RevolutPay => {
                         Err(errors::ConnectorError::NotImplemented(
                             utils::get_unimplemented_payment_method_error_message("paypal"),
                         ))
@@ -1329,6 +1333,8 @@ impl TryFrom<&BankTransferData> for PaypalPaymentsRequest {
             | BankTransferData::Pix { .. }
             | BankTransferData::Pse {}
             | BankTransferData::InstantBankTransfer {}
+            | BankTransferData::InstantBankTransferFinland {}
+            | BankTransferData::InstantBankTransferPoland {}
             | BankTransferData::LocalBankTransfer { .. } => {
                 Err(errors::ConnectorError::NotImplemented(
                     utils::get_unimplemented_payment_method_error_message("Paypal"),
@@ -2528,9 +2534,8 @@ impl TryFrom<PaymentsCaptureResponseRouterData<PaypalCaptureResponse>>
             | storage_enums::AttemptStatus::Voided => 0,
             storage_enums::AttemptStatus::Charged
             | storage_enums::AttemptStatus::PartialCharged
-            | storage_enums::AttemptStatus::PartialChargedAndChargeable => {
-                item.data.request.amount_to_capture
-            }
+            | storage_enums::AttemptStatus::PartialChargedAndChargeable
+            | storage_enums::AttemptStatus::IntegrityFailure => item.data.request.amount_to_capture,
         };
         let connector_payment_id: PaypalMeta =
             to_connector_meta(item.data.request.connector_meta.clone())?;

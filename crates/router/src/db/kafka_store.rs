@@ -5,13 +5,12 @@ use common_enums::enums::MerchantStorageScheme;
 use common_utils::{
     errors::CustomResult,
     id_type,
-    types::{keymanager::KeyManagerState, theme::ThemeLineage},
+    types::{keymanager::KeyManagerState, user::ThemeLineage},
 };
 #[cfg(feature = "v2")]
 use diesel_models::ephemeral_key::{ClientSecretType, ClientSecretTypeNew};
 use diesel_models::{
-    enums,
-    enums::ProcessTrackerStatus,
+    enums::{self, ProcessTrackerStatus},
     ephemeral_key::{EphemeralKey, EphemeralKeyNew},
     reverse_lookup::{ReverseLookup, ReverseLookupNew},
     user_role as user_storage,
@@ -21,6 +20,7 @@ use hyperswitch_domain_models::payouts::{
     payout_attempt::PayoutAttemptInterface, payouts::PayoutsInterface,
 };
 use hyperswitch_domain_models::{
+    cards_info::CardsInfoInterface,
     disputes,
     payment_methods::PaymentMethodInterface,
     payments::{payment_attempt::PaymentAttemptInterface, payment_intent::PaymentIntentInterface},
@@ -61,7 +61,6 @@ use crate::{
         business_profile::ProfileInterface,
         callback_mapper::CallbackMapperInterface,
         capture::CaptureInterface,
-        cards_info::CardsInfoInterface,
         configs::ConfigInterface,
         customers::CustomerInterface,
         dispute::DisputeInterface,
@@ -80,6 +79,7 @@ use crate::{
         refund::RefundInterface,
         reverse_lookup::ReverseLookupInterface,
         routing_algorithm::RoutingAlgorithmInterface,
+        tokenization::TokenizationInterface,
         unified_translations::UnifiedTranslationsInterface,
         AccountsStorageInterface, CommonStorageInterface, GlobalStorageInterface,
         MasterKeyInterface, StorageInterface,
@@ -87,7 +87,6 @@ use crate::{
     services::{kafka::KafkaProducer, Store},
     types::{domain, storage, AccessToken},
 };
-
 #[derive(Debug, Clone, Serialize)]
 pub struct TenantID(pub String);
 
@@ -286,6 +285,7 @@ impl ApiKeyInterface for KafkaStore {
 
 #[async_trait::async_trait]
 impl CardsInfoInterface for KafkaStore {
+    type Error = errors::StorageError;
     async fn get_card_info(
         &self,
         card_iin: &str,
@@ -373,7 +373,7 @@ impl ConfigInterface for KafkaStore {
 #[async_trait::async_trait]
 impl CustomerInterface for KafkaStore {
     type Error = errors::StorageError;
-    #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
+    #[cfg(feature = "v1")]
     async fn delete_customer_by_customer_id_merchant_id(
         &self,
         customer_id: &id_type::CustomerId,
@@ -384,7 +384,7 @@ impl CustomerInterface for KafkaStore {
             .await
     }
 
-    #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
+    #[cfg(feature = "v1")]
     async fn find_customer_optional_by_customer_id_merchant_id(
         &self,
         state: &KeyManagerState,
@@ -404,7 +404,7 @@ impl CustomerInterface for KafkaStore {
             .await
     }
 
-    #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
+    #[cfg(feature = "v1")]
     async fn find_customer_optional_with_redacted_customer_details_by_customer_id_merchant_id(
         &self,
         state: &KeyManagerState,
@@ -424,7 +424,7 @@ impl CustomerInterface for KafkaStore {
             .await
     }
 
-    #[cfg(all(feature = "v2", feature = "customer_v2"))]
+    #[cfg(feature = "v2")]
     async fn find_optional_by_merchant_id_merchant_reference_id(
         &self,
         state: &KeyManagerState,
@@ -444,7 +444,7 @@ impl CustomerInterface for KafkaStore {
             .await
     }
 
-    #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
+    #[cfg(feature = "v1")]
     async fn update_customer_by_customer_id_merchant_id(
         &self,
         state: &KeyManagerState,
@@ -468,7 +468,7 @@ impl CustomerInterface for KafkaStore {
             .await
     }
 
-    #[cfg(all(feature = "v2", feature = "customer_v2"))]
+    #[cfg(feature = "v2")]
     async fn update_customer_by_global_id(
         &self,
         state: &KeyManagerState,
@@ -504,7 +504,7 @@ impl CustomerInterface for KafkaStore {
             .await
     }
 
-    #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
+    #[cfg(feature = "v1")]
     async fn find_customer_by_customer_id_merchant_id(
         &self,
         state: &KeyManagerState,
@@ -524,7 +524,7 @@ impl CustomerInterface for KafkaStore {
             .await
     }
 
-    #[cfg(all(feature = "v2", feature = "customer_v2"))]
+    #[cfg(feature = "v2")]
     async fn find_customer_by_merchant_reference_id_merchant_id(
         &self,
         state: &KeyManagerState,
@@ -544,7 +544,7 @@ impl CustomerInterface for KafkaStore {
             .await
     }
 
-    #[cfg(all(feature = "v2", feature = "customer_v2"))]
+    #[cfg(feature = "v2")]
     async fn find_customer_by_global_id(
         &self,
         state: &KeyManagerState,
@@ -946,7 +946,7 @@ impl MandateInterface for KafkaStore {
             .await
     }
 
-    #[cfg(all(feature = "v2", feature = "customer_v2"))]
+    #[cfg(feature = "v2")]
     async fn find_mandate_by_global_customer_id(
         &self,
         id: &id_type::GlobalCustomerId,
@@ -1288,13 +1288,14 @@ impl MerchantConnectorAccountInterface for KafkaStore {
         key_store: &domain::MerchantKeyStore,
         connector_type: common_enums::ConnectorType,
     ) -> CustomResult<Vec<domain::MerchantConnectorAccount>, errors::StorageError> {
-        self.list_enabled_connector_accounts_by_profile_id(
-            state,
-            profile_id,
-            key_store,
-            connector_type,
-        )
-        .await
+        self.diesel_store
+            .list_enabled_connector_accounts_by_profile_id(
+                state,
+                profile_id,
+                key_store,
+                connector_type,
+            )
+            .await
     }
 
     async fn insert_merchant_connector_account(
@@ -1864,7 +1865,12 @@ impl PaymentIntentInterface for KafkaStore {
 
         if let Err(er) = self
             .kafka_producer
-            .log_payment_intent(&intent, Some(this), self.tenant_id.clone())
+            .log_payment_intent(
+                &intent,
+                Some(this),
+                self.tenant_id.clone(),
+                state.infra_values.clone(),
+            )
             .await
         {
             logger::error!(message="Failed to add analytics entry for Payment Intent {intent:?}", error_message=?er);
@@ -1888,7 +1894,12 @@ impl PaymentIntentInterface for KafkaStore {
 
         if let Err(er) = self
             .kafka_producer
-            .log_payment_intent(&intent, None, self.tenant_id.clone())
+            .log_payment_intent(
+                &intent,
+                None,
+                self.tenant_id.clone(),
+                state.infra_values.clone(),
+            )
             .await
         {
             logger::error!(message="Failed to add analytics entry for Payment Intent {intent:?}", error_message=?er);
@@ -2089,10 +2100,7 @@ impl PaymentIntentInterface for KafkaStore {
 #[async_trait::async_trait]
 impl PaymentMethodInterface for KafkaStore {
     type Error = errors::StorageError;
-    #[cfg(all(
-        any(feature = "v2", feature = "v1"),
-        not(feature = "payment_methods_v2")
-    ))]
+    #[cfg(feature = "v1")]
     async fn find_payment_method(
         &self,
         state: &KeyManagerState,
@@ -2105,7 +2113,7 @@ impl PaymentMethodInterface for KafkaStore {
             .await
     }
 
-    #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+    #[cfg(feature = "v2")]
     async fn find_payment_method(
         &self,
         state: &KeyManagerState,
@@ -2118,10 +2126,7 @@ impl PaymentMethodInterface for KafkaStore {
             .await
     }
 
-    #[cfg(all(
-        any(feature = "v1", feature = "v2"),
-        not(feature = "payment_methods_v2")
-    ))]
+    #[cfg(feature = "v1")]
     async fn find_payment_method_by_customer_id_merchant_id_list(
         &self,
         state: &KeyManagerState,
@@ -2141,7 +2146,7 @@ impl PaymentMethodInterface for KafkaStore {
             .await
     }
 
-    #[cfg(all(feature = "v2", feature = "customer_v2"))]
+    #[cfg(feature = "v2")]
     async fn find_payment_method_list_by_global_customer_id(
         &self,
         state: &KeyManagerState,
@@ -2154,10 +2159,7 @@ impl PaymentMethodInterface for KafkaStore {
             .await
     }
 
-    #[cfg(all(
-        any(feature = "v1", feature = "v2"),
-        not(feature = "payment_methods_v2")
-    ))]
+    #[cfg(feature = "v1")]
     async fn find_payment_method_by_customer_id_merchant_id_status(
         &self,
         state: &KeyManagerState,
@@ -2181,7 +2183,7 @@ impl PaymentMethodInterface for KafkaStore {
             .await
     }
 
-    #[cfg(all(feature = "v2", feature = "customer_v2"))]
+    #[cfg(feature = "v2")]
     async fn find_payment_method_by_global_customer_id_merchant_id_status(
         &self,
         state: &KeyManagerState,
@@ -2205,10 +2207,7 @@ impl PaymentMethodInterface for KafkaStore {
             .await
     }
 
-    #[cfg(all(
-        any(feature = "v1", feature = "v2"),
-        not(feature = "payment_methods_v2")
-    ))]
+    #[cfg(feature = "v1")]
     async fn get_payment_method_count_by_customer_id_merchant_id_status(
         &self,
         customer_id: &id_type::CustomerId,
@@ -2234,10 +2233,7 @@ impl PaymentMethodInterface for KafkaStore {
             .await
     }
 
-    #[cfg(all(
-        any(feature = "v1", feature = "v2"),
-        not(feature = "payment_methods_v2")
-    ))]
+    #[cfg(feature = "v1")]
     async fn find_payment_method_by_locker_id(
         &self,
         state: &KeyManagerState,
@@ -2281,10 +2277,7 @@ impl PaymentMethodInterface for KafkaStore {
             .await
     }
 
-    #[cfg(all(
-        any(feature = "v1", feature = "v2"),
-        not(feature = "payment_methods_v2")
-    ))]
+    #[cfg(feature = "v1")]
     async fn delete_payment_method_by_merchant_id_payment_method_id(
         &self,
         state: &KeyManagerState,
@@ -2302,7 +2295,7 @@ impl PaymentMethodInterface for KafkaStore {
             .await
     }
 
-    #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+    #[cfg(feature = "v2")]
     async fn delete_payment_method(
         &self,
         state: &KeyManagerState,
@@ -2314,7 +2307,7 @@ impl PaymentMethodInterface for KafkaStore {
             .await
     }
 
-    #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+    #[cfg(feature = "v2")]
     async fn find_payment_method_by_fingerprint_id(
         &self,
         state: &KeyManagerState,
@@ -2843,6 +2836,26 @@ impl RefundInterface for KafkaStore {
             .await
     }
 
+    #[cfg(all(feature = "v2", feature = "refunds_v2"))]
+    async fn filter_refund_by_constraints(
+        &self,
+        merchant_id: &id_type::MerchantId,
+        refund_details: refunds::RefundListConstraints,
+        storage_scheme: MerchantStorageScheme,
+        limit: i64,
+        offset: i64,
+    ) -> CustomResult<Vec<storage::Refund>, errors::StorageError> {
+        self.diesel_store
+            .filter_refund_by_constraints(
+                merchant_id,
+                refund_details,
+                storage_scheme,
+                limit,
+                offset,
+            )
+            .await
+    }
+
     #[cfg(all(
         any(feature = "v1", feature = "v2"),
         not(feature = "refunds_v2"),
@@ -2885,6 +2898,18 @@ impl RefundInterface for KafkaStore {
         &self,
         merchant_id: &id_type::MerchantId,
         refund_details: &refunds::RefundListConstraints,
+        storage_scheme: MerchantStorageScheme,
+    ) -> CustomResult<i64, errors::StorageError> {
+        self.diesel_store
+            .get_total_count_of_refunds(merchant_id, refund_details, storage_scheme)
+            .await
+    }
+
+    #[cfg(all(feature = "v2", feature = "refunds_v2"))]
+    async fn get_total_count_of_refunds(
+        &self,
+        merchant_id: &id_type::MerchantId,
+        refund_details: refunds::RefundListConstraints,
         storage_scheme: MerchantStorageScheme,
     ) -> CustomResult<i64, errors::StorageError> {
         self.diesel_store
@@ -3264,12 +3289,20 @@ impl StorageInterface for KafkaStore {
         Box::new(self.clone())
     }
 
+    fn get_payment_methods_store(&self) -> Box<dyn PaymentMethodsStorageInterface> {
+        Box::new(self.clone())
+    }
+
     fn get_cache_store(&self) -> Box<(dyn RedisConnInterface + Send + Sync + 'static)> {
         Box::new(self.clone())
     }
 }
 
-impl GlobalStorageInterface for KafkaStore {}
+impl GlobalStorageInterface for KafkaStore {
+    fn get_cache_store(&self) -> Box<(dyn RedisConnInterface + Send + Sync + 'static)> {
+        Box::new(self.clone())
+    }
+}
 impl AccountsStorageInterface for KafkaStore {}
 
 impl PaymentMethodsStorageInterface for KafkaStore {}
@@ -3554,7 +3587,12 @@ impl BatchSampleDataInterface for KafkaStore {
         for payment_intent in payment_intents_list.iter() {
             let _ = self
                 .kafka_producer
-                .log_payment_intent(payment_intent, None, self.tenant_id.clone())
+                .log_payment_intent(
+                    payment_intent,
+                    None,
+                    self.tenant_id.clone(),
+                    state.infra_values.clone(),
+                )
                 .await;
         }
         Ok(payment_intents_list)
@@ -3638,7 +3676,11 @@ impl BatchSampleDataInterface for KafkaStore {
         for payment_intent in payment_intents_list.iter() {
             let _ = self
                 .kafka_producer
-                .log_payment_intent_delete(payment_intent, self.tenant_id.clone())
+                .log_payment_intent_delete(
+                    payment_intent,
+                    self.tenant_id.clone(),
+                    state.infra_values.clone(),
+                )
                 .await;
         }
         Ok(payment_intents_list)
@@ -4095,6 +4137,16 @@ impl ThemeInterface for KafkaStore {
         self.diesel_store.find_theme_by_lineage(lineage).await
     }
 
+    async fn update_theme_by_theme_id(
+        &self,
+        theme_id: String,
+        theme_update: diesel_models::user::theme::ThemeUpdate,
+    ) -> CustomResult<diesel_models::user::theme::Theme, errors::StorageError> {
+        self.diesel_store
+            .update_theme_by_theme_id(theme_id, theme_update)
+            .await
+    }
+
     async fn delete_theme_by_lineage_and_theme_id(
         &self,
         theme_id: String,
@@ -4182,3 +4234,34 @@ impl CallbackMapperInterface for KafkaStore {
         self.diesel_store.find_call_back_mapper_by_id(id).await
     }
 }
+
+#[cfg(all(feature = "v2", feature = "tokenization_v2"))]
+#[async_trait::async_trait]
+impl TokenizationInterface for KafkaStore {
+    async fn insert_tokenization(
+        &self,
+        tokenization: hyperswitch_domain_models::tokenization::Tokenization,
+        merchant_key_store: &hyperswitch_domain_models::merchant_key_store::MerchantKeyStore,
+        key_manager_state: &KeyManagerState,
+    ) -> CustomResult<hyperswitch_domain_models::tokenization::Tokenization, errors::StorageError>
+    {
+        self.diesel_store
+            .insert_tokenization(tokenization, merchant_key_store, key_manager_state)
+            .await
+    }
+
+    async fn get_entity_id_vault_id_by_token_id(
+        &self,
+        token: &id_type::GlobalTokenId,
+        merchant_key_store: &hyperswitch_domain_models::merchant_key_store::MerchantKeyStore,
+        key_manager_state: &KeyManagerState,
+    ) -> CustomResult<hyperswitch_domain_models::tokenization::Tokenization, errors::StorageError>
+    {
+        self.diesel_store
+            .get_entity_id_vault_id_by_token_id(token, merchant_key_store, key_manager_state)
+            .await
+    }
+}
+
+#[cfg(not(all(feature = "v2", feature = "tokenization_v2")))]
+impl TokenizationInterface for KafkaStore {}

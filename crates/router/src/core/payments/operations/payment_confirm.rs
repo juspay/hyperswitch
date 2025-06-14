@@ -1,12 +1,10 @@
 use std::marker::PhantomData;
 
-// use api_models::{admin::ExtendedCardInfoConfig, enums::FrmSuggestion, payments::ExtendedCardInfo};
-#[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
+#[cfg(feature = "v1")]
 use api_models::payment_methods::PaymentMethodsData;
 use api_models::{
     admin::ExtendedCardInfoConfig,
     enums::FrmSuggestion,
-    // payment_methods::PaymentMethodsData,
     payments::{ConnectorMandateReferenceId, ExtendedCardInfo, GetAddressFromPaymentMethodData},
 };
 use async_trait::async_trait;
@@ -14,7 +12,7 @@ use common_utils::ext_traits::{AsyncExt, Encode, StringExt, ValueExt};
 use diesel_models::payment_attempt::ConnectorMandateReferenceId as DieselConnectorMandateReferenceId;
 use error_stack::{report, ResultExt};
 use futures::FutureExt;
-#[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
+#[cfg(feature = "v1")]
 use hyperswitch_domain_models::payments::payment_intent::PaymentIntentUpdateFields;
 use hyperswitch_domain_models::router_request_types::unified_authentication_service;
 use masking::{ExposeInterface, PeekInterface};
@@ -23,7 +21,7 @@ use router_env::{instrument, logger, tracing};
 use tracing_futures::Instrument;
 
 use super::{BoxedOperation, Domain, GetTracker, Operation, UpdateTracker, ValidateRequest};
-#[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
+#[cfg(feature = "v1")]
 use crate::{
     consts,
     core::payment_methods::cards::create_encrypted_data,
@@ -798,6 +796,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
             payment_method_data: payment_method_data_after_card_bin_call.map(Into::into),
             payment_method_info,
             force_sync: None,
+            all_keys_required: None,
             refunds: vec![],
             disputes: vec![],
             attempts: None,
@@ -824,6 +823,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
             card_testing_guard_data: None,
             vault_operation: None,
             threeds_method_comp_ind: None,
+            whole_connector_response: None,
         };
 
         let get_trackers_response = operations::GetTrackerResponse {
@@ -1021,7 +1021,7 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
                 card,
                 token,
             }) => {
-                let authentication = Box::pin(authentication::perform_pre_authentication(
+                let authentication_store = Box::pin(authentication::perform_pre_authentication(
                     state,
                     key_store,
                     *card,
@@ -1032,8 +1032,13 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
                     payment_data.payment_attempt.organization_id.clone(),
                 ))
                 .await?;
-                if authentication.is_separate_authn_required()
-                    || authentication.authentication_status.is_failed()
+                if authentication_store
+                    .authentication
+                    .is_separate_authn_required()
+                    || authentication_store
+                        .authentication
+                        .authentication_status
+                        .is_failed()
                 {
                     *should_continue_confirm_transaction = false;
                     let default_poll_config = types::PollConfig::default();
@@ -1045,7 +1050,10 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
                         .store
                         .find_config_by_key_unwrap_or(
                             &types::PollConfig::get_poll_config_key(
-                                authentication.authentication_connector.clone(),
+                                authentication_store
+                                    .authentication
+                                    .authentication_connector
+                                    .clone(),
                             ),
                             Some(default_config_str),
                         )
@@ -1059,12 +1067,12 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
                         .attach_printable("Error while parsing PollConfig")?;
                     payment_data.poll_config = Some(poll_config)
                 }
-                Some(authentication)
+                Some(authentication_store)
             }
             Some(helpers::PaymentExternalAuthenticationFlow::PostAuthenticationFlow {
                 authentication_id,
             }) => {
-                let authentication = Box::pin(authentication::perform_post_authentication(
+                let authentication_store = Box::pin(authentication::perform_post_authentication(
                     state,
                     key_store,
                     business_profile.clone(),
@@ -1073,12 +1081,12 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
                 ))
                 .await?;
                 //If authentication is not successful, skip the payment connector flows and mark the payment as failure
-                if authentication.authentication_status
+                if authentication_store.authentication.authentication_status
                     != api_models::enums::AuthenticationStatus::Success
                 {
                     *should_continue_confirm_transaction = false;
                 }
-                Some(authentication)
+                Some(authentication_store)
             }
             None => None,
         };
@@ -1219,11 +1227,15 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
                             &authentication_id,
                             payment_data.service_details.clone(),
                             authentication_status,
-                            network_token,
+                            network_token.clone(),
                             payment_data.payment_attempt.organization_id.clone(),
                         )
                         .await?;
-                        payment_data.authentication = Some(authentication);
+                        let authentication_store = hyperswitch_domain_models::router_request_types::authentication::AuthenticationStore {
+                            cavv: network_token.and_then(|token| token.token_cryptogram),
+                            authentication
+                        };
+                        payment_data.authentication = Some(authentication_store);
                 },
                 helpers::UnifiedAuthenticationServiceFlow::ClickToPayConfirmation => {
                     let authentication_product_ids = business_profile
@@ -1313,8 +1325,13 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
                     pre_auth_response,
                     authentication.clone(),
                     acquirer_details,
+                    key_store
                 ).await?;
-                payment_data.authentication = Some(updated_authentication.clone());
+                let authentication_store = hyperswitch_domain_models::router_request_types::authentication::AuthenticationStore {
+                    cavv: None, // since in case of pre_authentication cavv is not present
+                    authentication
+                };
+                payment_data.authentication = Some(authentication_store.clone());
 
                 if updated_authentication.is_separate_authn_required()
                     || updated_authentication.authentication_status.is_failed()
@@ -1380,13 +1397,22 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
                         post_auth_response,
                         authentication,
                         None,
+                        key_store
                     ).await?
                 } else {
                     authentication
                 };
-                payment_data.authentication = Some(updated_authentication.clone());
+
+                let tokenized_data = crate::core::payment_methods::vault::get_tokenized_data(state, &authentication_id, false, key_store.key.get_inner()).await?;
+
+                let authentication_store = hyperswitch_domain_models::router_request_types::authentication::AuthenticationStore {
+                    cavv: Some(masking::Secret::new(tokenized_data.value1)),
+                    authentication: updated_authentication
+                };
+
+                payment_data.authentication = Some(authentication_store.clone());
                 //If authentication is not successful, skip the payment connector flows and mark the payment as failure
-                if updated_authentication.authentication_status
+                if authentication_store.authentication.authentication_status
                     != api_models::enums::AuthenticationStatus::Success
                 {
                     *should_continue_confirm_transaction = false;
@@ -1473,7 +1499,7 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
     }
 }
 
-#[cfg(all(feature = "v2", feature = "customer_v2"))]
+#[cfg(feature = "v2")]
 #[async_trait]
 impl<F: Clone + Sync> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for PaymentConfirm {
     #[instrument(skip_all)]
@@ -1499,7 +1525,7 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for
     }
 }
 
-#[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
+#[cfg(feature = "v1")]
 #[async_trait]
 impl<F: Clone + Sync> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for PaymentConfirm {
     #[instrument(skip_all)]
@@ -1579,9 +1605,9 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for
         let (intent_status, attempt_status, (error_code, error_message)) =
             match (frm_suggestion, payment_data.authentication.as_ref()) {
                 (Some(frm_suggestion), _) => status_handler_for_frm_results(frm_suggestion),
-                (_, Some(authentication_details)) => {
-                    status_handler_for_authentication_results(authentication_details)
-                }
+                (_, Some(authentication_details)) => status_handler_for_authentication_results(
+                    &authentication_details.authentication,
+                ),
                 _ => default_status_result,
             };
 
@@ -1696,10 +1722,24 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for
             authentication_connector,
             authentication_id,
         ) = match payment_data.authentication.as_ref() {
-            Some(authentication) => (
-                Some(authentication.is_separate_authn_required()),
-                Some(authentication.authentication_connector.clone()),
-                Some(authentication.authentication_id.clone()),
+            Some(authentication_store) => (
+                Some(
+                    authentication_store
+                        .authentication
+                        .is_separate_authn_required(),
+                ),
+                Some(
+                    authentication_store
+                        .authentication
+                        .authentication_connector
+                        .clone(),
+                ),
+                Some(
+                    authentication_store
+                        .authentication
+                        .authentication_id
+                        .clone(),
+                ),
             ),
             None => (None, None, None),
         };
@@ -1838,6 +1878,9 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for
                         is_payment_processor_token_flow,
                         tax_details: None,
                         force_3ds_challenge: payment_data.payment_intent.force_3ds_challenge,
+                        is_iframe_redirection_enabled: payment_data
+                            .payment_intent
+                            .is_iframe_redirection_enabled,
                     })),
                     &m_key_store,
                     storage_scheme,

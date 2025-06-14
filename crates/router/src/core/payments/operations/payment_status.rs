@@ -226,7 +226,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRetrieve
     }
 }
 
-#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+#[cfg(feature = "v2")]
 async fn get_tracker_for_sync<
     'a,
     F: Send + Clone,
@@ -243,10 +243,7 @@ async fn get_tracker_for_sync<
     todo!()
 }
 
-#[cfg(all(
-    any(feature = "v2", feature = "v1"),
-    not(feature = "payment_methods_v2")
-))]
+#[cfg(feature = "v1")]
 #[allow(clippy::too_many_arguments)]
 async fn get_tracker_for_sync<
     'a,
@@ -462,16 +459,28 @@ async fn get_tracker_for_sync<
         };
 
     let merchant_id = payment_intent.merchant_id.clone();
-    let authentication = payment_attempt.authentication_id.clone().async_map(|authentication_id| async move {
+
+    let authentication_store = if let Some(ref authentication_id) =
+        payment_attempt.authentication_id
+    {
+        let authentication =
             db.find_authentication_by_merchant_id_authentication_id(
                     &merchant_id,
                     authentication_id.clone(),
                 )
                 .await
                 .to_not_found_response(errors::ApiErrorResponse::InternalServerError)
-                .attach_printable_lazy(|| format!("Error while fetching authentication record with authentication_id {authentication_id}"))
-        }).await
-        .transpose()?;
+                .attach_printable_lazy(|| format!("Error while fetching authentication record with authentication_id {authentication_id}"))?;
+
+        Some(
+            hyperswitch_domain_models::router_request_types::authentication::AuthenticationStore {
+                authentication,
+                cavv: None, // marking this as None since we don't need authentication value in payment status flow
+            },
+        )
+    } else {
+        None
+    };
 
     let payment_link_data = payment_intent
         .payment_link_id
@@ -512,6 +521,7 @@ async fn get_tracker_for_sync<
                 && (helpers::check_force_psync_precondition(payment_attempt.status)
                     || contains_encoded_data),
         ),
+        all_keys_required: request.all_keys_required,
         payment_attempt,
         refunds,
         disputes,
@@ -530,7 +540,7 @@ async fn get_tracker_for_sync<
         frm_message: frm_response,
         incremental_authorization_details: None,
         authorizations,
-        authentication,
+        authentication: authentication_store,
         recurring_details: None,
         poll_config: None,
         tax_data: None,
@@ -539,6 +549,7 @@ async fn get_tracker_for_sync<
         card_testing_guard_data: None,
         vault_operation: None,
         threeds_method_comp_ind: None,
+        whole_connector_response: None,
     };
 
     let get_trackers_response = operations::GetTrackerResponse {

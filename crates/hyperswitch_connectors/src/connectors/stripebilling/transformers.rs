@@ -297,6 +297,37 @@ pub struct StripebillingWebhookObject {
     pub amount: common_utils::types::MinorUnit,
     pub charge: String,
     pub payment_intent: String,
+    pub customer_address: Option<StripebillingInvoiceBillingAddress>,
+    pub attempt_count: u16,
+    pub lines: StripebillingWebhookLinesObject,
+}
+
+#[derive(Serialize, Deserialize, Debug)]
+pub struct StripebillingWebhookLinesObject {
+    pub data: Vec<StripebillingWebhookLinesData>,
+}
+
+#[derive(Serialize, Deserialize, Debug)]
+pub struct StripebillingWebhookLinesData {
+    pub period: StripebillingWebhookLineDataPeriod,
+}
+
+#[derive(Serialize, Deserialize, Debug)]
+pub struct StripebillingWebhookLineDataPeriod {
+    #[serde(with = "common_utils::custom_serde::timestamp")]
+    pub end: PrimitiveDateTime,
+    #[serde(with = "common_utils::custom_serde::timestamp")]
+    pub start: PrimitiveDateTime,
+}
+
+#[derive(Serialize, Deserialize, Debug)]
+pub struct StripebillingInvoiceBillingAddress {
+    pub country: Option<enums::CountryAlpha2>,
+    pub city: Option<String>,
+    pub address_line1: Option<Secret<String>>,
+    pub address_line2: Option<Secret<String>>,
+    pub zip_code: Option<Secret<String>>,
+    pub state: Option<Secret<String>>,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -331,6 +362,32 @@ impl StripebillingInvoiceBody {
     }
 }
 
+impl From<StripebillingInvoiceBillingAddress> for api_models::payments::Address {
+    fn from(item: StripebillingInvoiceBillingAddress) -> Self {
+        Self {
+            address: Some(api_models::payments::AddressDetails::from(item)),
+            phone: None,
+            email: None,
+        }
+    }
+}
+
+impl From<StripebillingInvoiceBillingAddress> for api_models::payments::AddressDetails {
+    fn from(item: StripebillingInvoiceBillingAddress) -> Self {
+        Self {
+            city: item.city,
+            state: item.state,
+            country: item.country,
+            zip: item.zip_code,
+            line1: item.address_line1,
+            line2: item.address_line2,
+            line3: None,
+            first_name: None,
+            last_name: None,
+        }
+    }
+}
+
 #[cfg(all(feature = "revenue_recovery", feature = "v2"))]
 impl TryFrom<StripebillingInvoiceBody> for revenue_recovery::RevenueRecoveryInvoiceData {
     type Error = error_stack::Report<errors::ConnectorError>;
@@ -338,13 +395,24 @@ impl TryFrom<StripebillingInvoiceBody> for revenue_recovery::RevenueRecoveryInvo
         let merchant_reference_id =
             id_type::PaymentReferenceId::from_str(&item.data.object.invoice_id)
                 .change_context(errors::ConnectorError::WebhookBodyDecodingFailed)?;
+        let next_billing_at = item
+            .data
+            .object
+            .lines
+            .data
+            .first()
+            .map(|linedata| linedata.period.end);
         Ok(Self {
             amount: item.data.object.amount,
             currency: item.data.object.currency,
             merchant_reference_id,
-            billing_address: None,
-            retry_count: None,
-            next_billing_at: None,
+            billing_address: item
+                .data
+                .object
+                .customer_address
+                .map(api_models::payments::Address::from),
+            retry_count: Some(item.data.object.attempt_count),
+            next_billing_at,
         })
     }
 }

@@ -37,6 +37,12 @@ pub async fn payments_create(
 ) -> impl Responder {
     let flow = Flow::PaymentsCreate;
     let mut payload = json_payload.into_inner();
+    if let Err(err) = payload
+        .validate()
+        .map_err(|message| errors::ApiErrorResponse::InvalidRequestData { message })
+    {
+        return api::log_and_return_error_response(err.into());
+    };
 
     if let Some(api_enums::CaptureMethod::Scheduled) = payload.capture_method {
         return http_not_implemented();
@@ -226,10 +232,16 @@ pub async fn payments_get_intent(
                 header_payload.clone(),
             )
         },
-        &auth::V2ApiKeyAuth {
-            is_connected_allowed: false,
-            is_platform_allowed: false,
-        },
+        auth::api_or_client_auth(
+            &auth::V2ApiKeyAuth {
+                is_connected_allowed: false,
+                is_platform_allowed: false,
+            },
+            &auth::V2ClientAuth(common_utils::types::authentication::ResourceId::Payment(
+                global_payment_id.clone(),
+            )),
+            req.headers(),
+        ),
         api_locking::LockAction::NotApplicable,
     ))
     .await
@@ -247,6 +259,27 @@ pub async fn payments_create_and_confirm_intent(
         Ok(headers) => headers,
         Err(err) => {
             return api::log_and_return_error_response(err);
+        }
+    };
+
+    let auth_type = if state.conf.merchant_id_auth.merchant_id_auth_enabled {
+        &auth::MerchantIdAuth
+    } else {
+        match env::which() {
+            env::Env::Production => &auth::V2ApiKeyAuth {
+                is_connected_allowed: false,
+                is_platform_allowed: false,
+            },
+            _ => auth::auth_type(
+                &auth::V2ApiKeyAuth {
+                    is_connected_allowed: false,
+                    is_platform_allowed: false,
+                },
+                &auth::JWTAuth {
+                    permission: Permission::ProfilePaymentWrite,
+                },
+                req.headers(),
+            ),
         }
     };
 
@@ -268,22 +301,7 @@ pub async fn payments_create_and_confirm_intent(
                 header_payload.clone(),
             )
         },
-        match env::which() {
-            env::Env::Production => &auth::V2ApiKeyAuth {
-                is_connected_allowed: false,
-                is_platform_allowed: false,
-            },
-            _ => auth::auth_type(
-                &auth::V2ApiKeyAuth {
-                    is_connected_allowed: false,
-                    is_platform_allowed: false,
-                },
-                &auth::JWTAuth {
-                    permission: Permission::ProfilePaymentWrite,
-                },
-                req.headers(),
-            ),
-        },
+        auth_type,
         api_locking::LockAction::NotApplicable,
     ))
     .await
@@ -428,6 +446,7 @@ pub async fn payments_retrieve(
         client_secret: json_payload.client_secret.clone(),
         expand_attempts: json_payload.expand_attempts,
         expand_captures: json_payload.expand_captures,
+        all_keys_required: json_payload.all_keys_required,
         ..Default::default()
     };
     let header_payload = match HeaderPayload::foreign_try_from(req.headers()) {
@@ -574,6 +593,12 @@ pub async fn payments_update(
 ) -> impl Responder {
     let flow = Flow::PaymentsUpdate;
     let mut payload = json_payload.into_inner();
+    if let Err(err) = payload
+        .validate()
+        .map_err(|message| errors::ApiErrorResponse::InvalidRequestData { message })
+    {
+        return api::log_and_return_error_response(err.into());
+    };
 
     if let Some(api_enums::CaptureMethod::Scheduled) = payload.capture_method {
         return http_not_implemented();
@@ -754,6 +779,12 @@ pub async fn payments_confirm(
 ) -> impl Responder {
     let flow = Flow::PaymentsConfirm;
     let mut payload = json_payload.into_inner();
+    if let Err(err) = payload
+        .validate()
+        .map_err(|message| errors::ApiErrorResponse::InvalidRequestData { message })
+    {
+        return api::log_and_return_error_response(err.into());
+    };
 
     if let Some(api_enums::CaptureMethod::Scheduled) = payload.capture_method {
         return http_not_implemented();
@@ -1903,10 +1934,11 @@ where
             merchant_context,
             profile_id,
             operation,
-            req,
+            req.clone(),
             auth_flow,
             payments::CallConnectorAction::Trigger,
             header_payload,
+            req.all_keys_required,
         )
         .await
     } else {
@@ -2738,9 +2770,16 @@ pub async fn payment_confirm_intent(
             ))
             .await
         },
-        &auth::V2ClientAuth(common_utils::types::authentication::ResourceId::Payment(
-            global_payment_id,
-        )),
+        auth::api_or_client_auth(
+            &auth::V2ApiKeyAuth {
+                is_connected_allowed: false,
+                is_platform_allowed: false,
+            },
+            &auth::V2ClientAuth(common_utils::types::authentication::ResourceId::Payment(
+                global_payment_id,
+            )),
+            req.headers(),
+        ),
         locking_action,
     ))
     .await
@@ -2812,6 +2851,7 @@ pub async fn proxy_confirm_intent(
                 payment_id,
                 payments::CallConnectorAction::Trigger,
                 header_payload.clone(),
+                None,
             ))
         },
         &auth::V2ApiKeyAuth {
@@ -3081,7 +3121,7 @@ pub async fn payments_capture(
     .await
 }
 
-#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+#[cfg(feature = "v2")]
 #[instrument(skip_all, fields(flow = ?Flow::PaymentMethodsList))]
 pub async fn list_payment_methods(
     state: web::Data<app::AppState>,

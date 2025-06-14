@@ -1,6 +1,6 @@
 use api_models::recon as recon_api;
 #[cfg(feature = "email")]
-use common_utils::{ext_traits::AsyncExt, types::theme::ThemeLineage};
+use common_utils::{ext_traits::AsyncExt, types::user::ThemeLineage};
 use error_stack::ResultExt;
 #[cfg(feature = "email")]
 use masking::{ExposeInterface, PeekInterface, Secret};
@@ -17,6 +17,7 @@ use crate::{
         storage,
         transformers::ForeignTryFrom,
     },
+    utils::user as user_utils,
     SessionState,
 };
 
@@ -80,7 +81,7 @@ pub async fn send_recon_request(
         state
             .email_client
             .compose_and_send_email(
-                email_types::get_base_url(&state),
+                user_utils::get_base_url(&state),
                 Box::new(email_contents),
                 state.conf.proxy.https_url.as_ref(),
             )
@@ -211,7 +212,7 @@ pub async fn recon_merchant_account_update(
             let _ = state
                 .email_client
                 .compose_and_send_email(
-                    email_types::get_base_url(&state),
+                    user_utils::get_base_url(&state),
                     Box::new(email_contents),
                     state.conf.proxy.https_url.as_ref(),
                 )

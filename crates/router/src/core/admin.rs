@@ -4,23 +4,23 @@ use api_models::{
     admin::{self as admin_types},
     enums as api_enums, routing as routing_types,
 };
+use common_enums::{MerchantAccountRequestType, MerchantAccountType, OrganizationType};
 use common_utils::{
     date_time,
     ext_traits::{AsyncExt, Encode, OptionExt, ValueExt},
     fp_utils, id_type, pii, type_name,
     types::keymanager::{self as km_types, KeyManagerState, ToEncryptable},
 };
-use diesel_models::configs;
 #[cfg(all(any(feature = "v1", feature = "v2"), feature = "olap"))]
 use diesel_models::{business_profile::CardTestingGuardConfig, organization::OrganizationBridge};
+use diesel_models::{configs, payment_method};
 use error_stack::{report, FutureExt, ResultExt};
-use hyperswitch_connectors::connectors::{chargebee, recurly};
+use external_services::http_client::client;
 use hyperswitch_domain_models::merchant_connector_account::{
     FromRequestEncryptableMerchantConnectorAccount, UpdateEncryptableMerchantConnectorAccount,
 };
 use masking::{ExposeInterface, PeekInterface, Secret};
 use pm_auth::{connector::plaid::transformers::PlaidAuthType, types as pm_auth_types};
-use regex::Regex;
 use uuid::Uuid;
 
 #[cfg(any(feature = "v1", feature = "v2"))]
@@ -39,7 +39,7 @@ use crate::{
     routes::{metrics, SessionState},
     services::{
         self,
-        api::{self as service_api, client},
+        api::{self as service_api},
         authentication, pm_auth as payment_initiation_service,
     },
     types::{
@@ -54,10 +54,6 @@ use crate::{
     },
     utils,
 };
-
-const IBAN_MAX_LENGTH: usize = 34;
-const BACS_SORT_CODE_LENGTH: usize = 6;
-const BACS_MAX_ACCOUNT_NUMBER_LENGTH: usize = 8;
 
 #[inline]
 pub fn create_merchant_publishable_key() -> String {
@@ -145,6 +141,7 @@ pub async fn update_organization(
         organization_name: req.organization_name,
         organization_details: req.organization_details,
         metadata: req.metadata,
+        platform_merchant_id: req.platform_merchant_id,
     };
     state
         .accounts_store
@@ -188,6 +185,7 @@ pub async fn get_organization(
 pub async fn create_merchant_account(
     state: SessionState,
     req: api::MerchantAccountCreate,
+    org_data_from_auth: Option<authentication::AuthenticationDataWithOrg>,
 ) -> RouterResponse<api::MerchantAccountResponse> {
     #[cfg(feature = "keymanager_create")]
     use common_utils::{keymanager, types::keymanager::EncryptionTransferRequest};
@@ -240,7 +238,12 @@ pub async fn create_merchant_account(
     };
 
     let domain_merchant_account = req
-        .create_domain_model_from_request(&state, key_store.clone(), &merchant_id)
+        .create_domain_model_from_request(
+            &state,
+            key_store.clone(),
+            &merchant_id,
+            org_data_from_auth,
+        )
         .await?;
     let key_manager_state = &(&state).into();
     db.insert_merchant_key_store(
@@ -279,6 +282,7 @@ trait MerchantAccountCreateBridge {
         state: &SessionState,
         key: domain::MerchantKeyStore,
         identifier: &id_type::MerchantId,
+        org_data_from_auth: Option<authentication::AuthenticationDataWithOrg>,
     ) -> RouterResult<domain::MerchantAccount>;
 }
 
@@ -290,6 +294,7 @@ impl MerchantAccountCreateBridge for api::MerchantAccountCreate {
         state: &SessionState,
         key_store: domain::MerchantKeyStore,
         identifier: &id_type::MerchantId,
+        org_data_from_auth: Option<authentication::AuthenticationDataWithOrg>,
     ) -> RouterResult<domain::MerchantAccount> {
         let db = &*state.accounts_store;
         let publishable_key = create_merchant_publishable_key();
@@ -339,9 +344,76 @@ impl MerchantAccountCreateBridge for api::MerchantAccountCreate {
         )
         .await?;
 
-        let organization = CreateOrValidateOrganization::new(self.organization_id)
+        let org_id = match (&self.organization_id, &org_data_from_auth) {
+            (Some(req_org_id), Some(auth)) => {
+                if req_org_id != &auth.organization_id {
+                    return Err(errors::ApiErrorResponse::InvalidRequestData {
+                        message: "Mismatched organization_id in request and authenticated context"
+                            .to_string(),
+                    }
+                    .into());
+                }
+                Some(req_org_id.clone())
+            }
+            (None, Some(auth)) => Some(auth.organization_id.clone()),
+            (req_org_id, _) => req_org_id.clone(),
+        };
+
+        let organization = CreateOrValidateOrganization::new(org_id)
             .create_or_validate(db)
             .await?;
+
+        let merchant_account_type = match organization.get_organization_type() {
+            OrganizationType::Standard => {
+                match self.merchant_account_type.unwrap_or_default() {
+                    // Allow only if explicitly Standard or not provided
+                    MerchantAccountRequestType::Standard => MerchantAccountType::Standard,
+                    MerchantAccountRequestType::Connected => {
+                        return Err(errors::ApiErrorResponse::InvalidRequestData {
+                            message:
+                                "Merchant account type must be Standard for a Standard Organization"
+                                    .to_string(),
+                        }
+                        .into());
+                    }
+                }
+            }
+
+            OrganizationType::Platform => {
+                let accounts = state
+                    .store
+                    .list_merchant_accounts_by_organization_id(
+                        &state.into(),
+                        &organization.get_organization_id(),
+                    )
+                    .await
+                    .to_not_found_response(errors::ApiErrorResponse::MerchantAccountNotFound)?;
+
+                let platform_account_exists = accounts
+                    .iter()
+                    .any(|account| account.merchant_account_type == MerchantAccountType::Platform);
+
+                if accounts.is_empty() || !platform_account_exists {
+                    // First merchant in a Platform org must be Platform
+                    MerchantAccountType::Platform
+                } else {
+                    match self.merchant_account_type.unwrap_or_default() {
+                        MerchantAccountRequestType::Standard => MerchantAccountType::Standard,
+                        MerchantAccountRequestType::Connected => {
+                            if state.conf.platform.allow_connected_merchants {
+                                MerchantAccountType::Connected
+                            } else {
+                                return Err(errors::ApiErrorResponse::InvalidRequestData {
+                                    message: "Connected merchant accounts are not allowed"
+                                        .to_string(),
+                                }
+                                .into());
+                            }
+                        }
+                    }
+                }
+            }
+        };
 
         let key = key_store.key.clone().into_inner();
         let key_manager_state = state.into();
@@ -412,6 +484,7 @@ impl MerchantAccountCreateBridge for api::MerchantAccountCreate {
                     version: common_types::consts::API_VERSION,
                     is_platform_account: false,
                     product_type: self.product_type,
+                    merchant_account_type,
                 },
             )
         }
@@ -468,7 +541,10 @@ impl CreateOrValidateOrganization {
         match self {
             #[cfg(feature = "v1")]
             Self::Create => {
-                let new_organization = api_models::organization::OrganizationNew::new(None);
+                let new_organization = api_models::organization::OrganizationNew::new(
+                    OrganizationType::Standard,
+                    None,
+                );
                 let db_organization = ForeignFrom::foreign_from(new_organization);
                 db.insert_organization(db_organization)
                     .await
@@ -616,6 +692,7 @@ impl MerchantAccountCreateBridge for api::MerchantAccountCreate {
         state: &SessionState,
         key_store: domain::MerchantKeyStore,
         identifier: &id_type::MerchantId,
+        _org_data: Option<authentication::AuthenticationDataWithOrg>,
     ) -> RouterResult<domain::MerchantAccount> {
         let publishable_key = create_merchant_publishable_key();
         let db = &*state.accounts_store;
@@ -635,6 +712,18 @@ impl MerchantAccountCreateBridge for api::MerchantAccountCreate {
         let organization = CreateOrValidateOrganization::new(self.organization_id.clone())
             .create_or_validate(db)
             .await?;
+
+        let merchant_account_type = match organization.get_organization_type() {
+            OrganizationType::Standard => MerchantAccountType::Standard,
+            // Blocking v2 merchant account create for platform
+            OrganizationType::Platform => {
+                return Err(errors::ApiErrorResponse::InvalidRequestData {
+                    message: "Merchant account creation is not allowed for a platform organization"
+                        .to_string(),
+                }
+                .into())
+            }
+        };
 
         let key = key_store.key.into_inner();
         let id = identifier.to_owned();
@@ -682,6 +771,7 @@ impl MerchantAccountCreateBridge for api::MerchantAccountCreate {
                     is_platform_account: false,
                     version: common_types::consts::API_VERSION,
                     product_type: self.product_type,
+                    merchant_account_type,
                 }),
             )
         }
@@ -723,7 +813,16 @@ pub async fn list_merchant_account(
 pub async fn list_merchant_account(
     state: SessionState,
     req: api_models::admin::MerchantAccountListRequest,
+    org_data_from_auth: Option<authentication::AuthenticationDataWithOrg>,
 ) -> RouterResponse<Vec<api::MerchantAccountResponse>> {
+    if let Some(auth) = org_data_from_auth {
+        if auth.organization_id != req.organization_id {
+            return Err(errors::ApiErrorResponse::InvalidRequestData {
+                message: "Organization ID in request and authentication do not match".to_string(),
+            }
+            .into());
+        }
+    }
     let merchant_accounts = state
         .store
         .list_merchant_accounts_by_organization_id(&(&state).into(), &req.organization_id)
@@ -1127,6 +1226,25 @@ pub async fn merchant_account_delete(
         is_deleted = is_merchant_account_deleted && is_merchant_key_store_deleted;
     }
 
+    // Call to DE here
+    #[cfg(all(feature = "dynamic_routing", feature = "v1"))]
+    {
+        if state.conf.open_router.enabled && is_deleted {
+            merchant_account
+                .default_profile
+                .as_ref()
+                .async_map(|profile_id| {
+                    routing::helpers::delete_decision_engine_merchant(&state, profile_id)
+                })
+                .await
+                .transpose()
+                .map_err(|err| {
+                    crate::logger::error!("Failed to delete merchant in Decision Engine {err:?}");
+                })
+                .ok();
+        }
+    }
+
     let state = state.clone();
     authentication::decision::spawn_tracked_job(
         async move {
@@ -1247,6 +1365,10 @@ impl ConnectorAuthTypeAndMetadataValidation<'_> {
         use crate::connector::*;
 
         match self.connector_name {
+            api_enums::Connector::Vgs => {
+                vgs::transformers::VgsAuthType::try_from(self.auth_type)?;
+                Ok(())
+            }
             api_enums::Connector::Adyenplatform => {
                 adyenplatform::transformers::AdyenplatformAuthType::try_from(self.auth_type)?;
                 Ok(())
@@ -1279,12 +1401,21 @@ impl ConnectorAuthTypeAndMetadataValidation<'_> {
                 airwallex::transformers::AirwallexAuthType::try_from(self.auth_type)?;
                 Ok(())
             }
+            api_enums::Connector::Archipel => {
+                archipel::transformers::ArchipelAuthType::try_from(self.auth_type)?;
+                archipel::transformers::ArchipelConfigData::try_from(self.connector_meta_data)?;
+                Ok(())
+            }
             api_enums::Connector::Authorizedotnet => {
                 authorizedotnet::transformers::AuthorizedotnetAuthType::try_from(self.auth_type)?;
                 Ok(())
             }
             api_enums::Connector::Bankofamerica => {
                 bankofamerica::transformers::BankOfAmericaAuthType::try_from(self.auth_type)?;
+                Ok(())
+            }
+            api_enums::Connector::Barclaycard => {
+                barclaycard::transformers::BarclaycardAuthType::try_from(self.auth_type)?;
                 Ok(())
             }
             api_enums::Connector::Billwerk => {
@@ -1429,6 +1560,12 @@ impl ConnectorAuthTypeAndMetadataValidation<'_> {
                 helcim::transformers::HelcimAuthType::try_from(self.auth_type)?;
                 Ok(())
             }
+            api_enums::Connector::HyperswitchVault => {
+                hyperswitch_vault::transformers::HyperswitchVaultAuthType::try_from(
+                    self.auth_type,
+                )?;
+                Ok(())
+            }
             api_enums::Connector::Iatapay => {
                 iatapay::transformers::IatapayAuthType::try_from(self.auth_type)?;
                 Ok(())
@@ -1497,6 +1634,10 @@ impl ConnectorAuthTypeAndMetadataValidation<'_> {
                 noon::transformers::NoonAuthType::try_from(self.auth_type)?;
                 Ok(())
             }
+            // api_enums::Connector::Nordea => {
+            //     nordea::transformers::NordeaAuthType::try_from(self.auth_type)?;
+            //     Ok(())
+            // }
             api_enums::Connector::Novalnet => {
                 novalnet::transformers::NovalnetAuthType::try_from(self.auth_type)?;
                 Ok(())
@@ -1589,6 +1730,10 @@ impl ConnectorAuthTypeAndMetadataValidation<'_> {
                 trustpay::transformers::TrustpayAuthType::try_from(self.auth_type)?;
                 Ok(())
             }
+            api_enums::Connector::Tokenio => {
+                tokenio::transformers::TokenioAuthType::try_from(self.auth_type)?;
+                Ok(())
+            }
             api_enums::Connector::Tsys => {
                 tsys::transformers::TsysAuthType::try_from(self.auth_type)?;
                 Ok(())
@@ -1611,6 +1756,17 @@ impl ConnectorAuthTypeAndMetadataValidation<'_> {
             }
             api_enums::Connector::Worldpay => {
                 worldpay::transformers::WorldpayAuthType::try_from(self.auth_type)?;
+                Ok(())
+            }
+            api_enums::Connector::Worldpayvantiv => {
+                worldpayvantiv::transformers::WorldpayvantivAuthType::try_from(self.auth_type)?;
+                worldpayvantiv::transformers::WorldpayvantivMetadataObject::try_from(
+                    self.connector_meta_data,
+                )?;
+                Ok(())
+            }
+            api_enums::Connector::Worldpayxml => {
+                worldpayxml::transformers::WorldpayxmlAuthType::try_from(self.auth_type)?;
                 Ok(())
             }
             api_enums::Connector::Xendit => {
@@ -1877,6 +2033,8 @@ impl ConnectorTypeAndConnectorName<'_> {
         let mut routable_connector =
             api_enums::RoutableConnectors::from_str(&self.connector_name.to_string()).ok();
 
+        let vault_connector =
+            api_enums::convert_vault_connector(self.connector_name.to_string().as_str());
         let pm_auth_connector =
             api_enums::convert_pm_auth_connector(self.connector_name.to_string().as_str());
         let authentication_connector =
@@ -1911,6 +2069,13 @@ impl ConnectorTypeAndConnectorName<'_> {
             }
         } else if billing_connector.is_some() {
             if self.connector_type != &api_enums::ConnectorType::BillingProcessor {
+                return Err(errors::ApiErrorResponse::InvalidRequestData {
+                    message: "Invalid connector type given".to_string(),
+                }
+                .into());
+            }
+        } else if vault_connector.is_some() {
+            if self.connector_type != &api_enums::ConnectorType::VaultProcessor {
                 return Err(errors::ApiErrorResponse::InvalidRequestData {
                     message: "Invalid connector type given".to_string(),
                 }
@@ -2209,6 +2374,7 @@ impl MerchantConnectorAccountUpdateBridge for api_models::admin::MerchantConnect
                     &self.connector_type,
                     &mca.connector_name,
                     types::AdditionalMerchantData::foreign_from(data.clone()),
+                    merchant_context.get_merchant_key_store(),
                 )
                 .await?,
             )
@@ -2391,6 +2557,7 @@ impl MerchantConnectorAccountUpdateBridge for api_models::admin::MerchantConnect
                     &self.connector_type,
                     &connector_enum,
                     types::AdditionalMerchantData::foreign_from(data.clone()),
+                    merchant_context.get_merchant_key_store(),
                 )
                 .await?,
             )
@@ -2538,6 +2705,7 @@ impl MerchantConnectorAccountCreateBridge for api::MerchantConnectorCreate {
                     &self.connector_type,
                     &self.connector_name,
                     types::AdditionalMerchantData::foreign_from(data.clone()),
+                    &key_store,
                 )
                 .await?,
             )
@@ -2743,6 +2911,7 @@ impl MerchantConnectorAccountCreateBridge for api::MerchantConnectorCreate {
                     &self.connector_type,
                     &self.connector_name,
                     types::AdditionalMerchantData::foreign_from(data.clone()),
+                    &key_store,
                 )
                 .await?,
             )
@@ -2928,14 +3097,15 @@ pub async fn create_connector(
 
     #[cfg(feature = "v2")]
     if req.connector_type == common_enums::ConnectorType::BillingProcessor {
-        update_revenue_recovery_algorithm_under_profile(
-            business_profile.clone(),
-            store,
-            key_manager_state,
-            merchant_context.get_merchant_key_store(),
-            common_enums::RevenueRecoveryAlgorithmType::Monitoring,
-        )
-        .await?;
+        let profile_wrapper = ProfileWrapper::new(business_profile.clone());
+        profile_wrapper
+            .update_revenue_recovery_algorithm_under_profile(
+                store,
+                key_manager_state,
+                merchant_context.get_merchant_key_store(),
+                common_enums::RevenueRecoveryAlgorithmType::Monitoring,
+            )
+            .await?;
     }
     core_utils::validate_profile_id_from_auth_layer(auth_profile_id, &business_profile)?;
 
@@ -3683,7 +3853,7 @@ impl ProfileCreateBridge for api::ProfileCreate {
         }
 
         if let Some(ref routing_algorithm) = self.routing_algorithm {
-            let _: api_models::routing::RoutingAlgorithm = routing_algorithm
+            let _: api_models::routing::StaticRoutingAlgorithm = routing_algorithm
                 .clone()
                 .parse_value("RoutingAlgorithm")
                 .change_context(errors::ApiErrorResponse::InvalidDataValue {
@@ -3752,6 +3922,22 @@ impl ProfileCreateBridge for api::ProfileCreate {
             .card_testing_guard_config
             .map(CardTestingGuardConfig::foreign_from)
             .or(Some(CardTestingGuardConfig::default()));
+
+        let mut dynamic_routing_algorithm_ref =
+            routing_types::DynamicRoutingAlgorithmRef::default();
+
+        if self.is_debit_routing_enabled == Some(true) {
+            routing::helpers::create_merchant_in_decision_engine_if_not_exists(
+                state,
+                &profile_id,
+                &mut dynamic_routing_algorithm_ref,
+            )
+            .await;
+        }
+
+        let dynamic_routing_algorithm = serde_json::to_value(dynamic_routing_algorithm_ref)
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("error serializing dynamic_routing_algorithm_ref to JSON Value")?;
 
         Ok(domain::Profile::from(domain::ProfileSetter {
             profile_id,
@@ -3830,7 +4016,7 @@ impl ProfileCreateBridge for api::ProfileCreate {
                 .always_collect_billing_details_from_wallet_connector,
             always_collect_shipping_details_from_wallet_connector: self
                 .always_collect_shipping_details_from_wallet_connector,
-            dynamic_routing_algorithm: None,
+            dynamic_routing_algorithm: Some(dynamic_routing_algorithm),
             is_network_tokenization_enabled: self.is_network_tokenization_enabled,
             is_auto_retries_enabled: self.is_auto_retries_enabled.unwrap_or_default(),
             max_auto_retries_enabled: self.max_auto_retries_enabled.map(i16::from),
@@ -3862,6 +4048,11 @@ impl ProfileCreateBridge for api::ProfileCreate {
             force_3ds_challenge: self.force_3ds_challenge.unwrap_or_default(),
             is_debit_routing_enabled: self.is_debit_routing_enabled.unwrap_or_default(),
             merchant_business_country: self.merchant_business_country,
+            is_iframe_redirection_enabled: self.is_iframe_redirection_enabled,
+            is_pre_network_tokenization_enabled: self
+                .is_pre_network_tokenization_enabled
+                .unwrap_or_default(),
+            merchant_category_code: self.merchant_category_code,
         }))
     }
 
@@ -4005,6 +4196,12 @@ impl ProfileCreateBridge for api::ProfileCreate {
             merchant_business_country: self.merchant_business_country,
             revenue_recovery_retry_algorithm_type: None,
             revenue_recovery_retry_algorithm_data: None,
+            is_iframe_redirection_enabled: None,
+            is_external_vault_enabled: self.is_external_vault_enabled,
+            external_vault_connector_details: self
+                .external_vault_connector_details
+                .map(ForeignInto::foreign_into),
+            merchant_category_code: self.merchant_category_code,
         }))
     }
 }
@@ -4173,7 +4370,7 @@ impl ProfileUpdateBridge for api::ProfileUpdate {
         let webhook_details = self.webhook_details.map(ForeignInto::foreign_into);
 
         if let Some(ref routing_algorithm) = self.routing_algorithm {
-            let _: api_models::routing::RoutingAlgorithm = routing_algorithm
+            let _: api_models::routing::StaticRoutingAlgorithm = routing_algorithm
                 .clone()
                 .parse_value("RoutingAlgorithm")
                 .change_context(errors::ApiErrorResponse::InvalidDataValue {
@@ -4254,6 +4451,37 @@ impl ProfileUpdateBridge for api::ProfileUpdate {
             }
         };
 
+        let dynamic_routing_algo_ref = if self.is_debit_routing_enabled == Some(true) {
+            let mut dynamic_routing_algo_ref: routing_types::DynamicRoutingAlgorithmRef =
+                business_profile
+                    .dynamic_routing_algorithm
+                    .clone()
+                    .map(|val| val.parse_value("DynamicRoutingAlgorithmRef"))
+                    .transpose()
+                    .change_context(errors::ApiErrorResponse::InternalServerError)
+                    .attach_printable(
+                        "unable to deserialize dynamic routing algorithm ref from business profile",
+                    )?
+                    .unwrap_or_default();
+
+            routing::helpers::create_merchant_in_decision_engine_if_not_exists(
+                state,
+                business_profile.get_id(),
+                &mut dynamic_routing_algo_ref,
+            )
+            .await;
+
+            let dynamic_routing_algo_ref_value = serde_json::to_value(dynamic_routing_algo_ref)
+                .change_context(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable(
+                    "error serializing dynamic_routing_algorithm_ref to JSON Value",
+                )?;
+
+            Some(dynamic_routing_algo_ref_value)
+        } else {
+            self.dynamic_routing_algorithm
+        };
+
         Ok(domain::ProfileUpdate::Update(Box::new(
             domain::ProfileGeneralUpdate {
                 profile_name: self.profile_name,
@@ -4291,7 +4519,7 @@ impl ProfileUpdateBridge for api::ProfileUpdate {
                     .always_collect_shipping_details_from_wallet_connector,
                 tax_connector_id: self.tax_connector_id,
                 is_tax_connector_enabled: self.is_tax_connector_enabled,
-                dynamic_routing_algorithm: self.dynamic_routing_algorithm,
+                dynamic_routing_algorithm: dynamic_routing_algo_ref,
                 is_network_tokenization_enabled: self.is_network_tokenization_enabled,
                 is_auto_retries_enabled: self.is_auto_retries_enabled,
                 max_auto_retries_enabled: self.max_auto_retries_enabled.map(i16::from),
@@ -4303,8 +4531,11 @@ impl ProfileUpdateBridge for api::ProfileUpdate {
                 card_testing_secret_key,
                 is_clear_pan_retries_enabled: self.is_clear_pan_retries_enabled,
                 force_3ds_challenge: self.force_3ds_challenge, //
-                is_debit_routing_enabled: self.is_debit_routing_enabled.unwrap_or_default(),
+                is_debit_routing_enabled: self.is_debit_routing_enabled,
                 merchant_business_country: self.merchant_business_country,
+                is_iframe_redirection_enabled: self.is_iframe_redirection_enabled,
+                is_pre_network_tokenization_enabled: self.is_pre_network_tokenization_enabled,
+                merchant_category_code: self.merchant_category_code,
             },
         )))
     }
@@ -4437,8 +4668,14 @@ impl ProfileUpdateBridge for api::ProfileUpdate {
                     .card_testing_guard_config
                     .map(ForeignInto::foreign_into),
                 card_testing_secret_key,
-                is_debit_routing_enabled: self.is_debit_routing_enabled.unwrap_or_default(),
+                is_debit_routing_enabled: self.is_debit_routing_enabled,
                 merchant_business_country: self.merchant_business_country,
+                is_iframe_redirection_enabled: None,
+                is_external_vault_enabled: self.is_external_vault_enabled,
+                external_vault_connector_details: self
+                    .external_vault_connector_details
+                    .map(ForeignInto::foreign_into),
+                merchant_category_code: self.merchant_category_code,
             },
         )))
     }
@@ -4524,6 +4761,8 @@ impl ProfileWrapper {
             storage::enums::TransactionType::Payment => (Some(algorithm_id), None),
             #[cfg(feature = "payouts")]
             storage::enums::TransactionType::Payout => (None, Some(algorithm_id)),
+            //TODO: Handle ThreeDsAuthentication Transaction Type for Three DS Decision Rule Algorithm configuration
+            storage::enums::TransactionType::ThreeDsAuthentication => todo!(),
         };
 
         let profile_update = domain::ProfileUpdate::RoutingAlgorithmUpdate {
@@ -4620,33 +4859,35 @@ impl ProfileWrapper {
         .attach_printable("Failed to update routing algorithm ref in business profile")?;
         Ok(())
     }
-}
-#[cfg(feature = "v2")]
-pub async fn update_revenue_recovery_algorithm_under_profile(
-    profile: domain::Profile,
-    db: &dyn StorageInterface,
-    key_manager_state: &KeyManagerState,
-    merchant_key_store: &domain::MerchantKeyStore,
-    revenue_recovery_retry_algorithm_type: common_enums::RevenueRecoveryAlgorithmType,
-) -> RouterResult<()> {
-    let recovery_algorithm_data = diesel_models::business_profile::RevenueRecoveryAlgorithmData {
-        monitoring_configured_timestamp: date_time::now(),
-    };
-    let profile_update = domain::ProfileUpdate::RevenueRecoveryAlgorithmUpdate {
-        revenue_recovery_retry_algorithm_type,
-        revenue_recovery_retry_algorithm_data: Some(recovery_algorithm_data),
-    };
+    pub async fn update_revenue_recovery_algorithm_under_profile(
+        self,
+        db: &dyn StorageInterface,
+        key_manager_state: &KeyManagerState,
+        merchant_key_store: &domain::MerchantKeyStore,
+        revenue_recovery_retry_algorithm_type: common_enums::RevenueRecoveryAlgorithmType,
+    ) -> RouterResult<()> {
+        let recovery_algorithm_data =
+            diesel_models::business_profile::RevenueRecoveryAlgorithmData {
+                monitoring_configured_timestamp: date_time::now(),
+            };
+        let profile_update = domain::ProfileUpdate::RevenueRecoveryAlgorithmUpdate {
+            revenue_recovery_retry_algorithm_type,
+            revenue_recovery_retry_algorithm_data: Some(recovery_algorithm_data),
+        };
 
-    db.update_profile_by_profile_id(
-        key_manager_state,
-        merchant_key_store,
-        profile,
-        profile_update,
-    )
-    .await
-    .change_context(errors::ApiErrorResponse::InternalServerError)
-    .attach_printable("Failed to update revenue recovery retry algorithm in business profile")?;
-    Ok(())
+        db.update_profile_by_profile_id(
+            key_manager_state,
+            merchant_key_store,
+            self.profile,
+            profile_update,
+        )
+        .await
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable(
+            "Failed to update revenue recovery retry algorithm in business profile",
+        )?;
+        Ok(())
+    }
 }
 
 pub async fn extended_card_info_toggle(
@@ -4775,6 +5016,7 @@ async fn process_open_banking_connectors(
     connector_type: &api_enums::ConnectorType,
     connector: &api_enums::Connector,
     additional_merchant_data: types::AdditionalMerchantData,
+    key_store: &domain::MerchantKeyStore,
 ) -> RouterResult<types::MerchantRecipientData> {
     let new_merchant_data = match additional_merchant_data {
         types::AdditionalMerchantData::OpenBankingRecipientData(merchant_data) => {
@@ -4788,7 +5030,7 @@ async fn process_open_banking_connectors(
             }
             match &merchant_data {
                 types::MerchantRecipientData::AccountData(acc_data) => {
-                    validate_bank_account_data(acc_data)?;
+                    core_utils::validate_bank_account_data(acc_data)?;
 
                     let connector_name = api_enums::Connector::to_string(connector);
 
@@ -4797,9 +5039,8 @@ async fn process_open_banking_connectors(
                         .locker_based_open_banking_connectors
                         .connector_list
                         .contains(connector_name.as_str());
-
                     let recipient_id = if recipient_creation_not_supported {
-                        locker_recipient_create_call(state, merchant_id, acc_data).await
+                        locker_recipient_create_call(state, merchant_id, acc_data, key_store).await
                     } else {
                         connector_recipient_create_call(
                             state,
@@ -4839,6 +5080,56 @@ async fn process_open_banking_connectors(
                             name: name.clone(),
                             connector_recipient_id: conn_recipient_id.clone(),
                         },
+                        types::MerchantAccountData::FasterPayments {
+                            account_number,
+                            sort_code,
+                            name,
+                            ..
+                        } => types::MerchantAccountData::FasterPayments {
+                            account_number: account_number.clone(),
+                            sort_code: sort_code.clone(),
+                            name: name.clone(),
+                            connector_recipient_id: conn_recipient_id.clone(),
+                        },
+                        types::MerchantAccountData::Sepa { iban, name, .. } => {
+                            types::MerchantAccountData::Sepa {
+                                iban: iban.clone(),
+                                name: name.clone(),
+                                connector_recipient_id: conn_recipient_id.clone(),
+                            }
+                        }
+                        types::MerchantAccountData::SepaInstant { iban, name, .. } => {
+                            types::MerchantAccountData::SepaInstant {
+                                iban: iban.clone(),
+                                name: name.clone(),
+                                connector_recipient_id: conn_recipient_id.clone(),
+                            }
+                        }
+                        types::MerchantAccountData::Elixir {
+                            account_number,
+                            iban,
+                            name,
+                            ..
+                        } => types::MerchantAccountData::Elixir {
+                            account_number: account_number.clone(),
+                            iban: iban.clone(),
+                            name: name.clone(),
+                            connector_recipient_id: conn_recipient_id.clone(),
+                        },
+                        types::MerchantAccountData::Bankgiro { number, name, .. } => {
+                            types::MerchantAccountData::Bankgiro {
+                                number: number.clone(),
+                                name: name.clone(),
+                                connector_recipient_id: conn_recipient_id.clone(),
+                            }
+                        }
+                        types::MerchantAccountData::Plusgiro { number, name, .. } => {
+                            types::MerchantAccountData::Plusgiro {
+                                number: number.clone(),
+                                name: name.clone(),
+                                connector_recipient_id: conn_recipient_id.clone(),
+                            }
+                        }
                     };
 
                     types::MerchantRecipientData::AccountData(account_data)
@@ -4849,87 +5140,6 @@ async fn process_open_banking_connectors(
     };
 
     Ok(new_merchant_data)
-}
-
-fn validate_bank_account_data(data: &types::MerchantAccountData) -> RouterResult<()> {
-    match data {
-        types::MerchantAccountData::Iban { iban, .. } => {
-            // IBAN check algorithm
-            if iban.peek().len() > IBAN_MAX_LENGTH {
-                return Err(errors::ApiErrorResponse::InvalidRequestData {
-                    message: "IBAN length must be up to 34 characters".to_string(),
-                }
-                .into());
-            }
-            let pattern = Regex::new(r"^[A-Z0-9]*$")
-                .change_context(errors::ApiErrorResponse::InternalServerError)
-                .attach_printable("failed to create regex pattern")?;
-
-            let mut iban = iban.peek().to_string();
-
-            if !pattern.is_match(iban.as_str()) {
-                return Err(errors::ApiErrorResponse::InvalidRequestData {
-                    message: "IBAN data must be alphanumeric".to_string(),
-                }
-                .into());
-            }
-
-            // MOD check
-            let first_4 = iban.chars().take(4).collect::<String>();
-            iban.push_str(first_4.as_str());
-            let len = iban.len();
-
-            let rearranged_iban = iban
-                .chars()
-                .rev()
-                .take(len - 4)
-                .collect::<String>()
-                .chars()
-                .rev()
-                .collect::<String>();
-
-            let mut result = String::new();
-
-            rearranged_iban.chars().for_each(|c| {
-                if c.is_ascii_uppercase() {
-                    let digit = (u32::from(c) - u32::from('A')) + 10;
-                    result.push_str(&format!("{:02}", digit));
-                } else {
-                    result.push(c);
-                }
-            });
-
-            let num = result
-                .parse::<u128>()
-                .change_context(errors::ApiErrorResponse::InternalServerError)
-                .attach_printable("failed to validate IBAN")?;
-
-            if num % 97 != 1 {
-                return Err(errors::ApiErrorResponse::InvalidRequestData {
-                    message: "Invalid IBAN".to_string(),
-                }
-                .into());
-            }
-
-            Ok(())
-        }
-        types::MerchantAccountData::Bacs {
-            account_number,
-            sort_code,
-            ..
-        } => {
-            if account_number.peek().len() > BACS_MAX_ACCOUNT_NUMBER_LENGTH
-                || sort_code.peek().len() != BACS_SORT_CODE_LENGTH
-            {
-                return Err(errors::ApiErrorResponse::InvalidRequestData {
-                    message: "Invalid BACS numbers".to_string(),
-                }
-                .into());
-            }
-
-            Ok(())
-        }
-    }
 }
 
 async fn connector_recipient_create_call(
@@ -4954,29 +5164,7 @@ async fn connector_recipient_create_call(
         pm_auth_types::RecipientCreateResponse,
     > = connector.connector.get_connector_integration();
 
-    let req = match data {
-        types::MerchantAccountData::Iban { iban, name, .. } => {
-            pm_auth_types::RecipientCreateRequest {
-                name: name.clone(),
-                account_data: pm_auth_types::RecipientAccountData::Iban(iban.clone()),
-                address: None,
-            }
-        }
-        types::MerchantAccountData::Bacs {
-            account_number,
-            sort_code,
-            name,
-            ..
-        } => pm_auth_types::RecipientCreateRequest {
-            name: name.clone(),
-            account_data: pm_auth_types::RecipientAccountData::Bacs {
-                sort_code: sort_code.clone(),
-                account_number: account_number.clone(),
-            },
-            address: None,
-        },
-    };
-
+    let req = pm_auth_types::RecipientCreateRequest::from(data);
     let router_data = pm_auth_types::RecipientCreateRouterData {
         flow: std::marker::PhantomData,
         merchant_id: Some(merchant_id.to_owned()),
@@ -5016,16 +5204,33 @@ async fn connector_recipient_create_call(
 
     Ok(recipient_id)
 }
-
 async fn locker_recipient_create_call(
     state: &SessionState,
     merchant_id: &id_type::MerchantId,
     data: &types::MerchantAccountData,
+    key_store: &domain::MerchantKeyStore,
 ) -> RouterResult<String> {
-    let enc_data = serde_json::to_string(data)
-        .change_context(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable("Failed to convert to MerchantAccountData json to String")?;
+    let key_manager_state = &state.into();
+    let key = key_store.key.get_inner().peek();
+    let identifier = km_types::Identifier::Merchant(key_store.merchant_id.clone());
 
+    let data_json = serde_json::to_string(data)
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Failed to serialize MerchantAccountData to JSON")?;
+
+    let encrypted_data = domain_types::crypto_operation(
+        key_manager_state,
+        type_name!(payment_method::PaymentMethod),
+        domain_types::CryptoOperation::Encrypt(Secret::<String, masking::WithType>::new(data_json)),
+        identifier,
+        key,
+    )
+    .await
+    .and_then(|val| val.try_into_operation())
+    .change_context(errors::ApiErrorResponse::InternalServerError)
+    .attach_printable("Failed to encrypt merchant account data")?;
+
+    let enc_data = hex::encode(encrypted_data.into_encrypted().expose());
     let merchant_id_string = merchant_id.get_string_repr().to_owned();
 
     let cust_id = id_type::CustomerId::try_from(std::borrow::Cow::from(merchant_id_string))
@@ -5082,4 +5287,73 @@ pub async fn enable_platform_account(
     .change_context(errors::ApiErrorResponse::InternalServerError)
     .attach_printable("Error while enabling platform merchant account")
     .map(|_| services::ApplicationResponse::StatusOk)
+}
+
+impl From<&types::MerchantAccountData> for pm_auth_types::RecipientCreateRequest {
+    fn from(data: &types::MerchantAccountData) -> Self {
+        let (name, account_data) = match data {
+            types::MerchantAccountData::Iban { iban, name, .. } => (
+                name.clone(),
+                pm_auth_types::RecipientAccountData::Iban(iban.clone()),
+            ),
+            types::MerchantAccountData::Bacs {
+                account_number,
+                sort_code,
+                name,
+                ..
+            } => (
+                name.clone(),
+                pm_auth_types::RecipientAccountData::Bacs {
+                    sort_code: sort_code.clone(),
+                    account_number: account_number.clone(),
+                },
+            ),
+            types::MerchantAccountData::FasterPayments {
+                account_number,
+                sort_code,
+                name,
+                ..
+            } => (
+                name.clone(),
+                pm_auth_types::RecipientAccountData::FasterPayments {
+                    sort_code: sort_code.clone(),
+                    account_number: account_number.clone(),
+                },
+            ),
+            types::MerchantAccountData::Sepa { iban, name, .. } => (
+                name.clone(),
+                pm_auth_types::RecipientAccountData::Sepa(iban.clone()),
+            ),
+            types::MerchantAccountData::SepaInstant { iban, name, .. } => (
+                name.clone(),
+                pm_auth_types::RecipientAccountData::SepaInstant(iban.clone()),
+            ),
+            types::MerchantAccountData::Elixir {
+                account_number,
+                iban,
+                name,
+                ..
+            } => (
+                name.clone(),
+                pm_auth_types::RecipientAccountData::Elixir {
+                    account_number: account_number.clone(),
+                    iban: iban.clone(),
+                },
+            ),
+            types::MerchantAccountData::Bankgiro { number, name, .. } => (
+                name.clone(),
+                pm_auth_types::RecipientAccountData::Bankgiro(number.clone()),
+            ),
+            types::MerchantAccountData::Plusgiro { number, name, .. } => (
+                name.clone(),
+                pm_auth_types::RecipientAccountData::Plusgiro(number.clone()),
+            ),
+        };
+
+        Self {
+            name,
+            account_data,
+            address: None,
+        }
+    }
 }

@@ -477,7 +477,7 @@ pub struct CardThreeDsData {
     ccexp: Secret<String>,
     email: Option<Email>,
     cardholder_auth: Option<String>,
-    cavv: Option<String>,
+    cavv: Option<Secret<String>>,
     eci: Option<String>,
     cvv: Secret<String>,
     three_ds_version: Option<String>,
@@ -568,7 +568,8 @@ impl TryFrom<(&PaymentMethodData, Option<&PaymentsAuthorizeRouterData>)> for Pay
                 | WalletData::WeChatPayQr(_)
                 | WalletData::CashappQr(_)
                 | WalletData::SwishQr(_)
-                | WalletData::Mifinity(_) => Err(report!(ConnectorError::NotImplemented(
+                | WalletData::Mifinity(_)
+                | WalletData::RevolutPay(_) => Err(report!(ConnectorError::NotImplemented(
                     get_unimplemented_payment_method_error_message("nmi"),
                 ))),
             },

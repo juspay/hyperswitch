@@ -81,6 +81,7 @@ impl ValidateStatusForOperation for PaymentAttemptRecord {
             common_enums::IntentStatus::Succeeded
             | common_enums::IntentStatus::Cancelled
             | common_enums::IntentStatus::Processing
+            | common_enums::IntentStatus::Conflicted
             | common_enums::IntentStatus::RequiresCustomerAction
             | common_enums::IntentStatus::RequiresMerchantAction
             | common_enums::IntentStatus::RequiresCapture
@@ -199,11 +200,27 @@ impl<F: Send + Clone + Sync>
             invoice_next_billing_time: request.invoice_next_billing_time,
             triggered_by: request.triggered_by,
         };
+        let payment_address = hyperswitch_domain_models::payment_address::PaymentAddress::new(
+            payment_intent
+                .shipping_address
+                .clone()
+                .map(|address| address.into_inner()),
+            payment_intent
+                .billing_address
+                .clone()
+                .map(|address| address.into_inner()),
+            payment_attempt
+                .payment_method_billing_address
+                .clone()
+                .map(|address| address.into_inner()),
+            Some(true),
+        );
 
         let payment_data = PaymentAttemptRecordData {
             flow: PhantomData,
             payment_intent,
             payment_attempt,
+            payment_address,
             revenue_recovery_data,
         };
 
