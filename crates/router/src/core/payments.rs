@@ -2874,7 +2874,7 @@ impl PaymentRedirectFlow for PaymentRedirectSync {
             force_sync: true,
             expand_attempts: false,
             all_keys_required: None,
-            merchant_connector_details: None,
+            merchant_connector_details: todo!(), // TODO: Implement for connectors requiring 3DS or redirection-based authentication flows.
         };
 
         let operation = operations::PaymentGet;

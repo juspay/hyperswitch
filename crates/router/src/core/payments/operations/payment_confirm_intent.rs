@@ -561,6 +561,7 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentConfirmData<F>, PaymentsConfirmInt
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Connector is none when constructing response")?;
 
+        // If `merchant_connector_details` are present in the payment request, `merchant_connector_id` will not be populated.
         let merchant_connector_id = match &payment_data.merchant_connector_details {
             Some(_details) => None,
             None => Some(

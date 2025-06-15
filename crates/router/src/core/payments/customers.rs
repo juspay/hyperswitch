@@ -126,7 +126,10 @@ pub fn should_call_connector_create_customer<'a>(
             }
         }
 
-        domain::MerchantConnectorAccountTypeDetails::MerchantConnectorDetails(_) => (false, None),
+        // TODO: Construct connector_customer for MerchantConnectorDetails if required by connector.
+        domain::MerchantConnectorAccountTypeDetails::MerchantConnectorDetails(_) => {
+            todo!("Handle connector_customer construction for MerchantConnectorDetails");
+        }
     }
 }
 
@@ -177,6 +180,9 @@ pub async fn update_connector_customer_in_customers(
                 }
             })
         }
-        domain::MerchantConnectorAccountTypeDetails::MerchantConnectorDetails(_) => None,
+        // TODO: Construct connector_customer for MerchantConnectorDetails if required by connector.
+        domain::MerchantConnectorAccountTypeDetails::MerchantConnectorDetails(_) => {
+            todo!("Handle connector_customer construction for MerchantConnectorDetails");
+        }
     }
 }

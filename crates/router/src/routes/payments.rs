@@ -2957,7 +2957,7 @@ pub async fn payment_status(
 pub async fn payments_status_with_gateway_creds(
     state: web::Data<app::AppState>,
     req: actix_web::HttpRequest,
-    payload: web::Json<api_models::payments::PaymentsRetrieveRequestWithMerchantConnectorDetails>,
+    payload: web::Json<api_models::payments::PaymentsRetrieveRequest>,
     path: web::Path<common_utils::id_type::GlobalPaymentId>,
 ) -> impl Responder {
     use hyperswitch_domain_models::payments::PaymentStatusData;
@@ -2970,17 +2970,9 @@ pub async fn payments_status_with_gateway_creds(
     let global_payment_id = path.into_inner();
     tracing::Span::current().record("payment_id", global_payment_id.get_string_repr());
 
-    let payload = payment_types::PaymentsRetrieveRequest {
-        force_sync: payload.force_sync,
-        expand_attempts: payload.expand_attempts,
-        param: payload.param.clone(),
-        all_keys_required: payload.all_keys_required,
-        merchant_connector_details: payload.merchant_connector_details.clone(),
-    };
-
     let internal_payload = internal_payload_types::PaymentsGenericRequestWithResourceId {
         global_payment_id,
-        payload,
+        payload: payload.into_inner(),
     };
 
     let header_payload = match HeaderPayload::foreign_try_from(req.headers()) {

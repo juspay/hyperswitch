@@ -5633,27 +5633,6 @@ pub struct PaymentsRetrieveRequest {
 
 #[cfg(feature = "v2")]
 #[derive(Debug, serde::Deserialize, serde::Serialize, ToSchema)]
-pub struct PaymentsRetrieveRequestWithMerchantConnectorDetails {
-    /// A boolean used to indicate if the payment status should be fetched from the connector
-    /// If this is set to true, the status will be fetched from the connector
-    #[serde(default)]
-    pub force_sync: bool,
-    /// A boolean used to indicate if all the attempts needs to be fetched for the intent.
-    /// If this is set to true, attempts list will be available in the response.
-    #[serde(default)]
-    pub expand_attempts: bool,
-    /// These are the query params that are sent in case of redirect response.
-    /// These can be ingested by the connector to take necessary actions.
-    pub param: Option<String>,
-    /// If enabled, provides whole connector response
-    pub all_keys_required: Option<bool>,
-    /// Merchant connector details used to make payments.
-    #[schema(value_type = Option<MerchantConnectorDetails>)]
-    pub merchant_connector_details: Option<MerchantConnectorDetails>,
-}
-
-#[cfg(feature = "v2")]
-#[derive(Debug, serde::Deserialize, serde::Serialize, ToSchema)]
 pub struct PaymentsStatusRequest {
     /// A boolean used to indicate if the payment status should be fetched from the connector
     /// If this is set to true, the status will be fetched from the connector
