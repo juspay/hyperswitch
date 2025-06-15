@@ -24,6 +24,12 @@
       "confirm": true,
       "capture_method": "manual",
       "authentication_type": "no_three_ds",
+      "profile_id": "{{profile_id}}",
+      "email": "john_doe@gmail.com",
+      "name": "John Doe",
+      "phone": "8056594427",
+      "phone_country_code": "+91",
+      "description": "{{$randomLoremSentence}}",
       "payment_method": "card",
       "payment_method_type": "credit",
       "payment_method_data": {
@@ -35,12 +41,6 @@
           "card_number": "5185570141917102"
         }
       },
-      "profile_id": "{{profile_id}}",
-      "email": "john_doe@gmail.com",
-      "name": "John Doe",
-      "phone": "8056594427",
-      "phone_country_code": "+91",
-      "description": "{{$randomLoremSentence}}",
       "billing": {
         "address": {
           "line1": "2 ter",
