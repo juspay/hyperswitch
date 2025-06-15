@@ -1541,7 +1541,7 @@ fn get_connector_data_with_routing_decision(
             let routing_decision =
                 routing_helpers::RoutingDecisionData::get_debit_routing_decision_data(
                     card_network,
-                    debit_routing_output,
+                    Some(debit_routing_output),
                 );
             return Ok((data, Some(routing_decision)));
         }
