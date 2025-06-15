@@ -282,3 +282,9 @@ pub enum RecoveryError {
     #[error("Failed to publish event to kafka")]
     KafkaEventPublishFailed,
 }
+
+#[derive(Debug, Clone, thiserror::Error)]
+pub enum HealthCheckDecisionEngineError {
+    #[error("Failed to establish Decision Engine connection")]
+    FailedToCallDecisionEngineService,
+}

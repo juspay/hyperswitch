@@ -298,7 +298,7 @@ impl ConnectorData {
         })
     }
 
-    #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+    #[cfg(feature = "v2")]
     pub fn get_external_vault_connector_by_name(
         _connectors: &Connectors,
         connector: &api_enums::Connector,
@@ -478,6 +478,9 @@ impl ConnectorData {
                 enums::Connector::Helcim => {
                     Ok(ConnectorEnum::Old(Box::new(connector::Helcim::new())))
                 }
+                enums::Connector::HyperswitchVault => {
+                    Ok(ConnectorEnum::Old(Box::new(&connector::HyperswitchVault)))
+                }
                 enums::Connector::Iatapay => {
                     Ok(ConnectorEnum::Old(Box::new(connector::Iatapay::new())))
                 }
@@ -600,7 +603,9 @@ impl ConnectorData {
                     Ok(ConnectorEnum::Old(Box::new(connector::Paystack::new())))
                 }
                 // enums::Connector::Thunes => Ok(ConnectorEnum::Old(Box::new(connector::Thunes))),
-                // enums::Connector::Tokenio => Ok(ConnectorEnum::Old(Box::new(connector::Tokenio))),
+                enums::Connector::Tokenio => {
+                    Ok(ConnectorEnum::Old(Box::new(connector::Tokenio::new())))
+                }
                 enums::Connector::Trustpay => {
                     Ok(ConnectorEnum::Old(Box::new(connector::Trustpay::new())))
                 }

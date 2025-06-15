@@ -22,6 +22,7 @@ use crate::routing;
 use crate::{
     consts::{MAX_ORDER_FULFILLMENT_EXPIRY, MIN_ORDER_FULFILLMENT_EXPIRY},
     enums as api_enums, payment_methods,
+    profile_acquirer::ProfileAcquirerResponse,
 };
 
 #[derive(Clone, Debug, Deserialize, ToSchema, Serialize)]
@@ -112,6 +113,10 @@ pub struct MerchantAccountCreate {
     /// Product Type of this merchant account
     #[schema(value_type = Option<MerchantProductType>, example = "Orchestration")]
     pub product_type: Option<api_enums::MerchantProductType>,
+
+    /// Merchant Account Type of this merchant account
+    #[schema(value_type = Option<MerchantAccountRequestType>, example = "standard")]
+    pub merchant_account_type: Option<api_enums::MerchantAccountRequestType>,
 }
 
 #[cfg(feature = "v1")]
@@ -287,6 +292,10 @@ pub struct ExternalVaultConnectorDetails {
     /// Merchant Connector id to be stored for vault connector
     #[schema(value_type = Option<String>)]
     pub vault_connector_id: id_type::MerchantConnectorAccountId,
+
+    /// External vault to be used for storing payment method information
+    #[schema(value_type = Option<VaultSdk>)]
+    pub vault_sdk: Option<common_enums::VaultSdk>,
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize, ToSchema)]
@@ -993,21 +1002,122 @@ pub struct RevenueRecoveryMetadata {
 #[derive(Debug, Clone, serde::Deserialize, serde::Serialize, ToSchema)]
 #[serde(rename_all = "snake_case")]
 pub enum MerchantAccountData {
+    /// IBAN-based account for international transfers
     Iban {
-        #[schema(value_type= String)]
+        /// International Bank Account Number (up to 34 characters)
+        #[schema(value_type = String)]
         iban: Secret<String>,
+
+        /// Account holder name
         name: String,
-        #[schema(value_type= Option<String>)]
+        #[schema(value_type = Option<String>)]
         #[serde(skip_serializing_if = "Option::is_none")]
         connector_recipient_id: Option<Secret<String>>,
     },
+    /// UK BACS payment system
     Bacs {
-        #[schema(value_type= String)]
+        /// 8-digit UK account number
+        #[schema(value_type = String)]
         account_number: Secret<String>,
-        #[schema(value_type= String)]
+
+        /// 6-digit UK sort code
+        #[schema(value_type = String, example = "123456")]
         sort_code: Secret<String>,
+
+        /// Account holder name
         name: String,
-        #[schema(value_type= Option<String>)]
+
+        #[schema(value_type = Option<String>)]
+        #[serde(skip_serializing_if = "Option::is_none")]
+        connector_recipient_id: Option<Secret<String>>,
+    },
+    /// UK Faster Payments (instant transfers)
+    FasterPayments {
+        /// 8-digit UK account number
+        #[schema(value_type = String)]
+        account_number: Secret<String>,
+        /// 6-digit UK sort code
+        #[schema(value_type = String)]
+        sort_code: Secret<String>,
+
+        /// Account holder name
+        name: String,
+
+        #[schema(value_type = Option<String>)]
+        #[serde(skip_serializing_if = "Option::is_none")]
+        connector_recipient_id: Option<Secret<String>>,
+    },
+
+    /// SEPA payments (Euro zone)
+    Sepa {
+        /// IBAN for SEPA transfers
+        #[schema(value_type = String, example = "FR1420041010050500013M02606")]
+        iban: Secret<String>,
+        /// Account holder name
+        name: String,
+        #[schema(value_type = Option<String>)]
+        #[serde(skip_serializing_if = "Option::is_none")]
+        connector_recipient_id: Option<Secret<String>>,
+    },
+
+    /// SEPA Instant payments (10-second transfers)
+    SepaInstant {
+        /// IBAN for instant SEPA transfers
+        #[schema(value_type = String, example = "DE89370400440532013000")]
+        iban: Secret<String>,
+
+        /// Account holder name
+        name: String,
+
+        #[schema(value_type = Option<String>)]
+        #[serde(skip_serializing_if = "Option::is_none")]
+        connector_recipient_id: Option<Secret<String>>,
+    },
+
+    /// Polish Elixir payment system
+    Elixir {
+        /// Polish account number (26 digits)
+        #[schema(value_type = String, example = "12345678901234567890123456")]
+        account_number: Secret<String>,
+
+        /// Polish IBAN (28 chars)
+        #[schema(value_type = String, example = "PL27114020040000300201355387")]
+        iban: Secret<String>,
+
+        /// Account holder name
+        name: String,
+
+        #[schema(value_type = Option<String>)]
+        #[serde(skip_serializing_if = "Option::is_none")]
+        connector_recipient_id: Option<Secret<String>>,
+    },
+
+    /// Swedish Bankgiro system
+    Bankgiro {
+        /// Bankgiro number (7-8 digits)
+        #[schema(value_type = String, example = "5402-9656")]
+        number: Secret<String>,
+
+        /// Account holder name
+        #[schema(example = "Erik Andersson")]
+        name: String,
+
+        #[schema(value_type = Option<String>)]
+        #[serde(skip_serializing_if = "Option::is_none")]
+        connector_recipient_id: Option<Secret<String>>,
+    },
+
+    /// Swedish Plusgiro system
+    Plusgiro {
+        /// Plusgiro number (2-8 digits)
+        #[schema(value_type = String, example = "4789-2")]
+        number: Secret<String>,
+
+        /// Account holder name
+        #[schema(example = "Anna Larsson")]
+        name: String,
+
+        #[schema(value_type = Option<String>)]
         #[serde(skip_serializing_if = "Option::is_none")]
         connector_recipient_id: Option<Secret<String>>,
     },
@@ -2007,10 +2117,15 @@ pub struct ProfileCreate {
     pub merchant_business_country: Option<api_enums::CountryAlpha2>,
 
     /// Indicates if the redirection has to open in the iframe
+    #[schema(example = false)]
     pub is_iframe_redirection_enabled: Option<bool>,
 
     /// Indicates if pre network tokenization is enabled or not
     pub is_pre_network_tokenization_enabled: Option<bool>,
+
+    /// Four-digit code assigned based on business type to determine processing fees and risk level
+    #[schema(value_type = Option<MerchantCategoryCode>, example = "5411")]
+    pub merchant_category_code: Option<api_enums::MerchantCategoryCode>,
 }
 
 #[nutype::nutype(
@@ -2145,6 +2260,7 @@ pub struct ProfileCreate {
     pub merchant_business_country: Option<api_enums::CountryAlpha2>,
 
     /// Indicates if the redirection has to open in the iframe
+    #[schema(example = false)]
     pub is_iframe_redirection_enabled: Option<bool>,
 
     /// Indicates if external vault is enabled or not.
@@ -2152,6 +2268,10 @@ pub struct ProfileCreate {
 
     /// External Vault Connector Details
     pub external_vault_connector_details: Option<ExternalVaultConnectorDetails>,
+
+    /// Four-digit code assigned based on business type to determine processing fees and risk level
+    #[schema(value_type = Option<MerchantCategoryCode>, example = "5411")]
+    pub merchant_category_code: Option<api_enums::MerchantCategoryCode>,
 }
 
 #[cfg(feature = "v1")]
@@ -2315,6 +2435,18 @@ pub struct ProfileResponse {
     /// Indicates if pre network tokenization is enabled or not
     #[schema(default = false, example = false)]
     pub is_pre_network_tokenization_enabled: bool,
+
+    /// Acquirer configs
+    #[schema(value_type = Option<Vec<ProfileAcquirerResponse>>)]
+    pub acquirer_configs: Option<Vec<ProfileAcquirerResponse>>,
+
+    /// Indicates if the redirection has to open in the iframe
+    #[schema(example = false)]
+    pub is_iframe_redirection_enabled: Option<bool>,
+
+    /// Four-digit code assigned based on business type to determine processing fees and risk level
+    #[schema(value_type = Option<MerchantCategoryCode>, example = "5411")]
+    pub merchant_category_code: Option<api_enums::MerchantCategoryCode>,
 }
 
 #[cfg(feature = "v2")]
@@ -2457,6 +2589,7 @@ pub struct ProfileResponse {
     pub merchant_business_country: Option<api_enums::CountryAlpha2>,
 
     /// Indicates if the redirection has to open in the iframe
+    #[schema(example = false)]
     pub is_iframe_redirection_enabled: Option<bool>,
 
     /// Indicates if external vault is enabled or not.
@@ -2464,6 +2597,10 @@ pub struct ProfileResponse {
 
     /// External Vault Connector Details
     pub external_vault_connector_details: Option<ExternalVaultConnectorDetails>,
+
+    /// Four-digit code assigned based on business type to determine processing fees and risk level
+    #[schema(value_type = Option<MerchantCategoryCode>, example = "5411")]
+    pub merchant_category_code: Option<api_enums::MerchantCategoryCode>,
 }
 
 #[cfg(feature = "v1")]
@@ -2614,11 +2751,16 @@ pub struct ProfileUpdate {
     pub merchant_business_country: Option<api_enums::CountryAlpha2>,
 
     /// Indicates if the redirection has to open in the iframe
+    #[schema(example = false)]
     pub is_iframe_redirection_enabled: Option<bool>,
 
     /// Indicates if pre network tokenization is enabled or not
     #[schema(default = false, example = false)]
     pub is_pre_network_tokenization_enabled: Option<bool>,
+
+    /// Four-digit code assigned based on business type to determine processing fees and risk level
+    #[schema(value_type = Option<MerchantCategoryCode>, example = "5411")]
+    pub merchant_category_code: Option<api_enums::MerchantCategoryCode>,
 }
 
 #[cfg(feature = "v2")]
@@ -2751,6 +2893,10 @@ pub struct ProfileUpdate {
 
     /// External Vault Connector Details
     pub external_vault_connector_details: Option<ExternalVaultConnectorDetails>,
+
+    /// Four-digit code assigned based on business type to determine processing fees and risk level
+    #[schema(value_type = Option<MerchantCategoryCode>, example = "5411")]
+    pub merchant_category_code: Option<api_enums::MerchantCategoryCode>,
 }
 
 #[derive(Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
@@ -2958,6 +3104,8 @@ pub struct PaymentLinkConfigRequest {
     pub show_card_terms: Option<api_enums::PaymentLinkShowSdkTerms>,
     /// Boolean to control payment button text for setup mandate calls
     pub is_setup_mandate_flow: Option<bool>,
+    /// Hex color for the CVC icon during error state
+    pub color_icon_card_cvc_error: Option<String>,
 }
 
 #[derive(Clone, Debug, serde::Deserialize, serde::Serialize, PartialEq, ToSchema)]
@@ -3055,6 +3203,8 @@ pub struct PaymentLinkConfig {
     pub show_card_terms: Option<api_enums::PaymentLinkShowSdkTerms>,
     /// Boolean to control payment button text for setup mandate calls
     pub is_setup_mandate_flow: Option<bool>,
+    /// Hex color for the CVC icon during error state
+    pub color_icon_card_cvc_error: Option<String>,
 }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, PartialEq, Eq)]
