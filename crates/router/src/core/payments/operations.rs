@@ -292,6 +292,17 @@ pub trait Domain<F: Clone, R, D>: Send + Sync {
     ) -> CustomResult<api::ConnectorChoice, errors::ApiErrorResponse>;
 
     #[cfg(feature = "v2")]
+    async fn get_connector_from_request<'a>(
+        &'a self,
+        state: &SessionState,
+        request: &R,
+        payment_data: &mut D,
+    ) -> CustomResult<api::ConnectorData, errors::ApiErrorResponse> {
+        Err(report!(errors::ApiErrorResponse::InternalServerError))
+            .attach_printable_lazy(|| "get connector for tunnel not implemented".to_string())
+    }
+
+    #[cfg(feature = "v2")]
     async fn perform_routing<'a>(
         &'a self,
         merchant_context: &domain::MerchantContext,
