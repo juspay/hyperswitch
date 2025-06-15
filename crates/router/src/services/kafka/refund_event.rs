@@ -1,8 +1,10 @@
 #[cfg(feature = "v2")]
 use common_utils::pii;
+#[cfg(feature = "v2")]
+use common_utils::types::{self, ChargeRefunds};
 use common_utils::{
     id_type,
-    types::{self, ChargeRefunds, ConnectorTransactionIdTrait, MinorUnit},
+    types::{ConnectorTransactionIdTrait, MinorUnit},
 };
 use diesel_models::{enums as storage_enums, refund::Refund};
 use time::OffsetDateTime;

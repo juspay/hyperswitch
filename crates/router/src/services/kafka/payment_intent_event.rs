@@ -1,16 +1,18 @@
+#[cfg(feature = "v2")]
 use ::common_types::{payments, primitive_wrappers::RequestExtendedAuthorizationBool};
 #[cfg(feature = "v2")]
-use common_enums;
-use common_enums::RequestIncrementalAuthorization;
+use common_enums::{self, RequestIncrementalAuthorization};
 use common_utils::{
     crypto::Encryptable, hashing::HashedString, id_type, pii, types as common_types,
 };
+use diesel_models::enums as storage_enums;
 #[cfg(feature = "v2")]
-use diesel_models::PaymentLinkConfigRequestForPayments;
-use diesel_models::{enums as storage_enums, types as diesel_types};
+use diesel_models::{types as diesel_types, PaymentLinkConfigRequestForPayments};
 #[cfg(feature = "v2")]
 use diesel_models::{types::OrderDetailsWithAmount, TaxDetails};
-use hyperswitch_domain_models::{address, payments::PaymentIntent, routing};
+use hyperswitch_domain_models::payments::PaymentIntent;
+#[cfg(feature = "v2")]
+use hyperswitch_domain_models::{address, routing};
 use masking::{PeekInterface, Secret};
 use serde_json::Value;
 use time::OffsetDateTime;

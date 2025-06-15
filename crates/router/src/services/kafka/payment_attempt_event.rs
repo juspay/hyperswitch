@@ -1,11 +1,18 @@
+#[cfg(feature = "v2")]
 use common_types::payments;
-use common_utils::{id_type, types, types::MinorUnit};
-use diesel_models::{enums as storage_enums, payment_attempt};
+#[cfg(feature = "v2")]
+use common_utils::types;
+use common_utils::{id_type, types::MinorUnit};
+use diesel_models::enums as storage_enums;
+#[cfg(feature = "v2")]
+use diesel_models::payment_attempt;
+#[cfg(feature = "v2")]
 use hyperswitch_domain_models::{
-    address,
-    mandates::MandateDetails,
-    payments::payment_attempt::{PaymentAttempt, PaymentAttemptFeatureMetadata},
+    address, payments::payment_attempt::PaymentAttemptFeatureMetadata,
     router_response_types::RedirectForm,
+};
+use hyperswitch_domain_models::{
+    mandates::MandateDetails, payments::payment_attempt::PaymentAttempt,
 };
 use time::OffsetDateTime;
 
