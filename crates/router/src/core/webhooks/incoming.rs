@@ -754,8 +754,6 @@ fn get_response_data(
 
 #[async_trait]
 pub trait NetworkTokenWebhookResponseExt {
-    // fn get_network_token_requestor_ref_id(&self) -> String;
-
     fn decrypt_payment_method_data(
         &self,
         payment_method: &domain::PaymentMethod,
@@ -771,10 +769,6 @@ pub trait NetworkTokenWebhookResponseExt {
 
 #[async_trait]
 impl NetworkTokenWebhookResponseExt for pm_types::PanMetadataUpdateBody {
-    // fn get_network_token_requestor_ref_id(&self) -> String {
-    //     self.card.card_reference.clone()
-    // }
-
     fn decrypt_payment_method_data(
         &self,
         payment_method: &domain::PaymentMethod,

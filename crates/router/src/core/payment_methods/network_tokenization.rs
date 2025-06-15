@@ -974,13 +974,6 @@ impl NetworkTokenWebhookResponse {
             .await
             .change_context(errors::ApiErrorResponse::InternalServerError)?;
 
-        // let callback_data: domain::callback_mapper::CallbackMapperData = callback_mapper_data
-        //     .data
-        //     .parse_value("CallbackMapperData")
-        //     .change_context(errors::ApiErrorResponse::InvalidDataValue {
-        //         field_name: "callback mapper data",
-        //     })?;
-
         match callback_mapper_data.data {
             CallbackMapperData::NetworkTokenWebhook {
                 merchant_id,

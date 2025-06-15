@@ -3463,7 +3463,6 @@ pub async fn handle_metadata_update(
     decrypted_data: payment_methods::CardDetailFromLocker,
     is_pan_update: bool,
 ) -> RouterResult<WebhookResponseTracker> {
-    
 
     let merchant_id = merchant_context.get_merchant_account().get_id();
     let customer_id = &payment_method.customer_id;
