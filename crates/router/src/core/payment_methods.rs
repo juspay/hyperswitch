@@ -1,27 +1,26 @@
 pub mod cards;
 pub mod network_tokenization;
 pub mod surcharge_decision_configs;
-#[cfg(all(
-    any(feature = "v1", feature = "v2"),
-    not(feature = "payment_methods_v2")
-))]
+#[cfg(feature = "v1")]
 pub mod tokenize;
 pub mod transformers;
 pub mod utils;
 mod validator;
 pub mod vault;
-#[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
+use std::borrow::Cow;
+#[cfg(feature = "v1")]
 use std::collections::HashSet;
-use std::{borrow::Cow, str::FromStr};
+#[cfg(feature = "v2")]
+use std::str::FromStr;
 
 use ::payment_methods::controller::PaymentMethodsController;
-#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+#[cfg(feature = "v2")]
 pub use api_models::enums as api_enums;
 pub use api_models::enums::Connector;
 #[cfg(feature = "payouts")]
 pub use api_models::{enums::PayoutConnectors, payouts as payout_types};
 use api_models::{payment_methods, webhooks::WebhookResponseTracker};
-#[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
+#[cfg(feature = "v1")]
 use common_utils::{
     consts::DEFAULT_LOCALE,
     crypto::Encryptable,
@@ -29,7 +28,7 @@ use common_utils::{
     fp_utils::when,
     id_type,
 };
-#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+#[cfg(feature = "v2")]
 use common_utils::{
     crypto::Encryptable,
     errors::CustomResult,
@@ -41,24 +40,22 @@ use diesel_models::{
     enums, GenericLinkNew, PaymentMethodCollectLink, PaymentMethodCollectLinkData,
 };
 use error_stack::{report, ResultExt};
-#[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
+#[cfg(feature = "v2")]
+use futures::TryStreamExt;
+#[cfg(feature = "v1")]
 use hyperswitch_domain_models::api::{GenericLinks, GenericLinksData};
-#[cfg(all(
-    feature = "v2",
-    feature = "payment_methods_v2",
-    feature = "customer_v2"
-))]
+#[cfg(feature = "v2")]
 use hyperswitch_domain_models::mandates::CommonMandateReference;
 use hyperswitch_domain_models::payments::{
     payment_attempt::PaymentAttempt, PaymentIntent, VaultData,
 };
-#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+#[cfg(feature = "v2")]
 use hyperswitch_domain_models::{
     payment_method_data, payment_methods as domain_payment_methods,
     router_data_v2::flow_common_types::VaultConnectorFlowData,
     router_flow_types::ExternalVaultInsertFlow, types::VaultRouterData,
 };
-#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+#[cfg(feature = "v2")]
 use masking::{ExposeOptionInterface, PeekInterface, Secret};
 #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
 use masking::{PeekInterface, Secret};
@@ -71,7 +68,7 @@ use super::{
     errors::{RouterResponse, StorageErrorExt},
     pm_auth,
 };
-#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+#[cfg(feature = "v2")]
 use crate::{
     configs::settings,
     core::{
@@ -288,7 +285,7 @@ pub async fn create_pm_collect_db_entry(
         })
 }
 
-#[cfg(all(feature = "v2", feature = "customer_v2"))]
+#[cfg(feature = "v2")]
 pub async fn render_pm_collect_link(
     _state: SessionState,
     _merchant_context: domain::MerchantContext,
@@ -297,7 +294,7 @@ pub async fn render_pm_collect_link(
     todo!()
 }
 
-#[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
+#[cfg(feature = "v1")]
 pub async fn render_pm_collect_link(
     state: SessionState,
     merchant_context: domain::MerchantContext,
@@ -474,10 +471,7 @@ fn generate_task_id_for_payment_method_status_update_workflow(
     format!("{runner}_{task}_{key_id}")
 }
 
-#[cfg(all(
-    any(feature = "v1", feature = "v2"),
-    not(feature = "payment_methods_v2")
-))]
+#[cfg(feature = "v1")]
 pub async fn add_payment_method_status_update_task(
     db: &dyn StorageInterface,
     payment_method: &domain::PaymentMethod,
@@ -550,10 +544,7 @@ pub async fn retrieve_payment_method_with_token(
     todo!()
 }
 
-#[cfg(all(
-    any(feature = "v1", feature = "v2"),
-    not(feature = "payment_methods_v2")
-))]
+#[cfg(feature = "v1")]
 #[instrument(skip_all)]
 #[allow(clippy::too_many_arguments)]
 pub async fn retrieve_payment_method_with_token(
@@ -720,7 +711,7 @@ pub async fn retrieve_payment_method_with_token(
     Ok(token)
 }
 
-#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+#[cfg(feature = "v2")]
 #[instrument(skip_all)]
 pub(crate) fn get_payment_method_create_request(
     payment_method_data: &api_models::payments::PaymentMethodData,
@@ -777,10 +768,7 @@ pub(crate) fn get_payment_method_create_request(
     }
 }
 
-#[cfg(all(
-    any(feature = "v1", feature = "v2"),
-    not(feature = "payment_methods_v2")
-))]
+#[cfg(feature = "v1")]
 #[instrument(skip_all)]
 pub(crate) async fn get_payment_method_create_request(
     payment_method_data: Option<&domain::PaymentMethodData>,
@@ -897,7 +885,7 @@ fn get_card_network_with_us_local_debit_network_override(
     }
 }
 
-#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+#[cfg(feature = "v2")]
 #[instrument(skip_all)]
 pub async fn create_payment_method(
     state: &SessionState,
@@ -906,13 +894,14 @@ pub async fn create_payment_method(
     merchant_context: &domain::MerchantContext,
     profile: &domain::Profile,
 ) -> RouterResponse<api::PaymentMethodResponse> {
-    let response =
+    // payment_method is for internal use, can never be populated in response
+    let (response, _payment_method) =
         create_payment_method_core(state, request_state, req, merchant_context, profile).await?;
 
     Ok(services::ApplicationResponse::Json(response))
 }
 
-#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+#[cfg(feature = "v2")]
 #[instrument(skip_all)]
 pub async fn create_payment_method_core(
     state: &SessionState,
@@ -920,7 +909,7 @@ pub async fn create_payment_method_core(
     req: api::PaymentMethodCreate,
     merchant_context: &domain::MerchantContext,
     profile: &domain::Profile,
-) -> RouterResult<api::PaymentMethodResponse> {
+) -> RouterResult<(api::PaymentMethodResponse, domain::PaymentMethod)> {
     use common_utils::ext_traits::ValueExt;
 
     req.validate()?;
@@ -1062,10 +1051,10 @@ pub async fn create_payment_method_core(
         }
     }?;
 
-    Ok(response)
+    Ok((response, payment_method))
 }
 
-#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+#[cfg(feature = "v2")]
 #[derive(Clone, Debug)]
 pub struct NetworkTokenPaymentMethodDetails {
     network_token_requestor_reference_id: String,
@@ -1073,7 +1062,7 @@ pub struct NetworkTokenPaymentMethodDetails {
     network_token_pmd: Encryptable<Secret<serde_json::Value>>,
 }
 
-#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+#[cfg(feature = "v2")]
 pub async fn network_tokenize_and_vault_the_pmd(
     state: &SessionState,
     payment_method_data: &domain::PaymentMethodVaultingData,
@@ -1145,7 +1134,7 @@ pub async fn network_tokenize_and_vault_the_pmd(
     network_token_pm_details_result.ok()
 }
 
-#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+#[cfg(feature = "v2")]
 pub async fn populate_bin_details_for_payment_method(
     state: &SessionState,
     payment_method_data: &domain::PaymentMethodVaultingData,
@@ -1200,13 +1189,13 @@ pub async fn populate_bin_details_for_payment_method(
         _ => payment_method_data.clone(),
     }
 }
-#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+#[cfg(feature = "v2")]
 #[async_trait::async_trait]
 pub trait PaymentMethodExt {
     async fn populate_bin_details_for_payment_method(&self, state: &SessionState) -> Self;
 }
 
-#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+#[cfg(feature = "v2")]
 #[async_trait::async_trait]
 impl PaymentMethodExt for domain::PaymentMethodVaultingData {
     async fn populate_bin_details_for_payment_method(&self, state: &SessionState) -> Self {
@@ -1262,7 +1251,7 @@ impl PaymentMethodExt for domain::PaymentMethodVaultingData {
     }
 }
 
-#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+#[cfg(feature = "v2")]
 #[instrument(skip_all)]
 pub async fn payment_method_intent_create(
     state: &SessionState,
@@ -1345,14 +1334,14 @@ impl PerformFilteringOnEnabledPaymentMethods
     }
 }
 
-#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+#[cfg(feature = "v2")]
 #[instrument(skip_all)]
 pub async fn list_payment_methods_for_session(
     state: SessionState,
     merchant_context: domain::MerchantContext,
     profile: domain::Profile,
     payment_method_session_id: id_type::GlobalPaymentMethodSessionId,
-) -> RouterResponse<api::PaymentMethodListResponse> {
+) -> RouterResponse<api::PaymentMethodListResponseForSession> {
     let key_manager_state = &(&state).into();
 
     let db = &*state.store;
@@ -1378,7 +1367,7 @@ pub async fn list_payment_methods_for_session(
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("error when fetching merchant connector accounts")?;
 
-    let customer_payment_methods = list_customer_payment_method_core(
+    let customer_payment_methods = list_customer_payment_methods_core(
         &state,
         &merchant_context,
         &payment_method_session.customer_id,
@@ -1389,7 +1378,7 @@ pub async fn list_payment_methods_for_session(
         hyperswitch_domain_models::merchant_connector_account::FlattenedPaymentMethodsEnabled::from_payment_connectors_list(payment_connector_accounts)
             .perform_filtering()
             .get_required_fields(RequiredFieldsInput::new(state.conf.required_fields.clone()))
-            .generate_response(customer_payment_methods.customer_payment_methods);
+            .generate_response_for_session(customer_payment_methods);
 
     Ok(hyperswitch_domain_models::api::ApplicationResponse::Json(
         response,
@@ -1402,9 +1391,9 @@ pub async fn list_saved_payment_methods_for_customer(
     state: SessionState,
     merchant_context: domain::MerchantContext,
     customer_id: id_type::GlobalCustomerId,
-) -> RouterResponse<api::CustomerPaymentMethodsListResponse> {
+) -> RouterResponse<payment_methods::CustomerPaymentMethodsListResponse> {
     let customer_payment_methods =
-        list_customer_payment_method_core(&state, &merchant_context, &customer_id).await?;
+        list_payment_methods_core(&state, &merchant_context, &customer_id).await?;
 
     Ok(hyperswitch_domain_models::api::ApplicationResponse::Json(
         customer_payment_methods,
@@ -1635,10 +1624,10 @@ struct RequiredFieldsForEnabledPaymentMethodTypes(Vec<RequiredFieldsForEnabledPa
 
 #[cfg(feature = "v2")]
 impl RequiredFieldsForEnabledPaymentMethodTypes {
-    fn generate_response(
+    fn generate_response_for_session(
         self,
-        customer_payment_methods: Vec<payment_methods::CustomerPaymentMethod>,
-    ) -> payment_methods::PaymentMethodListResponse {
+        customer_payment_methods: Vec<payment_methods::CustomerPaymentMethodResponseItem>,
+    ) -> payment_methods::PaymentMethodListResponseForSession {
         let response_payment_methods = self
             .0
             .into_iter()
@@ -1652,14 +1641,14 @@ impl RequiredFieldsForEnabledPaymentMethodTypes {
             )
             .collect();
 
-        payment_methods::PaymentMethodListResponse {
+        payment_methods::PaymentMethodListResponseForSession {
             payment_methods_enabled: response_payment_methods,
             customer_payment_methods,
         }
     }
 }
 
-#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+#[cfg(feature = "v2")]
 #[instrument(skip_all)]
 #[allow(clippy::too_many_arguments)]
 pub async fn create_payment_method_for_intent(
@@ -1754,7 +1743,7 @@ fn create_connector_token_details_update(
     }
 }
 
-#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+#[cfg(feature = "v2")]
 #[allow(clippy::too_many_arguments)]
 pub async fn create_pm_additional_data_update(
     pmd: Option<&domain::PaymentMethodVaultingData>,
@@ -1805,7 +1794,9 @@ pub async fn create_pm_additional_data_update(
         .map(From::from);
 
     let pm_update = storage::PaymentMethodUpdate::GenericUpdate {
-        status: Some(enums::PaymentMethodStatus::Active),
+        // A new payment method is created with inactive state
+        // It will be marked active after payment succeeds
+        status: Some(enums::PaymentMethodStatus::Inactive),
         locker_id: vault_id,
         payment_method_type_v2: payment_method_type,
         payment_method_subtype,
@@ -1823,7 +1814,7 @@ pub async fn create_pm_additional_data_update(
     Ok(pm_update)
 }
 
-#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+#[cfg(feature = "v2")]
 #[instrument(skip_all)]
 pub async fn vault_payment_method_internal(
     state: &SessionState,
@@ -1871,7 +1862,7 @@ pub async fn vault_payment_method_internal(
     Ok(resp_from_vault)
 }
 
-#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+#[cfg(feature = "v2")]
 #[instrument(skip_all)]
 pub async fn vault_payment_method_external(
     state: &SessionState,
@@ -1884,6 +1875,7 @@ pub async fn vault_payment_method_external(
         merchant_account,
         &merchant_connector_account,
         Some(pmd.clone()),
+        None,
         None,
     )
     .await?;
@@ -1928,7 +1920,7 @@ pub async fn vault_payment_method_external(
     get_vault_response_for_insert_payment_method_data(router_data_resp)
 }
 
-#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+#[cfg(feature = "v2")]
 pub fn get_vault_response_for_insert_payment_method_data<F>(
     router_data: VaultRouterData<F>,
 ) -> RouterResult<pm_types::AddVaultResponse> {
@@ -1943,7 +1935,8 @@ pub fn get_vault_response_for_insert_payment_method_data<F>(
                 entity_id: None,
             }),
             types::VaultResponseData::ExternalVaultRetrieveResponse { .. }
-            | types::VaultResponseData::ExternalVaultDeleteResponse { .. } => {
+            | types::VaultResponseData::ExternalVaultDeleteResponse { .. }
+            | types::VaultResponseData::ExternalVaultCreateResponse { .. } => {
                 Err(report!(errors::ApiErrorResponse::InternalServerError)
                     .attach_printable("Invalid Vault Response"))
             }
@@ -1956,7 +1949,7 @@ pub fn get_vault_response_for_insert_payment_method_data<F>(
     }
 }
 
-#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+#[cfg(feature = "v2")]
 #[instrument(skip_all)]
 pub async fn vault_payment_method(
     state: &SessionState,
@@ -2013,13 +2006,7 @@ pub async fn vault_payment_method(
     }
 }
 
-// TODO: check if this function will be used for listing the customer payment methods for payments
-#[allow(unused)]
-#[cfg(all(
-    feature = "v2",
-    feature = "payment_methods_v2",
-    feature = "customer_v2"
-))]
+#[cfg(feature = "v2")]
 fn get_pm_list_context(
     payment_method_type: enums::PaymentMethod,
     payment_method: &domain::PaymentMethod,
@@ -2036,7 +2023,7 @@ fn get_pm_list_context(
                 card_details: api::CardDetailFromLocker::from(card),
                 token_data: is_payment_associated.then_some(
                     storage::PaymentTokenData::permanent_card(
-                        Some(payment_method.get_id().clone()),
+                        payment_method.get_id().clone(),
                         payment_method
                             .locker_id
                             .as_ref()
@@ -2102,12 +2089,34 @@ fn get_pm_list_context(
     Ok(payment_method_retrieval_context)
 }
 
+#[cfg(feature = "v2")]
+fn get_pm_list_token_data(
+    payment_method_type: enums::PaymentMethod,
+    payment_method: &domain::PaymentMethod,
+) -> Result<Option<storage::PaymentTokenData>, error_stack::Report<errors::ApiErrorResponse>> {
+    let pm_list_context = get_pm_list_context(payment_method_type, payment_method, true)?
+        .get_required_value("PaymentMethodListContext")?;
+
+    match pm_list_context {
+        PaymentMethodListContext::Card {
+            card_details: _,
+            token_data,
+        } => Ok(token_data),
+        PaymentMethodListContext::Bank { token_data } => Ok(token_data),
+        PaymentMethodListContext::BankTransfer {
+            bank_transfer_details: _,
+            token_data,
+        } => Ok(token_data),
+        PaymentMethodListContext::TemporaryToken { token_data } => Ok(token_data),
+    }
+}
+
 #[cfg(all(feature = "v2", feature = "olap"))]
-pub async fn list_customer_payment_method_core(
+pub async fn list_payment_methods_core(
     state: &SessionState,
     merchant_context: &domain::MerchantContext,
     customer_id: &id_type::GlobalCustomerId,
-) -> RouterResult<api::CustomerPaymentMethodsListResponse> {
+) -> RouterResult<payment_methods::CustomerPaymentMethodsListResponse> {
     let db = &*state.store;
     let key_manager_state = &(state).into();
 
@@ -2127,14 +2136,82 @@ pub async fn list_customer_payment_method_core(
     let customer_payment_methods = saved_payment_methods
         .into_iter()
         .map(ForeignTryFrom::foreign_try_from)
-        .collect::<Result<Vec<api::CustomerPaymentMethod>, _>>()
+        .collect::<Result<Vec<payment_methods::PaymentMethodResponseItem>, _>>()
         .change_context(errors::ApiErrorResponse::InternalServerError)?;
 
-    let response = api::CustomerPaymentMethodsListResponse {
+    let response = payment_methods::CustomerPaymentMethodsListResponse {
         customer_payment_methods,
     };
 
     Ok(response)
+}
+
+#[cfg(all(feature = "v2", feature = "oltp"))]
+pub async fn list_customer_payment_methods_core(
+    state: &SessionState,
+    merchant_context: &domain::MerchantContext,
+    customer_id: &id_type::GlobalCustomerId,
+) -> RouterResult<Vec<payment_methods::CustomerPaymentMethodResponseItem>> {
+    let db = &*state.store;
+    let key_manager_state = &(state).into();
+
+    let saved_payment_methods = db
+        .find_payment_method_by_global_customer_id_merchant_id_status(
+            key_manager_state,
+            merchant_context.get_merchant_key_store(),
+            customer_id,
+            merchant_context.get_merchant_account().get_id(),
+            common_enums::PaymentMethodStatus::Active,
+            None,
+            merchant_context.get_merchant_account().storage_scheme,
+        )
+        .await
+        .to_not_found_response(errors::ApiErrorResponse::PaymentMethodNotFound)?;
+
+    let mut customer_payment_methods = Vec::new();
+
+    let payment_method_results: Result<Vec<_>, error_stack::Report<errors::ApiErrorResponse>> =
+        saved_payment_methods
+            .into_iter()
+            .map(|pm| async move {
+                let parent_payment_method_token = generate_id(consts::ID_LENGTH, "token");
+
+                // For payment methods that are active we should always have the payment method type
+                let payment_method_type = pm
+                    .payment_method_type
+                    .get_required_value("payment_method_type")?;
+
+                let intent_fulfillment_time = common_utils::consts::DEFAULT_INTENT_FULFILLMENT_TIME;
+
+                let token_data = get_pm_list_token_data(payment_method_type, &pm)?;
+
+                if let Some(token_data) = token_data {
+                    pm_routes::ParentPaymentMethodToken::create_key_for_token((
+                        &parent_payment_method_token,
+                        payment_method_type,
+                    ))
+                    .insert(intent_fulfillment_time, token_data, state)
+                    .await?;
+
+                    let final_pm = api::CustomerPaymentMethodResponseItem::foreign_try_from((
+                        pm,
+                        parent_payment_method_token,
+                    ))
+                    .change_context(errors::ApiErrorResponse::InternalServerError)
+                    .attach_printable("Failed to convert payment method to response format")?;
+
+                    Ok(Some(final_pm))
+                } else {
+                    Ok(None)
+                }
+            })
+            .collect::<futures::stream::FuturesUnordered<_>>()
+            .try_collect::<Vec<_>>()
+            .await;
+
+    customer_payment_methods.extend(payment_method_results?.into_iter().flatten());
+
+    Ok(customer_payment_methods)
 }
 
 #[cfg(all(feature = "v2", feature = "olap"))]
@@ -2158,7 +2235,7 @@ pub async fn get_total_payment_method_count_core(
     Ok(response)
 }
 
-#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+#[cfg(feature = "v2")]
 #[instrument(skip_all)]
 pub async fn retrieve_payment_method(
     state: SessionState,
@@ -2191,7 +2268,49 @@ pub async fn retrieve_payment_method(
         .map(services::ApplicationResponse::Json)
 }
 
-#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+// TODO: When we separate out microservices, this function will be an endpoint in payment_methods
+#[cfg(feature = "v2")]
+#[instrument(skip_all)]
+pub async fn update_payment_method_status_internal(
+    state: &SessionState,
+    key_store: &domain::MerchantKeyStore,
+    storage_scheme: enums::MerchantStorageScheme,
+    status: enums::PaymentMethodStatus,
+    payment_method_id: &id_type::GlobalPaymentMethodId,
+) -> RouterResult<domain::PaymentMethod> {
+    let db = &*state.store;
+    let key_manager_state = &state.into();
+
+    let payment_method = db
+        .find_payment_method(
+            &((state).into()),
+            key_store,
+            payment_method_id,
+            storage_scheme,
+        )
+        .await
+        .to_not_found_response(errors::ApiErrorResponse::PaymentMethodNotFound)?;
+
+    let pm_update = storage::PaymentMethodUpdate::StatusUpdate {
+        status: Some(status),
+    };
+
+    let updated_pm = db
+        .update_payment_method(
+            key_manager_state,
+            key_store,
+            payment_method.clone(),
+            pm_update,
+            storage_scheme,
+        )
+        .await
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Failed to update payment method in db")?;
+
+    Ok(updated_pm)
+}
+
+#[cfg(feature = "v2")]
 #[instrument(skip_all)]
 pub async fn update_payment_method(
     state: SessionState,
@@ -2207,7 +2326,7 @@ pub async fn update_payment_method(
     Ok(services::ApplicationResponse::Json(response))
 }
 
-#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+#[cfg(feature = "v2")]
 #[instrument(skip_all)]
 pub async fn update_payment_method_core(
     state: &SessionState,
@@ -2319,7 +2438,7 @@ pub async fn update_payment_method_core(
     Ok(response)
 }
 
-#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+#[cfg(feature = "v2")]
 #[instrument(skip_all)]
 pub async fn delete_payment_method(
     state: SessionState,
@@ -2335,7 +2454,7 @@ pub async fn delete_payment_method(
     Ok(services::ApplicationResponse::Json(response))
 }
 
-#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+#[cfg(feature = "v2")]
 #[instrument(skip_all)]
 pub async fn delete_payment_method_core(
     state: &SessionState,
@@ -2903,7 +3022,7 @@ pub async fn payment_methods_session_confirm(
     )
     .attach_printable("Failed to create payment method request")?;
 
-    let payment_method = create_payment_method_core(
+    let (payment_method_response, _payment_method) = create_payment_method_core(
         &state,
         &req_state,
         create_payment_method_request.clone(),
@@ -2920,7 +3039,7 @@ pub async fn payment_methods_session_confirm(
             let zero_auth_request = construct_zero_auth_payments_request(
                 &request,
                 &payment_method_session,
-                &payment_method,
+                &payment_method_response,
             )?;
             let payments_response = Box::pin(create_zero_auth_payment(
                 state.clone(),
@@ -2943,7 +3062,7 @@ pub async fn payment_methods_session_confirm(
                 merchant_context.clone(),
                 profile.clone(),
                 &create_payment_method_request.clone(),
-                &payment_method,
+                &payment_method_response,
                 &payment_method_session,
             ))
             .await?;
@@ -2988,7 +3107,7 @@ pub async fn payment_methods_session_confirm(
     ))
 }
 
-#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+#[cfg(feature = "v2")]
 impl pm_types::SavedPMLPaymentsInfo {
     pub async fn form_payments_info(
         payment_intent: PaymentIntent,
@@ -3020,7 +3139,7 @@ impl pm_types::SavedPMLPaymentsInfo {
         &self,
         state: &SessionState,
         parent_payment_method_token: Option<String>,
-        pma: &api::CustomerPaymentMethod,
+        pma: &api::CustomerPaymentMethodResponseItem,
         pm_list_context: PaymentMethodListContext,
     ) -> RouterResult<()> {
         let token = parent_payment_method_token
@@ -3043,7 +3162,7 @@ impl pm_types::SavedPMLPaymentsInfo {
     }
 }
 
-#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+#[cfg(feature = "v2")]
 #[allow(clippy::too_many_arguments)]
 async fn create_single_use_tokenization_flow(
     state: SessionState,
@@ -3093,6 +3212,7 @@ async fn create_single_use_tokenization_flow(
         browser_info: None,
         currency: api_models::enums::Currency::default(),
         amount: None,
+        split_payments: None,
     };
 
     let payment_method_session_address = types::PaymentAddress::new(
@@ -3195,7 +3315,7 @@ async fn create_single_use_tokenization_flow(
     Ok(())
 }
 
-#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+#[cfg(feature = "v2")]
 async fn add_single_use_token_to_store(
     state: &SessionState,
     key: payment_method_data::SingleUseTokenKey,
@@ -3218,7 +3338,7 @@ async fn add_single_use_token_to_store(
     Ok(())
 }
 
-#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+#[cfg(feature = "v2")]
 async fn get_single_use_token_from_store(
     state: &SessionState,
     key: payment_method_data::SingleUseTokenKey,

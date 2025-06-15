@@ -1,10 +1,7 @@
 use std::collections::HashMap;
 
 use ::payment_methods::controller::PaymentMethodsController;
-#[cfg(all(
-    any(feature = "v1", feature = "v2"),
-    not(feature = "payment_methods_v2")
-))]
+#[cfg(feature = "v1")]
 use api_models::payment_methods::PaymentMethodsData;
 use api_models::{
     payment_methods::PaymentMethodDataWalletInfo, payments::ConnectorMandateReferenceId,
@@ -79,10 +76,7 @@ pub struct SavePaymentMethodDataResponse {
     pub payment_method_status: Option<common_enums::PaymentMethodStatus>,
     pub connector_mandate_reference_id: Option<ConnectorMandateReferenceId>,
 }
-#[cfg(all(
-    any(feature = "v1", feature = "v2"),
-    not(feature = "payment_methods_v2")
-))]
+#[cfg(feature = "v1")]
 #[instrument(skip_all)]
 #[allow(clippy::too_many_arguments)]
 pub async fn save_payment_method<FData>(
@@ -846,8 +840,7 @@ where
     }
 }
 
-// check in review
-#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+#[cfg(feature = "v2")]
 #[instrument(skip_all)]
 #[allow(clippy::too_many_arguments)]
 pub async fn save_payment_method<FData>(
@@ -942,10 +935,7 @@ pub async fn pre_payment_tokenization(
     }
 }
 
-#[cfg(all(
-    any(feature = "v1", feature = "v2"),
-    not(feature = "payment_methods_v2")
-))]
+#[cfg(feature = "v1")]
 async fn skip_saving_card_in_locker(
     merchant_context: &domain::MerchantContext,
     payment_method_request: api::PaymentMethodCreate,
@@ -997,8 +987,8 @@ async fn skip_saving_card_in_locker(
                 payment_method: payment_method_request.payment_method,
                 payment_method_type: payment_method_request.payment_method_type,
                 card: Some(card_detail),
-                recurring_enabled: false,
-                installment_payment_enabled: false,
+                recurring_enabled: Some(false),
+                installment_payment_enabled: Some(false),
                 payment_experience: Some(vec![api_models::enums::PaymentExperience::RedirectToUrl]),
                 metadata: None,
                 created: Some(common_utils::date_time::now()),
@@ -1021,8 +1011,8 @@ async fn skip_saving_card_in_locker(
                 card: None,
                 metadata: None,
                 created: Some(common_utils::date_time::now()),
-                recurring_enabled: false,
-                installment_payment_enabled: false,
+                recurring_enabled: Some(false),
+                installment_payment_enabled: Some(false),
                 payment_experience: Some(vec![api_models::enums::PaymentExperience::RedirectToUrl]),
                 #[cfg(feature = "payouts")]
                 bank_transfer: None,
@@ -1034,7 +1024,7 @@ async fn skip_saving_card_in_locker(
     }
 }
 
-#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+#[cfg(feature = "v2")]
 async fn skip_saving_card_in_locker(
     merchant_context: &domain::MerchantContext,
     payment_method_request: api::PaymentMethodCreate,
@@ -1045,10 +1035,7 @@ async fn skip_saving_card_in_locker(
     todo!()
 }
 
-#[cfg(all(
-    any(feature = "v1", feature = "v2"),
-    not(feature = "payment_methods_v2")
-))]
+#[cfg(feature = "v1")]
 pub async fn save_in_locker(
     state: &SessionState,
     merchant_context: &domain::MerchantContext,
@@ -1088,8 +1075,8 @@ pub async fn save_in_locker(
                 card: None,
                 metadata: None,
                 created: Some(common_utils::date_time::now()),
-                recurring_enabled: false,           //[#219]
-                installment_payment_enabled: false, //[#219]
+                recurring_enabled: Some(false),
+                installment_payment_enabled: Some(false),
                 payment_experience: Some(vec![api_models::enums::PaymentExperience::RedirectToUrl]), //[#219]
                 last_used_at: Some(common_utils::date_time::now()),
                 client_secret: None,
@@ -1099,7 +1086,7 @@ pub async fn save_in_locker(
     }
 }
 
-#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+#[cfg(feature = "v2")]
 pub async fn save_in_locker(
     _state: &SessionState,
     _merchant_context: &domain::MerchantContext,
@@ -1111,7 +1098,7 @@ pub async fn save_in_locker(
     todo!()
 }
 
-#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+#[cfg(feature = "v2")]
 pub async fn save_network_token_in_locker(
     _state: &SessionState,
     _merchant_context: &domain::MerchantContext,
@@ -1125,10 +1112,7 @@ pub async fn save_network_token_in_locker(
     todo!()
 }
 
-#[cfg(all(
-    any(feature = "v1", feature = "v2"),
-    not(feature = "payment_methods_v2")
-))]
+#[cfg(feature = "v1")]
 pub async fn save_network_token_in_locker(
     state: &SessionState,
     merchant_context: &domain::MerchantContext,
@@ -1505,7 +1489,7 @@ pub fn update_connector_mandate_details_status(
     }))
 }
 
-#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+#[cfg(feature = "v2")]
 pub async fn add_token_for_payment_method(
     router_data: &mut types::RouterData<
         api::PaymentMethodToken,

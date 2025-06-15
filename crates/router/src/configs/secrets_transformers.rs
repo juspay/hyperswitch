@@ -544,6 +544,7 @@ pub(crate) async fn fetch_raw_secrets(
         revenue_recovery: conf.revenue_recovery,
         debit_routing_config: conf.debit_routing_config,
         clone_connector_allowlist: conf.clone_connector_allowlist,
+        merchant_id_auth: conf.merchant_id_auth,
         infra_values: conf.infra_values,
     }
 }

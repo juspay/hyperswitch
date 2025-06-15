@@ -1,11 +1,11 @@
-#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+#[cfg(feature = "v2")]
 use std::fmt::Debug;
-#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+#[cfg(feature = "v2")]
 use std::str::FromStr;
 
 use ::payment_methods::controller::PaymentMethodsController;
 use api_models::payment_methods as api_payment_methods;
-#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+#[cfg(feature = "v2")]
 use cards::{CardNumber, NetworkToken};
 use common_utils::{
     errors::CustomResult,
@@ -15,14 +15,11 @@ use common_utils::{
     request::RequestContent,
 };
 use common_types::callback_mapper::CallbackMapperData;
-#[cfg(all(
-    any(feature = "v1", feature = "v2"),
-    not(feature = "payment_methods_v2")
-))]
+#[cfg(feature = "v1")]
 use error_stack::ResultExt;
-#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+#[cfg(feature = "v2")]
 use error_stack::{report, ResultExt};
-#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+#[cfg(feature = "v2")]
 use hyperswitch_domain_models::payment_method_data::{
     NetworkTokenDetails, NetworkTokenDetailsPaymentMethod,
 };
@@ -42,10 +39,7 @@ use crate::{
 
 pub const NETWORK_TOKEN_SERVICE: &str = "NETWORK_TOKEN";
 
-#[cfg(all(
-    any(feature = "v1", feature = "v2"),
-    not(feature = "payment_methods_v2")
-))]
+#[cfg(feature = "v1")]
 pub async fn mk_tokenization_req(
     state: &routes::SessionState,
     payload_bytes: &[u8],
@@ -156,7 +150,7 @@ pub async fn mk_tokenization_req(
     Ok((cn_response.clone(), Some(cn_response.card_reference)))
 }
 
-#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+#[cfg(feature = "v2")]
 pub async fn generate_network_token(
     state: &routes::SessionState,
     payload_bytes: &[u8],
@@ -268,10 +262,7 @@ pub async fn generate_network_token(
     Ok((cn_response.clone(), cn_response.card_reference))
 }
 
-#[cfg(all(
-    any(feature = "v1", feature = "v2"),
-    not(feature = "payment_methods_v2")
-))]
+#[cfg(feature = "v1")]
 pub async fn make_card_network_tokenization_request(
     state: &routes::SessionState,
     card: &domain::CardDetail,
@@ -321,7 +312,7 @@ pub async fn make_card_network_tokenization_request(
     }
 }
 
-#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+#[cfg(feature = "v2")]
 pub async fn make_card_network_tokenization_request(
     state: &routes::SessionState,
     card: &api_payment_methods::CardDetail,
@@ -445,7 +436,7 @@ pub async fn get_network_token(
     Ok(token_response)
 }
 
-#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+#[cfg(feature = "v2")]
 pub async fn get_network_token(
     state: &routes::SessionState,
     customer_id: &id_type::GlobalCustomerId,
@@ -582,7 +573,7 @@ pub async fn get_token_from_tokenization_service(
     Ok(network_token_data)
 }
 
-#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+#[cfg(feature = "v2")]
 pub async fn get_token_from_tokenization_service(
     state: &routes::SessionState,
     network_token_requestor_ref_id: String,
@@ -724,10 +715,7 @@ pub async fn do_status_check_for_network_token(
     }
 }
 
-#[cfg(all(
-    any(feature = "v1", feature = "v2"),
-    not(feature = "payment_methods_v2")
-))]
+#[cfg(feature = "v1")]
 pub async fn check_token_status_with_tokenization_service(
     state: &routes::SessionState,
     customer_id: &id_type::CustomerId,
@@ -801,7 +789,7 @@ pub async fn check_token_status_with_tokenization_service(
     }
 }
 
-#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+#[cfg(feature = "v2")]
 pub async fn check_token_status_with_tokenization_service(
     _state: &routes::SessionState,
     _customer_id: &id_type::GlobalCustomerId,
@@ -812,10 +800,7 @@ pub async fn check_token_status_with_tokenization_service(
     todo!()
 }
 
-#[cfg(all(
-    any(feature = "v1", feature = "v2"),
-    not(feature = "payment_methods_v2")
-))]
+#[cfg(feature = "v1")]
 pub async fn delete_network_token_from_locker_and_token_service(
     state: &routes::SessionState,
     customer_id: &id_type::CustomerId,
@@ -864,10 +849,7 @@ pub async fn delete_network_token_from_locker_and_token_service(
     Ok(resp)
 }
 
-#[cfg(all(
-    any(feature = "v1", feature = "v2"),
-    not(feature = "payment_methods_v2")
-))]
+#[cfg(feature = "v1")]
 pub async fn delete_network_token_from_tokenization_service(
     state: &routes::SessionState,
     network_token_requestor_reference_id: String,
@@ -943,7 +925,7 @@ pub async fn delete_network_token_from_tokenization_service(
     }
 }
 
-#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+#[cfg(feature = "v2")]
 pub async fn delete_network_token_from_locker_and_token_service(
     _state: &routes::SessionState,
     _customer_id: &id_type::GlobalCustomerId,
