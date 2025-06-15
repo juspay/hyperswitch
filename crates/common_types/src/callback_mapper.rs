@@ -1,7 +1,9 @@
-use common_utils::{id_type};
+use common_utils::id_type;
 use diesel::{AsExpression, FromSqlRow};
 
-#[derive(Clone, Debug, Eq, PartialEq, serde::Deserialize, serde::Serialize, AsExpression, FromSqlRow)]
+#[derive(
+    Clone, Debug, Eq, PartialEq, serde::Deserialize, serde::Serialize, AsExpression, FromSqlRow,
+)]
 #[diesel(sql_type = diesel::sql_types::Jsonb)]
 /// Represents the data associated with a callback mapper.
 pub enum CallbackMapperData {

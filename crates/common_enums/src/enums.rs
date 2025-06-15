@@ -8478,10 +8478,20 @@ pub enum TokenDataType {
 }
 
 #[derive(
-    Clone, Copy, Debug, Eq, PartialEq, serde::Serialize, serde::Deserialize, ToSchema, strum::Display, strum::EnumString, Hash
+    Clone,
+    Copy,
+    Debug,
+    Eq,
+    PartialEq,
+    serde::Serialize,
+    serde::Deserialize,
+    ToSchema,
+    strum::Display,
+    strum::EnumString,
+    Hash,
 )]
 #[serde(rename_all = "snake_case")]
 #[router_derive::diesel_enum(storage_type = "text")]
-pub enum CallbackMapperIdType{
-    NetworkTokenRequestorRefernceID
+pub enum CallbackMapperIdType {
+    NetworkTokenRequestorRefernceID,
 }

@@ -24,7 +24,7 @@ use api_models::{payment_methods, webhooks::WebhookResponseTracker};
 use common_utils::{
     consts::DEFAULT_LOCALE,
     crypto::Encryptable,
-    ext_traits::{Encode, OptionExt, AsyncExt},
+    ext_traits::{AsyncExt, Encode, OptionExt},
     fp_utils::when,
     id_type,
 };
@@ -3463,8 +3463,6 @@ pub async fn handle_metadata_update(
     decrypted_data: payment_methods::CardDetailFromLocker,
     is_pan_update: bool,
 ) -> RouterResult<WebhookResponseTracker> {
-    
-
     let merchant_id = merchant_context.get_merchant_account().get_id();
     let customer_id = &payment_method.customer_id;
 
@@ -3493,7 +3491,6 @@ pub async fn handle_metadata_update(
         .change_context(errors::ApiErrorResponse::InvalidDataValue {
             field_name: "card network",
         })?;
-
 
     let card_data = payment_methods::CardDetail::from((card, card_network));
 

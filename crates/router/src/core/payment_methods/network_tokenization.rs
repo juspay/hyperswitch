@@ -7,6 +7,7 @@ use ::payment_methods::controller::PaymentMethodsController;
 use api_models::payment_methods as api_payment_methods;
 #[cfg(feature = "v2")]
 use cards::{CardNumber, NetworkToken};
+use common_types::callback_mapper::CallbackMapperData;
 use common_utils::{
     errors::CustomResult,
     ext_traits::{ByteSliceExt, BytesExt, Encode},
@@ -14,7 +15,6 @@ use common_utils::{
     metrics::utils::record_operation_time,
     request::RequestContent,
 };
-use common_types::callback_mapper::CallbackMapperData;
 #[cfg(feature = "v1")]
 use error_stack::ResultExt;
 #[cfg(feature = "v2")]

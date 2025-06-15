@@ -1,6 +1,6 @@
-use serde::{self, Deserialize, Serialize};
-use common_types::callback_mapper::CallbackMapperData;
 use common_enums::enums as common_enums;
+use common_types::callback_mapper::CallbackMapperData;
+use serde::{self, Deserialize, Serialize};
 
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
 pub struct CallbackMapper {
@@ -11,7 +11,6 @@ pub struct CallbackMapper {
     pub created_at: time::PrimitiveDateTime,
     pub last_modified_at: time::PrimitiveDateTime,
 }
-
 
 impl CallbackMapper {
     pub fn new(

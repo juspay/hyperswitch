@@ -822,7 +822,6 @@ impl NetworkTokenWebhookResponseExt for pm_types::PanMetadataUpdateBody {
 
 #[async_trait]
 impl NetworkTokenWebhookResponseExt for pm_types::NetworkTokenMetaDataUpdateBody {
-
     fn decrypt_payment_method_data(
         &self,
         payment_method: &domain::PaymentMethod,
