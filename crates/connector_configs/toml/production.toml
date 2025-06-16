@@ -3078,6 +3078,10 @@ options=["PAN_ONLY", "CRYPTOGRAM_3DS"]
   payment_method_type = "sepa_bank_transfer"
 [[trustpay.bank_transfer]]
   payment_method_type = "instant_bank_transfer"
+[[trustpay.bank_transfer]]
+  payment_method_type = "instant_bank_transfer_finland"
+[[trustpay.bank_transfer]]
+  payment_method_type = "instant_bank_transfer_poland"
 [trustpay.connector_auth.SignatureKey]
 api_key="API Key"
 key1="Project ID"
@@ -4801,3 +4805,50 @@ placeholder="Enter Currency"
 required=true
 type="Select"
 options=[]
+
+[threedsecureio]
+[threedsecureio.connector_auth.HeaderKey]
+api_key="Api Key"
+
+[threedsecureio.metadata.mcc]
+name="mcc"
+label="MCC"
+placeholder="Enter MCC"
+required=true
+type="Text"
+[threedsecureio.metadata.merchant_country_code]
+name="merchant_country_code"
+label="3 digit numeric country code"
+placeholder="Enter 3 digit numeric country code"
+required=true
+type="Text"
+[threedsecureio.metadata.merchant_name]
+name="merchant_name"
+label="Name of the merchant"
+placeholder="Enter Name of the merchant"
+required=true
+type="Text"
+[threedsecureio.metadata.pull_mechanism_for_external_3ds_enabled]
+name="pull_mechanism_for_external_3ds_enabled"
+label="Pull Mechanism Enabled"
+placeholder="Enter Pull Mechanism Enabled"
+required=false
+type="Toggle"
+[threedsecureio.metadata.acquirer_bin]
+name="acquirer_bin"
+label="Acquirer BIN"
+placeholder="Enter Acquirer BIN"
+required=true
+type="Text"
+[threedsecureio.metadata.acquirer_merchant_id]
+name="acquirer_merchant_id"
+label="Acquirer Merchant ID"
+placeholder="Enter Acquirer Merchant ID"
+required=true
+type="Text"
+[threedsecureio.metadata.acquirer_country_code]
+name="acquirer_country_code"
+label="Acquirer Country Code"
+placeholder="Enter Acquirer Country Code"
+required=false
+type="Text"
