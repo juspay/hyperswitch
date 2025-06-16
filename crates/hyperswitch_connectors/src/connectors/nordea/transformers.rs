@@ -9,24 +9,29 @@ use hyperswitch_domain_models::{
     router_flow_types::refunds::{Execute, RSync},
     router_request_types::ResponseId,
     router_response_types::{PaymentsResponseData, RedirectForm, RefundsResponseData},
-    types::{PaymentsAuthorizeRouterData, PaymentsPreProcessingRouterData, RefundsRouterData},
+    types::{
+        self, PaymentsAuthorizeRouterData, PaymentsPreProcessingRouterData, RefreshTokenRouterData,
+        RefundsRouterData,
+    },
 };
 use hyperswitch_interfaces::errors;
-use masking::Secret;
+use masking::{ExposeInterface, Secret};
+use rand::distributions::DistString;
 use serde::{Deserialize, Deserializer, Serialize};
 
-use super::{
-    requests::{
-        AccountNumber, AccountType, CreditorAccount, CreditorAccountReference, CreditorBank,
-        DebitorAccount, NordeaOAuthTokenExchangeRequest, NordeaPaymentsConfirmRequest,
-        NordeaPaymentsRequest, NordeaRefundRequest, NordeaRouterData, PaymentsUrgency,
-    },
-    responses::{
-        NordeaErrorBody, NordeaFailures, NordeaOAuthTokenExchangeResponse, NordeaPaymentStatus,
-        NordeaPaymentsResponse, NordeaRefundResponse, NordeaRefundStatus,
-    },
-};
 use crate::{
+    connectors::nordea::{
+        requests::{
+            AccessScope, AccountNumber, AccountType, CreditorAccount, CreditorAccountReference,
+            CreditorBank, DebitorAccount, GrantType, NordeaOAuthExchangeRequest,
+            NordeaOAuthRequest, NordeaPaymentsConfirmRequest, NordeaPaymentsRequest,
+            NordeaRefundRequest, NordeaRouterData, PaymentsUrgency,
+        },
+        responses::{
+            NordeaErrorBody, NordeaFailures, NordeaOAuthExchangeResponse, NordeaPaymentStatus,
+            NordeaPaymentsResponse, NordeaRefundResponse, NordeaRefundStatus,
+        },
+    },
     types::{RefundsResponseRouterData, ResponseRouterData},
     utils::{self, get_unimplemented_payment_method_error_message, RouterData as _},
 };
@@ -70,37 +75,6 @@ impl TryFrom<&ConnectorAuthType> for NordeaAuthType {
     }
 }
 
-// impl TryFrom<&types::RefreshTokenRouterData> for NordeaOAuthTokenExchangeRequest {
-//     type Error = Error;
-//     fn try_from(item: &types::RefreshTokenRouterData) -> Result<Self, Self::Error> {
-//         let auth_type = NordeaAuthType::try_from(&item.connector_auth_type)?;
-//         // TODO: Update Along side Access Token flow
-//         Ok(Self {
-//             grant_type: "".to_string(),
-//             code: None,
-//             redirect_uri: None,
-//             refresh_token: None,
-//         })
-//     }
-// }
-
-// impl<F, T> TryFrom<ResponseRouterData<F, NordeaOAuthTokenExchangeResponse, T, AccessToken>>
-//     for RouterData<F, T, AccessToken>
-// {
-//     type Error = Error;
-//     fn try_from(
-//         item: ResponseRouterData<F, NordeaOAuthTokenExchangeResponse, T, AccessToken>,
-//     ) -> Result<Self, Self::Error> {
-//         Ok(Self {
-//             response: Ok(AccessToken {
-//                 token: item.response.access_token,
-//                 expires: item.response.expires_in,
-//             }),
-//             ..item.data
-//         })
-//     }
-// }
-
 #[derive(Debug, Default, Serialize, Deserialize)]
 pub struct NordeaConnectorMetadataObject {
     pub creditor_account_value: Secret<String>,
@@ -115,6 +89,105 @@ impl TryFrom<&Option<pii::SecretSerdeValue>> for NordeaConnectorMetadataObject {
                 config: "merchant_connector_account.metadata",
             })?;
         Ok(metadata)
+    }
+}
+
+impl TryFrom<&RefreshTokenRouterData> for NordeaOAuthRequest {
+    type Error = Error;
+    fn try_from(item: &RefreshTokenRouterData) -> Result<Self, Self::Error> {
+        let country = item.get_billing_country()?;
+        // Set refresh_token maximum expiry duration to 180 days (259200 / 60 = 180)
+        // Minimum is 1 minute
+        let duration = Some(259200);
+        let maximum_transaction_history = Some(18);
+        let redirect_uri = "https://hyperswitch.io".to_string();
+        let scope = [
+            AccessScope::AccountsBasic,
+            AccessScope::AccountsDetails,
+            AccessScope::AccountsBalances,
+            AccessScope::AccountsTransactions,
+            AccessScope::PaymentsMultiple,
+        ]
+        .to_vec();
+        let state = rand::distributions::Alphanumeric.sample_string(&mut rand::thread_rng(), 15);
+
+        println!(">>>>> COUNTRY: {}", country.clone());
+
+        Ok(Self {
+            country,
+            duration,
+            maximum_transaction_history,
+            redirect_uri,
+            scope,
+            state: state.into(),
+        })
+    }
+}
+
+impl TryFrom<&types::PaymentsSessionRouterData> for NordeaOAuthExchangeRequest {
+    type Error = Error;
+    fn try_from(item: &types::PaymentsSessionRouterData) -> Result<Self, Self::Error> {
+        let code = item
+            .access_token
+            .as_ref()
+            .ok_or(errors::ConnectorError::MissingRequiredField {
+                field_name: "authorization_code",
+            })?
+            .token
+            .clone();
+        let grant_type = GrantType::AuthorizationCode;
+        let redirect_uri = Some("https://hyperswitch.io".to_string());
+
+        Ok(Self {
+            code: Some(code),
+            grant_type,
+            redirect_uri,
+            refresh_token: None, // We're not using refresh_token to generate new access_token
+        })
+    }
+}
+
+impl<F, T> TryFrom<ResponseRouterData<F, NordeaOAuthExchangeResponse, T, PaymentsResponseData>>
+    for RouterData<F, T, PaymentsResponseData>
+{
+    type Error = Error;
+    fn try_from(
+        item: ResponseRouterData<F, NordeaOAuthExchangeResponse, T, PaymentsResponseData>,
+    ) -> Result<Self, Self::Error> {
+        let access_token =
+            item.response
+                .access_token
+                .ok_or(errors::ConnectorError::MissingRequiredField {
+                    field_name: "access_token",
+                })?;
+
+        let expires_in = item.response.expires_in.unwrap_or(3600); // Default to 1 hour if not provided
+
+        // Store the access token in the router data
+        let mut data = item.data;
+        data.access_token = Some(AccessToken {
+            token: access_token.clone(),
+            expires: expires_in,
+        });
+
+        // i'm pretty skeptical about this part of code working9
+
+        // Create a session response with the access token
+        let response = Ok(PaymentsResponseData::SessionTokenResponse {
+            session_token: access_token.clone().expose(),
+        });
+
+        Ok(Self {
+            status: common_enums::AttemptStatus::AuthenticationSuccessful,
+            response,
+            // or, may be, override access token at this point?
+            session_token: Some(access_token.clone().expose()),
+            // access_token: Some(AccessToken {
+            //     token: access_token.clone(),
+            //     expires: expires_in,
+            // }),
+            ..data
+        })
     }
 }
 

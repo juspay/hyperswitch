@@ -30,8 +30,8 @@ use hyperswitch_domain_models::{
         SupportedPaymentMethods, SupportedPaymentMethodsExt,
     },
     types::{
-        PaymentsAuthorizeRouterData, PaymentsPreProcessingRouterData, PaymentsSyncRouterData,
-        RefundSyncRouterData, RefundsRouterData,
+        PaymentsAuthorizeRouterData, PaymentsPreProcessingRouterData, PaymentsSessionRouterData,
+        PaymentsSyncRouterData, RefreshTokenRouterData, RefundSyncRouterData, RefundsRouterData,
     },
 };
 use hyperswitch_interfaces::{
@@ -43,15 +43,11 @@ use hyperswitch_interfaces::{
     consts::{NO_ERROR_CODE, NO_ERROR_MESSAGE},
     errors,
     events::connector_api_logs::ConnectorEvent,
-    types::{self, Response},
+    types::{self, PaymentsSessionType, RefreshTokenType, Response},
     webhooks,
 };
 use lazy_static::lazy_static;
-use masking::{ExposeInterface, Mask, PeekInterface};
-use requests::{
-    NordeaPaymentsConfirmRequest, NordeaPaymentsRequest, NordeaRefundRequest, NordeaRouterData,
-};
-use responses::{NordeaPaymentsResponse, NordeaRefundResponse};
+use masking::{ExposeInterface, Mask, PeekInterface, Secret};
 use ring::{
     digest,
     signature::{RsaKeyPair, RSA_PKCS1_SHA256},
@@ -60,6 +56,13 @@ use transformers::{get_error_data, NordeaAuthType};
 use url::Url;
 
 use crate::{
+    connectors::nordea::{
+        requests::{
+            NordeaOAuthExchangeRequest, NordeaOAuthRequest, NordeaPaymentsConfirmRequest,
+            NordeaPaymentsRequest, NordeaRefundRequest, NordeaRouterData,
+        },
+        responses::{NordeaOAuthExchangeResponse, NordeaPaymentsResponse, NordeaRefundResponse},
+    },
     constants::headers,
     types::ResponseRouterData,
     utils::{self, PaymentsAuthorizeRequestData, RouterData as OtherRouterData},
@@ -214,7 +217,7 @@ where
         connectors: &Connectors,
     ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
         let access_token = req
-            .access_token
+            .session_token
             .clone()
             .ok_or(errors::ConnectorError::FailedToObtainAuthType)?;
         let auth = NordeaAuthType::try_from(&req.connector_auth_type)?;
@@ -248,7 +251,8 @@ where
             ),
             (
                 headers::AUTHORIZATION.to_string(),
-                format!("Bearer {}", access_token.token.clone().peek()).into_masked(),
+                // format!("Bearer {}", access_token.token.clone().peek()).into_masked(),
+                format!("Bearer {}", access_token.clone()).into_masked(),
             ),
             (
                 "X-IBM-Client-ID".to_string(),
@@ -362,48 +366,208 @@ impl ConnectorCommon for Nordea {
     }
 }
 
-impl ConnectorValidation for Nordea {
-    //TODO: implement functions when support enabled
+impl ConnectorValidation for Nordea {}
+
+impl ConnectorIntegration<AccessTokenAuth, AccessTokenRequestData, AccessToken> for Nordea {
+    fn get_headers(
+        &self,
+        req: &RefreshTokenRouterData,
+        connectors: &Connectors,
+    ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
+        self.build_headers(req, connectors)
+    }
+
+    fn get_url(
+        &self,
+        _req: &RefreshTokenRouterData,
+        connectors: &Connectors,
+    ) -> CustomResult<String, errors::ConnectorError> {
+        Ok(format!(
+            "{}/personal/v5/authorize",
+            self.base_url(connectors)
+        ))
+    }
+
+    fn get_content_type(&self) -> &'static str {
+        "application/x-www-form-urlencoded"
+    }
+
+    fn get_request_body(
+        &self,
+        req: &RefreshTokenRouterData,
+        _connectors: &Connectors,
+    ) -> CustomResult<RequestContent, errors::ConnectorError> {
+        let connector_req = NordeaOAuthRequest::try_from(req)?;
+        Ok(RequestContent::FormUrlEncoded(Box::new(connector_req)))
+    }
+
+    fn build_request(
+        &self,
+        req: &RefreshTokenRouterData,
+        connectors: &Connectors,
+    ) -> CustomResult<Option<Request>, errors::ConnectorError> {
+        Ok(Some(
+            RequestBuilder::new()
+                .method(Method::Post)
+                .attach_default_headers()
+                .headers(RefreshTokenType::get_headers(self, req, connectors)?)
+                .url(&RefreshTokenType::get_url(self, req, connectors)?)
+                .set_body(RefreshTokenType::get_request_body(self, req, connectors)?)
+                .build(),
+        ))
+    }
+
+    fn handle_response(
+        &self,
+        data: &RefreshTokenRouterData,
+        _event_builder: Option<&mut ConnectorEvent>,
+        res: Response,
+    ) -> CustomResult<RefreshTokenRouterData, errors::ConnectorError> {
+        // Handle 302 redirect response
+        if res.status_code == 302 {
+            // Extract Location header
+            let headers =
+                res.headers
+                    .as_ref()
+                    .ok_or(errors::ConnectorError::MissingRequiredField {
+                        field_name: "headers",
+                    })?;
+            let location_header = headers
+                .get("Location")
+                .map(|value| value.to_str())
+                .and_then(|location_value| location_value.ok())
+                .ok_or(errors::ConnectorError::ParsingFailed)?;
+
+            // Parse auth code from query params
+            let url = Url::parse(location_header)
+                .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+
+            let code = url
+                .query_pairs()
+                .find(|(key, _)| key == "code")
+                .map(|(_, value)| value.to_string())
+                .ok_or(errors::ConnectorError::MissingRequiredField { field_name: "code" })?;
+
+            println!(">>>>> AUTH_CODE: {}", code.clone());
+
+            // Return auth code as "token" with short expiry
+            Ok(RouterData {
+                response: Ok(AccessToken {
+                    token: Secret::new(code),
+                    expires: 60, // 60 seconds - auth code validity
+                }),
+                ..data.clone()
+            })
+        } else {
+            Err(
+                errors::ConnectorError::UnexpectedResponseError("Expected 302 redirect".into())
+                    .into(),
+            )
+        }
+    }
+
+    fn get_error_response(
+        &self,
+        res: Response,
+        event_builder: Option<&mut ConnectorEvent>,
+    ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
+        self.build_error_response(res, event_builder)
+    }
 }
 
 impl ConnectorIntegration<Session, PaymentsSessionData, PaymentsResponseData> for Nordea {
-    //TODO: implement sessions flow
+    fn get_headers(
+        &self,
+        req: &PaymentsSessionRouterData,
+        connectors: &Connectors,
+    ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
+        self.build_headers(req, connectors)
+    }
+
+    fn get_content_type(&self) -> &'static str {
+        "application/x-www-form-urlencoded"
+    }
+
+    fn get_url(
+        &self,
+        _req: &PaymentsSessionRouterData,
+        connectors: &Connectors,
+    ) -> CustomResult<String, errors::ConnectorError> {
+        Ok(format!(
+            "{}/personal/v5/authorize/token",
+            self.base_url(connectors)
+        ))
+    }
+
+    fn get_request_body(
+        &self,
+        req: &PaymentsSessionRouterData,
+        _connectors: &Connectors,
+    ) -> CustomResult<RequestContent, errors::ConnectorError> {
+        let connector_req = NordeaOAuthExchangeRequest::try_from(req)?;
+        Ok(RequestContent::FormUrlEncoded(Box::new(connector_req)))
+    }
+
+    fn build_request(
+        &self,
+        req: &PaymentsSessionRouterData,
+        connectors: &Connectors,
+    ) -> CustomResult<Option<Request>, errors::ConnectorError> {
+        Ok(Some(
+            RequestBuilder::new()
+                .method(Method::Post)
+                .attach_default_headers()
+                .headers(PaymentsSessionType::get_headers(self, req, connectors)?)
+                .url(&PaymentsSessionType::get_url(self, req, connectors)?)
+                .set_body(PaymentsSessionType::get_request_body(
+                    self, req, connectors,
+                )?)
+                .build(),
+        ))
+    }
+
+    fn handle_response(
+        &self,
+        data: &PaymentsSessionRouterData,
+        event_builder: Option<&mut ConnectorEvent>,
+        res: Response,
+    ) -> CustomResult<PaymentsSessionRouterData, errors::ConnectorError> {
+        let response: NordeaOAuthExchangeResponse = res
+            .response
+            .parse_struct("NordeaOAuthExchangeResponse")
+            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+
+        event_builder.map(|i| i.set_response_body(&response));
+        router_env::logger::info!(connector_response=?response);
+
+        RouterData::try_from(ResponseRouterData {
+            response,
+            data: data.clone(),
+            http_code: res.status_code,
+        })
+    }
+
+    fn get_error_response(
+        &self,
+        res: Response,
+        event_builder: Option<&mut ConnectorEvent>,
+    ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
+        self.build_error_response(res, event_builder)
+    }
 }
 
-impl ConnectorIntegration<AccessTokenAuth, AccessTokenRequestData, AccessToken> for Nordea {
-    // TO-DO: Implement Access Token flow
-    // Nordea has 2 types of access token flows:
-    // 1. Redirect access authorization flow (2 steps) <- we're interested in this one given the simplicity and it requires a core change (may be, introduce a new flow)
-    //      Initiation of access authorisation.
-    //      Receipt of an authorisation code.
-    //      Exchange of the authorisation code for an access token and a refresh token.
-    //          The refresh token can be used to obtain a new access token after its expiry.
-    // 2. Decoupled access authorization flow (6 steps)
-    //      Initiation of customer authentication
-    //      Polling of the authentication status
-    //      Receipt of the first authorisation code
-    //      Initiation of the access authorisation
-    //      Receipt of the second authorisation code
-    //      Exchange of the second authorisation code for an access token and a refresh token.
-    //          The refresh token can be used to obtain a new access token after its expiry.
-
-    // Redirect access authorization flow:
-    // 1. Hit `/authorize` endpoint to get a `code` (one time use only and is never needed once used to get `access_token`)
-    // 2. Use the `code` to hit `authorize/token` endpoint to get an `access_token` and `refresh_token` depending on the grant_type (`authorization_code` & `refresh_token`) that is passed.
-    //    `grant_type` should be `authorization_code` for the first step and `refresh_token` for the subsequent calls.
-    //
-    // FAQ:
-    // Access is valid for 3600 seconds
-    // Refresh token is long lived (depends on `duration` field in minutes passed in `/authorize` call), can only be used once
-    //
-    // Flow would be like (POST):
-    // 1. Check if we already have a refresh token and is not expired (depends on the duration passed during the retrieval of `code` -- max 180 days).
-    //      1.1. If yes, use it to get an access token after access token expires.
-    //      1.2. If no, hit `/authorize` endpoint to get a `code`.
-    //          1.2.1 If `code` is received, use it to hit `authorize/token` endpoint to get an `access_token` and `refresh_token`.
+impl ConnectorIntegration<SetupMandate, SetupMandateRequestData, PaymentsResponseData> for Nordea {
+    fn build_request(
+        &self,
+        _req: &RouterData<SetupMandate, SetupMandateRequestData, PaymentsResponseData>,
+        _connectors: &Connectors,
+    ) -> CustomResult<Option<Request>, errors::ConnectorError> {
+        Err(
+            errors::ConnectorError::NotImplemented("Setup Mandate flow for Nordea".to_string())
+                .into(),
+        )
+    }
 }
-
-impl ConnectorIntegration<SetupMandate, SetupMandateRequestData, PaymentsResponseData> for Nordea {}
 
 impl ConnectorIntegration<PreProcessing, PaymentsPreProcessingData, PaymentsResponseData>
     for Nordea
