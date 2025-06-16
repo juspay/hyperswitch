@@ -771,6 +771,7 @@ static TOKENIO_CONNECTOR_INFO: ConnectorInfo = ConnectorInfo {
     display_name: "Token.io",
     description: "Token.io is a financial technology company that provides Open Banking and real-time payment solutions across Europe. They enable secure bank-to-bank transfers using various payment rails including SEPA, Faster Payments, and other regional payment systems.",
     connector_type: enums::PaymentConnectorCategory::PaymentGateway,
+    integration_status: enums::ConnectorIntegrationStatus::Alpha,
 };
 
 static TOKENIO_SUPPORTED_WEBHOOK_FLOWS: [enums::EventClass; 1] = [enums::EventClass::Payments];
