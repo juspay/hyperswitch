@@ -1,4 +1,4 @@
-use common_utils::errors::CustomResult;
+use common_utils::{errors::CustomResult, types::Url};
 use error_stack::ResultExt;
 use router_env::logger;
 use rust_grpc_client::payments::{
@@ -82,10 +82,10 @@ pub struct UnifiedConnectorService {
 }
 
 /// Contains the Unified Connector Service Client config
-#[derive(Debug, Clone, serde::Deserialize, serde::Serialize, Default)]
+#[derive(Debug, Clone, serde::Deserialize, serde::Serialize)]
 pub struct UnifiedConnectorServiceClientConfig {
     /// Contains the Base URL for the gRPC server
-    pub base_url: Option<String>,
+    pub base_url: Url,
 }
 
 impl UnifiedConnectorService {
@@ -93,20 +93,24 @@ impl UnifiedConnectorService {
     pub async fn build_connections(
         config: &GrpcClientSettings,
     ) -> Result<Option<Self>, Box<dyn std::error::Error>> {
-        if let Some(base_url) = &config.unified_connector_service_client.base_url {
-            if !base_url.is_empty() {
-                Ok(Some(Self {
-                    unified_connector_service_client: PaymentServiceClient::connect(
-                        base_url.clone(),
-                    )
-                    .await
-                    .expect("Failed to establish a connection with the Unified Connector Service"),
-                }))
-            } else {
-                Ok(None)
+        match &config.unified_connector_service_client {
+            Some(unified_connector_service_client) => {
+                match PaymentServiceClient::connect(
+                    unified_connector_service_client
+                        .base_url
+                        .clone()
+                        .get_string_repr()
+                        .to_owned(),
+                )
+                .await
+                {
+                    Ok(unified_connector_service_client) => Ok(Some(Self {
+                        unified_connector_service_client,
+                    })),
+                    Err(_) => Ok(None),
+                }
             }
-        } else {
-            Ok(None)
+            None => Ok(None),
         }
     }
 
