@@ -4,6 +4,7 @@ pub mod dynamic_routing;
 /// gRPC based Heath Check Client interface implementation
 #[cfg(feature = "dynamic_routing")]
 pub mod health_check_client;
+/// gRPC based Unified Connector Service Client interface implementation
 pub mod unified_connector_service;
 use std::{fmt::Debug, sync::Arc};
 
