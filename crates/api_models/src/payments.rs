@@ -1638,6 +1638,7 @@ pub struct PaymentAttemptRecordResponse {
     pub card_network: Option<api_enums::CardNetwork>,
     /// Error details for the payment attempt, if any.
     /// This includes fields like error code, network advice code, and network decline code.
+    #[schema(value_type = Option<RecordAttemptErrorDetails>)]
     pub error_details: Option<RecordAttemptErrorDetails>,
     /// Additional data that might be required by hyperswitch based on the requested features by the merchants.
     #[schema(value_type = Option<FeatureMetadata>)]
@@ -8808,6 +8809,7 @@ pub struct PaymentsAttemptRecordRequest {
     /// The shipping address for the payment attempt.
     pub shipping: Option<Address>,
 
+    #[schema(value_type = Option<RecordAttemptErrorDetails>)]
     /// Error details provided by the billing processor.
     pub error: Option<RecordAttemptErrorDetails>,
 

@@ -15514,7 +15514,8 @@
         "type": "object",
         "required": [
           "id",
-          "status"
+          "status",
+          "amount"
         ],
         "properties": {
           "id": {
@@ -15523,6 +15524,28 @@
           },
           "status": {
             "$ref": "#/components/schemas/AttemptStatus"
+          },
+          "amount": {
+            "type": "integer",
+            "format": "int64",
+            "description": "The amount of the payment attempt",
+            "example": 6540
+          },
+          "card_network": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/CardNetwork"
+              }
+            ],
+            "nullable": true
+          },
+          "error_details": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/RecordAttemptErrorDetails"
+              }
+            ],
+            "nullable": true
           },
           "payment_intent_feature_metadata": {
             "allOf": [
@@ -18467,7 +18490,9 @@
           "payment_link_enabled",
           "request_incremental_authorization",
           "expires_on",
-          "request_external_three_ds_authentication"
+          "created_at",
+          "request_external_three_ds_authentication",
+          "merchant_id"
         ],
         "properties": {
           "id": {
@@ -18621,6 +18646,11 @@
             "format": "date-time",
             "description": "Will be used to expire client secret after certain amount of time to be supplied in seconds"
           },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Time at which the payment intent was created."
+          },
           "frm_metadata": {
             "type": "object",
             "description": "Additional data related to some frm(Fraud Risk Management) connectors",
@@ -18628,6 +18658,10 @@
           },
           "request_external_three_ds_authentication": {
             "$ref": "#/components/schemas/External3dsAuthenticationRequest"
+          },
+          "merchant_id": {
+            "type": "string",
+            "description": "The unique identifier for the merchant"
           }
         },
         "additionalProperties": false
@@ -21599,6 +21633,39 @@
           "active",
           "disabled"
         ]
+      },
+      "RecordAttemptErrorDetails": {
+        "type": "object",
+        "description": "Error details for the payment",
+        "required": [
+          "code",
+          "message"
+        ],
+        "properties": {
+          "code": {
+            "type": "string",
+            "description": "error code sent by billing connector."
+          },
+          "message": {
+            "type": "string",
+            "description": "error message sent by billing connector."
+          },
+          "network_advice_code": {
+            "type": "string",
+            "description": "This field can be returned for both approved and refused Mastercard payments.\nThis code provides additional information about the type of transaction or the reason why the payment failed.\nIf the payment failed, the network advice code gives guidance on if and when you can retry the payment.",
+            "nullable": true
+          },
+          "network_decline_code": {
+            "type": "string",
+            "description": "For card errors resulting from a card issuer decline, a brand specific 2, 3, or 4 digit code which indicates the reason the authorization failed.",
+            "nullable": true
+          },
+          "network_error_message": {
+            "type": "string",
+            "description": "A string indicating how to proceed with an network error if payment gateway provide one. This is used to understand the network error code better.",
+            "nullable": true
+          }
+        }
       },
       "RecurringDetails": {
         "oneOf": [
