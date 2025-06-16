@@ -499,7 +499,7 @@ pub async fn perform_static_routing_v1(
                 "DecisionEngine: Euclid Static Routing".to_string(),
                 None,
                 true,
-                true,
+                false,
             );
 
             let de_euclid_connectors = perform_decision_euclid_routing(
@@ -518,8 +518,12 @@ pub async fn perform_static_routing_v1(
                 .iter()
                 .map(|c| c.connector.to_string())
                 .collect::<Vec<String>>();
+            let de_connectors = de_euclid_connectors
+                .iter()
+                .map(|c| c.connector.to_string())
+                .collect::<Vec<String>>();
             utils::compare_and_log_result(
-                de_euclid_connectors,
+                de_connectors,
                 connectors,
                 "evaluate_routing".to_string(),
             );

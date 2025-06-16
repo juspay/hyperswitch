@@ -14,6 +14,7 @@ use external_services::grpc_client::dynamic_routing as ir_client;
 use hyperswitch_interfaces::events::routing_api_logs as routing_events;
 use router_env::tracing_actix_web::RequestId;
 use serde::{Deserialize, Serialize};
+use std::str::FromStr;
 
 use super::RoutingResult;
 use crate::{
@@ -99,8 +100,8 @@ where
         match response {
             Ok(resp) => {
                 logger::debug!(
-                    "decision_engine: Received response from Decision Engine API ({})",
-                    String::from_utf8_lossy(&resp.response); // For logging
+                    "decision_engine: Received response from Decision Engine API ({:?})",
+                    String::from_utf8_lossy(&resp.response) // For logging
                 );
 
                 let resp = should_parse_response
@@ -122,8 +123,8 @@ where
             }
             Err(err) => {
                 logger::debug!(
-                    "decision_engine: Received response from Decision Engine API ({})",
-                    String::from_utf8_lossy(&err.response); // For logging
+                    "decision_engine: Received response from Decision Engine API ({:?})",
+                    String::from_utf8_lossy(&err.response) // For logging
                 );
 
                 let err_resp: or_types::ErrorResponse = err
@@ -372,7 +373,7 @@ pub async fn perform_decision_euclid_routing(
     input: BackendInput,
     created_by: String,
     events_wrapper: RoutingEventsWrapper<RoutingEvaluateRequest>,
-) -> RoutingResult<Vec<String>> {
+) -> RoutingResult<Vec<ConnectorInfo>> {
     logger::debug!("decision_engine_euclid: evaluate api call for euclid routing evaluation");
 
     let mut events_wrapper = events_wrapper;
@@ -396,6 +397,56 @@ pub async fn perform_decision_euclid_routing(
             .ok_or(errors::RoutingError::OpenRouterError(
                 "Response from decision engine API is empty".to_string(),
             ))?;
+
+    let mut routing_event =
+        event_response
+            .event
+            .ok_or(errors::RoutingError::RoutingEventsError {
+                message: "Routing event not found in EventsResponse".to_string(),
+                status_code: 500,
+            })?;
+
+    let connector_info = euclid_response.evaluated_output.clone();
+    let mut routable_connectors = Vec::new();
+    for conn in &connector_info {
+        let connector = common_enums::RoutableConnectors::from_str(conn.connector.as_str())
+            .change_context(errors::RoutingError::GenericConversionError {
+                from: "String".to_string(),
+                to: "RoutableConnectors".to_string(),
+            })
+            .attach_printable(
+                "decision_engine_euclid: unable to convert String to RoutableConnectors",
+            )
+            .ok();
+        let mca_id = conn
+            .mca_id
+            .as_ref()
+            .map(|id| {
+                id_type::MerchantConnectorAccountId::wrap(id.to_string())
+        .change_context(errors::RoutingError::GenericConversionError {
+            from: "String".to_string(),
+            to: "MerchantConnectorAccountId".to_string(),
+        })
+        .attach_printable(
+            "decision_engine_euclid: unable to convert MerchantConnectorAccountId from string",
+        )
+            })
+            .transpose()
+            .ok()
+            .flatten();
+
+        if let Some(conn) = connector {
+            let connector = RoutableConnectorChoice {
+                choice_kind: api_routing::RoutableChoiceKind::FullStruct,
+                connector: conn,
+                merchant_connector_id: mca_id,
+            };
+            routable_connectors.push(connector);
+        }
+    }
+
+    routing_event.set_routable_connectors(routable_connectors);
+    state.event_handler.log_event(&routing_event);
 
     // Need to log euclid response event here
 
@@ -664,12 +715,13 @@ pub fn convert_backend_input_to_routing_eval(
     })
 }
 
-#[derive(Debug, Clone, serde::Deserialize)]
-struct DeErrorResponse {
-    code: String,
-    message: String,
-    data: Option<serde_json::Value>,
-}
+// Commented out code for error response structure, this will be used as the main ErrorResponse from DE
+// #[derive(Debug, Clone, serde::Deserialize)]
+// struct DeErrorResponse {
+//     code: String,
+//     message: String,
+//     data: Option<serde_json::Value>,
+// }
 
 //TODO: temporary change will be refactored afterwards
 #[derive(Clone, Debug, serde::Serialize, serde::Deserialize, PartialEq)]
@@ -682,8 +734,8 @@ pub struct RoutingEvaluateRequest {
 pub struct RoutingEvaluateResponse {
     pub status: String,
     pub output: serde_json::Value,
-    pub evaluated_output: Vec<String>,
-    pub eligible_connectors: Vec<String>,
+    pub evaluated_output: Vec<ConnectorInfo>,
+    pub eligible_connectors: Vec<ConnectorInfo>,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
