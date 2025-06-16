@@ -1,7 +1,6 @@
-
-use diesel::{Identifiable, Insertable, Queryable, Selectable};
-use common_types::callback_mapper::CallbackMapperData;
 use common_enums::enums as common_enums;
+use common_types::callback_mapper::CallbackMapperData;
+use diesel::{Identifiable, Insertable, Queryable, Selectable};
 
 use crate::schema::callback_mapper;
 

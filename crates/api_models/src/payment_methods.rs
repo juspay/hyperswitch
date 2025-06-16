@@ -1082,7 +1082,7 @@ impl From<(Card, Option<common_enums::CardNetwork>)> for CardDetail {
             card_type: None,
         }
     }
-} 
+}
 
 #[cfg(feature = "v1")]
 #[derive(Debug, serde::Deserialize, serde::Serialize, Clone, ToSchema)]

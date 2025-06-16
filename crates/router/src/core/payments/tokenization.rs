@@ -7,6 +7,7 @@ use api_models::{
     payment_methods::PaymentMethodDataWalletInfo, payments::ConnectorMandateReferenceId,
 };
 use common_enums::{ConnectorMandateStatus, PaymentMethod};
+use common_types::callback_mapper::CallbackMapperData;
 use common_utils::{
     crypto::Encryptable,
     ext_traits::{AsyncExt, Encode, ValueExt},
@@ -14,7 +15,6 @@ use common_utils::{
     metrics::utils::record_operation_time,
     pii,
 };
-use common_types::callback_mapper::CallbackMapperData;
 use error_stack::{report, ResultExt};
 #[cfg(feature = "v1")]
 use hyperswitch_domain_models::{
@@ -765,14 +765,15 @@ where
                             match network_token_requestor_ref_id {
                                 Some(network_token_requestor_ref_id) => {
                                     //Insert the network token reference ID along with merchant id, customer id in CallbackMapper table for its respective webooks
-                                    let callback_mapper_data = CallbackMapperData::NetworkTokenWebhook {
-                                        merchant_id: merchant_context
-                                            .get_merchant_account()
-                                            .get_id()
-                                            .clone(),
-                                        customer_id,
-                                        payment_method_id: resp.payment_method_id.clone(),
-                                    };
+                                    let callback_mapper_data =
+                                        CallbackMapperData::NetworkTokenWebhook {
+                                            merchant_id: merchant_context
+                                                .get_merchant_account()
+                                                .get_id()
+                                                .clone(),
+                                            customer_id,
+                                            payment_method_id: resp.payment_method_id.clone(),
+                                        };
                                     let callback_mapper = CallbackMapper::new(
                                         network_token_requestor_ref_id,
                                         common_enums::CallbackMapperIdType::NetworkTokenRequestorRefernceID,
