@@ -590,6 +590,7 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentConfirmData<F>, PaymentsConfirmInt
             .clone();
 
         let payment_attempt_update = match &payment_data.payment_method {
+            // In the case of a tokenized payment method, we update the payment attempt with the tokenized payment method details.
             Some(payment_method) => {
                 hyperswitch_domain_models::payments::payment_attempt::PaymentAttemptUpdate::ConfirmIntentTokenized {
                     status: attempt_status,
