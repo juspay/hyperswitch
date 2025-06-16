@@ -902,7 +902,11 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
         req: &PaymentsAuthorizeRouterData,
         connectors: &Connectors,
     ) -> CustomResult<String, ConnectorError> {
-        Ok(format!( "{}{}", self.base_url(connectors), "v1/payment_intents" ))
+        Ok(format!(
+            "{}{}",
+            self.base_url(connectors),
+            "v1/payment_intents"
+        ))
     }
 
     fn get_request_body(
@@ -933,32 +937,33 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
             .set_body(PaymentsAuthorizeType::get_request_body(
                 self, req, connectors,
             )?);
-    
+
         // Add proxy and certificate handling for ExternalProxyCardData
         if let PaymentMethodData::ExternalProxyCardData(_) = &req.request.payment_method_data {
             if let Some(connector_metadata) = &req.connector_meta_data {
                 let metadata_value = connector_metadata.clone().expose();
-                
+
                 // Add certificate configuration
                 if let Some(cert_value) = metadata_value.get("certificate_path") {
                     if let Some(cert_path) = cert_value.as_str() {
                         // Add CA certificate
-                        request_builder = request_builder.add_ca_certificate_pem(Some(cert_path.to_string().into()));
+                        request_builder = request_builder
+                            .add_ca_certificate_pem(Some(cert_path.to_string().into()));
                     }
                 }
 
                 if let Some(proxy_url) = metadata_value.get("external_proxy_url") {
                     if let Some(proxy_url) = proxy_url.as_str() {
                         // Add Proxy URL
-                        request_builder = request_builder.add_merchant_proxy_url(Some(proxy_url.to_string().into()));
+                        request_builder = request_builder
+                            .add_merchant_proxy_url(Some(proxy_url.to_string().into()));
                     }
                 }
             }
         }
-    
+
         Ok(Some(request_builder.build()))
     }
-
 
     fn handle_response(
         &self,

@@ -396,10 +396,7 @@ pub async fn construct_payment_router_data_for_authorize<'a>(
         whole_connector_response: None,
     };
     crate::logger::debug!(?router_data, "Constructed router data for authorize");
-    crate::logger::debug!(
-        "Connector Customer Object: {:?}",
-        customer.clone()
-    );
+    crate::logger::debug!("Connector Customer Object: {:?}", customer.clone());
 
     Ok(router_data)
 }
