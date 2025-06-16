@@ -58,11 +58,11 @@ pub enum AccessScope {
 }
 
 #[derive(Debug, Serialize)]
-pub struct NordeaOAuthTokenExchangeRequest {
-    pub grant_type: GrantType,
+pub struct NordeaOAuthExchangeRequest {
     /// authorization_code flow
     #[serde(skip_serializing_if = "Option::is_none")]
     pub code: Option<Secret<String>>,
+    pub grant_type: GrantType,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub redirect_uri: Option<String>,
     /// refresh_token flow
