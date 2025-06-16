@@ -374,13 +374,8 @@ impl<F> TryFrom<ResponseRouterData<F, CnpOnlineResponse, PaymentsSyncData, Payme
             .get_connector_transaction_id()
             .change_context(errors::ConnectorError::MissingConnectorTransactionID)?;
 
-        match item.response.query_transaction_response {
-            Some(query_transaction_response) => {
-                query_transaction_response
-                    .results
-                    .ok_or(errors::ConnectorError::UnexpectedResponseError(bytes::Bytes::from(query_transaction_response.message)))?
-                    .first()
-                    .map(|result| {
+        match item.response.query_transaction_response.and_then(|query_transaction_response| query_transaction_response.results.and_then(|query_response| query_response.first().cloned())) {
+            Some(result) =>{
                         if let Some(void_response) = &result.void_response {
                             let status = get_attempt_status(
                                 WorldpayvantivPaymentFlow::Void,
@@ -557,8 +552,6 @@ impl<F> TryFrom<ResponseRouterData<F, CnpOnlineResponse, PaymentsSyncData, Payme
                                 ..item.data
                             })
                         }
-                    })
-                    .ok_or(errors::ConnectorError::UnexpectedResponseError(bytes::Bytes::from(" Missing response data in queryTransactionResponse.results_max10".to_string())))?
             }
             None => {
                 // In case of 2xx Psync failure
@@ -1328,17 +1321,8 @@ impl TryFrom<RefundsResponseRouterData<RSync, CnpOnlineResponse>> for RefundsRou
     fn try_from(
         item: RefundsResponseRouterData<RSync, CnpOnlineResponse>,
     ) -> Result<Self, Self::Error> {
-        match item.response.query_transaction_response {
-            Some(query_transaction_response) => {
-                let results = query_transaction_response
-                    .results
-                    .and_then(|results| {
-                        results
-                            .first()
-                            .cloned()
-                    })
-                    .ok_or(errors::ConnectorError::UnexpectedResponseError(bytes::Bytes::from(query_transaction_response.message)))?;
-                
+        match item.response.query_transaction_response.and_then(|query_transaction_response| query_transaction_response.results.and_then(|results| results.first().cloned())) {
+            Some(results) => {
                 if let Some(refund_response) = &results.credit_response {
                     let refund_status = get_refund_status(refund_response.response)?;
                     if connector_utils::is_refund_failure(refund_status) {
@@ -1364,7 +1348,7 @@ impl TryFrom<RefundsResponseRouterData<RSync, CnpOnlineResponse>> for RefundsRou
                                     .request
                                     .connector_refund_id
                                     .clone()
-                                    .ok_or(errors::ConnectorError::MissingConnectorRefundID)?,
+                                    .ok_or(errors::ConnectorError::MissingConnectorRefundID)?, 
                                 refund_status,
                             }),
                             ..item.data
