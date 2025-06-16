@@ -540,7 +540,6 @@ pub(crate) async fn fetch_raw_secrets(
         platform: conf.platform,
         authentication_providers: conf.authentication_providers,
         open_router: conf.open_router,
-        unified_connector_service: conf.unified_connector_service,
         #[cfg(feature = "v2")]
         revenue_recovery: conf.revenue_recovery,
         debit_routing_config: conf.debit_routing_config,

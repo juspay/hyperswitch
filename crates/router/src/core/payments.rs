@@ -3432,7 +3432,7 @@ where
 {
     let stime_connector = Instant::now();
 
-    if let Some(mut client) =
+    if let Some(unified_connector_service_client) =
         should_call_unified_connector_service(state, merchant_context, &router_data).await?
     {
         if should_add_task_to_process_tracker(payment_data) {
@@ -3468,7 +3468,10 @@ where
             .await?;
 
         let _ = router_data
-            .call_unified_connector_service(merchant_connector_account.clone(), &mut client)
+            .call_unified_connector_service(
+                merchant_connector_account.clone(),
+                unified_connector_service_client,
+            )
             .await?;
 
         let etime_connector = Instant::now();
