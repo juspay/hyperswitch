@@ -290,6 +290,11 @@ pub enum ApiErrorResponse {
     InvalidPlatformOperation,
     #[error(error_type = ErrorType::InvalidRequestError, code = "IR_45", message = "External vault failed during processing with connector")]
     ExternalVaultFailed,
+    #[error(error_type = ErrorType::InvalidRequestError, code = "IR_47", message = "Field '{field_name}' is too long for connector '{connector}'")]
+    MaxFieldLengthViolated {
+        field_name: String,
+        connector: String,
+    },
     #[error(error_type = ErrorType::InvalidRequestError, code = "WE_01", message = "Failed to authenticate the webhook")]
     WebhookAuthenticationFailed,
     #[error(error_type = ErrorType::InvalidRequestError, code = "WE_02", message = "Bad request received in webhook")]
@@ -651,7 +656,9 @@ impl ErrorSwitch<api_models::errors::types::ApiErrorResponse> for ApiErrorRespon
             Self::ExternalVaultFailed => {
                 AER::BadRequest(ApiError::new("IR", 45, "External Vault failed while processing with connector.", None))
             },
-
+            Self::MaxFieldLengthViolated { field_name, connector } => {
+                AER::BadRequest(ApiError::new("IR", 47, format!("Field '{field_name}' is too long for connector '{connector}'"), Some(Extra {connector: Some(connector.to_string()), ..Default::default()})))
+            }
             Self::WebhookAuthenticationFailed => {
                 AER::Unauthorized(ApiError::new("WE", 1, "Webhook authentication failed", None))
             }

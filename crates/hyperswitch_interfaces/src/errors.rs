@@ -125,6 +125,11 @@ pub enum ConnectorError {
         error_message: String,
         error_object: serde_json::Value,
     },
+    #[error("Field '{field_name}' is too long for connector '{connector}'")]
+    MaxFieldLengthViolated {
+        field_name: String,
+        connector: String,
+    },
 }
 
 impl ConnectorError {

@@ -42,6 +42,12 @@ use crate::{
 };
 
 const MAX_ORDER_ID_LENGTH: usize = 18;
+const MAX_CARD_HOLDER_LENGTH: usize = 255;
+const MAX_BILLING_ADDRESS_NAME_LENGTH: usize = 50;
+const MAX_BILLING_ADDRESS_STREET_LENGTH: usize = 50;
+const MAX_BILLING_ADDRESS_CITY_LENGTH: usize = 40;
+const MAX_BILLING_ADDRESS_POST_CODE_LENGTH: usize = 16;
+const MAX_BILLING_ADDRESS_COUNTRY_LENGTH: usize = 3;
 
 fn get_random_string() -> String {
     Alphanumeric.sample_string(&mut rand::thread_rng(), MAX_ORDER_ID_LENGTH)
@@ -506,16 +512,80 @@ impl TryFrom<&NexixpayRouterData<&PaymentsAuthorizeRouterData>> for NexixpayPaym
             (None, Some(line2)) => Some(line2),
             (None, None) => None,
         };
+
         let billing_address = item
             .router_data
             .get_optional_billing()
-            .map(|_| BillingAddress {
-                name: item.router_data.get_optional_billing_full_name(),
-                street: billing_address_street,
-                city: item.router_data.get_optional_billing_city(),
-                post_code: item.router_data.get_optional_billing_zip(),
-                country: item.router_data.get_optional_billing_country(),
-            });
+            .map(|_| {
+                let name = item.router_data.get_optional_billing_full_name();
+                if let Some(ref val) = name {
+                    if val.clone().expose().len() > MAX_BILLING_ADDRESS_NAME_LENGTH {
+                        return Err(error_stack::Report::from(
+                            errors::ConnectorError::MaxFieldLengthViolated {
+                                field_name: "Billing Name".to_string(),
+                                connector: "Nexixpay".to_string(),
+                            },
+                        ));
+                    }
+                }
+
+                if let Some(ref val) = billing_address_street {
+                    if val.clone().expose().len() > MAX_BILLING_ADDRESS_STREET_LENGTH {
+                        return Err(error_stack::Report::from(
+                            errors::ConnectorError::MaxFieldLengthViolated {
+                                field_name: "Billing Street".to_string(),
+                                connector: "Nexixpay".to_string(),
+                            },
+                        ));
+                    }
+                }
+
+                let city = item.router_data.get_optional_billing_city();
+                if let Some(ref val) = city {
+                    if val.len() > MAX_BILLING_ADDRESS_CITY_LENGTH {
+                        return Err(error_stack::Report::from(
+                            errors::ConnectorError::MaxFieldLengthViolated {
+                                field_name: "Billing City".to_string(),
+                                connector: "Nexixpay".to_string(),
+                            },
+                        ));
+                    }
+                }
+
+                let post_code = item.router_data.get_optional_billing_zip();
+                if let Some(ref val) = post_code {
+                    if val.clone().expose().len() > MAX_BILLING_ADDRESS_POST_CODE_LENGTH {
+                        return Err(error_stack::Report::from(
+                            errors::ConnectorError::MaxFieldLengthViolated {
+                                field_name: "Billing Postal Code".to_string(),
+                                connector: "Nexixpay".to_string(),
+                            },
+                        ));
+                    }
+                }
+
+                let country = item.router_data.get_optional_billing_country();
+                if let Some(ref val) = country {
+                    if val.to_string().len() > MAX_BILLING_ADDRESS_COUNTRY_LENGTH {
+                        return Err(error_stack::Report::from(
+                            errors::ConnectorError::MaxFieldLengthViolated {
+                                field_name: "Billing Country".to_string(),
+                                connector: "Nexixpay".to_string(),
+                            },
+                        ));
+                    }
+                }
+
+                Ok(BillingAddress {
+                    name,
+                    street: billing_address_street,
+                    city,
+                    post_code,
+                    country,
+                })
+            })
+            .transpose()?;
+
         let shipping_address_street = match (
             item.router_data.get_optional_shipping_line1(),
             item.router_data.get_optional_shipping_line2(),
@@ -533,15 +603,77 @@ impl TryFrom<&NexixpayRouterData<&PaymentsAuthorizeRouterData>> for NexixpayPaym
         let shipping_address = item
             .router_data
             .get_optional_shipping()
-            .map(|_| ShippingAddress {
-                name: item.router_data.get_optional_shipping_full_name(),
-                street: shipping_address_street,
-                city: item.router_data.get_optional_shipping_city(),
-                post_code: item.router_data.get_optional_shipping_zip(),
-                country: item.router_data.get_optional_shipping_country(),
-            });
+            .map(|_| {
+                let name = item.router_data.get_optional_shipping_full_name();
+                if let Some(ref val) = name {
+                    if val.clone().expose().len() > MAX_BILLING_ADDRESS_NAME_LENGTH {
+                        return Err(error_stack::Report::from(
+                            errors::ConnectorError::MaxFieldLengthViolated {
+                                field_name: "Shipping Name".to_string(),
+                                connector: "Nexixpay".to_string(),
+                            },
+                        ));
+                    }
+                }
+
+                if let Some(ref val) = shipping_address_street {
+                    if val.clone().expose().len() > MAX_BILLING_ADDRESS_STREET_LENGTH {
+                        return Err(error_stack::Report::from(
+                            errors::ConnectorError::MaxFieldLengthViolated {
+                                field_name: "Shipping Street".to_string(),
+                                connector: "Nexixpay".to_string(),
+                            },
+                        ));
+                    }
+                }
+
+                let city = item.router_data.get_optional_shipping_city();
+                if let Some(ref val) = city {
+                    if val.len() > MAX_BILLING_ADDRESS_CITY_LENGTH {
+                        return Err(error_stack::Report::from(
+                            errors::ConnectorError::MaxFieldLengthViolated {
+                                field_name: "Shipping City".to_string(),
+                                connector: "Nexixpay".to_string(),
+                            },
+                        ));
+                    }
+                }
+
+                let post_code = item.router_data.get_optional_shipping_zip();
+                if let Some(ref val) = post_code {
+                    if val.clone().expose().len() > MAX_BILLING_ADDRESS_POST_CODE_LENGTH {
+                        return Err(error_stack::Report::from(
+                            errors::ConnectorError::MaxFieldLengthViolated {
+                                field_name: "Shipping Postal Code".to_string(),
+                                connector: "Nexixpay".to_string(),
+                            },
+                        ));
+                    }
+                }
+
+                let country = item.router_data.get_optional_shipping_country();
+
+                Ok(ShippingAddress {
+                    name,
+                    street: shipping_address_street,
+                    city,
+                    post_code,
+                    country,
+                })
+            })
+            .transpose()?;
         let customer_info = CustomerInfo {
-            card_holder_name: item.router_data.get_billing_full_name()?,
+            card_holder_name: match item.router_data.get_billing_full_name()? {
+                name if name.clone().expose().len() <= MAX_CARD_HOLDER_LENGTH => name,
+                _ => {
+                    return Err(error_stack::Report::from(
+                        errors::ConnectorError::MaxFieldLengthViolated {
+                            field_name: "Card Holder Name".to_string(),
+                            connector: "Nexixpay".to_string(),
+                        },
+                    ))
+                }
+            },
             billing_address: billing_address.clone(),
             shipping_address: shipping_address.clone(),
         };
@@ -549,7 +681,7 @@ impl TryFrom<&NexixpayRouterData<&PaymentsAuthorizeRouterData>> for NexixpayPaym
             order_id,
             amount: item.amount.clone(),
             currency: item.router_data.request.currency,
-            description: item.router_data.description.clone(),
+            description: item.router_data.description.clone(), //check for description length already in core
             customer_info,
         };
         let payment_data = NexixpayPaymentsRequestData::try_from(item)?;
@@ -1125,13 +1257,75 @@ impl TryFrom<&NexixpayRouterData<&PaymentsCompleteAuthorizeRouterData>>
         let billing_address = item
             .router_data
             .get_optional_billing()
-            .map(|_| BillingAddress {
-                name: item.router_data.get_optional_billing_full_name(),
-                street: billing_address_street,
-                city: item.router_data.get_optional_billing_city(),
-                post_code: item.router_data.get_optional_billing_zip(),
-                country: item.router_data.get_optional_billing_country(),
-            });
+            .map(|_| {
+                let name = item.router_data.get_optional_billing_full_name();
+                if let Some(ref val) = name {
+                    if val.clone().expose().len() > MAX_BILLING_ADDRESS_NAME_LENGTH {
+                        return Err(error_stack::Report::from(
+                            errors::ConnectorError::MaxFieldLengthViolated {
+                                field_name: "Billing Name".to_string(),
+                                connector: "Nexixpay".to_string(),
+                            },
+                        ));
+                    }
+                }
+
+                if let Some(ref val) = billing_address_street {
+                    if val.clone().expose().len() > MAX_BILLING_ADDRESS_STREET_LENGTH {
+                        return Err(error_stack::Report::from(
+                            errors::ConnectorError::MaxFieldLengthViolated {
+                                field_name: "Billing Street".to_string(),
+                                connector: "Nexixpay".to_string(),
+                            },
+                        ));
+                    }
+                }
+
+                let city = item.router_data.get_optional_billing_city();
+                if let Some(ref val) = city {
+                    if val.len() > MAX_BILLING_ADDRESS_CITY_LENGTH {
+                        return Err(error_stack::Report::from(
+                            errors::ConnectorError::MaxFieldLengthViolated {
+                                field_name: "Billing City".to_string(),
+                                connector: "Nexixpay".to_string(),
+                            },
+                        ));
+                    }
+                }
+
+                let post_code = item.router_data.get_optional_billing_zip();
+                if let Some(ref val) = post_code {
+                    if val.clone().expose().len() > MAX_BILLING_ADDRESS_POST_CODE_LENGTH {
+                        return Err(error_stack::Report::from(
+                            errors::ConnectorError::MaxFieldLengthViolated {
+                                field_name: "Billing Postal Code".to_string(),
+                                connector: "Nexixpay".to_string(),
+                            },
+                        ));
+                    }
+                }
+
+                let country = item.router_data.get_optional_billing_country();
+                if let Some(ref val) = country {
+                    if val.to_string().len() > MAX_BILLING_ADDRESS_COUNTRY_LENGTH {
+                        return Err(error_stack::Report::from(
+                            errors::ConnectorError::MaxFieldLengthViolated {
+                                field_name: "Billing Country".to_string(),
+                                connector: "Nexixpay".to_string(),
+                            },
+                        ));
+                    }
+                }
+
+                Ok(BillingAddress {
+                    name,
+                    street: billing_address_street,
+                    city,
+                    post_code,
+                    country,
+                })
+            })
+            .transpose()?;
         let shipping_address_street = match (
             item.router_data.get_optional_shipping_line1(),
             item.router_data.get_optional_shipping_line2(),
@@ -1149,13 +1343,65 @@ impl TryFrom<&NexixpayRouterData<&PaymentsCompleteAuthorizeRouterData>>
         let shipping_address = item
             .router_data
             .get_optional_shipping()
-            .map(|_| ShippingAddress {
-                name: item.router_data.get_optional_shipping_full_name(),
-                street: shipping_address_street,
-                city: item.router_data.get_optional_shipping_city(),
-                post_code: item.router_data.get_optional_shipping_zip(),
-                country: item.router_data.get_optional_shipping_country(),
-            });
+            .map(|_| {
+                let name = item.router_data.get_optional_shipping_full_name();
+                if let Some(ref val) = name {
+                    if val.clone().expose().len() > MAX_BILLING_ADDRESS_NAME_LENGTH {
+                        return Err(error_stack::Report::from(
+                            errors::ConnectorError::MaxFieldLengthViolated {
+                                field_name: "Shipping Name".to_string(),
+                                connector: "Nexixpay".to_string(),
+                            },
+                        ));
+                    }
+                }
+
+                if let Some(ref val) = shipping_address_street {
+                    if val.clone().expose().len() > MAX_BILLING_ADDRESS_STREET_LENGTH {
+                        return Err(error_stack::Report::from(
+                            errors::ConnectorError::MaxFieldLengthViolated {
+                                field_name: "Shipping Street".to_string(),
+                                connector: "Nexixpay".to_string(),
+                            },
+                        ));
+                    }
+                }
+
+                let city = item.router_data.get_optional_shipping_city();
+                if let Some(ref val) = city {
+                    if val.len() > MAX_BILLING_ADDRESS_CITY_LENGTH {
+                        return Err(error_stack::Report::from(
+                            errors::ConnectorError::MaxFieldLengthViolated {
+                                field_name: "Shipping City".to_string(),
+                                connector: "Nexixpay".to_string(),
+                            },
+                        ));
+                    }
+                }
+
+                let post_code = item.router_data.get_optional_shipping_zip();
+                if let Some(ref val) = post_code {
+                    if val.clone().expose().len() > MAX_BILLING_ADDRESS_POST_CODE_LENGTH {
+                        return Err(error_stack::Report::from(
+                            errors::ConnectorError::MaxFieldLengthViolated {
+                                field_name: "Shipping Postal Code".to_string(),
+                                connector: "Nexixpay".to_string(),
+                            },
+                        ));
+                    }
+                }
+
+                let country = item.router_data.get_optional_shipping_country();
+
+                Ok(ShippingAddress {
+                    name,
+                    street: shipping_address_street,
+                    city,
+                    post_code,
+                    country,
+                })
+            })
+            .transpose()?;
         let customer_info = CustomerInfo {
             card_holder_name: item.router_data.get_billing_full_name()?,
             billing_address: billing_address.clone(),
