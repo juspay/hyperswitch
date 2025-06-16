@@ -76,6 +76,7 @@ pub struct Profile {
     pub three_ds_decision_rule_algorithm: Option<serde_json::Value>,
     pub acquirer_config_map: Option<common_types::domain::AcquirerConfigMap>,
     pub merchant_category_code: Option<common_enums::MerchantCategoryCode>,
+    pub routing_result_source: Option<common_enums::RoutingResultSource>,
 }
 
 #[cfg(feature = "v1")]
@@ -132,6 +133,7 @@ pub struct ProfileNew {
     pub is_iframe_redirection_enabled: Option<bool>,
     pub is_pre_network_tokenization_enabled: Option<bool>,
     pub merchant_category_code: Option<common_enums::MerchantCategoryCode>,
+    pub routing_result_source: Option<common_enums::RoutingResultSource>,
 }
 
 #[cfg(feature = "v1")]
@@ -188,6 +190,7 @@ pub struct ProfileUpdateInternal {
     pub three_ds_decision_rule_algorithm: Option<serde_json::Value>,
     pub acquirer_config_map: Option<common_types::domain::AcquirerConfigMap>,
     pub merchant_category_code: Option<common_enums::MerchantCategoryCode>,
+    pub routing_result_source: Option<common_enums::RoutingResultSource>,
 }
 
 #[cfg(feature = "v1")]
@@ -241,6 +244,7 @@ impl ProfileUpdateInternal {
             three_ds_decision_rule_algorithm,
             acquirer_config_map,
             merchant_category_code,
+            routing_result_source,
         } = self;
         Profile {
             profile_id: source.profile_id,
@@ -325,6 +329,7 @@ impl ProfileUpdateInternal {
                 .or(source.three_ds_decision_rule_algorithm),
             acquirer_config_map: acquirer_config_map.or(source.acquirer_config_map),
             merchant_category_code: merchant_category_code.or(source.merchant_category_code),
+            routing_result_source: routing_result_source.or(source.routing_result_source),
         }
     }
 }
@@ -400,6 +405,7 @@ pub struct Profile {
     pub external_vault_connector_details: Option<ExternalVaultConnectorDetails>,
     pub revenue_recovery_retry_algorithm_type: Option<common_enums::RevenueRecoveryAlgorithmType>,
     pub revenue_recovery_retry_algorithm_data: Option<RevenueRecoveryAlgorithmData>,
+    pub routing_result_source: Option<common_enums::RoutingResultSource>,
 }
 
 impl Profile {
@@ -474,6 +480,7 @@ pub struct ProfileNew {
     pub is_iframe_redirection_enabled: Option<bool>,
     pub is_external_vault_enabled: Option<bool>,
     pub external_vault_connector_details: Option<ExternalVaultConnectorDetails>,
+    pub routing_result_source: Option<common_enums::RoutingResultSource>,
 }
 
 #[cfg(feature = "v2")]
@@ -532,6 +539,7 @@ pub struct ProfileUpdateInternal {
     pub is_iframe_redirection_enabled: Option<bool>,
     pub is_external_vault_enabled: Option<bool>,
     pub external_vault_connector_details: Option<ExternalVaultConnectorDetails>,
+    pub routing_result_source: Option<common_enums::RoutingResultSource>,
 }
 
 #[cfg(feature = "v2")]

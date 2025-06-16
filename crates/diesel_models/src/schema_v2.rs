@@ -241,6 +241,7 @@ diesel::table! {
         external_vault_connector_details -> Nullable<Jsonb>,
         revenue_recovery_retry_algorithm_type -> Nullable<RevenueRecoveryAlgorithmType>,
         revenue_recovery_retry_algorithm_data -> Nullable<Jsonb>,
+        routing_result_source -> Nullable<Text>,
     }
 }
 

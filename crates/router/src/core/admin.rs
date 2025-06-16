@@ -4053,6 +4053,7 @@ impl ProfileCreateBridge for api::ProfileCreate {
                 .is_pre_network_tokenization_enabled
                 .unwrap_or_default(),
             merchant_category_code: self.merchant_category_code,
+            routing_result_source: self.routing_result_source,
         }))
     }
 
@@ -4536,6 +4537,7 @@ impl ProfileUpdateBridge for api::ProfileUpdate {
                 is_iframe_redirection_enabled: self.is_iframe_redirection_enabled,
                 is_pre_network_tokenization_enabled: self.is_pre_network_tokenization_enabled,
                 merchant_category_code: self.merchant_category_code,
+                routing_result_source: self.routing_result_source,
             },
         )))
     }

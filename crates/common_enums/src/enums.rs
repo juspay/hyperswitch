@@ -7970,6 +7970,30 @@ pub enum SuccessBasedRoutingConclusiveState {
     NonDeterministic,
 }
 
+#[derive(
+    Clone,
+    Copy,
+    Debug,
+    Eq,
+    PartialEq,
+    serde::Deserialize,
+    serde::Serialize,
+    strum::Display,
+    strum::EnumString,
+    ToSchema,
+)]
+/// This field indicates which decision engine's output (e.g., Hyperswitch's routing engine,
+/// or Decision Engine) should be used for making the routing decision.
+#[serde(rename_all = "snake_case")]
+#[strum(serialize_all = "snake_case")]
+#[router_derive::diesel_enum(storage_type = "text")]
+pub enum RoutingResultSource {
+    /// External Decision Engine
+    DecisionEngine,
+    /// Inbuilt Hyperswitch Routing Engine
+    HyperswitchRouting,
+}
+
 /// Whether 3ds authentication is requested or not
 #[derive(Clone, Debug, PartialEq, serde::Serialize, serde::Deserialize, Default, ToSchema)]
 pub enum External3dsAuthenticationRequest {

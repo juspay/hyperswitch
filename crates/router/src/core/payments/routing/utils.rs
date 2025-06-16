@@ -9,6 +9,7 @@ use common_utils::id_type;
 use diesel_models::{enums, routing_algorithm};
 use error_stack::ResultExt;
 use euclid::{backend::BackendInput, frontend::ast};
+use hyperswitch_domain_models::business_profile;
 use serde::{Deserialize, Serialize};
 
 use super::RoutingResult;
@@ -828,4 +829,19 @@ fn convert_output(sel: ConnectorSelection) -> Output {
 
 fn stringify_choice(c: RoutableConnectorChoice) -> String {
     c.connector.to_string()
+}
+
+pub fn select_routing_result<T>(
+    business_profile: &business_profile::Profile,
+    hyperswitch_result: T,
+    de_result: T,
+) -> T {
+    if let Some(enums::RoutingResultSource::DecisionEngine) = business_profile.routing_result_source
+    {
+        logger::debug!(business_profile_id=?business_profile.get_id(), "Using Decision Engine routing result");
+        de_result
+    } else {
+        logger::debug!(business_profile_id=?business_profile.get_id(), "Using Hyperswitch routing result");
+        hyperswitch_result
+    }
 }

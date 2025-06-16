@@ -164,7 +164,7 @@ pub async fn retrieve_merchant_routing_dictionary(
         routing_metadata,
     );
 
-    let result = routing_metadata
+    let mut result = routing_metadata
         .into_iter()
         .map(ForeignInto::foreign_into)
         .collect::<Vec<_>>();
@@ -172,7 +172,7 @@ pub async fn retrieve_merchant_routing_dictionary(
     if let Some(profile_ids) = profile_id_list {
         let mut de_result: Vec<routing_types::RoutingDictionaryRecord> = vec![];
         // DE_TODO: need to replace this with batch API call to reduce the number of network calls
-        for profile_id in profile_ids {
+        for profile_id in &profile_ids {
             let list_request = ListRountingAlgorithmsRequest {
                 created_by: profile_id.get_string_repr().to_string(),
             };
@@ -184,13 +184,62 @@ pub async fn retrieve_merchant_routing_dictionary(
                 .ok() // Avoid throwing error if Decision Engine is not available or other errors
                 .map(|mut de_routing| de_result.append(&mut de_routing));
         }
-        compare_and_log_result(de_result, result.clone(), "list_routing".to_string());
+        compare_and_log_result(
+            de_result.clone(),
+            result.clone(),
+            "list_routing".to_string(),
+        );
+        result = build_list_routing_result(
+            &state,
+            merchant_context,
+            &result,
+            &de_result,
+            profile_ids.clone(),
+        )
+        .await?;
     }
 
     metrics::ROUTING_MERCHANT_DICTIONARY_RETRIEVE_SUCCESS_RESPONSE.add(1, &[]);
     Ok(service_api::ApplicationResponse::Json(
         routing_types::RoutingKind::RoutingAlgorithm(result),
     ))
+}
+
+async fn build_list_routing_result(
+    state: &SessionState,
+    merchant_context: domain::MerchantContext,
+    hs_results: &Vec<routing_types::RoutingDictionaryRecord>,
+    de_results: &Vec<routing_types::RoutingDictionaryRecord>,
+    profile_ids: Vec<common_utils::id_type::ProfileId>,
+) -> RouterResult<Vec<routing_types::RoutingDictionaryRecord>> {
+    let db = state.store.as_ref();
+    let key_manager_state = &state.into();
+    let mut list_result: Vec<routing_types::RoutingDictionaryRecord> = vec![];
+    for profile_id in profile_ids.iter() {
+        let predicate =
+            |rec: &&routing_types::RoutingDictionaryRecord| &rec.profile_id == profile_id;
+        let de_result_for_profile = de_results.iter().filter(predicate).cloned().collect();
+        let hs_result_for_profile = hs_results.iter().filter(predicate).cloned().collect();
+        let business_profile = core_utils::validate_and_get_business_profile(
+            db,
+            key_manager_state,
+            merchant_context.get_merchant_key_store(),
+            Some(profile_id),
+            merchant_context.get_merchant_account().get_id(),
+        )
+        .await?
+        .get_required_value("Profile")
+        .change_context(errors::ApiErrorResponse::ProfileNotFound {
+            id: profile_id.get_string_repr().to_owned(),
+        })?;
+
+        list_result.append(&mut select_routing_result(
+            &business_profile,
+            hs_result_for_profile,
+            de_result_for_profile,
+        ));
+    }
+    Ok(list_result)
 }
 
 #[cfg(feature = "v2")]

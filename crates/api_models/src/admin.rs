@@ -2126,6 +2126,11 @@ pub struct ProfileCreate {
     /// Four-digit code assigned based on business type to determine processing fees and risk level
     #[schema(value_type = Option<MerchantCategoryCode>, example = "5411")]
     pub merchant_category_code: Option<api_enums::MerchantCategoryCode>,
+
+    /// This field indicates which decision engine's output (e.g., Hyperswitch's routing engine,
+    /// Decision Engine) should be used for making the routing decision.
+    /// If `None`, Hyperswitch's routing engine will be choosen by default.
+    pub routing_result_source: Option<api_enums::RoutingResultSource>,
 }
 
 #[nutype::nutype(
@@ -2207,6 +2212,12 @@ pub struct ProfileCreate {
     /// connector irrespective of connector required fields (Eg. Apple pay, Google pay etc)
     #[schema(default = false, example = false)]
     pub always_collect_billing_details_from_wallet_connector: Option<bool>,
+
+    /// Specifies the source of the routing decision result.
+    /// This field indicates which decision engine's output (e.g., Hyperswitch's routing engine,
+    /// Decision Engine) should be used for making the routing decision.
+    /// If `None`, Hyperswitch's routing engine will be choosen by default.
+    pub routing_result_source: Option<api_enums::RoutingResultSource>,
 
     /// Indicates if the MIT (merchant initiated transaction) payments can be made connector
     /// agnostic, i.e., MITs may be processed through different connector than CIT (customer
@@ -2367,6 +2378,12 @@ pub struct ProfileResponse {
     /// connector irrespective of connector required fields (Eg. Apple pay, Google pay etc)
     #[schema(default = false, example = false)]
     pub always_collect_billing_details_from_wallet_connector: Option<bool>,
+    
+    /// Specifies the source of the routing decision result.
+    /// This field indicates which decision engine's output (e.g., Hyperswitch's routing engine,
+    /// Decision Engine) should be used for making the routing decision.
+    /// If `None`, Hyperswitch's routing engine will be choosen by default.
+    pub routing_result_source: Option<api_enums::RoutingResultSource>,
 
     /// Indicates if the MIT (merchant initiated transaction) payments can be made connector
     /// agnostic, i.e., MITs may be processed through different connector than CIT (customer
@@ -2525,6 +2542,12 @@ pub struct ProfileResponse {
     /// connector irrespective of connector required fields (Eg. Apple pay, Google pay etc)
     #[schema(default = false, example = false)]
     pub always_collect_billing_details_from_wallet_connector: Option<bool>,
+    
+    /// Specifies the source of the routing decision result.
+    /// This field indicates which decision engine's output (e.g., Hyperswitch's routing engine,
+    /// Decision Engine) should be used for making the routing decision.
+    /// If `None`, Hyperswitch's routing engine will be choosen by default.
+    pub routing_result_source: Option<api_enums::RoutingResultSource>,
 
     /// Indicates if the MIT (merchant initiated transaction) payments can be made connector
     /// agnostic, i.e., MITs may be processed through different connector than CIT (customer
@@ -2688,6 +2711,12 @@ pub struct ProfileUpdate {
     /// connector irrespective of connector required fields (Eg. Apple pay, Google pay etc)
     #[schema(default = false, example = false)]
     pub always_collect_billing_details_from_wallet_connector: Option<bool>,
+    
+    /// Specifies the source of the routing decision result.
+    /// This field indicates which decision engine's output (e.g., Hyperswitch's routing engine,
+    /// Decision Engine) should be used for making the routing decision.
+    /// If `None`, Hyperswitch's routing engine will be choosen by default.
+    pub routing_result_source: Option<api_enums::RoutingResultSource>,
 
     /// Indicates if the MIT (merchant initiated transaction) payments can be made connector
     /// agnostic, i.e., MITs may be processed through different connector than CIT (customer
@@ -2839,6 +2868,12 @@ pub struct ProfileUpdate {
     /// connector irrespective of connector required fields (Eg. Apple pay, Google pay etc)
     #[schema(default = false, example = false)]
     pub always_collect_billing_details_from_wallet_connector: Option<bool>,
+    
+    /// Specifies the source of the routing decision result.
+    /// This field indicates which decision engine's output (e.g., Hyperswitch's routing engine,
+    /// Decision Engine) should be used for making the routing decision.
+    /// If `None`, Hyperswitch's routing engine will be choosen by default.
+    pub routing_result_source: Option<api_enums::RoutingResultSource>,
 
     /// Indicates if the MIT (merchant initiated transaction) payments can be made connector
     /// agnostic, i.e., MITs may be processed through different connector than CIT (customer

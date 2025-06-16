@@ -502,6 +502,7 @@ pub async fn perform_static_routing_v1(
                 connectors,
                 "evaluate_routing".to_string(),
             );
+            // utils::select_routing_result(business_profile, connectors, de_euclid_connectors)
             routable_connectors
         }
     })
