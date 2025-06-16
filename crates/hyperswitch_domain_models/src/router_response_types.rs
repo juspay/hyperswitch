@@ -1,11 +1,17 @@
 pub mod disputes;
 pub mod fraud_check;
+pub mod revenue_recovery;
 use std::collections::HashMap;
 
-use common_utils::{request::Method, types as common_types, types::MinorUnit};
+use common_utils::{request::Method, types::MinorUnit};
 pub use disputes::{AcceptDisputeResponse, DefendDisputeResponse, SubmitEvidenceResponse};
 
-use crate::router_request_types::{authentication::AuthNFlowType, ResponseId};
+use crate::{
+    errors::api_error_response::ApiErrorResponse,
+    router_request_types::{authentication::AuthNFlowType, ResponseId},
+    vault::PaymentMethodVaultingData,
+};
+
 #[derive(Debug, Clone)]
 pub struct RefundsResponseData {
     pub connector_refund_id: String,
@@ -23,7 +29,7 @@ pub enum PaymentsResponseData {
         network_txn_id: Option<String>,
         connector_response_reference_id: Option<String>,
         incremental_authorization_allowed: Option<bool>,
-        charge_id: Option<String>,
+        charges: Option<common_types::payments::ConnectorChargeResponseData>,
     },
     MultipleCaptureResponse {
         // pending_capture_id_list: Vec<String>,
@@ -68,8 +74,11 @@ pub enum PaymentsResponseData {
     PostProcessingResponse {
         session_token: Option<api_models::payments::OpenBankingSessionToken>,
     },
-    SessionUpdateResponse {
-        status: common_enums::SessionUpdateStatus,
+    PaymentResourceUpdateResponse {
+        status: common_enums::PaymentResourceUpdateStatus,
+    },
+    PaymentsCreateOrderResponse {
+        order_id: String,
     },
 }
 
@@ -119,6 +128,117 @@ impl CaptureSyncResponse {
         }
     }
 }
+impl PaymentsResponseData {
+    pub fn get_connector_metadata(&self) -> Option<masking::Secret<serde_json::Value>> {
+        match self {
+            Self::TransactionResponse {
+                connector_metadata, ..
+            }
+            | Self::PreProcessingResponse {
+                connector_metadata, ..
+            } => connector_metadata.clone().map(masking::Secret::new),
+            _ => None,
+        }
+    }
+
+    pub fn get_connector_transaction_id(
+        &self,
+    ) -> Result<String, error_stack::Report<ApiErrorResponse>> {
+        match self {
+            Self::TransactionResponse {
+                resource_id: ResponseId::ConnectorTransactionId(txn_id),
+                ..
+            } => Ok(txn_id.to_string()),
+            _ => Err(ApiErrorResponse::MissingRequiredField {
+                field_name: "ConnectorTransactionId",
+            }
+            .into()),
+        }
+    }
+
+    pub fn merge_transaction_responses(
+        auth_response: &Self,
+        capture_response: &Self,
+    ) -> Result<Self, error_stack::Report<ApiErrorResponse>> {
+        match (auth_response, capture_response) {
+            (
+                Self::TransactionResponse {
+                    resource_id: _,
+                    redirection_data: auth_redirection_data,
+                    mandate_reference: auth_mandate_reference,
+                    connector_metadata: auth_connector_metadata,
+                    network_txn_id: auth_network_txn_id,
+                    connector_response_reference_id: auth_connector_response_reference_id,
+                    incremental_authorization_allowed: auth_incremental_auth_allowed,
+                    charges: auth_charges,
+                },
+                Self::TransactionResponse {
+                    resource_id: capture_resource_id,
+                    redirection_data: capture_redirection_data,
+                    mandate_reference: capture_mandate_reference,
+                    connector_metadata: capture_connector_metadata,
+                    network_txn_id: capture_network_txn_id,
+                    connector_response_reference_id: capture_connector_response_reference_id,
+                    incremental_authorization_allowed: capture_incremental_auth_allowed,
+                    charges: capture_charges,
+                },
+            ) => Ok(Self::TransactionResponse {
+                resource_id: capture_resource_id.clone(),
+                redirection_data: Box::new(
+                    capture_redirection_data
+                        .clone()
+                        .or_else(|| *auth_redirection_data.clone()),
+                ),
+                mandate_reference: Box::new(
+                    auth_mandate_reference
+                        .clone()
+                        .or_else(|| *capture_mandate_reference.clone()),
+                ),
+                connector_metadata: capture_connector_metadata
+                    .clone()
+                    .or(auth_connector_metadata.clone()),
+                network_txn_id: capture_network_txn_id
+                    .clone()
+                    .or(auth_network_txn_id.clone()),
+                connector_response_reference_id: capture_connector_response_reference_id
+                    .clone()
+                    .or(auth_connector_response_reference_id.clone()),
+                incremental_authorization_allowed: (*capture_incremental_auth_allowed)
+                    .or(*auth_incremental_auth_allowed),
+                charges: auth_charges.clone().or(capture_charges.clone()),
+            }),
+            _ => Err(ApiErrorResponse::NotSupported {
+                message: "Invalid Flow ".to_owned(),
+            }
+            .into()),
+        }
+    }
+
+    #[cfg(feature = "v2")]
+    pub fn get_updated_connector_token_details(
+        &self,
+        original_connector_mandate_request_reference_id: Option<String>,
+    ) -> Option<diesel_models::ConnectorTokenDetails> {
+        if let Self::TransactionResponse {
+            mandate_reference, ..
+        } = self
+        {
+            mandate_reference.clone().map(|mandate_ref| {
+                let connector_mandate_id = mandate_ref.connector_mandate_id;
+                let connector_mandate_request_reference_id = mandate_ref
+                    .connector_mandate_request_reference_id
+                    .or(original_connector_mandate_request_reference_id);
+
+                diesel_models::ConnectorTokenDetails {
+                    connector_mandate_id,
+                    connector_token_request_reference_id: connector_mandate_request_reference_id,
+                }
+            })
+        } else {
+            None
+        }
+    }
+}
 
 #[derive(Debug, Clone)]
 pub enum PreprocessingResponseId {
@@ -148,11 +268,16 @@ pub enum RedirectForm {
         access_token: String,
         step_up_url: String,
     },
+    DeutschebankThreeDSChallengeFlow {
+        acs_url: String,
+        creq: String,
+    },
     Payme,
     Braintree {
         client_token: String,
         card_token: String,
         bin: String,
+        acs_url: String,
     },
     Nmi {
         amount: String,
@@ -225,15 +350,20 @@ impl From<RedirectForm> for diesel_models::payment_attempt::RedirectForm {
                 access_token,
                 step_up_url,
             },
+            RedirectForm::DeutschebankThreeDSChallengeFlow { acs_url, creq } => {
+                Self::DeutschebankThreeDSChallengeFlow { acs_url, creq }
+            }
             RedirectForm::Payme => Self::Payme,
             RedirectForm::Braintree {
                 client_token,
                 card_token,
                 bin,
+                acs_url,
             } => Self::Braintree {
                 client_token,
                 card_token,
                 bin,
+                acs_url,
             },
             RedirectForm::Nmi {
                 amount,
@@ -304,15 +434,20 @@ impl From<diesel_models::payment_attempt::RedirectForm> for RedirectForm {
                 access_token,
                 step_up_url,
             },
+            diesel_models::RedirectForm::DeutschebankThreeDSChallengeFlow { acs_url, creq } => {
+                Self::DeutschebankThreeDSChallengeFlow { acs_url, creq }
+            }
             diesel_models::payment_attempt::RedirectForm::Payme => Self::Payme,
             diesel_models::payment_attempt::RedirectForm::Braintree {
                 client_token,
                 card_token,
                 bin,
+                acs_url,
             } => Self::Braintree {
                 client_token,
                 card_token,
                 bin,
+                acs_url,
             },
             diesel_models::payment_attempt::RedirectForm::Nmi {
                 amount,
@@ -386,7 +521,7 @@ pub struct MandateRevokeResponseData {
 #[derive(Debug, Clone)]
 pub enum AuthenticationResponseData {
     PreAuthVersionCallResponse {
-        maximum_supported_3ds_version: common_types::SemanticVersion,
+        maximum_supported_3ds_version: common_utils::types::SemanticVersion,
     },
     PreAuthThreeDsMethodCallResponse {
         threeds_server_transaction_id: String,
@@ -406,14 +541,15 @@ pub enum AuthenticationResponseData {
     },
     AuthNResponse {
         authn_flow_type: AuthNFlowType,
-        authentication_value: Option<String>,
+        authentication_value: Option<masking::Secret<String>>,
         trans_status: common_enums::TransactionStatus,
         connector_metadata: Option<serde_json::Value>,
         ds_trans_id: Option<String>,
+        eci: Option<String>,
     },
     PostAuthNResponse {
         trans_status: common_enums::TransactionStatus,
-        authentication_value: Option<String>,
+        authentication_value: Option<masking::Secret<String>>,
         eci: Option<String>,
     },
 }
@@ -422,4 +558,87 @@ pub enum AuthenticationResponseData {
 pub struct CompleteAuthorizeRedirectResponse {
     pub params: Option<masking::Secret<String>>,
     pub payload: Option<common_utils::pii::SecretSerdeValue>,
+}
+
+/// Represents details of a payment method.
+#[derive(Debug, Clone)]
+pub struct PaymentMethodDetails {
+    /// Indicates whether mandates are supported by this payment method.
+    pub mandates: common_enums::FeatureStatus,
+    /// Indicates whether refund is supported by this payment method.
+    pub refunds: common_enums::FeatureStatus,
+    /// List of supported capture methods
+    pub supported_capture_methods: Vec<common_enums::CaptureMethod>,
+    /// Payment method specific features
+    pub specific_features: Option<api_models::feature_matrix::PaymentMethodSpecificFeatures>,
+}
+
+/// list of payment method types and metadata related to them
+pub type PaymentMethodTypeMetadata = HashMap<common_enums::PaymentMethodType, PaymentMethodDetails>;
+
+/// list of payment methods, payment method types and metadata related to them
+pub type SupportedPaymentMethods = HashMap<common_enums::PaymentMethod, PaymentMethodTypeMetadata>;
+
+#[derive(Debug, Clone)]
+pub struct ConnectorInfo {
+    /// Display name of the Connector
+    pub display_name: &'static str,
+    /// Description of the connector.
+    pub description: &'static str,
+    /// Connector Type
+    pub connector_type: common_enums::PaymentConnectorCategory,
+}
+
+pub trait SupportedPaymentMethodsExt {
+    fn add(
+        &mut self,
+        payment_method: common_enums::PaymentMethod,
+        payment_method_type: common_enums::PaymentMethodType,
+        payment_method_details: PaymentMethodDetails,
+    );
+}
+
+impl SupportedPaymentMethodsExt for SupportedPaymentMethods {
+    fn add(
+        &mut self,
+        payment_method: common_enums::PaymentMethod,
+        payment_method_type: common_enums::PaymentMethodType,
+        payment_method_details: PaymentMethodDetails,
+    ) {
+        if let Some(payment_method_data) = self.get_mut(&payment_method) {
+            payment_method_data.insert(payment_method_type, payment_method_details);
+        } else {
+            let mut payment_method_type_metadata = PaymentMethodTypeMetadata::new();
+            payment_method_type_metadata.insert(payment_method_type, payment_method_details);
+
+            self.insert(payment_method, payment_method_type_metadata);
+        }
+    }
+}
+
+#[derive(Debug, Clone)]
+pub enum VaultResponseData {
+    ExternalVaultCreateResponse {
+        session_id: masking::Secret<String>,
+        client_secret: masking::Secret<String>,
+    },
+    ExternalVaultInsertResponse {
+        connector_vault_id: String,
+        fingerprint_id: String,
+    },
+    ExternalVaultRetrieveResponse {
+        vault_data: PaymentMethodVaultingData,
+    },
+    ExternalVaultDeleteResponse {
+        connector_vault_id: String,
+    },
+}
+
+impl Default for VaultResponseData {
+    fn default() -> Self {
+        Self::ExternalVaultInsertResponse {
+            connector_vault_id: String::new(),
+            fingerprint_id: String::new(),
+        }
+    }
 }

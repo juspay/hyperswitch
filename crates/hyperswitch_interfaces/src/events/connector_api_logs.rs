@@ -9,6 +9,7 @@ use time::OffsetDateTime;
 /// struct ConnectorEvent
 #[derive(Debug, Serialize)]
 pub struct ConnectorEvent {
+    tenant_id: common_utils::id_type::TenantId,
     connector_name: String,
     flow: String,
     request: String,
@@ -31,6 +32,7 @@ impl ConnectorEvent {
     /// fn new ConnectorEvent
     #[allow(clippy::too_many_arguments)]
     pub fn new(
+        tenant_id: common_utils::id_type::TenantId,
         connector_name: String,
         flow: &str,
         request: serde_json::Value,
@@ -45,6 +47,7 @@ impl ConnectorEvent {
         status_code: u16,
     ) -> Self {
         Self {
+            tenant_id,
             connector_name,
             flow: flow
                 .rsplit_once("::")

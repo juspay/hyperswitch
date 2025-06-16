@@ -371,7 +371,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, NexinetsPreAuthOrDebitResponse, T, Paym
                 network_txn_id: None,
                 connector_response_reference_id: Some(item.response.order_id),
                 incremental_authorization_allowed: None,
-                charge_id: None,
+                charges: None,
             }),
             ..item.data
         })
@@ -451,7 +451,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, NexinetsPaymentResponse, T, PaymentsRes
                 network_txn_id: None,
                 connector_response_reference_id: Some(item.response.order.order_id),
                 incremental_authorization_allowed: None,
-                charge_id: None,
+                charges: None,
             }),
             ..item.data
         })
@@ -593,6 +593,7 @@ fn get_payment_details_and_product(
             BankRedirectData::BancontactCard { .. }
             | BankRedirectData::Blik { .. }
             | BankRedirectData::Bizum { .. }
+            | BankRedirectData::Eft { .. }
             | BankRedirectData::Interac { .. }
             | BankRedirectData::OnlineBankingCzechRepublic { .. }
             | BankRedirectData::OnlineBankingFinland { .. }
@@ -705,6 +706,7 @@ fn get_wallet_details(
         WalletData::AliPayQr(_)
         | WalletData::AliPayRedirect(_)
         | WalletData::AliPayHkRedirect(_)
+        | WalletData::AmazonPayRedirect(_)
         | WalletData::MomoRedirect(_)
         | WalletData::KakaoPayRedirect(_)
         | WalletData::GoPayRedirect(_)
@@ -727,7 +729,8 @@ fn get_wallet_details(
         | WalletData::WeChatPayQr(_)
         | WalletData::CashappQr(_)
         | WalletData::SwishQr(_)
-        | WalletData::Mifinity(_) => Err(errors::ConnectorError::NotImplemented(
+        | WalletData::Mifinity(_)
+        | WalletData::RevolutPay(_) => Err(errors::ConnectorError::NotImplemented(
             utils::get_unimplemented_payment_method_error_message("nexinets"),
         ))?,
     }

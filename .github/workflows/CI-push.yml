@@ -4,12 +4,6 @@ on:
   push:
     branches:
       - main
-    # paths:
-    #   - ".github/workflows/**"
-    #   - "crates/**"
-    #   - "examples/**"
-    #   - "Cargo.lock"
-    #   - "Cargo.toml"
 
   merge_group:
     types:
@@ -18,6 +12,27 @@ on:
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
+
+env:
+  # Disable incremental compilation.
+  #
+  # Incremental compilation is useful as part of an edit-build-test-edit cycle,
+  # as it lets the compiler avoid recompiling code that hasn't changed. However,
+  # on CI, we're not making small edits; we're almost always building the entire
+  # project from scratch. Thus, incremental compilation on CI actually
+  # introduces *additional* overhead to support making future builds
+  # faster...but no future builds will ever occur in any given CI environment.
+  #
+  # See https://matklad.github.io/2021/09/04/fast-rust-builds.html#ci-workflow
+  # for details.
+  CARGO_INCREMENTAL: 0
+  # Allow more retries for network requests in cargo (downloading crates) and
+  # rustup (installing toolchains). This should help to reduce flaky CI failures
+  # from transient network timeouts or other issues.
+  CARGO_NET_RETRY: 10
+  RUSTUP_MAX_RETRIES: 10
+  # Don't emit giant backtraces in the CI logs.
+  RUST_BACKTRACE: short
 
 jobs:
   formatting:
@@ -42,6 +57,8 @@ jobs:
     runs-on: ${{ matrix.runner }}
 
     env:
+      # Use `sccache` for caching compilation artifacts
+      # RUSTC_WRAPPER: sccache
       RUSTFLAGS: "-D warnings"
 
     strategy:
@@ -76,17 +93,24 @@ jobs:
         with:
           repo-token: ${{ secrets.GITHUB_TOKEN }}
 
-      - uses: Swatinem/rust-cache@v2.7.0
+      # - name: Install sccache
+      #   uses: taiki-e/install-action@v2
+      #   with:
+      #     tool: sccache
+      #     checksum: true
+
+      - uses: Swatinem/rust-cache@v2.7.7
         with:
           save-if: ${{ github.event_name == 'push' }}
 
       - name: Install cargo-hack
-        uses: baptiste0928/cargo-install@v2.2.0
+        uses: taiki-e/install-action@v2
         with:
-          crate: cargo-hack
+          tool: cargo-hack
+          checksum: true
 
       - name: Install just
-        uses: taiki-e/install-action@v2.41.10
+        uses: taiki-e/install-action@v2
         with:
           tool: just
           checksum: true
@@ -131,6 +155,8 @@ jobs:
     runs-on: ${{ matrix.runner }}
 
     env:
+      # Use `sccache` for caching compilation artifacts
+      # RUSTC_WRAPPER: sccache
       RUSTFLAGS: "-D warnings"
 
     strategy:
@@ -160,13 +186,20 @@ jobs:
         with:
           repo-token: ${{ secrets.GITHUB_TOKEN }}
 
+      # - name: Install sccache
+      #   uses: taiki-e/install-action@v2
+      #   with:
+      #     tool: sccache
+      #     checksum: true
+
       - name: Install cargo-hack
-        uses: baptiste0928/cargo-install@v2.2.0
+        uses: taiki-e/install-action@v2.41.10
         with:
-          crate: cargo-hack
+          tool: cargo-hack
+          checksum: true
 
       - name: Install just
-        uses: taiki-e/install-action@v2.41.10
+        uses: taiki-e/install-action@v2
         with:
           tool: just
           checksum: true
@@ -176,11 +209,12 @@ jobs:
         run: .github/scripts/install-jq.sh
 
       # - name: Install cargo-nextest
-      #   uses: baptiste0928/cargo-install@v2.2.0
+      #   uses: taiki-e/install-action@v2
       #   with:
-      #     crate: cargo-nextest
+      #     tool: cargo-nextest
+      #     checksum: true
 
-      - uses: Swatinem/rust-cache@v2.7.0
+      - uses: Swatinem/rust-cache@v2.7.7
         with:
           save-if: ${{ github.event_name == 'push' }}
 
@@ -233,7 +267,7 @@ jobs:
           repo-token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Install rust cache
-        uses: Swatinem/rust-cache@v2.7.0
+        uses: Swatinem/rust-cache@v2.7.7
 
       - name: Run cargo check enabling only the release and v2 features
         shell: bash

@@ -1,8 +1,13 @@
 pub mod transformers;
 
-use std::collections::{HashMap, HashSet};
+use std::{
+    any::type_name,
+    borrow::Cow,
+    collections::{HashMap, HashSet},
+    sync::LazyLock,
+};
 
-use common_enums::{CaptureMethod, PaymentMethodType};
+use common_enums::{CaptureMethod, PaymentMethod, PaymentMethodType};
 use common_utils::{
     crypto::{self, GenerateDigest},
     errors::{self as common_errors, CustomResult},
@@ -24,14 +29,20 @@ use hyperswitch_domain_models::{
         PaymentsCancelData, PaymentsCaptureData, PaymentsSessionData, PaymentsSyncData,
         RefundsData, SetupMandateRequestData,
     },
-    router_response_types::{PaymentsResponseData, RefundsResponseData},
+    router_response_types::{
+        ConnectorInfo, PaymentMethodDetails, PaymentsResponseData, RefundsResponseData,
+        SupportedPaymentMethods, SupportedPaymentMethodsExt,
+    },
     types::{
         PaymentsAuthorizeRouterData, PaymentsCancelRouterData, PaymentsCaptureRouterData,
         PaymentsSyncRouterData, RefundSyncRouterData, RefundsRouterData,
     },
 };
 use hyperswitch_interfaces::{
-    api::{self, ConnectorCommon, ConnectorCommonExt, ConnectorIntegration, ConnectorValidation},
+    api::{
+        self, ConnectorCommon, ConnectorCommonExt, ConnectorIntegration, ConnectorSpecifications,
+        ConnectorValidation,
+    },
     configs::Connectors,
     errors,
     events::connector_api_logs::ConnectorEvent,
@@ -49,6 +60,40 @@ use crate::{
     types::ResponseRouterData,
     utils::{self, PaymentMethodDataType},
 };
+
+pub fn parse_and_log_keys_in_url_encoded_response<T>(data: &[u8]) {
+    match std::str::from_utf8(data) {
+        Ok(query_str) => {
+            let loggable_keys = [
+                "status",
+                "orderid",
+                "tranID",
+                "nbcb",
+                "amount",
+                "currency",
+                "paydate",
+                "channel",
+                "error_desc",
+                "error_code",
+                "extraP",
+            ];
+            let keys: Vec<(Cow<'_, str>, String)> =
+                url::form_urlencoded::parse(query_str.as_bytes())
+                    .map(|(key, value)| {
+                        if loggable_keys.contains(&key.to_string().as_str()) {
+                            (key, value.to_string())
+                        } else {
+                            (key, "SECRET".to_string())
+                        }
+                    })
+                    .collect();
+            router_env::logger::info!("Keys in {} response\n{:?}", type_name::<T>(), keys);
+        }
+        Err(err) => {
+            router_env::logger::error!("Failed to convert bytes to string: {:?}", err);
+        }
+    }
+}
 
 fn parse_response<T>(data: &[u8]) -> Result<T, errors::ConnectorError>
 where
@@ -83,6 +128,27 @@ where
         })?;
         json.insert("miscellaneous".to_string(), misc_value);
     }
+
+    // TODO: Remove this after debugging
+    let loggable_keys = [
+        "StatCode",
+        "StatName",
+        "TranID",
+        "ErrorCode",
+        "ErrorDesc",
+        "miscellaneous",
+    ];
+    let keys: Vec<(&str, Value)> = json
+        .iter()
+        .map(|(key, value)| {
+            if loggable_keys.contains(&key.as_str()) {
+                (key.as_str(), value.to_owned())
+            } else {
+                (key.as_str(), Value::String("SECRET".to_string()))
+            }
+        })
+        .collect();
+    router_env::logger::info!("Keys in response for type {}\n{:?}", type_name::<T>(), keys);
 
     let response: T = serde_json::from_value(Value::Object(json)).map_err(|e| {
         router_env::logger::error!("Error in Deserializing Response Data: {:?}", e);
@@ -173,6 +239,9 @@ impl ConnectorCommon for Fiuu {
             reason: Some(response.error_desc.clone()),
             attempt_status: None,
             connector_transaction_id: None,
+            network_advice_code: None,
+            network_decline_code: None,
+            network_error_message: None,
         })
     }
 }
@@ -202,19 +271,6 @@ pub fn build_form_from_struct<T: Serialize>(data: T) -> Result<Form, common_erro
 }
 
 impl ConnectorValidation for Fiuu {
-    fn validate_capture_method(
-        &self,
-        capture_method: Option<CaptureMethod>,
-        _pmt: Option<PaymentMethodType>,
-    ) -> CustomResult<(), errors::ConnectorError> {
-        let capture_method = capture_method.unwrap_or_default();
-        match capture_method {
-            CaptureMethod::Automatic | CaptureMethod::Manual => Ok(()),
-            CaptureMethod::ManualMultiple | CaptureMethod::Scheduled => Err(
-                utils::construct_not_implemented_error_report(capture_method, self.id()),
-            ),
-        }
-    }
     fn validate_mandate_payment(
         &self,
         pm_type: Option<PaymentMethodType>,
@@ -248,16 +304,23 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
         req: &PaymentsAuthorizeRouterData,
         connectors: &Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        let url = if req.request.off_session == Some(true) {
-            format!(
+        let optional_is_mit_flow = req.request.off_session;
+        let optional_is_nti_flow = req
+            .request
+            .mandate_id
+            .as_ref()
+            .map(|mandate_id| mandate_id.is_network_transaction_id_flow());
+        let url = match (optional_is_mit_flow, optional_is_nti_flow) {
+            (Some(true), Some(false)) => format!(
                 "{}/RMS/API/Recurring/input_v7.php",
                 self.base_url(connectors)
-            )
-        } else {
-            format!(
-                "{}RMS/API/Direct/1.4.0/index.php",
-                self.base_url(connectors)
-            )
+            ),
+            _ => {
+                format!(
+                    "{}RMS/API/Direct/1.4.0/index.php",
+                    self.base_url(connectors)
+                )
+            }
         };
         Ok(url)
     }
@@ -274,14 +337,24 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
         )?;
 
         let connector_router_data = fiuu::FiuuRouterData::from((amount, req));
-        let connector_req = if req.request.off_session == Some(true) {
-            let recurring_request = fiuu::FiuuMandateRequest::try_from(&connector_router_data)?;
-            build_form_from_struct(recurring_request)
-                .change_context(errors::ConnectorError::ParsingFailed)?
-        } else {
-            let payment_request = fiuu::FiuuPaymentRequest::try_from(&connector_router_data)?;
-            build_form_from_struct(payment_request)
-                .change_context(errors::ConnectorError::ParsingFailed)?
+        let optional_is_mit_flow = req.request.off_session;
+        let optional_is_nti_flow = req
+            .request
+            .mandate_id
+            .as_ref()
+            .map(|mandate_id| mandate_id.is_network_transaction_id_flow());
+
+        let connector_req = match (optional_is_mit_flow, optional_is_nti_flow) {
+            (Some(true), Some(false)) => {
+                let recurring_request = fiuu::FiuuMandateRequest::try_from(&connector_router_data)?;
+                build_form_from_struct(recurring_request)
+                    .change_context(errors::ConnectorError::ParsingFailed)?
+            }
+            _ => {
+                let payment_request = fiuu::FiuuPaymentRequest::try_from(&connector_router_data)?;
+                build_form_from_struct(payment_request)
+                    .change_context(errors::ConnectorError::ParsingFailed)?
+            }
         };
         Ok(RequestContent::FormData(connector_req))
     }
@@ -724,6 +797,7 @@ impl webhooks::IncomingWebhook for Fiuu {
     ) -> CustomResult<Vec<u8>, errors::ConnectorError> {
         let header = utils::get_header_key_value("content-type", request.headers)?;
         let resource: FiuuWebhooksResponse = if header == "application/x-www-form-urlencoded" {
+            parse_and_log_keys_in_url_encoded_response::<FiuuWebhooksResponse>(request.body);
             serde_urlencoded::from_bytes::<FiuuWebhooksResponse>(request.body)
                 .change_context(errors::ConnectorError::WebhookSourceVerificationFailed)?
         } else {
@@ -753,6 +827,7 @@ impl webhooks::IncomingWebhook for Fiuu {
     ) -> CustomResult<Vec<u8>, errors::ConnectorError> {
         let header = utils::get_header_key_value("content-type", request.headers)?;
         let resource: FiuuWebhooksResponse = if header == "application/x-www-form-urlencoded" {
+            parse_and_log_keys_in_url_encoded_response::<FiuuWebhooksResponse>(request.body);
             serde_urlencoded::from_bytes::<FiuuWebhooksResponse>(request.body)
                 .change_context(errors::ConnectorError::WebhookSourceVerificationFailed)?
         } else {
@@ -782,7 +857,9 @@ impl webhooks::IncomingWebhook for Fiuu {
                     webhooks_payment_response.paydate,
                     webhooks_payment_response.domain.peek(),
                     md5_key0,
-                    webhooks_payment_response.appcode.peek(),
+                    webhooks_payment_response
+                        .appcode
+                        .map_or("".to_string(), |appcode| appcode.expose()),
                     String::from_utf8_lossy(&connector_webhook_secrets.secret)
                 );
                 key1
@@ -810,6 +887,7 @@ impl webhooks::IncomingWebhook for Fiuu {
     ) -> CustomResult<api_models::webhooks::ObjectReferenceId, errors::ConnectorError> {
         let header = utils::get_header_key_value("content-type", request.headers)?;
         let resource: FiuuWebhooksResponse = if header == "application/x-www-form-urlencoded" {
+            parse_and_log_keys_in_url_encoded_response::<FiuuWebhooksResponse>(request.body);
             serde_urlencoded::from_bytes::<FiuuWebhooksResponse>(request.body)
                 .change_context(errors::ConnectorError::WebhookReferenceIdNotFound)?
         } else {
@@ -843,6 +921,7 @@ impl webhooks::IncomingWebhook for Fiuu {
     ) -> CustomResult<api_models::webhooks::IncomingWebhookEvent, errors::ConnectorError> {
         let header = utils::get_header_key_value("content-type", request.headers)?;
         let resource: FiuuWebhooksResponse = if header == "application/x-www-form-urlencoded" {
+            parse_and_log_keys_in_url_encoded_response::<FiuuWebhooksResponse>(request.body);
             serde_urlencoded::from_bytes::<FiuuWebhooksResponse>(request.body)
                 .change_context(errors::ConnectorError::WebhookEventTypeNotFound)?
         } else {
@@ -868,6 +947,7 @@ impl webhooks::IncomingWebhook for Fiuu {
     ) -> CustomResult<Box<dyn masking::ErasedMaskSerialize>, errors::ConnectorError> {
         let header = utils::get_header_key_value("content-type", request.headers)?;
         let payload: FiuuWebhooksResponse = if header == "application/x-www-form-urlencoded" {
+            parse_and_log_keys_in_url_encoded_response::<FiuuWebhooksResponse>(request.body);
             serde_urlencoded::from_bytes::<FiuuWebhooksResponse>(request.body)
                 .change_context(errors::ConnectorError::WebhookResourceObjectNotFound)?
         } else {
@@ -898,11 +978,14 @@ impl webhooks::IncomingWebhook for Fiuu {
         Option<hyperswitch_domain_models::router_flow_types::ConnectorMandateDetails>,
         errors::ConnectorError,
     > {
+        parse_and_log_keys_in_url_encoded_response::<transformers::FiuuWebhooksPaymentResponse>(
+            request.body,
+        );
         let webhook_payment_response: transformers::FiuuWebhooksPaymentResponse =
             serde_urlencoded::from_bytes::<transformers::FiuuWebhooksPaymentResponse>(request.body)
                 .change_context(errors::ConnectorError::WebhookResourceObjectNotFound)?;
         let mandate_reference = webhook_payment_response.extra_parameters.as_ref().and_then(|extra_p| {
-                    let mandate_token: Result<ExtraParameters, _> = serde_json::from_str(extra_p);
+                    let mandate_token: Result<ExtraParameters, _> = serde_json::from_str(&extra_p.clone().expose());
                     match mandate_token {
                         Ok(token) => {
                             token.token.as_ref().map(|token| hyperswitch_domain_models::router_flow_types::ConnectorMandateDetails {
@@ -912,7 +995,7 @@ impl webhooks::IncomingWebhook for Fiuu {
                         Err(err) => {
                             router_env::logger::warn!(
                                 "Failed to convert 'extraP' from fiuu webhook response to fiuu::ExtraParameters. \
-                                 Input: '{}', Error: {}",
+                                 Input: '{:?}', Error: {}",
                                 extra_p,
                                 err
                             );
@@ -921,5 +1004,134 @@ impl webhooks::IncomingWebhook for Fiuu {
                     }
                 });
         Ok(mandate_reference)
+    }
+}
+
+static FIUU_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMethods> = LazyLock::new(|| {
+    let supported_capture_methods = vec![
+        CaptureMethod::Automatic,
+        CaptureMethod::Manual,
+        CaptureMethod::SequentialAutomatic,
+    ];
+
+    let supported_card_network = vec![
+        common_enums::CardNetwork::Visa,
+        common_enums::CardNetwork::JCB,
+        common_enums::CardNetwork::DinersClub,
+        common_enums::CardNetwork::UnionPay,
+        common_enums::CardNetwork::Mastercard,
+        common_enums::CardNetwork::Discover,
+    ];
+
+    let mut fiuu_supported_payment_methods = SupportedPaymentMethods::new();
+
+    fiuu_supported_payment_methods.add(
+        PaymentMethod::RealTimePayment,
+        PaymentMethodType::DuitNow,
+        PaymentMethodDetails {
+            mandates: common_enums::FeatureStatus::NotSupported,
+            refunds: common_enums::FeatureStatus::Supported,
+            supported_capture_methods: supported_capture_methods.clone(),
+            specific_features: None,
+        },
+    );
+
+    fiuu_supported_payment_methods.add(
+        PaymentMethod::BankRedirect,
+        PaymentMethodType::OnlineBankingFpx,
+        PaymentMethodDetails {
+            mandates: common_enums::FeatureStatus::NotSupported,
+            refunds: common_enums::FeatureStatus::Supported,
+            supported_capture_methods: supported_capture_methods.clone(),
+            specific_features: None,
+        },
+    );
+
+    fiuu_supported_payment_methods.add(
+        PaymentMethod::Wallet,
+        PaymentMethodType::GooglePay,
+        PaymentMethodDetails {
+            mandates: common_enums::FeatureStatus::NotSupported,
+            refunds: common_enums::FeatureStatus::Supported,
+            supported_capture_methods: supported_capture_methods.clone(),
+            specific_features: None,
+        },
+    );
+
+    fiuu_supported_payment_methods.add(
+        PaymentMethod::Wallet,
+        PaymentMethodType::ApplePay,
+        PaymentMethodDetails {
+            mandates: common_enums::FeatureStatus::NotSupported,
+            refunds: common_enums::FeatureStatus::Supported,
+            supported_capture_methods: supported_capture_methods.clone(),
+            specific_features: None,
+        },
+    );
+
+    fiuu_supported_payment_methods.add(
+        PaymentMethod::Card,
+        PaymentMethodType::Credit,
+        PaymentMethodDetails {
+            mandates: common_enums::FeatureStatus::Supported,
+            refunds: common_enums::FeatureStatus::Supported,
+            supported_capture_methods: supported_capture_methods.clone(),
+            specific_features: Some(
+                api_models::feature_matrix::PaymentMethodSpecificFeatures::Card({
+                    api_models::feature_matrix::CardSpecificFeatures {
+                        three_ds: common_enums::FeatureStatus::Supported,
+                        no_three_ds: common_enums::FeatureStatus::Supported,
+                        supported_card_networks: supported_card_network.clone(),
+                    }
+                }),
+            ),
+        },
+    );
+
+    fiuu_supported_payment_methods.add(
+        PaymentMethod::Card,
+        PaymentMethodType::Debit,
+        PaymentMethodDetails {
+            mandates: common_enums::FeatureStatus::Supported,
+            refunds: common_enums::FeatureStatus::Supported,
+            supported_capture_methods: supported_capture_methods.clone(),
+            specific_features: Some(
+                api_models::feature_matrix::PaymentMethodSpecificFeatures::Card({
+                    api_models::feature_matrix::CardSpecificFeatures {
+                        three_ds: common_enums::FeatureStatus::Supported,
+                        no_three_ds: common_enums::FeatureStatus::Supported,
+                        supported_card_networks: supported_card_network.clone(),
+                    }
+                }),
+            ),
+        },
+    );
+
+    fiuu_supported_payment_methods
+});
+
+static FIUU_CONNECTOR_INFO: ConnectorInfo = ConnectorInfo {
+    display_name: "Fiuu",
+    description:
+        "Fiuu, formerly known as Razer Merchant Services, is a leading online payment gateway in Southeast Asia, offering secure and seamless payment solutions for businesses of all sizes, including credit and debit cards, e-wallets, and bank transfers.",
+    connector_type: common_enums::PaymentConnectorCategory::PaymentGateway,
+};
+
+static FIUU_SUPPORTED_WEBHOOK_FLOWS: [common_enums::EventClass; 2] = [
+    common_enums::EventClass::Payments,
+    common_enums::EventClass::Refunds,
+];
+
+impl ConnectorSpecifications for Fiuu {
+    fn get_connector_about(&self) -> Option<&'static ConnectorInfo> {
+        Some(&FIUU_CONNECTOR_INFO)
+    }
+
+    fn get_supported_payment_methods(&self) -> Option<&'static SupportedPaymentMethods> {
+        Some(&*FIUU_SUPPORTED_PAYMENT_METHODS)
+    }
+
+    fn get_supported_webhook_flows(&self) -> Option<&'static [common_enums::EventClass]> {
+        Some(&FIUU_SUPPORTED_WEBHOOK_FLOWS)
     }
 }

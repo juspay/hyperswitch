@@ -63,4 +63,16 @@ pub struct PaymentCreateIntent;
 pub struct PaymentGetIntent;
 
 #[derive(Debug, Clone)]
+pub struct PaymentUpdateIntent;
+
+#[derive(Debug, Clone)]
 pub struct PostSessionTokens;
+
+#[derive(Debug, Clone)]
+pub struct RecordAttempt;
+
+#[derive(Debug, Clone)]
+pub struct UpdateMetadata;
+
+#[derive(Debug, Clone)]
+pub struct CreateOrder;

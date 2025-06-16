@@ -1,6 +1,5 @@
 pub mod transformers;
-
-use std::fmt::Debug;
+use std::sync::LazyLock;
 
 use api_models::webhooks::IncomingWebhookEvent;
 use common_enums::enums;
@@ -8,9 +7,12 @@ use common_utils::{
     errors::CustomResult,
     ext_traits::BytesExt,
     request::{Method, Request, RequestBuilder, RequestContent},
+    types::{AmountConvertor, FloatMajorUnit, FloatMajorUnitForConnector},
 };
 use error_stack::{report, ResultExt};
 use hyperswitch_domain_models::{
+    errors::api_error_response::ApiErrorResponse,
+    payments::payment_attempt::PaymentAttempt,
     router_data::{AccessToken, ConnectorAuthType, ErrorResponse, RouterData},
     router_flow_types::{
         access_token_auth::AccessTokenAuth,
@@ -22,14 +24,20 @@ use hyperswitch_domain_models::{
         PaymentsCancelData, PaymentsCaptureData, PaymentsSessionData, PaymentsSyncData,
         RefundsData, SetupMandateRequestData,
     },
-    router_response_types::{PaymentsResponseData, RefundsResponseData},
+    router_response_types::{
+        ConnectorInfo, PaymentMethodDetails, PaymentsResponseData, RefundsResponseData,
+        SupportedPaymentMethods, SupportedPaymentMethodsExt,
+    },
     types::{
         PaymentsAuthorizeRouterData, PaymentsCancelRouterData, PaymentsCaptureRouterData,
         PaymentsSyncRouterData, RefundSyncRouterData, RefundsRouterData, SetupMandateRouterData,
     },
 };
 use hyperswitch_interfaces::{
-    api::{self, ConnectorCommon, ConnectorCommonExt, ConnectorIntegration, ConnectorValidation},
+    api::{
+        self, ConnectorCommon, ConnectorCommonExt, ConnectorIntegration, ConnectorSpecifications,
+        ConnectorTransactionId, ConnectorValidation,
+    },
     configs::Connectors,
     consts::NO_ERROR_CODE,
     errors,
@@ -37,17 +45,29 @@ use hyperswitch_interfaces::{
     types::{self, Response},
     webhooks::{IncomingWebhook, IncomingWebhookRequestDetails},
 };
+#[cfg(feature = "v2")]
+use masking::PeekInterface;
 use masking::{ExposeInterface, Mask};
 use transformers as helcim;
 
 use crate::{
     constants::headers,
     types::ResponseRouterData,
-    utils::{to_connector_meta, PaymentsAuthorizeRequestData},
+    utils::{convert_amount, to_connector_meta, PaymentsAuthorizeRequestData},
 };
 
-#[derive(Debug, Clone)]
-pub struct Helcim;
+#[derive(Clone)]
+pub struct Helcim {
+    amount_convertor: &'static (dyn AmountConvertor<Output = FloatMajorUnit> + Sync),
+}
+
+impl Helcim {
+    pub fn new() -> &'static Self {
+        &Self {
+            amount_convertor: &FloatMajorUnitForConnector,
+        }
+    }
+}
 
 impl api::Payment for Helcim {}
 impl api::PaymentSession for Helcim {}
@@ -165,19 +185,25 @@ impl ConnectorCommon for Helcim {
             reason: Some(error_string),
             attempt_status: None,
             connector_transaction_id: None,
+            network_advice_code: None,
+            network_decline_code: None,
+            network_error_message: None,
         })
     }
 }
 
 impl ConnectorValidation for Helcim {
-    fn validate_capture_method(
+    fn validate_connector_against_payment_request(
         &self,
         capture_method: Option<enums::CaptureMethod>,
+        _payment_method: enums::PaymentMethod,
         _pmt: Option<enums::PaymentMethodType>,
     ) -> CustomResult<(), errors::ConnectorError> {
         let capture_method = capture_method.unwrap_or_default();
         match capture_method {
-            enums::CaptureMethod::Automatic | enums::CaptureMethod::Manual => Ok(()),
+            enums::CaptureMethod::Automatic
+            | enums::CaptureMethod::Manual
+            | enums::CaptureMethod::SequentialAutomatic => Ok(()),
             enums::CaptureMethod::ManualMultiple | enums::CaptureMethod::Scheduled => Err(
                 crate::utils::construct_not_supported_error_report(capture_method, self.id()),
             ),
@@ -296,13 +322,13 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
         req: &PaymentsAuthorizeRouterData,
         _connectors: &Connectors,
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
-        let connector_router_data = helcim::HelcimRouterData::try_from((
-            &self.get_currency_unit(),
+        let connector_router_data = convert_amount(
+            self.amount_convertor,
+            req.request.minor_amount,
             req.request.currency,
-            req.request.amount,
-            req,
-        ))?;
-        let connector_req = helcim::HelcimPaymentsRequest::try_from(&connector_router_data)?;
+        )?;
+        let router_obj = helcim::HelcimRouterData::try_from((connector_router_data, req))?;
+        let connector_req = helcim::HelcimPaymentsRequest::try_from(&router_obj)?;
         Ok(RequestContent::Json(Box::new(connector_req)))
     }
 
@@ -475,13 +501,13 @@ impl ConnectorIntegration<Capture, PaymentsCaptureData, PaymentsResponseData> fo
         req: &PaymentsCaptureRouterData,
         _connectors: &Connectors,
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
-        let connector_router_data = helcim::HelcimRouterData::try_from((
-            &self.get_currency_unit(),
+        let connector_router_data = convert_amount(
+            self.amount_convertor,
+            req.request.minor_amount_to_capture,
             req.request.currency,
-            req.request.amount_to_capture,
-            req,
-        ))?;
-        let connector_req = helcim::HelcimCaptureRequest::try_from(&connector_router_data)?;
+        )?;
+        let router_obj = helcim::HelcimRouterData::try_from((connector_router_data, req))?;
+        let connector_req = helcim::HelcimCaptureRequest::try_from(&router_obj)?;
         Ok(RequestContent::Json(Box::new(connector_req)))
     }
 
@@ -642,13 +668,13 @@ impl ConnectorIntegration<Execute, RefundsData, RefundsResponseData> for Helcim 
         req: &RefundsRouterData<Execute>,
         _connectors: &Connectors,
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
-        let connector_router_data = helcim::HelcimRouterData::try_from((
-            &self.get_currency_unit(),
+        let connector_router_data = convert_amount(
+            self.amount_convertor,
+            req.request.minor_refund_amount,
             req.request.currency,
-            req.request.refund_amount,
-            req,
-        ))?;
-        let connector_req = helcim::HelcimRefundRequest::try_from(&connector_router_data)?;
+        )?;
+        let router_obj = helcim::HelcimRouterData::try_from((connector_router_data, req))?;
+        let connector_req = helcim::HelcimRefundRequest::try_from(&router_obj)?;
         Ok(RequestContent::Json(Box::new(connector_req)))
     }
 
@@ -806,5 +832,131 @@ impl IncomingWebhook for Helcim {
         _request: &IncomingWebhookRequestDetails<'_>,
     ) -> CustomResult<Box<dyn masking::ErasedMaskSerialize>, errors::ConnectorError> {
         Err(report!(errors::ConnectorError::WebhooksNotImplemented))
+    }
+}
+
+static HELCIM_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMethods> = LazyLock::new(|| {
+    let supported_capture_methods = vec![
+        enums::CaptureMethod::Automatic,
+        enums::CaptureMethod::Manual,
+        enums::CaptureMethod::SequentialAutomatic,
+    ];
+
+    let supported_card_network = vec![
+        common_enums::CardNetwork::Visa,
+        common_enums::CardNetwork::Mastercard,
+        common_enums::CardNetwork::Interac,
+        common_enums::CardNetwork::AmericanExpress,
+        common_enums::CardNetwork::JCB,
+        common_enums::CardNetwork::DinersClub,
+        common_enums::CardNetwork::Discover,
+        common_enums::CardNetwork::CartesBancaires,
+        common_enums::CardNetwork::UnionPay,
+    ];
+
+    let mut helcim_supported_payment_methods = SupportedPaymentMethods::new();
+
+    helcim_supported_payment_methods.add(
+        enums::PaymentMethod::Card,
+        enums::PaymentMethodType::Credit,
+        PaymentMethodDetails {
+            mandates: enums::FeatureStatus::Supported,
+            refunds: enums::FeatureStatus::Supported,
+            supported_capture_methods: supported_capture_methods.clone(),
+            specific_features: Some(
+                api_models::feature_matrix::PaymentMethodSpecificFeatures::Card({
+                    api_models::feature_matrix::CardSpecificFeatures {
+                        three_ds: common_enums::FeatureStatus::NotSupported,
+                        no_three_ds: common_enums::FeatureStatus::Supported,
+                        supported_card_networks: supported_card_network.clone(),
+                    }
+                }),
+            ),
+        },
+    );
+
+    helcim_supported_payment_methods.add(
+        enums::PaymentMethod::Card,
+        enums::PaymentMethodType::Debit,
+        PaymentMethodDetails {
+            mandates: enums::FeatureStatus::Supported,
+            refunds: enums::FeatureStatus::Supported,
+            supported_capture_methods: supported_capture_methods.clone(),
+            specific_features: Some(
+                api_models::feature_matrix::PaymentMethodSpecificFeatures::Card({
+                    api_models::feature_matrix::CardSpecificFeatures {
+                        three_ds: common_enums::FeatureStatus::NotSupported,
+                        no_three_ds: common_enums::FeatureStatus::Supported,
+                        supported_card_networks: supported_card_network.clone(),
+                    }
+                }),
+            ),
+        },
+    );
+
+    helcim_supported_payment_methods
+});
+
+static HELCIM_CONNECTOR_INFO: ConnectorInfo = ConnectorInfo {
+        display_name: "Helcim",
+        description:
+            "Helcim is a payment processing company that offers transparent, affordable merchant services for businesses of all sizes",
+        connector_type: enums::PaymentConnectorCategory::PaymentGateway,
+    };
+
+static HELCIM_SUPPORTED_WEBHOOK_FLOWS: [enums::EventClass; 0] = [];
+
+impl ConnectorSpecifications for Helcim {
+    fn get_connector_about(&self) -> Option<&'static ConnectorInfo> {
+        Some(&HELCIM_CONNECTOR_INFO)
+    }
+
+    fn get_supported_payment_methods(&self) -> Option<&'static SupportedPaymentMethods> {
+        Some(&*HELCIM_SUPPORTED_PAYMENT_METHODS)
+    }
+
+    fn get_supported_webhook_flows(&self) -> Option<&'static [enums::EventClass]> {
+        Some(&HELCIM_SUPPORTED_WEBHOOK_FLOWS)
+    }
+}
+
+impl ConnectorTransactionId for Helcim {
+    #[cfg(feature = "v1")]
+    fn connector_transaction_id(
+        &self,
+        payment_attempt: PaymentAttempt,
+    ) -> Result<Option<String>, ApiErrorResponse> {
+        if payment_attempt.get_connector_payment_id().is_none() {
+            let metadata =
+                Self::connector_transaction_id(self, payment_attempt.connector_metadata.as_ref());
+            metadata.map_err(|_| ApiErrorResponse::ResourceIdNotFound)
+        } else {
+            Ok(payment_attempt
+                .get_connector_payment_id()
+                .map(ToString::to_string))
+        }
+    }
+
+    #[cfg(feature = "v2")]
+    fn connector_transaction_id(
+        &self,
+        payment_attempt: PaymentAttempt,
+    ) -> Result<Option<String>, ApiErrorResponse> {
+        use hyperswitch_domain_models::errors::api_error_response::ApiErrorResponse;
+
+        if payment_attempt.get_connector_payment_id().is_none() {
+            let metadata = Self::connector_transaction_id(
+                self,
+                payment_attempt
+                    .connector_metadata
+                    .as_ref()
+                    .map(|connector_metadata| connector_metadata.peek()),
+            );
+            metadata.map_err(|_| ApiErrorResponse::ResourceIdNotFound)
+        } else {
+            Ok(payment_attempt
+                .get_connector_payment_id()
+                .map(ToString::to_string))
+        }
     }
 }

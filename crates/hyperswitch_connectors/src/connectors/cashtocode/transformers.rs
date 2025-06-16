@@ -203,7 +203,7 @@ pub struct CashtocodePaymentsSyncResponse {
 }
 
 fn get_redirect_form_data(
-    payment_method_type: &enums::PaymentMethodType,
+    payment_method_type: enums::PaymentMethodType,
     response_data: CashtocodePaymentsResponseData,
 ) -> CustomResult<RedirectForm, errors::ConnectorError> {
     match payment_method_type {
@@ -249,10 +249,13 @@ impl<F>
                 Err(ErrorResponse {
                     code: error_data.error.to_string(),
                     status_code: item.http_code,
-                    message: error_data.error_description,
-                    reason: None,
+                    message: error_data.error_description.clone(),
+                    reason: Some(error_data.error_description),
                     attempt_status: None,
                     connector_transaction_id: None,
+                    network_advice_code: None,
+                    network_decline_code: None,
+                    network_error_message: None,
                 }),
             ),
             CashtocodePaymentsResponse::CashtoCodeData(response_data) => {
@@ -260,7 +263,6 @@ impl<F>
                     .data
                     .request
                     .payment_method_type
-                    .as_ref()
                     .ok_or(errors::ConnectorError::MissingPaymentMethodType)?;
                 let redirection_data = get_redirect_form_data(payment_method_type, response_data)?;
                 (
@@ -275,7 +277,7 @@ impl<F>
                         network_txn_id: None,
                         connector_response_reference_id: None,
                         incremental_authorization_allowed: None,
-                        charge_id: None,
+                        charges: None,
                     }),
                 )
             }
@@ -308,7 +310,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, CashtocodePaymentsSyncResponse, T, Paym
                 network_txn_id: None,
                 connector_response_reference_id: None,
                 incremental_authorization_allowed: None,
-                charge_id: None,
+                charges: None,
             }),
             ..item.data
         })

@@ -4,7 +4,7 @@ use async_bb8_diesel::AsyncRunQueryDsl;
 use diesel::{
     associations::HasTable,
     debug_query,
-    dsl::{Find, Limit},
+    dsl::{Find, IsNotNull, Limit},
     helper_types::{Filter, IntoBoxed},
     insertable::CanInsertInSingleQuery,
     pg::{Pg, PgConnection},
@@ -17,16 +17,14 @@ use diesel::{
         LoadQuery, RunQueryDsl,
     },
     result::Error as DieselError,
-    Expression, Insertable, QueryDsl, QuerySource, Table,
+    Expression, ExpressionMethods, Insertable, QueryDsl, QuerySource, Table,
 };
 use error_stack::{report, ResultExt};
 use router_env::logger;
 
-use crate::{errors, PgPooledConn, StorageResult};
+use crate::{errors, query::utils::GetPrimaryKey, PgPooledConn, StorageResult};
 
 pub mod db_metrics {
-    use router_env::opentelemetry::KeyValue;
-
     #[derive(Debug)]
     pub enum DatabaseOperation {
         FindOne,
@@ -51,17 +49,13 @@ pub mod db_metrics {
 
         let table_name = std::any::type_name::<T>().rsplit("::").nth(1);
 
-        let attributes = [
-            KeyValue::new("table", table_name.unwrap_or("undefined")),
-            KeyValue::new("operation", format!("{:?}", operation)),
-        ];
-
-        crate::metrics::DATABASE_CALLS_COUNT.add(&crate::metrics::CONTEXT, 1, &attributes);
-        crate::metrics::DATABASE_CALL_TIME.record(
-            &crate::metrics::CONTEXT,
-            time_elapsed.as_secs_f64(),
-            &attributes,
+        let attributes = router_env::metric_attributes!(
+            ("table", table_name.unwrap_or("undefined")),
+            ("operation", format!("{:?}", operation))
         );
+
+        crate::metrics::DATABASE_CALLS_COUNT.add(1, attributes);
+        crate::metrics::DATABASE_CALL_TIME.record(time_elapsed.as_secs_f64(), attributes);
 
         output
     }
@@ -407,7 +401,7 @@ where
     to_optional(generic_find_one_core::<T, _, _>(conn, predicate).await)
 }
 
-pub async fn generic_filter<T, P, O, R>(
+pub(super) async fn generic_filter<T, P, O, R>(
     conn: &PgPooledConn,
     predicate: P,
     limit: Option<i64>,
@@ -415,8 +409,9 @@ pub async fn generic_filter<T, P, O, R>(
     order: Option<O>,
 ) -> StorageResult<Vec<R>>
 where
-    T: HasTable<Table = T> + Table + BoxedDsl<'static, Pg> + 'static,
+    T: HasTable<Table = T> + Table + BoxedDsl<'static, Pg> + GetPrimaryKey + 'static,
     IntoBoxed<'static, T, Pg>: FilterDsl<P, Output = IntoBoxed<'static, T, Pg>>
+        + FilterDsl<IsNotNull<T::PK>, Output = IntoBoxed<'static, T, Pg>>
         + LimitDsl<Output = IntoBoxed<'static, T, Pg>>
         + OffsetDsl<Output = IntoBoxed<'static, T, Pg>>
         + OrderDsl<O, Output = IntoBoxed<'static, T, Pg>>
@@ -427,8 +422,9 @@ where
     R: Send + 'static,
 {
     let mut query = T::table().into_boxed();
-    query = query.filter(predicate);
-
+    query = query
+        .filter(predicate)
+        .filter(T::table().get_primary_key().is_not_null());
     if let Some(limit) = limit {
         query = query.limit(limit);
     }
@@ -445,7 +441,7 @@ where
 
     track_database_call::<T, _, _>(query.get_results_async(conn), DatabaseOperation::Filter)
         .await
-        .change_context(errors::DatabaseError::NotFound)
+        .change_context(errors::DatabaseError::Others)
         .attach_printable("Error filtering records by predicate")
 }
 

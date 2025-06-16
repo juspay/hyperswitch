@@ -3,8 +3,11 @@ pub mod keymanager;
 
 /// Enum for Authentication Level
 pub mod authentication;
-/// Enum for Theme Lineage
-pub mod theme;
+/// User related types
+pub mod user;
+
+/// types that are wrappers around primitive types
+pub mod primitive_wrappers;
 
 use std::{
     borrow::Cow,
@@ -26,6 +29,10 @@ use diesel::{
     AsExpression, FromSqlRow, Queryable,
 };
 use error_stack::{report, ResultExt};
+pub use primitive_wrappers::bool_wrappers::{
+    AlwaysRequestExtendedAuthorization, ExtendedAuthorizationAppliedBool,
+    RequestExtendedAuthorizationBool,
+};
 use rust_decimal::{
     prelude::{FromPrimitive, ToPrimitive},
     Decimal,
@@ -42,6 +49,7 @@ use crate::{
     },
     errors::{CustomResult, ParsingError, PercentageError, ValidationError},
     fp_utils::when,
+    impl_enum_str,
 };
 
 /// Represents Percentage Value between 0 and 100 both inclusive
@@ -118,7 +126,7 @@ impl<const PRECISION: u8> Percentage<PRECISION> {
     fn is_valid_precision_length(value: &str) -> bool {
         if value.contains('.') {
             // if string has '.' then take the decimal part and verify precision length
-            match value.split('.').last() {
+            match value.split('.').next_back() {
                 Some(decimal_part) => {
                     decimal_part.trim_end_matches('0').len() <= <u8 as Into<usize>>::into(PRECISION)
                 }
@@ -199,6 +207,11 @@ impl SemanticVersion {
     /// returns major version number
     pub fn get_major(&self) -> u64 {
         self.0.major
+    }
+
+    /// returns minor version number
+    pub fn get_minor(&self) -> u64 {
+        self.0.minor
     }
     /// Constructs new SemanticVersion instance
     pub fn new(major: u64, minor: u64, patch: u64) -> Self {
@@ -375,7 +388,7 @@ pub struct MinorUnit(i64);
 
 impl MinorUnit {
     /// gets amount as i64 value will be removed in future
-    pub fn get_amount_as_i64(&self) -> i64 {
+    pub fn get_amount_as_i64(self) -> i64 {
         self.0
     }
 
@@ -387,6 +400,11 @@ impl MinorUnit {
     /// forms a new minor unit from amount
     pub fn new(value: i64) -> Self {
         Self(value)
+    }
+
+    /// checks if the amount is greater than the given value
+    pub fn is_greater_than(&self, value: i64) -> bool {
+        self.get_amount_as_i64() > value
     }
 
     /// Convert the amount to its major denomination based on Currency and return String
@@ -502,7 +520,20 @@ impl Sum for MinorUnit {
 }
 
 /// Connector specific types to send
-#[derive(Default, Debug, serde::Deserialize, serde::Serialize, Clone, PartialEq)]
+#[derive(
+    Default,
+    Debug,
+    serde::Deserialize,
+    AsExpression,
+    serde::Serialize,
+    Clone,
+    PartialEq,
+    Eq,
+    Hash,
+    ToSchema,
+    PartialOrd,
+)]
+#[diesel(sql_type = sql_types::Text)]
 pub struct StringMinorUnit(String);
 
 impl StringMinorUnit {
@@ -523,6 +554,45 @@ impl StringMinorUnit {
             .to_i64()
             .ok_or(ParsingError::DecimalToI64ConversionFailure)?;
         Ok(MinorUnit::new(amount_i64))
+    }
+}
+
+impl Display for StringMinorUnit {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.0)
+    }
+}
+
+impl<DB> FromSql<sql_types::Text, DB> for StringMinorUnit
+where
+    DB: Backend,
+    String: FromSql<sql_types::Text, DB>,
+{
+    fn from_sql(value: DB::RawValue<'_>) -> deserialize::Result<Self> {
+        let val = String::from_sql(value)?;
+        Ok(Self(val))
+    }
+}
+
+impl<DB> ToSql<sql_types::Text, DB> for StringMinorUnit
+where
+    DB: Backend,
+    String: ToSql<sql_types::Text, DB>,
+{
+    fn to_sql<'b>(&'b self, out: &mut Output<'b, '_, DB>) -> diesel::serialize::Result {
+        self.0.to_sql(out)
+    }
+}
+
+impl<DB> Queryable<sql_types::Text, DB> for StringMinorUnit
+where
+    DB: Backend,
+    Self: FromSql<sql_types::Text, DB>,
+{
+    type Row = Self;
+
+    fn build(row: Self::Row) -> deserialize::Result<Self> {
+        Ok(row)
     }
 }
 
@@ -601,7 +671,6 @@ impl StringMajorUnit {
     pub fn zero() -> Self {
         Self("0".to_string())
     }
-
     /// Get string amount from struct to be removed in future
     pub fn get_amount_as_string(&self) -> String {
         self.0.clone()
@@ -672,261 +741,6 @@ where
         let val = String::from_sql(value)?;
         let url = url::Url::parse(&val)?;
         Ok(Self(url))
-    }
-}
-
-#[cfg(feature = "v2")]
-pub use client_secret_type::ClientSecret;
-#[cfg(feature = "v2")]
-mod client_secret_type {
-    use std::fmt;
-
-    use masking::PeekInterface;
-    use router_env::logger;
-
-    use super::*;
-    use crate::id_type;
-
-    /// A domain type that can be used to represent a client secret
-    /// Client secret is generated for a payment and is used to authenticate the client side api calls
-    #[derive(Debug, PartialEq, Clone, AsExpression)]
-    #[diesel(sql_type = sql_types::Text)]
-    pub struct ClientSecret {
-        /// The payment id of the payment
-        pub payment_id: id_type::GlobalPaymentId,
-        /// The secret string
-        pub secret: masking::Secret<String>,
-    }
-
-    impl ClientSecret {
-        pub(crate) fn get_string_repr(&self) -> String {
-            format!(
-                "{}_secret_{}",
-                self.payment_id.get_string_repr(),
-                self.secret.peek()
-            )
-        }
-
-        /// Create a new client secret
-        pub(crate) fn new(payment_id: id_type::GlobalPaymentId, secret: String) -> Self {
-            Self {
-                payment_id,
-                secret: masking::Secret::new(secret),
-            }
-        }
-    }
-
-    impl FromStr for ClientSecret {
-        type Err = ParsingError;
-
-        fn from_str(str_value: &str) -> Result<Self, Self::Err> {
-            let (payment_id, secret) =
-                str_value
-                    .rsplit_once("_secret_")
-                    .ok_or(ParsingError::EncodeError(
-                        "Expected a string in the format '{payment_id}_secret_{secret}'",
-                    ))?;
-
-            let payment_id = id_type::GlobalPaymentId::try_from(Cow::Owned(payment_id.to_owned()))
-                .map_err(|err| {
-                    logger::error!(global_payment_id_error=?err);
-                    ParsingError::EncodeError("Error while constructing GlobalPaymentId")
-                })?;
-
-            Ok(Self {
-                payment_id,
-                secret: masking::Secret::new(secret.to_owned()),
-            })
-        }
-    }
-
-    impl<'de> Deserialize<'de> for ClientSecret {
-        fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-        where
-            D: Deserializer<'de>,
-        {
-            struct ClientSecretVisitor;
-
-            impl Visitor<'_> for ClientSecretVisitor {
-                type Value = ClientSecret;
-
-                fn expecting(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
-                    formatter.write_str("a string in the format '{payment_id}_secret_{secret}'")
-                }
-
-                fn visit_str<E>(self, value: &str) -> Result<ClientSecret, E>
-                where
-                    E: serde::de::Error,
-                {
-                    let (payment_id, secret) = value.rsplit_once("_secret_").ok_or_else(|| {
-                        E::invalid_value(
-                            serde::de::Unexpected::Str(value),
-                            &"a string with '_secret_'",
-                        )
-                    })?;
-
-                    let payment_id =
-                        id_type::GlobalPaymentId::try_from(Cow::Owned(payment_id.to_owned()))
-                            .map_err(serde::de::Error::custom)?;
-
-                    Ok(ClientSecret {
-                        payment_id,
-                        secret: masking::Secret::new(secret.to_owned()),
-                    })
-                }
-            }
-
-            deserializer.deserialize_str(ClientSecretVisitor)
-        }
-    }
-
-    impl Serialize for ClientSecret {
-        fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-        where
-            S: serde::ser::Serializer,
-        {
-            serializer.serialize_str(self.get_string_repr().as_str())
-        }
-    }
-
-    impl ToSql<sql_types::Text, diesel::pg::Pg> for ClientSecret
-    where
-        String: ToSql<sql_types::Text, diesel::pg::Pg>,
-    {
-        fn to_sql<'b>(
-            &'b self,
-            out: &mut Output<'b, '_, diesel::pg::Pg>,
-        ) -> diesel::serialize::Result {
-            let string_repr = self.get_string_repr();
-            <String as ToSql<sql_types::Text, diesel::pg::Pg>>::to_sql(
-                &string_repr,
-                &mut out.reborrow(),
-            )
-        }
-    }
-
-    impl<DB> FromSql<sql_types::Text, DB> for ClientSecret
-    where
-        DB: Backend,
-        String: FromSql<sql_types::Text, DB>,
-    {
-        fn from_sql(value: DB::RawValue<'_>) -> deserialize::Result<Self> {
-            let string_repr = String::from_sql(value)?;
-            let (payment_id, secret) =
-                string_repr
-                    .rsplit_once("_secret_")
-                    .ok_or(ParsingError::EncodeError(
-                        "Expected a string in the format '{payment_id}_secret_{secret}'",
-                    ))?;
-
-            let payment_id = id_type::GlobalPaymentId::try_from(Cow::Owned(payment_id.to_owned()))
-                .map_err(|err| {
-                    logger::error!(global_payment_id_error=?err);
-                    ParsingError::EncodeError("Error while constructing GlobalPaymentId")
-                })?;
-
-            Ok(Self {
-                payment_id,
-                secret: masking::Secret::new(secret.to_owned()),
-            })
-        }
-    }
-
-    impl<DB> Queryable<sql_types::Text, DB> for ClientSecret
-    where
-        DB: Backend,
-        Self: FromSql<sql_types::Text, DB>,
-    {
-        type Row = Self;
-
-        fn build(row: Self::Row) -> deserialize::Result<Self> {
-            Ok(row)
-        }
-    }
-    crate::impl_serializable_secret_id_type!(ClientSecret);
-    #[cfg(test)]
-    mod client_secret_tests {
-        #![allow(clippy::expect_used)]
-        #![allow(clippy::unwrap_used)]
-
-        use serde_json;
-
-        use super::*;
-        use crate::id_type::GlobalPaymentId;
-
-        #[test]
-        fn test_serialize_client_secret() {
-            let global_payment_id = "12345_pay_1a961ed9093c48b09781bf8ab17ba6bd";
-            let secret = "fc34taHLw1ekPgNh92qr".to_string();
-
-            let expected_client_secret_string = format!("\"{global_payment_id}_secret_{secret}\"");
-
-            let client_secret1 = ClientSecret {
-                payment_id: GlobalPaymentId::try_from(Cow::Borrowed(global_payment_id)).unwrap(),
-                secret: masking::Secret::new(secret),
-            };
-
-            let parsed_client_secret =
-                serde_json::to_string(&client_secret1).expect("Failed to serialize client_secret1");
-
-            assert_eq!(expected_client_secret_string, parsed_client_secret);
-        }
-
-        #[test]
-        fn test_deserialize_client_secret() {
-            // This is a valid global id
-            let global_payment_id_str = "12345_pay_1a961ed9093c48b09781bf8ab17ba6bd";
-            let secret = "fc34taHLw1ekPgNh92qr".to_string();
-
-            let valid_payment_global_id =
-                GlobalPaymentId::try_from(Cow::Borrowed(global_payment_id_str))
-                    .expect("Failed to create valid global payment id");
-
-            // This is an invalid global id because of the cell id being in invalid length
-            let invalid_global_payment_id = "123_pay_1a961ed9093c48b09781bf8ab17ba6bd";
-
-            // Create a client secret string which is valid
-            let valid_client_secret = format!(r#""{global_payment_id_str}_secret_{secret}""#);
-
-            dbg!(&valid_client_secret);
-
-            // Create a client secret string which is invalid
-            let invalid_client_secret_because_of_invalid_payment_id =
-                format!(r#""{invalid_global_payment_id}_secret_{secret}""#);
-
-            // Create a client secret string which is invalid because of invalid secret
-            let invalid_client_secret_because_of_invalid_secret =
-                format!(r#""{invalid_global_payment_id}""#);
-
-            let valid_client_secret = serde_json::from_str::<ClientSecret>(&valid_client_secret)
-                .expect("Failed to deserialize client_secret_str1");
-
-            let invalid_deser1 = serde_json::from_str::<ClientSecret>(
-                &invalid_client_secret_because_of_invalid_payment_id,
-            );
-
-            dbg!(&invalid_deser1);
-
-            let invalid_deser2 = serde_json::from_str::<ClientSecret>(
-                &invalid_client_secret_because_of_invalid_secret,
-            );
-
-            dbg!(&invalid_deser2);
-
-            assert_eq!(valid_client_secret.payment_id, valid_payment_global_id);
-
-            assert_eq!(valid_client_secret.secret.peek(), &secret);
-
-            assert_eq!(
-                invalid_deser1.err().unwrap().to_string(),
-                "Incorrect value provided for field: payment_id at line 1 column 70"
-            );
-
-            assert_eq!(
-                invalid_deser2.err().unwrap().to_string(),
-                "invalid value: string \"123_pay_1a961ed9093c48b09781bf8ab17ba6bd\", expected a string with '_secret_' at line 1 column 42"
-            );
-        }
     }
 }
 
@@ -1400,6 +1214,18 @@ pub struct BrowserInformation {
 
     /// User-agent of the browser
     pub user_agent: Option<String>,
+
+    /// The os type of the client device
+    pub os_type: Option<String>,
+
+    /// The os version of the client device
+    pub os_version: Option<String>,
+
+    /// The device model of the client
+    pub device_model: Option<String>,
+
+    /// Accept-language of the browser
+    pub accept_language: Option<String>,
 }
 
 #[cfg(feature = "v2")]
@@ -1409,7 +1235,7 @@ crate::impl_to_sql_from_sql_json!(BrowserInformation);
 /// In case connector's use an identifier whose length exceeds 128 characters,
 /// the hash value of such identifiers will be stored as connector_transaction_id.
 /// The actual connector's identifier will be stored in a separate column -
-/// connector_transaction_data or something with a similar name.
+/// processor_transaction_data or something with a similar name.
 #[derive(Debug, Clone, PartialEq, Eq, serde::Deserialize, serde::Serialize, AsExpression)]
 #[diesel(sql_type = sql_types::Text)]
 pub enum ConnectorTransactionId {
@@ -1427,12 +1253,20 @@ impl ConnectorTransactionId {
         }
     }
 
-    /// Implementation for forming ConnectorTransactionId and an optional string to be used for connector_transaction_id and connector_transaction_data
+    /// Implementation for forming ConnectorTransactionId and an optional string to be used for connector_transaction_id and processor_transaction_data
     pub fn form_id_and_data(src: String) -> (Self, Option<String>) {
         let txn_id = Self::from(src.clone());
         match txn_id {
             Self::TxnId(_) => (txn_id, None),
             Self::HashedData(_) => (txn_id, Some(src)),
+        }
+    }
+
+    /// Implementation for extracting hashed data
+    pub fn extract_hashed_data(&self) -> Option<String> {
+        match self {
+            Self::TxnId(_) => None,
+            Self::HashedData(src) => Some(src.clone()),
         }
     }
 
@@ -1445,10 +1279,10 @@ impl ConnectorTransactionId {
             (Self::TxnId(id), _) => Ok(id),
             (Self::HashedData(_), Some(id)) => Ok(id),
             (Self::HashedData(id), None) => Err(report!(ValidationError::InvalidValue {
-                message: "connector_transaction_data is empty for HashedData variant".to_string(),
+                message: "processor_transaction_data is empty for HashedData variant".to_string(),
             })
             .attach_printable(format!(
-                "connector_transaction_data is empty for connector_transaction_id {}",
+                "processor_transaction_data is empty for connector_transaction_id {}",
                 id
             ))),
         }
@@ -1580,3 +1414,22 @@ where
         self.0.to_sql(out)
     }
 }
+
+impl_enum_str!(
+    tag_delimiter = ":",
+    /// CreatedBy conveys the information about the creator (identifier) as well as the origin or
+    /// trigger (Api, Jwt) of the record.
+    #[derive(Eq, PartialEq, Debug, Clone)]
+    pub enum CreatedBy {
+        /// Api variant
+        Api {
+            /// merchant id of creator.
+            merchant_id: String,
+        },
+        /// Jwt variant
+        Jwt {
+            /// user id of creator.
+            user_id: String,
+        },
+    }
+);

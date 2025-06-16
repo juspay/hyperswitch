@@ -15,10 +15,7 @@ impl AddressNew {
 }
 
 impl Address {
-    pub async fn find_by_address_id<'a>(
-        conn: &PgPooledConn,
-        address_id: &str,
-    ) -> StorageResult<Self> {
+    pub async fn find_by_address_id(conn: &PgPooledConn, address_id: &str) -> StorageResult<Self> {
         generics::generic_find_by_id::<<Self as HasTable>::Table, _, _>(conn, address_id.to_owned())
             .await
     }
@@ -104,7 +101,7 @@ impl Address {
         .await
     }
 
-    pub async fn find_by_merchant_id_payment_id_address_id<'a>(
+    pub async fn find_by_merchant_id_payment_id_address_id(
         conn: &PgPooledConn,
         merchant_id: &common_utils::id_type::MerchantId,
         payment_id: &common_utils::id_type::PaymentId,
@@ -133,7 +130,7 @@ impl Address {
         }
     }
 
-    pub async fn find_optional_by_address_id<'a>(
+    pub async fn find_optional_by_address_id(
         conn: &PgPooledConn,
         address_id: &str,
     ) -> StorageResult<Option<Self>> {

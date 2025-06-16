@@ -3,6 +3,8 @@ use serde::{Deserialize, Serialize};
 
 #[cfg(feature = "v2")]
 use crate::payment_attempt::PaymentAttemptUpdateInternal;
+#[cfg(feature = "v1")]
+use crate::payment_intent::PaymentIntentUpdate;
 #[cfg(feature = "v2")]
 use crate::payment_intent::PaymentIntentUpdateInternal;
 use crate::{
@@ -10,7 +12,7 @@ use crate::{
     customers::{Customer, CustomerNew, CustomerUpdateInternal},
     errors,
     payment_attempt::{PaymentAttempt, PaymentAttemptNew, PaymentAttemptUpdate},
-    payment_intent::{PaymentIntentNew, PaymentIntentUpdate},
+    payment_intent::PaymentIntentNew,
     payout_attempt::{PayoutAttempt, PayoutAttemptNew, PayoutAttemptUpdate},
     payouts::{Payouts, PayoutsNew, PayoutsUpdate},
     refund::{Refund, RefundNew, RefundUpdate},
@@ -115,11 +117,9 @@ impl DBOperation {
                     DBResult::PaymentIntent(Box::new(a.orig.update(conn, a.update_data).await?))
                 }
                 #[cfg(feature = "v2")]
-                Updateable::PaymentIntentUpdate(a) => DBResult::PaymentIntent(Box::new(
-                    a.orig
-                        .update(conn, PaymentIntentUpdateInternal::from(a.update_data))
-                        .await?,
-                )),
+                Updateable::PaymentIntentUpdate(a) => {
+                    DBResult::PaymentIntent(Box::new(a.orig.update(conn, a.update_data).await?))
+                }
                 #[cfg(feature = "v1")]
                 Updateable::PaymentAttemptUpdate(a) => DBResult::PaymentAttempt(Box::new(
                     a.orig.update_with_attempt_id(conn, a.update_data).await?,
@@ -133,8 +133,13 @@ impl DBOperation {
                         )
                         .await?,
                 )),
+                #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "refunds_v2")))]
                 Updateable::RefundUpdate(a) => {
                     DBResult::Refund(Box::new(a.orig.update(conn, a.update_data).await?))
+                }
+                #[cfg(all(feature = "v2", feature = "refunds_v2"))]
+                Updateable::RefundUpdate(a) => {
+                    DBResult::Refund(Box::new(a.orig.update_with_id(conn, a.update_data).await?))
                 }
                 Updateable::AddressUpdate(a) => {
                     DBResult::Address(Box::new(a.orig.update(conn, a.update_data).await?))
@@ -145,16 +150,13 @@ impl DBOperation {
                 Updateable::PayoutAttemptUpdate(a) => DBResult::PayoutAttempt(Box::new(
                     a.orig.update_with_attempt_id(conn, a.update_data).await?,
                 )),
-                #[cfg(all(
-                    any(feature = "v1", feature = "v2"),
-                    not(feature = "payment_methods_v2")
-                ))]
+                #[cfg(feature = "v1")]
                 Updateable::PaymentMethodUpdate(v) => DBResult::PaymentMethod(Box::new(
                     v.orig
                         .update_with_payment_method_id(conn, v.update_data)
                         .await?,
                 )),
-                #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+                #[cfg(feature = "v2")]
                 Updateable::PaymentMethodUpdate(v) => DBResult::PaymentMethod(Box::new(
                     v.orig.update_with_id(conn, v.update_data).await?,
                 )),
@@ -167,7 +169,7 @@ impl DBOperation {
                     )
                     .await?,
                 )),
-                #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
+                #[cfg(feature = "v1")]
                 Updateable::CustomerUpdate(cust) => DBResult::Customer(Box::new(
                     Customer::update_by_customer_id_merchant_id(
                         conn,
@@ -177,9 +179,9 @@ impl DBOperation {
                     )
                     .await?,
                 )),
-                #[cfg(all(feature = "v2", feature = "customer_v2"))]
+                #[cfg(feature = "v2")]
                 Updateable::CustomerUpdate(cust) => DBResult::Customer(Box::new(
-                    Customer::update_by_id(conn, cust.orig.id.clone(), cust.update_data).await?,
+                    Customer::update_by_id(conn, cust.orig.id, cust.update_data).await?,
                 )),
             },
         })
@@ -227,7 +229,7 @@ pub enum Insertable {
 pub enum Updateable {
     PaymentIntentUpdate(Box<PaymentIntentUpdateMems>),
     PaymentAttemptUpdate(Box<PaymentAttemptUpdateMems>),
-    RefundUpdate(RefundUpdateMems),
+    RefundUpdate(Box<RefundUpdateMems>),
     CustomerUpdate(CustomerUpdateMems),
     AddressUpdate(Box<AddressUpdateMems>),
     PayoutsUpdate(PayoutsUpdateMems),
@@ -247,11 +249,18 @@ pub struct AddressUpdateMems {
     pub orig: Address,
     pub update_data: AddressUpdateInternal,
 }
-
+#[cfg(feature = "v1")]
 #[derive(Debug, Serialize, Deserialize)]
 pub struct PaymentIntentUpdateMems {
     pub orig: PaymentIntent,
     pub update_data: PaymentIntentUpdate,
+}
+
+#[cfg(feature = "v2")]
+#[derive(Debug, Serialize, Deserialize)]
+pub struct PaymentIntentUpdateMems {
+    pub orig: PaymentIntent,
+    pub update_data: PaymentIntentUpdateInternal,
 }
 
 #[derive(Debug, Serialize, Deserialize)]

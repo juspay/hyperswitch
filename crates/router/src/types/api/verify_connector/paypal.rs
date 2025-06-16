@@ -17,7 +17,7 @@ impl VerifyConnector for connector::Paypal {
     ) -> errors::CustomResult<Option<types::AccessToken>, errors::ApiErrorResponse> {
         let token_data: types::AccessTokenRequestData =
             connector_data.connector_auth.clone().try_into()?;
-        let router_data = connector_data.get_router_data(token_data, None);
+        let router_data = connector_data.get_router_data(state, token_data, None);
 
         let request = connector_data
             .connector

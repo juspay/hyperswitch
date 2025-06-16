@@ -6,15 +6,15 @@ use diesel_models::{
     },
 };
 use error_stack::ResultExt;
-use hyperswitch_domain_models::errors;
 use redis_interface::SetnxReply;
 
 use crate::{
     diesel_error_to_data_error,
-    errors::RedisErrorExt,
+    errors::{self, RedisErrorExt},
+    kv_router_store::KVRouterStore,
     redis::kv_store::{decide_storage_scheme, kv_wrapper, KvOperation, Op, PartitionKey},
     utils::{self, try_redis_get_else_try_database_get},
-    DatabaseStore, KVRouterStore, RouterStore,
+    DatabaseStore, RouterStore,
 };
 
 #[async_trait::async_trait]
@@ -44,7 +44,7 @@ impl<T: DatabaseStore> ReverseLookupInterface for RouterStore<T> {
             .await
             .change_context(errors::StorageError::DatabaseConnectionError)?;
         new.insert(&conn).await.map_err(|er| {
-            let new_err = diesel_error_to_data_error(er.current_context());
+            let new_err = diesel_error_to_data_error(*er.current_context());
             er.change_context(new_err)
         })
     }
@@ -58,7 +58,7 @@ impl<T: DatabaseStore> ReverseLookupInterface for RouterStore<T> {
         DieselReverseLookup::find_by_lookup_id(id, &conn)
             .await
             .map_err(|er| {
-                let new_err = diesel_error_to_data_error(er.current_context());
+                let new_err = diesel_error_to_data_error(*er.current_context());
                 er.change_context(new_err)
             })
     }

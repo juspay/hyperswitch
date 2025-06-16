@@ -1,5 +1,5 @@
-use api_models::payments::{Address, AddressDetails};
 use common_utils::id_type;
+use hyperswitch_domain_models::address::{Address, AddressDetails};
 use router::types::{self, domain, storage::enums};
 
 use crate::{
@@ -68,7 +68,7 @@ impl CashtocodeTest {
             router_return_url: Some(String::from("https://google.com")),
             webhook_url: None,
             complete_authorize_url: None,
-            customer_id: if let Ok(id) = cust_id { Some(id) } else { None },
+            customer_id: cust_id.ok(),
             surcharge_details: None,
             request_incremental_authorization: false,
             metadata: None,
@@ -93,7 +93,6 @@ impl CashtocodeTest {
                 None,
                 None,
             )),
-            return_url: Some("https://google.com".to_owned()),
             ..Default::default()
         })
     }

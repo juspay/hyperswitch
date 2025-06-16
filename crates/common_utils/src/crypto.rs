@@ -8,6 +8,8 @@ use ring::{
     aead::{self, BoundKey, OpeningKey, SealingKey, UnboundKey},
     hmac,
 };
+#[cfg(feature = "logs")]
+use router_env::logger;
 
 use crate::{
     errors::{self, CustomResult},
@@ -330,7 +332,88 @@ impl DecodeMessage for GcmAes256 {
         Ok(result.to_vec())
     }
 }
+/// Represents the ED25519 signature verification algorithm
+#[derive(Debug)]
+pub struct Ed25519;
 
+impl Ed25519 {
+    /// ED25519 algorithm constants
+    const ED25519_PUBLIC_KEY_LEN: usize = 32;
+    const ED25519_SIGNATURE_LEN: usize = 64;
+    /// Validates ED25519 inputs (public key and signature lengths)
+    fn validate_inputs(
+        public_key: &[u8],
+        signature: &[u8],
+    ) -> CustomResult<(), errors::CryptoError> {
+        // Validate public key length
+        if public_key.len() != Self::ED25519_PUBLIC_KEY_LEN {
+            return Err(errors::CryptoError::InvalidKeyLength).attach_printable(format!(
+                "Invalid ED25519 public key length: expected {} bytes, got {}",
+                Self::ED25519_PUBLIC_KEY_LEN,
+                public_key.len()
+            ));
+        }
+
+        // Validate signature length
+        if signature.len() != Self::ED25519_SIGNATURE_LEN {
+            return Err(errors::CryptoError::InvalidKeyLength).attach_printable(format!(
+                "Invalid ED25519 signature length: expected {} bytes, got {}",
+                Self::ED25519_SIGNATURE_LEN,
+                signature.len()
+            ));
+        }
+
+        Ok(())
+    }
+}
+
+impl VerifySignature for Ed25519 {
+    fn verify_signature(
+        &self,
+        public_key: &[u8],
+        signature: &[u8], // ED25519 signature bytes (must be 64 bytes)
+        msg: &[u8],       // Message that was signed
+    ) -> CustomResult<bool, errors::CryptoError> {
+        // Validate inputs first
+        Self::validate_inputs(public_key, signature)?;
+
+        // Create unparsed public key
+        let ring_public_key =
+            ring::signature::UnparsedPublicKey::new(&ring::signature::ED25519, public_key);
+
+        // Perform verification
+        match ring_public_key.verify(msg, signature) {
+            Ok(()) => Ok(true),
+            Err(_err) => {
+                #[cfg(feature = "logs")]
+                logger::error!("ED25519 signature verification failed: {:?}", _err);
+                Err(errors::CryptoError::SignatureVerificationFailed)
+                    .attach_printable("ED25519 signature verification failed")
+            }
+        }
+    }
+}
+
+impl SignMessage for Ed25519 {
+    fn sign_message(
+        &self,
+        secret: &[u8],
+        msg: &[u8],
+    ) -> CustomResult<Vec<u8>, errors::CryptoError> {
+        if secret.len() != 32 {
+            return Err(errors::CryptoError::InvalidKeyLength).attach_printable(format!(
+                "Invalid ED25519 private key length: expected 32 bytes, got {}",
+                secret.len()
+            ));
+        }
+        let key_pair = ring::signature::Ed25519KeyPair::from_seed_unchecked(secret)
+            .change_context(errors::CryptoError::MessageSigningFailed)
+            .attach_printable("Failed to create ED25519 key pair from seed")?;
+
+        let signature = key_pair.sign(msg);
+        Ok(signature.as_ref().to_vec())
+    }
+}
 /// Secure Hash Algorithm 512
 #[derive(Debug)]
 pub struct Sha512;
@@ -416,6 +499,57 @@ impl VerifySignature for Sha256 {
     }
 }
 
+/// TripleDesEde3 hash function
+#[derive(Debug)]
+#[cfg(feature = "crypto_openssl")]
+pub struct TripleDesEde3CBC {
+    padding: common_enums::CryptoPadding,
+    iv: Vec<u8>,
+}
+
+#[cfg(feature = "crypto_openssl")]
+impl TripleDesEde3CBC {
+    const TRIPLE_DES_KEY_LENGTH: usize = 24;
+    /// Initialization Vector (IV) length for TripleDesEde3
+    pub const TRIPLE_DES_IV_LENGTH: usize = 8;
+
+    /// Constructor function to be used by the encryptor and decryptor to generate the data type
+    pub fn new(
+        padding: Option<common_enums::CryptoPadding>,
+        iv: Vec<u8>,
+    ) -> Result<Self, errors::CryptoError> {
+        if iv.len() != Self::TRIPLE_DES_IV_LENGTH {
+            Err(errors::CryptoError::InvalidIvLength)?
+        };
+        let padding = padding.unwrap_or(common_enums::CryptoPadding::PKCS7);
+        Ok(Self { iv, padding })
+    }
+}
+
+#[cfg(feature = "crypto_openssl")]
+impl EncodeMessage for TripleDesEde3CBC {
+    fn encode_message(
+        &self,
+        secret: &[u8],
+        msg: &[u8],
+    ) -> CustomResult<Vec<u8>, errors::CryptoError> {
+        if secret.len() != Self::TRIPLE_DES_KEY_LENGTH {
+            Err(errors::CryptoError::InvalidKeyLength)?
+        }
+        let mut buffer = msg.to_vec();
+
+        if let common_enums::CryptoPadding::ZeroPadding = self.padding {
+            let pad_len = Self::TRIPLE_DES_IV_LENGTH - (buffer.len() % Self::TRIPLE_DES_IV_LENGTH);
+            if pad_len != Self::TRIPLE_DES_IV_LENGTH {
+                buffer.extend(vec![0u8; pad_len]);
+            }
+        };
+        let cipher = openssl::symm::Cipher::des_ede3_cbc();
+        openssl::symm::encrypt(cipher, secret, Some(&self.iv), &buffer)
+            .change_context(errors::CryptoError::EncodingFailed)
+    }
+}
+
 /// Generate a random string using a cryptographically secure pseudo-random number generator
 /// (CSPRNG). Typically used for generating (readable) keys and passwords.
 #[inline]
@@ -484,11 +618,20 @@ impl<T: Clone> Encryptable<T> {
         F: FnOnce(T) -> CustomResult<U, errors::ParsingError>,
         U: Clone,
     {
-        // Option::map(self, f)
         let inner = self.inner;
         let encrypted = self.encrypted;
         let inner = f(inner)?;
         Ok(Encryptable { inner, encrypted })
+    }
+
+    /// consume self and modify the inner value
+    pub fn map<U: Clone>(self, f: impl FnOnce(T) -> U) -> Encryptable<U> {
+        let encrypted_data = self.encrypted;
+        let masked_data = f(self.inner);
+        Encryptable {
+            inner: masked_data,
+            encrypted: encrypted_data,
+        }
     }
 }
 

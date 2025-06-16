@@ -59,6 +59,7 @@ impl TryFrom<&GlobepayRouterData<&types::PaymentsAuthorizeRouterData>> for Globe
                 WalletData::WeChatPayQr(_) => GlobepayChannel::Wechat,
                 WalletData::AliPayRedirect(_)
                 | WalletData::AliPayHkRedirect(_)
+                | WalletData::AmazonPayRedirect(_)
                 | WalletData::MomoRedirect(_)
                 | WalletData::KakaoPayRedirect(_)
                 | WalletData::GoPayRedirect(_)
@@ -82,7 +83,8 @@ impl TryFrom<&GlobepayRouterData<&types::PaymentsAuthorizeRouterData>> for Globe
                 | WalletData::WeChatPayRedirect(_)
                 | WalletData::CashappQr(_)
                 | WalletData::SwishQr(_)
-                | WalletData::Mifinity(_) => Err(errors::ConnectorError::NotImplemented(
+                | WalletData::Mifinity(_)
+                | WalletData::RevolutPay(_) => Err(errors::ConnectorError::NotImplemented(
                     get_unimplemented_payment_method_error_message("globepay"),
                 ))?,
             },
@@ -220,7 +222,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, GlobepayPaymentsResponse, T, PaymentsRe
                     network_txn_id: None,
                     connector_response_reference_id: None,
                     incremental_authorization_allowed: None,
-                    charge_id: None,
+                    charges: None,
                 }),
                 ..item.data
             })
@@ -294,7 +296,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, GlobepaySyncResponse, T, PaymentsRespon
                     network_txn_id: None,
                     connector_response_reference_id: None,
                     incremental_authorization_allowed: None,
-                    charge_id: None,
+                    charges: None,
                 }),
                 ..item.data
             })
@@ -324,6 +326,9 @@ fn get_error_response(
         status_code,
         attempt_status: None,
         connector_transaction_id: None,
+        network_advice_code: None,
+        network_decline_code: None,
+        network_error_message: None,
     }
 }
 

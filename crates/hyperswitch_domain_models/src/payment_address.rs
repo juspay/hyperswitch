@@ -1,4 +1,4 @@
-use api_models::payments::Address;
+use crate::address::Address;
 
 #[derive(Clone, Default, Debug)]
 pub struct PaymentAddress {

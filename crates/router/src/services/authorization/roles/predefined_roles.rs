@@ -1,12 +1,11 @@
-use std::collections::HashMap;
+use std::{collections::HashMap, sync::LazyLock};
 
 use common_enums::{EntityType, PermissionGroup, RoleScope};
-use once_cell::sync::Lazy;
 
 use super::RoleInfo;
 use crate::consts;
 
-pub static PREDEFINED_ROLES: Lazy<HashMap<&'static str, RoleInfo>> = Lazy::new(|| {
+pub static PREDEFINED_ROLES: LazyLock<HashMap<&'static str, RoleInfo>> = LazyLock::new(|| {
     let mut roles = HashMap::new();
 
     // Internal Roles
@@ -28,7 +27,10 @@ pub static PREDEFINED_ROLES: Lazy<HashMap<&'static str, RoleInfo>> = Lazy::new(|
                 PermissionGroup::MerchantDetailsManage,
                 PermissionGroup::AccountManage,
                 PermissionGroup::OrganizationManage,
-                PermissionGroup::ReconOps,
+                PermissionGroup::ReconOpsView,
+                PermissionGroup::ReconOpsManage,
+                PermissionGroup::ReconReportsView,
+                PermissionGroup::ReconReportsManage,
             ],
             role_id: common_utils::consts::ROLE_ID_INTERNAL_ADMIN.to_string(),
             role_name: "internal_admin".to_string(),
@@ -51,6 +53,8 @@ pub static PREDEFINED_ROLES: Lazy<HashMap<&'static str, RoleInfo>> = Lazy::new(|
                 PermissionGroup::UsersView,
                 PermissionGroup::MerchantDetailsView,
                 PermissionGroup::AccountView,
+                PermissionGroup::ReconOpsView,
+                PermissionGroup::ReconReportsView,
             ],
             role_id: common_utils::consts::ROLE_ID_INTERNAL_VIEW_ONLY_USER.to_string(),
             role_name: "internal_view_only".to_string(),
@@ -62,8 +66,68 @@ pub static PREDEFINED_ROLES: Lazy<HashMap<&'static str, RoleInfo>> = Lazy::new(|
             is_internal: true,
         },
     );
+    roles.insert(
+        common_utils::consts::ROLE_ID_INTERNAL_DEMO,
+        RoleInfo {
+            groups: vec![
+                PermissionGroup::OperationsView,
+                PermissionGroup::ConnectorsView,
+                PermissionGroup::WorkflowsView,
+                PermissionGroup::AnalyticsView,
+                PermissionGroup::UsersView,
+                PermissionGroup::MerchantDetailsView,
+                PermissionGroup::AccountView,
+                PermissionGroup::ReconOpsView,
+                PermissionGroup::ReconReportsView,
+                PermissionGroup::InternalManage,
+            ],
+            role_id: common_utils::consts::ROLE_ID_INTERNAL_DEMO.to_string(),
+            role_name: "internal_demo".to_string(),
+            scope: RoleScope::Organization,
+            entity_type: EntityType::Merchant,
+            is_invitable: false,
+            is_deletable: false,
+            is_updatable: false,
+            is_internal: true,
+        },
+    );
 
-    // Merchant Roles
+    // Tenant Roles
+    roles.insert(
+        common_utils::consts::ROLE_ID_TENANT_ADMIN,
+        RoleInfo {
+            groups: vec![
+                PermissionGroup::OperationsView,
+                PermissionGroup::OperationsManage,
+                PermissionGroup::ConnectorsView,
+                PermissionGroup::ConnectorsManage,
+                PermissionGroup::WorkflowsView,
+                PermissionGroup::WorkflowsManage,
+                PermissionGroup::AnalyticsView,
+                PermissionGroup::UsersView,
+                PermissionGroup::UsersManage,
+                PermissionGroup::MerchantDetailsView,
+                PermissionGroup::AccountView,
+                PermissionGroup::MerchantDetailsManage,
+                PermissionGroup::AccountManage,
+                PermissionGroup::OrganizationManage,
+                PermissionGroup::ReconOpsView,
+                PermissionGroup::ReconOpsManage,
+                PermissionGroup::ReconReportsView,
+                PermissionGroup::ReconReportsManage,
+            ],
+            role_id: common_utils::consts::ROLE_ID_TENANT_ADMIN.to_string(),
+            role_name: "tenant_admin".to_string(),
+            scope: RoleScope::Organization,
+            entity_type: EntityType::Tenant,
+            is_invitable: false,
+            is_deletable: false,
+            is_updatable: false,
+            is_internal: false,
+        },
+    );
+
+    // Organization Roles
     roles.insert(
         common_utils::consts::ROLE_ID_ORGANIZATION_ADMIN,
         RoleInfo {
@@ -82,7 +146,10 @@ pub static PREDEFINED_ROLES: Lazy<HashMap<&'static str, RoleInfo>> = Lazy::new(|
                 PermissionGroup::MerchantDetailsManage,
                 PermissionGroup::AccountManage,
                 PermissionGroup::OrganizationManage,
-                PermissionGroup::ReconOps,
+                PermissionGroup::ReconOpsView,
+                PermissionGroup::ReconOpsManage,
+                PermissionGroup::ReconReportsView,
+                PermissionGroup::ReconReportsManage,
             ],
             role_id: common_utils::consts::ROLE_ID_ORGANIZATION_ADMIN.to_string(),
             role_name: "organization_admin".to_string(),
@@ -113,7 +180,10 @@ pub static PREDEFINED_ROLES: Lazy<HashMap<&'static str, RoleInfo>> = Lazy::new(|
                 PermissionGroup::AccountView,
                 PermissionGroup::MerchantDetailsManage,
                 PermissionGroup::AccountManage,
-                PermissionGroup::ReconOps,
+                PermissionGroup::ReconOpsView,
+                PermissionGroup::ReconOpsManage,
+                PermissionGroup::ReconReportsView,
+                PermissionGroup::ReconReportsManage,
             ],
             role_id: consts::user_role::ROLE_ID_MERCHANT_ADMIN.to_string(),
             role_name: "merchant_admin".to_string(),
@@ -136,6 +206,8 @@ pub static PREDEFINED_ROLES: Lazy<HashMap<&'static str, RoleInfo>> = Lazy::new(|
                 PermissionGroup::UsersView,
                 PermissionGroup::MerchantDetailsView,
                 PermissionGroup::AccountView,
+                PermissionGroup::ReconOpsView,
+                PermissionGroup::ReconReportsView,
             ],
             role_id: consts::user_role::ROLE_ID_MERCHANT_VIEW_ONLY.to_string(),
             role_name: "merchant_view_only".to_string(),
@@ -180,6 +252,8 @@ pub static PREDEFINED_ROLES: Lazy<HashMap<&'static str, RoleInfo>> = Lazy::new(|
                 PermissionGroup::AccountView,
                 PermissionGroup::MerchantDetailsManage,
                 PermissionGroup::AccountManage,
+                PermissionGroup::ReconOpsView,
+                PermissionGroup::ReconReportsView,
             ],
             role_id: consts::user_role::ROLE_ID_MERCHANT_DEVELOPER.to_string(),
             role_name: "merchant_developer".to_string(),
@@ -203,6 +277,9 @@ pub static PREDEFINED_ROLES: Lazy<HashMap<&'static str, RoleInfo>> = Lazy::new(|
                 PermissionGroup::UsersView,
                 PermissionGroup::MerchantDetailsView,
                 PermissionGroup::AccountView,
+                PermissionGroup::ReconOpsView,
+                PermissionGroup::ReconOpsManage,
+                PermissionGroup::ReconReportsView,
             ],
             role_id: consts::user_role::ROLE_ID_MERCHANT_OPERATOR.to_string(),
             role_name: "merchant_operator".to_string(),
@@ -223,6 +300,8 @@ pub static PREDEFINED_ROLES: Lazy<HashMap<&'static str, RoleInfo>> = Lazy::new(|
                 PermissionGroup::UsersView,
                 PermissionGroup::MerchantDetailsView,
                 PermissionGroup::AccountView,
+                PermissionGroup::ReconOpsView,
+                PermissionGroup::ReconReportsView,
             ],
             role_id: consts::user_role::ROLE_ID_MERCHANT_CUSTOMER_SUPPORT.to_string(),
             role_name: "customer_support".to_string(),

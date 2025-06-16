@@ -35,6 +35,11 @@ pub trait HealthCheckInterface {
     async fn health_check_grpc(
         &self,
     ) -> CustomResult<HealthCheckMap, errors::HealthCheckGRPCServiceError>;
+
+    #[cfg(feature = "dynamic_routing")]
+    async fn health_check_decision_engine(
+        &self,
+    ) -> CustomResult<HealthState, errors::HealthCheckDecisionEngineError>;
 }
 
 #[async_trait::async_trait]
@@ -52,21 +57,21 @@ impl HealthCheckInterface for app::SessionState {
             .change_context(errors::HealthCheckRedisError::RedisConnectionError)?;
 
         redis_conn
-            .serialize_and_set_key_with_expiry("test_key", "test_value", 30)
+            .serialize_and_set_key_with_expiry(&"test_key".into(), "test_value", 30)
             .await
             .change_context(errors::HealthCheckRedisError::SetFailed)?;
 
         logger::debug!("Redis set_key was successful");
 
         redis_conn
-            .get_key::<()>("test_key")
+            .get_key::<()>(&"test_key".into())
             .await
             .change_context(errors::HealthCheckRedisError::GetFailed)?;
 
         logger::debug!("Redis get_key was successful");
 
         redis_conn
-            .delete_key("test_key")
+            .delete_key(&"test_key".into())
             .await
             .change_context(errors::HealthCheckRedisError::DeleteFailed)?;
 
@@ -138,12 +143,15 @@ impl HealthCheckInterface for app::SessionState {
     async fn health_check_opensearch(
         &self,
     ) -> CustomResult<HealthState, errors::HealthCheckDBError> {
-        self.opensearch_client
-            .deep_health_check()
-            .await
-            .change_context(errors::HealthCheckDBError::OpensearchError)?;
-
-        Ok(HealthState::Running)
+        if let Some(client) = self.opensearch_client.as_ref() {
+            client
+                .deep_health_check()
+                .await
+                .change_context(errors::HealthCheckDBError::OpensearchError)?;
+            Ok(HealthState::Running)
+        } else {
+            Ok(HealthState::NotApplicable)
+        }
     }
 
     async fn health_check_outgoing(
@@ -180,5 +188,26 @@ impl HealthCheckInterface for app::SessionState {
 
         logger::debug!("Health check successful");
         Ok(health_check_map)
+    }
+
+    #[cfg(feature = "dynamic_routing")]
+    async fn health_check_decision_engine(
+        &self,
+    ) -> CustomResult<HealthState, errors::HealthCheckDecisionEngineError> {
+        if self.conf.open_router.enabled {
+            let url = format!("{}/{}", &self.conf.open_router.url, "health");
+            let request = services::Request::new(services::Method::Get, &url);
+            let _ = services::call_connector_api(self, request, "health_check_for_decision_engine")
+                .await
+                .change_context(
+                    errors::HealthCheckDecisionEngineError::FailedToCallDecisionEngineService,
+                )?;
+
+            logger::debug!("Decision engine health check successful");
+            Ok(HealthState::Running)
+        } else {
+            logger::debug!("Decision engine health check not applicable");
+            Ok(HealthState::NotApplicable)
+        }
     }
 }

@@ -119,12 +119,16 @@ pub const MAX_ALLOWED_MERCHANT_NAME_LENGTH: usize = 64;
 /// Default locale
 pub const DEFAULT_LOCALE: &str = "en";
 
+/// Role ID for Tenant Admin
+pub const ROLE_ID_TENANT_ADMIN: &str = "tenant_admin";
 /// Role ID for Org Admin
 pub const ROLE_ID_ORGANIZATION_ADMIN: &str = "org_admin";
 /// Role ID for Internal View Only
 pub const ROLE_ID_INTERNAL_VIEW_ONLY_USER: &str = "internal_view_only";
 /// Role ID for Internal Admin
 pub const ROLE_ID_INTERNAL_ADMIN: &str = "internal_admin";
+/// Role ID for Internal Demo
+pub const ROLE_ID_INTERNAL_DEMO: &str = "internal_demo";
 
 /// Max length allowed for Description
 pub const MAX_DESCRIPTION_LENGTH: u16 = 255;
@@ -140,3 +144,47 @@ pub const PUBLISHABLE_KEY_LENGTH: u16 = 39;
 /// The number of bytes allocated for the hashed connector transaction ID.
 /// Total number of characters equals CONNECTOR_TRANSACTION_ID_HASH_BYTES times 2.
 pub const CONNECTOR_TRANSACTION_ID_HASH_BYTES: usize = 25;
+
+/// Apple Pay validation url
+pub const APPLEPAY_VALIDATION_URL: &str =
+    "https://apple-pay-gateway-cert.apple.com/paymentservices/startSession";
+
+/// Request ID
+pub const X_REQUEST_ID: &str = "x-request-id";
+
+/// Default Tenant ID for the `Global` tenant
+pub const DEFAULT_GLOBAL_TENANT_ID: &str = "global";
+
+/// Default status of Card IP Blocking
+pub const DEFAULT_CARD_IP_BLOCKING_STATUS: bool = false;
+
+/// Default Threshold for Card IP Blocking
+pub const DEFAULT_CARD_IP_BLOCKING_THRESHOLD: i32 = 3;
+
+/// Default status of Guest User Card Blocking
+pub const DEFAULT_GUEST_USER_CARD_BLOCKING_STATUS: bool = false;
+
+/// Default Threshold for Card Blocking for Guest Users
+pub const DEFAULT_GUEST_USER_CARD_BLOCKING_THRESHOLD: i32 = 10;
+
+/// Default status of Customer ID Blocking
+pub const DEFAULT_CUSTOMER_ID_BLOCKING_STATUS: bool = false;
+
+/// Default Threshold for Customer ID Blocking
+pub const DEFAULT_CUSTOMER_ID_BLOCKING_THRESHOLD: i32 = 5;
+
+/// Default Card Testing Guard Redis Expiry in seconds
+pub const DEFAULT_CARD_TESTING_GUARD_EXPIRY_IN_SECS: i32 = 3600;
+
+/// SOAP 1.1 Envelope Namespace
+pub const SOAP_ENV_NAMESPACE: &str = "http://schemas.xmlsoap.org/soap/envelope/";
+
+#[cfg(all(feature = "v2", feature = "tokenization_v2"))]
+/// Length of generated tokens
+pub const TOKEN_LENGTH: usize = 32;
+
+/// The tag name used for identifying the host in metrics.
+pub const METRICS_HOST_TAG_NAME: &str = "host";
+
+/// API client request timeout (in seconds)
+pub const REQUEST_TIME_OUT: u64 = 30;

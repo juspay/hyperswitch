@@ -1,0 +1,1543 @@
+openapi: 3.0.0
+info:
+  title: Dynamic routing - OpenAPI 3.0
+  description: This the the open API 3.0 specification for the dynamic routing.
+  version: 1.0.0
+paths:
+  /success_rate.SuccessRateCalculator/FetchSuccessRate:
+    post:
+      summary: Fetch success rate for an entity
+      operationId: fetchSuccessRate
+      description: Calculates success rate for an entity based on provided parameters and labels
+      tags:
+        - Success Rate
+      parameters:
+        - name: x-tenant-id
+          in: header
+          required: true
+          schema:
+            type: string
+          example: public
+        - name: x-profile-id
+          in: header
+          required: true
+          schema:
+            type: string
+          example: pro_WX0giXQnzk2wQJjkKVBX
+        - name: x-api-key
+          in: header
+          required: true
+          schema:
+            type: string
+          example: dev_VLzQTxkPq3ALj2mlfiHL4mMtXca4uplOIOLaKEzmWAmNBXZjwsuv5bCLjnf0QYHm
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CalSuccessRateRequest"
+            example:
+              id: "merchant1"
+              params: "card"
+              labels: ["stripe", "adyen"]
+              config:
+                min_aggregates_size: 5
+                default_success_rate: 0.95
+                specificity_level: ENTITY
+                exploration_percent: 20.0
+                shuffle_on_tie_during_exploitation: true
+      responses:
+        "200":
+          description: Success rate calculated successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CalSuccessRateResponse"
+        "400":
+          description: Invalid request parameters
+        "500":
+          description: Internal server error
+
+  /success_rate.SuccessRateCalculator/UpdateSuccessRateWindow:
+    post:
+      summary: Update success rate window
+      operationId: updateSuccessRateWindow
+      description: Updates the success rate calculation window with new data points
+      tags:
+        - Success Rate
+      parameters:
+        - name: x-tenant-id
+          in: header
+          required: true
+          schema:
+            type: string
+          example: public
+        - name: x-profile-id
+          in: header
+          required: true
+          schema:
+            type: string
+          example: pro_WX0giXQnzk2wQJjkKVBX
+        - name: x-api-key
+          in: header
+          required: true
+          schema:
+            type: string
+          example: dev_VLzQTxkPq3ALj2mlfiHL4mMtXca4uplOIOLaKEzmWAmNBXZjwsuv5bCLjnf0QYHm
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateSuccessRateWindowRequest"
+            example:
+              id: "merchant1"
+              params: "card"
+              labels_with_status:
+                - status: false
+                  label: stripe
+                - status: true
+                  label: adyen
+              global_labels_with_status:
+                - status: false
+                  label: stripe
+                - status: true
+                  label: adyen
+      responses:
+        "200":
+          description: Window updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UpdateSuccessRateWindowResponse"
+        "400":
+          description: Invalid request parameters
+        "500":
+          description: Internal server error
+
+  /success_rate.SuccessRateCalculator/InvalidateWindows:
+    post:
+      summary: Invalidate windows
+      operationId: invalidateWindows
+      description: Invalidates the success rate calculation windows for a specific ID
+      tags:
+        - Success Rate
+      parameters:
+        - name: x-tenant-id
+          in: header
+          required: true
+          schema:
+            type: string
+          example: public
+        - name: x-profile-id
+          in: header
+          required: true
+          schema:
+            type: string
+          example: pro_WX0giXQnzk2wQJjkKVBX
+        - name: x-api-key
+          in: header
+          required: true
+          schema:
+            type: string
+          example: dev_VLzQTxkPq3ALj2mlfiHL4mMtXca4uplOIOLaKEzmWAmNBXZjwsuv5bCLjnf0QYHm
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/InvalidateWindowsRequest"
+      responses:
+        "200":
+          description: Windows invalidated successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/InvalidateWindowsResponse"
+        "400":
+          description: Invalid request parameters
+        "500":
+          description: Internal server error
+
+  /success_rate.SuccessRateCalculator/FetchEntityAndGlobalSuccessRate:
+    post:
+      summary: Fetch entity and global success rates
+      operationId: fetchEntityAndGlobalSuccessRate
+      description: Calculates success rates for both entity-specific and global metrics
+      tags:
+        - Success Rate
+      parameters:
+        - name: x-tenant-id
+          in: header
+          required: true
+          schema:
+            type: string
+          example: public
+        - name: x-profile-id
+          in: header
+          required: true
+          schema:
+            type: string
+          example: pro_WX0giXQnzk2wQJjkKVBX
+        - name: x-api-key
+          in: header
+          required: true
+          schema:
+            type: string
+          example: dev_VLzQTxkPq3ALj2mlfiHL4mMtXca4uplOIOLaKEzmWAmNBXZjwsuv5bCLjnf0QYHm
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CalGlobalSuccessRateRequest"
+      responses:
+        "200":
+          description: Success rates calculated successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CalGlobalSuccessRateResponse"
+        "400":
+          description: Invalid request parameters
+        "500":
+          description: Internal server error
+
+  /elimination.EliminationAnalyser/GetEliminationStatus:
+    post:
+      summary: Fetch eliminated processor list
+      operationId: GetEliminationStatus
+      description: Determines which processors should be eliminated from routing consideration based on historical performance data.
+      tags:
+        - Elimination
+      parameters:
+        - name: x-tenant-id
+          in: header
+          required: true
+          schema:
+            type: string
+          example: public
+        - name: x-profile-id
+          in: header
+          required: true
+          schema:
+            type: string
+          example: pro_WX0giXQnzk2wQJjkKVBX
+        - name: x-api-key
+          in: header
+          required: true
+          schema:
+            type: string
+          example: dev_VLzQTxkPq3ALj2mlfiHL4mMtXca4uplOIOLaKEzmWAmNBXZjwsuv5bCLjnf0QYHm
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/EliminationRequest"
+            example:
+              id: "merchant1"
+              params: "card"
+              labels: ["stripe", "adyen"]
+              config:
+                bucket_size: 5
+                bucket_leak_interval_in_secs: 10
+      responses:
+        "200":
+          description: Returns a eliminated processor list
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EliminationResponse"
+        "400":
+          description: Invalid request parameters
+        "500":
+          description: Internal server error
+
+  /elimination.EliminationAnalyser/UpdateEliminationBucket:
+    post:
+      summary: Update elimination bucket
+      operationId: UpdateEliminationBucket
+      description: Updates the failure records for specific processors, affecting future elimination decisions.
+      tags:
+        - Elimination
+      parameters:
+        - name: x-tenant-id
+          in: header
+          required: true
+          schema:
+            type: string
+          example: public
+        - name: x-profile-id
+          in: header
+          required: true
+          schema:
+            type: string
+          example: pro_WX0giXQnzk2wQJjkKVBX
+        - name: x-api-key
+          in: header
+          required: true
+          schema:
+            type: string
+          example: dev_VLzQTxkPq3ALj2mlfiHL4mMtXca4uplOIOLaKEzmWAmNBXZjwsuv5bCLjnf0QYHm
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateEliminationBucketRequest"
+            example:
+              id: "merchant1"
+              params: "card"
+              labels_with_bucket_name:
+                [{ "label": "stripe", "bucket_name": "bucket1" }]
+              config:
+                bucket_size: 5
+                bucket_leak_interval_in_secs: 10
+      responses:
+        "200":
+          description: Bucket updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UpdateEliminationBucketResponse"
+        "400":
+          description: Invalid request parameters
+        "500":
+          description: Internal server error
+
+  /elimination.EliminationAnalyser/InvalidateBucket:
+    post:
+      summary: Invalidate elimination bucket
+      operationId: InvalidateBucket
+      description: Invalidates all elimination bucket data for a specific entity, effectively resetting its processor elimination history.
+      tags:
+        - Elimination
+      parameters:
+        - name: x-tenant-id
+          in: header
+          required: true
+          schema:
+            type: string
+          example: public
+        - name: x-profile-id
+          in: header
+          required: true
+          schema:
+            type: string
+          example: pro_WX0giXQnzk2wQJjkKVBX
+        - name: x-api-key
+          in: header
+          required: true
+          schema:
+            type: string
+          example: dev_VLzQTxkPq3ALj2mlfiHL4mMtXca4uplOIOLaKEzmWAmNBXZjwsuv5bCLjnf0QYHm
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/InvalidateBucketRequest"
+      responses:
+        "200":
+          description: Buckets invalidated successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/InvalidateBucketResponse"
+        "400":
+          description: Invalid request parameters
+        "500":
+          description: Internal server error
+
+  /contract_routing.ContractScoreCalculator/FetchContractScore:
+    post:
+      summary: Fetch contract scores for an entity
+      operationId: fetchContractScore
+      description: Calculates contract scores for an entity based on provided parameters and labels
+      tags:
+        - Contract Routing
+      parameters:
+        - name: x-tenant-id
+          in: header
+          required: true
+          schema:
+            type: string
+          example: public
+        - name: x-profile-id
+          in: header
+          required: true
+          schema:
+            type: string
+          example: pro_WX0giXQnzk2wQJjkKVBX
+        - name: x-api-key
+          in: header
+          required: true
+          schema:
+            type: string
+          example: dev_VLzQTxkPq3ALj2mlfiHL4mMtXca4uplOIOLaKEzmWAmNBXZjwsuv5bCLjnf0QYHm
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CalContractScoreRequest"
+            example:
+              id: "merchant1"
+              params: "card"
+              labels: ["stripe", "adyen"]
+              config:
+                constants: [0.7, 0.3]
+                time_scale:
+                  time_scale: "Day"
+      responses:
+        "200":
+          description: Success rate calculated successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CalContractScoreResponse"
+        "400":
+          description: Invalid request parameters
+        "500":
+          description: Internal server error
+
+  /contract_routing.ContractScoreCalculator/UpdateContract:
+    post:
+      summary: Update contract information for an entity
+      operationId: updateContract
+      description: Updates the contract information for processors based on provided parameters
+      tags:
+        - Contract Routing
+      parameters:
+        - name: x-tenant-id
+          in: header
+          required: true
+          schema:
+            type: string
+          example: public
+        - name: x-profile-id
+          in: header
+          required: true
+          schema:
+            type: string
+          example: pro_WX0giXQnzk2wQJjkKVBX
+        - name: x-api-key
+          in: header
+          required: true
+          schema:
+            type: string
+          example: dev_VLzQTxkPq3ALj2mlfiHL4mMtXca4uplOIOLaKEzmWAmNBXZjwsuv5bCLjnf0QYHm
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateContractRequest"
+            example:
+              id: "merchant1"
+              params: "update"
+              labels_information:
+                - label: "stripe"
+                  target_count: 1000
+                  target_time: 86400
+                  current_count: 500
+                - label: "adyen"
+                  target_count: 1500
+                  target_time: 86400
+                  current_count: 750
+      responses:
+        "200":
+          description: Contract update succeeded
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UpdateContractResponse"
+        "400":
+          description: Invalid request parameters
+        "500":
+          description: Internal server error
+
+  /contract_routing.ContractScoreCalculator/InvalidateContract:
+    post:
+      summary: Invalidate contract information for an entity
+      operationId: invalidateContract
+      description: Invalidates the contract for a given entity identifier
+      tags:
+        - Contract Routing
+      parameters:
+        - name: x-tenant-id
+          in: header
+          required: true
+          schema:
+            type: string
+          example: public
+        - name: x-profile-id
+          in: header
+          required: true
+          schema:
+            type: string
+          example: pro_WX0giXQnzk2wQJjkKVBX
+        - name: x-api-key
+          in: header
+          required: true
+          schema:
+            type: string
+          example: dev_VLzQTxkPq3ALj2mlfiHL4mMtXca4uplOIOLaKEzmWAmNBXZjwsuv5bCLjnf0QYHm
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/InvalidateContractRequest"
+            example:
+              id: "merchant1"
+      responses:
+        "200":
+          description: Contract invalidation succeeded
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/InvalidateContractResponse"
+        "400":
+          description: Invalid request parameters
+        "500":
+          description: Internal server error
+
+  /euclid.EuclidService/Create:
+    post:
+      operationId: CreateRule
+      summary: Create a routing Rule
+      description: Creates a routing rule with the given parameters
+      tags:
+        - Static Routing
+      parameters:
+        - name: x-tenant-id
+          in: header
+          required: true
+          schema:
+            type: string
+          example: public
+        - name: x-profile-id
+          in: header
+          required: true
+          schema:
+            type: string
+          example: pro_WX0giXQnzk2wQJjkKVBX
+        - name: x-api-key
+          in: header
+          required: true
+          schema:
+            type: string
+          example: dev_VLzQTxkPq3ALj2mlfiHL4mMtXca4uplOIOLaKEzmWAmNBXZjwsuv5bCLjnf0QYHm
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RoutingRule"
+            example:
+              name: "Test Routing Rule"
+              algorithm:
+                globals: {}
+                default_selection:
+                  priority:
+                    connectors: ["stripe", "adyen", "checkout"]
+                rules:
+                  - name: "Card Rule"
+                    routing_type: "priority"
+                    output:
+                      priority:
+                        connectors: ["stripe", "adyen"]
+                    statements:
+                      - condition:
+                          - lhs: "payment_method"
+                            comparison: "equal"
+                            value:
+                              enum_variant: "card"
+                            metadata: {}
+                          - lhs: "amount"
+                            comparison: "greater_than"
+                            value:
+                              number: 1000
+                            metadata: {}
+                metadata: {}
+      responses:
+        "200":
+          description: Successful creation
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CreateResponse"
+              example:
+                algorithm_id: "routing_ec1ac351-7944-440f-bdc7-6a500df1116f"
+                name: "Test Routing Rule"
+                created_at: "2025-04-09 8:03:44.85588"
+                modified_at: "2025-04-09 8:03:44.85588"
+        "400":
+          description: Invalid request parameters
+        "500":
+          description: Internal server error
+
+  /euclid.EuclidService/Evaluate:
+    post:
+      operationId: EvaluateRule
+      summary: Evaluate an existing routing Rule
+      description: Evaluates a given routing rule
+      tags:
+        - Static Routing
+      parameters:
+        - name: x-tenant-id
+          in: header
+          required: true
+          schema:
+            type: string
+          example: public
+        - name: x-profile-id
+          in: header
+          required: true
+          schema:
+            type: string
+          example: pro_WX0giXQnzk2wQJjkKVBX
+        - name: x-api-key
+          in: header
+          required: true
+          schema:
+            type: string
+          example: dev_VLzQTxkPq3ALj2mlfiHL4mMtXca4uplOIOLaKEzmWAmNBXZjwsuv5bCLjnf0QYHm
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/EvaluateRequest"
+            example:
+              algorithm_id: "routing_ec1ac351-7944-440f-bdc7-6a500df1116f"
+              parameters:
+                payment_method:
+                  type: enum_variant
+                  value: "card"
+                amount:
+                  type: number
+                  value: 2000
+      responses:
+        "200":
+          description: Evaluation result
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EvaluateResponse"
+              example:
+                status: "success"
+                output:
+                  priority:
+                    connectors: ["stripe", "adyen"]
+                evaluated_output:
+                  - "stripe"
+                eligible_connectors: []
+        "400":
+          description: Invalid request parameters
+        "500":
+          description: Internal server error
+
+components:
+  schemas:
+    LabelWithScoreList:
+      type: object
+      properties:
+        score:
+          type: number
+          format: double
+          example: 100.0
+          description: Calculated success rate score
+        label:
+          type: string
+          example: stripe
+          description: Label identifier
+      required:
+        - score
+        - label
+
+    LabelWithScore:
+      type: array
+      items:
+        $ref: "#/components/schemas/LabelWithScoreList"
+      example:
+        - score: 100.0
+          label: stripe
+        - score: 98.5
+          label: adyen
+
+    LabelWithStatusList:
+      type: object
+      properties:
+        status:
+          type: number
+          format: boolean
+          example: true
+          description: Label status
+        label:
+          type: string
+          example: stripe
+          description: Label identifier
+      required:
+        - status
+        - label
+
+    LabelWithStatus:
+      type: array
+      items:
+        $ref: "#/components/schemas/LabelWithStatusList"
+      example:
+        - status: false
+          label: stripe
+        - status: true
+          label: adyen
+
+    EliminationLabelWithStatus:
+      type: object
+      properties:
+        label:
+          type: string
+          example: stripe
+        elimination_information:
+          items:
+            $ref: "#/components/schemas/EliminationInformation"
+
+    CalSuccessRateRequest:
+      type: object
+      properties:
+        id:
+          type: string
+          example: merchant1
+          description: Entity identifier
+        params:
+          type: string
+          example: card
+          description: Parameters on which success rate scores has to be maintained
+        labels:
+          type: array
+          example: ["stripe", "adyen"]
+          items:
+            type: string
+          description: Labels for which to calculate success rates
+        config:
+          $ref: "#/components/schemas/CalSuccessRateConfig"
+      required:
+        - id
+        - params
+        - labels
+
+    CalSuccessRateConfig:
+      type: object
+      required:
+        - min_aggregates_size
+        - default_success_rate
+      properties:
+        min_aggregates_size:
+          type: integer
+          format: uint32
+          example: 10
+        default_success_rate:
+          type: number
+          format: double
+          example: 0.95
+        specificity_level:
+          $ref: "#/components/schemas/SuccessRateSpecificityLevel"
+
+    SuccessRateSpecificityLevel:
+      type: string
+      description: >
+        Defines the specificity level to be used for calculating the success rate.
+      enum:
+        - ENTITY
+        - GLOBAL
+      example: ENTITY
+
+    CalSuccessRateResponse:
+      type: object
+      properties:
+        labels_with_score:
+          type: array
+          items:
+            $ref: "#/components/schemas/LabelWithScore"
+          description: List of labels with their calculated success rates
+        routing_approach:
+          $ref: "#/components/schemas/RoutingApproach"
+
+    RoutingApproach:
+      type: string
+      description: >
+        Defines the routing approach based on the success rate calculation.
+      enum:
+        - EXPLORATION
+        - EXPLOITATION
+      example: EXPLOITATION
+
+    UpdateSuccessRateWindowRequest:
+      type: object
+      properties:
+        id:
+          type: string
+          example: merchant1
+          description: Entity identifier
+        params:
+          type: string
+          example: card
+          description: Additional parameters for window update
+        labels_with_status:
+          type: array
+          items:
+            $ref: "#/components/schemas/LabelWithStatus"
+          description: Entity-specific labels with their success/failure status
+          example:
+            - status: false
+              label: stripe
+            - status: true
+              label: adyen
+        global_labels_with_status:
+          type: array
+          items:
+            $ref: "#/components/schemas/LabelWithStatus"
+          description: Global labels with their success/failure status
+          example:
+            - status: false
+              label: stripe
+            - status: true
+              label: adyen
+      required:
+        - id
+        - params
+        - labels_with_status
+
+    UpdateSuccessRateWindowResponse:
+      type: object
+      properties:
+        status:
+          type: string
+          enum: [WINDOW_UPDATION_SUCCEEDED, WINDOW_UPDATION_FAILED]
+          description: Status of the window update operation
+      required:
+        - status
+
+    InvalidateWindowsRequest:
+      type: object
+      properties:
+        id:
+          type: string
+          example: merchant1
+          description: Entity identifier for which to invalidate windows
+      required:
+        - id
+
+    InvalidateWindowsResponse:
+      type: object
+      properties:
+        status:
+          type: string
+          enum: [WINDOW_INVALIDATION_SUCCEEDED, WINDOW_INVALIDATION_FAILED]
+          description: Status of the window invalidation operation
+      required:
+        - status
+
+    CalGlobalSuccessRateRequest:
+      type: object
+      example:
+        entity_id: "merchant1"
+        entity_params: "card"
+        entity_labels: ["stripe", "adyen"]
+        global_labels: ["visa", "mastercard"]
+        config:
+          entity_min_aggregates_size: 10
+          entity_default_success_rate: 0.85
+      properties:
+        entity_id:
+          type: string
+          example: "merchant1"
+        entity_params:
+          type: string
+          example: "card"
+        entity_labels:
+          type: array
+          items:
+            type: string
+          example: ["stripe", "adyen"]
+        global_labels:
+          type: array
+          items:
+            type: string
+          example: ["visa", "mastercard"]
+        config:
+          $ref: "#/components/schemas/CalGlobalSuccessRateConfig"
+
+    CalGlobalSuccessRateConfig:
+      type: object
+      example:
+        entity_min_aggregates_size: 10
+        entity_default_success_rate: 0.85
+      properties:
+        entity_min_aggregates_size:
+          type: integer
+          format: uint32
+          example: 10
+        entity_default_success_rate:
+          type: number
+          format: double
+          example: 0.85
+
+    CalGlobalSuccessRateResponse:
+      type: object
+      properties:
+        entity_scores_with_labels:
+          type: array
+          items:
+            $ref: "#/components/schemas/LabelWithScore"
+          description: Entity-specific labels with their calculated success rates
+        global_scores_with_labels:
+          type: array
+          items:
+            $ref: "#/components/schemas/LabelWithScore"
+          description: Global labels with their calculated success rates
+
+    EliminationRequest:
+      type: object
+      properties:
+        id:
+          type: string
+          example: merchant1
+          description: Entity identifier
+        params:
+          type: string
+          example: card
+          description: Additional parameters for elimination analysis
+        labels:
+          type: array
+          example: ["stripe", "adyen"]
+          items:
+            type: string
+          description: Labels (processors) to check for elimination
+        config:
+          $ref: "#/components/schemas/EliminationBucketConfig"
+      required:
+        - id
+        - labels
+        - config
+
+    EliminationBucketConfig:
+      type: object
+      properties:
+        bucket_size:
+          type: integer
+          format: uint64
+          example: 5
+          description: Maximum failures allowed before elimination
+        bucket_leak_interval_in_secs:
+          type: number
+          format: uint64
+          example: 300
+          description: Time interval after which failures are "forgotten"
+      required:
+        - bucket_size
+        - bucket_leak_interval_in_secs
+
+    EliminationResponse:
+      type: object
+      properties:
+        labels_with_status:
+          type: array
+          items:
+            $ref: "#/components/schemas/EliminationLabelWithStatus"
+          description: Elimination status for each label
+      example:
+        labelsWithStatus:
+          - label: "stripe"
+            eliminationInformation:
+              entity:
+                isEliminated: true
+                bucketName:
+                  - "processor_decline"
+              global:
+                isEliminated: true
+                bucketName:
+                  - "processor_decline"
+
+    EliminationInformation:
+      type: object
+      properties:
+        entity:
+          $ref: "#/components/schemas/BucketInformation"
+        global:
+          $ref: "#/components/schemas/BucketInformation"
+
+    BucketInformation:
+      type: object
+      properties:
+        is_eliminated:
+          type: boolean
+          example: true
+          description: Whether the processor should be eliminated
+        bucket_name:
+          type: array
+          items:
+            type: string
+          description: Bucket identifiers that triggered elimination
+
+    UpdateEliminationBucketRequest:
+      type: object
+      properties:
+        id:
+          type: string
+          description: "Entity identifier"
+          example: merchant1
+        params:
+          type: string
+          description: "Additional parameters"
+          example: card
+        labels_with_bucket_name:
+          type: array
+          items:
+            $ref: "#/components/schemas/LabelWithBucketName"
+          example: [{ "label": "stripe", "bucket_name": "processor_decline" }]
+        config:
+          $ref: "#/components/schemas/EliminationBucketConfig"
+      required:
+        - id
+        - labels_with_bucket_name
+        - config
+
+    LabelWithBucketName:
+      type: object
+      properties:
+        label:
+          type: string
+          description: "Processor identifier"
+        bucket_name:
+          type: string
+          description: "Bucket to update (failure type)"
+      required:
+        - label
+        - bucket_name
+
+    UpdateEliminationBucketResponse:
+      type: object
+      properties:
+        status:
+          type: string
+          description: "Status of the update operation"
+          enum:
+            - BUCKET_UPDATION_SUCCEEDED
+            - BUCKET_UPDATION_FAILED
+      required:
+        - status
+
+    InvalidateBucketRequest:
+      type: object
+      properties:
+        id:
+          type: string
+          example: merchant1
+          description: "Entity identifier to invalidate the bucket"
+      required:
+        - id
+
+    InvalidateBucketResponse:
+      type: object
+      properties:
+        status:
+          type: string
+          description: "Status of the invalidate operation"
+          enum:
+            - BUCKET_INVALIDATION_SUCCEEDED
+            - BUCKET_INVALIDATION_FAILED
+      required:
+        - status
+
+    CalContractScoreRequest:
+      type: object
+      properties:
+        id:
+          type: string
+          description: Entity identifier
+          example: merchant1
+        params:
+          type: string
+          description: Additional parameters for contract calculation
+          example: card
+        labels:
+          type: array
+          items:
+            type: string
+          description: Labels (processors) to calculate scores for
+          example: ["stripe", "adyen"]
+        config:
+          $ref: "#/components/schemas/CalContractScoreConfig"
+          description: Configuration for calculation
+      required:
+        - id
+        - labels
+        - config
+
+    CalContractScoreConfig:
+      type: object
+      properties:
+        constants:
+          type: array
+          items:
+            type: number
+            format: double
+          description: Constants used in score calculation algorithm
+          example: [0.7, 0.3]
+        time_scale:
+          $ref: "#/components/schemas/TimeScale"
+          description: Time scale for contract calculation
+      required:
+        - constants
+        - time_scale
+
+    TimeScale:
+      type: object
+      properties:
+        time_scale:
+          type: string
+          enum:
+            - Day
+            - Month
+          description: Selected time scale for contract calculation
+
+    CalContractScoreResponse:
+      type: object
+      properties:
+        labels_with_score:
+          type: array
+          items:
+            $ref: "#/components/schemas/ScoreData"
+          description: Contract scores for each label
+
+    ScoreData:
+      type: object
+      properties:
+        score:
+          type: number
+          format: double
+          description: Contract score (higher values indicate higher priority)
+          example: 0.95
+        label:
+          type: string
+          description: Label (processor) identifier
+          example: stripe
+        current_count:
+          type: integer
+          format: uint64
+          description: Current transaction count for this processor
+          example: 500
+      required:
+        - score
+        - label
+        - current_count
+
+    UpdateContractRequest:
+      type: object
+      properties:
+        id:
+          type: string
+          description: Entity identifier
+          example: merchant1
+        params:
+          type: string
+          description: Additional parameters
+          example: card
+        labels_information:
+          type: array
+          items:
+            $ref: "#/components/schemas/LabelInformation"
+          description: Contract information for processors
+          example:
+            - label: stripe
+              target_count: 1000
+              target_time: 86400
+              current_count: 500
+            - label: adyen
+              target_count: 1500
+              target_time: 86400
+              current_count: 750
+      required:
+        - id
+        - labels_information
+
+    LabelInformation:
+      type: object
+      properties:
+        label:
+          type: string
+          description: Processor identifier
+          example: stripe
+        target_count:
+          type: integer
+          format: uint64
+          description: Target transaction count in contract
+          example: 10000
+        target_time:
+          type: integer
+          format: uint64
+          description: Time period for the target (in seconds)
+          example: 1744803903
+        current_count:
+          type: integer
+          format: uint64
+          description: Current transaction count
+          example: 500
+      required:
+        - label
+        - target_count
+        - target_time
+        - current_count
+
+    UpdateContractResponse:
+      type: object
+      properties:
+        status:
+          type: string
+          enum:
+            - CONTRACT_UPDATION_SUCCEEDED
+            - CONTRACT_UPDATION_FAILED
+          description: Status of the update operation
+      required:
+        - status
+
+    InvalidateContractRequest:
+      type: object
+      properties:
+        id:
+          type: string
+          description: Entity identifier to invalidate
+          example: merchant1
+      required:
+        - id
+
+    InvalidateContractResponse:
+      type: object
+      properties:
+        status:
+          type: string
+          enum:
+            - CONTRACT_INVALIDATION_SUCCEEDED
+            - CONTRACT_INVALIDATION_FAILED
+          description: Status of the invalidation operation
+      required:
+        - status
+
+    RoutingRule:
+      type: object
+      example:
+        algorithm:
+          globals: {}
+          default_selection:
+            priority:
+              connectors: ["stripe", "adyen", "checkout"]
+          rules:
+            - name: "Card Rule"
+              routing_type: "priority"
+              output:
+                priority:
+                  connectors: ["stripe", "adyen"]
+              statements:
+                - condition:
+                    - lhs: "payment_method"
+                      comparison: "equal"
+                      value:
+                        enum_variant: "card"
+                      metadata: {}
+                    - lhs: "amount"
+                      comparison: "greater_than"
+                      value:
+                        number: 1000
+                      metadata: {}
+          metadata: {}
+      properties:
+        name:
+          type: string
+          example: Test Routing Rule
+        algorithm:
+          $ref: "#/components/schemas/Program"
+
+    CreateResponse:
+      type: object
+      properties:
+        algorithm_id:
+          type: string
+          description: Algorithm Id for the routing rule
+          example: routing_ec1ac351-7944-440f-bdc7-6a500df1116f
+        name:
+          type: string
+          description: name of the routing rule
+          example: test routing rule
+        created_at:
+          type: string
+          description: Timestamp for creation of routing rule
+          example: "2025-04-09 8:03:44.85588"
+        modified_at:
+          type: string
+          description: Timestamp for modification of routing rule
+          example: "2025-04-09 8:03:44.85588"
+
+    EvaluateRequest:
+      type: object
+      example:
+        algorithm_id: routing_ec1ac351-7944-440f-bdc7-6a500df1116f
+        parameters:
+          payment_method:
+            type: enum_variant
+            value: "card"
+          amount:
+            type: number
+            value: 1500
+      properties:
+        algorithm_id:
+          type: string
+          example: routing_ec1ac351-7944-440f-bdc7-6a500df1116f
+        parameters:
+          type: object
+          example:
+            payment_method:
+              type: enum_variant
+              value: "card"
+            amount:
+              type: number
+              value: 1500
+          additionalProperties:
+            $ref: "#/components/schemas/ValueType"
+
+    EvaluateResponse:
+      type: object
+      example:
+        status: "success"
+        output:
+          priority:
+            connectors: ["stripe", "adyen"]
+        evaluated_output: ["stripe", "adyen"]
+        eligible_connectors: ["stripe", "adyen", "checkout"]
+      properties:
+        status:
+          type: string
+        output:
+          $ref: "#/components/schemas/Output"
+        evaluated_output:
+          type: array
+          items:
+            type: string
+        eligible_connectors:
+          type: array
+          items:
+            type: string
+
+    Program:
+      type: object
+      example:
+        globals: {}
+        default_selection:
+          priority:
+            connectors: ["stripe", "checkout"]
+        rules:
+          - name: High Amount Card
+            routing_type: priority
+            output:
+              priority:
+                connectors: ["adyen"]
+            statements:
+              - condition:
+                  - lhs: "payment_method"
+                    comparison: equal
+                    value: "card"
+                    metadata: {}
+                  - lhs: "amount"
+                    comparison: greater_than
+                    value: 1000
+                    metadata: {}
+        metadata: {}
+      properties:
+        globals:
+          type: object
+          additionalProperties:
+            $ref: "#/components/schemas/ValueTypeList"
+        default_selection:
+          $ref: "#/components/schemas/Output"
+        rules:
+          type: array
+          items:
+            $ref: "#/components/schemas/Rule"
+        metadata:
+          type: object
+          additionalProperties:
+            $ref: "#/components/schemas/MetadataValue"
+
+    Rule:
+      type: object
+      example:
+        name: High Volume Transactions
+        routing_type: priority
+        output:
+          priority:
+            connectors: ["stripe", "adyen"]
+        statements:
+          - condition:
+              - lhs: amount
+                comparison: greater_than
+                value: 5000
+                metadata: {}
+      properties:
+        name:
+          type: string
+        routing_type:
+          $ref: "#/components/schemas/RoutingType"
+        output:
+          $ref: "#/components/schemas/Output"
+        statements:
+          type: array
+          items:
+            $ref: "#/components/schemas/IfStatement"
+
+    RoutingType:
+      type: string
+      enum: [priority, volume_split, volume_split_priority]
+
+    Output:
+      type: object
+      oneOf:
+        - $ref: "#/components/schemas/PriorityOutput"
+        - $ref: "#/components/schemas/VolumeSplitOutput"
+        - $ref: "#/components/schemas/VolumeSplitPriorityOutput"
+
+    PriorityOutput:
+      type: object
+      example:
+        connectors: ["stripe", "adyen"]
+      properties:
+        connectors:
+          type: array
+          items:
+            type: string
+
+    VolumeSplitOutput:
+      type: object
+      properties:
+        connectors:
+          type: array
+          items:
+            $ref: "#/components/schemas/VolumeSplit"
+
+    VolumeSplitPriorityOutput:
+      type: object
+      example:
+        groups:
+          - split: 60
+            output: ["stripe", "adyen"]
+          - split: 40
+            output: ["checkout"]
+      properties:
+        groups:
+          type: array
+          items:
+            $ref: "#/components/schemas/VolumeSplitGroup"
+
+    VolumeSplit:
+      type: object
+      example:
+        split: 70
+        output: "stripe"
+      properties:
+        split:
+          type: integer
+        output:
+          type: string
+
+    VolumeSplitGroup:
+      type: object
+      example:
+        split: 50
+        output: ["adyen", "checkout"]
+      properties:
+        split:
+          type: integer
+        output:
+          type: array
+          items:
+            type: string
+
+    IfStatement:
+      type: object
+      example:
+        condition:
+          - lhs: "currency"
+            comparison: equal
+            value: "USD"
+            metadata: {}
+        nested:
+          - condition:
+              - lhs: "amount"
+                comparison: greater_than
+                value: 1000
+                metadata: {}
+      properties:
+        condition:
+          type: array
+          items:
+            $ref: "#/components/schemas/Comparison"
+        nested:
+          type: array
+          items:
+            $ref: "#/components/schemas/IfStatement"
+
+    Comparison:
+      type: object
+      example:
+        lhs: "payment_method"
+        comparison: equal
+        value: "card"
+        metadata: {}
+      properties:
+        lhs:
+          type: string
+        comparison:
+          $ref: "#/components/schemas/ComparisonType"
+        value:
+          $ref: "#/components/schemas/ValueType"
+        metadata:
+          type: object
+          additionalProperties:
+            $ref: "#/components/schemas/MetadataValue"
+
+    ComparisonType:
+      type: string
+      enum:
+        [
+          equal,
+          not_equal,
+          less_than,
+          less_than_equal,
+          greater_than,
+          greater_than_equal,
+        ]
+
+    ValueTypeList:
+      type: object
+      example:
+        values: ["card", "bank_transfer"]
+      properties:
+        values:
+          type: array
+          items:
+            $ref: "#/components/schemas/ValueType"
+
+    ValueType:
+      type: object
+      oneOf:
+        - type: integer
+          format: uint64
+        - type: string
+        - $ref: "#/components/schemas/MetadataValue"
+
+    MetadataValue:
+      type: object
+      properties:
+        key:
+          type: string
+        value:
+          type: string

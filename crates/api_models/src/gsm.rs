@@ -1,3 +1,4 @@
+use common_enums::ErrorCategory;
 use utoipa::ToSchema;
 
 use crate::enums::Connector;
@@ -26,6 +27,10 @@ pub struct GsmCreateRequest {
     pub unified_code: Option<String>,
     /// error message unified across the connectors
     pub unified_message: Option<String>,
+    /// category in which error belongs to
+    pub error_category: Option<ErrorCategory>,
+    /// indicates if retry with pan is possible
+    pub clear_pan_possible: bool,
 }
 
 #[derive(Debug, serde::Deserialize, serde::Serialize, ToSchema)]
@@ -88,6 +93,10 @@ pub struct GsmUpdateRequest {
     pub unified_code: Option<String>,
     /// error message unified across the connectors
     pub unified_message: Option<String>,
+    /// category in which error belongs to
+    pub error_category: Option<ErrorCategory>,
+    /// indicates if retry with pan is possible
+    pub clear_pan_possible: Option<bool>,
 }
 
 #[derive(Debug, serde::Deserialize, serde::Serialize, ToSchema)]
@@ -141,4 +150,8 @@ pub struct GsmResponse {
     pub unified_code: Option<String>,
     /// error message unified across the connectors
     pub unified_message: Option<String>,
+    /// category in which error belongs to
+    pub error_category: Option<ErrorCategory>,
+    /// indicates if retry with pan is possible
+    pub clear_pan_possible: bool,
 }

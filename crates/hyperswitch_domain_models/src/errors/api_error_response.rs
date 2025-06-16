@@ -101,6 +101,11 @@ pub enum ApiErrorResponse {
     MerchantConnectorAccountNotFound { id: String },
     #[error(error_type = ErrorType::ObjectNotFound, code = "HE_02", message = "Business profile with the given id  '{id}' does not exist in our records")]
     ProfileNotFound { id: String },
+    #[error(error_type = ErrorType::ObjectNotFound, code = "HE_02", message = "Profile acquirer with id '{profile_acquirer_id}' not found for profile '{profile_id}'.")]
+    ProfileAcquirerNotFound {
+        profile_acquirer_id: String,
+        profile_id: String,
+    },
     #[error(error_type = ErrorType::ObjectNotFound, code = "HE_02", message = "Poll with the given id  '{id}' does not exist in our records")]
     PollNotFound { id: String },
     #[error(error_type = ErrorType::ObjectNotFound, code = "HE_02", message = "Resource ID does not exist in our records")]
@@ -279,7 +284,12 @@ pub enum ApiErrorResponse {
         message = "Cookies are not found in the request"
     )]
     CookieNotFound,
-
+    #[error(error_type = ErrorType::InvalidRequestError, code = "IR_43", message = "API does not support platform account operation")]
+    PlatformAccountAuthNotSupported,
+    #[error(error_type = ErrorType::InvalidRequestError, code = "IR_44", message = "Invalid platform account operation")]
+    InvalidPlatformOperation,
+    #[error(error_type = ErrorType::InvalidRequestError, code = "IR_45", message = "External vault failed during processing with connector")]
+    ExternalVaultFailed,
     #[error(error_type = ErrorType::InvalidRequestError, code = "WE_01", message = "Failed to authenticate the webhook")]
     WebhookAuthenticationFailed,
     #[error(error_type = ErrorType::InvalidRequestError, code = "WE_02", message = "Bad request received in webhook")]
@@ -341,7 +351,7 @@ impl ErrorSwitch<api_models::errors::types::ApiErrorResponse> for ApiErrorRespon
                 connector,
                 reason,
                 status_code,
-            } => AER::ConnectorError(ApiError::new("CE", 0, format!("{code}: {message}"), Some(Extra {connector: Some(connector.clone()), reason: reason.to_owned().map(Into::into), ..Default::default()})), StatusCode::from_u16(*status_code).unwrap_or(StatusCode::INTERNAL_SERVER_ERROR)),
+            } => AER::ConnectorError(ApiError::new("CE", 0, format!("{code}: {message}"), Some(Extra {connector: Some(connector.clone()), reason: reason.to_owned(), ..Default::default()})), StatusCode::from_u16(*status_code).unwrap_or(StatusCode::INTERNAL_SERVER_ERROR)),
             Self::PaymentAuthorizationFailed { data } => {
                 AER::BadRequest(ApiError::new("CE", 1, "Payment failed during authorization with connector. Retry payment", Some(Extra { data: data.clone(), ..Default::default()})))
             }
@@ -415,6 +425,9 @@ impl ErrorSwitch<api_models::errors::types::ApiErrorResponse> for ApiErrorRespon
             }
             Self::ProfileNotFound { id } => {
                 AER::NotFound(ApiError::new("HE", 2, format!("Business profile with the given id {id} does not exist"), None))
+            }
+            Self::ProfileAcquirerNotFound { profile_acquirer_id, profile_id } => {
+                AER::NotFound(ApiError::new("HE", 2, format!("Profile acquirer with id '{profile_acquirer_id}' not found for profile '{profile_id}'."), None))
             }
             Self::PollNotFound { .. } => {
                 AER::NotFound(ApiError::new("HE", 2, "Poll does not exist in our records", None))
@@ -635,6 +648,9 @@ impl ErrorSwitch<api_models::errors::types::ApiErrorResponse> for ApiErrorRespon
             Self::CookieNotFound => {
                 AER::Unauthorized(ApiError::new("IR", 42, "Cookies are not found in the request", None))
             },
+            Self::ExternalVaultFailed => {
+                AER::BadRequest(ApiError::new("IR", 45, "External Vault failed while processing with connector.", None))
+            },
 
             Self::WebhookAuthenticationFailed => {
                 AER::Unauthorized(ApiError::new("WE", 1, "Webhook authentication failed", None))
@@ -667,6 +683,12 @@ impl ErrorSwitch<api_models::errors::types::ApiErrorResponse> for ApiErrorRespon
                     ..Default::default()
                 })
             )),
+            Self::PlatformAccountAuthNotSupported => {
+                AER::BadRequest(ApiError::new("IR", 43, "API does not support platform operation", None))
+            }
+            Self::InvalidPlatformOperation => {
+                AER::Unauthorized(ApiError::new("IR", 44, "Invalid platform account operation", None))
+            }
         }
     }
 }
@@ -693,6 +715,9 @@ impl From<ApiErrorResponse> for router_data::ErrorResponse {
             },
             attempt_status: None,
             connector_transaction_id: None,
+            network_advice_code: None,
+            network_decline_code: None,
+            network_error_message: None,
         }
     }
 }

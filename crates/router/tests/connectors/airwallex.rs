@@ -1,6 +1,6 @@
 use std::str::FromStr;
 
-use api_models::payments::{Address, AddressDetails};
+use hyperswitch_domain_models::address::{Address, AddressDetails};
 use masking::{PeekInterface, Secret};
 use router::types::{self, domain, storage::enums, AccessToken};
 
@@ -19,7 +19,7 @@ impl Connector for AirwallexTest {
     fn get_data(&self) -> types::api::ConnectorData {
         use router::connector::Airwallex;
         utils::construct_connector_data_old(
-            Box::new(&Airwallex),
+            Box::new(Airwallex::new()),
             types::Connector::Airwallex,
             types::api::GetToken::Connector,
             None,
@@ -82,6 +82,8 @@ fn payment_method_details() -> Option<types::PaymentsAuthorizeData> {
             card_issuing_country: None,
             bank_code: None,
             nick_name: Some(Secret::new("nick_name".into())),
+            card_holder_name: Some(Secret::new("card holder name".into())),
+            co_badged_card_data: None,
         }),
         capture_method: Some(diesel_models::enums::CaptureMethod::Manual),
         router_return_url: Some("https://google.com".to_string()),

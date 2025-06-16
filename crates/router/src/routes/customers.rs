@@ -1,5 +1,4 @@
 use actix_web::{web, HttpRequest, HttpResponse, Responder};
-#[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
 use common_utils::id_type;
 use router_env::{instrument, tracing, Flow};
 
@@ -7,9 +6,9 @@ use super::app::AppState;
 use crate::{
     core::{api_locking, customers::*},
     services::{api, authentication as auth, authorization::permissions::Permission},
-    types::api::customers,
+    types::{api::customers, domain},
 };
-
+#[cfg(feature = "v2")]
 #[instrument(skip_all, fields(flow = ?Flow::CustomersCreate))]
 pub async fn customers_create(
     state: web::Data<AppState>,
@@ -23,10 +22,49 @@ pub async fn customers_create(
         &req,
         json_payload.into_inner(),
         |state, auth: auth::AuthenticationData, req, _| {
-            create_customer(state, auth.merchant_account, auth.key_store, req)
+            let merchant_context = domain::MerchantContext::NormalMerchant(Box::new(
+                domain::Context(auth.merchant_account, auth.key_store),
+            ));
+            create_customer(state, merchant_context, req)
         },
         auth::auth_type(
-            &auth::HeaderAuth(auth::ApiKeyAuth),
+            &auth::V2ApiKeyAuth {
+                is_connected_allowed: false,
+                is_platform_allowed: false,
+            },
+            &auth::JWTAuth {
+                permission: Permission::MerchantCustomerWrite,
+            },
+            req.headers(),
+        ),
+        api_locking::LockAction::NotApplicable,
+    ))
+    .await
+}
+#[cfg(feature = "v1")]
+#[instrument(skip_all, fields(flow = ?Flow::CustomersCreate))]
+pub async fn customers_create(
+    state: web::Data<AppState>,
+    req: HttpRequest,
+    json_payload: web::Json<customers::CustomerRequest>,
+) -> HttpResponse {
+    let flow = Flow::CustomersCreate;
+    Box::pin(api::server_wrap(
+        flow,
+        state,
+        &req,
+        json_payload.into_inner(),
+        |state, auth: auth::AuthenticationData, req, _| {
+            let merchant_context = domain::MerchantContext::NormalMerchant(Box::new(
+                domain::Context(auth.merchant_account, auth.key_store),
+            ));
+            create_customer(state, merchant_context, req)
+        },
+        auth::auth_type(
+            &auth::HeaderAuth(auth::ApiKeyAuth {
+                is_connected_allowed: false,
+                is_platform_allowed: false,
+            }),
             &auth::JWTAuth {
                 permission: Permission::MerchantCustomerWrite,
             },
@@ -37,7 +75,7 @@ pub async fn customers_create(
     .await
 }
 
-#[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
+#[cfg(feature = "v1")]
 #[instrument(skip_all, fields(flow = ?Flow::CustomersRetrieve))]
 pub async fn customers_retrieve(
     state: web::Data<AppState>,
@@ -46,17 +84,15 @@ pub async fn customers_retrieve(
 ) -> HttpResponse {
     let flow = Flow::CustomersRetrieve;
 
-    let payload = web::Json(customers::CustomerId::new_customer_id_struct(
-        path.into_inner(),
-    ))
-    .into_inner();
+    let customer_id = path.into_inner();
 
     let auth = if auth::is_jwt_auth(req.headers()) {
         Box::new(auth::JWTAuth {
             permission: Permission::MerchantCustomerRead,
         })
     } else {
-        match auth::is_ephemeral_auth(req.headers()) {
+        let api_auth = auth::ApiKeyAuth::default();
+        match auth::is_ephemeral_auth(req.headers(), api_auth) {
             Ok(auth) => auth,
             Err(err) => return api::log_and_return_error_response(err),
         }
@@ -66,15 +102,12 @@ pub async fn customers_retrieve(
         flow,
         state,
         &req,
-        payload,
-        |state, auth: auth::AuthenticationData, req, _| {
-            retrieve_customer(
-                state,
-                auth.merchant_account,
-                auth.profile_id,
-                auth.key_store,
-                req,
-            )
+        customer_id,
+        |state, auth: auth::AuthenticationData, customer_id, _| {
+            let merchant_context = domain::MerchantContext::NormalMerchant(Box::new(
+                domain::Context(auth.merchant_account, auth.key_store),
+            ));
+            retrieve_customer(state, merchant_context, auth.profile_id, customer_id)
         },
         &*auth,
         api_locking::LockAction::NotApplicable,
@@ -82,42 +115,54 @@ pub async fn customers_retrieve(
     .await
 }
 
-#[cfg(all(feature = "v2", feature = "customer_v2"))]
+#[cfg(feature = "v2")]
 #[instrument(skip_all, fields(flow = ?Flow::CustomersRetrieve))]
 pub async fn customers_retrieve(
     state: web::Data<AppState>,
     req: HttpRequest,
-    path: web::Path<String>,
+    path: web::Path<id_type::GlobalCustomerId>,
 ) -> HttpResponse {
+    use crate::services::authentication::api_or_client_auth;
+
     let flow = Flow::CustomersRetrieve;
 
-    let payload = web::Json(customers::GlobalId::new(path.into_inner())).into_inner();
+    let id = path.into_inner();
 
+    let v2_client_auth = auth::V2ClientAuth(
+        common_utils::types::authentication::ResourceId::Customer(id.clone()),
+    );
     let auth = if auth::is_jwt_auth(req.headers()) {
-        Box::new(auth::JWTAuth {
+        &auth::JWTAuth {
             permission: Permission::MerchantCustomerRead,
-        })
-    } else {
-        match auth::is_ephemeral_auth(req.headers()) {
-            Ok(auth) => auth,
-            Err(err) => return api::log_and_return_error_response(err),
         }
+    } else {
+        api_or_client_auth(
+            &auth::V2ApiKeyAuth {
+                is_connected_allowed: false,
+                is_platform_allowed: false,
+            },
+            &v2_client_auth,
+            req.headers(),
+        )
     };
 
     Box::pin(api::server_wrap(
         flow,
         state,
         &req,
-        payload,
-        |state, auth: auth::AuthenticationData, req, _| {
-            retrieve_customer(state, auth.merchant_account, auth.key_store, req)
+        id,
+        |state, auth: auth::AuthenticationData, id, _| {
+            let merchant_context = domain::MerchantContext::NormalMerchant(Box::new(
+                domain::Context(auth.merchant_account, auth.key_store),
+            ));
+            retrieve_customer(state, merchant_context, id)
         },
-        &*auth,
+        auth,
         api_locking::LockAction::NotApplicable,
     ))
     .await
 }
-
+#[cfg(feature = "v2")]
 #[instrument(skip_all, fields(flow = ?Flow::CustomersList))]
 pub async fn customers_list(
     state: web::Data<AppState>,
@@ -127,7 +172,7 @@ pub async fn customers_list(
     let flow = Flow::CustomersList;
     let payload = query.into_inner();
 
-    api::server_wrap(
+    Box::pin(api::server_wrap(
         flow,
         state,
         &req,
@@ -142,47 +187,50 @@ pub async fn customers_list(
             )
         },
         auth::auth_type(
-            &auth::HeaderAuth(auth::ApiKeyAuth),
+            &auth::V2ApiKeyAuth {
+                is_connected_allowed: false,
+                is_platform_allowed: false,
+            },
             &auth::JWTAuth {
                 permission: Permission::MerchantCustomerRead,
             },
             req.headers(),
         ),
         api_locking::LockAction::NotApplicable,
-    )
+    ))
     .await
 }
-
-#[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
-#[instrument(skip_all, fields(flow = ?Flow::CustomersUpdate))]
-pub async fn customers_update(
+#[cfg(feature = "v1")]
+#[instrument(skip_all, fields(flow = ?Flow::CustomersList))]
+pub async fn customers_list(
     state: web::Data<AppState>,
     req: HttpRequest,
-    path: web::Path<id_type::CustomerId>,
-    mut json_payload: web::Json<customers::CustomerUpdateRequest>,
+    query: web::Query<customers::CustomerListRequest>,
 ) -> HttpResponse {
-    let flow = Flow::CustomersUpdate;
-    let customer_id = path.into_inner();
-    json_payload.customer_id = Some(customer_id);
-    let customer_update_id = customers::UpdateCustomerId::new("temp_global_id".to_string());
+    let flow = Flow::CustomersList;
+    let payload = query.into_inner();
+
     Box::pin(api::server_wrap(
         flow,
         state,
         &req,
-        json_payload.into_inner(),
-        |state, auth: auth::AuthenticationData, req, _| {
-            update_customer(
+        payload,
+        |state, auth: auth::AuthenticationData, request, _| {
+            list_customers(
                 state,
-                auth.merchant_account,
-                req,
+                auth.merchant_account.get_id().to_owned(),
+                None,
                 auth.key_store,
-                customer_update_id.clone(),
+                request,
             )
         },
         auth::auth_type(
-            &auth::ApiKeyAuth,
+            &auth::HeaderAuth(auth::ApiKeyAuth {
+                is_connected_allowed: false,
+                is_platform_allowed: false,
+            }),
             &auth::JWTAuth {
-                permission: Permission::MerchantCustomerWrite,
+                permission: Permission::MerchantCustomerRead,
             },
             req.headers(),
         ),
@@ -191,33 +239,38 @@ pub async fn customers_update(
     .await
 }
 
-#[cfg(all(feature = "v2", feature = "customer_v2"))]
+#[cfg(feature = "v1")]
 #[instrument(skip_all, fields(flow = ?Flow::CustomersUpdate))]
 pub async fn customers_update(
     state: web::Data<AppState>,
     req: HttpRequest,
-    path: web::Path<String>,
+    path: web::Path<id_type::CustomerId>,
     json_payload: web::Json<customers::CustomerUpdateRequest>,
 ) -> HttpResponse {
     let flow = Flow::CustomersUpdate;
-    let id = path.into_inner().clone();
-    let customer_update_id = customers::UpdateCustomerId::new(id);
+    let customer_id = path.into_inner();
+    let request = json_payload.into_inner();
+    let request_internal = customers::CustomerUpdateRequestInternal {
+        customer_id,
+        request,
+    };
+
     Box::pin(api::server_wrap(
         flow,
         state,
         &req,
-        json_payload.into_inner(),
-        |state, auth: auth::AuthenticationData, req, _| {
-            update_customer(
-                state,
-                auth.merchant_account,
-                req,
-                auth.key_store,
-                customer_update_id.clone(),
-            )
+        request_internal,
+        |state, auth: auth::AuthenticationData, request_internal, _| {
+            let merchant_context = domain::MerchantContext::NormalMerchant(Box::new(
+                domain::Context(auth.merchant_account, auth.key_store),
+            ));
+            update_customer(state, merchant_context, request_internal)
         },
         auth::auth_type(
-            &auth::HeaderAuth(auth::ApiKeyAuth),
+            &auth::ApiKeyAuth {
+                is_connected_allowed: false,
+                is_platform_allowed: false,
+            },
             &auth::JWTAuth {
                 permission: Permission::MerchantCustomerWrite,
             },
@@ -228,26 +281,71 @@ pub async fn customers_update(
     .await
 }
 
-#[cfg(all(feature = "v2", feature = "customer_v2"))]
+#[cfg(feature = "v2")]
+#[instrument(skip_all, fields(flow = ?Flow::CustomersUpdate))]
+pub async fn customers_update(
+    state: web::Data<AppState>,
+    req: HttpRequest,
+    path: web::Path<id_type::GlobalCustomerId>,
+    json_payload: web::Json<customers::CustomerUpdateRequest>,
+) -> HttpResponse {
+    let flow = Flow::CustomersUpdate;
+    let id = path.into_inner();
+    let request = json_payload.into_inner();
+    let request_internal = customers::CustomerUpdateRequestInternal { id, request };
+
+    Box::pin(api::server_wrap(
+        flow,
+        state,
+        &req,
+        request_internal,
+        |state, auth: auth::AuthenticationData, request_internal, _| {
+            let merchant_context = domain::MerchantContext::NormalMerchant(Box::new(
+                domain::Context(auth.merchant_account, auth.key_store),
+            ));
+            update_customer(state, merchant_context, request_internal)
+        },
+        auth::auth_type(
+            &auth::V2ApiKeyAuth {
+                is_connected_allowed: false,
+                is_platform_allowed: false,
+            },
+            &auth::JWTAuth {
+                permission: Permission::MerchantCustomerWrite,
+            },
+            req.headers(),
+        ),
+        api_locking::LockAction::NotApplicable,
+    ))
+    .await
+}
+
+#[cfg(feature = "v2")]
 #[instrument(skip_all, fields(flow = ?Flow::CustomersDelete))]
 pub async fn customers_delete(
     state: web::Data<AppState>,
     req: HttpRequest,
-    path: web::Path<String>,
+    path: web::Path<id_type::GlobalCustomerId>,
 ) -> impl Responder {
     let flow = Flow::CustomersDelete;
-    let payload = web::Json(customers::GlobalId::new(path.into_inner())).into_inner();
+    let id = path.into_inner();
 
     Box::pin(api::server_wrap(
         flow,
         state,
         &req,
-        payload,
-        |state, auth: auth::AuthenticationData, req, _| {
-            delete_customer(state, auth.merchant_account, req, auth.key_store)
+        id,
+        |state, auth: auth::AuthenticationData, id, _| {
+            let merchant_context = domain::MerchantContext::NormalMerchant(Box::new(
+                domain::Context(auth.merchant_account, auth.key_store),
+            ));
+            delete_customer(state, merchant_context, id)
         },
         auth::auth_type(
-            &auth::HeaderAuth(auth::ApiKeyAuth),
+            &auth::V2ApiKeyAuth {
+                is_connected_allowed: false,
+                is_platform_allowed: false,
+            },
             &auth::JWTAuth {
                 permission: Permission::MerchantCustomerWrite,
             },
@@ -258,7 +356,7 @@ pub async fn customers_delete(
     .await
 }
 
-#[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
+#[cfg(feature = "v1")]
 #[instrument(skip_all, fields(flow = ?Flow::CustomersDelete))]
 pub async fn customers_delete(
     state: web::Data<AppState>,
@@ -266,21 +364,24 @@ pub async fn customers_delete(
     path: web::Path<id_type::CustomerId>,
 ) -> impl Responder {
     let flow = Flow::CustomersDelete;
-    let payload = web::Json(customers::CustomerId {
-        customer_id: path.into_inner(),
-    })
-    .into_inner();
+    let customer_id = path.into_inner();
 
     Box::pin(api::server_wrap(
         flow,
         state,
         &req,
-        payload,
-        |state, auth: auth::AuthenticationData, req, _| {
-            delete_customer(state, auth.merchant_account, req, auth.key_store)
+        customer_id,
+        |state, auth: auth::AuthenticationData, customer_id, _| {
+            let merchant_context = domain::MerchantContext::NormalMerchant(Box::new(
+                domain::Context(auth.merchant_account, auth.key_store),
+            ));
+            delete_customer(state, merchant_context, customer_id)
         },
         auth::auth_type(
-            &auth::HeaderAuth(auth::ApiKeyAuth),
+            &auth::HeaderAuth(auth::ApiKeyAuth {
+                is_connected_allowed: false,
+                is_platform_allowed: false,
+            }),
             &auth::JWTAuth {
                 permission: Permission::MerchantCustomerWrite,
             },
@@ -291,7 +392,7 @@ pub async fn customers_delete(
     .await
 }
 
-#[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
+#[cfg(feature = "v1")]
 #[instrument(skip_all, fields(flow = ?Flow::CustomersGetMandates))]
 pub async fn get_customer_mandates(
     state: web::Data<AppState>,
@@ -299,25 +400,24 @@ pub async fn get_customer_mandates(
     path: web::Path<id_type::CustomerId>,
 ) -> impl Responder {
     let flow = Flow::CustomersGetMandates;
-    let customer_id = customers::CustomerId {
-        customer_id: path.into_inner(),
-    };
+    let customer_id = path.into_inner();
 
     Box::pin(api::server_wrap(
         flow,
         state,
         &req,
         customer_id,
-        |state, auth: auth::AuthenticationData, req, _| {
-            crate::core::mandate::get_customer_mandates(
-                state,
-                auth.merchant_account,
-                auth.key_store,
-                req,
-            )
+        |state, auth: auth::AuthenticationData, customer_id, _| {
+            let merchant_context = domain::MerchantContext::NormalMerchant(Box::new(
+                domain::Context(auth.merchant_account, auth.key_store),
+            ));
+            crate::core::mandate::get_customer_mandates(state, merchant_context, customer_id)
         },
         auth::auth_type(
-            &auth::HeaderAuth(auth::ApiKeyAuth),
+            &auth::HeaderAuth(auth::ApiKeyAuth {
+                is_connected_allowed: false,
+                is_platform_allowed: false,
+            }),
             &auth::JWTAuth {
                 permission: Permission::MerchantMandateRead,
             },

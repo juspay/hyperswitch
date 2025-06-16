@@ -10,7 +10,6 @@ use common_utils::{
     types::TimeRange,
 };
 use error_stack::ResultExt;
-use hyperswitch_domain_models::errors::{StorageError, StorageResult};
 use opensearch::{
     auth::Credentials,
     cert::CertificateValidation,
@@ -24,7 +23,7 @@ use opensearch::{
     MsearchParts, OpenSearch, SearchParts,
 };
 use serde_json::{json, Map, Value};
-use storage_impl::errors::ApplicationError;
+use storage_impl::errors::{ApplicationError, StorageError, StorageResult};
 use time::PrimitiveDateTime;
 
 use super::{health_check::HealthCheck, query::QueryResult, types::QueryExecutionError};
@@ -72,6 +71,8 @@ pub struct OpenSearchConfig {
     host: String,
     auth: OpenSearchAuth,
     indexes: OpenSearchIndexes,
+    #[serde(default)]
+    enabled: bool,
 }
 
 impl Default for OpenSearchConfig {
@@ -92,12 +93,15 @@ impl Default for OpenSearchConfig {
                 sessionizer_refunds: "sessionizer-refund-events".to_string(),
                 sessionizer_disputes: "sessionizer-dispute-events".to_string(),
             },
+            enabled: false,
         }
     }
 }
 
 #[derive(Debug, thiserror::Error)]
 pub enum OpenSearchError {
+    #[error("Opensearch is not enabled")]
+    NotEnabled,
     #[error("Opensearch connection error")]
     ConnectionError,
     #[error("Opensearch NON-200 response content: '{0}'")]
@@ -175,6 +179,12 @@ impl ErrorSwitch<ApiErrorResponse> for OpenSearchError {
                 "IR",
                 7,
                 "Access Forbidden error",
+                None,
+            )),
+            Self::NotEnabled => ApiErrorResponse::InternalServerError(ApiError::new(
+                "IR",
+                8,
+                "Opensearch is not enabled",
                 None,
             )),
         }
@@ -409,14 +419,23 @@ impl OpenSearchAuth {
 }
 
 impl OpenSearchConfig {
-    pub async fn get_opensearch_client(&self) -> StorageResult<OpenSearchClient> {
-        Ok(OpenSearchClient::create(self)
-            .await
-            .map_err(|_| StorageError::InitializationError)?)
+    pub async fn get_opensearch_client(&self) -> StorageResult<Option<OpenSearchClient>> {
+        if !self.enabled {
+            return Ok(None);
+        }
+        Ok(Some(
+            OpenSearchClient::create(self)
+                .await
+                .change_context(StorageError::InitializationError)?,
+        ))
     }
 
     pub fn validate(&self) -> Result<(), ApplicationError> {
         use common_utils::{ext_traits::ConfigExt, fp_utils::when};
+
+        if !self.enabled {
+            return Ok(());
+        }
 
         when(self.host.is_default_or_empty(), || {
             Err(ApplicationError::InvalidConfigurationValueError(
@@ -431,6 +450,7 @@ impl OpenSearchConfig {
         Ok(())
     }
 }
+
 #[derive(Debug, serde::Deserialize, PartialEq)]
 #[serde(rename_all = "lowercase")]
 pub enum OpenSearchHealthStatus {
@@ -456,7 +476,7 @@ pub struct OpenSearchQueryBuilder {
     pub query: String,
     pub offset: Option<i64>,
     pub count: Option<i64>,
-    pub filters: Vec<(String, Vec<String>)>,
+    pub filters: Vec<(String, Vec<Value>)>,
     pub time_range: Option<OpensearchTimeRange>,
     search_params: Vec<AuthInfo>,
     case_sensitive_fields: HashSet<&'static str>,
@@ -477,6 +497,8 @@ impl OpenSearchQueryBuilder {
                 "search_tags.keyword",
                 "card_last_4.keyword",
                 "payment_id.keyword",
+                "amount",
+                "customer_id.keyword",
             ]),
         }
     }
@@ -492,12 +514,12 @@ impl OpenSearchQueryBuilder {
         Ok(())
     }
 
-    pub fn add_filter_clause(&mut self, lhs: String, rhs: Vec<String>) -> QueryResult<()> {
+    pub fn add_filter_clause(&mut self, lhs: String, rhs: Vec<Value>) -> QueryResult<()> {
         self.filters.push((lhs, rhs));
         Ok(())
     }
 
-    pub fn get_status_field(&self, index: &SearchIndex) -> &str {
+    pub fn get_status_field(&self, index: SearchIndex) -> &str {
         match index {
             SearchIndex::Refunds | SearchIndex::SessionizerRefunds => "refund_status.keyword",
             SearchIndex::Disputes | SearchIndex::SessionizerDisputes => "dispute_status.keyword",
@@ -505,9 +527,18 @@ impl OpenSearchQueryBuilder {
         }
     }
 
+    pub fn get_amount_field(&self, index: SearchIndex) -> &str {
+        match index {
+            SearchIndex::Refunds | SearchIndex::SessionizerRefunds => "refund_amount",
+            SearchIndex::Disputes | SearchIndex::SessionizerDisputes => "dispute_amount",
+            _ => "amount",
+        }
+    }
+
     pub fn build_filter_array(
         &self,
-        case_sensitive_filters: Vec<&(String, Vec<String>)>,
+        case_sensitive_filters: Vec<&(String, Vec<Value>)>,
+        index: SearchIndex,
     ) -> Vec<Value> {
         let mut filter_array = Vec::new();
         if !self.query.is_empty() {
@@ -522,7 +553,14 @@ impl OpenSearchQueryBuilder {
 
         let case_sensitive_json_filters = case_sensitive_filters
             .into_iter()
-            .map(|(k, v)| json!({"terms": {k: v}}))
+            .map(|(k, v)| {
+                let key = if *k == "amount" {
+                    self.get_amount_field(index).to_string()
+                } else {
+                    k.clone()
+                };
+                json!({"terms": {key: v}})
+            })
             .collect::<Vec<Value>>();
 
         filter_array.extend(case_sensitive_json_filters);
@@ -542,9 +580,9 @@ impl OpenSearchQueryBuilder {
     pub fn build_case_insensitive_filters(
         &self,
         mut payload: Value,
-        case_insensitive_filters: &[&(String, Vec<String>)],
+        case_insensitive_filters: &[&(String, Vec<Value>)],
         auth_array: Vec<Value>,
-        index: &SearchIndex,
+        index: SearchIndex,
     ) -> Value {
         let mut must_array = case_insensitive_filters
             .iter()
@@ -690,22 +728,16 @@ impl OpenSearchQueryBuilder {
     /// Ensure that the input data and the structure of the query are valid and correctly handled.
     pub fn construct_payload(&self, indexes: &[SearchIndex]) -> QueryResult<Vec<Value>> {
         let mut query_obj = Map::new();
-        let mut bool_obj = Map::new();
+        let bool_obj = Map::new();
 
         let (case_sensitive_filters, case_insensitive_filters): (Vec<_>, Vec<_>) = self
             .filters
             .iter()
             .partition(|(k, _)| self.case_sensitive_fields.contains(k.as_str()));
 
-        let filter_array = self.build_filter_array(case_sensitive_filters);
-
-        if !filter_array.is_empty() {
-            bool_obj.insert("filter".to_string(), Value::Array(filter_array));
-        }
-
         let should_array = self.build_auth_array();
 
-        query_obj.insert("bool".to_string(), Value::Object(bool_obj));
+        query_obj.insert("bool".to_string(), Value::Object(bool_obj.clone()));
 
         let mut sort_obj = Map::new();
         sort_obj.insert(
@@ -724,11 +756,21 @@ impl OpenSearchQueryBuilder {
                         Value::Object(sort_obj.clone())
                     ]
                 });
+                let filter_array = self.build_filter_array(case_sensitive_filters.clone(), *index);
+                if !filter_array.is_empty() {
+                    payload
+                        .get_mut("query")
+                        .and_then(|query| query.get_mut("bool"))
+                        .and_then(|bool_obj| bool_obj.as_object_mut())
+                        .map(|bool_map| {
+                            bool_map.insert("filter".to_string(), Value::Array(filter_array));
+                        });
+                }
                 payload = self.build_case_insensitive_filters(
                     payload,
                     &case_insensitive_filters,
                     should_array.clone(),
-                    index,
+                    *index,
                 );
                 payload
             })

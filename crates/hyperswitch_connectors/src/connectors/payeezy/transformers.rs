@@ -76,7 +76,8 @@ impl TryFrom<CardIssuer> for PayeezyCardType {
             CardIssuer::Maestro
             | CardIssuer::DinersClub
             | CardIssuer::JCB
-            | CardIssuer::CarteBlanche => Err(ConnectorError::NotImplemented(
+            | CardIssuer::CarteBlanche
+            | CardIssuer::CartesBancaires => Err(ConnectorError::NotImplemented(
                 get_unimplemented_payment_method_error_message("Payeezy"),
             ))?,
         }
@@ -214,7 +215,9 @@ fn get_transaction_type_and_stored_creds(
         } else {
             match item.request.capture_method {
                 Some(CaptureMethod::Manual) => Ok((PayeezyTransactionType::Authorize, None)),
-                Some(CaptureMethod::Automatic) => Ok((PayeezyTransactionType::Purchase, None)),
+                Some(CaptureMethod::SequentialAutomatic) | Some(CaptureMethod::Automatic) => {
+                    Ok((PayeezyTransactionType::Purchase, None))
+                }
 
                 Some(CaptureMethod::ManualMultiple) | Some(CaptureMethod::Scheduled) | None => {
                     Err(ConnectorError::FlowNotSupported {
@@ -445,7 +448,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, PayeezyPaymentsResponse, T, PaymentsRes
                         .unwrap_or(item.response.transaction_id),
                 ),
                 incremental_authorization_allowed: None,
-                charge_id: None,
+                charges: None,
             }),
             ..item.data
         })

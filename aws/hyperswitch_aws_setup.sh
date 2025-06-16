@@ -215,7 +215,7 @@ sudo amazon-linux-extras install docker
 sudo service docker start
 sudo usermod -a -G docker ec2-user
 
-docker pull juspaydotin/hyperswitch-router:beta
+docker pull docker.juspay.io/juspaydotin/hyperswitch-router:beta
 
 curl https://raw.githubusercontent.com/juspay/hyperswitch/v1.55.0/config/development.toml > production.toml
 
@@ -265,7 +265,7 @@ echo "ROUTER__SERVER__BASE_URL=\$(curl ifconfig.me)" >> user_data.sh
 echo "ROUTER__SECRETS__ADMIN_API_KEY=$ADMIN_API_KEY" >> user_data.sh
 echo "EOF" >> user_data.sh
 
-echo "docker run --env-file .env -p 80:8080 -v \`pwd\`/:/local/config juspaydotin/hyperswitch-router:beta ./router -f /local/config/production.toml
+echo "docker run --env-file .env -p 80:8080 -v \`pwd\`/:/local/config docker.juspay.io/juspaydotin/hyperswitch-router:beta ./router -f /local/config/production.toml
 " >> user_data.sh
 
 echo "Retrieving AWS AMI ID..."

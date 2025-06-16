@@ -1,17 +1,19 @@
 use std::{
     collections::{HashMap, HashSet},
     path::PathBuf,
+    sync::Arc,
 };
 
 #[cfg(feature = "olap")]
 use analytics::{opensearch::OpenSearchConfig, ReportConfig};
-use api_models::{enums, payment_methods::RequiredFieldInfo};
-use common_utils::{ext_traits::ConfigExt, id_type};
+use api_models::enums;
+use common_utils::{ext_traits::ConfigExt, id_type, types::user::EmailThemeConfig};
 use config::{Environment, File};
 use error_stack::ResultExt;
 #[cfg(feature = "email")]
 use external_services::email::EmailSettings;
 use external_services::{
+    crm::CrmManagerConfig,
     file_storage::FileStorageConfig,
     grpc_client::GrpcClientSettings,
     managers::{
@@ -20,10 +22,18 @@ use external_services::{
     },
 };
 pub use hyperswitch_interfaces::configs::Connectors;
-use hyperswitch_interfaces::secrets_interface::secret_state::{
-    RawSecret, SecretState, SecretStateContainer, SecuredSecret,
+use hyperswitch_interfaces::{
+    secrets_interface::secret_state::{
+        RawSecret, SecretState, SecretStateContainer, SecuredSecret,
+    },
+    types::Proxy,
 };
 use masking::Secret;
+pub use payment_methods::configs::settings::{
+    ConnectorFields, EligiblePaymentMethods, Mandates, PaymentMethodAuth, PaymentMethodType,
+    RequiredFieldFinal, RequiredFields, SupportedConnectorsForMandate,
+    SupportedPaymentMethodTypesForMandate, SupportedPaymentMethodsForMandate, ZeroMandates,
+};
 use redis_interface::RedisSettings;
 pub use router_env::config::{Log, LogConsole, LogFile, LogTelemetry};
 use rust_decimal::Decimal;
@@ -32,12 +42,18 @@ use serde::Deserialize;
 use storage_impl::config::QueueStrategy;
 
 #[cfg(feature = "olap")]
-use crate::analytics::AnalyticsConfig;
+use crate::analytics::{AnalyticsConfig, AnalyticsProvider};
+#[cfg(feature = "v2")]
+use crate::types::storage::revenue_recovery;
 use crate::{
+    configs,
     core::errors::{ApplicationError, ApplicationResult},
     env::{self, Env},
     events::EventsConfig,
+    routes::app,
+    AppState,
 };
+pub const REQUIRED_FIELDS_CONFIG_FILE: &str = "payment_required_fields_v2.toml";
 
 #[derive(clap::Parser, Default)]
 #[cfg_attr(feature = "vergen", command(version = router_env::version!()))]
@@ -60,6 +76,7 @@ pub struct Settings<S: SecretState> {
     pub redis: RedisSettings,
     pub log: Log,
     pub secrets: SecretStateContainer<Secrets, S>,
+    pub fallback_merchant_ids_api_key_auth: Option<FallbackMerchantIds>,
     pub locker: Locker,
     pub key_manager: SecretStateContainer<KeyManagerConfig, S>,
     pub connectors: Connectors,
@@ -84,19 +101,25 @@ pub struct Settings<S: SecretState> {
     #[cfg(feature = "email")]
     pub email: EmailSettings,
     pub user: UserSettings,
+    pub crm: CrmManagerConfig,
     pub cors: CorsSettings,
     pub mandates: Mandates,
+    pub zero_mandates: ZeroMandates,
     pub network_transaction_id_supported_connectors: NetworkTransactionIdSupportedConnectors,
     pub required_fields: RequiredFields,
     pub delayed_session_response: DelayedSessionConfig,
     pub webhook_source_verification_call: WebhookSourceVerificationCall,
+    pub billing_connectors_payment_sync: BillingConnectorPaymentsSyncCall,
+    pub billing_connectors_invoice_sync: BillingConnectorInvoiceSyncCall,
     pub payment_method_auth: SecretStateContainer<PaymentMethodAuth, S>,
     pub connector_request_reference_id_config: ConnectorRequestReferenceIdConfig,
     #[cfg(feature = "payouts")]
     pub payouts: Payouts,
     pub payout_method_filters: ConnectorFilters,
+    pub debit_routing_config: DebitRoutingConfig,
     pub applepay_decrypt_keys: SecretStateContainer<ApplePayDecryptConfig, S>,
     pub paze_decrypt_keys: Option<SecretStateContainer<PazeDecryptConfig, S>>,
+    pub google_pay_decrypt_keys: Option<GooglePayDecryptConfig>,
     pub multiple_api_version_supported_connectors: MultipleApiVersionSupportedConnectors,
     pub applepay_merchant_configs: SecretStateContainer<ApplepayMerchantConfigs, S>,
     pub lock_settings: LockSettings,
@@ -128,9 +151,50 @@ pub struct Settings<S: SecretState> {
     pub network_tokenization_supported_card_networks: NetworkTokenizationSupportedCardNetworks,
     pub network_tokenization_service: Option<SecretStateContainer<NetworkTokenizationService, S>>,
     pub network_tokenization_supported_connectors: NetworkTokenizationSupportedConnectors,
+    pub theme: ThemeSettings,
+    pub platform: Platform,
+    pub authentication_providers: AuthenticationProviders,
+    pub open_router: OpenRouter,
+    #[cfg(feature = "v2")]
+    pub revenue_recovery: revenue_recovery::RevenueRecoverySettings,
+    pub clone_connector_allowlist: Option<CloneConnectorAllowlistConfig>,
+    pub merchant_id_auth: MerchantIdAuthSettings,
+    #[serde(default)]
+    pub infra_values: Option<HashMap<String, String>>,
 }
 
 #[derive(Debug, Deserialize, Clone, Default)]
+pub struct DebitRoutingConfig {
+    #[serde(deserialize_with = "deserialize_hashmap")]
+    pub connector_supported_debit_networks: HashMap<enums::Connector, HashSet<enums::CardNetwork>>,
+    #[serde(deserialize_with = "deserialize_hashset")]
+    pub supported_currencies: HashSet<enums::Currency>,
+    #[serde(deserialize_with = "deserialize_hashset")]
+    pub supported_connectors: HashSet<enums::Connector>,
+}
+
+#[derive(Debug, Deserialize, Clone, Default)]
+pub struct OpenRouter {
+    pub enabled: bool,
+    pub url: String,
+}
+
+#[derive(Debug, Deserialize, Clone, Default)]
+#[serde(default)]
+pub struct CloneConnectorAllowlistConfig {
+    #[serde(deserialize_with = "deserialize_merchant_ids")]
+    pub merchant_ids: HashSet<id_type::MerchantId>,
+    #[serde(deserialize_with = "deserialize_hashset")]
+    pub connector_names: HashSet<enums::Connector>,
+}
+
+#[derive(Debug, Deserialize, Clone, Default)]
+pub struct Platform {
+    pub enabled: bool,
+    pub allow_connected_merchants: bool,
+}
+
+#[derive(Debug, Clone, Default, Deserialize)]
 pub struct Multitenancy {
     pub tenants: TenantConfig,
     pub enabled: bool,
@@ -161,16 +225,113 @@ pub struct DecisionConfig {
 #[derive(Debug, Clone, Default)]
 pub struct TenantConfig(pub HashMap<id_type::TenantId, Tenant>);
 
+impl TenantConfig {
+    /// # Panics
+    ///
+    /// Panics if Failed to create event handler
+    pub async fn get_store_interface_map(
+        &self,
+        storage_impl: &app::StorageImpl,
+        conf: &configs::Settings,
+        cache_store: Arc<storage_impl::redis::RedisStore>,
+        testable: bool,
+    ) -> HashMap<id_type::TenantId, Box<dyn app::StorageInterface>> {
+        #[allow(clippy::expect_used)]
+        let event_handler = conf
+            .events
+            .get_event_handler()
+            .await
+            .expect("Failed to create event handler");
+        futures::future::join_all(self.0.iter().map(|(tenant_name, tenant)| async {
+            let store = AppState::get_store_interface(
+                storage_impl,
+                &event_handler,
+                conf,
+                tenant,
+                cache_store.clone(),
+                testable,
+            )
+            .await
+            .get_storage_interface();
+            (tenant_name.clone(), store)
+        }))
+        .await
+        .into_iter()
+        .collect()
+    }
+    /// # Panics
+    ///
+    /// Panics if Failed to create event handler
+    pub async fn get_accounts_store_interface_map(
+        &self,
+        storage_impl: &app::StorageImpl,
+        conf: &configs::Settings,
+        cache_store: Arc<storage_impl::redis::RedisStore>,
+        testable: bool,
+    ) -> HashMap<id_type::TenantId, Box<dyn app::AccountsStorageInterface>> {
+        #[allow(clippy::expect_used)]
+        let event_handler = conf
+            .events
+            .get_event_handler()
+            .await
+            .expect("Failed to create event handler");
+        futures::future::join_all(self.0.iter().map(|(tenant_name, tenant)| async {
+            let store = AppState::get_store_interface(
+                storage_impl,
+                &event_handler,
+                conf,
+                tenant,
+                cache_store.clone(),
+                testable,
+            )
+            .await
+            .get_accounts_storage_interface();
+            (tenant_name.clone(), store)
+        }))
+        .await
+        .into_iter()
+        .collect()
+    }
+    #[cfg(feature = "olap")]
+    pub async fn get_pools_map(
+        &self,
+        analytics_config: &AnalyticsConfig,
+    ) -> HashMap<id_type::TenantId, AnalyticsProvider> {
+        futures::future::join_all(self.0.iter().map(|(tenant_name, tenant)| async {
+            (
+                tenant_name.clone(),
+                AnalyticsProvider::from_conf(analytics_config, tenant).await,
+            )
+        }))
+        .await
+        .into_iter()
+        .collect()
+    }
+}
+
 #[derive(Debug, Clone)]
 pub struct Tenant {
     pub tenant_id: id_type::TenantId,
     pub base_url: String,
     pub schema: String,
+    pub accounts_schema: String,
     pub redis_key_prefix: String,
     pub clickhouse_database: String,
+    pub user: TenantUserConfig,
+}
+
+#[derive(Debug, Deserialize, Clone)]
+pub struct TenantUserConfig {
+    pub control_center_url: String,
 }
 
 impl storage_impl::config::TenantConfig for Tenant {
+    fn get_tenant_id(&self) -> &id_type::TenantId {
+        &self.tenant_id
+    }
+    fn get_accounts_schema(&self) -> &str {
+        self.accounts_schema.as_str()
+    }
     fn get_schema(&self) -> &str {
         self.schema.as_str()
     }
@@ -182,14 +343,23 @@ impl storage_impl::config::TenantConfig for Tenant {
     }
 }
 
-#[derive(Debug, Deserialize, Clone, Default)]
+// Todo: Global tenant should not be part of tenant config(https://github.com/juspay/hyperswitch/issues/7237)
+#[derive(Debug, Deserialize, Clone)]
 pub struct GlobalTenant {
+    #[serde(default = "id_type::TenantId::get_default_global_tenant_id")]
+    pub tenant_id: id_type::TenantId,
     pub schema: String,
     pub redis_key_prefix: String,
     pub clickhouse_database: String,
 }
-
+// Todo: Global tenant should not be part of tenant config
 impl storage_impl::config::TenantConfig for GlobalTenant {
+    fn get_tenant_id(&self) -> &id_type::TenantId {
+        &self.tenant_id
+    }
+    fn get_accounts_schema(&self) -> &str {
+        self.schema.as_str()
+    }
     fn get_schema(&self) -> &str {
         self.schema.as_str()
     }
@@ -278,38 +448,29 @@ impl Default for GenericLinkEnvUiConfig {
     }
 }
 
-#[derive(Debug, Deserialize, Clone, Default)]
+#[derive(Debug, Deserialize, Clone)]
 pub struct PaymentLink {
-    pub sdk_url: String,
+    pub sdk_url: url::Url,
+}
+
+impl Default for PaymentLink {
+    fn default() -> Self {
+        Self {
+            #[allow(clippy::expect_used)]
+            sdk_url: url::Url::parse("https://beta.hyperswitch.io/v0/HyperLoader.js")
+                .expect("Failed to parse default SDK URL"),
+        }
+    }
 }
 
 #[derive(Debug, Deserialize, Clone, Default)]
 #[serde(default)]
 pub struct ForexApi {
-    pub local_fetch_retry_count: u64,
     pub api_key: Secret<String>,
     pub fallback_api_key: Secret<String>,
-    /// in ms
-    pub call_delay: i64,
-    /// in ms
-    pub local_fetch_retry_delay: u64,
-    /// in ms
-    pub api_timeout: u64,
-    /// in ms
-    pub redis_lock_timeout: u64,
-}
-
-#[derive(Debug, Deserialize, Clone, Default)]
-pub struct PaymentMethodAuth {
-    pub redis_expiry: i64,
-    pub pm_auth_key: Secret<String>,
-}
-
-#[derive(Debug, Deserialize, Clone, Default)]
-#[serde(default)]
-pub struct EligiblePaymentMethods {
-    #[serde(deserialize_with = "deserialize_hashset")]
-    pub sdk_eligible_payment_methods: HashSet<String>,
+    pub data_expiration_delay_in_seconds: u32,
+    pub redis_lock_timeout_in_seconds: u32,
+    pub redis_ttl_in_seconds: u32,
 }
 
 #[derive(Debug, Deserialize, Clone, Default)]
@@ -393,10 +554,29 @@ pub struct CorsSettings {
     pub allowed_methods: HashSet<String>,
 }
 
-#[derive(Debug, Deserialize, Clone)]
-pub struct Mandates {
-    pub supported_payment_methods: SupportedPaymentMethodsForMandate,
-    pub update_mandate_supported: SupportedPaymentMethodsForMandate,
+#[derive(Debug, Deserialize, Clone, Default)]
+pub struct AuthenticationProviders {
+    #[serde(deserialize_with = "deserialize_connector_list")]
+    pub click_to_pay: HashSet<enums::Connector>,
+}
+
+fn deserialize_connector_list<'a, D>(deserializer: D) -> Result<HashSet<enums::Connector>, D::Error>
+where
+    D: serde::Deserializer<'a>,
+{
+    use serde::de::Error;
+
+    #[derive(Deserialize)]
+    struct Wrapper {
+        connector_list: String,
+    }
+
+    let wrapper = Wrapper::deserialize(deserializer)?;
+    wrapper
+        .connector_list
+        .split(',')
+        .map(|s| s.trim().parse().map_err(D::Error::custom))
+        .collect()
 }
 
 #[derive(Debug, Deserialize, Clone, Default)]
@@ -421,22 +601,6 @@ pub struct NetworkTokenizationService {
     pub key_id: String,
     pub delete_token_url: url::Url,
     pub check_token_status_url: url::Url,
-}
-
-#[derive(Debug, Deserialize, Clone)]
-pub struct SupportedPaymentMethodsForMandate(
-    pub HashMap<enums::PaymentMethod, SupportedPaymentMethodTypesForMandate>,
-);
-
-#[derive(Debug, Deserialize, Clone)]
-pub struct SupportedPaymentMethodTypesForMandate(
-    pub HashMap<enums::PaymentMethodType, SupportedConnectorsForMandate>,
-);
-
-#[derive(Debug, Deserialize, Clone)]
-pub struct SupportedConnectorsForMandate {
-    #[serde(deserialize_with = "deserialize_hashset")]
-    pub connector_list: HashSet<enums::Connector>,
 }
 
 #[derive(Debug, Deserialize, Clone, Default)]
@@ -522,25 +686,8 @@ pub struct NotAvailableFlows {
 
 #[cfg(feature = "payouts")]
 #[derive(Debug, Deserialize, Clone)]
+#[cfg_attr(feature = "v2", derive(Default))] // Configs are read from the config file in config/payout_required_fields.toml
 pub struct PayoutRequiredFields(pub HashMap<enums::PaymentMethod, PaymentMethodType>);
-
-#[derive(Debug, Deserialize, Clone)]
-pub struct RequiredFields(pub HashMap<enums::PaymentMethod, PaymentMethodType>);
-
-#[derive(Debug, Deserialize, Clone)]
-pub struct PaymentMethodType(pub HashMap<enums::PaymentMethodType, ConnectorFields>);
-
-#[derive(Debug, Deserialize, Clone)]
-pub struct ConnectorFields {
-    pub fields: HashMap<enums::Connector, RequiredFieldFinal>,
-}
-
-#[derive(Debug, Deserialize, Clone)]
-pub struct RequiredFieldFinal {
-    pub mandate: HashMap<String, RequiredFieldInfo>,
-    pub non_mandate: HashMap<String, RequiredFieldInfo>,
-    pub common: HashMap<String, RequiredFieldInfo>,
-}
 
 #[derive(Debug, Default, Deserialize, Clone)]
 #[serde(default)]
@@ -548,6 +695,13 @@ pub struct Secrets {
     pub jwt_secret: Secret<String>,
     pub admin_api_key: Secret<String>,
     pub master_enc_key: Secret<String>,
+}
+
+#[derive(Debug, Default, Deserialize, Clone)]
+#[serde(default)]
+pub struct FallbackMerchantIds {
+    #[serde(deserialize_with = "deserialize_merchant_ids")]
+    pub merchant_ids: HashSet<id_type::MerchantId>,
 }
 
 #[derive(Debug, Clone, Default, Deserialize)]
@@ -602,15 +756,6 @@ pub struct Jwekey {
     pub rust_locker_encryption_key: Secret<String>,
     pub vault_private_key: Secret<String>,
     pub tunnel_private_key: Secret<String>,
-}
-
-#[derive(Debug, Deserialize, Clone)]
-#[serde(default)]
-pub struct Proxy {
-    pub http_url: Option<String>,
-    pub https_url: Option<String>,
-    pub idle_pool_connection_timeout: Option<u64>,
-    pub bypass_proxy_urls: Vec<String>,
 }
 
 #[derive(Debug, Deserialize, Clone)]
@@ -676,9 +821,16 @@ pub struct DrainerSettings {
 
 #[derive(Debug, Clone, Default, Deserialize)]
 #[serde(default)]
+pub struct MerchantIdAuthSettings {
+    pub merchant_id_auth_enabled: bool,
+}
+
+#[derive(Debug, Clone, Default, Deserialize)]
+#[serde(default)]
 pub struct WebhooksSettings {
     pub outgoing_enabled: bool,
     pub ignore_error: WebhookIgnoreErrorSettings,
+    pub redis_lock_expiry_seconds: u32,
 }
 
 #[derive(Debug, Clone, Deserialize, Default)]
@@ -722,6 +874,18 @@ pub struct WebhookSourceVerificationCall {
 }
 
 #[derive(Debug, Deserialize, Clone, Default)]
+pub struct BillingConnectorPaymentsSyncCall {
+    #[serde(deserialize_with = "deserialize_hashset")]
+    pub billing_connectors_which_require_payment_sync: HashSet<enums::Connector>,
+}
+
+#[derive(Debug, Deserialize, Clone, Default)]
+pub struct BillingConnectorInvoiceSyncCall {
+    #[serde(deserialize_with = "deserialize_hashset")]
+    pub billing_connectors_which_requires_invoice_sync_call: HashSet<enums::Connector>,
+}
+
+#[derive(Debug, Deserialize, Clone, Default)]
 pub struct ApplePayDecryptConfig {
     pub apple_pay_ppc: Secret<String>,
     pub apple_pay_ppc_key: Secret<String>,
@@ -733,6 +897,11 @@ pub struct ApplePayDecryptConfig {
 pub struct PazeDecryptConfig {
     pub paze_private_key: Secret<String>,
     pub paze_private_key_passphrase: Secret<String>,
+}
+
+#[derive(Debug, Deserialize, Clone)]
+pub struct GooglePayDecryptConfig {
+    pub google_pay_root_signing_keys: Secret<String>,
 }
 
 #[derive(Debug, Deserialize, Clone, Default)]
@@ -782,7 +951,16 @@ impl Settings<SecuredSecret> {
 
         let config = router_env::Config::builder(&environment.to_string())
             .change_context(ApplicationError::ConfigurationError)?
-            .add_source(File::from(config_path).required(false))
+            .add_source(File::from(config_path).required(false));
+
+        #[cfg(feature = "v2")]
+        let config = {
+            let required_fields_config_file =
+                router_env::Config::get_config_directory().join(REQUIRED_FIELDS_CONFIG_FILE);
+            config.add_source(File::from(required_fields_config_file).required(false))
+        };
+
+        let config = config
             .add_source(
                 Environment::with_prefix("ROUTER")
                     .try_parsing(true)
@@ -791,7 +969,6 @@ impl Settings<SecuredSecret> {
                     .with_list_parse_key("log.telemetry.route_to_trace")
                     .with_list_parse_key("redis.cluster_urls")
                     .with_list_parse_key("events.kafka.brokers")
-                    .with_list_parse_key("proxy.bypass_proxy_urls")
                     .with_list_parse_key("connectors.supported.wallets")
                     .with_list_parse_key("connector_request_reference_id_config.merchant_ids_send_payment_id_as_connector_request_id"),
 
@@ -852,6 +1029,10 @@ impl Settings<SecuredSecret> {
             .validate()
             .map_err(|err| ApplicationError::InvalidConfigurationValueError(err.to_string()))?;
 
+        self.crm
+            .validate()
+            .map_err(|err| ApplicationError::InvalidConfigurationValueError(err.to_string()))?;
+
         self.lock_settings.validate()?;
         self.events.validate()?;
 
@@ -880,11 +1061,23 @@ impl Settings<SecuredSecret> {
             .map(|x| x.get_inner().validate())
             .transpose()?;
 
+        self.google_pay_decrypt_keys
+            .as_ref()
+            .map(|x| x.validate())
+            .transpose()?;
+
         self.key_manager.get_inner().validate()?;
         #[cfg(feature = "email")]
         self.email
             .validate()
             .map_err(|err| ApplicationError::InvalidConfigurationValueError(err.into()))?;
+
+        self.theme
+            .storage
+            .validate()
+            .map_err(|err| ApplicationError::InvalidConfigurationValueError(err.to_string()))?;
+
+        self.platform.validate()?;
 
         Ok(())
     }
@@ -985,6 +1178,12 @@ impl Default for CellInformation {
             id_type::CellId::from_string("defid").expect("Failed to create a default for Cell Id");
         Self { id: cell_id }
     }
+}
+
+#[derive(Debug, Deserialize, Clone, Default)]
+pub struct ThemeSettings {
+    pub storage: FileStorageConfig,
+    pub email_config: EmailThemeConfig,
 }
 
 fn deserialize_hashmap_inner<K, V>(
@@ -1110,14 +1309,63 @@ where
     })?
 }
 
+fn deserialize_merchant_ids_inner(
+    value: impl AsRef<str>,
+) -> Result<HashSet<id_type::MerchantId>, String> {
+    let (values, errors) = value
+        .as_ref()
+        .trim()
+        .split(',')
+        .map(|s| {
+            let trimmed = s.trim();
+            id_type::MerchantId::wrap(trimmed.to_owned()).map_err(|error| {
+                format!(
+                    "Unable to deserialize `{}` as `MerchantId`: {error}",
+                    trimmed
+                )
+            })
+        })
+        .fold(
+            (HashSet::new(), Vec::new()),
+            |(mut values, mut errors), result| match result {
+                Ok(t) => {
+                    values.insert(t);
+                    (values, errors)
+                }
+                Err(error) => {
+                    errors.push(error);
+                    (values, errors)
+                }
+            },
+        );
+
+    if !errors.is_empty() {
+        Err(format!("Some errors occurred:\n{}", errors.join("\n")))
+    } else {
+        Ok(values)
+    }
+}
+
+fn deserialize_merchant_ids<'de, D>(
+    deserializer: D,
+) -> Result<HashSet<id_type::MerchantId>, D::Error>
+where
+    D: serde::Deserializer<'de>,
+{
+    let s = String::deserialize(deserializer)?;
+    deserialize_merchant_ids_inner(s).map_err(serde::de::Error::custom)
+}
+
 impl<'de> Deserialize<'de> for TenantConfig {
     fn deserialize<D: serde::Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
         #[derive(Deserialize)]
         struct Inner {
             base_url: String,
             schema: String,
+            accounts_schema: String,
             redis_key_prefix: String,
             clickhouse_database: String,
+            user: TenantUserConfig,
         }
 
         let hashmap = <HashMap<id_type::TenantId, Inner>>::deserialize(deserializer)?;
@@ -1132,8 +1380,10 @@ impl<'de> Deserialize<'de> for TenantConfig {
                             tenant_id: key,
                             base_url: value.base_url,
                             schema: value.schema,
+                            accounts_schema: value.accounts_schema,
                             redis_key_prefix: value.redis_key_prefix,
                             clickhouse_database: value.clickhouse_database,
+                            user: value.user,
                         },
                     )
                 })

@@ -21,13 +21,12 @@ where
 pub async fn record_operation_time<F, R>(
     future: F,
     metric: &opentelemetry::metrics::Histogram<f64>,
-    metric_context: &opentelemetry::Context,
     key_value: &[opentelemetry::KeyValue],
 ) -> R
 where
     F: futures::Future<Output = R>,
 {
     let (result, time) = time_future(future).await;
-    metric.record(metric_context, time.as_secs_f64(), key_value);
+    metric.record(time.as_secs_f64(), key_value);
     result
 }

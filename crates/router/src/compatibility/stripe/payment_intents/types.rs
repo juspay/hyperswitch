@@ -283,15 +283,11 @@ impl TryFrom<StripePaymentIntentRequest> for payments::PaymentsRequest {
     type Error = error_stack::Report<errors::ApiErrorResponse>;
     fn try_from(item: StripePaymentIntentRequest) -> errors::RouterResult<Self> {
         let routable_connector: Option<api_enums::RoutableConnectors> =
-            item.connector.and_then(|v| {
-                v.into_iter()
-                    .next()
-                    .map(api_enums::RoutableConnectors::from)
-            });
+            item.connector.and_then(|v| v.into_iter().next());
 
         let routing = routable_connector
             .map(|connector| {
-                api_models::routing::RoutingAlgorithm::Single(Box::new(
+                api_models::routing::StaticRoutingAlgorithm::Single(Box::new(
                     api_models::routing::RoutableConnectorChoice {
                         choice_kind: api_models::routing::RoutableChoiceKind::FullStruct,
                         connector,
@@ -321,9 +317,10 @@ impl TryFrom<StripePaymentIntentRequest> for payments::PaymentsRequest {
             let billing = pmd.billing_details.clone().map(payments::Address::from);
             let payment_method_data = match pmd.payment_method_details.as_ref() {
                 Some(spmd) => Some(payments::PaymentMethodData::from(spmd.to_owned())),
-                None => {
-                    get_pmd_based_on_payment_method_type(item.payment_method_types, billing.clone())
-                }
+                None => get_pmd_based_on_payment_method_type(
+                    item.payment_method_types,
+                    billing.clone().map(From::from),
+                ),
             };
 
             payments::PaymentMethodDataRequest {
@@ -426,7 +423,8 @@ impl From<api_enums::IntentStatus> for StripePaymentStatus {
             api_enums::IntentStatus::Failed => Self::Canceled,
             api_enums::IntentStatus::Processing => Self::Processing,
             api_enums::IntentStatus::RequiresCustomerAction
-            | api_enums::IntentStatus::RequiresMerchantAction => Self::RequiresAction,
+            | api_enums::IntentStatus::RequiresMerchantAction
+            | api_enums::IntentStatus::Conflicted => Self::RequiresAction,
             api_enums::IntentStatus::RequiresPaymentMethod => Self::RequiresPaymentMethod,
             api_enums::IntentStatus::RequiresConfirmation => Self::RequiresConfirmation,
             api_enums::IntentStatus::RequiresCapture
@@ -823,6 +821,8 @@ pub enum StripeNextAction {
         image_data_url: Option<url::Url>,
         display_to_timestamp: Option<i64>,
         qr_code_url: Option<url::Url>,
+        border_color: Option<String>,
+        display_text: Option<String>,
     },
     FetchQrCodeInformation {
         qr_code_fetch_url: url::Url,
@@ -833,12 +833,16 @@ pub enum StripeNextAction {
     WaitScreenInformation {
         display_from_timestamp: i128,
         display_to_timestamp: Option<i128>,
+        poll_config: Option<payments::PollConfig>,
     },
     InvokeSdkClient {
         next_action_data: payments::SdkNextActionData,
     },
     CollectOtp {
         consent_data_required: payments::MobilePaymentConsent,
+    },
+    InvokeHiddenIframe {
+        iframe_data: payments::IframeData,
     },
 }
 
@@ -855,6 +859,14 @@ pub(crate) fn into_stripe_next_action(
                 },
             }
         }
+        payments::NextActionData::RedirectInsidePopup { popup_url, .. } => {
+            StripeNextAction::RedirectToUrl {
+                redirect_to_url: RedirectUrl {
+                    return_url,
+                    url: Some(popup_url),
+                },
+            }
+        }
         payments::NextActionData::DisplayBankTransferInformation {
             bank_transfer_steps_and_charges_details,
         } => StripeNextAction::DisplayBankTransferInformation {
@@ -868,10 +880,14 @@ pub(crate) fn into_stripe_next_action(
             image_data_url,
             display_to_timestamp,
             qr_code_url,
+            border_color,
+            display_text,
         } => StripeNextAction::QrCodeInformation {
             image_data_url,
             display_to_timestamp,
             qr_code_url,
+            border_color,
+            display_text,
         },
         payments::NextActionData::FetchQrCodeInformation { qr_code_fetch_url } => {
             StripeNextAction::FetchQrCodeInformation { qr_code_fetch_url }
@@ -882,9 +898,11 @@ pub(crate) fn into_stripe_next_action(
         payments::NextActionData::WaitScreenInformation {
             display_from_timestamp,
             display_to_timestamp,
+            poll_config: _,
         } => StripeNextAction::WaitScreenInformation {
             display_from_timestamp,
             display_to_timestamp,
+            poll_config: None,
         },
         payments::NextActionData::ThreeDsInvoke { .. } => StripeNextAction::RedirectToUrl {
             redirect_to_url: RedirectUrl {
@@ -900,6 +918,9 @@ pub(crate) fn into_stripe_next_action(
         } => StripeNextAction::CollectOtp {
             consent_data_required,
         },
+        payments::NextActionData::InvokeHiddenIframe { iframe_data } => {
+            StripeNextAction::InvokeHiddenIframe { iframe_data }
+        }
     })
 }
 
@@ -911,7 +932,7 @@ pub struct StripePaymentRetrieveBody {
 //To handle payment types that have empty payment method data
 fn get_pmd_based_on_payment_method_type(
     payment_method_type: Option<api_enums::PaymentMethodType>,
-    billing_details: Option<payments::Address>,
+    billing_details: Option<hyperswitch_domain_models::address::Address>,
 ) -> Option<payments::PaymentMethodData> {
     match payment_method_type {
         Some(api_enums::PaymentMethodType::UpiIntent) => Some(payments::PaymentMethodData::Upi(

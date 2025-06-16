@@ -1,4 +1,4 @@
-use api_models::{payments::AddressDetails, webhooks::IncomingWebhookEvent};
+use api_models::webhooks::IncomingWebhookEvent;
 use cards::CardNumber;
 use common_enums::enums;
 use common_utils::{
@@ -286,6 +286,7 @@ impl TryFrom<&WalletData> for Shift4PaymentMethod {
     fn try_from(wallet_data: &WalletData) -> Result<Self, Self::Error> {
         match wallet_data {
             WalletData::AliPayRedirect(_)
+            | WalletData::AmazonPayRedirect(_)
             | WalletData::ApplePay(_)
             | WalletData::WeChatPayRedirect(_)
             | WalletData::AliPayQr(_)
@@ -312,7 +313,8 @@ impl TryFrom<&WalletData> for Shift4PaymentMethod {
             | WalletData::WeChatPayQr(_)
             | WalletData::CashappQr(_)
             | WalletData::SwishQr(_)
-            | WalletData::Mifinity(_) => Err(errors::ConnectorError::NotImplemented(
+            | WalletData::Mifinity(_)
+            | WalletData::RevolutPay(_) => Err(errors::ConnectorError::NotImplemented(
                 utils::get_unimplemented_payment_method_error_message("Shift4"),
             )
             .into()),
@@ -337,6 +339,9 @@ impl TryFrom<&BankTransferData> for Shift4PaymentMethod {
             | BankTransferData::MandiriVaBankTransfer { .. }
             | BankTransferData::Pix { .. }
             | BankTransferData::Pse {}
+            | BankTransferData::InstantBankTransfer {}
+            | BankTransferData::InstantBankTransferFinland { .. }
+            | BankTransferData::InstantBankTransferPoland { .. }
             | BankTransferData::LocalBankTransfer { .. } => {
                 Err(errors::ConnectorError::NotImplemented(
                     utils::get_unimplemented_payment_method_error_message("Shift4"),
@@ -504,6 +509,7 @@ impl TryFrom<&BankRedirectData> for PaymentMethodType {
             BankRedirectData::Sofort { .. } => Ok(Self::Sofort),
             BankRedirectData::BancontactCard { .. }
             | BankRedirectData::Blik { .. }
+            | BankRedirectData::Eft { .. }
             | BankRedirectData::Trustly { .. }
             | BankRedirectData::Przelewy24 { .. }
             | BankRedirectData::Bizum {}
@@ -555,7 +561,9 @@ where
     }
 }
 
-fn get_address_details(address_details: Option<&AddressDetails>) -> Option<Address> {
+fn get_address_details(
+    address_details: Option<&hyperswitch_domain_models::address::AddressDetails>,
+) -> Option<Address> {
     address_details.map(|address| Address {
         line1: address.line1.clone(),
         line2: address.line1.clone(),
@@ -766,7 +774,7 @@ impl TryFrom<PaymentsPreprocessingResponseRouterData<Shift4ThreeDsResponse>>
                 network_txn_id: None,
                 connector_response_reference_id: None,
                 incremental_authorization_allowed: None,
-                charge_id: None,
+                charges: None,
             }),
             ..item.data
         })
@@ -804,7 +812,7 @@ impl<T, F> TryFrom<ResponseRouterData<F, Shift4NonThreeDsResponse, T, PaymentsRe
                 network_txn_id: None,
                 connector_response_reference_id: Some(item.response.id),
                 incremental_authorization_allowed: None,
-                charge_id: None,
+                charges: None,
             }),
             ..item.data
         })

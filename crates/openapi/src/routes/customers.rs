@@ -51,7 +51,7 @@ pub async fn customers_retrieve() {}
     post,
     path = "/customers/{customer_id}",
     request_body (
-        content = CustomerRequest,
+        content = CustomerUpdateRequest,
         examples  (( "Update name and email of a customer" =(
         value =json!( {
             "email": "guest@example.com",
@@ -159,7 +159,7 @@ pub async fn customers_retrieve() {}
     post,
     path = "/v2/customers/{id}",
     request_body (
-        content = CustomerRequest,
+        content = CustomerUpdateRequest,
         examples  (( "Update name and email of a customer" =(
         value =json!( {
             "email": "guest@example.com",

@@ -152,10 +152,10 @@ impl TryFrom<&MollieRouterData<&types::PaymentsAuthorizeRouterData>> for MollieP
             value: item.amount.clone(),
         };
         let description = item.router_data.get_description()?;
-        let redirect_url = item.router_data.request.get_return_url()?;
+        let redirect_url = item.router_data.request.get_router_return_url()?;
         let payment_method_data = match item.router_data.request.capture_method.unwrap_or_default()
         {
-            enums::CaptureMethod::Automatic => {
+            enums::CaptureMethod::Automatic | enums::CaptureMethod::SequentialAutomatic => {
                 match &item.router_data.request.payment_method_data {
                     PaymentMethodData::Card(_) => {
                         let pm_token = item.router_data.get_payment_method_token()?;
@@ -174,6 +174,9 @@ impl TryFrom<&MollieRouterData<&types::PaymentsAuthorizeRouterData>> for MollieP
                                     }
                                     PaymentMethodToken::PazeDecrypt(_) => {
                                         Err(unimplemented_payment_method!("Paze", "Mollie"))?
+                                    }
+                                    PaymentMethodToken::GooglePayDecrypt(_) => {
+                                        Err(unimplemented_payment_method!("Google Pay", "Mollie"))?
                                     }
                                 }),
                             },
@@ -354,7 +357,7 @@ fn get_billing_details(
 }
 
 fn get_address_details(
-    address: Option<&api_models::payments::AddressDetails>,
+    address: Option<&hyperswitch_domain_models::address::AddressDetails>,
 ) -> Result<Option<Address>, Error> {
     let address_details = match address {
         Some(address) => {
@@ -513,7 +516,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, MolliePaymentsResponse, T, PaymentsResp
                 network_txn_id: None,
                 connector_response_reference_id: Some(item.response.id),
                 incremental_authorization_allowed: None,
-                charge_id: None,
+                charges: None,
             }),
             ..item.data
         })

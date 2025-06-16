@@ -57,6 +57,14 @@ pub enum IncomingWebhookEvent {
     PayoutExpired,
     #[cfg(feature = "payouts")]
     PayoutReversed,
+    #[cfg(all(feature = "revenue_recovery", feature = "v2"))]
+    RecoveryPaymentFailure,
+    #[cfg(all(feature = "revenue_recovery", feature = "v2"))]
+    RecoveryPaymentSuccess,
+    #[cfg(all(feature = "revenue_recovery", feature = "v2"))]
+    RecoveryPaymentPending,
+    #[cfg(all(feature = "revenue_recovery", feature = "v2"))]
+    RecoveryInvoiceCancel,
 }
 
 pub enum WebhookFlow {
@@ -71,6 +79,8 @@ pub enum WebhookFlow {
     Mandate,
     ExternalAuthentication,
     FraudCheck,
+    #[cfg(all(feature = "revenue_recovery", feature = "v2"))]
+    Recovery,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
@@ -120,6 +130,10 @@ pub enum WebhookResponseTracker {
         status: common_enums::MandateStatus,
     },
     NoEffect,
+    Relay {
+        relay_id: common_utils::id_type::RelayId,
+        status: common_enums::RelayStatus,
+    },
 }
 
 impl WebhookResponseTracker {
@@ -132,6 +146,7 @@ impl WebhookResponseTracker {
             Self::NoEffect | Self::Mandate { .. } => None,
             #[cfg(feature = "payouts")]
             Self::Payout { .. } => None,
+            Self::Relay { .. } => None,
         }
     }
 
@@ -144,6 +159,7 @@ impl WebhookResponseTracker {
             Self::NoEffect | Self::Mandate { .. } => None,
             #[cfg(feature = "payouts")]
             Self::Payout { .. } => None,
+            Self::Relay { .. } => None,
         }
     }
 }
@@ -191,6 +207,11 @@ impl From<IncomingWebhookEvent> for WebhookFlow {
             | IncomingWebhookEvent::PayoutCreated
             | IncomingWebhookEvent::PayoutExpired
             | IncomingWebhookEvent::PayoutReversed => Self::Payout,
+            #[cfg(all(feature = "revenue_recovery", feature = "v2"))]
+            IncomingWebhookEvent::RecoveryInvoiceCancel
+            | IncomingWebhookEvent::RecoveryPaymentFailure
+            | IncomingWebhookEvent::RecoveryPaymentPending
+            | IncomingWebhookEvent::RecoveryPaymentSuccess => Self::Recovery,
         }
     }
 }
@@ -230,6 +251,58 @@ pub enum ObjectReferenceId {
     ExternalAuthenticationID(AuthenticationIdType),
     #[cfg(feature = "payouts")]
     PayoutId(PayoutIdType),
+    #[cfg(all(feature = "revenue_recovery", feature = "v2"))]
+    InvoiceId(InvoiceIdType),
+}
+
+#[cfg(all(feature = "revenue_recovery", feature = "v2"))]
+#[derive(Clone)]
+pub enum InvoiceIdType {
+    ConnectorInvoiceId(String),
+}
+
+#[cfg(all(feature = "revenue_recovery", feature = "v2"))]
+impl ObjectReferenceId {
+    pub fn get_connector_transaction_id_as_string(
+        self,
+    ) -> Result<String, common_utils::errors::ValidationError> {
+        match self {
+            Self::PaymentId(
+                payments::PaymentIdType::ConnectorTransactionId(id)
+            ) => Ok(id),
+            Self::PaymentId(_)=>Err(
+                common_utils::errors::ValidationError::IncorrectValueProvided {
+                    field_name: "ConnectorTransactionId variant of PaymentId is required but received otherr variant",
+                },
+            ),
+            Self::RefundId(_) => Err(
+                common_utils::errors::ValidationError::IncorrectValueProvided {
+                    field_name: "PaymentId is required but received RefundId",
+                },
+            ),
+            Self::MandateId(_) => Err(
+                common_utils::errors::ValidationError::IncorrectValueProvided {
+                    field_name: "PaymentId is required but received MandateId",
+                },
+            ),
+            Self::ExternalAuthenticationID(_) => Err(
+                common_utils::errors::ValidationError::IncorrectValueProvided {
+                    field_name: "PaymentId is required but received ExternalAuthenticationID",
+                },
+            ),
+            #[cfg(feature = "payouts")]
+            Self::PayoutId(_) => Err(
+                common_utils::errors::ValidationError::IncorrectValueProvided {
+                    field_name: "PaymentId is required but received PayoutId",
+                },
+            ),
+            Self::InvoiceId(_) => Err(
+                common_utils::errors::ValidationError::IncorrectValueProvided {
+                    field_name: "PaymentId is required but received InvoiceId",
+                },
+            )
+        }
+    }
 }
 
 pub struct IncomingWebhookDetails {
@@ -237,7 +310,7 @@ pub struct IncomingWebhookDetails {
     pub resource_object: Vec<u8>,
 }
 
-#[derive(Debug, Clone, Serialize, ToSchema)]
+#[derive(Debug, Serialize, ToSchema)]
 pub struct OutgoingWebhook {
     /// The merchant id of the merchant
     #[schema(value_type = String)]
@@ -280,7 +353,7 @@ pub enum OutgoingWebhookContent {
 #[cfg(feature = "v2")]
 pub enum OutgoingWebhookContent {
     #[schema(value_type = PaymentsResponse, title = "PaymentsResponse")]
-    PaymentDetails(Box<payments::PaymentsRetrieveResponse>),
+    PaymentDetails(Box<payments::PaymentsResponse>),
     #[schema(value_type = RefundResponse, title = "RefundResponse")]
     RefundDetails(Box<refunds::RefundResponse>),
     #[schema(value_type = DisputeResponse, title = "DisputeResponse")]
@@ -296,4 +369,16 @@ pub enum OutgoingWebhookContent {
 pub struct ConnectorWebhookSecrets {
     pub secret: Vec<u8>,
     pub additional_secret: Option<masking::Secret<String>>,
+}
+
+#[cfg(all(feature = "v2", feature = "revenue_recovery"))]
+impl IncomingWebhookEvent {
+    pub fn is_recovery_transaction_event(&self) -> bool {
+        matches!(
+            self,
+            Self::RecoveryPaymentFailure
+                | Self::RecoveryPaymentSuccess
+                | Self::RecoveryPaymentPending
+        )
+    }
 }

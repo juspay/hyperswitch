@@ -2,8 +2,8 @@
 
 use std::{borrow::Cow, marker::PhantomData, str::FromStr, sync::Arc};
 
-use api_models::payments::{Address, AddressDetails, PhoneDetails};
 use common_utils::id_type;
+use hyperswitch_domain_models::address::{Address, AddressDetails, PhoneDetails};
 use masking::Secret;
 use router::{
     configs::settings::Settings,
@@ -27,6 +27,7 @@ fn construct_payment_router_data() -> types::PaymentsAuthorizeRouterData {
         flow: PhantomData,
         merchant_id,
         customer_id: Some(id_type::CustomerId::try_from(Cow::from("aci")).unwrap()),
+        tenant_id: id_type::TenantId::try_from_string("public".to_string()).unwrap(),
         connector: "aci".to_string(),
         payment_id: uuid::Uuid::new_v4().to_string(),
         attempt_id: uuid::Uuid::new_v4().to_string(),
@@ -35,7 +36,6 @@ fn construct_payment_router_data() -> types::PaymentsAuthorizeRouterData {
         payment_method: enums::PaymentMethod::Card,
         connector_auth_type: utils::to_connector_auth_type(auth.into()),
         description: Some("This is a test".to_string()),
-        return_url: None,
         payment_method_status: None,
         request: types::PaymentsAuthorizeData {
             amount: 1000,
@@ -51,6 +51,8 @@ fn construct_payment_router_data() -> types::PaymentsAuthorizeRouterData {
                 card_issuing_country: None,
                 bank_code: None,
                 nick_name: Some(Secret::new("nick_name".into())),
+                card_holder_name: Some(Secret::new("card holder name".into())),
+                co_badged_card_data: None,
             }),
             confirm: true,
             statement_descriptor_suffix: None,
@@ -129,7 +131,9 @@ fn construct_payment_router_data() -> types::PaymentsAuthorizeRouterData {
         additional_merchant_data: None,
         header_payload: None,
         connector_mandate_request_reference_id: None,
+        authentication_id: None,
         psd2_sca_exemption_type: None,
+        whole_connector_response: None,
     }
 }
 
@@ -144,6 +148,7 @@ fn construct_refund_router_data<F>() -> types::RefundsRouterData<F> {
         flow: PhantomData,
         merchant_id,
         customer_id: Some(id_type::CustomerId::try_from(Cow::from("aci")).unwrap()),
+        tenant_id: id_type::TenantId::try_from_string("public".to_string()).unwrap(),
         connector: "aci".to_string(),
         payment_id: uuid::Uuid::new_v4().to_string(),
         attempt_id: uuid::Uuid::new_v4().to_string(),
@@ -153,7 +158,6 @@ fn construct_refund_router_data<F>() -> types::RefundsRouterData<F> {
         auth_type: enums::AuthenticationType::NoThreeDs,
         connector_auth_type: utils::to_connector_auth_type(auth.into()),
         description: Some("This is a test".to_string()),
-        return_url: None,
         request: types::RefundsData {
             payment_amount: 1000,
             currency: enums::Currency::USD,
@@ -200,7 +204,9 @@ fn construct_refund_router_data<F>() -> types::RefundsRouterData<F> {
         additional_merchant_data: None,
         header_payload: None,
         connector_mandate_request_reference_id: None,
+        authentication_id: None,
         psd2_sca_exemption_type: None,
+        whole_connector_response: None,
     }
 }
 
@@ -219,6 +225,7 @@ async fn payments_create_success() {
     let state = Arc::new(app_state)
         .get_session_state(
             &id_type::TenantId::try_from_string("public".to_string()).unwrap(),
+            None,
             || {},
         )
         .unwrap();
@@ -241,6 +248,7 @@ async fn payments_create_success() {
         connector_integration,
         &request,
         payments::CallConnectorAction::Trigger,
+        None,
         None,
     )
     .await
@@ -269,6 +277,7 @@ async fn payments_create_failure() {
         let state = Arc::new(app_state)
             .get_session_state(
                 &id_type::TenantId::try_from_string("public".to_string()).unwrap(),
+                None,
                 || {},
             )
             .unwrap();
@@ -296,6 +305,8 @@ async fn payments_create_failure() {
                 card_issuing_country: None,
                 bank_code: None,
                 nick_name: Some(Secret::new("nick_name".into())),
+                card_holder_name: Some(Secret::new("card holder name".into())),
+                co_badged_card_data: None,
             });
 
         let response = services::api::execute_connector_processing_step(
@@ -303,6 +314,7 @@ async fn payments_create_failure() {
             connector_integration,
             &request,
             payments::CallConnectorAction::Trigger,
+            None,
             None,
         )
         .await
@@ -334,6 +346,7 @@ async fn refund_for_successful_payments() {
     let state = Arc::new(app_state)
         .get_session_state(
             &id_type::TenantId::try_from_string("public".to_string()).unwrap(),
+            None,
             || {},
         )
         .unwrap();
@@ -348,6 +361,7 @@ async fn refund_for_successful_payments() {
         connector_integration,
         &request,
         payments::CallConnectorAction::Trigger,
+        None,
         None,
     )
     .await
@@ -373,6 +387,7 @@ async fn refund_for_successful_payments() {
         connector_integration,
         &refund_request,
         payments::CallConnectorAction::Trigger,
+        None,
         None,
     )
     .await
@@ -407,6 +422,7 @@ async fn refunds_create_failure() {
     let state = Arc::new(app_state)
         .get_session_state(
             &id_type::TenantId::try_from_string("public".to_string()).unwrap(),
+            None,
             || {},
         )
         .unwrap();
@@ -422,6 +438,7 @@ async fn refunds_create_failure() {
         connector_integration,
         &request,
         payments::CallConnectorAction::Trigger,
+        None,
         None,
     )
     .await

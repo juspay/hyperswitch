@@ -104,13 +104,19 @@ To use Forex services, you need to sign up and get your API keys from the follow
    - It will be in dashboard, labeled as `access key`.
 
 ### Configuring Forex APIs
+To enable Forex functionality, update the `config/development.toml` or `config/docker_compose.toml` file:
+
+```toml
+[analytics]
+forex_enabled = true # default set to false 
+```
 
 To configure the Forex APIs, update the `config/development.toml` or `config/docker_compose.toml` file with your API keys:
 
 ```toml
 [forex_api]
-api_key = "YOUR API KEY HERE" # Replace the placeholder with your Primary API Key
-fallback_api_key = "YOUR API KEY HERE" # Replace the placeholder with your Fallback API Key 
+api_key = ""
+fallback_api_key = ""
 ```
 ### Important Note
 ```bash

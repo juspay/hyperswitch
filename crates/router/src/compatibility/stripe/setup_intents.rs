@@ -1,14 +1,14 @@
 pub mod types;
-#[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
+#[cfg(feature = "v1")]
 use actix_web::{web, HttpRequest, HttpResponse};
-#[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
+#[cfg(feature = "v1")]
 use api_models::payments as payment_types;
-#[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
+#[cfg(feature = "v1")]
 use error_stack::report;
-#[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
+#[cfg(feature = "v1")]
 use router_env::{instrument, tracing, Flow};
 
-#[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
+#[cfg(feature = "v1")]
 use crate::{
     compatibility::{
         stripe::{errors, payment_intents::types as stripe_payment_types},
@@ -17,10 +17,10 @@ use crate::{
     core::{api_locking, payments},
     routes,
     services::{api, authentication as auth},
-    types::api as api_types,
+    types::{api as api_types, domain},
 };
 
-#[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
+#[cfg(feature = "v1")]
 #[instrument(skip_all, fields(flow = ?Flow::PaymentsCreate))]
 pub async fn setup_intents_create(
     state: web::Data<routes::AppState>,
@@ -59,6 +59,9 @@ pub async fn setup_intents_create(
         &req,
         create_payment_req,
         |state, auth: auth::AuthenticationData, req, req_state| {
+            let merchant_context = domain::MerchantContext::NormalMerchant(Box::new(
+                domain::Context(auth.merchant_account, auth.key_store),
+            ));
             payments::payments_core::<
                 api_types::SetupMandate,
                 api_types::PaymentsResponse,
@@ -69,9 +72,8 @@ pub async fn setup_intents_create(
             >(
                 state,
                 req_state,
-                auth.merchant_account,
+                merchant_context,
                 None,
-                auth.key_store,
                 payments::PaymentCreate,
                 req,
                 api::AuthFlow::Merchant,
@@ -80,7 +82,10 @@ pub async fn setup_intents_create(
                 hyperswitch_domain_models::payments::HeaderPayload::default(),
             )
         },
-        &auth::HeaderAuth(auth::ApiKeyAuth),
+        &auth::HeaderAuth(auth::ApiKeyAuth {
+            is_connected_allowed: false,
+            is_platform_allowed: false,
+        }),
         api_locking::LockAction::NotApplicable,
     ))
     .await
@@ -104,10 +109,16 @@ pub async fn setup_intents_retrieve(
         client_secret: query_payload.client_secret.clone(),
         expand_attempts: None,
         expand_captures: None,
+        all_keys_required: None,
+    };
+
+    let api_auth = auth::ApiKeyAuth {
+        is_connected_allowed: false,
+        is_platform_allowed: false,
     };
 
     let (auth_type, auth_flow) =
-        match auth::check_client_secret_and_get_auth(req.headers(), &payload) {
+        match auth::check_client_secret_and_get_auth(req.headers(), &payload, api_auth) {
             Ok(auth) => auth,
             Err(err) => return api::log_and_return_error_response(report!(err)),
         };
@@ -129,6 +140,9 @@ pub async fn setup_intents_retrieve(
         &req,
         payload,
         |state, auth, payload, req_state| {
+            let merchant_context = domain::MerchantContext::NormalMerchant(Box::new(
+                domain::Context(auth.merchant_account, auth.key_store),
+            ));
             payments::payments_core::<
                 api_types::PSync,
                 api_types::PaymentsResponse,
@@ -139,9 +153,8 @@ pub async fn setup_intents_retrieve(
             >(
                 state,
                 req_state,
-                auth.merchant_account,
+                merchant_context,
                 None,
-                auth.key_store,
                 payments::PaymentStatus,
                 payload,
                 auth_flow,
@@ -156,7 +169,7 @@ pub async fn setup_intents_retrieve(
     .await
 }
 
-#[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
+#[cfg(feature = "v1")]
 #[instrument(skip_all, fields(flow = ?Flow::PaymentsUpdate))]
 pub async fn setup_intents_update(
     state: web::Data<routes::AppState>,
@@ -182,8 +195,13 @@ pub async fn setup_intents_update(
         };
     payload.payment_id = Some(api_types::PaymentIdType::PaymentIntentId(setup_id));
 
+    let api_auth = auth::ApiKeyAuth {
+        is_connected_allowed: false,
+        is_platform_allowed: false,
+    };
+
     let (auth_type, auth_flow) =
-        match auth::check_client_secret_and_get_auth(req.headers(), &payload) {
+        match auth::check_client_secret_and_get_auth(req.headers(), &payload, api_auth) {
             Ok(auth) => auth,
             Err(err) => return api::log_and_return_error_response(err),
         };
@@ -205,6 +223,9 @@ pub async fn setup_intents_update(
         &req,
         payload,
         |state, auth, req, req_state| {
+            let merchant_context = domain::MerchantContext::NormalMerchant(Box::new(
+                domain::Context(auth.merchant_account, auth.key_store),
+            ));
             payments::payments_core::<
                 api_types::SetupMandate,
                 api_types::PaymentsResponse,
@@ -215,9 +236,8 @@ pub async fn setup_intents_update(
             >(
                 state,
                 req_state,
-                auth.merchant_account,
+                merchant_context,
                 None,
-                auth.key_store,
                 payments::PaymentUpdate,
                 req,
                 auth_flow,
@@ -232,7 +252,7 @@ pub async fn setup_intents_update(
     .await
 }
 
-#[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
+#[cfg(feature = "v1")]
 #[instrument(skip_all, fields(flow = ?Flow::PaymentsConfirm))]
 pub async fn setup_intents_confirm(
     state: web::Data<routes::AppState>,
@@ -259,8 +279,13 @@ pub async fn setup_intents_confirm(
     payload.payment_id = Some(api_types::PaymentIdType::PaymentIntentId(setup_id));
     payload.confirm = Some(true);
 
+    let api_auth = auth::ApiKeyAuth {
+        is_connected_allowed: false,
+        is_platform_allowed: false,
+    };
+
     let (auth_type, auth_flow) =
-        match auth::check_client_secret_and_get_auth(req.headers(), &payload) {
+        match auth::check_client_secret_and_get_auth(req.headers(), &payload, api_auth) {
             Ok(auth) => auth,
             Err(err) => return api::log_and_return_error_response(err),
         };
@@ -282,6 +307,9 @@ pub async fn setup_intents_confirm(
         &req,
         payload,
         |state, auth, req, req_state| {
+            let merchant_context = domain::MerchantContext::NormalMerchant(Box::new(
+                domain::Context(auth.merchant_account, auth.key_store),
+            ));
             payments::payments_core::<
                 api_types::SetupMandate,
                 api_types::PaymentsResponse,
@@ -292,9 +320,8 @@ pub async fn setup_intents_confirm(
             >(
                 state,
                 req_state,
-                auth.merchant_account,
+                merchant_context,
                 None,
-                auth.key_store,
                 payments::PaymentConfirm,
                 req,
                 auth_flow,

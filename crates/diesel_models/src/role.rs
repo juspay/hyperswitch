@@ -9,7 +9,7 @@ use crate::{enums, schema::roles};
 pub struct Role {
     pub role_name: String,
     pub role_id: String,
-    pub merchant_id: id_type::MerchantId,
+    pub merchant_id: Option<id_type::MerchantId>,
     pub org_id: id_type::OrganizationId,
     #[diesel(deserialize_as = super::DieselArray<enums::PermissionGroup>)]
     pub groups: Vec<enums::PermissionGroup>,
@@ -19,6 +19,8 @@ pub struct Role {
     pub last_modified_at: PrimitiveDateTime,
     pub last_modified_by: String,
     pub entity_type: enums::EntityType,
+    pub profile_id: Option<id_type::ProfileId>,
+    pub tenant_id: id_type::TenantId,
 }
 
 #[derive(router_derive::Setter, Clone, Debug, Insertable, router_derive::DebugAsDisplay)]
@@ -26,7 +28,7 @@ pub struct Role {
 pub struct RoleNew {
     pub role_name: String,
     pub role_id: String,
-    pub merchant_id: id_type::MerchantId,
+    pub merchant_id: Option<id_type::MerchantId>,
     pub org_id: id_type::OrganizationId,
     #[diesel(deserialize_as = super::DieselArray<enums::PermissionGroup>)]
     pub groups: Vec<enums::PermissionGroup>,
@@ -36,6 +38,8 @@ pub struct RoleNew {
     pub last_modified_at: PrimitiveDateTime,
     pub last_modified_by: String,
     pub entity_type: enums::EntityType,
+    pub profile_id: Option<id_type::ProfileId>,
+    pub tenant_id: id_type::TenantId,
 }
 
 #[derive(Clone, Debug, AsChangeset, router_derive::DebugAsDisplay)]
@@ -72,4 +76,11 @@ impl From<RoleUpdate> for RoleUpdateInternal {
             },
         }
     }
+}
+
+#[derive(Clone, Debug)]
+pub enum ListRolesByEntityPayload {
+    Profile(id_type::MerchantId, id_type::ProfileId),
+    Merchant(id_type::MerchantId),
+    Organization,
 }

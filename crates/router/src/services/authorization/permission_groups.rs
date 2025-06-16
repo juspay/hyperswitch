@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::{collections::HashMap, ops::Not};
 
 use common_enums::{EntityType, ParentGroup, PermissionGroup, PermissionScope, Resource};
 use strum::IntoEnumIterator;
@@ -21,7 +21,9 @@ impl PermissionGroupExt for PermissionGroup {
             | Self::AnalyticsView
             | Self::UsersView
             | Self::MerchantDetailsView
-            | Self::AccountView => PermissionScope::Read,
+            | Self::AccountView
+            | Self::ReconOpsView
+            | Self::ReconReportsView => PermissionScope::Read,
 
             Self::OperationsManage
             | Self::ConnectorsManage
@@ -29,8 +31,10 @@ impl PermissionGroupExt for PermissionGroup {
             | Self::UsersManage
             | Self::MerchantDetailsManage
             | Self::OrganizationManage
-            | Self::ReconOps
-            | Self::AccountManage => PermissionScope::Write,
+            | Self::AccountManage
+            | Self::ReconOpsManage
+            | Self::ReconReportsManage
+            | Self::InternalManage => PermissionScope::Write,
         }
     }
 
@@ -41,12 +45,14 @@ impl PermissionGroupExt for PermissionGroup {
             Self::WorkflowsView | Self::WorkflowsManage => ParentGroup::Workflows,
             Self::AnalyticsView => ParentGroup::Analytics,
             Self::UsersView | Self::UsersManage => ParentGroup::Users,
-            Self::ReconOps => ParentGroup::Recon,
             Self::MerchantDetailsView
             | Self::OrganizationManage
             | Self::MerchantDetailsManage
             | Self::AccountView
             | Self::AccountManage => ParentGroup::Account,
+            Self::ReconOpsView | Self::ReconOpsManage => ParentGroup::ReconOps,
+            Self::ReconReportsView | Self::ReconReportsManage => ParentGroup::ReconReports,
+            Self::InternalManage => ParentGroup::Internal,
         }
     }
 
@@ -56,8 +62,12 @@ impl PermissionGroupExt for PermissionGroup {
 
     fn accessible_groups(&self) -> Vec<Self> {
         match self {
-            Self::OperationsView => vec![Self::OperationsView],
-            Self::OperationsManage => vec![Self::OperationsView, Self::OperationsManage],
+            Self::OperationsView => vec![Self::OperationsView, Self::ConnectorsView],
+            Self::OperationsManage => vec![
+                Self::OperationsView,
+                Self::OperationsManage,
+                Self::ConnectorsView,
+            ],
 
             Self::ConnectorsView => vec![Self::ConnectorsView],
             Self::ConnectorsManage => vec![Self::ConnectorsView, Self::ConnectorsManage],
@@ -76,7 +86,11 @@ impl PermissionGroupExt for PermissionGroup {
                 vec![Self::UsersView, Self::UsersManage]
             }
 
-            Self::ReconOps => vec![Self::ReconOps],
+            Self::ReconOpsView => vec![Self::ReconOpsView],
+            Self::ReconOpsManage => vec![Self::ReconOpsView, Self::ReconOpsManage],
+
+            Self::ReconReportsView => vec![Self::ReconReportsView],
+            Self::ReconReportsManage => vec![Self::ReconReportsView, Self::ReconReportsManage],
 
             Self::MerchantDetailsView => vec![Self::MerchantDetailsView],
             Self::MerchantDetailsManage => {
@@ -87,6 +101,8 @@ impl PermissionGroupExt for PermissionGroup {
 
             Self::AccountView => vec![Self::AccountView],
             Self::AccountManage => vec![Self::AccountView, Self::AccountManage],
+
+            Self::InternalManage => vec![Self::InternalManage],
         }
     }
 }
@@ -96,7 +112,7 @@ pub trait ParentGroupExt {
     fn get_descriptions_for_groups(
         entity_type: EntityType,
         groups: Vec<PermissionGroup>,
-    ) -> HashMap<ParentGroup, String>;
+    ) -> Option<HashMap<ParentGroup, String>>;
 }
 
 impl ParentGroupExt for ParentGroup {
@@ -108,15 +124,17 @@ impl ParentGroupExt for ParentGroup {
             Self::Analytics => ANALYTICS.to_vec(),
             Self::Users => USERS.to_vec(),
             Self::Account => ACCOUNT.to_vec(),
-            Self::Recon => RECON.to_vec(),
+            Self::ReconOps => RECON_OPS.to_vec(),
+            Self::ReconReports => RECON_REPORTS.to_vec(),
+            Self::Internal => INTERNAL.to_vec(),
         }
     }
 
     fn get_descriptions_for_groups(
         entity_type: EntityType,
         groups: Vec<PermissionGroup>,
-    ) -> HashMap<Self, String> {
-        Self::iter()
+    ) -> Option<HashMap<Self, String>> {
+        let descriptions_map = Self::iter()
             .filter_map(|parent| {
                 let scopes = groups
                     .iter()
@@ -128,16 +146,21 @@ impl ParentGroupExt for ParentGroup {
                     .resources()
                     .iter()
                     .filter(|res| res.entities().iter().any(|entity| entity <= &entity_type))
-                    .map(|res| permissions::get_resource_name(res, &entity_type))
-                    .collect::<Vec<_>>()
+                    .map(|res| permissions::get_resource_name(*res, entity_type))
+                    .collect::<Option<Vec<_>>>()?
                     .join(", ");
 
                 Some((
                     parent,
-                    format!("{} {}", permissions::get_scope_name(&scopes), resources),
+                    format!("{} {}", permissions::get_scope_name(scopes), resources),
                 ))
             })
-            .collect()
+            .collect::<HashMap<_, _>>();
+
+        descriptions_map
+            .is_empty()
+            .not()
+            .then_some(descriptions_map)
     }
 }
 
@@ -154,11 +177,12 @@ pub static OPERATIONS: [Resource; 8] = [
 
 pub static CONNECTORS: [Resource; 2] = [Resource::Connector, Resource::Account];
 
-pub static WORKFLOWS: [Resource; 4] = [
+pub static WORKFLOWS: [Resource; 5] = [
     Resource::Routing,
     Resource::ThreeDsDecisionManager,
     Resource::SurchargeDecisionManager,
     Resource::Account,
+    Resource::RevenueRecovery,
 ];
 
 pub static ANALYTICS: [Resource; 3] = [Resource::Analytics, Resource::Report, Resource::Account];
@@ -167,4 +191,22 @@ pub static USERS: [Resource; 2] = [Resource::User, Resource::Account];
 
 pub static ACCOUNT: [Resource; 3] = [Resource::Account, Resource::ApiKey, Resource::WebhookEvent];
 
-pub static RECON: [Resource; 1] = [Resource::Recon];
+pub static RECON_OPS: [Resource; 8] = [
+    Resource::ReconToken,
+    Resource::ReconFiles,
+    Resource::ReconUpload,
+    Resource::RunRecon,
+    Resource::ReconConfig,
+    Resource::ReconAndSettlementAnalytics,
+    Resource::ReconReports,
+    Resource::Account,
+];
+
+pub static INTERNAL: [Resource; 1] = [Resource::InternalConnector];
+
+pub static RECON_REPORTS: [Resource; 4] = [
+    Resource::ReconToken,
+    Resource::ReconAndSettlementAnalytics,
+    Resource::ReconReports,
+    Resource::Account,
+];

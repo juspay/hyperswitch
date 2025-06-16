@@ -1,4 +1,3 @@
-use api_models::payments::AddressDetails;
 use common_enums::enums;
 use common_utils::{pii::Email, request::Method};
 use error_stack::ResultExt;
@@ -107,6 +106,7 @@ impl TryFrom<&DlocalRouterData<&types::PaymentsAuthorizeRouterData>> for DlocalP
                 let should_capture = matches!(
                     item.router_data.request.capture_method,
                     Some(enums::CaptureMethod::Automatic)
+                        | Some(enums::CaptureMethod::SequentialAutomatic)
                 );
                 let payment_request = Self {
                     amount: item.amount,
@@ -182,7 +182,9 @@ impl TryFrom<&DlocalRouterData<&types::PaymentsAuthorizeRouterData>> for DlocalP
     }
 }
 
-fn get_payer_name(address: &AddressDetails) -> Option<Secret<String>> {
+fn get_payer_name(
+    address: &hyperswitch_domain_models::address::AddressDetails,
+) -> Option<Secret<String>> {
     let first_name = address
         .first_name
         .clone()
@@ -333,7 +335,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, DlocalPaymentsResponse, T, PaymentsResp
             network_txn_id: None,
             connector_response_reference_id: item.response.order_id.clone(),
             incremental_authorization_allowed: None,
-            charge_id: None,
+            charges: None,
         };
         Ok(Self {
             status: enums::AttemptStatus::from(item.response.status),
@@ -367,7 +369,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, DlocalPaymentsSyncResponse, T, Payments
                 network_txn_id: None,
                 connector_response_reference_id: item.response.order_id.clone(),
                 incremental_authorization_allowed: None,
-                charge_id: None,
+                charges: None,
             }),
             ..item.data
         })
@@ -398,7 +400,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, DlocalPaymentsCaptureResponse, T, Payme
                 network_txn_id: None,
                 connector_response_reference_id: item.response.order_id.clone(),
                 incremental_authorization_allowed: None,
-                charge_id: None,
+                charges: None,
             }),
             ..item.data
         })
@@ -427,7 +429,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, DlocalPaymentsCancelResponse, T, Paymen
                 network_txn_id: None,
                 connector_response_reference_id: Some(item.response.order_id.clone()),
                 incremental_authorization_allowed: None,
-                charge_id: None,
+                charges: None,
             }),
             ..item.data
         })

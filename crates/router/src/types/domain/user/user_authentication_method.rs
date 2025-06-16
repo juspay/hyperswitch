@@ -1,9 +1,10 @@
+use std::sync::LazyLock;
+
 use common_enums::{Owner, UserAuthType};
 use diesel_models::UserAuthenticationMethod;
-use once_cell::sync::Lazy;
 
-pub static DEFAULT_USER_AUTH_METHOD: Lazy<UserAuthenticationMethod> =
-    Lazy::new(|| UserAuthenticationMethod {
+pub static DEFAULT_USER_AUTH_METHOD: LazyLock<UserAuthenticationMethod> =
+    LazyLock::new(|| UserAuthenticationMethod {
         id: String::from("hyperswitch_default"),
         auth_id: String::from("hyperswitch"),
         owner_id: String::from("hyperswitch"),
@@ -14,4 +15,5 @@ pub static DEFAULT_USER_AUTH_METHOD: Lazy<UserAuthenticationMethod> =
         allow_signup: true,
         created_at: common_utils::date_time::now(),
         last_modified_at: common_utils::date_time::now(),
+        email_domain: String::from("hyperswitch"),
     });

@@ -34,7 +34,7 @@ type PaymentIncrementalAuthorizationOperation<'b, F> =
     BoxedOperation<'b, F, PaymentsIncrementalAuthorizationRequest, payments::PaymentData<F>>;
 
 #[async_trait]
-impl<F: Send + Clone>
+impl<F: Send + Clone + Sync>
     GetTracker<F, payments::PaymentData<F>, PaymentsIncrementalAuthorizationRequest>
     for PaymentIncrementalAuthorization
 {
@@ -44,8 +44,7 @@ impl<F: Send + Clone>
         state: &'a SessionState,
         payment_id: &api::PaymentIdType,
         request: &PaymentsIncrementalAuthorizationRequest,
-        merchant_account: &domain::MerchantAccount,
-        key_store: &domain::MerchantKeyStore,
+        merchant_context: &domain::MerchantContext,
         _auth_flow: services::AuthFlow,
         _header_payload: &hyperswitch_domain_models::payments::HeaderPayload,
     ) -> RouterResult<
@@ -59,8 +58,8 @@ impl<F: Send + Clone>
         let db = &*state.store;
         let key_manager_state = &state.into();
 
-        let merchant_id = merchant_account.get_id();
-        let storage_scheme = merchant_account.storage_scheme;
+        let merchant_id = merchant_context.get_merchant_account().get_id();
+        let storage_scheme = merchant_context.get_merchant_account().storage_scheme;
         let payment_id = payment_id
             .get_payment_intent_id()
             .change_context(errors::ApiErrorResponse::PaymentNotFound)?;
@@ -70,14 +69,14 @@ impl<F: Send + Clone>
                 &state.into(),
                 &payment_id,
                 merchant_id,
-                key_store,
+                merchant_context.get_merchant_key_store(),
                 storage_scheme,
             )
             .await
             .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
 
         helpers::validate_payment_status_against_allowed_statuses(
-            &payment_intent.status,
+            payment_intent.status,
             &[enums::IntentStatus::RequiresCapture],
             "increment authorization",
         )?;
@@ -120,7 +119,11 @@ impl<F: Send + Clone>
 
         let business_profile = state
             .store
-            .find_business_profile_by_profile_id(key_manager_state, key_store, profile_id)
+            .find_business_profile_by_profile_id(
+                key_manager_state,
+                merchant_context.get_merchant_key_store(),
+                profile_id,
+            )
             .await
             .to_not_found_response(errors::ApiErrorResponse::ProfileNotFound {
                 id: profile_id.get_string_repr().to_owned(),
@@ -144,6 +147,7 @@ impl<F: Send + Clone>
             payment_method_data: None,
             payment_method_info: None,
             force_sync: None,
+            all_keys_required: None,
             refunds: vec![],
             disputes: vec![],
             attempts: None,
@@ -171,6 +175,11 @@ impl<F: Send + Clone>
             poll_config: None,
             tax_data: None,
             session_id: None,
+            service_details: None,
+            card_testing_guard_data: None,
+            vault_operation: None,
+            threeds_method_comp_ind: None,
+            whole_connector_response: None,
         };
 
         let get_trackers_response = operations::GetTrackerResponse {
@@ -186,7 +195,8 @@ impl<F: Send + Clone>
 }
 
 #[async_trait]
-impl<F: Clone> UpdateTracker<F, payments::PaymentData<F>, PaymentsIncrementalAuthorizationRequest>
+impl<F: Clone + Sync>
+    UpdateTracker<F, payments::PaymentData<F>, PaymentsIncrementalAuthorizationRequest>
     for PaymentIncrementalAuthorization
 {
     #[instrument(skip_all)]
@@ -278,7 +288,7 @@ impl<F: Clone> UpdateTracker<F, payments::PaymentData<F>, PaymentsIncrementalAut
     }
 }
 
-impl<F: Send + Clone>
+impl<F: Send + Clone + Sync>
     ValidateRequest<F, PaymentsIncrementalAuthorizationRequest, payments::PaymentData<F>>
     for PaymentIncrementalAuthorization
 {
@@ -286,7 +296,7 @@ impl<F: Send + Clone>
     fn validate_request<'a, 'b>(
         &'b self,
         request: &PaymentsIncrementalAuthorizationRequest,
-        merchant_account: &'a domain::MerchantAccount,
+        merchant_context: &'a domain::MerchantContext,
     ) -> RouterResult<(
         PaymentIncrementalAuthorizationOperation<'b, F>,
         operations::ValidateResult,
@@ -294,9 +304,9 @@ impl<F: Send + Clone>
         Ok((
             Box::new(self),
             operations::ValidateResult {
-                merchant_id: merchant_account.get_id().to_owned(),
+                merchant_id: merchant_context.get_merchant_account().get_id().to_owned(),
                 payment_id: api::PaymentIdType::PaymentIntentId(request.payment_id.to_owned()),
-                storage_scheme: merchant_account.storage_scheme,
+                storage_scheme: merchant_context.get_merchant_account().storage_scheme,
                 requeue: false,
             },
         ))
@@ -304,7 +314,8 @@ impl<F: Send + Clone>
 }
 
 #[async_trait]
-impl<F: Clone + Send> Domain<F, PaymentsIncrementalAuthorizationRequest, payments::PaymentData<F>>
+impl<F: Clone + Send + Sync>
+    Domain<F, PaymentsIncrementalAuthorizationRequest, payments::PaymentData<F>>
     for PaymentIncrementalAuthorization
 {
     #[instrument(skip_all)]
@@ -339,6 +350,7 @@ impl<F: Clone + Send> Domain<F, PaymentsIncrementalAuthorizationRequest, payment
         _merchant_key_store: &domain::MerchantKeyStore,
         _customer: &Option<domain::Customer>,
         _business_profile: &domain::Profile,
+        _should_retry_with_pan: bool,
     ) -> RouterResult<(
         PaymentIncrementalAuthorizationOperation<'a, F>,
         Option<domain::PaymentMethodData>,
@@ -349,11 +361,10 @@ impl<F: Clone + Send> Domain<F, PaymentsIncrementalAuthorizationRequest, payment
 
     async fn get_connector<'a>(
         &'a self,
-        _merchant_account: &domain::MerchantAccount,
+        _merchant_context: &domain::MerchantContext,
         state: &SessionState,
         _request: &PaymentsIncrementalAuthorizationRequest,
         _payment_intent: &storage::PaymentIntent,
-        _merchant_key_store: &domain::MerchantKeyStore,
     ) -> CustomResult<api::ConnectorChoice, errors::ApiErrorResponse> {
         helpers::get_connector_default(state, None).await
     }
@@ -362,8 +373,7 @@ impl<F: Clone + Send> Domain<F, PaymentsIncrementalAuthorizationRequest, payment
     async fn guard_payment_against_blocklist<'a>(
         &'a self,
         _state: &SessionState,
-        _merchant_account: &domain::MerchantAccount,
-        _key_store: &domain::MerchantKeyStore,
+        _merchant_context: &domain::MerchantContext,
         _payment_data: &mut payments::PaymentData<F>,
     ) -> CustomResult<bool, errors::ApiErrorResponse> {
         Ok(false)

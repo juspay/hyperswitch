@@ -3,7 +3,6 @@ pub mod generic_link_response;
 pub mod request;
 use std::{
     collections::{HashMap, HashSet},
-    error::Error,
     fmt::Debug,
     future::Future,
     str,
@@ -17,7 +16,7 @@ use actix_web::{
     http::header::{HeaderName, HeaderValue},
     web, FromRequest, HttpRequest, HttpResponse, Responder, ResponseError,
 };
-pub use client::{proxy_bypass_urls, ApiClient, MockApiClient, ProxyClient};
+pub use client::{ApiClient, MockApiClient, ProxyClient};
 pub use common_enums::enums::PaymentAction;
 pub use common_utils::request::{ContentType, Method, Request, RequestBuilder};
 use common_utils::{
@@ -39,19 +38,19 @@ pub use hyperswitch_domain_models::{
 pub use hyperswitch_interfaces::{
     api::{
         BoxedConnectorIntegration, CaptureSyncMethod, ConnectorIntegration,
-        ConnectorIntegrationAny, ConnectorRedirectResponse, ConnectorValidation,
+        ConnectorIntegrationAny, ConnectorRedirectResponse, ConnectorSpecifications,
+        ConnectorValidation,
     },
     connector_integration_v2::{
         BoxedConnectorIntegrationV2, ConnectorIntegrationAnyV2, ConnectorIntegrationV2,
     },
 };
 use masking::{Maskable, PeekInterface};
-use router_env::{instrument, metrics::add_attributes, tracing, tracing_actix_web::RequestId, Tag};
+use router_env::{instrument, tracing, tracing_actix_web::RequestId, Tag};
 use serde::Serialize;
 use serde_json::json;
 use tera::{Context, Error as TeraError, Tera};
 
-use self::request::{HeaderExt, RequestBuilderExt};
 use super::{
     authentication::AuthenticateAndFetch,
     connector_integration_interface::BoxedConnectorIntegrationInterface,
@@ -78,6 +77,7 @@ use crate::{
         generic_link_response::build_generic_link_html,
     },
     types::{self, api, ErrorResponse},
+    utils,
 };
 
 pub type BoxedPaymentConnectorIntegrationInterface<T, Req, Resp> =
@@ -102,6 +102,28 @@ pub type BoxedAccessTokenConnectorIntegrationInterface<T, Req, Resp> =
     BoxedConnectorIntegrationInterface<T, common_types::AccessTokenFlowData, Req, Resp>;
 pub type BoxedFilesConnectorIntegrationInterface<T, Req, Resp> =
     BoxedConnectorIntegrationInterface<T, common_types::FilesFlowData, Req, Resp>;
+pub type BoxedRevenueRecoveryRecordBackInterface<T, Req, Res> =
+    BoxedConnectorIntegrationInterface<T, common_types::RevenueRecoveryRecordBackData, Req, Res>;
+pub type BoxedBillingConnectorInvoiceSyncIntegrationInterface<T, Req, Res> =
+    BoxedConnectorIntegrationInterface<
+        T,
+        common_types::BillingConnectorInvoiceSyncFlowData,
+        Req,
+        Res,
+    >;
+
+pub type BoxedUnifiedAuthenticationServiceInterface<T, Req, Resp> =
+    BoxedConnectorIntegrationInterface<T, common_types::UasFlowData, Req, Resp>;
+
+pub type BoxedBillingConnectorPaymentsSyncIntegrationInterface<T, Req, Res> =
+    BoxedConnectorIntegrationInterface<
+        T,
+        common_types::BillingConnectorPaymentsSyncFlowData,
+        Req,
+        Res,
+    >;
+pub type BoxedVaultConnectorIntegrationInterface<T, Req, Res> =
+    BoxedConnectorIntegrationInterface<T, common_types::VaultConnectorFlowData, Req, Res>;
 
 /// Handle the flow by interacting with connector module
 /// `connector_request` is applicable only in case if the `CallConnectorAction` is `Trigger`
@@ -120,6 +142,7 @@ pub async fn execute_connector_processing_step<
     req: &'b types::RouterData<T, Req, Resp>,
     call_connector_action: payments::CallConnectorAction,
     connector_request: Option<Request>,
+    all_keys_required: Option<bool>,
 ) -> CustomResult<types::RouterData<T, Req, Resp>, errors::ConnectorError>
 where
     T: Clone + Debug + 'static,
@@ -155,6 +178,9 @@ where
                     reason: None,
                     attempt_status: None,
                     connector_transaction_id: None,
+                    network_advice_code: None,
+                    network_decline_code: None,
+                    network_error_message: None,
                 })
             } else {
                 None
@@ -164,9 +190,8 @@ where
         }
         payments::CallConnectorAction::Trigger => {
             metrics::CONNECTOR_CALL_COUNT.add(
-                &metrics::CONTEXT,
                 1,
-                &add_attributes([
+                router_env::metric_attributes!(
                     ("connector", req.connector.to_string()),
                     (
                         "flow",
@@ -174,9 +199,8 @@ where
                             .split("::")
                             .last()
                             .unwrap_or_default()
-                            .to_string(),
                     ),
-                ]),
+                ),
             );
 
             let connector_request = match connector_request {
@@ -190,9 +214,11 @@ where
                                 | &errors::ConnectorError::RequestEncodingFailedWithReason(_)
                         ) {
                             metrics::REQUEST_BUILD_FAILURE.add(
-                                &metrics::CONTEXT,
                                 1,
-                                &add_attributes([("connector", req.connector.to_string())]),
+                                router_env::metric_attributes!((
+                                    "connector",
+                                    req.connector.clone()
+                                )),
                             )
                         }
                     })?,
@@ -228,6 +254,7 @@ where
                         })
                         .unwrap_or_default();
                     let mut connector_event = ConnectorEvent::new(
+                        state.tenant.tenant_id.clone(),
                         req.connector.clone(),
                         std::any::type_name::<T>(),
                         masked_request_body,
@@ -248,18 +275,18 @@ where
                                 Ok(body) => {
                                     let connector_http_status_code = Some(body.status_code);
                                     let handle_response_result = connector_integration
-                                        .handle_response(req, Some(&mut connector_event), body)
+                                        .handle_response(req, Some(&mut connector_event), body.clone())
                                         .inspect_err(|error| {
                                             if error.current_context()
                                             == &errors::ConnectorError::ResponseDeserializationFailed
                                         {
                                             metrics::RESPONSE_DESERIALIZATION_FAILURE.add(
-                                                &metrics::CONTEXT,
+
                                                 1,
-                                                &add_attributes([(
+                                                router_env::metric_attributes!((
                                                     "connector",
-                                                    req.connector.to_string(),
-                                                )]),
+                                                    req.connector.clone(),
+                                                )),
                                             )
                                         }
                                         });
@@ -275,6 +302,16 @@ where
                                                         val + external_latency
                                                     }),
                                             );
+                                            if all_keys_required == Some(true) {
+                                                let mut decoded = String::from_utf8(body.response.as_ref().to_vec())
+                                                    .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+                                                if decoded.starts_with('\u{feff}') {
+                                                    decoded = decoded
+                                                        .trim_start_matches('\u{feff}')
+                                                        .to_string();
+                                                }
+                                                data.whole_connector_response = Some(decoded);
+                                            }
                                             Ok(data)
                                         }
                                         Err(err) => {
@@ -294,9 +331,11 @@ where
                                             .map_or(external_latency, |val| val + external_latency),
                                     );
                                     metrics::CONNECTOR_ERROR_RESPONSE_COUNT.add(
-                                        &metrics::CONTEXT,
                                         1,
-                                        &add_attributes([("connector", req.connector.clone())]),
+                                        router_env::metric_attributes!((
+                                            "connector",
+                                            req.connector.clone(),
+                                        )),
                                     );
 
                                     let error = match body.status_code {
@@ -341,6 +380,9 @@ where
                                     status_code: 504,
                                     attempt_status: None,
                                     connector_transaction_id: None,
+                                    network_advice_code: None,
+                                    network_decline_code: None,
+                                    network_error_message: None,
                                 };
                                 router_data.response = Err(error_response);
                                 router_data.connector_http_status_code = Some(504);
@@ -401,198 +443,6 @@ pub async fn call_connector_api(
 }
 
 #[instrument(skip_all)]
-pub async fn send_request(
-    state: &SessionState,
-    request: Request,
-    option_timeout_secs: Option<u64>,
-) -> CustomResult<reqwest::Response, errors::ApiClientError> {
-    logger::info!(method=?request.method, headers=?request.headers, payload=?request.body, ?request);
-
-    let url = reqwest::Url::parse(&request.url)
-        .change_context(errors::ApiClientError::UrlEncodingFailed)?;
-
-    #[cfg(feature = "dummy_connector")]
-    let should_bypass_proxy = url
-        .as_str()
-        .starts_with(&state.conf.connectors.dummyconnector.base_url)
-        || proxy_bypass_urls(
-            state.conf.key_manager.get_inner(),
-            &state.conf.locker,
-            &state.conf.proxy.bypass_proxy_urls,
-        )
-        .contains(&url.to_string());
-    #[cfg(not(feature = "dummy_connector"))]
-    let should_bypass_proxy = proxy_bypass_urls(
-        &state.conf.key_manager.get_inner(),
-        &state.conf.locker,
-        &state.conf.proxy.bypass_proxy_urls,
-    )
-    .contains(&url.to_string());
-    let client = client::create_client(
-        &state.conf.proxy,
-        should_bypass_proxy,
-        request.certificate,
-        request.certificate_key,
-    )?;
-
-    let headers = request.headers.construct_header_map()?;
-    let metrics_tag = router_env::opentelemetry::KeyValue {
-        key: consts::METRICS_HOST_TAG_NAME.into(),
-        value: url.host_str().unwrap_or_default().to_string().into(),
-    };
-    let request = {
-        match request.method {
-            Method::Get => client.get(url),
-            Method::Post => {
-                let client = client.post(url);
-                match request.body {
-                    Some(RequestContent::Json(payload)) => client.json(&payload),
-                    Some(RequestContent::FormData(form)) => client.multipart(form),
-                    Some(RequestContent::FormUrlEncoded(payload)) => client.form(&payload),
-                    Some(RequestContent::Xml(payload)) => {
-                        let body = quick_xml::se::to_string(&payload)
-                            .change_context(errors::ApiClientError::BodySerializationFailed)?;
-                        client.body(body).header("Content-Type", "application/xml")
-                    }
-                    Some(RequestContent::RawBytes(payload)) => client.body(payload),
-                    None => client,
-                }
-            }
-            Method::Put => {
-                let client = client.put(url);
-                match request.body {
-                    Some(RequestContent::Json(payload)) => client.json(&payload),
-                    Some(RequestContent::FormData(form)) => client.multipart(form),
-                    Some(RequestContent::FormUrlEncoded(payload)) => client.form(&payload),
-                    Some(RequestContent::Xml(payload)) => {
-                        let body = quick_xml::se::to_string(&payload)
-                            .change_context(errors::ApiClientError::BodySerializationFailed)?;
-                        client.body(body).header("Content-Type", "application/xml")
-                    }
-                    Some(RequestContent::RawBytes(payload)) => client.body(payload),
-                    None => client,
-                }
-            }
-            Method::Patch => {
-                let client = client.patch(url);
-                match request.body {
-                    Some(RequestContent::Json(payload)) => client.json(&payload),
-                    Some(RequestContent::FormData(form)) => client.multipart(form),
-                    Some(RequestContent::FormUrlEncoded(payload)) => client.form(&payload),
-                    Some(RequestContent::Xml(payload)) => {
-                        let body = quick_xml::se::to_string(&payload)
-                            .change_context(errors::ApiClientError::BodySerializationFailed)?;
-                        client.body(body).header("Content-Type", "application/xml")
-                    }
-                    Some(RequestContent::RawBytes(payload)) => client.body(payload),
-                    None => client,
-                }
-            }
-            Method::Delete => client.delete(url),
-        }
-        .add_headers(headers)
-        .timeout(Duration::from_secs(
-            option_timeout_secs.unwrap_or(consts::REQUEST_TIME_OUT),
-        ))
-    };
-
-    // We cannot clone the request type, because it has Form trait which is not cloneable. So we are cloning the request builder here.
-    let cloned_send_request = request.try_clone().map(|cloned_request| async {
-        cloned_request
-            .send()
-            .await
-            .map_err(|error| match error {
-                error if error.is_timeout() => {
-                    metrics::REQUEST_BUILD_FAILURE.add(&metrics::CONTEXT, 1, &[]);
-                    errors::ApiClientError::RequestTimeoutReceived
-                }
-                error if is_connection_closed_before_message_could_complete(&error) => {
-                    metrics::REQUEST_BUILD_FAILURE.add(&metrics::CONTEXT, 1, &[]);
-                    errors::ApiClientError::ConnectionClosedIncompleteMessage
-                }
-                _ => errors::ApiClientError::RequestNotSent(error.to_string()),
-            })
-            .attach_printable("Unable to send request to connector")
-    });
-
-    let send_request = async {
-        request
-            .send()
-            .await
-            .map_err(|error| match error {
-                error if error.is_timeout() => {
-                    metrics::REQUEST_BUILD_FAILURE.add(&metrics::CONTEXT, 1, &[]);
-                    errors::ApiClientError::RequestTimeoutReceived
-                }
-                error if is_connection_closed_before_message_could_complete(&error) => {
-                    metrics::REQUEST_BUILD_FAILURE.add(&metrics::CONTEXT, 1, &[]);
-                    errors::ApiClientError::ConnectionClosedIncompleteMessage
-                }
-                _ => errors::ApiClientError::RequestNotSent(error.to_string()),
-            })
-            .attach_printable("Unable to send request to connector")
-    };
-
-    let response = common_utils::metrics::utils::record_operation_time(
-        send_request,
-        &metrics::EXTERNAL_REQUEST_TIME,
-        &metrics::CONTEXT,
-        &[metrics_tag.clone()],
-    )
-    .await;
-    // Retry once if the response is connection closed.
-    //
-    // This is just due to the racy nature of networking.
-    // hyper has a connection pool of idle connections, and it selected one to send your request.
-    // Most of the time, hyper will receive the server’s FIN and drop the dead connection from its pool.
-    // But occasionally, a connection will be selected from the pool
-    // and written to at the same time the server is deciding to close the connection.
-    // Since hyper already wrote some of the request,
-    // it can’t really retry it automatically on a new connection, since the server may have acted already
-    match response {
-        Ok(response) => Ok(response),
-        Err(error)
-            if error.current_context()
-                == &errors::ApiClientError::ConnectionClosedIncompleteMessage =>
-        {
-            metrics::AUTO_RETRY_CONNECTION_CLOSED.add(&metrics::CONTEXT, 1, &[]);
-            match cloned_send_request {
-                Some(cloned_request) => {
-                    logger::info!(
-                        "Retrying request due to connection closed before message could complete"
-                    );
-                    common_utils::metrics::utils::record_operation_time(
-                        cloned_request,
-                        &metrics::EXTERNAL_REQUEST_TIME,
-                        &metrics::CONTEXT,
-                        &[metrics_tag],
-                    )
-                    .await
-                }
-                None => {
-                    logger::info!("Retrying request due to connection closed before message could complete failed as request is not cloneable");
-                    Err(error)
-                }
-            }
-        }
-        err @ Err(_) => err,
-    }
-}
-
-fn is_connection_closed_before_message_could_complete(error: &reqwest::Error) -> bool {
-    let mut source = error.source();
-    while let Some(err) = source {
-        if let Some(hyper_err) = err.downcast_ref::<hyper::Error>() {
-            if hyper_err.is_incomplete_message() {
-                return true;
-            }
-        }
-        source = err.source();
-    }
-    false
-}
-
-#[instrument(skip_all)]
 async fn handle_response(
     response: CustomResult<reqwest::Response, errors::ApiClientError>,
 ) -> CustomResult<Result<types::Response, types::Response>, errors::ApiClientError> {
@@ -604,7 +454,6 @@ async fn handle_response(
 
             match status_code {
                 200..=202 | 302 | 204 => {
-                    logger::debug!(response=?response);
                     // If needed add log line
                     // logger:: error!( error_parsing_response=?err);
                     let response = response
@@ -753,13 +602,14 @@ where
                 .switch(),
             )?
     };
-
-    let mut session_state = Arc::new(app_state.clone()).get_session_state(&tenant_id, || {
-        errors::ApiErrorResponse::InvalidTenant {
-            tenant_id: tenant_id.get_string_repr().to_string(),
-        }
-        .switch()
-    })?;
+    let locale = utils::get_locale_from_header(&incoming_request_header.clone());
+    let mut session_state =
+        Arc::new(app_state.clone()).get_session_state(&tenant_id, Some(locale), || {
+            errors::ApiErrorResponse::InvalidTenant {
+                tenant_id: tenant_id.get_string_repr().to_string(),
+            }
+            .switch()
+        })?;
     session_state.add_request_id(request_id);
     let mut request_state = session_state.get_req_state();
 
@@ -850,7 +700,10 @@ where
         }
     };
 
+    let infra = state.infra_components.clone();
+
     let api_event = ApiEvent::new(
+        tenant_id,
         Some(merchant_id.clone()),
         flow,
         &request_id,
@@ -864,14 +717,10 @@ where
         event_type.unwrap_or(ApiEventsType::Miscellaneous),
         request,
         request.method(),
+        infra.clone(),
     );
-    state.event_handler().log_event(&api_event);
 
-    metrics::request::status_code_metrics(
-        status_code.to_string(),
-        flow.to_string(),
-        merchant_id.to_owned(),
-    );
+    state.event_handler().log_event(&api_event);
 
     output
 }
@@ -926,18 +775,15 @@ where
         tag = ?Tag::BeginRequest, payload = ?payload,
     headers = ?incoming_header_to_log);
 
-    let server_wrap_util_res = metrics::request::record_request_time_metric(
-        server_wrap_util(
-            &flow,
-            state.clone(),
-            incoming_request_header,
-            request,
-            payload,
-            func,
-            api_auth,
-            lock_action,
-        ),
+    let server_wrap_util_res = server_wrap_util(
         &flow,
+        state.clone(),
+        incoming_request_header,
+        request,
+        payload,
+        func,
+        api_auth,
+        lock_action,
     )
     .await
     .map(|response| {
@@ -1231,12 +1077,25 @@ pub trait Authenticate {
     fn get_client_secret(&self) -> Option<&String> {
         None
     }
+
+    fn get_all_keys_required(&self) -> Option<bool> {
+        None
+    }
 }
+
+#[cfg(feature = "v2")]
+impl Authenticate for api_models::payments::PaymentsConfirmIntentRequest {}
+#[cfg(feature = "v2")]
+impl Authenticate for api_models::payments::ProxyPaymentsRequest {}
 
 #[cfg(feature = "v1")]
 impl Authenticate for api_models::payments::PaymentsRequest {
     fn get_client_secret(&self) -> Option<&String> {
         self.client_secret.as_ref()
+    }
+
+    fn get_all_keys_required(&self) -> Option<bool> {
+        self.all_keys_required
     }
 }
 
@@ -1264,7 +1123,12 @@ impl Authenticate for api_models::payments::PaymentsPostSessionTokensRequest {
     }
 }
 
-impl Authenticate for api_models::payments::PaymentsRetrieveRequest {}
+impl Authenticate for api_models::payments::PaymentsUpdateMetadataRequest {}
+impl Authenticate for api_models::payments::PaymentsRetrieveRequest {
+    fn get_all_keys_required(&self) -> Option<bool> {
+        self.all_keys_required
+    }
+}
 impl Authenticate for api_models::payments::PaymentsCancelRequest {}
 impl Authenticate for api_models::payments::PaymentsCaptureRequest {}
 impl Authenticate for api_models::payments::PaymentsIncrementalAuthorizationRequest {}
@@ -1526,6 +1390,46 @@ pub fn build_redirection_form(
               </script>")))
             }}
         }
+        RedirectForm::DeutschebankThreeDSChallengeFlow { acs_url, creq } => {
+            maud::html! {
+                (maud::DOCTYPE)
+                html {
+                    head {
+                        meta name="viewport" content="width=device-width, initial-scale=1";
+                    }
+
+                    body style="background-color: #ffffff; padding: 20px; font-family: Arial, Helvetica, Sans-Serif;" {
+                        div id="loader1" class="lottie" style="height: 150px; display: block; position: relative; margin-top: 150px; margin-left: auto; margin-right: auto;" { "" }
+
+                        (PreEscaped(r#"<script src="https://cdnjs.cloudflare.com/ajax/libs/bodymovin/5.7.4/lottie.min.js"></script>"#))
+
+                        (PreEscaped(r#"
+                            <script>
+                            var anime = bodymovin.loadAnimation({
+                                container: document.getElementById('loader1'),
+                                renderer: 'svg',
+                                loop: true,
+                                autoplay: true,
+                                name: 'hyperswitch loader',
+                                animationData: {"v":"4.8.0","meta":{"g":"LottieFiles AE 3.1.1","a":"","k":"","d":"","tc":""},"fr":29.9700012207031,"ip":0,"op":31.0000012626559,"w":400,"h":250,"nm":"loader_shape","ddd":0,"assets":[],"layers":[{"ddd":0,"ind":1,"ty":4,"nm":"circle 2","sr":1,"ks":{"o":{"a":0,"k":100,"ix":11},"r":{"a":0,"k":0,"ix":10},"p":{"a":0,"k":[278.25,202.671,0],"ix":2},"a":{"a":0,"k":[23.72,23.72,0],"ix":1},"s":{"a":0,"k":[100,100,100],"ix":6}},"ao":0,"shapes":[{"ty":"gr","it":[{"ind":0,"ty":"sh","ix":1,"ks":{"a":0,"k":{"i":[[12.935,0],[0,-12.936],[-12.935,0],[0,12.935]],"o":[[-12.952,0],[0,12.935],[12.935,0],[0,-12.936]],"v":[[0,-23.471],[-23.47,0.001],[0,23.471],[23.47,0.001]],"c":true},"ix":2},"nm":"Path 1","mn":"ADBE Vector Shape - Group","hd":false},{"ty":"fl","c":{"a":0,"k":[0,0.427451010311,0.976470648074,1],"ix":4},"o":{"a":1,"k":[{"i":{"x":[0.667],"y":[1]},"o":{"x":[0.333],"y":[0]},"t":10,"s":[10]},{"i":{"x":[0.667],"y":[1]},"o":{"x":[0.333],"y":[0]},"t":19.99,"s":[100]},{"t":29.9800012211104,"s":[10]}],"ix":5},"r":1,"bm":0,"nm":"Fill 1","mn":"ADBE Vector Graphic - Fill","hd":false},{"ty":"tr","p":{"a":0,"k":[23.72,23.721],"ix":2},"a":{"a":0,"k":[0,0],"ix":1},"s":{"a":0,"k":[100,100],"ix":3},"r":{"a":0,"k":0,"ix":6},"o":{"a":0,"k":100,"ix":7},"sk":{"a":0,"k":0,"ix":4},"sa":{"a":0,"k":0,"ix":5},"nm":"Transform"}],"nm":"Group 1","np":2,"cix":2,"bm":0,"ix":1,"mn":"ADBE Vector Group","hd":false}],"ip":0,"op":48.0000019550801,"st":0,"bm":0},{"ddd":0,"ind":2,"ty":4,"nm":"square 2","sr":1,"ks":{"o":{"a":0,"k":100,"ix":11},"r":{"a":0,"k":0,"ix":10},"p":{"a":0,"k":[196.25,201.271,0],"ix":2},"a":{"a":0,"k":[22.028,22.03,0],"ix":1},"s":{"a":0,"k":[100,100,100],"ix":6}},"ao":0,"shapes":[{"ty":"gr","it":[{"ind":0,"ty":"sh","ix":1,"ks":{"a":0,"k":{"i":[[1.914,0],[0,0],[0,-1.914],[0,0],[-1.914,0],[0,0],[0,1.914],[0,0]],"o":[[0,0],[-1.914,0],[0,0],[0,1.914],[0,0],[1.914,0],[0,0],[0,-1.914]],"v":[[18.313,-21.779],[-18.312,-21.779],[-21.779,-18.313],[-21.779,18.314],[-18.312,21.779],[18.313,21.779],[21.779,18.314],[21.779,-18.313]],"c":true},"ix":2},"nm":"Path 1","mn":"ADBE Vector Shape - Group","hd":false},{"ty":"fl","c":{"a":0,"k":[0,0.427451010311,0.976470648074,1],"ix":4},"o":{"a":1,"k":[{"i":{"x":[0.667],"y":[1]},"o":{"x":[0.333],"y":[0]},"t":5,"s":[10]},{"i":{"x":[0.667],"y":[1]},"o":{"x":[0.333],"y":[0]},"t":14.99,"s":[100]},{"t":24.9800010174563,"s":[10]}],"ix":5},"r":1,"bm":0,"nm":"Fill 1","mn":"ADBE Vector Graphic - Fill","hd":false},{"ty":"tr","p":{"a":0,"k":[22.028,22.029],"ix":2},"a":{"a":0,"k":[0,0],"ix":1},"s":{"a":0,"k":[100,100],"ix":3},"r":{"a":0,"k":0,"ix":6},"o":{"a":0,"k":100,"ix":7},"sk":{"a":0,"k":0,"ix":4},"sa":{"a":0,"k":0,"ix":5},"nm":"Transform"}],"nm":"Group 1","np":2,"cix":2,"bm":0,"ix":1,"mn":"ADBE Vector Group","hd":false}],"ip":0,"op":47.0000019143492,"st":0,"bm":0},{"ddd":0,"ind":3,"ty":4,"nm":"Triangle 2","sr":1,"ks":{"o":{"a":0,"k":100,"ix":11},"r":{"a":0,"k":0,"ix":10},"p":{"a":0,"k":[116.25,200.703,0],"ix":2},"a":{"a":0,"k":[27.11,21.243,0],"ix":1},"s":{"a":0,"k":[100,100,100],"ix":6}},"ao":0,"shapes":[{"ty":"gr","it":[{"ind":0,"ty":"sh","ix":1,"ks":{"a":0,"k":{"i":[[0,0],[0.558,-0.879],[0,0],[-1.133,0],[0,0],[0.609,0.947],[0,0]],"o":[[-0.558,-0.879],[0,0],[-0.609,0.947],[0,0],[1.133,0],[0,0],[0,0]],"v":[[1.209,-20.114],[-1.192,-20.114],[-26.251,18.795],[-25.051,20.993],[25.051,20.993],[26.251,18.795],[1.192,-20.114]],"c":true},"ix":2},"nm":"Path 1","mn":"ADBE Vector Shape - Group","hd":false},{"ty":"fl","c":{"a":0,"k":[0,0.427451010311,0.976470648074,1],"ix":4},"o":{"a":1,"k":[{"i":{"x":[0.667],"y":[1]},"o":{"x":[0.333],"y":[0]},"t":0,"s":[10]},{"i":{"x":[0.667],"y":[1]},"o":{"x":[0.333],"y":[0]},"t":9.99,"s":[100]},{"t":19.9800008138021,"s":[10]}],"ix":5},"r":1,"bm":0,"nm":"Fill 1","mn":"ADBE Vector Graphic - Fill","hd":false},{"ty":"tr","p":{"a":0,"k":[27.11,21.243],"ix":2},"a":{"a":0,"k":[0,0],"ix":1},"s":{"a":0,"k":[100,100],"ix":3},"r":{"a":0,"k":0,"ix":6},"o":{"a":0,"k":100,"ix":7},"sk":{"a":0,"k":0,"ix":4},"sa":{"a":0,"k":0,"ix":5},"nm":"Transform"}],"nm":"Group 1","np":2,"cix":2,"bm":0,"ix":1,"mn":"ADBE Vector Group","hd":false}],"ip":0,"op":48.0000019550801,"st":0,"bm":0}],"markers":[]}
+                            })
+                            </script>
+                            "#))
+
+                        h3 style="text-align: center;" { "Please wait while we process your payment..." }
+                    }
+                    (PreEscaped(format!("<form id=\"PaReqForm\" method=\"POST\" action=\"{acs_url}\">
+                        <input type=\"hidden\" name=\"creq\" value=\"{creq}\">
+                        </form>")))
+                    (PreEscaped(format!("<script>
+                        {logging_template}
+                        window.onload = function() {{
+                        var paReqForm = document.querySelector('#PaReqForm'); if(paReqForm) paReqForm.submit();
+                        }}
+                    </script>")))
+                }
+            }
+        }
         RedirectForm::Payme => {
             maud::html! {
                 (maud::DOCTYPE)
@@ -1558,6 +1462,7 @@ pub fn build_redirection_form(
             client_token,
             card_token,
             bin,
+            acs_url,
         } => {
             maud::html! {
             (maud::DOCTYPE)
@@ -1634,7 +1539,7 @@ pub fn build_redirection_form(
                                                 }} else {{
                                                     // console.log(payload);
                                                     var f = document.createElement('form');
-                                                    f.action=window.location.pathname.replace(/payments\\/redirect\\/(\\w+)\\/(\\w+)\\/\\w+/, \"payments/$1/$2/redirect/complete/braintree\");
+                                                    f.action=\"{acs_url}\";
                                                     var i = document.createElement('input');
                                                     i.type = 'hidden';
                                                     f.method='POST';
@@ -1861,7 +1766,7 @@ pub fn build_redirection_form(
                         (PreEscaped(format!(
                             r#"
                                 function submitCollectionReference(collectionReference) {{
-                                    var redirectPathname = window.location.pathname.replace(/payments\/redirect\/(\w+)\/(\w+)\/\w+/, "payments/$1/$2/redirect/complete/worldpay");
+                                    var redirectPathname = window.location.pathname.replace(/payments\/redirect\/([^\/]+)\/([^\/]+)\/[^\/]+/, "payments/$1/$2/redirect/complete/worldpay");
                                     var redirectUrl = window.location.origin + redirectPathname;
                                     try {{
                                         if (typeof collectionReference === "string" && collectionReference.length > 0) {{
@@ -1874,7 +1779,7 @@ pub fn build_redirection_form(
                                             input.value = collectionReference;
                                             form.appendChild(input);
                                             document.body.appendChild(form);
-                                            form.submit();;
+                                            form.submit();
                                         }} else {{
                                             window.location.replace(redirectUrl);
                                         }}
@@ -1975,6 +1880,30 @@ fn build_payment_link_template(
     let _ = tera.add_raw_template("payment_link_js", &js_template);
 
     context.insert("payment_details_js_script", &payment_link_data.js_script);
+    let sdk_origin = payment_link_data
+        .sdk_url
+        .host_str()
+        .ok_or_else(|| {
+            logger::error!("Host missing for payment link SDK URL");
+            report!(errors::ApiErrorResponse::InternalServerError)
+        })
+        .and_then(|host| {
+            if host == "localhost" {
+                let port = payment_link_data.sdk_url.port().ok_or_else(|| {
+                    logger::error!("Port missing for localhost in SDK URL");
+                    report!(errors::ApiErrorResponse::InternalServerError)
+                })?;
+                Ok(format!(
+                    "{}://{}:{}",
+                    payment_link_data.sdk_url.scheme(),
+                    host,
+                    port
+                ))
+            } else {
+                Ok(format!("{}://{}", payment_link_data.sdk_url.scheme(), host))
+            }
+        })?;
+    context.insert("sdk_origin", &sdk_origin);
 
     let rendered_js = match tera.render("payment_link_js", &context) {
         Ok(rendered_js) => rendered_js,
@@ -2052,11 +1981,11 @@ pub fn build_secure_payment_link_html(
         .attach_printable("Error while rendering secure payment link's HTML template")
 }
 
-fn get_hyper_loader_sdk(sdk_url: &str) -> String {
+fn get_hyper_loader_sdk(sdk_url: &url::Url) -> String {
     format!("<script src=\"{sdk_url}\" onload=\"initializeSDK()\"></script>")
 }
 
-fn get_preload_link_html_template(sdk_url: &str) -> String {
+fn get_preload_link_html_template(sdk_url: &url::Url) -> String {
     format!(
         r#"<link rel="preload" href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800" as="style">
             <link rel="preload" href="{sdk_url}" as="script">"#,

@@ -4,12 +4,12 @@ use api_models::{
     analytics::{
         self as analytics_api,
         api_event::ApiEventDimensions,
-        auth_events::AuthEventFlows,
+        auth_events::{AuthEventDimensions, AuthEventFlows},
         disputes::DisputeDimensions,
         frm::{FrmDimensions, FrmTransactionType},
         payment_intents::PaymentIntentDimensions,
         payments::{PaymentDimensions, PaymentDistributions},
-        refunds::{RefundDimensions, RefundType},
+        refunds::{RefundDimensions, RefundDistributions, RefundType},
         sdk_events::{SdkEventDimensions, SdkEventNames},
         Granularity,
     },
@@ -18,6 +18,9 @@ use api_models::{
         PaymentMethod, PaymentMethodType,
     },
     refunds::RefundStatus,
+};
+use common_enums::{
+    AuthenticationConnectors, AuthenticationStatus, DecoupledAuthenticationType, TransactionStatus,
 };
 use common_utils::{
     errors::{CustomResult, ParsingError},
@@ -379,7 +382,7 @@ impl Default for Filter {
 impl<T: AnalyticsDataSource> ToSql<T> for Filter {
     fn to_sql(&self, table_engine: &TableEngine) -> error_stack::Result<String, ParsingError> {
         Ok(match self {
-            Self::Plain(l, op, r) => filter_type_to_sql(l, op, r),
+            Self::Plain(l, op, r) => filter_type_to_sql(l, *op, r),
             Self::NestedFilter(operator, filters) => {
                 format!(
                     "( {} )",
@@ -488,6 +491,7 @@ impl_to_sql_for_to_string!(
     PaymentIntentDimensions,
     &PaymentDistributions,
     RefundDimensions,
+    &RefundDistributions,
     FrmDimensions,
     PaymentMethod,
     PaymentMethodType,
@@ -501,6 +505,10 @@ impl_to_sql_for_to_string!(
     Currency,
     RefundType,
     FrmTransactionType,
+    TransactionStatus,
+    AuthenticationStatus,
+    AuthenticationConnectors,
+    DecoupledAuthenticationType,
     Flow,
     &String,
     &bool,
@@ -518,7 +526,9 @@ impl_to_sql_for_to_string!(
     ApiEventDimensions,
     &DisputeDimensions,
     DisputeDimensions,
-    DisputeStage
+    DisputeStage,
+    AuthEventDimensions,
+    &AuthEventDimensions
 );
 
 #[derive(Debug, Clone, Copy)]
@@ -535,7 +545,7 @@ pub enum FilterTypes {
     IsNotNull,
 }
 
-pub fn filter_type_to_sql(l: &String, op: &FilterTypes, r: &String) -> String {
+pub fn filter_type_to_sql(l: &str, op: FilterTypes, r: &str) -> String {
     match op {
         FilterTypes::EqualBool => format!("{l} = {r}"),
         FilterTypes::Equal => format!("{l} = '{r}'"),
@@ -742,7 +752,7 @@ where
         Ok(())
     }
 
-    pub fn add_granularity_in_mins(&mut self, granularity: &Granularity) -> QueryResult<()> {
+    pub fn add_granularity_in_mins(&mut self, granularity: Granularity) -> QueryResult<()> {
         let interval = match granularity {
             Granularity::OneMin => "1",
             Granularity::FiveMin => "5",
@@ -813,7 +823,7 @@ where
     pub fn get_filter_type_clause(&self) -> Option<String> {
         self.having.as_ref().map(|vec| {
             vec.iter()
-                .map(|(l, op, r)| filter_type_to_sql(l, op, r))
+                .map(|(l, op, r)| filter_type_to_sql(l, *op, r))
                 .collect::<Vec<String>>()
                 .join(" AND ")
         })

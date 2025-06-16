@@ -11,7 +11,7 @@ impl utils::Connector for HelcimTest {
     fn get_data(&self) -> types::api::ConnectorData {
         use router::connector::Helcim;
         utils::construct_connector_data_old(
-            Box::new(&Helcim),
+            Box::new(Helcim::new()),
             types::Connector::Helcim,
             types::api::GetToken::Connector,
             None,

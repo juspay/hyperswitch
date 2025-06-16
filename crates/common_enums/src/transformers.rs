@@ -522,7 +522,7 @@ impl Country {
             CountryAlpha2::ZW => Self::Zimbabwe,
         }
     }
-    pub const fn to_alpha2(&self) -> CountryAlpha2 {
+    pub const fn to_alpha2(self) -> CountryAlpha2 {
         match self {
             Self::Afghanistan => CountryAlpha2::AF,
             Self::AlandIslands => CountryAlpha2::AX,
@@ -1028,7 +1028,7 @@ impl Country {
             CountryAlpha3::ZWE => Self::Zimbabwe,
         }
     }
-    pub const fn to_alpha3(&self) -> CountryAlpha3 {
+    pub const fn to_alpha3(self) -> CountryAlpha3 {
         match self {
             Self::Afghanistan => CountryAlpha3::AFG,
             Self::AlandIslands => CountryAlpha3::ALA,
@@ -1535,7 +1535,7 @@ impl Country {
             _ => Err(NumericCountryCodeParseError),
         }
     }
-    pub const fn to_numeric(&self) -> u32 {
+    pub const fn to_numeric(self) -> u32 {
         match self {
             Self::Afghanistan => 4,
             Self::AlandIslands => 248,
@@ -1799,6 +1799,7 @@ impl From<PaymentMethodType> for PaymentMethod {
             PaymentMethodType::AliPay => Self::Wallet,
             PaymentMethodType::AliPayHk => Self::Wallet,
             PaymentMethodType::Alma => Self::PayLater,
+            PaymentMethodType::AmazonPay => Self::Wallet,
             PaymentMethodType::ApplePay => Self::Wallet,
             PaymentMethodType::Bacs => Self::BankDebit,
             PaymentMethodType::BancontactCard => Self::BankRedirect,
@@ -1814,12 +1815,15 @@ impl From<PaymentMethodType> for PaymentMethod {
             PaymentMethodType::CimbVa => Self::BankTransfer,
             PaymentMethodType::ClassicReward => Self::Reward,
             PaymentMethodType::Credit => Self::Card,
+            #[cfg(feature = "v2")]
+            PaymentMethodType::Card => Self::Card,
             PaymentMethodType::CryptoCurrency => Self::Crypto,
             PaymentMethodType::Dana => Self::Wallet,
             PaymentMethodType::DanamonVa => Self::BankTransfer,
             PaymentMethodType::Debit => Self::Card,
             PaymentMethodType::Fps => Self::RealTimePayment,
             PaymentMethodType::DuitNow => Self::RealTimePayment,
+            PaymentMethodType::Eft => Self::BankRedirect,
             PaymentMethodType::Eps => Self::BankRedirect,
             PaymentMethodType::Evoucher => Self::Reward,
             PaymentMethodType::Giropay => Self::BankRedirect,
@@ -1839,6 +1843,9 @@ impl From<PaymentMethodType> for PaymentMethod {
             PaymentMethodType::Multibanco => Self::BankTransfer,
             PaymentMethodType::MandiriVa => Self::BankTransfer,
             PaymentMethodType::Interac => Self::BankRedirect,
+            PaymentMethodType::InstantBankTransfer => Self::BankTransfer,
+            PaymentMethodType::InstantBankTransferFinland => Self::BankTransfer,
+            PaymentMethodType::InstantBankTransferPoland => Self::BankTransfer,
             PaymentMethodType::Indomaret => Self::Voucher,
             PaymentMethodType::OnlineBankingCzechRepublic => Self::BankRedirect,
             PaymentMethodType::OnlineBankingFinland => Self::BankRedirect,
@@ -1858,6 +1865,7 @@ impl From<PaymentMethodType> for PaymentMethod {
             PaymentMethodType::PromptPay => Self::RealTimePayment,
             PaymentMethodType::SamsungPay => Self::Wallet,
             PaymentMethodType::Sepa => Self::BankDebit,
+            PaymentMethodType::SepaBankTransfer => Self::BankTransfer,
             PaymentMethodType::Sofort => Self::BankRedirect,
             PaymentMethodType::Swish => Self::BankRedirect,
             PaymentMethodType::Trustly => Self::BankRedirect,
@@ -1888,6 +1896,7 @@ impl From<PaymentMethodType> for PaymentMethod {
             PaymentMethodType::PayEasy => Self::Voucher,
             PaymentMethodType::OpenBankingPIS => Self::OpenBanking,
             PaymentMethodType::DirectCarrierBilling => Self::MobilePayment,
+            PaymentMethodType::RevolutPay => Self::Wallet,
         }
     }
 }
@@ -1905,6 +1914,8 @@ mod custom_serde {
 
         use super::*;
 
+        // `serde::Serialize` implementation needs the function to accept `&Country`
+        #[allow(clippy::trivially_copy_pass_by_ref)]
         pub fn serialize<S>(code: &Country, serializer: S) -> Result<S::Ok, S::Error>
         where
             S: serde::Serializer,
@@ -1937,6 +1948,8 @@ mod custom_serde {
 
         use super::*;
 
+        // `serde::Serialize` implementation needs the function to accept `&Country`
+        #[allow(clippy::trivially_copy_pass_by_ref)]
         pub fn serialize<S>(code: &Country, serializer: S) -> Result<S::Ok, S::Error>
         where
             S: serde::Serializer,
@@ -1969,6 +1982,8 @@ mod custom_serde {
 
         use super::*;
 
+        // `serde::Serialize` implementation needs the function to accept `&Country`
+        #[allow(clippy::trivially_copy_pass_by_ref)]
         pub fn serialize<S>(code: &Country, serializer: S) -> Result<S::Ok, S::Error>
         where
             S: serde::Serializer,
@@ -2082,7 +2097,7 @@ impl From<AttemptStatus> for IntentStatus {
                 Self::RequiresCustomerAction
             }
             AttemptStatus::Unresolved => Self::RequiresMerchantAction,
-
+            AttemptStatus::IntegrityFailure => Self::Conflicted,
             AttemptStatus::PartialCharged => Self::PartiallyCaptured,
             AttemptStatus::PartialChargedAndChargeable => Self::PartiallyCapturedAndCapturable,
             AttemptStatus::Started

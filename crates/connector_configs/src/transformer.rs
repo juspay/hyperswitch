@@ -23,8 +23,8 @@ impl DashboardRequestPayload {
             card_networks: Some(card_provider),
             minimum_amount: Some(MinorUnit::zero()),
             maximum_amount: Some(MinorUnit::new(68607706)),
-            recurring_enabled: true,
-            installment_payment_enabled: false,
+            recurring_enabled: Some(true),
+            installment_payment_enabled: Some(false),
             accepted_currencies: None,
             accepted_countries: None,
             payment_experience: None,
@@ -45,10 +45,11 @@ impl DashboardRequestPayload {
                     Some(api_models::enums::PaymentExperience::RedirectToUrl)
                 }
                 (Connector::Paypal, Paypal) => payment_experience,
+                (Connector::Klarna, Klarna) => payment_experience,
                 (Connector::Zen, GooglePay) | (Connector::Zen, ApplePay) => {
                     Some(api_models::enums::PaymentExperience::RedirectToUrl)
                 }
-                (Connector::Braintree, Paypal) | (Connector::Klarna, Klarna) => {
+                (Connector::Braintree, Paypal) => {
                     Some(api_models::enums::PaymentExperience::InvokeSdkClient)
                 }
                 (Connector::Globepay, AliPay)
@@ -64,6 +65,9 @@ impl DashboardRequestPayload {
                 }
                 (_, PaymentMethodType::DirectCarrierBilling) => {
                     Some(api_models::enums::PaymentExperience::CollectOtp)
+                }
+                (_, PaymentMethodType::Cashapp) | (_, PaymentMethodType::Swish) => {
+                    Some(api_models::enums::PaymentExperience::DisplayQrCode)
                 }
                 _ => Some(api_models::enums::PaymentExperience::RedirectToUrl),
             },
@@ -82,8 +86,8 @@ impl DashboardRequestPayload {
                 card_networks: None,
                 minimum_amount: Some(MinorUnit::zero()),
                 maximum_amount: Some(MinorUnit::new(68607706)),
-                recurring_enabled: true,
-                installment_payment_enabled: false,
+                recurring_enabled: Some(true),
+                installment_payment_enabled: Some(false),
                 accepted_currencies: method_type.accepted_currencies,
                 accepted_countries: method_type.accepted_countries,
                 payment_experience: Self::get_payment_experience(
@@ -121,8 +125,8 @@ impl DashboardRequestPayload {
                                         card_networks: Some(vec![method.payment_method_type]),
                                         minimum_amount: Some(MinorUnit::zero()),
                                         maximum_amount: Some(MinorUnit::new(68607706)),
-                                        recurring_enabled: true,
-                                        installment_payment_enabled: false,
+                                        recurring_enabled: Some(true),
+                                        installment_payment_enabled: Some(false),
                                         accepted_currencies: method.accepted_currencies,
                                         accepted_countries: method.accepted_countries,
                                         payment_experience: None,

@@ -2,7 +2,7 @@ pub mod transformers;
 
 use std::fmt::Debug;
 
-use common_utils::request::RequestContent;
+use common_utils::{consts as common_consts, request::RequestContent};
 use diesel_models::enums;
 use error_stack::{report, ResultExt};
 
@@ -16,7 +16,7 @@ use crate::{
     services::{
         self,
         request::{self, Mask},
-        ConnectorIntegration, ConnectorValidation,
+        ConnectorIntegration, ConnectorSpecifications, ConnectorValidation,
     },
     types::{
         self,
@@ -62,12 +62,18 @@ where
         req: &types::RouterData<Flow, Request, Response>,
         _connectors: &settings::Connectors,
     ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
-        let mut header = vec![(
-            headers::CONTENT_TYPE.to_string(),
-            types::PaymentsAuthorizeType::get_content_type(self)
-                .to_string()
-                .into(),
-        )];
+        let mut header = vec![
+            (
+                headers::CONTENT_TYPE.to_string(),
+                types::PaymentsAuthorizeType::get_content_type(self)
+                    .to_string()
+                    .into(),
+            ),
+            (
+                common_consts::TENANT_HEADER.to_string(),
+                req.tenant_id.get_string_repr().to_string().into(),
+            ),
+        ];
         let mut api_key = self.get_auth_header(&req.connector_auth_type)?;
         header.append(&mut api_key);
         Ok(header)
@@ -119,19 +125,25 @@ impl<const T: u8> ConnectorCommon for DummyConnector<T> {
             reason: response.error.reason,
             attempt_status: None,
             connector_transaction_id: None,
+            network_advice_code: None,
+            network_decline_code: None,
+            network_error_message: None,
         })
     }
 }
 
 impl<const T: u8> ConnectorValidation for DummyConnector<T> {
-    fn validate_capture_method(
+    fn validate_connector_against_payment_request(
         &self,
         capture_method: Option<enums::CaptureMethod>,
+        _payment_method: enums::PaymentMethod,
         _pmt: Option<enums::PaymentMethodType>,
     ) -> CustomResult<(), errors::ConnectorError> {
         let capture_method = capture_method.unwrap_or_default();
         match capture_method {
-            enums::CaptureMethod::Automatic | enums::CaptureMethod::Manual => Ok(()),
+            enums::CaptureMethod::Automatic
+            | enums::CaptureMethod::Manual
+            | enums::CaptureMethod::SequentialAutomatic => Ok(()),
             enums::CaptureMethod::ManualMultiple | enums::CaptureMethod::Scheduled => Err(
                 connector_utils::construct_not_supported_error_report(capture_method, self.id()),
             ),
@@ -197,9 +209,12 @@ impl<const T: u8>
         connectors: &settings::Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
         match req.payment_method {
-            enums::PaymentMethod::Card => Ok(format!("{}/payment", self.base_url(connectors))),
-            enums::PaymentMethod::Wallet => Ok(format!("{}/payment", self.base_url(connectors))),
-            enums::PaymentMethod::PayLater => Ok(format!("{}/payment", self.base_url(connectors))),
+            enums::PaymentMethod::Card
+            | enums::PaymentMethod::Upi
+            | enums::PaymentMethod::Wallet
+            | enums::PaymentMethod::PayLater => {
+                Ok(format!("{}/payment", self.base_url(connectors)))
+            }
             _ => Err(error_stack::report!(errors::ConnectorError::NotSupported {
                 message: format!("The payment method {} is not supported", req.payment_method),
                 connector: Into::<transformers::DummyConnectors>::into(T).get_dummy_connector_id(),
@@ -611,3 +626,5 @@ impl<const T: u8> api::IncomingWebhook for DummyConnector<T> {
         Err(report!(errors::ConnectorError::WebhooksNotImplemented))
     }
 }
+
+impl<const T: u8> ConnectorSpecifications for DummyConnector<T> {}

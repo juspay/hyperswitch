@@ -33,8 +33,16 @@ where
         return Ok(role_info.clone());
     }
 
-    let role_info =
-        get_role_info_from_db(state, &token.role_id, &token.merchant_id, &token.org_id).await?;
+    let role_info = get_role_info_from_db(
+        state,
+        &token.role_id,
+        &token.org_id,
+        token
+            .tenant_id
+            .as_ref()
+            .unwrap_or(&state.session_state().tenant.tenant_id),
+    )
+    .await?;
 
     let token_expiry =
         i64::try_from(token.exp).change_context(ApiErrorResponse::InternalServerError)?;
@@ -53,10 +61,10 @@ async fn get_role_info_from_cache<A>(state: &A, role_id: &str) -> RouterResult<r
 where
     A: SessionStateInfo + Sync,
 {
-    let redis_conn = get_redis_connection(state)?;
+    let redis_conn = get_redis_connection_for_global_tenant(state)?;
 
     redis_conn
-        .get_and_deserialize_key(&get_cache_key_from_role_id(role_id), "RoleInfo")
+        .get_and_deserialize_key(&get_cache_key_from_role_id(role_id).into(), "RoleInfo")
         .await
         .change_context(ApiErrorResponse::InternalServerError)
 }
@@ -68,15 +76,16 @@ pub fn get_cache_key_from_role_id(role_id: &str) -> String {
 async fn get_role_info_from_db<A>(
     state: &A,
     role_id: &str,
-    merchant_id: &id_type::MerchantId,
     org_id: &id_type::OrganizationId,
+    tenant_id: &id_type::TenantId,
 ) -> RouterResult<roles::RoleInfo>
 where
     A: SessionStateInfo + Sync,
 {
     state
-        .store()
-        .find_role_by_role_id_in_merchant_scope(role_id, merchant_id, org_id)
+        .session_state()
+        .global_store
+        .find_by_role_id_org_id_tenant_id(role_id, org_id, tenant_id)
         .await
         .map(roles::RoleInfo::from)
         .to_not_found_response(ApiErrorResponse::InvalidJwtToken)
@@ -91,16 +100,20 @@ pub async fn set_role_info_in_cache<A>(
 where
     A: SessionStateInfo + Sync,
 {
-    let redis_conn = get_redis_connection(state)?;
+    let redis_conn = get_redis_connection_for_global_tenant(state)?;
 
     redis_conn
-        .serialize_and_set_key_with_expiry(&get_cache_key_from_role_id(role_id), role_info, expiry)
+        .serialize_and_set_key_with_expiry(
+            &get_cache_key_from_role_id(role_id).into(),
+            role_info,
+            expiry,
+        )
         .await
         .change_context(ApiErrorResponse::InternalServerError)
 }
 
 pub fn check_permission(
-    required_permission: &permissions::Permission,
+    required_permission: permissions::Permission,
     role_info: &roles::RoleInfo,
 ) -> RouterResult<()> {
     role_info
@@ -130,9 +143,11 @@ pub fn check_tenant(
     Ok(())
 }
 
-fn get_redis_connection<A: SessionStateInfo>(state: &A) -> RouterResult<Arc<RedisConnectionPool>> {
+fn get_redis_connection_for_global_tenant<A: SessionStateInfo>(
+    state: &A,
+) -> RouterResult<Arc<RedisConnectionPool>> {
     state
-        .store()
+        .global_store()
         .get_redis_conn()
         .change_context(ApiErrorResponse::InternalServerError)
         .attach_printable("Failed to get redis connection")

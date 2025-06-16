@@ -1,5 +1,7 @@
 pub mod transformers;
 
+use std::sync::LazyLock;
+
 use base64::Engine;
 use common_enums::enums;
 use common_utils::{
@@ -21,14 +23,20 @@ use hyperswitch_domain_models::{
         PaymentsCancelData, PaymentsCaptureData, PaymentsSessionData, PaymentsSyncData,
         RefundsData, SetupMandateRequestData,
     },
-    router_response_types::{PaymentsResponseData, RefundsResponseData},
+    router_response_types::{
+        ConnectorInfo, PaymentMethodDetails, PaymentsResponseData, RefundsResponseData,
+        SupportedPaymentMethods, SupportedPaymentMethodsExt,
+    },
     types::{
         PaymentsAuthorizeRouterData, PaymentsCancelRouterData, PaymentsCaptureRouterData,
         PaymentsSyncRouterData, RefundSyncRouterData, RefundsRouterData,
     },
 };
 use hyperswitch_interfaces::{
-    api::{self, ConnectorCommon, ConnectorCommonExt, ConnectorIntegration, ConnectorValidation},
+    api::{
+        self, ConnectorCommon, ConnectorCommonExt, ConnectorIntegration, ConnectorSpecifications,
+        ConnectorValidation,
+    },
     configs::Connectors,
     consts, errors,
     events::connector_api_logs::ConnectorEvent,
@@ -229,6 +237,9 @@ impl ConnectorCommon for Fiservemea {
                     },
                     attempt_status: None,
                     connector_transaction_id: None,
+                    network_advice_code: None,
+                    network_decline_code: None,
+                    network_error_message: None,
                 })
             }
             None => Ok(ErrorResponse {
@@ -241,26 +252,15 @@ impl ConnectorCommon for Fiservemea {
                 reason: response.response_type,
                 attempt_status: None,
                 connector_transaction_id: None,
+                network_advice_code: None,
+                network_decline_code: None,
+                network_error_message: None,
             }),
         }
     }
 }
 
-impl ConnectorValidation for Fiservemea {
-    fn validate_capture_method(
-        &self,
-        capture_method: Option<enums::CaptureMethod>,
-        _pmt: Option<enums::PaymentMethodType>,
-    ) -> CustomResult<(), errors::ConnectorError> {
-        let capture_method = capture_method.unwrap_or_default();
-        match capture_method {
-            enums::CaptureMethod::Automatic | enums::CaptureMethod::Manual => Ok(()),
-            enums::CaptureMethod::ManualMultiple | enums::CaptureMethod::Scheduled => Err(
-                utils::construct_not_implemented_error_report(capture_method, self.id()),
-            ),
-        }
-    }
-}
+impl ConnectorValidation for Fiservemea {}
 
 impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData> for Fiservemea {
     fn get_headers(
@@ -782,5 +782,90 @@ impl webhooks::IncomingWebhook for Fiservemea {
         _request: &webhooks::IncomingWebhookRequestDetails<'_>,
     ) -> CustomResult<Box<dyn masking::ErasedMaskSerialize>, errors::ConnectorError> {
         Err(report!(errors::ConnectorError::WebhooksNotImplemented))
+    }
+}
+
+static FISERVEMEA_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMethods> =
+    LazyLock::new(|| {
+        let supported_capture_methods = vec![
+            enums::CaptureMethod::Automatic,
+            enums::CaptureMethod::Manual,
+            enums::CaptureMethod::SequentialAutomatic,
+        ];
+
+        let supported_card_network = vec![
+            common_enums::CardNetwork::Mastercard,
+            common_enums::CardNetwork::Visa,
+            common_enums::CardNetwork::AmericanExpress,
+            common_enums::CardNetwork::Discover,
+            common_enums::CardNetwork::JCB,
+            common_enums::CardNetwork::UnionPay,
+            common_enums::CardNetwork::DinersClub,
+            common_enums::CardNetwork::Interac,
+            common_enums::CardNetwork::CartesBancaires,
+        ];
+
+        let mut fiservemea_supported_payment_methods = SupportedPaymentMethods::new();
+
+        fiservemea_supported_payment_methods.add(
+            enums::PaymentMethod::Card,
+            enums::PaymentMethodType::Credit,
+            PaymentMethodDetails {
+                mandates: enums::FeatureStatus::NotSupported,
+                refunds: enums::FeatureStatus::Supported,
+                supported_capture_methods: supported_capture_methods.clone(),
+                specific_features: Some(
+                    api_models::feature_matrix::PaymentMethodSpecificFeatures::Card({
+                        api_models::feature_matrix::CardSpecificFeatures {
+                            three_ds: common_enums::FeatureStatus::NotSupported,
+                            no_three_ds: common_enums::FeatureStatus::Supported,
+                            supported_card_networks: supported_card_network.clone(),
+                        }
+                    }),
+                ),
+            },
+        );
+
+        fiservemea_supported_payment_methods.add(
+            enums::PaymentMethod::Card,
+            enums::PaymentMethodType::Debit,
+            PaymentMethodDetails {
+                mandates: enums::FeatureStatus::NotSupported,
+                refunds: enums::FeatureStatus::Supported,
+                supported_capture_methods: supported_capture_methods.clone(),
+                specific_features: Some(
+                    api_models::feature_matrix::PaymentMethodSpecificFeatures::Card({
+                        api_models::feature_matrix::CardSpecificFeatures {
+                            three_ds: common_enums::FeatureStatus::NotSupported,
+                            no_three_ds: common_enums::FeatureStatus::Supported,
+                            supported_card_networks: supported_card_network.clone(),
+                        }
+                    }),
+                ),
+            },
+        );
+
+        fiservemea_supported_payment_methods
+    });
+
+static FISERVEMEA_CONNECTOR_INFO: ConnectorInfo = ConnectorInfo {
+    display_name: "Fiservemea",
+    description: "Fiserv powers over 6+ million merchants and 10,000+ financial institutions enabling them to accept billions of payments a year.",
+    connector_type: enums::PaymentConnectorCategory::BankAcquirer,
+};
+
+static FISERVEMEA_SUPPORTED_WEBHOOK_FLOWS: [enums::EventClass; 0] = [];
+
+impl ConnectorSpecifications for Fiservemea {
+    fn get_connector_about(&self) -> Option<&'static ConnectorInfo> {
+        Some(&FISERVEMEA_CONNECTOR_INFO)
+    }
+
+    fn get_supported_payment_methods(&self) -> Option<&'static SupportedPaymentMethods> {
+        Some(&*FISERVEMEA_SUPPORTED_PAYMENT_METHODS)
+    }
+
+    fn get_supported_webhook_flows(&self) -> Option<&'static [enums::EventClass]> {
+        Some(&FISERVEMEA_SUPPORTED_WEBHOOK_FLOWS)
     }
 }

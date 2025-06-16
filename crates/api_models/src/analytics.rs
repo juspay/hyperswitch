@@ -7,12 +7,12 @@ use masking::Secret;
 use self::{
     active_payments::ActivePaymentsMetrics,
     api_event::{ApiEventDimensions, ApiEventMetrics},
-    auth_events::AuthEventMetrics,
+    auth_events::{AuthEventDimensions, AuthEventFilters, AuthEventMetrics},
     disputes::{DisputeDimensions, DisputeMetrics},
     frm::{FrmDimensions, FrmMetrics},
     payment_intents::{PaymentIntentDimensions, PaymentIntentMetrics},
     payments::{PaymentDimensions, PaymentDistributions, PaymentMetrics},
-    refunds::{RefundDimensions, RefundMetrics},
+    refunds::{RefundDimensions, RefundDistributions, RefundMetrics},
     sdk_events::{SdkEventDimensions, SdkEventMetrics},
 };
 pub mod active_payments;
@@ -25,6 +25,7 @@ pub mod outgoing_webhook_event;
 pub mod payment_intents;
 pub mod payments;
 pub mod refunds;
+pub mod routing_events;
 pub mod sdk_events;
 pub mod search;
 
@@ -62,7 +63,42 @@ pub enum Granularity {
     #[serde(rename = "G_ONEDAY")]
     OneDay,
 }
+pub trait ForexMetric {
+    fn is_forex_metric(&self) -> bool;
+}
 
+#[derive(Clone, Debug, Default, serde::Deserialize, serde::Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct AnalyticsRequest {
+    pub payment_intent: Option<GetPaymentIntentMetricRequest>,
+    pub payment_attempt: Option<GetPaymentMetricRequest>,
+    pub refund: Option<GetRefundMetricRequest>,
+    pub dispute: Option<GetDisputeMetricRequest>,
+}
+
+impl AnalyticsRequest {
+    pub fn requires_forex_functionality(&self) -> bool {
+        self.payment_attempt
+            .as_ref()
+            .map(|req| req.metrics.iter().any(|metric| metric.is_forex_metric()))
+            .unwrap_or_default()
+            || self
+                .payment_intent
+                .as_ref()
+                .map(|req| req.metrics.iter().any(|metric| metric.is_forex_metric()))
+                .unwrap_or_default()
+            || self
+                .refund
+                .as_ref()
+                .map(|req| req.metrics.iter().any(|metric| metric.is_forex_metric()))
+                .unwrap_or_default()
+            || self
+                .dispute
+                .as_ref()
+                .map(|req| req.metrics.iter().any(|metric| metric.is_forex_metric()))
+                .unwrap_or_default()
+    }
+}
 #[derive(Clone, Debug, serde::Deserialize, serde::Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct GetPaymentMetricRequest {
@@ -73,7 +109,7 @@ pub struct GetPaymentMetricRequest {
     #[serde(default)]
     pub filters: payments::PaymentFilters,
     pub metrics: HashSet<PaymentMetrics>,
-    pub distribution: Option<Distribution>,
+    pub distribution: Option<PaymentDistributionBody>,
     #[serde(default)]
     pub delta: bool,
 }
@@ -98,8 +134,15 @@ impl Into<u64> for QueryLimit {
 
 #[derive(Clone, Debug, serde::Deserialize, serde::Serialize)]
 #[serde(rename_all = "camelCase")]
-pub struct Distribution {
+pub struct PaymentDistributionBody {
     pub distribution_for: PaymentDistributions,
+    pub distribution_cardinality: QueryLimit,
+}
+
+#[derive(Clone, Debug, serde::Deserialize, serde::Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct RefundDistributionBody {
+    pub distribution_for: RefundDistributions,
     pub distribution_cardinality: QueryLimit,
 }
 
@@ -107,6 +150,7 @@ pub struct Distribution {
 #[serde(rename_all = "camelCase")]
 pub struct ReportRequest {
     pub time_range: TimeRange,
+    pub emails: Option<Vec<Secret<String, EmailStrategy>>>,
 }
 
 #[derive(Clone, Debug, serde::Deserialize, serde::Serialize)]
@@ -142,6 +186,7 @@ pub struct GetRefundMetricRequest {
     #[serde(default)]
     pub filters: refunds::RefundFilters,
     pub metrics: HashSet<RefundMetrics>,
+    pub distribution: Option<RefundDistributionBody>,
     #[serde(default)]
     pub delta: bool,
 }
@@ -181,6 +226,10 @@ pub struct GetSdkEventMetricRequest {
 pub struct GetAuthEventMetricRequest {
     pub time_series: Option<TimeSeries>,
     pub time_range: TimeRange,
+    #[serde(default)]
+    pub group_by_names: Vec<AuthEventDimensions>,
+    #[serde(default)]
+    pub filters: AuthEventFilters,
     #[serde(default)]
     pub metrics: HashSet<AuthEventMetrics>,
     #[serde(default)]
@@ -230,8 +279,12 @@ pub struct PaymentIntentsAnalyticsMetadata {
 
 #[derive(Debug, serde::Serialize)]
 pub struct RefundsAnalyticsMetadata {
+    pub total_refund_success_rate: Option<f64>,
     pub total_refund_processed_amount: Option<u64>,
     pub total_refund_processed_amount_in_usd: Option<u64>,
+    pub total_refund_processed_count: Option<u64>,
+    pub total_refund_reason_count: Option<u64>,
+    pub total_refund_error_message_count: Option<u64>,
 }
 #[derive(Debug, serde::Deserialize, serde::Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -460,4 +513,37 @@ pub struct SankeyResponse {
     pub refunds_status: Option<String>,
     pub dispute_status: Option<String>,
     pub first_attempt: i64,
+}
+
+#[derive(Debug, serde::Deserialize, serde::Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct GetAuthEventFilterRequest {
+    pub time_range: TimeRange,
+    #[serde(default)]
+    pub group_by_names: Vec<AuthEventDimensions>,
+}
+
+#[derive(Debug, Default, serde::Serialize, Eq, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub struct AuthEventFiltersResponse {
+    pub query_data: Vec<AuthEventFilterValue>,
+}
+
+#[derive(Debug, serde::Serialize, Eq, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub struct AuthEventFilterValue {
+    pub dimension: AuthEventDimensions,
+    pub values: Vec<String>,
+}
+
+#[derive(Debug, serde::Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct AuthEventMetricsResponse<T> {
+    pub query_data: Vec<T>,
+    pub meta_data: [AuthEventsAnalyticsMetadata; 1],
+}
+
+#[derive(Debug, serde::Serialize)]
+pub struct AuthEventsAnalyticsMetadata {
+    pub total_error_message_count: Option<u64>,
 }

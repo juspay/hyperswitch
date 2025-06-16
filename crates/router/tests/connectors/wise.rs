@@ -1,4 +1,4 @@
-use api_models::payments::{Address, AddressDetails};
+use hyperswitch_domain_models::address::{Address, AddressDetails};
 use masking::Secret;
 use router::{
     types,

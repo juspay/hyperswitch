@@ -1,10 +1,11 @@
-pub mod payment;
-pub mod payment_methods;
-pub mod refunds;
+pub(super) mod customer;
+pub(super) mod payment;
+pub(super) mod payment_methods;
+pub(super) mod refunds;
+pub(super) mod token;
 
 use diesel::{backend::Backend, deserialize::FromSql, serialize::ToSql, sql_types};
 use error_stack::ResultExt;
-use serde_json::error;
 use thiserror::Error;
 
 use crate::{
@@ -26,16 +27,20 @@ pub(crate) enum GlobalEntity {
     Attempt,
     PaymentMethod,
     Refund,
+    PaymentMethodSession,
+    Token,
 }
 
 impl GlobalEntity {
-    fn prefix(&self) -> &'static str {
+    fn prefix(self) -> &'static str {
         match self {
             Self::Customer => "cus",
             Self::Payment => "pay",
             Self::PaymentMethod => "pm",
             Self::Attempt => "att",
             Self::Refund => "ref",
+            Self::PaymentMethodSession => "pms",
+            Self::Token => "tok",
         }
     }
 }
@@ -132,7 +137,7 @@ impl GlobalId {
     ) -> Result<Self, GlobalIdError> {
         let length_id = LengthId::from(input_string)?;
         let input_string = &length_id.0 .0;
-        let (cell_id, remaining) = input_string
+        let (cell_id, _remaining) = input_string
             .split_once("_")
             .ok_or(GlobalIdError::InvalidIdFormat)?;
 
@@ -203,8 +208,8 @@ mod global_id_tests {
         let cell_id = CellId::from_str(cell_id_string).unwrap();
         let global_id = GlobalId::generate(&cell_id, entity);
 
-        /// Generate a regex for globalid
-        /// Eg - 12abc_cus_abcdefghijklmnopqrstuvwxyz1234567890
+        // Generate a regex for globalid
+        // Eg - 12abc_cus_abcdefghijklmnopqrstuvwxyz1234567890
         let regex = regex::Regex::new(r"[a-z0-9]{5}_cus_[a-z0-9]{32}").unwrap();
 
         assert!(regex.is_match(&global_id.0 .0 .0));

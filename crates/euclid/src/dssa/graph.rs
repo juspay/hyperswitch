@@ -71,6 +71,17 @@ impl cgraph::NodeViz for dir::DirValue {
             Self::RealTimePaymentType(rtpt) => rtpt.to_string(),
             Self::OpenBankingType(ob) => ob.to_string(),
             Self::MobilePaymentType(mpt) => mpt.to_string(),
+            Self::IssuerName(issuer_name) => issuer_name.value.clone(),
+            Self::IssuerCountry(issuer_country) => issuer_country.to_string(),
+            Self::CustomerDevicePlatform(customer_device_platform) => {
+                customer_device_platform.to_string()
+            }
+            Self::CustomerDeviceType(customer_device_type) => customer_device_type.to_string(),
+            Self::CustomerDeviceDisplaySize(customer_device_display_size) => {
+                customer_device_display_size.to_string()
+            }
+            Self::AcquirerCountry(acquirer_country) => acquirer_country.to_string(),
+            Self::AcquirerFraudRate(acquirer_fraud_rate) => acquirer_fraud_rate.number.to_string(),
         }
     }
 }
@@ -194,11 +205,11 @@ impl cgraph::CheckingContext for AnalysisContext {
                     DataType::EnumVariant | DataType::StrValue | DataType::MetadataValue => {
                         value_set.contains(val)
                     }
-                    DataType::Number => val.get_num_value().map_or(false, |num_val| {
+                    DataType::Number => val.get_num_value().is_some_and(|num_val| {
                         value_set.iter().any(|ctx_val| {
                             ctx_val
                                 .get_num_value()
-                                .map_or(false, |ctx_num_val| num_val.fits(&ctx_num_val))
+                                .is_some_and(|ctx_num_val| num_val.fits(&ctx_num_val))
                         })
                     }),
                 }

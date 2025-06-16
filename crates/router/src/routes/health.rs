@@ -14,7 +14,7 @@ use crate::{
 #[instrument(skip_all, fields(flow = ?Flow::HealthCheck))]
 // #[actix_web::get("/health")]
 pub async fn health() -> impl actix_web::Responder {
-    metrics::HEALTH_METRIC.add(&metrics::CONTEXT, 1, &[]);
+    metrics::HEALTH_METRIC.add(1, &[]);
     logger::info!("Health was called");
 
     actix_web::HttpResponse::Ok().body("health is good")
@@ -25,7 +25,7 @@ pub async fn deep_health_check(
     state: web::Data<app::AppState>,
     request: HttpRequest,
 ) -> impl actix_web::Responder {
-    metrics::HEALTH_METRIC.add(&metrics::CONTEXT, 1, &[]);
+    metrics::HEALTH_METRIC.add(1, &[]);
 
     let flow = Flow::DeepHealthCheck;
 
@@ -108,6 +108,23 @@ async fn deep_health_check_func(
 
     logger::debug!("gRPC health check end");
 
+    logger::debug!("Decision Engine health check begin");
+
+    #[cfg(feature = "dynamic_routing")]
+    let decision_engine_health_check =
+        state
+            .health_check_decision_engine()
+            .await
+            .map_err(|error| {
+                let message = error.to_string();
+                error.change_context(errors::ApiErrorResponse::HealthCheckError {
+                    component: "Decision Engine service",
+                    message,
+                })
+            })?;
+
+    logger::debug!("Decision Engine health check end");
+
     logger::debug!("Opensearch health check begin");
 
     #[cfg(feature = "olap")]
@@ -144,6 +161,8 @@ async fn deep_health_check_func(
         outgoing_request: outgoing_check.into(),
         #[cfg(feature = "dynamic_routing")]
         grpc_health_check,
+        #[cfg(feature = "dynamic_routing")]
+        decision_engine: decision_engine_health_check.into(),
     };
 
     Ok(api::ApplicationResponse::Json(response))

@@ -103,7 +103,7 @@ To run the router, you can use the following snippet in the `docker-compose.yml`
 ```yaml
 ### Application services
 hyperswitch-server:
-  image: juspaydotin/hyperswitch-router:latest # This pulls the latest image from Docker Hub. If you wish to use a version without added features (like KMS), you can replace `latest` with `standalone`. However, please note that the standalone version is not recommended for production use.
+  image: docker.juspay.io/juspaydotin/hyperswitch-router:latest # This pulls the latest image from Docker Hub. If you wish to use a version without added features (like KMS), you can replace `latest` with `standalone`. However, please note that the standalone version is not recommended for production use.
   command: /local/bin/router --config-path /local/config/deployments/sandbox_release.toml # <--- Change this to the config file that is generated for the environment.
   ports:
     - "8080:8080"
@@ -115,7 +115,7 @@ To run the producer, you can use the following snippet in the `docker-compose.ym
 
 ```yaml
 hyperswitch-producer:
-  image: juspaydotin/hyperswitch-producer:latest
+  image: docker.juspay.io/juspaydotin/hyperswitch-producer:latest
   command: /local/bin/scheduler --config-path /local/config/deployments/producer_sandbox_release.toml # <--- Change this to the config file that is generated for the environment.
   volumes:
     - ./config:/local/config
@@ -127,7 +127,7 @@ To run the consumer, you can use the following snippet in the `docker-compose.ym
 
 ```yaml
 hyperswitch-consumer:
-  image: juspaydotin/hyperswitch-consumer:latest
+  image: docker.juspay.io/juspaydotin/hyperswitch-consumer:latest
   command: /local/bin/scheduler --config-path /local/config/deployments/consumer_sandbox_release.toml # <--- Change this to the config file that is generated for the environment
   volumes:
     - ./config:/local/config
@@ -139,7 +139,7 @@ To run the drainer, you can use the following snippet in the `docker-compose.yml
 
 ```yaml
 hyperswitch-drainer:
-  image: juspaydotin/hyperswitch-drainer:latest
+  image: docker.juspay.io/juspaydotin/hyperswitch-drainer:latest
   command: /local/bin/drainer --config-path /local/config/deployments/drainer.toml
   volumes:
     - ./config:/local/config

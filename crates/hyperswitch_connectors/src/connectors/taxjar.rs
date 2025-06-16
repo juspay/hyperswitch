@@ -28,7 +28,10 @@ use hyperswitch_domain_models::{
     types::PaymentsTaxCalculationRouterData,
 };
 use hyperswitch_interfaces::{
-    api::{self, ConnectorCommon, ConnectorCommonExt, ConnectorIntegration, ConnectorValidation},
+    api::{
+        self, ConnectorCommon, ConnectorCommonExt, ConnectorIntegration, ConnectorSpecifications,
+        ConnectorValidation,
+    },
     configs::Connectors,
     errors,
     events::connector_api_logs::ConnectorEvent,
@@ -141,6 +144,9 @@ impl ConnectorCommon for Taxjar {
             reason: Some(response.detail),
             attempt_status: None,
             connector_transaction_id: None,
+            network_advice_code: None,
+            network_decline_code: None,
+            network_error_message: None,
         })
     }
 }
@@ -292,3 +298,5 @@ impl webhooks::IncomingWebhook for Taxjar {
         Err(report!(errors::ConnectorError::WebhooksNotImplemented))
     }
 }
+
+impl ConnectorSpecifications for Taxjar {}

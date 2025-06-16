@@ -63,6 +63,9 @@ pub enum StripeErrorCode {
     #[error(error_type = StripeErrorType::ApiError, code = "payout_failed", message = "payout has failed")]
     PayoutFailed,
 
+    #[error(error_type = StripeErrorType::ApiError, code = "external_vault_failed", message = "external vault has failed")]
+    ExternalVaultFailed,
+
     #[error(error_type = StripeErrorType::ApiError, code = "internal_server_error", message = "Server is down")]
     InternalServerError,
 
@@ -278,6 +281,12 @@ pub enum StripeErrorCode {
     InvalidTenant,
     #[error(error_type = StripeErrorType::HyperswitchError, code = "HE_01", message = "Failed to convert amount to {amount_type} type")]
     AmountConversionFailed { amount_type: &'static str },
+    #[error(error_type = StripeErrorType::HyperswitchError, code = "", message = "Platform Bad Request")]
+    PlatformBadRequest,
+    #[error(error_type = StripeErrorType::HyperswitchError, code = "", message = "Platform Unauthorized Request")]
+    PlatformUnauthorizedRequest,
+    #[error(error_type = StripeErrorType::HyperswitchError, code = "", message = "Profile Acquirer not found")]
+    ProfileAcquirerNotFound,
     // [#216]: https://github.com/juspay/hyperswitch/issues/216
     // Implement the remaining stripe error codes
 
@@ -501,6 +510,7 @@ impl From<errors::ApiErrorResponse> for StripeErrorCode {
             errors::ApiErrorResponse::RefundNotPossible { connector: _ } => Self::RefundFailed,
             errors::ApiErrorResponse::RefundFailed { data: _ } => Self::RefundFailed, // Nothing at stripe to map
             errors::ApiErrorResponse::PayoutFailed { data: _ } => Self::PayoutFailed,
+            errors::ApiErrorResponse::ExternalVaultFailed => Self::ExternalVaultFailed,
 
             errors::ApiErrorResponse::MandateUpdateFailed
             | errors::ApiErrorResponse::MandateSerializationFailed
@@ -678,6 +688,11 @@ impl From<errors::ApiErrorResponse> for StripeErrorCode {
             errors::ApiErrorResponse::AmountConversionFailed { amount_type } => {
                 Self::AmountConversionFailed { amount_type }
             }
+            errors::ApiErrorResponse::PlatformAccountAuthNotSupported => Self::PlatformBadRequest,
+            errors::ApiErrorResponse::InvalidPlatformOperation => Self::PlatformUnauthorizedRequest,
+            errors::ApiErrorResponse::ProfileAcquirerNotFound { .. } => {
+                Self::ProfileAcquirerNotFound
+            }
         }
     }
 }
@@ -687,7 +702,7 @@ impl actix_web::ResponseError for StripeErrorCode {
         use reqwest::StatusCode;
 
         match self {
-            Self::Unauthorized => StatusCode::UNAUTHORIZED,
+            Self::Unauthorized | Self::PlatformUnauthorizedRequest => StatusCode::UNAUTHORIZED,
             Self::InvalidRequestUrl | Self::GenericNotFoundError { .. } => StatusCode::NOT_FOUND,
             Self::ParameterUnknown { .. } | Self::HyperswitchUnprocessableEntity { .. } => {
                 StatusCode::UNPROCESSABLE_ENTITY
@@ -751,6 +766,7 @@ impl actix_web::ResponseError for StripeErrorCode {
             | Self::CurrencyConversionFailed
             | Self::PaymentMethodDeleteFailed
             | Self::ExtendedCardInfoNotFound
+            | Self::PlatformBadRequest
             | Self::LinkConfigurationError { .. } => StatusCode::BAD_REQUEST,
             Self::RefundFailed
             | Self::PayoutFailed
@@ -760,6 +776,7 @@ impl actix_web::ResponseError for StripeErrorCode {
             | Self::CustomerRedacted
             | Self::WebhookProcessingError
             | Self::InvalidTenant
+            | Self::ExternalVaultFailed
             | Self::AmountConversionFailed { .. } => StatusCode::INTERNAL_SERVER_ERROR,
             Self::ReturnUrlUnavailable => StatusCode::SERVICE_UNAVAILABLE,
             Self::ExternalConnectorError { status_code, .. } => {
@@ -770,6 +787,7 @@ impl actix_web::ResponseError for StripeErrorCode {
                 StatusCode::from_u16(*code).unwrap_or(StatusCode::OK)
             }
             Self::LockTimeout => StatusCode::LOCKED,
+            Self::ProfileAcquirerNotFound => StatusCode::NOT_FOUND,
         }
     }
 

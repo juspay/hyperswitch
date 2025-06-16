@@ -37,10 +37,12 @@ pub enum AnalyticsCollection {
     PaymentIntentSessionized,
     ConnectorEvents,
     OutgoingWebhookEvent,
+    Authentications,
     Dispute,
     DisputeSessionized,
     ApiEventsAnalytics,
     ActivePaymentsAnalytics,
+    RoutingEvents,
 }
 
 #[allow(dead_code)]

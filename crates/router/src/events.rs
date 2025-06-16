@@ -2,11 +2,13 @@ use std::collections::HashMap;
 
 use error_stack::ResultExt;
 use events::{EventsError, Message, MessagingInterface};
-use hyperswitch_domain_models::errors::{StorageError, StorageResult};
 use masking::ErasedMaskSerialize;
 use router_env::logger;
 use serde::{Deserialize, Serialize};
-use storage_impl::{config::TenantConfig, errors::ApplicationError};
+use storage_impl::{
+    config::TenantConfig,
+    errors::{ApplicationError, StorageError, StorageResult},
+};
 use time::PrimitiveDateTime;
 
 use crate::{
@@ -19,6 +21,7 @@ pub mod audit_events;
 pub mod connector_api_logs;
 pub mod event_logger;
 pub mod outgoing_webhook_logs;
+pub mod routing_api_logs;
 #[derive(Debug, Serialize, Clone, Copy)]
 #[serde(rename_all = "snake_case")]
 pub enum EventType {
@@ -35,6 +38,7 @@ pub enum EventType {
     Payout,
     Consolidated,
     Authentication,
+    RoutingApiLogs,
 }
 
 #[derive(Debug, Default, Deserialize, Clone)]

@@ -81,13 +81,13 @@ if (jsonData?.error?.type) {
   );
 }
 
-// Response body should have value "A payment token or payment method data is required" for "message"
+// Response body should have value "A payment token or payment method data or ctp service details is required" for "message"
 if (jsonData?.error?.message) {
   pm.test(
     "[POST]::/payments - Content check if value for 'error.message' matches 'connector_error'",
     function () {
       pm.expect(jsonData.error.message).to.eql(
-        "A payment token or payment method data is required",
+        "A payment token or payment method data or ctp service details is required",
       );
     },
   );

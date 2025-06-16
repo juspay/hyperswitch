@@ -23,15 +23,14 @@ use crate::{
 #[allow(clippy::too_many_arguments)]
 pub async fn do_gsm_multiple_connector_actions(
     state: &app::SessionState,
-    mut connectors: IntoIter<api::ConnectorData>,
+    mut connectors_routing_data: IntoIter<api::ConnectorRoutingData>,
     original_connector_data: api::ConnectorData,
     payout_data: &mut PayoutData,
-    merchant_account: &domain::MerchantAccount,
-    key_store: &domain::MerchantKeyStore,
+    merchant_context: &domain::MerchantContext,
 ) -> RouterResult<()> {
     let mut retries = None;
 
-    metrics::AUTO_PAYOUT_RETRY_ELIGIBLE_REQUEST_COUNT.add(&metrics::CONTEXT, 1, &[]);
+    metrics::AUTO_PAYOUT_RETRY_ELIGIBLE_REQUEST_COUNT.add(1, &[]);
 
     let mut connector = original_connector_data;
 
@@ -43,30 +42,29 @@ pub async fn do_gsm_multiple_connector_actions(
                 retries = get_retries(
                     state,
                     retries,
-                    merchant_account.get_id(),
+                    merchant_context.get_merchant_account().get_id(),
                     PayoutRetryType::MultiConnector,
                 )
                 .await;
 
                 if retries.is_none() || retries == Some(0) {
-                    metrics::AUTO_PAYOUT_RETRY_EXHAUSTED_COUNT.add(&metrics::CONTEXT, 1, &[]);
+                    metrics::AUTO_PAYOUT_RETRY_EXHAUSTED_COUNT.add(1, &[]);
                     logger::info!("retries exhausted for auto_retry payout");
                     break;
                 }
 
-                if connectors.len() == 0 {
+                if connectors_routing_data.len() == 0 {
                     logger::info!("connectors exhausted for auto_retry payout");
-                    metrics::AUTO_PAYOUT_RETRY_EXHAUSTED_COUNT.add(&metrics::CONTEXT, 1, &[]);
+                    metrics::AUTO_PAYOUT_RETRY_EXHAUSTED_COUNT.add(1, &[]);
                     break;
                 }
 
-                connector = super::get_next_connector(&mut connectors)?;
+                connector = super::get_next_connector(&mut connectors_routing_data)?.connector_data;
 
                 Box::pin(do_retry(
                     &state.clone(),
                     connector.to_owned(),
-                    merchant_account,
-                    key_store,
+                    merchant_context,
                     payout_data,
                 ))
                 .await?;
@@ -92,12 +90,11 @@ pub async fn do_gsm_single_connector_actions(
     state: &app::SessionState,
     original_connector_data: api::ConnectorData,
     payout_data: &mut PayoutData,
-    merchant_account: &domain::MerchantAccount,
-    key_store: &domain::MerchantKeyStore,
+    merchant_context: &domain::MerchantContext,
 ) -> RouterResult<()> {
     let mut retries = None;
 
-    metrics::AUTO_PAYOUT_RETRY_ELIGIBLE_REQUEST_COUNT.add(&metrics::CONTEXT, 1, &[]);
+    metrics::AUTO_PAYOUT_RETRY_ELIGIBLE_REQUEST_COUNT.add(1, &[]);
 
     let mut previous_gsm = None; // to compare previous status
 
@@ -115,13 +112,13 @@ pub async fn do_gsm_single_connector_actions(
                 retries = get_retries(
                     state,
                     retries,
-                    merchant_account.get_id(),
+                    merchant_context.get_merchant_account().get_id(),
                     PayoutRetryType::SingleConnector,
                 )
                 .await;
 
                 if retries.is_none() || retries == Some(0) {
-                    metrics::AUTO_PAYOUT_RETRY_EXHAUSTED_COUNT.add(&metrics::CONTEXT, 1, &[]);
+                    metrics::AUTO_PAYOUT_RETRY_EXHAUSTED_COUNT.add(1, &[]);
                     logger::info!("retries exhausted for auto_retry payment");
                     break;
                 }
@@ -129,8 +126,7 @@ pub async fn do_gsm_single_connector_actions(
                 Box::pin(do_retry(
                     &state.clone(),
                     original_connector_data.to_owned(),
-                    merchant_account,
-                    key_store,
+                    merchant_context,
                     payout_data,
                 ))
                 .await?;
@@ -218,7 +214,7 @@ pub fn get_gsm_decision(
             });
 
     if option_gsm_decision.is_some() {
-        metrics::AUTO_PAYOUT_RETRY_GSM_MATCH_COUNT.add(&metrics::CONTEXT, 1, &[]);
+        metrics::AUTO_PAYOUT_RETRY_GSM_MATCH_COUNT.add(1, &[]);
     }
     option_gsm_decision.unwrap_or_default()
 }
@@ -228,18 +224,16 @@ pub fn get_gsm_decision(
 pub async fn do_retry(
     state: &routes::SessionState,
     connector: api::ConnectorData,
-    merchant_account: &domain::MerchantAccount,
-    key_store: &domain::MerchantKeyStore,
+    merchant_context: &domain::MerchantContext,
     payout_data: &mut PayoutData,
 ) -> RouterResult<()> {
-    metrics::AUTO_RETRY_PAYOUT_COUNT.add(&metrics::CONTEXT, 1, &[]);
+    metrics::AUTO_RETRY_PAYOUT_COUNT.add(1, &[]);
 
-    modify_trackers(state, &connector, merchant_account, payout_data).await?;
+    modify_trackers(state, &connector, merchant_context, payout_data).await?;
 
     Box::pin(call_connector_payout(
         state,
-        merchant_account,
-        key_store,
+        merchant_context,
         &connector,
         payout_data,
     ))
@@ -250,7 +244,7 @@ pub async fn do_retry(
 pub async fn modify_trackers(
     state: &routes::SessionState,
     connector: &api::ConnectorData,
-    merchant_account: &domain::MerchantAccount,
+    merchant_context: &domain::MerchantContext,
     payout_data: &mut PayoutData,
 ) -> RouterResult<()> {
     let new_attempt_count = payout_data.payouts.attempt_count + 1;
@@ -269,7 +263,7 @@ pub async fn modify_trackers(
             &payout_data.payouts,
             updated_payouts,
             &payout_data.payout_attempt,
-            merchant_account.storage_scheme,
+            merchant_context.get_merchant_account().storage_scheme,
         )
         .await
         .change_context(errors::ApiErrorResponse::InternalServerError)
@@ -309,7 +303,7 @@ pub async fn modify_trackers(
         .insert_payout_attempt(
             payout_attempt_req,
             &payouts,
-            merchant_account.storage_scheme,
+            merchant_context.get_merchant_account().storage_scheme,
         )
         .await
         .to_duplicate_response(errors::ApiErrorResponse::DuplicatePayout { payout_id })

@@ -27,6 +27,7 @@ pub struct DisputeMetricRow {
     pub dispute_stage: Option<DBEnumWrapper<storage_enums::DisputeStage>>,
     pub dispute_status: Option<DBEnumWrapper<storage_enums::DisputeStatus>>,
     pub connector: Option<String>,
+    pub currency: Option<DBEnumWrapper<storage_enums::Currency>>,
     pub total: Option<bigdecimal::BigDecimal>,
     pub count: Option<i64>,
     #[serde(with = "common_utils::custom_serde::iso8601::option")]
@@ -52,7 +53,7 @@ where
         dimensions: &[DisputeDimensions],
         auth: &AuthInfo,
         filters: &DisputeFilters,
-        granularity: &Option<Granularity>,
+        granularity: Option<Granularity>,
         time_range: &TimeRange,
         pool: &T,
     ) -> MetricsResult<HashSet<(DisputeMetricsBucketIdentifier, DisputeMetricRow)>>;
@@ -73,7 +74,7 @@ where
         dimensions: &[DisputeDimensions],
         auth: &AuthInfo,
         filters: &DisputeFilters,
-        granularity: &Option<Granularity>,
+        granularity: Option<Granularity>,
         time_range: &TimeRange,
         pool: &T,
     ) -> MetricsResult<HashSet<(DisputeMetricsBucketIdentifier, DisputeMetricRow)>> {

@@ -1,0 +1,76 @@
+syntax = "proto3";
+package contract_routing;
+
+service ContractScoreCalculator {
+    rpc FetchContractScore (CalContractScoreRequest) returns (CalContractScoreResponse);
+
+    rpc UpdateContract (UpdateContractRequest) returns (UpdateContractResponse);
+
+    rpc InvalidateContract (InvalidateContractRequest) returns (InvalidateContractResponse);
+}
+
+// API-1 types
+message CalContractScoreRequest {
+    string id = 1;
+    string params = 2;
+    repeated string labels = 3;
+    CalContractScoreConfig config = 4;
+}
+
+message CalContractScoreConfig {
+    repeated double constants = 1;
+    TimeScale time_scale = 2;
+}
+
+message TimeScale {
+    enum Scale {
+        Day = 0;
+        Month = 1;
+    }
+    Scale time_scale = 1;
+}
+
+message CalContractScoreResponse {
+    repeated ScoreData labels_with_score = 1;
+}
+
+message ScoreData {
+    double score = 1;
+    string label = 2;
+    uint64 current_count = 3;
+}
+
+// API-2 types
+message UpdateContractRequest {
+    string id = 1;
+    string params = 2;
+    repeated LabelInformation labels_information = 3;
+}
+
+message LabelInformation {
+    string label = 1;
+    uint64 target_count = 2;
+    uint64 target_time = 3;
+    uint64 current_count = 4;
+}
+
+message UpdateContractResponse {
+   enum UpdationStatus {
+      CONTRACT_UPDATION_SUCCEEDED = 0;
+      CONTRACT_UPDATION_FAILED = 1;
+   }
+   UpdationStatus status = 1;
+}
+
+// API-3 types
+message InvalidateContractRequest {
+    string id = 1;
+}
+
+message InvalidateContractResponse {
+   enum InvalidationStatus {
+      CONTRACT_INVALIDATION_SUCCEEDED = 0;
+      CONTRACT_INVALIDATION_FAILED = 1;
+   }
+   InvalidationStatus status = 1;
+}

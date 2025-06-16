@@ -32,7 +32,7 @@ impl ForeignFrom<storage::Blocklist> for blocklist::AddToBlocklistResponse {
     }
 }
 
-async fn generate_fingerprint_request<'a>(
+async fn generate_fingerprint_request(
     jwekey: &settings::Jwekey,
     locker: &settings::Locker,
     payload: &blocklist::GenerateFingerprintRequest,

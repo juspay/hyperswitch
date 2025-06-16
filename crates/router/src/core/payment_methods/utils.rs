@@ -6,6 +6,10 @@ use api_models::{
     payment_methods::RequestPaymentMethodTypes,
 };
 use common_enums::enums;
+#[cfg(feature = "v2")]
+use common_utils::ext_traits::{OptionExt, StringExt};
+#[cfg(feature = "v2")]
+use error_stack::ResultExt;
 use euclid::frontend::dir;
 use hyperswitch_constraint_graph as cgraph;
 use kgraph_utils::{error::KgraphError, transformers::IntoDirValue};
@@ -13,6 +17,14 @@ use masking::ExposeInterface;
 use storage_impl::redis::cache::{CacheKey, PM_FILTERS_CGRAPH_CACHE};
 
 use crate::{configs::settings, routes::SessionState};
+#[cfg(feature = "v2")]
+use crate::{
+    db::{
+        errors,
+        storage::{self, enums as storage_enums},
+    },
+    services::logger,
+};
 
 pub fn make_pm_graph(
     builder: &mut cgraph::ConstraintGraphBuilder<dir::DirValue>,
@@ -41,7 +53,7 @@ pub fn make_pm_graph(
     Ok(())
 }
 
-pub async fn get_merchant_pm_filter_graph<'a>(
+pub async fn get_merchant_pm_filter_graph(
     state: &SessionState,
     key: &str,
 ) -> Option<Arc<hyperswitch_constraint_graph::ConstraintGraph<dir::DirValue>>> {
@@ -96,7 +108,7 @@ fn compile_pm_graph(
                 domain_id,
                 supported_payment_methods_for_update_mandate,
                 pmt.clone(),
-                &pm_enabled.payment_method,
+                pm_enabled.payment_method,
             );
             if let Ok(Some(connector_eligible_for_update_mandates_node)) = res {
                 agg_or_nodes_for_mandate_filters.push((
@@ -200,7 +212,7 @@ fn compile_pm_graph(
                 .or_else(|| config.0.get("default"))
                 .map(|inner| {
                     if let Ok(Some(capture_method_filter)) =
-                        construct_capture_method_node(builder, inner, &pmt.payment_method_type)
+                        construct_capture_method_node(builder, inner, pmt.payment_method_type)
                     {
                         agg_nodes.push((
                             capture_method_filter,
@@ -214,7 +226,7 @@ fn compile_pm_graph(
             if let Ok(Some(country_node)) = compile_accepted_countries_for_mca(
                 builder,
                 domain_id,
-                &pmt.payment_method_type,
+                pmt.payment_method_type,
                 pmt.accepted_countries,
                 config,
                 connector.clone(),
@@ -230,7 +242,7 @@ fn compile_pm_graph(
             if let Ok(Some(currency_node)) = compile_accepted_currency_for_mca(
                 builder,
                 domain_id,
-                &pmt.payment_method_type,
+                pmt.payment_method_type,
                 pmt.accepted_currencies,
                 config,
                 connector.clone(),
@@ -274,7 +286,7 @@ fn construct_supported_connectors_for_update_mandate_node(
     domain_id: cgraph::DomainId,
     supported_payment_methods_for_update_mandate: &settings::SupportedPaymentMethodsForMandate,
     pmt: RequestPaymentMethodTypes,
-    payment_method: &enums::PaymentMethod,
+    payment_method: enums::PaymentMethod,
 ) -> Result<Option<cgraph::NodeId>, KgraphError> {
     let card_value_node = builder.make_value_node(
         cgraph::NodeValue::Value(dir::DirValue::PaymentMethod(enums::PaymentMethod::Card)),
@@ -296,9 +308,9 @@ fn construct_supported_connectors_for_update_mandate_node(
 
     if let Some(supported_pm_for_mandates) = supported_payment_methods_for_update_mandate
         .0
-        .get(payment_method)
+        .get(&payment_method)
     {
-        if payment_method == &enums::PaymentMethod::Card {
+        if payment_method == enums::PaymentMethod::Card {
             if let Some(credit_connector_list) = supported_pm_for_mandates
                 .0
                 .get(&api_enums::PaymentMethodType::Credit)
@@ -429,16 +441,20 @@ fn construct_supported_connectors_for_update_mandate_node(
         }
     }
 
-    Ok(Some(
-        builder
-            .make_any_aggregator(
-                &agg_nodes,
-                Some("any node for card and non card pm"),
-                None::<()>,
-                Some(domain_id),
-            )
-            .map_err(KgraphError::GraphConstructionError)?,
-    ))
+    if !agg_nodes.is_empty() {
+        Ok(Some(
+            builder
+                .make_any_aggregator(
+                    &agg_nodes,
+                    Some("any node for card and non card pm"),
+                    None::<()>,
+                    Some(domain_id),
+                )
+                .map_err(KgraphError::GraphConstructionError)?,
+        ))
+    } else {
+        Ok(None)
+    }
 }
 
 fn construct_supported_connectors_for_mandate_node(
@@ -498,12 +514,12 @@ fn construct_supported_connectors_for_mandate_node(
 fn construct_capture_method_node(
     builder: &mut cgraph::ConstraintGraphBuilder<dir::DirValue>,
     payment_method_filters: &settings::PaymentMethodFilters,
-    payment_method_type: &api_enums::PaymentMethodType,
+    payment_method_type: api_enums::PaymentMethodType,
 ) -> Result<Option<cgraph::NodeId>, KgraphError> {
     if !payment_method_filters
         .0
         .get(&settings::PaymentMethodFilterKey::PaymentMethodType(
-            *payment_method_type,
+            payment_method_type,
         ))
         .and_then(|v| v.not_available_flows)
         .and_then(|v| v.capture_method)
@@ -542,7 +558,7 @@ fn construct_capture_method_node(
 fn compile_accepted_countries_for_mca(
     builder: &mut cgraph::ConstraintGraphBuilder<dir::DirValue>,
     domain_id: cgraph::DomainId,
-    payment_method_type: &enums::PaymentMethodType,
+    payment_method_type: enums::PaymentMethodType,
     pm_countries: Option<admin::AcceptedCountries>,
     config: &settings::ConnectorFilters,
     connector: String,
@@ -608,7 +624,7 @@ fn compile_accepted_countries_for_mca(
             derived_config
                 .0
                 .get(&settings::PaymentMethodFilterKey::PaymentMethodType(
-                    *payment_method_type,
+                    payment_method_type,
                 ))
         {
             if let Some(config_countries) = value.country.as_ref() {
@@ -636,7 +652,7 @@ fn compile_accepted_countries_for_mca(
                 default_derived_config
                     .0
                     .get(&settings::PaymentMethodFilterKey::PaymentMethodType(
-                        *payment_method_type,
+                        payment_method_type,
                     ))
             {
                 if let Some(config_countries) = value.country.as_ref() {
@@ -673,7 +689,7 @@ fn compile_accepted_countries_for_mca(
 fn compile_accepted_currency_for_mca(
     builder: &mut cgraph::ConstraintGraphBuilder<dir::DirValue>,
     domain_id: cgraph::DomainId,
-    payment_method_type: &enums::PaymentMethodType,
+    payment_method_type: enums::PaymentMethodType,
     pm_currency: Option<admin::AcceptedCurrencies>,
     config: &settings::ConnectorFilters,
     connector: String,
@@ -730,7 +746,7 @@ fn compile_accepted_currency_for_mca(
             derived_config
                 .0
                 .get(&settings::PaymentMethodFilterKey::PaymentMethodType(
-                    *payment_method_type,
+                    payment_method_type,
                 ))
         {
             if let Some(config_currencies) = value.currency.as_ref() {
@@ -760,7 +776,7 @@ fn compile_accepted_currency_for_mca(
                 default_derived_config
                     .0
                     .get(&settings::PaymentMethodFilterKey::PaymentMethodType(
-                        *payment_method_type,
+                        payment_method_type,
                     ))
             {
                 if let Some(config_currencies) = value.currency.as_ref() {
@@ -793,4 +809,64 @@ fn compile_accepted_currency_for_mca(
             .make_all_aggregator(&agg_nodes, None, None::<()>, Some(domain_id))
             .map_err(KgraphError::GraphConstructionError)?,
     ))
+}
+
+#[cfg(feature = "v2")]
+pub(super) async fn retrieve_payment_token_data(
+    state: &SessionState,
+    token: String,
+    payment_method: Option<&storage_enums::PaymentMethod>,
+) -> errors::RouterResult<storage::PaymentTokenData> {
+    let redis_conn = state
+        .store
+        .get_redis_conn()
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Failed to get redis connection")?;
+
+    let key = format!(
+        "pm_token_{}_{}_hyperswitch",
+        token,
+        payment_method
+            .get_required_value("payment_method")
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Payment method is required")?
+    );
+
+    let token_data_string = redis_conn
+        .get_key::<Option<String>>(&key.into())
+        .await
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Failed to fetch the token from redis")?
+        .ok_or(error_stack::Report::new(
+            errors::ApiErrorResponse::UnprocessableEntity {
+                message: "Token is invalid or expired".to_owned(),
+            },
+        ))?;
+
+    token_data_string
+        .clone()
+        .parse_struct("PaymentTokenData")
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("failed to deserialize hyperswitch token data")
+}
+
+#[cfg(feature = "v2")]
+pub(super) async fn delete_payment_token_data(
+    state: &SessionState,
+    key_for_token: &str,
+) -> errors::RouterResult<()> {
+    let redis_conn = state
+        .store
+        .get_redis_conn()
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Failed to get redis connection")?;
+    match redis_conn.delete_key(&key_for_token.into()).await {
+        Ok(_) => Ok(()),
+        Err(err) => {
+            {
+                logger::error!("Error while deleting redis key: {:?}", err)
+            };
+            Ok(())
+        }
+    }
 }

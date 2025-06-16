@@ -16,6 +16,7 @@ pub mod workflows;
 
 #[cfg(feature = "olap")]
 pub mod analytics;
+pub mod analytics_validator;
 pub mod events;
 pub mod middleware;
 pub mod services;
@@ -89,6 +90,8 @@ pub mod headers {
     pub const X_REDIRECT_URI: &str = "x-redirect-uri";
     pub const X_TENANT_ID: &str = "x-tenant-id";
     pub const X_CLIENT_SECRET: &str = "X-Client-Secret";
+    pub const X_CUSTOMER_ID: &str = "X-Customer-Id";
+    pub const X_CONNECTED_MERCHANT_ID: &str = "x-connected-merchant-id";
 }
 
 pub mod pii {
@@ -129,7 +132,8 @@ pub fn mk_app(
             {
                 server_app = server_app
                     .service(routes::ProfileNew::server(state.clone()))
-                    .service(routes::Forex::server(state.clone()));
+                    .service(routes::Forex::server(state.clone()))
+                    .service(routes::ProfileAcquirer::server(state.clone()));
             }
 
             server_app = server_app.service(routes::Profile::server(state.clone()));
@@ -139,13 +143,27 @@ pub fn mk_app(
             .service(routes::Customers::server(state.clone()))
             .service(routes::Configs::server(state.clone()))
             .service(routes::MerchantConnectorAccount::server(state.clone()))
-            .service(routes::Webhooks::server(state.clone()));
+            .service(routes::RelayWebhooks::server(state.clone()))
+            .service(routes::Webhooks::server(state.clone()))
+            .service(routes::Hypersense::server(state.clone()))
+            .service(routes::Relay::server(state.clone()))
+            .service(routes::ThreeDsDecisionRule::server(state.clone()));
 
         #[cfg(feature = "oltp")]
         {
             server_app = server_app.service(routes::PaymentMethods::server(state.clone()));
         }
 
+        #[cfg(all(feature = "v2", feature = "oltp"))]
+        {
+            server_app = server_app
+                .service(routes::PaymentMethodSession::server(state.clone()))
+                .service(routes::Refunds::server(state.clone()));
+        }
+        #[cfg(all(feature = "v2", feature = "oltp", feature = "tokenization_v2"))]
+        {
+            server_app = server_app.service(routes::Tokenization::server(state.clone()));
+        }
         #[cfg(feature = "v1")]
         {
             server_app = server_app
@@ -154,15 +172,13 @@ pub fn mk_app(
         }
     }
 
-    #[cfg(all(
-        feature = "oltp",
-        any(feature = "v1", feature = "v2"),
-        not(feature = "customer_v2")
-    ))]
+    #[cfg(all(feature = "oltp", any(feature = "v1", feature = "v2"),))]
     {
-        server_app = server_app
-            .service(routes::EphemeralKey::server(state.clone()))
-            .service(routes::Poll::server(state.clone()))
+        server_app = server_app.service(routes::EphemeralKey::server(state.clone()))
+    }
+    #[cfg(all(feature = "oltp", feature = "v1"))]
+    {
+        server_app = server_app.service(routes::Poll::server(state.clone()))
     }
 
     #[cfg(feature = "olap")]
@@ -170,6 +186,7 @@ pub fn mk_app(
         server_app = server_app
             .service(routes::Organization::server(state.clone()))
             .service(routes::MerchantAccount::server(state.clone()))
+            .service(routes::User::server(state.clone()))
             .service(routes::ApiKeys::server(state.clone()))
             .service(routes::Routing::server(state.clone()));
 
@@ -182,11 +199,16 @@ pub fn mk_app(
                 .service(routes::Gsm::server(state.clone()))
                 .service(routes::ApplePayCertificatesMigration::server(state.clone()))
                 .service(routes::PaymentLink::server(state.clone()))
-                .service(routes::User::server(state.clone()))
                 .service(routes::ConnectorOnboarding::server(state.clone()))
                 .service(routes::Verify::server(state.clone()))
                 .service(routes::Analytics::server(state.clone()))
-                .service(routes::WebhookEvents::server(state.clone()));
+                .service(routes::WebhookEvents::server(state.clone()))
+                .service(routes::FeatureMatrix::server(state.clone()));
+        }
+
+        #[cfg(feature = "v2")]
+        {
+            server_app = server_app.service(routes::ProcessTracker::server(state.clone()));
         }
     }
 
@@ -197,15 +219,16 @@ pub fn mk_app(
             .service(routes::PayoutLink::server(state.clone()));
     }
 
-    #[cfg(all(
-        feature = "stripe",
-        any(feature = "v1", feature = "v2"),
-        not(feature = "customer_v2")
-    ))]
+    #[cfg(all(feature = "stripe", feature = "v1"))]
     {
         server_app = server_app
             .service(routes::StripeApis::server(state.clone()))
             .service(routes::Cards::server(state.clone()));
+    }
+
+    #[cfg(all(feature = "oltp", feature = "v2"))]
+    {
+        server_app = server_app.service(routes::Proxy::server(state.clone()));
     }
 
     #[cfg(all(feature = "recon", feature = "v1"))]
@@ -229,19 +252,9 @@ pub async fn start_server(conf: settings::Settings<SecuredSecret>) -> Applicatio
     logger::debug!(startup_config=?conf);
     let server = conf.server.clone();
     let (tx, rx) = oneshot::channel();
-    let api_client = Box::new(
-        services::ProxyClient::new(
-            conf.proxy.clone(),
-            services::proxy_bypass_urls(
-                conf.key_manager.get_inner(),
-                &conf.locker,
-                &conf.proxy.bypass_proxy_urls,
-            ),
-        )
-        .map_err(|error| {
-            errors::ApplicationError::ApiClientError(error.current_context().clone())
-        })?,
-    );
+    let api_client = Box::new(services::ProxyClient::new(&conf.proxy).map_err(|error| {
+        errors::ApplicationError::ApiClientError(error.current_context().clone())
+    })?);
     let state = Box::pin(AppState::new(conf, tx, api_client)).await;
     let request_body_limit = server.request_body_limit;
 
@@ -370,6 +383,7 @@ pub fn get_application_builder(
         // this middleware works only for Http1.1 requests
         .wrap(middleware::Http400RequestDetailsLogger)
         .wrap(middleware::AddAcceptLanguageHeader)
+        .wrap(middleware::RequestResponseMetrics)
         .wrap(middleware::LogSpanInitializer)
         .wrap(router_env::tracing_actix_web::TracingLogger::default())
 }

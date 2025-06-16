@@ -101,6 +101,7 @@ impl ProcessTrackerInterface for Store {
             time_upper_limit,
             status,
             limit,
+            common_types::consts::API_VERSION,
         )
         .await
         .map_err(|error| report!(errors::StorageError::from(error)))
@@ -149,7 +150,7 @@ impl ProcessTrackerInterface for Store {
         this: storage::ProcessTracker,
         schedule_time: PrimitiveDateTime,
     ) -> CustomResult<(), errors::StorageError> {
-        metrics::TASK_RETRIED.add(&metrics::CONTEXT, 1, &[]);
+        metrics::TASK_RETRIED.add(1, &[]);
         let retry_count = this.retry_count + 1;
         self.update_process(
             this,
@@ -177,7 +178,7 @@ impl ProcessTrackerInterface for Store {
         )
         .await
         .attach_printable("Failed to update business status of process")?;
-        metrics::TASK_FINISHED.add(&metrics::CONTEXT, 1, &[]);
+        metrics::TASK_FINISHED.add(1, &[]);
         Ok(())
     }
 
@@ -229,7 +230,6 @@ impl ProcessTrackerInterface for MockDb {
         // [#172]: Implement function for `MockDb`
         Err(errors::StorageError::MockDbError)?
     }
-
     async fn insert_process(
         &self,
         new: storage::ProcessTrackerNew,
@@ -249,6 +249,7 @@ impl ProcessTrackerInterface for MockDb {
             event: new.event,
             created_at: new.created_at,
             updated_at: new.updated_at,
+            version: new.version,
         };
         processes.push(process.clone());
         Ok(process)

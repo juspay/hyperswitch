@@ -36,7 +36,8 @@ type PaymentSessionUpdateOperation<'b, F> =
     BoxedOperation<'b, F, api::PaymentsDynamicTaxCalculationRequest, PaymentData<F>>;
 
 #[async_trait]
-impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsDynamicTaxCalculationRequest>
+impl<F: Send + Clone + Sync>
+    GetTracker<F, PaymentData<F>, api::PaymentsDynamicTaxCalculationRequest>
     for PaymentSessionUpdate
 {
     #[instrument(skip_all)]
@@ -45,8 +46,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsDynamicTaxCalcu
         state: &'a SessionState,
         payment_id: &api::PaymentIdType,
         request: &api::PaymentsDynamicTaxCalculationRequest,
-        merchant_account: &domain::MerchantAccount,
-        key_store: &domain::MerchantKeyStore,
+        merchant_context: &domain::MerchantContext,
         _auth_flow: services::AuthFlow,
         _header_payload: &hyperswitch_domain_models::payments::HeaderPayload,
     ) -> RouterResult<
@@ -63,22 +63,24 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsDynamicTaxCalcu
 
         let db = &*state.store;
         let key_manager_state: &KeyManagerState = &state.into();
-        let merchant_id = merchant_account.get_id();
-        let storage_scheme = merchant_account.storage_scheme;
+        let merchant_id = merchant_context.get_merchant_account().get_id();
+        let storage_scheme = merchant_context.get_merchant_account().storage_scheme;
 
         let payment_intent = db
             .find_payment_intent_by_payment_id_merchant_id(
                 &state.into(),
                 &payment_id,
                 merchant_id,
-                key_store,
+                merchant_context.get_merchant_key_store(),
                 storage_scheme,
             )
             .await
             .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
 
+        // TODO (#7195): Add platform merchant account validation once publishable key auth is solved
+
         helpers::validate_payment_status_against_not_allowed_statuses(
-            &payment_intent.status,
+            payment_intent.status,
             &[
                 storage_enums::IntentStatus::Failed,
                 storage_enums::IntentStatus::Succeeded,
@@ -107,10 +109,10 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsDynamicTaxCalcu
         let shipping_address = helpers::get_address_by_id(
             state,
             payment_intent.shipping_address_id.clone(),
-            key_store,
+            merchant_context.get_merchant_key_store(),
             &payment_intent.payment_id,
             merchant_id,
-            merchant_account.storage_scheme,
+            merchant_context.get_merchant_account().storage_scheme,
         )
         .await?;
 
@@ -122,14 +124,18 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsDynamicTaxCalcu
             .attach_printable("'profile_id' not set in payment intent")?;
 
         let business_profile = db
-            .find_business_profile_by_profile_id(key_manager_state, key_store, profile_id)
+            .find_business_profile_by_profile_id(
+                key_manager_state,
+                merchant_context.get_merchant_key_store(),
+                profile_id,
+            )
             .await
             .to_not_found_response(errors::ApiErrorResponse::ProfileNotFound {
                 id: profile_id.get_string_repr().to_owned(),
             })?;
 
         let tax_data = payments::TaxData {
-            shipping_details: request.shipping.clone(),
+            shipping_details: request.shipping.clone().into(),
             payment_method_type: request.payment_method_type,
         };
 
@@ -156,6 +162,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsDynamicTaxCalcu
             payment_method_data: None,
             payment_method_info: None,
             force_sync: None,
+            all_keys_required: None,
             refunds: vec![],
             disputes: vec![],
             attempts: None,
@@ -178,6 +185,11 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsDynamicTaxCalcu
             poll_config: None,
             tax_data: Some(tax_data),
             session_id: request.session_id.clone(),
+            service_details: None,
+            card_testing_guard_data: None,
+            vault_operation: None,
+            threeds_method_comp_ind: None,
+            whole_connector_response: None,
         };
         let get_trackers_response = operations::GetTrackerResponse {
             operation: Box::new(self),
@@ -192,7 +204,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsDynamicTaxCalcu
 }
 
 #[async_trait]
-impl<F: Clone + Send> Domain<F, api::PaymentsDynamicTaxCalculationRequest, PaymentData<F>>
+impl<F: Clone + Send + Sync> Domain<F, api::PaymentsDynamicTaxCalculationRequest, PaymentData<F>>
     for PaymentSessionUpdate
 {
     #[instrument(skip_all)]
@@ -219,8 +231,7 @@ impl<F: Clone + Send> Domain<F, api::PaymentsDynamicTaxCalculationRequest, Payme
         payment_data: &mut PaymentData<F>,
         _connector_call_type: &ConnectorCallType,
         business_profile: &domain::Profile,
-        key_store: &domain::MerchantKeyStore,
-        merchant_account: &domain::MerchantAccount,
+        merchant_context: &domain::MerchantContext,
     ) -> errors::CustomResult<(), errors::ApiErrorResponse> {
         let is_tax_connector_enabled = business_profile.get_is_tax_connector_enabled();
         let skip_external_tax_calculation = payment_data
@@ -242,7 +253,7 @@ impl<F: Clone + Send> Domain<F, api::PaymentsDynamicTaxCalculationRequest, Payme
                     key_manager_state,
                     &business_profile.merchant_id,
                     merchant_connector_id,
-                    key_store,
+                    merchant_context.get_merchant_key_store(),
                 )
                 .await
                 .to_not_found_response(
@@ -270,8 +281,7 @@ impl<F: Clone + Send> Domain<F, api::PaymentsDynamicTaxCalculationRequest, Payme
 
             let router_data = core_utils::construct_payments_dynamic_tax_calculation_router_data(
                 state,
-                merchant_account,
-                key_store,
+                merchant_context,
                 payment_data,
                 &mca,
             )
@@ -287,6 +297,7 @@ impl<F: Clone + Send> Domain<F, api::PaymentsDynamicTaxCalculationRequest, Payme
                 connector_integration,
                 &router_data,
                 payments::CallConnectorAction::Trigger,
+                None,
                 None,
             )
             .await
@@ -332,6 +343,7 @@ impl<F: Clone + Send> Domain<F, api::PaymentsDynamicTaxCalculationRequest, Payme
         _merchant_key_store: &domain::MerchantKeyStore,
         _customer: &Option<domain::Customer>,
         _business_profile: &domain::Profile,
+        _should_retry_with_pan: bool,
     ) -> RouterResult<(
         PaymentSessionUpdateOperation<'a, F>,
         Option<domain::PaymentMethodData>,
@@ -342,11 +354,10 @@ impl<F: Clone + Send> Domain<F, api::PaymentsDynamicTaxCalculationRequest, Payme
 
     async fn get_connector<'a>(
         &'a self,
-        _merchant_account: &domain::MerchantAccount,
+        _merchant_context: &domain::MerchantContext,
         state: &SessionState,
         _request: &api::PaymentsDynamicTaxCalculationRequest,
         _payment_intent: &storage::PaymentIntent,
-        _merchant_key_store: &domain::MerchantKeyStore,
     ) -> errors::CustomResult<api::ConnectorChoice, errors::ApiErrorResponse> {
         helpers::get_connector_default(state, None).await
     }
@@ -355,8 +366,7 @@ impl<F: Clone + Send> Domain<F, api::PaymentsDynamicTaxCalculationRequest, Payme
     async fn guard_payment_against_blocklist<'a>(
         &'a self,
         _state: &SessionState,
-        _merchant_account: &domain::MerchantAccount,
-        _key_store: &domain::MerchantKeyStore,
+        _merchant_context: &domain::MerchantContext,
         _payment_data: &mut PaymentData<F>,
     ) -> errors::CustomResult<bool, errors::ApiErrorResponse> {
         Ok(false)
@@ -364,7 +374,7 @@ impl<F: Clone + Send> Domain<F, api::PaymentsDynamicTaxCalculationRequest, Payme
 }
 
 #[async_trait]
-impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::PaymentsDynamicTaxCalculationRequest>
+impl<F: Clone + Sync> UpdateTracker<F, PaymentData<F>, api::PaymentsDynamicTaxCalculationRequest>
     for PaymentSessionUpdate
 {
     #[instrument(skip_all)]
@@ -403,7 +413,7 @@ impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::PaymentsDynamicTaxCalculati
 
             let shipping_address = helpers::create_or_update_address_for_payment_by_request(
                 state,
-                shipping_address.as_ref(),
+                shipping_address.map(From::from).as_ref(),
                 payment_data.payment_intent.shipping_address_id.as_deref(),
                 &payment_data.payment_intent.merchant_id,
                 payment_data.payment_intent.customer_id.as_ref(),
@@ -442,14 +452,15 @@ impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::PaymentsDynamicTaxCalculati
     }
 }
 
-impl<F: Send + Clone> ValidateRequest<F, api::PaymentsDynamicTaxCalculationRequest, PaymentData<F>>
+impl<F: Send + Clone + Sync>
+    ValidateRequest<F, api::PaymentsDynamicTaxCalculationRequest, PaymentData<F>>
     for PaymentSessionUpdate
 {
     #[instrument(skip_all)]
     fn validate_request<'a, 'b>(
         &'b self,
         request: &api::PaymentsDynamicTaxCalculationRequest,
-        merchant_account: &'a domain::MerchantAccount,
+        merchant_context: &'a domain::MerchantContext,
     ) -> RouterResult<(
         PaymentSessionUpdateOperation<'b, F>,
         operations::ValidateResult,
@@ -460,9 +471,9 @@ impl<F: Send + Clone> ValidateRequest<F, api::PaymentsDynamicTaxCalculationReque
         Ok((
             Box::new(self),
             operations::ValidateResult {
-                merchant_id: merchant_account.get_id().to_owned(),
+                merchant_id: merchant_context.get_merchant_account().get_id().to_owned(),
                 payment_id: api::PaymentIdType::PaymentIntentId(given_payment_id),
-                storage_scheme: merchant_account.storage_scheme,
+                storage_scheme: merchant_context.get_merchant_account().storage_scheme,
                 requeue: false,
             },
         ))

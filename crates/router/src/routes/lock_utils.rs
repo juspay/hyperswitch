@@ -37,6 +37,16 @@ pub enum ApiIdentifier {
     Recon,
     Poll,
     ApplePayCertificatesMigration,
+    Relay,
+    Documentation,
+    CardNetworkTokenization,
+    Hypersense,
+    PaymentMethodSession,
+    ProcessTracker,
+    Proxy,
+    ProfileAcquirer,
+    ThreeDsDecisionRule,
+    GenericTokenization,
 }
 
 impl From<Flow> for ApiIdentifier {
@@ -47,7 +57,8 @@ impl From<Flow> for ApiIdentifier {
             | Flow::MerchantsAccountUpdate
             | Flow::MerchantsAccountDelete
             | Flow::MerchantTransferKey
-            | Flow::MerchantAccountList => Self::MerchantAccount,
+            | Flow::MerchantAccountList
+            | Flow::EnablePlatformAccount => Self::MerchantAccount,
 
             Flow::OrganizationCreate | Flow::OrganizationRetrieve | Flow::OrganizationUpdate => {
                 Self::Organization
@@ -67,7 +78,9 @@ impl From<Flow> for ApiIdentifier {
             | Flow::DecisionManagerRetrieveConfig
             | Flow::ToggleDynamicRouting
             | Flow::UpdateDynamicRoutingConfigs
-            | Flow::DecisionManagerUpsertConfig => Self::Routing,
+            | Flow::DecisionManagerUpsertConfig
+            | Flow::DecisionEngineRuleMigration
+            | Flow::VolumeSplitOnRoutingType => Self::Routing,
 
             Flow::RetrieveForexFlow => Self::Forex,
 
@@ -104,6 +117,7 @@ impl From<Flow> for ApiIdentifier {
             | Flow::PaymentMethodsMigrate
             | Flow::PaymentMethodsList
             | Flow::CustomerPaymentMethodsList
+            | Flow::GetPaymentMethodTokenData
             | Flow::PaymentMethodsRetrieve
             | Flow::PaymentMethodsUpdate
             | Flow::PaymentMethodsDelete
@@ -111,7 +125,8 @@ impl From<Flow> for ApiIdentifier {
             | Flow::ValidatePaymentMethod
             | Flow::ListCountriesCurrencies
             | Flow::DefaultPaymentMethodsSet
-            | Flow::PaymentMethodSave => Self::PaymentMethods,
+            | Flow::PaymentMethodSave
+            | Flow::TotalPaymentMethodCount => Self::PaymentMethods,
 
             Flow::PmAuthLinkTokenCreate | Flow::PmAuthExchangeToken => Self::PaymentMethodAuth,
 
@@ -141,7 +156,12 @@ impl From<Flow> for ApiIdentifier {
             | Flow::PaymentsCreateIntent
             | Flow::PaymentsGetIntent
             | Flow::PaymentsPostSessionTokens
-            | Flow::PaymentStartRedirection => Self::Payments,
+            | Flow::PaymentsUpdateMetadata
+            | Flow::PaymentsUpdateIntent
+            | Flow::PaymentsCreateAndConfirmIntent
+            | Flow::PaymentStartRedirection
+            | Flow::ProxyConfirmIntent
+            | Flow::PaymentsRetrieveUsingMerchantReferenceId => Self::Payments,
 
             Flow::PayoutsCreate
             | Flow::PayoutsRetrieve
@@ -162,12 +182,15 @@ impl From<Flow> for ApiIdentifier {
             | Flow::RefundsFilters
             | Flow::RefundsAggregate
             | Flow::RefundsManualUpdate => Self::Refunds,
+            Flow::Relay | Flow::RelayRetrieve => Self::Relay,
 
             Flow::FrmFulfillment
             | Flow::IncomingWebhookReceive
+            | Flow::IncomingRelayWebhookReceive
             | Flow::WebhookEventInitialDeliveryAttemptList
             | Flow::WebhookEventDeliveryAttemptList
-            | Flow::WebhookEventDeliveryRetry => Self::Webhooks,
+            | Flow::WebhookEventDeliveryRetry
+            | Flow::RecoveryIncomingWebhookReceive => Self::Webhooks,
 
             Flow::ApiKeyCreate
             | Flow::ApiKeyRetrieve
@@ -184,7 +207,10 @@ impl From<Flow> for ApiIdentifier {
             | Flow::DisputesAggregate
             | Flow::DeleteDisputeEvidence => Self::Disputes,
 
-            Flow::CardsInfo => Self::CardsInfo,
+            Flow::CardsInfo
+            | Flow::CardsInfoCreate
+            | Flow::CardsInfoUpdate
+            | Flow::CardsInfoMigrate => Self::CardsInfo,
 
             Flow::CreateFile | Flow::DeleteFile | Flow::RetrieveFile => Self::Files,
 
@@ -223,9 +249,12 @@ impl From<Flow> for ApiIdentifier {
             | Flow::GetMultipleDashboardMetadata
             | Flow::VerifyPaymentConnector
             | Flow::InternalUserSignup
+            | Flow::TenantUserCreate
             | Flow::SwitchOrg
             | Flow::SwitchMerchantV2
             | Flow::SwitchProfile
+            | Flow::CreatePlatformAccount
+            | Flow::UserOrgMerchantCreate
             | Flow::UserMerchantAccountCreate
             | Flow::GenerateSampleData
             | Flow::DeleteSampleData
@@ -259,7 +288,14 @@ impl From<Flow> for ApiIdentifier {
             | Flow::ListMerchantsForUserInOrg
             | Flow::ListProfileForUserInOrgAndMerchant
             | Flow::ListInvitationsForUser
-            | Flow::AuthSelect => Self::User,
+            | Flow::AuthSelect
+            | Flow::GetThemeUsingLineage
+            | Flow::GetThemeUsingThemeId
+            | Flow::UploadFileToThemeStorage
+            | Flow::CreateTheme
+            | Flow::UpdateTheme
+            | Flow::DeleteTheme
+            | Flow::CloneConnector => Self::User,
 
             Flow::ListRolesV2
             | Flow::ListInvitableRolesAtEntityLevel
@@ -290,6 +326,30 @@ impl From<Flow> for ApiIdentifier {
             | Flow::ReconVerifyToken => Self::Recon,
 
             Flow::RetrievePollStatus => Self::Poll,
+
+            Flow::FeatureMatrix => Self::Documentation,
+
+            Flow::TokenizeCard
+            | Flow::TokenizeCardUsingPaymentMethodId
+            | Flow::TokenizeCardBatch => Self::CardNetworkTokenization,
+
+            Flow::HypersenseTokenRequest
+            | Flow::HypersenseVerifyToken
+            | Flow::HypersenseSignoutToken => Self::Hypersense,
+
+            Flow::PaymentMethodSessionCreate
+            | Flow::PaymentMethodSessionRetrieve
+            | Flow::PaymentMethodSessionConfirm
+            | Flow::PaymentMethodSessionUpdateSavedPaymentMethod
+            | Flow::PaymentMethodSessionDeleteSavedPaymentMethod
+            | Flow::PaymentMethodSessionUpdate => Self::PaymentMethodSession,
+
+            Flow::RevenueRecoveryRetrieve => Self::ProcessTracker,
+            Flow::Proxy => Self::Proxy,
+
+            Flow::ProfileAcquirerCreate | Flow::ProfileAcquirerUpdate => Self::ProfileAcquirer,
+            Flow::ThreeDsDecisionRuleExecute => Self::ThreeDsDecisionRule,
+            Flow::TokenizationCreate | Flow::TokenizationRetrieve => Self::GenericTokenization,
         }
     }
 }

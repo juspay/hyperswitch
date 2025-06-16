@@ -279,6 +279,9 @@ impl<F, T> TryFrom<ResponseRouterData<F, BillwerkPaymentsResponse, T, PaymentsRe
                 status_code: item.http_code,
                 attempt_status: None,
                 connector_transaction_id: Some(item.response.handle.clone()),
+                network_advice_code: None,
+                network_decline_code: None,
+                network_error_message: None,
             })
         } else {
             None
@@ -291,7 +294,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, BillwerkPaymentsResponse, T, PaymentsRe
             network_txn_id: None,
             connector_response_reference_id: Some(item.response.handle),
             incremental_authorization_allowed: None,
-            charge_id: None,
+            charges: None,
         };
         Ok(Self {
             status: enums::AttemptStatus::from(item.response.state),

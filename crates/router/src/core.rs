@@ -7,6 +7,7 @@ pub mod authentication;
 #[cfg(feature = "v1")]
 pub mod blocklist;
 pub mod cache;
+pub mod card_testing_guard;
 pub mod cards_info;
 pub mod conditional_config;
 pub mod configs;
@@ -18,6 +19,7 @@ pub mod customers;
 pub mod disputes;
 pub mod encryption;
 pub mod errors;
+pub mod external_service_auth;
 pub mod files;
 #[cfg(feature = "frm")]
 pub mod fraud_check;
@@ -40,8 +42,14 @@ pub mod poll;
 pub mod recon;
 #[cfg(feature = "v1")]
 pub mod refunds;
+#[cfg(feature = "v2")]
+pub mod refunds_v2;
+
+#[cfg(feature = "v1")]
+pub mod debit_routing;
 pub mod routing;
 pub mod surcharge_decision_config;
+pub mod three_ds_decision_rule;
 #[cfg(feature = "olap")]
 pub mod user;
 #[cfg(feature = "olap")]
@@ -52,3 +60,14 @@ pub mod verification;
 #[cfg(feature = "olap")]
 pub mod verify_connector;
 pub mod webhooks;
+
+pub mod profile_acquirer;
+pub mod unified_authentication_service;
+
+#[cfg(feature = "v2")]
+pub mod proxy;
+pub mod relay;
+#[cfg(feature = "v2")]
+pub mod revenue_recovery;
+
+pub mod tokenization;

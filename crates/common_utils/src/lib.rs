@@ -35,6 +35,8 @@ pub mod hashing;
 #[cfg(feature = "metrics")]
 pub mod metrics;
 
+pub use base64_serializer::Base64Serializer;
+
 /// Date-time utilities.
 pub mod date_time {
     #[cfg(feature = "async_ext")]
@@ -251,6 +253,13 @@ pub fn generate_merchant_connector_account_id_of_default_length(
     id_type::MerchantConnectorAccountId::generate()
 }
 
+/// Generate a profile_acquirer id with default length, with prefix as `mer_acq`
+pub fn generate_profile_acquirer_id_of_default_length() -> id_type::ProfileAcquirerId {
+    use id_type::GenerateId;
+
+    id_type::ProfileAcquirerId::generate()
+}
+
 /// Generate a nanoid with the given prefix and a default length
 #[inline]
 pub fn generate_id_with_default_len(prefix: &str) -> String {
@@ -296,6 +305,14 @@ pub trait DbConnectionParams {
     }
 }
 
+// Can't add doc comments for macro invocations, neither does the macro allow it.
+#[allow(missing_docs)]
+mod base64_serializer {
+    use base64_serde::base64_serde_type;
+
+    base64_serde_type!(pub Base64Serializer, crate::consts::BASE64_ENGINE);
+}
+
 #[cfg(test)]
 mod nanoid_tests {
     #![allow(clippy::unwrap_used)]
@@ -323,3 +340,10 @@ mod nanoid_tests {
         assert!(ref_id.is_ok())
     }
 }
+
+/// Module for tokenization-related functionality
+///
+/// This module provides types and functions for handling tokenized payment data,
+/// including response structures and token generation utilities.
+#[cfg(all(feature = "v2", feature = "tokenization_v2"))]
+pub mod tokenization;

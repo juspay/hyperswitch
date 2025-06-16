@@ -1,4 +1,4 @@
-use common_enums::enums::{self, AuthenticationType, Currency};
+use common_enums::enums::{self, AuthenticationType};
 use common_utils::pii::IpAddress;
 use hyperswitch_domain_models::{
     payment_method_data::{Card, PaymentMethodData},
@@ -148,7 +148,7 @@ impl TryFrom<&PaymentsAuthorizeRouterData> for PowertranzPaymentsRequest {
                 item.request.amount,
                 item.request.currency,
             )?,
-            currency_code: Currency::iso_4217(&item.request.currency).to_string(),
+            currency_code: item.request.currency.iso_4217().to_string(),
             three_d_secure,
             source,
             order_identifier: item.connector_request_reference_id.clone(),
@@ -343,7 +343,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, PowertranzBaseResponse, T, PaymentsResp
                 network_txn_id: None,
                 connector_response_reference_id: Some(item.response.order_identifier),
                 incremental_authorization_allowed: None,
-                charge_id: None,
+                charges: None,
             }),
             Err,
         );
@@ -459,6 +459,9 @@ fn build_error_response(item: &PowertranzBaseResponse, status_code: u16) -> Opti
                 ),
                 attempt_status: None,
                 connector_transaction_id: None,
+                network_advice_code: None,
+                network_decline_code: None,
+                network_error_message: None,
             }
         })
     } else if !ISO_SUCCESS_CODES.contains(&item.iso_response_code.as_str()) {
@@ -470,6 +473,9 @@ fn build_error_response(item: &PowertranzBaseResponse, status_code: u16) -> Opti
             reason: Some(item.response_message.clone()),
             attempt_status: None,
             connector_transaction_id: None,
+            network_advice_code: None,
+            network_decline_code: None,
+            network_error_message: None,
         })
     } else {
         None

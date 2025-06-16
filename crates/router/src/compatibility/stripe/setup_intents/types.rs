@@ -179,15 +179,11 @@ impl TryFrom<StripeSetupIntentRequest> for payments::PaymentsRequest {
     type Error = error_stack::Report<errors::ApiErrorResponse>;
     fn try_from(item: StripeSetupIntentRequest) -> errors::RouterResult<Self> {
         let routable_connector: Option<api_enums::RoutableConnectors> =
-            item.connector.and_then(|v| {
-                v.into_iter()
-                    .next()
-                    .map(api_enums::RoutableConnectors::from)
-            });
+            item.connector.and_then(|v| v.into_iter().next());
 
         let routing = routable_connector
             .map(|connector| {
-                api_models::routing::RoutingAlgorithm::Single(Box::new(
+                api_models::routing::StaticRoutingAlgorithm::Single(Box::new(
                     api_models::routing::RoutableConnectorChoice {
                         choice_kind: api_models::routing::RoutableChoiceKind::FullStruct,
                         connector,
@@ -319,7 +315,8 @@ impl From<api_enums::IntentStatus> for StripeSetupStatus {
             api_enums::IntentStatus::Failed => Self::Canceled,
             api_enums::IntentStatus::Processing => Self::Processing,
             api_enums::IntentStatus::RequiresCustomerAction => Self::RequiresAction,
-            api_enums::IntentStatus::RequiresMerchantAction => Self::RequiresAction,
+            api_enums::IntentStatus::RequiresMerchantAction
+            | api_enums::IntentStatus::Conflicted => Self::RequiresAction,
             api_enums::IntentStatus::RequiresPaymentMethod => Self::RequiresPaymentMethod,
             api_enums::IntentStatus::RequiresConfirmation => Self::RequiresConfirmation,
             api_enums::IntentStatus::RequiresCapture
@@ -377,6 +374,8 @@ pub enum StripeNextAction {
         image_data_url: Option<url::Url>,
         display_to_timestamp: Option<i64>,
         qr_code_url: Option<url::Url>,
+        border_color: Option<String>,
+        display_text: Option<String>,
     },
     FetchQrCodeInformation {
         qr_code_fetch_url: url::Url,
@@ -387,12 +386,16 @@ pub enum StripeNextAction {
     WaitScreenInformation {
         display_from_timestamp: i128,
         display_to_timestamp: Option<i128>,
+        poll_config: Option<payments::PollConfig>,
     },
     InvokeSdkClient {
         next_action_data: payments::SdkNextActionData,
     },
     CollectOtp {
         consent_data_required: payments::MobilePaymentConsent,
+    },
+    InvokeHiddenIframe {
+        iframe_data: payments::IframeData,
     },
 }
 
@@ -409,6 +412,14 @@ pub(crate) fn into_stripe_next_action(
                 },
             }
         }
+        payments::NextActionData::RedirectInsidePopup { popup_url, .. } => {
+            StripeNextAction::RedirectToUrl {
+                redirect_to_url: RedirectUrl {
+                    return_url,
+                    url: Some(popup_url),
+                },
+            }
+        }
         payments::NextActionData::DisplayBankTransferInformation {
             bank_transfer_steps_and_charges_details,
         } => StripeNextAction::DisplayBankTransferInformation {
@@ -422,10 +433,14 @@ pub(crate) fn into_stripe_next_action(
             image_data_url,
             display_to_timestamp,
             qr_code_url,
+            display_text,
+            border_color,
         } => StripeNextAction::QrCodeInformation {
             image_data_url,
             display_to_timestamp,
             qr_code_url,
+            display_text,
+            border_color,
         },
         payments::NextActionData::FetchQrCodeInformation { qr_code_fetch_url } => {
             StripeNextAction::FetchQrCodeInformation { qr_code_fetch_url }
@@ -436,9 +451,11 @@ pub(crate) fn into_stripe_next_action(
         payments::NextActionData::WaitScreenInformation {
             display_from_timestamp,
             display_to_timestamp,
+            poll_config: _,
         } => StripeNextAction::WaitScreenInformation {
             display_from_timestamp,
             display_to_timestamp,
+            poll_config: None,
         },
         payments::NextActionData::ThreeDsInvoke { .. } => StripeNextAction::RedirectToUrl {
             redirect_to_url: RedirectUrl {
@@ -454,6 +471,9 @@ pub(crate) fn into_stripe_next_action(
         } => StripeNextAction::CollectOtp {
             consent_data_required,
         },
+        payments::NextActionData::InvokeHiddenIframe { iframe_data } => {
+            StripeNextAction::InvokeHiddenIframe { iframe_data }
+        }
     })
 }
 

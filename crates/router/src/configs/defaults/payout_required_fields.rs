@@ -14,6 +14,7 @@ use crate::settings::{
     RequiredFieldFinal,
 };
 
+#[cfg(feature = "v1")]
 impl Default for PayoutRequiredFields {
     fn default() -> Self {
         Self(HashMap::from([
@@ -65,6 +66,7 @@ impl Default for PayoutRequiredFields {
     }
 }
 
+#[cfg(feature = "v1")]
 fn get_connector_payment_method_type_fields(
     connector: PayoutConnectors,
     payment_method_type: PaymentMethodType,

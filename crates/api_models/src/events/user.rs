@@ -1,36 +1,28 @@
 use common_utils::events::{ApiEventMetric, ApiEventsType};
-#[cfg(feature = "recon")]
-use masking::PeekInterface;
 
 #[cfg(feature = "dummy_connector")]
 use crate::user::sample_data::SampleDataRequest;
-#[cfg(feature = "recon")]
-use crate::user::VerifyTokenResponse;
+#[cfg(feature = "control_center_theme")]
+use crate::user::theme::{
+    CreateThemeRequest, GetThemeResponse, UpdateThemeRequest, UploadFileRequest,
+};
 use crate::user::{
     dashboard_metadata::{
         GetMetaDataRequest, GetMetaDataResponse, GetMultipleMetaDataPayload, SetMetaDataRequest,
     },
     AcceptInviteFromEmailRequest, AuthSelectRequest, AuthorizeResponse, BeginTotpResponse,
-    ChangePasswordRequest, ConnectAccountRequest, CreateInternalUserRequest,
-    CreateUserAuthenticationMethodRequest, ForgotPasswordRequest, GetSsoAuthUrlRequest,
-    GetUserAuthenticationMethodsRequest, GetUserDetailsResponse, GetUserRoleDetailsRequest,
-    GetUserRoleDetailsResponseV2, InviteUserRequest, ReInviteUserRequest, RecoveryCodes,
-    ResetPasswordRequest, RotatePasswordRequest, SendVerifyEmailRequest, SignUpRequest,
-    SignUpWithMerchantIdRequest, SsoSignInRequest, SwitchMerchantRequest,
+    ChangePasswordRequest, CloneConnectorRequest, ConnectAccountRequest, CreateInternalUserRequest,
+    CreateTenantUserRequest, CreateUserAuthenticationMethodRequest, ForgotPasswordRequest,
+    GetSsoAuthUrlRequest, GetUserAuthenticationMethodsRequest, GetUserDetailsResponse,
+    GetUserRoleDetailsRequest, GetUserRoleDetailsResponseV2, InviteUserRequest,
+    PlatformAccountCreateRequest, PlatformAccountCreateResponse, ReInviteUserRequest,
+    RecoveryCodes, ResetPasswordRequest, RotatePasswordRequest, SendVerifyEmailRequest,
+    SignUpRequest, SignUpWithMerchantIdRequest, SsoSignInRequest, SwitchMerchantRequest,
     SwitchOrganizationRequest, SwitchProfileRequest, TokenResponse, TwoFactorAuthStatusResponse,
     TwoFactorStatus, UpdateUserAccountDetailsRequest, UpdateUserAuthenticationMethodRequest,
-    UserFromEmailRequest, UserMerchantCreate, VerifyEmailRequest, VerifyRecoveryCodeRequest,
-    VerifyTotpRequest,
+    UserFromEmailRequest, UserMerchantAccountResponse, UserMerchantCreate,
+    UserOrgMerchantCreateRequest, VerifyEmailRequest, VerifyRecoveryCodeRequest, VerifyTotpRequest,
 };
-
-#[cfg(feature = "recon")]
-impl ApiEventMetric for VerifyTokenResponse {
-    fn get_api_event_type(&self) -> Option<ApiEventsType> {
-        Some(ApiEventsType::User {
-            user_id: self.user_email.peek().to_string(),
-        })
-    }
-}
 
 common_utils::impl_api_event_type!(
     Miscellaneous,
@@ -46,6 +38,11 @@ common_utils::impl_api_event_type!(
         SwitchMerchantRequest,
         SwitchProfileRequest,
         CreateInternalUserRequest,
+        CreateTenantUserRequest,
+        PlatformAccountCreateRequest,
+        PlatformAccountCreateResponse,
+        UserOrgMerchantCreateRequest,
+        UserMerchantAccountResponse,
         UserMerchantCreate,
         AuthorizeResponse,
         ConnectAccountRequest,
@@ -74,7 +71,19 @@ common_utils::impl_api_event_type!(
         UpdateUserAuthenticationMethodRequest,
         GetSsoAuthUrlRequest,
         SsoSignInRequest,
-        AuthSelectRequest
+        AuthSelectRequest,
+        CloneConnectorRequest
+    )
+);
+
+#[cfg(feature = "control_center_theme")]
+common_utils::impl_api_event_type!(
+    Miscellaneous,
+    (
+        GetThemeResponse,
+        UploadFileRequest,
+        CreateThemeRequest,
+        UpdateThemeRequest
     )
 );
 

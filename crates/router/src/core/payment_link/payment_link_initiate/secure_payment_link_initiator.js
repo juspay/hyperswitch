@@ -31,7 +31,10 @@ if (!isFramed) {
   function initializeSDK() {
     // @ts-ignore
     var paymentDetails = window.__PAYMENT_DETAILS;
-    var client_secret = paymentDetails.client_secret;
+    var clientSecret = paymentDetails.client_secret;
+    var sdkUiRules = paymentDetails.sdk_ui_rules;
+    var labelType = paymentDetails.payment_form_label_type;
+    var colorIconCardCvcError = paymentDetails.color_icon_card_cvc_error;
     var appearance = {
       variables: {
         colorPrimary: paymentDetails.theme || "rgb(0, 109, 249)",
@@ -45,15 +48,29 @@ if (!isFramed) {
         colorBackground: "rgb(255, 255, 255)",
       },
     };
+    if (isObject(sdkUiRules)) {
+      appearance.rules = sdkUiRules;
+    }
+    if (labelType !== null && typeof labelType === "string") {
+      appearance.labels = labelType;
+    }
+    if (colorIconCardCvcError !== null && typeof colorIconCardCvcError === "string") {
+      appearance.variables.colorIconCardCvcError = colorIconCardCvcError;
+    }
     // @ts-ignore
     hyper = window.Hyper(pub_key, {
       isPreloadEnabled: false,
+      // TODO: Remove in next deployment
       shouldUseTopRedirection: true,
+      redirectionFlags: {
+        shouldRemoveBeforeUnloadEvents: true,
+        shouldUseTopRedirection: true,
+      },
     });
     // @ts-ignore
     widgets = hyper.widgets({
       appearance: appearance,
-      clientSecret: client_secret,
+      clientSecret: clientSecret,
       locale: paymentDetails.locale,
     });
     var type =
@@ -82,13 +99,22 @@ if (!isFramed) {
       },
       hideCardNicknameField: hideCardNicknameField,
       showCardFormByDefault: paymentDetails.show_card_form_by_default,
+      customMessageForCardTerms: paymentDetails.custom_message_for_card_terms,
     };
-    // @ts-ignore
+    var showCardTerms = paymentDetails.show_card_terms;
+    if (showCardTerms !== null && typeof showCardTerms === "string") {
+      unifiedCheckoutOptions.terms = {
+        card: showCardTerms
+      };
+    }
+    var paymentMethodsHeaderText = paymentDetails.payment_form_header_text;
+    if (paymentMethodsHeaderText !== null && typeof paymentMethodsHeaderText === "string") {
+      unifiedCheckoutOptions.paymentMethodsHeaderText = paymentMethodsHeaderText;
+    }
+
     unifiedCheckout = widgets.create("payment", unifiedCheckoutOptions);
-    // @ts-ignore
     mountUnifiedCheckout("#unified-checkout");
-    // @ts-ignore
-    showSDK(paymentDetails.display_sdk_only);
+    showSDK(paymentDetails.display_sdk_only, paymentDetails.enable_button_only_on_form_ready);
 
     let shimmer = document.getElementById("payment-details-shimmer");
     shimmer.classList.add("reduce-opacity");
@@ -101,12 +127,21 @@ if (!isFramed) {
   /**
    * Use - redirect to /payment_link/status
    */
-  function redirectToStatus() {
-    var paymentDetails = window.__PAYMENT_DETAILS;
+  function redirectToStatus(paymentDetails) {
     var arr = window.location.pathname.split("/");
-    arr.splice(0, 3);
-    arr.unshift("status");
-    arr.unshift("payment_link");
+
+    // NOTE - This code preserves '/api' in url for integ and sbx envs
+    // e.g. url for integ/sbx - https://integ.hyperswitch.io/api/payment_link/s/merchant_1234/pay_1234?locale=en
+    // e.g. url for others - https://abc.dev.com/payment_link/s/merchant_1234/pay_1234?locale=en
+    var hasApiInPath = arr.includes("api");
+    if (hasApiInPath) {
+      arr.splice(0, 4);
+      arr.unshift("api", "payment_link", "status");
+    } else {
+      arr.splice(0, 3);
+      arr.unshift("payment_link", "status");
+    }
+
     let returnUrl =
       window.location.origin +
       "/" +
@@ -122,9 +157,10 @@ if (!isFramed) {
       var { paymentId, merchantId, attemptId, connector } = parseRoute(url);
       var urlToPost = getEnvRoute(url);
       var message = {
-        message: "CRITICAL ERROR - Failed to redirect top document. Falling back to redirecting using window.location",
+        message:
+          "CRITICAL ERROR - Failed to redirect top document. Falling back to redirecting using window.location",
         reason: error.message,
-      }
+      };
       var log = {
         message,
         url,

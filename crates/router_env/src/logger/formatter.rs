@@ -4,10 +4,10 @@ use std::{
     collections::{HashMap, HashSet},
     fmt,
     io::Write,
+    sync::LazyLock,
 };
 
 use config::ConfigError;
-use once_cell::sync::Lazy;
 use serde::ser::{SerializeMap, Serializer};
 use serde_json::{ser::Formatter, Value};
 // use time::format_description::well_known::Rfc3339;
@@ -54,7 +54,7 @@ const GLOBAL_ID: &str = "global_id";
 const SESSION_ID: &str = "session_id";
 
 /// Set of predefined implicit keys.
-pub static IMPLICIT_KEYS: Lazy<rustc_hash::FxHashSet<&str>> = Lazy::new(|| {
+pub static IMPLICIT_KEYS: LazyLock<rustc_hash::FxHashSet<&str>> = LazyLock::new(|| {
     let mut set = rustc_hash::FxHashSet::default();
 
     set.insert(HOSTNAME);
@@ -76,7 +76,7 @@ pub static IMPLICIT_KEYS: Lazy<rustc_hash::FxHashSet<&str>> = Lazy::new(|| {
 
 /// Extra implicit keys. Keys that are not purely implicit but need to be logged alongside
 /// other implicit keys in the log json.
-pub static EXTRA_IMPLICIT_KEYS: Lazy<rustc_hash::FxHashSet<&str>> = Lazy::new(|| {
+pub static EXTRA_IMPLICIT_KEYS: LazyLock<rustc_hash::FxHashSet<&str>> = LazyLock::new(|| {
     let mut set = rustc_hash::FxHashSet::default();
 
     set.insert(MESSAGE);
@@ -330,7 +330,7 @@ where
     /// Serialize event into a buffer of bytes using parent span.
     pub fn event_serialize<S>(
         &self,
-        span: &Option<&SpanRef<'_, S>>,
+        span: Option<&SpanRef<'_, S>>,
         event: &Event<'_>,
     ) -> std::io::Result<Vec<u8>>
     where
@@ -347,7 +347,7 @@ where
         let name = span.map_or("?", SpanRef::name);
         Self::event_message(span, event, &mut storage);
 
-        self.common_serialize(&mut map_serializer, event.metadata(), *span, &storage, name)?;
+        self.common_serialize(&mut map_serializer, event.metadata(), span, &storage, name)?;
 
         map_serializer.end()?;
         Ok(buffer)
@@ -366,11 +366,8 @@ where
     /// Format message of an event.
     ///
     /// Examples: "[FN_WITHOUT_COLON - EVENT] Message"
-    fn event_message<S>(
-        span: &Option<&SpanRef<'_, S>>,
-        event: &Event<'_>,
-        storage: &mut Storage<'_>,
-    ) where
+    fn event_message<S>(span: Option<&SpanRef<'_, S>>, event: &Event<'_>, storage: &mut Storage<'_>)
+    where
         S: Subscriber + for<'a> LookupSpan<'a>,
     {
         // Get value of kept "message" or "target" if does not exist.
@@ -397,7 +394,7 @@ where
         // Event could have no span.
         let span = ctx.lookup_current();
 
-        let result: std::io::Result<Vec<u8>> = self.event_serialize(&span.as_ref(), event);
+        let result: std::io::Result<Vec<u8>> = self.event_serialize(span.as_ref(), event);
         if let Ok(formatted) = result {
             let _ = self.flush(formatted);
         }

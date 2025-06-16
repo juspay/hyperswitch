@@ -37,9 +37,10 @@ jobs:
         with:
           toolchain: stable
 
-      - uses: baptiste0928/cargo-install@v2.2.0
+      - uses: taiki-e/install-action@v2
         with:
-          crate: cocogitto
+          tool: cocogitto
+          checksum: true
 
       - name: Verify PR title follows conventional commit standards
         if: ${{ github.event_name == 'pull_request_target' }}

@@ -34,11 +34,10 @@ pub async fn do_gsm_actions<F, ApiRequest, FData, D>(
     state: &app::SessionState,
     req_state: ReqState,
     payment_data: &mut D,
-    mut connectors: IntoIter<api::ConnectorData>,
-    original_connector_data: api::ConnectorData,
+    mut connector_routing_data: IntoIter<api::ConnectorRoutingData>,
+    original_connector_data: &api::ConnectorData,
     mut router_data: types::RouterData<F, FData, types::PaymentsResponseData>,
-    merchant_account: &domain::MerchantAccount,
-    key_store: &domain::MerchantKeyStore,
+    merchant_context: &domain::MerchantContext,
     operation: &operations::BoxedOperation<'_, F, ApiRequest, D>,
     customer: &Option<domain::Customer>,
     validate_result: &operations::ValidateResult,
@@ -61,7 +60,7 @@ where
 {
     let mut retries = None;
 
-    metrics::AUTO_RETRY_ELIGIBLE_REQUEST_COUNT.add(&metrics::CONTEXT, 1, &[]);
+    metrics::AUTO_RETRY_ELIGIBLE_REQUEST_COUNT.add(1, &[]);
 
     let mut initial_gsm = get_gsm(state, &router_data).await?;
 
@@ -86,7 +85,7 @@ where
     let should_step_up = if step_up_possible && is_no_three_ds_payment {
         is_step_up_enabled_for_merchant_connector(
             state,
-            merchant_account.get_id(),
+            merchant_context.get_merchant_account().get_id(),
             original_connector_data.connector_name,
         )
         .await
@@ -101,8 +100,7 @@ where
             original_connector_data,
             operation,
             customer,
-            merchant_account,
-            key_store,
+            merchant_context,
             payment_data,
             router_data,
             validate_result,
@@ -110,6 +108,7 @@ where
             true,
             frm_suggestion,
             business_profile,
+            false, //should_retry_with_pan is not applicable for step-up
         )
         .await?;
     }
@@ -124,32 +123,52 @@ where
 
             match get_gsm_decision(gsm) {
                 api_models::gsm::GsmDecision::Retry => {
-                    retries =
-                        get_retries(state, retries, merchant_account.get_id(), business_profile)
-                            .await;
+                    retries = get_retries(
+                        state,
+                        retries,
+                        merchant_context.get_merchant_account().get_id(),
+                        business_profile,
+                    )
+                    .await;
 
                     if retries.is_none() || retries == Some(0) {
-                        metrics::AUTO_RETRY_EXHAUSTED_COUNT.add(&metrics::CONTEXT, 1, &[]);
+                        metrics::AUTO_RETRY_EXHAUSTED_COUNT.add(1, &[]);
                         logger::info!("retries exhausted for auto_retry payment");
                         break;
                     }
 
-                    if connectors.len() == 0 {
+                    if connector_routing_data.len() == 0 {
                         logger::info!("connectors exhausted for auto_retry payment");
-                        metrics::AUTO_RETRY_EXHAUSTED_COUNT.add(&metrics::CONTEXT, 1, &[]);
+                        metrics::AUTO_RETRY_EXHAUSTED_COUNT.add(1, &[]);
                         break;
                     }
 
-                    let connector = super::get_connector_data(&mut connectors)?;
+                    let is_network_token = payment_data
+                        .get_payment_method_data()
+                        .map(|pmd| pmd.is_network_token_payment_method_data())
+                        .unwrap_or(false);
+
+                    let should_retry_with_pan = is_network_token
+                        && initial_gsm
+                            .as_ref()
+                            .map(|gsm| gsm.clear_pan_possible)
+                            .unwrap_or(false)
+                        && business_profile.is_clear_pan_retries_enabled;
+
+                    let connector = if should_retry_with_pan {
+                        // If should_retry_with_pan is true, it indicates that we are retrying with PAN using the same connector.
+                        original_connector_data.clone()
+                    } else {
+                        super::get_connector_data(&mut connector_routing_data)?.connector_data
+                    };
 
                     router_data = do_retry(
                         &state.clone(),
                         req_state.clone(),
-                        connector,
+                        &connector,
                         operation,
                         customer,
-                        merchant_account,
-                        key_store,
+                        merchant_context,
                         payment_data,
                         router_data,
                         validate_result,
@@ -158,6 +177,7 @@ where
                         false,
                         frm_suggestion,
                         business_profile,
+                        should_retry_with_pan,
                     )
                     .await?;
 
@@ -275,7 +295,7 @@ pub fn get_gsm_decision(
             });
 
     if option_gsm_decision.is_some() {
-        metrics::AUTO_RETRY_GSM_MATCH_COUNT.add(&metrics::CONTEXT, 1, &[]);
+        metrics::AUTO_RETRY_GSM_MATCH_COUNT.add(1, &[]);
     }
     option_gsm_decision.unwrap_or_default()
 }
@@ -297,11 +317,10 @@ fn get_flow_name<F>() -> RouterResult<String> {
 pub async fn do_retry<F, ApiRequest, FData, D>(
     state: &routes::SessionState,
     req_state: ReqState,
-    connector: api::ConnectorData,
+    connector: &api::ConnectorData,
     operation: &operations::BoxedOperation<'_, F, ApiRequest, D>,
     customer: &Option<domain::Customer>,
-    merchant_account: &domain::MerchantAccount,
-    key_store: &domain::MerchantKeyStore,
+    merchant_context: &domain::MerchantContext,
     payment_data: &mut D,
     router_data: types::RouterData<F, FData, types::PaymentsResponseData>,
     validate_result: &operations::ValidateResult,
@@ -309,6 +328,7 @@ pub async fn do_retry<F, ApiRequest, FData, D>(
     is_step_up: bool,
     frm_suggestion: Option<storage_enums::FrmSuggestion>,
     business_profile: &domain::Profile,
+    should_retry_with_pan: bool,
 ) -> RouterResult<types::RouterData<F, FData, types::PaymentsResponseData>>
 where
     F: Clone + Send + Sync,
@@ -323,14 +343,14 @@ where
     types::RouterData<F, FData, types::PaymentsResponseData>: Feature<F, FData>,
     dyn api::Connector: services::api::ConnectorIntegration<F, FData, types::PaymentsResponseData>,
 {
-    metrics::AUTO_RETRY_PAYMENT_COUNT.add(&metrics::CONTEXT, 1, &[]);
+    metrics::AUTO_RETRY_PAYMENT_COUNT.add(1, &[]);
 
     modify_trackers(
         state,
         connector.connector_name.to_string(),
         payment_data,
-        key_store,
-        merchant_account.storage_scheme,
+        merchant_context.get_merchant_key_store(),
+        merchant_context.get_merchant_account().storage_scheme,
         router_data,
         is_step_up,
     )
@@ -339,9 +359,8 @@ where
     let (router_data, _mca) = payments::call_connector_service(
         state,
         req_state,
-        merchant_account,
-        key_store,
-        connector,
+        merchant_context,
+        connector.clone(),
         operation,
         payment_data,
         customer,
@@ -352,6 +371,9 @@ where
         frm_suggestion,
         business_profile,
         true,
+        should_retry_with_pan,
+        None,
+        None,
     )
     .await?;
 
@@ -399,6 +421,7 @@ where
         payment_data.get_payment_attempt().clone(),
         new_attempt_count,
         is_step_up,
+        payment_data.get_payment_intent().setup_future_usage,
     );
 
     let db = &*state.store;
@@ -420,7 +443,7 @@ where
             resource_id,
             connector_metadata,
             redirection_data,
-            charge_id,
+            charges,
             ..
         }) => {
             let encoded_data = payment_data.get_payment_attempt().encoded_data.clone();
@@ -464,9 +487,12 @@ where
                 encoded_data,
                 unified_code: None,
                 unified_message: None,
+                capture_before: None,
+                extended_authorization_applied: None,
                 payment_method_data: additional_payment_method_data,
-                charge_id,
                 connector_mandate_detail: None,
+                charges,
+                setup_future_usage_applied: None,
             };
 
             #[cfg(feature = "v1")]
@@ -516,6 +542,8 @@ where
                 connector_transaction_id: error_response.connector_transaction_id.clone(),
                 payment_method_data: additional_payment_method_data,
                 authentication_type: auth_update,
+                issuer_error_code: error_response.network_decline_code.clone(),
+                issuer_error_message: error_response.network_error_message.clone(),
             };
 
             #[cfg(feature = "v1")]
@@ -589,6 +617,7 @@ pub fn make_new_payment_attempt(
     old_payment_attempt: storage::PaymentAttempt,
     new_attempt_count: i16,
     is_step_up: bool,
+    setup_future_usage_intent: Option<storage_enums::FutureUsage>,
 ) -> storage::PaymentAttemptNew {
     let created_at @ modified_at @ last_synced = Some(common_utils::date_time::now());
     storage::PaymentAttemptNew {
@@ -651,9 +680,15 @@ pub fn make_new_payment_attempt(
         mandate_data: Default::default(),
         payment_method_billing_address_id: Default::default(),
         fingerprint_id: Default::default(),
-        charge_id: Default::default(),
         customer_acceptance: Default::default(),
         connector_mandate_detail: Default::default(),
+        request_extended_authorization: Default::default(),
+        extended_authorization_applied: Default::default(),
+        capture_before: Default::default(),
+        card_discovery: old_payment_attempt.card_discovery,
+        processor_merchant_id: old_payment_attempt.processor_merchant_id,
+        created_by: old_payment_attempt.created_by,
+        setup_future_usage_applied: setup_future_usage_intent, // setup future usage is picked from intent for new payment attempt
     }
 }
 
@@ -668,7 +703,6 @@ pub fn make_new_payment_attempt(
     todo!()
 }
 
-#[cfg(feature = "v1")]
 pub async fn get_merchant_config_for_gsm(
     db: &dyn StorageInterface,
     merchant_id: &common_utils::id_type::MerchantId,
@@ -734,7 +768,8 @@ impl<F: Send + Clone + Sync, FData: Send + Sync>
                 | storage_enums::AttemptStatus::PaymentMethodAwaited
                 | storage_enums::AttemptStatus::ConfirmationAwaited
                 | storage_enums::AttemptStatus::Unresolved
-                | storage_enums::AttemptStatus::DeviceDataCollectionPending => false,
+                | storage_enums::AttemptStatus::DeviceDataCollectionPending
+                | storage_enums::AttemptStatus::IntegrityFailure => false,
 
                 storage_enums::AttemptStatus::AuthenticationFailed
                 | storage_enums::AttemptStatus::AuthorizationFailed

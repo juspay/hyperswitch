@@ -1,6 +1,6 @@
 use api_models::analytics::{
     api_event::{ApiEventDimensions, ApiEventMetrics},
-    auth_events::AuthEventMetrics,
+    auth_events::{AuthEventDimensions, AuthEventMetrics},
     disputes::{DisputeDimensions, DisputeMetrics},
     frm::{FrmDimensions, FrmMetrics},
     payment_intents::{PaymentIntentDimensions, PaymentIntentMetrics},
@@ -41,6 +41,38 @@ pub fn get_payment_intent_dimensions() -> Vec<NameDescription> {
         PaymentIntentDimensions::PaymentMethodType,
         PaymentIntentDimensions::CardNetwork,
         PaymentIntentDimensions::MerchantId,
+    ]
+    .into_iter()
+    .map(Into::into)
+    .collect()
+}
+
+pub fn get_auth_event_dimensions() -> Vec<NameDescription> {
+    vec![
+        AuthEventDimensions::AuthenticationConnector,
+        AuthEventDimensions::MessageVersion,
+        AuthEventDimensions::AcsReferenceNumber,
+        AuthEventDimensions::Platform,
+        AuthEventDimensions::Mcc,
+        AuthEventDimensions::Currency,
+        AuthEventDimensions::MerchantCountry,
+        AuthEventDimensions::BillingCountry,
+        AuthEventDimensions::ShippingCountry,
+        AuthEventDimensions::IssuerCountry,
+        AuthEventDimensions::IssuerId,
+        AuthEventDimensions::EarliestSupportedVersion,
+        AuthEventDimensions::LatestSupportedVersion,
+        AuthEventDimensions::WhitelistDecision,
+        AuthEventDimensions::DeviceManufacturer,
+        AuthEventDimensions::DeviceType,
+        AuthEventDimensions::DeviceBrand,
+        AuthEventDimensions::DeviceOs,
+        AuthEventDimensions::DeviceDisplay,
+        AuthEventDimensions::BrowserName,
+        AuthEventDimensions::BrowserVersion,
+        AuthEventDimensions::SchemeName,
+        AuthEventDimensions::ExemptionRequested,
+        AuthEventDimensions::ExemptionAccepted,
     ]
     .into_iter()
     .map(Into::into)

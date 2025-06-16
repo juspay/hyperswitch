@@ -2,11 +2,11 @@
 resolver = "2"
 members = ["crates/*"]
 package.edition = "2021"
-package.rust-version = "1.78.0"
+package.rust-version = "1.80.0"
 package.license = "Apache-2.0"
 
 [workspace.dependencies]
-tracing = { version = "0.1.40" }
+tracing = { version = "0.1.41" }
 
 # Most of the lint configuration is based on https://github.com/EmbarkStudios/rust-ecosystem/blob/main/lints.toml
 [workspace.lints.rust]
@@ -35,6 +35,7 @@ panicking_unwrap = "warn"
 print_stderr = "warn"
 print_stdout = "warn"
 todo = "warn"
+trivially_copy_pass_by_ref = "warn"
 unimplemented = "warn"
 unnecessary_self_imports = "warn"
 unreachable = "warn"

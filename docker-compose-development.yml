@@ -316,15 +316,16 @@ services:
       - redisinsight_store:/db
 
   hyperswitch-control-center:
-    image: juspaydotin/hyperswitch-control-center:latest
+    image: docker.juspay.io/juspaydotin/hyperswitch-control-center:latest
     pull_policy: always
     networks:
       - router_net
     ports:
       - "9000:9000"
     environment:
-      apiBaseUrl: http://localhost:8080
-      sdkBaseUrl: http://localhost:9050/HyperLoader.js
+      - configPath=/tmp/dashboard-config.toml
+    volumes:
+      - ./config/dashboard.toml:/tmp/dashboard-config.toml
 
   hyperswitch-web-sdk:
     build:

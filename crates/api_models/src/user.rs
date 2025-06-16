@@ -8,6 +8,8 @@ use crate::user_role::UserStatus;
 pub mod dashboard_metadata;
 #[cfg(feature = "dummy_connector")]
 pub mod sample_data;
+#[cfg(feature = "control_center_theme")]
+pub mod theme;
 
 #[derive(serde::Deserialize, Debug, Clone, serde::Serialize)]
 pub struct SignUpWithMerchantIdRequest {
@@ -106,16 +108,67 @@ pub struct SwitchProfileRequest {
     pub profile_id: id_type::ProfileId,
 }
 
+#[derive(Debug, serde::Deserialize, serde::Serialize)]
+pub struct CloneConnectorSource {
+    pub mca_id: id_type::MerchantConnectorAccountId,
+    pub merchant_id: id_type::MerchantId,
+}
+
+#[derive(Debug, serde::Deserialize, serde::Serialize)]
+pub struct CloneConnectorDestination {
+    pub connector_label: Option<String>,
+    pub profile_id: id_type::ProfileId,
+    pub merchant_id: id_type::MerchantId,
+}
+
+#[derive(Debug, serde::Deserialize, serde::Serialize)]
+pub struct CloneConnectorRequest {
+    pub source: CloneConnectorSource,
+    pub destination: CloneConnectorDestination,
+}
+
 #[derive(serde::Deserialize, Debug, serde::Serialize)]
 pub struct CreateInternalUserRequest {
     pub name: Secret<String>,
     pub email: pii::Email,
     pub password: Secret<String>,
+    pub role_id: String,
+}
+
+#[derive(serde::Deserialize, Debug, serde::Serialize)]
+pub struct CreateTenantUserRequest {
+    pub name: Secret<String>,
+    pub email: pii::Email,
+    pub password: Secret<String>,
+}
+
+#[derive(Debug, serde::Deserialize, serde::Serialize, Clone)]
+pub struct UserOrgMerchantCreateRequest {
+    pub organization_name: Secret<String>,
+    pub organization_details: Option<pii::SecretSerdeValue>,
+    pub metadata: Option<pii::SecretSerdeValue>,
+    pub merchant_name: Secret<String>,
+}
+
+#[derive(Debug, serde::Deserialize, serde::Serialize, Clone)]
+pub struct PlatformAccountCreateRequest {
+    pub organization_name: Secret<String>,
+}
+
+#[derive(Debug, serde::Deserialize, serde::Serialize)]
+pub struct PlatformAccountCreateResponse {
+    pub org_id: id_type::OrganizationId,
+    pub org_name: Option<String>,
+    pub org_type: common_enums::OrganizationType,
+    pub merchant_id: id_type::MerchantId,
+    pub merchant_account_type: common_enums::MerchantAccountType,
 }
 
 #[derive(Debug, serde::Deserialize, serde::Serialize)]
 pub struct UserMerchantCreate {
     pub company_name: String,
+    pub product_type: Option<common_enums::MerchantProductType>,
+    pub merchant_account_type: Option<common_enums::MerchantAccountRequestType>,
 }
 
 #[derive(serde::Serialize, Debug, Clone)]
@@ -133,6 +186,8 @@ pub struct GetUserDetailsResponse {
     pub recovery_codes_left: Option<usize>,
     pub profile_id: id_type::ProfileId,
     pub entity_type: EntityType,
+    pub theme_id: Option<String>,
+    pub version: common_enums::ApiVersion,
 }
 
 #[derive(Debug, serde::Deserialize, serde::Serialize)]
@@ -165,13 +220,6 @@ pub struct VerifyEmailRequest {
 #[derive(serde::Deserialize, Debug, serde::Serialize)]
 pub struct SendVerifyEmailRequest {
     pub email: pii::Email,
-}
-
-#[cfg(feature = "recon")]
-#[derive(serde::Serialize, Debug)]
-pub struct VerifyTokenResponse {
-    pub merchant_id: id_type::MerchantId,
-    pub user_email: pii::Email,
 }
 
 #[derive(Debug, serde::Deserialize, serde::Serialize)]
@@ -294,18 +342,26 @@ pub struct CreateUserAuthenticationMethodRequest {
     pub owner_type: common_enums::Owner,
     pub auth_method: AuthConfig,
     pub allow_signup: bool,
+    pub email_domain: Option<String>,
 }
 
 #[derive(Debug, serde::Deserialize, serde::Serialize)]
-pub struct UpdateUserAuthenticationMethodRequest {
-    pub id: String,
-    // TODO: When adding more fields make config and new fields option
-    pub auth_method: AuthConfig,
+#[serde(rename_all = "snake_case")]
+pub enum UpdateUserAuthenticationMethodRequest {
+    AuthMethod {
+        id: String,
+        auth_config: AuthConfig,
+    },
+    EmailDomain {
+        owner_id: String,
+        email_domain: String,
+    },
 }
 
 #[derive(Debug, serde::Deserialize, serde::Serialize)]
 pub struct GetUserAuthenticationMethodsRequest {
-    pub auth_id: String,
+    pub auth_id: Option<String>,
+    pub email_domain: Option<String>,
 }
 
 #[derive(Debug, serde::Deserialize, serde::Serialize)]
@@ -335,8 +391,9 @@ pub struct SsoSignInRequest {
 }
 
 #[derive(Debug, serde::Deserialize, serde::Serialize)]
-pub struct AuthIdQueryParam {
+pub struct AuthIdAndThemeIdQueryParam {
     pub auth_id: Option<String>,
+    pub theme_id: Option<String>,
 }
 
 #[derive(Debug, serde::Deserialize, serde::Serialize)]
@@ -359,12 +416,16 @@ pub struct UserTransferKeyResponse {
 pub struct ListOrgsForUserResponse {
     pub org_id: id_type::OrganizationId,
     pub org_name: Option<String>,
+    pub org_type: common_enums::OrganizationType,
 }
 
 #[derive(Debug, serde::Serialize)]
-pub struct ListMerchantsForUserInOrgResponse {
+pub struct UserMerchantAccountResponse {
     pub merchant_id: id_type::MerchantId,
     pub merchant_name: OptionalEncryptableName,
+    pub product_type: Option<common_enums::MerchantProductType>,
+    pub merchant_account_type: common_enums::MerchantAccountType,
+    pub version: common_enums::ApiVersion,
 }
 
 #[derive(Debug, serde::Serialize)]

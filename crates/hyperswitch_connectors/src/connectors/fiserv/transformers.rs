@@ -1,5 +1,5 @@
-use common_enums::enums;
-use common_utils::{ext_traits::ValueExt, pii};
+use common_enums::{enums, Currency};
+use common_utils::{ext_traits::ValueExt, pii, types::FloatMajorUnit};
 use error_stack::ResultExt;
 use hyperswitch_domain_models::{
     payment_method_data::PaymentMethodData,
@@ -9,7 +9,7 @@ use hyperswitch_domain_models::{
     router_response_types::{PaymentsResponseData, RefundsResponseData},
     types,
 };
-use hyperswitch_interfaces::{api, errors};
+use hyperswitch_interfaces::errors;
 use masking::Secret;
 use serde::{Deserialize, Serialize};
 
@@ -23,22 +23,14 @@ use crate::{
 
 #[derive(Debug, Serialize)]
 pub struct FiservRouterData<T> {
-    pub amount: String,
+    pub amount: FloatMajorUnit,
     pub router_data: T,
 }
 
-impl<T> TryFrom<(&api::CurrencyUnit, enums::Currency, i64, T)> for FiservRouterData<T> {
+impl<T> TryFrom<(FloatMajorUnit, T)> for FiservRouterData<T> {
     type Error = error_stack::Report<errors::ConnectorError>;
 
-    fn try_from(
-        (currency_unit, currency, amount, router_data): (
-            &api::CurrencyUnit,
-            enums::Currency,
-            i64,
-            T,
-        ),
-    ) -> Result<Self, Self::Error> {
-        let amount = utils::get_amount_as_string(currency_unit, amount, currency)?;
+    fn try_from((amount, router_data): (FloatMajorUnit, T)) -> Result<Self, Self::Error> {
         Ok(Self {
             amount,
             router_data,
@@ -89,8 +81,7 @@ pub struct GooglePayToken {
 
 #[derive(Default, Debug, Serialize)]
 pub struct Amount {
-    #[serde(serialize_with = "utils::str_to_f32")]
-    total: String,
+    total: FloatMajorUnit,
     currency: String,
 }
 
@@ -143,13 +134,15 @@ impl TryFrom<&FiservRouterData<&types::PaymentsAuthorizeRouterData>> for FiservP
     ) -> Result<Self, Self::Error> {
         let auth: FiservAuthType = FiservAuthType::try_from(&item.router_data.connector_auth_type)?;
         let amount = Amount {
-            total: item.amount.clone(),
+            total: item.amount,
             currency: item.router_data.request.currency.to_string(),
         };
         let transaction_details = TransactionDetails {
             capture_flag: Some(matches!(
                 item.router_data.request.capture_method,
-                Some(enums::CaptureMethod::Automatic) | None
+                Some(enums::CaptureMethod::Automatic)
+                    | Some(enums::CaptureMethod::SequentialAutomatic)
+                    | None
             )),
             reversal_reason_code: None,
             merchant_transaction_id: item.router_data.connector_request_reference_id.clone(),
@@ -281,7 +274,6 @@ impl TryFrom<&types::PaymentsCancelRouterData> for FiservCancelRequest {
 #[derive(Debug, Default, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ErrorResponse {
-    pub details: Option<Vec<ErrorDetails>>,
     pub error: Option<Vec<ErrorDetails>>,
 }
 
@@ -289,10 +281,11 @@ pub struct ErrorResponse {
 #[serde(rename_all = "camelCase")]
 pub struct ErrorDetails {
     #[serde(rename = "type")]
-    pub error_type: String,
+    pub error_type: Option<String>,
     pub code: Option<String>,
-    pub message: String,
     pub field: Option<String>,
+    pub message: Option<String>,
+    pub additional_info: Option<String>,
 }
 
 #[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq)]
@@ -334,15 +327,87 @@ impl From<FiservPaymentStatus> for enums::RefundStatus {
 
 #[derive(Default, Debug, Clone, Serialize, Deserialize, PartialEq)]
 #[serde(rename_all = "camelCase")]
+pub struct ProcessorResponseDetails {
+    pub approval_status: Option<String>,
+    pub approval_code: Option<String>,
+    pub reference_number: Option<String>,
+    pub processor: Option<String>,
+    pub host: Option<String>,
+    pub network_routed: Option<String>,
+    pub network_international_id: Option<String>,
+    pub response_code: Option<String>,
+    pub response_message: Option<String>,
+    pub host_response_code: Option<String>,
+    pub host_response_message: Option<String>,
+    pub additional_info: Option<Vec<AdditionalInfo>>,
+    pub bank_association_details: Option<BankAssociationDetails>,
+    pub response_indicators: Option<ResponseIndicators>,
+}
+
+#[derive(Default, Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub struct AdditionalInfo {
+    pub name: Option<String>,
+    pub value: Option<String>,
+}
+
+#[derive(Default, Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub struct BankAssociationDetails {
+    pub association_response_code: Option<String>,
+    pub avs_security_code_response: Option<AvsSecurityCodeResponse>,
+}
+
+#[derive(Default, Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub struct AvsSecurityCodeResponse {
+    pub street_match: Option<String>,
+    pub postal_code_match: Option<String>,
+    pub security_code_match: Option<String>,
+    pub association: Option<Association>,
+}
+
+#[derive(Default, Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub struct Association {
+    pub avs_code: Option<String>,
+    pub security_code_response: Option<String>,
+}
+
+#[derive(Default, Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub struct ResponseIndicators {
+    pub alternate_route_debit_indicator: Option<bool>,
+    pub signature_line_indicator: Option<bool>,
+    pub signature_debit_route_indicator: Option<bool>,
+}
+
+#[derive(Default, Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[serde(rename_all = "camelCase")]
 pub struct FiservPaymentsResponse {
-    gateway_response: GatewayResponse,
+    pub gateway_response: GatewayResponse,
+    pub payment_receipt: PaymentReceipt,
+}
+
+#[derive(Default, Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub struct PaymentReceipt {
+    pub approved_amount: ApprovedAmount,
+    pub processor_response_details: Option<ProcessorResponseDetails>,
+}
+
+#[derive(Default, Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub struct ApprovedAmount {
+    pub total: FloatMajorUnit,
+    pub currency: Currency,
 }
 
 #[derive(Default, Debug, Clone, Serialize, Deserialize, PartialEq)]
 #[serde(rename_all = "camelCase")]
 #[serde(transparent)]
 pub struct FiservSyncResponse {
-    sync_responses: Vec<FiservPaymentsResponse>,
+    pub sync_responses: Vec<FiservPaymentsResponse>,
 }
 
 #[derive(Default, Debug, Clone, Serialize, Deserialize, PartialEq)]
@@ -383,7 +448,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, FiservPaymentsResponse, T, PaymentsResp
                     gateway_resp.transaction_processing_details.order_id,
                 ),
                 incremental_authorization_allowed: None,
-                charge_id: None,
+                charges: None,
             }),
             ..item.data
         })
@@ -426,7 +491,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, FiservSyncResponse, T, PaymentsResponse
                         .clone(),
                 ),
                 incremental_authorization_allowed: None,
-                charge_id: None,
+                charges: None,
             }),
             ..item.data
         })
@@ -482,7 +547,7 @@ impl TryFrom<&FiservRouterData<&types::PaymentsCaptureRouterData>> for FiservCap
             })?;
         Ok(Self {
             amount: Amount {
-                total: item.amount.clone(),
+                total: item.amount,
                 currency: item.router_data.request.currency.to_string(),
             },
             transaction_details: TransactionDetails {
@@ -577,7 +642,7 @@ impl<F> TryFrom<&FiservRouterData<&types::RefundsRouterData<F>>> for FiservRefun
             })?;
         Ok(Self {
             amount: Amount {
-                total: item.amount.clone(),
+                total: item.amount,
                 currency: item.router_data.request.currency.to_string(),
             },
             merchant_details: MerchantDetails {
@@ -598,7 +663,8 @@ impl<F> TryFrom<&FiservRouterData<&types::RefundsRouterData<F>>> for FiservRefun
 #[derive(Default, Debug, Clone, Serialize, Deserialize, PartialEq)]
 #[serde(rename_all = "camelCase")]
 pub struct RefundResponse {
-    gateway_response: GatewayResponse,
+    pub gateway_response: GatewayResponse,
+    pub payment_receipt: PaymentReceipt,
 }
 
 impl TryFrom<RefundsResponseRouterData<Execute, RefundResponse>>
