@@ -259,15 +259,10 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentConfirmData<F>, ProxyPaymentsR
             .payment_method_data
             .as_ref()
             .and_then(|secret_value| {
-                serde_json::from_value::<
-                    hyperswitch_domain_models::payment_method_data::PaymentMethodData,
-                >(secret_value.peek().clone())
-                .ok()
+                serde_json::from_value::<PaymentMethodData>(secret_value.peek().clone()).ok()
             })
             .and_then(|pm_data| match pm_data {
-                hyperswitch_domain_models::payment_method_data::PaymentMethodData::Card(
-                    card_details,
-                ) => Some(card_details),
+                PaymentMethodData::Card(card_details) => Some(card_details),
                 _ => None,
             })
             .unwrap_or_default(); // If any step fails or not a card, use default Card

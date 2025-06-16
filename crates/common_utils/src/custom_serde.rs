@@ -1,6 +1,4 @@
 //! Custom serialization/deserialization implementations.
-/// Serde helpers for `prost_types::Timestamp` and `Option<prost_types::Timestamp>`.
-pub mod prost_timestamp;
 
 /// Use the well-known ISO 8601 format when serializing and deserializing an
 /// [`PrimitiveDateTime`][PrimitiveDateTime].

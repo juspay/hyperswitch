@@ -3,7 +3,7 @@ use error_stack::{Report, ResultExt};
 use router_env::logger;
 
 use super::Client;
-use crate::grpc_client::{self, GrpcHeaders};
+use crate::grpc_client;
 
 #[allow(
     missing_docs,
@@ -16,21 +16,10 @@ pub mod decider {
     tonic::include_proto!("decider");
 }
 
-use common_utils::custom_serde::prost_timestamp::SerializableTimestamp;
 use decider::decider_client::DeciderClient;
-pub use decider::DeciderRequest;
+pub use decider::{DeciderRequest, DeciderResponse};
 
-/// Represents the response from the decider service, suitable for HTTP JSON serialization.
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
-pub struct DeciderResponseForSerde {
-    /// Flag indicating if a retry is recommended.
-    pub retry_flag: bool,
-    /// The recommended time for a retry, if applicable.
-    // This field uses a custom wrapper `SerializableTimestamp` for Serde compatibility.
-    pub retry_time: Option<SerializableTimestamp>,
-}
-
-#[allow(missing_docs)]
+/// Recovery Decider result
 pub type RecoveryDeciderResult<T> = CustomResult<T, RecoveryDeciderError>;
 
 #[allow(missing_docs)]
@@ -47,40 +36,31 @@ pub enum RecoveryDeciderError {
     ConfigError(String),
 }
 
+/// Recovery Decider Client type
 #[async_trait::async_trait]
-#[allow(missing_docs)]
-#[allow(clippy::too_many_arguments)]
 pub trait RecoveryDeciderClientInterface:
     dyn_clone::DynClone + Send + Sync + std::fmt::Debug
 {
-    #[allow(missing_docs)]
-    #[allow(clippy::too_many_arguments)]
+    /// fn to call gRPC service
     async fn decide_on_retry(
         &mut self,
-        first_error_message: String,
-        billing_state: String,
-        card_funding: String,
-        card_network: String,
-        card_issuer: String,
-        start_time: Option<prost_types::Timestamp>,
-        end_time: Option<prost_types::Timestamp>,
-        retry_count: f64,
-        headers: GrpcHeaders,
-    ) -> RecoveryDeciderResult<DeciderResponseForSerde>;
+        request_payload: DeciderRequest,
+    ) -> RecoveryDeciderResult<DeciderResponse>;
 }
 
 dyn_clone::clone_trait_object!(RecoveryDeciderClientInterface);
 
-#[allow(missing_docs)]
 /// Configuration for the Recovery Decider gRPC client.
 #[derive(Debug, Default, Clone, serde::Deserialize, serde::Serialize)]
 pub struct RecoveryDeciderClientConfig {
+    /// Host
     pub host: String,
+    /// port number
     pub port: u16,
 }
 
 impl RecoveryDeciderClientConfig {
-    #[allow(missing_docs)]
+    /// create a connection
     pub fn get_recovery_decider_connection(
         &self,
         hyper_client: Client,
@@ -98,9 +78,10 @@ impl RecoveryDeciderClientConfig {
         let uri = uri_string
             .parse::<tonic::transport::Uri>()
             .map_err(Report::from)
-            .change_context_lazy(|| {
-                RecoveryDeciderError::ConfigError(format!("Invalid URI: {}", uri_string))
-            })?;
+            .change_context(RecoveryDeciderError::ConfigError(format!(
+                "Invalid URI: {}",
+                uri_string
+            )))?;
 
         let service_client = DeciderClient::with_origin(hyper_client, uri);
 
@@ -110,30 +91,12 @@ impl RecoveryDeciderClientConfig {
 
 #[async_trait::async_trait]
 impl RecoveryDeciderClientInterface for DeciderClient<Client> {
-    #[allow(clippy::too_many_arguments, missing_docs)]
+    /// collects the request from HS and sends it to recovery decider gRPC service
     async fn decide_on_retry(
         &mut self,
-        first_error_message: String,
-        billing_state: String,
-        card_funding: String,
-        card_network: String,
-        card_issuer: String,
-        start_time: Option<prost_types::Timestamp>,
-        end_time: Option<prost_types::Timestamp>,
-        retry_count: f64,
-        headers: GrpcHeaders,
-    ) -> RecoveryDeciderResult<DeciderResponseForSerde> {
-        let request_data = DeciderRequest {
-            first_error_message,
-            billing_state,
-            card_funding,
-            card_network,
-            card_issuer,
-            start_time,
-            end_time,
-            retry_count,
-        };
-        let request = grpc_client::create_grpc_request(request_data, headers);
+        request_payload: DeciderRequest,
+    ) -> RecoveryDeciderResult<DeciderResponse> {
+        let request = tonic::Request::new(request_payload);
 
         logger::debug!(decider_request =?request);
 
@@ -148,24 +111,6 @@ impl RecoveryDeciderClientInterface for DeciderClient<Client> {
 
         logger::debug!(grpc_decider_response =?grpc_response);
 
-        // Map to our Serde-compatible struct
-        let response_for_serde = DeciderResponseForSerde {
-            retry_flag: grpc_response.retry_flag,
-            retry_time: grpc_response.retry_time.map(SerializableTimestamp::from),
-        };
-
-        Ok(response_for_serde)
-    }
-}
-
-impl common_utils::events::ApiEventMetric for DeciderResponseForSerde {
-    fn get_api_event_type(&self) -> Option<common_utils::events::ApiEventsType> {
-        Some(common_utils::events::ApiEventsType::Miscellaneous)
-    }
-}
-
-impl common_utils::events::ApiEventMetric for DeciderRequest {
-    fn get_api_event_type(&self) -> Option<common_utils::events::ApiEventsType> {
-        Some(common_utils::events::ApiEventsType::Miscellaneous)
+        Ok(grpc_response)
     }
 }

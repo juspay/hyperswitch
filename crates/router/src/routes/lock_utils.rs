@@ -47,7 +47,6 @@ pub enum ApiIdentifier {
     ProfileAcquirer,
     ThreeDsDecisionRule,
     GenericTokenization,
-    DeciderClient,
 }
 
 impl From<Flow> for ApiIdentifier {
@@ -64,8 +63,6 @@ impl From<Flow> for ApiIdentifier {
             Flow::OrganizationCreate | Flow::OrganizationRetrieve | Flow::OrganizationUpdate => {
                 Self::Organization
             }
-
-            Flow::RecoveryDeciderShouldRetry => Self::DeciderClient,
 
             Flow::RoutingCreateConfig
             | Flow::RoutingLinkConfig

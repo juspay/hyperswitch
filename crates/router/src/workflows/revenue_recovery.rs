@@ -10,7 +10,7 @@ use common_utils::{
 #[cfg(feature = "v2")]
 use error_stack::ResultExt;
 #[cfg(feature = "v2")]
-use external_services::grpc_client::{self as external_grpc_client, GrpcHeaders};
+use external_services::grpc_client as external_grpc_client;
 #[cfg(feature = "v2")]
 use hyperswitch_domain_models::{
     payment_method_data::PaymentMethodData,
@@ -317,33 +317,16 @@ pub(crate) async fn get_schedule_time_for_smart_retry(
         retry_count: retry_count.into(),
     };
 
-    let headers = state.get_grpc_headers();
-
     // Clone the gRPC client into a mutable local variable, this is necessary because `decide_on_retry` requires `&mut self`,
     // and we need an owned, mutable instance to call it.
     let mut client = state.grpc_client.recovery_decider_client.clone();
 
-    match client
-        .decide_on_retry(
-            decider_request.first_error_message,
-            decider_request.billing_state,
-            decider_request.card_funding,
-            decider_request.card_network,
-            decider_request.card_issuer,
-            decider_request.start_time,
-            decider_request.end_time,
-            decider_request.retry_count,
-            headers,
-        )
-        .await
-    {
-        Ok(response_for_serde) => response_for_serde
+    match client.decide_on_retry(decider_request).await {
+        Ok(grpc_response) => grpc_response
             .retry_flag
             .then_some(())
-            .and(response_for_serde.retry_time)
-            .and_then(|serializable_timestamp| {
-                let prost_ts = serializable_timestamp.into();
-
+            .and(grpc_response.retry_time)
+            .and_then(|prost_ts| {
                 date_time::convert_from_prost_timestamp(&prost_ts).or_else(|| {
                     logger::error!(
                         "Failed to convert prost timestamp for recovery decider. Timestamp: {:?}",

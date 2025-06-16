@@ -1,47 +1,55 @@
 #[allow(clippy::expect_used)]
 fn main() -> Result<(), Box<dyn std::error::Error>> {
-    #[cfg(any(feature = "dynamic_routing", feature = "v2"))]
-    compile_protos()?;
-
-    Ok(())
-}
-
-#[cfg(any(feature = "dynamic_routing", feature = "v2"))]
-fn compile_protos() -> Result<(), Box<dyn std::error::Error>> {
-    let mut proto_files_to_compile = Vec::new();
-    let proto_base_path = router_env::workspace_path().join("proto");
-
-    #[cfg(feature = "dynamic_routing")]
+    #[cfg(any(feature = "v2", feature = "dynamic_routing"))]
     {
-        // Get the directory of the current crate
-        proto_files_to_compile.push(proto_base_path.join("success_rate.proto"));
-        proto_files_to_compile.push(proto_base_path.join("contract_routing.proto"));
-        proto_files_to_compile.push(proto_base_path.join("elimination_rate.proto"));
-        proto_files_to_compile.push(proto_base_path.join("health_check.proto"));
-    }
-
-    #[cfg(feature = "v2")]
-    {
-        proto_files_to_compile.push(proto_base_path.join("recovery_decider.proto"));
-    }
-
-    if !proto_files_to_compile.is_empty() {
-        // Ensure proto files are unique in case a file is needed by multiple features
-        proto_files_to_compile.sort();
-        proto_files_to_compile.dedup();
-
+        let proto_base_path = router_env::workspace_path().join("proto");
         let out_dir = std::path::PathBuf::from(std::env::var("OUT_DIR")?);
 
-        // Compile the .proto file
-        tonic_build::configure()
-            .out_dir(out_dir)
-            .compile_well_known_types(true)
-            .extern_path(".google.protobuf.Timestamp", "::prost_types::Timestamp")
-            .type_attribute(
-                "google.protobuf.Timestamp",
-                "#[derive(serde::Serialize, serde::Deserialize)]",
-            )
-            .compile(&proto_files_to_compile, &[proto_base_path])?;
+        // Compilation for v2 protos
+        #[cfg(feature = "v2")]
+        {
+            let v2_proto_files = [proto_base_path.join("recovery_decider.proto")];
+            if !v2_proto_files.is_empty() {
+                println!("Compiling v2 proto files: {:?}", v2_proto_files);
+                tonic_build::configure()
+                    .out_dir(&out_dir)
+                    .compile_well_known_types(true)
+                    .extern_path(".google.protobuf.Timestamp", "::prost_types::Timestamp")
+                    .type_attribute(
+                        "google.protobuf.Timestamp",
+                        "#[derive(serde::Serialize, serde::Deserialize)]",
+                    )
+                    .compile(&v2_proto_files, &[&proto_base_path])?;
+                println!("Successfully compiled v2 proto files.");
+            }
+        }
+
+        // Compilation for dynamic_routing protos
+        #[cfg(feature = "dynamic_routing")]
+        {
+            let dr_proto_files = [
+                proto_base_path.join("success_rate.proto"),
+                proto_base_path.join("contract_routing.proto"),
+                proto_base_path.join("elimination_rate.proto"),
+                proto_base_path.join("health_check.proto"),
+            ];
+            if !dr_proto_files.is_empty() {
+                println!(
+                    "Compiling dynamic_routing proto files: {:?}",
+                    dr_proto_files
+                );
+                tonic_build::configure()
+                    .out_dir(&out_dir)
+                    .compile_well_known_types(true)
+                    .extern_path(".google.protobuf.Timestamp", "::prost_types::Timestamp")
+                    .type_attribute(
+                        "google.protobuf.Timestamp",
+                        "#[derive(serde::Serialize, serde::Deserialize)]",
+                    )
+                    .compile(&dr_proto_files, &[&proto_base_path])?;
+                println!("Successfully compiled dynamic_routing proto files.");
+            }
+        }
     }
     Ok(())
 }

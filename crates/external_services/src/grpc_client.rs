@@ -43,8 +43,8 @@ pub struct GrpcClients {
     /// Health Check client for all gRPC services
     #[cfg(feature = "dynamic_routing")]
     pub health_client: HealthCheckClient,
+    /// Recovery Decoder Client
     #[cfg(feature = "v2")]
-    #[allow(missing_docs)]
     pub recovery_decider_client: Box<dyn RecoveryDeciderClientInterface>,
 }
 
@@ -90,11 +90,9 @@ impl GrpcClientSettings {
         let recovery_decider_client = self
             .recovery_decider_client
             .get_recovery_decider_connection(client.clone())
-            .map(|client| {
-                #[allow(clippy::as_conversions)]
-                {
-                    Box::new(client) as Box<dyn RecoveryDeciderClientInterface>
-                }
+            .map(|client| -> Box<dyn RecoveryDeciderClientInterface> {
+                // Explicit return type for closure
+                Box::new(client)
             })
             .expect("Failed to establish a connection with the Recovery Decider Server");
 
@@ -157,7 +155,7 @@ impl<T> AddHeaders for tonic::Request<T> {
     }
 }
 
-#[cfg(any(feature = "dynamic_routing", feature = "v2"))]
+#[cfg(feature = "dynamic_routing")]
 pub(crate) fn create_grpc_request<T: Debug>(message: T, headers: GrpcHeaders) -> tonic::Request<T> {
     let mut request = tonic::Request::new(message);
     request.add_headers_to_grpc_request(headers);

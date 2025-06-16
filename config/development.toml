@@ -1147,7 +1147,7 @@ service = "dynamo"
 
 [grpc_client.recovery_decider_client]
 host = "127.0.0.1"
-port = 8000
+port = 8080
 
 [theme.storage]
 file_storage_backend = "file_system" # Theme storage backend to be used
