@@ -9,31 +9,21 @@ pub struct NordeaRouterData<T> {
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct NordeaOAuthRequest {
-    account_list: Option<String>,
-    /// Parameter with possible values: BANKID_NO (NO only: BankID Norway),
-    /// MTA_NO (NO only: Nordea ID NO - Online), BANKID_SE (SE only: BankIdSe),
-    /// CARD_RDR (SE only: Talking Card Reader), MTA (FI only: Nordea ID FI - Online),
-    /// MITID (DK only: MitID), MTA_QR (FI only: Nordea ID QR code), MTA_DK (DK only: Nordea ID DK),
-    /// QRT_DK (DK only: Nordea ID device DK)
-    authentication_method: Option<NordeaAuthenticationMethod>,
     /// Country is a mandatory parameter with possible values FI, DK, NO or SE
-    country: api_models::enums::CountryAlpha2,
+    pub country: api_models::enums::CountryAlpha2,
     /// Duration of access authorization in minutes. range: 1 to 259200 minutes (180 days).
     /// Duration should be left empty if the request includes PAYMENTS_SINGLE_SCA scope.
-    duration: Option<i32>,
-    /// Language of message that will be displayed to client of bankId mobile app, ISO639-1 and 639-2
-    language: Option<NordeaConfirmLanguage>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub duration: Option<i32>,
     /// Maximum transaction history in months. Optional if ACCOUNTS_TRANSACTIONS scope is requested. Default=2 months. range: 1 to 18 months
-    max_tx_history: Option<i32>,
+    #[serde(rename = "max_tx_history")]
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub maximum_transaction_history: Option<i32>,
     /// Redirect URI you used when this application was registered with Nordea.
-    redirect_uri: String,
-    scope: AccessScope,
-    /// If set to true, enables skipping of account selection step provided by Nordea.
-    /// If set to true, then cards data cannot be accessed. If not set, value defaults to false and account selection step is provided to the PSU.
-    /// If the request includes PAYMENTS_SINGLE_SCA scope, skip_account_selection parameter should be set to true.
-    skip_account_selection: Option<bool>,
+    pub redirect_uri: String,
+    pub scope: Vec<AccessScope>,
     /// The OAuth2 state parameter. This is a nonce and should be used to prevent CSRF attacks.
-    state: Secret<String>,
+    pub state: Secret<String>,
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]

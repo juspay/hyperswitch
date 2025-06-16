@@ -9,8 +9,8 @@ use super::requests::{
 };
 
 // OAuth token response structure
-#[derive(Debug, Deserialize, Clone)]
-pub struct NordeaOAuthTokenExchangeResponse {
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct NordeaOAuthExchangeResponse {
     pub access_token: Option<Secret<String>>,
     pub expires_in: Option<i64>,
     pub refresh_token: Option<Secret<String>>,
