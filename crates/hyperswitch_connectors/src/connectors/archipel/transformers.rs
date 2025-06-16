@@ -191,28 +191,30 @@ pub struct ArchipelCardHolder {
     billing_address: Option<ArchipelBillingAddress>,
 }
 
-impl TryFrom<Option<ArchipelBillingAddress>> for ArchipelCardHolder {
-    type Error = ();
-    fn try_from(value: Option<ArchipelBillingAddress>) -> Result<Self, Self::Error> {
-        Ok(Self {
+impl From<Option<ArchipelBillingAddress>> for ArchipelCardHolder {
+    fn from(value: Option<ArchipelBillingAddress>) -> Self {
+        Self {
             billing_address: value,
-        })
+        }
     }
 }
 
 #[derive(Debug, Serialize, Eq, PartialEq)]
 #[serde(rename_all = "camelCase")]
 pub struct ArchipelBillingAddress {
-    address: Secret<String>,
-    postal_code: Secret<String>,
+    address: Option<Secret<String>>,
+    postal_code: Option<Secret<String>>,
 }
 
-impl TryFrom<&AddressDetails> for ArchipelBillingAddress {
-    type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(address_details: &AddressDetails) -> Result<Self, Self::Error> {
-        Ok(Self {
-            address: address_details.get_combined_address_line()?,
-            postal_code: address_details.get_zip()?.clone(),
+pub trait ToArchipelBillingAddress {
+    fn to_archipel_billing_address(&self) -> Option<ArchipelBillingAddress>;
+}
+
+impl ToArchipelBillingAddress for AddressDetails {
+    fn to_archipel_billing_address(&self) -> Option<ArchipelBillingAddress> {
+        Some(ArchipelBillingAddress {
+            address: self.get_combined_address_line().ok(),
+            postal_code: self.get_optional_zip(),
         })
     }
 }
@@ -658,13 +660,15 @@ impl TryFrom<(MinorUnit, &PaymentsAuthorizeRouterData)> for ArchipelPaymentInfor
             initiator: transaction_initiator.clone(),
         };
 
-        let card_holder_name = router_data.get_billing()?.get_optional_full_name();
+        let card_holder_name: Option<Secret<String>> = router_data
+            .get_billing()
+            .ok()
+            .and_then(|billing| billing.get_optional_full_name());
         let cardholder = Some(ArchipelCardHolder {
-            billing_address: Some(
-                router_data
-                    .get_billing_address()
-                    .and_then(ArchipelBillingAddress::try_from)?,
-            ),
+            billing_address: router_data
+                .get_billing_address()
+                .ok()
+                .and_then(|address| address.to_archipel_billing_address()),
         });
 
         let indicator_status = if is_subsequent_trx {
@@ -1027,14 +1031,18 @@ impl TryFrom<ArchipelRouterData<&SetupMandateRouterData>> for ArchipelCardAuthor
             initiator: ArchipelPaymentInitiator::Customer,
         };
 
-        let card_holder_name = item.router_data.get_billing()?.get_optional_full_name();
+        let card_holder_name = item
+            .router_data
+            .get_billing()
+            .ok()
+            .and_then(|billing| billing.get_optional_full_name());
 
         let cardholder = Some(ArchipelCardHolder {
-            billing_address: Some(
-                item.router_data
-                    .get_billing_address()
-                    .and_then(ArchipelBillingAddress::try_from)?,
-            ),
+            billing_address: item
+                .router_data
+                .get_billing_address()
+                .ok()
+                .and_then(|address| address.to_archipel_billing_address()),
         });
 
         let stored_on_file = true;
