@@ -8281,6 +8281,14 @@
             ],
             "nullable": true
           },
+          "integration_status": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/ConnectorIntegrationStatus"
+              }
+            ],
+            "nullable": true
+          },
           "supported_payment_methods": {
             "type": "array",
             "items": {
@@ -8297,6 +8305,16 @@
             "nullable": true
           }
         }
+      },
+      "ConnectorIntegrationStatus": {
+        "type": "string",
+        "description": "Connector Integration Status",
+        "enum": [
+          "live",
+          "sandbox",
+          "beta",
+          "alpha"
+        ]
       },
       "ConnectorMetadata": {
         "type": "object",

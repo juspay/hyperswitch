@@ -433,7 +433,7 @@ multibanco = { country = "AT,BE,BG,HR,CY,CZ,DK,EE,FI,FR,DE,GI,GR,HU,IE,IT,LV,LI,
 ach = { country = "US", currency = "USD" }
 revolut_pay = { currency = "EUR,GBP" }
 sepa = {country = "AT,BE,BG,HR,CY,CZ,DK,EE,FI,FR,DE,GI,GR,HU,IE,IT,LV,LI,LT,LU,MT,NL,NO,PL,PT,RO,SK,SI,ES,SE,CH,GB,IS,LI", currency="EUR"}
-bacs = { country = "UK", currency = "GBP" }
+bacs = { country = "GB", currency = "GBP" }
 becs = { country = "AU", currency = "AUD" }
 sofort = {country = "AT,BE,BG,HR,CY,CZ,DK,EE,FI,FR,DE,GR,HU,IS,IE,IT,LV,LI,LT,LU,MT,NL,NO,PL,PT,RO,SK,SI,ES,SE", currency = "EUR" }
 blik = {country="PL", currency = "PLN"}

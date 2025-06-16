@@ -8261,9 +8261,13 @@ pub enum PaymentConnectorCategory {
 #[strum(serialize_all = "snake_case")]
 #[serde(rename_all = "snake_case")]
 pub enum ConnectorIntegrationStatus {
+    /// Connector is integrated and live on production
     Live,
+    /// Connector is integrated and fully tested on sandbox
     Sandbox,
+    /// Connector is integrated and partially tested on sandbox
     Beta,
+    /// Connector is integrated using the online documentation but not tested yet
     Alpha,
 }
 
