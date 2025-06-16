@@ -684,6 +684,7 @@ static PAYSTACK_CONNECTOR_INFO: ConnectorInfo = ConnectorInfo {
     display_name: "Paystack",
     description: "Paystack is a Nigerian financial technology company that provides online and offline payment solutions to businesses across Africa.",
     connector_type: enums::PaymentConnectorCategory::PaymentGateway,
+    integration_status: enums::ConnectorIntegrationStatus::Alpha,
 };
 
 static PAYSTACK_SUPPORTED_WEBHOOK_FLOWS: [enums::EventClass; 2] =

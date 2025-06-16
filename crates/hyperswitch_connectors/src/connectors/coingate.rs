@@ -641,6 +641,7 @@ static COINGATE_CONNECTOR_INFO: ConnectorInfo = ConnectorInfo {
     display_name: "Coingate",
     description: "CoinGate's online payment solution makes it easy for businesses to accept Bitcoin, Ethereum, stablecoins and other cryptocurrencies for payments on any website.",
     connector_type: enums::PaymentConnectorCategory::AlternativePaymentMethod,
+    integration_status: enums::ConnectorIntegrationStatus::Alpha,
 };
 
 static COINGATE_SUPPORTED_WEBHOOK_FLOWS: [enums::EventClass; 1] = [enums::EventClass::Payments];

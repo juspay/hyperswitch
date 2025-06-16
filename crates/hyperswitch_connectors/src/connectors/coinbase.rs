@@ -441,6 +441,7 @@ lazy_static! {
         description:
             "Coinbase is a place for people and businesses to buy, sell, and manage crypto.",
         connector_type: enums::PaymentConnectorCategory::PaymentGateway,
+        integration_status: enums::ConnectorIntegrationStatus::Alpha,
     };
     static ref COINBASE_SUPPORTED_PAYMENT_METHODS: SupportedPaymentMethods = {
         let supported_capture_methods = vec![

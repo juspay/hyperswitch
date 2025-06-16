@@ -447,6 +447,7 @@ static BITPAY_CONNECTOR_INFO: ConnectorInfo = ConnectorInfo {
         description:
             "BitPay is a cryptocurrency payment processor that enables businesses to accept Bitcoin and other digital currencies ",
         connector_type: enums::PaymentConnectorCategory::AlternativePaymentMethod,
+        integration_status: enums::ConnectorIntegrationStatus::Alpha,
     };
 
 static BITPAY_SUPPORTED_WEBHOOK_FLOWS: [enums::EventClass; 1] = [enums::EventClass::Payments];

@@ -951,6 +951,7 @@ lazy_static! {
         description:
             "Shift4 Payments, Inc. is an American payment processing company based in Allentown, Pennsylvania. ",
         connector_type: enums::PaymentConnectorCategory::PaymentGateway,
+        integration_status: enums::ConnectorIntegrationStatus::Alpha,
     };
 
     static ref SHIFT4_SUPPORTED_WEBHOOK_FLOWS: Vec<enums::EventClass> = vec![enums::EventClass::Payments, enums::EventClass::Refunds];

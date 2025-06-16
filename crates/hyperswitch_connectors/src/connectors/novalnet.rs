@@ -1088,6 +1088,7 @@ static NOVALNET_CONNECTOR_INFO: ConnectorInfo = ConnectorInfo {
     display_name: "Novalnet",
     description: "Novalnet provides tailored, data-driven payment solutions that maximize acceptance, boost conversions, and deliver seamless customer experiences worldwide.",
     connector_type: enums::PaymentConnectorCategory::PaymentGateway,
+    integration_status: enums::ConnectorIntegrationStatus::Alpha,
 };
 
 static NOVALNET_SUPPORTED_WEBHOOK_FLOWS: [enums::EventClass; 4] = [

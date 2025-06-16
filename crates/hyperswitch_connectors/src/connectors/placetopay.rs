@@ -729,6 +729,7 @@ static PLACETOPAY_CONNECTOR_INFO: ConnectorInfo = ConnectorInfo {
     description:
         "PlacetoPay is a Latin American financial technology company's online payment platform, offering various payment methods and integrations for businesses",
     connector_type: enums::PaymentConnectorCategory::PaymentGateway,
+    integration_status: enums::ConnectorIntegrationStatus::Alpha,
 };
 
 static PLACETOPAY_SUPPORTED_WEBHOOK_FLOWS: [enums::EventClass; 0] = [];

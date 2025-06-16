@@ -864,6 +864,7 @@ lazy_static! {
         display_name: "Bambora",
         description: "Bambora is a leading online payment provider in Canada and United States.",
         connector_type: enums::PaymentConnectorCategory::PaymentGateway,
+        integration_status: enums::ConnectorIntegrationStatus::Alpha,
     };
     static ref BAMBORA_SUPPORTED_WEBHOOK_FLOWS: Vec<enums::EventClass> = Vec::new();
 }

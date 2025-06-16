@@ -909,6 +909,7 @@ lazy_static! {
         display_name: "Worldline",
         description: "Worldline, Europe's leading payment service provider",
         connector_type: enums::PaymentConnectorCategory::PaymentGateway,
+        integration_status: enums::ConnectorIntegrationStatus::Alpha,
     };
     static ref WORLDLINE_SUPPORTED_WEBHOOK_FLOWS: Vec<enums::EventClass> =
         vec![enums::EventClass::Payments];

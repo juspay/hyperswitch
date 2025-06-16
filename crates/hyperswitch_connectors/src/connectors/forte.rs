@@ -783,6 +783,7 @@ static FORTE_CONNECTOR_INFO: ConnectorInfo = ConnectorInfo {
     description:
         "CSG Forte offers a unified payments platform, enabling businesses to securely process credit cards, debit cards, ACH/eCheck transactions, and more, with advanced fraud prevention and seamless integration.",
     connector_type: enums::PaymentConnectorCategory::PaymentGateway,
+    integration_status: enums::ConnectorIntegrationStatus::Alpha,
 };
 
 static FORTE_SUPPORTED_WEBHOOK_FLOWS: [enums::EventClass; 0] = [];

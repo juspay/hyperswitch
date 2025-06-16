@@ -902,6 +902,7 @@ static HELCIM_CONNECTOR_INFO: ConnectorInfo = ConnectorInfo {
         description:
             "Helcim is a payment processing company that offers transparent, affordable merchant services for businesses of all sizes",
         connector_type: enums::PaymentConnectorCategory::PaymentGateway,
+        integration_status: enums::ConnectorIntegrationStatus::Alpha,
     };
 
 static HELCIM_SUPPORTED_WEBHOOK_FLOWS: [enums::EventClass; 0] = [];

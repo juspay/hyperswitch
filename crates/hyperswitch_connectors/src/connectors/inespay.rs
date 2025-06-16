@@ -740,6 +740,7 @@ static INESPAY_CONNECTOR_INFO: ConnectorInfo = ConnectorInfo {
     description:
         "INESPAY is a payment method system that allows online shops to receive money in their bank accounts through a SEPA bank transfer ",
     connector_type: enums::PaymentConnectorCategory::BankAcquirer,
+    integration_status: enums::ConnectorIntegrationStatus::Alpha,
 };
 
 static INESPAY_SUPPORTED_WEBHOOK_FLOWS: [enums::EventClass; 2] =

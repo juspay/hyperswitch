@@ -3118,6 +3118,7 @@ static STRIPE_CONNECTOR_INFO: ConnectorInfo = ConnectorInfo {
     display_name: "Stripe",
     description: "Stripe is a payment processing platform that provides businesses with tools and APIs to accept payments online and manage their financial infrastructure",
     connector_type: common_enums::PaymentConnectorCategory::PaymentGateway,
+    integration_status: common_enums::ConnectorIntegrationStatus::Live,
 };
 
 static STRIPE_SUPPORTED_WEBHOOK_FLOWS: [common_enums::EventClass; 3] = [

@@ -669,6 +669,7 @@ lazy_static! {
         description:
             "Powertranz is a leading payment gateway serving the Caribbean and parts of Central America ",
         connector_type: enums::PaymentConnectorCategory::PaymentGateway,
+        integration_status: enums::ConnectorIntegrationStatus::Alpha,
     };
 
     static ref POWERTRANZ_SUPPORTED_WEBHOOK_FLOWS: Vec<enums::EventClass> = Vec::new();

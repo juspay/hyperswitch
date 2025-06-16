@@ -766,6 +766,7 @@ lazy_static! {
         description:
             "Volt is a payment gateway operating in China, specializing in facilitating local bank transfers",
         connector_type: enums::PaymentConnectorCategory::PaymentGateway,
+        integration_status: enums::ConnectorIntegrationStatus::Alpha,
     };
 
     static ref VOLT_SUPPORTED_WEBHOOK_FLOWS: Vec<enums::EventClass> = Vec::new();

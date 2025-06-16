@@ -8111,6 +8111,28 @@ pub enum PaymentConnectorCategory {
     BankAcquirer,
 }
 
+/// Connector Integration Status
+#[derive(
+    Clone,
+    Copy,
+    Debug,
+    Eq,
+    Hash,
+    PartialEq,
+    serde::Deserialize,
+    serde::Serialize,
+    strum::Display,
+    ToSchema,
+)]
+#[strum(serialize_all = "snake_case")]
+#[serde(rename_all = "snake_case")]
+pub enum ConnectorIntegrationStatus {
+    Live,
+    Sandbox,
+    Beta,
+    Alpha,
+}
+
 /// The status of the feature
 #[derive(
     Clone,

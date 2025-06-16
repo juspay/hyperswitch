@@ -584,6 +584,8 @@ pub struct ConnectorInfo {
     pub description: &'static str,
     /// Connector Type
     pub connector_type: common_enums::PaymentConnectorCategory,
+    /// Integration status of the connector
+    pub integration_status: common_enums::ConnectorIntegrationStatus,
 }
 
 pub trait SupportedPaymentMethodsExt {

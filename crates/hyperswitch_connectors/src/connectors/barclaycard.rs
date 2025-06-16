@@ -1023,6 +1023,7 @@ static BARCLAYCARD_CONNECTOR_INFO: ConnectorInfo = ConnectorInfo {
     display_name: "BarclayCard SmartPay Fuse",
     description: "Barclaycard, part of Barclays Bank UK PLC, is a leading global payment business that helps consumers, retailers and businesses to make and take payments flexibly, and to access short-term credit and point of sale finance.",
     connector_type: enums::PaymentConnectorCategory::BankAcquirer,
+    integration_status: enums::ConnectorIntegrationStatus::Alpha,
 };
 
 static BARCLAYCARD_SUPPORTED_WEBHOOK_FLOWS: [enums::EventClass; 0] = [];

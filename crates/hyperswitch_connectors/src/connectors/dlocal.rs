@@ -747,6 +747,7 @@ lazy_static! {
         description:
             "Dlocal is a cross-border payment processor enabling businesses to accept and send payments in emerging markets worldwide.",
         connector_type: enums::PaymentConnectorCategory::PaymentGateway,
+        integration_status: enums::ConnectorIntegrationStatus::Alpha,
     };
 
     static ref DLOCAL_SUPPORTED_WEBHOOK_FLOWS: Vec<enums::EventClass> = Vec::new();

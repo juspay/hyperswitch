@@ -882,6 +882,7 @@ static PAYU_CONNECTOR_INFO: ConnectorInfo = ConnectorInfo {
         description:
             "PayU is a global fintech company providing online payment solutions, including card processing, UPI, wallets, and BNPL services across multiple markets ",
         connector_type: enums::PaymentConnectorCategory::PaymentGateway,
+        integration_status: enums::ConnectorIntegrationStatus::Alpha,
     };
 
 static PAYU_SUPPORTED_WEBHOOK_FLOWS: [enums::EventClass; 0] = [];

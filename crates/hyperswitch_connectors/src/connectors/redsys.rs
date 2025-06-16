@@ -887,6 +887,7 @@ static REDSYS_CONNECTOR_INFO: ConnectorInfo = ConnectorInfo {
     display_name: "Redsys",
     description: "Redsys is a Spanish payment gateway offering secure and innovative payment solutions for merchants and banks",
     connector_type: common_enums::PaymentConnectorCategory::PaymentGateway,
+    integration_status: common_enums::ConnectorIntegrationStatus::Alpha,
 };
 
 static REDSYS_SUPPORTED_WEBHOOK_FLOWS: [common_enums::EventClass; 0] = [];

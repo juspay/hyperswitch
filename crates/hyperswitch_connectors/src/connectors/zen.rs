@@ -866,6 +866,7 @@ static ZEN_CONNECTOR_INFO: ConnectorInfo = ConnectorInfo {
         display_name: "Zen",
         description: "Zen Payment Gateway is a secure and scalable payment solution that enables businesses to accept online payments globally with various methods and currencies.",
         connector_type: enums::PaymentConnectorCategory::PaymentGateway,
+        integration_status: enums::ConnectorIntegrationStatus::Alpha,
     };
 
 static ZEN_SUPPORTED_WEBHOOK_FLOWS: [enums::EventClass; 2] =

@@ -818,6 +818,7 @@ static HIPAY_CONNECTOR_INFO: ConnectorInfo = ConnectorInfo {
     display_name: "Hipay",
     description: "HiPay is an independent global payment service provider that is based in France.",
     connector_type: enums::PaymentConnectorCategory::PaymentGateway,
+    integration_status: enums::ConnectorIntegrationStatus::Alpha,
 };
 
 static HIPAY_SUPPORTED_WEBHOOK_FLOWS: [enums::EventClass; 0] = [];
