@@ -80,10 +80,7 @@ impl ForeignFrom<api_models::refunds::RefundType> for storage_enums::RefundType 
     }
 }
 
-#[cfg(all(
-    any(feature = "v1", feature = "v2"),
-    not(feature = "payment_methods_v2")
-))]
+#[cfg(feature = "v1")]
 impl
     ForeignFrom<(
         Option<payment_methods::CardDetailFromLocker>,
@@ -103,8 +100,8 @@ impl
             payment_method: item.get_payment_method_type(),
             payment_method_type: item.get_payment_method_subtype(),
             card: card_details,
-            recurring_enabled: false,
-            installment_payment_enabled: false,
+            recurring_enabled: Some(false),
+            installment_payment_enabled: Some(false),
             payment_experience: None,
             metadata: item.metadata,
             created: Some(item.created_at),
@@ -116,7 +113,7 @@ impl
     }
 }
 
-#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+#[cfg(feature = "v2")]
 impl
     ForeignFrom<(
         Option<payment_methods::CardDetailFromLocker>,
@@ -148,7 +145,7 @@ impl ForeignTryFrom<storage_enums::AttemptStatus> for storage_enums::CaptureStat
     ) -> errors::RouterResult<Self> {
         match attempt_status {
             storage_enums::AttemptStatus::Charged
-            | storage_enums::AttemptStatus::PartialCharged => Ok(Self::Charged),
+            | storage_enums::AttemptStatus::PartialCharged | storage_enums::AttemptStatus::IntegrityFailure => Ok(Self::Charged),
             storage_enums::AttemptStatus::Pending
             | storage_enums::AttemptStatus::CaptureInitiated => Ok(Self::Pending),
             storage_enums::AttemptStatus::Failure
@@ -171,7 +168,7 @@ impl ForeignTryFrom<storage_enums::AttemptStatus> for storage_enums::CaptureStat
             | storage_enums::AttemptStatus::PaymentMethodAwaited
             | storage_enums::AttemptStatus::ConfirmationAwaited
             | storage_enums::AttemptStatus::DeviceDataCollectionPending
-            | storage_enums::AttemptStatus::PartialChargedAndChargeable=> {
+            | storage_enums::AttemptStatus::PartialChargedAndChargeable => {
                 Err(errors::ApiErrorResponse::PreconditionFailed {
                     message: "AttemptStatus must be one of these for multiple partial captures [Charged, PartialCharged, Pending, CaptureInitiated, Failure, CaptureFailed]".into(),
                 }.into())
@@ -264,6 +261,11 @@ impl ForeignTryFrom<api_enums::Connector> for common_enums::RoutableConnectors {
             }
             api_enums::Connector::Hipay => Self::Hipay,
             api_enums::Connector::Helcim => Self::Helcim,
+            api_enums::Connector::HyperswitchVault => {
+                Err(common_utils::errors::ValidationError::InvalidValue {
+                    message: "Hyperswitch Vault is not a routable connector".to_string(),
+                })?
+            }
             api_enums::Connector::Iatapay => Self::Iatapay,
             api_enums::Connector::Inespay => Self::Inespay,
             api_enums::Connector::Itaubank => Self::Itaubank,
@@ -323,7 +325,7 @@ impl ForeignTryFrom<api_enums::Connector> for common_enums::RoutableConnectors {
             api_enums::Connector::Stripebilling => Self::Stripebilling,
             // api_enums::Connector::Taxjar => Self::Taxjar,
             // api_enums::Connector::Thunes => Self::Thunes,
-            // api_enums::Connector::Tokenio => Self::Tokenio,
+            api_enums::Connector::Tokenio => Self::Tokenio,
             api_enums::Connector::Trustpay => Self::Trustpay,
             api_enums::Connector::Tsys => Self::Tsys,
             // api_enums::Connector::UnifiedAuthenticationService => {
@@ -467,9 +469,8 @@ impl ForeignFrom<api_enums::IntentStatus> for Option<storage_enums::EventType> {
                 Some(storage_enums::EventType::PaymentProcessing)
             }
             api_enums::IntentStatus::RequiresMerchantAction
-            | api_enums::IntentStatus::RequiresCustomerAction => {
-                Some(storage_enums::EventType::ActionRequired)
-            }
+            | api_enums::IntentStatus::RequiresCustomerAction
+            | api_enums::IntentStatus::Conflicted => Some(storage_enums::EventType::ActionRequired),
             api_enums::IntentStatus::Cancelled => Some(storage_enums::EventType::PaymentCancelled),
             api_enums::IntentStatus::PartiallyCaptured
             | api_enums::IntentStatus::PartiallyCapturedAndCapturable => {
@@ -578,6 +579,8 @@ impl ForeignFrom<api_enums::PaymentMethodType> for api_enums::PaymentMethod {
             | api_enums::PaymentMethodType::MandiriVa
             | api_enums::PaymentMethodType::LocalBankTransfer
             | api_enums::PaymentMethodType::InstantBankTransfer
+            | api_enums::PaymentMethodType::InstantBankTransferFinland
+            | api_enums::PaymentMethodType::InstantBankTransferPoland
             | api_enums::PaymentMethodType::SepaBankTransfer
             | api_enums::PaymentMethodType::Pix => Self::BankTransfer,
             api_enums::PaymentMethodType::Givex | api_enums::PaymentMethodType::PaySafeCard => {
@@ -1901,14 +1904,14 @@ impl ForeignFrom<storage::GatewayStatusMap> for gsm_api_types::GsmResponse {
     }
 }
 
-#[cfg(all(feature = "v2", feature = "customer_v2"))]
+#[cfg(feature = "v2")]
 impl ForeignFrom<&domain::Customer> for payments::CustomerDetailsResponse {
     fn foreign_from(_customer: &domain::Customer) -> Self {
         todo!()
     }
 }
 
-#[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
+#[cfg(feature = "v1")]
 impl ForeignFrom<&domain::Customer> for payments::CustomerDetailsResponse {
     fn foreign_from(customer: &domain::Customer) -> Self {
         Self {
@@ -2073,6 +2076,7 @@ impl ForeignFrom<api_models::admin::ExternalVaultConnectorDetails>
     fn foreign_from(item: api_models::admin::ExternalVaultConnectorDetails) -> Self {
         Self {
             vault_connector_id: item.vault_connector_id,
+            vault_sdk: item.vault_sdk,
         }
     }
 }
@@ -2083,6 +2087,7 @@ impl ForeignFrom<diesel_models::business_profile::ExternalVaultConnectorDetails>
     fn foreign_from(item: diesel_models::business_profile::ExternalVaultConnectorDetails) -> Self {
         Self {
             vault_connector_id: item.vault_connector_id,
+            vault_sdk: item.vault_sdk,
         }
     }
 }
@@ -2235,6 +2240,7 @@ impl ForeignFrom<api_models::admin::PaymentLinkConfigRequest>
             payment_form_label_type: item.payment_form_label_type,
             show_card_terms: item.show_card_terms,
             is_setup_mandate_flow: item.is_setup_mandate_flow,
+            color_icon_card_cvc_error: item.color_icon_card_cvc_error,
         }
     }
 }
@@ -2270,6 +2276,7 @@ impl ForeignFrom<diesel_models::business_profile::PaymentLinkConfigRequest>
             payment_form_label_type: item.payment_form_label_type,
             show_card_terms: item.show_card_terms,
             is_setup_mandate_flow: item.is_setup_mandate_flow,
+            color_icon_card_cvc_error: item.color_icon_card_cvc_error,
         }
     }
 }

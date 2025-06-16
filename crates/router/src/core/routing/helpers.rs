@@ -1452,7 +1452,7 @@ pub async fn push_metrics_with_update_window_for_contract_based_routing(
                     routing_events::RoutingEngine::IntelligentRouter,
                 );
 
-                let update_respose = client
+                let update_response = client
                     .update_contracts(
                         profile_id.get_string_repr().into(),
                         vec![request_label_info],
@@ -1474,7 +1474,7 @@ pub async fn push_metrics_with_update_window_for_contract_based_routing(
                     )?;
 
                 let event_response = routing_types::UpdateContractEventResponse {
-                        status: match update_respose.status {
+                        status: match update_response.status {
                             0 => routing_types::ContractUpdationStatusEventResponse::ContractUpdationSucceeded,
                             1 => routing_types::ContractUpdationStatusEventResponse::ContractUpdationFailed,
                             _ => {
@@ -1641,6 +1641,7 @@ fn get_desired_payment_status_for_dynamic_routing_metrics(
         | common_enums::AttemptStatus::AutoRefunded
         | common_enums::AttemptStatus::Unresolved
         | common_enums::AttemptStatus::Pending
+        | common_enums::AttemptStatus::IntegrityFailure
         | common_enums::AttemptStatus::PaymentMethodAwaited
         | common_enums::AttemptStatus::ConfirmationAwaited
         | common_enums::AttemptStatus::DeviceDataCollectionPending => {
@@ -1672,7 +1673,8 @@ impl ForeignFrom<common_enums::AttemptStatus> for open_router::TxnStatus {
             common_enums::AttemptStatus::PartialCharged => Self::PartialCharged,
             common_enums::AttemptStatus::PartialChargedAndChargeable => Self::ToBeCharged,
             common_enums::AttemptStatus::Unresolved => Self::Pending,
-            common_enums::AttemptStatus::Pending => Self::Pending,
+            common_enums::AttemptStatus::Pending
+            | common_enums::AttemptStatus::IntegrityFailure => Self::Pending,
             common_enums::AttemptStatus::Failure => Self::Failure,
             common_enums::AttemptStatus::PaymentMethodAwaited => Self::Pending,
             common_enums::AttemptStatus::ConfirmationAwaited => Self::Pending,
