@@ -186,14 +186,16 @@ header h1 {
   grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
   gap: 16px;
   margin-bottom: 24px;
+  padding-bottom: 40px; /* Add padding to the bottom of the section */
 }
 
 .chart-container {
   background: var(--bg-secondary);
   padding: 20px;
+  padding-bottom: 60px; /* Increased bottom padding for rotated labels */
   border-radius: 4px;
   border: 1px solid var(--border-color);
-  height: 350px;
+  height: 350px; /* Keep original height for the graph area */
 }
 
 .chart-container h3 {
