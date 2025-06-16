@@ -2378,7 +2378,7 @@ pub struct ProfileResponse {
     /// connector irrespective of connector required fields (Eg. Apple pay, Google pay etc)
     #[schema(default = false, example = false)]
     pub always_collect_billing_details_from_wallet_connector: Option<bool>,
-    
+
     /// Specifies the source of the routing decision result.
     /// This field indicates which decision engine's output (e.g., Hyperswitch's routing engine,
     /// Decision Engine) should be used for making the routing decision.
@@ -2542,7 +2542,7 @@ pub struct ProfileResponse {
     /// connector irrespective of connector required fields (Eg. Apple pay, Google pay etc)
     #[schema(default = false, example = false)]
     pub always_collect_billing_details_from_wallet_connector: Option<bool>,
-    
+
     /// Specifies the source of the routing decision result.
     /// This field indicates which decision engine's output (e.g., Hyperswitch's routing engine,
     /// Decision Engine) should be used for making the routing decision.
@@ -2711,7 +2711,7 @@ pub struct ProfileUpdate {
     /// connector irrespective of connector required fields (Eg. Apple pay, Google pay etc)
     #[schema(default = false, example = false)]
     pub always_collect_billing_details_from_wallet_connector: Option<bool>,
-    
+
     /// Specifies the source of the routing decision result.
     /// This field indicates which decision engine's output (e.g., Hyperswitch's routing engine,
     /// Decision Engine) should be used for making the routing decision.
@@ -2868,7 +2868,7 @@ pub struct ProfileUpdate {
     /// connector irrespective of connector required fields (Eg. Apple pay, Google pay etc)
     #[schema(default = false, example = false)]
     pub always_collect_billing_details_from_wallet_connector: Option<bool>,
-    
+
     /// Specifies the source of the routing decision result.
     /// This field indicates which decision engine's output (e.g., Hyperswitch's routing engine,
     /// Decision Engine) should be used for making the routing decision.
