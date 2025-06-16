@@ -374,184 +374,190 @@ impl<F> TryFrom<ResponseRouterData<F, CnpOnlineResponse, PaymentsSyncData, Payme
             .get_connector_transaction_id()
             .change_context(errors::ConnectorError::MissingConnectorTransactionID)?;
 
-        match item.response.query_transaction_response.and_then(|query_transaction_response| query_transaction_response.results.and_then(|query_response| query_response.first().cloned())) {
-            Some(result) =>{
-                        if let Some(void_response) = &result.void_response {
-                            let status = get_attempt_status(
-                                WorldpayvantivPaymentFlow::Void,
-                                void_response.response,
-                            )?;
-                            if connector_utils::is_payment_failure(status) {
-                                Ok(Self {
-                                    status,
-                                    response: Err(ErrorResponse {
-                                        code: void_response.response.to_string(),
-                                        message: void_response.message.clone(),
-                                        reason: Some(void_response.message.clone()),
-                                        status_code: item.http_code,
-                                        attempt_status: None,
-                                        connector_transaction_id: None,
-                                        network_advice_code: None,
-                                        network_decline_code: None,
-                                        network_error_message: None,
-                                    }),
-                                    ..item.data
-                                })
-                            } else {
-                                Ok(Self {
-                                    status,
-                                    response: Ok(PaymentsResponseData::TransactionResponse {
-                                        resource_id: ResponseId::ConnectorTransactionId(
-                                            connector_transaction_id,
-                                        ),
-                                        redirection_data: Box::new(None),
-                                        mandate_reference: Box::new(None),
-                                        connector_metadata: None,
-                                        network_txn_id: None,
-                                        connector_response_reference_id: None,
-                                        incremental_authorization_allowed: None,
-                                        charges: None,
-                                    }),
-                                    ..item.data
-                                })
-                            }
-                        } else if let Some(capture_response) = &result.capture_response {
-                            let status = get_attempt_status(
-                                WorldpayvantivPaymentFlow::Capture,
-                                capture_response.response,
-                            )?;
-                            if connector_utils::is_payment_failure(status) {
-                                Ok(Self {
-                                    status,
-                                    response: Err(ErrorResponse {
-                                        code: capture_response.response.to_string(),
-                                        message: capture_response.message.clone(),
-                                        reason: Some(capture_response.message.clone()),
-                                        status_code: item.http_code,
-                                        attempt_status: None,
-                                        connector_transaction_id: None,
-                                        network_advice_code: None,
-                                        network_decline_code: None,
-                                        network_error_message: None,
-                                    }),
-                                    ..item.data
-                                })
-                            } else {
-                                Ok(Self {
-                                    status,
-                                    response: Ok(PaymentsResponseData::TransactionResponse {
-                                        resource_id: ResponseId::ConnectorTransactionId(
-                                            connector_transaction_id,
-                                        ),
-                                        redirection_data: Box::new(None),
-                                        mandate_reference: Box::new(None),
-                                        connector_metadata: None,
-                                        network_txn_id: None,
-                                        connector_response_reference_id: None,
-                                        incremental_authorization_allowed: None,
-                                        charges: None,
-                                    }),
-                                    ..item.data
-                                })
-                            }
-                        } else if let Some(sale_response) = &result.sale_response {
-                            let status = get_attempt_status(
-                                WorldpayvantivPaymentFlow::Sale,
-                                sale_response.response_code,
-                            )?;
-                            if connector_utils::is_payment_failure(status) {
-                                Ok(Self {
-                                    status,
-                                    response: Err(ErrorResponse {
-                                        code: sale_response.response_code.to_string(),
-                                        message: sale_response.message.clone(),
-                                        reason: Some(sale_response.message.clone()),
-                                        status_code: item.http_code,
-                                        attempt_status: None,
-                                        connector_transaction_id: None,
-                                        network_advice_code: None,
-                                        network_decline_code: None,
-                                        network_error_message: None,
-                                    }),
-                                    ..item.data
-                                })
-                            } else {
-                                Ok(Self {
-                                    status,
-                                    response: Ok(PaymentsResponseData::TransactionResponse {
-                                        resource_id: ResponseId::ConnectorTransactionId(
-                                            connector_transaction_id,
-                                        ),
-                                        redirection_data: Box::new(None),
-                                        mandate_reference: Box::new(None),
-                                        connector_metadata: None,
-                                        network_txn_id: None,
-                                        connector_response_reference_id: None,
-                                        incremental_authorization_allowed: None,
-                                        charges: None,
-                                    }),
-                                    ..item.data
-                                })
-                            }
-                        } else if let Some(authorization_response) = &result.authorization_response
-                        {
-                            let status = get_attempt_status(
-                                WorldpayvantivPaymentFlow::Auth,
-                                authorization_response.response_code,
-                            )?;
-                            if connector_utils::is_payment_failure(status) {
-                                Ok(Self {
-                                    status,
-                                    response: Err(ErrorResponse {
-                                        code: authorization_response.response_code.to_string(),
-                                        message: authorization_response.message.clone(),
-                                        reason: Some(authorization_response.message.clone()),
-                                        status_code: item.http_code,
-                                        attempt_status: None,
-                                        connector_transaction_id: None,
-                                        network_advice_code: None,
-                                        network_decline_code: None,
-                                        network_error_message: None,
-                                    }),
-                                    ..item.data
-                                })
-                            } else {
-                                Ok(Self {
-                                    status,
-                                    response: Ok(PaymentsResponseData::TransactionResponse {
-                                        resource_id: ResponseId::ConnectorTransactionId(
-                                            connector_transaction_id,
-                                        ),
-                                        redirection_data: Box::new(None),
-                                        mandate_reference: Box::new(None),
-                                        connector_metadata: None,
-                                        network_txn_id: None,
-                                        connector_response_reference_id: None,
-                                        incremental_authorization_allowed: None,
-                                        charges: None,
-                                    }),
-                                    ..item.data
-                                })
-                            }
-                        } else {
-                            // In case of Psync failure
-                            Ok(Self {
-                                status: item.data.status,
-                                response: Ok(PaymentsResponseData::TransactionResponse {
-                                    resource_id: ResponseId::ConnectorTransactionId(
-                                        connector_transaction_id,
-                                    ),
-                                    redirection_data: Box::new(None),
-                                    mandate_reference: Box::new(None),
-                                    connector_metadata: None,
-                                    network_txn_id: None,
-                                    connector_response_reference_id: None,
-                                    incremental_authorization_allowed: None,
-                                    charges: None,
-                                }),
-                                ..item.data
-                            })
-                        }
+        match item
+            .response
+            .query_transaction_response
+            .and_then(|query_transaction_response| {
+                query_transaction_response
+                    .results
+                    .and_then(|query_response| query_response.first().cloned())
+            }) {
+            Some(result) => {
+                if let Some(void_response) = &result.void_response {
+                    let status = get_attempt_status(
+                        WorldpayvantivPaymentFlow::Void,
+                        void_response.response,
+                    )?;
+                    if connector_utils::is_payment_failure(status) {
+                        Ok(Self {
+                            status,
+                            response: Err(ErrorResponse {
+                                code: void_response.response.to_string(),
+                                message: void_response.message.clone(),
+                                reason: Some(void_response.message.clone()),
+                                status_code: item.http_code,
+                                attempt_status: None,
+                                connector_transaction_id: None,
+                                network_advice_code: None,
+                                network_decline_code: None,
+                                network_error_message: None,
+                            }),
+                            ..item.data
+                        })
+                    } else {
+                        Ok(Self {
+                            status,
+                            response: Ok(PaymentsResponseData::TransactionResponse {
+                                resource_id: ResponseId::ConnectorTransactionId(
+                                    connector_transaction_id,
+                                ),
+                                redirection_data: Box::new(None),
+                                mandate_reference: Box::new(None),
+                                connector_metadata: None,
+                                network_txn_id: None,
+                                connector_response_reference_id: None,
+                                incremental_authorization_allowed: None,
+                                charges: None,
+                            }),
+                            ..item.data
+                        })
+                    }
+                } else if let Some(capture_response) = &result.capture_response {
+                    let status = get_attempt_status(
+                        WorldpayvantivPaymentFlow::Capture,
+                        capture_response.response,
+                    )?;
+                    if connector_utils::is_payment_failure(status) {
+                        Ok(Self {
+                            status,
+                            response: Err(ErrorResponse {
+                                code: capture_response.response.to_string(),
+                                message: capture_response.message.clone(),
+                                reason: Some(capture_response.message.clone()),
+                                status_code: item.http_code,
+                                attempt_status: None,
+                                connector_transaction_id: None,
+                                network_advice_code: None,
+                                network_decline_code: None,
+                                network_error_message: None,
+                            }),
+                            ..item.data
+                        })
+                    } else {
+                        Ok(Self {
+                            status,
+                            response: Ok(PaymentsResponseData::TransactionResponse {
+                                resource_id: ResponseId::ConnectorTransactionId(
+                                    connector_transaction_id,
+                                ),
+                                redirection_data: Box::new(None),
+                                mandate_reference: Box::new(None),
+                                connector_metadata: None,
+                                network_txn_id: None,
+                                connector_response_reference_id: None,
+                                incremental_authorization_allowed: None,
+                                charges: None,
+                            }),
+                            ..item.data
+                        })
+                    }
+                } else if let Some(sale_response) = &result.sale_response {
+                    let status = get_attempt_status(
+                        WorldpayvantivPaymentFlow::Sale,
+                        sale_response.response_code,
+                    )?;
+                    if connector_utils::is_payment_failure(status) {
+                        Ok(Self {
+                            status,
+                            response: Err(ErrorResponse {
+                                code: sale_response.response_code.to_string(),
+                                message: sale_response.message.clone(),
+                                reason: Some(sale_response.message.clone()),
+                                status_code: item.http_code,
+                                attempt_status: None,
+                                connector_transaction_id: None,
+                                network_advice_code: None,
+                                network_decline_code: None,
+                                network_error_message: None,
+                            }),
+                            ..item.data
+                        })
+                    } else {
+                        Ok(Self {
+                            status,
+                            response: Ok(PaymentsResponseData::TransactionResponse {
+                                resource_id: ResponseId::ConnectorTransactionId(
+                                    connector_transaction_id,
+                                ),
+                                redirection_data: Box::new(None),
+                                mandate_reference: Box::new(None),
+                                connector_metadata: None,
+                                network_txn_id: None,
+                                connector_response_reference_id: None,
+                                incremental_authorization_allowed: None,
+                                charges: None,
+                            }),
+                            ..item.data
+                        })
+                    }
+                } else if let Some(authorization_response) = &result.authorization_response {
+                    let status = get_attempt_status(
+                        WorldpayvantivPaymentFlow::Auth,
+                        authorization_response.response_code,
+                    )?;
+                    if connector_utils::is_payment_failure(status) {
+                        Ok(Self {
+                            status,
+                            response: Err(ErrorResponse {
+                                code: authorization_response.response_code.to_string(),
+                                message: authorization_response.message.clone(),
+                                reason: Some(authorization_response.message.clone()),
+                                status_code: item.http_code,
+                                attempt_status: None,
+                                connector_transaction_id: None,
+                                network_advice_code: None,
+                                network_decline_code: None,
+                                network_error_message: None,
+                            }),
+                            ..item.data
+                        })
+                    } else {
+                        Ok(Self {
+                            status,
+                            response: Ok(PaymentsResponseData::TransactionResponse {
+                                resource_id: ResponseId::ConnectorTransactionId(
+                                    connector_transaction_id,
+                                ),
+                                redirection_data: Box::new(None),
+                                mandate_reference: Box::new(None),
+                                connector_metadata: None,
+                                network_txn_id: None,
+                                connector_response_reference_id: None,
+                                incremental_authorization_allowed: None,
+                                charges: None,
+                            }),
+                            ..item.data
+                        })
+                    }
+                } else {
+                    // In case of Psync failure
+                    Ok(Self {
+                        status: item.data.status,
+                        response: Ok(PaymentsResponseData::TransactionResponse {
+                            resource_id: ResponseId::ConnectorTransactionId(
+                                connector_transaction_id,
+                            ),
+                            redirection_data: Box::new(None),
+                            mandate_reference: Box::new(None),
+                            connector_metadata: None,
+                            network_txn_id: None,
+                            connector_response_reference_id: None,
+                            incremental_authorization_allowed: None,
+                            charges: None,
+                        }),
+                        ..item.data
+                    })
+                }
             }
             None => {
                 // In case of 2xx Psync failure
@@ -855,7 +861,7 @@ pub struct CnpOnlineResponse {
     pub query_transaction_response: Option<QueryTransactionResponse>,
 }
 
-#[derive(Debug, Clone,Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct CaptureResponse {
     #[serde(rename = "@id")]
@@ -1321,7 +1327,14 @@ impl TryFrom<RefundsResponseRouterData<RSync, CnpOnlineResponse>> for RefundsRou
     fn try_from(
         item: RefundsResponseRouterData<RSync, CnpOnlineResponse>,
     ) -> Result<Self, Self::Error> {
-        match item.response.query_transaction_response.and_then(|query_transaction_response| query_transaction_response.results.and_then(|results| results.first().cloned())) {
+        match item
+            .response
+            .query_transaction_response
+            .and_then(|query_transaction_response| {
+                query_transaction_response
+                    .results
+                    .and_then(|results| results.first().cloned())
+            }) {
             Some(results) => {
                 if let Some(refund_response) = &results.credit_response {
                     let refund_status = get_refund_status(refund_response.response)?;
@@ -1348,7 +1361,7 @@ impl TryFrom<RefundsResponseRouterData<RSync, CnpOnlineResponse>> for RefundsRou
                                     .request
                                     .connector_refund_id
                                     .clone()
-                                    .ok_or(errors::ConnectorError::MissingConnectorRefundID)?, 
+                                    .ok_or(errors::ConnectorError::MissingConnectorRefundID)?,
                                 refund_status,
                             }),
                             ..item.data
