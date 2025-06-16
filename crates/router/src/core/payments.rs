@@ -89,7 +89,7 @@ use self::{
 };
 use super::{
     errors::StorageErrorExt, payment_methods::surcharge_decision_configs, routing::TransactionData,
-    unified_connector_service::utils::should_call_unified_connector_service,
+    unified_connector_service::should_call_unified_connector_service,
 };
 #[cfg(feature = "v1")]
 use crate::core::debit_routing;
