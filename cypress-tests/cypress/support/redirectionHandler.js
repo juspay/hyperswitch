@@ -72,6 +72,8 @@ function bankTransferRedirection(
   paymentMethodType,
   nextActionType
 ) {
+  let verifyUrl = true; // Default to true, can be set to false based on conditions
+
   switch (nextActionType) {
     case "qr_code_url":
       cy.request(redirectionUrl.href).then((response) => {
@@ -85,12 +87,12 @@ function bankTransferRedirection(
                 });
                 break;
               default:
-                verifyReturnUrl(redirectionUrl, expectedUrl, true);
+                verifyReturnUrl(redirectionUrl, expectedUrl, verifyUrl);
               // expected_redirection can be used here to handle other payment methods
             }
             break;
           default:
-            verifyReturnUrl(redirectionUrl, expectedUrl, true);
+            verifyReturnUrl(redirectionUrl, expectedUrl, verifyUrl);
         }
       });
       break;
@@ -104,7 +106,7 @@ function bankTransferRedirection(
               });
               break;
             default:
-              verifyReturnUrl(redirectionUrl, expectedUrl, true);
+              verifyReturnUrl(redirectionUrl, expectedUrl, verifyUrl);
           }
           break;
         case "itaubank":
@@ -115,13 +117,61 @@ function bankTransferRedirection(
               });
               break;
             default:
-              verifyReturnUrl(redirectionUrl, expectedUrl, true);
+              verifyReturnUrl(redirectionUrl, expectedUrl, verifyUrl);
           }
           break;
         default:
-          verifyReturnUrl(redirectionUrl, expectedUrl, true);
+          verifyReturnUrl(redirectionUrl, expectedUrl, verifyUrl);
       }
       break;
+    case "redirect_to_url":
+      cy.visit(redirectionUrl.href);
+      waitForRedirect(redirectionUrl.href); // Wait for the first redirect
+
+      handleFlow(
+        redirectionUrl,
+        expectedUrl,
+        connectorId,
+        ({ connectorId, paymentMethodType }) => {
+          switch (connectorId) {
+            case "trustpay":
+              // Suppress cross-origin JavaScript errors from TrustPay's website
+              cy.on("uncaught:exception", (err) => {
+                // Trustpay javascript devs have skill issues
+                if (
+                  err.message.includes("$ is not defined") ||
+                  err.message.includes("mainController is not defined") ||
+                  err.message.includes("jQuery") ||
+                  err.message.includes("aapi.trustpay.eu")
+                ) {
+                  return false; // Prevent test failure
+                }
+                return true;
+              });
+
+              // Trustpay bank redirects never reach the terminal state
+              switch (paymentMethodType) {
+                case "instant_bank_transfer_finland":
+                  cy.log("Trustpay Instant Bank Transfer through Finland");
+                  break;
+                case "instant_bank_transfer_poland":
+                  cy.log("Trustpay Instant Bank Transfer through Finland");
+                  break;
+                default:
+                  throw new Error(
+                    `Unsupported Trustpay payment method type: ${paymentMethodType}`
+                  );
+              }
+              verifyUrl = false;
+              break;
+            default:
+              verifyReturnUrl(redirectionUrl, expectedUrl, verifyUrl);
+          }
+        },
+        { paymentMethodType }
+      );
+      break;
+
     default:
       verifyReturnUrl(redirectionUrl, expectedUrl, true);
   }

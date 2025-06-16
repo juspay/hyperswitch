@@ -110,6 +110,8 @@ impl TryFrom<&FacilitapayRouterData<&types::PaymentsAuthorizeRouterData>>
                 | BankTransferData::MandiriVaBankTransfer {}
                 | BankTransferData::Pse {}
                 | BankTransferData::InstantBankTransfer {}
+                | BankTransferData::InstantBankTransferFinland {}
+                | BankTransferData::InstantBankTransferPoland {}
                 | BankTransferData::LocalBankTransfer { .. } => {
                     Err(errors::ConnectorError::NotImplemented(
                         "Selected payment method through Facilitapay".to_string(),
