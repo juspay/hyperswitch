@@ -653,7 +653,7 @@ body {
 }
 
 #submit.not-ready {
-  background-color: #C2C2C2 !important;
+  background-color: #C2C2C2;
 }
 
 #submit-spinner {

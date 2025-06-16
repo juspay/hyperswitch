@@ -8,6 +8,8 @@ use ring::{
     aead::{self, BoundKey, OpeningKey, SealingKey, UnboundKey},
     hmac,
 };
+#[cfg(feature = "logs")]
+use router_env::logger;
 
 use crate::{
     errors::{self, CustomResult},
@@ -330,7 +332,88 @@ impl DecodeMessage for GcmAes256 {
         Ok(result.to_vec())
     }
 }
+/// Represents the ED25519 signature verification algorithm
+#[derive(Debug)]
+pub struct Ed25519;
 
+impl Ed25519 {
+    /// ED25519 algorithm constants
+    const ED25519_PUBLIC_KEY_LEN: usize = 32;
+    const ED25519_SIGNATURE_LEN: usize = 64;
+    /// Validates ED25519 inputs (public key and signature lengths)
+    fn validate_inputs(
+        public_key: &[u8],
+        signature: &[u8],
+    ) -> CustomResult<(), errors::CryptoError> {
+        // Validate public key length
+        if public_key.len() != Self::ED25519_PUBLIC_KEY_LEN {
+            return Err(errors::CryptoError::InvalidKeyLength).attach_printable(format!(
+                "Invalid ED25519 public key length: expected {} bytes, got {}",
+                Self::ED25519_PUBLIC_KEY_LEN,
+                public_key.len()
+            ));
+        }
+
+        // Validate signature length
+        if signature.len() != Self::ED25519_SIGNATURE_LEN {
+            return Err(errors::CryptoError::InvalidKeyLength).attach_printable(format!(
+                "Invalid ED25519 signature length: expected {} bytes, got {}",
+                Self::ED25519_SIGNATURE_LEN,
+                signature.len()
+            ));
+        }
+
+        Ok(())
+    }
+}
+
+impl VerifySignature for Ed25519 {
+    fn verify_signature(
+        &self,
+        public_key: &[u8],
+        signature: &[u8], // ED25519 signature bytes (must be 64 bytes)
+        msg: &[u8],       // Message that was signed
+    ) -> CustomResult<bool, errors::CryptoError> {
+        // Validate inputs first
+        Self::validate_inputs(public_key, signature)?;
+
+        // Create unparsed public key
+        let ring_public_key =
+            ring::signature::UnparsedPublicKey::new(&ring::signature::ED25519, public_key);
+
+        // Perform verification
+        match ring_public_key.verify(msg, signature) {
+            Ok(()) => Ok(true),
+            Err(_err) => {
+                #[cfg(feature = "logs")]
+                logger::error!("ED25519 signature verification failed: {:?}", _err);
+                Err(errors::CryptoError::SignatureVerificationFailed)
+                    .attach_printable("ED25519 signature verification failed")
+            }
+        }
+    }
+}
+
+impl SignMessage for Ed25519 {
+    fn sign_message(
+        &self,
+        secret: &[u8],
+        msg: &[u8],
+    ) -> CustomResult<Vec<u8>, errors::CryptoError> {
+        if secret.len() != 32 {
+            return Err(errors::CryptoError::InvalidKeyLength).attach_printable(format!(
+                "Invalid ED25519 private key length: expected 32 bytes, got {}",
+                secret.len()
+            ));
+        }
+        let key_pair = ring::signature::Ed25519KeyPair::from_seed_unchecked(secret)
+            .change_context(errors::CryptoError::MessageSigningFailed)
+            .attach_printable("Failed to create ED25519 key pair from seed")?;
+
+        let signature = key_pair.sign(msg);
+        Ok(signature.as_ref().to_vec())
+    }
+}
 impl GcmAes256 {
     /// Decrypts an AES-256-GCM encrypted payload where the IV, auth tag, and ciphertext
     /// are provided separately as hex strings. This is specifically tailored for ACI webhooks.

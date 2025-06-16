@@ -2,8 +2,11 @@ import { execConfig, validateConfig } from "../../../utils/featureFlags.js";
 
 import { updateDefaultStatusCode } from "./Modifiers.js";
 
+import { connectorDetails as aciConnectorDetails } from "./Aci.js";
 import { connectorDetails as adyenConnectorDetails } from "./Adyen.js";
+import { connectorDetails as airwallexConnectorDetails } from "./Airwallex.js";
 import { connectorDetails as archipelConnectorDetails } from "./Archipel.js";
+import { connectorDetails as bamboraapacConnectorDetails } from "./Bamboraapac.js";
 import { connectorDetails as bankOfAmericaConnectorDetails } from "./BankOfAmerica.js";
 import { connectorDetails as bluesnapConnectorDetails } from "./Bluesnap.js";
 import { connectorDetails as braintreeConnectorDetails } from "./Braintree.js";
@@ -38,8 +41,11 @@ import { connectorDetails as worldpayxmlConnectorDetails } from "./Worldpayxml.j
 import { connectorDetails as xenditConnectorDetails } from "./Xendit.js";
 
 const connectorDetails = {
+  aci: aciConnectorDetails,
+  airwallex: airwallexConnectorDetails,
   adyen: adyenConnectorDetails,
   bankofamerica: bankOfAmericaConnectorDetails,
+  bamboraapac: bamboraapacConnectorDetails,
   bluesnap: bluesnapConnectorDetails,
   braintree: braintreeConnectorDetails,
   checkout: checkoutConnectorDetails,
@@ -333,9 +339,12 @@ export const CONNECTOR_LISTS = {
     CONNECTOR_AGNOSTIC_NTID: [
       "bankofamerica",
       "braintree",
+      "facilitapay",
       "fiuu",
-      "paypal",
       "fiserv",
+      "jpmorgan",
+      "paypal",
+      "bamboraapac",
     ],
     // Add more exclusion lists
   },

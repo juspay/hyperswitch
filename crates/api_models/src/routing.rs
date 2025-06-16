@@ -1016,6 +1016,7 @@ impl Default for SuccessBasedRoutingConfig {
                 }),
                 specificity_level: SuccessRateSpecificityLevel::default(),
                 exploration_percent: Some(20.0),
+                shuffle_on_tie_during_exploitation: Some(false),
             }),
             decision_engine_configs: None,
         }
@@ -1044,6 +1045,7 @@ pub struct SuccessBasedRoutingConfigBody {
     #[serde(default)]
     pub specificity_level: SuccessRateSpecificityLevel,
     pub exploration_percent: Option<f64>,
+    pub shuffle_on_tie_during_exploitation: Option<bool>,
 }
 
 #[derive(serde::Serialize, serde::Deserialize, Debug, Clone, ToSchema)]
@@ -1172,6 +1174,9 @@ impl SuccessBasedRoutingConfigBody {
         self.specificity_level = new.specificity_level;
         if let Some(exploration_percent) = new.exploration_percent {
             self.exploration_percent = Some(exploration_percent);
+        }
+        if let Some(shuffle_on_tie_during_exploitation) = new.shuffle_on_tie_during_exploitation {
+            self.shuffle_on_tie_during_exploitation = Some(shuffle_on_tie_during_exploitation);
         }
     }
 }
@@ -1345,7 +1350,7 @@ pub struct LabelWithScoreEventResponse {
 #[serde(rename_all = "snake_case")]
 pub struct CalSuccessRateEventResponse {
     pub labels_with_score: Vec<LabelWithScoreEventResponse>,
-    pub routing_apporach: RoutingApproach,
+    pub routing_approach: RoutingApproach,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -1532,4 +1537,51 @@ pub struct UpdateContractEventResponse {
 pub enum ContractUpdationStatusEventResponse {
     ContractUpdationSucceeded,
     ContractUpdationFailed,
+}
+#[derive(Clone, Debug, serde::Deserialize, serde::Serialize)]
+pub struct RuleMigrationQuery {
+    pub profile_id: common_utils::id_type::ProfileId,
+    pub merchant_id: common_utils::id_type::MerchantId,
+    pub limit: Option<u32>,
+    pub offset: Option<u32>,
+}
+
+impl RuleMigrationQuery {
+    pub fn validated_limit(&self) -> u32 {
+        self.limit.unwrap_or(50).min(1000)
+    }
+}
+
+#[derive(Debug, serde::Serialize)]
+pub struct RuleMigrationResult {
+    pub success: Vec<RuleMigrationResponse>,
+    pub errors: Vec<RuleMigrationError>,
+}
+
+#[derive(Debug, serde::Serialize)]
+pub struct RuleMigrationResponse {
+    pub profile_id: common_utils::id_type::ProfileId,
+    pub euclid_algorithm_id: common_utils::id_type::RoutingId,
+    pub decision_engine_algorithm_id: String,
+}
+
+#[derive(Debug, serde::Serialize)]
+pub struct RuleMigrationError {
+    pub profile_id: common_utils::id_type::ProfileId,
+    pub algorithm_id: common_utils::id_type::RoutingId,
+    pub error: String,
+}
+
+impl RuleMigrationResponse {
+    pub fn new(
+        profile_id: common_utils::id_type::ProfileId,
+        euclid_algorithm_id: common_utils::id_type::RoutingId,
+        decision_engine_algorithm_id: String,
+    ) -> Self {
+        Self {
+            profile_id,
+            euclid_algorithm_id,
+            decision_engine_algorithm_id,
+        }
+    }
 }

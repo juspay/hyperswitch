@@ -440,7 +440,8 @@ pub(crate) fn is_payment_failure(status: AttemptStatus) -> bool {
         | AttemptStatus::Pending
         | AttemptStatus::PaymentMethodAwaited
         | AttemptStatus::ConfirmationAwaited
-        | AttemptStatus::DeviceDataCollectionPending => false,
+        | AttemptStatus::DeviceDataCollectionPending
+        | AttemptStatus::IntegrityFailure => false,
     }
 }
 
@@ -1684,6 +1685,7 @@ pub trait PaymentsAuthorizeRequestData {
     fn get_connector_mandate_id(&self) -> Result<String, Error>;
     fn get_complete_authorize_url(&self) -> Result<String, Error>;
     fn get_ip_address_as_optional(&self) -> Option<Secret<String, IpAddress>>;
+    fn get_optional_user_agent(&self) -> Option<String>;
     fn get_original_amount(&self) -> i64;
     fn get_surcharge_amount(&self) -> Option<i64>;
     fn get_tax_on_surcharge_amount(&self) -> Option<i64>;
@@ -1702,6 +1704,7 @@ pub trait PaymentsAuthorizeRequestData {
         &self,
     ) -> Result<enums::CardNetwork, Error>;
     fn get_connector_testing_data(&self) -> Option<pii::SecretSerdeValue>;
+    fn get_order_id(&self) -> Result<String, errors::ConnectorError>;
 }
 
 impl PaymentsAuthorizeRequestData for PaymentsAuthorizeData {
@@ -1802,6 +1805,11 @@ impl PaymentsAuthorizeRequestData for PaymentsAuthorizeData {
                 .ip_address
                 .map(|ip| Secret::new(ip.to_string()))
         })
+    }
+    fn get_optional_user_agent(&self) -> Option<String> {
+        self.browser_info
+            .clone()
+            .and_then(|browser_info| browser_info.user_agent)
     }
     fn get_original_amount(&self) -> i64 {
         self.surcharge_details
@@ -1924,6 +1932,12 @@ impl PaymentsAuthorizeRequestData for PaymentsAuthorizeData {
     }
     fn get_connector_testing_data(&self) -> Option<pii::SecretSerdeValue> {
         self.connector_testing_data.clone()
+    }
+
+    fn get_order_id(&self) -> Result<String, errors::ConnectorError> {
+        self.order_id
+            .to_owned()
+            .ok_or(errors::ConnectorError::RequestEncodingFailed)
     }
 }
 
@@ -5487,6 +5501,8 @@ pub enum PaymentMethodDataType {
     NetworkTransactionIdAndCardDetails,
     DirectCarrierBilling,
     InstantBankTransfer,
+    InstantBankTransferFinland,
+    InstantBankTransferPoland,
     RevolutPay,
 }
 
@@ -5636,6 +5652,12 @@ impl From<PaymentMethodData> for PaymentMethodDataType {
                 }
                 payment_method_data::BankTransferData::InstantBankTransfer {} => {
                     Self::InstantBankTransfer
+                }
+                payment_method_data::BankTransferData::InstantBankTransferFinland {} => {
+                    Self::InstantBankTransferFinland
+                }
+                payment_method_data::BankTransferData::InstantBankTransferPoland {} => {
+                    Self::InstantBankTransferPoland
                 }
             },
             PaymentMethodData::Crypto(_) => Self::Crypto,
@@ -6076,6 +6098,7 @@ pub(crate) fn convert_setup_mandate_router_data_to_authorize_router_data(
         merchant_account_id: None,
         merchant_config_currency: None,
         connector_testing_data: data.request.connector_testing_data.clone(),
+        order_id: None,
     }
 }
 
@@ -6172,7 +6195,8 @@ impl FrmTransactionRouterDataRequest for FrmTransactionRouterData {
             AttemptStatus::AuthenticationSuccessful
             | AttemptStatus::PartialChargedAndChargeable
             | AttemptStatus::Authorized
-            | AttemptStatus::Charged => Some(true),
+            | AttemptStatus::Charged
+            | AttemptStatus::IntegrityFailure => Some(true),
 
             AttemptStatus::Started
             | AttemptStatus::AuthenticationPending

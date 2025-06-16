@@ -19,7 +19,8 @@ use hyperswitch_domain_models::router_flow_types::{
 };
 #[cfg(feature = "dummy_connector")]
 use hyperswitch_domain_models::router_flow_types::{
-    ExternalVaultDeleteFlow, ExternalVaultInsertFlow, ExternalVaultRetrieveFlow,
+    ExternalVaultCreateFlow, ExternalVaultDeleteFlow, ExternalVaultInsertFlow,
+    ExternalVaultRetrieveFlow,
 };
 use hyperswitch_domain_models::{
     mandates::CustomerAcceptance,
@@ -30,7 +31,8 @@ use hyperswitch_domain_models::{
 };
 #[cfg(feature = "dummy_connector")]
 use hyperswitch_interfaces::api::vault::{
-    ExternalVault, ExternalVaultDelete, ExternalVaultInsert, ExternalVaultRetrieve,
+    ExternalVault, ExternalVaultCreate, ExternalVaultDelete, ExternalVaultInsert,
+    ExternalVaultRetrieve,
 };
 use hyperswitch_interfaces::api::{
     payouts::Payouts, UasAuthentication, UasAuthenticationConfirmation, UasPostAuthentication,
@@ -196,6 +198,20 @@ pub trait Feature<F, T> {
         _call_connector_action: payments::CallConnectorAction,
     ) -> RouterResult<(Option<services::Request>, bool)> {
         Ok((None, true))
+    }
+
+    async fn create_order_at_connector(
+        &mut self,
+        _state: &SessionState,
+        _connector: &api::ConnectorData,
+        should_continue_payment: bool,
+    ) -> RouterResult<bool>
+    where
+        F: Clone,
+        Self: Sized,
+        dyn api::Connector: services::ConnectorIntegration<F, T, types::PaymentsResponseData>,
+    {
+        Ok(should_continue_payment)
     }
 }
 
@@ -642,6 +658,18 @@ impl<const T: u8>
 }
 
 #[cfg(feature = "dummy_connector")]
+impl<const T: u8> api::PaymentsCreateOrder for connector::DummyConnector<T> {}
+#[cfg(feature = "dummy_connector")]
+impl<const T: u8>
+    services::ConnectorIntegration<
+        api::CreateOrder,
+        types::CreateOrderRequestData,
+        types::PaymentsResponseData,
+    > for connector::DummyConnector<T>
+{
+}
+
+#[cfg(feature = "dummy_connector")]
 impl<const T: u8> api::PaymentUpdateMetadata for connector::DummyConnector<T> {}
 #[cfg(feature = "dummy_connector")]
 impl<const T: u8>
@@ -892,6 +920,18 @@ impl<const T: u8> ExternalVaultDelete for connector::DummyConnector<T> {}
 impl<const T: u8>
     services::ConnectorIntegration<
         ExternalVaultDeleteFlow,
+        types::VaultRequestData,
+        types::VaultResponseData,
+    > for connector::DummyConnector<T>
+{
+}
+
+#[cfg(feature = "dummy_connector")]
+impl<const T: u8> ExternalVaultCreate for connector::DummyConnector<T> {}
+#[cfg(feature = "dummy_connector")]
+impl<const T: u8>
+    services::ConnectorIntegration<
+        ExternalVaultCreateFlow,
         types::VaultRequestData,
         types::VaultResponseData,
     > for connector::DummyConnector<T>
