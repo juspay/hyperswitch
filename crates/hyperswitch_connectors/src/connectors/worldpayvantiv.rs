@@ -188,7 +188,6 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
         _req: &PaymentsAuthorizeRouterData,
         connectors: &Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        println!("ssssssBase URL: {}", self.base_url(connectors));
         Ok(self.base_url(connectors).to_owned())
     }
 
