@@ -1538,3 +1538,50 @@ pub enum ContractUpdationStatusEventResponse {
     ContractUpdationSucceeded,
     ContractUpdationFailed,
 }
+#[derive(Clone, Debug, serde::Deserialize, serde::Serialize)]
+pub struct RuleMigrationQuery {
+    pub profile_id: common_utils::id_type::ProfileId,
+    pub merchant_id: common_utils::id_type::MerchantId,
+    pub limit: Option<u32>,
+    pub offset: Option<u32>,
+}
+
+impl RuleMigrationQuery {
+    pub fn validated_limit(&self) -> u32 {
+        self.limit.unwrap_or(50).min(1000)
+    }
+}
+
+#[derive(Debug, serde::Serialize)]
+pub struct RuleMigrationResult {
+    pub success: Vec<RuleMigrationResponse>,
+    pub errors: Vec<RuleMigrationError>,
+}
+
+#[derive(Debug, serde::Serialize)]
+pub struct RuleMigrationResponse {
+    pub profile_id: common_utils::id_type::ProfileId,
+    pub euclid_algorithm_id: common_utils::id_type::RoutingId,
+    pub decision_engine_algorithm_id: String,
+}
+
+#[derive(Debug, serde::Serialize)]
+pub struct RuleMigrationError {
+    pub profile_id: common_utils::id_type::ProfileId,
+    pub algorithm_id: common_utils::id_type::RoutingId,
+    pub error: String,
+}
+
+impl RuleMigrationResponse {
+    pub fn new(
+        profile_id: common_utils::id_type::ProfileId,
+        euclid_algorithm_id: common_utils::id_type::RoutingId,
+        decision_engine_algorithm_id: String,
+    ) -> Self {
+        Self {
+            profile_id,
+            euclid_algorithm_id,
+            decision_engine_algorithm_id,
+        }
+    }
+}
