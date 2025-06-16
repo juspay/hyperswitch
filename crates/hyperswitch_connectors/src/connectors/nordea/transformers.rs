@@ -111,8 +111,6 @@ impl TryFrom<&RefreshTokenRouterData> for NordeaOAuthRequest {
         .to_vec();
         let state = rand::distributions::Alphanumeric.sample_string(&mut rand::thread_rng(), 15);
 
-        println!(">>>>> COUNTRY: {}", country.clone());
-
         Ok(Self {
             country,
             duration,
@@ -181,11 +179,11 @@ impl<F, T> TryFrom<ResponseRouterData<F, NordeaOAuthExchangeResponse, T, Payment
             status: common_enums::AttemptStatus::AuthenticationSuccessful,
             response,
             // or, may be, override access token at this point?
-            session_token: Some(access_token.clone().expose()),
             // access_token: Some(AccessToken {
             //     token: access_token.clone(),
             //     expires: expires_in,
             // }),
+            session_token: Some(access_token.clone().expose()),
             ..data
         })
     }

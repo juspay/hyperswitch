@@ -216,7 +216,7 @@ where
         req: &RouterData<Flow, Request, Response>,
         connectors: &Connectors,
     ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
-        let access_token = req
+        let token = req
             .session_token
             .clone()
             .ok_or(errors::ConnectorError::FailedToObtainAuthType)?;
@@ -251,8 +251,7 @@ where
             ),
             (
                 headers::AUTHORIZATION.to_string(),
-                // format!("Bearer {}", access_token.token.clone().peek()).into_masked(),
-                format!("Bearer {}", access_token.clone()).into_masked(),
+                format!("Bearer {}", token.clone()).into_masked(),
             ),
             (
                 "X-IBM-Client-ID".to_string(),
@@ -374,7 +373,76 @@ impl ConnectorIntegration<AccessTokenAuth, AccessTokenRequestData, AccessToken> 
         req: &RefreshTokenRouterData,
         connectors: &Connectors,
     ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
-        self.build_headers(req, connectors)
+        // For the initial OAuth authorize request, we don't have an access token yet
+        // So we need to build headers without the bearer token
+        let auth = NordeaAuthType::try_from(&req.connector_auth_type)?;
+        let content_type = self.common_get_content_type().to_string();
+
+        let http_method = Method::Post;
+
+        // Extract host from base URL
+        let nordea_host = Url::parse(self.base_url(connectors))
+            .change_context(errors::ConnectorError::RequestEncodingFailed)?
+            .host_str()
+            .ok_or(errors::ConnectorError::RequestEncodingFailed)?
+            .to_string();
+
+        let nordea_origin_date = date_time::now_rfc7231_http_date()
+            .change_context(errors::ConnectorError::RequestEncodingFailed)?;
+
+        let full_url = self.get_url(req, connectors)?;
+        let url_parsed =
+            Url::parse(&full_url).change_context(errors::ConnectorError::RequestEncodingFailed)?;
+        let path = url_parsed.path();
+
+        let mut required_headers = vec![
+            (
+                headers::CONTENT_TYPE.to_string(),
+                content_type.clone().into(),
+            ),
+            (
+                "X-IBM-Client-ID".to_string(),
+                auth.client_id.clone().expose().into_masked(),
+            ),
+            (
+                "X-IBM-Client-Secret".to_string(),
+                auth.client_secret.clone().expose().into_masked(),
+            ),
+            (
+                "X-Nordea-Originating-Date".to_string(),
+                nordea_origin_date.clone().into_masked(),
+            ),
+            (
+                "X-Nordea-Originating-Host".to_string(),
+                nordea_host.clone().into_masked(),
+            ),
+        ];
+
+        // For POST requests, we need to calculate digest and signature
+        let nordea_request = self.get_request_body(req, connectors)?;
+        let sha256_digest = self.generate_digest_from_request(&nordea_request);
+
+        // Add Digest header
+        required_headers.push((
+            "Digest".to_string(),
+            sha256_digest.to_string().into_masked(),
+        ));
+
+        let signature = self.generate_signature(
+            &auth,
+            SignatureParams {
+                content_type: &content_type,
+                host: &nordea_host,
+                path,
+                payload_digest: Some(&sha256_digest),
+                date: &nordea_origin_date,
+                http_method,
+            },
+        )?;
+
+        required_headers.push(("Signature".to_string(), signature.into_masked()));
+
+        Ok(required_headers)
     }
 
     fn get_url(
@@ -448,8 +516,6 @@ impl ConnectorIntegration<AccessTokenAuth, AccessTokenRequestData, AccessToken> 
                 .map(|(_, value)| value.to_string())
                 .ok_or(errors::ConnectorError::MissingRequiredField { field_name: "code" })?;
 
-            println!(">>>>> AUTH_CODE: {}", code.clone());
-
             // Return auth code as "token" with short expiry
             Ok(RouterData {
                 response: Ok(AccessToken {
@@ -481,7 +547,75 @@ impl ConnectorIntegration<Session, PaymentsSessionData, PaymentsResponseData> fo
         req: &PaymentsSessionRouterData,
         connectors: &Connectors,
     ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
-        self.build_headers(req, connectors)
+        // For the OAuth token exchange request, we don't have a bearer token yet
+        // We're exchanging the auth code for an access token
+        let auth = NordeaAuthType::try_from(&req.connector_auth_type)?;
+        let content_type = self.common_get_content_type().to_string();
+        let http_method = Method::Post;
+
+        // Extract host from base URL
+        let nordea_host = Url::parse(self.base_url(connectors))
+            .change_context(errors::ConnectorError::RequestEncodingFailed)?
+            .host_str()
+            .ok_or(errors::ConnectorError::RequestEncodingFailed)?
+            .to_string();
+
+        let nordea_origin_date = date_time::now_rfc7231_http_date()
+            .change_context(errors::ConnectorError::RequestEncodingFailed)?;
+
+        let full_url = self.get_url(req, connectors)?;
+        let url_parsed =
+            Url::parse(&full_url).change_context(errors::ConnectorError::RequestEncodingFailed)?;
+        let path = url_parsed.path();
+
+        let mut required_headers = vec![
+            (
+                headers::CONTENT_TYPE.to_string(),
+                content_type.clone().into(),
+            ),
+            (
+                "X-IBM-Client-ID".to_string(),
+                auth.client_id.clone().expose().into_masked(),
+            ),
+            (
+                "X-IBM-Client-Secret".to_string(),
+                auth.client_secret.clone().expose().into_masked(),
+            ),
+            (
+                "X-Nordea-Originating-Date".to_string(),
+                nordea_origin_date.clone().into_masked(),
+            ),
+            (
+                "X-Nordea-Originating-Host".to_string(),
+                nordea_host.clone().into_masked(),
+            ),
+        ];
+
+        // For POST requests, we need to calculate digest and signature
+        let nordea_request = self.get_request_body(req, connectors)?;
+        let sha256_digest = self.generate_digest_from_request(&nordea_request);
+
+        // Add Digest header
+        required_headers.push((
+            "Digest".to_string(),
+            sha256_digest.to_string().into_masked(),
+        ));
+
+        let signature = self.generate_signature(
+            &auth,
+            SignatureParams {
+                content_type: &content_type,
+                host: &nordea_host,
+                path,
+                payload_digest: Some(&sha256_digest),
+                date: &nordea_origin_date,
+                http_method,
+            },
+        )?;
+
+        required_headers.push(("Signature".to_string(), signature.into_masked()));
+
+        Ok(required_headers)
     }
 
     fn get_content_type(&self) -> &'static str {
