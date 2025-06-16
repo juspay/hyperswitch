@@ -598,7 +598,7 @@ pub enum Flow {
     /// ThreeDs Decision Rule Execute flow
     ThreeDsDecisionRuleExecute,
     /// Tokenization delete flow
-    TokenizationDelete
+    TokenizationDelete,
 }
 
 /// Trait for providing generic behaviour to flow metric

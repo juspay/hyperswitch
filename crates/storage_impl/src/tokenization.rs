@@ -137,7 +137,8 @@ impl<T: DatabaseStore> TokenizationInterface for RouterStore<T> {
             key_manager_state,
             merchant_key_store,
             tokenization_record.update_with_id(&conn, tokenization_update),
-        ).await
+        )
+        .await
     }
 }
 
@@ -177,7 +178,12 @@ impl<T: DatabaseStore> TokenizationInterface for KVRouterStore<T> {
     ) -> CustomResult<hyperswitch_domain_models::tokenization::Tokenization, errors::StorageError>
     {
         self.router_store
-            .update_tokenization_record(tokenization_record, tokenization_update, merchant_key_store, key_manager_state)
+            .update_tokenization_record(
+                tokenization_record,
+                tokenization_update,
+                merchant_key_store,
+                key_manager_state,
+            )
             .await
     }
 }
@@ -214,7 +220,6 @@ impl TokenizationInterface for MockDb {
     {
         Err(errors::StorageError::MockDbError)?
     }
-
 }
 
 #[cfg(not(all(feature = "v2", feature = "tokenization_v2")))]

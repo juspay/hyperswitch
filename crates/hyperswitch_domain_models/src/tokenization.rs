@@ -25,7 +25,7 @@ pub struct Tokenization {
     pub version: common_enums::ApiVersion,
 }
 
-impl Tokenization{
+impl Tokenization {
     pub fn is_disabled(&self) -> bool {
         self.flag == common_enums::TokenizationFlag::Disabled
     }
