@@ -201,6 +201,20 @@ pub trait Feature<F, T> {
         Ok((None, true))
     }
 
+    async fn create_order_at_connector(
+        &mut self,
+        _state: &SessionState,
+        _connector: &api::ConnectorData,
+        should_continue_payment: bool,
+    ) -> RouterResult<bool>
+    where
+        F: Clone,
+        Self: Sized,
+        dyn api::Connector: services::ConnectorIntegration<F, T, types::PaymentsResponseData>,
+    {
+        Ok(should_continue_payment)
+    }
+
     async fn call_unified_connector_service<'a>(
         &mut self,
         _merchant_connector_account: helpers::MerchantConnectorAccountType,
@@ -652,6 +666,18 @@ impl<const T: u8>
     services::ConnectorIntegration<
         api::PostSessionTokens,
         types::PaymentsPostSessionTokensData,
+        types::PaymentsResponseData,
+    > for connector::DummyConnector<T>
+{
+}
+
+#[cfg(feature = "dummy_connector")]
+impl<const T: u8> api::PaymentsCreateOrder for connector::DummyConnector<T> {}
+#[cfg(feature = "dummy_connector")]
+impl<const T: u8>
+    services::ConnectorIntegration<
+        api::CreateOrder,
+        types::CreateOrderRequestData,
         types::PaymentsResponseData,
     > for connector::DummyConnector<T>
 {

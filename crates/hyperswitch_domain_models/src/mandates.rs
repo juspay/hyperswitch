@@ -262,10 +262,7 @@ impl MandateAmountData {
     }
 }
 
-#[cfg(all(
-    any(feature = "v1", feature = "v2"),
-    not(feature = "payment_methods_v2")
-))]
+#[cfg(feature = "v1")]
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct PaymentsMandateReferenceRecord {
     pub connector_mandate_id: String,
@@ -277,7 +274,7 @@ pub struct PaymentsMandateReferenceRecord {
     pub connector_mandate_request_reference_id: Option<String>,
 }
 
-#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+#[cfg(feature = "v2")]
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct ConnectorTokenReferenceRecord {
     pub connector_token: String,

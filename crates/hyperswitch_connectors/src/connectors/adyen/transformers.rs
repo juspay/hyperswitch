@@ -2,7 +2,7 @@
 use api_models::payouts::{self, PayoutMethodData};
 use api_models::{
     enums,
-    payments::{self, QrCodeInformation, VoucherNextStepData},
+    payments::{self, PollConfig, QrCodeInformation, VoucherNextStepData},
 };
 use cards::CardNumber;
 use common_enums::enums as storage_enums;
@@ -2551,6 +2551,8 @@ impl TryFrom<(&BankTransferData, &PaymentsAuthorizeRouterData)> for AdyenPayment
             | BankTransferData::MultibancoBankTransfer { .. }
             | BankTransferData::LocalBankTransfer { .. }
             | BankTransferData::InstantBankTransfer {}
+            | BankTransferData::InstantBankTransferFinland {}
+            | BankTransferData::InstantBankTransferPoland {}
             | BankTransferData::Pse {} => Err(errors::ConnectorError::NotImplemented(
                 utils::get_unimplemented_payment_method_error_message("Adyen"),
             )
@@ -4229,6 +4231,7 @@ pub fn get_qr_metadata(
 pub struct WaitScreenData {
     display_from_timestamp: i128,
     display_to_timestamp: Option<i128>,
+    poll_config: Option<PollConfig>,
 }
 
 pub fn get_wait_screen_metadata(
@@ -4239,14 +4242,16 @@ pub fn get_wait_screen_metadata(
             let current_time = OffsetDateTime::now_utc().unix_timestamp_nanos();
             Ok(Some(serde_json::json!(WaitScreenData {
                 display_from_timestamp: current_time,
-                display_to_timestamp: Some(current_time + Duration::minutes(1).whole_nanoseconds())
+                display_to_timestamp: Some(current_time + Duration::minutes(1).whole_nanoseconds()),
+                poll_config: None
             })))
         }
         PaymentType::Mbway => {
             let current_time = OffsetDateTime::now_utc().unix_timestamp_nanos();
             Ok(Some(serde_json::json!(WaitScreenData {
                 display_from_timestamp: current_time,
-                display_to_timestamp: None
+                display_to_timestamp: None,
+                poll_config: None
             })))
         }
         PaymentType::Affirm

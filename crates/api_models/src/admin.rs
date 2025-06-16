@@ -22,6 +22,7 @@ use crate::routing;
 use crate::{
     consts::{MAX_ORDER_FULFILLMENT_EXPIRY, MIN_ORDER_FULFILLMENT_EXPIRY},
     enums as api_enums, payment_methods,
+    profile_acquirer::ProfileAcquirerResponse,
 };
 
 #[derive(Clone, Debug, Deserialize, ToSchema, Serialize)]
@@ -2121,6 +2122,10 @@ pub struct ProfileCreate {
 
     /// Indicates if pre network tokenization is enabled or not
     pub is_pre_network_tokenization_enabled: Option<bool>,
+
+    /// Four-digit code assigned based on business type to determine processing fees and risk level
+    #[schema(value_type = Option<MerchantCategoryCode>, example = "5411")]
+    pub merchant_category_code: Option<api_enums::MerchantCategoryCode>,
 }
 
 #[nutype::nutype(
@@ -2263,6 +2268,10 @@ pub struct ProfileCreate {
 
     /// External Vault Connector Details
     pub external_vault_connector_details: Option<ExternalVaultConnectorDetails>,
+
+    /// Four-digit code assigned based on business type to determine processing fees and risk level
+    #[schema(value_type = Option<MerchantCategoryCode>, example = "5411")]
+    pub merchant_category_code: Option<api_enums::MerchantCategoryCode>,
 }
 
 #[cfg(feature = "v1")]
@@ -2427,9 +2436,17 @@ pub struct ProfileResponse {
     #[schema(default = false, example = false)]
     pub is_pre_network_tokenization_enabled: bool,
 
+    /// Acquirer configs
+    #[schema(value_type = Option<Vec<ProfileAcquirerResponse>>)]
+    pub acquirer_configs: Option<Vec<ProfileAcquirerResponse>>,
+
     /// Indicates if the redirection has to open in the iframe
     #[schema(example = false)]
     pub is_iframe_redirection_enabled: Option<bool>,
+
+    /// Four-digit code assigned based on business type to determine processing fees and risk level
+    #[schema(value_type = Option<MerchantCategoryCode>, example = "5411")]
+    pub merchant_category_code: Option<api_enums::MerchantCategoryCode>,
 }
 
 #[cfg(feature = "v2")]
@@ -2580,6 +2597,10 @@ pub struct ProfileResponse {
 
     /// External Vault Connector Details
     pub external_vault_connector_details: Option<ExternalVaultConnectorDetails>,
+
+    /// Four-digit code assigned based on business type to determine processing fees and risk level
+    #[schema(value_type = Option<MerchantCategoryCode>, example = "5411")]
+    pub merchant_category_code: Option<api_enums::MerchantCategoryCode>,
 }
 
 #[cfg(feature = "v1")]
@@ -2736,6 +2757,10 @@ pub struct ProfileUpdate {
     /// Indicates if pre network tokenization is enabled or not
     #[schema(default = false, example = false)]
     pub is_pre_network_tokenization_enabled: Option<bool>,
+
+    /// Four-digit code assigned based on business type to determine processing fees and risk level
+    #[schema(value_type = Option<MerchantCategoryCode>, example = "5411")]
+    pub merchant_category_code: Option<api_enums::MerchantCategoryCode>,
 }
 
 #[cfg(feature = "v2")]
@@ -2868,6 +2893,10 @@ pub struct ProfileUpdate {
 
     /// External Vault Connector Details
     pub external_vault_connector_details: Option<ExternalVaultConnectorDetails>,
+
+    /// Four-digit code assigned based on business type to determine processing fees and risk level
+    #[schema(value_type = Option<MerchantCategoryCode>, example = "5411")]
+    pub merchant_category_code: Option<api_enums::MerchantCategoryCode>,
 }
 
 #[derive(Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]

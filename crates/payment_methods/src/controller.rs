@@ -4,7 +4,7 @@ use std::fmt::Debug;
 use api_models::payouts;
 use api_models::{enums as api_enums, payment_methods as api};
 use common_enums::enums as common_enums;
-#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+#[cfg(feature = "v2")]
 use common_utils::encryption;
 use common_utils::{crypto, ext_traits, id_type, type_name, types::keymanager};
 use error_stack::ResultExt;
@@ -32,11 +32,7 @@ pub enum DataDuplicationCheck {
 
 #[async_trait::async_trait]
 pub trait PaymentMethodsController {
-    #[cfg(all(
-        any(feature = "v1", feature = "v2"),
-        not(feature = "payment_methods_v2"),
-        not(feature = "customer_v2")
-    ))]
+    #[cfg(feature = "v1")]
     #[allow(clippy::too_many_arguments)]
     async fn create_payment_method(
         &self,
@@ -58,10 +54,7 @@ pub trait PaymentMethodsController {
         network_token_payment_method_data: crypto::OptionalEncryptableValue,
     ) -> errors::PmResult<payment_methods::PaymentMethod>;
 
-    #[cfg(all(
-        any(feature = "v1", feature = "v2"),
-        not(feature = "payment_methods_v2")
-    ))]
+    #[cfg(feature = "v1")]
     #[allow(clippy::too_many_arguments)]
     async fn insert_payment_method(
         &self,
@@ -81,7 +74,7 @@ pub trait PaymentMethodsController {
         network_token_payment_method_data: crypto::OptionalEncryptableValue,
     ) -> errors::PmResult<payment_methods::PaymentMethod>;
 
-    #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+    #[cfg(feature = "v2")]
     #[allow(clippy::too_many_arguments)]
     async fn insert_payment_method(
         &self,
@@ -98,25 +91,19 @@ pub trait PaymentMethodsController {
         payment_method_billing_address: Option<encryption::Encryption>,
     ) -> errors::PmResult<payment_methods::PaymentMethod>;
 
-    #[cfg(all(
-        any(feature = "v1", feature = "v2"),
-        not(feature = "payment_methods_v2")
-    ))]
+    #[cfg(feature = "v1")]
     async fn add_payment_method(
         &self,
         req: &api::PaymentMethodCreate,
     ) -> errors::PmResponse<api::PaymentMethodResponse>;
 
-    #[cfg(all(
-        any(feature = "v2", feature = "v1"),
-        not(feature = "payment_methods_v2")
-    ))]
+    #[cfg(feature = "v1")]
     async fn retrieve_payment_method(
         &self,
         pm: api::PaymentMethodId,
     ) -> errors::PmResponse<api::PaymentMethodResponse>;
 
-    #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
+    #[cfg(feature = "v1")]
     async fn delete_payment_method(
         &self,
         pm_id: api::PaymentMethodId,
@@ -149,10 +136,7 @@ pub trait PaymentMethodsController {
         customer_id: &id_type::CustomerId,
     ) -> errors::VaultResult<(api::PaymentMethodResponse, Option<DataDuplicationCheck>)>;
 
-    #[cfg(all(
-        any(feature = "v1", feature = "v2"),
-        not(feature = "payment_methods_v2")
-    ))]
+    #[cfg(feature = "v1")]
     async fn get_or_insert_payment_method(
         &self,
         req: api::PaymentMethodCreate,
@@ -161,7 +145,7 @@ pub trait PaymentMethodsController {
         key_store: &merchant_key_store::MerchantKeyStore,
     ) -> errors::PmResult<payment_methods::PaymentMethod>;
 
-    #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+    #[cfg(feature = "v2")]
     async fn get_or_insert_payment_method(
         &self,
         req: api::PaymentMethodCreate,
@@ -172,19 +156,13 @@ pub trait PaymentMethodsController {
         todo!()
     }
 
-    #[cfg(all(
-        any(feature = "v2", feature = "v1"),
-        not(feature = "payment_methods_v2")
-    ))]
+    #[cfg(feature = "v1")]
     async fn get_card_details_with_locker_fallback(
         &self,
         pm: &payment_methods::PaymentMethod,
     ) -> errors::PmResult<Option<api::CardDetailFromLocker>>;
 
-    #[cfg(all(
-        any(feature = "v2", feature = "v1"),
-        not(feature = "payment_methods_v2")
-    ))]
+    #[cfg(feature = "v1")]
     async fn get_card_details_without_locker_fallback(
         &self,
         pm: &payment_methods::PaymentMethod,
@@ -197,10 +175,7 @@ pub trait PaymentMethodsController {
         card_reference: &str,
     ) -> errors::PmResult<DeleteCardResp>;
 
-    #[cfg(all(
-        any(feature = "v1", feature = "v2"),
-        not(feature = "payment_methods_v2")
-    ))]
+    #[cfg(feature = "v1")]
     fn store_default_payment_method(
         &self,
         req: &api::PaymentMethodCreate,
@@ -208,7 +183,7 @@ pub trait PaymentMethodsController {
         merchant_id: &id_type::MerchantId,
     ) -> (api::PaymentMethodResponse, Option<DataDuplicationCheck>);
 
-    #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+    #[cfg(feature = "v2")]
     fn store_default_payment_method(
         &self,
         req: &api::PaymentMethodCreate,
@@ -216,11 +191,7 @@ pub trait PaymentMethodsController {
         merchant_id: &id_type::MerchantId,
     ) -> (api::PaymentMethodResponse, Option<DataDuplicationCheck>);
 
-    #[cfg(all(
-        any(feature = "v1", feature = "v2"),
-        not(feature = "payment_methods_v2"),
-        not(feature = "customer_v2")
-    ))]
+    #[cfg(feature = "v1")]
     #[allow(clippy::too_many_arguments)]
     async fn save_network_token_and_update_payment_method(
         &self,
@@ -231,7 +202,7 @@ pub trait PaymentMethodsController {
         pm_id: String,
     ) -> errors::PmResult<bool>;
 
-    #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
+    #[cfg(feature = "v1")]
     async fn set_default_payment_method(
         &self,
         merchant_id: &id_type::MerchantId,
@@ -239,10 +210,7 @@ pub trait PaymentMethodsController {
         payment_method_id: String,
     ) -> errors::PmResponse<api_models::payment_methods::CustomerDefaultPaymentMethodResponse>;
 
-    #[cfg(all(
-        any(feature = "v1", feature = "v2"),
-        not(feature = "payment_methods_v2")
-    ))]
+    #[cfg(feature = "v1")]
     async fn add_payment_method_status_update_task(
         &self,
         payment_method: &payment_methods::PaymentMethod,
