@@ -1290,7 +1290,7 @@ impl RecoveryPaymentTuple {
                     .payment_revenue_recovery_metadata
                     .as_ref()
                     .and_then(|data| data.billing_connector_payment_method_details.as_ref())
-                    .and_then(|details| details.get_billing_connector_card_info().clone())
+                    .and_then(|details| details.get_billing_connector_card_info())
             });
 
         let event = RevenueRecovery {
