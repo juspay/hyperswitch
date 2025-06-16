@@ -27,7 +27,6 @@ use hyperswitch_domain_models::{
 };
 use hyperswitch_interfaces::{consts::NO_ERROR_CODE, errors};
 use masking::{ExposeInterface, Secret};
-use rand::distributions::{Alphanumeric, DistString};
 use serde::{Deserialize, Serialize};
 use strum::Display;
 
@@ -41,17 +40,13 @@ use crate::{
     },
 };
 
-const MAX_ORDER_ID_LENGTH: usize = 18;
+const MAX_ORDER_ID_LENGTH: usize = 16;
 const MAX_CARD_HOLDER_LENGTH: usize = 255;
 const MAX_BILLING_ADDRESS_NAME_LENGTH: usize = 50;
 const MAX_BILLING_ADDRESS_STREET_LENGTH: usize = 50;
 const MAX_BILLING_ADDRESS_CITY_LENGTH: usize = 40;
 const MAX_BILLING_ADDRESS_POST_CODE_LENGTH: usize = 16;
 const MAX_BILLING_ADDRESS_COUNTRY_LENGTH: usize = 3;
-
-fn get_random_string() -> String {
-    Alphanumeric.sample_string(&mut rand::thread_rng(), MAX_ORDER_ID_LENGTH)
-}
 
 pub struct NexixpayRouterData<T> {
     pub amount: StringMinorUnit,
@@ -497,7 +492,14 @@ impl TryFrom<&NexixpayRouterData<&PaymentsAuthorizeRouterData>> for NexixpayPaym
             if item.router_data.connector_request_reference_id.len() <= MAX_ORDER_ID_LENGTH {
                 item.router_data.connector_request_reference_id.clone()
             } else {
-                get_random_string()
+                return Err(error_stack::Report::from(
+                    errors::ConnectorError::MaxFieldLengthViolated {
+                        field_name: "payment_id".to_string(),
+                        connector: "Nexixpay".to_string(),
+                        max_length: MAX_ORDER_ID_LENGTH,
+                        received_length: item.router_data.connector_request_reference_id.len(),
+                    },
+                ));
             };
         let billing_address_street = match (
             item.router_data.get_optional_billing_line1(),
@@ -519,22 +521,31 @@ impl TryFrom<&NexixpayRouterData<&PaymentsAuthorizeRouterData>> for NexixpayPaym
             .map(|_| {
                 let name = item.router_data.get_optional_billing_full_name();
                 if let Some(ref val) = name {
-                    if val.clone().expose().len() > MAX_BILLING_ADDRESS_NAME_LENGTH {
+                    let length = val.clone().expose().len();
+                    if length > MAX_BILLING_ADDRESS_NAME_LENGTH {
                         return Err(error_stack::Report::from(
                             errors::ConnectorError::MaxFieldLengthViolated {
-                                field_name: "Billing Name".to_string(),
+                                field_name:
+                                    "billing.address.first_name & billing.address.last_name"
+                                        .to_string(),
                                 connector: "Nexixpay".to_string(),
+                                max_length: MAX_BILLING_ADDRESS_NAME_LENGTH,
+                                received_length: length,
                             },
                         ));
                     }
                 }
 
                 if let Some(ref val) = billing_address_street {
-                    if val.clone().expose().len() > MAX_BILLING_ADDRESS_STREET_LENGTH {
+                    let length = val.clone().expose().len();
+                    if length > MAX_BILLING_ADDRESS_STREET_LENGTH {
                         return Err(error_stack::Report::from(
                             errors::ConnectorError::MaxFieldLengthViolated {
-                                field_name: "Billing Street".to_string(),
+                                field_name: "billing.address.line1 & billing.address.line2"
+                                    .to_string(),
                                 connector: "Nexixpay".to_string(),
+                                max_length: MAX_BILLING_ADDRESS_STREET_LENGTH,
+                                received_length: length,
                             },
                         ));
                     }
@@ -542,11 +553,14 @@ impl TryFrom<&NexixpayRouterData<&PaymentsAuthorizeRouterData>> for NexixpayPaym
 
                 let city = item.router_data.get_optional_billing_city();
                 if let Some(ref val) = city {
-                    if val.len() > MAX_BILLING_ADDRESS_CITY_LENGTH {
+                    let length = val.len();
+                    if length > MAX_BILLING_ADDRESS_CITY_LENGTH {
                         return Err(error_stack::Report::from(
                             errors::ConnectorError::MaxFieldLengthViolated {
-                                field_name: "Billing City".to_string(),
+                                field_name: "billing.address.city".to_string(),
                                 connector: "Nexixpay".to_string(),
+                                max_length: MAX_BILLING_ADDRESS_CITY_LENGTH,
+                                received_length: length,
                             },
                         ));
                     }
@@ -554,11 +568,14 @@ impl TryFrom<&NexixpayRouterData<&PaymentsAuthorizeRouterData>> for NexixpayPaym
 
                 let post_code = item.router_data.get_optional_billing_zip();
                 if let Some(ref val) = post_code {
-                    if val.clone().expose().len() > MAX_BILLING_ADDRESS_POST_CODE_LENGTH {
+                    let length = val.clone().expose().len();
+                    if length > MAX_BILLING_ADDRESS_POST_CODE_LENGTH {
                         return Err(error_stack::Report::from(
                             errors::ConnectorError::MaxFieldLengthViolated {
-                                field_name: "Billing Postal Code".to_string(),
+                                field_name: "billing.address.zip".to_string(),
                                 connector: "Nexixpay".to_string(),
+                                max_length: MAX_BILLING_ADDRESS_POST_CODE_LENGTH,
+                                received_length: length,
                             },
                         ));
                     }
@@ -566,11 +583,14 @@ impl TryFrom<&NexixpayRouterData<&PaymentsAuthorizeRouterData>> for NexixpayPaym
 
                 let country = item.router_data.get_optional_billing_country();
                 if let Some(ref val) = country {
-                    if val.to_string().len() > MAX_BILLING_ADDRESS_COUNTRY_LENGTH {
+                    let length = val.to_string().len();
+                    if length > MAX_BILLING_ADDRESS_COUNTRY_LENGTH {
                         return Err(error_stack::Report::from(
                             errors::ConnectorError::MaxFieldLengthViolated {
-                                field_name: "Billing Country".to_string(),
+                                field_name: "billing.address.country".to_string(),
                                 connector: "Nexixpay".to_string(),
+                                max_length: MAX_BILLING_ADDRESS_COUNTRY_LENGTH,
+                                received_length: length,
                             },
                         ));
                     }
@@ -599,29 +619,37 @@ impl TryFrom<&NexixpayRouterData<&PaymentsAuthorizeRouterData>> for NexixpayPaym
             (None, Some(line2)) => Some(Secret::new(line2.expose())),
             (None, None) => None,
         };
-
         let shipping_address = item
             .router_data
             .get_optional_shipping()
             .map(|_| {
                 let name = item.router_data.get_optional_shipping_full_name();
                 if let Some(ref val) = name {
-                    if val.clone().expose().len() > MAX_BILLING_ADDRESS_NAME_LENGTH {
+                    let length = val.clone().expose().len();
+                    if length > MAX_BILLING_ADDRESS_NAME_LENGTH {
                         return Err(error_stack::Report::from(
                             errors::ConnectorError::MaxFieldLengthViolated {
-                                field_name: "Shipping Name".to_string(),
+                                field_name:
+                                    "shipping.address.first_name & shipping.address.last_name"
+                                        .to_string(),
                                 connector: "Nexixpay".to_string(),
+                                max_length: MAX_BILLING_ADDRESS_NAME_LENGTH,
+                                received_length: length,
                             },
                         ));
                     }
                 }
 
                 if let Some(ref val) = shipping_address_street {
-                    if val.clone().expose().len() > MAX_BILLING_ADDRESS_STREET_LENGTH {
+                    let length = val.clone().expose().len();
+                    if length > MAX_BILLING_ADDRESS_STREET_LENGTH {
                         return Err(error_stack::Report::from(
                             errors::ConnectorError::MaxFieldLengthViolated {
-                                field_name: "Shipping Street".to_string(),
+                                field_name: "shipping.address.line1 & shipping.address.line2"
+                                    .to_string(),
                                 connector: "Nexixpay".to_string(),
+                                max_length: MAX_BILLING_ADDRESS_STREET_LENGTH,
+                                received_length: length,
                             },
                         ));
                     }
@@ -629,11 +657,14 @@ impl TryFrom<&NexixpayRouterData<&PaymentsAuthorizeRouterData>> for NexixpayPaym
 
                 let city = item.router_data.get_optional_shipping_city();
                 if let Some(ref val) = city {
-                    if val.len() > MAX_BILLING_ADDRESS_CITY_LENGTH {
+                    let length = val.len();
+                    if length > MAX_BILLING_ADDRESS_CITY_LENGTH {
                         return Err(error_stack::Report::from(
                             errors::ConnectorError::MaxFieldLengthViolated {
-                                field_name: "Shipping City".to_string(),
+                                field_name: "shipping.address.city".to_string(),
                                 connector: "Nexixpay".to_string(),
+                                max_length: MAX_BILLING_ADDRESS_CITY_LENGTH,
+                                received_length: length,
                             },
                         ));
                     }
@@ -641,17 +672,33 @@ impl TryFrom<&NexixpayRouterData<&PaymentsAuthorizeRouterData>> for NexixpayPaym
 
                 let post_code = item.router_data.get_optional_shipping_zip();
                 if let Some(ref val) = post_code {
-                    if val.clone().expose().len() > MAX_BILLING_ADDRESS_POST_CODE_LENGTH {
+                    let length = val.clone().expose().len();
+                    if length > MAX_BILLING_ADDRESS_POST_CODE_LENGTH {
                         return Err(error_stack::Report::from(
                             errors::ConnectorError::MaxFieldLengthViolated {
-                                field_name: "Shipping Postal Code".to_string(),
+                                field_name: "shipping.address.zip".to_string(),
                                 connector: "Nexixpay".to_string(),
+                                max_length: MAX_BILLING_ADDRESS_POST_CODE_LENGTH,
+                                received_length: length,
                             },
                         ));
                     }
                 }
 
                 let country = item.router_data.get_optional_shipping_country();
+                if let Some(ref val) = country {
+                    let length = val.to_string().len();
+                    if length > MAX_BILLING_ADDRESS_COUNTRY_LENGTH {
+                        return Err(error_stack::Report::from(
+                            errors::ConnectorError::MaxFieldLengthViolated {
+                                field_name: "shipping.address.country".to_string(),
+                                connector: "Nexixpay".to_string(),
+                                max_length: MAX_BILLING_ADDRESS_COUNTRY_LENGTH,
+                                received_length: length,
+                            },
+                        ));
+                    }
+                }
 
                 Ok(ShippingAddress {
                     name,
@@ -662,14 +709,22 @@ impl TryFrom<&NexixpayRouterData<&PaymentsAuthorizeRouterData>> for NexixpayPaym
                 })
             })
             .transpose()?;
+
         let customer_info = CustomerInfo {
             card_holder_name: match item.router_data.get_billing_full_name()? {
                 name if name.clone().expose().len() <= MAX_CARD_HOLDER_LENGTH => name,
                 _ => {
                     return Err(error_stack::Report::from(
                         errors::ConnectorError::MaxFieldLengthViolated {
-                            field_name: "Card Holder Name".to_string(),
+                            field_name: "billing.address.first_name & billing.address.last_name"
+                                .to_string(),
                             connector: "Nexixpay".to_string(),
+                            max_length: MAX_CARD_HOLDER_LENGTH,
+                            received_length: item
+                                .router_data
+                                .get_billing_full_name()?
+                                .expose()
+                                .len(),
                         },
                     ))
                 }
@@ -1238,7 +1293,14 @@ impl TryFrom<&NexixpayRouterData<&PaymentsCompleteAuthorizeRouterData>>
             if item.router_data.connector_request_reference_id.len() <= MAX_ORDER_ID_LENGTH {
                 item.router_data.connector_request_reference_id.clone()
             } else {
-                get_random_string()
+                return Err(error_stack::Report::from(
+                    errors::ConnectorError::MaxFieldLengthViolated {
+                        field_name: "payment_id".to_string(),
+                        connector: "Nexixpay".to_string(),
+                        max_length: MAX_ORDER_ID_LENGTH,
+                        received_length: item.router_data.connector_request_reference_id.len(),
+                    },
+                ));
             };
         let amount = item.amount.clone();
         let billing_address_street = match (
@@ -1254,28 +1316,38 @@ impl TryFrom<&NexixpayRouterData<&PaymentsCompleteAuthorizeRouterData>>
             (None, Some(line2)) => Some(line2),
             (None, None) => None,
         };
+
         let billing_address = item
             .router_data
             .get_optional_billing()
             .map(|_| {
                 let name = item.router_data.get_optional_billing_full_name();
                 if let Some(ref val) = name {
-                    if val.clone().expose().len() > MAX_BILLING_ADDRESS_NAME_LENGTH {
+                    let length = val.clone().expose().len();
+                    if length > MAX_BILLING_ADDRESS_NAME_LENGTH {
                         return Err(error_stack::Report::from(
                             errors::ConnectorError::MaxFieldLengthViolated {
-                                field_name: "Billing Name".to_string(),
+                                field_name:
+                                    "billing.address.first_name & billing.address.last_name"
+                                        .to_string(),
                                 connector: "Nexixpay".to_string(),
+                                max_length: MAX_BILLING_ADDRESS_NAME_LENGTH,
+                                received_length: length,
                             },
                         ));
                     }
                 }
 
                 if let Some(ref val) = billing_address_street {
-                    if val.clone().expose().len() > MAX_BILLING_ADDRESS_STREET_LENGTH {
+                    let length = val.clone().expose().len();
+                    if length > MAX_BILLING_ADDRESS_STREET_LENGTH {
                         return Err(error_stack::Report::from(
                             errors::ConnectorError::MaxFieldLengthViolated {
-                                field_name: "Billing Street".to_string(),
+                                field_name: "billing.address.line1 & billing.address.line2"
+                                    .to_string(),
                                 connector: "Nexixpay".to_string(),
+                                max_length: MAX_BILLING_ADDRESS_STREET_LENGTH,
+                                received_length: length,
                             },
                         ));
                     }
@@ -1283,11 +1355,14 @@ impl TryFrom<&NexixpayRouterData<&PaymentsCompleteAuthorizeRouterData>>
 
                 let city = item.router_data.get_optional_billing_city();
                 if let Some(ref val) = city {
-                    if val.len() > MAX_BILLING_ADDRESS_CITY_LENGTH {
+                    let length = val.len();
+                    if length > MAX_BILLING_ADDRESS_CITY_LENGTH {
                         return Err(error_stack::Report::from(
                             errors::ConnectorError::MaxFieldLengthViolated {
-                                field_name: "Billing City".to_string(),
+                                field_name: "billing.address.city".to_string(),
                                 connector: "Nexixpay".to_string(),
+                                max_length: MAX_BILLING_ADDRESS_CITY_LENGTH,
+                                received_length: length,
                             },
                         ));
                     }
@@ -1295,11 +1370,14 @@ impl TryFrom<&NexixpayRouterData<&PaymentsCompleteAuthorizeRouterData>>
 
                 let post_code = item.router_data.get_optional_billing_zip();
                 if let Some(ref val) = post_code {
-                    if val.clone().expose().len() > MAX_BILLING_ADDRESS_POST_CODE_LENGTH {
+                    let length = val.clone().expose().len();
+                    if length > MAX_BILLING_ADDRESS_POST_CODE_LENGTH {
                         return Err(error_stack::Report::from(
                             errors::ConnectorError::MaxFieldLengthViolated {
-                                field_name: "Billing Postal Code".to_string(),
+                                field_name: "billing.address.zip".to_string(),
                                 connector: "Nexixpay".to_string(),
+                                max_length: MAX_BILLING_ADDRESS_POST_CODE_LENGTH,
+                                received_length: length,
                             },
                         ));
                     }
@@ -1307,11 +1385,14 @@ impl TryFrom<&NexixpayRouterData<&PaymentsCompleteAuthorizeRouterData>>
 
                 let country = item.router_data.get_optional_billing_country();
                 if let Some(ref val) = country {
-                    if val.to_string().len() > MAX_BILLING_ADDRESS_COUNTRY_LENGTH {
+                    let length = val.to_string().len();
+                    if length > MAX_BILLING_ADDRESS_COUNTRY_LENGTH {
                         return Err(error_stack::Report::from(
                             errors::ConnectorError::MaxFieldLengthViolated {
-                                field_name: "Billing Country".to_string(),
+                                field_name: "billing.address.country".to_string(),
                                 connector: "Nexixpay".to_string(),
+                                max_length: MAX_BILLING_ADDRESS_COUNTRY_LENGTH,
+                                received_length: length,
                             },
                         ));
                     }
@@ -1326,6 +1407,7 @@ impl TryFrom<&NexixpayRouterData<&PaymentsCompleteAuthorizeRouterData>>
                 })
             })
             .transpose()?;
+
         let shipping_address_street = match (
             item.router_data.get_optional_shipping_line1(),
             item.router_data.get_optional_shipping_line2(),
@@ -1346,22 +1428,31 @@ impl TryFrom<&NexixpayRouterData<&PaymentsCompleteAuthorizeRouterData>>
             .map(|_| {
                 let name = item.router_data.get_optional_shipping_full_name();
                 if let Some(ref val) = name {
-                    if val.clone().expose().len() > MAX_BILLING_ADDRESS_NAME_LENGTH {
+                    let length = val.clone().expose().len();
+                    if length > MAX_BILLING_ADDRESS_NAME_LENGTH {
                         return Err(error_stack::Report::from(
                             errors::ConnectorError::MaxFieldLengthViolated {
-                                field_name: "Shipping Name".to_string(),
+                                field_name:
+                                    "shipping.address.first_name & shipping.address.last_name"
+                                        .to_string(),
                                 connector: "Nexixpay".to_string(),
+                                max_length: MAX_BILLING_ADDRESS_NAME_LENGTH,
+                                received_length: length,
                             },
                         ));
                     }
                 }
 
                 if let Some(ref val) = shipping_address_street {
-                    if val.clone().expose().len() > MAX_BILLING_ADDRESS_STREET_LENGTH {
+                    let length = val.clone().expose().len();
+                    if length > MAX_BILLING_ADDRESS_STREET_LENGTH {
                         return Err(error_stack::Report::from(
                             errors::ConnectorError::MaxFieldLengthViolated {
-                                field_name: "Shipping Street".to_string(),
+                                field_name: "shipping.address.line1 & shipping.address.line2"
+                                    .to_string(),
                                 connector: "Nexixpay".to_string(),
+                                max_length: MAX_BILLING_ADDRESS_STREET_LENGTH,
+                                received_length: length,
                             },
                         ));
                     }
@@ -1369,11 +1460,14 @@ impl TryFrom<&NexixpayRouterData<&PaymentsCompleteAuthorizeRouterData>>
 
                 let city = item.router_data.get_optional_shipping_city();
                 if let Some(ref val) = city {
-                    if val.len() > MAX_BILLING_ADDRESS_CITY_LENGTH {
+                    let length = val.len();
+                    if length > MAX_BILLING_ADDRESS_CITY_LENGTH {
                         return Err(error_stack::Report::from(
                             errors::ConnectorError::MaxFieldLengthViolated {
-                                field_name: "Shipping City".to_string(),
+                                field_name: "shipping.address.city".to_string(),
                                 connector: "Nexixpay".to_string(),
+                                max_length: MAX_BILLING_ADDRESS_CITY_LENGTH,
+                                received_length: length,
                             },
                         ));
                     }
@@ -1381,17 +1475,33 @@ impl TryFrom<&NexixpayRouterData<&PaymentsCompleteAuthorizeRouterData>>
 
                 let post_code = item.router_data.get_optional_shipping_zip();
                 if let Some(ref val) = post_code {
-                    if val.clone().expose().len() > MAX_BILLING_ADDRESS_POST_CODE_LENGTH {
+                    let length = val.clone().expose().len();
+                    if length > MAX_BILLING_ADDRESS_POST_CODE_LENGTH {
                         return Err(error_stack::Report::from(
                             errors::ConnectorError::MaxFieldLengthViolated {
-                                field_name: "Shipping Postal Code".to_string(),
+                                field_name: "shipping.address.zip".to_string(),
                                 connector: "Nexixpay".to_string(),
+                                max_length: MAX_BILLING_ADDRESS_POST_CODE_LENGTH,
+                                received_length: length,
                             },
                         ));
                     }
                 }
 
                 let country = item.router_data.get_optional_shipping_country();
+                if let Some(ref val) = country {
+                    let length = val.to_string().len();
+                    if length > MAX_BILLING_ADDRESS_COUNTRY_LENGTH {
+                        return Err(error_stack::Report::from(
+                            errors::ConnectorError::MaxFieldLengthViolated {
+                                field_name: "shipping.address.country".to_string(),
+                                connector: "Nexixpay".to_string(),
+                                max_length: MAX_BILLING_ADDRESS_COUNTRY_LENGTH,
+                                received_length: length,
+                            },
+                        ));
+                    }
+                }
 
                 Ok(ShippingAddress {
                     name,
@@ -1402,6 +1512,7 @@ impl TryFrom<&NexixpayRouterData<&PaymentsCompleteAuthorizeRouterData>>
                 })
             })
             .transpose()?;
+
         let customer_info = CustomerInfo {
             card_holder_name: item.router_data.get_billing_full_name()?,
             billing_address: billing_address.clone(),

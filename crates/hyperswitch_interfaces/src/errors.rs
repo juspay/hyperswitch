@@ -127,8 +127,10 @@ pub enum ConnectorError {
     },
     #[error("Field '{field_name}' is too long for connector '{connector}'")]
     MaxFieldLengthViolated {
-        field_name: String,
         connector: String,
+        field_name: String,
+        max_length: usize,
+        received_length: usize,
     },
 }
 
