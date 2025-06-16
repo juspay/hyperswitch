@@ -2,24 +2,24 @@ use api_models::admin::ConnectorAuthType;
 use common_enums::{enums::PaymentMethod, AttemptStatus, AuthenticationType};
 use common_utils::{errors::CustomResult, ext_traits::ValueExt};
 use error_stack::ResultExt;
-use external_services::grpc_client::unified_connector_service::UnifiedConnectorService;
+use external_services::grpc_client::unified_connector_service::{
+    UnifiedConnectorService, UnifiedConnectorServiceError,
+};
 use hyperswitch_connectors::utils::CardData;
 use hyperswitch_domain_models::{
-    errors::api_error_response::ApiErrorResponse,
     merchant_context::MerchantContext,
     router_data::{ErrorResponse, RouterData},
     router_flow_types::payments::Authorize,
     router_request_types::PaymentsAuthorizeData,
     router_response_types::PaymentsResponseData,
 };
-use hyperswitch_interfaces::errors::ConnectorError;
 use masking::{ExposeInterface, PeekInterface};
 use rand::Rng;
 use rust_grpc_client::payments::{self as payments_grpc};
-use tonic::metadata::MetadataMap;
+use tonic::metadata::{MetadataMap, MetadataValue};
 
 use crate::{
-    consts::UCS_ROLLOUT_PERCENT_CONFIG_PREFIX,
+    consts,
     core::{
         errors::RouterResult, payments::helpers::MerchantConnectorAccountType, utils::get_flow_name,
     },
@@ -44,7 +44,7 @@ pub async fn should_call_unified_connector_service<F: Clone, T>(
 
     let config_key = format!(
         "{}_{}_{}_{}_{}",
-        UCS_ROLLOUT_PERCENT_CONFIG_PREFIX, merchant_id, connector_name, payment_method, flow_name
+        consts::UCS_ROLLOUT_PERCENT_CONFIG_PREFIX, merchant_id, connector_name, payment_method, flow_name
     );
 
     let db = state.store.as_ref();
@@ -72,13 +72,14 @@ pub async fn should_call_unified_connector_service<F: Clone, T>(
 }
 
 pub fn construct_ucs_request_metadata(
-    metadata: &mut MetadataMap,
     merchant_connector_account: MerchantConnectorAccountType,
-) -> RouterResult<()> {
+) -> CustomResult<MetadataMap, UnifiedConnectorServiceError> {
+    let mut metadata = MetadataMap::new();
+
     let auth_type: ConnectorAuthType = merchant_connector_account
         .get_connector_account_details()
         .parse_value("ConnectorAuthType")
-        .change_context(ApiErrorResponse::InternalServerError)
+        .change_context(UnifiedConnectorServiceError::FailedToObtainAuthType)
         .attach_printable("Failed while parsing value for ConnectorAuthType")?;
 
     let connector_name = {
@@ -86,7 +87,7 @@ pub fn construct_ucs_request_metadata(
         {
             merchant_connector_account
                 .get_connector_name()
-                .ok_or_else(|| ApiErrorResponse::InternalServerError)
+                .ok_or_else(|| UnifiedConnectorServiceError::MissingConnectorName)
                 .attach_printable("Missing connector name")?
         }
 
@@ -95,17 +96,29 @@ pub fn construct_ucs_request_metadata(
             merchant_connector_account
                 .get_connector_name()
                 .map(|connector| connector.to_string())
-                .ok_or_else(|| ApiErrorResponse::InternalServerError)
+                .ok_or_else(|| UnifiedConnectorServiceError::MissingConnectorName)
                 .attach_printable("Missing connector name")?
         }
     };
 
     let parsed_connector_name = connector_name
-        .parse()
-        .map_err(|_| ApiErrorResponse::InternalServerError)
-        .attach_printable_lazy(|| format!("Failed to parse connector name: {connector_name}"))?;
+        .parse::<MetadataValue<_>>()
+        .change_context(UnifiedConnectorServiceError::InvalidConnectorName)
+        .attach_printable(format!("Failed to parse connector name: {connector_name}"))?;
 
-    metadata.append("x-connector", parsed_connector_name);
+    metadata.append(consts::UCS_HEADER_CONNECTOR, parsed_connector_name);
+
+    let parse_metadata_value =
+        |value: &str,
+         context: &str|
+         -> CustomResult<MetadataValue<_>, UnifiedConnectorServiceError> {
+            value
+                .parse::<MetadataValue<_>>()
+                .change_context(UnifiedConnectorServiceError::HeaderInjectionFailed(
+                    context.to_string(),
+                ))
+                .attach_printable(format!("Failed to parse metadata value for {context}: {value}"))
+        };
 
     match &auth_type {
         ConnectorAuthType::SignatureKey {
@@ -114,81 +127,59 @@ pub fn construct_ucs_request_metadata(
             api_secret,
         } => {
             metadata.append(
-                "x-auth",
-                "signature-key"
-                    .parse()
-                    .map_err(|_| ApiErrorResponse::InternalServerError)?,
+                consts::UCS_HEADER_AUTH_TYPE,
+                parse_metadata_value(consts::UCS_AUTH_SIGNATURE_KEY, consts::UCS_HEADER_AUTH_TYPE)?,
             );
             metadata.append(
-                "x-api-key",
-                api_key
-                    .peek()
-                    .parse()
-                    .map_err(|_| ApiErrorResponse::InternalServerError)?,
+                consts::UCS_HEADER_API_KEY,
+                parse_metadata_value(&api_key.peek(), consts::UCS_HEADER_API_KEY)?,
             );
             metadata.append(
-                "x-key1",
-                key1.peek()
-                    .parse()
-                    .map_err(|_| ApiErrorResponse::InternalServerError)?,
+                consts::UCS_HEADER_KEY1,
+                parse_metadata_value(&key1.peek(), consts::UCS_HEADER_KEY1)?,
             );
             metadata.append(
-                "x-api-secret",
-                api_secret
-                    .peek()
-                    .parse()
-                    .map_err(|_| ApiErrorResponse::InternalServerError)?,
+                consts::UCS_HEADER_API_SECRET,
+                parse_metadata_value(&api_secret.peek(), consts::UCS_HEADER_API_SECRET)?,
             );
         }
         ConnectorAuthType::BodyKey { api_key, key1 } => {
             metadata.append(
-                "x-auth",
-                "body-key"
-                    .parse()
-                    .map_err(|_| ApiErrorResponse::InternalServerError)?,
+                consts::UCS_HEADER_AUTH_TYPE,
+                parse_metadata_value(consts::UCS_AUTH_BODY_KEY, consts::UCS_HEADER_AUTH_TYPE)?,
             );
             metadata.append(
-                "x-api-key",
-                api_key
-                    .peek()
-                    .parse()
-                    .map_err(|_| ApiErrorResponse::InternalServerError)?,
+                consts::UCS_HEADER_API_KEY,
+                parse_metadata_value(&api_key.peek(), consts::UCS_HEADER_API_KEY)?,
             );
             metadata.append(
-                "x-key1",
-                key1.peek()
-                    .parse()
-                    .map_err(|_| ApiErrorResponse::InternalServerError)?,
+                consts::UCS_HEADER_KEY1,
+                parse_metadata_value(&key1.peek(), consts::UCS_HEADER_KEY1)?,
             );
         }
         ConnectorAuthType::HeaderKey { api_key } => {
             metadata.append(
-                "x-auth",
-                "header-key"
-                    .parse()
-                    .map_err(|_| ApiErrorResponse::InternalServerError)?,
+                consts::UCS_HEADER_AUTH_TYPE,
+                parse_metadata_value(consts::UCS_AUTH_HEADER_KEY, consts::UCS_HEADER_AUTH_TYPE)?,
             );
             metadata.append(
-                "x-api-key",
-                api_key
-                    .peek()
-                    .parse()
-                    .map_err(|_| ApiErrorResponse::InternalServerError)?,
+                consts::UCS_HEADER_API_KEY,
+                parse_metadata_value(&api_key.peek(), consts::UCS_HEADER_API_KEY)?,
             );
         }
         _ => {
-            return Err(ApiErrorResponse::InternalServerError)
+            return Err(UnifiedConnectorServiceError::FailedToObtainAuthType)
                 .attach_printable("Unsupported ConnectorAuthType for header injection")?;
         }
     }
 
-    Ok(())
+    Ok(metadata)
 }
 
 impl ForeignTryFrom<&RouterData<Authorize, PaymentsAuthorizeData, PaymentsResponseData>>
     for payments_grpc::PaymentsAuthorizeRequest
 {
-    type Error = error_stack::Report<ConnectorError>;
+    type Error = error_stack::Report<UnifiedConnectorServiceError>;
 
     fn foreign_try_from(
         router_data: &RouterData<Authorize, PaymentsAuthorizeData, PaymentsResponseData>,
@@ -244,23 +235,25 @@ impl ForeignTryFrom<&RouterData<Authorize, PaymentsAuthorizeData, PaymentsRespon
 }
 
 impl ForeignTryFrom<common_enums::Currency> for payments_grpc::Currency {
-    type Error = error_stack::Report<ConnectorError>;
+    type Error = error_stack::Report<UnifiedConnectorServiceError>;
 
     fn foreign_try_from(currency: common_enums::Currency) -> Result<Self, Self::Error> {
         Self::from_str_name(&currency.to_string()).ok_or_else(|| {
-            ConnectorError::RequestEncodingFailedWithReason("Failed to parse currency".to_string())
-                .into()
+            UnifiedConnectorServiceError::RequestEncodingFailedWithReason(
+                "Failed to parse currency".to_string(),
+            )
+            .into()
         })
     }
 }
 
 impl ForeignTryFrom<PaymentMethod> for payments_grpc::PaymentMethod {
-    type Error = error_stack::Report<ConnectorError>;
+    type Error = error_stack::Report<UnifiedConnectorServiceError>;
 
     fn foreign_try_from(payment_method: PaymentMethod) -> Result<Self, Self::Error> {
         match payment_method {
             PaymentMethod::Card => Ok(Self::Card),
-            _ => Err(ConnectorError::NotImplemented(format!(
+            _ => Err(UnifiedConnectorServiceError::NotImplemented(format!(
                 "Unimplemented payment method: {:?}",
                 payment_method
             ))
@@ -272,7 +265,7 @@ impl ForeignTryFrom<PaymentMethod> for payments_grpc::PaymentMethod {
 impl ForeignTryFrom<hyperswitch_domain_models::payment_method_data::PaymentMethodData>
     for payments_grpc::PaymentMethodData
 {
-    type Error = error_stack::Report<ConnectorError>;
+    type Error = error_stack::Report<UnifiedConnectorServiceError>;
 
     fn foreign_try_from(
         payment_method_data: hyperswitch_domain_models::payment_method_data::PaymentMethodData,
@@ -287,7 +280,10 @@ impl ForeignTryFrom<hyperswitch_domain_models::payment_method_data::PaymentMetho
                                 .get_card_expiry_month_2_digit()
                                 .attach_printable(
                                     "Failed to extract 2-digit expiry month from card",
-                                )?
+                                )
+                                .change_context(UnifiedConnectorServiceError::InvalidDataFormat {
+                                    field_name: "card_exp_month",
+                                })?
                                 .peek()
                                 .to_string(),
                             card_exp_year: card.get_expiry_year_4_digit().peek().to_string(),
@@ -297,7 +293,7 @@ impl ForeignTryFrom<hyperswitch_domain_models::payment_method_data::PaymentMetho
                     )),
                 })
             }
-            _ => Err(ConnectorError::NotImplemented(format!(
+            _ => Err(UnifiedConnectorServiceError::NotImplemented(format!(
                 "Unimplemented payment method: {:?}",
                 payment_method_data
             ))
@@ -309,7 +305,7 @@ impl ForeignTryFrom<hyperswitch_domain_models::payment_method_data::PaymentMetho
 impl ForeignTryFrom<hyperswitch_domain_models::payment_address::PaymentAddress>
     for payments_grpc::PaymentAddress
 {
-    type Error = error_stack::Report<ConnectorError>;
+    type Error = error_stack::Report<UnifiedConnectorServiceError>;
 
     fn foreign_try_from(
         payment_address: hyperswitch_domain_models::payment_address::PaymentAddress,
@@ -325,7 +321,7 @@ impl ForeignTryFrom<hyperswitch_domain_models::payment_address::PaymentAddress>
                         })
                     })
                     .ok_or_else(|| {
-                        ConnectorError::RequestEncodingFailedWithReason(
+                        UnifiedConnectorServiceError::RequestEncodingFailedWithReason(
                             "Invalid country code".to_string(),
                         )
                     })
@@ -370,7 +366,7 @@ impl ForeignTryFrom<hyperswitch_domain_models::payment_address::PaymentAddress>
                         })
                     })
                     .ok_or_else(|| {
-                        ConnectorError::RequestEncodingFailedWithReason(
+                        UnifiedConnectorServiceError::RequestEncodingFailedWithReason(
                             "Invalid country code".to_string(),
                         )
                     })
@@ -415,7 +411,7 @@ impl ForeignTryFrom<hyperswitch_domain_models::payment_address::PaymentAddress>
                         })
                     })
                     .ok_or_else(|| {
-                        ConnectorError::RequestEncodingFailedWithReason(
+                        UnifiedConnectorServiceError::RequestEncodingFailedWithReason(
                             "Invalid country code".to_string(),
                         )
                     })
@@ -459,7 +455,7 @@ impl ForeignTryFrom<hyperswitch_domain_models::payment_address::PaymentAddress>
 }
 
 impl ForeignTryFrom<AuthenticationType> for payments_grpc::AuthenticationType {
-    type Error = error_stack::Report<ConnectorError>;
+    type Error = error_stack::Report<UnifiedConnectorServiceError>;
 
     fn foreign_try_from(auth_type: AuthenticationType) -> Result<Self, Self::Error> {
         match auth_type {
@@ -472,7 +468,7 @@ impl ForeignTryFrom<AuthenticationType> for payments_grpc::AuthenticationType {
 impl ForeignTryFrom<hyperswitch_domain_models::router_request_types::BrowserInformation>
     for payments_grpc::BrowserInformation
 {
-    type Error = error_stack::Report<ConnectorError>;
+    type Error = error_stack::Report<UnifiedConnectorServiceError>;
 
     fn foreign_try_from(
         browser_info: hyperswitch_domain_models::router_request_types::BrowserInformation,
@@ -497,7 +493,7 @@ impl ForeignTryFrom<hyperswitch_domain_models::router_request_types::BrowserInfo
 }
 
 impl ForeignTryFrom<payments_grpc::AttemptStatus> for AttemptStatus {
-    type Error = error_stack::Report<ConnectorError>;
+    type Error = error_stack::Report<UnifiedConnectorServiceError>;
 
     fn foreign_try_from(grpc_status: payments_grpc::AttemptStatus) -> Result<Self, Self::Error> {
         match grpc_status {
@@ -538,7 +534,7 @@ impl ForeignTryFrom<payments_grpc::AttemptStatus> for AttemptStatus {
 pub fn handle_unified_connector_service_response(
     response: payments_grpc::PaymentsAuthorizeResponse,
     router_data: &mut RouterData<Authorize, PaymentsAuthorizeData, PaymentsResponseData>,
-) -> CustomResult<(), ConnectorError> {
+) -> CustomResult<(), UnifiedConnectorServiceError> {
     let status = AttemptStatus::foreign_try_from(response.status())?;
 
     let router_data_response = match status {

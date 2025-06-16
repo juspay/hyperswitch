@@ -431,11 +431,12 @@ impl Feature<api::Authorize, types::PaymentsAuthorizeData> for types::PaymentsAu
             .change_context(ApiErrorResponse::InternalServerError)
             .attach_printable("Failed to construct Payment Authorize Request")?;
 
+        let metadata = construct_ucs_request_metadata(merchant_connector_account)
+            .change_context(ApiErrorResponse::InternalServerError)
+            .attach_printable("Failed to construct request metadata")?;
+
         let mut request = tonic::Request::new(request);
-
-        let metadata = request.metadata_mut();
-
-        construct_ucs_request_metadata(metadata, merchant_connector_account)?;
+        *request.metadata_mut() = metadata;
 
         let response = client
             .payment_authorize(request)
