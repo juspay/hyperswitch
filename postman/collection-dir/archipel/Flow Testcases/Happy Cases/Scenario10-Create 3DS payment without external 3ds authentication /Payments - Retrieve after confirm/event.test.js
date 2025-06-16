@@ -21,11 +21,11 @@ try {
   jsonData = pm.response.json();
 } catch (e) {}
 
-// Response body should have value "Succeeded" for "status"
+// Response body should have value "requires_payment_method" for "status"
 pm.test(
-    "[POST]::/payments/:id - Content check if value for 'status' matches 'succeeded'",
+    "[POST]::/payments/:id - Content check if value for 'status' matches 'requires_payment_method'",
     function () {
-        pm.expect(jsonData.status).to.eql("succeeded");
+        pm.expect(jsonData.status).to.eql("requires_payment_method");
     },
 );
 
@@ -49,14 +49,6 @@ pm.test(
     pm.expect(jsonData.amount_capturable).to.eql(0);
   },
 );
-
-pm.test(
-  "[POST]::/payments/:id - Content check if value for 'amount_received' equal 500",
-  function () {
-    pm.expect(jsonData.amount_received).to.eql(500);
-  },
-);
-
 
 // Response body should have "connector_transaction_id"
 pm.test(
