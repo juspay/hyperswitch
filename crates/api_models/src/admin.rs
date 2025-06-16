@@ -2129,7 +2129,7 @@ pub struct ProfileCreate {
 
     /// This field indicates which decision engine's output (e.g., Hyperswitch's routing engine,
     /// Decision Engine) should be used for making the routing decision.
-    /// If `None`, Hyperswitch's routing engine will be choosen by default.
+    /// If `None`, Hyperswitch's routing engine will be chosen by default.
     pub routing_result_source: Option<api_enums::RoutingResultSource>,
 }
 
@@ -2216,7 +2216,7 @@ pub struct ProfileCreate {
     /// Specifies the source of the routing decision result.
     /// This field indicates which decision engine's output (e.g., Hyperswitch's routing engine,
     /// Decision Engine) should be used for making the routing decision.
-    /// If `None`, Hyperswitch's routing engine will be choosen by default.
+    /// If `None`, Hyperswitch's routing engine will be chosen by default.
     pub routing_result_source: Option<api_enums::RoutingResultSource>,
 
     /// Indicates if the MIT (merchant initiated transaction) payments can be made connector
@@ -2382,7 +2382,7 @@ pub struct ProfileResponse {
     /// Specifies the source of the routing decision result.
     /// This field indicates which decision engine's output (e.g., Hyperswitch's routing engine,
     /// Decision Engine) should be used for making the routing decision.
-    /// If `None`, Hyperswitch's routing engine will be choosen by default.
+    /// If `None`, Hyperswitch's routing engine will be chosen by default.
     pub routing_result_source: Option<api_enums::RoutingResultSource>,
 
     /// Indicates if the MIT (merchant initiated transaction) payments can be made connector
@@ -2546,7 +2546,7 @@ pub struct ProfileResponse {
     /// Specifies the source of the routing decision result.
     /// This field indicates which decision engine's output (e.g., Hyperswitch's routing engine,
     /// Decision Engine) should be used for making the routing decision.
-    /// If `None`, Hyperswitch's routing engine will be choosen by default.
+    /// If `None`, Hyperswitch's routing engine will be chosen by default.
     pub routing_result_source: Option<api_enums::RoutingResultSource>,
 
     /// Indicates if the MIT (merchant initiated transaction) payments can be made connector
@@ -2715,7 +2715,7 @@ pub struct ProfileUpdate {
     /// Specifies the source of the routing decision result.
     /// This field indicates which decision engine's output (e.g., Hyperswitch's routing engine,
     /// Decision Engine) should be used for making the routing decision.
-    /// If `None`, Hyperswitch's routing engine will be choosen by default.
+    /// If `None`, Hyperswitch's routing engine will be chosen by default.
     pub routing_result_source: Option<api_enums::RoutingResultSource>,
 
     /// Indicates if the MIT (merchant initiated transaction) payments can be made connector
@@ -2872,7 +2872,7 @@ pub struct ProfileUpdate {
     /// Specifies the source of the routing decision result.
     /// This field indicates which decision engine's output (e.g., Hyperswitch's routing engine,
     /// Decision Engine) should be used for making the routing decision.
-    /// If `None`, Hyperswitch's routing engine will be choosen by default.
+    /// If `None`, Hyperswitch's routing engine will be chosen by default.
     pub routing_result_source: Option<api_enums::RoutingResultSource>,
 
     /// Indicates if the MIT (merchant initiated transaction) payments can be made connector

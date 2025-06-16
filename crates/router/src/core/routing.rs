@@ -211,8 +211,8 @@ pub async fn retrieve_merchant_routing_dictionary(
 async fn build_list_routing_result(
     state: &SessionState,
     merchant_context: domain::MerchantContext,
-    hs_results: &Vec<routing_types::RoutingDictionaryRecord>,
-    de_results: &Vec<routing_types::RoutingDictionaryRecord>,
+    hs_results: &[routing_types::RoutingDictionaryRecord],
+    de_results: &[routing_types::RoutingDictionaryRecord],
     profile_ids: Vec<common_utils::id_type::ProfileId>,
 ) -> RouterResult<Vec<routing_types::RoutingDictionaryRecord>> {
     let db = state.store.as_ref();
@@ -397,7 +397,7 @@ pub async fn create_routing_algorithm_under_profile(
         match program.try_into() {
             Ok(internal_program) => {
                 let routing_rule = RoutingRule {
-                    rule_id: None,
+                    rule_id: Some(algorithm_id.clone().get_string_repr().to_owned()),
                     name: name.clone(),
                     description: Some(description.clone()),
                     created_by: profile_id.get_string_repr().to_string(),

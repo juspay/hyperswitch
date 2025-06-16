@@ -761,7 +761,7 @@ pub struct RoutingAlgorithmRecord {
     pub name: String,
     pub description: Option<String>,
     pub created_by: id_type::ProfileId,
-    pub algorithm_data: Program,
+    pub algorithm_data: StaticRoutingAlgorithm,
     pub metadata: Option<RoutingMetadata>,
     pub created_at: time::PrimitiveDateTime,
     pub modified_at: time::PrimitiveDateTime,

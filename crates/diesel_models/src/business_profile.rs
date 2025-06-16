@@ -595,6 +595,7 @@ impl ProfileUpdateInternal {
             is_external_vault_enabled,
             external_vault_connector_details,
             merchant_category_code,
+            routing_result_source,
         } = self;
         Profile {
             id: source.id,
@@ -689,6 +690,7 @@ impl ProfileUpdateInternal {
             three_ds_decision_rule_algorithm: None,
             acquirer_config_map: None,
             merchant_category_code: merchant_category_code.or(source.merchant_category_code),
+            routing_result_source: routing_result_source.or(source.routing_result_source),
         }
     }
 }
