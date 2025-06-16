@@ -1,20 +1,14 @@
 use common_utils::id_type;
-#[cfg(all(feature = "v2", feature = "customer_v2"))]
-use diesel::BoolExpressionMethods;
-#[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
-use diesel::BoolExpressionMethods;
-use diesel::{associations::HasTable, ExpressionMethods};
+use diesel::{associations::HasTable, BoolExpressionMethods, ExpressionMethods};
 
 use super::generics;
-// #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
-use crate::errors;
-#[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
+#[cfg(feature = "v1")]
 use crate::schema::customers::dsl;
-#[cfg(all(feature = "v2", feature = "customer_v2"))]
+#[cfg(feature = "v2")]
 use crate::schema_v2::customers::dsl;
 use crate::{
     customers::{Customer, CustomerNew, CustomerUpdateInternal},
-    PgPooledConn, StorageResult,
+    errors, PgPooledConn, StorageResult,
 };
 
 impl CustomerNew {
@@ -28,9 +22,8 @@ pub struct CustomerListConstraints {
     pub offset: Option<i64>,
 }
 
-// #[cfg(all(feature = "v2", feature = "customer_v2"))]
 impl Customer {
-    #[cfg(all(feature = "v2", feature = "customer_v2"))]
+    #[cfg(feature = "v2")]
     pub async fn update_by_id(
         conn: &PgPooledConn,
         id: id_type::GlobalCustomerId,
@@ -53,7 +46,7 @@ impl Customer {
         }
     }
 
-    #[cfg(all(feature = "v2", feature = "customer_v2"))]
+    #[cfg(feature = "v2")]
     pub async fn find_by_global_id(
         conn: &PgPooledConn,
         id: &id_type::GlobalCustomerId,
@@ -76,7 +69,7 @@ impl Customer {
         .await
     }
 
-    #[cfg(all(feature = "v2", feature = "customer_v2"))]
+    #[cfg(feature = "v2")]
     pub async fn find_optional_by_merchant_id_merchant_reference_id(
         conn: &PgPooledConn,
         customer_id: &id_type::CustomerId,
@@ -91,7 +84,7 @@ impl Customer {
         .await
     }
 
-    #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
+    #[cfg(feature = "v1")]
     pub async fn find_optional_by_customer_id_merchant_id(
         conn: &PgPooledConn,
         customer_id: &id_type::CustomerId,
@@ -104,7 +97,7 @@ impl Customer {
         .await
     }
 
-    #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
+    #[cfg(feature = "v1")]
     pub async fn update_by_customer_id_merchant_id(
         conn: &PgPooledConn,
         customer_id: id_type::CustomerId,
@@ -132,7 +125,7 @@ impl Customer {
         }
     }
 
-    #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
+    #[cfg(feature = "v1")]
     pub async fn delete_by_customer_id_merchant_id(
         conn: &PgPooledConn,
         customer_id: &id_type::CustomerId,
@@ -147,7 +140,7 @@ impl Customer {
         .await
     }
 
-    #[cfg(all(feature = "v2", feature = "customer_v2"))]
+    #[cfg(feature = "v2")]
     pub async fn find_by_merchant_reference_id_merchant_id(
         conn: &PgPooledConn,
         merchant_reference_id: &id_type::CustomerId,
@@ -162,7 +155,7 @@ impl Customer {
         .await
     }
 
-    #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
+    #[cfg(feature = "v1")]
     pub async fn find_by_customer_id_merchant_id(
         conn: &PgPooledConn,
         customer_id: &id_type::CustomerId,

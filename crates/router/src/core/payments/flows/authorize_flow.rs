@@ -38,8 +38,7 @@ impl
         &self,
         state: &SessionState,
         connector_id: &str,
-        merchant_account: &domain::MerchantAccount,
-        key_store: &domain::MerchantKeyStore,
+        merchant_context: &domain::MerchantContext,
         customer: &Option<domain::Customer>,
         merchant_connector_account: &domain::MerchantConnectorAccount,
         merchant_recipient_data: Option<types::MerchantRecipientData>,
@@ -55,8 +54,7 @@ impl
             state,
             self.clone(),
             connector_id,
-            merchant_account,
-            key_store,
+            merchant_context,
             customer,
             merchant_connector_account,
             merchant_recipient_data,
@@ -68,8 +66,7 @@ impl
     async fn get_merchant_recipient_data<'a>(
         &self,
         state: &SessionState,
-        merchant_account: &domain::MerchantAccount,
-        key_store: &domain::MerchantKeyStore,
+        merchant_context: &domain::MerchantContext,
         merchant_connector_account: &helpers::MerchantConnectorAccountType,
         connector: &api::ConnectorData,
     ) -> RouterResult<Option<types::MerchantRecipientData>> {
@@ -81,10 +78,9 @@ impl
         let data = if *payment_method == enums::PaymentMethod::OpenBanking {
             payments::get_merchant_bank_data_for_open_banking_connectors(
                 merchant_connector_account,
-                key_store,
+                merchant_context,
                 connector,
                 state,
-                merchant_account,
             )
             .await?
         } else {
@@ -108,8 +104,7 @@ impl
         &self,
         state: &SessionState,
         connector_id: &str,
-        merchant_account: &domain::MerchantAccount,
-        key_store: &domain::MerchantKeyStore,
+        merchant_context: &domain::MerchantContext,
         customer: &Option<domain::Customer>,
         merchant_connector_account: &helpers::MerchantConnectorAccountType,
         merchant_recipient_data: Option<types::MerchantRecipientData>,
@@ -128,8 +123,7 @@ impl
             state,
             self.clone(),
             connector_id,
-            merchant_account,
-            key_store,
+            merchant_context,
             customer,
             merchant_connector_account,
             merchant_recipient_data,
@@ -141,8 +135,7 @@ impl
     async fn get_merchant_recipient_data<'a>(
         &self,
         state: &SessionState,
-        merchant_account: &domain::MerchantAccount,
-        key_store: &domain::MerchantKeyStore,
+        merchant_context: &domain::MerchantContext,
         merchant_connector_account: &helpers::MerchantConnectorAccountType,
         connector: &api::ConnectorData,
     ) -> RouterResult<Option<types::MerchantRecipientData>> {
@@ -154,10 +147,9 @@ impl
         let data = if *payment_method == enums::PaymentMethod::OpenBanking {
             payments::get_merchant_bank_data_for_open_banking_connectors(
                 merchant_connector_account,
-                key_store,
+                merchant_context,
                 connector,
                 state,
-                merchant_account,
             )
             .await?
         } else {
@@ -178,6 +170,7 @@ impl Feature<api::Authorize, types::PaymentsAuthorizeData> for types::PaymentsAu
         connector_request: Option<services::Request>,
         business_profile: &domain::Profile,
         header_payload: hyperswitch_domain_models::payments::HeaderPayload,
+        all_keys_required: Option<bool>,
     ) -> RouterResult<Self> {
         let connector_integration: services::BoxedPaymentConnectorIntegrationInterface<
             api::Authorize,
@@ -194,6 +187,7 @@ impl Feature<api::Authorize, types::PaymentsAuthorizeData> for types::PaymentsAu
                 &self,
                 call_connector_action.clone(),
                 connector_request,
+                all_keys_required,
             )
             .await
             .to_payment_failed_response()?;
@@ -240,10 +234,10 @@ impl Feature<api::Authorize, types::PaymentsAuthorizeData> for types::PaymentsAu
         &self,
         state: &SessionState,
         connector: &api::ConnectorData,
-        merchant_account: &domain::MerchantAccount,
+        merchant_context: &domain::MerchantContext,
         creds_identifier: Option<&str>,
     ) -> RouterResult<types::AddAccessTokenResult> {
-        access_token::add_access_token(state, connector, merchant_account, self, creds_identifier)
+        access_token::add_access_token(state, connector, merchant_context, self, creds_identifier)
             .await
     }
 
@@ -269,6 +263,7 @@ impl Feature<api::Authorize, types::PaymentsAuthorizeData> for types::PaymentsAu
             connector_integration,
             authorize_data,
             payments::CallConnectorAction::Trigger,
+            None,
             None,
         )
         .await
@@ -420,6 +415,24 @@ impl Feature<api::Authorize, types::PaymentsAuthorizeData> for types::PaymentsAu
             _ => Ok((None, true)),
         }
     }
+
+    async fn create_order_at_connector(
+        &mut self,
+        state: &SessionState,
+        connector: &api::ConnectorData,
+        should_continue_payment: bool,
+    ) -> RouterResult<bool> {
+        let create_order_result =
+            create_order_at_connector(self, state, connector, should_continue_payment).await?;
+
+        let should_continue_payment = update_router_data_with_create_order_result(
+            create_order_result,
+            self,
+            should_continue_payment,
+        )?;
+
+        Ok(should_continue_payment)
+    }
 }
 
 pub trait RouterDataAuthorize {
@@ -522,6 +535,7 @@ pub async fn authorize_preprocessing_steps<F: Clone>(
             &preprocessing_router_data,
             payments::CallConnectorAction::Trigger,
             None,
+            None,
         )
         .await
         .to_payment_failed_response()?;
@@ -605,6 +619,7 @@ pub async fn authorize_postprocessing_steps<F: Clone>(
             connector_integration,
             &postprocessing_router_data,
             payments::CallConnectorAction::Trigger,
+            None,
             None,
         )
         .await
@@ -702,4 +717,104 @@ async fn process_capture_flow(
     router_data.status = updated_status;
     router_data.response = Ok(updated_response);
     Ok(router_data)
+}
+
+async fn create_order_at_connector<F: Clone>(
+    router_data: &mut types::RouterData<
+        F,
+        types::PaymentsAuthorizeData,
+        types::PaymentsResponseData,
+    >,
+    state: &SessionState,
+    connector: &api::ConnectorData,
+    should_continue_payment: bool,
+) -> RouterResult<types::CreateOrderResult> {
+    if connector
+        .connector_name
+        .requires_order_creation_before_payment(router_data.payment_method)
+        && should_continue_payment
+    {
+        let connector_integration: services::BoxedPaymentConnectorIntegrationInterface<
+            api::CreateOrder,
+            types::CreateOrderRequestData,
+            types::PaymentsResponseData,
+        > = connector.connector.get_connector_integration();
+
+        let request_data = types::CreateOrderRequestData::try_from(router_data.request.clone())?;
+
+        let response_data: Result<types::PaymentsResponseData, types::ErrorResponse> =
+            Err(types::ErrorResponse::default());
+
+        let createorder_router_data =
+            helpers::router_data_type_conversion::<_, api::CreateOrder, _, _, _, _>(
+                router_data.clone(),
+                request_data,
+                response_data,
+            );
+
+        let resp = services::execute_connector_processing_step(
+            state,
+            connector_integration,
+            &createorder_router_data,
+            payments::CallConnectorAction::Trigger,
+            None,
+            None,
+        )
+        .await
+        .to_payment_failed_response()?;
+
+        let create_order_resp = match resp.response {
+            Ok(res) => {
+                if let types::PaymentsResponseData::PaymentsCreateOrderResponse { order_id } = res {
+                    Ok(Some(order_id))
+                } else {
+                    Err(error_stack::report!(ApiErrorResponse::InternalServerError)
+                        .attach_printable(format!(
+                            "Unexpected response format from connector: {:?}",
+                            res
+                        )))?
+                }
+            }
+            Err(error) => Err(error),
+        };
+
+        Ok(types::CreateOrderResult {
+            create_order_result: create_order_resp,
+            is_create_order_performed: true,
+        })
+    } else {
+        Ok(types::CreateOrderResult {
+            create_order_result: Ok(None),
+            is_create_order_performed: false,
+        })
+    }
+}
+
+fn update_router_data_with_create_order_result<F>(
+    create_order_result: types::CreateOrderResult,
+    router_data: &mut types::RouterData<
+        F,
+        types::PaymentsAuthorizeData,
+        types::PaymentsResponseData,
+    >,
+    should_continue_further: bool,
+) -> RouterResult<bool> {
+    if create_order_result.is_create_order_performed {
+        match create_order_result.create_order_result {
+            Ok(Some(order_id)) => {
+                router_data.request.order_id = Some(order_id.clone());
+                router_data.response =
+                    Ok(types::PaymentsResponseData::PaymentsCreateOrderResponse { order_id });
+                Ok(true)
+            }
+            Ok(None) => Err(error_stack::report!(ApiErrorResponse::InternalServerError)
+                .attach_printable("Order Id not found."))?,
+            Err(err) => {
+                router_data.response = Err(err.clone());
+                Ok(false)
+            }
+        }
+    } else {
+        Ok(should_continue_further)
+    }
 }

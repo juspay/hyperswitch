@@ -170,17 +170,19 @@ pub enum BillingConnectors {
     DummyBillingConnector,
 }
 
-#[derive(Clone, Debug, serde::Serialize, strum::EnumString, Eq, PartialEq)]
+#[derive(Clone, Copy, Debug, serde::Serialize, strum::EnumString, Eq, PartialEq)]
 #[serde(rename_all = "snake_case")]
 #[strum(serialize_all = "snake_case")]
 pub enum VaultConnectors {
     Vgs,
+    HyperswitchVault,
 }
 
 impl From<VaultConnectors> for Connector {
     fn from(value: VaultConnectors) -> Self {
         match value {
             VaultConnectors::Vgs => Self::Vgs,
+            VaultConnectors::HyperswitchVault => Self::HyperswitchVault,
         }
     }
 }

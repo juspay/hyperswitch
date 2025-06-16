@@ -14,7 +14,7 @@ pub enum KgraphError {
     #[error("There was an error constructing the graph: {0}")]
     GraphConstructionError(hyperswitch_constraint_graph::GraphError<dir::DirValue>),
     #[error("There was an error constructing the context")]
-    ContextConstructionError(AnalysisErrorType),
+    ContextConstructionError(Box<AnalysisErrorType>),
     #[error("there was an unprecedented indexing error")]
     IndexingError,
 }

@@ -8,10 +8,10 @@ use diesel_models::{
     enums::DashboardMetadata as DBEnum, user::dashboard_metadata::DashboardMetadata,
 };
 use error_stack::{report, ResultExt};
+use hyperswitch_interfaces::crm::CrmPayload;
 #[cfg(feature = "email")]
 use masking::ExposeInterface;
 use masking::PeekInterface;
-#[cfg(feature = "email")]
 use router_env::logger;
 
 use crate::{
@@ -19,7 +19,7 @@ use crate::{
     routes::{app::ReqState, SessionState},
     services::{authentication::UserFromToken, ApplicationResponse},
     types::domain::{self, user::dashboard_metadata as types, MerchantKeyStore},
-    utils::user::dashboard_metadata as utils,
+    utils::user::{self as user_utils, dashboard_metadata as utils},
 };
 #[cfg(feature = "email")]
 use crate::{services::email::types as email_types, utils::user::theme as theme_utils};
@@ -501,7 +501,7 @@ async fn insert_metadata(
                     .await?;
                     let email_contents = email_types::BizEmailProd::new(
                         state,
-                        data,
+                        data.clone(),
                         theme.as_ref().map(|theme| theme.theme_id.clone()),
                         theme
                             .map(|theme| theme.email_config())
@@ -510,7 +510,7 @@ async fn insert_metadata(
                     let send_email_result = state
                         .email_client
                         .compose_and_send_email(
-                            email_types::get_base_url(state),
+                            user_utils::get_base_url(state),
                             Box::new(email_contents),
                             state.conf.proxy.https_url.as_ref(),
                         )
@@ -518,6 +518,43 @@ async fn insert_metadata(
                     logger::info!(prod_intent_email=?send_email_result);
                 }
             }
+
+            // Hubspot integration
+            let hubspot_body = state
+                .crm_client
+                .make_body(CrmPayload {
+                    legal_business_name: data.legal_business_name,
+                    business_label: data.business_label,
+                    business_location: data.business_location,
+                    display_name: data.display_name,
+                    poc_email: data.poc_email,
+                    business_type: data.business_type,
+                    business_identifier: data.business_identifier,
+                    business_website: data.business_website,
+                    poc_name: data.poc_name,
+                    poc_contact: data.poc_contact,
+                    comments: data.comments,
+                    is_completed: data.is_completed,
+                    business_country_name: data.business_country_name,
+                })
+                .await;
+            let base_url = user_utils::get_base_url(state);
+            let hubspot_request = state
+                .crm_client
+                .make_request(hubspot_body, base_url.to_string())
+                .await;
+
+            let _ = state
+                .crm_client
+                .send_request(&state.conf.proxy, hubspot_request)
+                .await
+                .inspect_err(|err| {
+                    logger::error!(
+                        "An error occurred while sending data to hubspot for user_id {}: {:?}",
+                        user.user_id,
+                        err
+                    );
+                });
 
             metadata
         }

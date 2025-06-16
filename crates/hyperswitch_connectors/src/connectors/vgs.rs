@@ -15,7 +15,7 @@ use hyperswitch_domain_models::{
         access_token_auth::AccessTokenAuth,
         payments::{Authorize, Capture, PSync, PaymentMethodToken, Session, SetupMandate, Void},
         refunds::{Execute, RSync},
-        VaultInsertFlow,
+        ExternalVaultInsertFlow,
     },
     router_request_types::{
         AccessTokenRequestData, PaymentMethodTokenizationData, PaymentsAuthorizeData,
@@ -69,8 +69,10 @@ impl api::Refund for Vgs {}
 impl api::RefundExecute for Vgs {}
 impl api::RefundSync for Vgs {}
 impl api::PaymentToken for Vgs {}
-impl api::VaultInsert for Vgs {}
-impl api::Vault for Vgs {}
+#[cfg(feature = "v2")]
+impl api::ExternalVaultInsert for Vgs {}
+#[cfg(feature = "v2")]
+impl api::ExternalVault for Vgs {}
 
 impl ConnectorIntegration<PaymentMethodToken, PaymentMethodTokenizationData, PaymentsResponseData>
     for Vgs
@@ -190,10 +192,11 @@ impl ConnectorIntegration<Execute, RefundsData, RefundsResponseData> for Vgs {}
 
 impl ConnectorIntegration<RSync, RefundsData, RefundsResponseData> for Vgs {}
 
-impl ConnectorIntegration<VaultInsertFlow, VaultRequestData, VaultResponseData> for Vgs {
+#[cfg(feature = "v2")]
+impl ConnectorIntegration<ExternalVaultInsertFlow, VaultRequestData, VaultResponseData> for Vgs {
     fn get_url(
         &self,
-        _req: &VaultRouterData<VaultInsertFlow>,
+        _req: &VaultRouterData<ExternalVaultInsertFlow>,
         connectors: &Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
         Ok(format!("{}aliases", self.base_url(connectors)))
@@ -201,7 +204,7 @@ impl ConnectorIntegration<VaultInsertFlow, VaultRequestData, VaultResponseData> 
 
     fn get_headers(
         &self,
-        req: &VaultRouterData<VaultInsertFlow>,
+        req: &VaultRouterData<ExternalVaultInsertFlow>,
         _connectors: &Connectors,
     ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
         let auth = vgs::VgsAuthType::try_from(&req.connector_auth_type)
@@ -224,7 +227,7 @@ impl ConnectorIntegration<VaultInsertFlow, VaultRequestData, VaultResponseData> 
 
     fn get_request_body(
         &self,
-        req: &VaultRouterData<VaultInsertFlow>,
+        req: &VaultRouterData<ExternalVaultInsertFlow>,
         _connectors: &Connectors,
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
         // let connector_router_data = vgs::VgsRouterData::from((amount, req));
@@ -234,7 +237,7 @@ impl ConnectorIntegration<VaultInsertFlow, VaultRequestData, VaultResponseData> 
 
     fn build_request(
         &self,
-        req: &VaultRouterData<VaultInsertFlow>,
+        req: &VaultRouterData<ExternalVaultInsertFlow>,
         connectors: &Connectors,
     ) -> CustomResult<Option<Request>, errors::ConnectorError> {
         Ok(Some(
@@ -256,10 +259,10 @@ impl ConnectorIntegration<VaultInsertFlow, VaultRequestData, VaultResponseData> 
 
     fn handle_response(
         &self,
-        data: &VaultRouterData<VaultInsertFlow>,
+        data: &VaultRouterData<ExternalVaultInsertFlow>,
         event_builder: Option<&mut ConnectorEvent>,
         res: Response,
-    ) -> CustomResult<VaultRouterData<VaultInsertFlow>, errors::ConnectorError> {
+    ) -> CustomResult<VaultRouterData<ExternalVaultInsertFlow>, errors::ConnectorError> {
         let response: vgs::VgsPaymentsResponse = res
             .response
             .parse_struct("Vgs PaymentsAuthorizeResponse")

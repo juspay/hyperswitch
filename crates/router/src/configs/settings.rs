@@ -7,12 +7,13 @@ use std::{
 #[cfg(feature = "olap")]
 use analytics::{opensearch::OpenSearchConfig, ReportConfig};
 use api_models::enums;
-use common_utils::{ext_traits::ConfigExt, id_type, types::theme::EmailThemeConfig};
+use common_utils::{ext_traits::ConfigExt, id_type, types::user::EmailThemeConfig};
 use config::{Environment, File};
 use error_stack::ResultExt;
 #[cfg(feature = "email")]
 use external_services::email::EmailSettings;
 use external_services::{
+    crm::CrmManagerConfig,
     file_storage::FileStorageConfig,
     grpc_client::GrpcClientSettings,
     managers::{
@@ -21,8 +22,11 @@ use external_services::{
     },
 };
 pub use hyperswitch_interfaces::configs::Connectors;
-use hyperswitch_interfaces::secrets_interface::secret_state::{
-    RawSecret, SecretState, SecretStateContainer, SecuredSecret,
+use hyperswitch_interfaces::{
+    secrets_interface::secret_state::{
+        RawSecret, SecretState, SecretStateContainer, SecuredSecret,
+    },
+    types::Proxy,
 };
 use masking::Secret;
 pub use payment_methods::configs::settings::{
@@ -39,6 +43,8 @@ use storage_impl::config::QueueStrategy;
 
 #[cfg(feature = "olap")]
 use crate::analytics::{AnalyticsConfig, AnalyticsProvider};
+#[cfg(feature = "v2")]
+use crate::types::storage::revenue_recovery;
 use crate::{
     configs,
     core::errors::{ApplicationError, ApplicationResult},
@@ -47,7 +53,6 @@ use crate::{
     routes::app,
     AppState,
 };
-
 pub const REQUIRED_FIELDS_CONFIG_FILE: &str = "payment_required_fields_v2.toml";
 
 #[derive(clap::Parser, Default)]
@@ -96,6 +101,7 @@ pub struct Settings<S: SecretState> {
     #[cfg(feature = "email")]
     pub email: EmailSettings,
     pub user: UserSettings,
+    pub crm: CrmManagerConfig,
     pub cors: CorsSettings,
     pub mandates: Mandates,
     pub zero_mandates: ZeroMandates,
@@ -104,11 +110,13 @@ pub struct Settings<S: SecretState> {
     pub delayed_session_response: DelayedSessionConfig,
     pub webhook_source_verification_call: WebhookSourceVerificationCall,
     pub billing_connectors_payment_sync: BillingConnectorPaymentsSyncCall,
+    pub billing_connectors_invoice_sync: BillingConnectorInvoiceSyncCall,
     pub payment_method_auth: SecretStateContainer<PaymentMethodAuth, S>,
     pub connector_request_reference_id_config: ConnectorRequestReferenceIdConfig,
     #[cfg(feature = "payouts")]
     pub payouts: Payouts,
     pub payout_method_filters: ConnectorFilters,
+    pub debit_routing_config: DebitRoutingConfig,
     pub applepay_decrypt_keys: SecretStateContainer<ApplePayDecryptConfig, S>,
     pub paze_decrypt_keys: Option<SecretStateContainer<PazeDecryptConfig, S>>,
     pub google_pay_decrypt_keys: Option<GooglePayDecryptConfig>,
@@ -145,7 +153,24 @@ pub struct Settings<S: SecretState> {
     pub network_tokenization_supported_connectors: NetworkTokenizationSupportedConnectors,
     pub theme: ThemeSettings,
     pub platform: Platform,
+    pub authentication_providers: AuthenticationProviders,
     pub open_router: OpenRouter,
+    #[cfg(feature = "v2")]
+    pub revenue_recovery: revenue_recovery::RevenueRecoverySettings,
+    pub clone_connector_allowlist: Option<CloneConnectorAllowlistConfig>,
+    pub merchant_id_auth: MerchantIdAuthSettings,
+    #[serde(default)]
+    pub infra_values: Option<HashMap<String, String>>,
+}
+
+#[derive(Debug, Deserialize, Clone, Default)]
+pub struct DebitRoutingConfig {
+    #[serde(deserialize_with = "deserialize_hashmap")]
+    pub connector_supported_debit_networks: HashMap<enums::Connector, HashSet<enums::CardNetwork>>,
+    #[serde(deserialize_with = "deserialize_hashset")]
+    pub supported_currencies: HashSet<enums::Currency>,
+    #[serde(deserialize_with = "deserialize_hashset")]
+    pub supported_connectors: HashSet<enums::Connector>,
 }
 
 #[derive(Debug, Deserialize, Clone, Default)]
@@ -153,9 +178,20 @@ pub struct OpenRouter {
     pub enabled: bool,
     pub url: String,
 }
+
+#[derive(Debug, Deserialize, Clone, Default)]
+#[serde(default)]
+pub struct CloneConnectorAllowlistConfig {
+    #[serde(deserialize_with = "deserialize_merchant_ids")]
+    pub merchant_ids: HashSet<id_type::MerchantId>,
+    #[serde(deserialize_with = "deserialize_hashset")]
+    pub connector_names: HashSet<enums::Connector>,
+}
+
 #[derive(Debug, Deserialize, Clone, Default)]
 pub struct Platform {
     pub enabled: bool,
+    pub allow_connected_merchants: bool,
 }
 
 #[derive(Debug, Clone, Default, Deserialize)]
@@ -412,9 +448,19 @@ impl Default for GenericLinkEnvUiConfig {
     }
 }
 
-#[derive(Debug, Deserialize, Clone, Default)]
+#[derive(Debug, Deserialize, Clone)]
 pub struct PaymentLink {
-    pub sdk_url: String,
+    pub sdk_url: url::Url,
+}
+
+impl Default for PaymentLink {
+    fn default() -> Self {
+        Self {
+            #[allow(clippy::expect_used)]
+            sdk_url: url::Url::parse("https://beta.hyperswitch.io/v0/HyperLoader.js")
+                .expect("Failed to parse default SDK URL"),
+        }
+    }
 }
 
 #[derive(Debug, Deserialize, Clone, Default)]
@@ -506,6 +552,31 @@ pub struct CorsSettings {
     pub max_age: usize,
     #[serde(deserialize_with = "deserialize_hashset")]
     pub allowed_methods: HashSet<String>,
+}
+
+#[derive(Debug, Deserialize, Clone, Default)]
+pub struct AuthenticationProviders {
+    #[serde(deserialize_with = "deserialize_connector_list")]
+    pub click_to_pay: HashSet<enums::Connector>,
+}
+
+fn deserialize_connector_list<'a, D>(deserializer: D) -> Result<HashSet<enums::Connector>, D::Error>
+where
+    D: serde::Deserializer<'a>,
+{
+    use serde::de::Error;
+
+    #[derive(Deserialize)]
+    struct Wrapper {
+        connector_list: String,
+    }
+
+    let wrapper = Wrapper::deserialize(deserializer)?;
+    wrapper
+        .connector_list
+        .split(',')
+        .map(|s| s.trim().parse().map_err(D::Error::custom))
+        .collect()
 }
 
 #[derive(Debug, Deserialize, Clone, Default)]
@@ -689,15 +760,6 @@ pub struct Jwekey {
 
 #[derive(Debug, Deserialize, Clone)]
 #[serde(default)]
-pub struct Proxy {
-    pub http_url: Option<String>,
-    pub https_url: Option<String>,
-    pub idle_pool_connection_timeout: Option<u64>,
-    pub bypass_proxy_hosts: Option<String>,
-}
-
-#[derive(Debug, Deserialize, Clone)]
-#[serde(default)]
 pub struct Server {
     pub port: u16,
     pub workers: usize,
@@ -759,9 +821,16 @@ pub struct DrainerSettings {
 
 #[derive(Debug, Clone, Default, Deserialize)]
 #[serde(default)]
+pub struct MerchantIdAuthSettings {
+    pub merchant_id_auth_enabled: bool,
+}
+
+#[derive(Debug, Clone, Default, Deserialize)]
+#[serde(default)]
 pub struct WebhooksSettings {
     pub outgoing_enabled: bool,
     pub ignore_error: WebhookIgnoreErrorSettings,
+    pub redis_lock_expiry_seconds: u32,
 }
 
 #[derive(Debug, Clone, Deserialize, Default)]
@@ -808,6 +877,12 @@ pub struct WebhookSourceVerificationCall {
 pub struct BillingConnectorPaymentsSyncCall {
     #[serde(deserialize_with = "deserialize_hashset")]
     pub billing_connectors_which_require_payment_sync: HashSet<enums::Connector>,
+}
+
+#[derive(Debug, Deserialize, Clone, Default)]
+pub struct BillingConnectorInvoiceSyncCall {
+    #[serde(deserialize_with = "deserialize_hashset")]
+    pub billing_connectors_which_requires_invoice_sync_call: HashSet<enums::Connector>,
 }
 
 #[derive(Debug, Deserialize, Clone, Default)]
@@ -954,6 +1029,10 @@ impl Settings<SecuredSecret> {
             .validate()
             .map_err(|err| ApplicationError::InvalidConfigurationValueError(err.to_string()))?;
 
+        self.crm
+            .validate()
+            .map_err(|err| ApplicationError::InvalidConfigurationValueError(err.to_string()))?;
+
         self.lock_settings.validate()?;
         self.events.validate()?;
 
@@ -997,6 +1076,8 @@ impl Settings<SecuredSecret> {
             .storage
             .validate()
             .map_err(|err| ApplicationError::InvalidConfigurationValueError(err.to_string()))?;
+
+        self.platform.validate()?;
 
         Ok(())
     }

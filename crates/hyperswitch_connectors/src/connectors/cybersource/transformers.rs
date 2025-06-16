@@ -95,6 +95,7 @@ impl From<CardIssuer> for String {
             CardIssuer::DinersClub => "005",
             CardIssuer::CarteBlanche => "006",
             CardIssuer::JCB => "007",
+            CardIssuer::CartesBancaires => "036",
         };
         card_type.to_string()
     }
@@ -294,7 +295,8 @@ impl TryFrom<&SetupMandateRouterData> for CybersourceZeroMandateRequest {
                 | WalletData::WeChatPayQr(_)
                 | WalletData::CashappQr(_)
                 | WalletData::SwishQr(_)
-                | WalletData::Mifinity(_) => Err(errors::ConnectorError::NotImplemented(
+                | WalletData::Mifinity(_)
+                | WalletData::RevolutPay(_) => Err(errors::ConnectorError::NotImplemented(
                     utils::get_unimplemented_payment_method_error_message("Cybersource"),
                 ))?,
             },
@@ -368,7 +370,7 @@ pub struct ProcessingInformation {
 #[serde(rename_all = "camelCase")]
 pub struct CybersourceConsumerAuthInformation {
     ucaf_collection_indicator: Option<String>,
-    cavv: Option<String>,
+    cavv: Option<Secret<String>>,
     ucaf_authentication_data: Option<Secret<String>>,
     xid: Option<String>,
     directory_server_transaction_id: Option<Secret<String>>,
@@ -1317,11 +1319,7 @@ impl
             .map(|authn_data| {
                 let (ucaf_authentication_data, cavv, ucaf_collection_indicator) =
                     if ccard.card_network == Some(common_enums::CardNetwork::Mastercard) {
-                        (
-                            Some(Secret::new(authn_data.cavv.clone())),
-                            None,
-                            Some("2".to_string()),
-                        )
+                        (Some(authn_data.cavv.clone()), None, Some("2".to_string()))
                     } else {
                         (None, Some(authn_data.cavv.clone()), None)
                     };
@@ -1418,11 +1416,7 @@ impl
             .map(|authn_data| {
                 let (ucaf_authentication_data, cavv, ucaf_collection_indicator) =
                     if ccard.card_network == Some(common_enums::CardNetwork::Mastercard) {
-                        (
-                            Some(Secret::new(authn_data.cavv.clone())),
-                            None,
-                            Some("2".to_string()),
-                        )
+                        (Some(authn_data.cavv.clone()), None, Some("2".to_string()))
                     } else {
                         (None, Some(authn_data.cavv.clone()), None)
                     };
@@ -1504,11 +1498,7 @@ impl
             .map(|authn_data| {
                 let (ucaf_authentication_data, cavv, ucaf_collection_indicator) =
                     if token_data.card_network == Some(common_enums::CardNetwork::Mastercard) {
-                        (
-                            Some(Secret::new(authn_data.cavv.clone())),
-                            None,
-                            Some("2".to_string()),
-                        )
+                        (Some(authn_data.cavv.clone()), None, Some("2".to_string()))
                     } else {
                         (None, Some(authn_data.cavv.clone()), None)
                     };
@@ -2199,7 +2189,8 @@ impl TryFrom<&CybersourceRouterData<&PaymentsAuthorizeRouterData>> for Cybersour
                         | WalletData::WeChatPayQr(_)
                         | WalletData::CashappQr(_)
                         | WalletData::SwishQr(_)
-                        | WalletData::Mifinity(_) => Err(errors::ConnectorError::NotImplemented(
+                        | WalletData::Mifinity(_)
+                        | WalletData::RevolutPay(_) => Err(errors::ConnectorError::NotImplemented(
                             utils::get_unimplemented_payment_method_error_message("Cybersource"),
                         )
                         .into()),
@@ -3192,7 +3183,7 @@ pub enum CybersourceAuthEnrollmentStatus {
 #[serde(rename_all = "camelCase")]
 pub struct CybersourceConsumerAuthValidateResponse {
     ucaf_collection_indicator: Option<String>,
-    cavv: Option<String>,
+    cavv: Option<Secret<String>>,
     ucaf_authentication_data: Option<Secret<String>>,
     xid: Option<String>,
     specification_version: Option<String>,
@@ -4300,11 +4291,16 @@ fn get_cybersource_card_type(card_network: common_enums::CardNetwork) -> Option<
         common_enums::CardNetwork::JCB => Some("007"),
         common_enums::CardNetwork::DinersClub => Some("005"),
         common_enums::CardNetwork::Discover => Some("004"),
-        common_enums::CardNetwork::CartesBancaires => Some("006"),
+        common_enums::CardNetwork::CartesBancaires => Some("036"),
         common_enums::CardNetwork::UnionPay => Some("062"),
         //"042" is the type code for Masetro Cards(International). For Maestro Cards(UK-Domestic) the mapping should be "024"
         common_enums::CardNetwork::Maestro => Some("042"),
-        common_enums::CardNetwork::Interac | common_enums::CardNetwork::RuPay => None,
+        common_enums::CardNetwork::Interac
+        | common_enums::CardNetwork::RuPay
+        | common_enums::CardNetwork::Star
+        | common_enums::CardNetwork::Accel
+        | common_enums::CardNetwork::Pulse
+        | common_enums::CardNetwork::Nyce => None,
     }
 }
 

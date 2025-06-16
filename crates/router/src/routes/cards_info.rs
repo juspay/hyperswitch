@@ -7,6 +7,7 @@ use super::app::AppState;
 use crate::{
     core::{api_locking, cards_info},
     services::{api, authentication as auth},
+    types::domain,
 };
 
 #[cfg(feature = "v1")]
@@ -53,7 +54,10 @@ pub async fn card_iin_info(
         &req,
         payload,
         |state, auth, req, _| {
-            cards_info::retrieve_card_info(state, auth.merchant_account, auth.key_store, req)
+            let merchant_context = domain::MerchantContext::NormalMerchant(Box::new(
+                domain::Context(auth.merchant_account, auth.key_store),
+            ));
+            cards_info::retrieve_card_info(state, merchant_context, req)
         },
         &*auth,
         api_locking::LockAction::NotApplicable,
@@ -101,10 +105,7 @@ pub async fn update_cards_info(
     .await
 }
 
-#[cfg(all(
-    any(feature = "v1", feature = "v2", feature = "olap", feature = "oltp"),
-    not(feature = "customer_v2")
-))]
+#[cfg(all(feature = "v1", any(feature = "olap", feature = "oltp")))]
 #[instrument(skip_all, fields(flow = ?Flow::CardsInfoMigrate))]
 pub async fn migrate_cards_info(
     state: web::Data<AppState>,

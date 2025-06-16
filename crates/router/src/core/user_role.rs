@@ -1,4 +1,7 @@
-use std::collections::{HashMap, HashSet};
+use std::{
+    collections::{HashMap, HashSet},
+    sync::LazyLock,
+};
 
 use api_models::{
     user as user_api,
@@ -11,7 +14,6 @@ use diesel_models::{
 };
 use error_stack::{report, ResultExt};
 use masking::Secret;
-use once_cell::sync::Lazy;
 
 use crate::{
     core::errors::{StorageErrorExt, UserErrors, UserResponse},
@@ -40,6 +42,8 @@ pub async fn get_authorization_info_with_groups(
     Ok(ApplicationResponse::Json(
         user_role_api::AuthorizationInfoResponse(
             info::get_group_authorization_info()
+                .ok_or(UserErrors::InternalServerError)
+                .attach_printable("No visible groups found")?
                 .into_iter()
                 .map(user_role_api::AuthorizationInfo::Group)
                 .collect(),
@@ -49,24 +53,27 @@ pub async fn get_authorization_info_with_groups(
 
 pub async fn get_authorization_info_with_group_tag(
 ) -> UserResponse<user_role_api::AuthorizationInfoResponse> {
-    static GROUPS_WITH_PARENT_TAGS: Lazy<Vec<user_role_api::ParentInfo>> = Lazy::new(|| {
-        PermissionGroup::iter()
-            .map(|group| (group.parent(), group))
-            .fold(
-                HashMap::new(),
-                |mut acc: HashMap<ParentGroup, Vec<PermissionGroup>>, (key, value)| {
-                    acc.entry(key).or_default().push(value);
-                    acc
-                },
-            )
-            .into_iter()
-            .map(|(name, value)| user_role_api::ParentInfo {
-                name: name.clone(),
-                description: info::get_parent_group_description(name),
-                groups: value,
-            })
-            .collect()
-    });
+    static GROUPS_WITH_PARENT_TAGS: LazyLock<Vec<user_role_api::ParentInfo>> =
+        LazyLock::new(|| {
+            PermissionGroup::iter()
+                .map(|group| (group.parent(), group))
+                .fold(
+                    HashMap::new(),
+                    |mut acc: HashMap<ParentGroup, Vec<PermissionGroup>>, (key, value)| {
+                        acc.entry(key).or_default().push(value);
+                        acc
+                    },
+                )
+                .into_iter()
+                .filter_map(|(name, value)| {
+                    Some(user_role_api::ParentInfo {
+                        name: name.clone(),
+                        description: info::get_parent_group_description(name)?,
+                        groups: value,
+                    })
+                })
+                .collect()
+        });
 
     Ok(ApplicationResponse::Json(
         user_role_api::AuthorizationInfoResponse(
@@ -99,6 +106,7 @@ pub async fn get_parent_group_info(
         role_info.get_entity_type(),
         PermissionGroup::iter().collect(),
     )
+    .unwrap_or_default()
     .into_iter()
     .map(|(parent_group, description)| role_api::ParentGroupInfo {
         name: parent_group.clone(),

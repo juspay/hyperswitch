@@ -199,7 +199,7 @@ pub struct ActionLinks {
     settle_payment: Option<ActionLink>,
     partially_settle_payment: Option<ActionLink>,
     refund_payment: Option<ActionLink>,
-    partiall_refund_payment: Option<ActionLink>,
+    partially_refund_payment: Option<ActionLink>,
     cancel_payment: Option<ActionLink>,
 }
 

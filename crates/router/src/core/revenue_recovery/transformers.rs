@@ -1,8 +1,11 @@
 use common_enums::AttemptStatus;
 
-use crate::{core::revenue_recovery::types::PcrAttemptStatus, types::transformers::ForeignFrom};
+use crate::{
+    core::revenue_recovery::types::RevenueRecoveryPaymentsAttemptStatus,
+    types::transformers::ForeignFrom,
+};
 
-impl ForeignFrom<AttemptStatus> for PcrAttemptStatus {
+impl ForeignFrom<AttemptStatus> for RevenueRecoveryPaymentsAttemptStatus {
     fn foreign_from(s: AttemptStatus) -> Self {
         match s {
             AttemptStatus::Authorized | AttemptStatus::Charged | AttemptStatus::AutoRefunded => {
@@ -31,7 +34,8 @@ impl ForeignFrom<AttemptStatus> for PcrAttemptStatus {
             | AttemptStatus::PaymentMethodAwaited
             | AttemptStatus::AuthenticationPending
             | AttemptStatus::DeviceDataCollectionPending
-            | AttemptStatus::Unresolved => Self::InvalidStatus(s.to_string()),
+            | AttemptStatus::Unresolved
+            | AttemptStatus::IntegrityFailure => Self::InvalidStatus(s.to_string()),
         }
     }
 }

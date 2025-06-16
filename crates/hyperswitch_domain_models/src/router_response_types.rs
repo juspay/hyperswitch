@@ -6,11 +6,10 @@ use std::collections::HashMap;
 use common_utils::{request::Method, types::MinorUnit};
 pub use disputes::{AcceptDisputeResponse, DefendDisputeResponse, SubmitEvidenceResponse};
 
-#[cfg(feature = "v2")]
-use super::vault::PaymentMethodVaultingData;
 use crate::{
     errors::api_error_response::ApiErrorResponse,
     router_request_types::{authentication::AuthNFlowType, ResponseId},
+    vault::PaymentMethodVaultingData,
 };
 
 #[derive(Debug, Clone)]
@@ -77,6 +76,9 @@ pub enum PaymentsResponseData {
     },
     PaymentResourceUpdateResponse {
         status: common_enums::PaymentResourceUpdateStatus,
+    },
+    PaymentsCreateOrderResponse {
+        order_id: String,
     },
 }
 
@@ -539,14 +541,15 @@ pub enum AuthenticationResponseData {
     },
     AuthNResponse {
         authn_flow_type: AuthNFlowType,
-        authentication_value: Option<String>,
+        authentication_value: Option<masking::Secret<String>>,
         trans_status: common_enums::TransactionStatus,
         connector_metadata: Option<serde_json::Value>,
         ds_trans_id: Option<String>,
+        eci: Option<String>,
     },
     PostAuthNResponse {
         trans_status: common_enums::TransactionStatus,
-        authentication_value: Option<String>,
+        authentication_value: Option<masking::Secret<String>>,
         eci: Option<String>,
     },
 }
@@ -615,21 +618,25 @@ impl SupportedPaymentMethodsExt for SupportedPaymentMethods {
 
 #[derive(Debug, Clone)]
 pub enum VaultResponseData {
-    VaultInsertResponse {
+    ExternalVaultCreateResponse {
+        session_id: masking::Secret<String>,
+        client_secret: masking::Secret<String>,
+    },
+    ExternalVaultInsertResponse {
         connector_vault_id: String,
         fingerprint_id: String,
     },
-    VaultRetrieveResponse {
+    ExternalVaultRetrieveResponse {
         vault_data: PaymentMethodVaultingData,
     },
-    VaultDeleteResponse {
-        connector_vault_id: Option<String>,
+    ExternalVaultDeleteResponse {
+        connector_vault_id: String,
     },
 }
 
 impl Default for VaultResponseData {
     fn default() -> Self {
-        Self::VaultInsertResponse {
+        Self::ExternalVaultInsertResponse {
             connector_vault_id: String::new(),
             fingerprint_id: String::new(),
         }

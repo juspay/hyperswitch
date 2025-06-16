@@ -56,6 +56,7 @@ pub struct VgsCard {
     card_holder_name: Secret<String>
 }
 
+#[cfg(feature = "v2")]
 impl<F> TryFrom<&VaultRouterData<F>> for VgsPaymentsRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(item: &VaultRouterData<F>) -> Result<Self, Self::Error> {
@@ -151,7 +152,7 @@ impl<F> TryFrom<ResponseRouterData<F, VgsPaymentsResponse, VaultRequestData, Vau
     ) -> Result<Self, Self::Error> {
         Ok(Self {
             status: common_enums::AttemptStatus::Failure,
-            response: Ok(VaultResponseData::VaultInsertResponse {
+            response: Ok(VaultResponseData::ExternalVaultInsertResponse {
                 connector_vault_id: item.response.data[0].aliases[0].alias.clone(),
                 fingerprint_id: item.response.data[0].aliases[0].alias.clone(),
             }),

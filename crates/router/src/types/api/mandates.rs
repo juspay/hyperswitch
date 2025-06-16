@@ -1,3 +1,4 @@
+use ::payment_methods::controller::PaymentMethodsController;
 use api_models::mandates;
 pub use api_models::mandates::{MandateId, MandateResponse, MandateRevokedResponse};
 use common_utils::ext_traits::OptionExt;
@@ -28,21 +29,18 @@ pub(crate) trait MandateResponseExt: Sized {
         state: &SessionState,
         key_store: domain::MerchantKeyStore,
         mandate: storage::Mandate,
-        storage_scheme: storage_enums::MerchantStorageScheme,
+        merchant_account: &domain::MerchantAccount,
     ) -> RouterResult<Self>;
 }
 
-#[cfg(all(
-    any(feature = "v1", feature = "v2"),
-    not(feature = "payment_methods_v2")
-))]
+#[cfg(feature = "v1")]
 #[async_trait::async_trait]
 impl MandateResponseExt for MandateResponse {
     async fn from_db_mandate(
         state: &SessionState,
         key_store: domain::MerchantKeyStore,
         mandate: storage::Mandate,
-        storage_scheme: storage_enums::MerchantStorageScheme,
+        merchant_account: &domain::MerchantAccount,
     ) -> RouterResult<Self> {
         let db = &*state.store;
         let payment_method = db
@@ -50,7 +48,7 @@ impl MandateResponseExt for MandateResponse {
                 &(state.into()),
                 &key_store,
                 &mandate.payment_method_id,
-                storage_scheme,
+                merchant_account.storage_scheme,
             )
             .await
             .to_not_found_response(errors::ApiErrorResponse::PaymentMethodNotFound)?;
@@ -79,10 +77,14 @@ impl MandateResponseExt for MandateResponse {
                     .change_context(errors::ApiErrorResponse::InternalServerError)
                     .attach_printable("Failed while getting card details")?
             } else {
-                payment_methods::cards::get_card_details_without_locker_fallback(
-                    &payment_method,
+                let merchant_context = domain::MerchantContext::NormalMerchant(Box::new(
+                    domain::Context(merchant_account.clone(), key_store),
+                ));
+                payment_methods::cards::PmCards {
                     state,
-                )
+                    merchant_context: &merchant_context,
+                }
+                .get_card_details_without_locker_fallback(&payment_method)
                 .await?
             };
 
@@ -116,23 +118,20 @@ impl MandateResponseExt for MandateResponse {
     }
 }
 
-#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+#[cfg(feature = "v2")]
 #[async_trait::async_trait]
 impl MandateResponseExt for MandateResponse {
     async fn from_db_mandate(
         state: &SessionState,
         key_store: domain::MerchantKeyStore,
         mandate: storage::Mandate,
-        storage_scheme: storage_enums::MerchantStorageScheme,
+        merchant_account: &domain::MerchantAccount,
     ) -> RouterResult<Self> {
         todo!()
     }
 }
 
-#[cfg(all(
-    any(feature = "v1", feature = "v2"),
-    not(feature = "payment_methods_v2")
-))]
+#[cfg(feature = "v1")]
 impl From<api::payment_methods::CardDetailFromLocker> for MandateCardDetails {
     fn from(card_details_from_locker: api::payment_methods::CardDetailFromLocker) -> Self {
         mandates::MandateCardDetails {
@@ -154,7 +153,7 @@ impl From<api::payment_methods::CardDetailFromLocker> for MandateCardDetails {
     }
 }
 
-#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+#[cfg(feature = "v2")]
 impl From<api::payment_methods::CardDetailFromLocker> for MandateCardDetails {
     fn from(card_details_from_locker: api::payment_methods::CardDetailFromLocker) -> Self {
         mandates::MandateCardDetails {

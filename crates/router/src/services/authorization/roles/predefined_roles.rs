@@ -1,12 +1,11 @@
-use std::collections::HashMap;
+use std::{collections::HashMap, sync::LazyLock};
 
 use common_enums::{EntityType, PermissionGroup, RoleScope};
-use once_cell::sync::Lazy;
 
 use super::RoleInfo;
 use crate::consts;
 
-pub static PREDEFINED_ROLES: Lazy<HashMap<&'static str, RoleInfo>> = Lazy::new(|| {
+pub static PREDEFINED_ROLES: LazyLock<HashMap<&'static str, RoleInfo>> = LazyLock::new(|| {
     let mut roles = HashMap::new();
 
     // Internal Roles
@@ -59,6 +58,31 @@ pub static PREDEFINED_ROLES: Lazy<HashMap<&'static str, RoleInfo>> = Lazy::new(|
             ],
             role_id: common_utils::consts::ROLE_ID_INTERNAL_VIEW_ONLY_USER.to_string(),
             role_name: "internal_view_only".to_string(),
+            scope: RoleScope::Organization,
+            entity_type: EntityType::Merchant,
+            is_invitable: false,
+            is_deletable: false,
+            is_updatable: false,
+            is_internal: true,
+        },
+    );
+    roles.insert(
+        common_utils::consts::ROLE_ID_INTERNAL_DEMO,
+        RoleInfo {
+            groups: vec![
+                PermissionGroup::OperationsView,
+                PermissionGroup::ConnectorsView,
+                PermissionGroup::WorkflowsView,
+                PermissionGroup::AnalyticsView,
+                PermissionGroup::UsersView,
+                PermissionGroup::MerchantDetailsView,
+                PermissionGroup::AccountView,
+                PermissionGroup::ReconOpsView,
+                PermissionGroup::ReconReportsView,
+                PermissionGroup::InternalManage,
+            ],
+            role_id: common_utils::consts::ROLE_ID_INTERNAL_DEMO.to_string(),
+            role_name: "internal_demo".to_string(),
             scope: RoleScope::Organization,
             entity_type: EntityType::Merchant,
             is_invitable: false,

@@ -112,6 +112,7 @@ pub struct PaymentAttempt {
     pub network_decline_code: Option<String>,
     /// A string indicating how to proceed with an network error if payment gateway provide one. This is used to understand the network error code better.
     pub network_error_message: Option<String>,
+    pub connector_request_reference_id: Option<String>,
 }
 
 #[cfg(feature = "v1")]
@@ -340,6 +341,7 @@ pub struct PaymentAttemptNew {
     pub network_error_message: Option<String>,
     pub processor_merchant_id: Option<id_type::MerchantId>,
     pub created_by: Option<String>,
+    pub connector_request_reference_id: Option<String>,
 }
 
 #[cfg(feature = "v1")]
@@ -833,7 +835,7 @@ pub struct PaymentAttemptUpdateInternal {
     pub authentication_type: Option<storage_enums::AuthenticationType>,
     pub error_message: Option<String>,
     pub connector_payment_id: Option<String>,
-    // payment_method_id: Option<String>,
+    pub payment_method_id: Option<id_type::GlobalPaymentMethodId>,
     // cancellation_reason: Option<String>,
     pub modified_at: PrimitiveDateTime,
     pub browser_info: Option<serde_json::Value>,
@@ -871,6 +873,7 @@ pub struct PaymentAttemptUpdateInternal {
     pub network_decline_code: Option<String>,
     pub network_advice_code: Option<String>,
     pub network_error_message: Option<String>,
+    pub connector_request_reference_id: Option<String>,
 }
 
 #[cfg(feature = "v1")]
@@ -974,7 +977,7 @@ impl PaymentAttemptUpdateInternal {
 
 #[cfg(feature = "v2")]
 impl PaymentAttemptUpdate {
-    pub fn apply_changeset(self, source: PaymentAttempt) -> PaymentAttempt {
+    pub fn apply_changeset(self, _source: PaymentAttempt) -> PaymentAttempt {
         todo!()
         // let PaymentAttemptUpdateInternal {
         //     net_amount,
@@ -1196,7 +1199,7 @@ impl PaymentAttemptUpdate {
 
 #[cfg(feature = "v2")]
 impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
-    fn from(payment_attempt_update: PaymentAttemptUpdate) -> Self {
+    fn from(_payment_attempt_update: PaymentAttemptUpdate) -> Self {
         todo!()
         // match payment_attempt_update {
         //     PaymentAttemptUpdate::Update {

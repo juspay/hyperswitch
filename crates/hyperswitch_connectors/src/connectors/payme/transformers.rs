@@ -425,7 +425,8 @@ impl TryFrom<&PaymentMethodData> for SalePaymentMethod {
                 | WalletData::CashappQr(_)
                 | WalletData::ApplePay(_)
                 | WalletData::SwishQr(_)
-                | WalletData::Mifinity(_) => Err(errors::ConnectorError::NotSupported {
+                | WalletData::Mifinity(_)
+                | WalletData::RevolutPay(_) => Err(errors::ConnectorError::NotSupported {
                     message: "Wallet".to_string(),
                     connector: "payme",
                 }
@@ -1229,7 +1230,7 @@ pub struct WebhookEventDataResource {
     pub payme_transaction_id: String,
     pub status_error_details: Option<String>,
     pub status_error_code: Option<u32>,
-    pub price: i64,
+    pub price: MinorUnit,
     pub currency: enums::Currency,
 }
 
