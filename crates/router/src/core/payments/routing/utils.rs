@@ -1,4 +1,7 @@
-use std::collections::{HashMap, HashSet};
+use std::{
+    collections::{HashMap, HashSet},
+    str::FromStr,
+};
 
 use api_models::{
     open_router as or_types, routing as api_routing,
@@ -14,7 +17,6 @@ use external_services::grpc_client::dynamic_routing as ir_client;
 use hyperswitch_interfaces::events::routing_api_logs as routing_events;
 use router_env::tracing_actix_web::RequestId;
 use serde::{Deserialize, Serialize};
-use std::str::FromStr;
 
 use super::RoutingResult;
 use crate::{
