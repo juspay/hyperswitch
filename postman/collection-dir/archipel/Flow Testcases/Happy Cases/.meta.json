@@ -10,6 +10,6 @@
     "Scenario9a-Refund full payment",
     "Scenario9b-Refund partial payment",
     "Scenario9c-Refund full incremented payment",
-    "Scenario10-Create 3DS payment"
+    "Scenario10-Create 3DS payment without external 3ds authentication"
   ]
 }

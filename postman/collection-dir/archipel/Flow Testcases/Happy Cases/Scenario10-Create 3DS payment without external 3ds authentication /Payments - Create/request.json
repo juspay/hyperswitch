@@ -24,7 +24,7 @@
       "confirm": false,
       "capture_method": "automatic",
       "authentication_type": "three_ds",
-      "request_external_three_ds_authentication": true,
+      "request_external_three_ds_authentication": false,
       "profile_id": "{{profile_id}}",
       "email": "john_doe@gmail.com",
       "name": "John Doe",
