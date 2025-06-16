@@ -121,7 +121,7 @@ pub struct DebitRoutingRequestData {
     pub card_type: common_enums::CardType,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct ErrorResponse {
     pub status: String,
     pub error_code: String,
@@ -132,7 +132,7 @@ pub struct ErrorResponse {
     pub is_dynamic_mga_enabled: bool,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct UnifiedError {
     pub code: String,
     pub user_message: String,

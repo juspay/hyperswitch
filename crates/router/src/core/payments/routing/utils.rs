@@ -60,7 +60,7 @@ pub struct ConfigApiClient;
 
 pub struct SRApiClient;
 
-pub async fn build_and_send_decision_engine_http_request<Req, Res>(
+pub async fn build_and_send_decision_engine_http_request<Req, Res, ErrRes>(
     state: &SessionState,
     http_method: services::Method,
     path: &str,
@@ -72,6 +72,7 @@ pub async fn build_and_send_decision_engine_http_request<Req, Res>(
 where
     Req: Serialize + Send + Sync + 'static + Clone,
     Res: Serialize + serde::de::DeserializeOwned + std::fmt::Debug + Clone,
+    ErrRes: serde::de::DeserializeOwned + std::fmt::Debug + Clone + DecisionEngineErrorsInterface,
 {
     let decision_engine_base_url = &state.conf.open_router.url;
     let url = format!("{}/{}", decision_engine_base_url, path);
@@ -119,7 +120,7 @@ where
                     })
                     .transpose()?;
 
-                logger::debug!("success resp from decision engine: {:?}", resp);
+                logger::debug!("decision_engine_success_response: {:?}", resp);
 
                 Ok(resp)
             }
@@ -129,22 +130,23 @@ where
                     String::from_utf8_lossy(&err.response) // For logging
                 );
 
-                let err_resp: or_types::ErrorResponse = err
+                let err_resp: ErrRes = err
                     .response
-                    .parse_struct("ErrorResponse")
+                    .parse_struct(std::any::type_name::<ErrRes>())
                     .change_context(errors::RoutingError::OpenRouterError(
-                        "Failed to parse the response from open_router".into(),
-                    ))?;
+                    "Failed to parse the response from open_router".into(),
+                ))?;
 
                 logger::error!(
-                    "decision_engine: Error response from Decision Engine API ({:?})",
-                    err_resp.error_message
+                    decision_engine_error_code = %err_resp.get_error_code(),
+                    decision_engine_error_message = %err_resp.get_error_message(),
+                    decision_engine_raw_response = ?err_resp.get_error_data(),
                 );
 
                 Err(error_stack::report!(
                     errors::RoutingError::RoutingEventsError {
-                        message: err_resp.error_message,
-                        status_code: err.status_code
+                        message: err_resp.get_error_message(),
+                        status_code: err.status_code,
                     }
                 ))
             }
@@ -185,7 +187,7 @@ impl DecisionEngineApiHandler for EuclidApiClient {
         Req: Serialize + Send + Sync + 'static + Clone,
         Res: Serialize + serde::de::DeserializeOwned + Send + 'static + std::fmt::Debug + Clone,
     {
-        let event_response = build_and_send_decision_engine_http_request(
+        let event_response = build_and_send_decision_engine_http_request::<_, _, DeErrorResponse>(
             state,
             http_method,
             path,
@@ -219,16 +221,17 @@ impl DecisionEngineApiHandler for EuclidApiClient {
     where
         Req: Serialize + Send + Sync + 'static + Clone,
     {
-        let event_response = build_and_send_decision_engine_http_request::<Req, ()>(
-            state,
-            http_method,
-            path,
-            request_body,
-            timeout,
-            "not parsing response",
-            events_wrapper,
-        )
-        .await?;
+        let event_response =
+            build_and_send_decision_engine_http_request::<Req, (), DeErrorResponse>(
+                state,
+                http_method,
+                path,
+                request_body,
+                timeout,
+                "not parsing response",
+                events_wrapper,
+            )
+            .await?;
 
         let response = event_response.response;
 
@@ -251,7 +254,7 @@ impl DecisionEngineApiHandler for ConfigApiClient {
         Req: Serialize + Send + Sync + 'static + Clone,
         Res: Serialize + serde::de::DeserializeOwned + Send + 'static + std::fmt::Debug + Clone,
     {
-        let events_response = build_and_send_decision_engine_http_request(
+        let events_response = build_and_send_decision_engine_http_request::<_, _, DeErrorResponse>(
             state,
             http_method,
             path,
@@ -284,16 +287,17 @@ impl DecisionEngineApiHandler for ConfigApiClient {
     where
         Req: Serialize + Send + Sync + 'static + Clone,
     {
-        let event_response = build_and_send_decision_engine_http_request::<Req, ()>(
-            state,
-            http_method,
-            path,
-            request_body,
-            timeout,
-            "not parsing response",
-            events_wrapper,
-        )
-        .await?;
+        let event_response =
+            build_and_send_decision_engine_http_request::<Req, (), DeErrorResponse>(
+                state,
+                http_method,
+                path,
+                request_body,
+                timeout,
+                "not parsing response",
+                events_wrapper,
+            )
+            .await?;
 
         let response = event_response.response;
 
@@ -316,17 +320,17 @@ impl DecisionEngineApiHandler for SRApiClient {
         Req: Serialize + Send + Sync + 'static + Clone,
         Res: Serialize + serde::de::DeserializeOwned + Send + 'static + std::fmt::Debug + Clone,
     {
-        let events_response = build_and_send_decision_engine_http_request(
-            state,
-            http_method,
-            path,
-            request_body,
-            timeout,
-            "parsing response",
-            events_wrapper,
-        )
-        .await?;
-        // logger::debug!(decision_engine_config_response = ?events_response, decision_engine_request_path = %path, "decision_engine_config: Received raw response from Decision Engine config API");
+        let events_response =
+            build_and_send_decision_engine_http_request::<_, _, or_types::ErrorResponse>(
+                state,
+                http_method,
+                path,
+                request_body,
+                timeout,
+                "parsing response",
+                events_wrapper,
+            )
+            .await?;
 
         let parsed_response =
             events_response
@@ -350,16 +354,17 @@ impl DecisionEngineApiHandler for SRApiClient {
     where
         Req: Serialize + Send + Sync + 'static + Clone,
     {
-        let event_response = build_and_send_decision_engine_http_request::<Req, ()>(
-            state,
-            http_method,
-            path,
-            request_body,
-            timeout,
-            "not parsing response",
-            events_wrapper,
-        )
-        .await?;
+        let event_response =
+            build_and_send_decision_engine_http_request::<Req, (), or_types::ErrorResponse>(
+                state,
+                http_method,
+                path,
+                request_body,
+                timeout,
+                "not parsing response",
+                events_wrapper,
+            )
+            .await?;
 
         let response = event_response.response;
 
@@ -447,6 +452,7 @@ pub async fn perform_decision_euclid_routing(
         }
     }
 
+    routing_event.set_routing_approach(RoutingApproach::StaticRouting.to_string());
     routing_event.set_routable_connectors(routable_connectors);
     state.event_handler.log_event(&routing_event);
 
@@ -717,13 +723,43 @@ pub fn convert_backend_input_to_routing_eval(
     })
 }
 
-// Commented out code for error response structure, this will be used as the main ErrorResponse from DE
-// #[derive(Debug, Clone, serde::Deserialize)]
-// struct DeErrorResponse {
-//     code: String,
-//     message: String,
-//     data: Option<serde_json::Value>,
-// }
+#[derive(Debug, Clone, serde::Deserialize)]
+struct DeErrorResponse {
+    code: String,
+    message: String,
+    data: Option<serde_json::Value>,
+}
+
+impl DecisionEngineErrorsInterface for DeErrorResponse {
+    fn get_error_message(&self) -> String {
+        self.message.clone()
+    }
+
+    fn get_error_code(&self) -> String {
+        self.code.clone()
+    }
+
+    fn get_error_data(&self) -> Option<String> {
+        self.data.as_ref().map(|data| data.to_string())
+    }
+}
+
+impl DecisionEngineErrorsInterface for or_types::ErrorResponse {
+    fn get_error_message(&self) -> String {
+        self.error_message.clone()
+    }
+
+    fn get_error_code(&self) -> String {
+        self.error_code.clone()
+    }
+
+    fn get_error_data(&self) -> Option<String> {
+        Some(format!(
+            "decision_engine Error: {}",
+            self.error_message.clone()
+        ))
+    }
+}
 
 //TODO: temporary change will be refactored afterwards
 #[derive(Clone, Debug, serde::Serialize, serde::Deserialize, PartialEq)]
@@ -1097,6 +1133,12 @@ fn stringify_choice(c: RoutableConnectorChoice) -> ConnectorInfo {
     )
 }
 
+pub trait DecisionEngineErrorsInterface {
+    fn get_error_message(&self) -> String;
+    fn get_error_code(&self) -> String;
+    fn get_error_data(&self) -> Option<String>;
+}
+
 #[derive(Debug)]
 pub struct RoutingEventsWrapper<Req>
 where
@@ -1410,6 +1452,7 @@ pub enum RoutingApproach {
     Exploration,
     Elimination,
     ContractBased,
+    StaticRouting,
     Default,
 }
 
@@ -1430,6 +1473,7 @@ impl std::fmt::Display for RoutingApproach {
             Self::Exploration => write!(f, "Exploration"),
             Self::Elimination => write!(f, "Elimination"),
             Self::ContractBased => write!(f, "ContractBased"),
+            Self::StaticRouting => write!(f, "StaticRouting"),
             Self::Default => write!(f, "Default"),
         }
     }
