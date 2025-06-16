@@ -297,6 +297,15 @@ impl CustomerCreateBridge for customers::CustomerRequest {
             domain::FromRequestEncryptableCustomer::from_encryptable(encrypted_data)
                 .change_context(errors::CustomersErrorResponse::InternalServerError)?;
 
+        let connector_customer = connector_customer_details.as_ref().map(|details| {
+            let mut map = std::collections::HashMap::new();
+            map.insert(
+                details.merchant_connector_id.clone(),
+                details.connector_customer_id.to_string(),
+            );
+            common_types::customers::ConnectorCustomerMap::new(map)
+        });
+
         Ok(domain::Customer {
             id: id_type::GlobalCustomerId::generate(&state.conf.cell_information.id),
             merchant_reference_id: merchant_reference_id.to_owned(),
@@ -313,7 +322,7 @@ impl CustomerCreateBridge for customers::CustomerRequest {
             description: self.description.clone(),
             phone_country_code: self.phone_country_code.clone(),
             metadata: self.metadata.clone(),
-            connector_customer: None,
+            connector_customer,
             created_at: common_utils::date_time::now(),
             modified_at: common_utils::date_time::now(),
             default_payment_method_id: None,
