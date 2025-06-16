@@ -94,11 +94,16 @@ impl UnifiedConnectorService {
         config: &GrpcClientSettings,
     ) -> Result<Option<Self>, Box<dyn std::error::Error>> {
         if let Some(base_url) = &config.unified_connector_service_client.base_url {
-            Ok(Some(Self {
-                unified_connector_service_client: PaymentServiceClient::connect(base_url.clone())
-                    .await
-                    .expect("Failed to establish a connection with the Unified Connector Service"),
-            }))
+            if !base_url.is_empty() {
+                Ok(Some(Self {
+                    unified_connector_service_client: PaymentServiceClient::connect(base_url.clone())
+                        .await
+                        .expect("Failed to establish a connection with the Unified Connector Service"),
+                }))
+            }
+            else {
+                Ok(None)
+            }
         } else {
             Ok(None)
         }
