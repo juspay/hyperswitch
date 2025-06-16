@@ -103,9 +103,7 @@ impl TryFrom<&ConnectorAuthType> for NordeaAuthType {
 
 #[derive(Debug, Default, Serialize, Deserialize)]
 pub struct NordeaConnectorMetadataObject {
-    #[serde(rename = "value")]
     pub creditor_account_value: Secret<String>,
-    #[serde(rename = "_type")]
     pub creditor_account_type: String,
 }
 
