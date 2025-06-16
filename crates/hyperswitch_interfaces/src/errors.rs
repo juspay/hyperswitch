@@ -87,6 +87,8 @@ pub enum ConnectorError {
     WebhookResourceObjectNotFound,
     #[error("Could not respond to the incoming webhook event")]
     WebhookResponseEncodingFailed,
+    #[error("Webhook authentication failed")]
+    WebhookAuthenticationFailed,
     #[error("Invalid Date/time format")]
     InvalidDateFormat,
     #[error("Date Formatting Failed")]

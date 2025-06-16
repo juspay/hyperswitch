@@ -10,7 +10,10 @@ use hyperswitch_domain_models::{
     router_response_types::{
         MandateReference, PaymentsResponseData, RedirectForm, RefundsResponseData,
     },
-    types::{PaymentsAuthorizeRouterData, PaymentsCancelRouterData, RefundsRouterData},
+    types::{
+        PaymentsAuthorizeRouterData, PaymentsCancelRouterData, PaymentsCaptureRouterData,
+        RefundsRouterData,
+    },
 };
 use hyperswitch_interfaces::errors;
 use masking::{ExposeInterface, Secret};
@@ -765,6 +768,98 @@ impl<F, T> TryFrom<ResponseRouterData<F, AciPaymentsResponse, T, PaymentsRespons
     }
 }
 
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct AciCaptureRequest {
+    #[serde(flatten)]
+    pub txn_details: TransactionDetails,
+}
+
+impl TryFrom<&AciRouterData<&PaymentsCaptureRouterData>> for AciCaptureRequest {
+    type Error = error_stack::Report<errors::ConnectorError>;
+
+    fn try_from(item: &AciRouterData<&PaymentsCaptureRouterData>) -> Result<Self, Self::Error> {
+        let auth = AciAuthType::try_from(&item.router_data.connector_auth_type)?;
+        Ok(Self {
+            txn_details: TransactionDetails {
+                entity_id: auth.entity_id,
+                amount: item.amount.to_owned(),
+                currency: item.router_data.request.currency.to_string(),
+                payment_type: AciPaymentType::Capture,
+            },
+        })
+    }
+}
+
+#[derive(Debug, Default, Clone, Deserialize, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct AciCaptureResponse {
+    id: String,
+    referenced_id: String,
+    payment_type: AciPaymentType,
+    amount: StringMajorUnit,
+    currency: String,
+    descriptor: String,
+    result: AciCaptureResult,
+    result_details: AciCaptureResultDetails,
+    build_number: String,
+    timestamp: String,
+    ndc: String,
+    source: String,
+    payment_method: String,
+    short_id: String,
+}
+
+#[derive(Debug, Default, Clone, Deserialize, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct AciCaptureResult {
+    code: String,
+    description: String,
+}
+
+#[derive(Debug, Default, Clone, Deserialize, PartialEq, Eq, Serialize)]
+pub struct AciCaptureResultDetails {
+    #[serde(rename = "ExtendedDescription")]
+    extended_description: String,
+    #[serde(rename = "clearingInstituteName")]
+    clearing_institute_name: String,
+    #[serde(rename = "ConnectorTxID1")]
+    connector_tx_id1: String,
+    #[serde(rename = "ConnectorTxID3")]
+    connector_tx_id3: String,
+    #[serde(rename = "ConnectorTxID2")]
+    connector_tx_id2: String,
+    #[serde(rename = "AcquirerResponse")]
+    acquirer_response: String,
+}
+
+impl<F, T> TryFrom<ResponseRouterData<F, AciCaptureResponse, T, PaymentsResponseData>>
+    for RouterData<F, T, PaymentsResponseData>
+{
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(
+        item: ResponseRouterData<F, AciCaptureResponse, T, PaymentsResponseData>,
+    ) -> Result<Self, Self::Error> {
+        Ok(Self {
+            status: enums::AttemptStatus::from(AciPaymentStatus::from_str(
+                &item.response.result.code,
+            )?),
+            reference_id: Some(item.response.referenced_id.clone()),
+            response: Ok(PaymentsResponseData::TransactionResponse {
+                resource_id: ResponseId::ConnectorTransactionId(item.response.id.clone()),
+                redirection_data: Box::new(None),
+                mandate_reference: Box::new(None),
+                connector_metadata: None,
+                network_txn_id: None,
+                connector_response_reference_id: Some(item.response.referenced_id),
+                incremental_authorization_allowed: None,
+                charges: None,
+            }),
+            ..item.data
+        })
+    }
+}
+
 #[derive(Default, Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct AciRefundRequest {
@@ -853,4 +948,90 @@ impl<F> TryFrom<RefundsResponseRouterData<F, AciRefundResponse>> for RefundsRout
             ..item.data
         })
     }
+}
+
+#[derive(Debug, Clone, Deserialize, Serialize, PartialEq, Eq)]
+pub enum AciWebhookEventType {
+    Payment,
+}
+
+#[derive(Debug, Clone, Deserialize, Serialize, PartialEq, Eq)]
+pub enum AciWebhookAction {
+    Created,
+    Updated,
+    Deleted,
+}
+
+#[derive(Debug, Clone, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct AciWebhookCardDetails {
+    pub bin: Option<String>,
+    #[serde(rename = "last4Digits")]
+    pub last4_digits: Option<String>,
+    pub holder: Option<String>,
+    pub expiry_month: Option<Secret<String>>,
+    pub expiry_year: Option<Secret<String>>,
+}
+
+#[derive(Debug, Clone, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct AciWebhookCustomerDetails {
+    #[serde(rename = "givenName")]
+    pub given_name: Option<String>,
+    pub surname: Option<String>,
+    #[serde(rename = "merchantCustomerId")]
+    pub merchant_customer_id: Option<String>,
+    pub sex: Option<String>,
+    pub email: Option<Email>,
+}
+
+#[derive(Debug, Clone, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct AciWebhookAuthenticationDetails {
+    #[serde(rename = "entityId")]
+    pub entity_id: Secret<String>,
+}
+
+#[derive(Debug, Clone, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct AciWebhookRiskDetails {
+    pub score: Option<String>,
+}
+
+#[derive(Debug, Clone, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct AciPaymentWebhookPayload {
+    pub id: String,
+    pub payment_type: String,
+    pub payment_brand: String,
+    pub amount: StringMajorUnit,
+    pub currency: String,
+    pub presentation_amount: Option<StringMajorUnit>,
+    pub presentation_currency: Option<String>,
+    pub descriptor: Option<String>,
+    pub result: ResultCode,
+    pub authentication: Option<AciWebhookAuthenticationDetails>,
+    pub card: Option<AciWebhookCardDetails>,
+    pub customer: Option<AciWebhookCustomerDetails>,
+    #[serde(rename = "customParameters")]
+    pub custom_parameters: Option<serde_json::Value>,
+    pub risk: Option<AciWebhookRiskDetails>,
+    pub build_number: Option<String>,
+    pub timestamp: String,
+    pub ndc: String,
+    #[serde(rename = "channelName")]
+    pub channel_name: Option<String>,
+    pub source: Option<String>,
+    pub payment_method: Option<String>,
+    #[serde(rename = "shortId")]
+    pub short_id: Option<String>,
+}
+
+#[derive(Debug, Clone, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct AciWebhookNotification {
+    #[serde(rename = "type")]
+    pub event_type: AciWebhookEventType,
+    pub action: Option<AciWebhookAction>,
+    pub payload: serde_json::Value,
 }

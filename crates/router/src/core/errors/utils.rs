@@ -167,6 +167,7 @@ impl<T> ConnectorErrorExt<T> for error_stack::Result<T, errors::ConnectorError> 
             | errors::ConnectorError::WebhookEventTypeNotFound
             | errors::ConnectorError::WebhookResourceObjectNotFound
             | errors::ConnectorError::WebhookResponseEncodingFailed
+            | errors::ConnectorError::WebhookAuthenticationFailed
             | errors::ConnectorError::InvalidDateFormat
             | errors::ConnectorError::DateFormattingFailed
             | errors::ConnectorError::InvalidDataFormat { .. }
@@ -268,6 +269,7 @@ impl<T> ConnectorErrorExt<T> for error_stack::Result<T, errors::ConnectorError> 
                 errors::ConnectorError::WebhookEventTypeNotFound |
                 errors::ConnectorError::WebhookResourceObjectNotFound |
                 errors::ConnectorError::WebhookResponseEncodingFailed |
+                errors::ConnectorError::WebhookAuthenticationFailed |
                 errors::ConnectorError::InvalidDateFormat |
                 errors::ConnectorError::DateFormattingFailed |
                 errors::ConnectorError::MissingConnectorRelatedTransactionID { .. } |
@@ -359,6 +361,7 @@ impl<T> ConnectorErrorExt<T> for error_stack::Result<T, errors::ConnectorError> 
                 | errors::ConnectorError::WebhookEventTypeNotFound
                 | errors::ConnectorError::WebhookResourceObjectNotFound
                 | errors::ConnectorError::WebhookResponseEncodingFailed
+                | errors::ConnectorError::WebhookAuthenticationFailed
                 | errors::ConnectorError::InvalidDateFormat
                 | errors::ConnectorError::DateFormattingFailed
                 | errors::ConnectorError::InvalidDataFormat { .. }
