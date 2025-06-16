@@ -49,7 +49,7 @@ pub struct GrpcClientSettings {
     /// Configs for Dynamic Routing Client
     pub dynamic_routing_client: DynamicRoutingClientConfig,
     /// Base URL for Unified Connector Service
-    pub unified_connector_service_client: UnifiedConnectorServiceClientConfig,
+    pub unified_connector_service_client: Option<UnifiedConnectorServiceClientConfig>,
 }
 
 impl GrpcClientSettings {
