@@ -232,7 +232,7 @@ pub enum TrustpayPaymentsRequest {
 #[derive(Debug, Serialize, PartialEq)]
 pub struct PaymentRequestNetworkToken {
     pub amount: StringMajorUnit,
-    pub currency: api_models::enums::Currency,
+    pub currency: enums::Currency,
     pub pan: NetworkTokenNumber,
     #[serde(rename = "exp")]
     pub expiry_date: Secret<String>,
@@ -563,7 +563,7 @@ impl TryFrom<&TrustpayRouterData<&PaymentsAuthorizeRouterData>> for TrustpayPaym
                         expiry_date: token_data
                             .get_token_expiry_month_year_2_digit_with_delimiter("/".to_owned())?,
                         redirect_url: item.router_data.request.get_router_return_url()?,
-                        enrollment_status: 'Y', // Set to 'Y' as UAS response doesn't provide this field
+                        enrollment_status: 'Y', // Set to 'Y' as network provider not providing this value in response
                         eci: token_data.eci.clone().ok_or_else(|| {
                             errors::ConnectorError::MissingRequiredField { field_name: "eci" }
                         })?,
