@@ -1,13 +1,12 @@
 use async_trait::async_trait;
 use common_enums as enums;
 use error_stack::ResultExt;
+use external_services::grpc_client::unified_connector_service::UnifiedConnectorService;
 use hyperswitch_domain_models::errors::api_error_response::ApiErrorResponse;
 #[cfg(feature = "v2")]
 use hyperswitch_domain_models::payments::PaymentConfirmData;
 use masking::ExposeInterface;
-use rust_grpc_client::payments::{
-    self as payments_grpc, payment_service_client::PaymentServiceClient,
-};
+use rust_grpc_client::payments as payments_grpc;
 
 // use router_env::tracing::Instrument;
 use super::{ConstructFlowSpecificData, Feature};
@@ -426,7 +425,7 @@ impl Feature<api::Authorize, types::PaymentsAuthorizeData> for types::PaymentsAu
     async fn call_unified_connector_service<'a>(
         &mut self,
         merchant_connector_account: helpers::MerchantConnectorAccountType,
-        client: &mut PaymentServiceClient<tonic::transport::Channel>,
+        client: UnifiedConnectorService,
     ) -> RouterResult<()> {
         let request = payments_grpc::PaymentsAuthorizeRequest::foreign_try_from(self)
             .change_context(ApiErrorResponse::InternalServerError)

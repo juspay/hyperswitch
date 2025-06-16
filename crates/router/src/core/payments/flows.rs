@@ -13,6 +13,7 @@ pub mod setup_mandate_flow;
 pub mod update_metadata_flow;
 
 use async_trait::async_trait;
+use external_services::grpc_client::unified_connector_service::UnifiedConnectorService;
 #[cfg(all(feature = "v2", feature = "revenue_recovery"))]
 use hyperswitch_domain_models::router_flow_types::{
     BillingConnectorInvoiceSync, BillingConnectorPaymentsSync, RecoveryRecordBack,
@@ -38,7 +39,6 @@ use hyperswitch_interfaces::api::{
     payouts::Payouts, UasAuthentication, UasAuthenticationConfirmation, UasPostAuthentication,
     UasPreAuthentication, UnifiedAuthenticationService,
 };
-use rust_grpc_client::payments::payment_service_client::PaymentServiceClient;
 
 #[cfg(feature = "frm")]
 use crate::types::fraud_check as frm_types;
@@ -204,7 +204,7 @@ pub trait Feature<F, T> {
     async fn call_unified_connector_service<'a>(
         &mut self,
         _merchant_connector_account: helpers::MerchantConnectorAccountType,
-        _client: &mut PaymentServiceClient<tonic::transport::Channel>,
+        _client: UnifiedConnectorService,
     ) -> RouterResult<()>
     where
         F: Clone,

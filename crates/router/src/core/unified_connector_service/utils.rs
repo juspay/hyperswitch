@@ -2,6 +2,7 @@ use api_models::admin::ConnectorAuthType;
 use common_enums::{enums::PaymentMethod, AttemptStatus, AuthenticationType};
 use common_utils::{errors::CustomResult, ext_traits::ValueExt};
 use error_stack::ResultExt;
+use external_services::grpc_client::unified_connector_service::UnifiedConnectorService;
 use hyperswitch_connectors::utils::CardData;
 use hyperswitch_domain_models::{
     errors::api_error_response::ApiErrorResponse,
@@ -14,9 +15,7 @@ use hyperswitch_domain_models::{
 use hyperswitch_interfaces::errors::ConnectorError;
 use masking::{ExposeInterface, PeekInterface};
 use rand::Rng;
-use rust_grpc_client::payments::{
-    self as payments_grpc, payment_service_client::PaymentServiceClient,
-};
+use rust_grpc_client::payments::{self as payments_grpc};
 use tonic::metadata::MetadataMap;
 
 use crate::{
@@ -32,7 +31,7 @@ pub async fn should_call_unified_connector_service<F: Clone, T>(
     state: &SessionState,
     merchant_context: &MerchantContext,
     router_data: &RouterData<F, T, PaymentsResponseData>,
-) -> RouterResult<Option<PaymentServiceClient<tonic::transport::Channel>>> {
+) -> RouterResult<Option<UnifiedConnectorService>> {
     let merchant_id = merchant_context
         .get_merchant_account()
         .get_id()
@@ -55,13 +54,12 @@ pub async fn should_call_unified_connector_service<F: Clone, T>(
             Ok(rollout_percent) => {
                 let random_value: f64 = rand::thread_rng().gen_range(0.0..=1.0);
                 if random_value < rollout_percent {
-                    match PaymentServiceClient::connect(
-                        state.conf.unified_connector_service.base_url.clone(),
-                    )
-                    .await
+                    if let Some(unified_connector_service_client) =
+                        &state.grpc_client.unified_connector_service
                     {
-                        Ok(client) => Ok(Some(client)),
-                        Err(_) => Ok(None),
+                        Ok(Some(unified_connector_service_client.clone()))
+                    } else {
+                        Ok(None)
                     }
                 } else {
                     Ok(None)
