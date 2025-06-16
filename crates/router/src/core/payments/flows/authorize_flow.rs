@@ -17,8 +17,8 @@ use crate::{
         payments::{
             self, access_token, customers, helpers, tokenization, transformers, PaymentData,
         },
-        unified_connector_service::utils::{
-            construct_ucs_request_metadata, handle_unified_connector_service_response,
+        unified_connector_service::{
+            build_unified_connector_service_auth_headers, handle_unified_connector_service_response,
         },
     },
     logger,
@@ -431,7 +431,7 @@ impl Feature<api::Authorize, types::PaymentsAuthorizeData> for types::PaymentsAu
             .change_context(ApiErrorResponse::InternalServerError)
             .attach_printable("Failed to construct Payment Authorize Request")?;
 
-        let metadata = construct_ucs_request_metadata(merchant_connector_account)
+        let metadata = build_unified_connector_service_auth_headers(merchant_connector_account)
             .change_context(ApiErrorResponse::InternalServerError)
             .attach_printable("Failed to construct request metadata")?;
 
