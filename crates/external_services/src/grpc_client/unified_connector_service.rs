@@ -107,7 +107,10 @@ impl UnifiedConnectorService {
                     Ok(unified_connector_service_client) => Ok(Some(Self {
                         unified_connector_service_client,
                     })),
-                    Err(_) => Ok(None),
+                    Err(err) => {
+                        logger::error!(error=?err);
+                        Ok(None)
+                    },
                 }
             }
             None => Ok(None),

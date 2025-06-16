@@ -327,8 +327,8 @@ impl ForeignTryFrom<hyperswitch_domain_models::payment_address::PaymentAddress>
     fn foreign_try_from(
         payment_address: hyperswitch_domain_models::payment_address::PaymentAddress,
     ) -> Result<Self, Self::Error> {
-        let shipping =
-            if let Some(address) = payment_address.get_shipping() {
+        let shipping = match payment_address.get_shipping() {
+            Some(address) => {
                 let country = address
                     .address
                     .as_ref()
@@ -368,12 +368,12 @@ impl ForeignTryFrom<hyperswitch_domain_models::payment_address::PaymentAddress>
                         }),
                     email: address.email.as_ref().map(|e| e.peek().to_string()),
                 })
-            } else {
-                None
-            };
+            }
+            None => None,
+        };
 
-        let billing =
-            if let Some(address) = payment_address.get_payment_billing() {
+        let billing = match payment_address.get_payment_billing() {
+            Some(address) => {
                 let country = address
                     .address
                     .as_ref()
@@ -413,12 +413,12 @@ impl ForeignTryFrom<hyperswitch_domain_models::payment_address::PaymentAddress>
                         }),
                     email: address.email.as_ref().map(|e| e.peek().to_string()),
                 })
-            } else {
-                None
-            };
+            }
+            None => None,
+        };
 
-        let unified_payment_method_billing =
-            if let Some(address) = payment_address.get_payment_method_billing() {
+        let unified_payment_method_billing = match payment_address.get_payment_method_billing() {
+            Some(address) => {
                 let country = address
                     .address
                     .as_ref()
@@ -458,9 +458,9 @@ impl ForeignTryFrom<hyperswitch_domain_models::payment_address::PaymentAddress>
                         }),
                     email: address.email.as_ref().map(|e| e.peek().to_string()),
                 })
-            } else {
-                None
-            };
+            }
+            None => None,
+        };
 
         Ok(Self {
             shipping: shipping.clone(),
