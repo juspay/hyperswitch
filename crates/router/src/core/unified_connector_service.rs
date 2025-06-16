@@ -14,6 +14,7 @@ use hyperswitch_domain_models::{
 };
 use masking::PeekInterface;
 use rand::Rng;
+use router_env::logger;
 use rust_grpc_client::payments::{self as payments_grpc};
 use tonic::metadata::{MetadataMap, MetadataValue};
 
@@ -59,20 +60,25 @@ pub async fn should_call_unified_connector_service<F: Clone, T>(
             Ok(rollout_percent) => {
                 let random_value: f64 = rand::thread_rng().gen_range(0.0..=1.0);
                 if random_value < rollout_percent {
-                    if let Some(unified_connector_service_client) =
-                        &state.grpc_client.unified_connector_service
-                    {
-                        Ok(Some(unified_connector_service_client.clone()))
-                    } else {
-                        Ok(None)
+                    match &state.grpc_client.unified_connector_service {
+                        Some(unified_connector_service_client) => {
+                            Ok(Some(unified_connector_service_client.clone()))
+                        }
+                        None => Ok(None),
                     }
                 } else {
                     Ok(None)
                 }
             }
-            Err(_) => Ok(None),
+            Err(err) => {
+                logger::error!(error=?err);
+                Ok(None)
+            },
         },
-        Err(_) => Ok(None),
+        Err(err) => {
+            logger::error!(error=?err);
+            Ok(None)
+        },
     }
 }
 
