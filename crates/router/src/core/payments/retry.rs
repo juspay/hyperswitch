@@ -384,7 +384,7 @@ where
         )
         .await?;
 
-    let (router_data, _mca) = payments::call_connector_service(
+    let (router_data, _mca) = payments::decide_unified_connector_service_call(
         state,
         req_state,
         merchant_context,

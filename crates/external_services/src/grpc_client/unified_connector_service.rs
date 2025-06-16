@@ -96,12 +96,13 @@ impl UnifiedConnectorService {
         if let Some(base_url) = &config.unified_connector_service_client.base_url {
             if !base_url.is_empty() {
                 Ok(Some(Self {
-                    unified_connector_service_client: PaymentServiceClient::connect(base_url.clone())
-                        .await
-                        .expect("Failed to establish a connection with the Unified Connector Service"),
+                    unified_connector_service_client: PaymentServiceClient::connect(
+                        base_url.clone(),
+                    )
+                    .await
+                    .expect("Failed to establish a connection with the Unified Connector Service"),
                 }))
-            }
-            else {
+            } else {
                 Ok(None)
             }
         } else {
