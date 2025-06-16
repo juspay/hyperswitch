@@ -597,6 +597,8 @@ pub enum Flow {
     ProfileAcquirerCreate,
     /// ThreeDs Decision Rule Execute flow
     ThreeDsDecisionRuleExecute,
+    /// Tokenization delete flow
+    TokenizationDelete
 }
 
 /// Trait for providing generic behaviour to flow metric

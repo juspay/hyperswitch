@@ -17,11 +17,11 @@ use diesel::{
 };
 #[cfg(feature = "v2")]
 use serde::{Deserialize, Serialize};
-#[cfg(feature = "v2")]
-use time::PrimitiveDateTime;
+
 
 #[cfg(feature = "v2")]
 use crate::{
+    errors,
     query::generics, schema_v2::tokenization, tokenization as tokenization_diesel, PgPooledConn,
     StorageResult,
 };
@@ -43,4 +43,29 @@ impl tokenization_diesel::Tokenization {
         )
         .await
     }
+
+    pub async fn update_with_id(
+        self, 
+        conn: &PgPooledConn,
+        tokenization_record: tokenization_diesel::TokenizationUpdate, 
+    )-> StorageResult<Self> {
+        use diesel::ExpressionMethods;
+
+        match generics::generic_update_with_unique_predicate_get_result::<
+            <Self as HasTable>::Table,
+            _,
+            _,
+            _,
+        >(conn, tokenization::dsl::id.eq(self.id.to_owned()), tokenization_record)
+        .await
+        {
+            Err(error) => match error.current_context() {
+                errors::DatabaseError::NoFieldsToUpdate => Ok(self),
+                _ => Err(error),
+            },
+            result => result,
+        }
+
+    }
+
 }

@@ -772,6 +772,7 @@ Never share your secret api keys. Keep them guarded and secure.
         routes::payments::ForceSync,
         api_models::tokenization::GenericTokenizationRequest,
         api_models::tokenization::GenericTokenizationResponse,
+        api_models::tokenization::DeleteTokenDataResponse,
     )),
     modifiers(&SecurityAddon)
 )]

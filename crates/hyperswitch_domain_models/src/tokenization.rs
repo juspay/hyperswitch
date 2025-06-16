@@ -25,6 +25,12 @@ pub struct Tokenization {
     pub version: common_enums::ApiVersion,
 }
 
+impl Tokenization{
+    pub fn is_disabled(&self) -> bool {
+        self.flag == common_enums::TokenizationFlag::Disabled
+    }
+}
+
 #[cfg(all(feature = "v2", feature = "tokenization_v2"))]
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct TokenizationNew {
