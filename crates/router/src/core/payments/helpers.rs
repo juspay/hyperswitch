@@ -7008,8 +7008,7 @@ pub fn validate_platform_request_for_marketplace(
                     .application_fees
                     .as_ref()
                     .map_or(MinorUnit::zero(), |amount| *amount)
-                    .get_amount_as_i64()
-                    != 0
+                    != MinorUnit::zero()
                 {
                     return Err(errors::ApiErrorResponse::InvalidDataValue {
                         field_name: "split_payments.stripe_split_payment.application_fees",
@@ -7021,7 +7020,6 @@ pub fn validate_platform_request_for_marketplace(
                     .application_fees
                     .as_ref()
                     .map_or(MinorUnit::zero(), |amount| *amount)
-                    .get_amount_as_i64()
                     > amount.into()
                 {
                     return Err(errors::ApiErrorResponse::InvalidDataValue {

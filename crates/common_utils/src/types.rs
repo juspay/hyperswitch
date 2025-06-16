@@ -386,6 +386,14 @@ impl AmountConvertor for MinorUnitForConnector {
 #[diesel(sql_type = sql_types::BigInt)]
 pub struct MinorUnit(i64);
 
+use std::num::NonZeroI64;
+
+impl From<NonZeroI64> for MinorUnit {
+    fn from(val: NonZeroI64) -> Self {
+        Self::new(val.get())
+    }
+}
+
 impl MinorUnit {
     /// gets amount as i64 value will be removed in future
     pub fn get_amount_as_i64(self) -> i64 {

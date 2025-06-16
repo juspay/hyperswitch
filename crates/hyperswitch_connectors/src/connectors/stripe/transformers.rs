@@ -2221,7 +2221,15 @@ impl TryFrom<&PaymentsAuthorizeRouterData> for StripeSplitPaymentRequest {
             })
             .and_then(|secret_value| {
                 let json_value = secret_value.clone().expose();
-                serde_json::from_value::<Self>(json_value).ok()
+                match serde_json::from_value::<Self>(json_value.clone()) {
+                    Ok(val) => Some(val),
+                    Err(err) => {
+                        router_env::logger::info!(
+                            "STRIPE: Picking merchant_account_id and merchant_config_currency from payments request: {:?}", err
+                        );
+                        None
+                    }
+                }
             });
 
         // If the Split Payment Request in MIT mismatches with the metadata from CIT, throw an error
