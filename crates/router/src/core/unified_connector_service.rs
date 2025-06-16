@@ -73,12 +73,12 @@ pub async fn should_call_unified_connector_service<F: Clone, T>(
             Err(err) => {
                 logger::error!(error=?err);
                 Ok(None)
-            },
+            }
         },
         Err(err) => {
             logger::error!(error=?err);
             Ok(None)
-        },
+        }
     }
 }
 
