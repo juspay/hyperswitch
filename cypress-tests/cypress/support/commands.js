@@ -2755,8 +2755,16 @@ Cypress.Commands.add(
           );
           expect(response.body.customer, "customer").to.not.be.empty;
           expect(response.body.profile_id, "profile_id").to.not.be.null;
-          expect(response.body.payment_method_id, "payment_method_id").to.not.be
-            .null;
+          
+          // For Nuvei connector, payment_method_id can be null in MIT transactions
+          const connectorId = globalState.get("connectorId");
+          if (connectorId === "nuvei") {
+            // Nuvei returns null payment_method_id for MIT transactions, which is expected
+            expect(response.body.payment_method_id, "payment_method_id").to.be.null;
+          } else {
+            expect(response.body.payment_method_id, "payment_method_id").to.not.be
+              .null;
+          }
 
           if (response.body.capture_method === "automatic") {
             if (response.body.authentication_type === "three_ds") {
