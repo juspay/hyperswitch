@@ -378,6 +378,7 @@ impl<F> TryFrom<ResponseRouterData<F, CnpOnlineResponse, PaymentsSyncData, Payme
             Some(query_transaction_response) => {
                 query_transaction_response
                     .results
+                    .ok_or(errors::ConnectorError::UnexpectedResponseError(bytes::Bytes::from(query_transaction_response.message)))?
                     .first()
                     .map(|result| {
                         if let Some(void_response) = &result.void_response {
@@ -557,7 +558,7 @@ impl<F> TryFrom<ResponseRouterData<F, CnpOnlineResponse, PaymentsSyncData, Payme
                             })
                         }
                     })
-                    .ok_or(errors::ConnectorError::ResponseHandlingFailed)?
+                    .ok_or(errors::ConnectorError::UnexpectedResponseError(bytes::Bytes::from(" Missing response data in queryTransactionResponse.results_max10".to_string())))?
             }
             None => {
                 // In case of 2xx Psync failure
@@ -861,7 +862,7 @@ pub struct CnpOnlineResponse {
     pub query_transaction_response: Option<QueryTransactionResponse>,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Clone,Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct CaptureResponse {
     #[serde(rename = "@id")]
@@ -878,14 +879,14 @@ pub struct CaptureResponse {
     pub location: Option<String>,
 }
 
-#[derive(Debug, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 #[serde(rename_all = "camelCase")]
 pub struct FraudResult {
     pub avs_result: String,
     pub card_validation_result: String,
 }
 
-#[derive(Debug, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 #[serde(rename_all = "camelCase")]
 pub struct AuthorizationResponse {
     #[serde(rename = "@id")]
@@ -905,7 +906,7 @@ pub struct AuthorizationResponse {
     pub network_transaction_id: Option<Secret<String>>,
 }
 
-#[derive(Debug, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 #[serde(rename_all = "camelCase")]
 pub struct SaleResponse {
     #[serde(rename = "@id")]
@@ -925,7 +926,7 @@ pub struct SaleResponse {
     pub network_transaction_id: Option<Secret<String>>,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct VoidResponse {
     #[serde(rename = "@id")]
@@ -956,11 +957,11 @@ pub struct QueryTransactionResponse {
     pub message: String,
     pub match_count: u32,
     #[serde(rename = "results_max10")]
-    pub results: Vec<ResultsMax10>,
+    pub results: Option<Vec<ResultsMax10>>,
     pub location: String,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ResultsMax10 {
     pub authorization_response: Option<AuthorizationResponse>,
     pub sale_response: Option<SaleResponse>,
@@ -969,7 +970,7 @@ pub struct ResultsMax10 {
     pub credit_response: Option<CreditResponse>,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct CreditResponse {
     #[serde(rename = "@id")]
@@ -1331,8 +1332,13 @@ impl TryFrom<RefundsResponseRouterData<RSync, CnpOnlineResponse>> for RefundsRou
             Some(query_transaction_response) => {
                 let results = query_transaction_response
                     .results
-                    .first()
-                    .ok_or(errors::ConnectorError::ResponseHandlingFailed)?;
+                    .and_then(|results| {
+                        results
+                            .first()
+                            .cloned()
+                    })
+                    .ok_or(errors::ConnectorError::UnexpectedResponseError(bytes::Bytes::from(query_transaction_response.message)))?;
+                
                 if let Some(refund_response) = &results.credit_response {
                     let refund_status = get_refund_status(refund_response.response)?;
                     if connector_utils::is_refund_failure(refund_status) {
