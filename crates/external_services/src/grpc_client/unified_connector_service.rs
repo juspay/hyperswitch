@@ -61,9 +61,9 @@ pub enum UnifiedConnectorServiceError {
 
     /// Data format provided is invalid
     #[error("Invalid Data format")]
-    InvalidDataFormat { 
+    InvalidDataFormat {
         /// Field Name for which data is invalid
-        field_name: &'static str 
+        field_name: &'static str,
     },
 
     /// Failed to obtain authentication type

@@ -1,6 +1,7 @@
 use api_models::admin::ConnectorAuthType;
-use common_enums::{enums::PaymentMethod, AttemptStatus, AuthenticationType};
+use common_enums::{enums::PaymentMethod, AttemptStatus, AuthenticationType, PaymentMethodType};
 use common_utils::{errors::CustomResult, ext_traits::ValueExt};
+use diesel_models::enums as storage_enums;
 use error_stack::ResultExt;
 use external_services::grpc_client::unified_connector_service::{
     UnifiedConnectorService, UnifiedConnectorServiceError,
@@ -10,11 +11,12 @@ use hyperswitch_domain_models::{
     merchant_context::MerchantContext,
     router_data::{ErrorResponse, RouterData},
     router_flow_types::payments::Authorize,
-    router_request_types::PaymentsAuthorizeData,
+    router_request_types::{AuthenticationData, PaymentsAuthorizeData},
     router_response_types::PaymentsResponseData,
 };
 use masking::{ExposeInterface, PeekInterface};
 use rand::Rng;
+use router_env::logger;
 use rust_grpc_client::payments::{self as payments_grpc};
 use tonic::metadata::{MetadataMap, MetadataValue};
 
@@ -44,7 +46,11 @@ pub async fn should_call_unified_connector_service<F: Clone, T>(
 
     let config_key = format!(
         "{}_{}_{}_{}_{}",
-        consts::UCS_ROLLOUT_PERCENT_CONFIG_PREFIX, merchant_id, connector_name, payment_method, flow_name
+        consts::UCS_ROLLOUT_PERCENT_CONFIG_PREFIX,
+        merchant_id,
+        connector_name,
+        payment_method,
+        flow_name
     );
 
     let db = state.store.as_ref();
@@ -117,7 +123,9 @@ pub fn construct_ucs_request_metadata(
                 .change_context(UnifiedConnectorServiceError::HeaderInjectionFailed(
                     context.to_string(),
                 ))
-                .attach_printable(format!("Failed to parse metadata value for {context}: {value}"))
+                .attach_printable(format!(
+                    "Failed to parse metadata value for {context}: {value}"
+                ))
         };
 
     match &auth_type {
@@ -189,6 +197,13 @@ impl ForeignTryFrom<&RouterData<Authorize, PaymentsAuthorizeData, PaymentsRespon
         let payment_method =
             payments_grpc::PaymentMethod::foreign_try_from(router_data.payment_method)?;
 
+        let payment_method_type = router_data
+            .request
+            .payment_method_type
+            .clone()
+            .map(payments_grpc::PaymentMethodType::foreign_try_from)
+            .transpose()?;
+
         let payment_method_data = payments_grpc::PaymentMethodData::foreign_try_from(
             router_data.request.payment_method_data.clone(),
         )?;
@@ -204,10 +219,26 @@ impl ForeignTryFrom<&RouterData<Authorize, PaymentsAuthorizeData, PaymentsRespon
             .map(payments_grpc::BrowserInformation::foreign_try_from)
             .transpose()?;
 
+        let capture_method = router_data
+            .request
+            .capture_method
+            .clone()
+            .map(payments_grpc::CaptureMethod::foreign_try_from)
+            .transpose()?;
+
+        let authentication_data = router_data
+            .request
+            .authentication_data
+            .clone()
+            .map(payments_grpc::AuthenticationData::foreign_try_from)
+            .transpose()?;
+
         Ok(Self {
             amount: router_data.request.amount,
             currency: currency.into(),
             payment_method: payment_method.into(),
+            payment_method_type: payment_method_type
+                .map(|payment_method_type| payment_method_type.into()),
             payment_method_data: Some(payment_method_data),
             connector_customer: router_data
                 .request
@@ -229,7 +260,52 @@ impl ForeignTryFrom<&RouterData<Authorize, PaymentsAuthorizeData, PaymentsRespon
                 .clone()
                 .map(|e| e.expose().peek().clone()),
             browser_info,
-            ..Default::default()
+            connector_meta_data: router_data
+                .connector_meta_data
+                .as_ref()
+                .map(|secret| {
+                    let binding = secret.clone();
+                    let value = binding.peek(); // Expose the secret value
+                    serde_json::to_vec(&value)
+                        .map_err(|err| {
+                            // Handle or log error as needed
+                            logger::error!(error=?err);
+                            err
+                        })
+                        .ok()
+                })
+                .flatten(),
+            access_token: None,
+            session_token: None,
+            payment_method_token: None,
+            order_tax_amount: router_data
+                .request
+                .order_tax_amount
+                .map(|order_tax_amount| order_tax_amount.get_amount_as_i64()),
+            customer_name: router_data
+                .request
+                .customer_name
+                .clone()
+                .map(|customer_name| customer_name.peek().to_owned()),
+            capture_method: capture_method.map(|capture_method| capture_method.into()),
+            webhook_url: router_data.request.webhook_url.clone(),
+            complete_authorize_url: router_data.request.complete_authorize_url.clone(),
+            setup_future_usage: None,
+            off_session: None,
+            customer_acceptance: None,
+            order_category: router_data.request.order_category.clone(),
+            payment_experience: None,
+            authentication_data: authentication_data
+                .map(|authentication_data| authentication_data.into()),
+            request_extended_authorization: router_data
+                .request
+                .request_extended_authorization
+                .map(|request_extended_authorization| request_extended_authorization.is_true()),
+            merchant_order_reference_id: router_data.request.merchant_order_reference_id.clone(),
+            shipping_cost: router_data
+                .request
+                .shipping_cost
+                .map(|shipping_cost| shipping_cost.get_amount_as_i64()),
         })
     }
 }
@@ -256,6 +332,116 @@ impl ForeignTryFrom<PaymentMethod> for payments_grpc::PaymentMethod {
             _ => Err(UnifiedConnectorServiceError::NotImplemented(format!(
                 "Unimplemented payment method: {:?}",
                 payment_method
+            ))
+            .into()),
+        }
+    }
+}
+
+impl ForeignTryFrom<PaymentMethodType> for payments_grpc::PaymentMethodType {
+    type Error = error_stack::Report<UnifiedConnectorServiceError>;
+
+    fn foreign_try_from(payment_method_type: PaymentMethodType) -> Result<Self, Self::Error> {
+        match payment_method_type {
+            PaymentMethodType::Ach => Ok(Self::Ach),
+            PaymentMethodType::Affirm => Ok(Self::Affirm),
+            PaymentMethodType::AfterpayClearpay => Ok(Self::AfterpayClearpay),
+            PaymentMethodType::Alfamart => Ok(Self::Alfamart),
+            PaymentMethodType::AliPay => Ok(Self::AliPay),
+            PaymentMethodType::AliPayHk => Ok(Self::AliPayHk),
+            PaymentMethodType::Alma => Ok(Self::Alma),
+            PaymentMethodType::AmazonPay => Ok(Self::AmazonPay),
+            PaymentMethodType::ApplePay => Ok(Self::ApplePay),
+            PaymentMethodType::Atome => Ok(Self::Atome),
+            PaymentMethodType::Bacs => Ok(Self::Bacs),
+            PaymentMethodType::BancontactCard => Ok(Self::BancontactCard),
+            PaymentMethodType::Becs => Ok(Self::Becs),
+            PaymentMethodType::Benefit => Ok(Self::Benefit),
+            PaymentMethodType::Bizum => Ok(Self::Bizum),
+            PaymentMethodType::Blik => Ok(Self::Blik),
+            PaymentMethodType::Boleto => Ok(Self::Boleto),
+            PaymentMethodType::BcaBankTransfer => Ok(Self::BcaBankTransfer),
+            PaymentMethodType::BniVa => Ok(Self::BniVa),
+            PaymentMethodType::BriVa => Ok(Self::BriVa),
+            PaymentMethodType::CardRedirect => Ok(Self::CardRedirect),
+            PaymentMethodType::CimbVa => Ok(Self::CimbVa),
+            PaymentMethodType::ClassicReward => Ok(Self::ClassicReward),
+            PaymentMethodType::Credit => Ok(Self::Credit),
+            PaymentMethodType::CryptoCurrency => Ok(Self::CryptoCurrency),
+            PaymentMethodType::Cashapp => Ok(Self::Cashapp),
+            PaymentMethodType::Dana => Ok(Self::Dana),
+            PaymentMethodType::DanamonVa => Ok(Self::DanamonVa),
+            PaymentMethodType::Debit => Ok(Self::Debit),
+            PaymentMethodType::DuitNow => Ok(Self::DuitNow),
+            PaymentMethodType::Efecty => Ok(Self::Efecty),
+            PaymentMethodType::Eft => Ok(Self::Eft),
+            PaymentMethodType::Eps => Ok(Self::Eps),
+            PaymentMethodType::Fps => Ok(Self::Fps),
+            PaymentMethodType::Evoucher => Ok(Self::Evoucher),
+            PaymentMethodType::Giropay => Ok(Self::Giropay),
+            PaymentMethodType::Givex => Ok(Self::Givex),
+            PaymentMethodType::GooglePay => Ok(Self::GooglePay),
+            PaymentMethodType::GoPay => Ok(Self::GoPay),
+            PaymentMethodType::Gcash => Ok(Self::Gcash),
+            PaymentMethodType::Ideal => Ok(Self::Ideal),
+            PaymentMethodType::Interac => Ok(Self::Interac),
+            PaymentMethodType::Indomaret => Ok(Self::Indomaret),
+            PaymentMethodType::KakaoPay => Ok(Self::KakaoPay),
+            PaymentMethodType::LocalBankRedirect => Ok(Self::LocalBankRedirect),
+            PaymentMethodType::MandiriVa => Ok(Self::MandiriVa),
+            PaymentMethodType::Knet => Ok(Self::Knet),
+            PaymentMethodType::MbWay => Ok(Self::MbWay),
+            PaymentMethodType::MobilePay => Ok(Self::MobilePay),
+            PaymentMethodType::Momo => Ok(Self::Momo),
+            PaymentMethodType::MomoAtm => Ok(Self::MomoAtm),
+            PaymentMethodType::Multibanco => Ok(Self::Multibanco),
+            PaymentMethodType::OnlineBankingThailand => Ok(Self::OnlineBankingThailand),
+            PaymentMethodType::OnlineBankingCzechRepublic => Ok(Self::OnlineBankingCzechRepublic),
+            PaymentMethodType::OnlineBankingFinland => Ok(Self::OnlineBankingFinland),
+            PaymentMethodType::OnlineBankingFpx => Ok(Self::OnlineBankingFpx),
+            PaymentMethodType::OnlineBankingPoland => Ok(Self::OnlineBankingPoland),
+            PaymentMethodType::OnlineBankingSlovakia => Ok(Self::OnlineBankingSlovakia),
+            PaymentMethodType::Oxxo => Ok(Self::Oxxo),
+            PaymentMethodType::PagoEfectivo => Ok(Self::PagoEfectivo),
+            PaymentMethodType::PermataBankTransfer => Ok(Self::PermataBankTransfer),
+            PaymentMethodType::OpenBankingUk => Ok(Self::OpenBankingUk),
+            PaymentMethodType::PayBright => Ok(Self::PayBright),
+            PaymentMethodType::Paze => Ok(Self::Paze),
+            PaymentMethodType::Pix => Ok(Self::Pix),
+            PaymentMethodType::PaySafeCard => Ok(Self::PaySafeCard),
+            PaymentMethodType::Przelewy24 => Ok(Self::Przelewy24),
+            PaymentMethodType::PromptPay => Ok(Self::PromptPay),
+            PaymentMethodType::Pse => Ok(Self::Pse),
+            PaymentMethodType::RedCompra => Ok(Self::RedCompra),
+            PaymentMethodType::RedPagos => Ok(Self::RedPagos),
+            PaymentMethodType::SamsungPay => Ok(Self::SamsungPay),
+            PaymentMethodType::Sepa => Ok(Self::Sepa),
+            PaymentMethodType::SepaBankTransfer => Ok(Self::SepaBankTransfer),
+            PaymentMethodType::Sofort => Ok(Self::Sofort),
+            PaymentMethodType::Swish => Ok(Self::Swish),
+            PaymentMethodType::TouchNGo => Ok(Self::TouchNGo),
+            PaymentMethodType::Trustly => Ok(Self::Trustly),
+            PaymentMethodType::Twint => Ok(Self::Twint),
+            PaymentMethodType::UpiCollect => Ok(Self::UpiCollect),
+            PaymentMethodType::UpiIntent => Ok(Self::UpiIntent),
+            PaymentMethodType::Vipps => Ok(Self::Vipps),
+            PaymentMethodType::VietQr => Ok(Self::VietQr),
+            PaymentMethodType::Venmo => Ok(Self::Venmo),
+            PaymentMethodType::Walley => Ok(Self::Walley),
+            PaymentMethodType::WeChatPay => Ok(Self::WeChatPay),
+            PaymentMethodType::SevenEleven => Ok(Self::SevenEleven),
+            PaymentMethodType::Lawson => Ok(Self::Lawson),
+            PaymentMethodType::MiniStop => Ok(Self::MiniStop),
+            PaymentMethodType::FamilyMart => Ok(Self::FamilyMart),
+            PaymentMethodType::Seicomart => Ok(Self::Seicomart),
+            PaymentMethodType::PayEasy => Ok(Self::PayEasy),
+            PaymentMethodType::LocalBankTransfer => Ok(Self::LocalBankTransfer),
+            PaymentMethodType::OpenBankingPIS => Ok(Self::OpenBankingPis),
+            PaymentMethodType::DirectCarrierBilling => Ok(Self::DirectCarrierBilling),
+            PaymentMethodType::InstantBankTransfer => Ok(Self::InstantBankTransfer),
+            _ => Err(UnifiedConnectorServiceError::NotImplemented(format!(
+                "Unimplemented payment method type: {:?}",
+                payment_method_type
             ))
             .into()),
         }
@@ -488,6 +674,34 @@ impl ForeignTryFrom<hyperswitch_domain_models::router_request_types::BrowserInfo
             os_version: browser_info.os_version,
             device_model: browser_info.device_model,
             accept_language: browser_info.accept_language,
+        })
+    }
+}
+
+impl ForeignTryFrom<storage_enums::CaptureMethod> for payments_grpc::CaptureMethod {
+    type Error = error_stack::Report<UnifiedConnectorServiceError>;
+
+    fn foreign_try_from(capture_method: storage_enums::CaptureMethod) -> Result<Self, Self::Error> {
+        match capture_method {
+            common_enums::CaptureMethod::Automatic => Ok(Self::Automatic),
+            common_enums::CaptureMethod::Manual => Ok(Self::Manual),
+            common_enums::CaptureMethod::ManualMultiple => Ok(Self::ManualMultiple),
+            common_enums::CaptureMethod::Scheduled => Ok(Self::Scheduled),
+            common_enums::CaptureMethod::SequentialAutomatic => Ok(Self::SequentialAutomatic),
+        }
+    }
+}
+
+impl ForeignTryFrom<AuthenticationData> for payments_grpc::AuthenticationData {
+    type Error = error_stack::Report<UnifiedConnectorServiceError>;
+
+    fn foreign_try_from(authentication_data: AuthenticationData) -> Result<Self, Self::Error> {
+        Ok(Self {
+            eci: authentication_data.eci,
+            cavv: authentication_data.cavv.peek().to_string(),
+            threeds_server_transaction_id: authentication_data.threeds_server_transaction_id,
+            message_version: None,
+            ds_trans_id: authentication_data.ds_trans_id,
         })
     }
 }
