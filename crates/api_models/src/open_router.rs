@@ -62,6 +62,7 @@ pub struct PaymentInfo {
 pub struct DecidedGateway {
     pub gateway_priority_map: Option<HashMap<String, f64>>,
     pub debit_routing_output: Option<DebitRoutingOutput>,
+    pub routing_approach: String,
 }
 
 #[derive(Debug, Serialize, Deserialize, PartialEq)]
@@ -145,6 +146,11 @@ pub struct UpdateScorePayload {
     pub gateway: String,
     pub status: TxnStatus,
     pub payment_id: id_type::PaymentId,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct UpdateScoreResponse {
+    pub message: String,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]

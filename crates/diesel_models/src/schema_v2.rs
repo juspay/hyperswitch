@@ -223,6 +223,7 @@ diesel::table! {
         id -> Varchar,
         is_iframe_redirection_enabled -> Nullable<Bool>,
         three_ds_decision_rule_algorithm -> Nullable<Jsonb>,
+        acquirer_config_map -> Nullable<Jsonb>,
         #[max_length = 64]
         routing_algorithm_id -> Nullable<Varchar>,
         order_fulfillment_time -> Nullable<Int8>,
@@ -912,6 +913,8 @@ diesel::table! {
         #[max_length = 32]
         network_decline_code -> Nullable<Varchar>,
         network_error_message -> Nullable<Text>,
+        #[max_length = 255]
+        connector_request_reference_id -> Nullable<Varchar>,
     }
 }
 
@@ -1344,6 +1347,8 @@ diesel::table! {
         created_at -> Timestamp,
         modified_at -> Timestamp,
         algorithm_for -> TransactionType,
+        #[max_length = 64]
+        decision_engine_routing_id -> Nullable<Varchar>,
     }
 }
 
@@ -1377,6 +1382,26 @@ diesel::table! {
         #[max_length = 64]
         email_entity_name -> Varchar,
         email_entity_logo_url -> Text,
+    }
+}
+
+diesel::table! {
+    use diesel::sql_types::*;
+    use crate::enums::diesel_exports::*;
+
+    tokenization (id) {
+        #[max_length = 64]
+        id -> Varchar,
+        #[max_length = 255]
+        merchant_id -> Varchar,
+        #[max_length = 64]
+        customer_id -> Varchar,
+        created_at -> Timestamp,
+        updated_at -> Timestamp,
+        #[max_length = 255]
+        locker_id -> Varchar,
+        flag -> TokenizationFlag,
+        version -> ApiVersion,
     }
 }
 
@@ -1533,6 +1558,7 @@ diesel::allow_tables_to_appear_in_same_query!(
     roles,
     routing_algorithm,
     themes,
+    tokenization,
     unified_translations,
     user_authentication_methods,
     user_key_store,

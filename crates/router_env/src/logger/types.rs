@@ -586,10 +586,17 @@ pub enum Flow {
     TotalPaymentMethodCount,
     /// Process Tracker Revenue Recovery Workflow Retrieve
     RevenueRecoveryRetrieve,
+    /// Tokenization flow
+    TokenizationCreate,
+    /// Tokenization retrieve flow
+    TokenizationRetrieve,
     /// Clone Connector flow
     CloneConnector,
     ///Proxy Flow
     Proxy,
+    ProfileAcquirerCreate,
+    /// ThreeDs Decision Rule Execute flow
+    ThreeDsDecisionRuleExecute,
 }
 
 /// Trait for providing generic behaviour to flow metric

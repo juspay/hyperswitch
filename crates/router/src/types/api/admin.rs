@@ -92,6 +92,7 @@ impl ForeignTryFrom<domain::MerchantAccount> for MerchantAccountResponse {
             recon_status: item.recon_status,
             pm_collect_link_config,
             product_type: item.product_type,
+            merchant_account_type: item.merchant_account_type,
         })
     }
 }
@@ -196,6 +197,8 @@ impl ForeignTryFrom<domain::Profile> for ProfileResponse {
             is_debit_routing_enabled: Some(item.is_debit_routing_enabled),
             merchant_business_country: item.merchant_business_country,
             is_pre_network_tokenization_enabled: item.is_pre_network_tokenization_enabled,
+            acquirer_configs: item.acquirer_config_map,
+            is_iframe_redirection_enabled: item.is_iframe_redirection_enabled,
         })
     }
 }

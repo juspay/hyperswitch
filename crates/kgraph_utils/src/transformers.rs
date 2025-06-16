@@ -151,6 +151,7 @@ impl IntoDirValue for (api_enums::PaymentMethodType, api_enums::PaymentMethod) {
             api_enums::PaymentMethodType::CryptoCurrency => {
                 Ok(dirval!(CryptoType = CryptoCurrency))
             }
+            api_enums::PaymentMethodType::RevolutPay => Ok(dirval!(WalletType = RevolutPay)),
             api_enums::PaymentMethodType::Ach => match self.1 {
                 api_enums::PaymentMethod::BankDebit => Ok(dirval!(BankDebitType = Ach)),
                 api_enums::PaymentMethod::BankTransfer => Ok(dirval!(BankTransferType = Ach)),
@@ -167,7 +168,7 @@ impl IntoDirValue for (api_enums::PaymentMethodType, api_enums::PaymentMethod) {
                 | api_enums::PaymentMethod::Voucher
                 | api_enums::PaymentMethod::OpenBanking
                 | api_enums::PaymentMethod::GiftCard => Err(KgraphError::ContextConstructionError(
-                    AnalysisErrorType::NotSupported,
+                    Box::new(AnalysisErrorType::NotSupported),
                 )),
             },
             api_enums::PaymentMethodType::Bacs => match self.1 {
@@ -186,7 +187,7 @@ impl IntoDirValue for (api_enums::PaymentMethodType, api_enums::PaymentMethod) {
                 | api_enums::PaymentMethod::Voucher
                 | api_enums::PaymentMethod::OpenBanking
                 | api_enums::PaymentMethod::GiftCard => Err(KgraphError::ContextConstructionError(
-                    AnalysisErrorType::NotSupported,
+                    Box::new(AnalysisErrorType::NotSupported),
                 )),
             },
             api_enums::PaymentMethodType::Becs => Ok(dirval!(BankDebitType = Becs)),

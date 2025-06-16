@@ -6,7 +6,7 @@ use common_utils::{
     errors::CustomResult,
     pii::{self, Email},
     request::Method,
-    types::StringMajorUnit,
+    types::{FloatMajorUnit, StringMajorUnit},
 };
 use error_stack::{report, ResultExt};
 use hyperswitch_domain_models::{
@@ -555,8 +555,8 @@ impl TryFrom<&TrustpayRouterData<&PaymentsAuthorizeRouterData>> for TrustpayPaym
                 )
             }
             PaymentMethodData::NetworkToken(ref token_data) => {
-                Ok(Self::NetworkTokenPaymentRequest(
-                    Box::new(PaymentRequestNetworkToken {
+                Ok(Self::NetworkTokenPaymentRequest(Box::new(
+                    PaymentRequestNetworkToken {
                         amount: item.amount.to_owned(),
                         currency: item.router_data.request.currency,
                         pan: token_data.get_network_token(),
@@ -573,8 +573,8 @@ impl TryFrom<&TrustpayRouterData<&PaymentsAuthorizeRouterData>> for TrustpayPaym
                                 field_name: "verification_id",
                             }
                         })?,
-                    }),
-                ))
+                    },
+                )))
             }
             PaymentMethodData::CardRedirect(_)
             | PaymentMethodData::Wallet(_)
@@ -1939,7 +1939,7 @@ impl TryFrom<WebhookStatus> for enums::RefundStatus {
 #[derive(Default, Debug, Serialize, Deserialize, Eq, PartialEq, Clone)]
 #[serde(rename_all = "PascalCase")]
 pub struct WebhookReferences {
-    pub merchant_reference: String,
+    pub merchant_reference: Option<String>,
     pub payment_id: Option<String>,
     pub payment_request_id: Option<String>,
 }
@@ -1947,7 +1947,7 @@ pub struct WebhookReferences {
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 #[serde(rename_all = "PascalCase")]
 pub struct WebhookAmount {
-    pub amount: f64,
+    pub amount: FloatMajorUnit,
     pub currency: enums::Currency,
 }
 
