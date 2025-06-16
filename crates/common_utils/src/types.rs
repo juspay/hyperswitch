@@ -13,6 +13,7 @@ use std::{
     borrow::Cow,
     fmt::Display,
     iter::Sum,
+    num::NonZeroI64,
     ops::{Add, Mul, Sub},
     primitive::i64,
     str::FromStr,
@@ -386,14 +387,6 @@ impl AmountConvertor for MinorUnitForConnector {
 #[diesel(sql_type = sql_types::BigInt)]
 pub struct MinorUnit(i64);
 
-use std::num::NonZeroI64;
-
-impl From<NonZeroI64> for MinorUnit {
-    fn from(val: NonZeroI64) -> Self {
-        Self::new(val.get())
-    }
-}
-
 impl MinorUnit {
     /// gets amount as i64 value will be removed in future
     pub fn get_amount_as_i64(self) -> i64 {
@@ -457,6 +450,12 @@ impl MinorUnit {
     ///Convert minor unit to string minor unit
     fn to_minor_unit_as_string(self) -> Result<StringMinorUnit, error_stack::Report<ParsingError>> {
         Ok(StringMinorUnit::new(self.0.to_string()))
+    }
+}
+
+impl From<NonZeroI64> for MinorUnit {
+    fn from(val: NonZeroI64) -> Self {
+        Self::new(val.get())
     }
 }
 
