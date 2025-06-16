@@ -2770,6 +2770,12 @@ impl GetPaymentMethodType for BankTransferData {
             Self::Pse {} => api_enums::PaymentMethodType::Pse,
             Self::LocalBankTransfer { .. } => api_enums::PaymentMethodType::LocalBankTransfer,
             Self::InstantBankTransfer {} => api_enums::PaymentMethodType::InstantBankTransfer,
+            Self::InstantBankTransferFinland {} => {
+                api_enums::PaymentMethodType::InstantBankTransferFinland
+            }
+            Self::InstantBankTransferPoland {} => {
+                api_enums::PaymentMethodType::InstantBankTransferPoland
+            }
         }
     }
 }
@@ -3435,6 +3441,8 @@ pub enum BankTransferData {
         bank_code: Option<String>,
     },
     InstantBankTransfer {},
+    InstantBankTransferFinland {},
+    InstantBankTransferPoland {},
 }
 
 #[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
@@ -3505,7 +3513,9 @@ impl GetAddressFromPaymentMethodData for BankTransferData {
             Self::LocalBankTransfer { .. }
             | Self::Pix { .. }
             | Self::Pse {}
-            | Self::InstantBankTransfer {} => None,
+            | Self::InstantBankTransfer {}
+            | Self::InstantBankTransferFinland {}
+            | Self::InstantBankTransferPoland {} => None,
         }
     }
 }
@@ -8684,9 +8694,41 @@ pub struct PaymentRevenueRecoveryMetadata {
     /// The name of the payment connector through which the payment attempt was made.
     #[schema(value_type = Connector, example = "stripe")]
     pub connector: common_enums::connector_enums::Connector,
+    #[schema(value_type = BillingConnectorPaymentMethodDetails)]
+    /// Extra Payment Method Details that are needed to be stored
+    pub billing_connector_payment_method_details: Option<BillingConnectorPaymentMethodDetails>,
     /// Invoice Next billing time
+    #[serde(default, with = "common_utils::custom_serde::iso8601::option")]
     pub invoice_next_billing_time: Option<PrimitiveDateTime>,
+    /// First Payment Attempt Payment Gateway Error Code
+    #[schema(value_type = Option<String>, example = "card_declined")]
+    pub first_payment_attempt_pg_error_code: Option<String>,
+    /// First Payment Attempt Network Error Code
+    #[schema(value_type = Option<String>, example = "05")]
+    pub first_payment_attempt_network_decline_code: Option<String>,
+    /// First Payment Attempt Network Advice Code
+    #[schema(value_type = Option<String>, example = "02")]
+    pub first_payment_attempt_network_advice_code: Option<String>,
 }
+
+#[cfg(feature = "v2")]
+#[derive(Debug, Clone, PartialEq, Deserialize, Serialize, ToSchema)]
+#[serde(rename_all = "snake_case", tag = "type", content = "value")]
+pub enum BillingConnectorPaymentMethodDetails {
+    Card(BillingConnectorAdditionalCardInfo),
+}
+
+#[cfg(feature = "v2")]
+#[derive(Debug, Clone, PartialEq, Deserialize, Serialize, ToSchema)]
+pub struct BillingConnectorAdditionalCardInfo {
+    #[schema(value_type = CardNetwork, example = "Visa")]
+    /// Card Network
+    pub card_network: Option<common_enums::enums::CardNetwork>,
+    #[schema(value_type = Option<String>, example = "JP MORGAN CHASE")]
+    /// Card Issuer
+    pub card_issuer: Option<String>,
+}
+
 #[cfg(feature = "v2")]
 impl PaymentRevenueRecoveryMetadata {
     pub fn set_payment_transmission_field_for_api_request(
@@ -8800,6 +8842,14 @@ pub struct PaymentsAttemptRecordRequest {
     /// source where the payment was triggered by
     #[schema(value_type = TriggeredBy, example = "internal" )]
     pub triggered_by: common_enums::TriggeredBy,
+
+    #[schema(value_type = CardNetwork, example = "Visa" )]
+    /// card_network
+    pub card_network: Option<common_enums::CardNetwork>,
+
+    #[schema(example = "Chase")]
+    /// Card Issuer
+    pub card_issuer: Option<String>,
 }
 
 /// Error details for the payment

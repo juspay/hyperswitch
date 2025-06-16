@@ -4901,6 +4901,22 @@ impl ForeignFrom<&diesel_models::types::BillingConnectorPaymentDetails>
 }
 
 #[cfg(feature = "v2")]
+impl ForeignFrom<&diesel_models::types::BillingConnectorPaymentMethodDetails>
+    for api_models::payments::BillingConnectorPaymentMethodDetails
+{
+    fn foreign_from(metadata: &diesel_models::types::BillingConnectorPaymentMethodDetails) -> Self {
+        match metadata {
+            diesel_models::types::BillingConnectorPaymentMethodDetails::Card(card_details) => {
+                Self::Card(api_models::payments::BillingConnectorAdditionalCardInfo {
+                    card_issuer: card_details.card_issuer.clone(),
+                    card_network: card_details.card_network.clone(),
+                })
+            }
+        }
+    }
+}
+
+#[cfg(feature = "v2")]
 impl ForeignFrom<&hyperswitch_domain_models::payments::payment_attempt::ErrorDetails>
     for api_models::payments::ErrorDetails
 {
@@ -4965,6 +4981,17 @@ impl ForeignFrom<&diesel_models::types::FeatureMetadata> for api_models::payment
                         ),
                     invoice_next_billing_time: payment_revenue_recovery_metadata
                         .invoice_next_billing_time,
+                        billing_connector_payment_method_details:payment_revenue_recovery_metadata
+                        .billing_connector_payment_method_details.as_ref().map(api_models::payments::BillingConnectorPaymentMethodDetails::foreign_from),
+                    first_payment_attempt_network_advice_code: payment_revenue_recovery_metadata
+                        .first_payment_attempt_network_advice_code
+                        .clone(),
+                    first_payment_attempt_network_decline_code: payment_revenue_recovery_metadata
+                        .first_payment_attempt_network_decline_code
+                        .clone(),
+                    first_payment_attempt_pg_error_code: payment_revenue_recovery_metadata
+                        .first_payment_attempt_pg_error_code
+                        .clone(),
                 }
             });
         let apple_pay_details = feature_metadata

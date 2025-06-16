@@ -1231,6 +1231,8 @@ impl TryFrom<&PaypalRouterData<&PaymentsAuthorizeRouterData>> for PaypalPayments
                     | enums::PaymentMethodType::PayEasy
                     | enums::PaymentMethodType::LocalBankTransfer
                     | enums::PaymentMethodType::InstantBankTransfer
+                    | enums::PaymentMethodType::InstantBankTransferFinland
+                    | enums::PaymentMethodType::InstantBankTransferPoland
                     | enums::PaymentMethodType::Mifinity
                     | enums::PaymentMethodType::Paze
                     | enums::PaymentMethodType::RevolutPay => {
@@ -1331,6 +1333,8 @@ impl TryFrom<&BankTransferData> for PaypalPaymentsRequest {
             | BankTransferData::Pix { .. }
             | BankTransferData::Pse {}
             | BankTransferData::InstantBankTransfer {}
+            | BankTransferData::InstantBankTransferFinland {}
+            | BankTransferData::InstantBankTransferPoland {}
             | BankTransferData::LocalBankTransfer { .. } => {
                 Err(errors::ConnectorError::NotImplemented(
                     utils::get_unimplemented_payment_method_error_message("Paypal"),
