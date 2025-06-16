@@ -37,6 +37,14 @@ impl<T> From<(FloatMajorUnit, T)> for AuthipayRouterData<T> {
 pub struct Amount {
     total: FloatMajorUnit,
     currency: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    components: Option<AmountComponents>,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub struct AmountComponents {
+    subtotal: FloatMajorUnit,
 }
 
 #[derive(Default, Debug, Serialize, Deserialize, Clone, Eq, PartialEq)]
@@ -73,8 +81,8 @@ pub struct AuthipayPaymentsRequest {
     request_type: &'static str,
     transaction_amount: Amount,
     payment_method: PaymentMethod,
-    split_shipment: Option<SplitShipment>,
-    incremental_flag: Option<bool>,
+    // split_shipment: Option<SplitShipment>,
+    // incremental_flag: Option<bool>,
 }
 
 impl TryFrom<&AuthipayRouterData<&PaymentsAuthorizeRouterData>> for AuthipayPaymentsRequest {
@@ -100,19 +108,18 @@ impl TryFrom<&AuthipayRouterData<&PaymentsAuthorizeRouterData>> for AuthipayPaym
                 let transaction_amount = Amount {
                     total: item.amount,
                     currency: item.router_data.request.currency.to_string(),
+                    components: None,
                 };
-
-                // Making split_shipment None since some merchants aren't set up to support it
-                // This avoids error code 10421: "The merchant is not setup to support split shipment"
-                let split_shipment = None;
-
-                Ok(Self {
-                    request_type: "PaymentCardPreAuthTransaction",
+                // let split_shipment = None;
+                let request = Self {
+                    request_type: "PaymentCardSaleTransaction",
                     transaction_amount,
                     payment_method,
-                    split_shipment,
-                    incremental_flag: Some(false),
-                })
+                    // split_shipment:None,
+                    // incremental_flag: Some(false),
+                };
+
+                Ok(request)
             }
             _ => Err(errors::ConnectorError::NotImplemented("Payment method".to_string()).into()),
         }
@@ -146,6 +153,7 @@ impl TryFrom<&ConnectorAuthType> for AuthipayAuthType {
 #[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq)]
 #[serde(rename_all = "UPPERCASE")]
 pub enum AuthipayPaymentStatus {
+    APPROVED,
     AUTHORIZED,
     CAPTURED,
     RETURNED,
@@ -158,7 +166,7 @@ pub enum AuthipayPaymentStatus {
 impl From<AuthipayPaymentStatus> for enums::AttemptStatus {
     fn from(item: AuthipayPaymentStatus) -> Self {
         match item {
-            AuthipayPaymentStatus::CAPTURED => Self::Charged,
+            AuthipayPaymentStatus::APPROVED | AuthipayPaymentStatus::CAPTURED => Self::Charged,
             AuthipayPaymentStatus::DECLINED | AuthipayPaymentStatus::FAILED => Self::Failure,
             AuthipayPaymentStatus::PROCESSING => Self::Pending,
             AuthipayPaymentStatus::AUTHORIZED => Self::Authorized,
@@ -170,25 +178,44 @@ impl From<AuthipayPaymentStatus> for enums::AttemptStatus {
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 #[serde(rename_all = "camelCase")]
 pub struct AuthipayPaymentsResponse {
+    #[serde(rename = "type")]
+    response_type: Option<String>,
     client_request_id: String,
     api_trace_id: String,
     ipg_transaction_id: String,
     order_id: String,
     transaction_type: String,
-    transaction_state: AuthipayPaymentStatus,
+    payment_token: Option<PaymentToken>,
+    transaction_origin: Option<String>,
     payment_method_details: Option<PaymentMethodDetails>,
-    transaction_amount: Amount,
+    country: Option<String>,
+    terminal_id: Option<String>,
+    merchant_id: Option<String>,
     transaction_time: i64,
     approved_amount: Amount,
+    transaction_amount: Amount,
     transaction_status: String,
     approval_code: String,
+    scheme_transaction_id: Option<String>,
     processor: Processor,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 #[serde(rename_all = "camelCase")]
+pub struct PaymentToken {
+    reusable: Option<bool>,
+    decline_duplicates: Option<bool>,
+    brand: Option<String>,
+    #[serde(rename = "type")]
+    token_type: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[serde(rename_all = "camelCase")]
 pub struct PaymentMethodDetails {
-    payment_card: PaymentCardDetails,
+    payment_card: Option<PaymentCardDetails>,
+    payment_method_type: Option<String>,
+    payment_method_brand: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
@@ -201,9 +228,22 @@ pub struct PaymentCardDetails {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[serde(rename_all = "camelCase")]
 pub struct Processor {
+    reference_number: Option<String>,
+    authorization_code: Option<String>,
     response_code: String,
     response_message: String,
+    avs_response: Option<AvsResponse>,
+    security_code_response: Option<String>,
+    tax_refund_data: Option<serde_json::Value>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub struct AvsResponse {
+    street_match: Option<String>,
+    postal_code_match: Option<String>,
 }
 
 impl<F, T> TryFrom<ResponseRouterData<F, AuthipayPaymentsResponse, T, PaymentsResponseData>>
@@ -213,8 +253,17 @@ impl<F, T> TryFrom<ResponseRouterData<F, AuthipayPaymentsResponse, T, PaymentsRe
     fn try_from(
         item: ResponseRouterData<F, AuthipayPaymentsResponse, T, PaymentsResponseData>,
     ) -> Result<Self, Self::Error> {
+        // Parse the transaction_status string to determine the status
+        let status = match item.response.transaction_status.as_str() {
+            "APPROVED" => enums::AttemptStatus::Charged,
+            "AUTHORIZED" => enums::AttemptStatus::Authorized,
+            "DECLINED" | "FAILED" => enums::AttemptStatus::Failure,
+            "RETURNED" => enums::AttemptStatus::Voided,
+            _ => enums::AttemptStatus::Pending,
+        };
+
         Ok(Self {
-            status: enums::AttemptStatus::from(item.response.transaction_state),
+            status,
             response: Ok(PaymentsResponseData::TransactionResponse {
                 resource_id: ResponseId::ConnectorTransactionId(item.response.ipg_transaction_id),
                 redirection_data: Box::new(None),
@@ -249,6 +298,7 @@ impl TryFrom<&AuthipayRouterData<&PaymentsCaptureRouterData>> for AuthipayCaptur
             transaction_amount: Amount {
                 total: item.amount,
                 currency: item.router_data.request.currency.to_string(),
+                components: None,
             },
         })
     }
@@ -266,10 +316,11 @@ impl<F> TryFrom<&AuthipayRouterData<&RefundsRouterData<F>>> for AuthipayRefundRe
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(item: &AuthipayRouterData<&RefundsRouterData<F>>) -> Result<Self, Self::Error> {
         Ok(Self {
-            request_type: "PaymentCardReturnTransaction",
+            request_type: "ReturnTransaction",
             transaction_amount: Amount {
                 total: item.amount.to_owned(),
                 currency: item.router_data.request.currency.to_string(),
+                components: None,
             },
         })
     }
@@ -306,16 +357,16 @@ impl TryFrom<RefundsResponseRouterData<Execute, RefundResponse>> for RefundsRout
     fn try_from(
         item: RefundsResponseRouterData<Execute, RefundResponse>,
     ) -> Result<Self, Self::Error> {
+        let refund_status = match item.response.transaction_status.as_str() {
+            "RETURNED" => RefundStatus::Succeeded,
+            "FAILED" | "DECLINED" => RefundStatus::Failed,
+            _ => RefundStatus::Processing,
+        };
+
         Ok(Self {
             response: Ok(RefundsResponseData {
                 connector_refund_id: item.response.ipg_transaction_id.to_string(),
-                refund_status: enums::RefundStatus::from(match item.response.transaction_state {
-                    AuthipayPaymentStatus::RETURNED => RefundStatus::Succeeded,
-                    AuthipayPaymentStatus::FAILED | AuthipayPaymentStatus::DECLINED => {
-                        RefundStatus::Failed
-                    }
-                    _ => RefundStatus::Processing,
-                }),
+                refund_status: enums::RefundStatus::from(refund_status),
             }),
             ..item.data
         })
@@ -327,16 +378,16 @@ impl TryFrom<RefundsResponseRouterData<RSync, RefundResponse>> for RefundsRouter
     fn try_from(
         item: RefundsResponseRouterData<RSync, RefundResponse>,
     ) -> Result<Self, Self::Error> {
+        let refund_status = match item.response.transaction_status.as_str() {
+            "RETURNED" => RefundStatus::Succeeded,
+            "FAILED" | "DECLINED" => RefundStatus::Failed,
+            _ => RefundStatus::Processing,
+        };
+
         Ok(Self {
             response: Ok(RefundsResponseData {
                 connector_refund_id: item.response.ipg_transaction_id.to_string(),
-                refund_status: enums::RefundStatus::from(match item.response.transaction_state {
-                    AuthipayPaymentStatus::RETURNED => RefundStatus::Succeeded,
-                    AuthipayPaymentStatus::FAILED | AuthipayPaymentStatus::DECLINED => {
-                        RefundStatus::Failed
-                    }
-                    _ => RefundStatus::Processing,
-                }),
+                refund_status: enums::RefundStatus::from(refund_status),
             }),
             ..item.data
         })
@@ -346,18 +397,29 @@ impl TryFrom<RefundsResponseRouterData<RSync, RefundResponse>> for RefundsRouter
 // Error Response structs
 #[derive(Default, Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
+pub struct ErrorDetailItem {
+    pub field: String,
+    pub message: String,
+}
+
+#[derive(Default, Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct ErrorDetails {
     pub code: Option<String>,
     pub message: String,
+    pub details: Option<Vec<ErrorDetailItem>>,
 }
 
 #[derive(Default, Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct AuthipayErrorResponse {
     pub client_request_id: Option<String>,
-    pub response_type: Option<String>,
-    pub error: ErrorDetails,
     pub api_trace_id: Option<String>,
+    pub response_type: Option<String>,
+    #[serde(rename = "type")]
+    pub response_object_type: Option<String>,
+    pub error: ErrorDetails,
+    pub decline_reason_code: Option<String>,
 }
 
 impl From<&AuthipayErrorResponse> for ErrorResponse {
