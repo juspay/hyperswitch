@@ -98,6 +98,11 @@ where
 
         match response {
             Ok(resp) => {
+                logger::debug!(
+                    "decision_engine: Received response from Decision Engine API ({})",
+                    String::from_utf8_lossy(&resp.response); // For logging
+                );
+
                 let resp = should_parse_response
                     .then(|| {
                         let response_type: Res = resp
@@ -116,6 +121,11 @@ where
                 Ok(resp)
             }
             Err(err) => {
+                logger::debug!(
+                    "decision_engine: Received response from Decision Engine API ({})",
+                    String::from_utf8_lossy(&err.response); // For logging
+                );
+
                 let err_resp: or_types::ErrorResponse = err
                     .response
                     .parse_struct("ErrorResponse")
@@ -654,6 +664,13 @@ pub fn convert_backend_input_to_routing_eval(
     })
 }
 
+#[derive(Debug, Clone, serde::Deserialize)]
+struct DeErrorResponse {
+    code: String,
+    message: String,
+    data: Option<serde_json::Value>,
+}
+
 //TODO: temporary change will be refactored afterwards
 #[derive(Clone, Debug, serde::Serialize, serde::Deserialize, PartialEq)]
 pub struct RoutingEvaluateRequest {
@@ -693,7 +710,7 @@ pub enum ValueType {
 pub type Metadata = HashMap<String, serde_json::Value>;
 /// Represents a number comparison for "NumberComparisonArrayValue"
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
+#[serde(rename_all = "snake_case")]
 pub struct NumberComparison {
     pub comparison_type: ComparisonType,
     pub number: u64,
@@ -746,7 +763,7 @@ pub type IfCondition = Vec<Comparison>;
 /// }
 /// ```
 #[derive(Clone, Debug, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
+#[serde(rename_all = "snake_case")]
 pub struct IfStatement {
     // #[schema(value_type=Vec<Comparison>)]
     pub condition: IfCondition,
@@ -768,7 +785,7 @@ pub struct IfStatement {
 /// }
 /// ```
 #[derive(Clone, Debug, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
+#[serde(rename_all = "snake_case")]
 // #[aliases(RuleConnectorSelection = Rule<ConnectorSelection>)]
 pub struct Rule {
     pub name: String,
@@ -788,18 +805,31 @@ pub enum RoutingType {
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
+#[serde(rename_all = "snake_case")]
 pub struct VolumeSplit<T> {
     pub split: u8,
     pub output: T,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
+#[serde(rename_all = "snake_case")]
+pub struct ConnectorInfo {
+    pub connector: String,
+    pub mca_id: Option<String>,
+}
+
+impl ConnectorInfo {
+    pub fn new(connector: String, mca_id: Option<String>) -> Self {
+        Self { connector, mca_id }
+    }
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
 pub enum Output {
-    Priority(Vec<String>),
-    VolumeSplit(Vec<VolumeSplit<String>>),
-    VolumeSplitPriority(Vec<VolumeSplit<Vec<String>>>),
+    Priority(Vec<ConnectorInfo>),
+    VolumeSplit(Vec<VolumeSplit<ConnectorInfo>>),
+    VolumeSplitPriority(Vec<VolumeSplit<Vec<ConnectorInfo>>>),
 }
 
 pub type Globals = HashMap<String, HashSet<ValueType>>;
@@ -807,7 +837,7 @@ pub type Globals = HashMap<String, HashSet<ValueType>>;
 /// The program, having a default connector selection and
 /// a bunch of rules. Also can hold arbitrary metadata.
 #[derive(Clone, Debug, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
+#[serde(rename_all = "snake_case")]
 // #[aliases(ProgramConnectorSelection = Program<ConnectorSelection>)]
 pub struct Program {
     pub globals: Globals,
@@ -826,7 +856,13 @@ pub struct RoutingRule {
     pub description: Option<String>,
     pub metadata: Option<RoutingMetadata>,
     pub created_by: String,
-    pub algorithm: Program,
+    pub algorithm: StaticRoutingAlgorithm,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(tag = "type", content = "data", rename_all = "snake_case")]
+pub enum StaticRoutingAlgorithm {
+    Advanced(Program),
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -896,6 +932,15 @@ impl TryFrom<ast::Program<ConnectorSelection>> for Program {
             rules,
             metadata: Some(p.metadata),
         })
+    }
+}
+
+impl TryFrom<ast::Program<ConnectorSelection>> for StaticRoutingAlgorithm {
+    type Error = error_stack::Report<errors::RoutingError>;
+
+    fn try_from(p: ast::Program<ConnectorSelection>) -> Result<Self, Self::Error> {
+        let internal_program: Program = p.try_into()?;
+        Ok(Self::Advanced(internal_program))
     }
 }
 
@@ -990,8 +1035,12 @@ fn convert_output(sel: ConnectorSelection) -> Output {
     }
 }
 
-fn stringify_choice(c: RoutableConnectorChoice) -> String {
-    c.connector.to_string()
+fn stringify_choice(c: RoutableConnectorChoice) -> ConnectorInfo {
+    ConnectorInfo::new(
+        c.connector.to_string(),
+        c.merchant_connector_id
+            .map(|mca_id| mca_id.get_string_repr().to_string()),
+    )
 }
 
 #[derive(Debug)]
