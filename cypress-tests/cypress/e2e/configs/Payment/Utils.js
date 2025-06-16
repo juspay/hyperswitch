@@ -8,6 +8,7 @@ import { connectorDetails as airwallexConnectorDetails } from "./Airwallex.js";
 import { connectorDetails as archipelConnectorDetails } from "./Archipel.js";
 import { connectorDetails as bamboraapacConnectorDetails } from "./Bamboraapac.js";
 import { connectorDetails as bankOfAmericaConnectorDetails } from "./BankOfAmerica.js";
+import { connectorDetails as billwerkConnectorDetails } from "./Billwerk.js";
 import { connectorDetails as bluesnapConnectorDetails } from "./Bluesnap.js";
 import { connectorDetails as braintreeConnectorDetails } from "./Braintree.js";
 import { connectorDetails as checkoutConnectorDetails } from "./Checkout.js";
@@ -20,7 +21,9 @@ import { connectorDetails as facilitapayConnectorDetails } from "./Facilitapay.j
 import { connectorDetails as fiservConnectorDetails } from "./Fiserv.js";
 import { connectorDetails as fiservemeaConnectorDetails } from "./Fiservemea.js";
 import { connectorDetails as fiuuConnectorDetails } from "./Fiuu.js";
+import { connectorDetails as forteConnectorDetails } from "./forte.js";
 import { connectorDetails as getnetConnectorDetails } from "./Getnet.js";
+import { connectorDetails as globalpaymentsConnectorDetails } from "./GlobalPay.js";
 import { connectorDetails as hipayConnectorDetails } from "./Hipay.js";
 import { connectorDetails as iatapayConnectorDetails } from "./Iatapay.js";
 import { connectorDetails as itaubankConnectorDetails } from "./ItauBank.js";
@@ -33,6 +36,7 @@ import { connectorDetails as novalnetConnectorDetails } from "./Novalnet.js";
 import { connectorDetails as payboxConnectorDetails } from "./Paybox.js";
 import { connectorDetails as paypalConnectorDetails } from "./Paypal.js";
 import { connectorDetails as redsysConnectorDetails } from "./Redsys.js";
+import { connectorDetails as staxConnectorDetails } from "./Stax.js";
 import { connectorDetails as stripeConnectorDetails } from "./Stripe.js";
 import { connectorDetails as trustpayConnectorDetails } from "./Trustpay.js";
 import { connectorDetails as wellsfargoConnectorDetails } from "./WellsFargo.js";
@@ -45,6 +49,7 @@ const connectorDetails = {
   airwallex: airwallexConnectorDetails,
   adyen: adyenConnectorDetails,
   bankofamerica: bankOfAmericaConnectorDetails,
+  billwerk: billwerkConnectorDetails,
   bamboraapac: bamboraapacConnectorDetails,
   bluesnap: bluesnapConnectorDetails,
   braintree: braintreeConnectorDetails,
@@ -58,7 +63,9 @@ const connectorDetails = {
   fiserv: fiservConnectorDetails,
   fiservemea: fiservemeaConnectorDetails,
   fiuu: fiuuConnectorDetails,
+  forte: forteConnectorDetails,
   getnet: getnetConnectorDetails,
+  globalpayments: globalpaymentsConnectorDetails,
   hipay: hipayConnectorDetails,
   iatapay: iatapayConnectorDetails,
   itaubank: itaubankConnectorDetails,
@@ -72,6 +79,7 @@ const connectorDetails = {
   paypal: paypalConnectorDetails,
   redsys: redsysConnectorDetails,
   stripe: stripeConnectorDetails,
+  stax: staxConnectorDetails,
   trustpay: trustpayConnectorDetails,
   wellsfargo: wellsfargoConnectorDetails,
   worldpay: worldpayConnectorDetails,
@@ -345,6 +353,7 @@ export const CONNECTOR_LISTS = {
       "jpmorgan",
       "paypal",
       "bamboraapac",
+      "stax",
     ],
     // Add more exclusion lists
   },

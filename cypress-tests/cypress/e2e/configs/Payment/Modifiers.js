@@ -20,6 +20,7 @@ function normalize(input) {
     wellsfargo: "Wellsfargo",
     noon: "Noon",
     archipel: "Archipel",
+    stax: "Stax",
     // Add more known exceptions here
   };
 
