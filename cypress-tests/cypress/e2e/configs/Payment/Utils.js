@@ -21,7 +21,7 @@ import { connectorDetails as facilitapayConnectorDetails } from "./Facilitapay.j
 import { connectorDetails as fiservConnectorDetails } from "./Fiserv.js";
 import { connectorDetails as fiservemeaConnectorDetails } from "./Fiservemea.js";
 import { connectorDetails as fiuuConnectorDetails } from "./Fiuu.js";
-import { connectorDetails as forteConnectorDetails } from "./forte.js";
+import { connectorDetails as forteConnectorDetails } from "./Forte.js";
 import { connectorDetails as getnetConnectorDetails } from "./Getnet.js";
 import { connectorDetails as globalpaymentsConnectorDetails } from "./GlobalPay.js";
 import { connectorDetails as hipayConnectorDetails } from "./Hipay.js";
