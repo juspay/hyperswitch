@@ -8751,6 +8751,15 @@ pub struct BillingConnectorAdditionalCardInfo {
 }
 
 #[cfg(feature = "v2")]
+impl BillingConnectorPaymentMethodDetails {
+    pub fn get_billing_connector_card_info(&self) -> Option<&BillingConnectorAdditionalCardInfo> {
+        match self {
+            Self::Card(card_details) => Some(card_details),
+        }
+    }
+}
+
+#[cfg(feature = "v2")]
 impl PaymentRevenueRecoveryMetadata {
     pub fn set_payment_transmission_field_for_api_request(
         &mut self,

@@ -1282,14 +1282,25 @@ impl RecoveryPaymentTuple {
             .and_then(|billing_address| billing_address.address.as_ref())
             .and_then(|address| address.country);
 
+        let card_info = payment_intent
+            .feature_metadata
+            .as_ref()
+            .and_then(|metadata| {
+                metadata
+                    .payment_revenue_recovery_metadata
+                    .as_ref()
+                    .and_then(|data| data.billing_connector_payment_method_details.as_ref())
+                    .and_then(|details| details.get_billing_connector_card_info().clone())
+            });
+
         let event = RevenueRecovery {
             merchant_id: &payment_intent.merchant_id,
             invoice_id: invoice_id_str,
             invoice_amount: payment_intent.invoice_amount,
             invoice_currency: &payment_intent.invoice_currency,
-            invoice_date: payment_intent.created_at,
+            invoice_date: payment_intent.created_at.assume_utc(),
             invoice_due_date: revenue_recovery_feature_metadata
-                .and_then(|data| data.invoice_next_billing_time),
+                .and_then(|data| data.invoice_next_billing_time.map(|time| time.assume_utc())),
             billing_city,
             billing_country: billing_country.as_ref(),
             billing_state,
@@ -1306,15 +1317,15 @@ impl RecoveryPaymentTuple {
                 .and_then(|data| data.first_payment_attempt_network_advice_code.clone()),
             first_network_error_code: revenue_recovery_feature_metadata
                 .and_then(|data| data.first_payment_attempt_network_decline_code.clone()),
-            attempt_created_at: payment_intent.created_at,
+            attempt_created_at: payment_intent.created_at.assume_utc(),
             payment_method_type: revenue_recovery_feature_metadata
                 .map(|data| &data.payment_method_type),
             payment_method_subtype: revenue_recovery_feature_metadata
                 .map(|data| &data.payment_method_subtype),
-            card_network: revenue_recovery_feature_metadata
-                .and_then(|data| data.card_network.as_ref()),
-            card_issuer: revenue_recovery_feature_metadata
-                .and_then(|data| data.card_issuer.clone()),
+            card_network: card_info
+                .as_ref()
+                .and_then(|info| info.card_network.as_ref()),
+            card_issuer: card_info.and_then(|data| data.card_issuer.clone()),
             retry_count: revenue_recovery_feature_metadata.map(|data| data.total_retry_count),
             payment_gateway: revenue_recovery_feature_metadata.map(|data| data.connector),
         };

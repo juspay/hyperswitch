@@ -1,5 +1,5 @@
 use common_utils::{id_type, types::MinorUnit};
-use time::PrimitiveDateTime;
+use time::OffsetDateTime;
 
 #[derive(serde::Serialize, Debug)]
 pub struct RevenueRecovery<'a> {
@@ -7,8 +7,8 @@ pub struct RevenueRecovery<'a> {
     pub invoice_id: Option<String>,
     pub invoice_amount: MinorUnit,
     pub invoice_currency: &'a common_enums::Currency,
-    pub invoice_due_date: Option<PrimitiveDateTime>,
-    pub invoice_date: PrimitiveDateTime,
+    pub invoice_due_date: Option<OffsetDateTime>,
+    pub invoice_date: OffsetDateTime,
     pub billing_country: Option<&'a common_enums::CountryAlpha2>,
     pub billing_state: Option<String>,
     pub billing_city: Option<String>,
@@ -22,7 +22,7 @@ pub struct RevenueRecovery<'a> {
     pub first_pg_error_code: Option<String>,
     pub first_network_advice_code: Option<String>,
     pub first_network_error_code: Option<String>,
-    pub attempt_created_at: PrimitiveDateTime,
+    pub attempt_created_at: OffsetDateTime,
     pub payment_method_type: Option<&'a common_enums::PaymentMethod>,
     pub payment_method_subtype: Option<&'a common_enums::PaymentMethodType>,
     pub card_network: Option<&'a common_enums::CardNetwork>,
