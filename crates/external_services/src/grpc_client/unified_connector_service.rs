@@ -110,7 +110,7 @@ impl UnifiedConnectorService {
                     Err(err) => {
                         logger::error!(error=?err);
                         Ok(None)
-                    },
+                    }
                 }
             }
             None => Ok(None),
