@@ -6826,7 +6826,7 @@
               "type": {
                 "type": "string",
                 "enum": [
-                  "card"
+                  "Card"
                 ]
               },
               "value": {

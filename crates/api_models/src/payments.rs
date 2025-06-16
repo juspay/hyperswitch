@@ -8697,9 +8697,6 @@ pub struct PaymentRevenueRecoveryMetadata {
     #[schema(value_type = BillingConnectorPaymentMethodDetails)]
     /// Extra Payment Method Details that are needed to be stored
     pub billing_connector_payment_method_details: Option<BillingConnectorPaymentMethodDetails>,
-    #[schema(value_type = BillingConnectorPaymentMethodDetails)]
-    /// Extra Payment Method Details that are needed to be stored
-    pub billing_connector_payment_method_details: Option<BillingConnectorPaymentMethodDetails>,
     /// Invoice Next billing time
     #[serde(default, with = "common_utils::custom_serde::iso8601::option")]
     pub invoice_next_billing_time: Option<PrimitiveDateTime>,
