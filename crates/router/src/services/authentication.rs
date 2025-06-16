@@ -9,7 +9,7 @@ use api_models::payment_methods::PaymentMethodIntentConfirm;
 use api_models::payouts;
 use api_models::{payment_methods::PaymentMethodListRequest, payments};
 use async_trait::async_trait;
-use common_enums::TokenPurpose;
+use common_enums::{MerchantAccountType, TokenPurpose};
 use common_utils::{date_time, fp_utils, id_type};
 #[cfg(feature = "v2")]
 use diesel_models::ephemeral_key;
@@ -228,6 +228,20 @@ pub enum ExternalServiceType {
     Hypersense,
 }
 
+#[derive(Clone, Debug, Eq, PartialEq, Serialize, serde::Deserialize, strum::Display)]
+#[serde(rename_all = "snake_case")]
+#[strum(serialize_all = "snake_case")]
+pub enum ApiKeyVariantMeta {
+    MerchantScoped {
+        merchant_id_from_route: id_type::MerchantId,
+    },
+    AccessScoped {
+        is_connected_allowed: bool,
+        is_platform_allowed: bool,
+    },
+    NotApplicable, // For non-API-key auth types
+}
+
 #[cfg(feature = "olap")]
 #[derive(Clone, Debug)]
 pub struct UserFromSinglePurposeToken {
@@ -365,6 +379,10 @@ impl AuthInfo for AuthenticationDataWithMultipleProfiles {
     }
 }
 
+pub trait ApiKeyVariantBehavior {
+    fn api_key_variant_meta(&self) -> ApiKeyVariantMeta;
+}
+
 #[async_trait]
 pub trait AuthenticateAndFetch<T, A>
 where
@@ -381,6 +399,15 @@ where
 pub struct ApiKeyAuth {
     pub is_connected_allowed: bool,
     pub is_platform_allowed: bool,
+}
+
+impl ApiKeyVariantBehavior for ApiKeyAuth {
+    fn api_key_variant_meta(&self) -> ApiKeyVariantMeta {
+        ApiKeyVariantMeta::AccessScoped {
+            is_connected_allowed: self.is_connected_allowed,
+            is_platform_allowed: self.is_platform_allowed,
+        }
+    }
 }
 
 pub struct NoAuth;
@@ -507,40 +534,85 @@ where
             .to_not_found_response(errors::ApiErrorResponse::Unauthorized)?;
 
         // Get connected merchant account if API call is done by Platform merchant account on behalf of connected merchant account
-        let (merchant, platform_merchant_account) = if state.conf().platform.enabled {
-            get_platform_merchant_account(state, request_headers, merchant).await?
-        } else {
-            (merchant, None)
-        };
-
-        if platform_merchant_account.is_some() && !self.is_platform_allowed {
-            return Err(report!(
-                errors::ApiErrorResponse::PlatformAccountAuthNotSupported
-            ))
-            .attach_printable("Platform not authorized to access the resource");
+        match merchant.merchant_account_type {
+            MerchantAccountType::Connected if !self.is_connected_allowed => {
+                return Err(report!(
+                    errors::ApiErrorResponse::PlatformAccountAuthNotSupported
+                ))
+                .attach_printable("Connected Merchant is not authorized to access the resource");
+            }
+            MerchantAccountType::Platform if !self.is_platform_allowed => {
+                return Err(report!(
+                    errors::ApiErrorResponse::PlatformAccountAuthNotSupported
+                ))
+                .attach_printable("Platform Merchant is not authorized to access the resource");
+            }
+            _ => {}
         }
 
-        let platform_account_context =
-            platform_merchant_account
-                .clone()
-                .map(|platform_account| PlatformAccountContext {
-                    platform_account,
-                    key_store: key_store.clone(),
+        let (connected_merchant_account, platform_merchant_account) =
+            if state.conf().platform.enabled {
+                get_platform_and_connected_merchant(state, request_headers, merchant.clone())
+                    .await?
+            } else {
+                (merchant.clone(), None)
+            };
+
+        let (merchant_account, key_store, platform_account_context) = match merchant
+            .merchant_account_type
+        {
+            MerchantAccountType::Connected => {
+                let platform_context = if let Some(platform_account) = platform_merchant_account {
+                    let platform_key_store = state
+                        .store()
+                        .get_merchant_key_store_by_merchant_id(
+                            key_manager_state,
+                            platform_account.get_id(),
+                            &state.store().get_master_key().to_vec().into(),
+                        )
+                        .await
+                        .change_context(errors::ApiErrorResponse::Unauthorized)
+                        .attach_printable("Failed to fetch key store for platform merchant")?;
+
+                    Some(PlatformAccountContext {
+                        platform_account,
+                        key_store: platform_key_store,
+                    })
+                } else {
+                    None
+                };
+
+                (connected_merchant_account, key_store, platform_context)
+            }
+
+            MerchantAccountType::Platform => {
+                let connected_key_store = state
+                    .store()
+                    .get_merchant_key_store_by_merchant_id(
+                        key_manager_state,
+                        connected_merchant_account.get_id(),
+                        &state.store().get_master_key().to_vec().into(),
+                    )
+                    .await
+                    .change_context(errors::ApiErrorResponse::Unauthorized)
+                    .attach_printable("Failed to fetch key store for connected merchant")?;
+
+                let platform_context = Some(PlatformAccountContext {
+                    platform_account: platform_merchant_account
+                        .clone()
+                        .ok_or(errors::ApiErrorResponse::InvalidPlatformOperation)
+                        .attach_printable("Platform merchant missing connected context")?,
+                    key_store,
                 });
 
-        let key_store = if platform_merchant_account.is_some() {
-            state
-                .store()
-                .get_merchant_key_store_by_merchant_id(
-                    key_manager_state,
-                    merchant.get_id(),
-                    &state.store().get_master_key().to_vec().into(),
+                (
+                    connected_merchant_account,
+                    connected_key_store,
+                    platform_context,
                 )
-                .await
-                .change_context(errors::ApiErrorResponse::Unauthorized)
-                .attach_printable("Failed to fetch merchant key store for the merchant id")?
-        } else {
-            key_store
+            }
+
+            MerchantAccountType::Standard => (merchant, key_store, None),
         };
 
         let profile = state
@@ -550,7 +622,7 @@ where
             .to_not_found_response(errors::ApiErrorResponse::Unauthorized)?;
 
         let auth = AuthenticationData {
-            merchant_account: merchant,
+            merchant_account,
             platform_account_context,
             key_store,
             profile,
@@ -641,44 +713,89 @@ where
             .await
             .to_not_found_response(errors::ApiErrorResponse::Unauthorized)?;
 
-        let (merchant, platform_merchant_account) = if state.conf().platform.enabled {
-            get_platform_merchant_account(state, request_headers, merchant).await?
-        } else {
-            (merchant, None)
-        };
-
-        if platform_merchant_account.is_some() && !self.is_platform_allowed {
-            return Err(report!(
-                errors::ApiErrorResponse::PlatformAccountAuthNotSupported
-            ))
-            .attach_printable("Platform not authorized to access the resource");
+        match merchant.merchant_account_type {
+            MerchantAccountType::Connected if !self.is_connected_allowed => {
+                return Err(report!(
+                    errors::ApiErrorResponse::PlatformAccountAuthNotSupported
+                ))
+                .attach_printable("Connected Merchant is not authorized to access the resource");
+            }
+            MerchantAccountType::Platform if !self.is_platform_allowed => {
+                return Err(report!(
+                    errors::ApiErrorResponse::PlatformAccountAuthNotSupported
+                ))
+                .attach_printable("Platform Merchant is not authorized to access the resource");
+            }
+            _ => {}
         }
 
-        let platform_account_context =
-            platform_merchant_account
-                .clone()
-                .map(|platform_account| PlatformAccountContext {
-                    platform_account,
-                    key_store: key_store.clone(),
+        let (connected_merchant_account, platform_merchant_account) =
+            if state.conf().platform.enabled {
+                get_platform_and_connected_merchant(state, request_headers, merchant.clone())
+                    .await?
+            } else {
+                (merchant.clone(), None)
+            };
+
+        let (merchant_account, key_store, platform_account_context) = match merchant
+            .merchant_account_type
+        {
+            MerchantAccountType::Connected => {
+                let platform_context = if let Some(platform_account) = platform_merchant_account {
+                    let platform_key_store = state
+                        .store()
+                        .get_merchant_key_store_by_merchant_id(
+                            key_manager_state,
+                            platform_account.get_id(),
+                            &state.store().get_master_key().to_vec().into(),
+                        )
+                        .await
+                        .change_context(errors::ApiErrorResponse::Unauthorized)
+                        .attach_printable("Failed to fetch key store for platform merchant")?;
+
+                    Some(PlatformAccountContext {
+                        platform_account,
+                        key_store: platform_key_store,
+                    })
+                } else {
+                    None
+                };
+
+                (connected_merchant_account, key_store, platform_context)
+            }
+
+            MerchantAccountType::Platform => {
+                let connected_key_store = state
+                    .store()
+                    .get_merchant_key_store_by_merchant_id(
+                        key_manager_state,
+                        connected_merchant_account.get_id(),
+                        &state.store().get_master_key().to_vec().into(),
+                    )
+                    .await
+                    .change_context(errors::ApiErrorResponse::Unauthorized)
+                    .attach_printable("Failed to fetch key store for connected merchant")?;
+
+                let platform_context = Some(PlatformAccountContext {
+                    platform_account: platform_merchant_account
+                        .clone()
+                        .ok_or(errors::ApiErrorResponse::InvalidPlatformOperation)
+                        .attach_printable("Platform merchant missing connected context")?,
+                    key_store,
                 });
 
-        let key_store = if platform_merchant_account.is_some() {
-            state
-                .store()
-                .get_merchant_key_store_by_merchant_id(
-                    key_manager_state,
-                    merchant.get_id(),
-                    &state.store().get_master_key().to_vec().into(),
+                (
+                    connected_merchant_account,
+                    connected_key_store,
+                    platform_context,
                 )
-                .await
-                .change_context(errors::ApiErrorResponse::Unauthorized)
-                .attach_printable("Failed to fetch merchant key store for the merchant id")?
-        } else {
-            key_store
+            }
+
+            MerchantAccountType::Standard => (merchant, key_store, None),
         };
 
         let auth = AuthenticationData {
-            merchant_account: merchant,
+            merchant_account,
             platform_account_context,
             key_store,
             profile_id,
@@ -700,6 +817,14 @@ pub struct ApiKeyAuthWithMerchantIdFromRoute(pub id_type::MerchantId);
 impl GetAuthType for ApiKeyAuthWithMerchantIdFromRoute {
     fn get_auth_type(&self) -> detached::PayloadType {
         detached::PayloadType::ApiKey
+    }
+}
+
+impl ApiKeyVariantBehavior for ApiKeyAuthWithMerchantIdFromRoute {
+    fn api_key_variant_meta(&self) -> ApiKeyVariantMeta {
+        ApiKeyVariantMeta::MerchantScoped {
+            merchant_id_from_route: self.0.clone(),
+        }
     }
 }
 
@@ -1100,7 +1225,11 @@ where
 impl<A, I> AuthenticateAndFetch<AuthenticationData, A> for HeaderAuth<I>
 where
     A: SessionStateInfo + Sync,
-    I: AuthenticateAndFetch<AuthenticationData, A> + GetAuthType + Sync + Send,
+    I: AuthenticateAndFetch<AuthenticationData, A>
+        + ApiKeyVariantBehavior
+        + GetAuthType
+        + Sync
+        + Send,
 {
     async fn authenticate_and_fetch(
         &self,
@@ -1147,6 +1276,69 @@ where
                     merchant_id: Some(merchant_id),
                     key_id: Some(key_id),
                 } => {
+                    let key_manager_state = &(&state.session_state()).into();
+
+                    let caller_key_store = state
+                        .store()
+                        .get_merchant_key_store_by_merchant_id(
+                            key_manager_state,
+                            &merchant_id,
+                            &state.store().get_master_key().to_vec().into(),
+                        )
+                        .await
+                        .change_context(errors::ApiErrorResponse::Unauthorized)
+                        .attach_printable("Failed to fetch key store for API key owner")?;
+
+                    let caller_merchant_account = state
+                        .store()
+                        .find_merchant_account_by_merchant_id(
+                            key_manager_state,
+                            &merchant_id,
+                            &caller_key_store,
+                        )
+                        .await
+                        .to_not_found_response(errors::ApiErrorResponse::Unauthorized)?;
+
+                    match self.0.api_key_variant_meta() {
+                        ApiKeyVariantMeta::AccessScoped {
+                            is_connected_allowed,
+                            is_platform_allowed,
+                        } => {
+                            let merchant_account_type =
+                                caller_merchant_account.merchant_account_type;
+
+                            if merchant_account_type == MerchantAccountType::Connected
+                                && !is_connected_allowed
+                            {
+                                return Err(report!(
+                                    errors::ApiErrorResponse::PlatformAccountAuthNotSupported
+                                ))
+                                .attach_printable("Connected merchant access not allowed");
+                            }
+
+                            if merchant_account_type == MerchantAccountType::Platform
+                                && !is_platform_allowed
+                            {
+                                return Err(report!(
+                                    errors::ApiErrorResponse::PlatformAccountAuthNotSupported
+                                ))
+                                .attach_printable("Platform merchant impersonation not allowed");
+                            }
+                        }
+
+                        ApiKeyVariantMeta::MerchantScoped {
+                            merchant_id_from_route,
+                        } => {
+                            if merchant_id != merchant_id_from_route {
+                                return Err(report!(errors::ApiErrorResponse::Unauthorized))
+                                    .attach_printable(
+                                        "Route merchant ID does not match header merchant ID",
+                                    );
+                            }
+                        }
+
+                        ApiKeyVariantMeta::NotApplicable => {}
+                    }
                     let auth = construct_authentication_data(
                         state,
                         &merchant_id,
@@ -1204,11 +1396,7 @@ where
 impl<A, I> AuthenticateAndFetch<AuthenticationData, A> for HeaderAuth<I>
 where
     A: SessionStateInfo + Sync,
-    I: AuthenticateAndFetch<AuthenticationData, A>
-        + AuthenticateAndFetch<AuthenticationData, A>
-        + GetAuthType
-        + Sync
-        + Send,
+    I: AuthenticateAndFetch<AuthenticationData, A> + GetAuthType + Sync + Send,
 {
     async fn authenticate_and_fetch(
         &self,
@@ -1265,6 +1453,8 @@ where
         .change_context(errors::ApiErrorResponse::Unauthorized)
         .attach_printable("Failed to fetch merchant key store for the merchant id")?;
 
+    let key_manager_state = &(&state.session_state()).into();
+
     let merchant = state
         .store()
         .find_merchant_account_by_merchant_id(
@@ -1275,38 +1465,70 @@ where
         .await
         .to_not_found_response(errors::ApiErrorResponse::Unauthorized)?;
 
-    // Get connected merchant account if API call is done by Platform merchant account on behalf of connected merchant account
-    let (merchant, platform_merchant_account) = if state.conf().platform.enabled {
-        get_platform_merchant_account(state, request_headers, merchant).await?
+    let (connected_merchant_account, platform_merchant_account) = if state.conf().platform.enabled {
+        get_platform_and_connected_merchant(state, request_headers, merchant.clone()).await?
     } else {
-        (merchant, None)
+        (merchant.clone(), None)
     };
 
-    let platform_account_context =
-        platform_merchant_account
-            .clone()
-            .map(|platform_account| PlatformAccountContext {
-                platform_account,
-                key_store: key_store.clone(),
-            });
+    let (merchant_account, key_store, platform_account_context) =
+        match merchant.merchant_account_type {
+            MerchantAccountType::Connected => {
+                let platform_context = if let Some(platform_account) = platform_merchant_account {
+                    let platform_key_store = state
+                        .store()
+                        .get_merchant_key_store_by_merchant_id(
+                            key_manager_state,
+                            platform_account.get_id(),
+                            &state.store().get_master_key().to_vec().into(),
+                        )
+                        .await
+                        .change_context(errors::ApiErrorResponse::Unauthorized)
+                        .attach_printable("Failed to fetch key store for platform merchant")?;
 
-    let key_store = if platform_merchant_account.is_some() {
-        state
-            .store()
-            .get_merchant_key_store_by_merchant_id(
-                &(&state.session_state()).into(),
-                merchant.get_id(),
-                &state.store().get_master_key().to_vec().into(),
-            )
-            .await
-            .change_context(errors::ApiErrorResponse::Unauthorized)
-            .attach_printable("Failed to fetch merchant key store for the merchant id")?
-    } else {
-        key_store
-    };
+                    Some(PlatformAccountContext {
+                        platform_account,
+                        key_store: platform_key_store,
+                    })
+                } else {
+                    None
+                };
+
+                (connected_merchant_account, key_store, platform_context)
+            }
+
+            MerchantAccountType::Platform => {
+                let connected_key_store = state
+                    .store()
+                    .get_merchant_key_store_by_merchant_id(
+                        key_manager_state,
+                        connected_merchant_account.get_id(),
+                        &state.store().get_master_key().to_vec().into(),
+                    )
+                    .await
+                    .change_context(errors::ApiErrorResponse::Unauthorized)
+                    .attach_printable("Failed to fetch key store for connected merchant")?;
+
+                let platform_context = Some(PlatformAccountContext {
+                    platform_account: platform_merchant_account
+                        .clone()
+                        .ok_or(errors::ApiErrorResponse::InvalidPlatformOperation)
+                        .attach_printable("Platform merchant missing connected context")?,
+                    key_store,
+                });
+
+                (
+                    connected_merchant_account,
+                    connected_key_store,
+                    platform_context,
+                )
+            }
+
+            MerchantAccountType::Standard => (merchant, key_store, None),
+        };
 
     let auth = AuthenticationData {
-        merchant_account: merchant,
+        merchant_account,
         platform_account_context,
         key_store,
         profile_id,
@@ -2572,41 +2794,85 @@ where
             .await
             .to_not_found_response(errors::ApiErrorResponse::Unauthorized)?;
 
-        // Get connected merchant account if API call is done by Platform merchant account on behalf of connected merchant account
-        let (merchant, platform_merchant_account) = if state.conf().platform.enabled {
-            get_platform_merchant_account(state, request_headers, merchant).await?
-        } else {
-            (merchant, None)
-        };
-
-        if platform_merchant_account.is_some() && !self.is_platform_allowed {
-            return Err(report!(
-                errors::ApiErrorResponse::PlatformAccountAuthNotSupported
-            ))
-            .attach_printable("Platform not authorized to access the resource");
+        match merchant.merchant_account_type {
+            MerchantAccountType::Connected if !self.is_connected_allowed => {
+                return Err(report!(
+                    errors::ApiErrorResponse::PlatformAccountAuthNotSupported
+                ))
+                .attach_printable("Connected Merchant is not authorized to access the resource");
+            }
+            MerchantAccountType::Platform if !self.is_platform_allowed => {
+                return Err(report!(
+                    errors::ApiErrorResponse::PlatformAccountAuthNotSupported
+                ))
+                .attach_printable("Platform Merchant is not authorized to access the resource");
+            }
+            _ => {}
         }
 
-        let platform_account_context =
-            platform_merchant_account
-                .clone()
-                .map(|platform_account| PlatformAccountContext {
-                    platform_account,
-                    key_store: key_store.clone(),
+        let (connected_merchant_account, platform_merchant_account) =
+            if state.conf().platform.enabled {
+                get_platform_and_connected_merchant(state, request_headers, merchant.clone())
+                    .await?
+            } else {
+                (merchant.clone(), None)
+            };
+
+        let (merchant_account, key_store, platform_account_context) = match merchant
+            .merchant_account_type
+        {
+            MerchantAccountType::Connected => {
+                let platform_context = if let Some(platform_account) = platform_merchant_account {
+                    let platform_key_store = state
+                        .store()
+                        .get_merchant_key_store_by_merchant_id(
+                            key_manager_state,
+                            platform_account.get_id(),
+                            &state.store().get_master_key().to_vec().into(),
+                        )
+                        .await
+                        .change_context(errors::ApiErrorResponse::Unauthorized)
+                        .attach_printable("Failed to fetch key store for platform merchant")?;
+
+                    Some(PlatformAccountContext {
+                        platform_account,
+                        key_store: platform_key_store,
+                    })
+                } else {
+                    None
+                };
+
+                (connected_merchant_account, key_store, platform_context)
+            }
+
+            MerchantAccountType::Platform => {
+                let connected_key_store = state
+                    .store()
+                    .get_merchant_key_store_by_merchant_id(
+                        key_manager_state,
+                        connected_merchant_account.get_id(),
+                        &state.store().get_master_key().to_vec().into(),
+                    )
+                    .await
+                    .change_context(errors::ApiErrorResponse::Unauthorized)
+                    .attach_printable("Failed to fetch key store for connected merchant")?;
+
+                let platform_context = Some(PlatformAccountContext {
+                    platform_account: platform_merchant_account
+                        .clone()
+                        .ok_or(errors::ApiErrorResponse::InvalidPlatformOperation)
+                        .attach_printable("Platform merchant missing connected context")?,
+                    key_store,
                 });
 
-        let key_store = if platform_merchant_account.is_some() {
-            state
-                .store()
-                .get_merchant_key_store_by_merchant_id(
-                    key_manager_state,
-                    merchant.get_id(),
-                    &state.store().get_master_key().to_vec().into(),
+                (
+                    connected_merchant_account,
+                    connected_key_store,
+                    platform_context,
                 )
-                .await
-                .change_context(errors::ApiErrorResponse::Unauthorized)
-                .attach_printable("Failed to fetch merchant key store for the merchant id")?
-        } else {
-            key_store
+            }
+
+            MerchantAccountType::Standard => (merchant, key_store, None),
         };
 
         let profile = state
@@ -2616,7 +2882,7 @@ where
             .to_not_found_response(errors::ApiErrorResponse::Unauthorized)?;
 
         let auth = AuthenticationData {
-            merchant_account: merchant,
+            merchant_account,
             platform_account_context,
             key_store,
             profile,
@@ -2770,6 +3036,12 @@ pub struct PublishableKeyAuth;
 impl GetAuthType for PublishableKeyAuth {
     fn get_auth_type(&self) -> detached::PayloadType {
         detached::PayloadType::PublishableKey
+    }
+}
+
+impl ApiKeyVariantBehavior for PublishableKeyAuth {
+    fn api_key_variant_meta(&self) -> ApiKeyVariantMeta {
+        ApiKeyVariantMeta::NotApplicable
     }
 }
 
@@ -4532,6 +4804,107 @@ where
     }
 }
 
+async fn get_platform_and_connected_merchant<A>(
+    state: &A,
+    request_headers: &HeaderMap,
+    base_merchant: domain::MerchantAccount,
+) -> RouterResult<(domain::MerchantAccount, Option<domain::MerchantAccount>)>
+where
+    A: SessionStateInfo + Sync,
+{
+    match base_merchant.merchant_account_type {
+        MerchantAccountType::Connected => {
+            if let Some(platform_id) =
+                get_and_validate_platform_merchant_id(request_headers, &base_merchant)?
+            {
+                let platform_merchant = get_platform_merchant_account(
+                    state,
+                    platform_id,
+                    base_merchant.organization_id.clone(),
+                )
+                .await?;
+                Ok((base_merchant, Some(platform_merchant)))
+            } else {
+                Ok((base_merchant, None))
+            }
+        }
+
+        MerchantAccountType::Platform => {
+            if let Some(connected_id) =
+                get_and_validate_connected_merchant_id(request_headers, &base_merchant)?
+            {
+                let connected_merchant = get_connected_merchant_account(
+                    state,
+                    connected_id,
+                    base_merchant.organization_id.clone(),
+                )
+                .await?;
+                Ok((connected_merchant, Some(base_merchant)))
+            } else {
+                Ok((base_merchant, None))
+            }
+        }
+
+        _ => Ok((base_merchant, None)),
+    }
+}
+
+fn get_and_validate_platform_merchant_id(
+    request_headers: &HeaderMap,
+    connected_merchant: &domain::MerchantAccount,
+) -> RouterResult<Option<id_type::MerchantId>> {
+    HeaderMapStruct::new(request_headers)
+        .get_id_type_from_header_if_present::<id_type::MerchantId>(headers::X_PLATFORM_MERCHANT_ID)?
+        .map(|platform_id| {
+            (connected_merchant.merchant_account_type == MerchantAccountType::Connected)
+                .then_some(platform_id)
+                .ok_or(errors::ApiErrorResponse::InvalidPlatformOperation)
+        })
+        .transpose()
+        .attach_printable("Non-connected merchant using X_PLATFORM_MERCHANT_ID header")
+}
+
+async fn get_platform_merchant_account<A>(
+    state: &A,
+    platform_merchant_id: id_type::MerchantId,
+    connected_org_id: id_type::OrganizationId,
+) -> RouterResult<domain::MerchantAccount>
+where
+    A: SessionStateInfo + Sync,
+{
+    let key_manager_state = &(&state.session_state()).into();
+
+    let key_store = state
+        .store()
+        .get_merchant_key_store_by_merchant_id(
+            key_manager_state,
+            &platform_merchant_id,
+            &state.store().get_master_key().to_vec().into(),
+        )
+        .await
+        .to_not_found_response(errors::ApiErrorResponse::InvalidPlatformOperation)
+        .attach_printable("Failed to fetch merchant key store for platform merchant")?;
+
+    let platform_merchant = state
+        .store()
+        .find_merchant_account_by_merchant_id(key_manager_state, &platform_merchant_id, &key_store)
+        .await
+        .to_not_found_response(errors::ApiErrorResponse::InvalidPlatformOperation)
+        .attach_printable("Failed to fetch platform merchant account")?;
+
+    if platform_merchant.merchant_account_type != MerchantAccountType::Platform {
+        return Err(errors::ApiErrorResponse::InvalidPlatformOperation)
+            .attach_printable("Merchant is not of type Platform");
+    }
+
+    if platform_merchant.organization_id != connected_org_id {
+        return Err(errors::ApiErrorResponse::InvalidPlatformOperation)
+            .attach_printable("Platform merchant is not in the same organization");
+    }
+
+    Ok(platform_merchant)
+}
+
 async fn get_connected_merchant_account<A>(
     state: &A,
     connected_merchant_id: id_type::MerchantId,
@@ -4565,31 +4938,6 @@ where
     }
 
     Ok(connected_merchant_account)
-}
-
-async fn get_platform_merchant_account<A>(
-    state: &A,
-    request_headers: &HeaderMap,
-    merchant_account: domain::MerchantAccount,
-) -> RouterResult<(domain::MerchantAccount, Option<domain::MerchantAccount>)>
-where
-    A: SessionStateInfo + Sync,
-{
-    let connected_merchant_id =
-        get_and_validate_connected_merchant_id(request_headers, &merchant_account)?;
-
-    match connected_merchant_id {
-        Some(merchant_id) => {
-            let connected_merchant_account = get_connected_merchant_account(
-                state,
-                merchant_id,
-                merchant_account.organization_id.clone(),
-            )
-            .await?;
-            Ok((connected_merchant_account, Some(merchant_account)))
-        }
-        None => Ok((merchant_account, None)),
-    }
 }
 
 fn get_and_validate_connected_merchant_id(
