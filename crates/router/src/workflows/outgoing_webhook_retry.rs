@@ -542,13 +542,13 @@ async fn get_outgoing_webhook_content_and_event_type(
                 payout_models::PayoutActionRequest { payout_id },
             );
 
-            let payout_data = payouts::make_payout_data(
+            let payout_data = Box::pin(payouts::make_payout_data(
                 &state,
                 &merchant_context,
                 None,
                 &request,
                 DEFAULT_LOCALE,
-            )
+            ))
             .await?;
 
             let router_response =
