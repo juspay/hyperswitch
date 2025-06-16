@@ -4,6 +4,34 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2025.06.16.0
+
+### Features
+
+- **connector:** [trustpay] introduce instant bank_transfer, finland and poland ([#7925](https://github.com/juspay/hyperswitch/pull/7925)) ([`61c2e2c`](https://github.com/juspay/hyperswitch/commit/61c2e2c75fabdb03c5599df97240a030cb7b5b6a))
+- Migration api for migrating routing rules to decision_engine ([#8233](https://github.com/juspay/hyperswitch/pull/8233)) ([`9045eb5`](https://github.com/juspay/hyperswitch/commit/9045eb5b65c21ee0c9746ee591b5f00bbce3b890))
+
+### Bug Fixes
+
+- **connector:** [ARCHIPEL] Change connector fields that are currently implemented as required in the code to optional ([#8342](https://github.com/juspay/hyperswitch/pull/8342)) ([`cfd0b07`](https://github.com/juspay/hyperswitch/commit/cfd0b0795e8d33f4d963861c22e1ba9ceba7c716))
+- **postman:** Fix `stripe` test cases failures ([#8339](https://github.com/juspay/hyperswitch/pull/8339)) ([`535a927`](https://github.com/juspay/hyperswitch/commit/535a927e426f90bb6334e949d3f03fd1d190b714))
+
+### Refactors
+
+- **dynamic_routing:** Add support for shuffle on tie flag to success_based routing ([#8241](https://github.com/juspay/hyperswitch/pull/8241)) ([`c72d365`](https://github.com/juspay/hyperswitch/commit/c72d365fdeac13e3aa65b4c3d1f876b9c419168e))
+
+### Documentation
+
+- **openapi:** Show API version selection dropdown in Mintlify ([#8333](https://github.com/juspay/hyperswitch/pull/8333)) ([`ce85b83`](https://github.com/juspay/hyperswitch/commit/ce85b838f49d616335462e701e93ded2c6c58936))
+
+### Miscellaneous Tasks
+
+- **postman:** Update Postman collection files ([`94c32c8`](https://github.com/juspay/hyperswitch/commit/94c32c8e546134666eb98b3d5546152c1613ea5a))
+
+**Full Changelog:** [`2025.06.13.0...2025.06.16.0`](https://github.com/juspay/hyperswitch/compare/2025.06.13.0...2025.06.16.0)
+
+- - -
+
 ## 2025.06.13.0
 
 ### Features
