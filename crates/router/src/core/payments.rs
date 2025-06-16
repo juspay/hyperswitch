@@ -3435,10 +3435,6 @@ where
     if let Some(mut client) =
         should_call_unified_connector_service(state, merchant_context, &router_data).await?
     {
-        let _ = router_data
-            .call_unified_connector_service(merchant_connector_account.clone(), &mut client)
-            .await;
-
         if should_add_task_to_process_tracker(payment_data) {
             operation
                 .to_domain()?
@@ -3469,6 +3465,10 @@ where
                 frm_suggestion,
                 header_payload.clone(),
             )
+            .await?;
+
+        let _ = router_data
+            .call_unified_connector_service(merchant_connector_account.clone(), &mut client)
             .await?;
 
         let etime_connector = Instant::now();
