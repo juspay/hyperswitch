@@ -745,7 +745,7 @@ impl IncomingWebhook for Aci {
             .get("paymentType")
             .and_then(|pt| pt.as_str());
 
-        if payment_type_str.map_or(false, |pt| pt.to_uppercase() == "RF") {
+        if payment_type_str.is_some_and(|pt| pt.to_uppercase() == "RF") {
             Ok(api_models::webhooks::ObjectReferenceId::RefundId(
                 api_models::webhooks::RefundIdType::ConnectorRefundId(id_value_str.to_string()),
             ))
