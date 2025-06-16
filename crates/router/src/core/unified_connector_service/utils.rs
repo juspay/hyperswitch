@@ -1,6 +1,6 @@
 use api_models::admin::ConnectorAuthType;
 use common_enums::{enums::PaymentMethod, AttemptStatus, AuthenticationType};
-use common_utils::ext_traits::ValueExt;
+use common_utils::{errors::CustomResult, ext_traits::ValueExt};
 use error_stack::ResultExt;
 use hyperswitch_connectors::utils::CardData;
 use hyperswitch_domain_models::{
@@ -11,6 +11,7 @@ use hyperswitch_domain_models::{
     router_request_types::PaymentsAuthorizeData,
     router_response_types::PaymentsResponseData,
 };
+use hyperswitch_interfaces::errors::ConnectorError;
 use masking::{ExposeInterface, PeekInterface};
 use rand::Rng;
 use rust_grpc_client::payments::{
@@ -189,7 +190,7 @@ pub fn construct_ucs_request_metadata(
 impl ForeignTryFrom<&RouterData<Authorize, PaymentsAuthorizeData, PaymentsResponseData>>
     for payments_grpc::PaymentsAuthorizeRequest
 {
-    type Error = error_stack::Report<ApiErrorResponse>;
+    type Error = error_stack::Report<ConnectorError>;
 
     fn foreign_try_from(
         router_data: &RouterData<Authorize, PaymentsAuthorizeData, PaymentsResponseData>,
@@ -245,23 +246,27 @@ impl ForeignTryFrom<&RouterData<Authorize, PaymentsAuthorizeData, PaymentsRespon
 }
 
 impl ForeignTryFrom<common_enums::Currency> for payments_grpc::Currency {
-    type Error = error_stack::Report<ApiErrorResponse>;
+    type Error = error_stack::Report<ConnectorError>;
 
     fn foreign_try_from(currency: common_enums::Currency) -> Result<Self, Self::Error> {
-        Self::from_str_name(&currency.to_string())
-            .ok_or_else(|| ApiErrorResponse::InternalServerError)
-            .attach_printable("Failed to parse currency")
+        Self::from_str_name(&currency.to_string()).ok_or_else(|| {
+            ConnectorError::RequestEncodingFailedWithReason("Failed to parse currency".to_string())
+                .into()
+        })
     }
 }
 
 impl ForeignTryFrom<PaymentMethod> for payments_grpc::PaymentMethod {
-    type Error = error_stack::Report<ApiErrorResponse>;
+    type Error = error_stack::Report<ConnectorError>;
 
     fn foreign_try_from(payment_method: PaymentMethod) -> Result<Self, Self::Error> {
         match payment_method {
             PaymentMethod::Card => Ok(Self::Card),
-            _ => Err(ApiErrorResponse::InternalServerError)
-                .attach_printable(format!("Unsupported payment method: {:?}", payment_method)),
+            _ => Err(ConnectorError::NotImplemented(format!(
+                "Unimplemented payment method: {:?}",
+                payment_method
+            ))
+            .into()),
         }
     }
 }
@@ -269,7 +274,7 @@ impl ForeignTryFrom<PaymentMethod> for payments_grpc::PaymentMethod {
 impl ForeignTryFrom<hyperswitch_domain_models::payment_method_data::PaymentMethodData>
     for payments_grpc::PaymentMethodData
 {
-    type Error = error_stack::Report<ApiErrorResponse>;
+    type Error = error_stack::Report<ConnectorError>;
 
     fn foreign_try_from(
         payment_method_data: hyperswitch_domain_models::payment_method_data::PaymentMethodData,
@@ -282,7 +287,6 @@ impl ForeignTryFrom<hyperswitch_domain_models::payment_method_data::PaymentMetho
                             card_number: card.card_number.get_card_no(),
                             card_exp_month: card
                                 .get_card_expiry_month_2_digit()
-                                .map_err(|_| ApiErrorResponse::InternalServerError)
                                 .attach_printable(
                                     "Failed to extract 2-digit expiry month from card",
                                 )?
@@ -295,7 +299,11 @@ impl ForeignTryFrom<hyperswitch_domain_models::payment_method_data::PaymentMetho
                     )),
                 })
             }
-            _ => Err(ApiErrorResponse::InternalServerError.into()),
+            _ => Err(ConnectorError::NotImplemented(format!(
+                "Unimplemented payment method: {:?}",
+                payment_method_data
+            ))
+            .into()),
         }
     }
 }
@@ -303,7 +311,7 @@ impl ForeignTryFrom<hyperswitch_domain_models::payment_method_data::PaymentMetho
 impl ForeignTryFrom<hyperswitch_domain_models::payment_address::PaymentAddress>
     for payments_grpc::PaymentAddress
 {
-    type Error = error_stack::Report<ApiErrorResponse>;
+    type Error = error_stack::Report<ConnectorError>;
 
     fn foreign_try_from(
         payment_address: hyperswitch_domain_models::payment_address::PaymentAddress,
@@ -318,7 +326,11 @@ impl ForeignTryFrom<hyperswitch_domain_models::payment_address::PaymentAddress>
                             payments_grpc::CountryAlpha2::from_str_name(&c.to_string())
                         })
                     })
-                    .ok_or_else(|| ApiErrorResponse::InternalServerError)
+                    .ok_or_else(|| {
+                        ConnectorError::RequestEncodingFailedWithReason(
+                            "Invalid country code".to_string(),
+                        )
+                    })
                     .attach_printable("Invalid country code")?
                     .into();
 
@@ -359,7 +371,11 @@ impl ForeignTryFrom<hyperswitch_domain_models::payment_address::PaymentAddress>
                             payments_grpc::CountryAlpha2::from_str_name(&c.to_string())
                         })
                     })
-                    .ok_or_else(|| ApiErrorResponse::InternalServerError)
+                    .ok_or_else(|| {
+                        ConnectorError::RequestEncodingFailedWithReason(
+                            "Invalid country code".to_string(),
+                        )
+                    })
                     .attach_printable("Invalid country code")?
                     .into();
 
@@ -400,7 +416,11 @@ impl ForeignTryFrom<hyperswitch_domain_models::payment_address::PaymentAddress>
                             payments_grpc::CountryAlpha2::from_str_name(&c.to_string())
                         })
                     })
-                    .ok_or_else(|| ApiErrorResponse::InternalServerError)
+                    .ok_or_else(|| {
+                        ConnectorError::RequestEncodingFailedWithReason(
+                            "Invalid country code".to_string(),
+                        )
+                    })
                     .attach_printable("Invalid country code")?
                     .into();
 
@@ -441,7 +461,7 @@ impl ForeignTryFrom<hyperswitch_domain_models::payment_address::PaymentAddress>
 }
 
 impl ForeignTryFrom<AuthenticationType> for payments_grpc::AuthenticationType {
-    type Error = error_stack::Report<ApiErrorResponse>;
+    type Error = error_stack::Report<ConnectorError>;
 
     fn foreign_try_from(auth_type: AuthenticationType) -> Result<Self, Self::Error> {
         match auth_type {
@@ -454,7 +474,7 @@ impl ForeignTryFrom<AuthenticationType> for payments_grpc::AuthenticationType {
 impl ForeignTryFrom<hyperswitch_domain_models::router_request_types::BrowserInformation>
     for payments_grpc::BrowserInformation
 {
-    type Error = error_stack::Report<ApiErrorResponse>;
+    type Error = error_stack::Report<ConnectorError>;
 
     fn foreign_try_from(
         browser_info: hyperswitch_domain_models::router_request_types::BrowserInformation,
@@ -479,7 +499,7 @@ impl ForeignTryFrom<hyperswitch_domain_models::router_request_types::BrowserInfo
 }
 
 impl ForeignTryFrom<payments_grpc::AttemptStatus> for AttemptStatus {
-    type Error = error_stack::Report<ApiErrorResponse>;
+    type Error = error_stack::Report<ConnectorError>;
 
     fn foreign_try_from(grpc_status: payments_grpc::AttemptStatus) -> Result<Self, Self::Error> {
         match grpc_status {
@@ -520,7 +540,7 @@ impl ForeignTryFrom<payments_grpc::AttemptStatus> for AttemptStatus {
 pub fn handle_unified_connector_service_response(
     response: payments_grpc::PaymentsAuthorizeResponse,
     router_data: &mut RouterData<Authorize, PaymentsAuthorizeData, PaymentsResponseData>,
-) -> RouterResult<()> {
+) -> CustomResult<(), ConnectorError> {
     let status = AttemptStatus::foreign_try_from(response.status())?;
 
     let router_data_response = match status {

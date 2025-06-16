@@ -428,7 +428,9 @@ impl Feature<api::Authorize, types::PaymentsAuthorizeData> for types::PaymentsAu
         merchant_connector_account: helpers::MerchantConnectorAccountType,
         client: &mut PaymentServiceClient<tonic::transport::Channel>,
     ) -> RouterResult<()> {
-        let request = payments_grpc::PaymentsAuthorizeRequest::foreign_try_from(self)?;
+        let request = payments_grpc::PaymentsAuthorizeRequest::foreign_try_from(self)
+            .change_context(ApiErrorResponse::InternalServerError)
+            .attach_printable("Failed to construct Payment Authorize Request")?;
 
         let mut request = tonic::Request::new(request);
 
@@ -444,7 +446,9 @@ impl Feature<api::Authorize, types::PaymentsAuthorizeData> for types::PaymentsAu
 
         let payment_authorize_response = response.into_inner();
 
-        handle_unified_connector_service_response(payment_authorize_response, self)?;
+        handle_unified_connector_service_response(payment_authorize_response, self)
+            .change_context(ApiErrorResponse::InternalServerError)
+            .attach_printable("Failed to deserialize UCS response")?;
 
         Ok(())
     }
