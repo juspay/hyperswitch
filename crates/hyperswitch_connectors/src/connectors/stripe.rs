@@ -2,7 +2,6 @@ pub mod transformers;
 
 use std::{collections::HashMap, sync::LazyLock};
 
-
 use api_models::webhooks::IncomingWebhookEvent;
 use common_enums::{
     CallConnectorAction, CaptureMethod, PaymentAction, PaymentChargeType, PaymentMethodType,
@@ -34,8 +33,9 @@ use hyperswitch_domain_models::{
         UploadFileRequestData,
     },
     router_response_types::{
-        PaymentsResponseData, RefundsResponseData, RetrieveFileResponse, SubmitEvidenceResponse,
-        UploadFileResponse, SupportedPaymentMethods, PaymentMethodDetails, ConnectorInfo, SupportedPaymentMethodsExt,
+        ConnectorInfo, PaymentMethodDetails, PaymentsResponseData, RefundsResponseData,
+        RetrieveFileResponse, SubmitEvidenceResponse, SupportedPaymentMethods,
+        SupportedPaymentMethodsExt, UploadFileResponse,
     },
     types::{
         ConnectorCustomerRouterData, PaymentsAuthorizeRouterData, PaymentsCancelRouterData,
@@ -2715,10 +2715,8 @@ static STRIPE_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMethods> = Laz
         CaptureMethod::SequentialAutomatic,
     ];
 
-    let automatic_capture_supported = vec![
-        CaptureMethod::Automatic,
-        CaptureMethod::SequentialAutomatic,
-    ];
+    let automatic_capture_supported =
+        vec![CaptureMethod::Automatic, CaptureMethod::SequentialAutomatic];
 
     let supported_card_network = vec![
         common_enums::CardNetwork::Visa,

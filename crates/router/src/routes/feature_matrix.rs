@@ -101,8 +101,7 @@ fn build_connector_feature_details(
             name: connector_name.to_uppercase(),
             display_name: connector_about.map(|about| about.display_name.to_string()),
             description: connector_about.map(|about| about.description.to_string()),
-            integration_status: connector_about
-                .map(|about| about.integration_status),
+            integration_status: connector_about.map(|about| about.integration_status),
             category: connector_about.map(|about| about.connector_type),
             supported_webhook_flows,
             supported_payment_methods,
