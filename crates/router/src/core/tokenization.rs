@@ -12,6 +12,7 @@ use common_utils::{
     fp_utils::when,
     id_type,
 };
+use diesel_models::tokenization::TokenizationUpdate;
 #[cfg(all(feature = "v2", feature = "tokenization_v2"))]
 use error_stack::ResultExt;
 #[cfg(all(feature = "v2", feature = "tokenization_v2"))]
@@ -23,7 +24,6 @@ use router_env::{instrument, logger, tracing, Flow};
 #[cfg(all(feature = "v2", feature = "tokenization_v2"))]
 use serde::Serialize;
 
-use diesel_models::{tokenization::TokenizationUpdate};
 #[cfg(all(feature = "v2", feature = "tokenization_v2"))]
 use crate::{
     core::{
@@ -135,11 +135,14 @@ pub async fn delete_tokenized_data_core(
     //fetch locker id
     let vault_id = domain::VaultId::generate(tokenization_record.locker_id.clone());
     //delete card from vault
-    let delete_resp =
-        pm_vault::delete_payment_method_data_from_vault_internal(&state, &merchant_context, vault_id)
-            .await
-            .change_context(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable("Failed to delete payment method from vault")?;
+    let delete_resp = pm_vault::delete_payment_method_data_from_vault_internal(
+        &state,
+        &merchant_context,
+        vault_id,
+    )
+    .await
+    .change_context(errors::ApiErrorResponse::InternalServerError)
+    .attach_printable("Failed to delete payment method from vault")?;
 
     //update the status with Disabled
 
