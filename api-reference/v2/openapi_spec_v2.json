@@ -22358,7 +22358,8 @@
             "type": "object",
             "required": [
               "payment_method_type",
-              "payment_method_subtype"
+              "payment_method_subtype",
+              "required_fields"
             ],
             "properties": {
               "payment_method_type": {
@@ -22376,12 +22377,7 @@
                 "nullable": true
               },
               "required_fields": {
-                "allOf": [
-                  {
-                    "$ref": "#/components/schemas/RequiredFieldInfo"
-                  }
-                ],
-                "nullable": true
+                "$ref": "#/components/schemas/RequiredFieldInfo"
               },
               "surcharge_details": {
                 "allOf": [
