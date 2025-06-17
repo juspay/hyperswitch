@@ -227,6 +227,7 @@ diesel::table! {
         id -> Nullable<Varchar>,
         is_iframe_redirection_enabled -> Nullable<Bool>,
         is_pre_network_tokenization_enabled -> Nullable<Bool>,
+        three_ds_decision_rule_algorithm -> Nullable<Jsonb>,
     }
 }
 
@@ -1038,6 +1039,8 @@ diesel::table! {
         #[max_length = 255]
         created_by -> Nullable<Varchar>,
         is_iframe_redirection_enabled -> Nullable<Bool>,
+        #[max_length = 2048]
+        extended_return_url -> Nullable<Varchar>,
     }
 }
 

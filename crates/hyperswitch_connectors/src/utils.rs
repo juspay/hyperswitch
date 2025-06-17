@@ -67,10 +67,14 @@ use hyperswitch_domain_models::{
 use hyperswitch_interfaces::{api, consts, errors, types::Response};
 use image::{DynamicImage, ImageBuffer, ImageFormat, Luma, Rgba};
 use masking::{ExposeInterface, PeekInterface, Secret};
+use quick_xml::{
+    events::{BytesDecl, BytesText, Event},
+    Writer,
+};
 use rand::Rng;
 use regex::Regex;
 use router_env::logger;
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use time::PrimitiveDateTime;
 use unicode_normalization::UnicodeNormalization;
@@ -131,15 +135,6 @@ pub(crate) fn to_currency_base_unit(
     currency
         .to_currency_base_unit(amount)
         .change_context(errors::ConnectorError::ParsingFailed)
-}
-
-pub(crate) fn to_currency_lower_unit(
-    amount: String,
-    currency: enums::Currency,
-) -> Result<String, error_stack::Report<errors::ConnectorError>> {
-    currency
-        .to_currency_lower_unit(amount)
-        .change_context(errors::ConnectorError::ResponseHandlingFailed)
 }
 
 pub trait ConnectorErrorTypeMapping {
@@ -5492,6 +5487,7 @@ pub enum PaymentMethodDataType {
     NetworkTransactionIdAndCardDetails,
     DirectCarrierBilling,
     InstantBankTransfer,
+    RevolutPay,
 }
 
 impl From<PaymentMethodData> for PaymentMethodDataType {
@@ -5542,6 +5538,7 @@ impl From<PaymentMethodData> for PaymentMethodDataType {
                 payment_method_data::WalletData::CashappQr(_) => Self::CashappQr,
                 payment_method_data::WalletData::SwishQr(_) => Self::SwishQr,
                 payment_method_data::WalletData::Mifinity(_) => Self::Mifinity,
+                payment_method_data::WalletData::RevolutPay(_) => Self::RevolutPay,
             },
             PaymentMethodData::PayLater(pay_later_data) => match pay_later_data {
                 payment_method_data::PayLaterData::KlarnaRedirect { .. } => Self::KlarnaRedirect,
@@ -6309,6 +6306,74 @@ pub fn get_card_details(
     }
 }
 
+pub fn get_authorise_integrity_object<T>(
+    amount_convertor: &dyn AmountConvertor<Output = T>,
+    amount: T,
+    currency: String,
+) -> Result<AuthoriseIntegrityObject, error_stack::Report<errors::ConnectorError>> {
+    let currency_enum = enums::Currency::from_str(currency.to_uppercase().as_str())
+        .change_context(errors::ConnectorError::ParsingFailed)?;
+
+    let amount_in_minor_unit =
+        convert_back_amount_to_minor_units(amount_convertor, amount, currency_enum)?;
+
+    Ok(AuthoriseIntegrityObject {
+        amount: amount_in_minor_unit,
+        currency: currency_enum,
+    })
+}
+
+pub fn get_sync_integrity_object<T>(
+    amount_convertor: &dyn AmountConvertor<Output = T>,
+    amount: T,
+    currency: String,
+) -> Result<SyncIntegrityObject, error_stack::Report<errors::ConnectorError>> {
+    let currency_enum = enums::Currency::from_str(currency.to_uppercase().as_str())
+        .change_context(errors::ConnectorError::ParsingFailed)?;
+    let amount_in_minor_unit =
+        convert_back_amount_to_minor_units(amount_convertor, amount, currency_enum)?;
+
+    Ok(SyncIntegrityObject {
+        amount: Some(amount_in_minor_unit),
+        currency: Some(currency_enum),
+    })
+}
+
+pub fn get_capture_integrity_object<T>(
+    amount_convertor: &dyn AmountConvertor<Output = T>,
+    capture_amount: Option<T>,
+    currency: String,
+) -> Result<CaptureIntegrityObject, error_stack::Report<errors::ConnectorError>> {
+    let currency_enum = enums::Currency::from_str(currency.to_uppercase().as_str())
+        .change_context(errors::ConnectorError::ParsingFailed)?;
+
+    let capture_amount_in_minor_unit = capture_amount
+        .map(|amount| convert_back_amount_to_minor_units(amount_convertor, amount, currency_enum))
+        .transpose()?;
+
+    Ok(CaptureIntegrityObject {
+        capture_amount: capture_amount_in_minor_unit,
+        currency: currency_enum,
+    })
+}
+
+pub fn get_refund_integrity_object<T>(
+    amount_convertor: &dyn AmountConvertor<Output = T>,
+    refund_amount: T,
+    currency: String,
+) -> Result<RefundIntegrityObject, error_stack::Report<errors::ConnectorError>> {
+    let currency_enum = enums::Currency::from_str(currency.to_uppercase().as_str())
+        .change_context(errors::ConnectorError::ParsingFailed)?;
+
+    let refund_amount_in_minor_unit =
+        convert_back_amount_to_minor_units(amount_convertor, refund_amount, currency_enum)?;
+
+    Ok(RefundIntegrityObject {
+        currency: currency_enum,
+        refund_amount: refund_amount_in_minor_unit,
+    })
+}
+
 #[cfg(feature = "frm")]
 pub trait FraudCheckSaleRequest {
     fn get_order_details(&self) -> Result<Vec<OrderDetailsWithAmount>, Error>;
@@ -6367,70 +6432,43 @@ impl SplitPaymentData for SetupMandateRequestData {
     }
 }
 
-pub fn get_refund_integrity_object<T>(
-    amount_convertor: &dyn AmountConvertor<Output = T>,
-    refund_amount: T,
-    currency: String,
-) -> Result<RefundIntegrityObject, error_stack::Report<errors::ConnectorError>> {
-    let currency_enum = enums::Currency::from_str(currency.to_uppercase().as_str())
-        .change_context(errors::ConnectorError::ParsingFailed)?;
+pub struct XmlSerializer;
+impl XmlSerializer {
+    pub fn serialize_to_xml_bytes<T: Serialize>(
+        item: &T,
+        xml_version: &str,
+        xml_encoding: Option<&str>,
+        xml_standalone: Option<&str>,
+        xml_doc_type: Option<&str>,
+    ) -> Result<Vec<u8>, error_stack::Report<errors::ConnectorError>> {
+        let mut xml_bytes = Vec::new();
+        let mut writer = Writer::new(std::io::Cursor::new(&mut xml_bytes));
 
-    let refund_amount_in_minor_unit =
-        convert_back_amount_to_minor_units(amount_convertor, refund_amount, currency_enum)?;
+        writer
+            .write_event(Event::Decl(BytesDecl::new(
+                xml_version,
+                xml_encoding,
+                xml_standalone,
+            )))
+            .change_context(errors::ConnectorError::RequestEncodingFailed)
+            .attach_printable("Failed to write XML declaration")?;
 
-    Ok(RefundIntegrityObject {
-        currency: currency_enum,
-        refund_amount: refund_amount_in_minor_unit,
-    })
-}
+        if let Some(xml_doc_type_data) = xml_doc_type {
+            writer
+                .write_event(Event::DocType(BytesText::from_escaped(xml_doc_type_data)))
+                .change_context(errors::ConnectorError::RequestEncodingFailed)
+                .attach_printable("Failed to write the XML declaration")?;
+        };
 
-pub fn get_capture_integrity_object<T>(
-    amount_convertor: &dyn AmountConvertor<Output = T>,
-    capture_amount: Option<T>,
-    currency: String,
-) -> Result<CaptureIntegrityObject, error_stack::Report<errors::ConnectorError>> {
-    let currency_enum = enums::Currency::from_str(currency.to_uppercase().as_str())
-        .change_context(errors::ConnectorError::ParsingFailed)?;
+        let xml_body = quick_xml::se::to_string(&item)
+            .change_context(errors::ConnectorError::RequestEncodingFailed)
+            .attach_printable("Failed to serialize the XML body")?;
 
-    let capture_amount_in_minor_unit = capture_amount
-        .map(|amount| convert_back_amount_to_minor_units(amount_convertor, amount, currency_enum))
-        .transpose()?;
+        writer
+            .write_event(Event::Text(BytesText::from_escaped(xml_body)))
+            .change_context(errors::ConnectorError::RequestEncodingFailed)
+            .attach_printable("Failed to serialize the XML body")?;
 
-    Ok(CaptureIntegrityObject {
-        capture_amount: capture_amount_in_minor_unit,
-        currency: currency_enum,
-    })
-}
-
-pub fn get_sync_integrity_object<T>(
-    amount_convertor: &dyn AmountConvertor<Output = T>,
-    amount: T,
-    currency: String,
-) -> Result<SyncIntegrityObject, error_stack::Report<errors::ConnectorError>> {
-    let currency_enum = enums::Currency::from_str(currency.to_uppercase().as_str())
-        .change_context(errors::ConnectorError::ParsingFailed)?;
-    let amount_in_minor_unit =
-        convert_back_amount_to_minor_units(amount_convertor, amount, currency_enum)?;
-
-    Ok(SyncIntegrityObject {
-        amount: Some(amount_in_minor_unit),
-        currency: Some(currency_enum),
-    })
-}
-
-pub fn get_authorise_integrity_object<T>(
-    amount_convertor: &dyn AmountConvertor<Output = T>,
-    amount: T,
-    currency: String,
-) -> Result<AuthoriseIntegrityObject, error_stack::Report<errors::ConnectorError>> {
-    let currency_enum = enums::Currency::from_str(currency.to_uppercase().as_str())
-        .change_context(errors::ConnectorError::ParsingFailed)?;
-
-    let amount_in_minor_unit =
-        convert_back_amount_to_minor_units(amount_convertor, amount, currency_enum)?;
-
-    Ok(AuthoriseIntegrityObject {
-        amount: amount_in_minor_unit,
-        currency: currency_enum,
-    })
+        Ok(xml_bytes)
+    }
 }

@@ -234,6 +234,7 @@ pub async fn save_payout_data_to_locker(
     connector_mandate_details: Option<serde_json::Value>,
     merchant_context: &domain::MerchantContext,
 ) -> RouterResult<()> {
+    let mut pm_id: Option<String> = None;
     let payouts = &payout_data.payouts;
     let key_manager_state = state.into();
     let (mut locker_req, card_details, bank_details, wallet_details, payment_method_type) =
@@ -373,14 +374,17 @@ pub async fn save_payout_data_to_locker(
 
             match existing_pm_by_pmid {
                 // If found, update locker's metadata [DELETE + INSERT OP], don't insert in payment_method's table
-                Ok(pm) => (
-                    false,
-                    if duplication_check == DataDuplicationCheck::MetaDataChanged {
-                        Some(pm.clone())
-                    } else {
-                        None
-                    },
-                ),
+                Ok(pm) => {
+                    pm_id = Some(pm.payment_method_id.clone());
+                    (
+                        false,
+                        if duplication_check == DataDuplicationCheck::MetaDataChanged {
+                            Some(pm.clone())
+                        } else {
+                            None
+                        },
+                    )
+                }
 
                 // If not found, use locker ref as locker_id
                 Err(err) => {
@@ -395,14 +399,17 @@ pub async fn save_payout_data_to_locker(
                             .await
                         {
                             // If found, update locker's metadata [DELETE + INSERT OP], don't insert in payment_methods table
-                            Ok(pm) => (
-                                false,
-                                if duplication_check == DataDuplicationCheck::MetaDataChanged {
-                                    Some(pm.clone())
-                                } else {
-                                    None
-                                },
-                            ),
+                            Ok(pm) => {
+                                pm_id = Some(pm.payment_method_id.clone());
+                                (
+                                    false,
+                                    if duplication_check == DataDuplicationCheck::MetaDataChanged {
+                                        Some(pm.clone())
+                                    } else {
+                                        None
+                                    },
+                                )
+                            }
                             Err(err) => {
                                 // If not found, update locker's metadata [DELETE + INSERT OP], and insert in payment_methods table
                                 if err.current_context().is_db_not_found() {
@@ -661,7 +668,14 @@ pub async fn save_payout_data_to_locker(
     // Store card_reference in payouts table
     let payout_method_id = match &payout_data.payment_method {
         Some(pm) => pm.payment_method_id.clone(),
-        None => stored_resp.card_reference.to_owned(),
+        None => {
+            if let Some(id) = pm_id {
+                id
+            } else {
+                Err(errors::ApiErrorResponse::InternalServerError)
+                    .attach_printable("Payment method was not found")?
+            }
+        }
     };
 
     let updated_payout = storage::PayoutsUpdate::PayoutMethodIdUpdate { payout_method_id };

@@ -2593,12 +2593,7 @@ impl<F: Clone> PostUpdateTracker<F, PaymentStatusData<F>, types::PaymentsSyncDat
         let payment_attempt_update =
             response_router_data.get_payment_attempt_update(&payment_data, storage_scheme);
 
-        let payment_attempt = payment_data
-            .payment_attempt
-            .ok_or(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable(
-                "Payment attempt not found in payment data in post update trackers",
-            )?;
+        let payment_attempt = payment_data.payment_attempt;
 
         let updated_payment_intent = db
             .update_payment_intent(
@@ -2625,7 +2620,7 @@ impl<F: Clone> PostUpdateTracker<F, PaymentStatusData<F>, types::PaymentsSyncDat
             .attach_printable("Unable to update payment attempt")?;
 
         payment_data.payment_intent = updated_payment_intent;
-        payment_data.payment_attempt = Some(updated_payment_attempt);
+        payment_data.payment_attempt = updated_payment_attempt;
 
         Ok(payment_data)
     }
@@ -2729,7 +2724,7 @@ impl<F: Clone> PostUpdateTracker<F, PaymentConfirmData<F>, types::SetupMandateRe
         >,
         merchant_context: &domain::MerchantContext,
         payment_data: &mut PaymentConfirmData<F>,
-        _business_profile: &domain::Profile,
+        business_profile: &domain::Profile,
     ) -> CustomResult<(), errors::ApiErrorResponse>
     where
         F: 'b + Clone + Send + Sync,
@@ -2804,6 +2799,7 @@ impl<F: Clone> PostUpdateTracker<F, PaymentConfirmData<F>, types::SetupMandateRe
                 payment_methods::update_payment_method_core(
                     state,
                     merchant_context,
+                    business_profile,
                     payment_method_update_request,
                     &payment_method_id,
                 )

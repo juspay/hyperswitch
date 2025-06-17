@@ -124,6 +124,7 @@ pub struct ConfigMetadata {
     pub ledger_account_id: Option<InputData>,
     pub tenant_id: Option<InputData>,
     pub platform_url: Option<InputData>,
+    pub report_group: Option<InputData>,
 }
 
 #[serde_with::skip_serializing_none]
@@ -224,6 +225,7 @@ pub struct ConnectorConfig {
     pub nmi: Option<ConnectorTomlConfig>,
     pub nomupay_payout: Option<ConnectorTomlConfig>,
     pub noon: Option<ConnectorTomlConfig>,
+    pub nordea: Option<ConnectorTomlConfig>,
     pub novalnet: Option<ConnectorTomlConfig>,
     pub nuvei: Option<ConnectorTomlConfig>,
     pub paybox: Option<ConnectorTomlConfig>,
@@ -250,6 +252,7 @@ pub struct ConnectorConfig {
     pub stripe_payout: Option<ConnectorTomlConfig>,
     pub stripebilling: Option<ConnectorTomlConfig>,
     pub signifyd: Option<ConnectorTomlConfig>,
+    pub tokenio: Option<ConnectorTomlConfig>,
     pub trustpay: Option<ConnectorTomlConfig>,
     pub threedsecureio: Option<ConnectorTomlConfig>,
     pub netcetera: Option<ConnectorTomlConfig>,
@@ -261,7 +264,8 @@ pub struct ConnectorConfig {
     pub wise_payout: Option<ConnectorTomlConfig>,
     pub worldline: Option<ConnectorTomlConfig>,
     pub worldpay: Option<ConnectorTomlConfig>,
-    // pub worldpayxml: Option<ConnectorTomlConfig>,
+    pub worldpayvantiv: Option<ConnectorTomlConfig>,
+    pub worldpayxml: Option<ConnectorTomlConfig>,
     pub xendit: Option<ConnectorTomlConfig>,
     pub square: Option<ConnectorTomlConfig>,
     pub stax: Option<ConnectorTomlConfig>,
@@ -357,6 +361,7 @@ impl ConnectorConfig {
             Connector::Authorizedotnet => Ok(connector_data.authorizedotnet),
             Connector::Bamboraapac => Ok(connector_data.bamboraapac),
             Connector::Bankofamerica => Ok(connector_data.bankofamerica),
+            Connector::Barclaycard => Ok(connector_data.barclaycard),
             Connector::Billwerk => Ok(connector_data.billwerk),
             Connector::Bitpay => Ok(connector_data.bitpay),
             Connector::Bluesnap => Ok(connector_data.bluesnap),
@@ -440,7 +445,8 @@ impl ConnectorConfig {
             Connector::Wise => Err("Use get_payout_connector_config".to_string()),
             Connector::Worldline => Ok(connector_data.worldline),
             Connector::Worldpay => Ok(connector_data.worldpay),
-            // Connector::Worldpayxml => Ok(connector_data.worldpayxml),
+            Connector::Worldpayvantiv => Ok(connector_data.worldpayvantiv),
+            Connector::Worldpayxml => Ok(connector_data.worldpayxml),
             Connector::Zen => Ok(connector_data.zen),
             Connector::Zsl => Ok(connector_data.zsl),
             #[cfg(feature = "dummy_connector")]

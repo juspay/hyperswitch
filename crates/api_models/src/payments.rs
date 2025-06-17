@@ -964,7 +964,7 @@ pub struct PaymentsRequest {
     pub description: Option<String>,
 
     /// The URL to which you want the user to be redirected after the completion of the payment operation
-    #[schema(value_type = Option<String>, example = "https://hyperswitch.io", max_length = 255)]
+    #[schema(value_type = Option<String>, example = "https://hyperswitch.io", max_length = 2048)]
     pub return_url: Option<Url>,
 
     #[schema(value_type = Option<FutureUsage>, example = "off_session")]
@@ -1183,7 +1183,7 @@ pub struct CtpServiceDetails {
     pub provider: Option<api_enums::CtpServiceProvider>,
     /// Encrypted payload
     #[schema(value_type = Option<String>)]
-    pub encypted_payload: Option<Secret<String>>,
+    pub encrypted_payload: Option<Secret<String>>,
 }
 
 impl CtpServiceDetails {
@@ -2685,6 +2685,7 @@ impl GetPaymentMethodType for WalletData {
             Self::CashappQr(_) => api_enums::PaymentMethodType::Cashapp,
             Self::SwishQr(_) => api_enums::PaymentMethodType::Swish,
             Self::Mifinity(_) => api_enums::PaymentMethodType::Mifinity,
+            Self::RevolutPay(_) => api_enums::PaymentMethodType::RevolutPay,
         }
     }
 }
@@ -3609,6 +3610,8 @@ pub enum WalletData {
     SwishQr(SwishQrData),
     // The wallet data for Mifinity Ewallet
     Mifinity(MifinityData),
+    // The wallet data for RevolutPay
+    RevolutPay(RevolutPayData),
 }
 
 impl GetAddressFromPaymentMethodData for WalletData {
@@ -3660,7 +3663,8 @@ impl GetAddressFromPaymentMethodData for WalletData {
             | Self::WeChatPayRedirect(_)
             | Self::WeChatPayQr(_)
             | Self::CashappQr(_)
-            | Self::SwishQr(_) => None,
+            | Self::SwishQr(_)
+            | Self::RevolutPay(_) => None,
         }
     }
 }
@@ -3894,6 +3898,9 @@ pub struct TouchNGoRedirection {}
 
 #[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
 pub struct SwishQrData {}
+
+#[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
+pub struct RevolutPayData {}
 
 #[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
 pub struct MifinityData {

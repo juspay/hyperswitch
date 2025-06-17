@@ -333,3 +333,10 @@ mod nanoid_tests {
         assert!(ref_id.is_ok())
     }
 }
+
+/// Module for tokenization-related functionality
+///
+/// This module provides types and functions for handling tokenized payment data,
+/// including response structures and token generation utilities.
+#[cfg(all(feature = "v2", feature = "tokenization_v2"))]
+pub mod tokenization;

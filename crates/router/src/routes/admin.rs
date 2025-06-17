@@ -66,7 +66,10 @@ pub async fn organization_update(
         json_payload.into_inner(),
         |state, _, req, _| update_organization(state, org_id.clone(), req),
         auth::auth_type(
-            &auth::AdminApiAuth,
+            &auth::PlatformOrgAdminAuth {
+                is_admin_auth_allowed: true,
+                organization_id: Some(organization_id.clone()),
+            },
             &auth::JWTAuthOrganizationFromRoute {
                 organization_id,
                 required_permission: Permission::OrganizationAccountWrite,
@@ -128,7 +131,10 @@ pub async fn organization_retrieve(
         payload,
         |state, _, req, _| get_organization(state, req),
         auth::auth_type(
-            &auth::AdminApiAuth,
+            &auth::PlatformOrgAdminAuth {
+                is_admin_auth_allowed: true,
+                organization_id: Some(organization_id.clone()),
+            },
             &auth::JWTAuthOrganizationFromRoute {
                 organization_id,
                 required_permission: Permission::OrganizationAccountRead,
@@ -185,8 +191,11 @@ pub async fn merchant_account_create(
         state,
         &req,
         json_payload.into_inner(),
-        |state, _, req, _| create_merchant_account(state, req),
-        &auth::AdminApiAuthWithApiKeyFallback,
+        |state, auth, req, _| create_merchant_account(state, req, auth),
+        &auth::PlatformOrgAdminAuth {
+            is_admin_auth_allowed: true,
+            organization_id: None,
+        },
         api_locking::LockAction::NotApplicable,
     ))
     .await
@@ -223,7 +232,7 @@ pub async fn merchant_account_create(
         state,
         &req,
         new_request_payload_with_org_id,
-        |state, _, req, _| create_merchant_account(state, req),
+        |state, _, req, _| create_merchant_account(state, req, None),
         &auth::V2AdminApiAuth,
         api_locking::LockAction::NotApplicable,
     ))
@@ -249,7 +258,10 @@ pub async fn retrieve_merchant_account(
         payload,
         |state, _, req, _| get_merchant_account(state, req, None),
         auth::auth_type(
-            &auth::AdminApiAuthWithApiKeyFallbackAndMerchantIdFromRoute(merchant_id.clone()),
+            &auth::PlatformOrgAdminAuthWithMerchantIdFromRoute {
+                merchant_id_from_route: merchant_id.clone(),
+                is_admin_auth_allowed: true,
+            },
             &auth::JWTAuthMerchantFromRoute {
                 merchant_id,
                 // This should ideally be MerchantAccountRead, but since FE is calling this API for
@@ -348,9 +360,12 @@ pub async fn merchant_account_list(
         state,
         &req,
         query_params.into_inner(),
-        |state, _, request, _| list_merchant_account(state, request),
+        |state, auth, request, _| list_merchant_account(state, request, auth),
         auth::auth_type(
-            &auth::AdminApiAuthWithApiKeyFallback,
+            &auth::PlatformOrgAdminAuth {
+                is_admin_auth_allowed: true,
+                organization_id: None,
+            },
             &auth::JWTAuthMerchantFromHeader {
                 required_permission: Permission::MerchantAccountRead,
             },
@@ -409,7 +424,10 @@ pub async fn update_merchant_account(
         json_payload.into_inner(),
         |state, _, req, _| merchant_account_update(state, &merchant_id, None, req),
         auth::auth_type(
-            &auth::AdminApiAuthWithApiKeyFallbackAndMerchantIdFromRoute(merchant_id.clone()),
+            &auth::PlatformOrgAdminAuthWithMerchantIdFromRoute {
+                merchant_id_from_route: merchant_id.clone(),
+                is_admin_auth_allowed: true,
+            },
             &auth::JWTAuthMerchantFromRoute {
                 merchant_id: merchant_id.clone(),
                 required_permission: Permission::MerchantAccountWrite,
@@ -695,7 +713,7 @@ pub async fn connector_list(
         (status = 401, description = "Unauthorized request")
     ),
     tag = "Merchant Connector Account",
-    operation_id = "List all Merchant Connectors",
+    operation_id = "List all Merchant Connectors Admin",
     security(("admin_api_key" = []))
 )]
 #[cfg(feature = "v1")]

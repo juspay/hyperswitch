@@ -2,7 +2,7 @@ use std::{fmt::Debug, marker::PhantomData, str::FromStr};
 
 use api_models::payments::{
     Address, ConnectorMandateReferenceId, CustomerDetails, CustomerDetailsResponse, FrmMessage,
-    RequestSurchargeDetails,
+    MandateIds, RequestSurchargeDetails,
 };
 use common_enums::{Currency, RequestIncrementalAuthorization};
 use common_utils::{
@@ -587,11 +587,7 @@ pub async fn construct_router_data_for_psync<'a>(
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Failed while parsing value for ConnectorAuthType")?;
 
-    let attempt = &payment_data
-        .payment_attempt
-        .get_required_value("attempt")
-        .change_context(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable("Payment Attempt is not available in payment data")?;
+    let attempt = &payment_data.payment_attempt;
 
     let connector_request_reference_id = payment_intent
         .merchant_reference_id
@@ -1913,21 +1909,19 @@ where
         profile: &domain::Profile,
     ) -> RouterResponse<api_models::payments::PaymentsResponse> {
         let payment_intent = self.payment_intent;
-        let optional_payment_attempt = self.payment_attempt.as_ref();
+        let payment_attempt = &self.payment_attempt;
 
         let amount = api_models::payments::PaymentAmountDetailsResponse::foreign_from((
             &payment_intent.amount_details,
-            optional_payment_attempt.map(|payment_attempt| &payment_attempt.amount_details),
+            &payment_attempt.amount_details,
         ));
 
-        let connector =
-            optional_payment_attempt.and_then(|payment_attempt| payment_attempt.connector.clone());
+        let connector = payment_attempt.connector.clone();
 
-        let merchant_connector_id = optional_payment_attempt
-            .and_then(|payment_attempt| payment_attempt.merchant_connector_id.clone());
+        let merchant_connector_id = payment_attempt.merchant_connector_id.clone();
 
-        let error = optional_payment_attempt
-            .and_then(|payment_attempt| payment_attempt.error.clone())
+        let error = payment_attempt
+            .error
             .as_ref()
             .map(api_models::payments::ErrorDetails::foreign_from);
         let attempts = self.attempts.as_ref().map(|attempts| {
@@ -1949,8 +1943,8 @@ where
 
         let connector_token_details = self
             .payment_attempt
-            .as_ref()
-            .and_then(|attempt| attempt.connector_token_details.clone())
+            .connector_token_details
+            .clone()
             .and_then(Option::<api_models::payments::ConnectorTokenDetails>::foreign_from);
 
         let return_url = payment_intent.return_url.or(profile.return_url.clone());
@@ -1969,31 +1963,16 @@ where
             shipping: self.payment_address.get_shipping().cloned().map(From::from),
             created: payment_intent.created_at,
             payment_method_data,
-            payment_method_type: self
-                .payment_attempt
-                .as_ref()
-                .map(|attempt| attempt.payment_method_type),
-            payment_method_subtype: self
-                .payment_attempt
-                .as_ref()
-                .map(|attempt| attempt.payment_method_subtype),
-            connector_transaction_id: self
-                .payment_attempt
-                .as_ref()
-                .and_then(|attempt| attempt.connector_payment_id.clone()),
+            payment_method_type: Some(payment_attempt.payment_method_type),
+            payment_method_subtype: Some(payment_attempt.payment_method_subtype),
+            connector_transaction_id: payment_attempt.connector_payment_id.clone(),
             connector_reference_id: None,
             merchant_connector_id,
             browser_info: None,
             connector_token_details,
-            payment_method_id: self
-                .payment_attempt
-                .as_ref()
-                .and_then(|attempt| attempt.payment_method_id.clone()),
+            payment_method_id: payment_attempt.payment_method_id.clone(),
             error,
-            authentication_type_applied: self
-                .payment_attempt
-                .as_ref()
-                .and_then(|attempt| attempt.authentication_applied),
+            authentication_type_applied: payment_attempt.authentication_applied,
             authentication_type: payment_intent.authentication_type,
             next_action: None,
             attempts,
@@ -3387,6 +3366,17 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsAuthoriz
     }
 }
 
+fn get_off_session(
+    mandate_id: Option<&MandateIds>,
+    off_session_flag: Option<bool>,
+) -> Option<bool> {
+    match (mandate_id, off_session_flag) {
+        (_, Some(false)) => Some(false),
+        (Some(_), _) | (_, Some(true)) => Some(true),
+        (None, None) => None,
+    }
+}
+
 #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
 impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsAuthorizeData {
     type Error = error_stack::Report<errors::ApiErrorResponse>;
@@ -3541,12 +3531,16 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsAuthoriz
             })
             .transpose()?
             .map(pii::SecretSerdeValue::new);
+        let is_off_session = get_off_session(
+            payment_data.mandate_id.as_ref(),
+            payment_data.payment_intent.off_session,
+        );
 
         Ok(Self {
             payment_method_data: (payment_method_data.get_required_value("payment_method_data")?),
             setup_future_usage: payment_data.payment_attempt.setup_future_usage_applied,
             mandate_id: payment_data.mandate_id.clone(),
-            off_session: payment_data.mandate_id.as_ref().map(|_| true),
+            off_session: is_off_session,
             setup_mandate_details: payment_data.setup_mandate.clone(),
             confirm: payment_data.payment_attempt.confirm,
             statement_descriptor_suffix: payment_data.payment_intent.statement_descriptor_suffix,
@@ -4382,6 +4376,11 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::SetupMandateRequ
             .transpose()?
             .map(pii::SecretSerdeValue::new);
 
+        let is_off_session = get_off_session(
+            payment_data.mandate_id.as_ref(),
+            payment_data.payment_intent.off_session,
+        );
+
         Ok(Self {
             currency: payment_data.currency,
             confirm: true,
@@ -4392,7 +4391,7 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::SetupMandateRequ
                 .get_required_value("payment_method_data")?),
             statement_descriptor_suffix: payment_data.payment_intent.statement_descriptor_suffix,
             setup_future_usage: payment_data.payment_attempt.setup_future_usage_applied,
-            off_session: payment_data.mandate_id.as_ref().map(|_| true),
+            off_session: is_off_session,
             mandate_id: payment_data.mandate_id.clone(),
             setup_mandate_details: payment_data.setup_mandate,
             customer_acceptance: payment_data.customer_acceptance,
@@ -4526,10 +4525,16 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::CompleteAuthoriz
             .and_then(|braintree| braintree.merchant_account_id.clone());
         let merchant_config_currency =
             braintree_metadata.and_then(|braintree| braintree.merchant_config_currency);
+
+        let is_off_session = get_off_session(
+            payment_data.mandate_id.as_ref(),
+            payment_data.payment_intent.off_session,
+        );
+
         Ok(Self {
             setup_future_usage: payment_data.payment_intent.setup_future_usage,
             mandate_id: payment_data.mandate_id.clone(),
-            off_session: payment_data.mandate_id.as_ref().map(|_| true),
+            off_session: is_off_session,
             setup_mandate_details: payment_data.setup_mandate.clone(),
             confirm: payment_data.payment_attempt.confirm,
             statement_descriptor_suffix: payment_data.payment_intent.statement_descriptor_suffix,

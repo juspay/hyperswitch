@@ -122,6 +122,8 @@ pub type BoxedBillingConnectorPaymentsSyncIntegrationInterface<T, Req, Res> =
         Req,
         Res,
     >;
+pub type BoxedVaultConnectorIntegrationInterface<T, Req, Res> =
+    BoxedConnectorIntegrationInterface<T, common_types::VaultConnectorFlowData, Req, Res>;
 
 /// Handle the flow by interacting with connector module
 /// `connector_request` is applicable only in case if the `CallConnectorAction` is `Trigger`
@@ -1878,6 +1880,30 @@ fn build_payment_link_template(
     let _ = tera.add_raw_template("payment_link_js", &js_template);
 
     context.insert("payment_details_js_script", &payment_link_data.js_script);
+    let sdk_origin = payment_link_data
+        .sdk_url
+        .host_str()
+        .ok_or_else(|| {
+            logger::error!("Host missing for payment link SDK URL");
+            report!(errors::ApiErrorResponse::InternalServerError)
+        })
+        .and_then(|host| {
+            if host == "localhost" {
+                let port = payment_link_data.sdk_url.port().ok_or_else(|| {
+                    logger::error!("Port missing for localhost in SDK URL");
+                    report!(errors::ApiErrorResponse::InternalServerError)
+                })?;
+                Ok(format!(
+                    "{}://{}:{}",
+                    payment_link_data.sdk_url.scheme(),
+                    host,
+                    port
+                ))
+            } else {
+                Ok(format!("{}://{}", payment_link_data.sdk_url.scheme(), host))
+            }
+        })?;
+    context.insert("sdk_origin", &sdk_origin);
 
     let rendered_js = match tera.render("payment_link_js", &context) {
         Ok(rendered_js) => rendered_js,
@@ -1955,11 +1981,11 @@ pub fn build_secure_payment_link_html(
         .attach_printable("Error while rendering secure payment link's HTML template")
 }
 
-fn get_hyper_loader_sdk(sdk_url: &str) -> String {
+fn get_hyper_loader_sdk(sdk_url: &url::Url) -> String {
     format!("<script src=\"{sdk_url}\" onload=\"initializeSDK()\"></script>")
 }
 
-fn get_preload_link_html_template(sdk_url: &str) -> String {
+fn get_preload_link_html_template(sdk_url: &url::Url) -> String {
     format!(
         r#"<link rel="preload" href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800" as="style">
             <link rel="preload" href="{sdk_url}" as="script">"#,

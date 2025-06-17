@@ -674,7 +674,7 @@ where
         payment_data: PaymentStatusData {
             flow: PhantomData,
             payment_intent,
-            payment_attempt: Some(payment_attempt),
+            payment_attempt,
             attempts: None,
             should_sync_with_connector: true,
             payment_address,
