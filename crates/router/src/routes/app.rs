@@ -630,7 +630,11 @@ impl Payments {
             route
                 .service(web::resource("/ref/{merchant_reference_id}").route(
                     web::get().to(payments::payment_get_intent_using_merchant_reference_id),
-                ));
+                ))
+                .service(
+                    web::resource("attempts/{intent_id}")
+                        .route(web::get().to(payments::list_payment_attempts)),
+                );
 
         route = route.service(
             web::scope("/{payment_id}")
@@ -669,7 +673,8 @@ impl Payments {
                 )
                 .service(
                     web::resource("/capture").route(web::post().to(payments::payments_capture)),
-                ),
+                )
+                ,
         );
 
         route

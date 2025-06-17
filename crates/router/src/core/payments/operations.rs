@@ -38,7 +38,8 @@ pub mod payment_attempt_record;
 pub mod payment_confirm_intent;
 #[cfg(feature = "v2")]
 pub mod proxy_payments_intent;
-
+#[cfg(feature = "v2")]
+pub mod payment_attempt_list;
 #[cfg(feature = "v2")]
 pub mod payment_create_intent;
 #[cfg(feature = "v2")]
@@ -64,6 +65,8 @@ pub use self::payment_get::PaymentGet;
 #[cfg(feature = "v2")]
 pub use self::payment_get_intent::PaymentGetIntent;
 pub use self::payment_response::PaymentResponse;
+#[cfg(feature = "v2")]
+pub use self::payment_attempt_list::PaymentGetAttempts;
 #[cfg(feature = "v2")]
 pub use self::payment_update_intent::PaymentUpdateIntent;
 #[cfg(feature = "v1")]

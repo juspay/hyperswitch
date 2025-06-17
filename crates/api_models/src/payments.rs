@@ -270,7 +270,17 @@ pub struct PaymentsCreateIntentRequest {
     /// Indicates if 3ds challenge is forced
     pub force_3ds_challenge: Option<bool>,
 }
+#[cfg(feature = "v2")]
+#[derive(Debug, serde::Serialize, serde::Deserialize, Clone, ToSchema)]
+pub struct PaymentAttemptListRequest{
+    pub payment_intent_id: id_type::GlobalPaymentId,
+}
 
+#[cfg(feature = "v2")]
+#[derive(Debug, serde::Serialize, Clone, ToSchema)]
+pub struct PaymentAttemptListResponse{
+    pub payment_attempts: Vec<PaymentAttemptResponse>,
+}
 #[cfg(feature = "v2")]
 impl PaymentsCreateIntentRequest {
     pub fn get_feature_metadata_as_value(

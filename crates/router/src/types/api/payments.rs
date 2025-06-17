@@ -5,7 +5,7 @@ pub use api_models::payments::{
 #[cfg(feature = "v2")]
 pub use api_models::payments::{
     PaymentsConfirmIntentRequest, PaymentsCreateIntentRequest, PaymentsIntentResponse,
-    PaymentsUpdateIntentRequest,
+    PaymentsUpdateIntentRequest,PaymentAttemptListResponse, PaymentAttemptListRequest,
 };
 pub use api_models::{
     feature_matrix::{
