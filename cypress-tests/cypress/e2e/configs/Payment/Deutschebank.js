@@ -1,3 +1,4 @@
+import { configs } from "@eslint/js";
 import { customerAcceptance } from "./Commons";
 import { getCustomExchange } from "./Modifiers";
 
@@ -225,6 +226,9 @@ export const connectorDetails = {
       },
     },
     PaymentMethodIdMandate3DSAutoCapture: {
+      configs: {
+        TRIGGER_SKIP: true,
+      },
       Request: {
         payment_method: "card",
         payment_method_data: {
@@ -244,6 +248,9 @@ export const connectorDetails = {
       },
     },
     PaymentMethodIdMandate3DSManualCapture: {
+      configs: {
+        TRIGGER_SKIP: true,
+      },
       Request: {
         payment_method: "card",
         payment_method_data: {
@@ -268,7 +275,7 @@ export const connectorDetails = {
           error: {
             type: "invalid_request",
             message:
-              "No eligible connector was found for the current payment method configuration",
+              "Non-ThreeDs is not supported by deutschebank",
             code: "IR_39",
           },
         },
