@@ -8168,7 +8168,7 @@ pub async fn payment_external_authentication<F: Clone + Sync>(
     .await?
     {
         let auth_response =
-            <ExternalAuthentication as UnifiedAuthenticationService<F>>::authentication(
+            <ExternalAuthentication as UnifiedAuthenticationService>::authentication(
                 &state,
                 &business_profile,
                 payment_method_details.1,
@@ -8194,7 +8194,7 @@ pub async fn payment_external_authentication<F: Clone + Sync>(
                 authentication_details.three_ds_requestor_url.clone(),
                 &merchant_connector_account,
                 &authentication_connector,
-                payment_intent.payment_id,
+                Some(payment_intent.payment_id),
             )
             .await?;
         let authentication = external_authentication_update_trackers(
