@@ -3809,7 +3809,7 @@ where
                     )
                     .await?;
 
-                let _ = router_data
+                router_data
                     .call_unified_connector_service(state, merchant_connector_account.clone())
                     .await?;
 
