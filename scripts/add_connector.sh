@@ -200,7 +200,7 @@ echo "\n\n[${payment_gateway}]\napi_key=\"API Key\"" >> ${tests}/sample_auth.tom
 # Remove temporary files created in above step
 rm ${tests}/main.rs-e ${test_utils}/connector_auth.rs-e
 cargo +nightly fmt --all
-cargo check
+cargo run
 echo "${GREEN}Successfully created connector. Running the tests of $payment_gateway.rs"
 
 # Runs tests for the new connector
