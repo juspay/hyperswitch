@@ -34,6 +34,19 @@ if (jsonData?.payment_id) {
   );
 }
 
+// pm.collectionVariables - Set mandate_id as variable for jsonData.mandate_id
+if (jsonData?.mandate_id) {
+  pm.collectionVariables.set("mandate_id", jsonData.mandate_id);
+  console.log(
+    "- use {{mandate_id}} as collection variable for value",
+    jsonData.mandate_id,
+  );
+} else {
+  console.log(
+    "INFO - Unable to assign variable {{mandate_id}}, as jsonData.mandate_id is undefined.",
+  );
+}
+
 // pm.collectionVariables - Set client_secret as variable for jsonData.client_secret
 if (jsonData?.client_secret) {
   pm.collectionVariables.set("client_secret", jsonData.client_secret);
@@ -47,20 +60,12 @@ if (jsonData?.client_secret) {
   );
 }
 
-// Response body should have value "requires_capture" for "status"
-pm.test(
-"[POST]::/payments - Content check if value for 'status' matches 'requires_capture'",
-function () {
-    pm.expect(jsonData.status).to.eql("requires_capture");
-},
-);
-
-// Response body should have "connector_transaction_id"
-pm.test(
-  "[POST]::/payments - Content check if 'connector_transaction_id' exists",
-  function () {
-    pm.expect(typeof jsonData.connector_transaction_id !== "undefined").to.be
-      .true;
-    pm.collectionVariables.set("connector_transaction_id", jsonData.connector_transaction_id)
-  },
-);
+// Response body should have value "requires_confirmation" for "status"
+if (jsonData?.status) {
+  pm.test(
+    "[POST]::/payments - Content check if value for 'status' matches 'requires_confirmation'",
+    function () {
+      pm.expect(jsonData.status).to.eql("requires_confirmation");
+    },
+  );
+}

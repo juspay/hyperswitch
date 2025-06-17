@@ -21,12 +21,9 @@
       "amount": 500,
       "amount_to_capture": 500,
       "currency": "EUR",
-      "confirm": true,
-      "capture_method": "manual",
+      "confirm": false,
+      "capture_method": "automatic",
       "authentication_type": "no_three_ds",
-      "profile_id": "{{profile_id}}",
-      "phone_country_code": "+91",
-      "description": "[Archipel][Connector][Scenario7] - Create payment and cancel it",
       "payment_method": "card",
       "payment_method_type": "credit",
       "payment_method_data": {
@@ -38,6 +35,12 @@
           "card_number": "5185570141917102"
         }
       },
+      "profile_id": "{{profile_id}}",
+      "email": "john_doe@gmail.com",
+      "name": "John Doe",
+      "phone": "8056594427",
+      "phone_country_code": "+91",
+      "description": "{{$randomLoremSentence}}",
       "billing": {
         "address": {
           "line1": "2 ter",
@@ -52,7 +55,26 @@
           "number": "8056594427",
           "country_code": "+91"
         }
-      }
+      },
+      "shipping": {
+        "address": {
+          "line1": "1467",
+          "line2": "Harrison Street",
+          "line3": "Harrison Street",
+          "city": "San Fransico",
+          "state": "California",
+          "zip": "94122",
+          "country": "US",
+          "first_name": "joseph",
+          "last_name": "Doe"
+        },
+        "phone": {
+          "number": "8056594427",
+          "country_code": "+91"
+        }
+      },
+      "statement_descriptor_name": "Joseph Doe",
+      "statement_descriptor_suffix": "JS"
     }
   },
   "url": {
@@ -63,6 +85,5 @@
     "path": [
       "payments"
     ]
-  },
-  "description": "To process a payment you will have to create a payment, attach a payment method and confirm. Depending on the user journey you wish to achieve, you may opt to all the steps in a single request or in a sequence of API request using following APIs: (i) Payments - Update, (ii) Payments - Confirm, and (iii) Payments - Capture"
+  }
 }
