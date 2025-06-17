@@ -90,7 +90,7 @@ pub async fn construct_payout_router_data<'a, F>(
         .clone()
         .get_required_value("merchant_connector_account")?;
     let connector_name = connector_data.connector_name;
-    let connector_auth_type = merchant_connector_account
+    let connector_auth_type: types::ConnectorAuthType = merchant_connector_account
         .get_connector_account_details()
         .parse_value("ConnectorAuthType")
         .change_context(errors::ApiErrorResponse::InternalServerError)?;
@@ -2047,7 +2047,7 @@ pub async fn construct_vault_router_data<F>(
         .get_connector_name()
         .ok_or(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Connector name not present for external vault")?; // always get the connector name from the merchant_connector_account
-    let connector_auth_type: types::ConnectorAuthType = merchant_connector_account
+    let connector_auth_type = merchant_connector_account
         .get_connector_account_details()
         .change_context(errors::ApiErrorResponse::InternalServerError)?;
 
