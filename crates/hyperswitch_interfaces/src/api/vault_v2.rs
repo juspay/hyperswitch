@@ -2,7 +2,8 @@
 use hyperswitch_domain_models::{
     router_data_v2::flow_common_types::VaultConnectorFlowData,
     router_flow_types::vault::{
-        ExternalVaultDeleteFlow, ExternalVaultInsertFlow, ExternalVaultRetrieveFlow,
+        ExternalVaultCreateFlow, ExternalVaultDeleteFlow, ExternalVaultInsertFlow,
+        ExternalVaultRetrieveFlow,
     },
     router_request_types::VaultRequestData,
     router_response_types::VaultResponseData,
@@ -43,8 +44,23 @@ pub trait ExternalVaultDeleteV2:
 {
 }
 
+/// trait ExternalVaultDeleteV2
+pub trait ExternalVaultCreateV2:
+    ConnectorIntegrationV2<
+    ExternalVaultCreateFlow,
+    VaultConnectorFlowData,
+    VaultRequestData,
+    VaultResponseData,
+>
+{
+}
+
 /// trait ExternalVaultV2
 pub trait ExternalVaultV2:
-    ConnectorCommon + ExternalVaultInsertV2 + ExternalVaultRetrieveV2 + ExternalVaultDeleteV2
+    ConnectorCommon
+    + ExternalVaultInsertV2
+    + ExternalVaultRetrieveV2
+    + ExternalVaultDeleteV2
+    + ExternalVaultCreateV2
 {
 }

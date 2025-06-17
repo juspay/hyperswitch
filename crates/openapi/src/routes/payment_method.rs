@@ -404,7 +404,7 @@ pub fn payment_method_session_retrieve() {}
         ("id" = String, Path, description = "The unique identifier for the Payment Method Session"),
     ),
     responses(
-        (status = 200, description = "The payment method session is retrieved successfully", body = PaymentMethodListResponse),
+        (status = 200, description = "The payment method session is retrieved successfully", body = PaymentMethodListResponseForSession),
         (status = 404, description = "The request is invalid")
     ),
     tag = "Payment Method Session",

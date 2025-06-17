@@ -2,7 +2,7 @@
 use std::marker::PhantomData;
 
 #[cfg(feature = "v2")]
-use api_models::payments::SessionToken;
+use api_models::payments::{SessionToken, VaultSessionDetails};
 use common_types::primitive_wrappers::{
     AlwaysRequestExtendedAuthorization, RequestExtendedAuthorizationBool,
 };
@@ -43,7 +43,7 @@ use self::payment_attempt::PaymentAttempt;
 use crate::{
     address::Address, business_profile, customer, errors, merchant_account,
     merchant_connector_account, merchant_context, payment_address, payment_method_data,
-    revenue_recovery, routing, ApiModelToDieselModelConvertor,
+    payment_methods, revenue_recovery, routing, ApiModelToDieselModelConvertor,
 };
 #[cfg(feature = "v1")]
 use crate::{payment_method_data, RemoteStorageObject};
@@ -743,6 +743,8 @@ impl PaymentIntent {
             network_error_message: None,
             retry_count: None,
             invoice_next_billing_time: None,
+            card_isin: None,
+            card_network: None,
         })
     }
 
@@ -838,6 +840,8 @@ where
     pub payment_intent: PaymentIntent,
     pub sessions_token: Vec<SessionToken>,
     pub client_secret: Option<Secret<String>>,
+    pub vault_session_details: Option<VaultSessionDetails>,
+    pub connector_customer_id: Option<String>,
 }
 
 // TODO: Check if this can be merged with existing payment data
@@ -853,6 +857,7 @@ where
     pub payment_method_data: Option<payment_method_data::PaymentMethodData>,
     pub payment_address: payment_address::PaymentAddress,
     pub mandate_data: Option<api_models::payments::MandateIds>,
+    pub payment_method: Option<payment_methods::PaymentMethod>,
 }
 
 #[cfg(feature = "v2")]
@@ -870,6 +875,22 @@ impl<F: Clone> PaymentConfirmData<F> {
                 .payment_intent
                 .get_connector_customer_id_from_feature_metadata(),
         }
+    }
+
+    pub fn update_payment_method_data(
+        &mut self,
+        payment_method_data: payment_method_data::PaymentMethodData,
+    ) {
+        self.payment_method_data = Some(payment_method_data);
+    }
+
+    pub fn update_payment_method_and_pm_id(
+        &mut self,
+        payment_method_id: id_type::GlobalPaymentMethodId,
+        payment_method: payment_methods::PaymentMethod,
+    ) {
+        self.payment_attempt.payment_method_id = Some(payment_method_id);
+        self.payment_method = Some(payment_method);
     }
 }
 
@@ -932,6 +953,8 @@ pub struct RevenueRecoveryData {
     pub retry_count: Option<u16>,
     pub invoice_next_billing_time: Option<PrimitiveDateTime>,
     pub triggered_by: storage_enums::enums::TriggeredBy,
+    pub card_network: Option<common_enums::CardNetwork>,
+    pub card_issuer: Option<String>,
 }
 
 #[cfg(feature = "v2")]
@@ -943,9 +966,57 @@ where
         &self,
     ) -> CustomResult<Option<FeatureMetadata>, errors::api_error_response::ApiErrorResponse> {
         let payment_intent_feature_metadata = self.payment_intent.get_feature_metadata();
-
         let revenue_recovery = self.payment_intent.get_revenue_recovery_metadata();
         let payment_attempt_connector = self.payment_attempt.connector.clone();
+
+        let feature_metadata_first_pg_error_code = revenue_recovery
+            .as_ref()
+            .and_then(|data| data.first_payment_attempt_pg_error_code.clone());
+
+        let (first_pg_error_code, first_network_advice_code, first_network_decline_code) =
+            feature_metadata_first_pg_error_code.map_or_else(
+                || {
+                    let first_pg_error_code = self
+                        .payment_attempt
+                        .error
+                        .as_ref()
+                        .map(|error| error.code.clone());
+                    let first_network_advice_code = self
+                        .payment_attempt
+                        .error
+                        .as_ref()
+                        .and_then(|error| error.network_advice_code.clone());
+                    let first_network_decline_code = self
+                        .payment_attempt
+                        .error
+                        .as_ref()
+                        .and_then(|error| error.network_decline_code.clone());
+                    (
+                        first_pg_error_code,
+                        first_network_advice_code,
+                        first_network_decline_code,
+                    )
+                },
+                |pg_code| {
+                    let advice_code = revenue_recovery
+                        .as_ref()
+                        .and_then(|data| data.first_payment_attempt_network_advice_code.clone());
+                    let decline_code = revenue_recovery
+                        .as_ref()
+                        .and_then(|data| data.first_payment_attempt_network_decline_code.clone());
+                    (Some(pg_code), advice_code, decline_code)
+                },
+            );
+
+        let billing_connector_payment_method_details = Some(
+            diesel_models::types::BillingConnectorPaymentMethodDetails::Card(
+                diesel_models::types::BillingConnectorAdditionalCardInfo {
+                    card_network: self.revenue_recovery_data.card_network.clone(),
+                    card_issuer: self.revenue_recovery_data.card_issuer.clone(),
+                },
+            ),
+        );
+
         let payment_revenue_recovery_metadata = match payment_attempt_connector {
             Some(connector) => Some(diesel_models::types::PaymentRevenueRecoveryMetadata {
                 // Update retry count by one.
@@ -980,6 +1051,10 @@ where
                     errors::api_error_response::ApiErrorResponse::InternalServerError
                 })?,
                 invoice_next_billing_time: self.revenue_recovery_data.invoice_next_billing_time,
+                billing_connector_payment_method_details,
+                first_payment_attempt_network_advice_code: first_network_advice_code,
+                first_payment_attempt_network_decline_code: first_network_decline_code,
+                first_payment_attempt_pg_error_code: first_pg_error_code,
             }),
             None => Err(errors::api_error_response::ApiErrorResponse::InternalServerError)
                 .attach_printable("Connector not found in payment attempt")?,
