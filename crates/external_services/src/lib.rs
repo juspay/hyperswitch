@@ -32,9 +32,7 @@ pub mod crm;
 pub mod date_time {
     use prost_types::Timestamp;
     // use masking::{Deserialize, Serialize};
-    use time::{
-        OffsetDateTime, PrimitiveDateTime,
-    };
+    use time::{OffsetDateTime, PrimitiveDateTime};
 
     /// Converts a `time::PrimitiveDateTime` to a `prost_types::Timestamp`.
     /// Assumes UTC for the conversion.
