@@ -1,4 +1,4 @@
-// Validate status 2xx
+// Validate status 400
 pm.test("[POST]::/payments/:id/confirm - Status code is 400", function () {
   pm.response.to.have.status(400);
 });
