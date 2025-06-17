@@ -66,6 +66,8 @@ pub struct Refund {
     pub processor_transaction_data: Option<String>,
     pub issuer_error_code: Option<String>,
     pub issuer_error_message: Option<String>,
+    pub processor_merchant_id: Option<common_utils::id_type::MerchantId>,
+    pub created_by: Option<String>,
 }
 
 #[cfg(all(feature = "v2", feature = "refunds_v2"))]
@@ -114,6 +116,8 @@ pub struct Refund {
     pub unified_message: Option<String>,
     pub processor_refund_data: Option<String>,
     pub processor_transaction_data: Option<String>,
+    pub processor_merchant_id: Option<common_utils::id_type::MerchantId>,
+    pub created_by: Option<String>,
     pub id: common_utils::id_type::GlobalRefundId,
     pub merchant_reference_id: common_utils::id_type::RefundReferenceId,
     pub connector_id: Option<common_utils::id_type::MerchantConnectorAccountId>,
@@ -164,6 +168,8 @@ pub struct RefundNew {
     pub split_refunds: Option<common_types::refunds::SplitRefund>,
     pub processor_refund_data: Option<String>,
     pub processor_transaction_data: Option<String>,
+    pub processor_merchant_id: Option<common_utils::id_type::MerchantId>,
+    pub created_by: Option<String>,
 }
 
 #[cfg(all(feature = "v2", feature = "refunds_v2"))]
@@ -211,6 +217,8 @@ pub struct RefundNew {
     pub split_refunds: Option<common_types::refunds::SplitRefund>,
     pub processor_refund_data: Option<String>,
     pub processor_transaction_data: Option<String>,
+    pub processor_merchant_id: Option<common_utils::id_type::MerchantId>,
+    pub created_by: Option<String>,
 }
 
 #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "refunds_v2")))]

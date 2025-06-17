@@ -938,6 +938,9 @@ pub async fn validate_and_create_refund(
             .clone(),
         processor_transaction_data,
         processor_refund_data: None,
+        // TODO: populate this from merchant_context after platform conxtext changes
+        processor_merchant_id: Some(payment_attempt.processor_merchant_id.clone()),
+        created_by: None,
     };
 
     let refund = match db

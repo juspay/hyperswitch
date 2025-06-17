@@ -579,6 +579,8 @@ mod storage {
                         // Below fields are deprecated. Please add any new fields above this line.
                         connector_refund_data: None,
                         connector_transaction_data: None,
+                        processor_merchant_id: new.processor_merchant_id.clone(),
+                        created_by: new.created_by.clone(),
                     };
 
                     let field = format!(
@@ -1202,6 +1204,8 @@ impl RefundInterface for MockDb {
             // Below fields are deprecated. Please add any new fields above this line.
             connector_refund_data: None,
             connector_transaction_data: None,
+            processor_merchant_id: new.processor_merchant_id,
+            created_by: new.created_by,
         };
         refunds.push(refund.clone());
         Ok(refund)
@@ -1250,6 +1254,8 @@ impl RefundInterface for MockDb {
             unified_message: None,
             processor_refund_data: new.processor_refund_data.clone(),
             processor_transaction_data: new.processor_transaction_data.clone(),
+            processor_merchant_id: new.processor_merchant_id,
+            created_by: new.created_by,
         };
         refunds.push(refund.clone());
         Ok(refund)
