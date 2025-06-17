@@ -26,6 +26,8 @@ use hyper_util::client::legacy::connect::HttpConnector;
 use recovery_trainer_client::{TrainerClientConfig, TrainerClientInterface};
 #[cfg(any(feature = "dynamic_routing", feature = "v2"))]
 use router_env::logger;
+#[cfg(feature = "v2")]
+use tokio::sync::OnceCell;
 use serde;
 #[cfg(any(feature = "dynamic_routing", feature = "v2"))]
 use tonic::Status;
@@ -44,8 +46,14 @@ pub struct GrpcClients {
     #[cfg(feature = "dynamic_routing")]
     pub health_client: HealthCheckClient,
     #[cfg(feature = "v2")]
-    #[allow(missing_docs)]
-    pub trainer_client: Box<dyn TrainerClientInterface>,
+    /// Recovery trainer client
+    pub trainer_client_cell: OnceCell<Box<dyn TrainerClientInterface>>,
+    #[cfg(feature = "v2")]
+    /// Config for the trainer client, used for lazy initialization
+    pub trainer_config: TrainerClientConfig,
+    #[cfg(feature = "v2")]
+    /// Hyper client for the trainer, used for lazy initialization
+    pub hyper_client_for_trainer: Client,
 }
 
 /// Type that contains the configs required to construct a  gRPC client with its respective services.
@@ -86,16 +94,9 @@ impl GrpcClientSettings {
             .expect("Failed to build gRPC connections");
 
         #[cfg(feature = "v2")]
-        let trainer_client = self
-            .trainer_client
-            .get_trainer_service_client(client.clone())
-            .map(|client| {
-                #[allow(clippy::as_conversions)]
-                {
-                    Box::new(client) as Box<dyn TrainerClientInterface>
-                }
-            })
-            .expect("Failed to establish a connection with the Trainer Server");
+        let trainer_config = self.trainer_client.clone();
+        #[cfg(feature = "v2")]
+        let hyper_client_for_trainer_clone = client.clone(); // Clone hyper client for trainer
 
         Arc::new(GrpcClients {
             #[cfg(feature = "dynamic_routing")]
@@ -103,7 +104,11 @@ impl GrpcClientSettings {
             #[cfg(feature = "dynamic_routing")]
             health_client,
             #[cfg(feature = "v2")]
-            trainer_client,
+            trainer_client_cell: OnceCell::new(),
+            #[cfg(feature = "v2")]
+            trainer_config,
+            #[cfg(feature = "v2")]
+            hyper_client_for_trainer: hyper_client_for_trainer_clone,
         })
     }
 }

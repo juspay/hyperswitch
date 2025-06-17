@@ -27,10 +27,22 @@ pub async fn trigger_training_job(
         state,
         &http_req,
         request_data,
-        |state: SessionState, _auth: (), req_body , _req_state: ReqState| async move {
+        |session_state, _auth: (), req_body , _req_state| async move {
             logger::debug!("Inside trigger_training_job closure");
-            let mut trainer_client = state.grpc_client.trainer_client.clone();
-            let grpc_headers = state.get_grpc_headers();
+            let grpc_clients_arc = session_state.grpc_client.clone();
+            let client_ref_in_once_cell = grpc_clients_arc.trainer_client_cell.get_or_try_init(|| async {
+                logger::info!("Attempting to initialize gRPC trainer client");
+                grpc_clients_arc.trainer_config
+                    .get_trainer_service_client(grpc_clients_arc.hyper_client_for_trainer.clone())
+                    .map(|client| -> Box<dyn recovery_trainer_client::TrainerClientInterface> { Box::new(client) })
+                    .change_context(errors::ApiErrorResponse::InternalServerError)
+                    .map_err(|report| {
+                        logger::error!(trainer_client_init_error = ?report, "Failed to initialize trainer gRPC client");
+                        report.current_context().clone()
+                    })
+            }).await?;
+
+            let mut trainer_client = dyn_clone::clone_box(&**client_ref_in_once_cell);
 
             let model_version_tag = req_body.model_version_tag;
             let enable_incremental_learning = req_body.enable_incremental_learning;
@@ -41,7 +53,6 @@ pub async fn trigger_training_job(
                 .get_training(
                     model_version_tag,
                     enable_incremental_learning,
-                    grpc_headers,
                 )
                 .await
                 .map_err(|err| {
@@ -75,14 +86,26 @@ pub async fn get_the_training_job_status(
         state,
         &http_req,
         job_id.clone(),
-        |state: SessionState, _auth: (), req_job_id: String, _req_state: ReqState| async move {
+        |session_state, _auth: (), req_job_id: String, _req_state| async move {
             logger::debug!(%req_job_id, "Inside get_training_job_status closure");
-            let mut trainer_client = state.grpc_client.trainer_client.clone();
-            let grpc_headers = state.get_grpc_headers();
+            let grpc_clients_arc = session_state.grpc_client.clone();
+            let client_ref_in_once_cell = grpc_clients_arc.trainer_client_cell.get_or_try_init(|| async {
+                logger::info!("Attempting to initialize gRPC trainer client for get_status");
+                grpc_clients_arc.trainer_config
+                    .get_trainer_service_client(grpc_clients_arc.hyper_client_for_trainer.clone())
+                    .map(|client| -> Box<dyn recovery_trainer_client::TrainerClientInterface> { Box::new(client) })
+                    .change_context(errors::ApiErrorResponse::InternalServerError)
+                    .map_err(|report| {
+                        logger::error!(trainer_client_init_error = ?report, "Failed to initialize trainer gRPC client for get_status");
+                        report.current_context().clone()
+                    })
+            }).await?;
+
+            let mut trainer_client = dyn_clone::clone_box(&**client_ref_in_once_cell);
             logger::debug!(%req_job_id, "Calling trainer_client.get_training_job_status");
 
             let response = trainer_client
-                .get_the_training_job_status(req_job_id, grpc_headers)
+                .get_the_training_job_status(req_job_id)
                 .await
                 .map_err(|err| {
                     logger::error!(grpc_error = ?err, "Trainer service GetTrainingJobStatus call failed");

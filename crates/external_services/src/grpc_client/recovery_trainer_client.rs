@@ -3,7 +3,6 @@ use error_stack::{Report, ResultExt};
 use router_env::logger;
 
 use super::Client;
-use crate::grpc_client::{self, GrpcHeaders};
 
 #[allow(
     missing_docs,
@@ -22,10 +21,10 @@ pub use trainer::{
     TriggerTrainingResponse,
 };
 
-#[allow(missing_docs)]
+///Trainer result
 pub type TrainerResult<T> = CustomResult<T, TrainerError>;
 
-#[allow(missing_docs)]
+/// Trainer errors
 #[derive(Debug, Clone, thiserror::Error)]
 pub enum TrainerError {
     #[error("Failed to establish connection with Trainer service: {0}")]
@@ -37,19 +36,19 @@ pub enum TrainerError {
 }
 
 #[async_trait::async_trait]
-#[allow(missing_docs)]
+/// Trainer Client  
 pub trait TrainerClientInterface: dyn_clone::DynClone + Send + Sync + std::fmt::Debug {
+    /// triggers training
     async fn get_training(
         &mut self,
         model_version_tag: String,
         enable_incremental_learning: bool,
-        headers: GrpcHeaders,
     ) -> TrainerResult<TriggerTrainingResponse>;
 
+    /// gets training job status
     async fn get_the_training_job_status(
         &mut self,
         job_id: String,
-        headers: GrpcHeaders,
     ) -> TrainerResult<GetTrainingJobStatusResponse>;
 }
 
@@ -61,13 +60,12 @@ impl TrainerClientInterface for TrainerServiceClient<Client> {
         &mut self,
         model_version_tag: String,
         enable_incremental_learning: bool,
-        headers: GrpcHeaders,
     ) -> TrainerResult<TriggerTrainingResponse> {
         let request_data = TriggerTrainingRequest {
             model_version_tag,
             enable_incremental_learning,
         };
-        let request = grpc_client::create_grpc_request(request_data, headers);
+        let request = tonic::Request::new(request_data);
 
         logger::debug!(trainer_trigger_training_request =?request);
 
@@ -86,10 +84,9 @@ impl TrainerClientInterface for TrainerServiceClient<Client> {
     async fn get_the_training_job_status(
         &mut self,
         job_id: String,
-        headers: GrpcHeaders,
     ) -> TrainerResult<GetTrainingJobStatusResponse> {
         let request_data = GetTrainingJobStatusRequest { job_id };
-        let request = grpc_client::create_grpc_request(request_data, headers);
+        let request = tonic::Request::new(request_data);
 
         logger::debug!(trainer_get_status_request =?request);
 
@@ -107,7 +104,7 @@ impl TrainerClientInterface for TrainerServiceClient<Client> {
     }
 }
 
-#[allow(missing_docs)]
+/// Trainer client config
 #[derive(Debug, Default, Clone, serde::Deserialize, serde::Serialize)]
 pub struct TrainerClientConfig {
     pub host: String,
@@ -115,7 +112,7 @@ pub struct TrainerClientConfig {
 }
 
 impl TrainerClientConfig {
-    #[allow(missing_docs)]
+    /// creates connection
     pub fn get_trainer_service_client(
         &self,
         hyper_client: Client,
