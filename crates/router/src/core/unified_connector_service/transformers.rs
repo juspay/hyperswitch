@@ -91,20 +91,17 @@ impl ForeignTryFrom<&RouterData<Authorize, PaymentsAuthorizeData, PaymentsRespon
                 .clone()
                 .map(|e| e.expose().peek().clone()),
             browser_info,
-            connector_meta_data: router_data
-                .connector_meta_data
-                .as_ref()
-                .and_then(|secret| {
-                    let binding = secret.clone();
-                    let value = binding.peek(); // Expose the secret value
-                    serde_json::to_vec(&value)
-                        .map_err(|err| {
-                            // Handle or log error as needed
-                            logger::error!(error=?err);
-                            err
-                        })
-                        .ok()
-                    }),
+            connector_meta_data: router_data.connector_meta_data.as_ref().and_then(|secret| {
+                let binding = secret.clone();
+                let value = binding.peek(); // Expose the secret value
+                serde_json::to_vec(&value)
+                    .map_err(|err| {
+                        // Handle or log error as needed
+                        logger::error!(error=?err);
+                        err
+                    })
+                    .ok()
+            }),
             access_token: None,
             session_token: None,
             payment_method_token: None,
