@@ -247,7 +247,6 @@ pub async fn payments_get_intent(
     .await
 }
 
-
 #[cfg(feature = "v2")]
 #[instrument(skip_all, fields(flow = ?Flow::PaymentAttemptsList, payment_id, connector_transaction_id))]
 pub async fn list_payment_attempts(
@@ -255,11 +254,11 @@ pub async fn list_payment_attempts(
     req: actix_web::HttpRequest,
     path: web::Path<common_utils::id_type::GlobalPaymentId>,
 ) -> impl Responder {
-    let flow = Flow::PaymentAttemptsList; 
+    let flow = Flow::PaymentAttemptsList;
     let payment_intent_id = path.into_inner();
 
     let payload = api_models::payments::PaymentAttemptListRequest {
-        payment_intent_id: payment_intent_id.clone()
+        payment_intent_id: payment_intent_id.clone(),
     };
 
     let header_payload = match HeaderPayload::foreign_try_from(req.headers()) {
@@ -278,13 +277,15 @@ pub async fn list_payment_attempts(
             let merchant_context = domain::MerchantContext::NormalMerchant(Box::new(
                 domain::Context(auth.merchant_account, auth.key_store),
             ));
-            
+
             payments::payments_get_attempts_using_payment_intent_id::<
                 payments::operations::PaymentGetAttempts,
                 api_models::payments::PaymentAttemptListResponse,
                 api_models::payments::PaymentAttemptListRequest,
                 payments::operations::payment_attempt_list::PaymentGetAttempts,
-                hyperswitch_domain_models::payments::PaymentAttemptListData<payments::operations::PaymentGetAttempts>,
+                hyperswitch_domain_models::payments::PaymentAttemptListData<
+                    payments::operations::PaymentGetAttempts,
+                >,
             >(
                 session_state,
                 req_state,
@@ -293,8 +294,8 @@ pub async fn list_payment_attempts(
                 payments::operations::PaymentGetAttempts,
                 payload.clone(),
                 req_payload.payment_intent_id,
-                header_payload.clone(), 
-            ) 
+                header_payload.clone(),
+            )
         },
         auth::auth_type(
             &auth::V2ApiKeyAuth {

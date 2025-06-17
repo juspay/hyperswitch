@@ -1,11 +1,11 @@
+#[cfg(feature = "v2")]
+pub use api_models::payments::{
+    PaymentAttemptListRequest, PaymentAttemptListResponse, PaymentsConfirmIntentRequest,
+    PaymentsCreateIntentRequest, PaymentsIntentResponse, PaymentsUpdateIntentRequest,
+};
 #[cfg(feature = "v1")]
 pub use api_models::payments::{
     PaymentListFilterConstraints, PaymentListResponse, PaymentListResponseV2,
-};
-#[cfg(feature = "v2")]
-pub use api_models::payments::{
-    PaymentsConfirmIntentRequest, PaymentsCreateIntentRequest, PaymentsIntentResponse,
-    PaymentsUpdateIntentRequest,PaymentAttemptListResponse, PaymentAttemptListRequest,
 };
 pub use api_models::{
     feature_matrix::{

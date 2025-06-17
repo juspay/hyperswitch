@@ -45,7 +45,8 @@ use futures::future::join_all;
 use helpers::{decrypt_paze_token, ApplePayData};
 #[cfg(feature = "v2")]
 use hyperswitch_domain_models::payments::{
-    PaymentCaptureData, PaymentConfirmData, PaymentIntentData, PaymentStatusData,PaymentAttemptListData,
+    PaymentAttemptListData, PaymentCaptureData, PaymentConfirmData, PaymentIntentData,
+    PaymentStatusData,
 };
 #[cfg(feature = "v2")]
 use hyperswitch_domain_models::router_response_types::RedirectForm;
@@ -1334,7 +1335,6 @@ where
 
     Ok((payment_data, req, customer))
 }
-
 
 #[cfg(feature = "v2")]
 #[allow(clippy::too_many_arguments, clippy::type_complexity)]
@@ -9065,7 +9065,7 @@ impl<F: Clone> OperationSessionGetters<F> for PaymentIntentData<F> {
         todo!()
     }
     #[cfg(feature = "v2")]
-    fn list_payments_attempt_operation_core(&self) ->  &Vec<storage::PaymentAttempt>{
+    fn list_payments_attempt_operation_core(&self) -> &Vec<storage::PaymentAttempt> {
         todo!()
     }
 
@@ -9223,7 +9223,6 @@ impl<F: Clone> OperationSessionGetters<F> for PaymentIntentData<F> {
         self.vault_session_details.clone()
     }
 }
-
 
 #[cfg(feature = "v2")]
 impl<F: Clone> OperationSessionSetters<F> for PaymentIntentData<F> {

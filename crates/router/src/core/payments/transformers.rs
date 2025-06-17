@@ -1832,7 +1832,6 @@ where
         _is_latency_header_enabled: Option<bool>,
         _merchant_context: &domain::MerchantContext,
     ) -> RouterResponse<Self> {
-        
         Ok(services::ApplicationResponse::JsonWithHeaders((
             Self {
                 payment_attempts: payment_data

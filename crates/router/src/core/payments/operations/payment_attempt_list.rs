@@ -1,29 +1,27 @@
 use std::marker::PhantomData;
+
 #[cfg(feature = "v2")]
-use api_models::{enums::FrmSuggestion,payments::PaymentAttemptListRequest};
+use api_models::{enums::FrmSuggestion, payments::PaymentAttemptListRequest};
 use async_trait::async_trait;
 use common_utils::errors::CustomResult;
 use router_env::{instrument, tracing};
+
 use super::{BoxedOperation, Domain, GetTracker, Operation, UpdateTracker, ValidateRequest};
 use crate::{
     core::{
         errors::{self, RouterResult},
-        payments::{self,operations},
+        payments::{self, operations},
     },
     db::errors::StorageErrorExt,
     routes::{app::ReqState, SessionState},
     types::{
-        api,
-        domain,
+        api, domain,
         storage::{self, enums},
     },
-
 };
 
 #[derive(Debug, Clone, Copy)]
 pub struct PaymentGetAttempts;
-
-
 
 impl<F: Send + Clone + Sync> Operation<F, PaymentAttemptListRequest> for &PaymentGetAttempts {
     type Data = payments::PaymentAttemptListData<F>;
@@ -79,7 +77,8 @@ type PaymentAttemptsListOperation<'b, F> =
     BoxedOperation<'b, F, PaymentAttemptListRequest, payments::PaymentAttemptListData<F>>;
 
 #[async_trait]
-impl<F: Send + Clone + Sync> GetTracker<F, payments::PaymentAttemptListData<F>, PaymentAttemptListRequest>
+impl<F: Send + Clone + Sync>
+    GetTracker<F, payments::PaymentAttemptListData<F>, PaymentAttemptListRequest>
     for PaymentGetAttempts
 {
     #[instrument(skip_all)]
@@ -108,7 +107,6 @@ impl<F: Send + Clone + Sync> GetTracker<F, payments::PaymentAttemptListData<F>, 
         let payment_data = payments::PaymentAttemptListData {
             flow: PhantomData,
             payment_attempt_list,
-            
         };
 
         let get_trackers_response = operations::GetTrackerResponse { payment_data };
@@ -118,7 +116,8 @@ impl<F: Send + Clone + Sync> GetTracker<F, payments::PaymentAttemptListData<F>, 
 }
 
 #[async_trait]
-impl<F: Clone + Sync> UpdateTracker<F, payments::PaymentAttemptListData<F>, PaymentAttemptListRequest>
+impl<F: Clone + Sync>
+    UpdateTracker<F, payments::PaymentAttemptListData<F>, PaymentAttemptListRequest>
     for PaymentGetAttempts
 {
     #[instrument(skip_all)]
@@ -144,7 +143,6 @@ impl<F: Clone + Sync> UpdateTracker<F, payments::PaymentAttemptListData<F>, Paym
     }
 }
 
-
 impl<F: Send + Clone + Sync>
     ValidateRequest<F, PaymentAttemptListRequest, payments::PaymentAttemptListData<F>>
     for PaymentGetAttempts
@@ -164,7 +162,8 @@ impl<F: Send + Clone + Sync>
 }
 
 #[async_trait]
-impl<F: Clone + Send + Sync> Domain<F, PaymentAttemptListRequest, payments::PaymentAttemptListData<F>>
+impl<F: Clone + Send + Sync>
+    Domain<F, PaymentAttemptListRequest, payments::PaymentAttemptListData<F>>
     for PaymentGetAttempts
 {
     #[instrument(skip_all)]

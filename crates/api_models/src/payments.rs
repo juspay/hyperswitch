@@ -272,13 +272,13 @@ pub struct PaymentsCreateIntentRequest {
 }
 #[cfg(feature = "v2")]
 #[derive(Debug, serde::Serialize, serde::Deserialize, Clone, ToSchema)]
-pub struct PaymentAttemptListRequest{
+pub struct PaymentAttemptListRequest {
     pub payment_intent_id: id_type::GlobalPaymentId,
 }
 
 #[cfg(feature = "v2")]
 #[derive(Debug, serde::Serialize, Clone, ToSchema)]
-pub struct PaymentAttemptListResponse{
+pub struct PaymentAttemptListResponse {
     pub payment_attempts: Vec<PaymentAttemptResponse>,
 }
 #[cfg(feature = "v2")]
