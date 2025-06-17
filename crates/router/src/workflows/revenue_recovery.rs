@@ -1,14 +1,14 @@
 #[cfg(feature = "v2")]
 use api_models::payments::PaymentsGetIntentRequest;
 #[cfg(feature = "v2")]
-use common_utils::date_time;
-#[cfg(feature = "v2")]
 use common_utils::{
     ext_traits::{StringExt, ValueExt},
     id_type,
 };
 #[cfg(feature = "v2")]
 use error_stack::ResultExt;
+#[cfg(feature = "v2")]
+use external_services::date_time;
 #[cfg(feature = "v2")]
 use external_services::grpc_client as external_grpc_client;
 #[cfg(feature = "v2")]

@@ -15,7 +15,6 @@ hashicorp-vault = ["dep:vaultrs"]
 v1 = ["hyperswitch_interfaces/v1", "common_utils/v1"]
 v2 = [
     "dep:prost",
-    "dep:prost-types",
     "dep:tonic",
     "dep:tonic-build",
     "dep:router_env",
@@ -58,7 +57,8 @@ serde = { version = "1.0.219", features = ["derive"] }
 thiserror = "1.0.69"
 vaultrs = { version = "0.7.4", optional = true }
 prost = { version = "0.13", optional = true }
-prost-types = { version = "0.13" , optional = true}
+prost-types = "0.13"
+time = { version = "0.3.41", features = ["serde", "serde-well-known", "std"] }
 tokio = "1.45.1"
 tonic = { version = "0.12.3", optional = true }
 tonic-reflection = { version = "0.12.3", optional = true }
