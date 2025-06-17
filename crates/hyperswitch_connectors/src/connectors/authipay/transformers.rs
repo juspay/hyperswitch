@@ -194,7 +194,11 @@ pub struct AuthipayPaymentsResponse {
     transaction_time: i64,
     approved_amount: Amount,
     transaction_amount: Amount,
-    transaction_status: String,
+    // For payment transactions (SALE)
+    transaction_status: Option<String>,
+    // For refund transactions (RETURN)
+    transaction_result: Option<String>,
+    transaction_state: Option<String>,
     approval_code: String,
     scheme_transaction_id: Option<String>,
     processor: Processor,
@@ -253,13 +257,22 @@ impl<F, T> TryFrom<ResponseRouterData<F, AuthipayPaymentsResponse, T, PaymentsRe
     fn try_from(
         item: ResponseRouterData<F, AuthipayPaymentsResponse, T, PaymentsResponseData>,
     ) -> Result<Self, Self::Error> {
-        // Parse the transaction_status string to determine the status
-        let status = match item.response.transaction_status.as_str() {
-            "APPROVED" => enums::AttemptStatus::Charged,
-            "AUTHORIZED" => enums::AttemptStatus::Authorized,
-            "DECLINED" | "FAILED" => enums::AttemptStatus::Failure,
-            "RETURNED" => enums::AttemptStatus::Voided,
-            _ => enums::AttemptStatus::Pending,
+        // Determine status based on transaction type
+        let status = if item.response.transaction_type == "RETURN" {
+            // Refund transaction - use transaction_result
+            match item.response.transaction_result.as_deref() {
+                Some("APPROVED") => enums::AttemptStatus::Charged,
+                Some("DECLINED") | Some("FAILED") => enums::AttemptStatus::Failure,
+                _ => enums::AttemptStatus::Pending,
+            }
+        } else {
+            // Payment transaction - use transaction_status
+            match item.response.transaction_status.as_deref() {
+                Some("APPROVED") => enums::AttemptStatus::Charged,
+                Some("AUTHORIZED") => enums::AttemptStatus::Authorized,
+                Some("DECLINED") | Some("FAILED") => enums::AttemptStatus::Failure,
+                _ => enums::AttemptStatus::Pending,
+            }
         };
 
         Ok(Self {
@@ -357,10 +370,14 @@ impl TryFrom<RefundsResponseRouterData<Execute, RefundResponse>> for RefundsRout
     fn try_from(
         item: RefundsResponseRouterData<Execute, RefundResponse>,
     ) -> Result<Self, Self::Error> {
-        let refund_status = match item.response.transaction_status.as_str() {
-            "RETURNED" => RefundStatus::Succeeded,
-            "FAILED" | "DECLINED" => RefundStatus::Failed,
-            _ => RefundStatus::Processing,
+        let refund_status = if item.response.transaction_type == "RETURN" {
+            match item.response.transaction_result.as_deref() {
+                Some("APPROVED") => RefundStatus::Succeeded,
+                Some("DECLINED") | Some("FAILED") => RefundStatus::Failed,
+                _ => RefundStatus::Processing,
+            }
+        } else {
+            RefundStatus::Processing
         };
 
         Ok(Self {
@@ -378,10 +395,14 @@ impl TryFrom<RefundsResponseRouterData<RSync, RefundResponse>> for RefundsRouter
     fn try_from(
         item: RefundsResponseRouterData<RSync, RefundResponse>,
     ) -> Result<Self, Self::Error> {
-        let refund_status = match item.response.transaction_status.as_str() {
-            "RETURNED" => RefundStatus::Succeeded,
-            "FAILED" | "DECLINED" => RefundStatus::Failed,
-            _ => RefundStatus::Processing,
+        let refund_status = if item.response.transaction_type == "RETURN" {
+            match item.response.transaction_result.as_deref() {
+                Some("APPROVED") => RefundStatus::Succeeded,
+                Some("DECLINED") | Some("FAILED") => RefundStatus::Failed,
+                _ => RefundStatus::Processing,
+            }
+        } else {
+            RefundStatus::Processing
         };
 
         Ok(Self {
