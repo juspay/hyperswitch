@@ -707,7 +707,7 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
 
 #[async_trait]
 impl<F: Clone + Sync> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for PaymentUpdate {
-    #[cfg(all(feature = "v2", feature = "customer_v2"))]
+    #[cfg(feature = "v2")]
     #[instrument(skip_all)]
     async fn update_trackers<'b>(
         &'b self,
@@ -727,7 +727,7 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for
         todo!()
     }
 
-    #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
+    #[cfg(feature = "v1")]
     #[instrument(skip_all)]
     async fn update_trackers<'b>(
         &'b self,

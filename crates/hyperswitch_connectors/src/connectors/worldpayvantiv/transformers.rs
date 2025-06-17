@@ -31,6 +31,7 @@ pub mod worldpayvantiv_constants {
     pub const XML_VERSION: &str = "1.0";
     pub const XML_ENCODING: &str = "UTF-8";
     pub const XMLNS: &str = "http://www.vantivcnp.com/schema";
+    pub const MAX_ID_LENGTH: usize = 26;
 }
 
 pub struct WorldpayvantivRouterData<T> {
@@ -82,6 +83,7 @@ pub struct WorldpayvantivPaymentMetadata {
 #[derive(Debug, Default, Serialize, Deserialize)]
 pub struct WorldpayvantivMetadataObject {
     pub report_group: String,
+    pub merchant_config_currency: common_enums::Currency,
 }
 
 impl TryFrom<&Option<common_utils::pii::SecretSerdeValue>> for WorldpayvantivMetadataObject {
@@ -563,11 +565,19 @@ impl TryFrom<&WorldpayvantivRouterData<&PaymentsAuthorizeRouterData>> for CnpOnl
                 connector: "Worldpayvantiv",
             })?
         };
+        let worldpayvantiv_metadata =
+            WorldpayvantivMetadataObject::try_from(&item.router_data.connector_meta_data)?;
+
+        if worldpayvantiv_metadata.merchant_config_currency != item.router_data.request.currency {
+            Err(errors::ConnectorError::CurrencyNotSupported {
+                message: item.router_data.request.currency.to_string(),
+                connector: "Worldpayvantiv",
+            })?
+        };
+
         let card = WorldpayvantivCardData::try_from(
             &item.router_data.request.payment_method_data.clone(),
         )?;
-        let default_report_group =
-            WorldpayvantivMetadataObject::try_from(&item.router_data.connector_meta_data)?;
         let report_group = item
             .router_data
             .request
@@ -580,7 +590,7 @@ impl TryFrom<&WorldpayvantivRouterData<&PaymentsAuthorizeRouterData>> for CnpOnl
             })
             .transpose()?
             .and_then(|worldpayvantiv_metadata| worldpayvantiv_metadata.report_group)
-            .unwrap_or(default_report_group.report_group);
+            .unwrap_or(worldpayvantiv_metadata.report_group);
 
         let worldpayvantiv_auth_type =
             WorldpayvantivAuthType::try_from(&item.router_data.connector_auth_type)?;
@@ -589,11 +599,18 @@ impl TryFrom<&WorldpayvantivRouterData<&PaymentsAuthorizeRouterData>> for CnpOnl
             password: worldpayvantiv_auth_type.password,
         };
 
+        let api_call_id =
+            if item.router_data.attempt_id.len() < worldpayvantiv_constants::MAX_ID_LENGTH {
+                item.router_data.attempt_id.clone()
+            } else {
+                format!("auth_{:?}", connector_utils::generate_12_digit_number())
+            };
+
         let (authorization, sale) = if item.router_data.request.is_auto_capture()? {
             (
                 None,
                 Some(Sale {
-                    id: item.router_data.attempt_id.clone(),
+                    id: api_call_id.clone(),
                     report_group: report_group.clone(),
                     order_id: item.router_data.payment_id.clone(),
                     amount: item.amount,
@@ -604,7 +621,7 @@ impl TryFrom<&WorldpayvantivRouterData<&PaymentsAuthorizeRouterData>> for CnpOnl
         } else {
             (
                 Some(Authorization {
-                    id: item.router_data.attempt_id.clone(),
+                    id: api_call_id.clone(),
                     report_group: report_group.clone(),
                     order_id: item.router_data.payment_id.clone(),
                     amount: item.amount,
@@ -1127,8 +1144,8 @@ impl<F>
                         ..item.data
                     })
                 } else {
-                    let report_group = WorldpayvantivMetadataObject {
-                        report_group: sale_response.report_group.clone(),
+                    let report_group = WorldpayvantivPaymentMetadata {
+                        report_group: Some(sale_response.report_group.clone()),
                     };
                     let connector_metadata =   Some(report_group.encode_to_value()
                     .change_context(errors::ConnectorError::ResponseHandlingFailed)?);
@@ -1168,8 +1185,8 @@ impl<F>
                         ..item.data
                     })
                 } else {
-                    let report_group = WorldpayvantivMetadataObject {
-                        report_group: auth_response.report_group.clone(),
+                    let report_group = WorldpayvantivPaymentMetadata {
+                        report_group: Some(auth_response.report_group.clone()),
                     };
                     let connector_metadata =   Some(report_group.encode_to_value()
                     .change_context(errors::ConnectorError::ResponseHandlingFailed)?);
@@ -1206,7 +1223,7 @@ impl<F>
                 ..item.data
             })},
             (_, _) => {  Err(errors::ConnectorError::UnexpectedResponseError(
-                bytes::Bytes::from("Only one of 'sale_response' or 'authorisation_response' is expected, but both were recieved".to_string()),           
+                bytes::Bytes::from("Only one of 'sale_response' or 'authorisation_response' is expected, but both were received".to_string()),
              ))?
             },
     }
@@ -2040,7 +2057,12 @@ fn get_attempt_status(
         WorldpayvantivResponseCode::Approved
         | WorldpayvantivResponseCode::PartiallyApproved
         | WorldpayvantivResponseCode::OfflineApproval
-        | WorldpayvantivResponseCode::OfflineApprovalUnableToGoOnline => match flow {
+        | WorldpayvantivResponseCode::OfflineApprovalUnableToGoOnline
+        | WorldpayvantivResponseCode::ConsumerNonReloadablePrepaidCardApproved
+        | WorldpayvantivResponseCode::ConsumerSingleUseVirtualCardNumberApproved
+        | WorldpayvantivResponseCode::ScheduledRecurringPaymentProcessed
+        | WorldpayvantivResponseCode::ApprovedRecurringSubscriptionCreated
+         => match flow {
             WorldpayvantivPaymentFlow::Sale => Ok(common_enums::AttemptStatus::Charged),
             WorldpayvantivPaymentFlow::Auth => Ok(common_enums::AttemptStatus::Authorized),
             WorldpayvantivPaymentFlow::Capture => Ok(common_enums::AttemptStatus::Charged),
@@ -2080,8 +2102,6 @@ fn get_attempt_status(
         | WorldpayvantivResponseCode::ConsumerNonReloadablePrepaidCardSoftDecline
         | WorldpayvantivResponseCode::ConsumerSingleUseVirtualCardNumberSoftDecline
         | WorldpayvantivResponseCode::UpdateCardholderData
-        | WorldpayvantivResponseCode::ConsumerNonReloadablePrepaidCardApproved
-        | WorldpayvantivResponseCode::ConsumerSingleUseVirtualCardNumberApproved
         | WorldpayvantivResponseCode::MerchantDoesntQualifyForProductCode
         | WorldpayvantivResponseCode::Lifecycle
         | WorldpayvantivResponseCode::Policy
@@ -2204,10 +2224,8 @@ fn get_attempt_status(
         | WorldpayvantivResponseCode::InvalidAccountFundingTransactionTypeForThisMethodOfPayment
         | WorldpayvantivResponseCode::MissingOneOrMoreReceiverFieldsForAccountFundingTransaction
         | WorldpayvantivResponseCode::InvalidRecurringRequestSeeRecurringResponseForDetails
-        | WorldpayvantivResponseCode::ApprovedRecurringSubscriptionCreated
         | WorldpayvantivResponseCode::ParentTransactionDeclinedRecurringSubscriptionNotCreated
         | WorldpayvantivResponseCode::InvalidPlanCode
-        | WorldpayvantivResponseCode::ScheduledRecurringPaymentProcessed
         | WorldpayvantivResponseCode::InvalidSubscriptionId
         | WorldpayvantivResponseCode::AddOnCodeAlreadyExists
         | WorldpayvantivResponseCode::DuplicateAddOnCodesInRequests
@@ -2450,8 +2468,6 @@ fn get_refund_status(
         | WorldpayvantivResponseCode::ConsumerMultiUseVirtualCardNumberSoftDecline
         | WorldpayvantivResponseCode::ConsumerNonReloadablePrepaidCardSoftDecline
         | WorldpayvantivResponseCode::ConsumerSingleUseVirtualCardNumberSoftDecline
-        | WorldpayvantivResponseCode::ConsumerNonReloadablePrepaidCardApproved
-        | WorldpayvantivResponseCode::ConsumerSingleUseVirtualCardNumberApproved
         | WorldpayvantivResponseCode::MerchantDoesntQualifyForProductCode
         | WorldpayvantivResponseCode::Lifecycle
         | WorldpayvantivResponseCode::Policy

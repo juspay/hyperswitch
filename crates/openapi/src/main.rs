@@ -10,10 +10,10 @@ fn main() {
     compile_error!("features v1 and v2 are mutually exclusive, please enable only one of them");
 
     #[cfg(feature = "v1")]
-    let relative_file_path = "api-reference/openapi_spec.json";
+    let relative_file_path = "api-reference/v1/openapi_spec_v1.json";
 
     #[cfg(feature = "v2")]
-    let relative_file_path = "api-reference-v2/openapi_spec.json";
+    let relative_file_path = "api-reference/v2/openapi_spec_v2.json";
 
     #[cfg(any(feature = "v1", feature = "v2"))]
     let mut file_path = router_env::workspace_path();

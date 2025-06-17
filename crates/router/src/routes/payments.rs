@@ -262,6 +262,27 @@ pub async fn payments_create_and_confirm_intent(
         }
     };
 
+    let auth_type = if state.conf.merchant_id_auth.merchant_id_auth_enabled {
+        &auth::MerchantIdAuth
+    } else {
+        match env::which() {
+            env::Env::Production => &auth::V2ApiKeyAuth {
+                is_connected_allowed: false,
+                is_platform_allowed: false,
+            },
+            _ => auth::auth_type(
+                &auth::V2ApiKeyAuth {
+                    is_connected_allowed: false,
+                    is_platform_allowed: false,
+                },
+                &auth::JWTAuth {
+                    permission: Permission::ProfilePaymentWrite,
+                },
+                req.headers(),
+            ),
+        }
+    };
+
     Box::pin(api::server_wrap(
         flow,
         state,
@@ -280,22 +301,7 @@ pub async fn payments_create_and_confirm_intent(
                 header_payload.clone(),
             )
         },
-        match env::which() {
-            env::Env::Production => &auth::V2ApiKeyAuth {
-                is_connected_allowed: false,
-                is_platform_allowed: false,
-            },
-            _ => auth::auth_type(
-                &auth::V2ApiKeyAuth {
-                    is_connected_allowed: false,
-                    is_platform_allowed: false,
-                },
-                &auth::JWTAuth {
-                    permission: Permission::ProfilePaymentWrite,
-                },
-                req.headers(),
-            ),
-        },
+        auth_type,
         api_locking::LockAction::NotApplicable,
     ))
     .await
@@ -2764,9 +2770,16 @@ pub async fn payment_confirm_intent(
             ))
             .await
         },
-        &auth::V2ClientAuth(common_utils::types::authentication::ResourceId::Payment(
-            global_payment_id,
-        )),
+        auth::api_or_client_auth(
+            &auth::V2ApiKeyAuth {
+                is_connected_allowed: false,
+                is_platform_allowed: false,
+            },
+            &auth::V2ClientAuth(common_utils::types::authentication::ResourceId::Payment(
+                global_payment_id,
+            )),
+            req.headers(),
+        ),
         locking_action,
     ))
     .await
@@ -3108,7 +3121,7 @@ pub async fn payments_capture(
     .await
 }
 
-#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+#[cfg(feature = "v2")]
 #[instrument(skip_all, fields(flow = ?Flow::PaymentMethodsList))]
 pub async fn list_payment_methods(
     state: web::Data<app::AppState>,
