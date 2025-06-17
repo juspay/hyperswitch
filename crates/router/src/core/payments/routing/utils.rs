@@ -910,7 +910,10 @@ pub struct ConnectorInfo {
 
 impl ConnectorInfo {
     pub fn new(gateway_name: String, gateway_id: Option<String>) -> Self {
-        Self { gateway_name, gateway_id }
+        Self {
+            gateway_name,
+            gateway_id,
+        }
     }
 }
 
