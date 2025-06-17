@@ -555,7 +555,7 @@ pub fn payments_external_authentication() {}
 /// Payments - Complete Authorize
 #[utoipa::path(
   post,
-  path = "/{payment_id}/complete_authorize",
+  path = "/payments/{payment_id}/complete_authorize",
   request_body=PaymentsCompleteAuthorizeRequest,
   params(
     ("payment_id" =String, Path, description =  "The identifier for payment")

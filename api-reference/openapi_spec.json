@@ -18,10 +18,11 @@
       "url": "https://sandbox.hyperswitch.io",
       "description": "Sandbox Environment"
     },
-    {
-      "url": "http://localhost:8080",
-      "description": "Local Environment"
-    }
+
+  {
+    "url": "http://localhost:8080",
+    "description": "Local Environment"
+  }
   ],
   "paths": {
     "/payments": {
@@ -904,7 +905,7 @@
         ]
       }
     },
-    "/{payment_id}/complete_authorize": {
+    "/payments/{payment_id}/complete_authorize": {
       "post": {
         "tags": [
           "Payments"
