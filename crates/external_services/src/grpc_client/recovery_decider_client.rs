@@ -45,6 +45,7 @@ pub trait RecoveryDeciderClientInterface:
     async fn decide_on_retry(
         &mut self,
         request_payload: DeciderRequest,
+        recovery_headers: grpc_client::GrpcRecoveryHeaders,
     ) -> RecoveryDeciderResult<DeciderResponse>;
 }
 
@@ -95,8 +96,10 @@ impl RecoveryDeciderClientInterface for DeciderClient<Client> {
     async fn decide_on_retry(
         &mut self,
         request_payload: DeciderRequest,
+        recovery_headers: grpc_client::GrpcRecoveryHeaders,
     ) -> RecoveryDeciderResult<DeciderResponse> {
-        let request = tonic::Request::new(request_payload);
+        let request =
+            grpc_client::create_recovery_decider_grpc_request(request_payload, recovery_headers);
 
         logger::debug!(decider_request =?request);
 

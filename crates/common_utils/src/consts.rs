@@ -152,6 +152,12 @@ pub const APPLEPAY_VALIDATION_URL: &str =
 /// Request ID
 pub const X_REQUEST_ID: &str = "x-request-id";
 
+/// Merchant ID header for gRPC requests
+pub const MERCHANT_ID_HEADER: &str = "x-merchant-id";
+
+/// Recovery Model Version header for gRPC requests
+pub const RECOVERY_MODEL_VERSION_HEADER: &str = "x-model-version";
+
 /// Default Tenant ID for the `Global` tenant
 pub const DEFAULT_GLOBAL_TENANT_ID: &str = "global";
 

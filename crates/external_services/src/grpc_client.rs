@@ -10,6 +10,8 @@ pub mod recovery_decider_client;
 
 use std::{fmt::Debug, sync::Arc};
 
+#[cfg(feature = "v2")]
+use common_enums::enums;
 #[cfg(any(feature = "dynamic_routing", feature = "v2"))]
 use common_utils::consts;
 #[cfg(feature = "dynamic_routing")]
@@ -116,6 +118,15 @@ pub struct GrpcHeaders {
     pub request_id: Option<String>,
 }
 
+/// Contains recovery grpc headers
+#[derive(Debug)]
+pub struct GrpcRecoveryHeaders {
+    /// Merchant id
+    pub merchant_id: String,
+    /// Version
+    pub version: Option<enums::RecoveryModelVersion>,
+}
+
 #[cfg(any(feature = "dynamic_routing", feature = "v2"))]
 /// Trait to add necessary headers to the tonic Request
 pub(crate) trait AddHeaders {
@@ -162,5 +173,55 @@ pub(crate) fn create_grpc_request<T: Debug>(message: T, headers: GrpcHeaders) ->
 
     logger::info!(request=?request);
 
+    request
+}
+
+#[cfg(feature = "v2")]
+/// Trait to add necessary recovery headers to the tonic Request
+pub(crate) trait AddRecoveryHeaders {
+    /// Add necessary recovery header fields to the tonic Request
+    fn add_recovery_headers(&mut self, headers: GrpcRecoveryHeaders);
+}
+
+#[cfg(feature = "v2")]
+impl<T> AddRecoveryHeaders for tonic::Request<T> {
+    #[track_caller]
+    fn add_recovery_headers(&mut self, headers: GrpcRecoveryHeaders) {
+        headers
+            .merchant_id
+            .parse()
+            .map(|merchant_id_val| {
+                self.metadata_mut()
+                    .append(consts::MERCHANT_ID_HEADER, merchant_id_val);
+            })
+            .inspect_err(|err| {
+                logger::warn!(header_parse_error=?err, "invalid {} received", consts::MERCHANT_ID_HEADER)
+            })
+            .ok();
+
+        if let Some(version) = headers.version {
+            version
+                .to_string()
+                .parse()
+                .map(|version_val| {
+                    self.metadata_mut()
+                        .append(consts::RECOVERY_MODEL_VERSION_HEADER, version_val);
+                })
+                .inspect_err(|err| {
+                    logger::warn!(header_parse_error=?err, "invalid {} received", consts::RECOVERY_MODEL_VERSION_HEADER)
+                })
+                .ok();
+        }
+    }
+}
+
+#[cfg(feature = "v2")]
+pub(crate) fn create_recovery_decider_grpc_request<T: Debug>(
+    message: T,
+    recovery_headers: GrpcRecoveryHeaders,
+) -> tonic::Request<T> {
+    let mut request = tonic::Request::new(message);
+    request.add_recovery_headers(recovery_headers);
+    logger::info!(message_sent_to_recovery_decider_server=?request);
     request
 }
