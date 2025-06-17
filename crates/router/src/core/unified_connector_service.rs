@@ -5,8 +5,6 @@ use error_stack::ResultExt;
 use hyperswitch_domain_models::{
     merchant_context::MerchantContext,
     router_data::{ErrorResponse, RouterData},
-    router_flow_types::payments::Authorize,
-    router_request_types::PaymentsAuthorizeData,
     router_response_types::PaymentsResponseData,
 };
 use masking::PeekInterface;
@@ -235,10 +233,12 @@ pub fn build_unified_connector_service_auth_headers(
     Ok(metadata)
 }
 
-pub fn handle_unified_connector_service_response(
+pub fn handle_unified_connector_service_response_for_payment_authorize(
     response: PaymentsAuthorizeResponse,
-    router_data: &mut RouterData<Authorize, PaymentsAuthorizeData, PaymentsResponseData>,
-) -> CustomResult<(), UnifiedConnectorServiceError> {
+) -> CustomResult<
+    (AttemptStatus, Result<PaymentsResponseData, ErrorResponse>),
+    UnifiedConnectorServiceError,
+> {
     let status = AttemptStatus::foreign_try_from(response.status())?;
 
     let router_data_response = match status {
@@ -267,8 +267,6 @@ pub fn handle_unified_connector_service_response(
             network_error_message: None,
         })
     };
-    router_data.status = status;
-    router_data.response = router_data_response;
 
-    Ok(())
+    Ok((status, router_data_response))
 }
