@@ -90,7 +90,7 @@ pub async fn construct_payout_router_data<'a, F>(
         .clone()
         .get_required_value("merchant_connector_account")?;
     let connector_name = connector_data.connector_name;
-    let connector_auth_type: types::ConnectorAuthType = merchant_connector_account
+    let connector_auth_type = merchant_connector_account
         .get_connector_account_details()
         .parse_value("ConnectorAuthType")
         .change_context(errors::ApiErrorResponse::InternalServerError)?;
