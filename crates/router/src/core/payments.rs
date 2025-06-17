@@ -3561,7 +3561,7 @@ where
 
     let result =
         match should_call_unified_connector_service(state, merchant_context, &router_data).await? {
-            Some(unified_connector_service_client) => {
+            true => {
                 if should_add_task_to_process_tracker(payment_data) {
                     operation
                         .to_domain()?
@@ -3592,15 +3592,12 @@ where
                     .await?;
 
                 let _ = router_data
-                    .call_unified_connector_service(
-                        merchant_connector_account.clone(),
-                        unified_connector_service_client,
-                    )
+                    .call_unified_connector_service(state, merchant_connector_account.clone())
                     .await?;
 
                 Ok((router_data, merchant_connector_account))
             }
-            None => {
+            false => {
                 call_connector_service(
                     state,
                     req_state,

@@ -1,7 +1,6 @@
 use common_enums::{enums::PaymentMethod, AttemptStatus, AuthenticationType, PaymentMethodType};
 use diesel_models::enums as storage_enums;
 use error_stack::ResultExt;
-use external_services::grpc_client::unified_connector_service::UnifiedConnectorServiceError;
 use hyperswitch_connectors::utils::CardData;
 use hyperswitch_domain_models::{
     router_data::RouterData,
@@ -13,7 +12,10 @@ use masking::{ExposeInterface, PeekInterface};
 use router_env::logger;
 use rust_grpc_client::payments::{self as payments_grpc};
 
-use crate::types::transformers::ForeignTryFrom;
+use crate::{
+    core::unified_connector_service::errors::UnifiedConnectorServiceError,
+    types::transformers::ForeignTryFrom,
+};
 
 impl ForeignTryFrom<&RouterData<Authorize, PaymentsAuthorizeData, PaymentsResponseData>>
     for payments_grpc::PaymentsAuthorizeRequest
