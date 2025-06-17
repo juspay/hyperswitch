@@ -45,14 +45,14 @@ pub async fn trigger_training_job(
             let mut trainer_client = dyn_clone::clone_box(&**client_ref_in_once_cell);
 
             let model_version_tag = req_body.model_version_tag;
-            let enable_incremental_learning = req_body.enable_incremental_learning;
+            let merchant_id  = req_body.merchant_id ;
 
-            logger::debug!(%model_version_tag, %enable_incremental_learning, "Calling trainer_client.trigger_training");
+            logger::debug!(%model_version_tag, %merchant_id , "Calling trainer_client.trigger_training");
 
             let response = trainer_client
                 .get_training(
                     model_version_tag,
-                    enable_incremental_learning,
+                    merchant_id,
                 )
                 .await
                 .map_err(|err| {

@@ -24,12 +24,8 @@ message TriggerTrainingRequest {
   // A tag for the model version to be trained (e.g., "v2.1.0").
   // This will be used for naming artifacts in S3 and for tracking.
   string model_version_tag = 1;
-
-  // Whether to enable incremental learning.
-  // If true, the service will attempt to load the latest previous model
-  // and update it. If false, or if no compatible base model is found,
-  // or if feature encodings change, a new model will be trained from scratch.
-  bool enable_incremental_learning = 2;
+  // The ID of the merchant for whom the training is being triggered.
+  string merchant_id = 2;
 }
 
 message TriggerTrainingResponse {

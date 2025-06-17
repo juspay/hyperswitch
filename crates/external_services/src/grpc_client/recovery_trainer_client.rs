@@ -27,10 +27,13 @@ pub type TrainerResult<T> = CustomResult<T, TrainerError>;
 /// Trainer errors
 #[derive(Debug, Clone, thiserror::Error)]
 pub enum TrainerError {
+    /// Error establishing gRPC connection
     #[error("Failed to establish connection with Trainer service: {0}")]
     ConnectionError(String),
+    /// Error received from the gRPC service
     #[error("Trainer service returned an error: {0}")]
     ServiceError(String),
+    /// Missing configuration for the client
     #[error("Trainer client configuration is missing or invalid")]
     ConfigError(String),
 }
@@ -42,7 +45,7 @@ pub trait TrainerClientInterface: dyn_clone::DynClone + Send + Sync + std::fmt::
     async fn get_training(
         &mut self,
         model_version_tag: String,
-        enable_incremental_learning: bool,
+        merchant_id: String,
     ) -> TrainerResult<TriggerTrainingResponse>;
 
     /// gets training job status
@@ -59,11 +62,11 @@ impl TrainerClientInterface for TrainerServiceClient<Client> {
     async fn get_training(
         &mut self,
         model_version_tag: String,
-        enable_incremental_learning: bool,
+        merchant_id: String,
     ) -> TrainerResult<TriggerTrainingResponse> {
         let request_data = TriggerTrainingRequest {
             model_version_tag,
-            enable_incremental_learning,
+            merchant_id,
         };
         let request = tonic::Request::new(request_data);
 
@@ -107,7 +110,9 @@ impl TrainerClientInterface for TrainerServiceClient<Client> {
 /// Trainer client config
 #[derive(Debug, Default, Clone, serde::Deserialize, serde::Serialize)]
 pub struct TrainerClientConfig {
+    /// Host
     pub host: String,
+    /// Port number
     pub port: u16,
 }
 
