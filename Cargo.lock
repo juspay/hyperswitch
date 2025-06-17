@@ -3051,7 +3051,7 @@ dependencies = [
  "thiserror 1.0.69",
  "tokio 1.45.1",
  "tonic 0.13.1",
- "tonic-build 0.12.2",
+ "tonic-build",
  "tonic-reflection",
  "tonic-types",
  "url",
@@ -3368,7 +3368,7 @@ dependencies = [
  "heck 0.5.0",
  "prost-build",
  "quote",
- "tonic-build 0.13.1",
+ "tonic-build",
 ]
 
 [[package]]
@@ -3532,7 +3532,7 @@ dependencies = [
  "prost-build",
  "serde",
  "tonic 0.13.1",
- "tonic-build 0.13.1",
+ "tonic-build",
 ]
 
 [[package]]
@@ -8988,20 +8988,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "tonic-build"
-version = "0.13.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "eac6f67be712d12f0b41328db3137e0d0757645d8904b4cb7d51cd9c2279e847"
-dependencies = [
- "prettyplease",
- "proc-macro2",
- "prost-build",
- "prost-types",
- "quote",
- "syn 2.0.101",
-]
-
-[[package]]
 name = "tonic-reflection"
 version = "0.13.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -9011,7 +8997,7 @@ dependencies = [
  "prost-types",
  "tokio 1.45.1",
  "tokio-stream",
- "tonic 0.12.3",
+ "tonic 0.13.1",
 ]
 
 [[package]]
@@ -9022,7 +9008,7 @@ checksum = "07439468da24d5f211d3f3bd7b63665d8f45072804457e838a87414a478e2db8"
 dependencies = [
  "prost",
  "prost-types",
- "tonic 0.12.3",
+ "tonic 0.13.1",
 ]
 
 [[package]]
