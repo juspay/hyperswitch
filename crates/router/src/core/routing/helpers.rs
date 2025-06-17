@@ -330,7 +330,7 @@ pub enum RoutingDecisionData {
 #[cfg(feature = "v1")]
 pub struct DebitRoutingDecisionData {
     pub card_network: common_enums::enums::CardNetwork,
-    pub debit_routing_result: open_router::DebitRoutingOutput,
+    pub debit_routing_result: Option<open_router::DebitRoutingOutput>,
 }
 #[cfg(feature = "v1")]
 impl RoutingDecisionData {
@@ -350,7 +350,7 @@ impl RoutingDecisionData {
 
     pub fn get_debit_routing_decision_data(
         network: common_enums::enums::CardNetwork,
-        debit_routing_result: open_router::DebitRoutingOutput,
+        debit_routing_result: Option<open_router::DebitRoutingOutput>,
     ) -> Self {
         Self::DebitRouting(DebitRoutingDecisionData {
             card_network: network,
@@ -370,7 +370,9 @@ impl DebitRoutingDecisionData {
             + Clone,
     {
         payment_data.set_card_network(self.card_network.clone());
-        payment_data.set_co_badged_card_data(&self.debit_routing_result);
+        self.debit_routing_result
+            .as_ref()
+            .map(|data| payment_data.set_co_badged_card_data(data));
     }
 }
 #[derive(Clone, Debug)]
