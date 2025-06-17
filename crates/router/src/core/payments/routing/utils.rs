@@ -416,7 +416,7 @@ pub async fn perform_decision_euclid_routing(
     let connector_info = euclid_response.evaluated_output.clone();
     let mut routable_connectors = Vec::new();
     for conn in &connector_info {
-        let connector = common_enums::RoutableConnectors::from_str(conn.connector.as_str())
+        let connector = common_enums::RoutableConnectors::from_str(conn.gateway_name.as_str())
             .change_context(errors::RoutingError::GenericConversionError {
                 from: "String".to_string(),
                 to: "RoutableConnectors".to_string(),
@@ -426,7 +426,7 @@ pub async fn perform_decision_euclid_routing(
             )
             .ok();
         let mca_id = conn
-            .mca_id
+            .gateway_id
             .as_ref()
             .map(|id| {
                 id_type::MerchantConnectorAccountId::wrap(id.to_string())
@@ -904,13 +904,13 @@ pub struct VolumeSplit<T> {
 #[derive(Clone, Debug, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub struct ConnectorInfo {
-    pub connector: String,
-    pub mca_id: Option<String>,
+    pub gateway_name: String,
+    pub gateway_id: Option<String>,
 }
 
 impl ConnectorInfo {
-    pub fn new(connector: String, mca_id: Option<String>) -> Self {
-        Self { connector, mca_id }
+    pub fn new(gateway_name: String, gateway_id: Option<String>) -> Self {
+        Self { gateway_name, gateway_id }
     }
 }
 

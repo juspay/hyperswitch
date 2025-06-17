@@ -520,7 +520,7 @@ pub async fn perform_static_routing_v1(
                 .collect::<Vec<String>>();
             let de_connectors = de_euclid_connectors
                 .iter()
-                .map(|c| c.connector.to_string())
+                .map(|c| c.gateway_name.to_string())
                 .collect::<Vec<String>>();
             utils::compare_and_log_result(
                 de_connectors,
