@@ -3048,7 +3048,7 @@ dependencies = [
  "thiserror 1.0.69",
  "tokio 1.45.1",
  "tonic 0.12.3",
- "tonic-build 0.12.3",
+ "tonic-build 0.12.2",
  "tonic-reflection",
  "tonic-types",
  "url",
@@ -8972,14 +8972,13 @@ dependencies = [
 
 [[package]]
 name = "tonic-build"
-version = "0.12.3"
+version = "0.12.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "9557ce109ea773b399c9b9e5dca39294110b74f1f342cb347a80d1fce8c26a11"
+checksum = "fe4ee8877250136bd7e3d2331632810a4df4ea5e004656990d8d66d2f5ee8a67"
 dependencies = [
  "prettyplease",
  "proc-macro2",
  "prost-build",
- "prost-types",
  "quote",
  "syn 2.0.101",
 ]
