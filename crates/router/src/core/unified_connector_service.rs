@@ -144,7 +144,7 @@ pub fn build_unified_connector_service_auth_headers(
         {
             merchant_connector_account
                 .get_connector_name()
-                .ok_or_else(|| UnifiedConnectorServiceError::MissingConnectorName)
+                .ok_or(UnifiedConnectorServiceError::MissingConnectorName)
                 .attach_printable("Missing connector name")?
         }
 
@@ -153,7 +153,7 @@ pub fn build_unified_connector_service_auth_headers(
             merchant_connector_account
                 .get_connector_name()
                 .map(|connector| connector.to_string())
-                .ok_or_else(|| UnifiedConnectorServiceError::MissingConnectorName)
+                .ok_or(UnifiedConnectorServiceError::MissingConnectorName)
                 .attach_printable("Missing connector name")?
         }
     };
@@ -191,15 +191,15 @@ pub fn build_unified_connector_service_auth_headers(
             );
             metadata.append(
                 consts::UCS_HEADER_API_KEY,
-                parse_metadata_value(&api_key.peek(), consts::UCS_HEADER_API_KEY)?,
+                parse_metadata_value(api_key.peek(), consts::UCS_HEADER_API_KEY)?,
             );
             metadata.append(
                 consts::UCS_HEADER_KEY1,
-                parse_metadata_value(&key1.peek(), consts::UCS_HEADER_KEY1)?,
+                parse_metadata_value(key1.peek(), consts::UCS_HEADER_KEY1)?,
             );
             metadata.append(
                 consts::UCS_HEADER_API_SECRET,
-                parse_metadata_value(&api_secret.peek(), consts::UCS_HEADER_API_SECRET)?,
+                parse_metadata_value(api_secret.peek(), consts::UCS_HEADER_API_SECRET)?,
             );
         }
         ConnectorAuthType::BodyKey { api_key, key1 } => {
@@ -209,11 +209,11 @@ pub fn build_unified_connector_service_auth_headers(
             );
             metadata.append(
                 consts::UCS_HEADER_API_KEY,
-                parse_metadata_value(&api_key.peek(), consts::UCS_HEADER_API_KEY)?,
+                parse_metadata_value(api_key.peek(), consts::UCS_HEADER_API_KEY)?,
             );
             metadata.append(
                 consts::UCS_HEADER_KEY1,
-                parse_metadata_value(&key1.peek(), consts::UCS_HEADER_KEY1)?,
+                parse_metadata_value(key1.peek(), consts::UCS_HEADER_KEY1)?,
             );
         }
         ConnectorAuthType::HeaderKey { api_key } => {
@@ -223,7 +223,7 @@ pub fn build_unified_connector_service_auth_headers(
             );
             metadata.append(
                 consts::UCS_HEADER_API_KEY,
-                parse_metadata_value(&api_key.peek(), consts::UCS_HEADER_API_KEY)?,
+                parse_metadata_value(api_key.peek(), consts::UCS_HEADER_API_KEY)?,
             );
         }
         _ => {

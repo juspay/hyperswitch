@@ -414,10 +414,11 @@ impl AppState {
             let grpc_client = conf.grpc_client.get_grpc_client_interface().await;
             let unified_connector_service_client = match conf.unified_connector_service.clone() {
                 Some(unified_connector_service_client_config) => {
-                    UnifiedConnectorServiceClient::build_connections(unified_connector_service_client_config)
-                        .await
-                        .expect("Failed to establish a connection with the Unified Connector Service Server")
-                        .map(Arc::new)
+                    match UnifiedConnectorServiceClient::build_connections(unified_connector_service_client_config).await {
+                        Ok(Some(client)) => Some(Arc::new(client)),
+                        Ok(None) => None,
+                        Err(_) => None,
+                    }
                 },
                 None => None,
             };

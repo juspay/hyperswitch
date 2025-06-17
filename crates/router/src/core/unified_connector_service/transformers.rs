@@ -10,7 +10,7 @@ use hyperswitch_domain_models::{
 };
 use masking::{ExposeInterface, PeekInterface};
 use router_env::logger;
-use rust_grpc_client::payments::{self as payments_grpc};
+use rust_grpc_client::payments as payments_grpc;
 
 use crate::{
     core::unified_connector_service::errors::UnifiedConnectorServiceError,
@@ -33,7 +33,6 @@ impl ForeignTryFrom<&RouterData<Authorize, PaymentsAuthorizeData, PaymentsRespon
         let payment_method_type = router_data
             .request
             .payment_method_type
-            .clone()
             .map(payments_grpc::PaymentMethodType::foreign_try_from)
             .transpose()?;
 
@@ -55,7 +54,6 @@ impl ForeignTryFrom<&RouterData<Authorize, PaymentsAuthorizeData, PaymentsRespon
         let capture_method = router_data
             .request
             .capture_method
-            .clone()
             .map(payments_grpc::CaptureMethod::foreign_try_from)
             .transpose()?;
 
@@ -96,7 +94,7 @@ impl ForeignTryFrom<&RouterData<Authorize, PaymentsAuthorizeData, PaymentsRespon
             connector_meta_data: router_data
                 .connector_meta_data
                 .as_ref()
-                .map(|secret| {
+                .and_then(|secret| {
                     let binding = secret.clone();
                     let value = binding.peek(); // Expose the secret value
                     serde_json::to_vec(&value)
@@ -106,8 +104,7 @@ impl ForeignTryFrom<&RouterData<Authorize, PaymentsAuthorizeData, PaymentsRespon
                             err
                         })
                         .ok()
-                })
-                .flatten(),
+                    }),
             access_token: None,
             session_token: None,
             payment_method_token: None,
@@ -128,8 +125,7 @@ impl ForeignTryFrom<&RouterData<Authorize, PaymentsAuthorizeData, PaymentsRespon
             customer_acceptance: None,
             order_category: router_data.request.order_category.clone(),
             payment_experience: None,
-            authentication_data: authentication_data
-                .map(|authentication_data| authentication_data.into()),
+            authentication_data,
             request_extended_authorization: router_data
                 .request
                 .request_extended_authorization
