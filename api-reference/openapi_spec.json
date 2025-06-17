@@ -2362,7 +2362,7 @@
       }
     },
     "/customers/{customer_id}/mandates": {
-      "post": {
+      "get": {
         "tags": [
           "Mandates"
         ],
@@ -2601,6 +2601,32 @@
         "summary": "Customers - List",
         "description": "Lists all the customers for a particular merchant id.",
         "operationId": "List all Customers for a Merchant",
+        "parameters": [
+          {
+            "name": "offset",
+            "in": "query",
+            "description": "Offset for pagination",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "format": "int32",
+              "nullable": true,
+              "minimum": 0
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "description": "Limit for pagination",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "format": "int32",
+              "nullable": true,
+              "minimum": 0
+            }
+          }
+        ],
         "responses": {
           "200": {
             "description": "Customers retrieved",
