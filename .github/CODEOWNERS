@@ -20,7 +20,6 @@ crates/router/src/routes/ @juspay/hyperswitch-framework
 migrations/ @juspay/hyperswitch-framework
 v2_migrations/ @juspay/hyperswitch-framework
 api-reference/ @juspay/hyperswitch-framework
-api-reference-v2/ @juspay/hyperswitch-framework
 Cargo.toml @juspay/hyperswitch-framework
 Cargo.lock @juspay/hyperswitch-framework
 
