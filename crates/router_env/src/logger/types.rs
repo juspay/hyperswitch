@@ -249,6 +249,8 @@ pub enum Flow {
     RoutingRetrieveDefaultConfig,
     /// Routing retrieve dictionary
     RoutingRetrieveDictionary,
+    /// Rule migration for decision-engine
+    DecisionEngineRuleMigration,
     /// Routing update config
     RoutingUpdateConfig,
     /// Routing update default config
@@ -594,6 +596,8 @@ pub enum Flow {
     CloneConnector,
     ///Proxy Flow
     Proxy,
+    ProfileAcquirerCreate,
+    ProfileAcquirerUpdate,
     /// ThreeDs Decision Rule Execute flow
     ThreeDsDecisionRuleExecute,
 }
