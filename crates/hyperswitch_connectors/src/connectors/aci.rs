@@ -7,7 +7,7 @@ use api_models::webhooks::IncomingWebhookEvent;
 use common_enums::enums;
 use common_utils::{
     crypto,
-    errors::CustomResult,
+    errors::{CryptoError, CustomResult},
     ext_traits::BytesExt,
     request::{Method, Request, RequestBuilder, RequestContent},
     types::{AmountConvertor, StringMajorUnit, StringMajorUnitForConnector},
@@ -49,6 +49,7 @@ use hyperswitch_interfaces::{
     webhooks::{IncomingWebhook, IncomingWebhookRequestDetails},
 };
 use masking::{Mask, PeekInterface};
+use ring::aead::{self, UnboundKey};
 use transformers as aci;
 
 use crate::{
@@ -650,9 +651,92 @@ impl ConnectorIntegration<Execute, RefundsData, RefundsResponseData> for Aci {
 
 impl ConnectorIntegration<RSync, RefundsData, RefundsResponseData> for Aci {}
 
+/// Decrypts an AES-256-GCM encrypted payload where the IV, auth tag, and ciphertext
+/// are provided separately as hex strings. This is specifically tailored for ACI webhooks.
+///
+/// # Arguments
+/// * `hex_key`: The encryption key as a hex string (must decode to 32 bytes).
+/// * `hex_iv`: The initialization vector (nonce) as a hex string (must decode to 12 bytes).
+/// * `hex_auth_tag`: The authentication tag as a hex string (must decode to 16 bytes).
+/// * `hex_encrypted_body`: The encrypted payload as a hex string.
+fn decrypt_aci_webhook_payload(
+    hex_key: &str,
+    hex_iv: &str,
+    hex_auth_tag: &str,
+    hex_encrypted_body: &str,
+) -> CustomResult<Vec<u8>, CryptoError> {
+    let key_bytes = hex::decode(hex_key)
+        .change_context(CryptoError::DecodingFailed)
+        .attach_printable("Failed to decode hex key")?;
+    let iv_bytes = hex::decode(hex_iv)
+        .change_context(CryptoError::DecodingFailed)
+        .attach_printable("Failed to decode hex IV")?;
+    let auth_tag_bytes = hex::decode(hex_auth_tag)
+        .change_context(CryptoError::DecodingFailed)
+        .attach_printable("Failed to decode hex auth tag")?;
+    let encrypted_body_bytes = hex::decode(hex_encrypted_body)
+        .change_context(CryptoError::DecodingFailed)
+        .attach_printable("Failed to decode hex encrypted body")?;
+    if key_bytes.len() != 32 {
+        return Err(CryptoError::InvalidKeyLength)
+            .attach_printable("Key must be 32 bytes for AES-256-GCM");
+    }
+    if iv_bytes.len() != aead::NONCE_LEN {
+        return Err(CryptoError::InvalidIvLength)
+            .attach_printable(format!("IV must be {} bytes for AES-GCM", aead::NONCE_LEN));
+    }
+    if auth_tag_bytes.len() != 16 {
+        return Err(CryptoError::InvalidTagLength)
+            .attach_printable("Auth tag must be 16 bytes for AES-256-GCM");
+    }
+
+    let unbound_key = UnboundKey::new(&aead::AES_256_GCM, &key_bytes)
+        .change_context(CryptoError::DecodingFailed)
+        .attach_printable("Failed to create unbound key")?;
+
+    let less_safe_key = aead::LessSafeKey::new(unbound_key);
+
+    let nonce_arr: [u8; aead::NONCE_LEN] = iv_bytes
+        .as_slice()
+        .try_into()
+        .map_err(|_| CryptoError::InvalidIvLength)
+        .attach_printable_lazy(|| {
+            format!(
+                "IV length is {} but expected {}",
+                iv_bytes.len(),
+                aead::NONCE_LEN
+            )
+        })?;
+    let nonce = aead::Nonce::assume_unique_for_key(nonce_arr);
+
+    let mut ciphertext_and_tag = encrypted_body_bytes;
+    ciphertext_and_tag.extend_from_slice(&auth_tag_bytes);
+
+    less_safe_key
+        .open_in_place(nonce, aead::Aad::empty(), &mut ciphertext_and_tag)
+        .change_context(CryptoError::DecodingFailed)
+        .attach_printable("Failed to decrypt payload using LessSafeKey")?;
+
+    let original_ciphertext_len = ciphertext_and_tag.len() - auth_tag_bytes.len();
+    ciphertext_and_tag.truncate(original_ciphertext_len);
+
+    Ok(ciphertext_and_tag)
+}
+
 // TODO: Test this webhook flow once dashboard access is available.
 #[async_trait::async_trait]
 impl IncomingWebhook for Aci {
+    async fn verify_webhook_source(
+        &self,
+        _request: &IncomingWebhookRequestDetails<'_>,
+        _merchant_id: &common_utils::id_type::MerchantId,
+        _connector_webhook_details: Option<common_utils::pii::SecretSerdeValue>,
+        _connector_account_details: crypto::Encryptable<masking::Secret<serde_json::Value>>,
+        _connector_name: &str,
+    ) -> CustomResult<bool, errors::ConnectorError> {
+        Ok(true)
+    }
+
     fn get_webhook_source_verification_algorithm(
         &self,
         _request: &IncomingWebhookRequestDetails<'_>,
@@ -710,16 +794,14 @@ impl IncomingWebhook for Aci {
                 "Failed to read encrypted body as UTF-8 string for verification message",
             )?;
 
-        let crypto_gcm_aes256 = crypto::GcmAes256;
-        crypto_gcm_aes256
-            .decrypt_aci_webhook_payload(
-                &webhook_secret_str,
-                iv_hex_str,
-                auth_tag_hex_str,
-                &encrypted_body_hex,
-            )
-            .change_context(errors::ConnectorError::WebhookSourceVerificationFailed)
-            .attach_printable("Failed to decrypt ACI webhook payload for verification")
+        decrypt_aci_webhook_payload(
+            &webhook_secret_str,
+            iv_hex_str,
+            auth_tag_hex_str,
+            &encrypted_body_hex,
+        )
+        .change_context(errors::ConnectorError::WebhookSourceVerificationFailed)
+        .attach_printable("Failed to decrypt ACI webhook payload for verification")
     }
 
     fn get_webhook_object_reference_id(

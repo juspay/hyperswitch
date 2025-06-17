@@ -6,7 +6,9 @@ use error_stack::report;
 use hyperswitch_domain_models::{
     payment_method_data::{BankRedirectData, Card, PayLaterData, PaymentMethodData, WalletData},
     router_data::{ConnectorAuthType, RouterData},
-    router_request_types::ResponseId,
+    router_request_types::{
+        PaymentsAuthorizeData, PaymentsCancelData, PaymentsSyncData, ResponseId,
+    },
     router_response_types::{
         MandateReference, PaymentsResponseData, RedirectForm, RefundsResponseData,
     },
@@ -27,6 +29,28 @@ use crate::{
 };
 
 type Error = error_stack::Report<errors::ConnectorError>;
+
+trait GetCaptureMethod {
+    fn get_capture_method(&self) -> Option<enums::CaptureMethod>;
+}
+
+impl GetCaptureMethod for PaymentsAuthorizeData {
+    fn get_capture_method(&self) -> Option<enums::CaptureMethod> {
+        self.capture_method
+    }
+}
+
+impl GetCaptureMethod for PaymentsSyncData {
+    fn get_capture_method(&self) -> Option<enums::CaptureMethod> {
+        self.capture_method
+    }
+}
+
+impl GetCaptureMethod for PaymentsCancelData {
+    fn get_capture_method(&self) -> Option<enums::CaptureMethod> {
+        None
+    }
+}
 
 #[derive(Debug, Serialize)]
 pub struct AciRouterData<T> {
@@ -632,14 +656,18 @@ pub enum AciPaymentStatus {
     RedirectShopper,
 }
 
-impl From<AciPaymentStatus> for enums::AttemptStatus {
-    fn from(item: AciPaymentStatus) -> Self {
-        match item {
-            AciPaymentStatus::Succeeded => Self::Charged,
-            AciPaymentStatus::Failed => Self::Failure,
-            AciPaymentStatus::Pending => Self::Authorizing,
-            AciPaymentStatus::RedirectShopper => Self::AuthenticationPending,
+fn map_aci_attempt_status(item: AciPaymentStatus, auto_capture: bool) -> enums::AttemptStatus {
+    match item {
+        AciPaymentStatus::Succeeded => {
+            if auto_capture {
+                enums::AttemptStatus::Charged
+            } else {
+                enums::AttemptStatus::Authorized
+            }
         }
+        AciPaymentStatus::Failed => enums::AttemptStatus::Failure,
+        AciPaymentStatus::Pending => enums::AttemptStatus::Authorizing,
+        AciPaymentStatus::RedirectShopper => enums::AttemptStatus::AuthenticationPending,
     }
 }
 impl FromStr for AciPaymentStatus {
@@ -711,12 +739,14 @@ pub struct ErrorParameters {
     pub(super) message: String,
 }
 
-impl<F, T> TryFrom<ResponseRouterData<F, AciPaymentsResponse, T, PaymentsResponseData>>
-    for RouterData<F, T, PaymentsResponseData>
+impl<F, Req> TryFrom<ResponseRouterData<F, AciPaymentsResponse, Req, PaymentsResponseData>>
+    for RouterData<F, Req, PaymentsResponseData>
+where
+    Req: GetCaptureMethod,
 {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
-        item: ResponseRouterData<F, AciPaymentsResponse, T, PaymentsResponseData>,
+        item: ResponseRouterData<F, AciPaymentsResponse, Req, PaymentsResponseData>,
     ) -> Result<Self, Self::Error> {
         let redirection_data = item.response.redirect.map(|data| {
             let form_fields = std::collections::HashMap::<_, _>::from_iter(
@@ -743,16 +773,22 @@ impl<F, T> TryFrom<ResponseRouterData<F, AciPaymentsResponse, T, PaymentsRespons
             connector_mandate_request_reference_id: None,
         });
 
+        let auto_capture = matches!(
+            item.data.request.get_capture_method(),
+            Some(enums::CaptureMethod::Automatic) | None
+        );
+
+        let status = if redirection_data.is_some() {
+            map_aci_attempt_status(AciPaymentStatus::RedirectShopper, auto_capture)
+        } else {
+            map_aci_attempt_status(
+                AciPaymentStatus::from_str(&item.response.result.code)?,
+                auto_capture,
+            )
+        };
+
         Ok(Self {
-            status: {
-                if redirection_data.is_some() {
-                    enums::AttemptStatus::from(AciPaymentStatus::RedirectShopper)
-                } else {
-                    enums::AttemptStatus::from(AciPaymentStatus::from_str(
-                        &item.response.result.code,
-                    )?)
-                }
-            },
+            status,
             response: Ok(PaymentsResponseData::TransactionResponse {
                 resource_id: ResponseId::ConnectorTransactionId(item.response.id.clone()),
                 redirection_data: Box::new(redirection_data),
@@ -804,8 +840,8 @@ pub struct AciCaptureResponse {
     result_details: AciCaptureResultDetails,
     build_number: String,
     timestamp: String,
-    ndc: String,
-    source: String,
+    ndc: Secret<String>,
+    source: Secret<String>,
     payment_method: String,
     short_id: String,
 }
@@ -818,18 +854,14 @@ pub struct AciCaptureResult {
 }
 
 #[derive(Debug, Default, Clone, Deserialize, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "PascalCase")]
 pub struct AciCaptureResultDetails {
-    #[serde(rename = "ExtendedDescription")]
     extended_description: String,
     #[serde(rename = "clearingInstituteName")]
     clearing_institute_name: String,
-    #[serde(rename = "ConnectorTxID1")]
     connector_tx_id1: String,
-    #[serde(rename = "ConnectorTxID3")]
     connector_tx_id3: String,
-    #[serde(rename = "ConnectorTxID2")]
     connector_tx_id2: String,
-    #[serde(rename = "AcquirerResponse")]
     acquirer_response: String,
 }
 
@@ -841,9 +873,10 @@ impl<F, T> TryFrom<ResponseRouterData<F, AciCaptureResponse, T, PaymentsResponse
         item: ResponseRouterData<F, AciCaptureResponse, T, PaymentsResponseData>,
     ) -> Result<Self, Self::Error> {
         Ok(Self {
-            status: enums::AttemptStatus::from(AciPaymentStatus::from_str(
-                &item.response.result.code,
-            )?),
+            status: map_aci_attempt_status(
+                AciPaymentStatus::from_str(&item.response.result.code)?,
+                false,
+            ),
             reference_id: Some(item.response.referenced_id.clone()),
             response: Ok(PaymentsResponseData::TransactionResponse {
                 resource_id: ResponseId::ConnectorTransactionId(item.response.id.clone()),
@@ -977,11 +1010,11 @@ pub struct AciWebhookCardDetails {
 #[serde(rename_all = "camelCase")]
 pub struct AciWebhookCustomerDetails {
     #[serde(rename = "givenName")]
-    pub given_name: Option<String>,
-    pub surname: Option<String>,
+    pub given_name: Option<Secret<String>>,
+    pub surname: Option<Secret<String>>,
     #[serde(rename = "merchantCustomerId")]
-    pub merchant_customer_id: Option<String>,
-    pub sex: Option<String>,
+    pub merchant_customer_id: Option<Secret<String>>,
+    pub sex: Option<Secret<String>>,
     pub email: Option<Email>,
 }
 
