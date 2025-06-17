@@ -95,7 +95,8 @@ impl ProxyClient {
     ) -> CustomResult<reqwest::Client, ApiClientError> {
         match (client_certificate, client_certificate_key) {
             (Some(certificate), Some(certificate_key)) => {
-                let client_builder = client::get_client_builder(&self.proxy_config, None).switch()?;
+                let client_builder =
+                    client::get_client_builder(&self.proxy_config, None).switch()?;
                 let identity =
                     client::create_identity_from_certificate_and_key(certificate, certificate_key)
                         .switch()?;
