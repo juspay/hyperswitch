@@ -1289,7 +1289,7 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
                                             &helpers::MerchantConnectorAccountType::DbVal(Box::new(connector_mca.clone())),
                                             &connector_mca.connector_name,
                                             payment_method,
-                                            payment_data.payment_attempt.net_amount.clone(),
+                                            payment_data.payment_attempt.net_amount.get_order_amount(),
                                             Some(&payment_data.payment_intent.payment_id),
                                             merchant_id,
                                         )

@@ -4,8 +4,6 @@ pub mod utils;
 use api_models::payments;
 use diesel_models::authentication::{Authentication, AuthenticationNew};
 use error_stack::ResultExt;
-#[cfg(feature = "v1")]
-use hyperswitch_domain_models::payments::payment_attempt::NetAmount;
 use hyperswitch_domain_models::{
     errors::api_error_response::ApiErrorResponse,
     payment_method_data,
@@ -175,7 +173,7 @@ impl UnifiedAuthenticationService for ClickToPay {
         merchant_connector_account: &MerchantConnectorAccountType,
         connector_name: &str,
         payment_method: common_enums::PaymentMethod,
-        net_amount: NetAmount,
+        net_amount: common_utils::types::MinorUnit,
         payment_id: Option<&common_utils::id_type::PaymentId>,
         merchant_id: &common_utils::id_type::MerchantId,
     ) -> RouterResult<()> {
@@ -200,7 +198,7 @@ impl UnifiedAuthenticationService for ClickToPay {
             x_src_flow_id: click_to_pay_details
                 .as_ref()
                 .and_then(|details| details.x_src_flow_id.clone()),
-            transaction_amount: net_amount.get_order_amount(),
+            transaction_amount: net_amount,
             transaction_currency: currency,
             checkout_event_type: Some("01".to_string()), // hardcoded to '01' since only authorise flow is implemented
             checkout_event_status: checkout_event_status.clone(),

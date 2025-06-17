@@ -162,7 +162,7 @@ pub trait UnifiedAuthenticationService {
         _merchant_connector_account: &MerchantConnectorAccountType,
         _connector_name: &str,
         _payment_method: common_enums::PaymentMethod,
-        _net_amount: hyperswitch_domain_models::payments::payment_attempt::NetAmount,
+        _net_amount: common_utils::types::MinorUnit,
         _payment_id: Option<&common_utils::id_type::PaymentId>,
         _merchant_id: &common_utils::id_type::MerchantId,
     ) -> RouterResult<()> {
