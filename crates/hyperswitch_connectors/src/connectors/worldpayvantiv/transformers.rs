@@ -585,18 +585,15 @@ fn get_bill_to_address(item: &PaymentsAuthorizeRouterData) -> Option<BillToAddre
     billing_address.and_then(|billing_address| {
         billing_address.address.clone().and_then(|address| {
             let full_name = address.get_optional_full_name();
-            full_name.map(|name| {
-                BillToAddressData {
-                    name,
-                    address_line1: item.get_optional_billing_line1(),
-                    city: item.get_optional_billing_city(),
-                    state: item.get_optional_billing_state(),
-                    zip: item.get_optional_billing_zip(),
-                    email: item.get_optional_billing_email(),
-                    phone: item.get_optional_billing_phone_number(),
-                }
-            }
-        )
+            full_name.map(|name| BillToAddressData {
+                name,
+                address_line1: item.get_optional_billing_line1(),
+                city: item.get_optional_billing_city(),
+                state: item.get_optional_billing_state(),
+                zip: item.get_optional_billing_zip(),
+                email: item.get_optional_billing_email(),
+                phone: item.get_optional_billing_phone_number(),
+            })
         })
     })
 }
