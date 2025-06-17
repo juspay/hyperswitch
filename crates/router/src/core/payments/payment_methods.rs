@@ -98,6 +98,7 @@ impl FilteredPaymentMethodsEnabled {
                     payment_experience: payment_methods_enabled
                         .payment_methods_enabled
                         .payment_experience,
+                    connector: payment_methods_enabled.connector,
                 },
             )
             .collect();
@@ -112,6 +113,7 @@ struct RequiredFieldsForEnabledPaymentMethod {
     payment_method_subtype: common_enums::PaymentMethodType,
     payment_method_type: common_enums::PaymentMethod,
     payment_experience: Option<common_enums::PaymentExperience>,
+    connector: common_enums::connector_enums::Connector,
 }
 
 /// Container to hold the filtered payment methods enabled with required fields
@@ -123,6 +125,7 @@ struct RequiredFieldsAndSurchargeForEnabledPaymentMethodType {
     payment_method_subtype: common_enums::PaymentMethodType,
     payment_method_type: common_enums::PaymentMethod,
     payment_experience: Option<common_enums::PaymentExperience>,
+    connector: common_enums::connector_enums::Connector,
     surcharge: Option<api_models::payment_methods::SurchargeDetailsResponse>,
 }
 
@@ -149,6 +152,7 @@ impl RequiredFieldsAndSurchargeForEnabledPaymentMethodTypes {
                     required_fields: payment_methods_enabled.required_field,
                     surcharge_details: payment_methods_enabled.surcharge,
                     extra_information: None,
+                    eligible_connector: payment_methods_enabled.connector,
                 }
             })
             .collect();
@@ -173,6 +177,7 @@ impl RequiredFieldsForEnabledPaymentMethodTypes {
                     required_field: payment_methods_enabled.required_field,
                     payment_method_subtype: payment_methods_enabled.payment_method_subtype,
                     payment_experience: payment_methods_enabled.payment_experience,
+                    connector: payment_methods_enabled.connector,
                     surcharge: None,
                 },
             )
