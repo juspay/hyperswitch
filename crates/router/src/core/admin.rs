@@ -1702,6 +1702,10 @@ impl ConnectorAuthTypeAndMetadataValidation<'_> {
                 redsys::transformers::RedsysAuthType::try_from(self.auth_type)?;
                 Ok(())
             }
+            // api_enums::Connector::Santander => {
+            //     santander::transformers::SantanderAuthType::try_from(self.auth_type)?;
+            //     Ok(())
+            // },
             api_enums::Connector::Shift4 => {
                 shift4::transformers::Shift4AuthType::try_from(self.auth_type)?;
                 Ok(())

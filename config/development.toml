@@ -165,6 +165,7 @@ cards = [
     "powertranz",
     "prophetpay",
     "redsys",
+    "santander",
     "shift4",
     "square",
     "stax",
@@ -305,6 +306,7 @@ rapyd.base_url = "https://sandboxapi.rapyd.net"
 razorpay.base_url = "https://api.razorpay.com/"
 recurly.base_url = "https://v3.recurly.com"
 redsys.base_url = "https://sis-t.redsys.es:25443"
+santander.base_url = "https://pix.santander.com.br/api/v1/sandbox/"
 riskified.base_url = "https://sandbox.riskified.com/api"
 shift4.base_url = "https://api.shift4.com/"
 signifyd.base_url = "https://api.signifyd.com/"

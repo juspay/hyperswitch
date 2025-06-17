@@ -131,6 +131,7 @@ pub enum RoutableConnectors {
     Recurly,
     Redsys,
     Riskified,
+    // Santander,
     Shift4,
     Signifyd,
     Square,
@@ -179,6 +180,7 @@ pub enum RoutableConnectors {
 #[serde(rename_all = "snake_case")]
 #[strum(serialize_all = "snake_case")]
 pub enum Connector {
+    // Santander,
     Adyenplatform,
     #[cfg(feature = "dummy_connector")]
     #[serde(rename = "stripe_billing_test")]
@@ -397,6 +399,7 @@ impl Connector {
             | Self::Adyen
             | Self::Adyenplatform
             | Self::Airwallex
+            // | Self::Santander
             // | Self::Amazonpay
             | Self::Authorizedotnet
             | Self::Bambora
@@ -620,6 +623,7 @@ impl From<RoutableConnectors> for Connector {
             RoutableConnectors::Recurly => Self::Recurly,
             RoutableConnectors::Redsys => Self::Redsys,
             RoutableConnectors::Riskified => Self::Riskified,
+            // RoutableConnectors::Santander => Self::Santander,
             RoutableConnectors::Shift4 => Self::Shift4,
             RoutableConnectors::Signifyd => Self::Signifyd,
             RoutableConnectors::Square => Self::Square,
@@ -735,6 +739,7 @@ impl TryFrom<Connector> for RoutableConnectors {
             Connector::Rapyd => Ok(Self::Rapyd),
             Connector::Razorpay => Ok(Self::Razorpay),
             Connector::Riskified => Ok(Self::Riskified),
+            // Connector::Santander => Ok(Self::Santander),
             Connector::Shift4 => Ok(Self::Shift4),
             Connector::Signifyd => Ok(Self::Signifyd),
             Connector::Square => Ok(Self::Square),
