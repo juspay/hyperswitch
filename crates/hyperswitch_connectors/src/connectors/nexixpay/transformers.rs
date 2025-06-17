@@ -737,7 +737,7 @@ impl TryFrom<&NexixpayRouterData<&PaymentsAuthorizeRouterData>> for NexixpayPaym
             order_id,
             amount: item.amount.clone(),
             currency: item.router_data.request.currency,
-            description: item.router_data.description.clone(), //check for description length already in core
+            description: item.router_data.description.clone(),
             customer_info,
         };
         let payment_data = NexixpayPaymentsRequestData::try_from(item)?;
