@@ -5,14 +5,14 @@ use api_models::{
     routing::{ConnectorSelection, RoutableConnectorChoice},
 };
 use async_trait::async_trait;
-use common_utils::id_type;
+use common_utils::{ext_traits::ValueExt,id_type};
 use diesel_models::{enums, routing_algorithm};
 use error_stack::ResultExt;
 use euclid::{backend::BackendInput, frontend::ast};
 use hyperswitch_domain_models::business_profile;
 use serde::{Deserialize, Serialize};
 
-use super::RoutingResult;
+use super::{errors::RouterResult, RoutingResult};
 use crate::{
     core::errors,
     routes::SessionState,
@@ -920,13 +920,24 @@ pub fn select_routing_result<T>(
     business_profile: &business_profile::Profile,
     hyperswitch_result: T,
     de_result: T,
-) -> T {
-    if let Some(enums::RoutingResultSource::DecisionEngine) = business_profile.routing_result_source
+) -> RouterResult<T> {
+    let dynamic_routing_algorithm: api_routing::DynamicRoutingAlgorithmRef = business_profile
+        .dynamic_routing_algorithm
+        .clone()
+        .map(|val| val.parse_value("DynamicRoutingAlgorithmRef"))
+        .transpose()
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable(
+            "unable to deserialize dynamic routing algorithm ref from business profile",
+        )?
+        .unwrap_or_default();
+    if let Some(api_routing::RoutingResultSource::DecisionEngine) =
+        dynamic_routing_algorithm.routing_result_source
     {
         logger::debug!(business_profile_id=?business_profile.get_id(), "Using Decision Engine routing result");
-        de_result
+        Ok(de_result)
     } else {
         logger::debug!(business_profile_id=?business_profile.get_id(), "Using Hyperswitch routing result");
-        hyperswitch_result
+        Ok(hyperswitch_result)
     }
 }

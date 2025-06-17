@@ -610,6 +610,10 @@ pub struct DynamicRoutingAlgorithmRef {
     pub contract_based_routing: Option<ContractRoutingAlgorithm>,
     #[serde(default)]
     pub is_merchant_created_in_decision_engine: bool,
+    /// This field indicates which decision engine's output (e.g., Hyperswitch's routing engine,
+    /// Decision Engine) should be used for making the routing decision.
+    /// If `None`, Hyperswitch's routing engine will be chosen by default.
+    pub routing_result_source: Option<RoutingResultSource>,
 }
 
 pub trait DynamicRoutingAlgoAccessor {
@@ -1584,4 +1588,14 @@ impl RuleMigrationResponse {
             decision_engine_algorithm_id,
         }
     }
+}
+
+#[derive(Clone, Debug, serde::Deserialize, serde::Serialize, strum::Display, strum::EnumString)]
+#[serde(rename_all = "snake_case")]
+#[strum(serialize_all = "snake_case")]
+pub enum RoutingResultSource {
+    /// External Decision Engine
+    DecisionEngine,
+    /// Inbuilt Hyperswitch Routing Engine
+    HyperswitchRouting,
 }

@@ -78,7 +78,6 @@ pub struct Profile {
     pub three_ds_decision_rule_algorithm: Option<serde_json::Value>,
     pub acquirer_config_map: Option<common_types::domain::AcquirerConfigMap>,
     pub merchant_category_code: Option<api_enums::MerchantCategoryCode>,
-    pub routing_result_source: Option<api_enums::RoutingResultSource>,
 }
 
 #[cfg(feature = "v1")]
@@ -133,7 +132,6 @@ pub struct ProfileSetter {
     pub is_iframe_redirection_enabled: Option<bool>,
     pub is_pre_network_tokenization_enabled: bool,
     pub merchant_category_code: Option<api_enums::MerchantCategoryCode>,
-    pub routing_result_source: Option<api_enums::RoutingResultSource>,
 }
 
 #[cfg(feature = "v1")]
@@ -195,7 +193,6 @@ impl From<ProfileSetter> for Profile {
             three_ds_decision_rule_algorithm: None, // three_ds_decision_rule_algorithm is not yet created during profile creation
             acquirer_config_map: None,
             merchant_category_code: value.merchant_category_code,
-            routing_result_source: value.routing_result_source,
         }
     }
 }
@@ -257,7 +254,6 @@ pub struct ProfileGeneralUpdate {
     pub is_iframe_redirection_enabled: Option<bool>,
     pub is_pre_network_tokenization_enabled: Option<bool>,
     pub merchant_category_code: Option<api_enums::MerchantCategoryCode>,
-    pub routing_result_source: Option<api_enums::RoutingResultSource>,
 }
 
 #[cfg(feature = "v1")]
@@ -338,7 +334,6 @@ impl From<ProfileUpdate> for ProfileUpdateInternal {
                     is_iframe_redirection_enabled,
                     is_pre_network_tokenization_enabled,
                     merchant_category_code,
-                    routing_result_source,
                 } = *update;
 
                 Self {
@@ -390,7 +385,6 @@ impl From<ProfileUpdate> for ProfileUpdateInternal {
                     three_ds_decision_rule_algorithm: None,
                     acquirer_config_map: None,
                     merchant_category_code,
-                    routing_result_source,
                 }
             }
             ProfileUpdate::RoutingAlgorithmUpdate {
@@ -445,7 +439,6 @@ impl From<ProfileUpdate> for ProfileUpdateInternal {
                 three_ds_decision_rule_algorithm,
                 acquirer_config_map: None,
                 merchant_category_code: None,
-                routing_result_source: None,
             },
             ProfileUpdate::DynamicRoutingAlgorithmUpdate {
                 dynamic_routing_algorithm,
@@ -497,7 +490,6 @@ impl From<ProfileUpdate> for ProfileUpdateInternal {
                 three_ds_decision_rule_algorithm: None,
                 acquirer_config_map: None,
                 merchant_category_code: None,
-                routing_result_source: None,
             },
             ProfileUpdate::ExtendedCardInfoUpdate {
                 is_extended_card_info_enabled,
@@ -549,7 +541,6 @@ impl From<ProfileUpdate> for ProfileUpdateInternal {
                 three_ds_decision_rule_algorithm: None,
                 acquirer_config_map: None,
                 merchant_category_code: None,
-                routing_result_source: None,
             },
             ProfileUpdate::ConnectorAgnosticMitUpdate {
                 is_connector_agnostic_mit_enabled,
@@ -601,7 +592,6 @@ impl From<ProfileUpdate> for ProfileUpdateInternal {
                 three_ds_decision_rule_algorithm: None,
                 acquirer_config_map: None,
                 merchant_category_code: None,
-                routing_result_source: None,
             },
             ProfileUpdate::NetworkTokenizationUpdate {
                 is_network_tokenization_enabled,
@@ -653,7 +643,6 @@ impl From<ProfileUpdate> for ProfileUpdateInternal {
                 three_ds_decision_rule_algorithm: None,
                 acquirer_config_map: None,
                 merchant_category_code: None,
-                routing_result_source: None,
             },
             ProfileUpdate::CardTestingSecretKeyUpdate {
                 card_testing_secret_key,
@@ -705,7 +694,6 @@ impl From<ProfileUpdate> for ProfileUpdateInternal {
                 three_ds_decision_rule_algorithm: None,
                 acquirer_config_map: None,
                 merchant_category_code: None,
-                routing_result_source: None,
             },
             ProfileUpdate::AcquirerConfigMapUpdate {
                 acquirer_config_map,
@@ -757,7 +745,6 @@ impl From<ProfileUpdate> for ProfileUpdateInternal {
                 three_ds_decision_rule_algorithm: None,
                 acquirer_config_map,
                 merchant_category_code: None,
-                routing_result_source: None,
             },
         }
     }
@@ -829,7 +816,6 @@ impl super::behaviour::Conversion for Profile {
             three_ds_decision_rule_algorithm: self.three_ds_decision_rule_algorithm,
             acquirer_config_map: self.acquirer_config_map,
             merchant_category_code: self.merchant_category_code,
-            routing_result_source: self.routing_result_source,
         })
     }
 
@@ -927,7 +913,6 @@ impl super::behaviour::Conversion for Profile {
                 three_ds_decision_rule_algorithm: item.three_ds_decision_rule_algorithm,
                 acquirer_config_map: item.acquirer_config_map,
                 merchant_category_code: item.merchant_category_code,
-                routing_result_source: item.routing_result_source,
             })
         }
         .await
@@ -992,7 +977,6 @@ impl super::behaviour::Conversion for Profile {
             is_iframe_redirection_enabled: self.is_iframe_redirection_enabled,
             is_pre_network_tokenization_enabled: Some(self.is_pre_network_tokenization_enabled),
             merchant_category_code: self.merchant_category_code,
-            routing_result_source: self.routing_result_source,
         })
     }
 }

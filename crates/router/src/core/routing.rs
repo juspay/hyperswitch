@@ -240,7 +240,7 @@ async fn build_list_routing_result(
             &business_profile,
             hs_result_for_profile,
             de_result_for_profile,
-        ));
+        )?);
     }
     Ok(list_result)
 }
