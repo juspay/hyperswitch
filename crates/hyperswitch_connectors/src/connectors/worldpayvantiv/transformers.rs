@@ -585,8 +585,8 @@ fn get_bill_to_address(item: &PaymentsAuthorizeRouterData) -> Option<BillToAddre
     billing_address.and_then(|billing_address| {
         billing_address.address.clone().and_then(|address| {
             let full_name = address.get_optional_full_name();
-            match full_name {
-                Some(name) => Some(BillToAddressData {
+            full_name.map(|name| {
+                BillToAddressData {
                     name,
                     address_line1: item.get_optional_billing_line1(),
                     city: item.get_optional_billing_city(),
@@ -594,9 +594,9 @@ fn get_bill_to_address(item: &PaymentsAuthorizeRouterData) -> Option<BillToAddre
                     zip: item.get_optional_billing_zip(),
                     email: item.get_optional_billing_email(),
                     phone: item.get_optional_billing_phone_number(),
-                }),
-                None => None,
+                }
             }
+        )
         })
     })
 }
@@ -658,7 +658,7 @@ impl TryFrom<&WorldpayvantivRouterData<&PaymentsAuthorizeRouterData>> for CnpOnl
             .customer_id
             .clone()
             .map(|customer_id| customer_id.get_string_repr().to_string());
-        let bill_to_address = get_bill_to_address(&item.router_data);
+        let bill_to_address = get_bill_to_address(item.router_data);
 
         let (authorization, sale) = if item.router_data.request.is_auto_capture()? {
             (
