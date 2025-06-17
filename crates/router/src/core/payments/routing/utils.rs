@@ -5,7 +5,7 @@ use api_models::{
     routing::{ConnectorSelection, RoutableConnectorChoice},
 };
 use async_trait::async_trait;
-use common_utils::{ext_traits::ValueExt,id_type};
+use common_utils::{ext_traits::ValueExt, id_type};
 use diesel_models::{enums, routing_algorithm};
 use error_stack::ResultExt;
 use euclid::{backend::BackendInput, frontend::ast};
