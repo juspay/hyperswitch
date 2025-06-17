@@ -17,7 +17,8 @@ use crate::{
             self, access_token, customers, helpers, tokenization, transformers, PaymentData,
         },
         unified_connector_service::{
-            build_unified_connector_service_auth_headers, handle_unified_connector_service_response,
+            build_unified_connector_service_auth_headers,
+            handle_unified_connector_service_response_for_payment_authorize,
         },
     },
     logger,
@@ -450,9 +451,15 @@ impl Feature<api::Authorize, types::PaymentsAuthorizeData> for types::PaymentsAu
 
         let payment_authorize_response = response.into_inner();
 
-        handle_unified_connector_service_response(payment_authorize_response, self)
+        let (status, router_data_response) =
+            handle_unified_connector_service_response_for_payment_authorize(
+                payment_authorize_response,
+            )
             .change_context(ApiErrorResponse::InternalServerError)
             .attach_printable("Failed to deserialize UCS response")?;
+
+        self.status = status;
+        self.response = router_data_response;
 
         Ok(())
     }
