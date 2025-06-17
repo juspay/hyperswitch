@@ -116,6 +116,13 @@ const billingAddressUS = {
   email: "john.doe@example.com",
 };
 
+const refundErrorResponse = {
+  code: "IR_14",
+  message:
+    "This Payment could not be refund because it has a status of processing. The expected state is succeeded, partially_captured",
+  type: "invalid_request",
+};
+
 export const connectorDetails = {
   card_pm: {
     PaymentIntent: {
@@ -352,12 +359,7 @@ export const connectorDetails = {
       Response: {
         status: 400,
         body: {
-          error: {
-            code: "IR_14",
-            message:
-              "This Payment could not be refund because it has a status of processing. The expected state is succeeded, partially_captured",
-            type: "invalid_request",
-          },
+          error: refundErrorResponse,
         },
       },
     },
@@ -368,12 +370,7 @@ export const connectorDetails = {
       Response: {
         status: 400,
         body: {
-          error: {
-            code: "IR_14",
-            message:
-              "This Payment could not be refund because it has a status of processing. The expected state is succeeded, partially_captured",
-            type: "invalid_request",
-          },
+          error: refundErrorResponse,
         },
       },
     },
@@ -384,12 +381,7 @@ export const connectorDetails = {
       Response: {
         status: 400,
         body: {
-          error: {
-            code: "IR_14",
-            message:
-              "This Payment could not be refund because it has a status of processing. The expected state is succeeded, partially_captured",
-            type: "invalid_request",
-          },
+          error: refundErrorResponse,
         },
       },
     },
@@ -400,12 +392,7 @@ export const connectorDetails = {
       Response: {
         status: 400,
         body: {
-          error: {
-            code: "IR_14",
-            message:
-              "This Payment could not be refund because it has a status of processing. The expected state is succeeded, partially_captured",
-            type: "invalid_request",
-          },
+          error: refundErrorResponse,
         },
       },
     },
@@ -413,12 +400,7 @@ export const connectorDetails = {
       Response: {
         status: 400,
         body: {
-          error: {
-            code: "IR_14",
-            message:
-              "This Payment could not be refund because it has a status of processing. The expected state is succeeded, partially_captured",
-            type: "invalid_request",
-          },
+          error: refundErrorResponse,
         },
       },
     },
@@ -993,12 +975,7 @@ export const connectorDetails = {
       Response: {
         status: 400,
         body: {
-          error: {
-            type: "invalid_request",
-            message:
-              "This Payment could not be captured because it has a capture_method of automatic. The expected state is manual_multiple",
-            code: "IR_14",
-          },
+          error: refundErrorResponse,
         },
       },
     },
@@ -1030,12 +1007,7 @@ export const connectorDetails = {
       Response: {
         status: 400,
         body: {
-          error: {
-            type: "invalid_request",
-            message:
-              "This Payment could not be refund because it has a status of processing. The expected state is succeeded, partially_captured",
-            code: "IR_14",
-          },
+          error: refundErrorResponse,
         },
       },
     },
