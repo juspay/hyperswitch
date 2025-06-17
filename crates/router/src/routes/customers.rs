@@ -23,7 +23,7 @@ pub async fn customers_create(
         json_payload.into_inner(),
         |state, auth: auth::AuthenticationData, req, _| {
             let merchant_context = auth.into();
-            create_customer(state, merchant_context, req)
+            create_customer(state, merchant_context, req, None)
         },
         auth::auth_type(
             &auth::V2ApiKeyAuth {
@@ -54,7 +54,7 @@ pub async fn customers_create(
         json_payload.into_inner(),
         |state, auth: auth::AuthenticationData, req, _| {
             let merchant_context = auth.into();
-            create_customer(state, merchant_context, req)
+            create_customer(state, merchant_context, req, None)
         },
         auth::auth_type(
             &auth::HeaderAuth(auth::ApiKeyAuth {

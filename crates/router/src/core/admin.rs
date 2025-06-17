@@ -4072,6 +4072,7 @@ impl ProfileCreateBridge for api::ProfileCreate {
             is_pre_network_tokenization_enabled: self
                 .is_pre_network_tokenization_enabled
                 .unwrap_or_default(),
+            merchant_category_code: self.merchant_category_code,
         }))
     }
 
@@ -4220,6 +4221,7 @@ impl ProfileCreateBridge for api::ProfileCreate {
             external_vault_connector_details: self
                 .external_vault_connector_details
                 .map(ForeignInto::foreign_into),
+            merchant_category_code: self.merchant_category_code,
         }))
     }
 }
@@ -4553,6 +4555,7 @@ impl ProfileUpdateBridge for api::ProfileUpdate {
                 merchant_business_country: self.merchant_business_country,
                 is_iframe_redirection_enabled: self.is_iframe_redirection_enabled,
                 is_pre_network_tokenization_enabled: self.is_pre_network_tokenization_enabled,
+                merchant_category_code: self.merchant_category_code,
             },
         )))
     }
@@ -4692,6 +4695,7 @@ impl ProfileUpdateBridge for api::ProfileUpdate {
                 external_vault_connector_details: self
                     .external_vault_connector_details
                     .map(ForeignInto::foreign_into),
+                merchant_category_code: self.merchant_category_code,
             },
         )))
     }
