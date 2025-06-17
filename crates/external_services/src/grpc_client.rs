@@ -119,6 +119,7 @@ pub struct GrpcHeaders {
 }
 
 /// Contains recovery grpc headers
+#[cfg(feature = "v2")]
 #[derive(Debug)]
 pub struct GrpcRecoveryHeaders {
     /// Merchant id
