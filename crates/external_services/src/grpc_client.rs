@@ -26,9 +26,9 @@ use hyper_util::client::legacy::connect::HttpConnector;
 use recovery_trainer_client::{TrainerClientConfig, TrainerClientInterface};
 #[cfg(any(feature = "dynamic_routing", feature = "v2"))]
 use router_env::logger;
+use serde;
 #[cfg(feature = "v2")]
 use tokio::sync::OnceCell;
-use serde;
 #[cfg(any(feature = "dynamic_routing", feature = "v2"))]
 use tonic::Status;
 
