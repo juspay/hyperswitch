@@ -2,8 +2,6 @@ use api_models::{enums::FrmSuggestion, payments::PaymentsRetrieveRequest};
 use async_trait::async_trait;
 use common_utils::ext_traits::AsyncExt;
 use error_stack::ResultExt;
-#[cfg(feature = "v2")]
-use hyperswitch_connectors::connectors::payme;
 use hyperswitch_domain_models::payments::PaymentStatusData;
 use router_env::{instrument, tracing};
 

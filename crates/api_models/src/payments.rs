@@ -271,7 +271,6 @@ pub struct PaymentsCreateIntentRequest {
     pub force_3ds_challenge: Option<bool>,
 
     /// Merchant connector details used to make payments.
-    #[schema(value_type = Option<MerchantConnectorDetails>)]
     pub merchant_connector_details: Option<MerchantConnectorDetails>,
 }
 
@@ -5371,7 +5370,6 @@ pub struct PaymentsConfirmIntentRequest {
     pub payment_token: Option<String>,
 
     /// Merchant connector details used to make payments.
-    #[schema(value_type = Option<MerchantConnectorDetails>)]
     pub merchant_connector_details: Option<MerchantConnectorDetails>,
 }
 
@@ -5547,7 +5545,6 @@ pub struct PaymentsRequest {
     pub is_iframe_redirection_enabled: Option<bool>,
 
     /// Merchant connector details used to make payments.
-    #[schema(value_type = Option<MerchantConnectorDetails>)]
     pub merchant_connector_details: Option<MerchantConnectorDetails>,
 }
 
@@ -5609,9 +5606,9 @@ impl From<&PaymentsRequest> for PaymentsConfirmIntentRequest {
 // Serialize is implemented because, this will be serialized in the api events.
 // Usually request types should not have serialize implemented.
 //
-/// Request for Payment Status
+/// Request body for Payment Status
 #[cfg(feature = "v2")]
-#[derive(Default, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
+#[derive(Debug, serde::Deserialize, serde::Serialize, ToSchema)]
 pub struct PaymentsRetrieveRequest {
     /// A boolean used to indicate if the payment status should be fetched from the connector
     /// If this is set to true, the status will be fetched from the connector
@@ -5627,12 +5624,12 @@ pub struct PaymentsRetrieveRequest {
     /// If enabled, provides whole connector response
     pub all_keys_required: Option<bool>,
     /// Merchant connector details used to make payments.
-    #[schema(value_type = Option<MerchantConnectorDetails>)]
     pub merchant_connector_details: Option<MerchantConnectorDetails>,
 }
 
 #[cfg(feature = "v2")]
 #[derive(Debug, serde::Deserialize, serde::Serialize, ToSchema)]
+/// Request for Payment Status
 pub struct PaymentsStatusRequest {
     /// A boolean used to indicate if the payment status should be fetched from the connector
     /// If this is set to true, the status will be fetched from the connector

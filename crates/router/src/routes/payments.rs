@@ -2886,7 +2886,7 @@ pub async fn payment_status(
         expand_attempts: payload.expand_attempts,
         param: payload.param.clone(),
         all_keys_required: payload.all_keys_required,
-        ..Default::default()
+        merchant_connector_details: None,
     };
 
     let internal_payload = internal_payload_types::PaymentsGenericRequestWithResourceId {
@@ -2966,6 +2966,7 @@ pub async fn payments_status_with_gateway_creds(
         true => Flow::PaymentsRetrieveForceSync,
         false => Flow::PaymentsRetrieve,
     };
+    tracing::Span::current().record("flow", flow.to_string());
 
     let global_payment_id = path.into_inner();
     tracing::Span::current().record("payment_id", global_payment_id.get_string_repr());

@@ -3,7 +3,7 @@
 //! Ids for merchant account are derived from the merchant name
 //! If there are any special characters, they are removed
 
-use std::{fmt::Display, str::FromStr};
+use std::fmt::Display;
 
 use crate::{
     date_time,
@@ -35,15 +35,6 @@ crate::impl_to_sql_from_sql_id_type!(MerchantId);
 impl From<MerchantId> for router_env::opentelemetry::Value {
     fn from(val: MerchantId) -> Self {
         Self::from(val.0 .0 .0)
-    }
-}
-
-impl FromStr for MerchantId {
-    type Err = error_stack::Report<ValidationError>;
-
-    fn from_str(s: &str) -> Result<Self, Self::Err> {
-        let cow_string = std::borrow::Cow::Owned(s.to_string());
-        Self::try_from(cow_string)
     }
 }
 

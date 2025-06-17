@@ -19224,7 +19224,7 @@
       },
       "PaymentsRetrieveRequest": {
         "type": "object",
-        "description": "Request for Payment Status",
+        "description": "Request body for Payment Status",
         "properties": {
           "force_sync": {
             "type": "boolean",
@@ -19287,6 +19287,7 @@
       },
       "PaymentsStatusRequest": {
         "type": "object",
+        "description": "Request for Payment Status",
         "properties": {
           "force_sync": {
             "type": "boolean",
