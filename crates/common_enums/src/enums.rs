@@ -8164,6 +8164,16 @@ impl ErrorCategory {
             | Self::FrmDecline => false,
         }
     }
+
+    pub fn should_perform_sr_routing_update(&self) -> bool {
+        match self {
+            Self::ProcessorDowntime => true,
+            Self::IssueWithPaymentMethod
+            | Self::ProcessorDeclineIncorrectData
+            | Self::FrmDecline
+            | Self::ProcessorDeclineUnauthorized => false,
+        }
+    }
 }
 
 #[derive(
