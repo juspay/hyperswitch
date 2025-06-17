@@ -4,7 +4,12 @@
 //! of Routing configs.
 
 use actix_web::{web, HttpRequest, Responder};
-use api_models::{enums, routing as routing_types, routing::RoutingRetrieveQuery};
+use api_models::{
+    enums,
+    routing::{self as routing_types, RoutingRetrieveQuery},
+};
+use hyperswitch_domain_models::merchant_context::MerchantKeyStore;
+use payment_methods::core::errors::ApiErrorResponse;
 use router_env::{
     tracing::{self, instrument},
     Flow,
@@ -12,6 +17,7 @@ use router_env::{
 
 use crate::{
     core::{api_locking, conditional_config, routing, surcharge_decision_config},
+    db::errors::StorageErrorExt,
     routes::AppState,
     services::{api as oss_api, authentication as auth, authorization::permissions::Permission},
     types::domain,
@@ -1557,4 +1563,62 @@ pub async fn get_dynamic_routing_volume_split(
         api_locking::LockAction::NotApplicable,
     ))
     .await
+}
+
+use actix_web::HttpResponse;
+#[instrument(skip_all, fields(flow = ?Flow::DecisionEngineRuleMigration))]
+pub async fn migrate_routing_rules_for_profile(
+    state: web::Data<AppState>,
+    req: HttpRequest,
+    query: web::Query<routing_types::RuleMigrationQuery>,
+) -> HttpResponse {
+    let flow = Flow::DecisionEngineRuleMigration;
+
+    Box::pin(oss_api::server_wrap(
+        flow,
+        state,
+        &req,
+        query.into_inner(),
+        |state, _, query_params, _| async move {
+            let merchant_id = query_params.merchant_id.clone();
+            let (key_store, merchant_account) = get_merchant_account(&state, &merchant_id).await?;
+            let merchant_context = domain::MerchantContext::NormalMerchant(Box::new(
+                domain::Context(merchant_account, key_store),
+            ));
+            let res = Box::pin(routing::migrate_rules_for_profile(
+                state,
+                merchant_context,
+                query_params,
+            ))
+            .await?;
+            Ok(crate::services::ApplicationResponse::Json(res))
+        },
+        &auth::AdminApiAuth,
+        api_locking::LockAction::NotApplicable,
+    ))
+    .await
+}
+
+async fn get_merchant_account(
+    state: &super::SessionState,
+    merchant_id: &common_utils::id_type::MerchantId,
+) -> common_utils::errors::CustomResult<(MerchantKeyStore, domain::MerchantAccount), ApiErrorResponse>
+{
+    let key_manager_state = &state.into();
+    let key_store = state
+        .store
+        .get_merchant_key_store_by_merchant_id(
+            key_manager_state,
+            merchant_id,
+            &state.store.get_master_key().to_vec().into(),
+        )
+        .await
+        .to_not_found_response(ApiErrorResponse::MerchantAccountNotFound)?;
+
+    let merchant_account = state
+        .store
+        .find_merchant_account_by_merchant_id(key_manager_state, merchant_id, &key_store)
+        .await
+        .to_not_found_response(ApiErrorResponse::MerchantAccountNotFound)?;
+    Ok((key_store, merchant_account))
 }

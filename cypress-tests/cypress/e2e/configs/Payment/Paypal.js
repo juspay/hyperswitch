@@ -1,5 +1,3 @@
-import { getCustomExchange } from "./Modifiers";
-
 const successfulNo3DSCardDetails = {
   card_number: "4012000033330026",
   card_exp_month: "01",
@@ -635,17 +633,6 @@ export const connectorDetails = {
     },
   },
   bank_redirect_pm: {
-    PaymentIntent: getCustomExchange({
-      Request: {
-        currency: "EUR",
-      },
-      Response: {
-        status: 200,
-        body: {
-          status: "requires_payment_method",
-        },
-      },
-    }),
     Ideal: {
       Request: {
         payment_method: "bank_redirect",

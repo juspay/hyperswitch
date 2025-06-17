@@ -34,7 +34,7 @@ pub enum PartitionKey<'a> {
         merchant_id: &'a common_utils::id_type::MerchantId,
         customer_id: &'a common_utils::id_type::CustomerId,
     },
-    #[cfg(all(feature = "v2", feature = "customer_v2"))]
+    #[cfg(feature = "v2")]
     MerchantIdMerchantReferenceId {
         merchant_id: &'a common_utils::id_type::MerchantId,
         merchant_reference_id: &'a str,
@@ -51,7 +51,7 @@ pub enum PartitionKey<'a> {
         merchant_id: &'a common_utils::id_type::MerchantId,
         mandate_id: &'a str,
     },
-    #[cfg(all(feature = "v2", feature = "customer_v2"))]
+    #[cfg(feature = "v2")]
     GlobalId {
         id: &'a str,
     },
@@ -77,7 +77,7 @@ impl std::fmt::Display for PartitionKey<'_> {
                 merchant_id.get_string_repr(),
                 customer_id.get_string_repr()
             )),
-            #[cfg(all(feature = "v2", feature = "customer_v2"))]
+            #[cfg(feature = "v2")]
             PartitionKey::MerchantIdMerchantReferenceId {
                 merchant_id,
                 merchant_reference_id,
@@ -107,7 +107,7 @@ impl std::fmt::Display for PartitionKey<'_> {
                 merchant_id.get_string_repr()
             )),
 
-            #[cfg(all(feature = "v2", feature = "customer_v2"))]
+            #[cfg(feature = "v2")]
             PartitionKey::GlobalId { id } => f.write_str(&format!("cust_{id}",)),
         }
     }

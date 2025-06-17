@@ -69,14 +69,14 @@ pub async fn perform_execute_payment(
 
             match record_attempt {
                 Ok(_) => {
-                    let action = types::Action::execute_payment(
+                    let action = Box::pin(types::Action::execute_payment(
                         state,
                         revenue_recovery_payment_data.merchant_account.get_id(),
                         payment_intent,
                         execute_task_process,
                         revenue_recovery_payment_data,
                         &revenue_recovery_metadata,
-                    )
+                    ))
                     .await?;
                     Box::pin(action.execute_payment_task_response_handler(
                         state,

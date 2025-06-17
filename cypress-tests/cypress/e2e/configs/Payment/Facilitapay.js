@@ -34,17 +34,6 @@ export const connectorDetails = {
     },
   },
   bank_transfer_pm: {
-    PaymentIntent: {
-      Request: {
-        currency: "BRL",
-      },
-      Response: {
-        status: 200,
-        body: {
-          status: "requires_payment_method",
-        },
-      },
-    },
     Pix: getCustomExchange({
       Request: {
         payment_method: "bank_transfer",

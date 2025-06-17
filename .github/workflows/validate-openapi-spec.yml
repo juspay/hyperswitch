@@ -64,21 +64,21 @@ jobs:
 
       - name: Validate the JSON file
         shell: bash
-        run: swagger-cli validate ./api-reference/openapi_spec.json
+        run: swagger-cli validate ./api-reference/v1/openapi_spec_v1.json
 
       - name: Validate the JSON file for V2
         shell: bash
-        run: swagger-cli validate ./api-reference-v2/openapi_spec.json
+        run: swagger-cli validate ./api-reference/v2/openapi_spec_v2.json
 
       - name: Commit the JSON file if it is not up-to-date
         # PR originated from same repository
         if: ${{ (github.event_name == 'pull_request') && (github.event.pull_request.head.repo.full_name == github.event.pull_request.base.repo.full_name) }}
         shell: bash
         run: |
-          if ! git diff --quiet --exit-code -- api-reference/openapi_spec.json api-reference-v2/openapi_spec.json ; then
+          if ! git diff --quiet --exit-code -- api-reference/v1/openapi_spec_v1.json api-reference/v2/openapi_spec_v2.json ; then
             git config --local user.name 'hyperswitch-bot[bot]'
             git config --local user.email '148525504+hyperswitch-bot[bot]@users.noreply.github.com'
-            git add api-reference/openapi_spec.json api-reference-v2/openapi_spec.json
+            git add api-reference/v1/openapi_spec_v1.json api-reference/v2/openapi_spec_v2.json
             git commit --message 'docs(openapi): re-generate OpenAPI specification'
             git push
           fi
@@ -87,7 +87,7 @@ jobs:
         if: ${{ (github.event_name == 'merge_group') || ((github.event_name == 'pull_request') && (github.event.pull_request.head.repo.full_name != github.event.pull_request.base.repo.full_name)) }}
         shell: bash
         run: |
-          if ! git diff --quiet --exit-code -- api-reference/openapi_spec.json ; then
+          if ! git diff --quiet --exit-code -- api-reference/v1/openapi_spec_v1.json ; then
             echo '::error::The OpenAPI spec file is not up-to-date. Please re-generate the OpenAPI spec file using `cargo run -p openapi --features v1 && cargo run -p openapi --features v2` and commit it.'
             exit 1
           fi

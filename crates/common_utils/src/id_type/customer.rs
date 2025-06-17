@@ -14,7 +14,7 @@ crate::impl_serializable_secret_id_type!(CustomerId);
 crate::impl_queryable_id_type!(CustomerId);
 crate::impl_to_sql_from_sql_id_type!(CustomerId);
 
-#[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
+#[cfg(feature = "v1")]
 impl crate::events::ApiEventMetric for CustomerId {
     fn get_api_event_type(&self) -> Option<crate::events::ApiEventsType> {
         Some(crate::events::ApiEventsType::Customer {

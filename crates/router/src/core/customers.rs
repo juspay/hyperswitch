@@ -13,9 +13,9 @@ use masking::{ExposeInterface, Secret, SwitchStrategy};
 use payment_methods::controller::PaymentMethodsController;
 use router_env::{instrument, tracing};
 
-#[cfg(all(feature = "v2", feature = "customer_v2"))]
+#[cfg(feature = "v2")]
 use crate::core::payment_methods::cards::create_encrypted_data;
-#[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
+#[cfg(feature = "v1")]
 use crate::utils::CustomerAddress;
 use crate::{
     core::{
@@ -107,7 +107,7 @@ trait CustomerCreateBridge {
     ) -> errors::CustomerResponse<customers::CustomerResponse>;
 }
 
-#[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
+#[cfg(feature = "v1")]
 #[async_trait::async_trait]
 impl CustomerCreateBridge for customers::CustomerRequest {
     async fn create_domain_model_from_request<'a>(
@@ -209,7 +209,7 @@ impl CustomerCreateBridge for customers::CustomerRequest {
     }
 }
 
-#[cfg(all(feature = "v2", feature = "customer_v2"))]
+#[cfg(feature = "v2")]
 #[async_trait::async_trait]
 impl CustomerCreateBridge for customers::CustomerRequest {
     async fn create_domain_model_from_request<'a>(
@@ -321,7 +321,7 @@ impl CustomerCreateBridge for customers::CustomerRequest {
     }
 }
 
-#[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
+#[cfg(feature = "v1")]
 struct AddressStructForDbEntry<'a> {
     address: Option<&'a api_models::payments::AddressDetails>,
     customer_data: &'a customers::CustomerRequest,
@@ -333,7 +333,7 @@ struct AddressStructForDbEntry<'a> {
     state: &'a SessionState,
 }
 
-#[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
+#[cfg(feature = "v1")]
 impl AddressStructForDbEntry<'_> {
     async fn encrypt_customer_address_and_set_to_db(
         &self,
@@ -379,7 +379,7 @@ struct MerchantReferenceIdForCustomer<'a> {
     key_manager_state: &'a KeyManagerState,
 }
 
-#[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
+#[cfg(feature = "v1")]
 impl<'a> MerchantReferenceIdForCustomer<'a> {
     async fn verify_if_merchant_reference_not_present_by_optional_merchant_reference_id(
         &self,
@@ -423,7 +423,7 @@ impl<'a> MerchantReferenceIdForCustomer<'a> {
     }
 }
 
-#[cfg(all(feature = "v2", feature = "customer_v2"))]
+#[cfg(feature = "v2")]
 impl<'a> MerchantReferenceIdForCustomer<'a> {
     async fn verify_if_merchant_reference_not_present_by_optional_merchant_reference_id(
         &self,
@@ -470,7 +470,7 @@ impl<'a> MerchantReferenceIdForCustomer<'a> {
     }
 }
 
-#[cfg(all(any(feature = "v1", feature = "v2",), not(feature = "customer_v2")))]
+#[cfg(feature = "v1")]
 #[instrument(skip(state))]
 pub async fn retrieve_customer(
     state: SessionState,
@@ -510,7 +510,7 @@ pub async fn retrieve_customer(
     ))
 }
 
-#[cfg(all(feature = "v2", feature = "customer_v2"))]
+#[cfg(feature = "v2")]
 #[instrument(skip(state))]
 pub async fn retrieve_customer(
     state: SessionState,
@@ -563,13 +563,13 @@ pub async fn list_customers(
         .await
         .switch()?;
 
-    #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
+    #[cfg(feature = "v1")]
     let customers = domain_customers
         .into_iter()
         .map(|domain_customer| customers::CustomerResponse::foreign_from((domain_customer, None)))
         .collect();
 
-    #[cfg(all(feature = "v2", feature = "customer_v2"))]
+    #[cfg(feature = "v2")]
     let customers = domain_customers
         .into_iter()
         .map(customers::CustomerResponse::foreign_from)
@@ -578,11 +578,7 @@ pub async fn list_customers(
     Ok(services::ApplicationResponse::Json(customers))
 }
 
-#[cfg(all(
-    feature = "v2",
-    feature = "customer_v2",
-    feature = "payment_methods_v2"
-))]
+#[cfg(feature = "v2")]
 #[instrument(skip_all)]
 pub async fn delete_customer(
     state: SessionState,
@@ -600,11 +596,7 @@ pub async fn delete_customer(
     .await
 }
 
-#[cfg(all(
-    feature = "v2",
-    feature = "customer_v2",
-    feature = "payment_methods_v2"
-))]
+#[cfg(feature = "v2")]
 #[async_trait::async_trait]
 impl CustomerDeleteBridge for id_type::GlobalCustomerId {
     async fn redact_customer_details_and_generate_response<'a>(
@@ -761,11 +753,7 @@ trait CustomerDeleteBridge {
     ) -> errors::CustomerResponse<customers::CustomerDeleteResponse>;
 }
 
-#[cfg(all(
-    any(feature = "v1", feature = "v2"),
-    not(feature = "customer_v2"),
-    not(feature = "payment_methods_v2")
-))]
+#[cfg(feature = "v1")]
 #[instrument(skip_all)]
 pub async fn delete_customer(
     state: SessionState,
@@ -784,11 +772,7 @@ pub async fn delete_customer(
         .await
 }
 
-#[cfg(all(
-    any(feature = "v1", feature = "v2"),
-    not(feature = "customer_v2"),
-    not(feature = "payment_methods_v2")
-))]
+#[cfg(feature = "v1")]
 #[async_trait::async_trait]
 impl CustomerDeleteBridge for id_type::CustomerId {
     async fn redact_customer_details_and_generate_response<'a>(
@@ -1017,7 +1001,7 @@ pub async fn update_customer(
     let key_manager_state = &(&state).into();
     //Add this in update call if customer can be updated anywhere else
 
-    #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
+    #[cfg(feature = "v1")]
     let verify_id_for_update_customer = VerifyIdForUpdateCustomer {
         merchant_reference_id: &update_customer.customer_id,
         merchant_account: merchant_context.get_merchant_account(),
@@ -1025,7 +1009,7 @@ pub async fn update_customer(
         key_manager_state,
     };
 
-    #[cfg(all(feature = "v2", feature = "customer_v2"))]
+    #[cfg(feature = "v2")]
     let verify_id_for_update_customer = VerifyIdForUpdateCustomer {
         id: &update_customer.id,
         merchant_account: merchant_context.get_merchant_account(),
@@ -1068,7 +1052,7 @@ trait CustomerUpdateBridge {
     ) -> errors::CustomerResponse<customers::CustomerResponse>;
 }
 
-#[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
+#[cfg(feature = "v1")]
 struct AddressStructForDbUpdate<'a> {
     update_customer: &'a customers::CustomerUpdateRequest,
     merchant_account: &'a domain::MerchantAccount,
@@ -1078,7 +1062,7 @@ struct AddressStructForDbUpdate<'a> {
     domain_customer: &'a domain::Customer,
 }
 
-#[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
+#[cfg(feature = "v1")]
 impl AddressStructForDbUpdate<'_> {
     async fn update_address_if_sent(
         &self,
@@ -1162,7 +1146,7 @@ impl AddressStructForDbUpdate<'_> {
     }
 }
 
-#[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
+#[cfg(feature = "v1")]
 #[derive(Debug)]
 struct VerifyIdForUpdateCustomer<'a> {
     merchant_reference_id: &'a id_type::CustomerId,
@@ -1171,7 +1155,7 @@ struct VerifyIdForUpdateCustomer<'a> {
     key_manager_state: &'a KeyManagerState,
 }
 
-#[cfg(all(feature = "v2", feature = "customer_v2"))]
+#[cfg(feature = "v2")]
 #[derive(Debug)]
 struct VerifyIdForUpdateCustomer<'a> {
     id: &'a id_type::GlobalCustomerId,
@@ -1180,7 +1164,7 @@ struct VerifyIdForUpdateCustomer<'a> {
     key_manager_state: &'a KeyManagerState,
 }
 
-#[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
+#[cfg(feature = "v1")]
 impl VerifyIdForUpdateCustomer<'_> {
     async fn verify_id_and_get_customer_object(
         &self,
@@ -1201,7 +1185,7 @@ impl VerifyIdForUpdateCustomer<'_> {
     }
 }
 
-#[cfg(all(feature = "v2", feature = "customer_v2"))]
+#[cfg(feature = "v2")]
 impl VerifyIdForUpdateCustomer<'_> {
     async fn verify_id_and_get_customer_object(
         &self,
@@ -1222,7 +1206,7 @@ impl VerifyIdForUpdateCustomer<'_> {
     }
 }
 
-#[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
+#[cfg(feature = "v1")]
 #[async_trait::async_trait]
 impl CustomerUpdateBridge for customers::CustomerUpdateRequest {
     async fn create_domain_model_from_request<'a>(
@@ -1326,7 +1310,7 @@ impl CustomerUpdateBridge for customers::CustomerUpdateRequest {
     }
 }
 
-#[cfg(all(feature = "v2", feature = "customer_v2"))]
+#[cfg(feature = "v2")]
 #[async_trait::async_trait]
 impl CustomerUpdateBridge for customers::CustomerUpdateRequest {
     async fn create_domain_model_from_request<'a>(

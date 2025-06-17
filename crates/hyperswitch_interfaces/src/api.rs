@@ -382,6 +382,20 @@ pub trait ConnectorSpecifications {
     fn get_connector_about(&self) -> Option<&'static ConnectorInfo> {
         None
     }
+
+    #[cfg(feature = "v2")]
+    /// Generate connector request reference ID
+    fn generate_connector_request_reference_id(
+        &self,
+        payment_intent: &hyperswitch_domain_models::payments::PaymentIntent,
+        payment_attempt: &hyperswitch_domain_models::payments::payment_attempt::PaymentAttempt,
+    ) -> String {
+        payment_intent
+            .merchant_reference_id
+            .as_ref()
+            .map(|id| id.get_string_repr().to_owned())
+            .unwrap_or_else(|| payment_attempt.id.get_string_repr().to_owned())
+    }
 }
 
 /// Extended trait for connector common to allow functions with generic type

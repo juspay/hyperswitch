@@ -1958,11 +1958,12 @@ pub async fn update_gateway_score_with_open_router(
 
     match response {
         Ok(resp) => {
-            let update_score_resp = String::from_utf8(resp.response.to_vec()).change_context(
-                errors::RoutingError::OpenRouterError(
+            let update_score_resp = resp
+                .response
+                .parse_struct::<or_types::UpdateScoreResponse>("UpdateScoreResponse")
+                .change_context(errors::RoutingError::OpenRouterError(
                     "Failed to parse the response from open_router".into(),
-                ),
-            )?;
+                ))?;
 
             logger::debug!(
                 "open_router update_gateway_score response for gateway with id {}: {:?}",

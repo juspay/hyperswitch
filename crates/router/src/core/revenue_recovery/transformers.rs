@@ -34,7 +34,8 @@ impl ForeignFrom<AttemptStatus> for RevenueRecoveryPaymentsAttemptStatus {
             | AttemptStatus::PaymentMethodAwaited
             | AttemptStatus::AuthenticationPending
             | AttemptStatus::DeviceDataCollectionPending
-            | AttemptStatus::Unresolved => Self::InvalidStatus(s.to_string()),
+            | AttemptStatus::Unresolved
+            | AttemptStatus::IntegrityFailure => Self::InvalidStatus(s.to_string()),
         }
     }
 }

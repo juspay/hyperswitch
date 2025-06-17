@@ -219,6 +219,8 @@ pub enum BankTransferType {
     Pse,
     LocalBankTransfer,
     InstantBankTransfer,
+    InstantBankTransferFinland,
+    InstantBankTransferPoland,
 }
 
 #[derive(

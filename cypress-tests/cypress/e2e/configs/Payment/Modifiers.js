@@ -13,6 +13,7 @@ function normalize(input) {
   const exceptions = {
     bankofamerica: "Bank of America",
     cybersource: "Cybersource",
+    datatrans: "Datatrans",
     facilitapay: "Facilitapay",
     paybox: "Paybox",
     paypal: "Paypal",
@@ -79,18 +80,19 @@ const getUnsupportedExchange = () => ({
 });
 
 // Const to get PaymentExchange with overridden properties
-export const getCustomExchange = (overrides) => {
+export const getCustomExchange = (overrides, inheritFrom = null) => {
   const defaultExchange = getDefaultExchange();
+  const baseExchange = inheritFrom || defaultExchange;
 
   return {
-    ...defaultExchange,
+    ...baseExchange,
     ...(overrides.Configs ? { Configs: overrides.Configs } : {}),
     Request: {
-      ...defaultExchange.Request,
+      ...baseExchange.Request,
       ...(overrides.Request || {}),
     },
     Response: {
-      ...defaultExchange.Response,
+      ...baseExchange.Response,
       ...(overrides.Response || {}),
     },
     ...(overrides.ResponseCustom
@@ -102,4 +104,27 @@ export const getCustomExchange = (overrides) => {
 // Function to update the default status code
 export const updateDefaultStatusCode = () => {
   return getUnsupportedExchange().Response;
+};
+
+// Currency map with logical grouping
+const CURRENCY_MAP = {
+  // Polish payment methods
+  Blik: "PLN",
+  InstantBankTransferPoland: "PLN",
+
+  // Brazilian payment methods
+  Pix: "BRL",
+
+  // European payment methods (EUR)
+  Eps: "EUR",
+  Giropay: "EUR",
+  Ideal: "EUR",
+  InstantBankTransferFinland: "EUR",
+  Klarna: "EUR",
+  Przelewy24: "EUR",
+  Sofort: "EUR",
+};
+
+export const getCurrency = (paymentMethodType) => {
+  return CURRENCY_MAP[paymentMethodType] || "USD";
 };

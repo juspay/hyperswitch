@@ -272,7 +272,7 @@ pub async fn refunds_retrieve() {}
 ///
 /// To list the refunds associated with a payment_id or with the merchant, if payment_id is not provided
 #[utoipa::path(
-    get,
+    post,
     path = "/v2/refunds/list",
     request_body=RefundListRequest,
     responses(

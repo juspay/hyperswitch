@@ -822,13 +822,13 @@ async fn payouts_incoming_webhook_flow(
                 payout_id: payouts.payout_id.clone(),
             });
 
-        let payout_data = payouts::make_payout_data(
+        let payout_data = Box::pin(payouts::make_payout_data(
             &state,
             &merchant_context,
             None,
             &action_req,
             common_utils::consts::DEFAULT_LOCALE,
-        )
+        ))
         .await?;
 
         let updated_payout_attempt = db

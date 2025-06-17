@@ -330,7 +330,7 @@ pub enum RoutingDecisionData {
 #[cfg(feature = "v1")]
 pub struct DebitRoutingDecisionData {
     pub card_network: common_enums::enums::CardNetwork,
-    pub debit_routing_result: open_router::DebitRoutingOutput,
+    pub debit_routing_result: Option<open_router::DebitRoutingOutput>,
 }
 #[cfg(feature = "v1")]
 impl RoutingDecisionData {
@@ -350,7 +350,7 @@ impl RoutingDecisionData {
 
     pub fn get_debit_routing_decision_data(
         network: common_enums::enums::CardNetwork,
-        debit_routing_result: open_router::DebitRoutingOutput,
+        debit_routing_result: Option<open_router::DebitRoutingOutput>,
     ) -> Self {
         Self::DebitRouting(DebitRoutingDecisionData {
             card_network: network,
@@ -370,7 +370,9 @@ impl DebitRoutingDecisionData {
             + Clone,
     {
         payment_data.set_card_network(self.card_network.clone());
-        payment_data.set_co_badged_card_data(&self.debit_routing_result);
+        self.debit_routing_result
+            .as_ref()
+            .map(|data| payment_data.set_co_badged_card_data(data));
     }
 }
 #[derive(Clone, Debug)]
@@ -1641,6 +1643,7 @@ fn get_desired_payment_status_for_dynamic_routing_metrics(
         | common_enums::AttemptStatus::AutoRefunded
         | common_enums::AttemptStatus::Unresolved
         | common_enums::AttemptStatus::Pending
+        | common_enums::AttemptStatus::IntegrityFailure
         | common_enums::AttemptStatus::PaymentMethodAwaited
         | common_enums::AttemptStatus::ConfirmationAwaited
         | common_enums::AttemptStatus::DeviceDataCollectionPending => {
@@ -1672,7 +1675,8 @@ impl ForeignFrom<common_enums::AttemptStatus> for open_router::TxnStatus {
             common_enums::AttemptStatus::PartialCharged => Self::PartialCharged,
             common_enums::AttemptStatus::PartialChargedAndChargeable => Self::ToBeCharged,
             common_enums::AttemptStatus::Unresolved => Self::Pending,
-            common_enums::AttemptStatus::Pending => Self::Pending,
+            common_enums::AttemptStatus::Pending
+            | common_enums::AttemptStatus::IntegrityFailure => Self::Pending,
             common_enums::AttemptStatus::Failure => Self::Failure,
             common_enums::AttemptStatus::PaymentMethodAwaited => Self::Pending,
             common_enums::AttemptStatus::ConfirmationAwaited => Self::Pending,

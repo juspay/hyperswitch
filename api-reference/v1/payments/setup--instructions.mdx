@@ -1,0 +1,57 @@
+---
+tags: [Payments]
+sidebarTitle: "Setup Instructions"
+icon: "flag"
+iconType: "solid"
+---
+The **Hyperswitch Payments API** enables businesses to **accept, process, and manage payments seamlessly**. It supports the entire **payment lifecycle**—from creation to capture, refunds, and disputes—allowing smooth integration of **various payment methods** into any application with minimal complexity.
+
+### How to try your first payment through hyperswitch?
+You have two options to use the Payments API:
+
+1. **Sandbox API Key (Dashboard)** – Quick testing without setup.  
+2. **Self-Deploy** – Create merchants and API keys through Rest API.  
+
+Each option has specific nuances, we have mentioned the differences in the below step by step guide
+<Tip>We recommend using our [Dashboard](https://app.hyperswitch.io/dashboard/login) to generate API Key and setting up Connectors (Step 4) for faster trial and simple setup.</Tip>
+<Steps>
+  <Step title="Create a Merchant Account">
+    This account is representative of you or your organization that would like to accept payments from different <Tooltip tip="Can be a payment method or payment service provider">payment connectors</Tooltip>
+    <Steps>
+  <Step title="Hyperswitch Dashboard flow" icon= "box-open">
+    Access the <Tooltip tip="Control Center is a frontend interface for the API to track and test payments">[Dashboard](https://app.hyperswitch.io/dashboard/login)</Tooltip> and sign up -> **Sign up here is equivalent to creating a Merchant Account**
+  </Step>
+  <Step title="Self-Deploy flow" icon="map-pin">
+   Use the admin api key and the [Merchant Account - Create](api-reference/merchant-account/merchant-account--create) endpoint to create your Merchant Account
+  </Step>  
+</Steps>
+  </Step>
+  <Step title="Create API Key">
+   You can now generate an API key that will be the secret key used to authenticate your payment request
+ <Steps>
+  <Step title="Hyperswitch Dashboard flow" icon= "box-open">
+    In Dashboard go to Developer-> API Keys -> +Create New Api Key. This key can be used in your API requests for authentication.
+  </Step>
+  <Step title="Self-Deploy flow" icon="map-pin">
+   Use the admin api key and the [Merchant Account - Create](api-reference/merchant-account/merchant-account--create) endpoint to create your Merchant Account
+  </Step>  
+</Steps>
+  </Step>
+  <Step title="Set up Connectors">
+    Connect the payment [connectors](api-reference/merchant-connector-account/merchant-connector--create) and payment methods that your organization will accept. Connectors could be a payment processor/facilitator/acquirer or a provider of specialized services like Fraud/Accounting
+  <Steps>
+  <Step title="Hyperswitch Dashboard flow" icon= "box-open">
+    In Dashboard go to Connectors -> <Tooltip tip="Adding other connectors (eg. Adyen) will require you to go through their respective documentation">+Connect a Dummy Processor</Tooltip>. Choose the payments methods to enable and complete setup.
+  </Step>
+  <Step title="Self-Deploy flow" icon="map-pin">
+   Use the admin api key and the [Connector Account](api-reference/merchant-connector-account/merchant-connector--create) endpoints to set up a connector
+  </Step>  
+</Steps>
+  </Step>
+  <Step title="Try your first payment">
+    You are all set! Go ahead and try the [Payments API](api-reference/payments/payments--create), be sure to try the different use cases provided
+  </Step>
+  <Step title="We are here to help" icon="circle-info">
+   Test the use cases you are interested in and in case of difficulty, feel free to contact us on our [slack channel](https://join.slack.com/t/hyperswitch-io/shared_invite/zt-2jqxmpsbm-WXUENx022HjNEy~Ark7Orw)
+  </Step>
+</Steps>

@@ -34,7 +34,7 @@ use wasm_bindgen::prelude::*;
 use crate::utils::JsResultExt;
 type JsResult = Result<JsValue, JsValue>;
 use api_models::payment_methods::CountryCodeWithName;
-use common_enums::CountryAlpha2;
+use common_enums::{CountryAlpha2, MerchantCategoryCode, MerchantCategoryCodeWithName};
 use strum::IntoEnumIterator;
 
 struct SeedData {
@@ -89,6 +89,22 @@ pub fn get_two_letter_country_code() -> JsResult {
         .collect::<Vec<_>>();
 
     Ok(serde_wasm_bindgen::to_value(&country_code_with_name)?)
+}
+
+/// This function can be used by the frontend to get all the merchant category codes
+/// along with their names.
+#[wasm_bindgen(js_name=getMerchantCategoryCodeWithName)]
+pub fn get_merchant_category_code_with_name() -> JsResult {
+    let merchant_category_codes_with_name = MerchantCategoryCode::iter()
+        .map(|mcc_value| MerchantCategoryCodeWithName {
+            code: mcc_value,
+            name: mcc_value.to_merchant_category_name(),
+        })
+        .collect::<Vec<_>>();
+
+    Ok(serde_wasm_bindgen::to_value(
+        &merchant_category_codes_with_name,
+    )?)
 }
 
 /// This function can be used by the frontend to provide the WASM with information about

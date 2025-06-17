@@ -1,5 +1,7 @@
 //! Common types
 
+use std::collections::HashMap;
+
 use common_enums::enums;
 use common_utils::{impl_to_sql_from_sql_json, types::MinorUnit};
 use diesel::{sql_types::Jsonb, AsExpression, FromSqlRow};
@@ -53,3 +55,36 @@ pub struct XenditSplitSubMerchantData {
     pub for_user_id: String,
 }
 impl_to_sql_from_sql_json!(XenditSplitSubMerchantData);
+
+/// Acquirer configuration
+#[derive(Clone, Debug, Deserialize, ToSchema, Serialize, PartialEq)]
+pub struct AcquirerConfig {
+    /// The merchant id assigned by the acquirer
+    #[schema(value_type= String,example = "M123456789")]
+    pub acquirer_assigned_merchant_id: String,
+    /// merchant name
+    #[schema(value_type= String,example = "NewAge Retailer")]
+    pub merchant_name: String,
+    /// Merchant country code assigned by acquirer
+    #[schema(value_type= String,example = "US")]
+    pub merchant_country_code: common_enums::CountryAlpha2,
+    /// Network provider
+    #[schema(value_type= String,example = "VISA")]
+    pub network: common_enums::CardNetwork,
+    /// Acquirer bin
+    #[schema(value_type= String,example = "456789")]
+    pub acquirer_bin: String,
+    /// Acquirer ica provided by acquirer
+    #[schema(value_type= Option<String>,example = "401288")]
+    pub acquirer_ica: Option<String>,
+    /// Fraud rate for the particular acquirer configuration
+    #[schema(value_type= String,example = "0.01")]
+    pub acquirer_fraud_rate: f64,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone, FromSqlRow, AsExpression, ToSchema)]
+#[diesel(sql_type = Jsonb)]
+/// Acquirer configs
+pub struct AcquirerConfigMap(pub HashMap<common_utils::id_type::ProfileAcquirerId, AcquirerConfig>);
+
+impl_to_sql_from_sql_json!(AcquirerConfigMap);

@@ -632,6 +632,9 @@ impl
                 } => {
                     todo!()
                 }
+                router_response_types::PaymentsResponseData::PaymentsCreateOrderResponse {
+                    ..
+                } => todo!(),
             },
             Err(ref error_response) => {
                 let ErrorResponse {
@@ -696,7 +699,8 @@ impl
             // So set the amount capturable to zero
             common_enums::IntentStatus::Succeeded
             | common_enums::IntentStatus::Failed
-            | common_enums::IntentStatus::Cancelled => Some(MinorUnit::zero()),
+            | common_enums::IntentStatus::Cancelled
+            | common_enums::IntentStatus::Conflicted => Some(MinorUnit::zero()),
             // For these statuses, update the capturable amount when it reaches terminal / capturable state
             common_enums::IntentStatus::RequiresCustomerAction
             | common_enums::IntentStatus::RequiresMerchantAction
@@ -726,7 +730,7 @@ impl
         match intent_status {
             // If the status is succeeded then we have captured the whole amount
             // we need not check for `amount_to_capture` here because passing `amount_to_capture` when authorizing is not supported
-            common_enums::IntentStatus::Succeeded => {
+            common_enums::IntentStatus::Succeeded | common_enums::IntentStatus::Conflicted => {
                 let total_amount = payment_data.payment_attempt.amount_details.get_net_amount();
                 Some(total_amount)
             }
@@ -844,6 +848,9 @@ impl
                 } => {
                     todo!()
                 }
+                router_response_types::PaymentsResponseData::PaymentsCreateOrderResponse {
+                    ..
+                } => todo!(),
             },
             Err(ref error_response) => {
                 let ErrorResponse {
@@ -912,7 +919,8 @@ impl
             // If the status is already succeeded / failed we cannot capture any more amount
             common_enums::IntentStatus::Succeeded
             | common_enums::IntentStatus::Failed
-            | common_enums::IntentStatus::Cancelled => Some(MinorUnit::zero()),
+            | common_enums::IntentStatus::Cancelled
+            | common_enums::IntentStatus::Conflicted => Some(MinorUnit::zero()),
             // For these statuses, update the capturable amount when it reaches terminal / capturable state
             common_enums::IntentStatus::RequiresCustomerAction
             | common_enums::IntentStatus::RequiresMerchantAction
@@ -938,7 +946,7 @@ impl
         let intent_status = common_enums::IntentStatus::from(self.status);
         match intent_status {
             // If the status is succeeded then we have captured the whole amount
-            common_enums::IntentStatus::Succeeded => {
+            common_enums::IntentStatus::Succeeded | common_enums::IntentStatus::Conflicted => {
                 let amount_to_capture = payment_data
                     .payment_attempt
                     .amount_details
@@ -1074,6 +1082,9 @@ impl
                 } => {
                     todo!()
                 }
+                router_response_types::PaymentsResponseData::PaymentsCreateOrderResponse {
+                    ..
+                } => todo!(),
             },
             Err(ref error_response) => {
                 let ErrorResponse {
@@ -1153,7 +1164,8 @@ impl
             // If the status is already succeeded / failed we cannot capture any more amount
             common_enums::IntentStatus::Succeeded
             | common_enums::IntentStatus::Failed
-            | common_enums::IntentStatus::Cancelled => Some(MinorUnit::zero()),
+            | common_enums::IntentStatus::Cancelled
+            | common_enums::IntentStatus::Conflicted => Some(MinorUnit::zero()),
             // For these statuses, update the capturable amount when it reaches terminal / capturable state
             common_enums::IntentStatus::RequiresCustomerAction
             | common_enums::IntentStatus::RequiresMerchantAction
@@ -1181,7 +1193,7 @@ impl
         let intent_status = common_enums::IntentStatus::from(self.status);
         match intent_status {
             // If the status is succeeded then we have captured the whole amount or amount_to_capture
-            common_enums::IntentStatus::Succeeded => {
+            common_enums::IntentStatus::Succeeded | common_enums::IntentStatus::Conflicted => {
                 let amount_to_capture = payment_attempt.amount_details.get_amount_to_capture();
 
                 let amount_captured =
@@ -1328,6 +1340,9 @@ impl
                 } => {
                     todo!()
                 }
+                router_response_types::PaymentsResponseData::PaymentsCreateOrderResponse {
+                    ..
+                } => todo!(),
             },
             Err(ref error_response) => {
                 let ErrorResponse {
@@ -1385,7 +1400,8 @@ impl
             // So set the amount capturable to zero
             common_enums::IntentStatus::Succeeded
             | common_enums::IntentStatus::Failed
-            | common_enums::IntentStatus::Cancelled => Some(MinorUnit::zero()),
+            | common_enums::IntentStatus::Cancelled
+            | common_enums::IntentStatus::Conflicted => Some(MinorUnit::zero()),
             // For these statuses, update the capturable amount when it reaches terminal / capturable state
             common_enums::IntentStatus::RequiresCustomerAction
             | common_enums::IntentStatus::RequiresMerchantAction
@@ -1415,7 +1431,7 @@ impl
         match intent_status {
             // If the status is succeeded then we have captured the whole amount
             // we need not check for `amount_to_capture` here because passing `amount_to_capture` when authorizing is not supported
-            common_enums::IntentStatus::Succeeded => {
+            common_enums::IntentStatus::Succeeded | common_enums::IntentStatus::Conflicted => {
                 let total_amount = payment_data.payment_attempt.amount_details.get_net_amount();
                 Some(total_amount)
             }

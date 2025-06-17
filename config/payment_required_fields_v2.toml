@@ -2090,7 +2090,10 @@ non_mandate = [
 # Payment method type: UpiCollect
 [required_fields.upi.upi_collect.fields.Razorpay]
 common = [
-    { required_field = "payment_method_data.upi.vpa_id", display_name = "vpa_id", field_type = "text" }
+    { required_field = "payment_method_data.upi.vpa_id", display_name = "vpa_id", field_type = "text" },
+    { required_field = "payment_method_data.billing.email", display_name = "email", field_type = "user_email_address" },
+    { required_field = "payment_method_data.billing.phone.number", display_name = "phone", field_type = "user_phone_number" },
+    { required_field = "payment_method_data.billing.phone.country_code", display_name = "dialing_code", field_type = "user_phone_number_country_code" }
 ]
 mandate = []
 non_mandate = []

@@ -439,6 +439,7 @@ pub struct StripebillingLatestChargeData {
     pub payment_method_details: StripePaymentMethodDetails,
     #[serde(rename = "invoice")]
     pub invoice_id: String,
+    pub payment_intent: String,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -446,7 +447,7 @@ pub struct StripePaymentMethodDetails {
     #[serde(rename = "type")]
     pub type_of_payment_method: StripebillingPaymentMethod,
     #[serde(rename = "card")]
-    pub card_funding_type: StripeCardFundingTypeDetails,
+    pub card_details: StripeBillingCardDetails,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, Copy)]
@@ -456,8 +457,29 @@ pub enum StripebillingPaymentMethod {
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
-pub struct StripeCardFundingTypeDetails {
+pub struct StripeBillingCardDetails {
+    pub network: StripebillingCardNetwork,
     pub funding: StripebillingFundingTypes,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone, Copy)]
+#[serde(rename_all = "snake_case")]
+pub enum StripebillingCardNetwork {
+    Visa,
+    Mastercard,
+    AmericanExpress,
+    JCB,
+    DinersClub,
+    Discover,
+    CartesBancaires,
+    UnionPay,
+    Interac,
+    RuPay,
+    Maestro,
+    Star,
+    Pulse,
+    Accel,
+    Nyce,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, Copy)]
@@ -509,7 +531,7 @@ impl
                     field_name: "invoice_id",
                 })?;
         let connector_transaction_id = Some(common_utils::types::ConnectorTransactionId::from(
-            charge_details.charge_id,
+            charge_details.payment_intent,
         ));
 
         Ok(Self {
@@ -529,14 +551,16 @@ impl
                     connector_customer_id: charge_details.customer,
                     transaction_created_at: Some(charge_details.created),
                     payment_method_sub_type: common_enums::PaymentMethodType::from(
-                        charge_details
-                            .payment_method_details
-                            .card_funding_type
-                            .funding,
+                        charge_details.payment_method_details.card_details.funding,
                     ),
                     payment_method_type: common_enums::PaymentMethod::from(
                         charge_details.payment_method_details.type_of_payment_method,
                     ),
+                    card_network: Some(common_enums::CardNetwork::from(
+                        charge_details.payment_method_details.card_details.network,
+                    )),
+                    // Todo: Fetch Card issuer details. Generally in the other billing connector we are getting card_issuer using the card bin info. But stripe dosent provide any such details. We should find a way for stripe billing case
+                    card_isin: None,
                 },
             ),
             ..item.data
@@ -609,5 +633,27 @@ impl
             }),
             ..item.data
         })
+    }
+}
+
+impl From<StripebillingCardNetwork> for enums::CardNetwork {
+    fn from(item: StripebillingCardNetwork) -> Self {
+        match item {
+            StripebillingCardNetwork::Visa => Self::Visa,
+            StripebillingCardNetwork::Mastercard => Self::Mastercard,
+            StripebillingCardNetwork::AmericanExpress => Self::AmericanExpress,
+            StripebillingCardNetwork::JCB => Self::JCB,
+            StripebillingCardNetwork::DinersClub => Self::DinersClub,
+            StripebillingCardNetwork::Discover => Self::Discover,
+            StripebillingCardNetwork::CartesBancaires => Self::CartesBancaires,
+            StripebillingCardNetwork::UnionPay => Self::UnionPay,
+            StripebillingCardNetwork::Interac => Self::Interac,
+            StripebillingCardNetwork::RuPay => Self::RuPay,
+            StripebillingCardNetwork::Maestro => Self::Maestro,
+            StripebillingCardNetwork::Star => Self::Star,
+            StripebillingCardNetwork::Pulse => Self::Pulse,
+            StripebillingCardNetwork::Accel => Self::Accel,
+            StripebillingCardNetwork::Nyce => Self::Nyce,
+        }
     }
 }
