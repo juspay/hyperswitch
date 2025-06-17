@@ -726,17 +726,6 @@ fn decrypt_aci_webhook_payload(
 // TODO: Test this webhook flow once dashboard access is available.
 #[async_trait::async_trait]
 impl IncomingWebhook for Aci {
-    async fn verify_webhook_source(
-        &self,
-        _request: &IncomingWebhookRequestDetails<'_>,
-        _merchant_id: &common_utils::id_type::MerchantId,
-        _connector_webhook_details: Option<common_utils::pii::SecretSerdeValue>,
-        _connector_account_details: crypto::Encryptable<masking::Secret<serde_json::Value>>,
-        _connector_name: &str,
-    ) -> CustomResult<bool, errors::ConnectorError> {
-        Ok(true)
-    }
-
     fn get_webhook_source_verification_algorithm(
         &self,
         _request: &IncomingWebhookRequestDetails<'_>,
