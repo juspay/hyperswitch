@@ -6780,6 +6780,23 @@
           }
         }
       },
+      "BillingConnectorAdditionalCardInfo": {
+        "type": "object",
+        "required": [
+          "card_network"
+        ],
+        "properties": {
+          "card_network": {
+            "$ref": "#/components/schemas/CardNetwork"
+          },
+          "card_issuer": {
+            "type": "string",
+            "description": "Card Issuer",
+            "example": "JP MORGAN CHASE",
+            "nullable": true
+          }
+        }
+      },
       "BillingConnectorPaymentDetails": {
         "type": "object",
         "required": [
@@ -6795,6 +6812,31 @@
             "type": "string",
             "description": "Billing Connector's Customer Id"
           }
+        }
+      },
+      "BillingConnectorPaymentMethodDetails": {
+        "oneOf": [
+          {
+            "type": "object",
+            "required": [
+              "type",
+              "value"
+            ],
+            "properties": {
+              "type": {
+                "type": "string",
+                "enum": [
+                  "card"
+                ]
+              },
+              "value": {
+                "$ref": "#/components/schemas/BillingConnectorAdditionalCardInfo"
+              }
+            }
+          }
+        ],
+        "discriminator": {
+          "propertyName": "type"
         }
       },
       "BlikBankRedirectAdditionalData": {
@@ -17868,7 +17910,8 @@
           "billing_connector_payment_details",
           "payment_method_type",
           "payment_method_subtype",
-          "connector"
+          "connector",
+          "billing_connector_payment_method_details"
         ],
         "properties": {
           "total_retry_count": {
@@ -17908,10 +17951,31 @@
           "connector": {
             "$ref": "#/components/schemas/Connector"
           },
+          "billing_connector_payment_method_details": {
+            "$ref": "#/components/schemas/BillingConnectorPaymentMethodDetails"
+          },
           "invoice_next_billing_time": {
             "type": "string",
             "format": "date-time",
             "description": "Invoice Next billing time",
+            "nullable": true
+          },
+          "first_payment_attempt_pg_error_code": {
+            "type": "string",
+            "description": "First Payment Attempt Payment Gateway Error Code",
+            "example": "card_declined",
+            "nullable": true
+          },
+          "first_payment_attempt_network_decline_code": {
+            "type": "string",
+            "description": "First Payment Attempt Network Error Code",
+            "example": "05",
+            "nullable": true
+          },
+          "first_payment_attempt_network_advice_code": {
+            "type": "string",
+            "description": "First Payment Attempt Network Advice Code",
+            "example": "02",
             "nullable": true
           }
         }
