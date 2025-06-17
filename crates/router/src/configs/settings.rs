@@ -7,7 +7,11 @@ use std::{
 #[cfg(feature = "olap")]
 use analytics::{opensearch::OpenSearchConfig, ReportConfig};
 use api_models::enums;
-use common_utils::{ext_traits::ConfigExt, id_type, types::user::EmailThemeConfig};
+use common_utils::{
+    ext_traits::ConfigExt,
+    id_type,
+    types::{user::EmailThemeConfig, Url},
+};
 use config::{Environment, File};
 use error_stack::ResultExt;
 #[cfg(feature = "email")]
@@ -155,6 +159,7 @@ pub struct Settings<S: SecretState> {
     pub platform: Platform,
     pub authentication_providers: AuthenticationProviders,
     pub open_router: OpenRouter,
+    pub unified_connector_service: Option<UnifiedConnectorService>,
     #[cfg(feature = "v2")]
     pub revenue_recovery: revenue_recovery::RevenueRecoverySettings,
     pub clone_connector_allowlist: Option<CloneConnectorAllowlistConfig>,
@@ -177,6 +182,11 @@ pub struct DebitRoutingConfig {
 pub struct OpenRouter {
     pub enabled: bool,
     pub url: String,
+}
+
+#[derive(Debug, Deserialize, Clone)]
+pub struct UnifiedConnectorService {
+    pub base_url: Url,
 }
 
 #[derive(Debug, Deserialize, Clone, Default)]

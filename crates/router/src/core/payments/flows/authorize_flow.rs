@@ -1,7 +1,6 @@
 use async_trait::async_trait;
 use common_enums as enums;
 use error_stack::ResultExt;
-use external_services::grpc_client::unified_connector_service::UnifiedConnectorService;
 use hyperswitch_domain_models::errors::api_error_response::ApiErrorResponse;
 #[cfg(feature = "v2")]
 use hyperswitch_domain_models::payments::PaymentConfirmData;
@@ -424,9 +423,14 @@ impl Feature<api::Authorize, types::PaymentsAuthorizeData> for types::PaymentsAu
 
     async fn call_unified_connector_service<'a>(
         &mut self,
+        state: &SessionState,
         merchant_connector_account: helpers::MerchantConnectorAccountType,
-        client: UnifiedConnectorService,
     ) -> RouterResult<()> {
+        let client = state
+            .unified_connector_service_client
+            .clone()
+            .ok_or(ApiErrorResponse::InternalServerError)?;
+
         let request = payments_grpc::PaymentsAuthorizeRequest::foreign_try_from(self)
             .change_context(ApiErrorResponse::InternalServerError)
             .attach_printable("Failed to construct Payment Authorize Request")?;

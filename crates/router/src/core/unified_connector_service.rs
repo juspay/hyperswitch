@@ -2,9 +2,6 @@ use api_models::admin::ConnectorAuthType;
 use common_enums::AttemptStatus;
 use common_utils::{errors::CustomResult, ext_traits::ValueExt};
 use error_stack::ResultExt;
-use external_services::grpc_client::unified_connector_service::{
-    UnifiedConnectorService, UnifiedConnectorServiceError,
-};
 use hyperswitch_domain_models::{
     merchant_context::MerchantContext,
     router_data::{ErrorResponse, RouterData},
@@ -15,25 +12,76 @@ use hyperswitch_domain_models::{
 use masking::PeekInterface;
 use rand::Rng;
 use router_env::logger;
-use rust_grpc_client::payments::{self as payments_grpc};
+use rust_grpc_client::payments::{
+    self as payments_grpc, payment_service_client::PaymentServiceClient, PaymentsAuthorizeResponse,
+};
 use tonic::metadata::{MetadataMap, MetadataValue};
 
 use crate::{
+    configs::settings::UnifiedConnectorService,
     consts,
     core::{
-        errors::RouterResult, payments::helpers::MerchantConnectorAccountType, utils::get_flow_name,
+        errors::RouterResult, payments::helpers::MerchantConnectorAccountType,
+        unified_connector_service::errors::UnifiedConnectorServiceError, utils::get_flow_name,
     },
     routes::SessionState,
     types::transformers::ForeignTryFrom,
 };
 
+pub mod errors;
 pub mod transformers;
+
+/// Result type for Dynamic Routing
+pub type UnifiedConnectorServiceResult<T> = CustomResult<T, UnifiedConnectorServiceError>;
+/// Contains the  Unified Connector Service client
+#[derive(Debug, Clone)]
+pub struct UnifiedConnectorServiceClient {
+    /// The Unified Connector Service Client
+    pub client: PaymentServiceClient<tonic::transport::Channel>,
+}
+
+impl UnifiedConnectorServiceClient {
+    /// Builds the connection to the gRPC service
+    pub async fn build_connections(
+        config: UnifiedConnectorService,
+    ) -> Result<Option<Self>, Box<dyn std::error::Error>> {
+        match PaymentServiceClient::connect(config.base_url.clone().get_string_repr().to_owned())
+            .await
+        {
+            Ok(unified_connector_service_client) => Ok(Some(Self {
+                client: unified_connector_service_client,
+            })),
+            Err(err) => {
+                logger::error!(error=?err);
+                Ok(None)
+            }
+        }
+    }
+
+    /// Performs Payment Authorize
+    pub async fn payment_authorize(
+        &self,
+        request: tonic::Request<payments_grpc::PaymentsAuthorizeRequest>,
+    ) -> UnifiedConnectorServiceResult<tonic::Response<PaymentsAuthorizeResponse>> {
+        self.client
+            .clone()
+            .payment_authorize(request)
+            .await
+            .change_context(UnifiedConnectorServiceError::ConnectionError(
+                "Failed to authorize payment through Unified Connector Service".to_owned(),
+            ))
+            .map_err(|err| {
+                logger::error!(error=?err);
+                err
+            })
+    }
+}
 
 pub async fn should_call_unified_connector_service<F: Clone, T>(
     state: &SessionState,
     merchant_context: &MerchantContext,
     router_data: &RouterData<F, T, PaymentsResponseData>,
-) -> RouterResult<Option<UnifiedConnectorService>> {
+) -> RouterResult<bool> {
     let merchant_id = merchant_context
         .get_merchant_account()
         .get_id()
@@ -60,24 +108,22 @@ pub async fn should_call_unified_connector_service<F: Clone, T>(
             Ok(rollout_percent) => {
                 let random_value: f64 = rand::thread_rng().gen_range(0.0..=1.0);
                 if random_value < rollout_percent {
-                    match &state.grpc_client.unified_connector_service {
-                        Some(unified_connector_service_client) => {
-                            Ok(Some(unified_connector_service_client.clone()))
-                        }
-                        None => Ok(None),
+                    match &state.unified_connector_service_client {
+                        Some(_) => Ok(true),
+                        None => Ok(false),
                     }
                 } else {
-                    Ok(None)
+                    Ok(false)
                 }
             }
             Err(err) => {
                 logger::error!(error=?err);
-                Ok(None)
+                Ok(false)
             }
         },
         Err(err) => {
             logger::error!(error=?err);
-            Ok(None)
+            Ok(false)
         }
     }
 }
@@ -190,7 +236,7 @@ pub fn build_unified_connector_service_auth_headers(
 }
 
 pub fn handle_unified_connector_service_response(
-    response: payments_grpc::PaymentsAuthorizeResponse,
+    response: PaymentsAuthorizeResponse,
     router_data: &mut RouterData<Authorize, PaymentsAuthorizeData, PaymentsResponseData>,
 ) -> CustomResult<(), UnifiedConnectorServiceError> {
     let status = AttemptStatus::foreign_try_from(response.status())?;

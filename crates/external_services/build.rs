@@ -14,7 +14,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         // Compile the .proto file
         tonic_build::configure()
             .out_dir(out_dir)
-            .compile_protos(
+            .compile(
                 &[
                     success_rate_proto_file,
                     health_check_proto_file,
