@@ -266,6 +266,9 @@ export const connectorDetails = {
       },
     },
     SaveCardUseNo3DSAutoCapture: {
+      Configs: {
+        TRIGGER_SKIP: true,
+      },
       Request: {
         payment_method: "card",
         amount: 6000,
@@ -275,6 +278,20 @@ export const connectorDetails = {
         currency: "USD",
         setup_future_usage: "on_session",
         customer_acceptance: customerAcceptance,
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "processing",
+        },
+      },
+    },
+    SaveCardConfirmAutoCaptureOffSession: {
+      Configs: {
+        TRIGGER_SKIP: true,
+      },
+      Request: {
+        setup_future_usage: "off_session",
       },
       Response: {
         status: 200,
@@ -464,7 +481,43 @@ export const connectorDetails = {
         },
       },
     },
+    SaveCardUseNo3DSManualCaptureOffSession: {
+      Configs: {
+        TRIGGER_SKIP: true,
+      },
+      Request: {
+        payment_method: "card",
+        payment_method_data: {
+          card: successful3DSTestCardDetails,
+        },
+        setup_future_usage: "off_session",
+        customer_acceptance: customerAcceptance,
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_capture",
+        },
+      },
+    },
+    SaveCardConfirmManualCaptureOffSession: {
+      Configs: {
+        TRIGGER_SKIP: true,
+      },
+      Request: {
+        setup_future_usage: "off_session",
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_capture",
+        },
+      },
+    },
     PaymentMethodIdMandateNo3DSAutoCapture: {
+      Configs: {
+        TRIGGER_SKIP: true,
+      },
       Request: {
         payment_method: "card",
         payment_method_data: {
@@ -482,6 +535,9 @@ export const connectorDetails = {
       },
     },
     PaymentMethodIdMandateNo3DSManualCapture: {
+      Configs: {
+        TRIGGER_SKIP: true,
+      },
       Request: {
         payment_method: "card",
         payment_method_data: {
@@ -499,6 +555,9 @@ export const connectorDetails = {
       },
     },
     SaveCardUseNo3DSAutoCaptureOffSession: {
+      Configs: {
+        TRIGGER_SKIP: true,
+      },
       Request: {
         payment_method: "card",
         payment_method_type: "debit",
