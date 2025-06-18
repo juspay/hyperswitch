@@ -210,7 +210,8 @@ impl TryFrom<&SetupMandateRouterData> for WellsfargoZeroMandateRequest {
                 | WalletData::WeChatPayQr(_)
                 | WalletData::CashappQr(_)
                 | WalletData::SwishQr(_)
-                | WalletData::Mifinity(_) => Err(errors::ConnectorError::NotImplemented(
+                | WalletData::Mifinity(_)
+                | WalletData::RevolutPay(_) => Err(errors::ConnectorError::NotImplemented(
                     utils::get_unimplemented_payment_method_error_message("Wellsfargo"),
                 ))?,
             },
@@ -284,7 +285,7 @@ pub struct ProcessingInformation {
 #[serde(rename_all = "camelCase")]
 pub struct WellsfargoConsumerAuthInformation {
     ucaf_collection_indicator: Option<String>,
-    cavv: Option<String>,
+    cavv: Option<Secret<String>>,
     ucaf_authentication_data: Option<Secret<String>>,
     xid: Option<String>,
     directory_server_transaction_id: Option<Secret<String>>,
@@ -933,7 +934,7 @@ impl
             .map(|authn_data| {
                 let (ucaf_authentication_data, cavv) =
                     if ccard.card_network == Some(common_enums::CardNetwork::Mastercard) {
-                        (Some(Secret::new(authn_data.cavv.clone())), None)
+                        (Some(authn_data.cavv.clone()), None)
                     } else {
                         (None, Some(authn_data.cavv.clone()))
                     };
@@ -1272,7 +1273,8 @@ impl TryFrom<&WellsfargoRouterData<&PaymentsAuthorizeRouterData>> for Wellsfargo
                         | WalletData::WeChatPayQr(_)
                         | WalletData::CashappQr(_)
                         | WalletData::SwishQr(_)
-                        | WalletData::Mifinity(_) => Err(errors::ConnectorError::NotImplemented(
+                        | WalletData::Mifinity(_)
+                        | WalletData::RevolutPay(_) => Err(errors::ConnectorError::NotImplemented(
                             utils::get_unimplemented_payment_method_error_message("Wellsfargo"),
                         )
                         .into()),

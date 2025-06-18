@@ -51,9 +51,13 @@ pub mod authentication {
     pub use hyperswitch_domain_models::router_request_types::authentication::*;
 }
 
-#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+#[cfg(feature = "v2")]
 pub mod vault {
     pub use hyperswitch_domain_models::vault::*;
+}
+
+mod routing {
+    pub use hyperswitch_domain_models::routing::*;
 }
 
 pub mod payments;
@@ -73,8 +77,9 @@ pub use merchant_key_store::*;
 pub use network_tokenization::*;
 pub use payment_method_data::*;
 pub use payment_methods::*;
+pub use routing::*;
 #[cfg(feature = "olap")]
 pub use user::*;
 pub use user_key_store::*;
-#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+#[cfg(feature = "v2")]
 pub use vault::*;

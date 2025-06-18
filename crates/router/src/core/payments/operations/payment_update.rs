@@ -477,6 +477,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
                 .and_then(|pmd| pmd.payment_method_data.clone().map(Into::into)),
             payment_method_info,
             force_sync: None,
+            all_keys_required: None,
             refunds: vec![],
             disputes: vec![],
             attempts: None,
@@ -503,6 +504,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
             card_testing_guard_data: None,
             vault_operation: None,
             threeds_method_comp_ind: None,
+            whole_connector_response: None,
         };
 
         let get_trackers_response = operations::GetTrackerResponse {
@@ -614,6 +616,7 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
                 &router_data,
                 payments::CallConnectorAction::Trigger,
                 None,
+                None,
             )
             .await
             .change_context(errors::ApiErrorResponse::InternalServerError)
@@ -704,7 +707,7 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
 
 #[async_trait]
 impl<F: Clone + Sync> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for PaymentUpdate {
-    #[cfg(all(feature = "v2", feature = "customer_v2"))]
+    #[cfg(feature = "v2")]
     #[instrument(skip_all)]
     async fn update_trackers<'b>(
         &'b self,
@@ -724,7 +727,7 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for
         todo!()
     }
 
-    #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
+    #[cfg(feature = "v1")]
     #[instrument(skip_all)]
     async fn update_trackers<'b>(
         &'b self,

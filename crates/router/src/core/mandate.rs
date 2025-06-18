@@ -117,6 +117,7 @@ pub async fn revoke_mandate(
                 &router_data,
                 CallConnectorAction::Trigger,
                 None,
+                None,
             )
             .await
             .change_context(errors::ApiErrorResponse::InternalServerError)?;
@@ -218,7 +219,7 @@ pub async fn update_connector_mandate_id(
     }
     Ok(services::ApplicationResponse::StatusOk)
 }
-#[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
+#[cfg(feature = "v1")]
 #[instrument(skip(state))]
 pub async fn get_customer_mandates(
     state: SessionState,

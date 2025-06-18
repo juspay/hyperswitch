@@ -48,6 +48,7 @@ where
         &router_data,
         payments::CallConnectorAction::Trigger,
         None,
+        None,
     )
     .await
     .to_payment_failed_response()?;
@@ -121,6 +122,7 @@ pub fn construct_uas_router_data<F: Clone, Req, Res>(
         connector_mandate_request_reference_id: None,
         authentication_id,
         psd2_sca_exemption_type: None,
+        whole_connector_response: None,
     })
 }
 
@@ -215,6 +217,7 @@ pub async fn external_authentication_update_trackers<F: Clone, Req>(
                         authentication_status,
                         connector_metadata: authentication_details.connector_metadata,
                         ds_trans_id: authentication_details.ds_trans_id,
+                        eci: authentication_details.eci,
                     },
                 )
             }

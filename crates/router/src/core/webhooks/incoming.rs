@@ -4,7 +4,12 @@ use actix_web::FromRequest;
 #[cfg(feature = "payouts")]
 use api_models::payouts as payout_models;
 use api_models::webhooks::{self, WebhookResponseTracker};
-use common_utils::{errors::ReportSwitchExt, events::ApiEventsType, ext_traits::AsyncExt};
+use common_utils::{
+    errors::ReportSwitchExt,
+    events::ApiEventsType,
+    ext_traits::AsyncExt,
+    types::{AmountConvertor, StringMinorUnitForConnector},
+};
 use diesel_models::ConnectorMandateReferenceId;
 use error_stack::{report, ResultExt};
 use hyperswitch_domain_models::{
@@ -98,7 +103,7 @@ pub async fn incoming_webhooks_wrapper<W: types::OutgoingWebhookType>(
     let response_value = serde_json::to_value(&webhooks_response_tracker)
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Could not convert webhook effect to string")?;
-
+    let infra = state.infra_components.clone();
     let api_event = ApiEvent::new(
         state.tenant.tenant_id.clone(),
         Some(merchant_context.get_merchant_account().get_id().clone()),
@@ -114,6 +119,7 @@ pub async fn incoming_webhooks_wrapper<W: types::OutgoingWebhookType>(
         api_event,
         req,
         req.method(),
+        infra,
     );
     state.event_handler().log_event(&api_event);
     Ok(application_response)
@@ -659,6 +665,7 @@ async fn payments_incoming_webhook_flow(
                     client_secret: None,
                     expand_attempts: None,
                     expand_captures: None,
+                    all_keys_required: None,
                 },
                 services::AuthFlow::Merchant,
                 consume_or_trigger_flow.clone(),
@@ -815,13 +822,13 @@ async fn payouts_incoming_webhook_flow(
                 payout_id: payouts.payout_id.clone(),
             });
 
-        let payout_data = payouts::make_payout_data(
+        let payout_data = Box::pin(payouts::make_payout_data(
             &state,
             &merchant_context,
             None,
             &action_req,
             common_utils::consts::DEFAULT_LOCALE,
-        )
+        ))
         .await?;
 
         let updated_payout_attempt = db
@@ -1186,7 +1193,16 @@ async fn get_or_update_dispute_object(
                 profile_id: Some(business_profile.get_id().to_owned()),
                 evidence: None,
                 merchant_connector_id: payment_attempt.merchant_connector_id.clone(),
-                dispute_amount: dispute_details.amount.parse::<i64>().unwrap_or(0),
+                dispute_amount: StringMinorUnitForConnector::convert_back(
+                    &StringMinorUnitForConnector,
+                    dispute_details.amount,
+                    dispute_details.currency,
+                )
+                .change_context(
+                    errors::ApiErrorResponse::AmountConversionFailed {
+                        amount_type: "MinorUnit",
+                    },
+                )?,
                 organization_id: organization_id.clone(),
                 dispute_currency: Some(dispute_details.currency),
             };
@@ -1842,6 +1858,7 @@ async fn verify_webhook_source_verification_call(
         connector_integration,
         &router_data,
         payments::CallConnectorAction::Trigger,
+        None,
         None,
     )
     .await?;

@@ -32,6 +32,9 @@ pub mod utils;
 
 use common_utils::{errors::CustomResult, types::keymanager::KeyManagerState};
 use database::store::PgPool;
+#[cfg(all(feature = "v2", feature = "tokenization_v2"))]
+use diesel_models::tokenization::Tokenization;
+pub mod tokenization;
 #[cfg(not(feature = "payouts"))]
 use hyperswitch_domain_models::{PayoutAttemptInterface, PayoutsInterface};
 pub use mock_db::MockDb;
@@ -448,10 +451,7 @@ impl UniqueConstraints for diesel_models::PayoutAttempt {
     }
 }
 
-#[cfg(all(
-    any(feature = "v1", feature = "v2"),
-    not(feature = "payment_methods_v2")
-))]
+#[cfg(feature = "v1")]
 impl UniqueConstraints for diesel_models::PaymentMethod {
     fn unique_constraints(&self) -> Vec<String> {
         vec![format!("paymentmethod_{}", self.payment_method_id)]
@@ -461,7 +461,7 @@ impl UniqueConstraints for diesel_models::PaymentMethod {
     }
 }
 
-#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+#[cfg(feature = "v2")]
 impl UniqueConstraints for diesel_models::PaymentMethod {
     fn unique_constraints(&self) -> Vec<String> {
         vec![self.id.get_string_repr().to_owned()]
@@ -484,7 +484,7 @@ impl UniqueConstraints for diesel_models::Mandate {
     }
 }
 
-#[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
+#[cfg(feature = "v1")]
 impl UniqueConstraints for diesel_models::Customer {
     fn unique_constraints(&self) -> Vec<String> {
         vec![format!(
@@ -498,7 +498,7 @@ impl UniqueConstraints for diesel_models::Customer {
     }
 }
 
-#[cfg(all(feature = "v2", feature = "customer_v2"))]
+#[cfg(feature = "v2")]
 impl UniqueConstraints for diesel_models::Customer {
     fn unique_constraints(&self) -> Vec<String> {
         vec![format!("customer_{}", self.id.get_string_repr())]
@@ -512,3 +512,14 @@ impl UniqueConstraints for diesel_models::Customer {
 impl<T: DatabaseStore> PayoutAttemptInterface for RouterStore<T> {}
 #[cfg(not(feature = "payouts"))]
 impl<T: DatabaseStore> PayoutsInterface for RouterStore<T> {}
+
+#[cfg(all(feature = "v2", feature = "tokenization_v2"))]
+impl UniqueConstraints for diesel_models::tokenization::Tokenization {
+    fn unique_constraints(&self) -> Vec<String> {
+        vec![format!("id_{}", self.id.get_string_repr())]
+    }
+
+    fn table_name(&self) -> &str {
+        "tokenization"
+    }
+}

@@ -9,6 +9,7 @@ use diesel::{
 };
 use masking::{Secret, WithType};
 use serde::{self, Deserialize, Serialize};
+
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize, FromSqlRow, AsExpression)]
 #[diesel(sql_type = Jsonb)]
 pub struct OrderDetailsWithAmount {
@@ -173,6 +174,14 @@ pub struct PaymentRevenueRecoveryMetadata {
     pub connector: common_enums::connector_enums::Connector,
     /// Time at which next invoice will be created
     pub invoice_next_billing_time: Option<time::PrimitiveDateTime>,
+    /// Extra Payment Method Details that are needed to be stored
+    pub billing_connector_payment_method_details: Option<BillingConnectorPaymentMethodDetails>,
+    /// First Payment Attempt Payment Gateway Error Code
+    pub first_payment_attempt_pg_error_code: Option<String>,
+    /// First Payment Attempt Network Error Code
+    pub first_payment_attempt_network_decline_code: Option<String>,
+    /// First Payment Attempt Network Advice Code
+    pub first_payment_attempt_network_advice_code: Option<String>,
 }
 
 #[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]
@@ -182,4 +191,20 @@ pub struct BillingConnectorPaymentDetails {
     pub payment_processor_token: String,
     /// Billing Connector's Customer Id
     pub connector_customer_id: String,
+}
+
+#[cfg(feature = "v2")]
+#[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]
+#[serde(rename_all = "snake_case", tag = "type", content = "value")]
+pub enum BillingConnectorPaymentMethodDetails {
+    Card(BillingConnectorAdditionalCardInfo),
+}
+
+#[cfg(feature = "v2")]
+#[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]
+pub struct BillingConnectorAdditionalCardInfo {
+    /// Card Network
+    pub card_network: Option<common_enums::enums::CardNetwork>,
+    /// Card Issuer
+    pub card_issuer: Option<String>,
 }

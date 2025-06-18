@@ -631,6 +631,8 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
                         | common_enums::PaymentMethodType::Lawson
                         | common_enums::PaymentMethodType::LocalBankTransfer
                         | common_enums::PaymentMethodType::InstantBankTransfer
+                        | common_enums::PaymentMethodType::InstantBankTransferFinland
+                        | common_enums::PaymentMethodType::InstantBankTransferPoland
                         | common_enums::PaymentMethodType::MiniStop
                         | common_enums::PaymentMethodType::FamilyMart
                         | common_enums::PaymentMethodType::Seicomart
@@ -640,7 +642,8 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
                         | common_enums::PaymentMethodType::DuitNow
                         | common_enums::PaymentMethodType::PromptPay
                         | common_enums::PaymentMethodType::VietQr
-                        | common_enums::PaymentMethodType::OpenBankingPIS,
+                        | common_enums::PaymentMethodType::OpenBankingPIS
+                        | common_enums::PaymentMethodType::RevolutPay,
                     ) => Err(error_stack::report!(errors::ConnectorError::NotSupported {
                         message: payment_method_type.to_string(),
                         connector: "klarna",
@@ -745,6 +748,8 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
                         | common_enums::PaymentMethodType::Lawson
                         | common_enums::PaymentMethodType::LocalBankTransfer
                         | common_enums::PaymentMethodType::InstantBankTransfer
+                        | common_enums::PaymentMethodType::InstantBankTransferFinland
+                        | common_enums::PaymentMethodType::InstantBankTransferPoland
                         | common_enums::PaymentMethodType::MiniStop
                         | common_enums::PaymentMethodType::FamilyMart
                         | common_enums::PaymentMethodType::Seicomart
@@ -754,7 +759,8 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
                         | common_enums::PaymentMethodType::DuitNow
                         | common_enums::PaymentMethodType::PromptPay
                         | common_enums::PaymentMethodType::VietQr
-                        | common_enums::PaymentMethodType::OpenBankingPIS,
+                        | common_enums::PaymentMethodType::OpenBankingPIS
+                        | common_enums::PaymentMethodType::RevolutPay,
                     ) => Err(error_stack::report!(errors::ConnectorError::NotSupported {
                         message: payment_method_type.to_string(),
                         connector: "klarna",
@@ -866,6 +872,8 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
                         | common_enums::PaymentMethodType::Lawson
                         | common_enums::PaymentMethodType::LocalBankTransfer
                         | common_enums::PaymentMethodType::InstantBankTransfer
+                        | common_enums::PaymentMethodType::InstantBankTransferFinland
+                        | common_enums::PaymentMethodType::InstantBankTransferPoland
                         | common_enums::PaymentMethodType::MiniStop
                         | common_enums::PaymentMethodType::FamilyMart
                         | common_enums::PaymentMethodType::Seicomart
@@ -875,7 +883,8 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
                         | common_enums::PaymentMethodType::DuitNow
                         | common_enums::PaymentMethodType::PromptPay
                         | common_enums::PaymentMethodType::VietQr
-                        | common_enums::PaymentMethodType::OpenBankingPIS,
+                        | common_enums::PaymentMethodType::OpenBankingPIS
+                        | common_enums::PaymentMethodType::RevolutPay,
                     ) => Err(error_stack::report!(errors::ConnectorError::NotSupported {
                         message: payment_method_type.to_string(),
                         connector: "klarna",
@@ -980,6 +989,8 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
                         | common_enums::PaymentMethodType::Lawson
                         | common_enums::PaymentMethodType::LocalBankTransfer
                         | common_enums::PaymentMethodType::InstantBankTransfer
+                        | common_enums::PaymentMethodType::InstantBankTransferFinland
+                        | common_enums::PaymentMethodType::InstantBankTransferPoland
                         | common_enums::PaymentMethodType::MiniStop
                         | common_enums::PaymentMethodType::FamilyMart
                         | common_enums::PaymentMethodType::Seicomart
@@ -989,7 +1000,8 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
                         | common_enums::PaymentMethodType::DuitNow
                         | common_enums::PaymentMethodType::PromptPay
                         | common_enums::PaymentMethodType::VietQr
-                        | common_enums::PaymentMethodType::OpenBankingPIS,
+                        | common_enums::PaymentMethodType::OpenBankingPIS
+                        | common_enums::PaymentMethodType::RevolutPay,
                     ) => Err(error_stack::report!(errors::ConnectorError::NotSupported {
                         message: payment_method_type.to_string(),
                         connector: "klarna",

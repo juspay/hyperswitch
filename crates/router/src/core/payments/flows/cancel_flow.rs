@@ -22,7 +22,7 @@ impl ConstructFlowSpecificData<api::Void, types::PaymentsCancelData, types::Paym
         _connector_id: &str,
         _merchant_context: &domain::MerchantContext,
         _customer: &Option<domain::Customer>,
-        _merchant_connector_account: &domain::MerchantConnectorAccount,
+        _merchant_connector_account: &domain::MerchantConnectorAccountTypeDetails,
         _merchant_recipient_data: Option<types::MerchantRecipientData>,
         _header_payload: Option<hyperswitch_domain_models::payments::HeaderPayload>,
     ) -> RouterResult<types::PaymentsCancelRouterData> {
@@ -79,6 +79,7 @@ impl Feature<api::Void, types::PaymentsCancelData>
         connector_request: Option<services::Request>,
         _business_profile: &domain::Profile,
         _header_payload: hyperswitch_domain_models::payments::HeaderPayload,
+        _all_keys_required: Option<bool>,
     ) -> RouterResult<Self> {
         metrics::PAYMENT_CANCEL_COUNT.add(
             1,
@@ -97,6 +98,7 @@ impl Feature<api::Void, types::PaymentsCancelData>
             &self,
             call_connector_action,
             connector_request,
+            None,
         )
         .await
         .to_payment_failed_response()?;

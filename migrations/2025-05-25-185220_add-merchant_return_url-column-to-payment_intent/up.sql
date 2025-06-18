@@ -1,0 +1,1 @@
+ALTER TABLE payment_intent ADD COLUMN IF NOT EXISTS extended_return_url VARCHAR(2048);

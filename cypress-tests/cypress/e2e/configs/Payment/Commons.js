@@ -1,6 +1,5 @@
 // This file is the default. To override, add to connector.js
-import { getCustomExchange } from "./Modifiers";
-import State from "../../../utils/State.js";
+import { getCustomExchange, getCurrency } from "./Modifiers";
 
 export const customerAcceptance = {
   acceptance_type: "offline",
@@ -10,47 +9,6 @@ export const customerAcceptance = {
     user_agent: "amet irure esse",
   },
 };
-
-const globalState = new State({
-  connectorId: Cypress.env("CONNECTOR"),
-  baseUrl: Cypress.env("BASEURL"),
-  adminApiKey: Cypress.env("ADMINAPIKEY"),
-  connectorAuthFilePath: Cypress.env("CONNECTOR_AUTH_FILE_PATH"),
-});
-
-const connectorName = normalize(globalState.get("connectorId"));
-
-function normalize(input) {
-  const exceptions = {
-    bankofamerica: "Bank of America",
-    cybersource: "Cybersource",
-    paybox: "Paybox",
-    paypal: "Paypal",
-    wellsfargo: "Wellsfargo",
-    fiuu: "Fiuu",
-    noon: "Noon",
-    archipel: "Archipel",
-    // Add more known exceptions here
-  };
-
-  if (typeof input !== "string") {
-    const specName = Cypress.spec.name;
-
-    if (specName.includes("-")) {
-      const parts = specName.split("-");
-
-      if (parts.length > 1 && parts[1].includes(".")) {
-        return parts[1].split(".")[0];
-      }
-    }
-
-    // Fallback
-    return `${specName}`;
-  }
-
-  const lowerCaseInput = input.toLowerCase();
-  return exceptions[lowerCaseInput] || input;
-}
 
 const successfulNo3DSCardDetails = {
   card_number: "4111111111111111",
@@ -232,6 +190,20 @@ export const payment_methods_enabled = [
         recurring_enabled: false,
         installment_payment_enabled: true,
       },
+      {
+        payment_method_type: "instant_bank_transfer_finland",
+        minimum_amount: 1,
+        maximum_amount: 68607706,
+        recurring_enabled: true,
+        installment_payment_enabled: true,
+      },
+      {
+        payment_method_type: "instant_bank_transfer_poland",
+        minimum_amount: 1,
+        maximum_amount: 68607706,
+        recurring_enabled: true,
+        installment_payment_enabled: true,
+      },
     ],
   },
   {
@@ -358,17 +330,18 @@ export const payment_methods_enabled = [
 
 export const connectorDetails = {
   bank_transfer_pm: {
-    PaymentIntent: getCustomExchange({
-      Request: {
-        currency: "BRL",
-      },
-      Response: {
-        status: 200,
-        body: {
-          status: "requires_payment_method",
+    PaymentIntent: (paymentMethodType) =>
+      getCustomExchange({
+        Request: {
+          currency: getCurrency(paymentMethodType),
         },
-      },
-    }),
+        Response: {
+          status: 200,
+          body: {
+            status: "requires_payment_method",
+          },
+        },
+      }),
     Pix: getCustomExchange({
       Request: {
         payment_method: "bank_transfer",
@@ -394,19 +367,70 @@ export const connectorDetails = {
         currency: "BRL",
       },
     }),
-  },
-  bank_redirect_pm: {
-    PaymentIntent: getCustomExchange({
+    InstantBankTransferFinland: getCustomExchange({
       Request: {
+        payment_method: "bank_transfer",
+        payment_method_type: "instant_bank_transfer_finland",
+        payment_method_data: {
+          bank_transfer: {
+            instant_bank_transfer_finland: {},
+          },
+        },
+        billing: {
+          address: {
+            line1: "1467",
+            line2: "Harrison Street",
+            line3: "Harrison Street",
+            city: "San Fransico",
+            state: "California",
+            zip: "94122",
+            country: "FI",
+            first_name: "john",
+            last_name: "doe",
+          },
+        },
         currency: "EUR",
       },
-      Response: {
-        status: 200,
-        body: {
-          status: "requires_payment_method",
+    }),
+    InstantBankTransferPoland: getCustomExchange({
+      Request: {
+        payment_method: "bank_transfer",
+        payment_method_type: "instant_bank_transfer_poland",
+        payment_method_data: {
+          bank_transfer: {
+            instant_bank_transfer_poland: {},
+          },
         },
+        billing: {
+          address: {
+            line1: "1467",
+            line2: "Harrison Street",
+            line3: "Harrison Street",
+            city: "San Fransico",
+            state: "California",
+            zip: "94122",
+            country: "PL",
+            first_name: "john",
+            last_name: "doe",
+          },
+        },
+        currency: "PLN",
       },
     }),
+  },
+  bank_redirect_pm: {
+    PaymentIntent: (paymentMethodType) =>
+      getCustomExchange({
+        Request: {
+          currency: getCurrency(paymentMethodType),
+        },
+        Response: {
+          status: 200,
+          body: {
+            status: "requires_payment_method",
+          },
+        },
+      }),
     Ideal: getCustomExchange({
       Request: {
         payment_method: "bank_redirect",
@@ -530,17 +554,6 @@ export const connectorDetails = {
               },
             },
           },
-        },
-      },
-    }),
-    BlikPaymentIntent: getCustomExchange({
-      Request: {
-        currency: "PLN",
-      },
-      Response: {
-        status: 200,
-        body: {
-          status: "requires_payment_method",
         },
       },
     }),
@@ -1611,4 +1624,56 @@ export const connectorDetails = {
       },
     },
   },
+  return_url_variations: {
+    return_url_too_long: getCustomExchange({
+      Request: {
+        customer_id: "customer_1234567890",
+        return_url: "http://example.com/" + "a".repeat(2031),
+      },
+      Response: {
+        status: 400,
+        body: {
+          error: {
+            message:
+              "return_url must be at most 2048 characters long. Received 2050 characters",
+            code: "IR_06",
+            type: "invalid_request",
+          },
+        },
+      },
+    }),
+    return_url_invalid_format: getCustomExchange({
+      Request: {
+        return_url: "not_a_valid_url",
+      },
+      Response: {
+        status: 400,
+        body: {
+          error: {
+            message:
+              'Json deserialize error: relative URL without a base: "not_a_valid_url" at line 1 column 357',
+            code: "IR_06",
+            error_type: "invalid_request",
+          },
+        },
+      },
+    }),
+  },
+  mandate_id_too_long: getCustomExchange({
+    Request: {
+      mandate_id: "mnd_" + "a".repeat(63),
+      off_session: true,
+    },
+    Response: {
+      status: 400,
+      body: {
+        error: {
+          message:
+            "mandate_id must be at most 64 characters long. Received 67 characters",
+          code: "IR_06",
+          type: "invalid_request",
+        },
+      },
+    },
+  }),
 };

@@ -1,6 +1,7 @@
 use std::{
     collections::{HashMap, HashSet},
     str::FromStr,
+    sync::LazyLock,
 };
 
 #[cfg(feature = "payouts")]
@@ -24,7 +25,6 @@ use hyperswitch_domain_models::{
     network_tokenization::NetworkTokenNumber, payments::payment_attempt::PaymentAttempt,
 };
 use masking::{Deserialize, ExposeInterface, Secret};
-use once_cell::sync::Lazy;
 use regex::Regex;
 
 #[cfg(feature = "frm")]
@@ -1346,29 +1346,31 @@ impl From<domain::GooglePayWalletData> for GooglePayWalletData {
     }
 }
 
-static CARD_REGEX: Lazy<HashMap<CardIssuer, Result<Regex, regex::Error>>> = Lazy::new(|| {
-    let mut map = HashMap::new();
-    // Reference: https://gist.github.com/michaelkeevildown/9096cd3aac9029c4e6e05588448a8841
-    // [#379]: Determine card issuer from card BIN number
-    map.insert(CardIssuer::Master, Regex::new(r"^5[1-5][0-9]{14}$"));
-    map.insert(CardIssuer::AmericanExpress, Regex::new(r"^3[47][0-9]{13}$"));
-    map.insert(CardIssuer::Visa, Regex::new(r"^4[0-9]{12}(?:[0-9]{3})?$"));
-    map.insert(CardIssuer::Discover, Regex::new(r"^65[4-9][0-9]{13}|64[4-9][0-9]{13}|6011[0-9]{12}|(622(?:12[6-9]|1[3-9][0-9]|[2-8][0-9][0-9]|9[01][0-9]|92[0-5])[0-9]{10})$"));
-    map.insert(
-        CardIssuer::Maestro,
-        Regex::new(r"^(5018|5020|5038|5893|6304|6759|6761|6762|6763)[0-9]{8,15}$"),
-    );
-    map.insert(
-        CardIssuer::DinersClub,
-        Regex::new(r"^3(?:0[0-5]|[68][0-9])[0-9]{11}$"),
-    );
-    map.insert(
-        CardIssuer::JCB,
-        Regex::new(r"^(3(?:088|096|112|158|337|5(?:2[89]|[3-8][0-9]))\d{12})$"),
-    );
-    map.insert(CardIssuer::CarteBlanche, Regex::new(r"^389[0-9]{11}$"));
-    map
-});
+static CARD_REGEX: LazyLock<HashMap<CardIssuer, Result<Regex, regex::Error>>> = LazyLock::new(
+    || {
+        let mut map = HashMap::new();
+        // Reference: https://gist.github.com/michaelkeevildown/9096cd3aac9029c4e6e05588448a8841
+        // [#379]: Determine card issuer from card BIN number
+        map.insert(CardIssuer::Master, Regex::new(r"^5[1-5][0-9]{14}$"));
+        map.insert(CardIssuer::AmericanExpress, Regex::new(r"^3[47][0-9]{13}$"));
+        map.insert(CardIssuer::Visa, Regex::new(r"^4[0-9]{12}(?:[0-9]{3})?$"));
+        map.insert(CardIssuer::Discover, Regex::new(r"^65[4-9][0-9]{13}|64[4-9][0-9]{13}|6011[0-9]{12}|(622(?:12[6-9]|1[3-9][0-9]|[2-8][0-9][0-9]|9[01][0-9]|92[0-5])[0-9]{10})$"));
+        map.insert(
+            CardIssuer::Maestro,
+            Regex::new(r"^(5018|5020|5038|5893|6304|6759|6761|6762|6763)[0-9]{8,15}$"),
+        );
+        map.insert(
+            CardIssuer::DinersClub,
+            Regex::new(r"^3(?:0[0-5]|[68][0-9])[0-9]{11}$"),
+        );
+        map.insert(
+            CardIssuer::JCB,
+            Regex::new(r"^(3(?:088|096|112|158|337|5(?:2[89]|[3-8][0-9]))\d{12})$"),
+        );
+        map.insert(CardIssuer::CarteBlanche, Regex::new(r"^389[0-9]{11}$"));
+        map
+    },
+);
 
 #[derive(Debug, Copy, Clone, strum::Display, Eq, Hash, PartialEq)]
 pub enum CardIssuer {
@@ -2223,7 +2225,8 @@ impl FrmTransactionRouterDataRequest for fraud_check::FrmTransactionRouterData {
             | storage_enums::AttemptStatus::Pending
             | storage_enums::AttemptStatus::PaymentMethodAwaited
             | storage_enums::AttemptStatus::ConfirmationAwaited
-            | storage_enums::AttemptStatus::DeviceDataCollectionPending => None,
+            | storage_enums::AttemptStatus::DeviceDataCollectionPending
+            | storage_enums::AttemptStatus::IntegrityFailure => None,
         }
     }
 }
@@ -2253,7 +2256,8 @@ pub fn is_payment_failure(status: enums::AttemptStatus) -> bool {
         | common_enums::AttemptStatus::Pending
         | common_enums::AttemptStatus::PaymentMethodAwaited
         | common_enums::AttemptStatus::ConfirmationAwaited
-        | common_enums::AttemptStatus::DeviceDataCollectionPending => false,
+        | common_enums::AttemptStatus::DeviceDataCollectionPending
+        | common_enums::AttemptStatus::IntegrityFailure => false,
     }
 }
 
@@ -2531,6 +2535,9 @@ pub enum PaymentMethodDataType {
     NetworkToken,
     DirectCarrierBilling,
     InstantBankTransfer,
+    InstantBankTransferFinland,
+    InstantBankTransferPoland,
+    RevolutPay,
 }
 
 impl From<domain::payments::PaymentMethodData> for PaymentMethodDataType {
@@ -2581,6 +2588,7 @@ impl From<domain::payments::PaymentMethodData> for PaymentMethodDataType {
                 domain::payments::WalletData::CashappQr(_) => Self::CashappQr,
                 domain::payments::WalletData::SwishQr(_) => Self::SwishQr,
                 domain::payments::WalletData::Mifinity(_) => Self::Mifinity,
+                domain::payments::WalletData::RevolutPay(_) => Self::RevolutPay,
             },
             domain::payments::PaymentMethodData::PayLater(pay_later_data) => match pay_later_data {
                 domain::payments::PayLaterData::KlarnaRedirect { .. } => Self::KlarnaRedirect,
@@ -2684,6 +2692,12 @@ impl From<domain::payments::PaymentMethodData> for PaymentMethodDataType {
                     domain::payments::BankTransferData::InstantBankTransfer {} => {
                         Self::InstantBankTransfer
                     }
+                    domain::payments::BankTransferData::InstantBankTransferFinland {} => {
+                        Self::InstantBankTransferFinland
+                    }
+                    domain::payments::BankTransferData::InstantBankTransferPoland {} => {
+                        Self::InstantBankTransferPoland
+                    }
                 }
             }
             domain::payments::PaymentMethodData::Crypto(_) => Self::Crypto,
@@ -2748,7 +2762,6 @@ pub fn convert_back_amount_to_minor_units<T>(
         .convert_back(amount, currency)
         .change_context(errors::ConnectorError::AmountConversionFailed)
 }
-
 pub trait NetworkTokenData {
     fn get_card_issuer(&self) -> Result<CardIssuer, Error>;
     fn get_expiry_year_4_digit(&self) -> Secret<String>;
@@ -2759,23 +2772,17 @@ pub trait NetworkTokenData {
 }
 
 impl NetworkTokenData for domain::NetworkTokenData {
-    #[cfg(all(
-        any(feature = "v1", feature = "v2"),
-        not(feature = "payment_methods_v2")
-    ))]
+    #[cfg(feature = "v1")]
     fn get_card_issuer(&self) -> Result<CardIssuer, Error> {
         get_card_issuer(self.token_number.peek())
     }
 
-    #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+    #[cfg(feature = "v2")]
     fn get_card_issuer(&self) -> Result<CardIssuer, Error> {
         get_card_issuer(self.network_token.peek())
     }
 
-    #[cfg(all(
-        any(feature = "v1", feature = "v2"),
-        not(feature = "payment_methods_v2")
-    ))]
+    #[cfg(feature = "v1")]
     fn get_expiry_year_4_digit(&self) -> Secret<String> {
         let mut year = self.token_exp_year.peek().clone();
         if year.len() == 2 {
@@ -2784,7 +2791,7 @@ impl NetworkTokenData for domain::NetworkTokenData {
         Secret::new(year)
     }
 
-    #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+    #[cfg(feature = "v2")]
     fn get_expiry_year_4_digit(&self) -> Secret<String> {
         let mut year = self.network_token_exp_year.peek().clone();
         if year.len() == 2 {
@@ -2793,54 +2800,42 @@ impl NetworkTokenData for domain::NetworkTokenData {
         Secret::new(year)
     }
 
-    #[cfg(all(
-        any(feature = "v1", feature = "v2"),
-        not(feature = "payment_methods_v2")
-    ))]
+    #[cfg(feature = "v1")]
     fn get_network_token(&self) -> NetworkTokenNumber {
         self.token_number.clone()
     }
 
-    #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+    #[cfg(feature = "v2")]
     fn get_network_token(&self) -> NetworkTokenNumber {
         self.network_token.clone()
     }
 
-    #[cfg(all(
-        any(feature = "v1", feature = "v2"),
-        not(feature = "payment_methods_v2")
-    ))]
+    #[cfg(feature = "v1")]
     fn get_network_token_expiry_month(&self) -> Secret<String> {
         self.token_exp_month.clone()
     }
 
-    #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+    #[cfg(feature = "v2")]
     fn get_network_token_expiry_month(&self) -> Secret<String> {
         self.network_token_exp_month.clone()
     }
 
-    #[cfg(all(
-        any(feature = "v1", feature = "v2"),
-        not(feature = "payment_methods_v2")
-    ))]
+    #[cfg(feature = "v1")]
     fn get_network_token_expiry_year(&self) -> Secret<String> {
         self.token_exp_year.clone()
     }
 
-    #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+    #[cfg(feature = "v2")]
     fn get_network_token_expiry_year(&self) -> Secret<String> {
         self.network_token_exp_year.clone()
     }
 
-    #[cfg(all(
-        any(feature = "v1", feature = "v2"),
-        not(feature = "payment_methods_v2")
-    ))]
+    #[cfg(feature = "v1")]
     fn get_cryptogram(&self) -> Option<Secret<String>> {
         self.token_cryptogram.clone()
     }
 
-    #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+    #[cfg(feature = "v2")]
     fn get_cryptogram(&self) -> Option<Secret<String>> {
         self.cryptogram.clone()
     }

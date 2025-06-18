@@ -43,6 +43,10 @@ pub enum ApiIdentifier {
     Hypersense,
     PaymentMethodSession,
     ProcessTracker,
+    Proxy,
+    ProfileAcquirer,
+    ThreeDsDecisionRule,
+    GenericTokenization,
 }
 
 impl From<Flow> for ApiIdentifier {
@@ -75,6 +79,7 @@ impl From<Flow> for ApiIdentifier {
             | Flow::ToggleDynamicRouting
             | Flow::UpdateDynamicRoutingConfigs
             | Flow::DecisionManagerUpsertConfig
+            | Flow::DecisionEngineRuleMigration
             | Flow::VolumeSplitOnRoutingType => Self::Routing,
 
             Flow::RetrieveForexFlow => Self::Forex,
@@ -340,6 +345,11 @@ impl From<Flow> for ApiIdentifier {
             | Flow::PaymentMethodSessionUpdate => Self::PaymentMethodSession,
 
             Flow::RevenueRecoveryRetrieve => Self::ProcessTracker,
+            Flow::Proxy => Self::Proxy,
+
+            Flow::ProfileAcquirerCreate | Flow::ProfileAcquirerUpdate => Self::ProfileAcquirer,
+            Flow::ThreeDsDecisionRuleExecute => Self::ThreeDsDecisionRule,
+            Flow::TokenizationCreate | Flow::TokenizationRetrieve => Self::GenericTokenization,
         }
     }
 }

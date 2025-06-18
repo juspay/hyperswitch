@@ -50,6 +50,12 @@ function validateErrorMessage(response, resData) {
   }
 }
 
+//skip MIT using PMId if connector does not support MIT only
+export function shouldSkipMitUsingPMId(connectorId) {
+  const skipConnectors = ["fiuu"];
+  return skipConnectors.includes(connectorId);
+}
+
 Cypress.Commands.add("healthCheck", (globalState) => {
   const baseUrl = globalState.get("baseUrl");
   const url = `${baseUrl}/health`;
@@ -1119,12 +1125,12 @@ Cypress.Commands.add(
           const responsePaymentMethods = response.body["payment_methods"];
           const responseRequiredFields =
             responsePaymentMethods[0]["payment_method_types"][0][
-            "required_fields"
+              "required_fields"
             ];
 
           const expectedRequiredFields =
             data["payment_methods"][0]["payment_method_types"][0][
-            "required_fields"
+              "required_fields"
             ];
 
           Object.keys(expectedRequiredFields).forEach((key) => {
@@ -1311,6 +1317,11 @@ Cypress.Commands.add(
           const clientSecret = response.body.client_secret;
           globalState.set("clientSecret", clientSecret);
           globalState.set("paymentID", response.body.payment_id);
+          // Store the actual setup_future_usage value from the response
+          globalState.set(
+            "actualSetupFutureUsage",
+            response.body.setup_future_usage
+          );
           cy.log(clientSecret);
           for (const key in resData.body) {
             expect(resData.body[key]).to.equal(
@@ -1573,7 +1584,6 @@ Cypress.Commands.add(
     const merchantConnectorId = globalState.get(
       `${configInfo.merchantConnectorPrefix}Id`
     );
-    const setupFutureUsage = globalState.get("setupFutureUsage");
     const paymentIntentID = globalState.get("paymentID");
     const profileId = globalState.get(`${configInfo.profilePrefix}Id`);
     const url = `${baseUrl}/payments/${paymentIntentID}/confirm`;
@@ -1640,7 +1650,10 @@ Cypress.Commands.add(
                 expect(resData.body[key], [key]).to.deep.equal(
                   response.body[key]
                 );
-                if (setupFutureUsage === "off_session" && response.body.status==="succeeded") {
+                if (
+                  response.body.setup_future_usage === "off_session" &&
+                  response.body.status === "succeeded"
+                ) {
                   expect(
                     response.body.connector_mandate_id,
                     "connector_mandate_id"
@@ -1671,7 +1684,10 @@ Cypress.Commands.add(
                 expect(resData.body[key], [key]).to.deep.equal(
                   response.body[key]
                 );
-                if (setupFutureUsage === "off_session" && response.body.status === "succeeded") {
+                if (
+                  response.body.setup_future_usage === "off_session" &&
+                  response.body.status === "succeeded"
+                ) {
                   expect(
                     response.body.connector_mandate_id,
                     "connector_mandate_id"
@@ -1881,6 +1897,7 @@ Cypress.Commands.add(
                   "nextActionUrl",
                   response.body.next_action.redirect_to_url
                 );
+                globalState.set("nextActionType", "redirect_to_url");
                 break;
             }
           } else {
@@ -2017,6 +2034,11 @@ Cypress.Commands.add(
         if (response.status === 200) {
           globalState.set("paymentAmount", createConfirmPaymentBody.amount);
           globalState.set("paymentID", response.body.payment_id);
+          // Store the actual setup_future_usage value from the response
+          globalState.set(
+            "actualSetupFutureUsage",
+            response.body.setup_future_usage
+          );
           expect(response.body.connector, "connector").to.equal(
             globalState.get("connectorId")
           );
@@ -2111,15 +2133,27 @@ Cypress.Commands.add(
     const paymentIntentID = globalState.get("paymentID");
     const profile_id = globalState.get(`${configInfo.profilePrefix}Id`);
 
-    if (reqData.setup_future_usage === "on_session") {
+    // Add card_cvc if actual setup_future_usage is "on_session"
+    // This covers both explicit on_session and fallback cases
+    if (
+      globalState.get("actualSetupFutureUsage") === "on_session" &&
+      reqData.payment_method_data?.card?.card_cvc
+    ) {
       saveCardConfirmBody.card_cvc = reqData.payment_method_data.card.card_cvc;
     }
     saveCardConfirmBody.client_secret = globalState.get("clientSecret");
     saveCardConfirmBody.payment_token = globalState.get("paymentToken");
     saveCardConfirmBody.profile_id = profile_id;
 
-    if (reqData.billing === null) {
-      saveCardConfirmBody.billing = null;
+    // Include request data from config but exclude payment_method_data
+    if (reqData) {
+      const requestDataWithoutPMD = Object.fromEntries(
+        Object.entries(reqData).filter(
+          ([key]) =>
+            key !== "payment_method_data" && key !== "customer_acceptance"
+        )
+      );
+      Object.assign(saveCardConfirmBody, requestDataWithoutPMD);
     }
 
     cy.request({
@@ -2310,8 +2344,11 @@ Cypress.Commands.add("voidCallTest", (requestBody, data, globalState) => {
   const profile_id = globalState.get(`${configInfo.profilePrefix}Id`);
 
   requestBody.profile_id = profile_id;
-  requestBody.cancellation_reason =
-    reqData?.cancellation_reason ?? requestBody.cancellation_reason;
+
+  // Apply connector-specific request data (including cancellation_reason)
+  for (const key in reqData) {
+    requestBody[key] = reqData[key];
+  }
 
   cy.request({
     method: "POST",
@@ -2436,13 +2473,13 @@ Cypress.Commands.add(
             for (const key in response.body.attempts) {
               if (
                 response.body.attempts[key].attempt_id ===
-                `${payment_id}_${attempt}` &&
+                  `${payment_id}_${attempt}` &&
                 response.body.status === "succeeded"
               ) {
                 expect(response.body.attempts[key].status).to.equal("charged");
               } else if (
                 response.body.attempts[key].attempt_id ===
-                `${payment_id}_${attempt}` &&
+                  `${payment_id}_${attempt}` &&
                 response.body.status === "requires_customer_action"
               ) {
                 expect(response.body.attempts[key].status).to.equal(
@@ -2554,7 +2591,7 @@ Cypress.Commands.add(
     const merchant_connector_id = globalState.get(
       `${configInfo.merchantConnectorPrefix}Id`
     );
-    const setupFutureUsage = globalState.get("setupFutureUsage");
+
     for (const key in reqData) {
       requestBody[key] = reqData[key];
     }
@@ -2594,7 +2631,10 @@ Cypress.Commands.add(
           );
           expect(response.body.customer, "customer").to.not.be.empty;
           expect(response.body.profile_id, "profile_id").to.not.be.null;
-          if (response.body.status !== "failed") {
+          if (
+            response.body.status !== "failed" &&
+            response.body.setup_future_usage === "off_session"
+          ) {
             expect(response.body.payment_method_id, "payment_method_id").to.not
               .be.null;
           }
@@ -2626,11 +2666,15 @@ Cypress.Commands.add(
               }
             } else if (response.body.authentication_type === "no_three_ds") {
               for (const key in resData.body) {
-
                 expect(resData.body[key], [key]).to.deep.equal(
                   response.body[key]
                 );
-                if (setupFutureUsage === "off_session" && response.body.status === "succeeded") {
+                if (
+                  response.body.setup_future_usage === "off_session" &&
+                  //Added this check to ensure mandate_id is null so that will get connector_mandate_id
+                  response.body.mandate_id === null &&
+                  response.body.status === "succeeded"
+                ) {
                   expect(
                     response.body.connector_mandate_id,
                     "connector_mandate_id"
@@ -2663,7 +2707,11 @@ Cypress.Commands.add(
                 expect(resData.body[key], [key]).to.deep.equal(
                   response.body[key]
                 );
-                if (setupFutureUsage === "off_session" && response.body.status === "succeeded") {
+                if (
+                  response.body.setup_future_usage === "off_session" &&
+                  response.body.mandate_id === null &&
+                  response.body.status === "succeeded"
+                ) {
                   expect(
                     response.body.connector_mandate_id,
                     "connector_mandate_id"
@@ -2816,6 +2864,13 @@ Cypress.Commands.add(
     globalState,
     connector_agnostic_mit
   ) => {
+    if (shouldSkipMitUsingPMId(globalState.get("connectorId"))) {
+      cy.log(
+        `Skipping mitUsingPMId for connector: ${globalState.get("connectorId")}`
+      );
+      return;
+    }
+
     const {
       Configs: configs = {},
       Request: reqData,
@@ -2892,10 +2947,10 @@ Cypress.Commands.add(
                 allowedActiveStatuses
               );
 
-          expect(
-            response.body.payment_method_status,
+              expect(
+                response.body.payment_method_status,
                 "payment_method_status for active status"
-          ).to.equal("active");
+              ).to.equal("active");
 
               if (connector_agnostic_mit) {
                 expect(

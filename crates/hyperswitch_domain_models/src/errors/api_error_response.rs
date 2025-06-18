@@ -101,6 +101,11 @@ pub enum ApiErrorResponse {
     MerchantConnectorAccountNotFound { id: String },
     #[error(error_type = ErrorType::ObjectNotFound, code = "HE_02", message = "Business profile with the given id  '{id}' does not exist in our records")]
     ProfileNotFound { id: String },
+    #[error(error_type = ErrorType::ObjectNotFound, code = "HE_02", message = "Profile acquirer with id '{profile_acquirer_id}' not found for profile '{profile_id}'.")]
+    ProfileAcquirerNotFound {
+        profile_acquirer_id: String,
+        profile_id: String,
+    },
     #[error(error_type = ErrorType::ObjectNotFound, code = "HE_02", message = "Poll with the given id  '{id}' does not exist in our records")]
     PollNotFound { id: String },
     #[error(error_type = ErrorType::ObjectNotFound, code = "HE_02", message = "Resource ID does not exist in our records")]
@@ -283,6 +288,8 @@ pub enum ApiErrorResponse {
     PlatformAccountAuthNotSupported,
     #[error(error_type = ErrorType::InvalidRequestError, code = "IR_44", message = "Invalid platform account operation")]
     InvalidPlatformOperation,
+    #[error(error_type = ErrorType::InvalidRequestError, code = "IR_45", message = "External vault failed during processing with connector")]
+    ExternalVaultFailed,
     #[error(error_type = ErrorType::InvalidRequestError, code = "WE_01", message = "Failed to authenticate the webhook")]
     WebhookAuthenticationFailed,
     #[error(error_type = ErrorType::InvalidRequestError, code = "WE_02", message = "Bad request received in webhook")]
@@ -418,6 +425,9 @@ impl ErrorSwitch<api_models::errors::types::ApiErrorResponse> for ApiErrorRespon
             }
             Self::ProfileNotFound { id } => {
                 AER::NotFound(ApiError::new("HE", 2, format!("Business profile with the given id {id} does not exist"), None))
+            }
+            Self::ProfileAcquirerNotFound { profile_acquirer_id, profile_id } => {
+                AER::NotFound(ApiError::new("HE", 2, format!("Profile acquirer with id '{profile_acquirer_id}' not found for profile '{profile_id}'."), None))
             }
             Self::PollNotFound { .. } => {
                 AER::NotFound(ApiError::new("HE", 2, "Poll does not exist in our records", None))
@@ -637,6 +647,9 @@ impl ErrorSwitch<api_models::errors::types::ApiErrorResponse> for ApiErrorRespon
             },
             Self::CookieNotFound => {
                 AER::Unauthorized(ApiError::new("IR", 42, "Cookies are not found in the request", None))
+            },
+            Self::ExternalVaultFailed => {
+                AER::BadRequest(ApiError::new("IR", 45, "External Vault failed while processing with connector.", None))
             },
 
             Self::WebhookAuthenticationFailed => {

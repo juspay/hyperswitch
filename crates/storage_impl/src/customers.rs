@@ -53,7 +53,7 @@ impl<T: DatabaseStore> domain::CustomerInterface for kv_router_store::KVRouterSt
     type Error = StorageError;
     #[instrument(skip_all)]
     // check customer not found in kv and fallback to db
-    #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
+    #[cfg(feature = "v1")]
     async fn find_customer_optional_by_customer_id_merchant_id(
         &self,
         state: &KeyManagerState,
@@ -91,7 +91,7 @@ impl<T: DatabaseStore> domain::CustomerInterface for kv_router_store::KVRouterSt
 
     #[instrument(skip_all)]
     // check customer not found in kv and fallback to db
-    #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
+    #[cfg(feature = "v1")]
     async fn find_customer_optional_with_redacted_customer_details_by_customer_id_merchant_id(
         &self,
         state: &KeyManagerState,
@@ -121,7 +121,7 @@ impl<T: DatabaseStore> domain::CustomerInterface for kv_router_store::KVRouterSt
         .await
     }
 
-    #[cfg(all(feature = "v2", feature = "customer_v2"))]
+    #[cfg(feature = "v2")]
     async fn find_optional_by_merchant_id_merchant_reference_id(
         &self,
         state: &KeyManagerState,
@@ -157,7 +157,7 @@ impl<T: DatabaseStore> domain::CustomerInterface for kv_router_store::KVRouterSt
         })
     }
 
-    #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
+    #[cfg(feature = "v1")]
     #[instrument(skip_all)]
     async fn update_customer_by_customer_id_merchant_id(
         &self,
@@ -202,7 +202,7 @@ impl<T: DatabaseStore> domain::CustomerInterface for kv_router_store::KVRouterSt
         .await
     }
 
-    #[cfg(all(feature = "v2", feature = "customer_v2"))]
+    #[cfg(feature = "v2")]
     #[instrument(skip_all)]
     async fn find_customer_by_merchant_reference_id_merchant_id(
         &self,
@@ -239,7 +239,7 @@ impl<T: DatabaseStore> domain::CustomerInterface for kv_router_store::KVRouterSt
         }
     }
 
-    #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
+    #[cfg(feature = "v1")]
     #[instrument(skip_all)]
     async fn find_customer_by_customer_id_merchant_id(
         &self,
@@ -289,7 +289,7 @@ impl<T: DatabaseStore> domain::CustomerInterface for kv_router_store::KVRouterSt
             .await
     }
 
-    #[cfg(all(feature = "v2", feature = "customer_v2"))]
+    #[cfg(feature = "v2")]
     #[instrument(skip_all)]
     async fn insert_customer(
         &self,
@@ -353,7 +353,7 @@ impl<T: DatabaseStore> domain::CustomerInterface for kv_router_store::KVRouterSt
         .await
     }
 
-    #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
+    #[cfg(feature = "v1")]
     #[instrument(skip_all)]
     async fn insert_customer(
         &self,
@@ -397,7 +397,7 @@ impl<T: DatabaseStore> domain::CustomerInterface for kv_router_store::KVRouterSt
         .await
     }
 
-    #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
+    #[cfg(feature = "v1")]
     #[instrument(skip_all)]
     async fn delete_customer_by_customer_id_merchant_id(
         &self,
@@ -409,7 +409,7 @@ impl<T: DatabaseStore> domain::CustomerInterface for kv_router_store::KVRouterSt
             .await
     }
 
-    #[cfg(all(feature = "v2", feature = "customer_v2"))]
+    #[cfg(feature = "v2")]
     #[instrument(skip_all)]
     async fn find_customer_by_global_id(
         &self,
@@ -442,7 +442,7 @@ impl<T: DatabaseStore> domain::CustomerInterface for kv_router_store::KVRouterSt
         }
     }
 
-    #[cfg(all(feature = "v2", feature = "customer_v2"))]
+    #[cfg(feature = "v2")]
     #[instrument(skip_all)]
     async fn update_customer_by_global_id(
         &self,
@@ -487,7 +487,7 @@ impl<T: DatabaseStore> domain::CustomerInterface for kv_router_store::KVRouterSt
 impl<T: DatabaseStore> domain::CustomerInterface for RouterStore<T> {
     type Error = StorageError;
     #[instrument(skip_all)]
-    #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
+    #[cfg(feature = "v1")]
     async fn find_customer_optional_by_customer_id_merchant_id(
         &self,
         state: &KeyManagerState,
@@ -521,7 +521,7 @@ impl<T: DatabaseStore> domain::CustomerInterface for RouterStore<T> {
     }
 
     #[instrument(skip_all)]
-    #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
+    #[cfg(feature = "v1")]
     async fn find_customer_optional_with_redacted_customer_details_by_customer_id_merchant_id(
         &self,
         state: &KeyManagerState,
@@ -544,7 +544,7 @@ impl<T: DatabaseStore> domain::CustomerInterface for RouterStore<T> {
     }
 
     #[instrument(skip_all)]
-    #[cfg(all(feature = "v2", feature = "customer_v2"))]
+    #[cfg(feature = "v2")]
     async fn find_optional_by_merchant_id_merchant_reference_id(
         &self,
         state: &KeyManagerState,
@@ -577,7 +577,7 @@ impl<T: DatabaseStore> domain::CustomerInterface for RouterStore<T> {
         })
     }
 
-    #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
+    #[cfg(feature = "v1")]
     #[instrument(skip_all)]
     async fn update_customer_by_customer_id_merchant_id(
         &self,
@@ -603,7 +603,7 @@ impl<T: DatabaseStore> domain::CustomerInterface for RouterStore<T> {
         .await
     }
 
-    #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
+    #[cfg(feature = "v1")]
     #[instrument(skip_all)]
     async fn find_customer_by_customer_id_merchant_id(
         &self,
@@ -631,7 +631,7 @@ impl<T: DatabaseStore> domain::CustomerInterface for RouterStore<T> {
         }
     }
 
-    #[cfg(all(feature = "v2", feature = "customer_v2"))]
+    #[cfg(feature = "v2")]
     #[instrument(skip_all)]
     async fn find_customer_by_merchant_reference_id_merchant_id(
         &self,
@@ -695,7 +695,7 @@ impl<T: DatabaseStore> domain::CustomerInterface for RouterStore<T> {
             .await
     }
 
-    #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
+    #[cfg(feature = "v1")]
     #[instrument(skip_all)]
     async fn delete_customer_by_customer_id_merchant_id(
         &self,
@@ -711,7 +711,7 @@ impl<T: DatabaseStore> domain::CustomerInterface for RouterStore<T> {
             })
     }
 
-    #[cfg(all(feature = "v2", feature = "customer_v2"))]
+    #[cfg(feature = "v2")]
     #[allow(clippy::too_many_arguments)]
     async fn update_customer_by_global_id(
         &self,
@@ -732,7 +732,7 @@ impl<T: DatabaseStore> domain::CustomerInterface for RouterStore<T> {
         .await
     }
 
-    #[cfg(all(feature = "v2", feature = "customer_v2"))]
+    #[cfg(feature = "v2")]
     #[instrument(skip_all)]
     async fn find_customer_by_global_id(
         &self,
@@ -760,8 +760,7 @@ impl<T: DatabaseStore> domain::CustomerInterface for RouterStore<T> {
 #[async_trait::async_trait]
 impl domain::CustomerInterface for MockDb {
     type Error = StorageError;
-    #[allow(clippy::panic)]
-    #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
+    #[cfg(feature = "v1")]
     async fn find_customer_optional_by_customer_id_merchant_id(
         &self,
         state: &KeyManagerState,
@@ -777,8 +776,7 @@ impl domain::CustomerInterface for MockDb {
         .await
     }
 
-    #[allow(clippy::panic)]
-    #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
+    #[cfg(feature = "v1")]
     async fn find_customer_optional_with_redacted_customer_details_by_customer_id_merchant_id(
         &self,
         state: &KeyManagerState,
@@ -794,8 +792,7 @@ impl domain::CustomerInterface for MockDb {
         .await
     }
 
-    #[allow(clippy::panic)]
-    #[cfg(all(feature = "v2", feature = "customer_v2"))]
+    #[cfg(feature = "v2")]
     async fn find_optional_by_merchant_id_merchant_reference_id(
         &self,
         state: &KeyManagerState,
@@ -839,7 +836,7 @@ impl domain::CustomerInterface for MockDb {
         Ok(customers)
     }
 
-    #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
+    #[cfg(feature = "v1")]
     #[instrument(skip_all)]
     async fn update_customer_by_customer_id_merchant_id(
         &self,
@@ -855,7 +852,7 @@ impl domain::CustomerInterface for MockDb {
         Err(StorageError::MockDbError)?
     }
 
-    #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
+    #[cfg(feature = "v1")]
     async fn find_customer_by_customer_id_merchant_id(
         &self,
         _state: &KeyManagerState,
@@ -868,7 +865,7 @@ impl domain::CustomerInterface for MockDb {
         Err(StorageError::MockDbError)?
     }
 
-    #[cfg(all(feature = "v2", feature = "customer_v2"))]
+    #[cfg(feature = "v2")]
     async fn find_customer_by_merchant_reference_id_merchant_id(
         &self,
         _state: &KeyManagerState,
@@ -907,7 +904,7 @@ impl domain::CustomerInterface for MockDb {
             .change_context(StorageError::DecryptionError)
     }
 
-    #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
+    #[cfg(feature = "v1")]
     async fn delete_customer_by_customer_id_merchant_id(
         &self,
         _customer_id: &id_type::CustomerId,
@@ -917,7 +914,7 @@ impl domain::CustomerInterface for MockDb {
         Err(StorageError::MockDbError)?
     }
 
-    #[cfg(all(feature = "v2", feature = "customer_v2"))]
+    #[cfg(feature = "v2")]
     #[allow(clippy::too_many_arguments)]
     async fn update_customer_by_global_id(
         &self,
@@ -933,7 +930,7 @@ impl domain::CustomerInterface for MockDb {
         Err(StorageError::MockDbError)?
     }
 
-    #[cfg(all(feature = "v2", feature = "customer_v2"))]
+    #[cfg(feature = "v2")]
     async fn find_customer_by_global_id(
         &self,
         _state: &KeyManagerState,

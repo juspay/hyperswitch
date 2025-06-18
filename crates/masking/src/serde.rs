@@ -15,7 +15,6 @@ use crate::{Secret, Strategy, StrongSecret, ZeroizableSecret};
 ///
 /// This is done deliberately to prevent accidental exfiltration of secrets
 /// via `serde` serialization.
-
 #[cfg_attr(docsrs, cfg(feature = "serde"))]
 pub trait SerializableSecret: Serialize {}
 // #[cfg_attr(docsrs, doc(cfg(feature = "serde")))]

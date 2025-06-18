@@ -17,12 +17,22 @@ use async_trait::async_trait;
 use hyperswitch_domain_models::router_flow_types::{
     BillingConnectorInvoiceSync, BillingConnectorPaymentsSync, RecoveryRecordBack,
 };
+#[cfg(feature = "dummy_connector")]
+use hyperswitch_domain_models::router_flow_types::{
+    ExternalVaultCreateFlow, ExternalVaultDeleteFlow, ExternalVaultInsertFlow,
+    ExternalVaultRetrieveFlow,
+};
 use hyperswitch_domain_models::{
     mandates::CustomerAcceptance,
     router_flow_types::{
         Authenticate, AuthenticationConfirmation, PostAuthenticate, PreAuthenticate,
     },
     router_request_types::PaymentsCaptureData,
+};
+#[cfg(feature = "dummy_connector")]
+use hyperswitch_interfaces::api::vault::{
+    ExternalVault, ExternalVaultCreate, ExternalVaultDelete, ExternalVaultInsert,
+    ExternalVaultRetrieve,
 };
 use hyperswitch_interfaces::api::{
     payouts::Payouts, UasAuthentication, UasAuthenticationConfirmation, UasPostAuthentication,
@@ -65,7 +75,7 @@ pub trait ConstructFlowSpecificData<F, Req, Res> {
         _connector_id: &str,
         _merchant_context: &domain::MerchantContext,
         _customer: &Option<domain::Customer>,
-        _merchant_connector_account: &domain::MerchantConnectorAccount,
+        _merchant_connector_account: &domain::MerchantConnectorAccountTypeDetails,
         _merchant_recipient_data: Option<types::MerchantRecipientData>,
         _header_payload: Option<hyperswitch_domain_models::payments::HeaderPayload>,
     ) -> RouterResult<types::RouterData<F, Req, Res>>;
@@ -90,6 +100,7 @@ pub trait Feature<F, T> {
         connector_request: Option<services::Request>,
         business_profile: &domain::Profile,
         header_payload: hyperswitch_domain_models::payments::HeaderPayload,
+        all_keys_required: Option<bool>,
     ) -> RouterResult<Self>
     where
         Self: Sized,
@@ -187,6 +198,20 @@ pub trait Feature<F, T> {
         _call_connector_action: payments::CallConnectorAction,
     ) -> RouterResult<(Option<services::Request>, bool)> {
         Ok((None, true))
+    }
+
+    async fn create_order_at_connector(
+        &mut self,
+        _state: &SessionState,
+        _connector: &api::ConnectorData,
+        should_continue_payment: bool,
+    ) -> RouterResult<bool>
+    where
+        F: Clone,
+        Self: Sized,
+        dyn api::Connector: services::ConnectorIntegration<F, T, types::PaymentsResponseData>,
+    {
+        Ok(should_continue_payment)
     }
 }
 
@@ -633,6 +658,18 @@ impl<const T: u8>
 }
 
 #[cfg(feature = "dummy_connector")]
+impl<const T: u8> api::PaymentsCreateOrder for connector::DummyConnector<T> {}
+#[cfg(feature = "dummy_connector")]
+impl<const T: u8>
+    services::ConnectorIntegration<
+        api::CreateOrder,
+        types::CreateOrderRequestData,
+        types::PaymentsResponseData,
+    > for connector::DummyConnector<T>
+{
+}
+
+#[cfg(feature = "dummy_connector")]
 impl<const T: u8> api::PaymentUpdateMetadata for connector::DummyConnector<T> {}
 #[cfg(feature = "dummy_connector")]
 impl<const T: u8>
@@ -753,6 +790,7 @@ pub async fn call_capture_request(
             connector_request,
             business_profile,
             header_payload.clone(),
+            None,
         )
         .await
 }
@@ -845,6 +883,57 @@ impl<const T: u8>
         BillingConnectorInvoiceSync,
         types::BillingConnectorInvoiceSyncRequest,
         types::BillingConnectorInvoiceSyncResponse,
+    > for connector::DummyConnector<T>
+{
+}
+
+#[cfg(feature = "dummy_connector")]
+impl<const T: u8> ExternalVault for connector::DummyConnector<T> {}
+
+#[cfg(feature = "dummy_connector")]
+impl<const T: u8> ExternalVaultInsert for connector::DummyConnector<T> {}
+#[cfg(feature = "dummy_connector")]
+impl<const T: u8>
+    services::ConnectorIntegration<
+        ExternalVaultInsertFlow,
+        types::VaultRequestData,
+        types::VaultResponseData,
+    > for connector::DummyConnector<T>
+{
+}
+
+#[cfg(feature = "dummy_connector")]
+impl<const T: u8> ExternalVaultRetrieve for connector::DummyConnector<T> {}
+#[cfg(feature = "dummy_connector")]
+impl<const T: u8>
+    services::ConnectorIntegration<
+        ExternalVaultRetrieveFlow,
+        types::VaultRequestData,
+        types::VaultResponseData,
+    > for connector::DummyConnector<T>
+{
+}
+
+#[cfg(feature = "dummy_connector")]
+impl<const T: u8> ExternalVaultDelete for connector::DummyConnector<T> {}
+#[cfg(feature = "dummy_connector")]
+impl<const T: u8>
+    services::ConnectorIntegration<
+        ExternalVaultDeleteFlow,
+        types::VaultRequestData,
+        types::VaultResponseData,
+    > for connector::DummyConnector<T>
+{
+}
+
+#[cfg(feature = "dummy_connector")]
+impl<const T: u8> ExternalVaultCreate for connector::DummyConnector<T> {}
+#[cfg(feature = "dummy_connector")]
+impl<const T: u8>
+    services::ConnectorIntegration<
+        ExternalVaultCreateFlow,
+        types::VaultRequestData,
+        types::VaultResponseData,
     > for connector::DummyConnector<T>
 {
 }

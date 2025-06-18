@@ -2,7 +2,7 @@
 use api_models::payouts::{self, PayoutMethodData};
 use api_models::{
     enums,
-    payments::{self, QrCodeInformation, VoucherNextStepData},
+    payments::{self, PollConfig, QrCodeInformation, VoucherNextStepData},
 };
 use cards::CardNumber;
 use common_enums::enums as storage_enums;
@@ -90,11 +90,13 @@ impl TryFrom<&Option<common_utils::pii::SecretSerdeValue>> for AdyenConnectorMet
     fn try_from(
         meta_data: &Option<common_utils::pii::SecretSerdeValue>,
     ) -> Result<Self, Self::Error> {
-        let metadata: Self = utils::to_connector_meta_from_secret::<Self>(meta_data.clone())
-            .change_context(errors::ConnectorError::InvalidConnectorConfig {
-                config: "metadata",
-            })?;
-        Ok(metadata)
+        match meta_data {
+            Some(metadata) => utils::to_connector_meta_from_secret::<Self>(Some(metadata.clone()))
+                .change_context(errors::ConnectorError::InvalidConnectorConfig {
+                    config: "metadata",
+                }),
+            None => Ok(Self::default()),
+        }
     }
 }
 
@@ -1257,6 +1259,7 @@ pub enum CardBrand {
     Visa,
     MC,
     Amex,
+    Accel,
     Argencard,
     Bcmc,
     Bijcard,
@@ -1281,13 +1284,16 @@ pub enum CardBrand {
     Mir,
     Naranja,
     Oasis,
+    Pulse,
     Rupay,
     Shopping,
+    Star,
     Solo,
     Troy,
     Uatp,
     Visaalphabankbonus,
     Visadankort,
+    Nyce,
     Warehouse,
 }
 
@@ -2091,6 +2097,10 @@ fn get_adyen_card_network(card_network: common_enums::CardNetwork) -> Option<Car
         common_enums::CardNetwork::UnionPay => Some(CardBrand::Cup),
         common_enums::CardNetwork::RuPay => Some(CardBrand::Rupay),
         common_enums::CardNetwork::Maestro => Some(CardBrand::Maestro),
+        common_enums::CardNetwork::Star => Some(CardBrand::Star),
+        common_enums::CardNetwork::Accel => Some(CardBrand::Accel),
+        common_enums::CardNetwork::Pulse => Some(CardBrand::Pulse),
+        common_enums::CardNetwork::Nyce => Some(CardBrand::Nyce),
         common_enums::CardNetwork::Interac => None,
     }
 }
@@ -2260,7 +2270,8 @@ impl TryFrom<(&WalletData, &PaymentsAuthorizeRouterData)> for AdyenPaymentMethod
             | WalletData::PaypalSdk(_)
             | WalletData::WeChatPayQr(_)
             | WalletData::CashappQr(_)
-            | WalletData::Mifinity(_) => Err(errors::ConnectorError::NotImplemented(
+            | WalletData::Mifinity(_)
+            | WalletData::RevolutPay(_) => Err(errors::ConnectorError::NotImplemented(
                 utils::get_unimplemented_payment_method_error_message("Adyen"),
             )
             .into()),
@@ -2540,6 +2551,8 @@ impl TryFrom<(&BankTransferData, &PaymentsAuthorizeRouterData)> for AdyenPayment
             | BankTransferData::MultibancoBankTransfer { .. }
             | BankTransferData::LocalBankTransfer { .. }
             | BankTransferData::InstantBankTransfer {}
+            | BankTransferData::InstantBankTransferFinland {}
+            | BankTransferData::InstantBankTransferPoland {}
             | BankTransferData::Pse {} => Err(errors::ConnectorError::NotImplemented(
                 utils::get_unimplemented_payment_method_error_message("Adyen"),
             )
@@ -4218,6 +4231,7 @@ pub fn get_qr_metadata(
 pub struct WaitScreenData {
     display_from_timestamp: i128,
     display_to_timestamp: Option<i128>,
+    poll_config: Option<PollConfig>,
 }
 
 pub fn get_wait_screen_metadata(
@@ -4228,14 +4242,16 @@ pub fn get_wait_screen_metadata(
             let current_time = OffsetDateTime::now_utc().unix_timestamp_nanos();
             Ok(Some(serde_json::json!(WaitScreenData {
                 display_from_timestamp: current_time,
-                display_to_timestamp: Some(current_time + Duration::minutes(1).whole_nanoseconds())
+                display_to_timestamp: Some(current_time + Duration::minutes(1).whole_nanoseconds()),
+                poll_config: None
             })))
         }
         PaymentType::Mbway => {
             let current_time = OffsetDateTime::now_utc().unix_timestamp_nanos();
             Ok(Some(serde_json::json!(WaitScreenData {
                 display_from_timestamp: current_time,
-                display_to_timestamp: None
+                display_to_timestamp: None,
+                poll_config: None
             })))
         }
         PaymentType::Affirm

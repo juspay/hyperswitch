@@ -384,6 +384,12 @@ pub enum RoutingError {
     OpenRouterCallFailed,
     #[error("Error from open_router: {0}")]
     OpenRouterError(String),
+    #[error("Decision engine responded with validation error: {0}")]
+    DecisionEngineValidationError(String),
+    #[error("Invalid transaction type")]
+    InvalidTransactionType,
+    #[error("Routing events error: {message}, status code: {status_code}")]
+    RoutingEventsError { message: String, status_code: u16 },
 }
 
 #[derive(Debug, Clone, thiserror::Error)]
@@ -483,6 +489,10 @@ pub enum RevenueRecoveryError {
     RetryCountFetchFailed,
     #[error("Failed to get the billing threshold retry count")]
     BillingThresholdRetryCountFetchFailed,
+    #[error("Failed to get the retry algorithm type")]
+    RetryAlgorithmTypeNotFound,
+    #[error("Failed to update the retry algorithm type")]
+    RetryAlgorithmUpdationFailed,
     #[error("Failed to create the revenue recovery attempt data")]
     RevenueRecoveryAttemptDataCreateFailed,
 }

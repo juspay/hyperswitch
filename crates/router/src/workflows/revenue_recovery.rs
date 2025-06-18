@@ -20,8 +20,8 @@ use storage_impl::errors as storage_errors;
 #[cfg(feature = "v2")]
 use crate::{
     core::{
-        admin, payments,
-        revenue_recovery::{self as pcr, types},
+        payments,
+        revenue_recovery::{self as pcr},
     },
     db::StorageInterface,
     errors::StorageError,
@@ -85,13 +85,13 @@ impl ProcessTrackerWorkflow<SessionState> for ExecutePcrWorkflow {
 
         match process.name.as_deref() {
             Some("EXECUTE_WORKFLOW") => {
-                pcr::perform_execute_payment(
+                Box::pin(pcr::perform_execute_payment(
                     state,
                     &process,
                     &tracking_data,
                     &revenue_recovery_payment_data,
                     &payment_data.payment_intent,
-                )
+                ))
                 .await
             }
             Some("PSYNC_WORKFLOW") => {
@@ -155,6 +155,7 @@ pub(crate) async fn extract_data_and_perform_action(
         profile,
         key_store,
         billing_mca,
+        retry_algorithm: tracking_data.revenue_recovery_retry,
     };
     Ok(pcr_payment_data)
 }

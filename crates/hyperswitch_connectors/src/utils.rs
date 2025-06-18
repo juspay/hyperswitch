@@ -2,6 +2,7 @@ use std::{
     collections::{HashMap, HashSet},
     marker::PhantomData,
     str::FromStr,
+    sync::LazyLock,
 };
 
 use api_models::payments;
@@ -66,11 +67,14 @@ use hyperswitch_domain_models::{
 use hyperswitch_interfaces::{api, consts, errors, types::Response};
 use image::{DynamicImage, ImageBuffer, ImageFormat, Luma, Rgba};
 use masking::{ExposeInterface, PeekInterface, Secret};
-use once_cell::sync::Lazy;
+use quick_xml::{
+    events::{BytesDecl, BytesText, Event},
+    Writer,
+};
 use rand::Rng;
 use regex::Regex;
 use router_env::logger;
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use time::PrimitiveDateTime;
 use unicode_normalization::UnicodeNormalization;
@@ -131,15 +135,6 @@ pub(crate) fn to_currency_base_unit(
     currency
         .to_currency_base_unit(amount)
         .change_context(errors::ConnectorError::ParsingFailed)
-}
-
-pub(crate) fn to_currency_lower_unit(
-    amount: String,
-    currency: enums::Currency,
-) -> Result<String, error_stack::Report<errors::ConnectorError>> {
-    currency
-        .to_currency_lower_unit(amount)
-        .change_context(errors::ConnectorError::ResponseHandlingFailed)
 }
 
 pub trait ConnectorErrorTypeMapping {
@@ -445,7 +440,8 @@ pub(crate) fn is_payment_failure(status: AttemptStatus) -> bool {
         | AttemptStatus::Pending
         | AttemptStatus::PaymentMethodAwaited
         | AttemptStatus::ConfirmationAwaited
-        | AttemptStatus::DeviceDataCollectionPending => false,
+        | AttemptStatus::DeviceDataCollectionPending
+        | AttemptStatus::IntegrityFailure => false,
     }
 }
 
@@ -1297,29 +1293,31 @@ fn get_card_issuer(card_number: &str) -> Result<CardIssuer, Error> {
     ))
 }
 
-static CARD_REGEX: Lazy<HashMap<CardIssuer, Result<Regex, regex::Error>>> = Lazy::new(|| {
-    let mut map = HashMap::new();
-    // Reference: https://gist.github.com/michaelkeevildown/9096cd3aac9029c4e6e05588448a8841
-    // [#379]: Determine card issuer from card BIN number
-    map.insert(CardIssuer::Master, Regex::new(r"^5[1-5][0-9]{14}$"));
-    map.insert(CardIssuer::AmericanExpress, Regex::new(r"^3[47][0-9]{13}$"));
-    map.insert(CardIssuer::Visa, Regex::new(r"^4[0-9]{12}(?:[0-9]{3})?$"));
-    map.insert(CardIssuer::Discover, Regex::new(r"^65[4-9][0-9]{13}|64[4-9][0-9]{13}|6011[0-9]{12}|(622(?:12[6-9]|1[3-9][0-9]|[2-8][0-9][0-9]|9[01][0-9]|92[0-5])[0-9]{10})$"));
-    map.insert(
-        CardIssuer::Maestro,
-        Regex::new(r"^(5018|5020|5038|5893|6304|6759|6761|6762|6763)[0-9]{8,15}$"),
-    );
-    map.insert(
-        CardIssuer::DinersClub,
-        Regex::new(r"^3(?:0[0-5]|[68][0-9])[0-9]{11}$"),
-    );
-    map.insert(
-        CardIssuer::JCB,
-        Regex::new(r"^(3(?:088|096|112|158|337|5(?:2[89]|[3-8][0-9]))\d{12})$"),
-    );
-    map.insert(CardIssuer::CarteBlanche, Regex::new(r"^389[0-9]{11}$"));
-    map
-});
+static CARD_REGEX: LazyLock<HashMap<CardIssuer, Result<Regex, regex::Error>>> = LazyLock::new(
+    || {
+        let mut map = HashMap::new();
+        // Reference: https://gist.github.com/michaelkeevildown/9096cd3aac9029c4e6e05588448a8841
+        // [#379]: Determine card issuer from card BIN number
+        map.insert(CardIssuer::Master, Regex::new(r"^5[1-5][0-9]{14}$"));
+        map.insert(CardIssuer::AmericanExpress, Regex::new(r"^3[47][0-9]{13}$"));
+        map.insert(CardIssuer::Visa, Regex::new(r"^4[0-9]{12}(?:[0-9]{3})?$"));
+        map.insert(CardIssuer::Discover, Regex::new(r"^65[4-9][0-9]{13}|64[4-9][0-9]{13}|6011[0-9]{12}|(622(?:12[6-9]|1[3-9][0-9]|[2-8][0-9][0-9]|9[01][0-9]|92[0-5])[0-9]{10})$"));
+        map.insert(
+            CardIssuer::Maestro,
+            Regex::new(r"^(5018|5020|5038|5893|6304|6759|6761|6762|6763)[0-9]{8,15}$"),
+        );
+        map.insert(
+            CardIssuer::DinersClub,
+            Regex::new(r"^3(?:0[0-5]|[68][0-9])[0-9]{11}$"),
+        );
+        map.insert(
+            CardIssuer::JCB,
+            Regex::new(r"^(3(?:088|096|112|158|337|5(?:2[89]|[3-8][0-9]))\d{12})$"),
+        );
+        map.insert(CardIssuer::CarteBlanche, Regex::new(r"^389[0-9]{11}$"));
+        map
+    },
+);
 
 pub trait AddressDetailsData {
     fn get_first_name(&self) -> Result<&Secret<String>, Error>;
@@ -1687,6 +1685,7 @@ pub trait PaymentsAuthorizeRequestData {
     fn get_connector_mandate_id(&self) -> Result<String, Error>;
     fn get_complete_authorize_url(&self) -> Result<String, Error>;
     fn get_ip_address_as_optional(&self) -> Option<Secret<String, IpAddress>>;
+    fn get_optional_user_agent(&self) -> Option<String>;
     fn get_original_amount(&self) -> i64;
     fn get_surcharge_amount(&self) -> Option<i64>;
     fn get_tax_on_surcharge_amount(&self) -> Option<i64>;
@@ -1705,6 +1704,7 @@ pub trait PaymentsAuthorizeRequestData {
         &self,
     ) -> Result<enums::CardNetwork, Error>;
     fn get_connector_testing_data(&self) -> Option<pii::SecretSerdeValue>;
+    fn get_order_id(&self) -> Result<String, errors::ConnectorError>;
 }
 
 impl PaymentsAuthorizeRequestData for PaymentsAuthorizeData {
@@ -1805,6 +1805,11 @@ impl PaymentsAuthorizeRequestData for PaymentsAuthorizeData {
                 .ip_address
                 .map(|ip| Secret::new(ip.to_string()))
         })
+    }
+    fn get_optional_user_agent(&self) -> Option<String> {
+        self.browser_info
+            .clone()
+            .and_then(|browser_info| browser_info.user_agent)
     }
     fn get_original_amount(&self) -> i64 {
         self.surcharge_details
@@ -1927,6 +1932,12 @@ impl PaymentsAuthorizeRequestData for PaymentsAuthorizeData {
     }
     fn get_connector_testing_data(&self) -> Option<pii::SecretSerdeValue> {
         self.connector_testing_data.clone()
+    }
+
+    fn get_order_id(&self) -> Result<String, errors::ConnectorError> {
+        self.order_id
+            .to_owned()
+            .ok_or(errors::ConnectorError::RequestEncodingFailed)
     }
 }
 
@@ -5490,6 +5501,9 @@ pub enum PaymentMethodDataType {
     NetworkTransactionIdAndCardDetails,
     DirectCarrierBilling,
     InstantBankTransfer,
+    InstantBankTransferFinland,
+    InstantBankTransferPoland,
+    RevolutPay,
 }
 
 impl From<PaymentMethodData> for PaymentMethodDataType {
@@ -5540,6 +5554,7 @@ impl From<PaymentMethodData> for PaymentMethodDataType {
                 payment_method_data::WalletData::CashappQr(_) => Self::CashappQr,
                 payment_method_data::WalletData::SwishQr(_) => Self::SwishQr,
                 payment_method_data::WalletData::Mifinity(_) => Self::Mifinity,
+                payment_method_data::WalletData::RevolutPay(_) => Self::RevolutPay,
             },
             PaymentMethodData::PayLater(pay_later_data) => match pay_later_data {
                 payment_method_data::PayLaterData::KlarnaRedirect { .. } => Self::KlarnaRedirect,
@@ -5637,6 +5652,12 @@ impl From<PaymentMethodData> for PaymentMethodDataType {
                 }
                 payment_method_data::BankTransferData::InstantBankTransfer {} => {
                     Self::InstantBankTransfer
+                }
+                payment_method_data::BankTransferData::InstantBankTransferFinland {} => {
+                    Self::InstantBankTransferFinland
+                }
+                payment_method_data::BankTransferData::InstantBankTransferPoland {} => {
+                    Self::InstantBankTransferPoland
                 }
             },
             PaymentMethodData::Crypto(_) => Self::Crypto,
@@ -6077,6 +6098,7 @@ pub(crate) fn convert_setup_mandate_router_data_to_authorize_router_data(
         merchant_account_id: None,
         merchant_config_currency: None,
         connector_testing_data: data.request.connector_testing_data.clone(),
+        order_id: None,
     }
 }
 
@@ -6134,6 +6156,7 @@ pub(crate) fn convert_payment_authorize_router_response<F1, F2, T1, T2>(
         connector_mandate_request_reference_id: data.connector_mandate_request_reference_id.clone(),
         authentication_id: data.authentication_id.clone(),
         psd2_sca_exemption_type: data.psd2_sca_exemption_type,
+        whole_connector_response: data.whole_connector_response.clone(),
     }
 }
 
@@ -6146,8 +6169,8 @@ pub fn generate_12_digit_number() -> u64 {
 pub fn normalize_string(value: String) -> Result<String, regex::Error> {
     let nfkd_value = value.nfkd().collect::<String>();
     let lowercase_value = nfkd_value.to_lowercase();
-    static REGEX: std::sync::LazyLock<Result<Regex, regex::Error>> =
-        std::sync::LazyLock::new(|| Regex::new(r"[^a-z0-9]"));
+    static REGEX: LazyLock<Result<Regex, regex::Error>> =
+        LazyLock::new(|| Regex::new(r"[^a-z0-9]"));
     let regex = REGEX.as_ref().map_err(|e| e.clone())?;
     let normalized = regex.replace_all(&lowercase_value, "").to_string();
     Ok(normalized)
@@ -6172,7 +6195,8 @@ impl FrmTransactionRouterDataRequest for FrmTransactionRouterData {
             AttemptStatus::AuthenticationSuccessful
             | AttemptStatus::PartialChargedAndChargeable
             | AttemptStatus::Authorized
-            | AttemptStatus::Charged => Some(true),
+            | AttemptStatus::Charged
+            | AttemptStatus::IntegrityFailure => Some(true),
 
             AttemptStatus::Started
             | AttemptStatus::AuthenticationPending
@@ -6306,6 +6330,74 @@ pub fn get_card_details(
     }
 }
 
+pub fn get_authorise_integrity_object<T>(
+    amount_convertor: &dyn AmountConvertor<Output = T>,
+    amount: T,
+    currency: String,
+) -> Result<AuthoriseIntegrityObject, error_stack::Report<errors::ConnectorError>> {
+    let currency_enum = enums::Currency::from_str(currency.to_uppercase().as_str())
+        .change_context(errors::ConnectorError::ParsingFailed)?;
+
+    let amount_in_minor_unit =
+        convert_back_amount_to_minor_units(amount_convertor, amount, currency_enum)?;
+
+    Ok(AuthoriseIntegrityObject {
+        amount: amount_in_minor_unit,
+        currency: currency_enum,
+    })
+}
+
+pub fn get_sync_integrity_object<T>(
+    amount_convertor: &dyn AmountConvertor<Output = T>,
+    amount: T,
+    currency: String,
+) -> Result<SyncIntegrityObject, error_stack::Report<errors::ConnectorError>> {
+    let currency_enum = enums::Currency::from_str(currency.to_uppercase().as_str())
+        .change_context(errors::ConnectorError::ParsingFailed)?;
+    let amount_in_minor_unit =
+        convert_back_amount_to_minor_units(amount_convertor, amount, currency_enum)?;
+
+    Ok(SyncIntegrityObject {
+        amount: Some(amount_in_minor_unit),
+        currency: Some(currency_enum),
+    })
+}
+
+pub fn get_capture_integrity_object<T>(
+    amount_convertor: &dyn AmountConvertor<Output = T>,
+    capture_amount: Option<T>,
+    currency: String,
+) -> Result<CaptureIntegrityObject, error_stack::Report<errors::ConnectorError>> {
+    let currency_enum = enums::Currency::from_str(currency.to_uppercase().as_str())
+        .change_context(errors::ConnectorError::ParsingFailed)?;
+
+    let capture_amount_in_minor_unit = capture_amount
+        .map(|amount| convert_back_amount_to_minor_units(amount_convertor, amount, currency_enum))
+        .transpose()?;
+
+    Ok(CaptureIntegrityObject {
+        capture_amount: capture_amount_in_minor_unit,
+        currency: currency_enum,
+    })
+}
+
+pub fn get_refund_integrity_object<T>(
+    amount_convertor: &dyn AmountConvertor<Output = T>,
+    refund_amount: T,
+    currency: String,
+) -> Result<RefundIntegrityObject, error_stack::Report<errors::ConnectorError>> {
+    let currency_enum = enums::Currency::from_str(currency.to_uppercase().as_str())
+        .change_context(errors::ConnectorError::ParsingFailed)?;
+
+    let refund_amount_in_minor_unit =
+        convert_back_amount_to_minor_units(amount_convertor, refund_amount, currency_enum)?;
+
+    Ok(RefundIntegrityObject {
+        currency: currency_enum,
+        refund_amount: refund_amount_in_minor_unit,
+    })
+}
+
 #[cfg(feature = "frm")]
 pub trait FraudCheckSaleRequest {
     fn get_order_details(&self) -> Result<Vec<OrderDetailsWithAmount>, Error>;
@@ -6364,70 +6456,43 @@ impl SplitPaymentData for SetupMandateRequestData {
     }
 }
 
-pub fn get_refund_integrity_object<T>(
-    amount_convertor: &dyn AmountConvertor<Output = T>,
-    refund_amount: T,
-    currency: String,
-) -> Result<RefundIntegrityObject, error_stack::Report<errors::ConnectorError>> {
-    let currency_enum = enums::Currency::from_str(currency.to_uppercase().as_str())
-        .change_context(errors::ConnectorError::ParsingFailed)?;
+pub struct XmlSerializer;
+impl XmlSerializer {
+    pub fn serialize_to_xml_bytes<T: Serialize>(
+        item: &T,
+        xml_version: &str,
+        xml_encoding: Option<&str>,
+        xml_standalone: Option<&str>,
+        xml_doc_type: Option<&str>,
+    ) -> Result<Vec<u8>, error_stack::Report<errors::ConnectorError>> {
+        let mut xml_bytes = Vec::new();
+        let mut writer = Writer::new(std::io::Cursor::new(&mut xml_bytes));
 
-    let refund_amount_in_minor_unit =
-        convert_back_amount_to_minor_units(amount_convertor, refund_amount, currency_enum)?;
+        writer
+            .write_event(Event::Decl(BytesDecl::new(
+                xml_version,
+                xml_encoding,
+                xml_standalone,
+            )))
+            .change_context(errors::ConnectorError::RequestEncodingFailed)
+            .attach_printable("Failed to write XML declaration")?;
 
-    Ok(RefundIntegrityObject {
-        currency: currency_enum,
-        refund_amount: refund_amount_in_minor_unit,
-    })
-}
+        if let Some(xml_doc_type_data) = xml_doc_type {
+            writer
+                .write_event(Event::DocType(BytesText::from_escaped(xml_doc_type_data)))
+                .change_context(errors::ConnectorError::RequestEncodingFailed)
+                .attach_printable("Failed to write the XML declaration")?;
+        };
 
-pub fn get_capture_integrity_object<T>(
-    amount_convertor: &dyn AmountConvertor<Output = T>,
-    capture_amount: Option<T>,
-    currency: String,
-) -> Result<CaptureIntegrityObject, error_stack::Report<errors::ConnectorError>> {
-    let currency_enum = enums::Currency::from_str(currency.to_uppercase().as_str())
-        .change_context(errors::ConnectorError::ParsingFailed)?;
+        let xml_body = quick_xml::se::to_string(&item)
+            .change_context(errors::ConnectorError::RequestEncodingFailed)
+            .attach_printable("Failed to serialize the XML body")?;
 
-    let capture_amount_in_minor_unit = capture_amount
-        .map(|amount| convert_back_amount_to_minor_units(amount_convertor, amount, currency_enum))
-        .transpose()?;
+        writer
+            .write_event(Event::Text(BytesText::from_escaped(xml_body)))
+            .change_context(errors::ConnectorError::RequestEncodingFailed)
+            .attach_printable("Failed to serialize the XML body")?;
 
-    Ok(CaptureIntegrityObject {
-        capture_amount: capture_amount_in_minor_unit,
-        currency: currency_enum,
-    })
-}
-
-pub fn get_sync_integrity_object<T>(
-    amount_convertor: &dyn AmountConvertor<Output = T>,
-    amount: T,
-    currency: String,
-) -> Result<SyncIntegrityObject, error_stack::Report<errors::ConnectorError>> {
-    let currency_enum = enums::Currency::from_str(currency.to_uppercase().as_str())
-        .change_context(errors::ConnectorError::ParsingFailed)?;
-    let amount_in_minor_unit =
-        convert_back_amount_to_minor_units(amount_convertor, amount, currency_enum)?;
-
-    Ok(SyncIntegrityObject {
-        amount: Some(amount_in_minor_unit),
-        currency: Some(currency_enum),
-    })
-}
-
-pub fn get_authorise_integrity_object<T>(
-    amount_convertor: &dyn AmountConvertor<Output = T>,
-    amount: T,
-    currency: String,
-) -> Result<AuthoriseIntegrityObject, error_stack::Report<errors::ConnectorError>> {
-    let currency_enum = enums::Currency::from_str(currency.to_uppercase().as_str())
-        .change_context(errors::ConnectorError::ParsingFailed)?;
-
-    let amount_in_minor_unit =
-        convert_back_amount_to_minor_units(amount_convertor, amount, currency_enum)?;
-
-    Ok(AuthoriseIntegrityObject {
-        amount: amount_in_minor_unit,
-        currency: currency_enum,
-    })
+        Ok(xml_bytes)
+    }
 }

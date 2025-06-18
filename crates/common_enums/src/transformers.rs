@@ -1844,6 +1844,8 @@ impl From<PaymentMethodType> for PaymentMethod {
             PaymentMethodType::MandiriVa => Self::BankTransfer,
             PaymentMethodType::Interac => Self::BankRedirect,
             PaymentMethodType::InstantBankTransfer => Self::BankTransfer,
+            PaymentMethodType::InstantBankTransferFinland => Self::BankTransfer,
+            PaymentMethodType::InstantBankTransferPoland => Self::BankTransfer,
             PaymentMethodType::Indomaret => Self::Voucher,
             PaymentMethodType::OnlineBankingCzechRepublic => Self::BankRedirect,
             PaymentMethodType::OnlineBankingFinland => Self::BankRedirect,
@@ -1894,6 +1896,7 @@ impl From<PaymentMethodType> for PaymentMethod {
             PaymentMethodType::PayEasy => Self::Voucher,
             PaymentMethodType::OpenBankingPIS => Self::OpenBanking,
             PaymentMethodType::DirectCarrierBilling => Self::MobilePayment,
+            PaymentMethodType::RevolutPay => Self::Wallet,
         }
     }
 }
@@ -2094,7 +2097,7 @@ impl From<AttemptStatus> for IntentStatus {
                 Self::RequiresCustomerAction
             }
             AttemptStatus::Unresolved => Self::RequiresMerchantAction,
-
+            AttemptStatus::IntegrityFailure => Self::Conflicted,
             AttemptStatus::PartialCharged => Self::PartiallyCaptured,
             AttemptStatus::PartialChargedAndChargeable => Self::PartiallyCapturedAndCapturable,
             AttemptStatus::Started
