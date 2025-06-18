@@ -241,27 +241,6 @@ pub enum RevenueRecoveryAlgorithmType {
     Cascading,
 }
 
-#[derive(
-    Debug,
-    Clone,
-    Copy,
-    PartialEq,
-    Eq,
-    serde::Serialize,
-    serde::Deserialize,
-    strum::Display,
-    strum::EnumString,
-    ToSchema,
-)]
-#[serde(rename_all = "snake_case")]
-#[strum(serialize_all = "snake_case")]
-#[router_derive::diesel_enum(storage_type = "db_enum")]
-pub enum RecoveryModelVersion {
-    V1,
-    V2,
-    V3,
-}
-
 /// Specifies the type of cardholder authentication to be applied for a payment.
 ///
 /// - `ThreeDs`: Requests 3D Secure (3DS) authentication. If the card is enrolled, 3DS authentication will be activated, potentially shifting chargeback liability to the issuer.

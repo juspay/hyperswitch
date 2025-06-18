@@ -306,7 +306,8 @@ pub(crate) async fn get_schedule_time_for_smart_retry(
         card_issuer = %card_issuer_str
     );
 
-    let decider_request = external_grpc_client::recovery_decider_client::DeciderRequest {
+    let decider_request = external_grpc_client::DeciderRequest {
+        // Path updated
         first_error_message,
         billing_state,
         card_funding: card_funding_str,
@@ -321,13 +322,8 @@ pub(crate) async fn get_schedule_time_for_smart_retry(
     // and we need an owned, mutable instance to call it.
     let mut client = state.grpc_client.recovery_decider_client.clone();
 
-    let recovery_headers = external_grpc_client::GrpcRecoveryHeaders {
-        merchant_id: payment_intent.merchant_id.get_string_repr().to_string(),
-        version: None,
-    };
-
     match client
-        .decide_on_retry(decider_request, recovery_headers)
+        .decide_on_retry(decider_request, state.get_recovery_grpc_headers())
         .await
     {
         Ok(grpc_response) => grpc_response

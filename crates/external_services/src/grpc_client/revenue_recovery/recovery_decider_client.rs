@@ -1,9 +1,13 @@
+#![cfg(all(feature = "revenue_recovery", feature = "v2"))]
+
+use std::fmt::Debug;
+
 use common_utils::errors::CustomResult;
 use error_stack::{Report, ResultExt};
 use router_env::logger;
+use serde;
 
-use super::Client;
-use crate::grpc_client;
+use crate::grpc_client::Client;
 
 #[allow(
     missing_docs,
@@ -38,14 +42,12 @@ pub enum RecoveryDeciderError {
 
 /// Recovery Decider Client type
 #[async_trait::async_trait]
-pub trait RecoveryDeciderClientInterface:
-    dyn_clone::DynClone + Send + Sync + std::fmt::Debug
-{
+pub trait RecoveryDeciderClientInterface: dyn_clone::DynClone + Send + Sync + Debug {
     /// fn to call gRPC service
     async fn decide_on_retry(
         &mut self,
         request_payload: DeciderRequest,
-        recovery_headers: grpc_client::GrpcRecoveryHeaders,
+        recovery_headers: super::common::GrpcRecoveryHeaders,
     ) -> RecoveryDeciderResult<DeciderResponse>;
 }
 
@@ -96,10 +98,11 @@ impl RecoveryDeciderClientInterface for DeciderClient<Client> {
     async fn decide_on_retry(
         &mut self,
         request_payload: DeciderRequest,
-        recovery_headers: grpc_client::GrpcRecoveryHeaders,
+        recovery_headers: super::common::GrpcRecoveryHeaders,
     ) -> RecoveryDeciderResult<DeciderResponse> {
         let request =
-            grpc_client::create_recovery_decider_grpc_request(request_payload, recovery_headers);
+            super::common::create_revenue_recovery_grpc_request(request_payload, recovery_headers);
+        logger::info!(message_sent_to_recovery_decider_server=?request); // Client-specific logging
 
         logger::debug!(decider_request =?request);
 
