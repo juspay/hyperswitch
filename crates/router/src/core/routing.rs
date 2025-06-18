@@ -2533,7 +2533,7 @@ pub async fn migrate_rules_for_profile(
                     )
                     .await
                     .change_context(errors::ApiErrorResponse::InternalServerError)
-                    .attach_printable("unable to list active routing algorithm")?;
+                    .attach_printable("unable to link active routing algorithm")?;
                     is_active_rule = true;
                 }
                 response_list.push(RuleMigrationResponse {
