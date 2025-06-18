@@ -15,8 +15,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 "google.protobuf.Timestamp",
                 "#[derive(serde::Serialize, serde::Deserialize)]",
             )
-            .compile(&v2_proto_files, &[&proto_base_path])?;
-        println!("Successfully compiled v2 proto files.");
+            .compile(&v2_proto_files, &[&proto_base_path])
+            .expect("Failed to compile revenue-recovery proto files");
     }
 
     // Compilation for dynamic_routing protos
@@ -42,8 +42,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 "google.protobuf.Timestamp",
                 "#[derive(serde::Serialize, serde::Deserialize)]",
             )
-            .compile(&dr_proto_files, &[&proto_base_path])?;
-        println!("Successfully compiled dynamic_routing proto files.");
+            .compile(&dr_proto_files, &[&proto_base_path])
+            .expect("Failed to compile dynamic routing proto files");
     }
     Ok(())
 }
