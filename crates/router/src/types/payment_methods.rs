@@ -373,6 +373,8 @@ impl NetworkTokenRequestorData {
         &self,
         data_stored_in_vault: api::payment_methods::CardDetailFromLocker,
     ) -> bool {
+        //if the expiry year and month in the vault are not the same as the ones in the requestor data,
+        //then we need to update the vault data with the updated expiry year and month.
         !((data_stored_in_vault.expiry_year.unwrap_or_default() == self.expiry_year)
             && (data_stored_in_vault.expiry_month.unwrap_or_default() == self.expiry_month))
     }
