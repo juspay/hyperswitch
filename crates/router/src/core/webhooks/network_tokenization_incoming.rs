@@ -1,12 +1,17 @@
 use std::str::FromStr;
-use serde::{Deserialize, Serialize};
+
 use ::payment_methods::controller::PaymentMethodsController;
 use api_models::webhooks::WebhookResponseTracker;
 use async_trait::async_trait;
-use common_utils::{crypto::Encryptable, ext_traits::{AsyncExt, ByteSliceExt}, id_type};
+use common_utils::{
+    crypto::Encryptable,
+    ext_traits::{AsyncExt, ByteSliceExt},
+    id_type,
+};
 use error_stack::{report, ResultExt};
 use http::HeaderValue;
 use masking::{ExposeInterface, Secret};
+use serde::{Deserialize, Serialize};
 
 use crate::{
     configs::settings,
@@ -38,16 +43,10 @@ impl NetworkTokenWebhookResponse {
         }
     }
 
-    pub fn get_response_data(
-        self
-    ) -> Box<dyn NetworkTokenWebhookResponseExt> {
+    pub fn get_response_data(self) -> Box<dyn NetworkTokenWebhookResponseExt> {
         match self {
-            Self::PanMetadataUpdate(data) => {
-                Box::new(data)
-            }
-            Self::NetworkTokenMetadataUpdate(data) => {
-                Box::new(data)
-            }
+            Self::PanMetadataUpdate(data) => Box::new(data),
+            Self::NetworkTokenMetadataUpdate(data) => Box::new(data),
         }
     }
 

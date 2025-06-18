@@ -28,8 +28,7 @@ use crate::{
     core::{
         api_locking,
         errors::{self, ConnectorErrorExt, CustomResult, RouterResponse, StorageErrorExt},
-        metrics,
-        payment_methods,
+        metrics, payment_methods,
         payments::{self, tokenization},
         refunds, relay, utils as core_utils,
         webhooks::{network_tokenization_incoming, utils::construct_webhook_router_data},

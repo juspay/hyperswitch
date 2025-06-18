@@ -15,13 +15,12 @@ use hyperswitch_domain_models::payment_method_data::NetworkTokenDetails;
 use masking::Secret;
 use serde::{Deserialize, Serialize};
 
+use crate::types::api;
 #[cfg(feature = "v2")]
 use crate::{
     consts,
     types::{domain, storage},
 };
-
-use crate::types::api;
 
 #[cfg(feature = "v2")]
 pub trait VaultingInterface {
