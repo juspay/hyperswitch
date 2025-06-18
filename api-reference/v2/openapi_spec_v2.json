@@ -3538,6 +3538,8 @@
         "tags": [
           "Tokenization"
         ],
+        "summary": "Tokenization - Create",
+        "description": "Create a token with customer_id",
         "operationId": "create_token_vault_api",
         "requestBody": {
           "content": {
