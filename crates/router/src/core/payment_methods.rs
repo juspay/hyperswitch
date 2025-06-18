@@ -10,6 +10,8 @@ pub mod vault;
 #[cfg(feature = "v1")]
 use std::collections::HashSet;
 use std::borrow::Cow;
+#[cfg(feature = "v2")]
+use std::str::FromStr;
 
 #[cfg(feature = "v2")]
 pub use api_models::enums as api_enums;
@@ -70,7 +72,7 @@ use crate::{
         tokenization as tokenization_core, utils as core_utils,
     },
     db::errors::ConnectorErrorExt,
-    headers,
+    headers, logger,
     routes::{self, payment_methods as pm_routes},
     services::{connector_integration_interface::RouterDataConversion, encryption},
     types::{
