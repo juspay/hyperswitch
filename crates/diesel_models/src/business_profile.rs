@@ -681,7 +681,6 @@ impl ProfileUpdateInternal {
             three_ds_decision_rule_algorithm: None,
             acquirer_config_map: None,
             merchant_category_code: merchant_category_code.or(source.merchant_category_code),
-            routing_result_source: routing_result_source.or(source.routing_result_source),
         }
     }
 }

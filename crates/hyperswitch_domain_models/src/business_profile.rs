@@ -1037,7 +1037,6 @@ pub struct Profile {
     pub is_external_vault_enabled: Option<bool>,
     pub external_vault_connector_details: Option<ExternalVaultConnectorDetails>,
     pub merchant_category_code: Option<api_enums::MerchantCategoryCode>,
-    pub routing_result_source: Option<RoutingResultSource>,
 }
 
 #[cfg(feature = "v2")]
@@ -1094,7 +1093,6 @@ pub struct ProfileSetter {
     pub is_external_vault_enabled: Option<bool>,
     pub external_vault_connector_details: Option<ExternalVaultConnectorDetails>,
     pub merchant_category_code: Option<api_enums::MerchantCategoryCode>,
-    pub routing_result_source: Option<RoutingResultSource>,
 }
 
 #[cfg(feature = "v2")]
@@ -1236,7 +1234,6 @@ pub struct ProfileGeneralUpdate {
     pub is_external_vault_enabled: Option<bool>,
     pub external_vault_connector_details: Option<ExternalVaultConnectorDetails>,
     pub merchant_category_code: Option<api_enums::MerchantCategoryCode>,
-    pub routing_result_source: Option<RoutingResultSource>,
 }
 
 #[cfg(feature = "v2")]

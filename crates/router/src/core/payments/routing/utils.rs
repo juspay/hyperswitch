@@ -1,11 +1,11 @@
 use std::collections::{HashMap, HashSet};
 
 use api_models::{
-    routing as api_routing,
+    routing::{self as api_routing},
     routing::{ConnectorSelection, RoutableConnectorChoice},
 };
 use async_trait::async_trait;
-use common_utils::{ext_traits::ValueExt,id_type};
+use common_utils::{ext_traits::ValueExt, id_type};
 use diesel_models::{enums, routing_algorithm};
 use error_stack::ResultExt;
 use euclid::{backend::BackendInput, frontend::ast};
@@ -275,7 +275,7 @@ pub async fn perform_decision_euclid_routing(
     state: &SessionState,
     input: BackendInput,
     created_by: String,
-) -> RoutingResult<Vec<String>> {
+) -> RoutingResult<Vec<RoutableConnectorChoice>> {
     logger::debug!("decision_engine_euclid: evaluate api call for euclid routing evaluation");
 
     let routing_request = convert_backend_input_to_routing_eval(created_by, input)?;
@@ -356,6 +356,23 @@ pub async fn list_de_euclid_routing_algorithms(
         .collect::<Vec<_>>())
 }
 
+pub async fn list_de_euclid_active_routing_algorithm(
+    state: &SessionState,
+    created_by: String,
+) -> RoutingResult<api_routing::RoutingDictionaryRecord> {
+    logger::debug!("decision_engine_euclid: list api call for euclid active routing algorithm");
+    let response: RoutingAlgorithmRecord = EuclidApiClient::send_decision_engine_request(
+        state,
+        services::Method::Post,
+        format!("routing/list/active/{created_by}").as_str(),
+        None::<()>,
+        Some(EUCLID_API_TIMEOUT),
+    )
+    .await?;
+
+    Ok(routing_algorithm::RoutingProfileMetadata::from(response).foreign_into())
+}
+
 pub fn compare_and_log_result<T: RoutingEq<T> + Serialize>(
     de_result: Vec<T>,
     result: Vec<T>,
@@ -380,7 +397,8 @@ pub trait RoutingEq<T> {
 
 impl RoutingEq<Self> for api_routing::RoutingDictionaryRecord {
     fn is_equal(a: &Self, b: &Self) -> bool {
-        a.name == b.name
+        a.id == b.id
+            && a.name == b.name
             && a.profile_id == b.profile_id
             && a.description == b.description
             && a.kind == b.kind
@@ -391,6 +409,14 @@ impl RoutingEq<Self> for api_routing::RoutingDictionaryRecord {
 impl RoutingEq<Self> for String {
     fn is_equal(a: &Self, b: &Self) -> bool {
         a.to_lowercase() == b.to_lowercase()
+    }
+}
+
+impl RoutingEq<Self> for RoutableConnectorChoice {
+    fn is_equal(a: &Self, b: &Self) -> bool {
+        a.connector.eq(&b.connector)
+            && a.choice_kind.eq(&b.choice_kind)
+            && a.merchant_connector_id.eq(&b.merchant_connector_id)
     }
 }
 
@@ -555,8 +581,30 @@ pub struct RoutingEvaluateRequest {
 pub struct RoutingEvaluateResponse {
     pub status: String,
     pub output: serde_json::Value,
-    pub evaluated_output: Vec<String>,
-    pub eligible_connectors: Vec<String>,
+    #[serde(deserialize_with = "deserialize_connector_choices")]
+    pub evaluated_output: Vec<RoutableConnectorChoice>,
+    #[serde(deserialize_with = "deserialize_connector_choices")]
+    pub eligible_connectors: Vec<RoutableConnectorChoice>,
+}
+
+/// Routable Connector chosen for a payment
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct DeRoutableConnectorChoice {
+    pub connector: common_enums::RoutableConnectors,
+    pub mca_id: Option<id_type::MerchantConnectorAccountId>,
+}
+
+fn deserialize_connector_choices<'de, D>(
+    deserializer: D,
+) -> Result<Vec<RoutableConnectorChoice>, D::Error>
+where
+    D: serde::Deserializer<'de>,
+{
+    let infos = Vec::<DeRoutableConnectorChoice>::deserialize(deserializer)?;
+    Ok(infos
+        .into_iter()
+        .map(RoutableConnectorChoice::from)
+        .collect())
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
@@ -694,6 +742,16 @@ pub struct ConnectorInfo {
 impl ConnectorInfo {
     pub fn new(connector: String, mca_id: Option<String>) -> Self {
         Self { connector, mca_id }
+    }
+}
+
+impl From<DeRoutableConnectorChoice> for RoutableConnectorChoice {
+    fn from(choice: DeRoutableConnectorChoice) -> Self {
+        Self {
+            choice_kind: api_routing::RoutableChoiceKind::FullStruct,
+            connector: choice.connector,
+            merchant_connector_id: choice.mca_id,
+        }
     }
 }
 

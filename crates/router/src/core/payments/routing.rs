@@ -493,17 +493,17 @@ pub async fn perform_static_routing_v1(
                 logger::error!(decision_engine_euclid_evaluate_error=?e, "decision_engine_euclid: error in evaluation of rule")
             ).unwrap_or_default();
             let routable_connectors = execute_dsl_and_get_connector_v1(backend_input, interpreter)?;
-            let connectors = routable_connectors
-                .iter()
-                .map(|c| c.connector.to_string())
-                .collect::<Vec<String>>();
             utils::compare_and_log_result(
-                de_euclid_connectors,
-                connectors,
+                de_euclid_connectors.clone(),
+                routable_connectors.clone(),
                 "evaluate_routing".to_string(),
             );
-            // utils::select_routing_result(business_profile, connectors, de_euclid_connectors)
-            routable_connectors
+            utils::select_routing_result(
+                business_profile,
+                routable_connectors,
+                de_euclid_connectors,
+            )
+            .change_context(errors::RoutingError::MetadataParsingError)?
         }
     })
 }

@@ -219,10 +219,10 @@ async fn build_list_routing_result(
     let key_manager_state = &state.into();
     let mut list_result: Vec<routing_types::RoutingDictionaryRecord> = vec![];
     for profile_id in profile_ids.iter() {
-        let predicate =
+        let by_profile =
             |rec: &&routing_types::RoutingDictionaryRecord| &rec.profile_id == profile_id;
-        let de_result_for_profile = de_results.iter().filter(predicate).cloned().collect();
-        let hs_result_for_profile = hs_results.iter().filter(predicate).cloned().collect();
+        let de_result_for_profile = de_results.iter().filter(by_profile).cloned().collect();
+        let hs_result_for_profile = hs_results.iter().filter(by_profile).cloned().collect();
         let business_profile = core_utils::validate_and_get_business_profile(
             db,
             key_manager_state,
@@ -1325,7 +1325,24 @@ pub async fn retrieve_linked_routing_config(
                 )
                 .await
                 .to_not_found_response(errors::ApiErrorResponse::ResourceIdNotFound)?;
-            active_algorithms.push(record.foreign_into());
+            let hs_record: routing_types::RoutingDictionaryRecord = record.foreign_into();
+            let de_record = list_de_euclid_active_routing_algorithm(
+                &state,
+                profile_id.get_string_repr().to_owned(),
+            )
+            .await
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("unable to list active routing algorithm")?;
+            compare_and_log_result(
+                vec![de_record.clone()],
+                vec![hs_record.clone()],
+                "list_active_routing".to_string(),
+            );
+            active_algorithms.push(select_routing_result(
+                &business_profile,
+                hs_record,
+                de_record,
+            )?);
         }
 
         // Handle dynamic routing algorithms
