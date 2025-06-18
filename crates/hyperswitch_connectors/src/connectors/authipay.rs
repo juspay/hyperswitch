@@ -301,7 +301,7 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
             .parse_struct("Authipay PaymentsAuthorizeResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
         event_builder.map(|i| i.set_response_body(&response));
-        
+
         RouterData::try_from(ResponseRouterData {
             response,
             data: data.clone(),
@@ -382,7 +382,7 @@ impl ConnectorIntegration<PSync, PaymentsSyncData, PaymentsResponseData> for Aut
             .parse_struct("authipay PaymentsSyncResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
         event_builder.map(|i| i.set_response_body(&response));
-        
+
         RouterData::try_from(ResponseRouterData {
             response,
             data: data.clone(),
@@ -472,7 +472,7 @@ impl ConnectorIntegration<Capture, PaymentsCaptureData, PaymentsResponseData> fo
             .parse_struct("Authipay PaymentsCaptureResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
         event_builder.map(|i| i.set_response_body(&response));
-        
+
         RouterData::try_from(ResponseRouterData {
             response,
             data: data.clone(),
@@ -561,7 +561,7 @@ impl ConnectorIntegration<Void, PaymentsCancelData, PaymentsResponseData> for Au
             .parse_struct("Authipay PaymentsVoidResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
         event_builder.map(|i| i.set_response_body(&response));
-        
+
         RouterData::try_from(ResponseRouterData {
             response,
             data: data.clone(),
@@ -650,7 +650,7 @@ impl ConnectorIntegration<Execute, RefundsData, RefundsResponseData> for Authipa
             .parse_struct("authipay RefundResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
         event_builder.map(|i| i.set_response_body(&response));
-        
+
         RouterData::try_from(ResponseRouterData {
             response,
             data: data.clone(),
@@ -731,7 +731,7 @@ impl ConnectorIntegration<RSync, RefundsData, RefundsResponseData> for Authipay 
             .parse_struct("authipay RefundSyncResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
         event_builder.map(|i| i.set_response_body(&response));
-        
+
         RouterData::try_from(ResponseRouterData {
             response,
             data: data.clone(),
