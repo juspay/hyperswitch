@@ -16,7 +16,6 @@ dummy_connector = [
     "hyperswitch_interfaces/dummy_connector",
     "hyperswitch_domain_models/dummy_connector",
 ]
-external_access_dc = ["dummy_connector"]
 
 [dependencies]
 actix-web = "4.11.0"

@@ -6,9 +6,23 @@ use common_enums::{CallConnectorAction, PaymentAction};
 // impl api::PaymentReject for Helcim {}
 // impl api::PaymentApprove for Helcim {}
 use common_utils::errors::CustomResult;
+#[cfg(all(feature = "v2", feature = "revenue_recovery"))]
+use hyperswitch_domain_models::router_flow_types::{
+    BillingConnectorInvoiceSync, BillingConnectorPaymentsSync, RecoveryRecordBack,
+};
 #[cfg(feature = "dummy_connector")]
 use hyperswitch_domain_models::router_request_types::authentication::{
     ConnectorAuthenticationRequestData, ConnectorPostAuthenticationRequestData, PreAuthNRequestData,
+};
+#[cfg(all(feature = "v2", feature = "revenue_recovery"))]
+use hyperswitch_domain_models::router_request_types::revenue_recovery::{
+    BillingConnectorInvoiceSyncRequest, BillingConnectorPaymentsSyncRequest,
+    RevenueRecoveryRecordBackRequest,
+};
+#[cfg(all(feature = "v2", feature = "revenue_recovery"))]
+use hyperswitch_domain_models::router_response_types::revenue_recovery::{
+    BillingConnectorInvoiceSyncResponse, BillingConnectorPaymentsSyncResponse,
+    RevenueRecoveryRecordBackResponse,
 };
 #[cfg(feature = "frm")]
 use hyperswitch_domain_models::{
@@ -27,12 +41,6 @@ use hyperswitch_domain_models::{
     },
     router_request_types::PayoutsData,
     router_response_types::PayoutsResponseData,
-};
-#[cfg(all(feature = "v2", feature = "revenue_recovery"))]
-use hyperswitch_domain_models::{
-    router_flow_types::revenue_recovery as recovery_router_flows,
-    router_request_types::revenue_recovery as recovery_request,
-    router_response_types::revenue_recovery as recovery_response,
 };
 use hyperswitch_domain_models::{
     router_flow_types::{
@@ -85,6 +93,10 @@ use hyperswitch_interfaces::api::payouts::{
 };
 #[cfg(all(feature = "v2", feature = "revenue_recovery"))]
 use hyperswitch_interfaces::api::revenue_recovery as recovery_traits;
+#[cfg(all(feature = "v2", feature = "revenue_recovery"))]
+use hyperswitch_interfaces::api::revenue_recovery::{
+    BillingConnectorInvoiceSyncIntegration, BillingConnectorPaymentsSyncIntegration,
+};
 #[cfg(feature = "dummy_connector")]
 use hyperswitch_interfaces::api::ConnectorVerifyWebhookSource;
 use hyperswitch_interfaces::{
@@ -5152,9 +5164,9 @@ macro_rules! default_imp_for_billing_connector_payment_sync {
         $(  impl recovery_traits::BillingConnectorPaymentsSyncIntegration for $path::$connector {}
             impl
                 ConnectorIntegration<
-                recovery_router_flows::BillingConnectorPaymentsSync,
-                recovery_request::BillingConnectorPaymentsSyncRequest,
-                recovery_response::BillingConnectorPaymentsSyncResponse
+                BillingConnectorPaymentsSync,
+                BillingConnectorPaymentsSyncRequest,
+                BillingConnectorPaymentsSyncResponse
             > for $path::$connector
             {}
         )*
@@ -5275,9 +5287,9 @@ macro_rules! default_imp_for_revenue_recovery_record_back {
         $( impl recovery_traits::RevenueRecoveryRecordBack for $path::$connector {}
             impl
             ConnectorIntegration<
-            recovery_router_flows::RecoveryRecordBack,
-            recovery_request::RevenueRecoveryRecordBackRequest,
-            recovery_response::RevenueRecoveryRecordBackResponse
+            RecoveryRecordBack,
+            RevenueRecoveryRecordBackRequest,
+            RevenueRecoveryRecordBackResponse
             > for $path::$connector
             {}
         )*
@@ -5397,9 +5409,9 @@ macro_rules! default_imp_for_billing_connector_invoice_sync {
         $( impl recovery_traits::BillingConnectorInvoiceSyncIntegration for $path::$connector {}
             impl
             ConnectorIntegration<
-            recovery_router_flows::BillingConnectorInvoiceSync,
-            recovery_request::BillingConnectorInvoiceSyncRequest,
-            recovery_response::BillingConnectorInvoiceSyncResponse
+            BillingConnectorInvoiceSync,
+            BillingConnectorInvoiceSyncRequest,
+            BillingConnectorInvoiceSyncResponse
             > for $path::$connector
             {}
         )*
@@ -6538,11 +6550,14 @@ impl<const T: u8> RevenueRecovery for connectors::DummyConnector<T> {}
 
 #[cfg(all(feature = "v2", feature = "revenue_recovery"))]
 #[cfg(feature = "dummy_connector")]
-impl<const T: u8> api::BillingConnectorPaymentsSyncIntegration for connectors::DummyConnector<T> {}
+impl<const T: u8> api::revenue_recovery::BillingConnectorPaymentsSyncIntegration
+    for connectors::DummyConnector<T>
+{
+}
 #[cfg(all(feature = "v2", feature = "revenue_recovery"))]
 #[cfg(feature = "dummy_connector")]
 impl<const T: u8>
-    services::ConnectorIntegration<
+    ConnectorIntegration<
         BillingConnectorPaymentsSync,
         BillingConnectorPaymentsSyncRequest,
         BillingConnectorPaymentsSyncResponse,
@@ -6552,11 +6567,14 @@ impl<const T: u8>
 
 #[cfg(all(feature = "v2", feature = "revenue_recovery"))]
 #[cfg(feature = "dummy_connector")]
-impl<const T: u8> api::RevenueRecoveryRecordBack for connectors::DummyConnector<T> {}
+impl<const T: u8> api::revenue_recovery::RevenueRecoveryRecordBack
+    for connectors::DummyConnector<T>
+{
+}
 #[cfg(all(feature = "v2", feature = "revenue_recovery"))]
 #[cfg(feature = "dummy_connector")]
 impl<const T: u8>
-    services::ConnectorIntegration<
+    ConnectorIntegration<
         RecoveryRecordBack,
         RevenueRecoveryRecordBackRequest,
         RevenueRecoveryRecordBackResponse,
@@ -6566,11 +6584,11 @@ impl<const T: u8>
 
 #[cfg(all(feature = "v2", feature = "revenue_recovery"))]
 #[cfg(feature = "dummy_connector")]
-impl<const T: u8> api::BillingConnectorInvoiceSyncIntegration for connectors::DummyConnector<T> {}
+impl<const T: u8> BillingConnectorInvoiceSyncIntegration for connectors::DummyConnector<T> {}
 #[cfg(all(feature = "v2", feature = "revenue_recovery"))]
 #[cfg(feature = "dummy_connector")]
 impl<const T: u8>
-    services::ConnectorIntegration<
+    ConnectorIntegration<
         BillingConnectorInvoiceSync,
         BillingConnectorInvoiceSyncRequest,
         BillingConnectorInvoiceSyncResponse,
