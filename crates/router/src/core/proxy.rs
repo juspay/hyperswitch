@@ -24,11 +24,19 @@ pub async fn proxy_core(
         )
         .await?;
 
+    let customer_id = req_wrapper
+        .get_customer_id(
+            &state,
+            merchant_context.get_merchant_key_store(),
+            merchant_context.get_merchant_account().storage_scheme,
+        )
+        .await?;
     let vault_response =
         super::payment_methods::vault::retrieve_payment_method_from_vault_internal(
             &state,
             &merchant_context,
             &vault_id,
+            &customer_id,
         )
         .await
         .change_context(errors::ApiErrorResponse::InternalServerError)

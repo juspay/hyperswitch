@@ -38,8 +38,6 @@ use error_stack::{report, ResultExt};
 use futures::TryStreamExt;
 #[cfg(feature = "v1")]
 use hyperswitch_domain_models::api::{GenericLinks, GenericLinksData};
-#[cfg(feature = "v2")]
-use hyperswitch_domain_models::mandates::CommonMandateReference;
 use hyperswitch_domain_models::payments::{
     payment_attempt::PaymentAttempt, PaymentIntent, VaultData,
 };
@@ -49,8 +47,6 @@ use hyperswitch_domain_models::{
     router_data_v2::flow_common_types::VaultConnectorFlowData,
     router_flow_types::ExternalVaultInsertFlow, types::VaultRouterData,
 };
-#[cfg(feature = "v2")]
-use masking::ExposeOptionInterface;
 use masking::{PeekInterface, Secret};
 use router_env::{instrument, tracing};
 use time::Duration;
@@ -1100,6 +1096,7 @@ pub async fn network_tokenize_and_vault_the_pmd(
             merchant_context,
             &network_token_vaulting_data,
             None,
+            customer_id
         )
         .await
         .change_context(errors::NetworkTokenizationError::SaveNetworkTokenFailed)
@@ -1842,7 +1839,7 @@ pub async fn vault_payment_method_internal(
     )?;
 
     let mut resp_from_vault =
-        vault::add_payment_method_to_vault(state, merchant_context, pmd, existing_vault_id)
+        vault::add_payment_method_to_vault(state, merchant_context, pmd, existing_vault_id, customer_id)
             .await
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Failed to add payment method in vault")?;

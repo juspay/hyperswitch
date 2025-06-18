@@ -59,6 +59,42 @@ impl ProxyRequestWrapper {
         }
     }
 
+    pub async fn get_customer_id(
+        &self,
+        state: &SessionState,
+        key_store: &domain::MerchantKeyStore,
+        storage_scheme: common_enums::enums::MerchantStorageScheme,
+    ) -> RouterResult<id_type::GlobalCustomerId> {
+        let token = &self.0.token;
+
+        match self.0.token_type {
+            proxy_api_models::TokenType::PaymentMethodId => {
+                let pm_id = PaymentMethodId {
+                    payment_method_id: token.clone(),
+                };
+                let pm_id =
+                    id_type::GlobalPaymentMethodId::generate_from_string(pm_id.payment_method_id)
+                        .change_context(errors::ApiErrorResponse::InternalServerError)
+                        .attach_printable("Unable to generate GlobalPaymentMethodId")?;
+
+                Ok(state
+                    .store
+                    .find_payment_method(&((state).into()), key_store, &pm_id, storage_scheme)
+                    .await
+                    .change_context(errors::ApiErrorResponse::PaymentMethodNotFound)?
+                    .customer_id
+                )
+            }
+            proxy_api_models::TokenType::TokenizationId => {
+                Err(report!(errors::ApiErrorResponse::NotImplemented {
+                    message: NotImplementedMessage::Reason(
+                        "Proxy flow using tokenization id".to_string(),
+                    ),
+                }))
+            }
+        }
+    }
+
     pub fn get_headers(&self) -> Vec<(String, masking::Maskable<String>)> {
         self.0
             .headers

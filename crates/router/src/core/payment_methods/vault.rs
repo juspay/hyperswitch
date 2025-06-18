@@ -1304,9 +1304,10 @@ pub async fn add_payment_method_to_vault(
     merchant_context: &domain::MerchantContext,
     pmd: &domain::PaymentMethodVaultingData,
     existing_vault_id: Option<domain::VaultId>,
+    customer_id: &id_type::GlobalCustomerId,
 ) -> CustomResult<pm_types::AddVaultResponse, errors::VaultError> {
     let payload = pm_types::AddVaultRequest {
-        entity_id: merchant_context.get_merchant_account().get_id().to_owned(),
+        entity_id: customer_id.to_owned(),
         vault_id: existing_vault_id
             .unwrap_or(domain::VaultId::generate(uuid::Uuid::now_v7().to_string())),
         data: pmd,
@@ -1335,9 +1336,10 @@ pub async fn retrieve_payment_method_from_vault_internal(
     state: &routes::SessionState,
     merchant_context: &domain::MerchantContext,
     vault_id: &domain::VaultId,
+    customer_id: &id_type::GlobalCustomerId,
 ) -> CustomResult<pm_types::VaultRetrieveResponse, errors::VaultError> {
     let payload = pm_types::VaultRetrieveRequest {
-        entity_id: merchant_context.get_merchant_account().get_id().to_owned(),
+        entity_id: customer_id.to_owned(),
         vault_id: vault_id.to_owned(),
     }
     .encode_to_vec()
@@ -1592,7 +1594,7 @@ pub async fn retrieve_payment_method_from_vault(
                 })
                 .change_context(errors::ApiErrorResponse::InternalServerError)
                 .attach_printable("Missing locker_id for VaultRetrieveRequest")?;
-            retrieve_payment_method_from_vault_internal(state, merchant_context, &vault_id)
+            retrieve_payment_method_from_vault_internal(state, merchant_context, &vault_id, &pm.customer_id)
                 .await
                 .change_context(errors::ApiErrorResponse::InternalServerError)
                 .attach_printable("Failed to retrieve payment method from vault")
@@ -1605,9 +1607,10 @@ pub async fn delete_payment_method_data_from_vault_internal(
     state: &routes::SessionState,
     merchant_context: &domain::MerchantContext,
     vault_id: domain::VaultId,
+    customer_id: &id_type::GlobalCustomerId,
 ) -> CustomResult<pm_types::VaultDeleteResponse, errors::VaultError> {
     let payload = pm_types::VaultDeleteRequest {
-        entity_id: merchant_context.get_merchant_account().get_id().to_owned(),
+        entity_id: customer_id.to_owned(),
         vault_id,
     }
     .encode_to_vec()
@@ -1633,6 +1636,7 @@ pub async fn delete_payment_method_data_from_vault_external(
     merchant_account: &domain::MerchantAccount,
     merchant_connector_account: domain::MerchantConnectorAccountTypeDetails,
     vault_id: domain::VaultId,
+    customer_id: &id_type::GlobalCustomerId,
 ) -> RouterResult<pm_types::VaultDeleteResponse> {
     let connector_vault_id = vault_id.get_string_repr().to_owned();
 
@@ -1685,21 +1689,21 @@ pub async fn delete_payment_method_data_from_vault_external(
 
     get_vault_response_for_delete_payment_method_data::<ExternalVaultDeleteFlow>(
         router_data_resp,
-        merchant_account.get_id().to_owned(),
+        customer_id.to_owned(),
     )
 }
 
 #[cfg(feature = "v2")]
 pub fn get_vault_response_for_delete_payment_method_data<F>(
     router_data: VaultRouterData<F>,
-    merchant_id: id_type::MerchantId,
+    customer_id: id_type::GlobalCustomerId,
 ) -> RouterResult<pm_types::VaultDeleteResponse> {
     match router_data.response {
         Ok(response) => match response {
             types::VaultResponseData::ExternalVaultDeleteResponse { connector_vault_id } => {
                 Ok(pm_types::VaultDeleteResponse {
                     vault_id: domain::VaultId::generate(connector_vault_id), // converted to VaultId type
-                    entity_id: merchant_id,
+                    entity_id: customer_id,
                 })
             }
             types::VaultResponseData::ExternalVaultInsertResponse { .. }
@@ -1751,10 +1755,11 @@ pub async fn delete_payment_method_data_from_vault(
                 merchant_context.get_merchant_account(),
                 merchant_connector_account,
                 vault_id.clone(),
+                &pm.customer_id,
             )
             .await
         }
-        false => delete_payment_method_data_from_vault_internal(state, merchant_context, vault_id)
+        false => delete_payment_method_data_from_vault_internal(state, merchant_context, vault_id, &pm.customer_id)
             .await
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Failed to delete payment method from vault"),
