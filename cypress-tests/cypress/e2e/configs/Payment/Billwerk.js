@@ -116,6 +116,14 @@ const billingAddress = {
   email: "test.user@example.com",
 };
 
+const threeDsNotSupportedResponse = {
+  error: {
+    type: "invalid_request",
+    message: "Three_ds payments through Billwerk is not implemented",
+    code: "IR_00",
+  },
+};
+
 export const connectorDetails = {
   card_pm: {
     PaymentIntent: {
@@ -208,13 +216,7 @@ export const connectorDetails = {
       },
       Response: {
         status: 501,
-        body: {
-          error: {
-            type: "invalid_request",
-            message: "Three_ds payments through Billwerk is not implemented",
-            code: "IR_00",
-          },
-        },
+        body: threeDsNotSupportedResponse,
       },
     },
     "3DSAutoCapture": {
@@ -230,13 +232,7 @@ export const connectorDetails = {
       },
       Response: {
         status: 501,
-        body: {
-          error: {
-            type: "invalid_request",
-            message: "Three_ds payments through Billwerk is not implemented",
-            code: "IR_00",
-          },
-        },
+        body: threeDsNotSupportedResponse,
       },
     },
     // Non-3DS flows
@@ -452,13 +448,7 @@ export const connectorDetails = {
       },
       Response: {
         status: 501,
-        body: {
-          error: {
-            type: "invalid_request",
-            message: "Three_ds payments through Billwerk is not implemented",
-            code: "IR_00",
-          },
-        },
+        body: threeDsNotSupportedResponse,
       },
     },
     SaveCardUse3DSManualCapture: {
@@ -474,13 +464,7 @@ export const connectorDetails = {
       },
       Response: {
         status: 501,
-        body: {
-          error: {
-            type: "invalid_request",
-            message: "Three_ds payments through Billwerk is not implemented",
-            code: "IR_00",
-          },
-        },
+        body: threeDsNotSupportedResponse,
       },
     },
     // Payment method mandate flows - Skipped for billwerk
@@ -546,13 +530,7 @@ export const connectorDetails = {
       },
       Response: {
         status: 501,
-        body: {
-          error: {
-            type: "invalid_request",
-            message: "Three_ds payments through Billwerk is not implemented",
-            code: "IR_00",
-          },
-        },
+        body: threeDsNotSupportedResponse,
       },
     },
     PaymentMethodIdMandate3DSManualCapture: {
@@ -571,13 +549,7 @@ export const connectorDetails = {
       },
       Response: {
         status: 501,
-        body: {
-          error: {
-            type: "invalid_request",
-            message: "Three_ds payments through Billwerk is not implemented",
-            code: "IR_00",
-          },
-        },
+        body: threeDsNotSupportedResponse,
       },
     },
 
@@ -872,13 +844,7 @@ export const connectorDetails = {
       },
       Response: {
         status: 501,
-        body: {
-          error: {
-            type: "invalid_request",
-            message: "Three_ds payments through Billwerk is not implemented",
-            code: "IR_00",
-          },
-        },
+        body: threeDsNotSupportedResponse,
       },
     },
     SaveCardUseNo3DSManualCaptureOffSession: {
