@@ -10,7 +10,7 @@ use masking::Secret;
 use serde::Serialize;
 use serde_with::serde_as;
 
-use super::{payment_method_data::PaymentMethodData};
+use super::payment_method_data::PaymentMethodData;
 use crate::{
     address,
     errors::api_error_response::ApiErrorResponse,
