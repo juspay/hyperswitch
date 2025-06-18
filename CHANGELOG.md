@@ -4,6 +4,76 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2025.06.18.0
+
+### Features
+
+- **core:** Accept merchant_connector_details in Payments and Psync flow ([#8199](https://github.com/juspay/hyperswitch/pull/8199)) ([`b8b1960`](https://github.com/juspay/hyperswitch/commit/b8b19605d83b94d248bb68a3fc7d83e22187a5b1))
+- **payment_methods:** Populate connector_customer during customer creation step in payment methods migrate flow ([#8319](https://github.com/juspay/hyperswitch/pull/8319)) ([`3899ddd`](https://github.com/juspay/hyperswitch/commit/3899ddd52941aa6ba756f9a00b078245d7b47532))
+
+### Bug Fixes
+
+- **connector:** [ARCHIPEL] Make card_holder_name as none if cardholder field is none ([#8359](https://github.com/juspay/hyperswitch/pull/8359)) ([`7f6f4c4`](https://github.com/juspay/hyperswitch/commit/7f6f4c47fe0610196b19ce730a0cfd0da405d775))
+
+### Refactors
+
+- **routing:** Routing events core refactor ([#8323](https://github.com/juspay/hyperswitch/pull/8323)) ([`4d36be8`](https://github.com/juspay/hyperswitch/commit/4d36be87ec090ae57f8568d33c99cc1108ecc2b8))
+
+**Full Changelog:** [`2025.06.17.0...2025.06.18.0`](https://github.com/juspay/hyperswitch/compare/2025.06.17.0...2025.06.18.0)
+
+- - -
+
+## 2025.06.17.0
+
+### Features
+
+- **core:**
+  - Fix Wasm changes for Tokenio Open Banking ([#8347](https://github.com/juspay/hyperswitch/pull/8347)) ([`800c5e6`](https://github.com/juspay/hyperswitch/commit/800c5e68dad47425c4d527f4362cef8557cb2953))
+  - Consume card details from billing connectors and first error codes and store them in payment intent table ([#8250](https://github.com/juspay/hyperswitch/pull/8250)) ([`abe9708`](https://github.com/juspay/hyperswitch/commit/abe9708d1c078b830de439ab54d17fa7340fbef5))
+- **router:** Add retry support for debit routing ([#8220](https://github.com/juspay/hyperswitch/pull/8220)) ([`b5b7cfa`](https://github.com/juspay/hyperswitch/commit/b5b7cfafcf7602f7e9be46914514adf16a4ee83d))
+- Add nix shell environments ([#8329](https://github.com/juspay/hyperswitch/pull/8329)) ([`e3233c6`](https://github.com/juspay/hyperswitch/commit/e3233c67fc0194f3e487be97f84a7be83408ac16))
+
+### Bug Fixes
+
+- **ci:** Update api-reference path in pr_labeler job ([#8344](https://github.com/juspay/hyperswitch/pull/8344)) ([`0eab55d`](https://github.com/juspay/hyperswitch/commit/0eab55d17aef3caa160878bc9b2be29deb37711d))
+- Correct error for env not found ([#8320](https://github.com/juspay/hyperswitch/pull/8320)) ([`71bed12`](https://github.com/juspay/hyperswitch/commit/71bed12edce154b65f5cdd48270af8b4b1234ad9))
+
+### Refactors
+
+- Add compatibility for decision-engine rules ([#8346](https://github.com/juspay/hyperswitch/pull/8346)) ([`1ed2f21`](https://github.com/juspay/hyperswitch/commit/1ed2f210b2fec95696b98cfbe67c620c8fe716ff))
+
+**Full Changelog:** [`2025.06.16.0...2025.06.17.0`](https://github.com/juspay/hyperswitch/compare/2025.06.16.0...2025.06.17.0)
+
+- - -
+
+## 2025.06.16.0
+
+### Features
+
+- **connector:** [trustpay] introduce instant bank_transfer, finland and poland ([#7925](https://github.com/juspay/hyperswitch/pull/7925)) ([`61c2e2c`](https://github.com/juspay/hyperswitch/commit/61c2e2c75fabdb03c5599df97240a030cb7b5b6a))
+- Migration api for migrating routing rules to decision_engine ([#8233](https://github.com/juspay/hyperswitch/pull/8233)) ([`9045eb5`](https://github.com/juspay/hyperswitch/commit/9045eb5b65c21ee0c9746ee591b5f00bbce3b890))
+
+### Bug Fixes
+
+- **connector:** [ARCHIPEL] Change connector fields that are currently implemented as required in the code to optional ([#8342](https://github.com/juspay/hyperswitch/pull/8342)) ([`cfd0b07`](https://github.com/juspay/hyperswitch/commit/cfd0b0795e8d33f4d963861c22e1ba9ceba7c716))
+- **postman:** Fix `stripe` test cases failures ([#8339](https://github.com/juspay/hyperswitch/pull/8339)) ([`535a927`](https://github.com/juspay/hyperswitch/commit/535a927e426f90bb6334e949d3f03fd1d190b714))
+
+### Refactors
+
+- **dynamic_routing:** Add support for shuffle on tie flag to success_based routing ([#8241](https://github.com/juspay/hyperswitch/pull/8241)) ([`c72d365`](https://github.com/juspay/hyperswitch/commit/c72d365fdeac13e3aa65b4c3d1f876b9c419168e))
+
+### Documentation
+
+- **openapi:** Show API version selection dropdown in Mintlify ([#8333](https://github.com/juspay/hyperswitch/pull/8333)) ([`ce85b83`](https://github.com/juspay/hyperswitch/commit/ce85b838f49d616335462e701e93ded2c6c58936))
+
+### Miscellaneous Tasks
+
+- **postman:** Update Postman collection files ([`94c32c8`](https://github.com/juspay/hyperswitch/commit/94c32c8e546134666eb98b3d5546152c1613ea5a))
+
+**Full Changelog:** [`2025.06.13.0...2025.06.16.0`](https://github.com/juspay/hyperswitch/compare/2025.06.13.0...2025.06.16.0)
+
+- - -
+
 ## 2025.06.13.0
 
 ### Features
