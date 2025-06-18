@@ -12,6 +12,7 @@ use time::PrimitiveDateTime;
 use crate::{
     query::{Aggregate, GroupByClause, ToSql, Window},
     types::{AnalyticsCollection, AnalyticsDataSource, DBEnumWrapper, LoadRow, MetricsResult},
+    AuthInfo,
 };
 
 mod authentication_attempt_count;
@@ -43,6 +44,7 @@ use frictionless_success_count::FrictionlessSuccessCount;
 #[derive(Debug, PartialEq, Eq, serde::Deserialize, Hash)]
 pub struct AuthEventMetricRow {
     pub count: Option<i64>,
+    pub merchant_id: Option<String>,
     pub authentication_status: Option<DBEnumWrapper<storage_enums::AuthenticationStatus>>,
     pub trans_status: Option<DBEnumWrapper<storage_enums::TransactionStatus>>,
     pub authentication_type: Option<DBEnumWrapper<storage_enums::DecoupledAuthenticationType>>,
@@ -86,7 +88,8 @@ where
 {
     async fn load_metrics(
         &self,
-        merchant_id: &common_utils::id_type::MerchantId,
+        auth: &AuthInfo,
+        // merchant_id: &common_utils::id_type::MerchantId,
         dimensions: &[AuthEventDimensions],
         filters: &AuthEventFilters,
         granularity: Option<Granularity>,
@@ -107,7 +110,7 @@ where
 {
     async fn load_metrics(
         &self,
-        merchant_id: &common_utils::id_type::MerchantId,
+        auth: &AuthInfo,
         dimensions: &[AuthEventDimensions],
         filters: &AuthEventFilters,
         granularity: Option<Granularity>,
@@ -117,146 +120,62 @@ where
         match self {
             Self::AuthenticationCount => {
                 AuthenticationCount
-                    .load_metrics(
-                        merchant_id,
-                        dimensions,
-                        filters,
-                        granularity,
-                        time_range,
-                        pool,
-                    )
+                    .load_metrics(auth, dimensions, filters, granularity, time_range, pool)
                     .await
             }
             Self::AuthenticationAttemptCount => {
                 AuthenticationAttemptCount
-                    .load_metrics(
-                        merchant_id,
-                        dimensions,
-                        filters,
-                        granularity,
-                        time_range,
-                        pool,
-                    )
+                    .load_metrics(auth, dimensions, filters, granularity, time_range, pool)
                     .await
             }
             Self::AuthenticationSuccessCount => {
                 AuthenticationSuccessCount
-                    .load_metrics(
-                        merchant_id,
-                        dimensions,
-                        filters,
-                        granularity,
-                        time_range,
-                        pool,
-                    )
+                    .load_metrics(auth, dimensions, filters, granularity, time_range, pool)
                     .await
             }
             Self::ChallengeFlowCount => {
                 ChallengeFlowCount
-                    .load_metrics(
-                        merchant_id,
-                        dimensions,
-                        filters,
-                        granularity,
-                        time_range,
-                        pool,
-                    )
+                    .load_metrics(auth, dimensions, filters, granularity, time_range, pool)
                     .await
             }
             Self::ChallengeAttemptCount => {
                 ChallengeAttemptCount
-                    .load_metrics(
-                        merchant_id,
-                        dimensions,
-                        filters,
-                        granularity,
-                        time_range,
-                        pool,
-                    )
+                    .load_metrics(auth, dimensions, filters, granularity, time_range, pool)
                     .await
             }
             Self::ChallengeSuccessCount => {
                 ChallengeSuccessCount
-                    .load_metrics(
-                        merchant_id,
-                        dimensions,
-                        filters,
-                        granularity,
-                        time_range,
-                        pool,
-                    )
+                    .load_metrics(auth, dimensions, filters, granularity, time_range, pool)
                     .await
             }
             Self::FrictionlessFlowCount => {
                 FrictionlessFlowCount
-                    .load_metrics(
-                        merchant_id,
-                        dimensions,
-                        filters,
-                        granularity,
-                        time_range,
-                        pool,
-                    )
+                    .load_metrics(auth, dimensions, filters, granularity, time_range, pool)
                     .await
             }
             Self::FrictionlessSuccessCount => {
                 FrictionlessSuccessCount
-                    .load_metrics(
-                        merchant_id,
-                        dimensions,
-                        filters,
-                        granularity,
-                        time_range,
-                        pool,
-                    )
+                    .load_metrics(auth, dimensions, filters, granularity, time_range, pool)
                     .await
             }
             Self::AuthenticationErrorMessage => {
                 AuthenticationErrorMessage
-                    .load_metrics(
-                        merchant_id,
-                        dimensions,
-                        filters,
-                        granularity,
-                        time_range,
-                        pool,
-                    )
+                    .load_metrics(auth, dimensions, filters, granularity, time_range, pool)
                     .await
             }
             Self::AuthenticationFunnel => {
                 AuthenticationFunnel
-                    .load_metrics(
-                        merchant_id,
-                        dimensions,
-                        filters,
-                        granularity,
-                        time_range,
-                        pool,
-                    )
+                    .load_metrics(auth, dimensions, filters, granularity, time_range, pool)
                     .await
             }
             Self::AuthenticationExemptionApprovedCount => {
                 AuthenticationExemptionApprovedCount
-                    .load_metrics(
-                        merchant_id,
-                        dimensions,
-                        filters,
-                        granularity,
-                        time_range,
-                        pool,
-                    )
+                    .load_metrics(auth, dimensions, filters, granularity, time_range, pool)
                     .await
             }
             Self::AuthenticationExemptionRequestedCount => {
                 AuthenticationExemptionRequestedCount
-                    .load_metrics(
-                        merchant_id,
-                        dimensions,
-                        filters,
-                        granularity,
-                        time_range,
-                        pool,
-                    )
+                    .load_metrics(auth, dimensions, filters, granularity, time_range, pool)
                     .await
             }
         }
