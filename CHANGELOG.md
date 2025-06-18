@@ -4,6 +4,48 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2025.06.18.0
+
+### Features
+
+- **core:** Accept merchant_connector_details in Payments and Psync flow ([#8199](https://github.com/juspay/hyperswitch/pull/8199)) ([`b8b1960`](https://github.com/juspay/hyperswitch/commit/b8b19605d83b94d248bb68a3fc7d83e22187a5b1))
+- **payment_methods:** Populate connector_customer during customer creation step in payment methods migrate flow ([#8319](https://github.com/juspay/hyperswitch/pull/8319)) ([`3899ddd`](https://github.com/juspay/hyperswitch/commit/3899ddd52941aa6ba756f9a00b078245d7b47532))
+
+### Bug Fixes
+
+- **connector:** [ARCHIPEL] Make card_holder_name as none if cardholder field is none ([#8359](https://github.com/juspay/hyperswitch/pull/8359)) ([`7f6f4c4`](https://github.com/juspay/hyperswitch/commit/7f6f4c47fe0610196b19ce730a0cfd0da405d775))
+
+### Refactors
+
+- **routing:** Routing events core refactor ([#8323](https://github.com/juspay/hyperswitch/pull/8323)) ([`4d36be8`](https://github.com/juspay/hyperswitch/commit/4d36be87ec090ae57f8568d33c99cc1108ecc2b8))
+
+**Full Changelog:** [`2025.06.17.0...2025.06.18.0`](https://github.com/juspay/hyperswitch/compare/2025.06.17.0...2025.06.18.0)
+
+- - -
+
+## 2025.06.17.0
+
+### Features
+
+- **core:**
+  - Fix Wasm changes for Tokenio Open Banking ([#8347](https://github.com/juspay/hyperswitch/pull/8347)) ([`800c5e6`](https://github.com/juspay/hyperswitch/commit/800c5e68dad47425c4d527f4362cef8557cb2953))
+  - Consume card details from billing connectors and first error codes and store them in payment intent table ([#8250](https://github.com/juspay/hyperswitch/pull/8250)) ([`abe9708`](https://github.com/juspay/hyperswitch/commit/abe9708d1c078b830de439ab54d17fa7340fbef5))
+- **router:** Add retry support for debit routing ([#8220](https://github.com/juspay/hyperswitch/pull/8220)) ([`b5b7cfa`](https://github.com/juspay/hyperswitch/commit/b5b7cfafcf7602f7e9be46914514adf16a4ee83d))
+- Add nix shell environments ([#8329](https://github.com/juspay/hyperswitch/pull/8329)) ([`e3233c6`](https://github.com/juspay/hyperswitch/commit/e3233c67fc0194f3e487be97f84a7be83408ac16))
+
+### Bug Fixes
+
+- **ci:** Update api-reference path in pr_labeler job ([#8344](https://github.com/juspay/hyperswitch/pull/8344)) ([`0eab55d`](https://github.com/juspay/hyperswitch/commit/0eab55d17aef3caa160878bc9b2be29deb37711d))
+- Correct error for env not found ([#8320](https://github.com/juspay/hyperswitch/pull/8320)) ([`71bed12`](https://github.com/juspay/hyperswitch/commit/71bed12edce154b65f5cdd48270af8b4b1234ad9))
+
+### Refactors
+
+- Add compatibility for decision-engine rules ([#8346](https://github.com/juspay/hyperswitch/pull/8346)) ([`1ed2f21`](https://github.com/juspay/hyperswitch/commit/1ed2f210b2fec95696b98cfbe67c620c8fe716ff))
+
+**Full Changelog:** [`2025.06.16.0...2025.06.17.0`](https://github.com/juspay/hyperswitch/compare/2025.06.16.0...2025.06.17.0)
+
+- - -
+
 ## 2025.06.16.0
 
 ### Features
