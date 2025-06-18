@@ -8,7 +8,6 @@ use hyperswitch_domain_models::{
     router_response_types::PaymentsResponseData,
 };
 use masking::PeekInterface;
-use rand::Rng;
 use router_env::logger;
 use rust_grpc_client::payments::{
     self as payments_grpc, payment_service_client::PaymentServiceClient, PaymentsAuthorizeResponse,
@@ -19,8 +18,10 @@ use crate::{
     configs::settings::UnifiedConnectorService,
     consts,
     core::{
-        errors::RouterResult, payments::helpers::MerchantConnectorAccountType,
-        unified_connector_service::errors::UnifiedConnectorServiceError, utils::get_flow_name,
+        errors::RouterResult,
+        payments::helpers::{should_execute_based_on_rollout, MerchantConnectorAccountType},
+        unified_connector_service::errors::UnifiedConnectorServiceError,
+        utils::get_flow_name,
     },
     routes::SessionState,
     types::transformers::ForeignTryFrom,
@@ -86,7 +87,6 @@ pub async fn should_call_unified_connector_service<F: Clone, T>(
         .get_string_repr();
 
     let connector_name = router_data.connector.clone();
-
     let payment_method = router_data.payment_method.to_string();
     let flow_name = get_flow_name::<F>()?;
 
@@ -103,24 +103,17 @@ pub async fn should_call_unified_connector_service<F: Clone, T>(
 
     match db.find_config_by_key(&config_key).await {
         Ok(rollout_config) => match rollout_config.config.parse() {
-            Ok(rollout_percent) => {
-                let random_value: f64 = rand::thread_rng().gen_range(0.0..=1.0);
-                if random_value < rollout_percent {
-                    match &state.unified_connector_service_client {
-                        Some(_) => Ok(true),
-                        None => Ok(false),
-                    }
-                } else {
-                    Ok(false)
-                }
-            }
+            Ok(rollout_percent) => match should_execute_based_on_rollout(rollout_percent) {
+                true => Ok(state.unified_connector_service_client.is_some()),
+                false => Ok(false),
+            },
             Err(err) => {
-                logger::error!(error=?err);
+                logger::error!(error = ?err);
                 Ok(false)
             }
         },
         Err(err) => {
-            logger::error!(error=?err);
+            logger::error!(error = ?err);
             Ok(false)
         }
     }
