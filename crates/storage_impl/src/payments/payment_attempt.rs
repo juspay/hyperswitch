@@ -995,8 +995,8 @@ impl<T: DatabaseStore> PaymentAttemptInterface for KVRouterStore<T> {
 
         let updated_by = updated_payment_attempt.updated_by.to_owned();
         let updated_payment_attempt_with_id = payment_attempt
-                .clone()
-                .update_with_attempt_id(&conn, payment_attempt_internal.clone());
+            .clone()
+            .update_with_attempt_id(&conn, payment_attempt_internal.clone());
 
         Box::pin(self.update_resource(
             key_manager_state,

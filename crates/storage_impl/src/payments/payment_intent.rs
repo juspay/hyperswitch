@@ -813,9 +813,8 @@ impl<T: DatabaseStore> PaymentIntentInterface for crate::RouterStore<T> {
         _storage_scheme: MerchantStorageScheme,
     ) -> error_stack::Result<PaymentIntent, StorageError> {
         let conn = pg_connection_write(self).await?;
-        let diesel_payment_intent_update =
-            PaymentIntentUpdateInternal::try_from(payment_intent)
-                .change_context(StorageError::DeserializationFailed)?;
+        let diesel_payment_intent_update = PaymentIntentUpdateInternal::try_from(payment_intent)
+            .change_context(StorageError::DeserializationFailed)?;
         let diesel_payment_intent = this
             .convert()
             .await

@@ -903,7 +903,7 @@ impl PaymentAttemptUpdateInternal {
             network_advice_code,
             network_error_message,
             payment_method_id,
-            connector_request_reference_id
+            connector_request_reference_id,
         } = self;
 
         PaymentAttempt {
@@ -936,8 +936,9 @@ impl PaymentAttemptUpdateInternal {
             network_decline_code: network_decline_code.or(source.network_decline_code),
             network_advice_code: network_advice_code.or(source.network_advice_code),
             network_error_message: network_error_message.or(source.network_error_message),
-            payment_method_id : payment_method_id.or(source.payment_method_id),
-            connector_request_reference_id : connector_request_reference_id.or(source.connector_request_reference_id),
+            payment_method_id: payment_method_id.or(source.payment_method_id),
+            connector_request_reference_id: connector_request_reference_id
+                .or(source.connector_request_reference_id),
             ..source
         }
     }
