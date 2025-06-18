@@ -1,8 +1,6 @@
-use actix_web::services;
 use common_enums::{AttemptStatus, Currency, RefundStatus};
 use common_utils::{pii, request::Method};
 use hyperswitch_domain_models::{
-    errors,
     payment_method_data::{
         Card, PayLaterData, PaymentMethodData, UpiCollectData, UpiData, WalletData,
     },
@@ -10,7 +8,7 @@ use hyperswitch_domain_models::{
     router_flow_types::{Execute, RSync},
     router_request_types::ResponseId,
     router_response_types::{PaymentsResponseData, RedirectForm, RefundsResponseData},
-    types::{self, PaymentsAuthorizeRouterData, RefundsRouterData},
+    types::{PaymentsAuthorizeRouterData, RefundsRouterData},
 };
 use hyperswitch_interfaces::errors::ConnectorError;
 use masking::Secret;
