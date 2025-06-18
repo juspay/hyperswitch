@@ -1096,7 +1096,7 @@ pub async fn network_tokenize_and_vault_the_pmd(
             merchant_context,
             &network_token_vaulting_data,
             None,
-            customer_id
+            customer_id,
         )
         .await
         .change_context(errors::NetworkTokenizationError::SaveNetworkTokenFailed)
@@ -1838,11 +1838,16 @@ pub async fn vault_payment_method_internal(
         },
     )?;
 
-    let mut resp_from_vault =
-        vault::add_payment_method_to_vault(state, merchant_context, pmd, existing_vault_id, customer_id)
-            .await
-            .change_context(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable("Failed to add payment method in vault")?;
+    let mut resp_from_vault = vault::add_payment_method_to_vault(
+        state,
+        merchant_context,
+        pmd,
+        existing_vault_id,
+        customer_id,
+    )
+    .await
+    .change_context(errors::ApiErrorResponse::InternalServerError)
+    .attach_printable("Failed to add payment method in vault")?;
 
     // add fingerprint_id to the response
     resp_from_vault.fingerprint_id = Some(fingerprint_id_from_vault);

@@ -82,8 +82,7 @@ impl ProxyRequestWrapper {
                     .find_payment_method(&((state).into()), key_store, &pm_id, storage_scheme)
                     .await
                     .change_context(errors::ApiErrorResponse::PaymentMethodNotFound)?
-                    .customer_id
-                )
+                    .customer_id)
             }
             proxy_api_models::TokenType::TokenizationId => {
                 Err(report!(errors::ApiErrorResponse::NotImplemented {
