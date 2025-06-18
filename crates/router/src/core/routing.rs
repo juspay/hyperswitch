@@ -2031,6 +2031,7 @@ pub async fn contract_based_dynamic_routing_setup(
             is_merchant_created_in_decision_engine: dynamic_routing_algo_ref
                 .as_ref()
                 .is_some_and(|algo| algo.is_merchant_created_in_decision_engine),
+            routing_result_source: None,
         }
     };
 
@@ -2388,9 +2389,8 @@ pub async fn migrate_rules_for_profile(
     merchant_context: domain::MerchantContext,
     query_params: routing_types::RuleMigrationQuery,
 ) -> RouterResult<routing_types::RuleMigrationResult> {
-    use api_models::routing::StaticRoutingAlgorithm as EuclidAlgorithm;
-
     use crate::services::logger;
+    use api_models::routing::StaticRoutingAlgorithm as EuclidAlgorithm;
 
     let profile_id = query_params.profile_id.clone();
     let db = state.store.as_ref();
@@ -2398,7 +2398,7 @@ pub async fn migrate_rules_for_profile(
     let merchant_key_store = merchant_context.get_merchant_key_store();
     let merchant_id = merchant_context.get_merchant_account().get_id();
 
-    core_utils::validate_and_get_business_profile(
+    let business_profile = core_utils::validate_and_get_business_profile(
         db,
         key_manager_state,
         merchant_key_store,
@@ -2411,7 +2411,15 @@ pub async fn migrate_rules_for_profile(
         id: profile_id.get_string_repr().to_owned(),
     })?;
 
-    let routing_metadatas: Vec<diesel_models::routing_algorithm::RoutingProfileMetadata> = state
+    let active_payment_routing_id: routing_types::RoutingAlgorithmRef = business_profile
+        .routing_algorithm
+        .map(|val| val.parse_value("RoutingAlgorithmRef"))
+        .transpose()
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("unable to deserialize routing algorithm ref from merchant account")?
+        .unwrap_or_default();
+
+    let routing_metadatas = state
         .store
         .list_routing_algorithm_metadata_by_profile_id(
             &profile_id,
@@ -2424,110 +2432,127 @@ pub async fn migrate_rules_for_profile(
     let mut response_list = Vec::new();
     let mut error_list = Vec::new();
 
+    let mut push_error = |algorithm_id, msg: String| {
+        error_list.push(RuleMigrationError {
+            profile_id: profile_id.clone(),
+            algorithm_id,
+            error: msg,
+        });
+    };
+
     for routing_metadata in routing_metadatas
         .into_iter()
         .filter(|algo| algo.metadata_is_advanced_rule_for_payments())
     {
-        match db
-            .find_routing_algorithm_by_profile_id_algorithm_id(
-                &profile_id,
-                &routing_metadata.algorithm_id,
-            )
+        let algorithm_id = routing_metadata.algorithm_id.clone();
+        let algorithm = match db
+            .find_routing_algorithm_by_profile_id_algorithm_id(&profile_id, &algorithm_id)
             .await
         {
-            Ok(algorithm) => {
-                let parsed_result = algorithm
-                    .algorithm_data
-                    .parse_value::<EuclidAlgorithm>("EuclidAlgorithm");
+            Ok(algo) => algo,
+            Err(e) => {
+                logger::error!(
+                    decision_engine_rule_migration_error = ?e,
+                    algorithm_id = ?algorithm_id,
+                    "Failed to fetch routing algorithm"
+                );
+                push_error(algorithm_id, format!("Fetch error: {:?}", e));
+                continue;
+            }
+        };
 
-                match parsed_result {
-                    Ok(EuclidAlgorithm::Advanced(program)) => match program.try_into() {
-                        Ok(internal_program) => {
-                            let routing_rule = RoutingRule {
-                                rule_id: Some(
-                                    algorithm.algorithm_id.clone().get_string_repr().to_string(),
-                                ),
-                                name: algorithm.name.clone(),
-                                description: algorithm.description.clone(),
-                                created_by: profile_id.get_string_repr().to_string(),
-                                algorithm: StaticRoutingAlgorithm::Advanced(internal_program),
-                                metadata: None,
-                            };
+        let parsed_result = algorithm
+            .algorithm_data
+            .parse_value::<EuclidAlgorithm>("EuclidAlgorithm");
 
-                            let result = create_de_euclid_routing_algo(&state, &routing_rule).await;
-
-                            match result {
-                                Ok(decision_engine_routing_id) => {
-                                    let response = RuleMigrationResponse {
-                                        profile_id: profile_id.clone(),
-                                        euclid_algorithm_id: algorithm.algorithm_id.clone(),
-                                        decision_engine_algorithm_id: decision_engine_routing_id,
-                                    };
-                                    response_list.push(response);
-                                }
-                                Err(err) => {
-                                    logger::error!(
-                                        decision_engine_rule_migration_error = ?err,
-                                        algorithm_id = ?algorithm.algorithm_id,
-                                        "Failed to insert into decision engine"
-                                    );
-                                    error_list.push(RuleMigrationError {
-                                        profile_id: profile_id.clone(),
-                                        algorithm_id: algorithm.algorithm_id.clone(),
-                                        error: format!("Insertion error: {:?}", err),
-                                    });
-                                }
-                            }
-                        }
-                        Err(e) => {
-                            logger::error!(
-                                decision_engine_rule_migration_error = ?e,
-                                algorithm_id = ?algorithm.algorithm_id,
-                                "Failed to convert program"
-                            );
-                            error_list.push(RuleMigrationError {
-                                profile_id: profile_id.clone(),
-                                algorithm_id: algorithm.algorithm_id.clone(),
-                                error: format!("Program conversion error: {:?}", e),
-                            });
-                        }
-                    },
-                    Err(e) => {
-                        logger::error!(
-                            decision_engine_rule_migration_error = ?e,
-                            algorithm_id = ?algorithm.algorithm_id,
-                            "Failed to parse EuclidAlgorithm"
-                        );
-                        error_list.push(RuleMigrationError {
-                            profile_id: profile_id.clone(),
-                            algorithm_id: algorithm.algorithm_id.clone(),
-                            error: format!("JSON parse error: {:?}", e),
-                        });
-                    }
-                    _ => {
-                        logger::info!(
-                            "decision_engine_rule_migration_error: Skipping non-advanced algorithm {:?}",
-                            algorithm.algorithm_id
-                        );
-                        error_list.push(RuleMigrationError {
-                            profile_id: profile_id.clone(),
-                            algorithm_id: algorithm.algorithm_id.clone(),
-                            error: "Not an advanced algorithm".to_string(),
-                        });
-                    }
-                }
+        let program = match parsed_result {
+            Ok(EuclidAlgorithm::Advanced(program)) => program,
+            Ok(_) => {
+                logger::info!(
+                    "decision_engine_rule_migration_error: Skipping non-advanced algorithm {:?}",
+                    algorithm.algorithm_id
+                );
+                push_error(
+                    algorithm.algorithm_id.clone(),
+                    "Not an advanced algorithm".to_string(),
+                );
+                continue;
             }
             Err(e) => {
                 logger::error!(
                     decision_engine_rule_migration_error = ?e,
-                    algorithm_id = ?routing_metadata.algorithm_id,
-                    "Failed to fetch routing algorithm"
+                    algorithm_id = ?algorithm.algorithm_id,
+                    "Failed to parse EuclidAlgorithm"
                 );
-                error_list.push(RuleMigrationError {
+                push_error(
+                    algorithm.algorithm_id.clone(),
+                    format!("JSON parse error: {:?}", e),
+                );
+                continue;
+            }
+        };
+
+        let internal_program = match program.try_into() {
+            Ok(ip) => ip,
+            Err(e) => {
+                logger::error!(
+                    decision_engine_rule_migration_error = ?e,
+                    algorithm_id = ?algorithm.algorithm_id,
+                    "Failed to convert program"
+                );
+                push_error(
+                    algorithm.algorithm_id.clone(),
+                    format!("Program conversion error: {:?}", e),
+                );
+                continue;
+            }
+        };
+
+        let routing_rule = RoutingRule {
+            rule_id: Some(algorithm.algorithm_id.clone().get_string_repr().to_string()),
+            name: algorithm.name.clone(),
+            description: algorithm.description.clone(),
+            created_by: profile_id.get_string_repr().to_string(),
+            algorithm: StaticRoutingAlgorithm::Advanced(internal_program),
+            metadata: Some(RoutingMetadata {
+                kind: algorithm.kind.clone(),
+                algorithm_for: algorithm.algorithm_for.clone(),
+            }),
+        };
+
+        match create_de_euclid_routing_algo(&state, &routing_rule).await {
+            Ok(decision_engine_routing_id) => {
+                let mut is_active_rule = false;
+                if active_payment_routing_id.algorithm_id == Some(algorithm.algorithm_id.clone()) {
+                    link_de_euclid_routing_algorithm(
+                        &state,
+                        ActivateRoutingConfigRequest {
+                            created_by: profile_id.get_string_repr().to_string(),
+                            routing_algorithm_id: decision_engine_routing_id.clone(),
+                        },
+                    )
+                    .await
+                    .change_context(errors::ApiErrorResponse::InternalServerError)
+                    .attach_printable("unable to list active routing algorithm")?;
+                    is_active_rule = true;
+                }
+                response_list.push(RuleMigrationResponse {
                     profile_id: profile_id.clone(),
-                    algorithm_id: routing_metadata.algorithm_id.clone(),
-                    error: format!("Fetch error: {:?}", e),
+                    euclid_algorithm_id: algorithm.algorithm_id.clone(),
+                    decision_engine_algorithm_id: decision_engine_routing_id,
+                    is_active_rule,
                 });
+            }
+            Err(err) => {
+                logger::error!(
+                    decision_engine_rule_migration_error = ?err,
+                    algorithm_id = ?algorithm.algorithm_id,
+                    "Failed to insert into decision engine"
+                );
+                push_error(
+                    algorithm.algorithm_id.clone(),
+                    format!("Insertion error: {:?}", err),
+                );
             }
         }
     }

@@ -1539,7 +1539,7 @@ pub async fn push_metrics_with_update_window_for_contract_based_routing(
                 routing_events::RoutingEngine::IntelligentRouter,
                 routing_events::ApiMethod::Grpc)
                 .change_context(errors::ApiErrorResponse::InternalServerError)
-                .attach_printable("ContractRouting-Intelligent-Router: Failed to contruct RoutingEventsBuilder")?
+                .attach_printable("ContractRouting-Intelligent-Router: Failed to construct RoutingEventsBuilder")?
                 .trigger_event(state, closure)
                 .await
                 .change_context(errors::ApiErrorResponse::InternalServerError)
@@ -1841,6 +1841,7 @@ pub async fn disable_dynamic_routing_algorithm(
                             .dynamic_routing_volume_split,
                         is_merchant_created_in_decision_engine: dynamic_routing_algo_ref
                             .is_merchant_created_in_decision_engine,
+                        routing_result_source: dynamic_routing_algo_ref.routing_result_source,
                     },
                     cache_entries_to_redact,
                 )
@@ -1883,6 +1884,7 @@ pub async fn disable_dynamic_routing_algorithm(
                         contract_based_routing: dynamic_routing_algo_ref.contract_based_routing,
                         is_merchant_created_in_decision_engine: dynamic_routing_algo_ref
                             .is_merchant_created_in_decision_engine,
+                        routing_result_source: dynamic_routing_algo_ref.routing_result_source,
                     },
                     cache_entries_to_redact,
                 )
@@ -1923,6 +1925,7 @@ pub async fn disable_dynamic_routing_algorithm(
                         }),
                         is_merchant_created_in_decision_engine: dynamic_routing_algo_ref
                             .is_merchant_created_in_decision_engine,
+                        routing_result_source: dynamic_routing_algo_ref.routing_result_source,
                     },
                     cache_entries_to_redact,
                 )
