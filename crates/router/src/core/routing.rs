@@ -236,11 +236,15 @@ async fn build_list_routing_result(
             id: profile_id.get_string_repr().to_owned(),
         })?;
 
-        list_result.append(&mut select_routing_result(
-            &business_profile,
-            hs_result_for_profile,
-            de_result_for_profile,
-        )?);
+        list_result.append(
+            &mut select_routing_result(
+                state,
+                &business_profile,
+                hs_result_for_profile,
+                de_result_for_profile,
+            )
+            .await,
+        );
     }
     Ok(list_result)
 }
@@ -1338,11 +1342,9 @@ pub async fn retrieve_linked_routing_config(
                 vec![hs_record.clone()],
                 "list_active_routing".to_string(),
             );
-            active_algorithms.push(select_routing_result(
-                &business_profile,
-                hs_record,
-                de_record,
-            )?);
+            active_algorithms.push(
+                select_routing_result(&state, &business_profile, hs_record, de_record).await,
+            );
         }
 
         // Handle dynamic routing algorithms
@@ -2031,7 +2033,6 @@ pub async fn contract_based_dynamic_routing_setup(
             is_merchant_created_in_decision_engine: dynamic_routing_algo_ref
                 .as_ref()
                 .is_some_and(|algo| algo.is_merchant_created_in_decision_engine),
-            routing_result_source: None,
         }
     };
 
@@ -2383,7 +2384,6 @@ impl RoutableConnectors {
         Ok(connector_data)
     }
 }
-
 
 #[cfg(feature = "v1")]
 pub async fn migrate_rules_for_profile(

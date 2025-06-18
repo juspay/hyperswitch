@@ -1841,7 +1841,6 @@ pub async fn disable_dynamic_routing_algorithm(
                             .dynamic_routing_volume_split,
                         is_merchant_created_in_decision_engine: dynamic_routing_algo_ref
                             .is_merchant_created_in_decision_engine,
-                        routing_result_source: dynamic_routing_algo_ref.routing_result_source,
                     },
                     cache_entries_to_redact,
                 )
@@ -1884,7 +1883,6 @@ pub async fn disable_dynamic_routing_algorithm(
                         contract_based_routing: dynamic_routing_algo_ref.contract_based_routing,
                         is_merchant_created_in_decision_engine: dynamic_routing_algo_ref
                             .is_merchant_created_in_decision_engine,
-                        routing_result_source: dynamic_routing_algo_ref.routing_result_source,
                     },
                     cache_entries_to_redact,
                 )
@@ -1925,7 +1923,6 @@ pub async fn disable_dynamic_routing_algorithm(
                         }),
                         is_merchant_created_in_decision_engine: dynamic_routing_algo_ref
                             .is_merchant_created_in_decision_engine,
-                        routing_result_source: dynamic_routing_algo_ref.routing_result_source,
                     },
                     cache_entries_to_redact,
                 )

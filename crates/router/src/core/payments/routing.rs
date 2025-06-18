@@ -520,11 +520,11 @@ pub async fn perform_static_routing_v1(
                 "evaluate_routing".to_string(),
             );
             utils::select_routing_result(
+                state,
                 business_profile,
                 routable_connectors,
                 de_euclid_connectors,
-            )
-            .change_context(errors::RoutingError::MetadataParsingError)?
+            ).await
         }
     })
 }
