@@ -1342,9 +1342,8 @@ pub async fn retrieve_linked_routing_config(
                 vec![hs_record.clone()],
                 "list_active_routing".to_string(),
             );
-            active_algorithms.push(
-                select_routing_result(&state, &business_profile, hs_record, de_record).await,
-            );
+            active_algorithms
+                .push(select_routing_result(&state, &business_profile, hs_record, de_record).await);
         }
 
         // Handle dynamic routing algorithms
