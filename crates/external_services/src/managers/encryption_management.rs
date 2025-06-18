@@ -6,9 +6,13 @@ use common_utils::errors::CustomResult;
 use hyperswitch_interfaces::encryption_interface::{
     EncryptionError, EncryptionManagementInterface,
 };
+#[cfg(feature = "gcp_kms")]
+use error_stack::ResultExt;
 
 #[cfg(feature = "aws_kms")]
 use crate::aws_kms;
+#[cfg(feature = "gcp_kms")]
+use crate::gcp_kms;
 use crate::no_encryption::core::NoEncryption;
 
 /// Enum representing configuration options for encryption management.
@@ -23,6 +27,13 @@ pub enum EncryptionManagementConfig {
         aws_kms: aws_kms::core::AwsKmsConfig,
     },
 
+    /// Google Cloud KMS configuration
+    #[cfg(feature = "gcp_kms")]
+    GcpKms {
+        /// GCP KMS config
+        gcp_kms: gcp_kms::core::GcpKmsConfig,
+    },
+
     /// Variant representing no encryption
     #[default]
     NoEncryption,
@@ -35,6 +46,9 @@ impl EncryptionManagementConfig {
             #[cfg(feature = "aws_kms")]
             Self::AwsKms { aws_kms } => aws_kms.validate(),
 
+            #[cfg(feature = "gcp_kms")]
+            Self::GcpKms { gcp_kms } => gcp_kms.validate(),
+
             Self::NoEncryption => Ok(()),
         }
     }
@@ -46,6 +60,9 @@ impl EncryptionManagementConfig {
         Ok(match self {
             #[cfg(feature = "aws_kms")]
             Self::AwsKms { aws_kms } => Arc::new(aws_kms::core::AwsKmsClient::new(aws_kms).await),
+
+            #[cfg(feature = "gcp_kms")]
+            Self::GcpKms { gcp_kms } => Arc::new(gcp_kms::core::GcpKmsClient::new(gcp_kms).await.change_context(EncryptionError::EncryptionFailed)?),
 
             Self::NoEncryption => Arc::new(NoEncryption),
         })
