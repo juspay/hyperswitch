@@ -1,13 +1,12 @@
 #[cfg(feature = "v2")]
 use std::collections::HashMap;
 
-#[cfg(feature = "v1")]
-use common_utils::ext_traits::ValueExt;
 use common_utils::{
     crypto::Encryptable,
     date_time,
     encryption::Encryption,
     errors::{CustomResult, ValidationError},
+    ext_traits::ValueExt,
     id_type, pii, type_name,
     types::keymanager::{Identifier, KeyManagerState, ToEncryptable},
 };
@@ -89,6 +88,92 @@ impl MerchantConnectorAccount {
 
     pub fn get_connector_name_as_string(&self) -> String {
         self.connector_name.clone()
+    }
+}
+
+#[cfg(feature = "v2")]
+#[derive(Clone, Debug)]
+pub enum MerchantConnectorAccountTypeDetails {
+    MerchantConnectorAccount(Box<MerchantConnectorAccount>),
+    MerchantConnectorDetails(api_models::payments::MerchantConnectorDetails),
+}
+
+#[cfg(feature = "v2")]
+impl MerchantConnectorAccountTypeDetails {
+    pub fn get_connector_account_details(
+        &self,
+    ) -> error_stack::Result<router_data::ConnectorAuthType, common_utils::errors::ParsingError>
+    {
+        match self {
+            Self::MerchantConnectorAccount(merchant_connector_account) => {
+                merchant_connector_account
+                    .connector_account_details
+                    .peek()
+                    .clone()
+                    .parse_value("ConnectorAuthType")
+            }
+            Self::MerchantConnectorDetails(merchant_connector_details) => {
+                merchant_connector_details
+                    .merchant_connector_creds
+                    .peek()
+                    .clone()
+                    .parse_value("ConnectorAuthType")
+            }
+        }
+    }
+
+    pub fn is_disabled(&self) -> bool {
+        match self {
+            Self::MerchantConnectorAccount(merchant_connector_account) => {
+                merchant_connector_account.disabled.unwrap_or(false)
+            }
+            Self::MerchantConnectorDetails(_) => false,
+        }
+    }
+
+    pub fn get_metadata(&self) -> Option<Secret<Value>> {
+        match self {
+            Self::MerchantConnectorAccount(merchant_connector_account) => {
+                merchant_connector_account.metadata.to_owned()
+            }
+            Self::MerchantConnectorDetails(_) => None,
+        }
+    }
+
+    pub fn get_id(&self) -> Option<id_type::MerchantConnectorAccountId> {
+        match self {
+            Self::MerchantConnectorAccount(merchant_connector_account) => {
+                Some(merchant_connector_account.id.clone())
+            }
+            Self::MerchantConnectorDetails(_) => None,
+        }
+    }
+
+    pub fn get_mca_id(&self) -> Option<id_type::MerchantConnectorAccountId> {
+        match self {
+            Self::MerchantConnectorAccount(merchant_connector_account) => {
+                Some(merchant_connector_account.get_id())
+            }
+            Self::MerchantConnectorDetails(_) => None,
+        }
+    }
+
+    pub fn get_connector_name(&self) -> Option<common_enums::connector_enums::Connector> {
+        match self {
+            Self::MerchantConnectorAccount(merchant_connector_account) => {
+                Some(merchant_connector_account.connector_name)
+            }
+            Self::MerchantConnectorDetails(_) => None,
+        }
+    }
+
+    pub fn get_inner_db_merchant_connector_account(&self) -> Option<&MerchantConnectorAccount> {
+        match self {
+            Self::MerchantConnectorAccount(merchant_connector_account) => {
+                Some(merchant_connector_account)
+            }
+            Self::MerchantConnectorDetails(_) => None,
+        }
     }
 }
 

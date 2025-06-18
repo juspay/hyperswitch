@@ -27,9 +27,7 @@ use time::PrimitiveDateTime;
 #[cfg(feature = "v2")]
 use crate::address::Address;
 #[cfg(feature = "v1")]
-use crate::mandates;
-#[cfg(feature = "v1")]
-use crate::type_encryption::AsyncLift;
+use crate::{mandates, type_encryption::AsyncLift};
 use crate::{
     mandates::CommonMandateReference,
     merchant_key_store::MerchantKeyStore,

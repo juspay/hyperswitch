@@ -7,8 +7,6 @@ use common_utils::{consts, errors::CustomResult, ext_traits::BytesExt};
 #[cfg(feature = "v1")]
 use error_stack::report;
 use error_stack::ResultExt;
-#[cfg(all(feature = "v2", feature = "revenue_recovery"))]
-use hyperswitch_domain_models::router_data_v2::flow_common_types as recovery_flow_common_types;
 use hyperswitch_domain_models::{
     router_data::{ConnectorAuthType, ErrorResponse},
     router_data_v2::UasFlowData,
@@ -22,6 +20,7 @@ use hyperswitch_domain_models::{
 };
 #[cfg(all(feature = "v2", feature = "revenue_recovery"))]
 use hyperswitch_domain_models::{
+    router_data_v2::flow_common_types as recovery_flow_common_types,
     router_flow_types::revenue_recovery as recovery_router_flows,
     router_request_types::revenue_recovery as recovery_request_types,
     router_response_types::revenue_recovery as recovery_response_types,
