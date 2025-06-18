@@ -1183,10 +1183,7 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
                 },
             )
             .await?;
-            logger::info!(
-                "Three DS Decision Rule Output: {:?}",
-                decision
-            );
+            logger::info!("Three DS Decision Rule Output: {:?}", decision);
             // We should update authentication_type from the Three DS Decision if it is not already set
             if payment_data.payment_attempt.authentication_type.is_none() {
                 payment_data.payment_attempt.authentication_type =
