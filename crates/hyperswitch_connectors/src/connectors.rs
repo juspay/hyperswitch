@@ -26,6 +26,8 @@ pub mod datatrans;
 pub mod deutschebank;
 pub mod digitalvirgo;
 pub mod dlocal;
+#[cfg(feature = "dummy_connector")]
+pub mod dummyconnector;
 pub mod ebanx;
 pub mod elavon;
 pub mod facilitapay;
@@ -103,6 +105,8 @@ pub mod worldpayxml;
 pub mod xendit;
 pub mod zen;
 pub mod zsl;
+#[cfg(feature = "dummy_connector")]
+pub use self::dummyconnector::DummyConnector;
 pub use self::{
     aci::Aci, adyen::Adyen, adyenplatform::Adyenplatform, airwallex::Airwallex,
     amazonpay::Amazonpay, archipel::Archipel, authorizedotnet::Authorizedotnet, bambora::Bambora,

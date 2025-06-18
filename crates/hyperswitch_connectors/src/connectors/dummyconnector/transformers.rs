@@ -1,14 +1,25 @@
-use common_utils::pii;
-use diesel_models::enums::Currency;
+use actix_web::services;
+use common_enums::{AttemptStatus, Currency, RefundStatus};
+use common_utils::{pii, request::Method};
+use hyperswitch_domain_models::{
+    errors,
+    payment_method_data::{
+        Card, PayLaterData, PaymentMethodData, UpiCollectData, UpiData, WalletData,
+    },
+    router_data::{ConnectorAuthType, RouterData},
+    router_flow_types::{Execute, RSync},
+    router_request_types::ResponseId,
+    router_response_types::{PaymentsResponseData, RedirectForm, RefundsResponseData},
+    types::{self, PaymentsAuthorizeRouterData, RefundsRouterData},
+};
+use hyperswitch_interfaces::errors::ConnectorError;
 use masking::Secret;
 use serde::{Deserialize, Serialize};
 use url::Url;
 
 use crate::{
-    connector::utils::RouterData,
-    core::errors,
-    services,
-    types::{self, api, domain, storage::enums},
+    types::{RefundsResponseRouterData, ResponseRouterData},
+    utils::RouterData as _,
 };
 
 #[derive(Debug, Serialize, strum::Display, Eq, PartialEq)]
@@ -63,14 +74,14 @@ impl From<u8> for DummyConnectors {
 pub struct DummyConnectorPaymentsRequest<const T: u8> {
     amount: i64,
     currency: Currency,
-    payment_method_data: PaymentMethodData,
+    payment_method_data: DummyPaymentMethodData,
     return_url: Option<String>,
     connector: DummyConnectors,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, Eq, PartialEq)]
 #[serde(rename_all = "lowercase")]
-pub enum PaymentMethodData {
+pub enum DummyPaymentMethodData {
     Card(DummyConnectorCard),
     Wallet(DummyConnectorWallet),
     PayLater(DummyConnectorPayLater),
@@ -88,15 +99,13 @@ pub struct DummyConnectorUpiCollect {
     vpa_id: Secret<String, pii::UpiVpaMaskingStrategy>,
 }
 
-impl TryFrom<domain::UpiCollectData> for DummyConnectorUpi {
-    type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(value: domain::UpiCollectData) -> Result<Self, Self::Error> {
+impl TryFrom<UpiCollectData> for DummyConnectorUpi {
+    type Error = error_stack::Report<ConnectorError>;
+    fn try_from(value: UpiCollectData) -> Result<Self, Self::Error> {
         Ok(Self::UpiCollect(DummyConnectorUpiCollect {
-            vpa_id: value
-                .vpa_id
-                .ok_or(errors::ConnectorError::MissingRequiredField {
-                    field_name: "vpa_id",
-                })?,
+            vpa_id: value.vpa_id.ok_or(ConnectorError::MissingRequiredField {
+                field_name: "vpa_id",
+            })?,
         }))
     }
 }
@@ -110,10 +119,10 @@ pub struct DummyConnectorCard {
     cvc: Secret<String>,
 }
 
-impl TryFrom<(domain::Card, Option<Secret<String>>)> for DummyConnectorCard {
-    type Error = error_stack::Report<errors::ConnectorError>;
+impl TryFrom<(Card, Option<Secret<String>>)> for DummyConnectorCard {
+    type Error = error_stack::Report<ConnectorError>;
     fn try_from(
-        (value, card_holder_name): (domain::Card, Option<Secret<String>>),
+        (value, card_holder_name): (Card, Option<Secret<String>>),
     ) -> Result<Self, Self::Error> {
         Ok(Self {
             name: card_holder_name.unwrap_or(Secret::new("".to_string())),
@@ -135,17 +144,17 @@ pub enum DummyConnectorWallet {
     AliPayHK,
 }
 
-impl TryFrom<domain::WalletData> for DummyConnectorWallet {
-    type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(value: domain::WalletData) -> Result<Self, Self::Error> {
+impl TryFrom<WalletData> for DummyConnectorWallet {
+    type Error = error_stack::Report<ConnectorError>;
+    fn try_from(value: WalletData) -> Result<Self, Self::Error> {
         match value {
-            domain::WalletData::GooglePayRedirect(_) => Ok(Self::GooglePay),
-            domain::WalletData::PaypalRedirect(_) => Ok(Self::Paypal),
-            domain::WalletData::WeChatPayRedirect(_) => Ok(Self::WeChatPay),
-            domain::WalletData::MbWayRedirect(_) => Ok(Self::MbWay),
-            domain::WalletData::AliPayRedirect(_) => Ok(Self::AliPay),
-            domain::WalletData::AliPayHkRedirect(_) => Ok(Self::AliPayHK),
-            _ => Err(errors::ConnectorError::NotImplemented("Dummy wallet".to_string()).into()),
+            WalletData::GooglePayRedirect(_) => Ok(Self::GooglePay),
+            WalletData::PaypalRedirect(_) => Ok(Self::Paypal),
+            WalletData::WeChatPayRedirect(_) => Ok(Self::WeChatPay),
+            WalletData::MbWayRedirect(_) => Ok(Self::MbWay),
+            WalletData::AliPayRedirect(_) => Ok(Self::AliPay),
+            WalletData::AliPayHkRedirect(_) => Ok(Self::AliPayHK),
+            _ => Err(ConnectorError::NotImplemented("Dummy wallet".to_string()).into()),
         }
     }
 }
@@ -157,52 +166,45 @@ pub enum DummyConnectorPayLater {
     AfterPayClearPay,
 }
 
-impl TryFrom<domain::payments::PayLaterData> for DummyConnectorPayLater {
-    type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(value: domain::payments::PayLaterData) -> Result<Self, Self::Error> {
+impl TryFrom<PayLaterData> for DummyConnectorPayLater {
+    type Error = error_stack::Report<ConnectorError>;
+    fn try_from(value: PayLaterData) -> Result<Self, Self::Error> {
         match value {
-            domain::payments::PayLaterData::KlarnaRedirect { .. } => Ok(Self::Klarna),
-            domain::payments::PayLaterData::AffirmRedirect {} => Ok(Self::Affirm),
-            domain::payments::PayLaterData::AfterpayClearpayRedirect { .. } => {
-                Ok(Self::AfterPayClearPay)
-            }
-            _ => Err(errors::ConnectorError::NotImplemented("Dummy pay later".to_string()).into()),
+            PayLaterData::KlarnaRedirect { .. } => Ok(Self::Klarna),
+            PayLaterData::AffirmRedirect {} => Ok(Self::Affirm),
+            PayLaterData::AfterpayClearpayRedirect { .. } => Ok(Self::AfterPayClearPay),
+            _ => Err(ConnectorError::NotImplemented("Dummy pay later".to_string()).into()),
         }
     }
 }
 
-impl<const T: u8> TryFrom<&types::PaymentsAuthorizeRouterData>
-    for DummyConnectorPaymentsRequest<T>
-{
-    type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(item: &types::PaymentsAuthorizeRouterData) -> Result<Self, Self::Error> {
-        let payment_method_data: Result<PaymentMethodData, Self::Error> = match item
-            .request
-            .payment_method_data
-        {
-            domain::PaymentMethodData::Card(ref req_card) => {
-                let card_holder_name = item.get_optional_billing_full_name();
-                Ok(PaymentMethodData::Card(DummyConnectorCard::try_from((
-                    req_card.clone(),
-                    card_holder_name,
-                ))?))
-            }
-            domain::PaymentMethodData::Upi(ref req_upi_data) => match req_upi_data {
-                domain::UpiData::UpiCollect(data) => Ok(PaymentMethodData::Upi(
-                    DummyConnectorUpi::try_from(data.clone())?,
-                )),
-                domain::UpiData::UpiIntent(_) => {
-                    Err(errors::ConnectorError::NotImplemented("UPI Intent".to_string()).into())
+impl<const T: u8> TryFrom<&PaymentsAuthorizeRouterData> for DummyConnectorPaymentsRequest<T> {
+    type Error = error_stack::Report<ConnectorError>;
+    fn try_from(item: &PaymentsAuthorizeRouterData) -> Result<Self, Self::Error> {
+        let payment_method_data: Result<DummyPaymentMethodData, Self::Error> =
+            match item.request.payment_method_data {
+                PaymentMethodData::Card(ref req_card) => {
+                    let card_holder_name = item.get_optional_billing_full_name();
+                    Ok(DummyPaymentMethodData::Card(DummyConnectorCard::try_from(
+                        (req_card.clone(), card_holder_name),
+                    )?))
                 }
-            },
-            domain::PaymentMethodData::Wallet(ref wallet_data) => {
-                Ok(PaymentMethodData::Wallet(wallet_data.clone().try_into()?))
-            }
-            domain::PaymentMethodData::PayLater(ref pay_later_data) => Ok(
-                PaymentMethodData::PayLater(pay_later_data.clone().try_into()?),
-            ),
-            _ => Err(errors::ConnectorError::NotImplemented("Payment methods".to_string()).into()),
-        };
+                PaymentMethodData::Upi(ref req_upi_data) => match req_upi_data {
+                    UpiData::UpiCollect(data) => Ok(DummyPaymentMethodData::Upi(
+                        DummyConnectorUpi::try_from(data.clone())?,
+                    )),
+                    UpiData::UpiIntent(_) => {
+                        Err(ConnectorError::NotImplemented("UPI Intent".to_string()).into())
+                    }
+                },
+                PaymentMethodData::Wallet(ref wallet_data) => Ok(DummyPaymentMethodData::Wallet(
+                    wallet_data.clone().try_into()?,
+                )),
+                PaymentMethodData::PayLater(ref pay_later_data) => Ok(
+                    DummyPaymentMethodData::PayLater(pay_later_data.clone().try_into()?),
+                ),
+                _ => Err(ConnectorError::NotImplemented("Payment methods".to_string()).into()),
+            };
         Ok(Self {
             amount: item.request.amount,
             currency: item.request.currency,
@@ -218,14 +220,14 @@ pub struct DummyConnectorAuthType {
     pub(super) api_key: Secret<String>,
 }
 
-impl TryFrom<&types::ConnectorAuthType> for DummyConnectorAuthType {
-    type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(auth_type: &types::ConnectorAuthType) -> Result<Self, Self::Error> {
+impl TryFrom<&ConnectorAuthType> for DummyConnectorAuthType {
+    type Error = error_stack::Report<ConnectorError>;
+    fn try_from(auth_type: &ConnectorAuthType) -> Result<Self, Self::Error> {
         match auth_type {
-            types::ConnectorAuthType::HeaderKey { api_key } => Ok(Self {
+            ConnectorAuthType::HeaderKey { api_key } => Ok(Self {
                 api_key: api_key.to_owned(),
             }),
-            _ => Err(errors::ConnectorError::FailedToObtainAuthType.into()),
+            _ => Err(ConnectorError::FailedToObtainAuthType.into()),
         }
     }
 }
@@ -240,7 +242,7 @@ pub enum DummyConnectorPaymentStatus {
     Processing,
 }
 
-impl From<DummyConnectorPaymentStatus> for enums::AttemptStatus {
+impl From<DummyConnectorPaymentStatus> for AttemptStatus {
     fn from(item: DummyConnectorPaymentStatus) -> Self {
         match item {
             DummyConnectorPaymentStatus::Succeeded => Self::Charged,
@@ -275,24 +277,22 @@ pub enum DummyConnectorUpiType {
     UpiCollect,
 }
 
-impl<F, T> TryFrom<types::ResponseRouterData<F, PaymentsResponse, T, types::PaymentsResponseData>>
-    for types::RouterData<F, T, types::PaymentsResponseData>
+impl<F, T> TryFrom<ResponseRouterData<F, PaymentsResponse, T, PaymentsResponseData>>
+    for RouterData<F, T, PaymentsResponseData>
 {
-    type Error = error_stack::Report<errors::ConnectorError>;
+    type Error = error_stack::Report<ConnectorError>;
     fn try_from(
-        item: types::ResponseRouterData<F, PaymentsResponse, T, types::PaymentsResponseData>,
+        item: ResponseRouterData<F, PaymentsResponse, T, PaymentsResponseData>,
     ) -> Result<Self, Self::Error> {
         let redirection_data = item
             .response
             .next_action
             .and_then(|redirection_data| redirection_data.get_url())
-            .map(|redirection_url| {
-                services::RedirectForm::from((redirection_url, services::Method::Get))
-            });
+            .map(|redirection_url| RedirectForm::from((redirection_url, Method::Get)));
         Ok(Self {
-            status: enums::AttemptStatus::from(item.response.status),
-            response: Ok(types::PaymentsResponseData::TransactionResponse {
-                resource_id: types::ResponseId::ConnectorTransactionId(item.response.id),
+            status: AttemptStatus::from(item.response.status),
+            response: Ok(PaymentsResponseData::TransactionResponse {
+                resource_id: ResponseId::ConnectorTransactionId(item.response.id),
                 redirection_data: Box::new(redirection_data),
                 mandate_reference: Box::new(None),
                 connector_metadata: None,
@@ -327,9 +327,9 @@ pub struct DummyConnectorRefundRequest {
     pub amount: i64,
 }
 
-impl<F> TryFrom<&types::RefundsRouterData<F>> for DummyConnectorRefundRequest {
-    type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(item: &types::RefundsRouterData<F>) -> Result<Self, Self::Error> {
+impl<F> TryFrom<&RefundsRouterData<F>> for DummyConnectorRefundRequest {
+    type Error = error_stack::Report<ConnectorError>;
+    fn try_from(item: &RefundsRouterData<F>) -> Result<Self, Self::Error> {
         Ok(Self {
             amount: item.request.refund_amount,
         })
@@ -341,19 +341,19 @@ impl<F> TryFrom<&types::RefundsRouterData<F>> for DummyConnectorRefundRequest {
 #[allow(dead_code)]
 #[derive(Debug, Serialize, Default, Deserialize, Clone)]
 #[serde(rename_all = "lowercase")]
-pub enum RefundStatus {
+pub enum DummyRefundStatus {
     Succeeded,
     Failed,
     #[default]
     Processing,
 }
 
-impl From<RefundStatus> for enums::RefundStatus {
-    fn from(item: RefundStatus) -> Self {
+impl From<DummyRefundStatus> for RefundStatus {
+    fn from(item: DummyRefundStatus) -> Self {
         match item {
-            RefundStatus::Succeeded => Self::Success,
-            RefundStatus::Failed => Self::Failure,
-            RefundStatus::Processing => Self::Pending,
+            DummyRefundStatus::Succeeded => Self::Success,
+            DummyRefundStatus::Failed => Self::Failure,
+            DummyRefundStatus::Processing => Self::Pending,
             //TODO: Review mapping
         }
     }
@@ -362,41 +362,37 @@ impl From<RefundStatus> for enums::RefundStatus {
 #[derive(Default, Debug, Clone, Serialize, Deserialize)]
 pub struct RefundResponse {
     id: String,
-    status: RefundStatus,
+    status: DummyRefundStatus,
     currency: Currency,
     created: String,
     payment_amount: i64,
     refund_amount: i64,
 }
 
-impl TryFrom<types::RefundsResponseRouterData<api::Execute, RefundResponse>>
-    for types::RefundsRouterData<api::Execute>
-{
-    type Error = error_stack::Report<errors::ConnectorError>;
+impl TryFrom<RefundsResponseRouterData<Execute, RefundResponse>> for RefundsRouterData<Execute> {
+    type Error = error_stack::Report<ConnectorError>;
     fn try_from(
-        item: types::RefundsResponseRouterData<api::Execute, RefundResponse>,
+        item: RefundsResponseRouterData<Execute, RefundResponse>,
     ) -> Result<Self, Self::Error> {
         Ok(Self {
-            response: Ok(types::RefundsResponseData {
+            response: Ok(RefundsResponseData {
                 connector_refund_id: item.response.id.to_string(),
-                refund_status: enums::RefundStatus::from(item.response.status),
+                refund_status: RefundStatus::from(item.response.status),
             }),
             ..item.data
         })
     }
 }
 
-impl TryFrom<types::RefundsResponseRouterData<api::RSync, RefundResponse>>
-    for types::RefundsRouterData<api::RSync>
-{
-    type Error = error_stack::Report<errors::ConnectorError>;
+impl TryFrom<RefundsResponseRouterData<RSync, RefundResponse>> for RefundsRouterData<RSync> {
+    type Error = error_stack::Report<ConnectorError>;
     fn try_from(
-        item: types::RefundsResponseRouterData<api::RSync, RefundResponse>,
+        item: RefundsResponseRouterData<RSync, RefundResponse>,
     ) -> Result<Self, Self::Error> {
         Ok(Self {
-            response: Ok(types::RefundsResponseData {
+            response: Ok(RefundsResponseData {
                 connector_refund_id: item.response.id.to_string(),
-                refund_status: enums::RefundStatus::from(item.response.status),
+                refund_status: RefundStatus::from(item.response.status),
             }),
             ..item.data
         })

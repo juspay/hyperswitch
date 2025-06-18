@@ -9,8 +9,26 @@ license.workspace = true
 frm = ["hyperswitch_domain_models/frm", "hyperswitch_interfaces/frm"]
 payouts = ["hyperswitch_domain_models/payouts", "api_models/payouts", "hyperswitch_interfaces/payouts"]
 v1 = ["api_models/v1", "hyperswitch_domain_models/v1", "common_utils/v1"]
-v2 = ["api_models/v2", "hyperswitch_domain_models/v2", "common_utils/v2", "hyperswitch_interfaces/v2"]
-revenue_recovery = ["hyperswitch_interfaces/revenue_recovery", "hyperswitch_domain_models/revenue_recovery"]
+v2 = [
+    "api_models/v2",
+    "hyperswitch_domain_models/v2",
+    "common_utils/v2",
+    "hyperswitch_interfaces/v2",
+]
+revenue_recovery = [
+    "hyperswitch_interfaces/revenue_recovery",
+    "hyperswitch_domain_models/revenue_recovery",
+]
+default = ["dummy_connector"]
+dummy_connector = [
+    "api_models/dummy_connector",
+    "euclid/dummy_connector",
+    "hyperswitch_interfaces/dummy_connector",
+    "kgraph_utils/dummy_connector",
+    "payment_methods/dummy_connector",
+    "hyperswitch_domain_models/dummy_connector",
+]
+external_access_dc = ["dummy_connector"]
 
 [dependencies]
 actix-web = "4.11.0"
@@ -57,6 +75,11 @@ uuid = { version = "1.17.0", features = ["v4"] }
 api_models = { version = "0.1.0", path = "../api_models", features = ["errors"], default-features = false }
 cards = { version = "0.1.0", path = "../cards" }
 common_enums = { version = "0.1.0", path = "../common_enums" }
+euclid = { version = "0.1.0", path = "../euclid", features = [
+    "valued_jit",
+], optional = true }
+kgraph_utils = { version = "0.1.0", path = "../kgraph_utils", optional = true }
+payment_methods = { version = "0.1.0", path = "../payment_methods", default-features = false, optional = true }
 common_types = { version = "0.1.0", path = "../common_types" }
 common_utils = { version = "0.1.0", path = "../common_utils", features = ["async_ext", "logs", "metrics", "crypto_openssl"] }
 hyperswitch_domain_models = { version = "0.1.0", path = "../hyperswitch_domain_models", default-features = false }

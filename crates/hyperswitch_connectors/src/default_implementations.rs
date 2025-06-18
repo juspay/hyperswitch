@@ -1,9 +1,15 @@
+#[cfg(feature = "dummy_connector")]
+use common_enums::{CallConnectorAction, PaymentAction};
 // impl api::PaymentIncrementalAuthorization for Helcim {}
 // impl api::ConnectorCustomer for Helcim {}
 // impl api::PaymentsPreProcessing for Helcim {}
 // impl api::PaymentReject for Helcim {}
 // impl api::PaymentApprove for Helcim {}
 use common_utils::errors::CustomResult;
+#[cfg(feature = "dummy_connector")]
+use hyperswitch_domain_models::router_request_types::authentication::{
+    ConnectorAuthenticationRequestData, ConnectorPostAuthenticationRequestData, PreAuthNRequestData,
+};
 #[cfg(feature = "frm")]
 use hyperswitch_domain_models::{
     router_flow_types::fraud_check::{Checkout, Fulfillment, RecordReturn, Sale, Transaction},
@@ -79,6 +85,8 @@ use hyperswitch_interfaces::api::payouts::{
 };
 #[cfg(all(feature = "v2", feature = "revenue_recovery"))]
 use hyperswitch_interfaces::api::revenue_recovery as recovery_traits;
+#[cfg(feature = "dummy_connector")]
+use hyperswitch_interfaces::api::ConnectorVerifyWebhookSource;
 use hyperswitch_interfaces::{
     api::{
         self,
@@ -6108,3 +6116,501 @@ default_imp_for_external_vault_create!(
     connectors::Zen,
     connectors::Zsl
 );
+
+#[cfg(feature = "dummy_connector")]
+impl<const T: u8> PaymentsCompleteAuthorize for connectors::DummyConnector<T> {}
+#[cfg(feature = "dummy_connector")]
+impl<const T: u8>
+    ConnectorIntegration<CompleteAuthorize, CompleteAuthorizeData, PaymentsResponseData>
+    for connectors::DummyConnector<T>
+{
+}
+
+#[cfg(feature = "dummy_connector")]
+impl<const T: u8> ConnectorVerifyWebhookSource for connectors::DummyConnector<T> {}
+#[cfg(feature = "dummy_connector")]
+impl<const T: u8>
+    ConnectorIntegration<
+        VerifyWebhookSource,
+        VerifyWebhookSourceRequestData,
+        VerifyWebhookSourceResponseData,
+    > for connectors::DummyConnector<T>
+{
+}
+
+#[cfg(feature = "dummy_connector")]
+impl<const T: u8> ConnectorCustomer for connectors::DummyConnector<T> {}
+#[cfg(feature = "dummy_connector")]
+impl<const T: u8>
+    ConnectorIntegration<CreateConnectorCustomer, ConnectorCustomerData, PaymentsResponseData>
+    for connectors::DummyConnector<T>
+{
+}
+
+#[cfg(feature = "dummy_connector")]
+impl<const T: u8> ConnectorRedirectResponse for connectors::DummyConnector<T> {
+    fn get_flow_type(
+        &self,
+        _query_params: &str,
+        _json_payload: Option<serde_json::Value>,
+        _action: PaymentAction,
+    ) -> CustomResult<CallConnectorAction, ConnectorError> {
+        Ok(CallConnectorAction::Trigger)
+    }
+}
+
+#[cfg(feature = "dummy_connector")]
+impl<const T: u8> ConnectorTransactionId for connectors::DummyConnector<T> {}
+
+#[cfg(feature = "dummy_connector")]
+impl<const T: u8> Dispute for connectors::DummyConnector<T> {}
+#[cfg(feature = "dummy_connector")]
+impl<const T: u8> AcceptDispute for connectors::DummyConnector<T> {}
+#[cfg(feature = "dummy_connector")]
+impl<const T: u8> ConnectorIntegration<Accept, AcceptDisputeRequestData, AcceptDisputeResponse>
+    for connectors::DummyConnector<T>
+{
+}
+
+#[cfg(feature = "dummy_connector")]
+impl<const T: u8> FileUpload for connectors::DummyConnector<T> {}
+#[cfg(feature = "dummy_connector")]
+impl<const T: u8> UploadFile for connectors::DummyConnector<T> {}
+#[cfg(feature = "dummy_connector")]
+impl<const T: u8> ConnectorIntegration<Upload, UploadFileRequestData, UploadFileResponse>
+    for connectors::DummyConnector<T>
+{
+}
+#[cfg(feature = "dummy_connector")]
+impl<const T: u8> RetrieveFile for connectors::DummyConnector<T> {}
+#[cfg(feature = "dummy_connector")]
+impl<const T: u8> ConnectorIntegration<Retrieve, RetrieveFileRequestData, RetrieveFileResponse>
+    for connectors::DummyConnector<T>
+{
+}
+
+#[cfg(feature = "dummy_connector")]
+impl<const T: u8> SubmitEvidence for connectors::DummyConnector<T> {}
+#[cfg(feature = "dummy_connector")]
+impl<const T: u8> ConnectorIntegration<Evidence, SubmitEvidenceRequestData, SubmitEvidenceResponse>
+    for connectors::DummyConnector<T>
+{
+}
+
+#[cfg(feature = "dummy_connector")]
+impl<const T: u8> DefendDispute for connectors::DummyConnector<T> {}
+#[cfg(feature = "dummy_connector")]
+impl<const T: u8> ConnectorIntegration<Defend, DefendDisputeRequestData, DefendDisputeResponse>
+    for connectors::DummyConnector<T>
+{
+}
+
+#[cfg(feature = "dummy_connector")]
+impl<const T: u8> PaymentsPreProcessing for connectors::DummyConnector<T> {}
+#[cfg(feature = "dummy_connector")]
+impl<const T: u8>
+    ConnectorIntegration<PreProcessing, PaymentsPreProcessingData, PaymentsResponseData>
+    for connectors::DummyConnector<T>
+{
+}
+
+#[cfg(feature = "dummy_connector")]
+impl<const T: u8> PaymentsPostProcessing for connectors::DummyConnector<T> {}
+#[cfg(feature = "dummy_connector")]
+impl<const T: u8>
+    ConnectorIntegration<PostProcessing, PaymentsPostProcessingData, PaymentsResponseData>
+    for connectors::DummyConnector<T>
+{
+}
+
+#[cfg(feature = "dummy_connector")]
+impl<const T: u8> api::Payouts for connectors::DummyConnector<T> {}
+
+#[cfg(feature = "payouts")]
+#[cfg(feature = "dummy_connector")]
+impl<const T: u8> PayoutCreate for connectors::DummyConnector<T> {}
+#[cfg(feature = "payouts")]
+#[cfg(feature = "dummy_connector")]
+impl<const T: u8> ConnectorIntegration<PoCreate, PayoutsData, PayoutsResponseData>
+    for connectors::DummyConnector<T>
+{
+}
+
+#[cfg(feature = "payouts")]
+#[cfg(feature = "dummy_connector")]
+impl<const T: u8> PayoutSync for connectors::DummyConnector<T> {}
+#[cfg(feature = "payouts")]
+#[cfg(feature = "dummy_connector")]
+impl<const T: u8> ConnectorIntegration<PoSync, PayoutsData, PayoutsResponseData>
+    for connectors::DummyConnector<T>
+{
+}
+
+#[cfg(feature = "payouts")]
+#[cfg(feature = "dummy_connector")]
+impl<const T: u8> PayoutEligibility for connectors::DummyConnector<T> {}
+#[cfg(feature = "payouts")]
+#[cfg(feature = "dummy_connector")]
+impl<const T: u8> ConnectorIntegration<PoEligibility, PayoutsData, PayoutsResponseData>
+    for connectors::DummyConnector<T>
+{
+}
+
+#[cfg(feature = "payouts")]
+#[cfg(feature = "dummy_connector")]
+impl<const T: u8> PayoutFulfill for connectors::DummyConnector<T> {}
+#[cfg(feature = "payouts")]
+#[cfg(feature = "dummy_connector")]
+impl<const T: u8> ConnectorIntegration<PoFulfill, PayoutsData, PayoutsResponseData>
+    for connectors::DummyConnector<T>
+{
+}
+
+#[cfg(feature = "payouts")]
+#[cfg(feature = "dummy_connector")]
+impl<const T: u8> PayoutCancel for connectors::DummyConnector<T> {}
+#[cfg(feature = "payouts")]
+#[cfg(feature = "dummy_connector")]
+impl<const T: u8> ConnectorIntegration<PoCancel, PayoutsData, PayoutsResponseData>
+    for connectors::DummyConnector<T>
+{
+}
+
+#[cfg(feature = "payouts")]
+#[cfg(feature = "dummy_connector")]
+impl<const T: u8> PayoutQuote for connectors::DummyConnector<T> {}
+#[cfg(feature = "payouts")]
+#[cfg(feature = "dummy_connector")]
+impl<const T: u8> ConnectorIntegration<PoQuote, PayoutsData, PayoutsResponseData>
+    for connectors::DummyConnector<T>
+{
+}
+
+#[cfg(feature = "payouts")]
+#[cfg(feature = "dummy_connector")]
+impl<const T: u8> PayoutRecipient for connectors::DummyConnector<T> {}
+#[cfg(feature = "payouts")]
+#[cfg(feature = "dummy_connector")]
+impl<const T: u8> ConnectorIntegration<PoRecipient, PayoutsData, PayoutsResponseData>
+    for connectors::DummyConnector<T>
+{
+}
+
+#[cfg(feature = "payouts")]
+#[cfg(feature = "dummy_connector")]
+impl<const T: u8> PayoutRecipientAccount for connectors::DummyConnector<T> {}
+#[cfg(feature = "payouts")]
+#[cfg(feature = "dummy_connector")]
+impl<const T: u8> ConnectorIntegration<PoRecipientAccount, PayoutsData, PayoutsResponseData>
+    for connectors::DummyConnector<T>
+{
+}
+
+#[cfg(feature = "dummy_connector")]
+impl<const T: u8> PaymentApprove for connectors::DummyConnector<T> {}
+#[cfg(feature = "dummy_connector")]
+impl<const T: u8> ConnectorIntegration<Approve, PaymentsApproveData, PaymentsResponseData>
+    for connectors::DummyConnector<T>
+{
+}
+
+#[cfg(feature = "dummy_connector")]
+impl<const T: u8> PaymentReject for connectors::DummyConnector<T> {}
+#[cfg(feature = "dummy_connector")]
+impl<const T: u8> ConnectorIntegration<Reject, PaymentsRejectData, PaymentsResponseData>
+    for connectors::DummyConnector<T>
+{
+}
+
+#[cfg(feature = "dummy_connector")]
+impl<const T: u8> FraudCheck for connectors::DummyConnector<T> {}
+
+#[cfg(all(feature = "frm", feature = "dummy_connector"))]
+impl<const T: u8> FraudCheckSale for connectors::DummyConnector<T> {}
+#[cfg(all(feature = "frm", feature = "dummy_connector"))]
+impl<const T: u8> ConnectorIntegration<Sale, FraudCheckSaleData, FraudCheckResponseData>
+    for connectors::DummyConnector<T>
+{
+}
+
+#[cfg(all(feature = "frm", feature = "dummy_connector"))]
+impl<const T: u8> FraudCheckCheckout for connectors::DummyConnector<T> {}
+#[cfg(all(feature = "frm", feature = "dummy_connector"))]
+impl<const T: u8> ConnectorIntegration<Checkout, FraudCheckCheckoutData, FraudCheckResponseData>
+    for connectors::DummyConnector<T>
+{
+}
+
+#[cfg(all(feature = "frm", feature = "dummy_connector"))]
+impl<const T: u8> FraudCheckTransaction for connectors::DummyConnector<T> {}
+#[cfg(all(feature = "frm", feature = "dummy_connector"))]
+impl<const T: u8>
+    ConnectorIntegration<Transaction, FraudCheckTransactionData, FraudCheckResponseData>
+    for connectors::DummyConnector<T>
+{
+}
+
+#[cfg(all(feature = "frm", feature = "dummy_connector"))]
+impl<const T: u8> FraudCheckFulfillment for connectors::DummyConnector<T> {}
+#[cfg(all(feature = "frm", feature = "dummy_connector"))]
+impl<const T: u8>
+    ConnectorIntegration<Fulfillment, FraudCheckFulfillmentData, FraudCheckResponseData>
+    for connectors::DummyConnector<T>
+{
+}
+
+#[cfg(all(feature = "frm", feature = "dummy_connector"))]
+impl<const T: u8> FraudCheckRecordReturn for connectors::DummyConnector<T> {}
+#[cfg(all(feature = "frm", feature = "dummy_connector"))]
+impl<const T: u8>
+    ConnectorIntegration<RecordReturn, FraudCheckRecordReturnData, FraudCheckResponseData>
+    for connectors::DummyConnector<T>
+{
+}
+
+#[cfg(feature = "dummy_connector")]
+impl<const T: u8> PaymentIncrementalAuthorization for connectors::DummyConnector<T> {}
+#[cfg(feature = "dummy_connector")]
+impl<const T: u8>
+    ConnectorIntegration<
+        IncrementalAuthorization,
+        PaymentsIncrementalAuthorizationData,
+        PaymentsResponseData,
+    > for connectors::DummyConnector<T>
+{
+}
+
+#[cfg(feature = "dummy_connector")]
+impl<const T: u8> ConnectorMandateRevoke for connectors::DummyConnector<T> {}
+#[cfg(feature = "dummy_connector")]
+impl<const T: u8>
+    ConnectorIntegration<MandateRevoke, MandateRevokeRequestData, MandateRevokeResponseData>
+    for connectors::DummyConnector<T>
+{
+}
+
+#[cfg(feature = "dummy_connector")]
+impl<const T: u8> ExternalAuthentication for connectors::DummyConnector<T> {}
+#[cfg(feature = "dummy_connector")]
+impl<const T: u8> ConnectorPreAuthentication for connectors::DummyConnector<T> {}
+#[cfg(feature = "dummy_connector")]
+impl<const T: u8> ConnectorPreAuthenticationVersionCall for connectors::DummyConnector<T> {}
+#[cfg(feature = "dummy_connector")]
+impl<const T: u8> ConnectorAuthentication for connectors::DummyConnector<T> {}
+#[cfg(feature = "dummy_connector")]
+impl<const T: u8> ConnectorPostAuthentication for connectors::DummyConnector<T> {}
+
+#[cfg(feature = "dummy_connector")]
+impl<const T: u8>
+    ConnectorIntegration<
+        Authentication,
+        ConnectorAuthenticationRequestData,
+        AuthenticationResponseData,
+    > for connectors::DummyConnector<T>
+{
+}
+#[cfg(feature = "dummy_connector")]
+impl<const T: u8>
+    ConnectorIntegration<PreAuthentication, PreAuthNRequestData, AuthenticationResponseData>
+    for connectors::DummyConnector<T>
+{
+}
+#[cfg(feature = "dummy_connector")]
+impl<const T: u8>
+    ConnectorIntegration<
+        PreAuthenticationVersionCall,
+        PreAuthNRequestData,
+        AuthenticationResponseData,
+    > for connectors::DummyConnector<T>
+{
+}
+#[cfg(feature = "dummy_connector")]
+impl<const T: u8>
+    ConnectorIntegration<
+        PostAuthentication,
+        ConnectorPostAuthenticationRequestData,
+        AuthenticationResponseData,
+    > for connectors::DummyConnector<T>
+{
+}
+
+#[cfg(feature = "dummy_connector")]
+impl<const T: u8> PaymentAuthorizeSessionToken for connectors::DummyConnector<T> {}
+#[cfg(feature = "dummy_connector")]
+impl<const T: u8>
+    ConnectorIntegration<AuthorizeSessionToken, AuthorizeSessionTokenData, PaymentsResponseData>
+    for connectors::DummyConnector<T>
+{
+}
+
+#[cfg(feature = "dummy_connector")]
+impl<const T: u8> TaxCalculation for connectors::DummyConnector<T> {}
+#[cfg(feature = "dummy_connector")]
+impl<const T: u8>
+    ConnectorIntegration<CalculateTax, PaymentsTaxCalculationData, TaxCalculationResponseData>
+    for connectors::DummyConnector<T>
+{
+}
+
+#[cfg(feature = "dummy_connector")]
+impl<const T: u8> PaymentSessionUpdate for connectors::DummyConnector<T> {}
+#[cfg(feature = "dummy_connector")]
+impl<const T: u8>
+    ConnectorIntegration<SdkSessionUpdate, SdkPaymentsSessionUpdateData, PaymentsResponseData>
+    for connectors::DummyConnector<T>
+{
+}
+
+#[cfg(feature = "dummy_connector")]
+impl<const T: u8> PaymentPostSessionTokens for connectors::DummyConnector<T> {}
+#[cfg(feature = "dummy_connector")]
+impl<const T: u8>
+    ConnectorIntegration<PostSessionTokens, PaymentsPostSessionTokensData, PaymentsResponseData>
+    for connectors::DummyConnector<T>
+{
+}
+
+#[cfg(feature = "dummy_connector")]
+impl<const T: u8> PaymentsCreateOrder for connectors::DummyConnector<T> {}
+#[cfg(feature = "dummy_connector")]
+impl<const T: u8> ConnectorIntegration<CreateOrder, CreateOrderRequestData, PaymentsResponseData>
+    for connectors::DummyConnector<T>
+{
+}
+
+#[cfg(feature = "dummy_connector")]
+impl<const T: u8> PaymentUpdateMetadata for connectors::DummyConnector<T> {}
+#[cfg(feature = "dummy_connector")]
+impl<const T: u8>
+    ConnectorIntegration<UpdateMetadata, PaymentsUpdateMetadataData, PaymentsResponseData>
+    for connectors::DummyConnector<T>
+{
+}
+
+#[cfg(feature = "dummy_connector")]
+impl<const T: u8> UasPreAuthentication for connectors::DummyConnector<T> {}
+#[cfg(feature = "dummy_connector")]
+impl<const T: u8> UnifiedAuthenticationService for connectors::DummyConnector<T> {}
+#[cfg(feature = "dummy_connector")]
+impl<const T: u8>
+    ConnectorIntegration<
+        PreAuthenticate,
+        UasPreAuthenticationRequestData,
+        UasAuthenticationResponseData,
+    > for connectors::DummyConnector<T>
+{
+}
+
+#[cfg(feature = "dummy_connector")]
+impl<const T: u8> UasPostAuthentication for connectors::DummyConnector<T> {}
+#[cfg(feature = "dummy_connector")]
+impl<const T: u8>
+    ConnectorIntegration<
+        PostAuthenticate,
+        UasPostAuthenticationRequestData,
+        UasAuthenticationResponseData,
+    > for connectors::DummyConnector<T>
+{
+}
+
+#[cfg(feature = "dummy_connector")]
+impl<const T: u8> UasAuthenticationConfirmation for connectors::DummyConnector<T> {}
+#[cfg(feature = "dummy_connector")]
+impl<const T: u8>
+    ConnectorIntegration<
+        AuthenticationConfirmation,
+        UasConfirmationRequestData,
+        UasAuthenticationResponseData,
+    > for connectors::DummyConnector<T>
+{
+}
+
+#[cfg(feature = "dummy_connector")]
+impl<const T: u8> UasAuthentication for connectors::DummyConnector<T> {}
+#[cfg(feature = "dummy_connector")]
+impl<const T: u8>
+    ConnectorIntegration<Authenticate, UasAuthenticationRequestData, UasAuthenticationResponseData>
+    for connectors::DummyConnector<T>
+{
+}
+
+#[cfg(feature = "dummy_connector")]
+impl<const T: u8> RevenueRecovery for connectors::DummyConnector<T> {}
+
+#[cfg(all(feature = "v2", feature = "revenue_recovery"))]
+#[cfg(feature = "dummy_connector")]
+impl<const T: u8> api::BillingConnectorPaymentsSyncIntegration for connectors::DummyConnector<T> {}
+#[cfg(all(feature = "v2", feature = "revenue_recovery"))]
+#[cfg(feature = "dummy_connector")]
+impl<const T: u8>
+    services::ConnectorIntegration<
+        BillingConnectorPaymentsSync,
+        BillingConnectorPaymentsSyncRequest,
+        BillingConnectorPaymentsSyncResponse,
+    > for connectors::DummyConnector<T>
+{
+}
+
+#[cfg(all(feature = "v2", feature = "revenue_recovery"))]
+#[cfg(feature = "dummy_connector")]
+impl<const T: u8> api::RevenueRecoveryRecordBack for connectors::DummyConnector<T> {}
+#[cfg(all(feature = "v2", feature = "revenue_recovery"))]
+#[cfg(feature = "dummy_connector")]
+impl<const T: u8>
+    services::ConnectorIntegration<
+        RecoveryRecordBack,
+        RevenueRecoveryRecordBackRequest,
+        RevenueRecoveryRecordBackResponse,
+    > for connectors::DummyConnector<T>
+{
+}
+
+#[cfg(all(feature = "v2", feature = "revenue_recovery"))]
+#[cfg(feature = "dummy_connector")]
+impl<const T: u8> api::BillingConnectorInvoiceSyncIntegration for connectors::DummyConnector<T> {}
+#[cfg(all(feature = "v2", feature = "revenue_recovery"))]
+#[cfg(feature = "dummy_connector")]
+impl<const T: u8>
+    services::ConnectorIntegration<
+        BillingConnectorInvoiceSync,
+        BillingConnectorInvoiceSyncRequest,
+        BillingConnectorInvoiceSyncResponse,
+    > for connectors::DummyConnector<T>
+{
+}
+
+#[cfg(feature = "dummy_connector")]
+impl<const T: u8> ExternalVault for connectors::DummyConnector<T> {}
+
+#[cfg(feature = "dummy_connector")]
+impl<const T: u8> ExternalVaultInsert for connectors::DummyConnector<T> {}
+#[cfg(feature = "dummy_connector")]
+impl<const T: u8> ConnectorIntegration<ExternalVaultInsertFlow, VaultRequestData, VaultResponseData>
+    for connectors::DummyConnector<T>
+{
+}
+
+#[cfg(feature = "dummy_connector")]
+impl<const T: u8> ExternalVaultRetrieve for connectors::DummyConnector<T> {}
+#[cfg(feature = "dummy_connector")]
+impl<const T: u8>
+    ConnectorIntegration<ExternalVaultRetrieveFlow, VaultRequestData, VaultResponseData>
+    for connectors::DummyConnector<T>
+{
+}
+
+#[cfg(feature = "dummy_connector")]
+impl<const T: u8> ExternalVaultDelete for connectors::DummyConnector<T> {}
+#[cfg(feature = "dummy_connector")]
+impl<const T: u8> ConnectorIntegration<ExternalVaultDeleteFlow, VaultRequestData, VaultResponseData>
+    for connectors::DummyConnector<T>
+{
+}
+
+#[cfg(feature = "dummy_connector")]
+impl<const T: u8> ExternalVaultCreate for connectors::DummyConnector<T> {}
+#[cfg(feature = "dummy_connector")]
+impl<const T: u8> ConnectorIntegration<ExternalVaultCreateFlow, VaultRequestData, VaultResponseData>
+    for connectors::DummyConnector<T>
+{
+}

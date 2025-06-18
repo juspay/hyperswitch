@@ -1,7 +1,7 @@
-#[cfg(feature = "dummy_connector")]
-pub mod dummyconnector;
 pub mod utils;
 
+#[cfg(feature = "dummy_connector")]
+pub use hyperswitch_connectors::connectors::DummyConnector;
 pub use hyperswitch_connectors::connectors::{
     aci, aci::Aci, adyen, adyen::Adyen, adyenplatform, adyenplatform::Adyenplatform, airwallex,
     airwallex::Airwallex, amazonpay, amazonpay::Amazonpay, archipel, archipel::Archipel,
@@ -41,6 +41,3 @@ pub use hyperswitch_connectors::connectors::{
     worldpayvantiv::Worldpayvantiv, worldpayxml, worldpayxml::Worldpayxml, xendit, xendit::Xendit,
     zen, zen::Zen, zsl, zsl::Zsl,
 };
-
-#[cfg(feature = "dummy_connector")]
-pub use self::dummyconnector::DummyConnector;
