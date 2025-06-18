@@ -1,17 +1,16 @@
 #[cfg(feature = "v2")]
 use std::collections::HashMap;
 
-#[cfg(feature = "v2")]
-use common_utils::transformers::ForeignTryFrom;
 use common_utils::{
     crypto::Encryptable,
     date_time,
     encryption::Encryption,
     errors::{CustomResult, ValidationError},
-    ext_traits::ValueExt,
     id_type, pii, type_name,
     types::keymanager::{Identifier, KeyManagerState, ToEncryptable},
 };
+#[cfg(feature = "v1")]
+use common_utils::ext_traits::ValueExt;
 #[cfg(feature = "v2")]
 use diesel_models::merchant_connector_account::{
     BillingAccountReference as DieselBillingAccountReference,
@@ -26,7 +25,7 @@ use serde_json::Value;
 
 use super::behaviour;
 #[cfg(feature = "v2")]
-use crate::errors::{self, api_error_response};
+use crate::errors::api_error_response;
 use crate::{
     mandates::CommonMandateReference,
     router_data,

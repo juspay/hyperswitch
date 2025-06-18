@@ -2,10 +2,9 @@
 use api_models::payments::{AmountFilter, Order, SortBy, SortOn};
 #[cfg(feature = "olap")]
 use async_bb8_diesel::{AsyncConnection, AsyncRunQueryDsl};
-use common_utils::{
-    ext_traits::{AsyncExt, Encode},
-    types::keymanager::KeyManagerState,
-};
+use common_utils::{ext_traits::AsyncExt, types::keymanager::KeyManagerState};
+#[cfg(feature = "v1")]
+use common_utils::ext_traits::Encode;
 #[cfg(feature = "olap")]
 use diesel::{associations::HasTable, ExpressionMethods, JoinOnDsl, QueryDsl};
 #[cfg(feature = "v1")]
@@ -22,9 +21,9 @@ use diesel_models::schema_v2::{
     payment_attempt::{self as payment_attempt_schema, dsl as pa_dsl},
     payment_intent::dsl as pi_dsl,
 };
-use diesel_models::{
-    enums::MerchantStorageScheme, kv, payment_intent::PaymentIntent as DieselPaymentIntent,
-};
+use diesel_models::{enums::MerchantStorageScheme, payment_intent::PaymentIntent as DieselPaymentIntent};
+#[cfg(feature = "v1")]
+use diesel_models::kv;
 use error_stack::ResultExt;
 #[cfg(feature = "olap")]
 use hyperswitch_domain_models::payments::{
@@ -38,6 +37,7 @@ use hyperswitch_domain_models::{
         PaymentIntent,
     },
 };
+#[cfg(feature = "v1")]
 use redis_interface::HsetnxReply;
 #[cfg(feature = "olap")]
 use router_env::logger;
@@ -47,11 +47,16 @@ use router_env::{instrument, tracing};
 use crate::connection;
 use crate::{
     diesel_error_to_data_error,
-    errors::{RedisErrorExt, StorageError},
+    errors::StorageError,
     kv_router_store::KVRouterStore,
-    redis::kv_store::{decide_storage_scheme, kv_wrapper, KvOperation, Op, PartitionKey},
-    utils::{self, pg_connection_read, pg_connection_write},
+    utils::{pg_connection_read, pg_connection_write},
     DatabaseStore,
+};
+#[cfg(feature = "v1")]
+use crate::{
+    errors::RedisErrorExt,
+    redis::kv_store::{decide_storage_scheme, kv_wrapper, KvOperation, Op, PartitionKey},
+    utils,
 };
 
 #[async_trait::async_trait]
@@ -1135,8 +1140,6 @@ impl<T: DatabaseStore> PaymentIntentInterface for crate::RouterStore<T> {
     ) -> error_stack::Result<Vec<(PaymentIntent, Option<PaymentAttempt>)>, StorageError> {
         use diesel::NullableExpressionMethods as _;
         use futures::{future::try_join_all, FutureExt};
-
-        use crate::DataModelExt;
 
         let conn = connection::pg_connection_read(self).await?;
         let conn = async_bb8_diesel::Connection::as_async_conn(&conn);

@@ -4,9 +4,9 @@ use api_models::enums::PayoutConnectors;
 use async_bb8_diesel::{AsyncConnection, AsyncRunQueryDsl};
 use common_utils::ext_traits::Encode;
 #[cfg(feature = "olap")]
-use diesel::{
-    associations::HasTable, ExpressionMethods, JoinOnDsl, NullableExpressionMethods, QueryDsl,
-};
+use diesel::{associations::HasTable, ExpressionMethods, QueryDsl};
+#[cfg(all(feature = "v1", feature = "olap"))]
+use diesel::{JoinOnDsl, NullableExpressionMethods};
 #[cfg(all(feature = "olap", feature = "v1"))]
 use diesel_models::schema::{
     address::dsl as add_dsl, customers::dsl as cust_dsl, payout_attempt::dsl as poa_dsl,
@@ -14,9 +14,10 @@ use diesel_models::schema::{
 #[cfg(feature = "olap")]
 use diesel_models::{
     address::Address as DieselAddress, customers::Customer as DieselCustomer,
-    enums as storage_enums, payout_attempt::PayoutAttempt as DieselPayoutAttempt,
-    query::generics::db_metrics, schema::payouts::dsl as po_dsl,
+    enums as storage_enums, query::generics::db_metrics, schema::payouts::dsl as po_dsl,
 };
+#[cfg(all(feature = "v1", feature = "olap"))]
+use diesel_models::{payout_attempt::PayoutAttempt as DieselPayoutAttempt};
 use diesel_models::{
     enums::MerchantStorageScheme,
     kv,
@@ -876,8 +877,8 @@ impl<T: DatabaseStore> PayoutsInterface for crate::RouterStore<T> {
     #[instrument(skip_all)]
     async fn filter_active_payout_ids_by_constraints(
         &self,
-        merchant_id: &common_utils::id_type::MerchantId,
-        constraints: &PayoutFetchConstraints,
+        _merchant_id: &common_utils::id_type::MerchantId,
+        _constraints: &PayoutFetchConstraints,
     ) -> error_stack::Result<Vec<String>, StorageError> {
         todo!()
     }

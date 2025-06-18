@@ -4,8 +4,9 @@ use api_models::payment_methods::PaymentMethodsData;
 use common_enums::enums::MerchantStorageScheme;
 #[cfg(feature = "v2")]
 use common_utils::{crypto::Encryptable, encryption::Encryption, types::keymanager::ToEncryptable};
+#[cfg(feature = "v1")]
+use common_utils::crypto::OptionalEncryptableValue;
 use common_utils::{
-    crypto::OptionalEncryptableValue,
     errors::{CustomResult, ParsingError, ValidationError},
     id_type, pii, type_name,
     types::keymanager,
@@ -24,13 +25,17 @@ use serde_json::Value;
 use time::PrimitiveDateTime;
 
 #[cfg(feature = "v2")]
-use crate::{address::Address, type_encryption::OptionalEncryptableJsonType};
+use crate::address::Address;
 use crate::{
-    mandates::{self, CommonMandateReference},
+    mandates::CommonMandateReference,
     merchant_key_store::MerchantKeyStore,
     payment_method_data as domain_payment_method_data,
-    type_encryption::{crypto_operation, AsyncLift, CryptoOperation},
+    type_encryption::{crypto_operation, CryptoOperation},
 };
+#[cfg(feature = "v1")]
+use crate::mandates;
+#[cfg(feature = "v1")]
+use crate::type_encryption::AsyncLift;
 
 #[cfg(feature = "v2")]
 #[derive(Debug, serde::Deserialize, serde::Serialize, Clone)]
@@ -477,7 +482,6 @@ impl super::behaviour::Conversion for PaymentMethod {
         Self: Sized,
     {
         use common_utils::ext_traits::ValueExt;
-        use masking::ExposeInterface;
 
         async {
             let decrypted_data = crypto_operation(

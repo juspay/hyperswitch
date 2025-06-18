@@ -2,28 +2,44 @@ use std::str::FromStr;
 
 #[cfg(feature = "v2")]
 use api_models::enums as api_enums;
-use api_models::{enums, payment_methods as pm_api};
+use api_models::payment_methods as pm_api;
+#[cfg(feature = "v1")]
+use api_models::enums;
+use common_utils::{errors::CustomResult, id_type};
+#[cfg(feature = "v1")]
 use common_utils::{
     consts,
     crypto::Encryptable,
-    errors::CustomResult,
     ext_traits::{AsyncExt, ConfigExt},
-    generate_id, id_type,
+    generate_id,
 };
 use error_stack::ResultExt;
+#[cfg(feature = "v1")]
 use hyperswitch_domain_models::{
-    api::ApplicationResponse, errors::api_error_response as errors, ext_traits::OptionExt,
-    merchant_context, payment_methods as domain_pm,
+    ext_traits::OptionExt, payment_methods as domain_pm,
 };
-use masking::{PeekInterface, Secret};
+use hyperswitch_domain_models::{
+    api::ApplicationResponse, errors::api_error_response as errors,
+    merchant_context,
+};
+#[cfg(feature = "v1")]
+use masking::Secret;
+use masking::PeekInterface;
+#[cfg(feature = "v1")]
 use router_env::{instrument, logger, tracing};
+#[cfg(feature = "v1")]
 use serde_json::json;
 use storage_impl::cards_info;
 
+#[cfg(feature = "v1")]
 use crate::{
-    controller::{create_encrypted_data, PaymentMethodsController},
+    controller::create_encrypted_data,
     core::migration,
-    helpers::{ForeignFrom, ForeignTryFrom, StorageErrorExt},
+    helpers::{ForeignFrom, StorageErrorExt},
+};
+use crate::{
+    controller::PaymentMethodsController,
+    helpers::ForeignTryFrom,
     state,
 };
 
@@ -156,8 +172,8 @@ pub async fn migrate_payment_method(
     _state: &state::PaymentMethodsState,
     _req: pm_api::PaymentMethodMigrate,
     _merchant_id: &id_type::MerchantId,
-    merchant_context: &merchant_context::MerchantContext,
-    controller: &dyn PaymentMethodsController,
+    _merchant_context: &merchant_context::MerchantContext,
+    _controller: &dyn PaymentMethodsController,
 ) -> CustomResult<ApplicationResponse<pm_api::PaymentMethodMigrateResponse>, errors::ApiErrorResponse>
 {
     todo!()

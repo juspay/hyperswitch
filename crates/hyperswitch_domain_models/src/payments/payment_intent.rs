@@ -1,11 +1,9 @@
 #[cfg(feature = "v2")]
-use common_enums::RequestIncrementalAuthorization;
-#[cfg(feature = "v2")]
 use common_utils::errors::ParsingError;
 #[cfg(feature = "v2")]
 use common_utils::ext_traits::{Encode, ValueExt};
 use common_utils::{
-    consts::{PAYMENTS_LIST_MAX_LIMIT_V1, PAYMENTS_LIST_MAX_LIMIT_V2},
+    consts::PAYMENTS_LIST_MAX_LIMIT_V1,
     crypto::Encryptable,
     encryption::Encryption,
     errors::{CustomResult, ValidationError},
@@ -17,11 +15,11 @@ use common_utils::{
         CreatedBy, MinorUnit,
     },
 };
-#[cfg(feature = "v2")]
-use diesel_models::PaymentLinkConfigRequestForPayments;
 use diesel_models::{
     PaymentIntent as DieselPaymentIntent, PaymentIntentNew as DieselPaymentIntentNew,
 };
+#[cfg(feature = "v1")]
+use common_utils::consts::PAYMENTS_LIST_MAX_LIMIT_V2;
 use error_stack::ResultExt;
 #[cfg(feature = "v2")]
 use masking::ExposeInterface;
@@ -37,13 +35,12 @@ use crate::address::Address;
 #[cfg(feature = "v2")]
 use crate::routing;
 use crate::{
-    behaviour, errors,
+    behaviour,
     merchant_key_store::MerchantKeyStore,
     type_encryption::{crypto_operation, CryptoOperation},
-    RemoteStorageObject,
 };
-#[cfg(feature = "v2")]
-use crate::{FeatureMetadata, OrderDetailsWithAmount};
+#[cfg(feature = "v1")]
+use crate::{errors,RemoteStorageObject};
 
 #[async_trait::async_trait]
 pub trait PaymentIntentInterface {
@@ -675,7 +672,7 @@ impl TryFrom<PaymentIntentUpdate> for diesel_models::PaymentIntentUpdateInternal
                     active_attempt_id,
                     updated_by,
                     force_3ds_challenge,
-                    is_iframe_redirection_enabled,
+                    is_iframe_redirection_enabled: _,
                 } = *boxed_intent;
                 Ok(Self {
                     status: None,

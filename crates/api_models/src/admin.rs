@@ -18,11 +18,10 @@ use utoipa::ToSchema;
 
 use super::payments::AddressDetails;
 #[cfg(feature = "v1")]
-use crate::routing;
+use crate::{routing, profile_acquirer::ProfileAcquirerResponse};
 use crate::{
     consts::{MAX_ORDER_FULFILLMENT_EXPIRY, MIN_ORDER_FULFILLMENT_EXPIRY},
     enums as api_enums, payment_methods,
-    profile_acquirer::ProfileAcquirerResponse,
 };
 
 #[derive(Clone, Debug, Deserialize, ToSchema, Serialize)]

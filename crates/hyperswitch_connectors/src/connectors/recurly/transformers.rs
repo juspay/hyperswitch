@@ -28,7 +28,7 @@ use time::PrimitiveDateTime;
 #[cfg(all(feature = "v2", feature = "revenue_recovery"))]
 use crate::utils;
 #[cfg(all(feature = "v2", feature = "revenue_recovery"))]
-use crate::{types::ResponseRouterDataV2, utils::PaymentsAuthorizeRequestData};
+use crate::types::ResponseRouterDataV2;
 
 pub struct RecurlyRouterData<T> {
     pub amount: StringMinorUnit, // The type of amount that a connector accepts, for example, String, i64, f64, etc.

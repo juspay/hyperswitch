@@ -1309,7 +1309,7 @@ impl From<ProfileUpdate> for ProfileUpdateInternal {
                     card_testing_secret_key,
                     is_debit_routing_enabled,
                     merchant_business_country,
-                    is_iframe_redirection_enabled,
+                    is_iframe_redirection_enabled: _,
                     is_external_vault_enabled,
                     external_vault_connector_details,
                     merchant_category_code,

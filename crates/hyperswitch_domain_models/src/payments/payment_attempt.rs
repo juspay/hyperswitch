@@ -1,6 +1,7 @@
 #[cfg(all(feature = "v1", feature = "olap"))]
 use api_models::enums::Connector;
 use common_enums as storage_enums;
+#[cfg(feature = "v1")]
 use common_types::primitive_wrappers::{
     ExtendedAuthorizationAppliedBool, RequestExtendedAuthorizationBool,
 };
@@ -21,9 +22,11 @@ use common_utils::{
     },
 };
 use diesel_models::{
-    ConnectorMandateReferenceId, PaymentAttempt as DieselPaymentAttempt,
-    PaymentAttemptNew as DieselPaymentAttemptNew,
-    PaymentAttemptUpdate as DieselPaymentAttemptUpdate,
+    PaymentAttempt as DieselPaymentAttempt, PaymentAttemptNew as DieselPaymentAttemptNew,
+};
+#[cfg(feature = "v1")]
+use diesel_models::{
+    ConnectorMandateReferenceId, PaymentAttemptUpdate as DieselPaymentAttemptUpdate,
 };
 #[cfg(feature = "v2")]
 use diesel_models::{
@@ -36,7 +39,9 @@ use masking::PeekInterface;
 use masking::Secret;
 #[cfg(feature = "v2")]
 use rustc_hash::FxHashMap;
-use serde::{Deserialize, Serialize};
+use serde::Serialize;
+#[cfg(feature = "v1")]
+use serde::Deserialize;
 #[cfg(feature = "v2")]
 use serde_json::Value;
 use time::PrimitiveDateTime;
@@ -53,8 +58,12 @@ use crate::{
 };
 use crate::{
     behaviour, errors,
+    ForeignIDRef,
+};
+#[cfg(feature = "v1")]
+use crate::{
     mandates::{MandateDataType, MandateDetails},
-    router_request_types, ForeignIDRef,
+    router_request_types,
 };
 
 #[async_trait::async_trait]
@@ -2410,7 +2419,7 @@ impl behaviour::Conversion for PaymentAttempt {
             connector_metadata,
             payment_experience,
             payment_method_data,
-            routing_result,
+            routing_result: _,
             preprocessing_step_id,
             multiple_capture_count,
             connector_response_reference_id,
@@ -2430,8 +2439,8 @@ impl behaviour::Conversion for PaymentAttempt {
             payment_method_type,
             connector_payment_id,
             payment_method_subtype,
-            authentication_applied,
-            external_reference_id,
+            authentication_applied: _,
+            external_reference_id: _,
             id,
             payment_method_id,
             payment_method_billing_address,

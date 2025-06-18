@@ -505,7 +505,7 @@ impl
         storage_scheme: common_enums::MerchantStorageScheme,
     ) -> PaymentIntentUpdate {
         let amount_captured = self.get_captured_amount(payment_data);
-        let status = payment_data.payment_attempt.status.is_terminal_status();
+        let _status = payment_data.payment_attempt.status.is_terminal_status();
         let updated_feature_metadata =
             payment_data
                 .payment_intent
@@ -567,12 +567,12 @@ impl
                 router_response_types::PaymentsResponseData::TransactionResponse {
                     resource_id,
                     redirection_data,
-                    mandate_reference,
+                    mandate_reference: _,
                     connector_metadata,
-                    network_txn_id,
-                    connector_response_reference_id,
-                    incremental_authorization_allowed,
-                    charges,
+                    network_txn_id: _,
+                    connector_response_reference_id: _,
+                    incremental_authorization_allowed: _,
+                    charges: _,
                 } => {
                     let attempt_status = self.get_attempt_status_for_db_update(payment_data);
 
@@ -642,7 +642,7 @@ impl
                     message,
                     reason,
                     status_code: _,
-                    attempt_status,
+                    attempt_status: _,
                     connector_transaction_id,
                     network_decline_code,
                     network_advice_code,
@@ -802,14 +802,14 @@ impl
         match self.response {
             Ok(ref response_router_data) => match response_router_data {
                 router_response_types::PaymentsResponseData::TransactionResponse {
-                    resource_id,
-                    redirection_data,
-                    mandate_reference,
-                    connector_metadata,
-                    network_txn_id,
-                    connector_response_reference_id,
-                    incremental_authorization_allowed,
-                    charges,
+                    resource_id: _,
+                    redirection_data: _,
+                    mandate_reference: _,
+                    connector_metadata: _,
+                    network_txn_id: _,
+                    connector_response_reference_id: _,
+                    incremental_authorization_allowed: _,
+                    charges: _,
                 } => {
                     let attempt_status = self.status;
 
@@ -1036,14 +1036,14 @@ impl
         match self.response {
             Ok(ref response_router_data) => match response_router_data {
                 router_response_types::PaymentsResponseData::TransactionResponse {
-                    resource_id,
-                    redirection_data,
-                    mandate_reference,
-                    connector_metadata,
-                    network_txn_id,
-                    connector_response_reference_id,
-                    incremental_authorization_allowed,
-                    charges,
+                    resource_id: _,
+                    redirection_data: _,
+                    mandate_reference: _,
+                    connector_metadata: _,
+                    network_txn_id: _,
+                    connector_response_reference_id: _,
+                    incremental_authorization_allowed: _,
+                    charges: _,
                 } => {
                     let attempt_status = self.get_attempt_status_for_db_update(payment_data);
 
@@ -1092,7 +1092,7 @@ impl
                     message,
                     reason,
                     status_code: _,
-                    attempt_status,
+                    attempt_status: _,
                     connector_transaction_id,
                     network_advice_code,
                     network_decline_code,
@@ -1275,12 +1275,12 @@ impl
                 router_response_types::PaymentsResponseData::TransactionResponse {
                     resource_id,
                     redirection_data,
-                    mandate_reference,
+                    mandate_reference: _,
                     connector_metadata,
-                    network_txn_id,
-                    connector_response_reference_id,
-                    incremental_authorization_allowed,
-                    charges,
+                    network_txn_id: _,
+                    connector_response_reference_id: _,
+                    incremental_authorization_allowed: _,
+                    charges: _,
                 } => {
                     let attempt_status = self.get_attempt_status_for_db_update(payment_data);
 
