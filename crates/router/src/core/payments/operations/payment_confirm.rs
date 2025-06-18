@@ -1183,6 +1183,10 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
                 },
             )
             .await?;
+            logger::info!(
+                "Three DS Decision Rule Output: {:?}",
+                decision
+            );
             // We should update authentication_type from the Three DS Decision if it is not already set
             if payment_data.payment_attempt.authentication_type.is_none() {
                 payment_data.payment_attempt.authentication_type =
@@ -1193,13 +1197,6 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
             // We should update force_3ds_challenge from the Three DS Decision
             payment_data.payment_intent.force_3ds_challenge =
                 decision.should_force_3ds_challenge().then_some(true);
-            println!("Three DS Decision Rule Output: {:?}", decision,);
-            println!(
-                "Authentication Type: {:?}, Exemption Type: {:?}, Force 3DS Challenge: {:?}",
-                payment_data.payment_attempt.authentication_type,
-                payment_data.payment_intent.psd2_sca_exemption_type,
-                payment_data.payment_intent.force_3ds_challenge
-            );
         }
         Ok(())
     }
