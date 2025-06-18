@@ -9,13 +9,6 @@ use error_stack::report;
 use error_stack::ResultExt;
 #[cfg(all(feature = "v2", feature = "revenue_recovery"))]
 use hyperswitch_domain_models::router_data_v2::flow_common_types as recovery_flow_common_types;
-#[cfg(all(feature = "v2", feature = "revenue_recovery"))]
-use hyperswitch_domain_models::{
-    router_flow_types::revenue_recovery as recovery_router_flows,
-    router_request_types::revenue_recovery as recovery_request_types,
-    router_response_types::revenue_recovery as recovery_response_types,
-    types as recovery_router_data_types,
-};
 use hyperswitch_domain_models::{
     router_data::{ConnectorAuthType, ErrorResponse},
     router_data_v2::UasFlowData,
@@ -26,6 +19,13 @@ use hyperswitch_domain_models::{
         UasAuthenticationRequestData, UasAuthenticationResponseData, UasConfirmationRequestData,
         UasPostAuthenticationRequestData, UasPreAuthenticationRequestData,
     },
+};
+#[cfg(all(feature = "v2", feature = "revenue_recovery"))]
+use hyperswitch_domain_models::{
+    router_flow_types::revenue_recovery as recovery_router_flows,
+    router_request_types::revenue_recovery as recovery_request_types,
+    router_response_types::revenue_recovery as recovery_response_types,
+    types as recovery_router_data_types,
 };
 #[cfg(all(feature = "v2", feature = "revenue_recovery"))]
 use hyperswitch_interfaces::types;

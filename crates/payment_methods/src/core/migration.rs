@@ -8,9 +8,9 @@ use masking::PeekInterface;
 use rdkafka::message::ToBytes;
 use router_env::{instrument, tracing};
 
+use crate::core::errors;
 #[cfg(feature = "v1")]
 use crate::{controller as pm, state};
-use crate::core::errors;
 pub mod payment_methods;
 pub use payment_methods::migrate_payment_method;
 

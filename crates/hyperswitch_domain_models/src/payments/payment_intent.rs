@@ -1,3 +1,5 @@
+#[cfg(feature = "v1")]
+use common_utils::consts::PAYMENTS_LIST_MAX_LIMIT_V2;
 #[cfg(feature = "v2")]
 use common_utils::errors::ParsingError;
 #[cfg(feature = "v2")]
@@ -18,8 +20,6 @@ use common_utils::{
 use diesel_models::{
     PaymentIntent as DieselPaymentIntent, PaymentIntentNew as DieselPaymentIntentNew,
 };
-#[cfg(feature = "v1")]
-use common_utils::consts::PAYMENTS_LIST_MAX_LIMIT_V2;
 use error_stack::ResultExt;
 #[cfg(feature = "v2")]
 use masking::ExposeInterface;
@@ -40,7 +40,7 @@ use crate::{
     type_encryption::{crypto_operation, CryptoOperation},
 };
 #[cfg(feature = "v1")]
-use crate::{errors,RemoteStorageObject};
+use crate::{errors, RemoteStorageObject};
 
 #[async_trait::async_trait]
 pub trait PaymentIntentInterface {

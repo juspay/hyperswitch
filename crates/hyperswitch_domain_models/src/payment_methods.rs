@@ -2,10 +2,10 @@
 use api_models::payment_methods::PaymentMethodsData;
 // specific imports because of using the macro
 use common_enums::enums::MerchantStorageScheme;
-#[cfg(feature = "v2")]
-use common_utils::{crypto::Encryptable, encryption::Encryption, types::keymanager::ToEncryptable};
 #[cfg(feature = "v1")]
 use common_utils::crypto::OptionalEncryptableValue;
+#[cfg(feature = "v2")]
+use common_utils::{crypto::Encryptable, encryption::Encryption, types::keymanager::ToEncryptable};
 use common_utils::{
     errors::{CustomResult, ParsingError, ValidationError},
     id_type, pii, type_name,
@@ -26,16 +26,16 @@ use time::PrimitiveDateTime;
 
 #[cfg(feature = "v2")]
 use crate::address::Address;
+#[cfg(feature = "v1")]
+use crate::mandates;
+#[cfg(feature = "v1")]
+use crate::type_encryption::AsyncLift;
 use crate::{
     mandates::CommonMandateReference,
     merchant_key_store::MerchantKeyStore,
     payment_method_data as domain_payment_method_data,
     type_encryption::{crypto_operation, CryptoOperation},
 };
-#[cfg(feature = "v1")]
-use crate::mandates;
-#[cfg(feature = "v1")]
-use crate::type_encryption::AsyncLift;
 
 #[cfg(feature = "v2")]
 #[derive(Debug, serde::Deserialize, serde::Serialize, Clone)]

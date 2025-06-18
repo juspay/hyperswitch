@@ -30,16 +30,14 @@ pub mod payment_intent;
 
 use common_enums as storage_enums;
 #[cfg(feature = "v2")]
-use diesel_models::{
-    types::{FeatureMetadata, OrderDetailsWithAmount},
-};
+use diesel_models::types::{FeatureMetadata, OrderDetailsWithAmount};
 
 use self::payment_attempt::PaymentAttempt;
 #[cfg(feature = "v2")]
 use crate::{
-    address::Address, business_profile, customer, errors,
-    merchant_connector_account, merchant_context, payment_address, payment_method_data,
-    payment_methods, revenue_recovery, routing, ApiModelToDieselModelConvertor,
+    address::Address, business_profile, customer, errors, merchant_connector_account,
+    merchant_context, payment_address, payment_method_data, payment_methods, revenue_recovery,
+    routing, ApiModelToDieselModelConvertor,
 };
 #[cfg(feature = "v1")]
 use crate::{payment_method_data, RemoteStorageObject};

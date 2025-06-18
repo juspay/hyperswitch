@@ -1,11 +1,11 @@
 #[cfg(feature = "v1")]
 use common_utils::errors::CustomResult;
 use common_utils::types::keymanager;
+#[cfg(feature = "v1")]
+use hyperswitch_domain_models::merchant_account;
 use hyperswitch_domain_models::{
     cards_info, customer, merchant_key_store, payment_methods as pm_domain,
 };
-#[cfg(feature = "v1")]
-use hyperswitch_domain_models::merchant_account;
 use storage_impl::{errors, kv_router_store::KVRouterStore, DatabaseStore, MockDb, RouterStore};
 
 #[async_trait::async_trait]

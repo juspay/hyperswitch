@@ -21,12 +21,12 @@ use common_utils::{
         ConnectorTransactionId, ConnectorTransactionIdTrait, CreatedBy, MinorUnit,
     },
 };
-use diesel_models::{
-    PaymentAttempt as DieselPaymentAttempt, PaymentAttemptNew as DieselPaymentAttemptNew,
-};
 #[cfg(feature = "v1")]
 use diesel_models::{
     ConnectorMandateReferenceId, PaymentAttemptUpdate as DieselPaymentAttemptUpdate,
+};
+use diesel_models::{
+    PaymentAttempt as DieselPaymentAttempt, PaymentAttemptNew as DieselPaymentAttemptNew,
 };
 #[cfg(feature = "v2")]
 use diesel_models::{
@@ -39,9 +39,9 @@ use masking::PeekInterface;
 use masking::Secret;
 #[cfg(feature = "v2")]
 use rustc_hash::FxHashMap;
-use serde::Serialize;
 #[cfg(feature = "v1")]
 use serde::Deserialize;
+use serde::Serialize;
 #[cfg(feature = "v2")]
 use serde_json::Value;
 use time::PrimitiveDateTime;
@@ -56,10 +56,7 @@ use crate::{
     router_response_types,
     type_encryption::{crypto_operation, CryptoOperation},
 };
-use crate::{
-    behaviour, errors,
-    ForeignIDRef,
-};
+use crate::{behaviour, errors, ForeignIDRef};
 #[cfg(feature = "v1")]
 use crate::{
     mandates::{MandateDataType, MandateDetails},

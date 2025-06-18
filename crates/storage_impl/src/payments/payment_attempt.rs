@@ -32,9 +32,9 @@ use hyperswitch_domain_models::{
 use hyperswitch_domain_models::{
     payments::payment_attempt::PaymentListFilters, payments::PaymentIntent,
 };
-use router_env::{instrument, tracing};
 #[cfg(feature = "v1")]
 use redis_interface::HsetnxReply;
+use router_env::{instrument, tracing};
 
 use crate::{
     diesel_error_to_data_error,

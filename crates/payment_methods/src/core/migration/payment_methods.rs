@@ -2,10 +2,9 @@ use std::str::FromStr;
 
 #[cfg(feature = "v2")]
 use api_models::enums as api_enums;
-use api_models::payment_methods as pm_api;
 #[cfg(feature = "v1")]
 use api_models::enums;
-use common_utils::{errors::CustomResult, id_type};
+use api_models::payment_methods as pm_api;
 #[cfg(feature = "v1")]
 use common_utils::{
     consts,
@@ -13,18 +12,16 @@ use common_utils::{
     ext_traits::{AsyncExt, ConfigExt},
     generate_id,
 };
+use common_utils::{errors::CustomResult, id_type};
 use error_stack::ResultExt;
+use hyperswitch_domain_models::{
+    api::ApplicationResponse, errors::api_error_response as errors, merchant_context,
+};
 #[cfg(feature = "v1")]
-use hyperswitch_domain_models::{
-    ext_traits::OptionExt, payment_methods as domain_pm,
-};
-use hyperswitch_domain_models::{
-    api::ApplicationResponse, errors::api_error_response as errors,
-    merchant_context,
-};
+use hyperswitch_domain_models::{ext_traits::OptionExt, payment_methods as domain_pm};
+use masking::PeekInterface;
 #[cfg(feature = "v1")]
 use masking::Secret;
-use masking::PeekInterface;
 #[cfg(feature = "v1")]
 use router_env::{instrument, logger, tracing};
 #[cfg(feature = "v1")]
@@ -37,11 +34,7 @@ use crate::{
     core::migration,
     helpers::{ForeignFrom, StorageErrorExt},
 };
-use crate::{
-    controller::PaymentMethodsController,
-    helpers::ForeignTryFrom,
-    state,
-};
+use crate::{controller::PaymentMethodsController, helpers::ForeignTryFrom, state};
 
 #[cfg(feature = "v1")]
 pub async fn migrate_payment_method(

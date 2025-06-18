@@ -2,11 +2,13 @@
 use api_models::payments::{AmountFilter, Order, SortBy, SortOn};
 #[cfg(feature = "olap")]
 use async_bb8_diesel::{AsyncConnection, AsyncRunQueryDsl};
-use common_utils::{ext_traits::AsyncExt, types::keymanager::KeyManagerState};
 #[cfg(feature = "v1")]
 use common_utils::ext_traits::Encode;
+use common_utils::{ext_traits::AsyncExt, types::keymanager::KeyManagerState};
 #[cfg(feature = "olap")]
 use diesel::{associations::HasTable, ExpressionMethods, JoinOnDsl, QueryDsl};
+#[cfg(feature = "v1")]
+use diesel_models::kv;
 #[cfg(feature = "v1")]
 use diesel_models::payment_intent::PaymentIntentUpdate as DieselPaymentIntentUpdate;
 #[cfg(feature = "olap")]
@@ -21,9 +23,9 @@ use diesel_models::schema_v2::{
     payment_attempt::{self as payment_attempt_schema, dsl as pa_dsl},
     payment_intent::dsl as pi_dsl,
 };
-use diesel_models::{enums::MerchantStorageScheme, payment_intent::PaymentIntent as DieselPaymentIntent};
-#[cfg(feature = "v1")]
-use diesel_models::kv;
+use diesel_models::{
+    enums::MerchantStorageScheme, payment_intent::PaymentIntent as DieselPaymentIntent,
+};
 use error_stack::ResultExt;
 #[cfg(feature = "olap")]
 use hyperswitch_domain_models::payments::{

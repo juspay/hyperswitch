@@ -1,6 +1,8 @@
 #[cfg(feature = "v2")]
 use std::collections::HashMap;
 
+#[cfg(feature = "v1")]
+use common_utils::ext_traits::ValueExt;
 use common_utils::{
     crypto::Encryptable,
     date_time,
@@ -9,8 +11,6 @@ use common_utils::{
     id_type, pii, type_name,
     types::keymanager::{Identifier, KeyManagerState, ToEncryptable},
 };
-#[cfg(feature = "v1")]
-use common_utils::ext_traits::ValueExt;
 #[cfg(feature = "v2")]
 use diesel_models::merchant_connector_account::{
     BillingAccountReference as DieselBillingAccountReference,

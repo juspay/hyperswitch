@@ -2,6 +2,8 @@ use common_utils::{errors::CustomResult, types::keymanager::KeyManagerState};
 use diesel_models::enums as storage_enums;
 #[cfg(feature = "v1")]
 use error_stack::ResultExt;
+#[cfg(feature = "v1")]
+use hyperswitch_domain_models::behaviour::Conversion;
 use hyperswitch_domain_models::{
     merchant_key_store::MerchantKeyStore,
     payments::{
@@ -9,8 +11,6 @@ use hyperswitch_domain_models::{
         PaymentIntent,
     },
 };
-#[cfg(feature = "v1")]
-use hyperswitch_domain_models::behaviour::Conversion;
 
 use super::MockDb;
 use crate::errors::StorageError;

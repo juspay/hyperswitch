@@ -6,19 +6,17 @@ impl KvStorePartition for PaymentMethod {}
 
 use common_enums::enums::MerchantStorageScheme;
 use common_utils::{errors::CustomResult, id_type, types::keymanager::KeyManagerState};
-use diesel_models::{
-    payment_method::{PaymentMethodUpdate, PaymentMethodUpdateInternal},
-};
 #[cfg(feature = "v1")]
 use diesel_models::kv;
+use diesel_models::payment_method::{PaymentMethodUpdate, PaymentMethodUpdateInternal};
 use error_stack::ResultExt;
+#[cfg(feature = "v1")]
+use hyperswitch_domain_models::behaviour::ReverseConversion;
 use hyperswitch_domain_models::{
     behaviour::Conversion,
     merchant_key_store::MerchantKeyStore,
     payment_methods::{PaymentMethod as DomainPaymentMethod, PaymentMethodInterface},
 };
-#[cfg(feature = "v1")]
-use hyperswitch_domain_models::behaviour::ReverseConversion;
 use router_env::{instrument, tracing};
 
 use super::MockDb;
