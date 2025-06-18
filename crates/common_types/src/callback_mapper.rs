@@ -18,15 +18,21 @@ pub enum CallbackMapperData {
     },
 }
 
-impl CallbackMapperData{
+impl CallbackMapperData {
     /// Retrieves the details of the network token webhook type from callback mapper data.
-    pub fn get_network_token_webhook_details(&self) -> (id_type::MerchantId, String, id_type::CustomerId) {
+    pub fn get_network_token_webhook_details(
+        &self,
+    ) -> (id_type::MerchantId, String, id_type::CustomerId) {
         match self {
             Self::NetworkTokenWebhook {
                 merchant_id,
                 payment_method_id,
                 customer_id,
-            } => (merchant_id.clone(), payment_method_id.clone(), customer_id.clone()),
+            } => (
+                merchant_id.clone(),
+                payment_method_id.clone(),
+                customer_id.clone(),
+            ),
         }
     }
 }
