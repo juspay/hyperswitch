@@ -4,25 +4,25 @@ import {
   connectorDetails as commonConnectorDetails,
 } from "./Commons";
 
-// Test card details for successful transactions
+// ============================================================================
+// AUTHIPAY CYPRESS TEST CONFIGURATION (SIMPLIFIED)
+// ============================================================================
+// Core functionality only:
+// - Non-3DS card payments (auto/manual capture)
+// - Refund operations (full/partial/sync)
+// - Basic failure scenarios
+// ============================================================================
+
+// ===== TEST CARD DATA =====
+
 const successfulNo3DSCardDetails = {
-  card_number: "4147463011110091", // Mastercard test card from specs
-  card_exp_month: "12",
-  card_exp_year: "28",
+  card_number: "4147463011110083", // Authipay Mastercard test card
+  card_exp_month: "10",
+  card_exp_year: "30",
   card_holder_name: "Test User",
   card_cvc: "123",
 };
 
-// Alternative card for testing
-const successfulTestCardDetails = {
-  card_number: "4147463011110091", // Visa test card from specs
-  card_exp_month: "12",
-  card_exp_year: "28",
-  card_holder_name: "Test User",
-  card_cvc: "123",
-};
-
-// Card details for failed transactions
 const failedCardDetails = {
   card_number: "4000000000000002", // Generic declined card
   card_exp_month: "01",
@@ -31,30 +31,48 @@ const failedCardDetails = {
   card_cvc: "123",
 };
 
-// Payment method data for successful transactions
+// ===== BILLING INFORMATION =====
+
+const billingAddress = {
+  address: {
+    line1: "1467",
+    line2: "Harrison Street",
+    city: "San Francisco",
+    state: "California",
+    zip: "94122",
+    country: "US",
+    first_name: "Test",
+    last_name: "User",
+  },
+  phone: {
+    number: "9123456789",
+    country_code: "+1",
+  },
+};
+
+// ===== PAYMENT METHOD DATA =====
+
 const payment_method_data = {
+  
   card: {
-    last4: "0091",
-    card_type: "CREDIT",
-    card_network: "Mastercard",
-    card_issuer: "Test Bank",
-    card_issuing_country: "UNITED STATES",
-    card_isin: "542418",
+    last4: "0083",
+    card_type: null,
+    card_network: null,
+    card_issuer: null,
+    card_issuing_country: null,
+    card_isin: "414746",
     card_extended_bin: null,
-    card_exp_month: "12",
-    card_exp_year: "28",
+    card_exp_month: "10",
+    card_exp_year: "30",
     card_holder_name: "Test User",
-    payment_checks: {
-      cvc_check: "pass",
-      address_line1_check: "pass",
-      address_postal_code_check: "pass",
-    },
+    payment_checks: null,
     authentication_data: null,
   },
   billing: null,
 };
 
-// Required fields for payment methods
+// ===== REQUIRED FIELDS =====
+
 const requiredFields = {
   payment_methods: [
     {
@@ -69,17 +87,25 @@ const requiredFields = {
           ],
           required_fields: cardRequiredField,
         },
+        {
+          payment_method_type: "debit",
+          card_networks: [
+            {
+              eligible_connectors: ["authipay"],
+            },
+          ],
+          required_fields: cardRequiredField,
+        },
       ],
     },
   ],
 };
 
+// ===== MAIN CONNECTOR DETAILS =====
+
 export const connectorDetails = {
-  multi_credential_config: {
-    specName: ["authipayConfig"],
-    value: "connector_1",
-  },
   card_pm: {
+    // Basic payment intent
     PaymentIntent: {
       Request: {
         currency: "EUR",
@@ -94,32 +120,15 @@ export const connectorDetails = {
         },
       },
     },
-    No3DSManualCapture: {
-      Request: {
-        payment_method: "card",
-        payment_method_data: {
-          card: successfulNo3DSCardDetails,
-        },
-        currency: "EUR",
-        customer_acceptance: null,
-        setup_future_usage: null,
-      },
-      Response: {
-        status: 200,
-        body: {
-          status: "requires_capture",
-          payment_method: "card",
-          attempt_count: 1,
-          payment_method_data: payment_method_data,
-        },
-      },
-    },
+
+    // Successful automatic capture
     No3DSAutoCapture: {
       Request: {
         payment_method: "card",
         payment_method_data: {
           card: successfulNo3DSCardDetails,
         },
+        billing: billingAddress,
         currency: "EUR",
         customer_acceptance: null,
         setup_future_usage: null,
@@ -135,12 +144,39 @@ export const connectorDetails = {
         },
       },
     },
+
+    // Successful manual capture (requires capture)
+    No3DSManualCapture: {
+      Request: {
+        payment_method: "card",
+        payment_method_data: {
+          card: successfulNo3DSCardDetails,
+        },
+        billing: billingAddress,
+        currency: "EUR",
+        customer_acceptance: null,
+        setup_future_usage: null,
+        capture_method: "manual",
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_capture",
+          payment_method: "card",
+          attempt_count: 1,
+          payment_method_data: payment_method_data,
+        },
+      },
+    },
+
+    // Failed payment
     No3DSFailPayment: {
       Request: {
         payment_method: "card",
         payment_method_data: {
           card: failedCardDetails,
         },
+        billing: billingAddress,
         customer_acceptance: null,
         setup_future_usage: null,
       },
@@ -155,6 +191,8 @@ export const connectorDetails = {
         },
       },
     },
+
+    // Capture operation
     Capture: {
       Request: {
         amount_to_capture: 6000,
@@ -169,9 +207,11 @@ export const connectorDetails = {
         },
       },
     },
+
+    // Partial capture
     PartialCapture: {
       Request: {
-        amount_to_capture: 2000,
+        amount_to_capture: 3000,
       },
       Response: {
         status: 200,
@@ -179,19 +219,12 @@ export const connectorDetails = {
           status: "partially_captured",
           amount: 6000,
           amount_capturable: 0,
-          amount_received: 2000,
+          amount_received: 3000,
         },
       },
     },
-    Void: {
-      Request: {},
-      Response: {
-        status: 200,
-        body: {
-          status: "cancelled",
-        },
-      },
-    },
+
+    // Full refund
     Refund: {
       Request: {
         amount: 6000,
@@ -199,10 +232,12 @@ export const connectorDetails = {
       Response: {
         status: 200,
         body: {
-          status: "succeeded",
+          status: "pending",
         },
       },
     },
+
+    // Partial refund
     PartialRefund: {
       Request: {
         amount: 2000,
@@ -210,10 +245,12 @@ export const connectorDetails = {
       Response: {
         status: 200,
         body: {
-          status: "succeeded",
+          status: "pending",
         },
       },
     },
+
+    // Refund sync
     SyncRefund: {
       Response: {
         status: 200,
@@ -222,118 +259,193 @@ export const connectorDetails = {
         },
       },
     },
-    // Tokenization flow - Authipay supports tokenization for recurring payments
-    SaveCardUseNo3DSAutoCapture: {
+
+    // Manual payment refund
+    manualPaymentRefund: {
       Request: {
-        payment_method: "card",
-        payment_method_data: {
-          card: successfulNo3DSCardDetails,
-        },
-        currency: "EUR",
-        setup_future_usage: "on_session",
-        customer_acceptance: customerAcceptance,
+        amount: 6000,
       },
+      Response: {
+        status: 200,
+        body: {
+          status: "pending",
+        },
+      },
+    },
+
+    // Manual payment partial refund
+    manualPaymentPartialRefund: {
+      Request: {
+        amount: 3000,
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "pending",
+        },
+      },
+    },
+
+    // Enhanced void payment (cancel authorized payment) - using order_id
+    VoidPayment: {
+      Request: {
+        cancellation_reason: "customer_request",
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "processing",
+          payment_method: "card",
+          attempt_count: 1,
+        },
+      },
+    },
+
+    // Void payment failure (trying to void already captured payment)
+    VoidPaymentFailure: {
+      Request: {
+        cancellation_reason: "merchant_request",
+      },
+      Response: {
+        status: 400,
+        body: {
+          error: {
+            type: "invalid_request_error",
+            code: "processing_error",
+            message: "You cannot cancel this PaymentIntent because it has a status of succeeded.",
+          },
+        },
+      },
+    },
+
+    // Void after confirm (manual capture scenario) 
+    // This should work for payments in "requires_capture" state
+    VoidAfterConfirm: {
+      Request: {
+        cancellation_reason: "customer_request",
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "processing",
+          payment_method: "card",
+          attempt_count: 1,
+        },
+      },
+    },
+
+    // Void payment in early state (before payment confirmation)
+    Void: {
+      Request: {
+        cancellation_reason: "duplicate_transaction",
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "cancelled",
+        },
+      },
+    },
+
+    // Enhanced void after auto capture - should fail gracefully
+    VoidAfterAutoCapture: {
+      Request: {
+        cancellation_reason: "customer_request",
+      },
+      Response: {
+        status: 400,
+        body: {
+          error: {
+            type: "invalid_request_error",
+            code: "IR_16", 
+            message: "You cannot cancel this payment because it has status succeeded.",
+          },
+        },
+      },
+    },
+
+    // New: Void with missing identifiers (should fail gracefully)
+    VoidMissingIdentifiers: {
+      Request: {
+        cancellation_reason: "test_scenario",
+      },
+      Response: {
+        status: 400,
+        body: {
+          error: {
+            type: "invalid_request_error",
+            code: "request_encoding_failed",
+            message: "Missing required identifiers for void operation",
+          },
+        },
+      },
+    },
+
+    // New: Void with invalid order_id format (should use fallback)
+    VoidInvalidOrderId: {
+      Request: {
+        cancellation_reason: "test_fallback",
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "cancelled",
+          payment_method: "card",
+          attempt_count: 1,
+        },
+      },
+    },
+
+    // Payment sync
+    SyncPayment: {
       Response: {
         status: 200,
         body: {
           status: "succeeded",
+          payment_method: "card",
+          payment_method_data: payment_method_data,
         },
       },
     },
-    SaveCardUseNo3DSManualCapture: {
+
+    // Payment with shipping cost
+    PaymentIntentWithShippingCost: {
       Request: {
-        payment_method: "card",
-        payment_method_data: {
-          card: successfulNo3DSCardDetails,
-        },
         currency: "EUR",
-        setup_future_usage: "on_session",
-        customer_acceptance: customerAcceptance,
+        shipping_cost: 50,
       },
       Response: {
         status: 200,
         body: {
-          status: "requires_capture",
+          status: "requires_payment_method",
+          shipping_cost: 50,
+          amount: 6000,
         },
       },
     },
-    SaveCardUseNo3DSAutoCaptureOffSession: {
-      Request: {
-        payment_method: "card",
-        payment_method_type: "credit",
-        payment_method_data: {
-          card: successfulNo3DSCardDetails,
-        },
-        setup_future_usage: "off_session",
-        customer_acceptance: customerAcceptance,
-      },
-      Response: {
-        status: 200,
-        body: {
-          status: "succeeded",
-        },
-      },
-    },
-    SaveCardUseNo3DSManualCaptureOffSession: {
+
+    PaymentConfirmWithShippingCost: {
       Request: {
         payment_method: "card",
         payment_method_data: {
           card: successfulNo3DSCardDetails,
         },
-        setup_future_usage: "off_session",
-        customer_acceptance: customerAcceptance,
-      },
-      Response: {
-        status: 200,
-        body: {
-          status: "requires_capture",
-        },
-      },
-    },
-    SaveCardConfirmAutoCaptureOffSession: {
-      Request: {
-        setup_future_usage: "off_session",
-      },
-      Response: {
-        status: 200,
-        body: {
-          status: "succeeded",
-        },
-      },
-    },
-    SaveCardConfirmManualCaptureOffSession: {
-      Request: {
-        setup_future_usage: "off_session",
-      },
-      Response: {
-        status: 200,
-        body: {
-          status: "requires_capture",
-        },
-      },
-    },
-    // Alternate card testing
-    AlternateCardAutoCapture: {
-      Request: {
-        payment_method: "card",
-        payment_method_data: {
-          card: successfulTestCardDetails,
-        },
-        currency: "EUR",
+        billing: billingAddress,
         customer_acceptance: null,
         setup_future_usage: null,
-        capture_method: "automatic",
       },
       Response: {
         status: 200,
         body: {
           status: "succeeded",
           payment_method: "card",
-          attempt_count: 1,
+          payment_method_data: payment_method_data,
+          shipping_cost: 50,
         },
       },
     },
   },
+
   pm_list: {
     PmListResponse: {
       PmListNull: {

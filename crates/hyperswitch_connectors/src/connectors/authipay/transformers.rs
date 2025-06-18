@@ -7,9 +7,12 @@ use hyperswitch_domain_models::{
     router_flow_types::refunds::{Execute, RSync},
     router_request_types::ResponseId,
     router_response_types::{PaymentsResponseData, RefundsResponseData},
-    types::{PaymentsAuthorizeRouterData, PaymentsCaptureRouterData, RefundsRouterData},
+    types::{
+        PaymentsAuthorizeRouterData, PaymentsCancelRouterData, PaymentsCaptureRouterData,
+        RefundsRouterData,
+    },
 };
-use hyperswitch_interfaces::{ errors};
+use hyperswitch_interfaces::errors;
 use masking::Secret;
 use serde::{Deserialize, Serialize};
 
@@ -68,7 +71,7 @@ pub struct PaymentMethod {
     payment_card: Card,
 }
 
-#[derive(Default, Debug, Serialize, PartialEq)]
+#[derive(Default, Debug, Serialize, Clone, PartialEq)]
 #[serde(rename_all = "camelCase")]
 pub struct SplitShipment {
     total_count: i32,
@@ -110,13 +113,18 @@ impl TryFrom<&AuthipayRouterData<&PaymentsAuthorizeRouterData>> for AuthipayPaym
                     currency: item.router_data.request.currency.to_string(),
                     components: None,
                 };
-                // let split_shipment = None;
+
+                // Determine request type based on capture method
+                let request_type = match item.router_data.request.capture_method {
+                    Some(enums::CaptureMethod::Manual)
+                    | Some(enums::CaptureMethod::ManualMultiple) => "PaymentCardPreAuthTransaction",
+                    _ => "PaymentCardSaleTransaction", // Automatic capture (default)
+                };
+
                 let request = Self {
-                    request_type: "PaymentCardSaleTransaction",
+                    request_type,
                     transaction_amount,
                     payment_method,
-                    // split_shipment:None,
-                    // incremental_flag: Some(false),
                 };
 
                 Ok(request)
@@ -258,22 +266,64 @@ impl<F, T> TryFrom<ResponseRouterData<F, AuthipayPaymentsResponse, T, PaymentsRe
         item: ResponseRouterData<F, AuthipayPaymentsResponse, T, PaymentsResponseData>,
     ) -> Result<Self, Self::Error> {
         // Determine status based on transaction type
-        let status = if item.response.transaction_type == "RETURN" {
-            // Refund transaction - use transaction_result
-            match item.response.transaction_result.as_deref() {
-                Some("APPROVED") => enums::AttemptStatus::Charged,
-                Some("DECLINED") | Some("FAILED") => enums::AttemptStatus::Failure,
-                _ => enums::AttemptStatus::Pending,
+        let status = match item.response.transaction_type.as_str() {
+            "RETURN" => {
+                // Refund transaction - use transaction_result
+                match item.response.transaction_result.as_deref() {
+                    Some("APPROVED") => enums::AttemptStatus::Charged,
+                    Some("DECLINED") | Some("FAILED") => enums::AttemptStatus::Failure,
+                    _ => enums::AttemptStatus::Pending,
+                }
             }
-        } else {
-            // Payment transaction - use transaction_status
-            match item.response.transaction_status.as_deref() {
-                Some("APPROVED") => enums::AttemptStatus::Charged,
-                Some("AUTHORIZED") => enums::AttemptStatus::Authorized,
-                Some("DECLINED") | Some("FAILED") => enums::AttemptStatus::Failure,
-                _ => enums::AttemptStatus::Pending,
+            "VOID" => {
+                // Void transaction - use transaction_result
+                match item.response.transaction_result.as_deref() {
+                    Some("APPROVED") => enums::AttemptStatus::Voided,
+                    Some("DECLINED") | Some("FAILED") => enums::AttemptStatus::Failure,
+                    _ => enums::AttemptStatus::Pending,
+                }
+            }
+            _ => {
+                // Payment transaction - prioritize transaction_state over transaction_status for manual capture
+                match item.response.transaction_state.as_deref() {
+                    Some("AUTHORIZED") => enums::AttemptStatus::Authorized,
+                    Some("CAPTURED") => enums::AttemptStatus::Charged,
+                    Some("VOIDED") => enums::AttemptStatus::Voided,
+                    Some("DECLINED") | Some("FAILED") => enums::AttemptStatus::Failure,
+                    _ => {
+                        // Fallback to transaction_status, considering transaction_type for proper manual capture handling
+                        match (
+                            item.response.transaction_type.as_str(),
+                            item.response.transaction_status.as_deref(),
+                        ) {
+                            // For PREAUTH transactions, "APPROVED" means authorized and awaiting capture
+                            ("PREAUTH", Some("APPROVED")) => enums::AttemptStatus::Authorized,
+                            // For POSTAUTH transactions, "APPROVED" means successfully captured
+                            ("POSTAUTH", Some("APPROVED")) => enums::AttemptStatus::Charged,
+                            // For SALE transactions, "APPROVED" means completed payment
+                            ("SALE", Some("APPROVED")) => enums::AttemptStatus::Charged,
+                            // For VOID transactions, "APPROVED" means successfully voided
+                            ("VOID", Some("APPROVED")) => enums::AttemptStatus::Voided,
+                            // Generic status mappings for other cases
+                            (_, Some("APPROVED")) => enums::AttemptStatus::Charged,
+                            (_, Some("AUTHORIZED")) => enums::AttemptStatus::Authorized,
+                            (_, Some("DECLINED") | Some("FAILED")) => enums::AttemptStatus::Failure,
+                            _ => enums::AttemptStatus::Pending,
+                        }
+                    }
+                }
             }
         };
+
+        // Store order_id in connector_metadata for void operations
+        let mut metadata = std::collections::HashMap::new();
+        metadata.insert(
+            "order_id".to_string(),
+            serde_json::Value::String(item.response.order_id.clone()),
+        );
+        let connector_metadata = Some(serde_json::Value::Object(serde_json::Map::from_iter(
+            metadata,
+        )));
 
         Ok(Self {
             status,
@@ -281,7 +331,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, AuthipayPaymentsResponse, T, PaymentsRe
                 resource_id: ResponseId::ConnectorTransactionId(item.response.ipg_transaction_id),
                 redirection_data: Box::new(None),
                 mandate_reference: Box::new(None),
-                connector_metadata: None,
+                connector_metadata,
                 network_txn_id: None,
                 connector_response_reference_id: Some(item.response.order_id),
                 incremental_authorization_allowed: None,
@@ -293,7 +343,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, AuthipayPaymentsResponse, T, PaymentsRe
 }
 
 // Type definition for CaptureRequest
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, Clone, PartialEq)]
 #[serde(rename_all = "camelCase")]
 pub struct AuthipayCaptureRequest {
     request_type: &'static str,
@@ -307,12 +357,31 @@ impl TryFrom<&AuthipayRouterData<&PaymentsCaptureRouterData>> for AuthipayCaptur
         item: &AuthipayRouterData<&PaymentsCaptureRouterData>,
     ) -> Result<Self, Self::Error> {
         Ok(Self {
-            request_type: "PaymentCardPostAuthTransaction",
+            request_type: "PostAuthTransaction",
             transaction_amount: Amount {
                 total: item.amount,
                 currency: item.router_data.request.currency.to_string(),
                 components: None,
             },
+        })
+    }
+}
+
+// Type definition for VoidRequest
+#[derive(Debug, Serialize, Clone, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub struct AuthipayVoidRequest {
+    request_type: &'static str,
+}
+
+impl TryFrom<&AuthipayRouterData<&PaymentsCancelRouterData>> for AuthipayVoidRequest {
+    type Error = error_stack::Report<errors::ConnectorError>;
+
+    fn try_from(
+        _item: &AuthipayRouterData<&PaymentsCancelRouterData>,
+    ) -> Result<Self, Self::Error> {
+        Ok(Self {
+            request_type: "VoidTransaction",
         })
     }
 }

@@ -28,8 +28,8 @@ use hyperswitch_domain_models::{
         SupportedPaymentMethods, SupportedPaymentMethodsExt,
     },
     types::{
-        PaymentsAuthorizeRouterData, PaymentsCaptureRouterData, PaymentsSyncRouterData,
-        RefundSyncRouterData, RefundsRouterData,
+        PaymentsAuthorizeRouterData, PaymentsCancelRouterData, PaymentsCaptureRouterData,
+        PaymentsSyncRouterData, RefundSyncRouterData, RefundsRouterData,
     },
 };
 use hyperswitch_interfaces::{
@@ -181,7 +181,6 @@ impl ConnectorCommon for Authipay {
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
 
         event_builder.map(|i| i.set_error_response_body(&response));
-        router_env::logger::info!(connector_response=?response);
 
         let mut error_response = ErrorResponse::from(&response);
 
@@ -211,10 +210,12 @@ impl ConnectorValidation for Authipay {
         match capture_method {
             enums::CaptureMethod::Automatic
             | enums::CaptureMethod::Manual
+            | enums::CaptureMethod::ManualMultiple
             | enums::CaptureMethod::SequentialAutomatic => Ok(()),
-            enums::CaptureMethod::ManualMultiple | enums::CaptureMethod::Scheduled => Err(
-                utils::construct_not_implemented_error_report(capture_method, self.id()),
-            ),
+            enums::CaptureMethod::Scheduled => Err(utils::construct_not_implemented_error_report(
+                capture_method,
+                self.id(),
+            )),
         }
     }
 }
@@ -300,7 +301,7 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
             .parse_struct("Authipay PaymentsAuthorizeResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
         event_builder.map(|i| i.set_response_body(&response));
-        router_env::logger::info!(connector_response=?response);
+        
         RouterData::try_from(ResponseRouterData {
             response,
             data: data.clone(),
@@ -381,7 +382,7 @@ impl ConnectorIntegration<PSync, PaymentsSyncData, PaymentsResponseData> for Aut
             .parse_struct("authipay PaymentsSyncResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
         event_builder.map(|i| i.set_response_body(&response));
-        router_env::logger::info!(connector_response=?response);
+        
         RouterData::try_from(ResponseRouterData {
             response,
             data: data.clone(),
@@ -471,7 +472,7 @@ impl ConnectorIntegration<Capture, PaymentsCaptureData, PaymentsResponseData> fo
             .parse_struct("Authipay PaymentsCaptureResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
         event_builder.map(|i| i.set_response_body(&response));
-        router_env::logger::info!(connector_response=?response);
+        
         RouterData::try_from(ResponseRouterData {
             response,
             data: data.clone(),
@@ -488,7 +489,94 @@ impl ConnectorIntegration<Capture, PaymentsCaptureData, PaymentsResponseData> fo
     }
 }
 
-impl ConnectorIntegration<Void, PaymentsCancelData, PaymentsResponseData> for Authipay {}
+impl ConnectorIntegration<Void, PaymentsCancelData, PaymentsResponseData> for Authipay {
+    fn get_headers(
+        &self,
+        req: &PaymentsCancelRouterData,
+        connectors: &Connectors,
+    ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
+        self.build_headers(req, connectors)
+    }
+
+    fn get_content_type(&self) -> &'static str {
+        self.common_get_content_type()
+    }
+
+    fn get_url(
+        &self,
+        req: &PaymentsCancelRouterData,
+        connectors: &Connectors,
+    ) -> CustomResult<String, errors::ConnectorError> {
+        // For void operations, Authipay requires using the /orders/{orderId} endpoint
+        // The orderId should be stored in connector_meta from the authorization response
+        let order_id = req
+            .request
+            .connector_meta
+            .as_ref()
+            .and_then(|meta| meta.get("order_id"))
+            .and_then(|v| v.as_str())
+            .ok_or(errors::ConnectorError::RequestEncodingFailed)?;
+
+        Ok(format!("{}orders/{}", self.base_url(connectors), order_id))
+    }
+
+    fn get_request_body(
+        &self,
+        req: &PaymentsCancelRouterData,
+        _connectors: &Connectors,
+    ) -> CustomResult<RequestContent, errors::ConnectorError> {
+        // For void, we don't need amount conversion since it's always full amount
+        let connector_router_data =
+            authipay::AuthipayRouterData::from((FloatMajorUnit::zero(), req));
+        let connector_req = authipay::AuthipayVoidRequest::try_from(&connector_router_data)?;
+        Ok(RequestContent::Json(Box::new(connector_req)))
+    }
+
+    fn build_request(
+        &self,
+        req: &PaymentsCancelRouterData,
+        connectors: &Connectors,
+    ) -> CustomResult<Option<Request>, errors::ConnectorError> {
+        Ok(Some(
+            RequestBuilder::new()
+                .method(Method::Post)
+                .url(&types::PaymentsVoidType::get_url(self, req, connectors)?)
+                .attach_default_headers()
+                .headers(types::PaymentsVoidType::get_headers(self, req, connectors)?)
+                .set_body(types::PaymentsVoidType::get_request_body(
+                    self, req, connectors,
+                )?)
+                .build(),
+        ))
+    }
+
+    fn handle_response(
+        &self,
+        data: &PaymentsCancelRouterData,
+        event_builder: Option<&mut ConnectorEvent>,
+        res: Response,
+    ) -> CustomResult<PaymentsCancelRouterData, errors::ConnectorError> {
+        let response: authipay::AuthipayPaymentsResponse = res
+            .response
+            .parse_struct("Authipay PaymentsVoidResponse")
+            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+        event_builder.map(|i| i.set_response_body(&response));
+        
+        RouterData::try_from(ResponseRouterData {
+            response,
+            data: data.clone(),
+            http_code: res.status_code,
+        })
+    }
+
+    fn get_error_response(
+        &self,
+        res: Response,
+        event_builder: Option<&mut ConnectorEvent>,
+    ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
+        self.build_error_response(res, event_builder)
+    }
+}
 
 impl ConnectorIntegration<Execute, RefundsData, RefundsResponseData> for Authipay {
     fn get_headers(
@@ -562,7 +650,7 @@ impl ConnectorIntegration<Execute, RefundsData, RefundsResponseData> for Authipa
             .parse_struct("authipay RefundResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
         event_builder.map(|i| i.set_response_body(&response));
-        router_env::logger::info!(connector_response=?response);
+        
         RouterData::try_from(ResponseRouterData {
             response,
             data: data.clone(),
@@ -643,7 +731,7 @@ impl ConnectorIntegration<RSync, RefundsData, RefundsResponseData> for Authipay 
             .parse_struct("authipay RefundSyncResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
         event_builder.map(|i| i.set_response_body(&response));
-        router_env::logger::info!(connector_response=?response);
+        
         RouterData::try_from(ResponseRouterData {
             response,
             data: data.clone(),
@@ -690,6 +778,7 @@ static AUTHIPAY_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMethods> =
             enums::CaptureMethod::Automatic,
             enums::CaptureMethod::SequentialAutomatic,
             enums::CaptureMethod::Manual,
+            enums::CaptureMethod::ManualMultiple,
         ];
 
         let supported_card_network = vec![
