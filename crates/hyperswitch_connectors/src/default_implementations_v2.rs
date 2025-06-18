@@ -371,7 +371,6 @@ macro_rules! default_imp_for_new_connector_integration_refund {
 }
 
 default_imp_for_new_connector_integration_refund!(
-    connectors::Santander,
     connectors::Vgs,
     connectors::Aci,
     connectors::Adyen,
@@ -452,6 +451,7 @@ default_imp_for_new_connector_integration_refund!(
     connectors::Recurly,
     connectors::Redsys,
     connectors::Riskified,
+    connectors::Santander,
     connectors::Shift4,
     connectors::Signifyd,
     connectors::Stax,

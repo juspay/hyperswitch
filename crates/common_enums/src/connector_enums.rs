@@ -180,7 +180,6 @@ pub enum RoutableConnectors {
 #[serde(rename_all = "snake_case")]
 #[strum(serialize_all = "snake_case")]
 pub enum Connector {
-    // Santander,
     Adyenplatform,
     #[cfg(feature = "dummy_connector")]
     #[serde(rename = "stripe_billing_test")]
@@ -292,6 +291,7 @@ pub enum Connector {
     Razorpay,
     Recurly,
     Redsys,
+    // Santander,
     Shift4,
     Square,
     Stax,
@@ -399,7 +399,6 @@ impl Connector {
             | Self::Adyen
             | Self::Adyenplatform
             | Self::Airwallex
-            // | Self::Santander
             // | Self::Amazonpay
             | Self::Authorizedotnet
             | Self::Bambora
@@ -463,6 +462,7 @@ impl Connector {
             | Self::Rapyd
             | Self::Recurly
             | Self::Redsys
+            // | Self::Santander
             | Self::Shift4
             | Self::Square
             | Self::Stax
