@@ -1,12 +1,11 @@
 use common_enums::enums as common_enums;
 use common_types::callback_mapper::CallbackMapperData;
-use serde::{self, Deserialize, Serialize};
+// use serde::{self, Deserialize, Serialize};
 
-#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub struct CallbackMapper {
     pub id: String,
-    #[serde(rename = "type")]
-    pub type_: common_enums::CallbackMapperIdType,
+    pub callback_mapper_id_type: common_enums::CallbackMapperIdType,
     pub data: CallbackMapperData,
     pub created_at: time::PrimitiveDateTime,
     pub last_modified_at: time::PrimitiveDateTime,
@@ -22,7 +21,7 @@ impl CallbackMapper {
     ) -> Self {
         Self {
             id,
-            type_,
+            callback_mapper_id_type: type_,
             data,
             created_at,
             last_modified_at,

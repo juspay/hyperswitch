@@ -134,7 +134,6 @@ pub async fn incoming_webhooks_wrapper<W: types::OutgoingWebhookType>(
 pub async fn network_token_incoming_webhooks_wrapper<W: types::OutgoingWebhookType>(
     flow: &impl router_env::types::FlowMetric,
     state: SessionState,
-    req_state: ReqState,
     req: &actix_web::HttpRequest,
     body: actix_web::web::Bytes,
 ) -> RouterResponse<serde_json::Value> {
@@ -149,7 +148,7 @@ pub async fn network_token_incoming_webhooks_wrapper<W: types::OutgoingWebhookTy
     };
 
     let (application_response, webhooks_response_tracker, serialized_req, merchant_id) = Box::pin(
-        network_token_incoming_webhooks_core::<W>(&state, req_state, request_details),
+        network_token_incoming_webhooks_core::<W>(&state, request_details),
     )
     .await?;
 
@@ -671,7 +670,6 @@ fn handle_incoming_webhook_error(
 #[cfg(feature = "v1")]
 async fn network_token_incoming_webhooks_core<W: types::OutgoingWebhookType>(
     state: &SessionState,
-    _req_state: ReqState,
     request_details: IncomingWebhookRequestDetails<'_>,
 ) -> errors::RouterResult<(
     services::ApplicationResponse<serde_json::Value>,
@@ -687,17 +685,17 @@ async fn network_token_incoming_webhooks_core<W: types::OutgoingWebhookType>(
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Could not convert webhook effect to string")?;
 
-    let nt_service = match &state.conf.network_tokenization_service {
-        Some(nt_service) => Ok(nt_service.get_inner()),
-        None => Err(report!(
-            errors::NetworkTokenizationError::NetworkTokenizationServiceNotConfigured
-        )
-        .change_context(errors::ApiErrorResponse::InternalServerError)),
-    }?;
+    let network_tokenization_service = &state
+        .conf
+        .network_tokenization_service
+        .as_ref()
+        .ok_or(errors::NetworkTokenizationError::NetworkTokenizationServiceNotConfigured)
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Network Tokenization Service not configured")?;
 
     //source verification
     Authorization::new(request_details.headers.get("Authorization"))
-        .verify_webhook_source(nt_service)
+        .verify_webhook_source(network_tokenization_service.get_inner())
         .await?;
 
     let response: network_tokenization::NetworkTokenWebhookResponse = request_details
@@ -776,9 +774,9 @@ impl NetworkTokenWebhookResponseExt for pm_types::PanMetadataUpdateBody {
         let decrypted_data = payment_method
             .payment_method_data
             .clone()
-            .map(|x| x.into_inner().expose())
-            .and_then(|v| {
-                serde_json::from_value::<api::payment_methods::PaymentMethodsData>(v).ok()
+            .map(|payment_method_data| payment_method_data.into_inner().expose())
+            .and_then(|val| {
+                serde_json::from_value::<api::payment_methods::PaymentMethodsData>(val).ok()
             })
             .and_then(|pmd| match pmd {
                 api::payment_methods::PaymentMethodsData::Card(token) => {

@@ -195,11 +195,10 @@ pub async fn receive_network_token_requestor_incoming_webhook<W: types::Outgoing
         state,
         &req,
         (),
-        |state, _: (), _, req_state| {
+        |state, _: (), _, _| {
             webhooks::network_token_incoming_webhooks_wrapper::<W>(
                 &flow,
                 state.to_owned(),
-                req_state,
                 &req,
                 body.clone(),
             )

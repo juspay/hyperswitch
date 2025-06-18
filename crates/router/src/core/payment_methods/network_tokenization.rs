@@ -7,7 +7,6 @@ use ::payment_methods::controller::PaymentMethodsController;
 use api_models::payment_methods as api_payment_methods;
 #[cfg(feature = "v2")]
 use cards::{CardNumber, NetworkToken};
-use common_types::callback_mapper::CallbackMapperData;
 use common_utils::{
     errors::CustomResult,
     ext_traits::{ByteSliceExt, BytesExt, Encode},
@@ -972,14 +971,9 @@ impl NetworkTokenWebhookResponse {
         let callback_mapper_data = db
             .find_call_back_mapper_by_id(network_token_requestor_ref_id)
             .await
-            .change_context(errors::ApiErrorResponse::InternalServerError)?;
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Failed to fetch callback mapper data")?;
 
-        match callback_mapper_data.data {
-            CallbackMapperData::NetworkTokenWebhook {
-                merchant_id,
-                payment_method_id,
-                customer_id,
-            } => Ok((merchant_id, payment_method_id, customer_id)),
-        }
+        Ok(callback_mapper_data.data.get_network_token_webhook_details())
     }
 }
