@@ -22,7 +22,7 @@ use crate::{
 
 impl KvStorePartition for customers::Customer {}
 
-#[cfg(all(feature = "v2", feature = "customer_v2"))]
+#[cfg(all(feature = "v2"))]
 mod label {
     use common_utils::id_type;
 
