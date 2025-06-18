@@ -22,12 +22,12 @@ use crate::{
 
 impl KvStorePartition for customers::Customer {}
 
-#[cfg(all(feature = "v2"))]
+#[cfg(feature = "v2")]
 mod label {
     use common_utils::id_type;
 
-    pub(super) const MODEL_NAME: &'static str = "customer_v2";
-    pub(super) const CLUSTER_LABEL: &'static str = "cust"; // Matches existing field key prefix
+    pub(super) const MODEL_NAME: &str = "customer_v2";
+    pub(super) const CLUSTER_LABEL: &str = "cust"; // Matches existing field key prefix
 
     pub(super) fn get_global_id_label(global_customer_id: &id_type::GlobalCustomerId) -> String {
         format!(

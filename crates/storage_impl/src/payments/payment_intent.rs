@@ -188,7 +188,6 @@ impl<T: DatabaseStore> PaymentIntentInterface for KVRouterStore<T> {
                     .await
                     .change_context(StorageError::EncryptionError)?;
 
-                // Create reverse lookup for merchant_reference_id if present
                 if let Some(merchant_reference_id) = &payment_intent.merchant_reference_id {
                     let reverse_lookup = ReverseLookupNew {
                         lookup_id: format!(
@@ -509,42 +508,11 @@ impl<T: DatabaseStore> PaymentIntentInterface for KVRouterStore<T> {
                 })
         };
 
-        /*
-           let database_call =
-
-               let conn: bb8::PooledConnection<
-               '_,
-               async_bb8_diesel::ConnectionManager<diesel::PgConnection>,
-           > = pg_connection_read(self).await?;
-           let diesel_payment_intent = DieselPaymentIntent::find_by_global_id(&conn, id)
-               .await
-               .map_err(|er| {
-                   let new_err = diesel_error_to_data_error(*er.current_context());
-                   er.change_context(new_err)
-               })?;
-
-           let merchant_id = diesel_payment_intent.merchant_id.clone();
-
-
-
-        */
-
         let diesel_payment_intent = match storage_scheme {
             MerchantStorageScheme::PostgresOnly => database_call().await,
             MerchantStorageScheme::RedisKv => {
                 let key = PartitionKey::GlobalPaymentId { id };
                 let field = format!("pi_{}", id.get_string_repr());
-
-                // let database_call = || async {
-                //     self.router_store
-                //         .find_payment_intent_by_id(
-                //             state,
-                //             id,
-                //             merchant_key_store,
-                //             storage_scheme,
-                //         )
-                //         .await
-                // };
 
                 Box::pin(utils::try_redis_get_else_try_database_get(
                     async {
@@ -700,14 +668,12 @@ impl<T: DatabaseStore> PaymentIntentInterface for KVRouterStore<T> {
                     .await
             }
             MerchantStorageScheme::RedisKv => {
-                // Use reverse lookup to find the payment intent
                 let lookup_id = format!(
                     "pi_merchant_reference_{}_{}",
                     profile_id.get_string_repr(),
                     merchant_reference_id.get_string_repr()
                 );
 
-                // Use fallback_reverse_lookup_not_found macro to try Redis first, then fall back to database
                 let lookup = fallback_reverse_lookup_not_found!(
                     self.get_lookup_by_lookup_id(&lookup_id, *storage_scheme)
                         .await,
@@ -848,7 +814,7 @@ impl<T: DatabaseStore> PaymentIntentInterface for crate::RouterStore<T> {
     ) -> error_stack::Result<PaymentIntent, StorageError> {
         let conn = pg_connection_write(self).await?;
         let diesel_payment_intent_update =
-            diesel_models::PaymentIntentUpdateInternal::try_from(payment_intent)
+            PaymentIntentUpdateInternal::try_from(payment_intent)
                 .change_context(StorageError::DeserializationFailed)?;
         let diesel_payment_intent = this
             .convert()
