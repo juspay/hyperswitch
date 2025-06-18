@@ -50,10 +50,10 @@ pub struct ConfigApiClient;
 
 pub struct SRApiClient;
 
-pub async fn build_and_send_decision_engine_http_request<'a, Req, Res, ErrRes>(
+pub async fn build_and_send_decision_engine_http_request<Req, Res, ErrRes>(
     state: &SessionState,
     http_method: services::Method,
-    path: &'a str,
+    path: &str,
     request_body: Option<Req>,
     _timeout: Option<u64>,
     context_message: &str,
@@ -102,11 +102,11 @@ where
                         if std::any::TypeId::of::<Res>() == std::any::TypeId::of::<String>()
                             && resp.response.is_empty()
                         {
-                            return Ok(serde_json::from_str::<Res>("\"\"").change_context(
+                            return serde_json::from_str::<Res>("\"\"").change_context(
                                 errors::RoutingError::OpenRouterError(
                                     "Failed to parse empty response as String".into(),
                                 ),
-                            )?);
+                            );
                         }
                         let response_type: Res = resp
                             .response
@@ -1072,7 +1072,6 @@ fn stringify_choice(c: RoutableConnectorChoice) -> ConnectorInfo {
     )
 }
 
-#[cfg(feature = "v1")]
 pub async fn select_routing_result<T>(
     state: &SessionState,
     business_profile: &business_profile::Profile,

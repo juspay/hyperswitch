@@ -2385,7 +2385,6 @@ impl RoutableConnectors {
     }
 }
 
-#[cfg(feature = "v1")]
 pub async fn migrate_rules_for_profile(
     state: SessionState,
     merchant_context: domain::MerchantContext,
@@ -2414,13 +2413,17 @@ pub async fn migrate_rules_for_profile(
         id: profile_id.get_string_repr().to_owned(),
     })?;
 
+    #[cfg(feature = "v1")]
     let active_payment_routing_id: routing_types::RoutingAlgorithmRef = business_profile
         .routing_algorithm
         .map(|val| val.parse_value("RoutingAlgorithmRef"))
         .transpose()
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("unable to deserialize routing algorithm ref from merchant account")?
-        .unwrap_or_default();
+        .unwrap_or_default().algorithm_id;
+    
+    #[cfg(feature = "v2")]
+    let active_payment_routing_id = business_profile.routing_algorithm_id.clone();
 
     let routing_metadatas = state
         .store
@@ -2518,15 +2521,15 @@ pub async fn migrate_rules_for_profile(
             created_by: profile_id.get_string_repr().to_string(),
             algorithm: StaticRoutingAlgorithm::Advanced(internal_program),
             metadata: Some(RoutingMetadata {
-                kind: algorithm.kind.clone(),
-                algorithm_for: algorithm.algorithm_for.clone(),
+                kind: algorithm.kind,
+                algorithm_for: algorithm.algorithm_for,
             }),
         };
 
         match create_de_euclid_routing_algo(&state, &routing_rule).await {
             Ok(decision_engine_routing_id) => {
                 let mut is_active_rule = false;
-                if active_payment_routing_id.algorithm_id == Some(algorithm.algorithm_id.clone()) {
+                if active_payment_routing_id == Some(algorithm.algorithm_id.clone()) {
                     link_de_euclid_routing_algorithm(
                         &state,
                         ActivateRoutingConfigRequest {
