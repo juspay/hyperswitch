@@ -22284,6 +22284,14 @@
                 ],
                 "nullable": true
               },
+              "eligible_connector": {
+                "allOf": [
+                  {
+                    "$ref": "#/components/schemas/Connector"
+                  }
+                ],
+                "nullable": true
+              },
               "required_fields": {
                 "allOf": [
                   {
