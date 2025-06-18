@@ -105,19 +105,16 @@ jobs:
         with:
           make-default: true
 
-      # - name: Get rust version from Cargo.toml
-      #   shell: bash
-      #   run: |
-      #     rust_version=$(yq -oy '.workspace.package.rust-version' Cargo.toml)
-      #     echo "rust_version=${rust_version}" >> $GITHUB_ENV
+      - name: Get rust version from Cargo.toml
+        shell: bash
+        run: |
+          rust_version=$(yq -oy '.workspace.package.rust-version' Cargo.toml)
+          echo "rust_version=${rust_version}" >> $GITHUB_ENV
 
-      - name: Install Rust nightly
+      - name: Install Rust
         uses: dtolnay/rust-toolchain@master
         with:
-          toolchain: nightly
-
-      - name: Override Rust to nightly
-        run: rustup override set nightly
+          toolchain: "${{ env.rust_version }}"
 
       - name: Install Protoc
         uses: arduino/setup-protoc@v3
@@ -151,11 +148,11 @@ jobs:
         shell: bash
         run: .github/scripts/install-jq.sh
 
-      - name: Run just ci_hack with nightly
+      - name: Cargo hack
         shell: bash
         env:
           GH_TOKEN: ${{ github.token }}
-        run: cargo +nightly hack check --each-feature --skip dev && just ci_hack
+        run: just ci_hack
 
   # cargo-deny:
   #   name: Run cargo-deny
