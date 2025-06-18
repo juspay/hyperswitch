@@ -934,5 +934,3 @@ pub async fn delete_network_token_from_locker_and_token_service(
 ) -> errors::RouterResult<DeleteCardResp> {
     todo!()
 }
-
-

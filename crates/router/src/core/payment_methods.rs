@@ -7,18 +7,18 @@ pub mod transformers;
 pub mod utils;
 mod validator;
 pub mod vault;
+use std::borrow::Cow;
 #[cfg(feature = "v1")]
 use std::collections::HashSet;
-use std::borrow::Cow;
 #[cfg(feature = "v2")]
 use std::str::FromStr;
 
 #[cfg(feature = "v2")]
 pub use api_models::enums as api_enums;
 pub use api_models::enums::Connector;
+use api_models::payment_methods;
 #[cfg(feature = "payouts")]
 pub use api_models::{enums::PayoutConnectors, payouts as payout_types};
-use api_models::payment_methods;
 #[cfg(feature = "v1")]
 use common_utils::{
     consts::DEFAULT_LOCALE,
@@ -92,10 +92,7 @@ use crate::{
         payments::helpers as payment_helpers,
     },
     errors,
-    routes::{
-        app::StorageInterface,
-        SessionState,
-    },
+    routes::{app::StorageInterface, SessionState},
     services,
     types::{
         domain,
@@ -3353,4 +3350,3 @@ async fn get_single_use_token_from_store(
         .change_context(errors::StorageError::KVError)
         .attach_printable("Failed to get payment method token from redis")
 }
-
