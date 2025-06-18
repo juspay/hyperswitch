@@ -12,6 +12,8 @@ pub mod types;
 pub mod utils;
 #[cfg(feature = "olap")]
 pub mod webhook_events;
+#[cfg(feature = "v1")]
+pub mod network_tokenization_incoming;
 
 #[cfg(feature = "v1")]
 pub(crate) use self::{

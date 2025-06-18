@@ -4,7 +4,6 @@ use actix_web::FromRequest;
 #[cfg(feature = "payouts")]
 use api_models::payouts as payout_models;
 use api_models::webhooks::{self, WebhookResponseTracker};
-use async_trait::async_trait;
 use common_utils::{
     errors::ReportSwitchExt,
     events::ApiEventsType,
@@ -13,7 +12,6 @@ use common_utils::{
 };
 use diesel_models::ConnectorMandateReferenceId;
 use error_stack::{report, ResultExt};
-use http::HeaderValue;
 use hyperswitch_domain_models::{
     mandates::CommonMandateReference,
     payments::{payment_attempt::PaymentAttempt, HeaderPayload},
@@ -26,7 +24,6 @@ use router_env::{instrument, tracing, tracing_actix_web::RequestId};
 
 use super::{types, utils, MERCHANT_ID};
 use crate::{
-    configs::settings,
     consts,
     core::{
         api_locking,
@@ -35,7 +32,7 @@ use crate::{
         payment_methods::{self as payment_methods, network_tokenization},
         payments::{self, tokenization},
         refunds, relay, utils as core_utils,
-        webhooks::utils::construct_webhook_router_data,
+        webhooks::{network_tokenization_incoming, utils::construct_webhook_router_data},
     },
     db::StorageInterface,
     events::api_logs::ApiEvent,
@@ -53,7 +50,7 @@ use crate::{
             self, mandates::MandateResponseExt, ConnectorCommon, ConnectorData, GetToken,
             IncomingWebhook,
         },
-        domain, payment_methods as pm_types,
+        domain,
         storage::{self, enums},
         transformers::{ForeignFrom, ForeignInto, ForeignTryFrom},
     },
@@ -694,7 +691,7 @@ async fn network_token_incoming_webhooks_core<W: types::OutgoingWebhookType>(
         .attach_printable("Network Tokenization Service not configured")?;
 
     //source verification
-    Authorization::new(request_details.headers.get("Authorization"))
+    network_tokenization_incoming::Authorization::new(request_details.headers.get("Authorization"))
         .verify_webhook_source(network_tokenization_service.get_inner())
         .await?;
 
@@ -723,7 +720,7 @@ async fn network_token_incoming_webhooks_core<W: types::OutgoingWebhookType>(
     )
     .await?;
 
-    let response_data = get_response_data(response.clone());
+    let response_data = network_tokenization_incoming::get_response_data(response.clone());
 
     let webhook_resp_tracker = response_data
         .update_payment_method(state, &payment_method, &merchant_context)
@@ -735,164 +732,6 @@ async fn network_token_incoming_webhooks_core<W: types::OutgoingWebhookType>(
         serialized_request,
         merchant_id.clone(),
     ))
-}
-
-fn get_response_data(
-    data: network_tokenization::NetworkTokenWebhookResponse,
-) -> Box<dyn NetworkTokenWebhookResponseExt> {
-    match data {
-        network_tokenization::NetworkTokenWebhookResponse::PanMetadataUpdate(data) => {
-            Box::new(data)
-        }
-        network_tokenization::NetworkTokenWebhookResponse::NetworkTokenMetadataUpdate(data) => {
-            Box::new(data)
-        }
-    }
-}
-
-#[async_trait]
-pub trait NetworkTokenWebhookResponseExt {
-    fn decrypt_payment_method_data(
-        &self,
-        payment_method: &domain::PaymentMethod,
-    ) -> CustomResult<api::payment_methods::CardDetailFromLocker, errors::ApiErrorResponse>;
-
-    async fn update_payment_method(
-        &self,
-        state: &SessionState,
-        payment_method: &domain::PaymentMethod,
-        merchant_context: &domain::MerchantContext,
-    ) -> CustomResult<WebhookResponseTracker, errors::ApiErrorResponse>;
-}
-
-#[async_trait]
-impl NetworkTokenWebhookResponseExt for pm_types::PanMetadataUpdateBody {
-    fn decrypt_payment_method_data(
-        &self,
-        payment_method: &domain::PaymentMethod,
-    ) -> CustomResult<api::payment_methods::CardDetailFromLocker, errors::ApiErrorResponse> {
-        let decrypted_data = payment_method
-            .payment_method_data
-            .clone()
-            .map(|payment_method_data| payment_method_data.into_inner().expose())
-            .and_then(|val| {
-                serde_json::from_value::<api::payment_methods::PaymentMethodsData>(val).ok()
-            })
-            .and_then(|pmd| match pmd {
-                api::payment_methods::PaymentMethodsData::Card(token) => {
-                    Some(api::payment_methods::CardDetailFromLocker::from(token))
-                }
-                _ => None,
-            })
-            .ok_or(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable("Failed to obtain decrypted token object from db")?;
-        Ok(decrypted_data)
-    }
-
-    async fn update_payment_method(
-        &self,
-        state: &SessionState,
-        payment_method: &domain::PaymentMethod,
-        merchant_context: &domain::MerchantContext,
-    ) -> CustomResult<WebhookResponseTracker, errors::ApiErrorResponse> {
-        let decrypted_data = self.decrypt_payment_method_data(payment_method)?;
-        payment_methods::handle_metadata_update(
-            state,
-            &self.card,
-            payment_method
-                .locker_id
-                .clone()
-                .get_required_value("locker_id")?,
-            payment_method,
-            merchant_context,
-            decrypted_data,
-            true,
-        )
-        .await
-    }
-}
-
-#[async_trait]
-impl NetworkTokenWebhookResponseExt for pm_types::NetworkTokenMetaDataUpdateBody {
-    fn decrypt_payment_method_data(
-        &self,
-        payment_method: &domain::PaymentMethod,
-    ) -> CustomResult<api::payment_methods::CardDetailFromLocker, errors::ApiErrorResponse> {
-        let decrypted_data = payment_method
-            .network_token_payment_method_data
-            .clone()
-            .map(|x| x.into_inner().expose())
-            .and_then(|v| {
-                serde_json::from_value::<api::payment_methods::PaymentMethodsData>(v).ok()
-            })
-            .and_then(|pmd| match pmd {
-                api::payment_methods::PaymentMethodsData::Card(token) => {
-                    Some(api::payment_methods::CardDetailFromLocker::from(token))
-                }
-                _ => None,
-            })
-            .ok_or(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable("Failed to obtain decrypted token object from db")?;
-        Ok(decrypted_data)
-    }
-
-    async fn update_payment_method(
-        &self,
-        state: &SessionState,
-        payment_method: &domain::PaymentMethod,
-        merchant_context: &domain::MerchantContext,
-    ) -> CustomResult<WebhookResponseTracker, errors::ApiErrorResponse> {
-        let decrypted_data = self.decrypt_payment_method_data(payment_method)?;
-        payment_methods::handle_metadata_update(
-            state,
-            &self.token,
-            payment_method
-                .network_token_locker_id
-                .clone()
-                .get_required_value("locker_id")?,
-            payment_method,
-            merchant_context,
-            decrypted_data,
-            true,
-        )
-        .await
-    }
-}
-
-pub struct Authorization {
-    header: Option<HeaderValue>,
-}
-
-impl Authorization {
-    pub fn new(header: Option<&HeaderValue>) -> Self {
-        Self {
-            header: header.cloned(),
-        }
-    }
-
-    pub async fn verify_webhook_source(
-        self,
-        nt_service: &settings::NetworkTokenizationService,
-    ) -> CustomResult<(), errors::ApiErrorResponse> {
-        let secret = nt_service.webhook_source_verification_key.clone();
-
-        let source_verified = match self.header {
-            Some(authorization_header) => match authorization_header.to_str() {
-                Ok(header_value) => header_value == secret.expose(),
-                Err(_) => false,
-            },
-            None => false,
-        };
-        logger::info!(source_verified=?source_verified);
-
-        helper_utils::when(!source_verified, || {
-            Err(report!(
-                errors::ApiErrorResponse::WebhookAuthenticationFailed
-            ))
-        })?;
-
-        Ok(())
-    }
 }
 
 #[allow(clippy::too_many_arguments)]

@@ -73,7 +73,7 @@ use crate::{
         tokenization as tokenization_core, utils as core_utils,
     },
     db::errors::ConnectorErrorExt,
-    headers, logger,
+    headers,
     routes::{self, payment_methods as pm_routes},
     services::{connector_integration_interface::RouterDataConversion, encryption},
     types::{
