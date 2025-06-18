@@ -1,16 +1,13 @@
 use std::str::FromStr;
+
+use ::payment_methods::controller::PaymentMethodsController;
 use api_models::webhooks::WebhookResponseTracker;
 use async_trait::async_trait;
-use common_utils::{
-    crypto::Encryptable,
-    ext_traits::AsyncExt,
-    id_type,
-};
+use common_utils::{crypto::Encryptable, ext_traits::AsyncExt, id_type};
 use error_stack::{report, ResultExt};
 use http::HeaderValue;
 use masking::{ExposeInterface, Secret};
 
-use ::payment_methods::controller::PaymentMethodsController;
 use crate::{
     configs::settings,
     core::{
@@ -18,17 +15,13 @@ use crate::{
         payment_methods::{cards, network_tokenization},
     },
     logger,
-    routes::{
-        app::SessionStateInfo, SessionState,
-    },
+    routes::{app::SessionStateInfo, SessionState},
     types::{
-        api,
-        domain, payment_methods as pm_types,
+        api, domain, payment_methods as pm_types,
         storage::{self, enums},
     },
     utils::{self as helper_utils, ext_traits::OptionExt},
 };
-
 
 #[async_trait]
 pub trait NetworkTokenWebhookResponseExt {
@@ -143,7 +136,6 @@ impl NetworkTokenWebhookResponseExt for pm_types::NetworkTokenMetaDataUpdateBody
     }
 }
 
-
 pub fn get_response_data(
     data: network_tokenization::NetworkTokenWebhookResponse,
 ) -> Box<dyn NetworkTokenWebhookResponseExt> {
@@ -178,12 +170,9 @@ impl Authorization {
             Some(authorization_header) => match authorization_header.to_str() {
                 Ok(header_value) => Ok(header_value == secret.expose()),
                 Err(err) => {
-                    logger::error!(
-                        "Failed to parse authorization header: {}",
-                        err
-                    );
+                    logger::error!("Failed to parse authorization header: {}", err);
                     Err(errors::ApiErrorResponse::WebhookAuthenticationFailed)
-                },
+                }
             },
             None => Ok(false),
         }?;
@@ -228,7 +217,7 @@ pub async fn handle_metadata_update(
                 payment_method_id,
                 status,
             })
-        },
+        }
         false => {
             let mut card = cards::get_card_from_locker(state, customer_id, merchant_id, &locker_id)
                 .await
@@ -338,7 +327,9 @@ pub async fn handle_metadata_update(
 
 pub struct PaymentMethodCreateWrapper(pub api::payment_methods::PaymentMethodCreate);
 
-impl From<(&api::payment_methods::CardDetail, &domain::PaymentMethod)> for PaymentMethodCreateWrapper {
+impl From<(&api::payment_methods::CardDetail, &domain::PaymentMethod)>
+    for PaymentMethodCreateWrapper
+{
     fn from(
         (data, payment_method): (&api::payment_methods::CardDetail, &domain::PaymentMethod),
     ) -> Self {
@@ -425,5 +416,3 @@ pub async fn fetch_payment_method_for_network_token_webhooks(
 
     Ok(payment_method)
 }
-
-
