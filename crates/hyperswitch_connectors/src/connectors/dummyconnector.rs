@@ -28,7 +28,6 @@ use hyperswitch_domain_models::{
         RefundSyncRouterData, RefundsRouterData,
     },
 };
-
 use hyperswitch_interfaces::{
     api::{
         ConnectorAccessToken, ConnectorCommon, ConnectorCommonExt, ConnectorIntegration,
