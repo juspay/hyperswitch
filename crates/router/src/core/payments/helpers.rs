@@ -49,6 +49,7 @@ use openssl::{
     pkey::PKey,
     symm::{decrypt_aead, Cipher},
 };
+use rand::Rng;
 #[cfg(feature = "v2")]
 use redis_interface::errors::RedisError;
 use router_env::{instrument, logger, tracing};
@@ -2032,6 +2033,22 @@ pub fn decide_payment_method_retrieval_action(
     } else {
         standard_flow()
     }
+}
+
+pub fn should_execute_based_on_rollout(rollout_percent: f64) -> bool {
+    if !(0.0..=1.0).contains(&rollout_percent) {
+        logger::warn!(
+            rollout_percent,
+            "Rollout percent out of bounds. Must be between 0.0 and 1.0"
+        );
+        return false;
+    }
+
+    // Generate a random float between 0.0 and 1.0
+    let sampled_value: f64 = rand::thread_rng().gen_range(0.0..1.0);
+
+    // Proceed if sampled_value falls within the rollout range
+    sampled_value < rollout_percent
 }
 
 pub fn determine_standard_vault_action(
