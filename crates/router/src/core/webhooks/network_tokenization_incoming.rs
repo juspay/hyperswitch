@@ -1,9 +1,9 @@
 use std::str::FromStr;
-
+use serde::{Deserialize, Serialize};
 use ::payment_methods::controller::PaymentMethodsController;
 use api_models::webhooks::WebhookResponseTracker;
 use async_trait::async_trait;
-use common_utils::{crypto::Encryptable, ext_traits::AsyncExt, id_type};
+use common_utils::{crypto::Encryptable, ext_traits::{AsyncExt, ByteSliceExt}, id_type};
 use error_stack::{report, ResultExt};
 use http::HeaderValue;
 use masking::{ExposeInterface, Secret};
@@ -12,7 +12,7 @@ use crate::{
     configs::settings,
     core::{
         errors::{self, CustomResult, RouterResult, StorageErrorExt},
-        payment_methods::{cards, network_tokenization},
+        payment_methods::cards,
     },
     logger,
     routes::{app::SessionStateInfo, SessionState},
@@ -22,6 +22,63 @@ use crate::{
     },
     utils::{self as helper_utils, ext_traits::OptionExt},
 };
+
+#[derive(Debug, Clone, Deserialize, Serialize)]
+#[serde(untagged)]
+pub enum NetworkTokenWebhookResponse {
+    PanMetadataUpdate(pm_types::PanMetadataUpdateBody),
+    NetworkTokenMetadataUpdate(pm_types::NetworkTokenMetaDataUpdateBody),
+}
+
+impl NetworkTokenWebhookResponse {
+    fn get_network_token_requestor_ref_id(&self) -> String {
+        match self {
+            Self::PanMetadataUpdate(data) => data.card.card_reference.clone(),
+            Self::NetworkTokenMetadataUpdate(data) => data.token.card_reference.clone(),
+        }
+    }
+
+    pub fn get_response_data(
+        self
+    ) -> Box<dyn NetworkTokenWebhookResponseExt> {
+        match self {
+            Self::PanMetadataUpdate(data) => {
+                Box::new(data)
+            }
+            Self::NetworkTokenMetadataUpdate(data) => {
+                Box::new(data)
+            }
+        }
+    }
+
+    pub async fn fetch_merchant_id_payment_method_id_customer_id_from_callback_mapper(
+        &self,
+        state: &SessionState,
+    ) -> RouterResult<(id_type::MerchantId, String, id_type::CustomerId)> {
+        let network_token_requestor_ref_id = &self.get_network_token_requestor_ref_id();
+
+        let db = &*state.store;
+        let callback_mapper_data = db
+            .find_call_back_mapper_by_id(network_token_requestor_ref_id)
+            .await
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Failed to fetch callback mapper data")?;
+
+        Ok(callback_mapper_data
+            .data
+            .get_network_token_webhook_details())
+    }
+}
+
+pub fn get_network_token_resource_object(
+    request_details: &api::IncomingWebhookRequestDetails<'_>,
+) -> CustomResult<Box<dyn masking::ErasedMaskSerialize>, errors::NetworkTokenizationError> {
+    let response: NetworkTokenWebhookResponse = request_details
+        .body
+        .parse_struct("NetworkTokenWebhookResponse")
+        .change_context(errors::NetworkTokenizationError::ResponseDeserializationFailed)?;
+    Ok(Box::new(response))
+}
 
 #[async_trait]
 pub trait NetworkTokenWebhookResponseExt {
@@ -136,19 +193,6 @@ impl NetworkTokenWebhookResponseExt for pm_types::NetworkTokenMetaDataUpdateBody
     }
 }
 
-pub fn get_response_data(
-    data: network_tokenization::NetworkTokenWebhookResponse,
-) -> Box<dyn NetworkTokenWebhookResponseExt> {
-    match data {
-        network_tokenization::NetworkTokenWebhookResponse::PanMetadataUpdate(data) => {
-            Box::new(data)
-        }
-        network_tokenization::NetworkTokenWebhookResponse::NetworkTokenMetadataUpdate(data) => {
-            Box::new(data)
-        }
-    }
-}
-
 pub struct Authorization {
     header: Option<HeaderValue>,
 }
@@ -203,11 +247,8 @@ pub async fn handle_metadata_update(
     let payment_method_id = payment_method.get_id().clone();
     let status = payment_method.status;
 
-    let update_required = (decrypted_data.expiry_year.unwrap_or_default() == metadata.expiry_year)
-        && (decrypted_data.expiry_month.unwrap_or_default() == metadata.expiry_month);
-
-    match update_required {
-        true => {
+    match metadata.is_update_required(decrypted_data) {
+        false => {
             logger::info!(
                 "No update required for payment method {} for locker_id {}",
                 payment_method.get_id(),
@@ -218,7 +259,7 @@ pub async fn handle_metadata_update(
                 status,
             })
         }
-        false => {
+        true => {
             let mut card = cards::get_card_from_locker(state, customer_id, merchant_id, &locker_id)
                 .await
                 .change_context(errors::ApiErrorResponse::InternalServerError)
@@ -315,7 +356,8 @@ pub async fn handle_metadata_update(
                 merchant_context.get_merchant_account().storage_scheme,
             )
             .await
-            .change_context(errors::ApiErrorResponse::InternalServerError)?;
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Failed to update the payment method")?;
 
             Ok(WebhookResponseTracker::PaymentMethod {
                 payment_method_id,

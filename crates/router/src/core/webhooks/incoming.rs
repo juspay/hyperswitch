@@ -29,7 +29,7 @@ use crate::{
         api_locking,
         errors::{self, ConnectorErrorExt, CustomResult, RouterResponse, StorageErrorExt},
         metrics,
-        payment_methods::{self as payment_methods, network_tokenization},
+        payment_methods,
         payments::{self, tokenization},
         refunds, relay, utils as core_utils,
         webhooks::{network_tokenization_incoming, utils::construct_webhook_router_data},
@@ -675,7 +675,7 @@ async fn network_token_incoming_webhooks_core<W: types::OutgoingWebhookType>(
     common_utils::id_type::MerchantId,
 )> {
     let serialized_request =
-        network_tokenization::get_network_token_resource_object(&request_details)
+        network_tokenization_incoming::get_network_token_resource_object(&request_details)
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Network Token Requestor Webhook deserialization failed")?
             .masked_serialize()
@@ -695,7 +695,7 @@ async fn network_token_incoming_webhooks_core<W: types::OutgoingWebhookType>(
         .verify_webhook_source(network_tokenization_service.get_inner())
         .await?;
 
-    let response: network_tokenization::NetworkTokenWebhookResponse = request_details
+    let response: network_tokenization_incoming::NetworkTokenWebhookResponse = request_details
         .body
         .parse_struct("NetworkTokenWebhookResponse")
         .change_context(errors::ApiErrorResponse::WebhookUnprocessableEntity)?;
@@ -710,17 +710,21 @@ async fn network_token_incoming_webhooks_core<W: types::OutgoingWebhookType>(
     );
 
     let merchant_context =
-        payment_methods::fetch_merchant_account_for_network_token_webhooks(state, &merchant_id)
-            .await?;
-    let payment_method = payment_methods::fetch_payment_method_for_network_token_webhooks(
-        state,
-        merchant_context.get_merchant_account(),
-        merchant_context.get_merchant_key_store(),
-        &payment_method_id,
-    )
-    .await?;
+        network_tokenization_incoming::fetch_merchant_account_for_network_token_webhooks(
+            state,
+            &merchant_id,
+        )
+        .await?;
+    let payment_method =
+        network_tokenization_incoming::fetch_payment_method_for_network_token_webhooks(
+            state,
+            merchant_context.get_merchant_account(),
+            merchant_context.get_merchant_key_store(),
+            &payment_method_id,
+        )
+        .await?;
 
-    let response_data = network_tokenization_incoming::get_response_data(response.clone());
+    let response_data = response.get_response_data();
 
     let webhook_resp_tracker = response_data
         .update_payment_method(state, &payment_method, &merchant_context)

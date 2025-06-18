@@ -14,14 +14,14 @@ pub struct CallbackMapper {
 impl CallbackMapper {
     pub fn new(
         id: String,
-        type_: common_enums::CallbackMapperIdType,
+        callback_mapper_id_type: common_enums::CallbackMapperIdType,
         data: CallbackMapperData,
         created_at: time::PrimitiveDateTime,
         last_modified_at: time::PrimitiveDateTime,
     ) -> Self {
         Self {
             id,
-            callback_mapper_id_type: type_,
+            callback_mapper_id_type,
             data,
             created_at,
             last_modified_at,

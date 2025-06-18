@@ -18,8 +18,10 @@ use serde::{Deserialize, Serialize};
 #[cfg(feature = "v2")]
 use crate::{
     consts,
-    types::{api, domain, storage},
+    types::{domain, storage},
 };
+
+use crate::types::api;
 
 #[cfg(feature = "v2")]
 pub trait VaultingInterface {
@@ -364,6 +366,16 @@ pub struct NetworkTokenRequestorData {
     pub customer_id: String,
     pub expiry_year: Secret<String>,
     pub expiry_month: Secret<String>,
+}
+
+impl NetworkTokenRequestorData {
+    pub fn is_update_required(
+        &self,
+        data_stored_in_vault: api::payment_methods::CardDetailFromLocker,
+    ) -> bool {
+        !((data_stored_in_vault.expiry_year.unwrap_or_default() == self.expiry_year)
+            && (data_stored_in_vault.expiry_month.unwrap_or_default() == self.expiry_month))
+    }
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize)]

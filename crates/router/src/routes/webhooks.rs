@@ -188,7 +188,7 @@ pub async fn receive_network_token_requestor_incoming_webhook<W: types::Outgoing
     body: web::Bytes,
     _path: web::Path<String>,
 ) -> impl Responder {
-    let flow = Flow::IncomingWebhookReceive;
+    let flow = Flow::IncomingNetworkTokenWebhookReceive;
 
     Box::pin(api::server_wrap(
         flow.clone(),
