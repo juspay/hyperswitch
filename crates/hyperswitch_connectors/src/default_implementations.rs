@@ -6321,8 +6321,7 @@ impl<const T: u8> ConnectorIntegration<Reject, PaymentsRejectData, PaymentsRespo
     for connectors::DummyConnector<T>
 {
 }
-
-#[cfg(feature = "dummy_connector")]
+#[cfg(all(feature = "frm", feature = "dummy_connector"))]
 impl<const T: u8> FraudCheck for connectors::DummyConnector<T> {}
 
 #[cfg(all(feature = "frm", feature = "dummy_connector"))]
