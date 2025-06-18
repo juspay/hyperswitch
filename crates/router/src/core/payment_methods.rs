@@ -7,10 +7,9 @@ pub mod transformers;
 pub mod utils;
 mod validator;
 pub mod vault;
-use std::borrow::Cow;
 #[cfg(feature = "v1")]
 use std::collections::HashSet;
-use std::str::FromStr;
+use std::{borrow::Cow, str::FromStr};
 
 use ::payment_methods::controller::PaymentMethodsController;
 #[cfg(feature = "v2")]
@@ -92,7 +91,7 @@ use crate::{
         errors::{ProcessTrackerError, RouterResult},
         payments::helpers as payment_helpers,
     },
-    errors,logger,
+    errors, logger,
     routes::{
         app::{SessionStateInfo, StorageInterface},
         SessionState,
@@ -3480,7 +3479,7 @@ pub async fn handle_metadata_update(
                 payment_method_id,
                 status,
             })
-        },
+        }
         false => {
             let mut card = cards::get_card_from_locker(state, customer_id, merchant_id, &locker_id)
                 .await

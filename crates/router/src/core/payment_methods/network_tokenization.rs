@@ -974,6 +974,8 @@ impl NetworkTokenWebhookResponse {
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Failed to fetch callback mapper data")?;
 
-        Ok(callback_mapper_data.data.get_network_token_webhook_details())
+        Ok(callback_mapper_data
+            .data
+            .get_network_token_webhook_details())
     }
 }
