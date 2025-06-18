@@ -292,6 +292,17 @@ pub trait Domain<F: Clone, R, D>: Send + Sync {
     ) -> CustomResult<api::ConnectorChoice, errors::ApiErrorResponse>;
 
     #[cfg(feature = "v2")]
+    async fn get_connector_from_request<'a>(
+        &'a self,
+        state: &SessionState,
+        request: &R,
+        payment_data: &mut D,
+    ) -> CustomResult<api::ConnectorData, errors::ApiErrorResponse> {
+        Err(report!(errors::ApiErrorResponse::InternalServerError))
+            .attach_printable_lazy(|| "get connector for tunnel not implemented".to_string())
+    }
+
+    #[cfg(feature = "v2")]
     async fn perform_routing<'a>(
         &'a self,
         merchant_context: &domain::MerchantContext,
@@ -369,6 +380,17 @@ pub trait Domain<F: Clone, R, D>: Send + Sync {
         _payment_id: &common_utils::id_type::PaymentId,
         _business_profile: &domain::Profile,
         _payment_method_data: Option<&domain::PaymentMethodData>,
+    ) -> CustomResult<(), errors::ApiErrorResponse> {
+        Ok(())
+    }
+
+    #[cfg(feature = "v2")]
+    async fn create_or_fetch_payment_method<'a>(
+        &'a self,
+        state: &SessionState,
+        merchant_context: &domain::MerchantContext,
+        business_profile: &domain::Profile,
+        payment_data: &mut D,
     ) -> CustomResult<(), errors::ApiErrorResponse> {
         Ok(())
     }

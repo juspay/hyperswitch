@@ -15,7 +15,7 @@ use crate::{
     consts::PROTOCOL,
     core::{
         errors::{self, ConnectorErrorExt, RouterResult},
-        payments::{self, access_token, helpers, transformers, PaymentData},
+        payments::{self, access_token, customers, helpers, transformers, PaymentData},
     },
     headers, logger,
     routes::{self, app::settings, metrics},
@@ -40,7 +40,7 @@ impl
         connector_id: &str,
         merchant_context: &domain::MerchantContext,
         customer: &Option<domain::Customer>,
-        merchant_connector_account: &domain::MerchantConnectorAccount,
+        merchant_connector_account: &domain::MerchantConnectorAccountTypeDetails,
         merchant_recipient_data: Option<types::MerchantRecipientData>,
         header_payload: Option<hyperswitch_domain_models::payments::HeaderPayload>,
     ) -> RouterResult<types::PaymentsSessionRouterData> {
@@ -147,6 +147,20 @@ impl Feature<api::Session, types::PaymentsSessionData> for types::PaymentsSessio
     ) -> RouterResult<types::AddAccessTokenResult> {
         access_token::add_access_token(state, connector, merchant_context, self, creds_identifier)
             .await
+    }
+
+    async fn create_connector_customer<'a>(
+        &self,
+        state: &routes::SessionState,
+        connector: &api::ConnectorData,
+    ) -> RouterResult<Option<String>> {
+        customers::create_connector_customer(
+            state,
+            connector,
+            self,
+            types::ConnectorCustomerData::try_from(self)?,
+        )
+        .await
     }
 }
 
