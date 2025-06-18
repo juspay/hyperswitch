@@ -2389,8 +2389,9 @@ pub async fn migrate_rules_for_profile(
     merchant_context: domain::MerchantContext,
     query_params: routing_types::RuleMigrationQuery,
 ) -> RouterResult<routing_types::RuleMigrationResult> {
-    use crate::services::logger;
     use api_models::routing::StaticRoutingAlgorithm as EuclidAlgorithm;
+
+    use crate::services::logger;
 
     let profile_id = query_params.profile_id.clone();
     let db = state.store.as_ref();
