@@ -524,7 +524,8 @@ pub async fn perform_static_routing_v1(
                 business_profile,
                 routable_connectors,
                 de_euclid_connectors,
-            ).await
+            )
+            .await
         }
     })
 }
