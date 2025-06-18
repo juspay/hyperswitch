@@ -24,7 +24,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 "#[derive(serde::Serialize)]",
             )
             .compile(&v2_proto_files, &[&proto_base_path])
-        .expect("Failed to compile revenue-recovery proto files");
+            .expect("Failed to compile revenue-recovery proto files");
     }
 
     // Compilation for dynamic_routing protos
@@ -51,7 +51,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 "#[derive(serde::Serialize, serde::Deserialize)]",
             )
             .compile(&dr_proto_files, &[&proto_base_path])
-        .expect("Failed to compile dynamic routing proto files");
+            .expect("Failed to compile dynamic routing proto files");
     }
     Ok(())
 }
