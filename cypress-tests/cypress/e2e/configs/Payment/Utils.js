@@ -46,11 +46,12 @@ import { connectorDetails as xenditConnectorDetails } from "./Xendit.js";
 
 const connectorDetails = {
   aci: aciConnectorDetails,
-  airwallex: airwallexConnectorDetails,
   adyen: adyenConnectorDetails,
+  airwallex: airwallexConnectorDetails,
+  archipel: archipelConnectorDetails,
+  bamboraapac: bamboraapacConnectorDetails,
   bankofamerica: bankOfAmericaConnectorDetails,
   billwerk: billwerkConnectorDetails,
-  bamboraapac: bamboraapacConnectorDetails,
   bluesnap: bluesnapConnectorDetails,
   braintree: braintreeConnectorDetails,
   checkout: checkoutConnectorDetails,
@@ -78,14 +79,13 @@ const connectorDetails = {
   paybox: payboxConnectorDetails,
   paypal: paypalConnectorDetails,
   redsys: redsysConnectorDetails,
-  stripe: stripeConnectorDetails,
   stax: staxConnectorDetails,
+  stripe: stripeConnectorDetails,
   trustpay: trustpayConnectorDetails,
   wellsfargo: wellsfargoConnectorDetails,
   worldpay: worldpayConnectorDetails,
   worldpayxml: worldpayxmlConnectorDetails,
   xendit: xenditConnectorDetails,
-  archipel: archipelConnectorDetails,
 };
 
 export default function getConnectorDetails(connectorId) {
@@ -345,6 +345,7 @@ export const CONNECTOR_LISTS = {
   // Exclusion lists (skip these connectors)
   EXCLUDE: {
     CONNECTOR_AGNOSTIC_NTID: [
+      "bamboraapac",
       "bankofamerica",
       "braintree",
       "facilitapay",
@@ -352,7 +353,6 @@ export const CONNECTOR_LISTS = {
       "fiserv",
       "jpmorgan",
       "paypal",
-      "bamboraapac",
       "stax",
     ],
     // Add more exclusion lists
