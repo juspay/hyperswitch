@@ -5,6 +5,7 @@ use api_models::{
     routing::{ConnectorSelection, RoutableConnectorChoice},
 };
 use async_trait::async_trait;
+use common_enums::TransactionType;
 use common_utils::{
     ext_traits::{BytesExt, StringExt},
     id_type,
@@ -720,12 +721,24 @@ pub enum ValueType {
     MetadataVariant(MetadataValue),
     /// Represents a arbitrary String value
     StrValue(String),
+    /// Represents a global reference, which is a reference to a global variable
     GlobalRef(String),
+    /// Represents an array of numbers. This is basically used for
+    /// "one of the given numbers" operations
+    /// eg: payment.method.amount = (1, 2, 3)
+    NumberArray(Vec<u64>),
+    /// Similar to NumberArray but for enum variants
+    /// eg: payment.method.cardtype = (debit, credit)
+    EnumVariantArray(Vec<String>),
+    /// Like a number array but can include comparisons. Useful for
+    /// conditions like "500 < amount < 1000"
+    /// eg: payment.amount = (> 500, < 1000)
+    NumberComparisonArray(Vec<NumberComparison>),
 }
 
 pub type Metadata = HashMap<String, serde_json::Value>;
 /// Represents a number comparison for "NumberComparisonArrayValue"
-#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[derive(Clone, Debug, Eq, Hash, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub struct NumberComparison {
     pub comparison_type: ComparisonType,
@@ -885,7 +898,28 @@ pub struct RoutingRule {
     pub description: Option<String>,
     pub metadata: Option<RoutingMetadata>,
     pub created_by: String,
+    #[serde(default)]
+    pub algorithm_for: AlgorithmType,
     pub algorithm: StaticRoutingAlgorithm,
+}
+#[derive(Debug, Clone, Default, serde::Serialize, serde::Deserialize, strum::Display)]
+#[serde(rename_all = "snake_case")]
+#[strum(serialize_all = "snake_case")]
+pub enum AlgorithmType {
+    #[default]
+    Payment,
+    Payout,
+    ThreeDsAuthentication,
+}
+
+impl From<TransactionType> for AlgorithmType {
+    fn from(transaction_type: TransactionType) -> Self {
+        match transaction_type {
+            TransactionType::Payment => AlgorithmType::Payment,
+            TransactionType::Payout => AlgorithmType::Payout,
+            TransactionType::ThreeDsAuthentication => AlgorithmType::ThreeDsAuthentication,
+        }
+    }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -898,7 +932,7 @@ pub enum StaticRoutingAlgorithm {
 #[serde(rename_all = "snake_case")]
 pub struct RoutingMetadata {
     pub kind: enums::RoutingAlgorithmKind,
-    pub algorithm_for: enums::TransactionType,
+    pub algorithm_for: TransactionType,
 }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
@@ -929,7 +963,7 @@ impl From<RoutingAlgorithmRecord> for routing_algorithm::RoutingProfileMetadata 
             Some(metadata) => (metadata.kind, metadata.algorithm_for),
             None => (
                 enums::RoutingAlgorithmKind::Advanced,
-                enums::TransactionType::default(),
+                TransactionType::default(),
             ),
         };
         Self {
@@ -1042,8 +1076,20 @@ fn convert_value(v: ast::ValueType) -> RoutingResult<ValueType> {
             value: m.value,
         })),
         StrValue(s) => Ok(ValueType::StrValue(s)),
-        _ => Err(error_stack::Report::new(
-            errors::RoutingError::InvalidRoutingAlgorithmStructure,
+
+        NumberArray(arr) => Ok(ValueType::NumberArray(
+            arr.into_iter()
+                .map(|n| n.get_amount_as_i64().try_into().unwrap_or_default())
+                .collect(),
+        )),
+        EnumVariantArray(arr) => Ok(ValueType::EnumVariantArray(arr)),
+        NumberComparisonArray(arr) => Ok(ValueType::NumberComparisonArray(
+            arr.into_iter()
+                .map(|nc| NumberComparison {
+                    comparison_type: convert_comparison_type(nc.comparison_type),
+                    number: nc.number.get_amount_as_i64().try_into().unwrap_or_default(),
+                })
+                .collect(),
         )),
     }
 }

@@ -406,6 +406,7 @@ pub async fn create_routing_algorithm_under_profile(
                     description: Some(description.clone()),
                     created_by: profile_id.get_string_repr().to_string(),
                     algorithm: internal_program,
+                    algorithm_for: transaction_type.into(),
                     metadata: Some(RoutingMetadata {
                         kind: algorithm.get_kind().foreign_into(),
                         algorithm_for: transaction_type.to_owned(),
@@ -2520,6 +2521,7 @@ pub async fn migrate_rules_for_profile(
             description: algorithm.description.clone(),
             created_by: profile_id.get_string_repr().to_string(),
             algorithm: StaticRoutingAlgorithm::Advanced(internal_program),
+            algorithm_for: algorithm.algorithm_for.into(),
             metadata: Some(RoutingMetadata {
                 kind: algorithm.kind,
                 algorithm_for: algorithm.algorithm_for,
