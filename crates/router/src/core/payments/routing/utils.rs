@@ -368,10 +368,10 @@ pub async fn create_de_euclid_routing_algo(
 pub async fn link_de_euclid_routing_algorithm(
     state: &SessionState,
     routing_request: ActivateRoutingConfigRequest,
-) -> RoutingResult<String> {
+) -> RoutingResult<()> {
     logger::debug!("decision_engine_euclid: link api call for euclid routing algorithm");
 
-    let res = EuclidApiClient::send_decision_engine_request(
+    EuclidApiClient::send_decision_engine_request::<_, String>(
         state,
         services::Method::Post,
         "routing/activate",
@@ -379,14 +379,10 @@ pub async fn link_de_euclid_routing_algorithm(
         Some(EUCLID_API_TIMEOUT),
         None,
     )
-    .await?
-    .response
-    .ok_or(errors::RoutingError::OpenRouterError(
-        "Response from decision engine API is empty".to_string(),
-    ))?;
+    .await?;
 
     logger::debug!(decision_engine_euclid_activated=?routing_request, "decision_engine_euclid: link_de_euclid_routing_algorithm completed");
-    Ok(res)
+    Ok(())
 }
 
 pub async fn list_de_euclid_routing_algorithms(
@@ -1076,6 +1072,7 @@ fn stringify_choice(c: RoutableConnectorChoice) -> ConnectorInfo {
     )
 }
 
+#[cfg(feature = "v1")]
 pub fn select_routing_result<T>(
     business_profile: &business_profile::Profile,
     hyperswitch_result: T,

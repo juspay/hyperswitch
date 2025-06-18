@@ -2548,11 +2548,11 @@ pub async fn delete_decision_engine_merchant(
         DECISION_ENGINE_MERCHANT_BASE_ENDPOINT,
         profile_id.get_string_repr()
     );
-    routing_utils::ConfigApiClient::send_decision_engine_request_without_response_parsing::<()>(
+    routing_utils::ConfigApiClient::send_decision_engine_request::<_, String>(
         state,
         services::Method::Delete,
         &path,
-        None,
+        None::<id_type::ProfileId>,
         None,
         None,
     )

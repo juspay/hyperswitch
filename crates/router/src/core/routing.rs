@@ -2384,6 +2384,8 @@ impl RoutableConnectors {
     }
 }
 
+
+#[cfg(feature = "v1")]
 pub async fn migrate_rules_for_profile(
     state: SessionState,
     merchant_context: domain::MerchantContext,
