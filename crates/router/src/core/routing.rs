@@ -2413,14 +2413,15 @@ pub async fn migrate_rules_for_profile(
     })?;
 
     #[cfg(feature = "v1")]
-    let active_payment_routing_id: routing_types::RoutingAlgorithmRef = business_profile
+    let active_payment_routing_id: Option<common_utils::id_type::RoutingId> = business_profile
         .routing_algorithm
-        .map(|val| val.parse_value("RoutingAlgorithmRef"))
+        .map(|val| val.parse_value::<routing_types::RoutingAlgorithmRef>("RoutingAlgorithmRef"))
         .transpose()
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("unable to deserialize routing algorithm ref from merchant account")?
-        .unwrap_or_default().algorithm_id;
-    
+        .unwrap_or_default()
+        .algorithm_id;
+
     #[cfg(feature = "v2")]
     let active_payment_routing_id = business_profile.routing_algorithm_id.clone();
 
