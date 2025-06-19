@@ -517,6 +517,7 @@ impl RevenueRecoveryAttempt {
                 expand_attempts: true,
                 param: None,
                 all_keys_required: None,
+                merchant_connector_details: None,
             },
             payment_intent.payment_id.clone(),
             payments::CallConnectorAction::Avoid,
