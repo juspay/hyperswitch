@@ -32,6 +32,7 @@ pub async fn call_psync_api(
         param: None,
         expand_attempts: true,
         all_keys_required: None,
+        merchant_connector_details: None,
     };
     let merchant_context_from_revenue_recovery_data =
         MerchantContext::StandardMerchant(Box::new(Context(

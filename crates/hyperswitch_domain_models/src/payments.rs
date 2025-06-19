@@ -2,7 +2,7 @@
 use std::marker::PhantomData;
 
 #[cfg(feature = "v2")]
-use api_models::payments::{SessionToken, VaultSessionDetails};
+use api_models::payments::{MerchantConnectorDetails, SessionToken, VaultSessionDetails};
 use common_types::primitive_wrappers::{
     AlwaysRequestExtendedAuthorization, RequestExtendedAuthorizationBool,
 };
@@ -42,8 +42,9 @@ use self::payment_attempt::PaymentAttempt;
 #[cfg(feature = "v2")]
 use crate::{
     address::Address, business_profile, customer, errors, merchant_account,
-    merchant_connector_account, merchant_context, payment_address, payment_method_data,
-    payment_methods, revenue_recovery, routing, ApiModelToDieselModelConvertor,
+    merchant_connector_account, merchant_connector_account::MerchantConnectorAccountTypeDetails,
+    merchant_context, payment_address, payment_method_data, payment_methods, revenue_recovery,
+    routing, ApiModelToDieselModelConvertor,
 };
 #[cfg(feature = "v1")]
 use crate::{payment_method_data, RemoteStorageObject};
@@ -288,7 +289,7 @@ impl AmountDetails {
     }
 
     /// Get the action to whether calculate external tax or not as a boolean value
-    fn get_external_tax_action_as_bool(&self) -> bool {
+    pub fn get_external_tax_action_as_bool(&self) -> bool {
         self.skip_external_tax_calculation.as_bool()
     }
 
@@ -864,6 +865,7 @@ where
     pub payment_address: payment_address::PaymentAddress,
     pub mandate_data: Option<api_models::payments::MandateIds>,
     pub payment_method: Option<payment_methods::PaymentMethod>,
+    pub merchant_connector_details: Option<MerchantConnectorDetails>,
 }
 
 #[cfg(feature = "v2")]
@@ -871,15 +873,17 @@ impl<F: Clone> PaymentConfirmData<F> {
     pub fn get_connector_customer_id(
         &self,
         customer: Option<&customer::Customer>,
-        merchant_connector_account: &merchant_connector_account::MerchantConnectorAccount,
+        merchant_connector_account: &MerchantConnectorAccountTypeDetails,
     ) -> Option<String> {
-        match customer
-            .and_then(|cust| cust.get_connector_customer_id(&merchant_connector_account.get_id()))
-        {
-            Some(id) => Some(id.to_string()),
-            None => self
-                .payment_intent
-                .get_connector_customer_id_from_feature_metadata(),
+        match merchant_connector_account {
+            MerchantConnectorAccountTypeDetails::MerchantConnectorAccount(_) => customer
+                .and_then(|customer| customer.get_connector_customer_id(merchant_connector_account))
+                .map(|id| id.to_string())
+                .or_else(|| {
+                    self.payment_intent
+                        .get_connector_customer_id_from_feature_metadata()
+                }),
+            MerchantConnectorAccountTypeDetails::MerchantConnectorDetails(_) => None,
         }
     }
 
@@ -914,6 +918,7 @@ where
     /// Should the payment status be synced with connector
     /// This will depend on the payment status and the force sync flag in the request
     pub should_sync_with_connector: bool,
+    pub merchant_connector_details: Option<MerchantConnectorDetails>,
 }
 
 #[cfg(feature = "v2")]
