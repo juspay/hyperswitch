@@ -5,9 +5,9 @@
 #[utoipa::path(
     post,
     path = "/authentication",
-    request_body = CreateAuthenticationRequest,
+    request_body = AuthenticationCreateRequest,
     responses(
-        (status = 200, description = "Authentication created", body = CreateAuthenticationResponse),
+        (status = 200, description = "Authentication created", body = AuthenticationResponse),
         (status = 400, description = "Invalid data")
     ),
     tag = "Authentication",
