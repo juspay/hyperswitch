@@ -359,13 +359,34 @@ pub async fn create_routing_algorithm_under_profile(
                     }),
                 };
 
-                decision_engine_routing_id = create_de_euclid_routing_algo(&state, &routing_rule)
-                    .await
-                    .map_err(|e| {
-                        // errors are ignored as this is just for diff checking as of now (optional flow).
-                        logger::error!(decision_engine_error=?e,decision_engine_euclid_request=?routing_rule, "failed to create rule in decision_engine");
-                    })
-                    .ok();
+                match create_de_euclid_routing_algo(&state, &routing_rule).await {
+                    Ok(id) => {
+                        decision_engine_routing_id = Some(id);
+                    }
+                    Err(e)
+                        if matches!(
+                            e.current_context(),
+                            errors::RoutingError::DecisionEngineValidationError(_)
+                        ) =>
+                    {
+                        if let errors::RoutingError::DecisionEngineValidationError(msg) =
+                            e.current_context()
+                        {
+                            logger::error!(
+                                decision_engine_euclid_error = ?msg,
+                                decision_engine_euclid_request = ?routing_rule,
+                                "failed to create rule in decision_engine with validation error"
+                            );
+                        }
+                    }
+                    Err(e) => {
+                        logger::error!(
+                            decision_engine_euclid_error = ?e,
+                            decision_engine_euclid_request = ?routing_rule,
+                            "failed to create rule in decision_engine"
+                        );
+                    }
+                }
             }
             Err(e) => {
                 // errors are ignored as this is just for diff checking as of now (optional flow).
@@ -2363,7 +2384,7 @@ pub async fn migrate_rules_for_profile(
                                 name: algorithm.name.clone(),
                                 description: algorithm.description.clone(),
                                 created_by: profile_id.get_string_repr().to_string(),
-                                algorithm: internal_program,
+                                algorithm: StaticRoutingAlgorithm::Advanced(internal_program),
                                 metadata: None,
                             };
 

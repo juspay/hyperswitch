@@ -27,7 +27,7 @@ use crate::{
     routes::{metrics, SessionState},
     services,
     types::{
-        api::customers,
+        api::{customers, payment_methods as payment_methods_api},
         domain::{self, types},
         storage::{self, enums},
         transformers::ForeignFrom,
@@ -41,6 +41,7 @@ pub async fn create_customer(
     state: SessionState,
     merchant_context: domain::MerchantContext,
     customer_data: customers::CustomerRequest,
+    connector_customer_details: Option<payment_methods_api::ConnectorCustomerDetails>,
 ) -> errors::CustomerResponse<customers::CustomerResponse> {
     let db: &dyn StorageInterface = state.store.as_ref();
     let key_manager_state = &(&state).into();
@@ -69,6 +70,7 @@ pub async fn create_customer(
 
     let domain_customer = customer_data
         .create_domain_model_from_request(
+            &connector_customer_details,
             db,
             &merchant_reference_id,
             &merchant_context,
@@ -94,6 +96,7 @@ pub async fn create_customer(
 trait CustomerCreateBridge {
     async fn create_domain_model_from_request<'a>(
         &'a self,
+        connector_customer_details: &'a Option<payment_methods_api::ConnectorCustomerDetails>,
         db: &'a dyn StorageInterface,
         merchant_reference_id: &'a Option<id_type::CustomerId>,
         merchant_context: &'a domain::MerchantContext,
@@ -112,6 +115,7 @@ trait CustomerCreateBridge {
 impl CustomerCreateBridge for customers::CustomerRequest {
     async fn create_domain_model_from_request<'a>(
         &'a self,
+        connector_customer_details: &'a Option<payment_methods_api::ConnectorCustomerDetails>,
         db: &'a dyn StorageInterface,
         merchant_reference_id: &'a Option<id_type::CustomerId>,
         merchant_context: &'a domain::MerchantContext,
@@ -171,6 +175,15 @@ impl CustomerCreateBridge for customers::CustomerRequest {
             domain::FromRequestEncryptableCustomer::from_encryptable(encrypted_data)
                 .change_context(errors::CustomersErrorResponse::InternalServerError)?;
 
+        let connector_customer = connector_customer_details.as_ref().map(|details| {
+            let merchant_connector_id = details.merchant_connector_id.get_string_repr().to_string();
+            let connector_customer_id = details.connector_customer_id.to_string();
+            let object = serde_json::json!({
+                merchant_connector_id: connector_customer_id
+            });
+            pii::SecretSerdeValue::new(object)
+        });
+
         Ok(domain::Customer {
             customer_id: merchant_reference_id
                 .to_owned()
@@ -188,7 +201,7 @@ impl CustomerCreateBridge for customers::CustomerRequest {
             description: self.description.clone(),
             phone_country_code: self.phone_country_code.clone(),
             metadata: self.metadata.clone(),
-            connector_customer: None,
+            connector_customer,
             address_id: address_from_db.clone().map(|addr| addr.address_id),
             created_at: common_utils::date_time::now(),
             modified_at: common_utils::date_time::now(),
@@ -214,6 +227,7 @@ impl CustomerCreateBridge for customers::CustomerRequest {
 impl CustomerCreateBridge for customers::CustomerRequest {
     async fn create_domain_model_from_request<'a>(
         &'a self,
+        connector_customer_details: &'a Option<payment_methods_api::ConnectorCustomerDetails>,
         _db: &'a dyn StorageInterface,
         merchant_reference_id: &'a Option<id_type::CustomerId>,
         merchant_context: &'a domain::MerchantContext,
@@ -283,6 +297,15 @@ impl CustomerCreateBridge for customers::CustomerRequest {
             domain::FromRequestEncryptableCustomer::from_encryptable(encrypted_data)
                 .change_context(errors::CustomersErrorResponse::InternalServerError)?;
 
+        let connector_customer = connector_customer_details.as_ref().map(|details| {
+            let mut map = std::collections::HashMap::new();
+            map.insert(
+                details.merchant_connector_id.clone(),
+                details.connector_customer_id.to_string(),
+            );
+            common_types::customers::ConnectorCustomerMap::new(map)
+        });
+
         Ok(domain::Customer {
             id: id_type::GlobalCustomerId::generate(&state.conf.cell_information.id),
             merchant_reference_id: merchant_reference_id.to_owned(),
@@ -299,7 +322,7 @@ impl CustomerCreateBridge for customers::CustomerRequest {
             description: self.description.clone(),
             phone_country_code: self.phone_country_code.clone(),
             metadata: self.metadata.clone(),
-            connector_customer: None,
+            connector_customer,
             created_at: common_utils::date_time::now(),
             modified_at: common_utils::date_time::now(),
             default_payment_method_id: None,
@@ -1024,6 +1047,7 @@ pub async fn update_customer(
     let updated_customer = update_customer
         .request
         .create_domain_model_from_request(
+            &None,
             db,
             &merchant_context,
             key_manager_state,
@@ -1039,6 +1063,7 @@ pub async fn update_customer(
 trait CustomerUpdateBridge {
     async fn create_domain_model_from_request<'a>(
         &'a self,
+        connector_customer_details: &'a Option<payment_methods_api::ConnectorCustomerDetails>,
         db: &'a dyn StorageInterface,
         merchant_context: &'a domain::MerchantContext,
         key_manager_state: &'a KeyManagerState,
@@ -1211,6 +1236,7 @@ impl VerifyIdForUpdateCustomer<'_> {
 impl CustomerUpdateBridge for customers::CustomerUpdateRequest {
     async fn create_domain_model_from_request<'a>(
         &'a self,
+        _connector_customer_details: &'a Option<payment_methods_api::ConnectorCustomerDetails>,
         db: &'a dyn StorageInterface,
         merchant_context: &'a domain::MerchantContext,
         key_manager_state: &'a KeyManagerState,
@@ -1315,6 +1341,7 @@ impl CustomerUpdateBridge for customers::CustomerUpdateRequest {
 impl CustomerUpdateBridge for customers::CustomerUpdateRequest {
     async fn create_domain_model_from_request<'a>(
         &'a self,
+        connector_customer_details: &'a Option<payment_methods_api::ConnectorCustomerDetails>,
         db: &'a dyn StorageInterface,
         merchant_context: &'a domain::MerchantContext,
         key_manager_state: &'a KeyManagerState,
@@ -1432,11 +1459,18 @@ impl CustomerUpdateBridge for customers::CustomerUpdateRequest {
 
 pub async fn migrate_customers(
     state: SessionState,
-    customers: Vec<customers::CustomerRequest>,
+    customers_migration: Vec<payment_methods_api::PaymentMethodCustomerMigrate>,
     merchant_context: domain::MerchantContext,
 ) -> errors::CustomerResponse<()> {
-    for customer in customers {
-        match create_customer(state.clone(), merchant_context.clone(), customer).await {
+    for customer_migration in customers_migration {
+        match create_customer(
+            state.clone(),
+            merchant_context.clone(),
+            customer_migration.customer,
+            customer_migration.connector_customer_details,
+        )
+        .await
+        {
             Ok(_) => (),
             Err(e) => match e.current_context() {
                 errors::CustomersErrorResponse::CustomerAlreadyExists => (),
