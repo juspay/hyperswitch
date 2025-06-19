@@ -27,6 +27,7 @@ use hyperswitch_domain_models::{
 };
 use hyperswitch_interfaces::{consts::NO_ERROR_CODE, errors};
 use masking::{ExposeInterface, Secret};
+use rand::distributions::{Alphanumeric, DistString};
 use serde::{Deserialize, Serialize};
 use strum::Display;
 
@@ -39,6 +40,10 @@ use crate::{
         PaymentsSetupMandateRequestData, RouterData as _,
     },
 };
+
+fn get_random_string() -> String {
+    Alphanumeric.sample_string(&mut rand::thread_rng(), MAX_ORDER_ID_LENGTH)
+}
 
 #[derive(Clone, Copy, Debug)]
 enum AddressKind {
@@ -246,7 +251,7 @@ where
     }
 }
 
-const MAX_ORDER_ID_LENGTH: usize = 16;
+const MAX_ORDER_ID_LENGTH: usize = 18;
 const MAX_CARD_HOLDER_LENGTH: usize = 255;
 const MAX_BILLING_ADDRESS_NAME_LENGTH: usize = 50;
 const MAX_BILLING_ADDRESS_STREET_LENGTH: usize = 50;
@@ -694,19 +699,23 @@ impl TryFrom<&NexixpayRouterData<&PaymentsAuthorizeRouterData>> for NexixpayPaym
     fn try_from(
         item: &NexixpayRouterData<&PaymentsAuthorizeRouterData>,
     ) -> Result<Self, Self::Error> {
-        let order_id =
-            if item.router_data.connector_request_reference_id.len() <= MAX_ORDER_ID_LENGTH {
-                item.router_data.connector_request_reference_id.clone()
+        println!("Payment ID: {:?}", item.router_data.payment_id);
+        let order_id = if item.router_data.payment_id.len() > MAX_ORDER_ID_LENGTH {
+            if item.router_data.payment_id.starts_with("pay_") {
+                get_random_string()
             } else {
                 return Err(error_stack::Report::from(
                     errors::ConnectorError::MaxFieldLengthViolated {
                         field_name: "payment_id".to_string(),
                         connector: "Nexixpay".to_string(),
                         max_length: MAX_ORDER_ID_LENGTH,
-                        received_length: item.router_data.connector_request_reference_id.len(),
+                        received_length: item.router_data.payment_id.len(),
                     },
                 ));
-            };
+            }
+        } else {
+            item.router_data.payment_id.clone()
+        };
 
         let billing_address = get_validated_billing_address(item.router_data)?;
         let shipping_address = get_validated_shipping_address(item.router_data)?;
@@ -1290,19 +1299,22 @@ impl TryFrom<&NexixpayRouterData<&PaymentsCompleteAuthorizeRouterData>>
             )?;
         let capture_type = get_nexixpay_capture_type(item.router_data.request.capture_method)?;
 
-        let order_id =
-            if item.router_data.connector_request_reference_id.len() <= MAX_ORDER_ID_LENGTH {
-                item.router_data.connector_request_reference_id.clone()
+        let order_id = if item.router_data.payment_id.len() > MAX_ORDER_ID_LENGTH {
+            if item.router_data.payment_id.starts_with("pay_") {
+                get_random_string()
             } else {
                 return Err(error_stack::Report::from(
                     errors::ConnectorError::MaxFieldLengthViolated {
                         field_name: "payment_id".to_string(),
                         connector: "Nexixpay".to_string(),
                         max_length: MAX_ORDER_ID_LENGTH,
-                        received_length: item.router_data.connector_request_reference_id.len(),
+                        received_length: item.router_data.payment_id.len(),
                     },
                 ));
-            };
+            }
+        } else {
+            item.router_data.payment_id.clone()
+        };
         let amount = item.amount.clone();
 
         let billing_address = get_validated_billing_address(item.router_data)?;
