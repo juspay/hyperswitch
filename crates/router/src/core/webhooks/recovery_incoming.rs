@@ -466,40 +466,50 @@ impl RevenueRecoveryAttempt {
             revenue_recovery::RecoveryPaymentIntent,
         )>,
         errors::RevenueRecoveryError,
-    > {   
-        let attempt_response = Box::pin(payments::payments_list_attempts_using_payment_intent_id::<
-            payments::operations::PaymentGetListAttempts,
-            api_payments::PaymentAttemptListResponse,
-            _,
-            payments::operations::payment_attempt_list::PaymentGetListAttempts,
-            hyperswitch_domain_models::payments::PaymentAttemptListData<
+    > {
+        let attempt_response =
+            Box::pin(payments::payments_list_attempts_using_payment_intent_id::<
+                payments::operations::PaymentGetListAttempts,
+                api_payments::PaymentAttemptListResponse,
+                _,
+                payments::operations::payment_attempt_list::PaymentGetListAttempts,
+                hyperswitch_domain_models::payments::PaymentAttemptListData<
                     payments::operations::PaymentGetListAttempts,
                 >,
-        >(
-            state.clone(),
-            req_state.clone(),
-            merchant_context.clone(),
-            profile.clone(),
-            payments::operations::PaymentGetListAttempts,
-            api_payments::PaymentAttemptListRequest {
-                payment_intent_id : payment_intent.payment_id.clone()
-            },
-            payment_intent.payment_id.clone(),
-            hyperswitch_domain_models::payments::HeaderPayload::default(),
-        ))
-        .await;
+            >(
+                state.clone(),
+                req_state.clone(),
+                merchant_context.clone(),
+                profile.clone(),
+                payments::operations::PaymentGetListAttempts,
+                api_payments::PaymentAttemptListRequest {
+                    payment_intent_id: payment_intent.payment_id.clone(),
+                },
+                payment_intent.payment_id.clone(),
+                hyperswitch_domain_models::payments::HeaderPayload::default(),
+            ))
+            .await;
         let response = match attempt_response {
             Ok(services::ApplicationResponse::JsonWithHeaders((payments_response, _))) => {
-                let final_attempt =
-                    self.0
-                        .connector_transaction_id
-                        .as_ref()
-                        .and_then(|transaction_id| {
-                            payments_response
-                                .find_attempt_in_attempts_list_using_connector_transaction_id(
-                                    transaction_id,
-                                )
-                        });
+                let final_attempt = self
+                    .0
+                    .charge_id
+                    .as_ref()
+                    .and_then(|charge_id| {
+                        payments_response
+                            .find_attempt_in_attempts_list_using_charge_id(charge_id.clone())
+                    })
+                    .or_else(|| {
+                        self.0
+                            .connector_transaction_id
+                            .as_ref()
+                            .and_then(|transaction_id| {
+                                payments_response
+                                    .find_attempt_in_attempts_list_using_connector_transaction_id(
+                                        transaction_id,
+                                    )
+                            })
+                    });
                 let payment_attempt =
                     final_attempt.map(|attempt_res| revenue_recovery::RecoveryPaymentAttempt {
                         attempt_id: attempt_res.id.to_owned(),
@@ -607,6 +617,7 @@ impl RevenueRecoveryAttempt {
             revenue_recovery: Some(api_payments::PaymentAttemptRevenueRecoveryData {
                 // Since we are recording the external paymenmt attempt, this is hardcoded to External
                 attempt_triggered_by: triggered_by,
+                charge_id: self.0.charge_id.clone(),
             }),
         };
 
