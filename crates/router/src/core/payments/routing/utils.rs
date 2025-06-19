@@ -1,8 +1,10 @@
 use std::collections::{HashMap, HashSet};
 
 use api_models::{
-    open_router as or_types, routing as api_routing,
-    routing::{ConnectorSelection, RoutableConnectorChoice},
+    open_router as or_types,
+    routing::{
+        self as api_routing, ConnectorSelection, ConnectorVolumeSplit, RoutableConnectorChoice,
+    },
 };
 use async_trait::async_trait;
 use common_enums::TransactionType;
@@ -12,7 +14,10 @@ use common_utils::{
 };
 use diesel_models::{enums, routing_algorithm};
 use error_stack::ResultExt;
-use euclid::{backend::BackendInput, frontend::ast};
+use euclid::{
+    backend::BackendInput,
+    frontend::ast::{self},
+};
 #[cfg(all(feature = "v1", feature = "dynamic_routing"))]
 use external_services::grpc_client::dynamic_routing as ir_client;
 use hyperswitch_domain_models::business_profile;
@@ -869,6 +874,7 @@ impl From<DeRoutableConnectorChoice> for RoutableConnectorChoice {
 #[derive(Clone, Debug, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum Output {
+    Single(ConnectorInfo),
     Priority(Vec<ConnectorInfo>),
     VolumeSplit(Vec<VolumeSplit<ConnectorInfo>>),
     VolumeSplitPriority(Vec<VolumeSplit<Vec<ConnectorInfo>>>),
@@ -922,9 +928,49 @@ impl From<TransactionType> for AlgorithmType {
     }
 }
 
+impl From<RoutableConnectorChoice> for ConnectorInfo {
+    fn from(c: RoutableConnectorChoice) -> Self {
+        ConnectorInfo {
+            gateway_name: c.connector.to_string(),
+            gateway_id: c
+                .merchant_connector_id
+                .map(|mca_id| mca_id.get_string_repr().to_string()),
+        }
+    }
+}
+
+impl From<Box<RoutableConnectorChoice>> for ConnectorInfo {
+    fn from(c: Box<RoutableConnectorChoice>) -> Self {
+        ConnectorInfo {
+            gateway_name: c.connector.to_string(),
+            gateway_id: c
+                .merchant_connector_id
+                .map(|mca_id| mca_id.get_string_repr().to_string()),
+        }
+    }
+}
+
+impl From<ConnectorVolumeSplit> for VolumeSplit<ConnectorInfo> {
+    fn from(v: ConnectorVolumeSplit) -> Self {
+        VolumeSplit {
+            split: v.split,
+            output: ConnectorInfo {
+                gateway_name: v.connector.connector.to_string(),
+                gateway_id: v
+                    .connector
+                    .merchant_connector_id
+                    .map(|mca_id| mca_id.get_string_repr().to_string()),
+            },
+        }
+    }
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(tag = "type", content = "data", rename_all = "snake_case")]
 pub enum StaticRoutingAlgorithm {
+    Single(Box<ConnectorInfo>),
+    Priority(Vec<ConnectorInfo>),
+    VolumeSplit(Vec<VolumeSplit<ConnectorInfo>>),
     Advanced(Program),
 }
 
