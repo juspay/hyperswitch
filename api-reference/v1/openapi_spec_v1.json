@@ -6108,7 +6108,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/CreateAuthenticationRequest"
+                "$ref": "#/components/schemas/AuthenticationCreateRequest"
               }
             }
           },
@@ -6120,7 +6120,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/CreateAuthenticationResponse"
+                  "$ref": "#/components/schemas/AuthenticationResponse"
                 }
               }
             }
@@ -6518,6 +6518,23 @@
             "type": "number",
             "format": "double",
             "description": "The fraud rate associated with the acquirer.",
+            "nullable": true
+          }
+        }
+      },
+      "AcquirerDetails": {
+        "type": "object",
+        "properties": {
+          "bin": {
+            "type": "string",
+            "nullable": true
+          },
+          "merchant_id": {
+            "type": "string",
+            "nullable": true
+          },
+          "country_code": {
+            "type": "string",
             "nullable": true
           }
         }
@@ -7337,10 +7354,10 @@
             "nullable": true
           },
           "amount": {
-            "$ref": "#/components/schemas/common_utils.types.MinorUnit"
+            "$ref": "#/components/schemas/MinorUnit"
           },
           "currency": {
-            "$ref": "#/components/schemas/common_enums.Currency"
+            "$ref": "#/components/schemas/Currency"
           },
           "return_url": {
             "type": "string",
@@ -7374,8 +7391,7 @@
             ],
             "nullable": true
           }
-        },
-        "additionalProperties": false
+        }
       },
       "AuthenticationResponse": {
         "type": "object",
@@ -7388,13 +7404,17 @@
         ],
         "properties": {
           "authentication_id": {
-            "$ref": "#/components/schemas/id_type.AuthenticationId"
+            "type": "string",
+            "description": "The unique identifier for this authentication.",
+            "example": "auth_mbabizu24mvu3mela5njyhpit4"
           },
           "merchant_id": {
-            "$ref": "#/components/schemas/id_type.MerchantId"
+            "type": "string",
+            "description": "This is an identifier for the merchant account. This is inferred from the API key\nprovided during the request",
+            "example": "merchant_abc"
           },
           "status": {
-            "$ref": "#/components/schemas/common_enums.AuthenticationStatus"
+            "$ref": "#/components/schemas/AuthenticationStatus"
           },
           "client_secret": {
             "type": "string",
@@ -7403,10 +7423,10 @@
             "nullable": true
           },
           "amount": {
-            "$ref": "#/components/schemas/common_utils.types.MinorUnit"
+            "$ref": "#/components/schemas/MinorUnit"
           },
           "currency": {
-            "$ref": "#/components/schemas/enums.Currency"
+            "$ref": "#/components/schemas/Currency"
           },
           "customer": {
             "allOf": [
@@ -7485,8 +7505,7 @@
             ],
             "nullable": true
           }
-        },
-        "additionalProperties": false
+        }
       },
       "AuthenticationStatus": {
         "type": "string",
@@ -30931,6 +30950,10 @@
     {
       "name": "Event",
       "description": "Manage events"
+    },
+    {
+      "name": "Authentication",
+      "description": "Create and manage authentication"
     }
   ]
 }

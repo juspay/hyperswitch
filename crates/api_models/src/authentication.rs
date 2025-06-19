@@ -9,9 +9,7 @@ use utoipa::ToSchema;
 
 use crate::payments::CustomerDetails;
 
-// Renamed from AuthenticationRequest to AuthenticationCreateRequest
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
-#[serde(deny_unknown_fields)]
 pub struct AuthenticationCreateRequest {
     /// The unique identifier for this authentication.
     #[schema(value_type = Option<String>, example = "auth_mbabizu24mvu3mela5njyhpit4")]
@@ -30,11 +28,11 @@ pub struct AuthenticationCreateRequest {
     pub customer: Option<CustomerDetails>,
 
     /// The amount for the transaction, required.
-    #[schema(value_type = common_utils::types::MinorUnit, example = 1000)]
+    #[schema(value_type = MinorUnit, example = 1000)]
     pub amount: common_utils::types::MinorUnit,
 
     /// The currency for the transaction, required.
-    #[schema(value_type = common_enums::Currency)]
+    #[schema(value_type = Currency)]
     pub currency: common_enums::Currency,
 
     /// The URL to which the user should be redirected after authentication.
@@ -65,21 +63,19 @@ pub struct AcquirerDetails {
     pub country_code: Option<String>,
 }
 
-// Renamed from AuthenticationResponse to AuthenticationCreateResponse
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
-#[serde(deny_unknown_fields)]
 pub struct AuthenticationResponse {
     /// The unique identifier for this authentication.
-    #[schema(example = "auth_mbabizu24mvu3mela5njyhpit4")]
+    #[schema(value_type = String, example = "auth_mbabizu24mvu3mela5njyhpit4")]
     pub authentication_id: id_type::AuthenticationId,
 
     /// This is an identifier for the merchant account. This is inferred from the API key
     /// provided during the request
-    #[schema(example = "merchant_abc")]
+    #[schema(value_type = String, example = "merchant_abc")]
     pub merchant_id: id_type::MerchantId,
 
     /// The current status of the authentication (e.g., Started).
-    #[schema(value_type = common_enums::AuthenticationStatus)]
+    #[schema(value_type = AuthenticationStatus)]
     pub status: common_enums::AuthenticationStatus,
 
     /// The client secret for this authentication, to be used for client-side operations.
@@ -87,11 +83,11 @@ pub struct AuthenticationResponse {
     pub client_secret: Option<masking::Secret<String>>,
 
     /// The amount for the transaction.
-    #[schema(value_type = common_utils::types::MinorUnit, example = 1000)]
+    #[schema(value_type = MinorUnit, example = 1000)]
     pub amount: common_utils::types::MinorUnit,
 
     /// The currency for the transaction.
-    #[schema(value_type = enums::Currency)]
+    #[schema(value_type = Currency)]
     pub currency: enums::Currency,
 
     /// Customer details, if provided in the request.
