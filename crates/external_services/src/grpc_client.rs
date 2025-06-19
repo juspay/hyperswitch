@@ -16,16 +16,28 @@ use common_utils::consts;
 use dynamic_routing::{DynamicRoutingClientConfig, RoutingStrategy};
 #[cfg(feature = "dynamic_routing")]
 use health_check_client::HealthCheckClient;
-#[cfg(any(feature = "dynamic_routing", feature = "v2"))]
+#[cfg(any(
+    feature = "dynamic_routing",
+    all(feature = "v2", feature = "revenue_recovery")
+))]
 use http_body_util::combinators::UnsyncBoxBody;
-#[cfg(any(feature = "dynamic_routing", feature = "v2"))]
+#[cfg(any(
+    feature = "dynamic_routing",
+    all(feature = "v2", feature = "revenue_recovery")
+))]
 use hyper::body::Bytes;
-#[cfg(any(feature = "dynamic_routing", feature = "v2"))]
+#[cfg(any(
+    feature = "dynamic_routing",
+    all(feature = "v2", feature = "revenue_recovery")
+))]
 use hyper_util::client::legacy::connect::HttpConnector;
 #[cfg(feature = "dynamic_routing")]
 use router_env::logger;
 use serde;
-#[cfg(any(feature = "dynamic_routing", feature = "v2"))]
+#[cfg(any(
+    feature = "dynamic_routing",
+    all(feature = "v2", feature = "revenue_recovery")
+))]
 use tonic::Status;
 
 #[cfg(all(feature = "revenue_recovery", feature = "v2"))]
@@ -34,7 +46,10 @@ pub use self::revenue_recovery::recovery_decider_client::{
     RecoveryDeciderError, RecoveryDeciderResult,
 };
 
-#[cfg(any(feature = "dynamic_routing", feature = "v2"))]
+#[cfg(any(
+    feature = "dynamic_routing",
+    all(feature = "v2", feature = "revenue_recovery")
+))]
 /// Hyper based Client type for maintaining connection pool for all gRPC services
 pub type Client = hyper_util::client::legacy::Client<HttpConnector, UnsyncBoxBody<Bytes, Status>>;
 
@@ -71,7 +86,10 @@ impl GrpcClientSettings {
     #[allow(clippy::expect_used)]
     pub async fn get_grpc_client_interface(&self) -> Arc<GrpcClients> {
         // Define the hyper client if any gRPC feature is enabled
-        #[cfg(any(feature = "dynamic_routing", feature = "v2"))]
+        #[cfg(any(
+            feature = "dynamic_routing",
+            all(feature = "v2", feature = "revenue_recovery")
+        ))]
         let client =
             hyper_util::client::legacy::Client::builder(hyper_util::rt::TokioExecutor::new())
                 .http2_only(true)
