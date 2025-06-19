@@ -4988,7 +4988,7 @@ impl
     ) -> Self {
         let revenue_recovery = feature_metadata.revenue_recovery.as_ref().map(|recovery| {
             api_models::payments::PaymentAttemptRevenueRecoveryData {
-                attempt_triggered_by: recovery.attempt_triggered_by.clone(),
+                attempt_triggered_by: recovery.attempt_triggered_by,
                 charge_id: recovery.charge_id.clone(),
             }
         });
