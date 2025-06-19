@@ -1,4 +1,5 @@
 use common_enums::{enums::PaymentMethod, AttemptStatus, AuthenticationType, PaymentMethodType};
+use common_utils::request::Method;
 use diesel_models::enums as storage_enums;
 use error_stack::ResultExt;
 use hyperswitch_connectors::utils::CardData;
@@ -6,7 +7,7 @@ use hyperswitch_domain_models::{
     router_data::RouterData,
     router_flow_types::payments::Authorize,
     router_request_types::{AuthenticationData, PaymentsAuthorizeData},
-    router_response_types::PaymentsResponseData,
+    router_response_types::{MandateReference, PaymentsResponseData, RedirectForm},
 };
 use masking::{ExposeInterface, PeekInterface};
 use router_env::logger;
@@ -568,5 +569,54 @@ impl ForeignTryFrom<payments_grpc::AttemptStatus> for AttemptStatus {
                 Ok(Self::DeviceDataCollectionPending)
             }
         }
+    }
+}
+
+impl ForeignTryFrom<payments_grpc::RedirectForm> for RedirectForm {
+    type Error = error_stack::Report<UnifiedConnectorServiceError>;
+
+    fn foreign_try_from(value: payments_grpc::RedirectForm) -> Result<Self, Self::Error> {
+        match value.form_type {
+            Some(payments_grpc::redirect_form::FormType::Form(form)) => Ok(RedirectForm::Form {
+                endpoint: form.clone().endpoint,
+                method: Method::foreign_try_from(form.clone().method())?,
+                form_fields: form.clone().form_fields,
+            }),
+            Some(payments_grpc::redirect_form::FormType::Html(html)) => Ok(RedirectForm::Html {
+                html_data: html.html_data,
+            }),
+            None => Err(
+                UnifiedConnectorServiceError::RequestEncodingFailedWithReason(
+                    "Missing form type".to_string(),
+                )
+                .into(),
+            ),
+        }
+    }
+}
+
+impl ForeignTryFrom<payments_grpc::Method> for Method {
+    type Error = error_stack::Report<UnifiedConnectorServiceError>;
+
+    fn foreign_try_from(value: payments_grpc::Method) -> Result<Self, Self::Error> {
+        match value {
+            payments_grpc::Method::Get => Ok(Method::Get),
+            payments_grpc::Method::Post => Ok(Method::Post),
+        }
+    }
+}
+
+impl ForeignTryFrom<payments_grpc::MandateReference> for MandateReference {
+    type Error = error_stack::Report<UnifiedConnectorServiceError>;
+
+    fn foreign_try_from(
+        mandate_reference: payments_grpc::MandateReference,
+    ) -> Result<Self, Self::Error> {
+        Ok(Self {
+            connector_mandate_id: mandate_reference.connector_mandate_id,
+            payment_method_id: None,
+            mandate_metadata: None,
+            connector_mandate_request_reference_id: None,
+        })
     }
 }
