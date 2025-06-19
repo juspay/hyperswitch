@@ -573,7 +573,7 @@ ideal = { country = "DE",currency = "EUR" }
 giropay = { country = "DE",currency = "EUR" }
 sofort = { country = "DE",currency = "EUR" }
 eps = { country = "DE",currency = "EUR" }
-apple_pay = { country = "AT, BE, HR, CY, EE, FI, FR, DE, GR, IE, IT, LV, LT, LU, MT, NL, PT, SK, ES, NO, PL, CZ, RO, SE, CH, LI, IT, HU, US, GB, DK, UA, BG, IS, RS",currency = "EUR, NOK, PLN, CZK, RON, SEK, CHF, HUF, USD, GBP, DKK, UAH, BGN, ISK, RSD" }
+apple_pay = { country = "DE",currency = "EUR" }
 paypal = { country = "DE",currency = "EUR" }
 
 
