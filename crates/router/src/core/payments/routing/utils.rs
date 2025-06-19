@@ -915,9 +915,9 @@ pub enum AlgorithmType {
 impl From<TransactionType> for AlgorithmType {
     fn from(transaction_type: TransactionType) -> Self {
         match transaction_type {
-            TransactionType::Payment => AlgorithmType::Payment,
-            TransactionType::Payout => AlgorithmType::Payout,
-            TransactionType::ThreeDsAuthentication => AlgorithmType::ThreeDsAuthentication,
+            TransactionType::Payment => Self::Payment,
+            TransactionType::Payout => Self::Payout,
+            TransactionType::ThreeDsAuthentication => Self::ThreeDsAuthentication,
         }
     }
 }
