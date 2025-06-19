@@ -4,13 +4,10 @@ import { updateDefaultStatusCode } from "./Modifiers.js";
 
 import { connectorDetails as aciConnectorDetails } from "./Aci.js";
 import { connectorDetails as adyenConnectorDetails } from "./Adyen.js";
-<<<<<<< authipay_integration
-import { connectorDetails as authipayConnectorDetails } from "./Authipay.js";
-=======
 import { connectorDetails as airwallexConnectorDetails } from "./Airwallex.js";
 import { connectorDetails as archipelConnectorDetails } from "./Archipel.js";
+import { connectorDetails as authipayConnectorDetails } from "./Authipay.js";
 import { connectorDetails as bamboraapacConnectorDetails } from "./Bamboraapac.js";
->>>>>>> main
 import { connectorDetails as bankOfAmericaConnectorDetails } from "./BankOfAmerica.js";
 import { connectorDetails as bluesnapConnectorDetails } from "./Bluesnap.js";
 import { connectorDetails as braintreeConnectorDetails } from "./Braintree.js";
