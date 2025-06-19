@@ -1,4 +1,3 @@
-import { configs } from "@eslint/js";
 import { customerAcceptance } from "./Commons";
 import { getCustomExchange } from "./Modifiers";
 
