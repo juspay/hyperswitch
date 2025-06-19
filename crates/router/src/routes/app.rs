@@ -706,17 +706,16 @@ impl Proxy {
 #[cfg(feature = "v2")]
 pub struct Trainer;
 
-#[cfg(feature = "v2")]
+#[cfg(all(feature = "v2", feature = "revenue_recovery"))]
 impl Trainer {
     pub fn server(state: AppState) -> Scope {
         web::scope("/trainer")
             .app_data(web::Data::new(state))
             .service(
-                web::resource("/jobs")
-                    .route(web::post().to(recovery_trainer::trigger_training_job)),
+                web::resource("").route(web::post().to(recovery_trainer::trigger_training_job)),
             )
             .service(
-                web::resource("/jobs/{job_id}")
+                web::resource("/{job_id}")
                     .route(web::get().to(recovery_trainer::get_the_training_job_status)),
             )
     }

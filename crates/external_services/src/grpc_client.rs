@@ -4,35 +4,62 @@ pub mod dynamic_routing;
 /// gRPC based Heath Check Client interface implementation
 #[cfg(feature = "dynamic_routing")]
 pub mod health_check_client;
-/// gRPC based Trainer Client interface implementation
-#[cfg(feature = "v2")]
-pub mod recovery_trainer_client;
+
+/// gRPC based Revenue Recovery clients (Decider, Trainer)
+#[cfg(all(feature = "revenue_recovery", feature = "v2"))]
+pub mod revenue_recovery;
 
 use std::{fmt::Debug, sync::Arc};
 
-#[cfg(any(feature = "dynamic_routing", feature = "v2"))]
+#[cfg(any(
+    feature = "dynamic_routing",
+    all(feature = "revenue_recovery", feature = "v2")
+))]
 use common_utils::consts;
 #[cfg(feature = "dynamic_routing")]
 use dynamic_routing::{DynamicRoutingClientConfig, RoutingStrategy};
 #[cfg(feature = "dynamic_routing")]
 use health_check_client::HealthCheckClient;
-#[cfg(any(feature = "dynamic_routing", feature = "v2"))]
+#[cfg(any(
+    feature = "dynamic_routing",
+    all(feature = "revenue_recovery", feature = "v2")
+))]
 use http_body_util::combinators::UnsyncBoxBody;
-#[cfg(any(feature = "dynamic_routing", feature = "v2"))]
+#[cfg(any(
+    feature = "dynamic_routing",
+    all(feature = "revenue_recovery", feature = "v2")
+))]
 use hyper::body::Bytes;
-#[cfg(any(feature = "dynamic_routing", feature = "v2"))]
+#[cfg(any(
+    feature = "dynamic_routing",
+    all(feature = "revenue_recovery", feature = "v2")
+))]
 use hyper_util::client::legacy::connect::HttpConnector;
-#[cfg(feature = "v2")]
-use recovery_trainer_client::{TrainerClientConfig, TrainerClientInterface};
-#[cfg(any(feature = "dynamic_routing", feature = "v2"))]
+#[cfg(any(
+    feature = "dynamic_routing",
+    all(feature = "revenue_recovery", feature = "v2")
+))]
 use router_env::logger;
 use serde;
-#[cfg(feature = "v2")]
+#[cfg(all(feature = "revenue_recovery", feature = "v2"))]
 use tokio::sync::OnceCell;
-#[cfg(any(feature = "dynamic_routing", feature = "v2"))]
+#[cfg(any(
+    feature = "dynamic_routing",
+    all(feature = "revenue_recovery", feature = "v2")
+))]
 use tonic::Status;
 
-#[cfg(any(feature = "dynamic_routing", feature = "v2"))]
+#[cfg(all(feature = "revenue_recovery", feature = "v2"))]
+pub use self::revenue_recovery::{
+    GetTrainingJobStatusRequest, GetTrainingJobStatusResponse, JobStatus, TrainerClientConfig,
+    TrainerClientInterface, TrainerError, TrainerResult, TriggerTrainingRequest,
+    TriggerTrainingResponse,
+};
+
+#[cfg(any(
+    feature = "dynamic_routing",
+    all(feature = "revenue_recovery", feature = "v2")
+))]
 /// Hyper based Client type for maintaining connection pool for all gRPC services
 pub type Client = hyper_util::client::legacy::Client<HttpConnector, UnsyncBoxBody<Bytes, Status>>;
 
@@ -75,11 +102,15 @@ impl GrpcClientSettings {
     #[allow(clippy::expect_used)]
     pub async fn get_grpc_client_interface(&self) -> Arc<GrpcClients> {
         // Define the hyper client if any gRPC feature is enabled
-        #[cfg(any(feature = "dynamic_routing", feature = "v2"))]
+        #[cfg(any(
+            feature = "dynamic_routing",
+            all(feature = "revenue_recovery", feature = "v2")
+        ))]
         let client =
             hyper_util::client::legacy::Client::builder(hyper_util::rt::TokioExecutor::new())
                 .http2_only(true)
                 .build_http();
+
         #[cfg(feature = "dynamic_routing")]
         let dynamic_routing_connection = self
             .dynamic_routing_client
@@ -93,9 +124,10 @@ impl GrpcClientSettings {
             .await
             .expect("Failed to build gRPC connections");
 
-        #[cfg(feature = "v2")]
+        #[cfg(all(feature = "revenue_recovery", feature = "v2"))]
         let trainer_config = self.trainer_client.clone();
-        #[cfg(feature = "v2")]
+
+        #[cfg(all(feature = "revenue_recovery", feature = "v2"))]
         let hyper_client_for_trainer_clone = client.clone(); // Clone hyper client for trainer
 
         Arc::new(GrpcClients {
@@ -103,15 +135,16 @@ impl GrpcClientSettings {
             dynamic_routing: dynamic_routing_connection,
             #[cfg(feature = "dynamic_routing")]
             health_client,
-            #[cfg(feature = "v2")]
+            #[cfg(all(feature = "revenue_recovery", feature = "v2"))]
             trainer_client_cell: OnceCell::new(),
-            #[cfg(feature = "v2")]
+            #[cfg(all(feature = "revenue_recovery", feature = "v2"))]
             trainer_config,
-            #[cfg(feature = "v2")]
+            #[cfg(all(feature = "revenue_recovery", feature = "v2"))]
             hyper_client_for_trainer: hyper_client_for_trainer_clone,
         })
     }
 }
+
 /// Contains grpc headers
 #[derive(Debug)]
 pub struct GrpcHeaders {
@@ -121,14 +154,14 @@ pub struct GrpcHeaders {
     pub request_id: Option<String>,
 }
 
-#[cfg(any(feature = "dynamic_routing", feature = "v2"))]
+#[cfg(feature = "dynamic_routing")]
 /// Trait to add necessary headers to the tonic Request
 pub(crate) trait AddHeaders {
     /// Add necessary header fields to the tonic Request
     fn add_headers_to_grpc_request(&mut self, headers: GrpcHeaders);
 }
 
-#[cfg(any(feature = "dynamic_routing", feature = "v2"))]
+#[cfg(feature = "dynamic_routing")]
 impl<T> AddHeaders for tonic::Request<T> {
     #[track_caller]
     fn add_headers_to_grpc_request(&mut self, headers: GrpcHeaders) {
@@ -159,12 +192,12 @@ impl<T> AddHeaders for tonic::Request<T> {
     }
 }
 
-#[cfg(any(feature = "dynamic_routing", feature = "v2"))]
+#[cfg(feature = "dynamic_routing")]
 pub(crate) fn create_grpc_request<T: Debug>(message: T, headers: GrpcHeaders) -> tonic::Request<T> {
     let mut request = tonic::Request::new(message);
     request.add_headers_to_grpc_request(headers);
 
-    logger::info!(request=?request);
+    logger::info!(dynamic_routing_request=?request);
 
     request
 }

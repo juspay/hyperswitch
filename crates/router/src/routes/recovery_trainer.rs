@@ -1,6 +1,7 @@
+#![cfg(all(feature = "v2", feature = "revenue_recovery"))]
 use actix_web::{web, Responder};
 use error_stack::ResultExt;
-use external_services::grpc_client::recovery_trainer_client;
+use external_services::grpc_client::{TrainerClientInterface, TriggerTrainingRequest};
 use router_env::{instrument, logger, tracing, Flow};
 
 use super::app::{ReqState, SessionState};
@@ -10,17 +11,24 @@ use crate::{
     types::api::admin as admin_api_types,
 };
 
-#[cfg(feature = "v2")]
 #[instrument(skip_all, fields(flow = ?Flow::TriggerTrainingJob))]
 pub async fn trigger_training_job(
     state: web::Data<crate::AppState>,
     http_req: actix_web::HttpRequest,
-    json_payload: web::Json<recovery_trainer_client::TriggerTrainingRequest>,
+    json_payload: web::Json<TriggerTrainingRequest>,
 ) -> impl Responder {
     let flow = Flow::TriggerTrainingJob;
     logger::debug!("Triggering training job endpoint called");
     let request_data = json_payload.into_inner();
     logger::debug!(deserialized_request = ?request_data, "Received and deserialized TriggerTrainingRequest");
+
+    let headers = http_req.headers();
+    let merchant_id_header = auth::HeaderMapStruct::new(headers);
+
+    let merchant_id = match merchant_id_header.get_merchant_id_from_header() {
+        Ok(merchant_id) => merchant_id,
+        Err(e) => return api::log_and_return_error_response(e),
+    };
 
     Box::pin(api::server_wrap(
         flow,
@@ -34,7 +42,7 @@ pub async fn trigger_training_job(
                 logger::info!("Attempting to initialize gRPC trainer client");
                 grpc_clients_arc.trainer_config
                     .get_trainer_service_client(grpc_clients_arc.hyper_client_for_trainer.clone())
-                    .map(|client| -> Box<dyn recovery_trainer_client::TrainerClientInterface> { Box::new(client) })
+                    .map(|client| -> Box<dyn TrainerClientInterface> { Box::new(client) })
                     .change_context(errors::ApiErrorResponse::InternalServerError)
                     .map_err(|report| {
                         logger::error!(trainer_client_init_error = ?report, "Failed to initialize trainer gRPC client");
@@ -45,14 +53,13 @@ pub async fn trigger_training_job(
             let mut trainer_client = dyn_clone::clone_box(&**client_ref_in_once_cell);
 
             let model_version_tag = req_body.model_version_tag;
-            let merchant_id  = req_body.merchant_id ;
 
             logger::debug!(%model_version_tag, %merchant_id , "Calling trainer_client.trigger_training");
 
             let response = trainer_client
                 .get_training(
                     model_version_tag,
-                    merchant_id,
+                    merchant_id.into(),
                 )
                 .await
                 .map_err(|err| {
@@ -70,7 +77,6 @@ pub async fn trigger_training_job(
     .await
 }
 
-#[cfg(feature = "v2")]
 #[instrument(skip_all, fields(flow = ?Flow::GetTrainingJobStatus))]
 pub async fn get_the_training_job_status(
     state: web::Data<crate::AppState>,
@@ -93,7 +99,7 @@ pub async fn get_the_training_job_status(
                 logger::info!("Attempting to initialize gRPC trainer client for get_status");
                 grpc_clients_arc.trainer_config
                     .get_trainer_service_client(grpc_clients_arc.hyper_client_for_trainer.clone())
-                    .map(|client| -> Box<dyn recovery_trainer_client::TrainerClientInterface> { Box::new(client) })
+                    .map(|client| -> Box<dyn TrainerClientInterface> { Box::new(client) })
                     .change_context(errors::ApiErrorResponse::InternalServerError)
                     .map_err(|report| {
                         logger::error!(trainer_client_init_error = ?report, "Failed to initialize trainer gRPC client for get_status");

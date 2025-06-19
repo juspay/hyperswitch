@@ -36,7 +36,7 @@ retry = []
 v2 = [ "common_default", "api_models/v2", "diesel_models/v2", "hyperswitch_domain_models/v2", "storage_impl/v2", "kgraph_utils/v2", "common_utils/v2", "hyperswitch_connectors/v2", "hyperswitch_interfaces/v2", "common_types/v2", "revenue_recovery", "scheduler/v2", "refunds_v2", "euclid/v2", "payment_methods/v2", "tokenization_v2", "external_services/v2"]
 v1 = ["common_default", "api_models/v1", "diesel_models/v1", "hyperswitch_domain_models/v1", "storage_impl/v1", "hyperswitch_interfaces/v1", "kgraph_utils/v1", "common_utils/v1", "hyperswitch_connectors/v1", "common_types/v1", "scheduler/v1", "payment_methods/v1"]
 dynamic_routing = ["external_services/dynamic_routing", "storage_impl/dynamic_routing", "api_models/dynamic_routing"]
-revenue_recovery = ["api_models/revenue_recovery", "hyperswitch_interfaces/revenue_recovery", "hyperswitch_domain_models/revenue_recovery", "hyperswitch_connectors/revenue_recovery"]
+revenue_recovery = ["api_models/revenue_recovery", "hyperswitch_interfaces/revenue_recovery", "hyperswitch_domain_models/revenue_recovery", "hyperswitch_connectors/revenue_recovery", "external_services/revenue_recovery"]
 refunds_v2 = ["api_models/refunds_v2", "diesel_models/refunds_v2", "storage_impl/refunds_v2", "hyperswitch_domain_models/refunds_v2"]
 tokenization_v2 = ["api_models/tokenization_v2", "diesel_models/tokenization_v2", "hyperswitch_domain_models/tokenization_v2", "storage_impl/tokenization_v2"]
 
@@ -81,7 +81,6 @@ num-traits = "0.2.19"
 once_cell = "1.21.3"
 openidconnect = "3.5.0" # TODO: remove reqwest
 openssl = "0.10.72"
-prost-types = "0.13"
 rand = "0.8.5"
 rand_chacha = "0.3.1"
 rdkafka = "0.36.2"

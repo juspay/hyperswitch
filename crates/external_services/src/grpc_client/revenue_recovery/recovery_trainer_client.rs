@@ -1,8 +1,10 @@
+#![cfg(all(feature = "revenue_recovery", feature = "v2"))]
+
 use common_utils::errors::CustomResult;
 use error_stack::{Report, ResultExt};
 use router_env::logger;
 
-use super::Client;
+use crate::grpc_client::Client;
 
 #[allow(
     missing_docs,
@@ -12,7 +14,7 @@ use super::Client;
     clippy::use_self
 )]
 pub mod trainer {
-    tonic::include_proto!("trainer"); // Corresponds to package name in .proto
+    tonic::include_proto!("trainer");
 }
 
 use trainer::trainer_service_client::TrainerServiceClient;
