@@ -695,8 +695,7 @@ impl PaymentIntentUpdateInternal {
             tax_on_surcharge: tax_on_surcharge.or(source.tax_on_surcharge),
             routing_algorithm_id: routing_algorithm_id.or(source.routing_algorithm_id),
             capture_method: capture_method.or(source.capture_method),
-            authentication_type: authentication_type
-                .or(source.authentication_type),
+            authentication_type: authentication_type.or(source.authentication_type),
             billing_address: billing_address.or(source.billing_address),
             shipping_address: shipping_address.or(source.shipping_address),
             customer_present: customer_present.or(source.customer_present),
