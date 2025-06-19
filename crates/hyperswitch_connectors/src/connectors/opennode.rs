@@ -468,7 +468,7 @@ static OPENNODE_CONNECTOR_INFO: ConnectorInfo = ConnectorInfo {
     description:
         "OpenNode offers accessible way for e-commerce businesses to process bitcoin payments.",
     connector_type: enums::PaymentConnectorCategory::PaymentGateway,
-    integration_status: enums::ConnectorIntegrationStatus::Alpha,
+    integration_status: enums::ConnectorIntegrationStatus::Beta,
 };
 
 static OPENNODE_SUPPORTED_WEBHOOK_FLOWS: [enums::EventClass; 1] = [enums::EventClass::Payments];

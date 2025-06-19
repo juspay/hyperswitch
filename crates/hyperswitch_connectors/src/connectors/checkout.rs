@@ -1553,7 +1553,7 @@ static CHECKOUT_CONNECTOR_INFO: ConnectorInfo = ConnectorInfo {
         description:
             "Checkout.com is a British multinational financial technology company that processes payments for other companies.",
         connector_type: enums::PaymentConnectorCategory::PaymentGateway,
-        integration_status: enums::ConnectorIntegrationStatus::Alpha,
+        integration_status: enums::ConnectorIntegrationStatus::Live,
     };
 
 static CHECKOUT_SUPPORTED_WEBHOOK_FLOWS: [enums::EventClass; 3] = [

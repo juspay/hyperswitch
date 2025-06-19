@@ -602,7 +602,7 @@ static GLOBEPAY_CONNECTOR_INFO: ConnectorInfo = ConnectorInfo {
         display_name: "Globepay",
         description: "GlobePay Limited is a professional cross-border payment solution provider (WeChat Pay & Alipay) in the UK",
         connector_type: enums::PaymentConnectorCategory::PaymentGateway,
-        integration_status: enums::ConnectorIntegrationStatus::Alpha,
+        integration_status: enums::ConnectorIntegrationStatus::Sandbox,
     };
 
 static GLOBEPAY_SUPPORTED_WEBHOOK_FLOWS: [enums::EventClass; 0] = [];

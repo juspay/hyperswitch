@@ -976,7 +976,7 @@ static FISERV_CONNECTOR_INFO: ConnectorInfo = ConnectorInfo {
     description:
         "Fiserv is a global fintech and payments company with solutions for banking, global commerce, merchant acquiring, billing and payments, and point-of-sale ",
     connector_type: enums::PaymentConnectorCategory::PaymentGateway,
-    integration_status: enums::ConnectorIntegrationStatus::Alpha,
+    integration_status: enums::ConnectorIntegrationStatus::Sandbox,
 };
 
 static FISERV_SUPPORTED_WEBHOOK_FLOWS: [enums::EventClass; 0] = [];

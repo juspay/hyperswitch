@@ -864,7 +864,7 @@ static NEXINETS_CONNECTOR_INFO: ConnectorInfo = ConnectorInfo {
         display_name: "Nexinets",
         description: "Nexi and Nets join forces to create The European PayTech leader, a strategic combination to offer future-proof innovative payment solutions.",
         connector_type: enums::PaymentConnectorCategory::PaymentGateway,
-        integration_status: enums::ConnectorIntegrationStatus::Alpha,
+        integration_status: enums::ConnectorIntegrationStatus::Sandbox,
     };
 
 static NEXINETS_SUPPORTED_WEBHOOK_FLOWS: [enums::EventClass; 0] = [];

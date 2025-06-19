@@ -1080,7 +1080,7 @@ lazy_static! {
         display_name: "Nexixpay",
         description: "Nexixpay is an Italian bank that specialises in payment systems such as Nexi Payments (formerly known as CartaSi).",
         connector_type: enums::PaymentConnectorCategory::PaymentGateway,
-        integration_status: enums::ConnectorIntegrationStatus::Alpha,
+        integration_status: enums::ConnectorIntegrationStatus::Sandbox,
     };
 
     static ref NEXIXPAY_SUPPORTED_PAYMENT_METHODS: SupportedPaymentMethods = {

@@ -876,7 +876,7 @@ static BILLWERK_CONNECTOR_INFO: ConnectorInfo = ConnectorInfo {
     display_name: "Billwerk",
     description: "Billwerk+ Pay is an acquirer independent payment gateway that's easy to setup with more than 50 recurring and non-recurring payment methods.",
     connector_type: enums::PaymentConnectorCategory::PaymentGateway,
-    integration_status: enums::ConnectorIntegrationStatus::Alpha,
+    integration_status: enums::ConnectorIntegrationStatus::Sandbox,
 };
 
 static BILLWERK_SUPPORTED_WEBHOOK_FLOWS: [enums::EventClass; 0] = [];

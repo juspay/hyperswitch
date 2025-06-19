@@ -674,7 +674,7 @@ static MULTISAFEPAY_CONNECTOR_INFO: ConnectorInfo = ConnectorInfo {
     display_name: "Multisafepay",
     description: "MultiSafePay is a payment gateway and PSP enabling secure online transactions",
     connector_type: enums::PaymentConnectorCategory::PaymentGateway,
-    integration_status: enums::ConnectorIntegrationStatus::Alpha,
+    integration_status: enums::ConnectorIntegrationStatus::Sandbox,
 };
 
 static MULTISAFEPAY_SUPPORTED_WEBHOOK_FLOWS: [enums::EventClass; 0] = [];

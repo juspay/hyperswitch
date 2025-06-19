@@ -760,7 +760,7 @@ static PAYBOX_CONNECTOR_INFO: ConnectorInfo = ConnectorInfo {
         description:
             "Paybox is a payment gateway that enables businesses to process online transactions securely ",
         connector_type: enums::PaymentConnectorCategory::PaymentGateway,
-        integration_status: enums::ConnectorIntegrationStatus::Alpha,
+        integration_status: enums::ConnectorIntegrationStatus::Sandbox,
     };
 
 static PAYBOX_SUPPORTED_WEBHOOK_FLOWS: [enums::EventClass; 0] = [];

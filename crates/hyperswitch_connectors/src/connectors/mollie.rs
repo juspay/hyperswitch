@@ -798,7 +798,7 @@ lazy_static! {
         description:
             "Mollie is a Developer-friendly processor providing simple and customizable payment solutions for businesses of all sizes.",
         connector_type: enums::PaymentConnectorCategory::PaymentGateway,
-        integration_status: enums::ConnectorIntegrationStatus::Alpha,
+        integration_status: enums::ConnectorIntegrationStatus::Sandbox,
     };
 
     static ref MOLLIE_SUPPORTED_WEBHOOK_FLOWS: Vec<enums::EventClass> = Vec::new();

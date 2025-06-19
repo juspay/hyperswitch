@@ -822,7 +822,7 @@ static WORLDPAYXML_CONNECTOR_INFO: ConnectorInfo = ConnectorInfo {
     display_name: "Worldpay XML",
     description: "Worldpay is a payment gateway and PSP enabling secure online transactions",
     connector_type: common_enums::PaymentConnectorCategory::PaymentGateway,
-    integration_status: common_enums::ConnectorIntegrationStatus::Alpha,
+    integration_status: common_enums::ConnectorIntegrationStatus::Sandbox,
 };
 
 static WORLDPAYXML_SUPPORTED_WEBHOOK_FLOWS: [common_enums::EventClass; 0] = [];

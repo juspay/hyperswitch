@@ -1413,7 +1413,7 @@ static WELLSFARGO_CONNECTOR_INFO: ConnectorInfo = ConnectorInfo {
     description:
         "Wells Fargo is a major bank offering retail, commercial, and wealth management services",
     connector_type: enums::PaymentConnectorCategory::BankAcquirer,
-    integration_status: enums::ConnectorIntegrationStatus::Alpha,
+    integration_status: enums::ConnectorIntegrationStatus::Beta,
 };
 
 static WELLSFARGO_SUPPORTED_WEBHOOK_FLOWS: [enums::EventClass; 0] = [];

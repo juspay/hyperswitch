@@ -763,7 +763,7 @@ lazy_static! {
         description:
             "IATA Pay is a payment method for travellers to pay for air tickets purchased online by directly debiting their bank account.",
         connector_type: enums::PaymentConnectorCategory::PaymentGateway,
-        integration_status: enums::ConnectorIntegrationStatus::Alpha,
+        integration_status: enums::ConnectorIntegrationStatus::Live,
     };
 
     static ref IATAPAY_SUPPORTED_PAYMENT_METHODS: SupportedPaymentMethods = {

@@ -1074,7 +1074,7 @@ static DEUTSCHEBANK_CONNECTOR_INFO: ConnectorInfo = ConnectorInfo {
     description:
         "Deutsche Bank is a German multinational investment bank and financial services company ",
     connector_type: enums::PaymentConnectorCategory::BankAcquirer,
-    integration_status: enums::ConnectorIntegrationStatus::Alpha,
+    integration_status: enums::ConnectorIntegrationStatus::Sandbox,
 };
 
 static DEUTSCHEBANK_SUPPORTED_WEBHOOK_FLOWS: [enums::EventClass; 0] = [];

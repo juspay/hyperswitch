@@ -752,7 +752,7 @@ static ACI_CONNECTOR_INFO: ConnectorInfo = ConnectorInfo {
     description:
         "ACI Payments delivers secure, real-time electronic payment solutions for businesses, banks, and governments, enabling seamless transactions across channels.",
     connector_type: enums::PaymentConnectorCategory::PaymentGateway,
-    integration_status: enums::ConnectorIntegrationStatus::Alpha,
+    integration_status: enums::ConnectorIntegrationStatus::Beta,
 };
 
 static ACI_SUPPORTED_WEBHOOK_FLOWS: [enums::EventClass; 0] = [];

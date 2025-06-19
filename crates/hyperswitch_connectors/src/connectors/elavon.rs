@@ -662,7 +662,7 @@ static ELAVON_CONNECTOR_INFO: ConnectorInfo = ConnectorInfo {
     display_name: "Elavon",
     description: "Elavon, a wholly owned subsidiary of U.S. Bank, has been a global leader in payment processing for more than 30 years.",
     connector_type: enums::PaymentConnectorCategory::PaymentGateway,
-    integration_status: enums::ConnectorIntegrationStatus::Alpha,
+    integration_status: enums::ConnectorIntegrationStatus::Sandbox,
 };
 
 static ELAVON_SUPPORTED_WEBHOOK_FLOWS: [enums::EventClass; 0] = [];

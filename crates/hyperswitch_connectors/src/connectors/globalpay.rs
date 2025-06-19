@@ -1152,7 +1152,7 @@ static GLOBALPAY_CONNECTOR_INFO: ConnectorInfo = ConnectorInfo {
         display_name: "Globalpay",
         description: "Global Payments is an American multinational financial technology company that provides payment technology and services to merchants, issuers and consumers.",
         connector_type: enums::PaymentConnectorCategory::PaymentGateway,
-        integration_status: enums::ConnectorIntegrationStatus::Alpha,
+        integration_status: enums::ConnectorIntegrationStatus::Sandbox,
     };
 
 static GLOBALPAY_SUPPORTED_WEBHOOK_FLOWS: [enums::EventClass; 1] = [enums::EventClass::Payments];

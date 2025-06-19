@@ -872,7 +872,7 @@ static MONERIS_CONNECTOR_INFO: ConnectorInfo = ConnectorInfo {
     display_name: "Moneris",
     description: "Moneris is Canada's top payment solutions provider, empowering businesses with innovative mobile, online & in-store solutions.",
     connector_type: enums::PaymentConnectorCategory::PaymentGateway,
-    integration_status: enums::ConnectorIntegrationStatus::Alpha,
+    integration_status: enums::ConnectorIntegrationStatus::Sandbox,
 };
 
 static MONERIS_SUPPORTED_WEBHOOK_FLOWS: [enums::EventClass; 0] = [];

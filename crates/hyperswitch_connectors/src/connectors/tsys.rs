@@ -709,7 +709,7 @@ static TSYS_CONNECTOR_INFO: ConnectorInfo = ConnectorInfo {
     display_name: "Tsys",
     description: "TSYS, a Global Payments company, is the payment stack for the future, powered by unmatched expertise.",
     connector_type: enums::PaymentConnectorCategory::BankAcquirer,
-    integration_status: enums::ConnectorIntegrationStatus::Alpha,
+    integration_status: enums::ConnectorIntegrationStatus::Beta,
 };
 
 static TSYS_SUPPORTED_WEBHOOK_FLOWS: [enums::EventClass; 0] = [];

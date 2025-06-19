@@ -1308,7 +1308,7 @@ static BRAINTREE_CONNECTOR_INFO: ConnectorInfo = ConnectorInfo {
     description:
         "Braintree, a PayPal service, offers a full-stack payment platform that simplifies accepting payments in your app or website, supporting various payment methods including credit cards and PayPal.",
     connector_type: enums::PaymentConnectorCategory::PaymentGateway,
-    integration_status: enums::ConnectorIntegrationStatus::Alpha,
+    integration_status: enums::ConnectorIntegrationStatus::Live,
 };
 
 static BRAINTREE_SUPPORTED_WEBHOOK_FLOWS: [enums::EventClass; 2] =

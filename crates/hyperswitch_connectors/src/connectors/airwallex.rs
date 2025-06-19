@@ -1188,7 +1188,7 @@ static AIRWALLEX_CONNECTOR_INFO: ConnectorInfo = ConnectorInfo {
     display_name: "Airwallex",
     description: "Airwallex is a multinational financial technology company offering financial services and software as a service (SaaS)",
     connector_type: enums::PaymentConnectorCategory::PaymentGateway,
-    integration_status: enums::ConnectorIntegrationStatus::Alpha,
+    integration_status: enums::ConnectorIntegrationStatus::Sandbox,
 };
 
 static AIRWALLEX_SUPPORTED_WEBHOOK_FLOWS: [enums::EventClass; 3] = [
