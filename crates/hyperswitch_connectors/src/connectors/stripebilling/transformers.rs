@@ -561,7 +561,7 @@ impl
                     )),
                     // Todo: Fetch Card issuer details. Generally in the other billing connector we are getting card_issuer using the card bin info. But stripe dosent provide any such details. We should find a way for stripe billing case
                     card_isin: None,
-                    charge_id : Some(charge_details.charge_id.clone())
+                    charge_id: Some(charge_details.charge_id.clone()),
                 },
             ),
             ..item.data

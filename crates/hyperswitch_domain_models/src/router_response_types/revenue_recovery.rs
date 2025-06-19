@@ -33,7 +33,7 @@ pub struct BillingConnectorPaymentsSyncResponse {
     /// card isin
     pub card_isin: Option<String>,
     /// stripe specifc id used to validate duplicate attempts.
-    pub charge_id : Option<String>,
+    pub charge_id: Option<String>,
 }
 
 #[derive(Debug, Clone)]
