@@ -1503,7 +1503,7 @@ impl PaymentAttemptInterface for KafkaStore {
                 storage_scheme,
             )
             .await?;
-        
+
         if let Err(er) = self
             .kafka_producer
             .log_payment_attempt(&attempt, None, self.tenant_id.clone())
