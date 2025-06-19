@@ -1016,6 +1016,7 @@ impl Default for SuccessBasedRoutingConfig {
                 }),
                 specificity_level: SuccessRateSpecificityLevel::default(),
                 exploration_percent: Some(20.0),
+                shuffle_on_tie_during_exploitation: Some(false),
             }),
             decision_engine_configs: None,
         }
@@ -1044,6 +1045,7 @@ pub struct SuccessBasedRoutingConfigBody {
     #[serde(default)]
     pub specificity_level: SuccessRateSpecificityLevel,
     pub exploration_percent: Option<f64>,
+    pub shuffle_on_tie_during_exploitation: Option<bool>,
 }
 
 #[derive(serde::Serialize, serde::Deserialize, Debug, Clone, ToSchema)]
@@ -1172,6 +1174,9 @@ impl SuccessBasedRoutingConfigBody {
         self.specificity_level = new.specificity_level;
         if let Some(exploration_percent) = new.exploration_percent {
             self.exploration_percent = Some(exploration_percent);
+        }
+        if let Some(shuffle_on_tie_during_exploitation) = new.shuffle_on_tie_during_exploitation {
+            self.shuffle_on_tie_during_exploitation = Some(shuffle_on_tie_during_exploitation);
         }
     }
 }
@@ -1379,157 +1384,50 @@ impl std::fmt::Display for RoutingApproach {
         }
     }
 }
-
-#[derive(Clone, Debug, Serialize, Deserialize)]
-#[serde(rename_all = "snake_case")]
-pub struct BucketInformationEventResponse {
-    pub is_eliminated: bool,
-    pub bucket_name: Vec<String>,
+#[derive(Clone, Debug, serde::Deserialize, serde::Serialize)]
+pub struct RuleMigrationQuery {
+    pub profile_id: common_utils::id_type::ProfileId,
+    pub merchant_id: common_utils::id_type::MerchantId,
+    pub limit: Option<u32>,
+    pub offset: Option<u32>,
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
-#[serde(rename_all = "snake_case")]
-pub struct EliminationInformationEventResponse {
-    pub entity: Option<BucketInformationEventResponse>,
-    pub global: Option<BucketInformationEventResponse>,
+impl RuleMigrationQuery {
+    pub fn validated_limit(&self) -> u32 {
+        self.limit.unwrap_or(50).min(1000)
+    }
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
-#[serde(rename_all = "snake_case")]
-pub struct LabelWithStatusEliminationEventResponse {
-    pub label: String,
-    pub elimination_information: Option<EliminationInformationEventResponse>,
+#[derive(Debug, serde::Serialize)]
+pub struct RuleMigrationResult {
+    pub success: Vec<RuleMigrationResponse>,
+    pub errors: Vec<RuleMigrationError>,
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
-#[serde(rename_all = "snake_case")]
-pub struct EliminationEventResponse {
-    pub labels_with_status: Vec<LabelWithStatusEliminationEventResponse>,
+#[derive(Debug, serde::Serialize)]
+pub struct RuleMigrationResponse {
+    pub profile_id: common_utils::id_type::ProfileId,
+    pub euclid_algorithm_id: common_utils::id_type::RoutingId,
+    pub decision_engine_algorithm_id: String,
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
-#[serde(rename_all = "snake_case")]
-pub struct ScoreDataEventResponse {
-    pub score: f64,
-    pub label: String,
-    pub current_count: u64,
+#[derive(Debug, serde::Serialize)]
+pub struct RuleMigrationError {
+    pub profile_id: common_utils::id_type::ProfileId,
+    pub algorithm_id: common_utils::id_type::RoutingId,
+    pub error: String,
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
-#[serde(rename_all = "snake_case")]
-pub struct CalContractScoreEventResponse {
-    pub labels_with_score: Vec<ScoreDataEventResponse>,
-}
-
-#[derive(Clone, Copy, Debug, Serialize, Deserialize)]
-#[serde(rename_all = "snake_case")]
-pub struct CalGlobalSuccessRateConfigEventRequest {
-    pub entity_min_aggregates_size: u32,
-    pub entity_default_success_rate: f64,
-}
-
-#[derive(Clone, Debug, Serialize, Deserialize)]
-#[serde(rename_all = "snake_case")]
-pub struct CalGlobalSuccessRateEventRequest {
-    pub entity_id: String,
-    pub entity_params: String,
-    pub entity_labels: Vec<String>,
-    pub global_labels: Vec<String>,
-    pub config: Option<CalGlobalSuccessRateConfigEventRequest>,
-}
-
-#[derive(Clone, Debug, Serialize, Deserialize)]
-#[serde(rename_all = "snake_case")]
-pub struct UpdateSuccessRateWindowConfig {
-    pub max_aggregates_size: Option<u32>,
-    pub current_block_threshold: Option<CurrentBlockThreshold>,
-}
-
-#[derive(Clone, Debug, Serialize, Deserialize)]
-#[serde(rename_all = "snake_case")]
-pub struct UpdateLabelWithStatusEventRequest {
-    pub label: String,
-    pub status: bool,
-}
-
-#[derive(Clone, Debug, Serialize, Deserialize)]
-#[serde(rename_all = "snake_case")]
-pub struct UpdateSuccessRateWindowEventRequest {
-    pub id: String,
-    pub params: String,
-    pub labels_with_status: Vec<UpdateLabelWithStatusEventRequest>,
-    pub config: Option<UpdateSuccessRateWindowConfig>,
-    pub global_labels_with_status: Vec<UpdateLabelWithStatusEventRequest>,
-}
-
-#[derive(Clone, Debug, Serialize, Deserialize)]
-#[serde(rename_all = "snake_case")]
-pub struct UpdateSuccessRateWindowEventResponse {
-    pub status: UpdationStatusEventResponse,
-}
-
-#[derive(Clone, Debug, Serialize, Deserialize)]
-#[serde(rename_all = "snake_case")]
-pub enum UpdationStatusEventResponse {
-    WindowUpdationSucceeded,
-    WindowUpdationFailed,
-}
-
-#[derive(Clone, Debug, Serialize, Deserialize)]
-#[serde(rename_all = "snake_case")]
-pub struct LabelWithBucketNameEventRequest {
-    pub label: String,
-    pub bucket_name: String,
-}
-
-#[derive(Clone, Debug, Serialize, Deserialize)]
-#[serde(rename_all = "snake_case")]
-pub struct UpdateEliminationBucketEventRequest {
-    pub id: String,
-    pub params: String,
-    pub labels_with_bucket_name: Vec<LabelWithBucketNameEventRequest>,
-    pub config: Option<EliminationRoutingEventBucketConfig>,
-}
-
-#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
-#[serde(rename_all = "snake_case")]
-pub struct UpdateEliminationBucketEventResponse {
-    pub status: EliminationUpdationStatusEventResponse,
-}
-
-#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
-#[serde(rename_all = "snake_case")]
-pub enum EliminationUpdationStatusEventResponse {
-    BucketUpdationSucceeded,
-    BucketUpdationFailed,
-}
-
-#[derive(Clone, Debug, Serialize, Deserialize)]
-#[serde(rename_all = "snake_case")]
-pub struct ContractLabelInformationEventRequest {
-    pub label: String,
-    pub target_count: u64,
-    pub target_time: u64,
-    pub current_count: u64,
-}
-
-#[derive(Clone, Debug, Serialize, Deserialize)]
-#[serde(rename_all = "snake_case")]
-pub struct UpdateContractRequestEventRequest {
-    pub id: String,
-    pub params: String,
-    pub labels_information: Vec<ContractLabelInformationEventRequest>,
-}
-
-#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
-#[serde(rename_all = "snake_case")]
-pub struct UpdateContractEventResponse {
-    pub status: ContractUpdationStatusEventResponse,
-}
-
-#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
-#[serde(rename_all = "snake_case")]
-pub enum ContractUpdationStatusEventResponse {
-    ContractUpdationSucceeded,
-    ContractUpdationFailed,
+impl RuleMigrationResponse {
+    pub fn new(
+        profile_id: common_utils::id_type::ProfileId,
+        euclid_algorithm_id: common_utils::id_type::RoutingId,
+        decision_engine_algorithm_id: String,
+    ) -> Self {
+        Self {
+            profile_id,
+            euclid_algorithm_id,
+            decision_engine_algorithm_id,
+        }
+    }
 }

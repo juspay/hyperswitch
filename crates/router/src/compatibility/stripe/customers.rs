@@ -52,7 +52,7 @@ pub async fn customer_create(
         create_cust_req,
         |state, auth: auth::AuthenticationData, req, _| {
             let merchant_context = auth.into();
-            customers::create_customer(state, merchant_context, req)
+            customers::create_customer(state, merchant_context, req, None)
         },
         &auth::HeaderAuth(auth::ApiKeyAuth {
             is_connected_allowed: false,
