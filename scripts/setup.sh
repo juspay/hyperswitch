@@ -116,40 +116,49 @@ detect_git() {
 }
 # Check if current git state is a stable release
 is_stable_release() {
-
-    # Check if working directory is clean (no changes, staged or unstaged)
+    # Check if git repo is clean
     if [[ -n "$(git status --porcelain)" ]] || [[ "$(git rev-list --count HEAD ^$(git describe --tags --abbrev=0 2>/dev/null))" -gt 0 ]]; then
-        return 1
-    else
-        return 0
+        return # Don't set branch; keep as default "dev"
     fi
 
-    # Get the exact tag for the current commit, if any
+    # Get current branch name
+    local current_branch
+    current_branch=$(git rev-parse --abbrev-ref HEAD 2>/dev/null || echo "")
+
+    if [["$current_branch" == "main" ]]; then
+        branch="main"
+        return
+    fi
+
+    # Check if current commit has a valid stable tag
     local current_tag
     current_tag=$(git describe --tags --exact-match HEAD 2>/dev/null || echo "")
 
-    if [ -z "$current_tag" ]; then
-        return 1
+    if [[ -z "$current_tag" ]]; then
+        branch="dev"
+        return
     fi
 
-    # Ensure it's a stable tag (no alpha, beta, rc)
+    # Ensure tag is stable format
     if ! [[ "$current_tag" =~ ^(v?[0-9]+\.[0-9]+\.[0-9]+(\.[0-9]+)?(\+hotfix\.[0-9]+|-hotfix[0-9]+)?|[0-9]{4}\.[0-9]{2}\.[0-9]{2}\.[0-9]+(-hotfix[0-9]+)?)$ ]]; then
-        return 1
+        branch="dev"
+        return
     fi
 
-    # Exclude 'latest' and get the actual latest version tag
+    # Get real latest tag
     local latest_tag
     latest_tag=$(git tag --points-at latest | grep -v "^latest$" | grep -E "^[0-9]|^v" | sort -V | tail -n 1)
 
-    if [ -z "$latest_tag" ]; then
-        return 1
+    if [[ -z "$latest_tag" ]]; then
+        branch="dev"
+        return
     fi
 
-    # Ensure current tag is <= latest_tag
-    if [ "$current_tag" = "$latest_tag" ] || [ "$(printf "%s\n%s" "$current_tag" "$latest_tag" | sort -V | head -n1)" = "$current_tag" ]; then
-        return 0
+    # Compare tag <= latest
+    if [[ "$current_tag" == "$latest_tag" ]] || [[ "$(printf "%s\n%s" "$current_tag" "$latest_tag" | sort -V | head -n1)" == "$current_tag" ]]; then
+        branch="latest"
     else
-        return 1
+        branch="dev"
     fi
 }
 
@@ -319,15 +328,17 @@ select_profile() {
 }
 
 scarf_call() {
-    # Call the Scarf webhook endpoint with the provided parameters
-    chmod +x scripts/notify_scarf.sh
-    if [ ${#SCARF_PARAMS[@]} -eq 0 ]; then
-        scripts/notify_scarf.sh "version=${VERSION}" "status=${INSTALLATION_STATUS}" >/dev/null 2>&1
-    else
-        scripts/notify_scarf.sh "version=${VERSION}" "status=${INSTALLATION_STATUS}" "${SCARF_PARAMS[@]}" >/dev/null 2>&1
+    if [[ "${branch:-}" != "dev" ]]; then
+        # Call the Scarf webhook endpoint with the provided parameters
+        chmod +x scripts/notify_scarf.sh
+        if [ ${#SCARF_PARAMS[@]} -eq 0 ]; then
+            scripts/notify_scarf.sh "version=${VERSION}" "status=${INSTALLATION_STATUS}" >/dev/null 2>&1
+        else
+            scripts/notify_scarf.sh "version=${VERSION}" "status=${INSTALLATION_STATUS}" "${SCARF_PARAMS[@]}" >/dev/null 2>&1
+        fi
+        # Reset SCARF_PARAMS for the next call
+        SCARF_PARAMS=()
     fi
-    # Reset SCARF_PARAMS for the next call
-    SCARF_PARAMS=()
 }
 
 start_services() {
