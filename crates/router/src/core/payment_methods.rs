@@ -81,7 +81,7 @@ use crate::{
         domain::types as domain_types,
         storage::{ephemeral_key, PaymentMethodListContext},
         transformers::{ForeignFrom, ForeignTryFrom},
-        Tokenizable,
+        Tokenizable, payment_methods as pm_types
     },
     utils::ext_traits::OptionExt,
 };

@@ -181,7 +181,7 @@ pub async fn receive_incoming_webhook<W: types::OutgoingWebhookType>(
 }
 
 #[cfg(feature = "v1")]
-#[instrument(skip_all, fields(flow = ?Flow::IncomingWebhookReceive))]
+#[instrument(skip_all, fields(flow = ?Flow::IncomingNetworkTokenWebhookReceive))]
 pub async fn receive_network_token_requestor_incoming_webhook<W: types::OutgoingWebhookType>(
     state: web::Data<AppState>,
     req: HttpRequest,
