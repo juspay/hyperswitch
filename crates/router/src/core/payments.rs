@@ -389,8 +389,8 @@ where
             state,
             payment_data,
             router_data,
-            merchant_context.get_merchant_key_store(),
-            merchant_context.get_merchant_account().storage_scheme,
+            merchant_context.get_owner_merchant_key_store(),
+            merchant_context.get_owner_merchant_account().storage_scheme,
         )
         .await?;
 
@@ -3922,7 +3922,7 @@ where
         domain::MerchantConnectorAccountTypeDetails::MerchantConnectorAccount(Box::new(
             helpers::get_merchant_connector_account_v2(
                 state,
-                merchant_context.get_merchant_key_store(),
+                merchant_context.get_processor_merchant_key_store(),
                 connector.merchant_connector_id.as_ref(),
             )
             .await?,
@@ -3974,7 +3974,7 @@ where
             None,
             merchant_context.get_owner_merchant_account().storage_scheme,
             None,
-            merchant_context.get_merchant_key_store(),
+            merchant_context.get_owner_merchant_key_store(),
             None,
             header_payload.clone(),
         )
@@ -4400,25 +4400,18 @@ where
     let call_connectors_start_time = Instant::now();
     let mut join_handlers = Vec::with_capacity(connectors.len());
     for session_connector_data in connectors.iter() {
-        let merchant_connector_id = session_connector_data
-            .connector
-            .merchant_connector_id
-            .as_ref()
-            .get_required_value("merchant_connector_id")
-            .change_context(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable("connector id is not set")?;
-        // TODO: make this DB call parallel
-        let merchant_connector_account = state
-            .store
-            .find_merchant_connector_account_by_id(
-                &state.into(),
-                merchant_connector_id,
-                merchant_context.get_processor_merchant_key_store(),
-            )
-            .await
-            .to_not_found_response(errors::ApiErrorResponse::MerchantConnectorAccountNotFound {
-                id: merchant_connector_id.get_string_repr().to_owned(),
-            })?;
+        let merchant_connector_account =
+            domain::MerchantConnectorAccountTypeDetails::MerchantConnectorAccount(Box::new(
+                helpers::get_merchant_connector_account_v2(
+                    state,
+                    merchant_context.get_processor_merchant_key_store(),
+                    session_connector_data
+                        .connector
+                        .merchant_connector_id
+                        .as_ref(),
+                )
+                .await?,
+            ));
         let connector_id = session_connector_data.connector.connector.id();
         let router_data = payment_data
             .construct_router_data(

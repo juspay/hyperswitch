@@ -2925,7 +2925,7 @@ pub async fn payments_status_with_gateway_creds(
 
             let operation = payments::operations::PaymentGet;
 
-            let merchant_context = domain::MerchantContext::NormalMerchant(Box::new(
+            let merchant_context = domain::MerchantContext::StandardMerchant(Box::new(
                 domain::Context(auth.merchant_account, auth.key_store),
             ));
             Box::pin(payments::payments_core::<
