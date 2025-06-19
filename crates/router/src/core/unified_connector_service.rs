@@ -5,7 +5,7 @@ use error_stack::ResultExt;
 use hyperswitch_domain_models::{
     merchant_context::MerchantContext,
     router_data::{ErrorResponse, RouterData},
-    router_response_types::PaymentsResponseData,
+    router_response_types::{MandateReference, PaymentsResponseData, RedirectForm},
 };
 use masking::PeekInterface;
 use router_env::logger;
@@ -41,18 +41,16 @@ pub struct UnifiedConnectorServiceClient {
 
 impl UnifiedConnectorServiceClient {
     /// Builds the connection to the gRPC service
-    pub async fn build_connections(
-        config: UnifiedConnectorService,
-    ) -> Result<Option<Self>, Box<dyn std::error::Error>> {
+    pub async fn build_connections(config: UnifiedConnectorService) -> Option<Self> {
         match PaymentServiceClient::connect(config.base_url.clone().get_string_repr().to_owned())
             .await
         {
-            Ok(unified_connector_service_client) => Ok(Some(Self {
+            Ok(unified_connector_service_client) => Some(Self {
                 client: unified_connector_service_client,
-            })),
+            }),
             Err(err) => {
-                logger::error!(error=?err);
-                Ok(None)
+                logger::error!(error = ?err, "Failed to connect to Unified Connector Service");
+                None
             }
         }
     }
@@ -99,24 +97,8 @@ pub async fn should_call_unified_connector_service<F: Clone, T>(
         flow_name
     );
 
-    let db = state.store.as_ref();
-
-    match db.find_config_by_key(&config_key).await {
-        Ok(rollout_config) => match rollout_config.config.parse() {
-            Ok(rollout_percent) => match should_execute_based_on_rollout(rollout_percent) {
-                true => Ok(state.unified_connector_service_client.is_some()),
-                false => Ok(false),
-            },
-            Err(err) => {
-                logger::error!(error = ?err);
-                Ok(false)
-            }
-        },
-        Err(err) => {
-            logger::error!(error = ?err);
-            Ok(false)
-        }
-    }
+    let should_execute = should_execute_based_on_rollout(state, &config_key).await?;
+    Ok(should_execute && state.unified_connector_service_client.is_some())
 }
 
 pub fn build_unified_connector_service_auth_headers(
@@ -240,12 +222,24 @@ pub fn handle_unified_connector_service_response_for_payment_authorize(
         AttemptStatus::AuthenticationPending |
         AttemptStatus::DeviceDataCollectionPending => Ok(PaymentsResponseData::TransactionResponse {
             resource_id: hyperswitch_domain_models::router_request_types::ResponseId::ConnectorTransactionId(response.connector_response_reference_id().to_owned()),
-            redirection_data: Box::new(None),
-            mandate_reference: Box::new(None),
+            redirection_data: Box::new(
+                response
+                    .redirection_data
+                    .clone()
+                    .map(RedirectForm::foreign_try_from)
+                    .transpose()?
+            ),
+            mandate_reference: Box::new(
+                response
+                    .mandate_reference
+                    .clone()
+                    .map(MandateReference::foreign_try_from)
+                    .transpose()?
+            ),
             connector_metadata: None,
-            network_txn_id: None,
+            network_txn_id: response.network_txn_id.clone(),
             connector_response_reference_id: Some(response.connector_response_reference_id().to_owned()),
-            incremental_authorization_allowed: None,
+            incremental_authorization_allowed: response.incremental_authorization_allowed.clone(),
             charges: None,
         }),
         _ => Err(ErrorResponse {
