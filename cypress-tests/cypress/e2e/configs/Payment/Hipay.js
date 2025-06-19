@@ -214,6 +214,7 @@ export const connectorDetails = {
         TRIGGER_SKIP: true,
       },
       Request: {
+        currency: "EUR",
         payment_method: "card",
         payment_method_type: "debit",
         payment_method_data: {
@@ -226,7 +227,7 @@ export const connectorDetails = {
       Response: {
         status: 200,
         body: {
-          status: "processing",
+          status: "succeeded",
         },
       },
       ResponseCustom: {
@@ -534,29 +535,39 @@ export const connectorDetails = {
         },
       },
     },
-    MITAutoCapture: getCustomExchange({
+    MITAutoCapture: {
+      Request: {
+        currency: "EUR",
+        billing: billing_info,
+      },
+      Response: {
+        status: 422,
+        body: {
+          error: missingPaymentTokenError,
+        },
+      },
+    },
+    ZeroAuthMandate: {
+      Request: {
+        currency: "EUR",
+        billing: billing_info
+      },
+      Response: {
+        status: 200,
+        body: {
+          amount: 0,
+          status: "processing",
+        },
+      },
+    },
+    PaymentIntentOffSession: {
       Request: {
         currency: "EUR",
       },
       Response: {
         status: 200,
         body: {
-          status: "processing",
-        },
-      },
-      ResponseCustom: {
-        status: 422,
-        body: {
-          error: missingPaymentTokenError,
-        },
-      },
-    }),
-    ZeroAuthMandate: {
-      Response: {
-        status: 200,
-        body: {
-          amount: 0,
-          status: "processing",
+          status: "requires_payment_method",
         },
       },
     },
