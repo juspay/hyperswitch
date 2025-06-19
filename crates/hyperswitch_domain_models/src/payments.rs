@@ -746,6 +746,7 @@ impl PaymentIntent {
             invoice_next_billing_time: None,
             card_isin: None,
             card_network: None,
+            charge_id: None,
         })
     }
 

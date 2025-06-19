@@ -466,31 +466,25 @@ impl RevenueRecoveryAttempt {
             revenue_recovery::RecoveryPaymentIntent,
         )>,
         errors::RevenueRecoveryError,
-    > {
-        let attempt_response = Box::pin(payments::payments_core::<
-            router_flow_types::payments::PSync,
-            api_payments::PaymentsResponse,
+    > {   
+        let attempt_response = Box::pin(payments::payments_list_attempts_using_payment_intent_id::<
+            payments::operations::PaymentGetListAttempts,
+            api_payments::PaymentAttemptListResponse,
             _,
-            _,
-            _,
-            hyperswitch_domain_models::payments::PaymentStatusData<
-                router_flow_types::payments::PSync,
-            >,
+            payments::operations::payment_attempt_list::PaymentGetListAttempts,
+            hyperswitch_domain_models::payments::PaymentAttemptListData<
+                    payments::operations::PaymentGetListAttempts,
+                >,
         >(
             state.clone(),
             req_state.clone(),
             merchant_context.clone(),
             profile.clone(),
-            payments::operations::PaymentGet,
-            api_payments::PaymentsRetrieveRequest {
-                force_sync: false,
-                expand_attempts: true,
-                param: None,
-                all_keys_required: None,
-                merchant_connector_details: None,
+            payments::operations::PaymentGetListAttempts,
+            api_payments::PaymentAttemptListRequest {
+                payment_intent_id : payment_intent.payment_id.clone()
             },
             payment_intent.payment_id.clone(),
-            payments::CallConnectorAction::Avoid,
             hyperswitch_domain_models::payments::HeaderPayload::default(),
         ))
         .await;

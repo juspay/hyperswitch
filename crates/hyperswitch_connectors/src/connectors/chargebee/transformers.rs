@@ -509,6 +509,8 @@ impl TryFrom<ChargebeeWebhookBody> for revenue_recovery::RevenueRecoveryAttemptD
             invoice_next_billing_time,
             card_network: Some(payment_method_details.card.brand),
             card_isin: Some(payment_method_details.card.iin),
+            // This field is none becuase it is specific to stripebilling.
+            charge_id: None,
         })
     }
 }
