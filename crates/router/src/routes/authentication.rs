@@ -9,6 +9,7 @@ use crate::{
     types::domain,
 };
 
+#[cfg(feature = "v1")]
 #[instrument(skip_all, fields(flow = ?Flow::AuthenticationCreate))]
 pub async fn authentication_create(
     state: web::Data<app::AppState>,

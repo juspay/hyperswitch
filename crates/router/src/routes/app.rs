@@ -2637,6 +2637,7 @@ impl ProcessTracker {
 
 pub struct Authentication;
 
+#[cfg(feature = "v1")]
 impl Authentication {
     pub fn server(state: AppState) -> Scope {
         web::scope("/authentication")
