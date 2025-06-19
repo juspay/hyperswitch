@@ -577,12 +577,12 @@ impl ForeignTryFrom<payments_grpc::RedirectForm> for RedirectForm {
 
     fn foreign_try_from(value: payments_grpc::RedirectForm) -> Result<Self, Self::Error> {
         match value.form_type {
-            Some(payments_grpc::redirect_form::FormType::Form(form)) => Ok(RedirectForm::Form {
+            Some(payments_grpc::redirect_form::FormType::Form(form)) => Ok(Self::Form {
                 endpoint: form.clone().endpoint,
                 method: Method::foreign_try_from(form.clone().method())?,
                 form_fields: form.clone().form_fields,
             }),
-            Some(payments_grpc::redirect_form::FormType::Html(html)) => Ok(RedirectForm::Html {
+            Some(payments_grpc::redirect_form::FormType::Html(html)) => Ok(Self::Html {
                 html_data: html.html_data,
             }),
             None => Err(
@@ -600,8 +600,8 @@ impl ForeignTryFrom<payments_grpc::Method> for Method {
 
     fn foreign_try_from(value: payments_grpc::Method) -> Result<Self, Self::Error> {
         match value {
-            payments_grpc::Method::Get => Ok(Method::Get),
-            payments_grpc::Method::Post => Ok(Method::Post),
+            payments_grpc::Method::Get => Ok(Self::Get),
+            payments_grpc::Method::Post => Ok(Self::Post),
         }
     }
 }
