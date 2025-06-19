@@ -3265,7 +3265,7 @@ where
         payment_data,
         validate_result,
         &merchant_connector_account,
-        merchant_context.get_processor_merchant_key_store(),
+        merchant_context.get_owner_merchant_key_store(),
         customer,
         business_profile,
         should_retry_with_pan,

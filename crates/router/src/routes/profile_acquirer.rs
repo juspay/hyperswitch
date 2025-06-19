@@ -6,6 +6,7 @@ use super::app::AppState;
 use crate::{
     core::api_locking,
     services::{api, authentication as auth, authorization::permissions::Permission},
+    types::domain,
 };
 
 #[cfg(all(feature = "olap", feature = "v1"))]
@@ -26,11 +27,7 @@ pub async fn create_profile_acquirer(
         |state: super::SessionState, auth, req, _| {
             let merchant_context = auth.into();
 
-            crate::core::profile_acquirer::create_profile_acquirer(
-                state,
-                req,
-                merchant_context,
-            )
+            crate::core::profile_acquirer::create_profile_acquirer(state, req, merchant_context)
         },
         auth::auth_type(
             &auth::HeaderAuth(auth::ApiKeyAuth {
@@ -68,7 +65,7 @@ pub async fn profile_acquirer_update(
         &req,
         payload,
         |state: super::SessionState, auth_data, req, _| {
-            let merchant_context = domain::MerchantContext::NormalMerchant(Box::new(
+            let merchant_context = domain::MerchantContext::StandardMerchant(Box::new(
                 domain::Context(auth_data.merchant_account, auth_data.key_store),
             ));
             crate::core::profile_acquirer::update_profile_acquirer_config(

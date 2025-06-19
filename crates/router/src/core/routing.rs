@@ -2332,8 +2332,8 @@ pub async fn migrate_rules_for_profile(
     let profile_id = query_params.profile_id.clone();
     let db = state.store.as_ref();
     let key_manager_state = &(&state).into();
-    let merchant_key_store = merchant_context.get_merchant_key_store();
-    let merchant_id = merchant_context.get_merchant_account().get_id();
+    let merchant_key_store = merchant_context.get_processor_merchant_key_store();
+    let merchant_id = merchant_context.get_processor_merchant_account().get_id();
 
     core_utils::validate_and_get_business_profile(
         db,

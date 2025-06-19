@@ -115,7 +115,7 @@ pub async fn update_profile_acquirer_config(
 ) -> RouterResponse<profile_acquirer::ProfileAcquirerResponse> {
     let db = state.store.as_ref();
     let key_manager_state = (&state).into();
-    let merchant_key_store = merchant_context.get_merchant_key_store();
+    let merchant_key_store = merchant_context.get_processor_merchant_key_store();
 
     let mut business_profile = db
         .find_business_profile_by_profile_id(&key_manager_state, merchant_key_store, &profile_id)

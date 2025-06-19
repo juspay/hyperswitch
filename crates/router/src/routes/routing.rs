@@ -20,6 +20,7 @@ use crate::{
     db::errors::StorageErrorExt,
     routes::AppState,
     services::{api as oss_api, authentication as auth, authorization::permissions::Permission},
+    types::domain,
 };
 #[cfg(all(feature = "olap", feature = "v1"))]
 #[instrument(skip_all)]
@@ -1519,7 +1520,7 @@ pub async fn migrate_routing_rules_for_profile(
         |state, _, query_params, _| async move {
             let merchant_id = query_params.merchant_id.clone();
             let (key_store, merchant_account) = get_merchant_account(&state, &merchant_id).await?;
-            let merchant_context = domain::MerchantContext::NormalMerchant(Box::new(
+            let merchant_context = domain::MerchantContext::StandardMerchant(Box::new(
                 domain::Context(merchant_account, key_store),
             ));
             let res = Box::pin(routing::migrate_rules_for_profile(
