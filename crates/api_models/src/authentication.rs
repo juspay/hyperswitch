@@ -25,10 +25,6 @@ pub struct AuthenticationCreateRequest {
     #[schema(value_type = Option<String>, example = "stripe")]
     pub authentication_connector: Option<String>,
 
-    /// The merchant connector id to be used for authentication.
-    #[schema(value_type = Option<String>, example = "mca_xxxxxxxxxxxxxxx")]
-    pub merchant_connector_id: Option<id_type::MerchantConnectorAccountId>,
-
     /// Customer details.
     #[serde(default)]
     pub customer: Option<CustomerDetails>,
@@ -66,7 +62,7 @@ pub struct AuthenticationCreateRequest {
 pub struct AcquirerDetails {
     pub bin: Option<String>,
     pub merchant_id: Option<String>,
-    pub country_code: Option<String>,
+    pub country_code: Option<enums::CountryAlpha2>,
 }
 
 // Renamed from AuthenticationResponse to AuthenticationCreateResponse

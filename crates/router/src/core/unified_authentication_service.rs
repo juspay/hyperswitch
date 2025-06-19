@@ -1,6 +1,8 @@
 pub mod types;
 pub mod utils;
 
+use std::str::FromStr;
+
 use api_models::{
     authentication::{AcquirerDetails, AuthenticationCreateRequest, AuthenticationResponse},
     payments,
@@ -624,14 +626,19 @@ pub async fn authentication_create_core(
             .and_then(|acquirer_details| acquirer_details.merchant_id),
         req.acquirer_details
             .clone()
-            .and_then(|acquirer_details| acquirer_details.country_code),
+            .and_then(|acquirer_details| acquirer_details.country_code.map(|cc| cc.to_string())),
     )
     .await?;
 
     let acquirer_details = Some(AcquirerDetails {
         bin: new_authentication.acquirer_bin,
         merchant_id: new_authentication.acquirer_merchant_id,
-        country_code: new_authentication.acquirer_country_code,
+        country_code: new_authentication
+            .acquirer_country_code
+            .map(|cc| common_enums::CountryAlpha2::from_str(&cc))
+            .transpose()
+            .change_context(ApiErrorResponse::InternalServerError)
+            .attach_printable("unable to parse acquirer country code into CountryAlpha2 from authentication table")?    ,
     });
 
     let response = AuthenticationResponse {
