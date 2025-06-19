@@ -1062,11 +1062,12 @@ function handleFlow(
       cy.url().then((currentUrl) => {
         // Special handling for Shift4 which redirects to example.com
         const { paymentMethodType } = options;
-        if (connectorId === "shift4" && 
-            (paymentMethodType === "eps" || paymentMethodType === "ideal")) {
-          
+        if (
+          connectorId === "shift4" &&
+          (paymentMethodType === "eps" || paymentMethodType === "ideal")
+        ) {
           cy.log(`Special handling for Shift4 ${paymentMethodType} payment`);
-          
+
           // First handle the dev.shift4.com origin
           if (currentUrl.includes("dev.shift4.com")) {
             cy.origin(
@@ -1074,64 +1075,80 @@ function handleFlow(
               { args: { constants: CONSTANTS } },
               ({ constants }) => {
                 cy.log("Processing in dev.shift4.com origin");
-                
+
                 // Take a screenshot to see the page
                 cy.screenshot("shift4-redirect-page");
-                
+
                 // Print all buttons on the page for debugging
-                cy.get("button, a, input[type='submit'], input[type='button']").then($elements => {
-                  cy.log(`Found ${$elements.length} potential clickable elements`);
+                cy.get(
+                  "button, a, input[type='submit'], input[type='button']"
+                ).then(($elements) => {
+                  cy.log(
+                    `Found ${$elements.length} potential clickable elements`
+                  );
                   $elements.each((i, el) => {
-                    cy.log(`Element ${i}: ${el.tagName} - Text: ${el.innerText || el.value || 'No text'}`);
+                    cy.log(
+                      `Element ${i}: ${el.tagName} - Text: ${el.innerText || el.value || "No text"}`
+                    );
                   });
                 });
-                
+
                 // Try to click the succeed payment button
-                cy.contains('button', 'Succeed payment', { timeout: constants.TIMEOUT })
-                  .should('be.visible')
+                cy.contains("button", "Succeed payment", {
+                  timeout: constants.TIMEOUT,
+                })
+                  .should("be.visible")
                   .click({ force: true });
-                
+
                 // Wait for any navigation to complete
                 cy.wait(1000);
               }
             );
           }
-          
+
           // After the first step, check if we were redirected to example.com
-          cy.url().then(newUrl => {
+          cy.url().then((newUrl) => {
             if (newUrl.includes("example.com")) {
               cy.log("Detected redirect to example.com");
-              
+
               cy.origin(
                 "https://example.com",
-                { args: { expectedUrl: expectedUrl.href, constants: CONSTANTS } },
+                {
+                  args: { expectedUrl: expectedUrl.href, constants: CONSTANTS },
+                },
                 ({ expectedUrl, constants }) => {
                   cy.log("Processing in example.com origin");
-                  
+
                   // Handle example.com page - we might not need to do anything except wait
                   cy.wait(constants.WAIT_TIME / 5);
-                  
+
                   // Navigate directly to the expected return URL with success parameters
-                  const returnPath = expectedUrl.split('?')[0];
+                  const returnPath = expectedUrl.split("?")[0];
                   cy.log(`Redirecting to return URL: ${returnPath}`);
-                  cy.visit(returnPath + '?payment_id=test_payment_from_shift4&status=succeeded');
+                  cy.visit(
+                    returnPath +
+                      "?payment_id=test_payment_from_shift4&status=succeeded"
+                  );
                 }
               );
             } else {
               // If we're not at example.com, try to proceed with normal flow
               cy.log(`Not at example.com, current URL: ${newUrl}`);
-              
+
               // Navigate directly to the expected return URL with success parameters
-              const returnPath = expectedUrl.href.split('?')[0];
+              const returnPath = expectedUrl.href.split("?")[0];
               cy.log(`Redirecting to return URL: ${returnPath}`);
-              cy.visit(returnPath + '?payment_id=test_payment_from_shift4&status=succeeded');
+              cy.visit(
+                returnPath +
+                  "?payment_id=test_payment_from_shift4&status=succeeded"
+              );
             }
           });
-          
+
           // Skip the regular cy.origin call since we've handled it specially
           return;
         }
-        
+
         // For all other connectors - regular handling
         // Define a wrapper callback to handle other connectors
         const wrappedCallback = (args) => {
@@ -1139,9 +1156,15 @@ function handleFlow(
           callback(args);
         };
         // Only call cy.origin for non-Shift4 connectors (Shift4 was handled above)
-        if (connectorId !== "shift4" || 
-            (paymentMethodType !== "eps" && paymentMethodType !== "ideal")) {
-          cy.origin(new URL(currentUrl).origin, { args: callbackArgs }, wrappedCallback);
+        if (
+          connectorId !== "shift4" ||
+          (paymentMethodType !== "eps" && paymentMethodType !== "ideal")
+        ) {
+          cy.origin(
+            new URL(currentUrl).origin,
+            { args: callbackArgs },
+            wrappedCallback
+          );
         }
       });
     } else {
