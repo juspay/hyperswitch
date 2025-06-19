@@ -655,7 +655,6 @@ export const connectorDetails = {
         status: 200,
         body: {
           status: "succeeded",
-          connector_mandate_id: "mock_shift4_mandate_id",
         },
       },
     },
@@ -670,7 +669,6 @@ export const connectorDetails = {
         status: 200,
         body: {
           status: "requires_capture",
-          connector_mandate_id: "mock_shift4_mandate_id",
         },
       },
     },
@@ -686,7 +684,6 @@ export const connectorDetails = {
         status: 200,
         body: {
           status: "succeeded",
-          connector_mandate_id: "mock_shift4_mandate_id",
         },
       },
     },

@@ -255,7 +255,7 @@ function bankRedirectRedirection(
           // Try to click the succeed payment button
           cy.contains('button', 'Succeed payment', { timeout: constants.TIMEOUT })
             .should('be.visible')
-            .click({ force: true });
+            .click();
         }
       );
     });
