@@ -1,4 +1,3 @@
-use api_models::enums::AttemptStatus;
 #[cfg(feature = "v2")]
 use common_utils::types::keymanager::KeyManagerState;
 use common_utils::{
@@ -17,7 +16,7 @@ use diesel_models::{
     },
     reverse_lookup::{ReverseLookup, ReverseLookupNew},
 };
-use error_stack::{report, ResultExt};
+use error_stack::ResultExt;
 #[cfg(feature = "v1")]
 use hyperswitch_domain_models::payments::payment_attempt::PaymentAttemptNew;
 #[cfg(feature = "v2")]
@@ -47,7 +46,7 @@ use crate::{
     errors::{self, RedisErrorExt},
     kv_router_store::KVRouterStore,
     lookup::ReverseLookupInterface,
-    redis::kv_store::{decide_storage_scheme, kv_wrapper, KvOperation, KvResult, Op, PartitionKey},
+    redis::kv_store::{decide_storage_scheme, kv_wrapper, KvOperation, Op, PartitionKey},
     utils::{pg_connection_read, pg_connection_write, try_redis_get_else_try_database_get},
     DataModelExt, DatabaseStore, RouterStore,
 };
