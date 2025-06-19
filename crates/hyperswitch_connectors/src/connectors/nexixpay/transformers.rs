@@ -699,7 +699,6 @@ impl TryFrom<&NexixpayRouterData<&PaymentsAuthorizeRouterData>> for NexixpayPaym
     fn try_from(
         item: &NexixpayRouterData<&PaymentsAuthorizeRouterData>,
     ) -> Result<Self, Self::Error> {
-        println!("Payment ID: {:?}", item.router_data.payment_id);
         let order_id = if item.router_data.payment_id.len() > MAX_ORDER_ID_LENGTH {
             if item.router_data.payment_id.starts_with("pay_") {
                 get_random_string()
