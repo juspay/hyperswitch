@@ -269,6 +269,26 @@ pub struct PaymentsCreateIntentRequest {
 
     /// Indicates if 3ds challenge is forced
     pub force_3ds_challenge: Option<bool>,
+
+    /// Merchant connector details used to make payments.
+    pub merchant_connector_details: Option<MerchantConnectorDetails>,
+}
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema)]
+#[cfg(feature = "v2")]
+pub struct MerchantConnectorDetails {
+    /// The connector used for the payment
+    #[schema(value_type = Connector)]
+    pub connector_name: api_enums::Connector,
+
+    /// The merchant connector credentials used for the payment
+    #[schema(value_type = Object, example = r#"{
+        "merchant_connector_creds": {
+            "auth_type": "HeaderKey",
+            "api_key":"sk_test_xxxxxexamplexxxxxx12345"
+        },
+    }"#)]
+    pub merchant_connector_creds: pii::SecretSerdeValue,
 }
 
 #[cfg(feature = "v2")]
@@ -5348,6 +5368,9 @@ pub struct PaymentsConfirmIntentRequest {
 
     #[schema(example = "187282ab-40ef-47a9-9206-5099ba31e432")]
     pub payment_token: Option<String>,
+
+    /// Merchant connector details used to make payments.
+    pub merchant_connector_details: Option<MerchantConnectorDetails>,
 }
 
 #[cfg(feature = "v2")]
@@ -5520,6 +5543,9 @@ pub struct PaymentsRequest {
 
     /// Indicates if the redirection has to open in the iframe
     pub is_iframe_redirection_enabled: Option<bool>,
+
+    /// Merchant connector details used to make payments.
+    pub merchant_connector_details: Option<MerchantConnectorDetails>,
 }
 
 #[cfg(feature = "v2")]
@@ -5554,6 +5580,7 @@ impl From<&PaymentsRequest> for PaymentsCreateIntentRequest {
                 .request_external_three_ds_authentication
                 .clone(),
             force_3ds_challenge: request.force_3ds_challenge,
+            merchant_connector_details: request.merchant_connector_details.clone(),
         }
     }
 }
@@ -5571,6 +5598,7 @@ impl From<&PaymentsRequest> for PaymentsConfirmIntentRequest {
             browser_info: request.browser_info.clone(),
             payment_method_id: request.payment_method_id.clone(),
             payment_token: None,
+            merchant_connector_details: request.merchant_connector_details.clone(),
         }
     }
 }
@@ -5578,10 +5606,31 @@ impl From<&PaymentsRequest> for PaymentsConfirmIntentRequest {
 // Serialize is implemented because, this will be serialized in the api events.
 // Usually request types should not have serialize implemented.
 //
-/// Request for Payment Status
+/// Request body for Payment Status
 #[cfg(feature = "v2")]
 #[derive(Debug, serde::Deserialize, serde::Serialize, ToSchema)]
 pub struct PaymentsRetrieveRequest {
+    /// A boolean used to indicate if the payment status should be fetched from the connector
+    /// If this is set to true, the status will be fetched from the connector
+    #[serde(default)]
+    pub force_sync: bool,
+    /// A boolean used to indicate if all the attempts needs to be fetched for the intent.
+    /// If this is set to true, attempts list will be available in the response.
+    #[serde(default)]
+    pub expand_attempts: bool,
+    /// These are the query params that are sent in case of redirect response.
+    /// These can be ingested by the connector to take necessary actions.
+    pub param: Option<String>,
+    /// If enabled, provides whole connector response
+    pub all_keys_required: Option<bool>,
+    /// Merchant connector details used to make payments.
+    pub merchant_connector_details: Option<MerchantConnectorDetails>,
+}
+
+#[cfg(feature = "v2")]
+#[derive(Debug, serde::Deserialize, serde::Serialize, ToSchema)]
+/// Request for Payment Status
+pub struct PaymentsStatusRequest {
     /// A boolean used to indicate if the payment status should be fetched from the connector
     /// If this is set to true, the status will be fetched from the connector
     #[serde(default)]
@@ -5740,6 +5789,16 @@ pub struct PaymentsResponse {
 
     /// Indicates if the redirection has to open in the iframe
     pub is_iframe_redirection_enabled: Option<bool>,
+
+    /// Unique identifier for the payment. This ensures idempotency for multiple payments
+    /// that have been done by a single merchant.
+    #[schema(
+        value_type = Option<String>,
+        min_length = 30,
+        max_length = 30,
+        example = "pay_mbabizu24mvu3mela5njyhpit4"
+    )]
+    pub merchant_reference_id: Option<id_type::PaymentReferenceId>,
 }
 
 #[cfg(feature = "v2")]
