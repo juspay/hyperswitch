@@ -2169,7 +2169,7 @@ where
 
 #[cfg(feature = "v2")]
 #[allow(clippy::too_many_arguments)]
-pub async fn payments_get_attempts_using_payment_intent_id<F, Res, Req, Op, D>(
+pub async fn payments_list_attempts_using_payment_intent_id<F, Res, Req, Op, D>(
     state: SessionState,
     req_state: ReqState,
     merchant_context: domain::MerchantContext,

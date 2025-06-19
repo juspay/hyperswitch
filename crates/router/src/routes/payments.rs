@@ -278,7 +278,7 @@ pub async fn list_payment_attempts(
                 domain::Context(auth.merchant_account, auth.key_store),
             ));
 
-            payments::payments_get_attempts_using_payment_intent_id::<
+            payments::payments_list_attempts_using_payment_intent_id::<
                 payments::operations::PaymentGetListAttempts,
                 api_models::payments::PaymentAttemptListResponse,
                 api_models::payments::PaymentAttemptListRequest,
