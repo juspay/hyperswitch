@@ -78,4 +78,4 @@ pub struct UpdateMetadata;
 pub struct CreateOrder;
 
 #[derive(Debug, Clone)]
-pub struct PaymentGetAttempts;
+pub struct PaymentGetListAttempts;

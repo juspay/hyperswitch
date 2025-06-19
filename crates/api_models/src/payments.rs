@@ -299,7 +299,7 @@ pub struct PaymentAttemptListRequest {
 #[cfg(feature = "v2")]
 #[derive(Debug, serde::Serialize, Clone, ToSchema)]
 pub struct PaymentAttemptListResponse {
-    pub payment_attempts: Vec<PaymentAttemptResponse>,
+    pub payment_attempt_list: Vec<PaymentAttemptResponse>,
 }
 #[cfg(feature = "v2")]
 impl PaymentsCreateIntentRequest {

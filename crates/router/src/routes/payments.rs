@@ -248,7 +248,7 @@ pub async fn payments_get_intent(
 }
 
 #[cfg(feature = "v2")]
-#[instrument(skip_all, fields(flow = ?Flow::PaymentAttemptsList, payment_id, connector_transaction_id))]
+#[instrument(skip_all, fields(flow = ?Flow::PaymentAttemptsList, payment_id,))]
 pub async fn list_payment_attempts(
     state: web::Data<app::AppState>,
     req: actix_web::HttpRequest,
@@ -279,19 +279,19 @@ pub async fn list_payment_attempts(
             ));
 
             payments::payments_get_attempts_using_payment_intent_id::<
-                payments::operations::PaymentGetAttempts,
+                payments::operations::PaymentGetListAttempts,
                 api_models::payments::PaymentAttemptListResponse,
                 api_models::payments::PaymentAttemptListRequest,
-                payments::operations::payment_attempt_list::PaymentGetAttempts,
+                payments::operations::payment_attempt_list::PaymentGetListAttempts,
                 hyperswitch_domain_models::payments::PaymentAttemptListData<
-                    payments::operations::PaymentGetAttempts,
+                    payments::operations::PaymentGetListAttempts,
                 >,
             >(
                 session_state,
                 req_state,
                 merchant_context,
                 auth.profile,
-                payments::operations::PaymentGetAttempts,
+                payments::operations::PaymentGetListAttempts,
                 payload.clone(),
                 req_payload.payment_intent_id,
                 header_payload.clone(),

@@ -8839,7 +8839,7 @@ impl<F: Clone> PaymentMethodChecker<F> for PaymentData<F> {
 pub trait OperationSessionGetters<F> {
     fn get_payment_attempt(&self) -> &storage::PaymentAttempt;
     #[cfg(feature = "v2")]
-    fn list_payments_attempt_operation_core(&self) -> &Vec<storage::PaymentAttempt>;
+    fn list_payments_attempts(&self) -> &Vec<storage::PaymentAttempt>;
     fn get_payment_intent(&self) -> &storage::PaymentIntent;
     #[cfg(feature = "v2")]
     fn get_client_secret(&self) -> &Option<Secret<String>>;
@@ -9272,7 +9272,7 @@ impl<F: Clone> OperationSessionGetters<F> for PaymentIntentData<F> {
         todo!()
     }
     #[cfg(feature = "v2")]
-    fn list_payments_attempt_operation_core(&self) -> &Vec<storage::PaymentAttempt> {
+    fn list_payments_attempts(&self) -> &Vec<storage::PaymentAttempt> {
         todo!()
     }
 
@@ -9558,7 +9558,7 @@ impl<F: Clone> OperationSessionGetters<F> for PaymentConfirmData<F> {
         &self.payment_attempt
     }
     #[cfg(feature = "v2")]
-    fn list_payments_attempt_operation_core(&self) -> &Vec<storage::PaymentAttempt> {
+    fn list_payments_attempts(&self) -> &Vec<storage::PaymentAttempt> {
         todo!()
     }
     fn get_client_secret(&self) -> &Option<Secret<String>> {
@@ -9848,7 +9848,7 @@ impl<F: Clone> OperationSessionGetters<F> for PaymentStatusData<F> {
         &self.payment_attempt
     }
     #[cfg(feature = "v2")]
-    fn list_payments_attempt_operation_core(&self) -> &Vec<storage::PaymentAttempt> {
+    fn list_payments_attempts(&self) -> &Vec<storage::PaymentAttempt> {
         todo!()
     }
     fn get_client_secret(&self) -> &Option<Secret<String>> {
@@ -10133,7 +10133,7 @@ impl<F: Clone> OperationSessionGetters<F> for PaymentCaptureData<F> {
         &self.payment_attempt
     }
     #[cfg(feature = "v2")]
-    fn list_payments_attempt_operation_core(&self) -> &Vec<storage::PaymentAttempt> {
+    fn list_payments_attempts(&self) -> &Vec<storage::PaymentAttempt> {
         todo!()
     }
     fn get_client_secret(&self) -> &Option<Secret<String>> {
@@ -10419,7 +10419,7 @@ impl<F: Clone> OperationSessionGetters<F> for PaymentAttemptListData<F> {
         todo!()
     }
     #[cfg(feature = "v2")]
-    fn list_payments_attempt_operation_core(&self) -> &Vec<storage::PaymentAttempt> {
+    fn list_payments_attempts(&self) -> &Vec<storage::PaymentAttempt> {
         &self.payment_attempt_list
     }
     fn get_client_secret(&self) -> &Option<Secret<String>> {
@@ -10569,6 +10569,11 @@ impl<F: Clone> OperationSessionGetters<F> for PaymentAttemptListData<F> {
         &self,
     ) -> Option<HashMap<enums::PaymentMethodType, domain::PreRoutingConnectorChoice>> {
         None
+    }
+    fn get_merchant_connector_details(
+        &self,
+    ) -> Option<api_models::payments::MerchantConnectorDetails> {
+        todo!()
     }
 
     fn get_optional_external_vault_session_details(&self) -> Option<api::VaultSessionDetails> {

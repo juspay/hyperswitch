@@ -21,9 +21,9 @@ use crate::{
 };
 
 #[derive(Debug, Clone, Copy)]
-pub struct PaymentGetAttempts;
+pub struct PaymentGetListAttempts;
 
-impl<F: Send + Clone + Sync> Operation<F, PaymentAttemptListRequest> for &PaymentGetAttempts {
+impl<F: Send + Clone + Sync> Operation<F, PaymentAttemptListRequest> for &PaymentGetListAttempts {
     type Data = payments::PaymentAttemptListData<F>;
     fn to_validate_request(
         &self,
@@ -48,7 +48,7 @@ impl<F: Send + Clone + Sync> Operation<F, PaymentAttemptListRequest> for &Paymen
     }
 }
 
-impl<F: Send + Clone + Sync> Operation<F, PaymentAttemptListRequest> for PaymentGetAttempts {
+impl<F: Send + Clone + Sync> Operation<F, PaymentAttemptListRequest> for PaymentGetListAttempts {
     type Data = payments::PaymentAttemptListData<F>;
     fn to_validate_request(
         &self,
@@ -79,7 +79,7 @@ type PaymentAttemptsListOperation<'b, F> =
 #[async_trait]
 impl<F: Send + Clone + Sync>
     GetTracker<F, payments::PaymentAttemptListData<F>, PaymentAttemptListRequest>
-    for PaymentGetAttempts
+    for PaymentGetListAttempts
 {
     #[instrument(skip_all)]
     async fn get_trackers<'a>(
@@ -118,7 +118,7 @@ impl<F: Send + Clone + Sync>
 #[async_trait]
 impl<F: Clone + Sync>
     UpdateTracker<F, payments::PaymentAttemptListData<F>, PaymentAttemptListRequest>
-    for PaymentGetAttempts
+    for PaymentGetListAttempts
 {
     #[instrument(skip_all)]
     async fn update_trackers<'b>(
@@ -145,7 +145,7 @@ impl<F: Clone + Sync>
 
 impl<F: Send + Clone + Sync>
     ValidateRequest<F, PaymentAttemptListRequest, payments::PaymentAttemptListData<F>>
-    for PaymentGetAttempts
+    for PaymentGetListAttempts
 {
     #[instrument(skip_all)]
     fn validate_request<'a, 'b>(
@@ -164,7 +164,7 @@ impl<F: Send + Clone + Sync>
 #[async_trait]
 impl<F: Clone + Send + Sync>
     Domain<F, PaymentAttemptListRequest, payments::PaymentAttemptListData<F>>
-    for PaymentGetAttempts
+    for PaymentGetListAttempts
 {
     #[instrument(skip_all)]
     async fn get_customer_details<'a>(

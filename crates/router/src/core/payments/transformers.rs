@@ -1847,8 +1847,8 @@ where
     ) -> RouterResponse<Self> {
         Ok(services::ApplicationResponse::JsonWithHeaders((
             Self {
-                payment_attempts: payment_data
-                    .list_payments_attempt_operation_core()
+                payment_attempt_list: payment_data
+                    .list_payments_attempts()
                     .iter()
                     .map(api_models::payments::PaymentAttemptResponse::foreign_from)
                     .collect(),

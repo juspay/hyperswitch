@@ -631,10 +631,6 @@ impl Payments {
             .service(
                 web::resource("/ref/{merchant_reference_id}")
                     .route(web::get().to(payments::payment_get_intent_using_merchant_reference_id)),
-            )
-            .service(
-                web::resource("attempts/{intent_id}")
-                    .route(web::get().to(payments::list_payment_attempts)),
             );
 
         route = route.service(
@@ -642,6 +638,10 @@ impl Payments {
                 .service(
                     web::resource("/confirm-intent")
                         .route(web::post().to(payments::payment_confirm_intent)),
+                )
+                .service(
+                    web::resource("/list_attempts")
+                        .route(web::get().to(payments::list_payment_attempts)),
                 )
                 .service(
                     web::resource("/proxy-confirm-intent")

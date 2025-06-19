@@ -61,7 +61,7 @@ use error_stack::{report, ResultExt};
 use router_env::{instrument, tracing};
 
 #[cfg(feature = "v2")]
-pub use self::payment_attempt_list::PaymentGetAttempts;
+pub use self::payment_attempt_list::PaymentGetListAttempts;
 #[cfg(feature = "v2")]
 pub use self::payment_get::PaymentGet;
 #[cfg(feature = "v2")]
