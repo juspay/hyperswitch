@@ -7,10 +7,6 @@ use common_utils::ext_traits::Encode;
 use common_utils::{ext_traits::AsyncExt, types::keymanager::KeyManagerState};
 #[cfg(feature = "olap")]
 use diesel::{associations::HasTable, ExpressionMethods, JoinOnDsl, QueryDsl};
-#[cfg(feature = "v1")]
-use diesel_models::kv;
-#[cfg(feature = "v1")]
-use diesel_models::payment_intent::PaymentIntentUpdate as DieselPaymentIntentUpdate;
 #[cfg(feature = "olap")]
 use diesel_models::query::generics::db_metrics;
 #[cfg(all(feature = "v1", feature = "olap"))]
@@ -26,6 +22,8 @@ use diesel_models::schema_v2::{
 use diesel_models::{
     enums::MerchantStorageScheme, payment_intent::PaymentIntent as DieselPaymentIntent,
 };
+#[cfg(feature = "v1")]
+use diesel_models::{kv, payment_intent::PaymentIntentUpdate as DieselPaymentIntentUpdate};
 use error_stack::ResultExt;
 #[cfg(feature = "olap")]
 use hyperswitch_domain_models::payments::{

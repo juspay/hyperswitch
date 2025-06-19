@@ -37,8 +37,7 @@ use redis_interface::HsetnxReply;
 use router_env::{instrument, tracing};
 
 use crate::{
-    diesel_error_to_data_error,
-    errors::{self},
+    diesel_error_to_data_error, errors,
     kv_router_store::KVRouterStore,
     lookup::ReverseLookupInterface,
     utils::{pg_connection_read, pg_connection_write},

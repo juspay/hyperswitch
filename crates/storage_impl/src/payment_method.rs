@@ -391,7 +391,6 @@ impl<T: DatabaseStore> PaymentMethodInterface for KVRouterStore<T> {
         key_store: &MerchantKeyStore,
         fingerprint_id: &str,
     ) -> CustomResult<DomainPaymentMethod, errors::StorageError> {
-        let _conn = pg_connection_read(self).await?;
         self.router_store
             .find_payment_method_by_fingerprint_id(state, key_store, fingerprint_id)
             .await

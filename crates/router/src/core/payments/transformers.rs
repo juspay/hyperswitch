@@ -361,7 +361,7 @@ pub async fn construct_payment_router_data_for_authorize<'a>(
         // TODO: Create unified address
         address: payment_data.payment_address.clone(),
         auth_type: payment_data.payment_attempt.authentication_type,
-        connector_meta_data: None,
+        connector_meta_data: merchant_connector_account.get_metadata(),
         connector_wallets_details: None,
         request,
         response: Err(hyperswitch_domain_models::router_data::ErrorResponse::default()),
@@ -1791,11 +1791,11 @@ where
                     .map(|shipping| shipping.into_inner())
                     .map(From::from),
                 customer_id: payment_intent.customer_id.clone(),
-                customer_present: payment_intent.customer_present.clone(),
+                customer_present: payment_intent.customer_present,
                 description: payment_intent.description.clone(),
                 return_url: payment_intent.return_url.clone(),
                 setup_future_usage: payment_intent.setup_future_usage,
-                apply_mit_exemption: payment_intent.apply_mit_exemption.clone(),
+                apply_mit_exemption: payment_intent.apply_mit_exemption,
                 statement_descriptor: payment_intent.statement_descriptor.clone(),
                 order_details: payment_intent.order_details.clone().map(|order_details| {
                     order_details
@@ -1810,7 +1810,7 @@ where
                     .feature_metadata
                     .clone()
                     .map(|feature_metadata| feature_metadata.convert_back()),
-                payment_link_enabled: payment_intent.enable_payment_link.clone(),
+                payment_link_enabled: payment_intent.enable_payment_link,
                 payment_link_config: payment_intent
                     .payment_link_config
                     .clone()
@@ -1819,8 +1819,7 @@ where
                 expires_on: payment_intent.session_expiry,
                 frm_metadata: payment_intent.frm_metadata.clone(),
                 request_external_three_ds_authentication: payment_intent
-                    .request_external_three_ds_authentication
-                    .clone(),
+                    .request_external_three_ds_authentication,
             },
             vec![],
         )))

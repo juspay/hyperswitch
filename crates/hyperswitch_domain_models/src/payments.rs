@@ -283,7 +283,7 @@ impl AmountDetails {
     }
 
     /// Get the action to whether calculate external tax or not as a boolean value
-    fn get_external_tax_action_as_bool(&self) -> bool {
+    pub fn get_external_tax_action_as_bool(&self) -> bool {
         self.skip_external_tax_calculation.as_bool()
     }
 

@@ -672,7 +672,7 @@ impl TryFrom<PaymentIntentUpdate> for diesel_models::PaymentIntentUpdateInternal
                     active_attempt_id,
                     updated_by,
                     force_3ds_challenge,
-                    is_iframe_redirection_enabled: _,
+                    is_iframe_redirection_enabled,
                 } = *boxed_intent;
                 Ok(Self {
                     status: None,
@@ -718,7 +718,7 @@ impl TryFrom<PaymentIntentUpdate> for diesel_models::PaymentIntentUpdateInternal
 
                     updated_by,
                     force_3ds_challenge,
-                    is_iframe_redirection_enabled: None,
+                    is_iframe_redirection_enabled,
                 })
             }
             PaymentIntentUpdate::RecordUpdate {

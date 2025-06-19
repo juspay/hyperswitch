@@ -7,12 +7,6 @@ use common_utils::ext_traits::Encode;
 use diesel::{associations::HasTable, ExpressionMethods, QueryDsl};
 #[cfg(all(feature = "v1", feature = "olap"))]
 use diesel::{JoinOnDsl, NullableExpressionMethods};
-#[cfg(all(feature = "v1", feature = "olap"))]
-use diesel_models::payout_attempt::PayoutAttempt as DieselPayoutAttempt;
-#[cfg(all(feature = "olap", feature = "v1"))]
-use diesel_models::schema::{
-    address::dsl as add_dsl, customers::dsl as cust_dsl, payout_attempt::dsl as poa_dsl,
-};
 #[cfg(feature = "olap")]
 use diesel_models::{
     address::Address as DieselAddress, customers::Customer as DieselCustomer,
@@ -25,6 +19,11 @@ use diesel_models::{
         Payouts as DieselPayouts, PayoutsNew as DieselPayoutsNew,
         PayoutsUpdate as DieselPayoutsUpdate,
     },
+};
+#[cfg(all(feature = "olap", feature = "v1"))]
+use diesel_models::{
+    payout_attempt::PayoutAttempt as DieselPayoutAttempt,
+    schema::{address::dsl as add_dsl, customers::dsl as cust_dsl, payout_attempt::dsl as poa_dsl},
 };
 use error_stack::ResultExt;
 #[cfg(feature = "olap")]

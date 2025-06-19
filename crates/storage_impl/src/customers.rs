@@ -369,7 +369,6 @@ impl<T: DatabaseStore> domain::CustomerInterface for kv_router_store::KVRouterSt
         &self,
         state: &KeyManagerState,
         id: &id_type::GlobalCustomerId,
-        _merchant_id: &id_type::MerchantId,
         key_store: &MerchantKeyStore,
         storage_scheme: MerchantStorageScheme,
     ) -> CustomResult<domain::Customer, StorageError> {
@@ -403,7 +402,6 @@ impl<T: DatabaseStore> domain::CustomerInterface for kv_router_store::KVRouterSt
         state: &KeyManagerState,
         id: &id_type::GlobalCustomerId,
         customer: domain::Customer,
-        _merchant_id: &id_type::MerchantId,
         customer_update: domain::CustomerUpdate,
         key_store: &MerchantKeyStore,
         storage_scheme: MerchantStorageScheme,
@@ -672,7 +670,6 @@ impl<T: DatabaseStore> domain::CustomerInterface for RouterStore<T> {
         state: &KeyManagerState,
         id: &id_type::GlobalCustomerId,
         _customer: domain::Customer,
-        _merchant_id: &id_type::MerchantId,
         customer_update: domain::CustomerUpdate,
         key_store: &MerchantKeyStore,
         _storage_scheme: MerchantStorageScheme,
@@ -692,7 +689,6 @@ impl<T: DatabaseStore> domain::CustomerInterface for RouterStore<T> {
         &self,
         state: &KeyManagerState,
         id: &id_type::GlobalCustomerId,
-        _merchant_id: &id_type::MerchantId,
         key_store: &MerchantKeyStore,
         _storage_scheme: MerchantStorageScheme,
     ) -> CustomResult<domain::Customer, StorageError> {
@@ -875,7 +871,6 @@ impl domain::CustomerInterface for MockDb {
         _state: &KeyManagerState,
         _id: &id_type::GlobalCustomerId,
         _customer: domain::Customer,
-        _merchant_id: &id_type::MerchantId,
         _customer_update: domain::CustomerUpdate,
         _key_store: &MerchantKeyStore,
         _storage_scheme: MerchantStorageScheme,
@@ -889,7 +884,6 @@ impl domain::CustomerInterface for MockDb {
         &self,
         _state: &KeyManagerState,
         _id: &id_type::GlobalCustomerId,
-        _merchant_id: &id_type::MerchantId,
         _key_store: &MerchantKeyStore,
         _storage_scheme: MerchantStorageScheme,
     ) -> CustomResult<domain::Customer, StorageError> {
