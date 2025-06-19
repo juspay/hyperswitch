@@ -1330,21 +1330,26 @@ pub async fn retrieve_linked_routing_config(
                 )
                 .await
                 .to_not_found_response(errors::ApiErrorResponse::ResourceIdNotFound)?;
-            let hs_record: routing_types::RoutingDictionaryRecord = record.foreign_into();
-            let de_record = list_de_euclid_active_routing_algorithm(
+            let hs_records: Vec<routing_types::RoutingDictionaryRecord> =
+                vec![record.foreign_into()];
+            let de_records = list_de_euclid_active_routing_algorithm(
                 &state,
                 profile_id.get_string_repr().to_owned(),
             )
             .await
-            .change_context(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable("unable to list active routing algorithm")?;
+            .map_err(|e| {
+                logger::error!(?e, "Failed to list DE Euclid active routing algorithm");
+            })
+            .ok() // Avoid throwing error if Decision Engine is not available or other errors thrown
+            .map_or(Vec::new(), |de_record| vec![de_record.clone()]);
             compare_and_log_result(
-                vec![de_record.clone()],
-                vec![hs_record.clone()],
+                de_records.clone(),
+                hs_records.clone(),
                 "list_active_routing".to_string(),
             );
-            active_algorithms
-                .push(select_routing_result(&state, &business_profile, hs_record, de_record).await);
+            active_algorithms.append(
+                &mut select_routing_result(&state, &business_profile, hs_records, de_records).await,
+            );
         }
 
         // Handle dynamic routing algorithms
