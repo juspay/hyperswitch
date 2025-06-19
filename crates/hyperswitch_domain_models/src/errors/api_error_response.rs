@@ -290,6 +290,8 @@ pub enum ApiErrorResponse {
     InvalidPlatformOperation,
     #[error(error_type = ErrorType::InvalidRequestError, code = "IR_45", message = "External vault failed during processing with connector")]
     ExternalVaultFailed,
+    #[error(error_type = ErrorType::InvalidRequestError, code = "IR_46", message = "Field {fields} doesn't match with the ones used during mandate creation")]
+    MandatePaymentDataMismatch { fields: String },
     #[error(error_type = ErrorType::InvalidRequestError, code = "WE_01", message = "Failed to authenticate the webhook")]
     WebhookAuthenticationFailed,
     #[error(error_type = ErrorType::InvalidRequestError, code = "WE_02", message = "Bad request received in webhook")]
@@ -651,6 +653,9 @@ impl ErrorSwitch<api_models::errors::types::ApiErrorResponse> for ApiErrorRespon
             Self::ExternalVaultFailed => {
                 AER::BadRequest(ApiError::new("IR", 45, "External Vault failed while processing with connector.", None))
             },
+            Self::MandatePaymentDataMismatch { fields} => {
+                AER::BadRequest(ApiError::new("IR", 46, format!("Field {fields} doesn't match with the ones used during mandate creation"), Some(Extra {fields: Some(fields.to_owned()), ..Default::default()}))) //FIXME: error message
+            }
 
             Self::WebhookAuthenticationFailed => {
                 AER::Unauthorized(ApiError::new("WE", 1, "Webhook authentication failed", None))

@@ -10,6 +10,16 @@ pub struct ConnectorCustomerMap(
 );
 
 #[cfg(feature = "v2")]
+impl ConnectorCustomerMap {
+    /// Creates a new `ConnectorCustomerMap` from a HashMap
+    pub fn new(
+        map: std::collections::HashMap<common_utils::id_type::MerchantConnectorAccountId, String>,
+    ) -> Self {
+        Self(map)
+    }
+}
+
+#[cfg(feature = "v2")]
 common_utils::impl_to_sql_from_sql_json!(ConnectorCustomerMap);
 
 #[cfg(feature = "v2")]
