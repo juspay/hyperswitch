@@ -306,3 +306,33 @@ pub async fn create_user_theme(
         theme_data: parsed_data,
     }))
 }
+
+pub async fn delete_user_theme(
+    state: SessionState,
+    user_from_token: UserFromToken,
+    theme_id: String,
+) -> UserResponse<()> {
+    let db_theme = state
+        .store
+        .find_theme_by_theme_id(theme_id.clone())
+        .await
+        .to_not_found_response(UserErrors::ThemeNotFound)?;
+    let lineage = theme_utils::get_theme_lineage_from_user_token(
+        &user_from_token,
+        &state,
+        &db_theme.entity_type,
+    )
+    .await?;
+
+    state
+        .store
+        .delete_theme_by_lineage_and_theme_id(theme_id.clone(), lineage)
+        .await
+        .to_not_found_response(UserErrors::ThemeNotFound)?;
+
+    // TODO (#6717): Delete theme folder from the theme storage.
+    // Currently there is no simple or easy way to delete a whole folder from S3.
+    // So, we are not deleting the theme folder from the theme storage.
+
+    Ok(ApplicationResponse::StatusOk)
+}

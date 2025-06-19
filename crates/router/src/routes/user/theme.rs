@@ -212,19 +212,17 @@ pub async fn delete_user_theme(
     state: web::Data<AppState>,
     req: HttpRequest,
     path: web::Path<String>,
-    query: web::Query<ThemeLineage>,
 ) -> HttpResponse {
     let flow = Flow::DeleteTheme;
     let theme_id = path.into_inner();
-    let lineage = query.into_inner();
 
     Box::pin(api::server_wrap(
         flow,
         state,
         &req,
-        lineage,
-        |state, _user: auth::UserFromToken, lineage, _| {
-            theme_core::delete_theme(state, theme_id.clone(), lineage)
+        theme_id,
+        |state, user: auth::UserFromToken, theme_id, _| {
+            theme_core::delete_user_theme(state, user, theme_id)
         },
         &auth::DashboardNoPermissionAuth,
         api_locking::LockAction::NotApplicable,
