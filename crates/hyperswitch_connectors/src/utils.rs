@@ -5501,6 +5501,8 @@ pub enum PaymentMethodDataType {
     NetworkTransactionIdAndCardDetails,
     DirectCarrierBilling,
     InstantBankTransfer,
+    InstantBankTransferFinland,
+    InstantBankTransferPoland,
     RevolutPay,
 }
 
@@ -5650,6 +5652,12 @@ impl From<PaymentMethodData> for PaymentMethodDataType {
                 }
                 payment_method_data::BankTransferData::InstantBankTransfer {} => {
                     Self::InstantBankTransfer
+                }
+                payment_method_data::BankTransferData::InstantBankTransferFinland {} => {
+                    Self::InstantBankTransferFinland
+                }
+                payment_method_data::BankTransferData::InstantBankTransferPoland {} => {
+                    Self::InstantBankTransferPoland
                 }
             },
             PaymentMethodData::Crypto(_) => Self::Crypto,

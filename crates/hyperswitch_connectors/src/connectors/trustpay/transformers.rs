@@ -93,6 +93,8 @@ pub enum TrustpayBankTransferPaymentMethod {
     SepaCreditTransfer,
     #[serde(rename = "Wire")]
     InstantBankTransfer,
+    InstantBankTransferFI,
+    InstantBankTransferPL,
 }
 
 #[derive(Debug, Serialize, Deserialize, Eq, PartialEq)]
@@ -282,6 +284,8 @@ impl TryFrom<&BankTransferData> for TrustpayBankTransferPaymentMethod {
         match value {
             BankTransferData::SepaBankTransfer { .. } => Ok(Self::SepaCreditTransfer),
             BankTransferData::InstantBankTransfer {} => Ok(Self::InstantBankTransfer),
+            BankTransferData::InstantBankTransferFinland {} => Ok(Self::InstantBankTransferFI),
+            BankTransferData::InstantBankTransferPoland {} => Ok(Self::InstantBankTransferPL),
             _ => Err(errors::ConnectorError::NotImplemented(
                 utils::get_unimplemented_payment_method_error_message("trustpay"),
             )
@@ -399,7 +403,9 @@ fn get_bank_transfer_debtor_info(
         .and_then(|address| address.last_name.clone());
     Ok(match pm {
         TrustpayBankTransferPaymentMethod::SepaCreditTransfer
-        | TrustpayBankTransferPaymentMethod::InstantBankTransfer => Some(DebtorInformation {
+        | TrustpayBankTransferPaymentMethod::InstantBankTransfer
+        | TrustpayBankTransferPaymentMethod::InstantBankTransferFI
+        | TrustpayBankTransferPaymentMethod::InstantBankTransferPL => Some(DebtorInformation {
             name: get_full_name(params.billing_first_name, billing_last_name),
             email: item.request.get_email()?,
         }),

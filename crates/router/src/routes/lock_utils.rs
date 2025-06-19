@@ -79,6 +79,7 @@ impl From<Flow> for ApiIdentifier {
             | Flow::ToggleDynamicRouting
             | Flow::UpdateDynamicRoutingConfigs
             | Flow::DecisionManagerUpsertConfig
+            | Flow::DecisionEngineRuleMigration
             | Flow::VolumeSplitOnRoutingType => Self::Routing,
 
             Flow::RetrieveForexFlow => Self::Forex,
@@ -347,7 +348,7 @@ impl From<Flow> for ApiIdentifier {
             Flow::RevenueRecoveryRetrieve => Self::ProcessTracker,
             Flow::Proxy => Self::Proxy,
 
-            Flow::ProfileAcquirerCreate => Self::ProfileAcquirer,
+            Flow::ProfileAcquirerCreate | Flow::ProfileAcquirerUpdate => Self::ProfileAcquirer,
             Flow::ThreeDsDecisionRuleExecute => Self::ThreeDsDecisionRule,
             Flow::TokenizationCreate | Flow::TokenizationRetrieve => Self::GenericTokenization,
         }
