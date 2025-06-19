@@ -422,6 +422,8 @@ pub async fn generate_sample_data(
                 organization_id: org_id.clone(),
                 processor_refund_data: None,
                 processor_transaction_data,
+                processor_merchant_id: Some(merchant_id.clone()),
+                created_by: None,
             })
         } else {
             None

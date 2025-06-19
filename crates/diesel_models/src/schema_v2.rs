@@ -1244,6 +1244,10 @@ diesel::table! {
         processor_refund_data -> Nullable<Text>,
         processor_transaction_data -> Nullable<Text>,
         #[max_length = 64]
+        processor_merchant_id -> Nullable<Varchar>,
+        #[max_length = 255]
+        created_by -> Nullable<Varchar>,
+        #[max_length = 64]
         id -> Varchar,
         #[max_length = 64]
         merchant_reference_id -> Varchar,
