@@ -199,7 +199,6 @@ impl From<AuthEventDimensions> for NameDescription {
 
 #[derive(Debug, serde::Serialize, Eq)]
 pub struct AuthEventMetricsBucketIdentifier {
-    pub merchant_id: Option<String>,
     pub authentication_status: Option<AuthenticationStatus>,
     pub trans_status: Option<TransactionStatus>,
     pub authentication_type: Option<DecoupledAuthenticationType>,
@@ -237,7 +236,6 @@ pub struct AuthEventMetricsBucketIdentifier {
 impl AuthEventMetricsBucketIdentifier {
     #[allow(clippy::too_many_arguments)]
     pub fn new(
-        merchant_id: Option<String>,
         authentication_status: Option<AuthenticationStatus>,
         trans_status: Option<TransactionStatus>,
         authentication_type: Option<DecoupledAuthenticationType>,
@@ -268,7 +266,6 @@ impl AuthEventMetricsBucketIdentifier {
         normalized_time_range: TimeRange,
     ) -> Self {
         Self {
-            merchant_id,
             authentication_status,
             trans_status,
             authentication_type,
@@ -304,7 +301,6 @@ impl AuthEventMetricsBucketIdentifier {
 
 impl Hash for AuthEventMetricsBucketIdentifier {
     fn hash<H: Hasher>(&self, state: &mut H) {
-        self.merchant_id.hash(state);
         self.authentication_status.hash(state);
         self.trans_status.hash(state);
         self.authentication_type.hash(state);

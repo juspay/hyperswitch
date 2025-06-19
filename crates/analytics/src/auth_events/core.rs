@@ -28,7 +28,6 @@ use crate::{
 pub async fn get_metrics(
     pool: &AnalyticsProvider,
     auth: &AuthInfo,
-    // merchant_id: &common_utils::id_type::MerchantId,
     req: GetAuthEventMetricRequest,
 ) -> AnalyticsResult<AuthEventMetricsResponse<MetricsBucketResponse>> {
     let mut metrics_accumulator: HashMap<
@@ -39,7 +38,6 @@ pub async fn get_metrics(
     let mut set = tokio::task::JoinSet::new();
     for metric_type in req.metrics.iter().cloned() {
         let req = req.clone();
-        // let merchant_id_scoped = merchant_id.to_owned();
         let auth_scoped = auth.to_owned();
         let pool = pool.clone();
         set.spawn(async move {
@@ -47,7 +45,6 @@ pub async fn get_metrics(
                 .get_auth_event_metrics(
                     &metric_type,
                     &req.group_by_names.clone(),
-                    // &merchant_id_scoped,
                     &auth_scoped,
                     &req.filters,
                     req.time_series.map(|t| t.granularity),

@@ -102,7 +102,6 @@ where
             .map(|i| {
                 Ok((
                     AuthEventMetricsBucketIdentifier::new(
-                        i.merchant_id.clone(),
                         i.authentication_status.as_ref().map(|i| i.0),
                         i.trans_status.as_ref().map(|i| i.0.clone()),
                         i.authentication_type.as_ref().map(|i| i.0),

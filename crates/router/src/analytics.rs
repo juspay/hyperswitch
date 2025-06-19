@@ -1085,6 +1085,10 @@ pub mod routes {
         .await
     }
 
+    #[cfg(feature = "v1")]
+    /// # Panics
+    ///
+    /// Panics if `json_payload` array does not contain one `GetAuthEventMetricRequest` element.
     pub async fn get_profile_auth_event_metrics(
         state: web::Data<AppState>,
         req: actix_web::HttpRequest,
@@ -1132,6 +1136,10 @@ pub mod routes {
         .await
     }
 
+    #[cfg(feature = "v1")]
+    /// # Panics
+    ///
+    /// Panics if `json_payload` array does not contain one `GetAuthEventMetricRequest` element.
     pub async fn get_org_auth_event_metrics(
         state: web::Data<AppState>,
         req: actix_web::HttpRequest,
@@ -1196,41 +1204,7 @@ pub mod routes {
         ))
         .await
     }
-    #[cfg(feature = "v1")]
-    pub async fn get_org_payment_filters(
-        state: web::Data<AppState>,
-        req: actix_web::HttpRequest,
-        json_payload: web::Json<GetPaymentFiltersRequest>,
-    ) -> impl Responder {
-        let flow = AnalyticsFlow::GetPaymentFilters;
-        Box::pin(api::server_wrap(
-            flow,
-            state,
-            &req,
-            json_payload.into_inner(),
-            |state, auth: AuthenticationData, req, _| async move {
-                let org_id = auth.merchant_account.get_org_id();
-                let auth: AuthInfo = AuthInfo::OrgLevel {
-                    org_id: org_id.clone(),
-                };
-                analytics::payments::get_filters(&state.pool, req, &auth)
-                    .await
-                    .map(ApplicationResponse::Json)
-            },
-            auth::auth_type(
-                &auth::PlatformOrgAdminAuth {
-                    is_admin_auth_allowed: false,
-                    organization_id: None,
-                },
-                &auth::JWTAuth {
-                    permission: Permission::OrganizationAnalyticsRead,
-                },
-                req.headers(),
-            ),
-            api_locking::LockAction::NotApplicable,
-        ))
-        .await
-    }
+
     #[cfg(feature = "v1")]
     pub async fn get_merchant_auth_events_filters(
         state: web::Data<AppState>,
@@ -1262,6 +1236,7 @@ pub mod routes {
         ))
         .await
     }
+
     #[cfg(feature = "v1")]
     pub async fn get_org_auth_events_filters(
         state: web::Data<AppState>,
@@ -1298,6 +1273,7 @@ pub mod routes {
         ))
         .await
     }
+
     #[cfg(feature = "v1")]
     pub async fn get_profile_auth_events_filters(
         state: web::Data<AppState>,
@@ -1330,6 +1306,42 @@ pub mod routes {
             &auth::JWTAuth {
                 permission: Permission::ProfileAnalyticsRead,
             },
+            api_locking::LockAction::NotApplicable,
+        ))
+        .await
+    }
+
+    #[cfg(feature = "v1")]
+    pub async fn get_org_payment_filters(
+        state: web::Data<AppState>,
+        req: actix_web::HttpRequest,
+        json_payload: web::Json<GetPaymentFiltersRequest>,
+    ) -> impl Responder {
+        let flow = AnalyticsFlow::GetPaymentFilters;
+        Box::pin(api::server_wrap(
+            flow,
+            state,
+            &req,
+            json_payload.into_inner(),
+            |state, auth: AuthenticationData, req, _| async move {
+                let org_id = auth.merchant_account.get_org_id();
+                let auth: AuthInfo = AuthInfo::OrgLevel {
+                    org_id: org_id.clone(),
+                };
+                analytics::payments::get_filters(&state.pool, req, &auth)
+                    .await
+                    .map(ApplicationResponse::Json)
+            },
+            auth::auth_type(
+                &auth::PlatformOrgAdminAuth {
+                    is_admin_auth_allowed: false,
+                    organization_id: None,
+                },
+                &auth::JWTAuth {
+                    permission: Permission::OrganizationAnalyticsRead,
+                },
+                req.headers(),
+            ),
             api_locking::LockAction::NotApplicable,
         ))
         .await

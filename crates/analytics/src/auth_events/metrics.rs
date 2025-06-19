@@ -89,7 +89,6 @@ where
     async fn load_metrics(
         &self,
         auth: &AuthInfo,
-        // merchant_id: &common_utils::id_type::MerchantId,
         dimensions: &[AuthEventDimensions],
         filters: &AuthEventFilters,
         granularity: Option<Granularity>,
