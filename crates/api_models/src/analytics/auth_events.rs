@@ -87,7 +87,6 @@ pub struct AuthEventFilters {
 #[serde(rename_all = "snake_case")]
 #[strum(serialize_all = "snake_case")]
 pub enum AuthEventDimensions {
-    MerchantId,
     AuthenticationStatus,
     #[strum(serialize = "trans_status")]
     #[serde(rename = "trans_status")]

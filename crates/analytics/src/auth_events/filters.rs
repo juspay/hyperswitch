@@ -52,7 +52,6 @@ where
 
 #[derive(Debug, serde::Serialize, Eq, PartialEq, serde::Deserialize)]
 pub struct AuthEventFilterRow {
-    pub merchant_id: Option<String>,
     pub authentication_status: Option<DBEnumWrapper<AuthenticationStatus>>,
     pub trans_status: Option<DBEnumWrapper<TransactionStatus>>,
     pub authentication_type: Option<DBEnumWrapper<DecoupledAuthenticationType>>,

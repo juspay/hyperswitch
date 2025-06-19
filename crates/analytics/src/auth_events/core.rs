@@ -172,7 +172,6 @@ pub async fn get_filters(
         .change_context(AnalyticsError::UnknownError)?
         .into_iter()
         .filter_map(|fil: AuthEventFilterRow| match dim {
-            AuthEventDimensions::MerchantId => fil.merchant_id,
             AuthEventDimensions::AuthenticationStatus => fil.authentication_status.map(|i| i.as_ref().to_string()),
             AuthEventDimensions::TransactionStatus => fil.trans_status.map(|i| i.as_ref().to_string()),
             AuthEventDimensions::AuthenticationType => fil.authentication_type.map(|i| i.as_ref().to_string()),

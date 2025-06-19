@@ -44,7 +44,6 @@ use frictionless_success_count::FrictionlessSuccessCount;
 #[derive(Debug, PartialEq, Eq, serde::Deserialize, Hash)]
 pub struct AuthEventMetricRow {
     pub count: Option<i64>,
-    pub merchant_id: Option<String>,
     pub authentication_status: Option<DBEnumWrapper<storage_enums::AuthenticationStatus>>,
     pub trans_status: Option<DBEnumWrapper<storage_enums::TransactionStatus>>,
     pub authentication_type: Option<DBEnumWrapper<storage_enums::DecoupledAuthenticationType>>,

@@ -201,10 +201,6 @@ impl HealthCheck for SqlxClient {
 
 impl<'a> FromRow<'a, PgRow> for super::auth_events::metrics::AuthEventMetricRow {
     fn from_row(row: &'a PgRow) -> sqlx::Result<Self> {
-        let merchant_id: Option<String> = row.try_get("merchant_id").or_else(|e| match e {
-            ColumnNotFound(_) => Ok(Default::default()),
-            e => Err(e),
-        })?;
         let authentication_status: Option<DBEnumWrapper<AuthenticationStatus>> =
             row.try_get("authentication_status").or_else(|e| match e {
                 ColumnNotFound(_) => Ok(Default::default()),
@@ -353,7 +349,6 @@ impl<'a> FromRow<'a, PgRow> for super::auth_events::metrics::AuthEventMetricRow 
             })?;
 
         Ok(Self {
-            merchant_id,
             authentication_status,
             trans_status,
             authentication_type,
@@ -391,10 +386,6 @@ impl<'a> FromRow<'a, PgRow> for super::auth_events::metrics::AuthEventMetricRow 
 
 impl<'a> FromRow<'a, PgRow> for super::auth_events::filters::AuthEventFilterRow {
     fn from_row(row: &'a PgRow) -> sqlx::Result<Self> {
-        let merchant_id: Option<String> = row.try_get("merchant_id").or_else(|e| match e {
-            ColumnNotFound(_) => Ok(Default::default()),
-            e => Err(e),
-        })?;
         let authentication_status: Option<DBEnumWrapper<AuthenticationStatus>> =
             row.try_get("authentication_status").or_else(|e| match e {
                 ColumnNotFound(_) => Ok(Default::default()),
@@ -531,7 +522,6 @@ impl<'a> FromRow<'a, PgRow> for super::auth_events::filters::AuthEventFilterRow 
             })?;
 
         Ok(Self {
-            merchant_id,
             authentication_status,
             trans_status,
             authentication_type,

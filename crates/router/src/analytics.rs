@@ -1119,14 +1119,9 @@ pub mod routes {
                     merchant_id: merchant_id.clone(),
                     profile_ids: vec![profile_id.clone()],
                 };
-                analytics::auth_events::get_metrics(
-                    &state.pool,
-                    &auth,
-                    // auth.merchant_account.get_id(),
-                    req,
-                )
-                .await
-                .map(ApplicationResponse::Json)
+                analytics::auth_events::get_metrics(&state.pool, &auth, req)
+                    .await
+                    .map(ApplicationResponse::Json)
             },
             &auth::JWTAuth {
                 permission: Permission::ProfileAnalyticsRead,
@@ -1167,9 +1162,16 @@ pub mod routes {
                     .await
                     .map(ApplicationResponse::Json)
             },
-            &auth::JWTAuth {
-                permission: Permission::OrganizationAnalyticsRead,
-            },
+            auth::auth_type(
+                &auth::PlatformOrgAdminAuth {
+                    is_admin_auth_allowed: false,
+                    organization_id: None,
+                },
+                &auth::JWTAuth {
+                    permission: Permission::OrganizationAnalyticsRead,
+                },
+                req.headers(),
+            ),
             api_locking::LockAction::NotApplicable,
         ))
         .await
@@ -1205,7 +1207,6 @@ pub mod routes {
         .await
     }
 
-    #[cfg(feature = "v1")]
     pub async fn get_merchant_auth_events_filters(
         state: web::Data<AppState>,
         req: actix_web::HttpRequest,
