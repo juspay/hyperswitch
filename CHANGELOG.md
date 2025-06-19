@@ -4,6 +4,17 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2025.06.19.0
+
+### Bug Fixes
+
+- **connector:** [STRIPE] Retrieving Connect Account Id from Mandate Metadata in MITs ([#8326](https://github.com/juspay/hyperswitch/pull/8326)) ([`17c30b6`](https://github.com/juspay/hyperswitch/commit/17c30b6105d9086585edac0c89432b1f4568c3de))
+- **router:** Move Customer PML endpoint to OLAP (v2) ([#8303](https://github.com/juspay/hyperswitch/pull/8303)) ([`aee3f64`](https://github.com/juspay/hyperswitch/commit/aee3f6441f83d0641f0f38be79d4790303271d92))
+
+**Full Changelog:** [`2025.06.18.0...2025.06.19.0`](https://github.com/juspay/hyperswitch/compare/2025.06.18.0...2025.06.19.0)
+
+- - -
+
 ## 2025.06.18.0
 
 ### Features
