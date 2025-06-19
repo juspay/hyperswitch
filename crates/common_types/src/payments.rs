@@ -149,6 +149,8 @@ impl CustomerAcceptance {
     }
 }
 
+impl masking::SerializableSecret for CustomerAcceptance {}
+
 #[derive(
     Default, Debug, serde::Deserialize, serde::Serialize, PartialEq, Eq, Clone, Copy, ToSchema,
 )]
