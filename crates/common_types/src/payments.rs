@@ -149,7 +149,9 @@ impl CustomerAcceptance {
     }
 }
 
-#[derive(Default, Debug, serde::Deserialize, serde::Serialize, PartialEq, Eq, Clone, ToSchema)]
+#[derive(
+    Default, Debug, serde::Deserialize, serde::Serialize, PartialEq, Eq, Clone, Copy, ToSchema,
+)]
 #[serde(rename_all = "lowercase")]
 /// This is used to indicate if the mandate was accepted online or offline
 pub enum AcceptanceType {
