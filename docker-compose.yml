@@ -71,7 +71,7 @@ services:
     environment:
       # format -> postgresql://DB_USER:DB_PASSWORD@HOST:PORT/DATABASE_NAME
       - DATABASE_URL=postgresql://db_user:db_pass@pg:5432/hyperswitch_db
-  
+
   mailhog:
     image: mailhog/mailhog
     networks:
@@ -212,13 +212,11 @@ services:
     image: curlimages/curl-base:latest
     container_name: create-default-user
     depends_on:
-      hyperswitch-server:
-        condition: service_healthy 
       hyperswitch-control-center:
         condition: service_started
     environment:
       - HYPERSWITCH_SERVER_URL=http://hyperswitch-server:8080
-      - HYPERSWITCH_CONTROL_CENTER_URL=http://hyperswitch-control-center:9000  
+      - HYPERSWITCH_CONTROL_CENTER_URL=http://hyperswitch-control-center:9000
     entrypoint:
       [
         "/bin/sh",
@@ -229,13 +227,11 @@ services:
       - ./scripts/create_default_user.sh:/create_default_user.sh
     networks:
       - router_net
-  
+
   poststart-hook:
     image: curlimages/curl-base:latest
     container_name: poststart-hook
     depends_on:
-      create-default-user:
-        condition: service_completed_successfully
       hyperswitch-server:
         condition: service_healthy # Ensures it only starts when `hyperswitch-server` is healthy
     environment:

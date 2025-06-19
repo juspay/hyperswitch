@@ -83,6 +83,7 @@ RED='\033[0;31m'
 GREEN='\033[0;32m'
 YELLOW='\033[0;33m'
 BLUE='\033[0;34m'
+CYAN='\033[1;36m'
 BOLD='\033[1m'
 NC='\033[0m' # No Color
 
@@ -101,6 +102,55 @@ echo_warning() {
 
 echo_error() {
     printf "${RED}[ERROR]${NC} %s\n" "$1"
+}
+
+# Check if Git is available
+detect_git() {
+    if ! command -v git >/dev/null 2>&1; then
+        echo_warning "Git is not installed on this system."
+        echo_warning "To continue without Git, please run the following command manually:"
+        printf "\n  ${CYAN}docker compose up -d${NC}\n"
+        printf "\n"
+        exit 0
+    fi
+}
+# Check if current git state is a stable release
+is_stable_release() {
+
+    # Check if working directory is clean (no changes, staged or unstaged)
+    if [[ -n "$(git status --porcelain)" ]] || [[ "$(git rev-list --count HEAD ^$(git describe --tags --abbrev=0 2>/dev/null))" -gt 0 ]]; then
+        return 1
+    else
+        return 0
+    fi
+
+    # Get the exact tag for the current commit, if any
+    local current_tag
+    current_tag=$(git describe --tags --exact-match HEAD 2>/dev/null || echo "")
+
+    if [ -z "$current_tag" ]; then
+        return 1
+    fi
+
+    # Ensure it's a stable tag (no alpha, beta, rc)
+    if ! [[ "$current_tag" =~ ^(v?[0-9]+\.[0-9]+\.[0-9]+(\.[0-9]+)?(\+hotfix\.[0-9]+|-hotfix[0-9]+)?|[0-9]{4}\.[0-9]{2}\.[0-9]{2}\.[0-9]+(-hotfix[0-9]+)?)$ ]]; then
+        return 1
+    fi
+
+    # Exclude 'latest' and get the actual latest version tag
+    local latest_tag
+    latest_tag=$(git tag --points-at latest | grep -v "^latest$" | grep -E "^[0-9]|^v" | sort -V | tail -n 1)
+
+    if [ -z "$latest_tag" ]; then
+        return 1
+    fi
+
+    # Ensure current tag is <= latest_tag
+    if [ "$current_tag" = "$latest_tag" ] || [ "$(printf "%s\n%s" "$current_tag" "$latest_tag" | sort -V | head -n1)" = "$current_tag" ]; then
+        return 0
+    else
+        return 1
+    fi
 }
 
 show_banner() {
@@ -366,6 +416,12 @@ print_access_info() {
 }
 
 # Main execution flow
+detect_git
+is_stable_release || {
+    echo_warning "You are not on a stable release. This script is intended for use with stable releases only."
+    echo_warning "If you are testing a new feature or development version, please proceed with caution."
+    exit 0
+}
 scarf_call
 show_banner
 detect_docker_compose
