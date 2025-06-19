@@ -85,6 +85,14 @@ where
     {
         StrongSecret::new(self.inner_secret)
     }
+
+    /// Convert to [`Secret`] with a reference to the inner secret
+    pub fn as_ref(&self) -> Secret<&SecretValue, MaskingStrategy>
+    where
+        MaskingStrategy: for<'a> Strategy<&'a SecretValue>,
+    {
+        Secret::new(self.peek())
+    }
 }
 
 impl<SecretValue, MaskingStrategy> PeekInterface<SecretValue>
