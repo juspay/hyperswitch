@@ -1,25 +1,25 @@
-import { customerAcceptance,cardRequiredField } from "./Commons.js";
+import { customerAcceptance, cardRequiredField } from "./Commons.js";
 import { getCustomExchange } from "./Modifiers.js";
 
 const defaultBillingDetails = {
-          address: {
-            line1: "Calle 123",
-            line2: "Apt 1",
-            line3:null,
-            city: "Bogotá",
-            state: "Cundinamarca",
-            zip: "110111",
-            country: "CO",
-            first_name: "John",
-            last_name: "Doe",
-          },
-          phone: {
-            number: "3001234567",
-            country_code: "+57",
-          },
-          email: "john.doe@example.com",
-        }
-    
+  address: {
+    line1: "Calle 123",
+    line2: "Apt 1",
+    line3: null,
+    city: "Bogotá",
+    state: "Cundinamarca",
+    zip: "110111",
+    country: "CO",
+    first_name: "John",
+    last_name: "Doe",
+  },
+  phone: {
+    number: "3001234567",
+    country_code: "+57",
+  },
+  email: "john.doe@example.com",
+};
+
 // Test card details for Placetopay - using standard test cards
 const successfulNo3DSCardDetails = {
   card_number: "4111111111111111", // Visa test card
@@ -132,9 +132,9 @@ export const connectorDetails = {
       connector_account_details: {
         auth_type: "BodyKey",
         api_key: "e2ffa4ba4e5538a5ff78bed4b156531e",
-        key1: "B383FT602fEXF49x"
-      }
-    }
+        key1: "B383FT602fEXF49x",
+      },
+    },
   },
   card_pm: {
     PaymentIntent: getCustomExchange({
@@ -208,7 +208,7 @@ export const connectorDetails = {
           status: "succeeded",
           payment_method: "card",
           payment_method_data: payment_method_data_visa,
-        }
+        },
       },
     }),
 
@@ -326,13 +326,13 @@ export const connectorDetails = {
           amount: 6000,
           amount_capturable: 0,
           amount_received: 6000,
-          billing : defaultBillingDetails,
+          billing: defaultBillingDetails,
         },
       },
     },
 
     // Partial Capture - Placetopay supports this
-    PartialCapture:{
+    PartialCapture: {
       Request: {
         amount_to_capture: 2000,
       },
@@ -518,7 +518,7 @@ export const connectorDetails = {
         payment_method_data: {
           card: successfulNo3DSCardDetails,
         },
-        billing:defaultBillingDetails,
+        billing: defaultBillingDetails,
         currency: "USD",
         mandate_data: {
           customer_acceptance: customerAcceptance,
@@ -591,7 +591,7 @@ export const connectorDetails = {
       Response: {
         status: 200,
         body: {
-          status:"succeeded"
+          status: "succeeded",
         },
       },
     },
@@ -1096,7 +1096,7 @@ export const connectorDetails = {
     },
   },
 
-   pm_list: {
+  pm_list: {
     PmListResponse: {
       PmListNull: {
         payment_methods: [],
