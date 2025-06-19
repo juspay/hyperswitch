@@ -386,9 +386,6 @@ function bankRedirectRedirection(
             }
             verifyUrl = false;
             break;
-
-          // Shift4 case removed and handled separately outside handleFlow to avoid constants scope issues
-
           default:
             throw new Error(
               `Unsupported connector in handleFlow: ${connectorId}`
