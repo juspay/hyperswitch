@@ -7321,9 +7321,11 @@
             "nullable": true
           },
           "authentication_connector": {
-            "type": "string",
-            "description": "The connector to be used for authentication, if known.",
-            "example": "stripe",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/AuthenticationConnectors"
+              }
+            ],
             "nullable": true
           },
           "customer": {
@@ -7420,8 +7422,11 @@
             "nullable": true
           },
           "authentication_connector": {
-            "type": "string",
-            "description": "The connector to be used for authentication, if specified in request.",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/AuthenticationConnectors"
+              }
+            ],
             "nullable": true
           },
           "return_url": {

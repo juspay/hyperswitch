@@ -1,4 +1,4 @@
-use common_enums::enums;
+use common_enums::{enums, AuthenticationConnectors};
 use common_utils::{
     events::{ApiEventMetric, ApiEventsType},
     id_type,
@@ -22,11 +22,11 @@ pub struct AuthenticationCreateRequest {
     pub profile_id: Option<id_type::ProfileId>,
 
     /// The connector to be used for authentication, if known.
-    #[schema(value_type = Option<String>, example = "stripe")]
-    pub authentication_connector: Option<String>,
+    #[schema(value_type = Option<AuthenticationConnectors>, example = "netcetera")]
+    pub authentication_connector: Option<AuthenticationConnectors>,
 
     /// Customer details.
-    #[serde(default)]
+    #[schema(value_type = Option<CustomerDetails>)]
     pub customer: Option<CustomerDetails>,
 
     /// The amount for the transaction, required.
@@ -62,7 +62,7 @@ pub struct AuthenticationCreateRequest {
 pub struct AcquirerDetails {
     pub bin: Option<String>,
     pub merchant_id: Option<String>,
-    pub country_code: Option<enums::CountryAlpha2>,
+    pub country_code: Option<String>,
 }
 
 // Renamed from AuthenticationResponse to AuthenticationCreateResponse
@@ -79,6 +79,7 @@ pub struct AuthenticationResponse {
     pub merchant_id: id_type::MerchantId,
 
     /// The current status of the authentication (e.g., Started).
+    #[schema(value_type = common_enums::AuthenticationStatus)]
     pub status: common_enums::AuthenticationStatus,
 
     /// The client secret for this authentication, to be used for client-side operations.
@@ -86,7 +87,7 @@ pub struct AuthenticationResponse {
     pub client_secret: Option<masking::Secret<String>>,
 
     /// The amount for the transaction.
-    #[schema(example = 1000)]
+    #[schema(value_type = common_utils::types::MinorUnit, example = 1000)]
     pub amount: common_utils::types::MinorUnit,
 
     /// The currency for the transaction.
@@ -94,12 +95,14 @@ pub struct AuthenticationResponse {
     pub currency: enums::Currency,
 
     /// Customer details, if provided in the request.
+    #[schema(value_type = Option<CustomerDetails>)]
     pub customer: Option<CustomerDetails>,
 
     /// Whether 3DS challenge was forced.
     pub force_3ds_challenge: Option<bool>,
 
     /// The connector to be used for authentication, if specified in request.
+    #[schema(value_type = Option<AuthenticationConnectors>)]
     pub authentication_connector: Option<String>,
 
     /// The URL to which the user should be redirected after authentication, if provided.

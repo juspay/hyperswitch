@@ -1,8 +1,6 @@
 pub mod types;
 pub mod utils;
 
-use std::str::FromStr;
-
 use api_models::{
     authentication::{AcquirerDetails, AuthenticationCreateRequest, AuthenticationResponse},
     payments,
@@ -607,7 +605,8 @@ pub async fn authentication_create_core(
     let new_authentication = create_new_authentication(
         &state,
         merchant_id.clone(),
-        req.authentication_connector.clone(),
+        req.authentication_connector
+            .map(|connector| connector.to_string()),
         profile_id.clone(),
         None,
         None,
@@ -626,19 +625,14 @@ pub async fn authentication_create_core(
             .and_then(|acquirer_details| acquirer_details.merchant_id),
         req.acquirer_details
             .clone()
-            .and_then(|acquirer_details| acquirer_details.country_code.map(|cc| cc.to_string())),
+            .and_then(|acquirer_details| acquirer_details.country_code),
     )
     .await?;
 
     let acquirer_details = Some(AcquirerDetails {
         bin: new_authentication.acquirer_bin,
         merchant_id: new_authentication.acquirer_merchant_id,
-        country_code: new_authentication
-            .acquirer_country_code
-            .map(|cc| common_enums::CountryAlpha2::from_str(&cc))
-            .transpose()
-            .change_context(ApiErrorResponse::InternalServerError)
-            .attach_printable("unable to parse acquirer country code into CountryAlpha2 from authentication table")?    ,
+        country_code: new_authentication.acquirer_country_code,
     });
 
     let response = AuthenticationResponse {
@@ -652,7 +646,7 @@ pub async fn authentication_create_core(
         force_3ds_challenge,
         merchant_id: merchant_id.clone(),
         status: new_authentication.authentication_status,
-        authentication_connector: new_authentication.authentication_connector.clone(),
+        authentication_connector: new_authentication.authentication_connector,
         return_url: req.return_url.clone(),
         created_at: Some(common_utils::date_time::now()),
         error_code: None,
