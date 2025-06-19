@@ -256,8 +256,8 @@ where
             get_debit_routing_output::<F, D>(state, payment_data, acquirer_country).await?;
 
         logger::debug!(
-            "Sorted co-badged networks: {:?}",
-            debit_routing_output.co_badged_card_networks
+            "Sorted co-badged networks info: {:?}",
+            debit_routing_output.co_badged_card_networks_info
         );
 
         let key_store = db
@@ -281,7 +281,7 @@ where
             &profile_id,
             &key_store,
             vec![connector_data.clone()],
-            debit_routing_output.co_badged_card_networks.clone(),
+            debit_routing_output.get_co_badged_card_networks(),
         )
         .await
         .map_err(|error| {
@@ -455,7 +455,7 @@ where
             &profile_id,
             &key_store,
             connector_data_list.clone(),
-            debit_routing_output.co_badged_card_networks.clone(),
+            debit_routing_output.get_co_badged_card_networks(),
         )
         .await
         .map_err(|error| {
