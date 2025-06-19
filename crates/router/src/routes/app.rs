@@ -2631,10 +2631,7 @@ impl Authentication {
     pub fn server(state: AppState) -> Scope {
         web::scope("/authentication")
             .app_data(web::Data::new(state))
-            .service(
-                web::resource("/create")
-                    .route(web::post().to(authentication::authentication_create)),
-            )
+            .service(web::resource("").route(web::post().to(authentication::authentication_create)))
     }
 }
 
