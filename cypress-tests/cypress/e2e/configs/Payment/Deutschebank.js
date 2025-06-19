@@ -273,8 +273,7 @@ export const connectorDetails = {
         body: {
           error: {
             type: "invalid_request",
-            message:
-              "Non-ThreeDs is not supported by deutschebank",
+            message: "Non-ThreeDs is not supported by deutschebank",
             code: "IR_39",
           },
         },
