@@ -1,7 +1,7 @@
 import {
-  customerAcceptance,
+  
   cardRequiredField,
-  connectorDetails as commonConnectorDetails,
+  
 } from "./Commons";
 
 // ============================================================================
