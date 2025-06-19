@@ -2777,14 +2777,14 @@ static STRIPE_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMethods> = Laz
         common_enums::PaymentMethod::Card,
         PaymentMethodType::Credit,
         PaymentMethodDetails {
-            mandates: common_enums::FeatureStatus::NotSupported,
+            mandates: common_enums::FeatureStatus::Supported,
             refunds: common_enums::FeatureStatus::Supported,
             supported_capture_methods: default_capture_methods.clone(),
             specific_features: Some(
                 api_models::feature_matrix::PaymentMethodSpecificFeatures::Card(
                     api_models::feature_matrix::CardSpecificFeatures {
                         three_ds: common_enums::FeatureStatus::Supported,
-                        no_three_ds: common_enums::FeatureStatus::NotSupported,
+                        no_three_ds: common_enums::FeatureStatus::Supported,
                         supported_card_networks: supported_card_network.clone(),
                     },
                 ),
@@ -2796,14 +2796,14 @@ static STRIPE_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMethods> = Laz
         common_enums::PaymentMethod::Card,
         PaymentMethodType::Debit,
         PaymentMethodDetails {
-            mandates: common_enums::FeatureStatus::NotSupported,
+            mandates: common_enums::FeatureStatus::Supported,
             refunds: common_enums::FeatureStatus::Supported,
             supported_capture_methods: default_capture_methods.clone(),
             specific_features: Some(
                 api_models::feature_matrix::PaymentMethodSpecificFeatures::Card(
                     api_models::feature_matrix::CardSpecificFeatures {
                         three_ds: common_enums::FeatureStatus::Supported,
-                        no_three_ds: common_enums::FeatureStatus::NotSupported,
+                        no_three_ds: common_enums::FeatureStatus::Supported,
                         supported_card_networks: supported_card_network.clone(),
                     },
                 ),
