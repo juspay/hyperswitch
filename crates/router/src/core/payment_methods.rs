@@ -79,9 +79,10 @@ use crate::{
         self,
         api::{self, payment_methods::PaymentMethodCreateExt},
         domain::types as domain_types,
+        payment_methods as pm_types,
         storage::{ephemeral_key, PaymentMethodListContext},
         transformers::{ForeignFrom, ForeignTryFrom},
-        Tokenizable, payment_methods as pm_types
+        Tokenizable,
     },
     utils::ext_traits::OptionExt,
 };
