@@ -1,7 +1,10 @@
 pub mod types;
 pub mod utils;
 
-use api_models::payments;
+use api_models::{
+    authentication::{AcquirerDetails, AuthenticationCreateRequest, AuthenticationResponse},
+    payments,
+};
 use diesel_models::authentication::{Authentication, AuthenticationNew};
 use error_stack::ResultExt;
 use hyperswitch_domain_models::{
@@ -22,8 +25,12 @@ use hyperswitch_domain_models::{
     },
 };
 
-use super::{errors::RouterResult, payments::helpers::MerchantConnectorAccountType};
+use super::{
+    errors::{RouterResponse, RouterResult},
+    payments::helpers::MerchantConnectorAccountType,
+};
 use crate::{
+    consts,
     core::{
         errors::utils::StorageErrorExt,
         unified_authentication_service::types::{
@@ -92,7 +99,7 @@ impl UnifiedAuthenticationService for ClickToPay {
         payment_method_data: Option<&domain::PaymentMethodData>,
         merchant_connector_account: &MerchantConnectorAccountType,
         connector_name: &str,
-        authentication_id: &str,
+        authentication_id: &common_utils::id_type::AuthenticationId,
         payment_method: common_enums::PaymentMethod,
         amount: common_utils::types::MinorUnit,
         currency: Option<common_enums::Currency>,
@@ -132,7 +139,7 @@ impl UnifiedAuthenticationService for ClickToPay {
         payment_id: Option<&common_utils::id_type::PaymentId>,
         merchant_connector_account: &MerchantConnectorAccountType,
         connector_name: &str,
-        authentication_id: &str,
+        authentication_id: &common_utils::id_type::AuthenticationId,
         payment_method: common_enums::PaymentMethod,
         merchant_id: &common_utils::id_type::MerchantId,
         _authentication: Option<&Authentication>,
@@ -150,7 +157,7 @@ impl UnifiedAuthenticationService for ClickToPay {
                 None,
                 post_authentication_data,
                 merchant_connector_account,
-                Some(authentication_id.to_string()),
+                Some(authentication_id.to_owned()),
                 payment_id.cloned(),
             )?;
 
@@ -166,7 +173,7 @@ impl UnifiedAuthenticationService for ClickToPay {
         state: &SessionState,
         _key_store: &domain::MerchantKeyStore,
         _business_profile: &domain::Profile,
-        authentication_id: Option<&str>,
+        authentication_id: Option<&common_utils::id_type::AuthenticationId>,
         currency: Option<common_enums::Currency>,
         status: common_enums::AttemptStatus,
         service_details: Option<payments::CtpServiceDetails>,
@@ -222,7 +229,7 @@ impl UnifiedAuthenticationService for ClickToPay {
             None,
             authentication_confirmation_data,
             merchant_connector_account,
-            Some(authentication_id.to_string()),
+            Some(authentication_id.to_owned()),
             payment_id.cloned(),
         )?;
 
@@ -281,7 +288,7 @@ impl UnifiedAuthenticationService for ExternalAuthentication {
         payment_method_data: Option<&domain::PaymentMethodData>,
         merchant_connector_account: &MerchantConnectorAccountType,
         connector_name: &str,
-        authentication_id: &str,
+        authentication_id: &common_utils::id_type::AuthenticationId,
         payment_method: common_enums::PaymentMethod,
         amount: common_utils::types::MinorUnit,
         currency: Option<common_enums::Currency>,
@@ -451,7 +458,7 @@ impl UnifiedAuthenticationService for ExternalAuthentication {
         payment_id: Option<&common_utils::id_type::PaymentId>,
         merchant_connector_account: &MerchantConnectorAccountType,
         connector_name: &str,
-        _authentication_id: &str,
+        _authentication_id: &common_utils::id_type::AuthenticationId,
         payment_method: common_enums::PaymentMethod,
         _merchant_id: &common_utils::id_type::MerchantId,
         authentication: Option<&Authentication>,
@@ -481,20 +488,24 @@ impl UnifiedAuthenticationService for ExternalAuthentication {
     }
 }
 
-#[cfg(feature = "v1")]
 #[allow(clippy::too_many_arguments)]
 pub async fn create_new_authentication(
     state: &SessionState,
     merchant_id: common_utils::id_type::MerchantId,
-    authentication_connector: String,
+    authentication_connector: Option<String>,
     profile_id: common_utils::id_type::ProfileId,
     payment_id: Option<common_utils::id_type::PaymentId>,
-    merchant_connector_id: common_utils::id_type::MerchantConnectorAccountId,
-    authentication_id: &str,
+    merchant_connector_id: Option<common_utils::id_type::MerchantConnectorAccountId>,
+    authentication_id: &common_utils::id_type::AuthenticationId,
     service_details: Option<payments::CtpServiceDetails>,
     authentication_status: common_enums::AuthenticationStatus,
     network_token: Option<payment_method_data::NetworkTokenData>,
     organization_id: common_utils::id_type::OrganizationId,
+    force_3ds_challenge: Option<bool>,
+    psd2_sca_exemption_type: Option<common_enums::ScaExemptionType>,
+    acquirer_bin: Option<String>,
+    acquirer_merchant_id: Option<String>,
+    acquirer_country_code: Option<String>,
 ) -> RouterResult<Authentication> {
     let service_details_value = service_details
         .map(serde_json::to_value)
@@ -503,6 +514,10 @@ pub async fn create_new_authentication(
         .attach_printable(
             "unable to parse service details into json value while inserting to DB",
         )?;
+    let authentication_client_secret = Some(common_utils::generate_id_with_default_len(&format!(
+        "{}_secret",
+        authentication_id.get_string_repr()
+    )));
     let new_authorization = AuthenticationNew {
         authentication_id: authentication_id.to_owned(),
         merchant_id,
@@ -522,8 +537,8 @@ pub async fn create_new_authentication(
         message_version: None,
         eci: network_token.and_then(|data| data.eci),
         trans_status: None,
-        acquirer_bin: None,
-        acquirer_merchant_id: None,
+        acquirer_bin,
+        acquirer_merchant_id,
         three_ds_method_data: None,
         three_ds_method_url: None,
         acs_url: None,
@@ -536,9 +551,12 @@ pub async fn create_new_authentication(
         merchant_connector_id,
         ds_trans_id: None,
         directory_server_id: None,
-        acquirer_country_code: None,
+        acquirer_country_code,
         service_details: service_details_value,
         organization_id,
+        authentication_client_secret,
+        force_3ds_challenge,
+        psd2_sca_exemption_type,
     };
     state
         .store
@@ -547,7 +565,110 @@ pub async fn create_new_authentication(
         .to_duplicate_response(ApiErrorResponse::GenericDuplicateError {
             message: format!(
                 "Authentication with authentication_id {} already exists",
-                authentication_id
+                authentication_id.get_string_repr()
             ),
         })
+}
+
+// Modular authentication
+#[cfg(feature = "v1")]
+pub async fn authentication_create_core(
+    state: SessionState,
+    merchant_context: domain::MerchantContext,
+    req: AuthenticationCreateRequest,
+) -> RouterResponse<AuthenticationResponse> {
+    let db = &*state.store;
+    let merchant_account = merchant_context.get_merchant_account();
+    let merchant_id = merchant_account.get_id();
+    let key_manager_state = (&state).into();
+    let profile_id = crate::core::utils::get_profile_id_from_business_details(
+        &key_manager_state,
+        None,
+        None,
+        &merchant_context,
+        req.profile_id.as_ref(),
+        db,
+        true,
+    )
+    .await?;
+
+    let business_profile = db
+        .find_business_profile_by_profile_id(
+            &key_manager_state,
+            merchant_context.get_merchant_key_store(),
+            &profile_id,
+        )
+        .await
+        .to_not_found_response(ApiErrorResponse::ProfileNotFound {
+            id: profile_id.get_string_repr().to_owned(),
+        })?;
+    let organization_id = merchant_account.organization_id.clone();
+    let authentication_id = common_utils::id_type::AuthenticationId::generate_authentication_id(
+        consts::AUTHENTICATION_ID_PREFIX,
+    );
+
+    let force_3ds_challenge = Some(
+        req.force_3ds_challenge
+            .unwrap_or(business_profile.force_3ds_challenge),
+    );
+
+    let new_authentication = create_new_authentication(
+        &state,
+        merchant_id.clone(),
+        req.authentication_connector
+            .map(|connector| connector.to_string()),
+        profile_id.clone(),
+        None,
+        None,
+        &authentication_id,
+        None,
+        common_enums::AuthenticationStatus::Started,
+        None,
+        organization_id,
+        force_3ds_challenge,
+        req.psd2_sca_exemption_type,
+        req.acquirer_details
+            .clone()
+            .and_then(|acquirer_details| acquirer_details.bin),
+        req.acquirer_details
+            .clone()
+            .and_then(|acquirer_details| acquirer_details.merchant_id),
+        req.acquirer_details
+            .clone()
+            .and_then(|acquirer_details| acquirer_details.country_code),
+    )
+    .await?;
+
+    let acquirer_details = Some(AcquirerDetails {
+        bin: new_authentication.acquirer_bin,
+        merchant_id: new_authentication.acquirer_merchant_id,
+        country_code: new_authentication.acquirer_country_code,
+    });
+
+    let response = AuthenticationResponse {
+        authentication_id: new_authentication.authentication_id,
+        client_secret: new_authentication
+            .authentication_client_secret
+            .map(masking::Secret::new),
+        amount: req.amount,
+        currency: req.currency,
+        customer: None,
+        force_3ds_challenge,
+        merchant_id: merchant_id.clone(),
+        status: new_authentication.authentication_status,
+        authentication_connector: new_authentication.authentication_connector,
+        return_url: req.return_url.clone(),
+        created_at: Some(common_utils::date_time::now()),
+        error_code: None,
+        error_message: None,
+        metadata: req.metadata.clone(),
+        profile_id: Some(profile_id),
+        browser_info: None,
+        psd2_sca_exemption_type: new_authentication.psd2_sca_exemption_type,
+        acquirer_details,
+    };
+
+    Ok(hyperswitch_domain_models::api::ApplicationResponse::Json(
+        response,
+    ))
 }

@@ -64,7 +64,7 @@ pub fn construct_uas_router_data<F: Clone, Req, Res>(
     address: Option<PaymentAddress>,
     request_data: Req,
     merchant_connector_account: &payments::helpers::MerchantConnectorAccountType,
-    authentication_id: Option<String>,
+    authentication_id: Option<common_utils::id_type::AuthenticationId>,
     payment_id: Option<common_utils::id_type::PaymentId>,
 ) -> RouterResult<RouterData<F, Req, Res>> {
     let auth_type: ConnectorAuthType = merchant_connector_account
@@ -193,7 +193,10 @@ pub async fn external_authentication_update_trackers<F: Clone, Req>(
                             state,
                             auth_val.expose(),
                             None,
-                            authentication.authentication_id.clone(),
+                            authentication
+                                .authentication_id
+                                .get_string_repr()
+                                .to_string(),
                             merchant_key_store.key.get_inner(),
                         )
                     })
@@ -242,7 +245,10 @@ pub async fn external_authentication_update_trackers<F: Clone, Req>(
                             state,
                             auth_val,
                             None,
-                            authentication.authentication_id.clone(),
+                            authentication
+                                .authentication_id
+                                .get_string_repr()
+                                .to_string(),
                             merchant_key_store.key.get_inner(),
                         )
                     })
