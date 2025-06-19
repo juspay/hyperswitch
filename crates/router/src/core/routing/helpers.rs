@@ -1539,7 +1539,7 @@ pub async fn push_metrics_with_update_window_for_contract_based_routing(
                 routing_events::RoutingEngine::IntelligentRouter,
                 routing_events::ApiMethod::Grpc)
                 .change_context(errors::ApiErrorResponse::InternalServerError)
-                .attach_printable("ContractRouting-Intelligent-Router: Failed to contruct RoutingEventsBuilder")?
+                .attach_printable("ContractRouting-Intelligent-Router: Failed to construct RoutingEventsBuilder")?
                 .trigger_event(state, closure)
                 .await
                 .change_context(errors::ApiErrorResponse::InternalServerError)
@@ -2545,11 +2545,11 @@ pub async fn delete_decision_engine_merchant(
         DECISION_ENGINE_MERCHANT_BASE_ENDPOINT,
         profile_id.get_string_repr()
     );
-    routing_utils::ConfigApiClient::send_decision_engine_request_without_response_parsing::<()>(
+    routing_utils::ConfigApiClient::send_decision_engine_request::<_, String>(
         state,
         services::Method::Delete,
         &path,
-        None,
+        None::<id_type::ProfileId>,
         None,
         None,
     )
