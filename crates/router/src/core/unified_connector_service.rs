@@ -239,7 +239,7 @@ pub fn handle_unified_connector_service_response_for_payment_authorize(
             connector_metadata: None,
             network_txn_id: response.network_txn_id.clone(),
             connector_response_reference_id: Some(response.connector_response_reference_id().to_owned()),
-            incremental_authorization_allowed: response.incremental_authorization_allowed.clone(),
+            incremental_authorization_allowed: response.incremental_authorization_allowed,
             charges: None,
         }),
         _ => Err(ErrorResponse {
