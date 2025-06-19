@@ -125,6 +125,8 @@ pub enum ConnectorError {
         error_message: String,
         error_object: serde_json::Value,
     },
+    #[error("Field {fields} doesn't match with the ones used during mandate creation")]
+    MandatePaymentDataMismatch { fields: String },
     #[error("Field '{field_name}' is too long for connector '{connector}'")]
     MaxFieldLengthViolated {
         connector: String,
