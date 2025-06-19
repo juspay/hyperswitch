@@ -224,3 +224,49 @@ pub async fn get_theme_using_optional_theme_id(
         }
     }
 }
+
+pub async fn get_theme_lineage_from_user_token(
+    user_from_token: &UserFromToken,
+    state: &SessionState,
+    request_entity_type: &EntityType,
+) -> UserResult<ThemeLineage> {
+    if user_from_token.role_id != common_utils::consts::ROLE_ID_ORGANIZATION_ADMIN {
+        return Err(UserErrors::InvalidRoleOperationWithMessage(
+            "Only organization admin can create themes".to_string(),
+        )
+        .into());
+    }
+
+    match request_entity_type {
+        EntityType::Profile => Ok(ThemeLineage::Profile {
+            tenant_id: user_from_token
+                .tenant_id
+                .clone()
+                .unwrap_or(state.tenant.tenant_id.clone()),
+            org_id: user_from_token.org_id.clone(),
+            merchant_id: user_from_token.merchant_id.clone(),
+            profile_id: user_from_token.profile_id.clone(),
+        }),
+        EntityType::Merchant => Ok(ThemeLineage::Merchant {
+            tenant_id: user_from_token
+                .tenant_id
+                .clone()
+                .unwrap_or(state.tenant.tenant_id.clone()),
+            org_id: user_from_token.org_id.clone(),
+            merchant_id: user_from_token.merchant_id.clone(),
+        }),
+        EntityType::Organization => Ok(ThemeLineage::Organization {
+            tenant_id: user_from_token
+                .tenant_id
+                .clone()
+                .unwrap_or(state.tenant.tenant_id.clone()),
+            org_id: user_from_token.org_id.clone(),
+        }),
+        EntityType::Tenant => Ok(ThemeLineage::Tenant {
+            tenant_id: user_from_token
+                .tenant_id
+                .clone()
+                .unwrap_or(state.tenant.tenant_id.clone()),
+        }),
+    }
+}

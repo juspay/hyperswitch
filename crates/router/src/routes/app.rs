@@ -2525,7 +2525,7 @@ impl User {
         }
 
         route = route.service(
-            web::scope("/theme")
+            web::scope("/admin/theme")
                 .service(
                     web::resource("")
                         .route(web::get().to(user::theme::get_theme_using_lineage))
@@ -2540,6 +2540,17 @@ impl User {
                 ),
         );
 
+        route = route.service(
+            web::scope("/theme")
+                .service(web::resource("").route(web::post().to(user::theme::create_user_theme)))
+                .service(
+                    web::resource("/{theme_id}")
+                        .route(web::get().to(user::theme::get_user_theme_using_theme_id))
+                        .route(web::put().to(user::theme::update_user_theme))
+                        .route(web::post().to(user::theme::upload_file_to_user_theme_storage))
+                        .route(web::delete().to(user::theme::delete_user_theme)),
+                ),
+        );
         route
     }
 }

@@ -13,6 +13,7 @@ use uuid::Uuid;
 use crate::{
     core::errors::{StorageErrorExt, UserErrors, UserResponse},
     routes::SessionState,
+    services::authentication::UserFromToken,
     utils::user::theme as theme_utils,
 };
 
@@ -239,4 +240,69 @@ pub async fn delete_theme(
     // So, we are not deleting the theme folder from the theme storage.
 
     Ok(ApplicationResponse::StatusOk)
+}
+
+pub async fn create_user_theme(
+    state: SessionState,
+    user_from_token: UserFromToken,
+    request: theme_api::CreateThemeRequest,
+) -> UserResponse<theme_api::GetThemeResponse> {
+    let email_config = if cfg!(feature = "email") {
+        request.email_config.ok_or(UserErrors::MissingEmailConfig)?
+    } else {
+        request
+            .email_config
+            .unwrap_or(state.conf.theme.email_config.clone())
+    };
+    let lineage = theme_utils::get_theme_lineage_from_user_token(
+        &user_from_token,
+        &state,
+        &request.lineage.entity_type(),
+    )
+    .await?;
+    let new_theme = ThemeNew::new(
+        Uuid::new_v4().to_string(),
+        request.theme_name,
+        lineage,
+        email_config,
+    );
+
+    let db_theme = state
+        .store
+        .insert_theme(new_theme)
+        .await
+        .to_duplicate_response(UserErrors::ThemeAlreadyExists)?;
+
+    theme_utils::upload_file_to_theme_bucket(
+        &state,
+        &theme_utils::get_theme_file_key(&db_theme.theme_id),
+        request
+            .theme_data
+            .encode_to_vec()
+            .change_context(UserErrors::InternalServerError)?,
+    )
+    .await?;
+
+    let file = theme_utils::retrieve_file_from_theme_bucket(
+        &state,
+        &theme_utils::get_theme_file_key(&db_theme.theme_id),
+    )
+    .await?;
+
+    let parsed_data = file
+        .to_bytes()
+        .parse_struct("ThemeData")
+        .change_context(UserErrors::InternalServerError)?;
+
+    Ok(ApplicationResponse::Json(theme_api::GetThemeResponse {
+        email_config: db_theme.email_config(),
+        theme_id: db_theme.theme_id,
+        entity_type: db_theme.entity_type,
+        tenant_id: db_theme.tenant_id,
+        org_id: db_theme.org_id,
+        merchant_id: db_theme.merchant_id,
+        profile_id: db_theme.profile_id,
+        theme_name: db_theme.theme_name,
+        theme_data: parsed_data,
+    }))
 }
