@@ -1958,18 +1958,6 @@
               "type": "string"
             },
             "example": "pro_abcdefghijklmnop"
-          },
-          {
-            "name": "X-Client-Secret",
-            "in": "header",
-            "description": "Client Secret Associated with the payment intent",
-            "required": true,
-            "schema": {
-              "type": "string"
-            },
-            "example": {
-              "X-Client-Secret": "12345_pay_0193e41106e07e518940f8b51b9c8121_secret_0193e41107027a928d61d292e6a5dba9"
-            }
           }
         ],
         "requestBody": {
@@ -2222,18 +2210,6 @@
               "type": "string"
             },
             "example": "pro_abcdefghijklmnop"
-          },
-          {
-            "name": "X-Client-Secret",
-            "in": "header",
-            "description": "Client Secret Associated with the payment intent",
-            "required": true,
-            "schema": {
-              "type": "string"
-            },
-            "example": {
-              "X-Client-Secret": "12345_pay_0193e41106e07e518940f8b51b9c8121_secret_0193e41107027a928d61d292e6a5dba9"
-            }
           }
         ],
         "responses": {
@@ -3538,6 +3514,8 @@
         "tags": [
           "Tokenization"
         ],
+        "summary": "Tokenization - Create",
+        "description": "Create a token with customer_id",
         "operationId": "create_token_vault_api",
         "requestBody": {
           "content": {
