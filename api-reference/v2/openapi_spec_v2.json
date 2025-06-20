@@ -15711,6 +15711,11 @@
               }
             ],
             "nullable": true
+          },
+          "charge_id": {
+            "type": "string",
+            "example": "ch_123abc456def789ghi012klmn",
+            "nullable": true
           }
         }
       },

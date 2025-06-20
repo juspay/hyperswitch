@@ -1668,6 +1668,9 @@ pub struct PaymentAttemptRevenueRecoveryData {
     /// Flag to find out whether an attempt was created by external or internal system.
     #[schema(value_type = Option<TriggeredBy>, example = "internal")]
     pub attempt_triggered_by: common_enums::TriggeredBy,
+    // stripe specific field used to identify duplicate attempts.
+    #[schema(value_type = Option<String>, example = "ch_123abc456def789ghi012klmn")]
+    pub charge_id: Option<String>,
 }
 
 #[derive(
@@ -5812,22 +5815,34 @@ pub struct PaymentsResponse {
 }
 
 #[cfg(feature = "v2")]
-impl PaymentsResponse {
+impl PaymentAttemptListResponse {
     pub fn find_attempt_in_attempts_list_using_connector_transaction_id(
-        self,
+        &self,
         connector_transaction_id: &common_utils::types::ConnectorTransactionId,
     ) -> Option<PaymentAttemptResponse> {
-        self.attempts
-            .as_ref()
-            .and_then(|attempts| {
-                attempts.iter().find(|attempt| {
-                    attempt
-                        .connector_payment_id
+        self.payment_attempt_list.iter().find_map(|attempt| {
+            attempt
+                .connector_payment_id
+                .as_ref()
+                .filter(|txn_id| *txn_id == connector_transaction_id)
+                .map(|_| attempt.clone())
+        })
+    }
+    pub fn find_attempt_in_attempts_list_using_charge_id(
+        &self,
+        charge_id: String,
+    ) -> Option<PaymentAttemptResponse> {
+        self.payment_attempt_list.iter().find_map(|attempt| {
+            attempt.feature_metadata.as_ref().and_then(|metadata| {
+                metadata.revenue_recovery.as_ref().and_then(|recovery| {
+                    recovery
+                        .charge_id
                         .as_ref()
-                        .is_some_and(|txn_id| txn_id == connector_transaction_id)
+                        .filter(|id| **id == charge_id)
+                        .map(|_| attempt.clone())
                 })
             })
-            .cloned()
+        })
     }
 }
 
