@@ -1008,7 +1008,11 @@ pub struct RoutingAlgorithmRecord {
 
 impl From<RoutingAlgorithmRecord> for routing_algorithm::RoutingProfileMetadata {
     fn from(record: RoutingAlgorithmRecord) -> Self {
-        let kind = record.metadata.map_or(enums::RoutingAlgorithmKind::Advanced, |metadata| metadata.kind);
+        let kind = record
+            .metadata
+            .map_or(enums::RoutingAlgorithmKind::Advanced, |metadata| {
+                metadata.kind
+            });
         Self {
             profile_id: record.created_by,
             algorithm_id: record.id,
