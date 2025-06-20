@@ -293,6 +293,7 @@ pub struct MerchantConnectorDetails {
 #[cfg(feature = "v2")]
 #[derive(Debug, serde::Serialize, serde::Deserialize, Clone, ToSchema)]
 pub struct PaymentAttemptListRequest {
+    #[schema(value_type = String)]
     pub payment_intent_id: id_type::GlobalPaymentId,
 }
 
