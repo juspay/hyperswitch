@@ -224,11 +224,15 @@ pub async fn update_theme(
     }))
 }
 
-pub async fn delete_theme(
-    state: SessionState,
-    theme_id: String,
-    lineage: ThemeLineage,
-) -> UserResponse<()> {
+pub async fn delete_theme(state: SessionState, theme_id: String) -> UserResponse<()> {
+    let theme = state
+        .store
+        .find_theme_by_theme_id(theme_id.clone())
+        .await
+        .to_not_found_response(UserErrors::ThemeNotFound)?;
+
+    let lineage = theme_utils::get_lineage_from_theme(&theme);
+
     state
         .store
         .delete_theme_by_lineage_and_theme_id(theme_id.clone(), lineage)

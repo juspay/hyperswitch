@@ -230,13 +230,6 @@ pub async fn get_theme_lineage_from_user_token(
     state: &SessionState,
     request_entity_type: &EntityType,
 ) -> UserResult<ThemeLineage> {
-    if user_from_token.role_id != common_utils::consts::ROLE_ID_ORGANIZATION_ADMIN {
-        return Err(UserErrors::InvalidRoleOperationWithMessage(
-            "Only organization admin can create themes".to_string(),
-        )
-        .into());
-    }
-
     match request_entity_type {
         EntityType::Profile => Ok(ThemeLineage::Profile {
             tenant_id: user_from_token
@@ -268,5 +261,28 @@ pub async fn get_theme_lineage_from_user_token(
                 .clone()
                 .unwrap_or(state.tenant.tenant_id.clone()),
         }),
+    }
+}
+
+pub fn get_lineage_from_theme(theme: &Theme) -> ThemeLineage {
+    match theme.entity_type {
+        EntityType::Tenant => ThemeLineage::Tenant {
+            tenant_id: theme.tenant_id.clone().into(),
+        },
+        EntityType::Organization => ThemeLineage::Organization {
+            tenant_id: theme.tenant_id.clone().into(),
+            org_id: theme.org_id.clone().map(Into::into).unwrap(),
+        },
+        EntityType::Merchant => ThemeLineage::Merchant {
+            tenant_id: theme.tenant_id.clone().into(),
+            org_id: theme.org_id.clone().map(Into::into).unwrap(),
+            merchant_id: theme.merchant_id.clone().map(Into::into).unwrap(),
+        },
+        EntityType::Profile => ThemeLineage::Profile {
+            tenant_id: theme.tenant_id.clone().into(),
+            org_id: theme.org_id.clone().map(Into::into).unwrap(),
+            merchant_id: theme.merchant_id.clone().map(Into::into).unwrap(),
+            profile_id: theme.profile_id.clone().map(Into::into).unwrap(),
+        },
     }
 }

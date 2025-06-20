@@ -8,7 +8,7 @@ use router_env::Flow;
 use crate::{
     core::{api_locking, user::theme as theme_core},
     routes::AppState,
-    services::{api, authentication as auth},
+    services::{api, authentication as auth, authorization::permissions::Permission},
 };
 
 pub async fn get_theme_using_lineage(
@@ -124,24 +124,21 @@ pub async fn delete_theme(
     state: web::Data<AppState>,
     req: HttpRequest,
     path: web::Path<String>,
-    query: web::Query<ThemeLineage>,
 ) -> HttpResponse {
     let flow = Flow::DeleteTheme;
     let theme_id = path.into_inner();
-    let lineage = query.into_inner();
 
     Box::pin(api::server_wrap(
         flow,
         state,
         &req,
-        lineage,
-        |state, _, lineage, _| theme_core::delete_theme(state, theme_id.clone(), lineage),
+        theme_id,
+        |state, _, theme_id, _| theme_core::delete_theme(state, theme_id),
         &auth::AdminApiAuth,
         api_locking::LockAction::NotApplicable,
     ))
     .await
 }
-
 pub async fn create_user_theme(
     state: web::Data<AppState>,
     req: HttpRequest,
@@ -157,7 +154,9 @@ pub async fn create_user_theme(
         |state, user: auth::UserFromToken, payload, _| {
             theme_core::create_user_theme(state, user, payload)
         },
-        &auth::DashboardNoPermissionAuth,
+        &auth::JWTAuth {
+            permission: Permission::OrganizationThemeWrite,
+        },
         api_locking::LockAction::NotApplicable,
     ))
     .await
@@ -202,7 +201,9 @@ pub async fn update_user_theme(
         |state, _user: auth::UserFromToken, payload, _| {
             theme_core::update_theme(state, theme_id.clone(), payload)
         },
-        &auth::DashboardNoPermissionAuth,
+        &auth::JWTAuth {
+            permission: Permission::OrganizationThemeWrite,
+        },
         api_locking::LockAction::NotApplicable,
     ))
     .await
@@ -224,7 +225,9 @@ pub async fn delete_user_theme(
         |state, user: auth::UserFromToken, theme_id, _| {
             theme_core::delete_user_theme(state, user, theme_id)
         },
-        &auth::DashboardNoPermissionAuth,
+        &auth::JWTAuth {
+            permission: Permission::OrganizationThemeWrite,
+        },
         api_locking::LockAction::NotApplicable,
     ))
     .await
