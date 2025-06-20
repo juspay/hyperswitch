@@ -1,8 +1,4 @@
-import {
-  
-  cardRequiredField,
-  
-} from "./Commons";
+import { cardRequiredField } from "./Commons";
 
 // ============================================================================
 // AUTHIPAY CYPRESS TEST CONFIGURATION (SIMPLIFIED)
@@ -53,7 +49,6 @@ const billingAddress = {
 // ===== PAYMENT METHOD DATA =====
 
 const payment_method_data = {
-  
   card: {
     last4: "0083",
     card_type: null,
@@ -312,13 +307,14 @@ export const connectorDetails = {
           error: {
             type: "invalid_request_error",
             code: "processing_error",
-            message: "You cannot cancel this PaymentIntent because it has a status of succeeded.",
+            message:
+              "You cannot cancel this PaymentIntent because it has a status of succeeded.",
           },
         },
       },
     },
 
-    // Void after confirm (manual capture scenario) 
+    // Void after confirm (manual capture scenario)
     // This should work for payments in "requires_capture" state
     VoidAfterConfirm: {
       Request: {
@@ -357,8 +353,9 @@ export const connectorDetails = {
         body: {
           error: {
             type: "invalid_request_error",
-            code: "IR_16", 
-            message: "You cannot cancel this payment because it has status succeeded.",
+            code: "IR_16",
+            message:
+              "You cannot cancel this payment because it has status succeeded.",
           },
         },
       },
