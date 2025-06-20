@@ -59,6 +59,7 @@ pub fn create_client(
             .attach_printable("Failed to parse CA certificate PEM block")?;
         let client_builder = get_client_builder(proxy_config, merchant_proxy_url.clone())?
             .add_root_certificate(cert);
+        logger::debug!("Client builder with CA certificate: {:?}", client_builder);
         return client_builder
             .use_rustls_tls()
             .build()
@@ -89,6 +90,17 @@ pub fn get_client_builder(
 
     // Proxy all HTTPS traffic through the merchant-specific proxy if provided,
     // otherwise use the configured HTTPS proxy
+
+    if let Some(merchant_url) = merchant_proxy_url {
+        client_builder = client_builder.proxy(
+            reqwest::Proxy::https(merchant_url.expose())
+                .change_context(HttpClientError::InvalidProxyConfiguration)
+                .attach_printable("Merchant HTTPS proxy configuration error")?
+                .no_proxy(proxy_exclusion_config.clone()),
+        );
+    }
+
+
     if let Some(url) = proxy_config.https_url.as_ref() {
         client_builder = client_builder.proxy(
             reqwest::Proxy::https(url)
@@ -106,15 +118,8 @@ pub fn get_client_builder(
                 .attach_printable("HTTP proxy configuration error")?
                 .no_proxy(proxy_exclusion_config.clone()),
         );
-    }
 
-    if let Some(merchant_url) = merchant_proxy_url {
-        client_builder = client_builder.proxy(
-            reqwest::Proxy::https(merchant_url.expose())
-                .change_context(HttpClientError::InvalidProxyConfiguration)
-                .attach_printable("Merchant HTTPS proxy configuration error")?
-                .no_proxy(proxy_exclusion_config.clone()),
-        );
+    logger::debug!("{:?} HTTP CLient Request",client_builder)
     }
 
     Ok(client_builder)
