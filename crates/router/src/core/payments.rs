@@ -4042,6 +4042,16 @@ where
             )
             .await?,
         ));
+    operation
+        .to_domain()?
+        .populate_payment_data(
+            state,
+            payment_data,
+            merchant_context,
+            business_profile,
+            &connector,
+        )
+        .await?;
 
     let mut router_data = payment_data
         .construct_router_data(

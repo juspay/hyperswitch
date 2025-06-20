@@ -303,6 +303,24 @@ impl<F: Clone + Send + Sync> Domain<F, ProxyPaymentsRequest, PaymentConfirmData<
     )> {
         Ok((Box::new(self), None, None))
     }
+    #[instrument(skip_all)]
+    async fn populate_payment_data<'a>(
+        &'a self,
+        state: &SessionState,
+        payment_data: &mut PaymentConfirmData<F>,
+        _merchant_context: &domain::MerchantContext,
+        business_profile: &domain::Profile,
+        connector_data: &api::ConnectorData,
+    ) -> CustomResult<(), errors::ApiErrorResponse> {
+        let connector_request_reference_id = connector_data
+            .connector
+            .generate_connector_request_reference_id(
+                &payment_data.payment_intent,
+                &payment_data.payment_attempt,
+            );
+        payment_data.set_connector_request_reference_id(Some(connector_request_reference_id));
+        Ok(())
+    }
 
     async fn perform_routing<'a>(
         &'a self,
