@@ -95,6 +95,8 @@ pub async fn customers_delete() {}
 #[utoipa::path(
     get,
     path = "/customers/list",
+    params (("offset" = Option<u32>, Query, description = "Offset for pagination"),
+    ("limit" = Option<u16>, Query, description = "Limit for pagination")),
     responses(
         (status = 200, description = "Customers retrieved", body = Vec<CustomerResponse>),
         (status = 400, description = "Invalid Data"),

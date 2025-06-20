@@ -4671,9 +4671,7 @@
             "$ref": "#/components/schemas/NoThirdPartySdkSessionResponse"
           },
           {
-            "type": "object",
-            "default": null,
-            "nullable": true
+            "$ref": "#/components/schemas/NullObject"
           }
         ]
       },
@@ -14702,6 +14700,10 @@
             "nullable": true
           }
         }
+      },
+      "NullObject": {
+        "default": null,
+        "nullable": true
       },
       "NumberComparison": {
         "type": "object",

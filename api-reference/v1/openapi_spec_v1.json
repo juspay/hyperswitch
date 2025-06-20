@@ -1068,18 +1068,18 @@
             "schema": {
               "type": "string"
             }
+          },
+          {
+            "name": "client_secret",
+            "in": "query",
+            "description": "This is a token which expires after 15 minutes, used from the client to authenticate and create sessions from the SDK",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "nullable": true
+            }
           }
         ],
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/RetrievePaymentLinkRequest"
-              }
-            }
-          },
-          "required": true
-        },
         "responses": {
           "200": {
             "description": "Gets details regarding payment link",
@@ -1156,7 +1156,7 @@
         ]
       }
     },
-    "/{payment_id}/complete_authorize": {
+    "/payments/{payment_id}/complete_authorize": {
       "post": {
         "tags": [
           "Payments"
@@ -2053,7 +2053,7 @@
         ]
       }
     },
-    "/accounts/{account_id}/connectors": {
+    "/account/{account_id}/connectors": {
       "post": {
         "tags": [
           "Merchant Connector Account"
@@ -2186,7 +2186,7 @@
         ]
       }
     },
-    "/accounts/{account_id}/connectors/{connector_id}": {
+    "/account/{account_id}/connectors/{merchant_connector_id}": {
       "get": {
         "tags": [
           "Merchant Connector Account"
@@ -2205,13 +2205,12 @@
             }
           },
           {
-            "name": "connector_id",
+            "name": "merchant_connector_id",
             "in": "path",
             "description": "The unique identifier for the Merchant Connector",
             "required": true,
             "schema": {
-              "type": "integer",
-              "format": "int32"
+              "type": "string"
             }
           }
         ],
@@ -2257,13 +2256,12 @@
             }
           },
           {
-            "name": "connector_id",
+            "name": "merchant_connector_id",
             "in": "path",
             "description": "The unique identifier for the Merchant Connector",
             "required": true,
             "schema": {
-              "type": "integer",
-              "format": "int32"
+              "type": "string"
             }
           }
         ],
@@ -2338,13 +2336,12 @@
             }
           },
           {
-            "name": "connector_id",
+            "name": "merchant_connector_id",
             "in": "path",
             "description": "The unique identifier for the Merchant Connector",
             "required": true,
             "schema": {
-              "type": "integer",
-              "format": "int32"
+              "type": "string"
             }
           }
         ],
@@ -2616,7 +2613,7 @@
       }
     },
     "/customers/{customer_id}/mandates": {
-      "post": {
+      "get": {
         "tags": [
           "Mandates"
         ],
@@ -2855,6 +2852,32 @@
         "summary": "Customers - List",
         "description": "Lists all the customers for a particular merchant id.",
         "operationId": "List all Customers for a Merchant",
+        "parameters": [
+          {
+            "name": "offset",
+            "in": "query",
+            "description": "Offset for pagination",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "format": "int32",
+              "nullable": true,
+              "minimum": 0
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "description": "Limit for pagination",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "format": "int32",
+              "nullable": true,
+              "minimum": 0
+            }
+          }
+        ],
         "responses": {
           "200": {
             "description": "Customers retrieved",
@@ -2946,74 +2969,94 @@
         "operationId": "List all Payment Methods for a Merchant",
         "parameters": [
           {
-            "name": "account_id",
-            "in": "path",
-            "description": "The unique identifier for the merchant account",
-            "required": true,
+            "name": "client_secret",
+            "in": "query",
+            "description": "This is a token which expires after 15 minutes, used from the client to authenticate and create sessions from the SDK",
+            "required": false,
             "schema": {
-              "type": "string"
+              "type": "string",
+              "nullable": true
             }
           },
           {
-            "name": "accepted_country",
+            "name": "accepted_countries",
             "in": "query",
             "description": "The two-letter ISO currency code",
-            "required": true,
+            "required": false,
             "schema": {
               "type": "array",
               "items": {
-                "type": "string"
-              }
+                "$ref": "#/components/schemas/CountryAlpha2"
+              },
+              "nullable": true
             }
           },
           {
-            "name": "accepted_currency",
-            "in": "path",
+            "name": "accepted_currencies",
+            "in": "query",
             "description": "The three-letter ISO currency code",
-            "required": true,
+            "required": false,
             "schema": {
               "type": "array",
               "items": {
                 "$ref": "#/components/schemas/Currency"
-              }
+              },
+              "nullable": true
             }
           },
           {
-            "name": "minimum_amount",
+            "name": "amount",
             "in": "query",
-            "description": "The minimum amount accepted for processing by the particular payment method.",
-            "required": true,
+            "description": "The amount accepted for processing by the particular payment method.",
+            "required": false,
             "schema": {
               "type": "integer",
-              "format": "int64"
+              "format": "int64",
+              "nullable": true
             }
           },
           {
-            "name": "maximum_amount",
-            "in": "query",
-            "description": "The maximum amount accepted for processing by the particular payment method.",
-            "required": true,
-            "schema": {
-              "type": "integer",
-              "format": "int64"
-            }
-          },
-          {
-            "name": "recurring_payment_enabled",
+            "name": "recurring_enabled",
             "in": "query",
             "description": "Indicates whether the payment method is eligible for recurring payments",
-            "required": true,
+            "required": false,
             "schema": {
-              "type": "boolean"
+              "type": "boolean",
+              "nullable": true
             }
           },
           {
             "name": "installment_payment_enabled",
             "in": "query",
             "description": "Indicates whether the payment method is eligible for installment payments",
-            "required": true,
+            "required": false,
             "schema": {
-              "type": "boolean"
+              "type": "boolean",
+              "nullable": true
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "description": "Indicates the limit of last used payment methods",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "format": "int64",
+              "nullable": true
+            }
+          },
+          {
+            "name": "card_networks",
+            "in": "query",
+            "description": "Indicates whether the payment method is eligible for card netwotks",
+            "required": false,
+            "schema": {
+              "type": "array",
+              "items": {
+                "$ref": "#/components/schemas/CardNetwork"
+              },
+              "nullable": true
             }
           }
         ],
@@ -3064,65 +3107,94 @@
             }
           },
           {
-            "name": "accepted_country",
+            "name": "client_secret",
             "in": "query",
-            "description": "The two-letter ISO currency code",
-            "required": true,
+            "description": "This is a token which expires after 15 minutes, used from the client to authenticate and create sessions from the SDK",
+            "required": false,
             "schema": {
-              "type": "array",
-              "items": {
-                "type": "string"
-              }
+              "type": "string",
+              "nullable": true
             }
           },
           {
-            "name": "accepted_currency",
-            "in": "path",
+            "name": "accepted_countries",
+            "in": "query",
+            "description": "The two-letter ISO currency code",
+            "required": false,
+            "schema": {
+              "type": "array",
+              "items": {
+                "$ref": "#/components/schemas/CountryAlpha2"
+              },
+              "nullable": true
+            }
+          },
+          {
+            "name": "accepted_currencies",
+            "in": "query",
             "description": "The three-letter ISO currency code",
-            "required": true,
+            "required": false,
             "schema": {
               "type": "array",
               "items": {
                 "$ref": "#/components/schemas/Currency"
-              }
+              },
+              "nullable": true
             }
           },
           {
-            "name": "minimum_amount",
+            "name": "amount",
             "in": "query",
-            "description": "The minimum amount accepted for processing by the particular payment method.",
-            "required": true,
+            "description": "The amount accepted for processing by the particular payment method.",
+            "required": false,
             "schema": {
               "type": "integer",
-              "format": "int64"
+              "format": "int64",
+              "nullable": true
             }
           },
           {
-            "name": "maximum_amount",
-            "in": "query",
-            "description": "The maximum amount accepted for processing by the particular payment method.",
-            "required": true,
-            "schema": {
-              "type": "integer",
-              "format": "int64"
-            }
-          },
-          {
-            "name": "recurring_payment_enabled",
+            "name": "recurring_enabled",
             "in": "query",
             "description": "Indicates whether the payment method is eligible for recurring payments",
-            "required": true,
+            "required": false,
             "schema": {
-              "type": "boolean"
+              "type": "boolean",
+              "nullable": true
             }
           },
           {
             "name": "installment_payment_enabled",
             "in": "query",
             "description": "Indicates whether the payment method is eligible for installment payments",
-            "required": true,
+            "required": false,
             "schema": {
-              "type": "boolean"
+              "type": "boolean",
+              "nullable": true
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "description": "Indicates the limit of last used payment methods",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "format": "int64",
+              "nullable": true
+            }
+          },
+          {
+            "name": "card_networks",
+            "in": "query",
+            "description": "Indicates whether the payment method is eligible for card netwotks",
+            "required": false,
+            "schema": {
+              "type": "array",
+              "items": {
+                "$ref": "#/components/schemas/CardNetwork"
+              },
+              "nullable": true
             }
           }
         ],
@@ -3161,83 +3233,94 @@
         "operationId": "List Customer Payment Methods via Client Secret",
         "parameters": [
           {
-            "name": "client-secret",
-            "in": "path",
-            "description": "A secret known only to your client and the authorization server. Used for client side authentication",
-            "required": true,
+            "name": "client_secret",
+            "in": "query",
+            "description": "This is a token which expires after 15 minutes, used from the client to authenticate and create sessions from the SDK",
+            "required": false,
             "schema": {
-              "type": "string"
+              "type": "string",
+              "nullable": true
             }
           },
           {
-            "name": "customer_id",
-            "in": "path",
-            "description": "The unique identifier for the customer account",
-            "required": true,
-            "schema": {
-              "type": "string"
-            }
-          },
-          {
-            "name": "accepted_country",
+            "name": "accepted_countries",
             "in": "query",
             "description": "The two-letter ISO currency code",
-            "required": true,
+            "required": false,
             "schema": {
               "type": "array",
               "items": {
-                "type": "string"
-              }
+                "$ref": "#/components/schemas/CountryAlpha2"
+              },
+              "nullable": true
             }
           },
           {
-            "name": "accepted_currency",
-            "in": "path",
+            "name": "accepted_currencies",
+            "in": "query",
             "description": "The three-letter ISO currency code",
-            "required": true,
+            "required": false,
             "schema": {
               "type": "array",
               "items": {
                 "$ref": "#/components/schemas/Currency"
-              }
+              },
+              "nullable": true
             }
           },
           {
-            "name": "minimum_amount",
+            "name": "amount",
             "in": "query",
-            "description": "The minimum amount accepted for processing by the particular payment method.",
-            "required": true,
+            "description": "The amount accepted for processing by the particular payment method.",
+            "required": false,
             "schema": {
               "type": "integer",
-              "format": "int64"
+              "format": "int64",
+              "nullable": true
             }
           },
           {
-            "name": "maximum_amount",
-            "in": "query",
-            "description": "The maximum amount accepted for processing by the particular payment method.",
-            "required": true,
-            "schema": {
-              "type": "integer",
-              "format": "int64"
-            }
-          },
-          {
-            "name": "recurring_payment_enabled",
+            "name": "recurring_enabled",
             "in": "query",
             "description": "Indicates whether the payment method is eligible for recurring payments",
-            "required": true,
+            "required": false,
             "schema": {
-              "type": "boolean"
+              "type": "boolean",
+              "nullable": true
             }
           },
           {
             "name": "installment_payment_enabled",
             "in": "query",
             "description": "Indicates whether the payment method is eligible for installment payments",
-            "required": true,
+            "required": false,
             "schema": {
-              "type": "boolean"
+              "type": "boolean",
+              "nullable": true
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "description": "Indicates the limit of last used payment methods",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "format": "int64",
+              "nullable": true
+            }
+          },
+          {
+            "name": "card_networks",
+            "in": "query",
+            "description": "Indicates whether the payment method is eligible for card netwotks",
+            "required": false,
+            "schema": {
+              "type": "array",
+              "items": {
+                "$ref": "#/components/schemas/CardNetwork"
+              },
+              "nullable": true
             }
           }
         ],
@@ -4660,7 +4743,7 @@
         ]
       }
     },
-    "/account/:account_id/business_profile/:profile_id/dynamic_routing/contracts/toggle": {
+    "/account/{account_id}/business_profile/{profile_id}/dynamic_routing/contracts/toggle": {
       "post": {
         "tags": [
           "Routing"
@@ -7064,9 +7147,7 @@
             "$ref": "#/components/schemas/NoThirdPartySdkSessionResponse"
           },
           {
-            "type": "object",
-            "default": null,
-            "nullable": true
+            "$ref": "#/components/schemas/NullObject"
           }
         ]
       },
@@ -17696,6 +17777,10 @@
             "nullable": true
           }
         }
+      },
+      "NullObject": {
+        "default": null,
+        "nullable": true
       },
       "NumberComparison": {
         "type": "object",
@@ -30640,6 +30725,11 @@
         "in": "header",
         "name": "api-key",
         "description": "Ephemeral keys provide temporary access to singular data, such as access to a single customer object for a short period of time."
+      },
+      "jwt_key": {
+        "type": "http",
+        "scheme": "bearer",
+        "bearerFormat": "JWT"
       },
       "publishable_key": {
         "type": "apiKey",
