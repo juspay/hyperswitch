@@ -80,6 +80,7 @@ pub mod razorpay;
 pub mod recurly;
 pub mod redsys;
 pub mod riskified;
+pub mod santander;
 pub mod shift4;
 pub mod signifyd;
 pub mod square;
@@ -126,11 +127,11 @@ pub use self::{
     nuvei::Nuvei, opayo::Opayo, opennode::Opennode, paybox::Paybox, payeezy::Payeezy, payme::Payme,
     payone::Payone, paypal::Paypal, paystack::Paystack, payu::Payu, placetopay::Placetopay,
     plaid::Plaid, powertranz::Powertranz, prophetpay::Prophetpay, rapyd::Rapyd, razorpay::Razorpay,
-    recurly::Recurly, redsys::Redsys, riskified::Riskified, shift4::Shift4, signifyd::Signifyd,
-    square::Square, stax::Stax, stripe::Stripe, stripebilling::Stripebilling, taxjar::Taxjar,
-    threedsecureio::Threedsecureio, thunes::Thunes, tokenio::Tokenio, trustpay::Trustpay,
-    tsys::Tsys, unified_authentication_service::UnifiedAuthenticationService, vgs::Vgs, volt::Volt,
-    wellsfargo::Wellsfargo, wellsfargopayout::Wellsfargopayout, wise::Wise, worldline::Worldline,
-    worldpay::Worldpay, worldpayvantiv::Worldpayvantiv, worldpayxml::Worldpayxml, xendit::Xendit,
-    zen::Zen, zsl::Zsl,
+    recurly::Recurly, redsys::Redsys, riskified::Riskified, santander::Santander, shift4::Shift4,
+    signifyd::Signifyd, square::Square, stax::Stax, stripe::Stripe, stripebilling::Stripebilling,
+    taxjar::Taxjar, threedsecureio::Threedsecureio, thunes::Thunes, tokenio::Tokenio,
+    trustpay::Trustpay, tsys::Tsys, unified_authentication_service::UnifiedAuthenticationService,
+    vgs::Vgs, volt::Volt, wellsfargo::Wellsfargo, wellsfargopayout::Wellsfargopayout, wise::Wise,
+    worldline::Worldline, worldpay::Worldpay, worldpayvantiv::Worldpayvantiv,
+    worldpayxml::Worldpayxml, xendit::Xendit, zen::Zen, zsl::Zsl,
 };
