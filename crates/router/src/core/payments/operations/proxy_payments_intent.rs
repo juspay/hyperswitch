@@ -3,6 +3,7 @@ use async_trait::async_trait;
 use common_enums::enums;
 use common_utils::types::keymanager::ToEncryptable;
 use error_stack::ResultExt;
+use hyperswitch_interfaces::api::ConnectorSpecifications;
 use hyperswitch_domain_models::{
     payment_method_data::PaymentMethodData, payments::PaymentConfirmData,
 };
@@ -15,7 +16,7 @@ use crate::{
         errors::{self, CustomResult, RouterResult, StorageErrorExt},
         payments::{
             operations::{self, ValidateStatusForOperation},
-            OperationSessionGetters,
+            OperationSessionGetters,OperationSessionSetters,
         },
     },
     routes::{app::ReqState, SessionState},
