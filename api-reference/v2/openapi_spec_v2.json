@@ -15511,6 +15511,31 @@
           }
         }
       },
+      "PaymentAttemptListRequest": {
+        "type": "object",
+        "required": [
+          "payment_intent_id"
+        ],
+        "properties": {
+          "payment_intent_id": {
+            "type": "string"
+          }
+        }
+      },
+      "PaymentAttemptListResponse": {
+        "type": "object",
+        "required": [
+          "payment_attempt_list"
+        ],
+        "properties": {
+          "payment_attempt_list": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PaymentAttemptResponse"
+            }
+          }
+        }
+      },
       "PaymentAttemptRecordResponse": {
         "type": "object",
         "required": [

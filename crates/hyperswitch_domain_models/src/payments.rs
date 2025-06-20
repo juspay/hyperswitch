@@ -845,6 +845,16 @@ where
     pub connector_customer_id: Option<String>,
 }
 
+#[cfg(feature = "v2")]
+#[derive(Clone)]
+pub struct PaymentAttemptListData<F>
+where
+    F: Clone,
+{
+    pub flow: PhantomData<F>,
+    pub payment_attempt_list: Vec<PaymentAttempt>,
+}
+
 // TODO: Check if this can be merged with existing payment data
 #[cfg(feature = "v2")]
 #[derive(Clone, Debug)]
