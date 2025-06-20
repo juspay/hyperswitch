@@ -89,14 +89,13 @@ pub fn get_client_builder(
 
     // Proxy all HTTPS traffic through the merchant-specific proxy if provided,
     // otherwise use the configured HTTPS proxy
-    let Some(url) = proxy_config.https_url.as_ref() {
+    if let Some(url) = proxy_config.https_url.as_ref() {
         client_builder = client_builder.proxy(
             reqwest::Proxy::https(url)
                 .change_context(HttpClientError::InvalidProxyConfiguration)
                 .attach_printable("HTTPS proxy configuration error")?
                 .no_proxy(proxy_exclusion_config.clone()),
         );
-        
     }
 
     // Proxy all HTTP traffic through the configured HTTP proxy
