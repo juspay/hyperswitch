@@ -8,6 +8,7 @@ import { connectorDetails as airwallexConnectorDetails } from "./Airwallex.js";
 import { connectorDetails as archipelConnectorDetails } from "./Archipel.js";
 import { connectorDetails as bamboraapacConnectorDetails } from "./Bamboraapac.js";
 import { connectorDetails as bankOfAmericaConnectorDetails } from "./BankOfAmerica.js";
+import { connectorDetails as billwerkConnectorDetails } from "./Billwerk.js";
 import { connectorDetails as bluesnapConnectorDetails } from "./Bluesnap.js";
 import { connectorDetails as braintreeConnectorDetails } from "./Braintree.js";
 import { connectorDetails as checkoutConnectorDetails } from "./Checkout.js";
@@ -33,6 +34,7 @@ import { connectorDetails as novalnetConnectorDetails } from "./Novalnet.js";
 import { connectorDetails as payboxConnectorDetails } from "./Paybox.js";
 import { connectorDetails as paypalConnectorDetails } from "./Paypal.js";
 import { connectorDetails as redsysConnectorDetails } from "./Redsys.js";
+import { connectorDetails as shift4ConnectorDetails } from "./Shift4.js";
 import { connectorDetails as stripeConnectorDetails } from "./Stripe.js";
 import { connectorDetails as trustpayConnectorDetails } from "./Trustpay.js";
 import { connectorDetails as wellsfargoConnectorDetails } from "./WellsFargo.js";
@@ -42,10 +44,12 @@ import { connectorDetails as xenditConnectorDetails } from "./Xendit.js";
 
 const connectorDetails = {
   aci: aciConnectorDetails,
-  airwallex: airwallexConnectorDetails,
   adyen: adyenConnectorDetails,
-  bankofamerica: bankOfAmericaConnectorDetails,
+  airwallex: airwallexConnectorDetails,
+  archipel: archipelConnectorDetails,
   bamboraapac: bamboraapacConnectorDetails,
+  bankofamerica: bankOfAmericaConnectorDetails,
+  billwerk: billwerkConnectorDetails,
   bluesnap: bluesnapConnectorDetails,
   braintree: braintreeConnectorDetails,
   checkout: checkoutConnectorDetails,
@@ -72,12 +76,12 @@ const connectorDetails = {
   paypal: paypalConnectorDetails,
   redsys: redsysConnectorDetails,
   stripe: stripeConnectorDetails,
+  shift4: shift4ConnectorDetails,
   trustpay: trustpayConnectorDetails,
   wellsfargo: wellsfargoConnectorDetails,
   worldpay: worldpayConnectorDetails,
   worldpayxml: worldpayxmlConnectorDetails,
   xendit: xenditConnectorDetails,
-  archipel: archipelConnectorDetails,
 };
 
 export default function getConnectorDetails(connectorId) {
@@ -339,6 +343,7 @@ export const CONNECTOR_LISTS = {
     CONNECTOR_AGNOSTIC_NTID: [
       "bamboraapac",
       "bankofamerica",
+      "billwerk",
       "braintree",
       "facilitapay",
       "fiuu",

@@ -208,6 +208,8 @@ impl
                     ),
                     card_network: Some(item.response.payment_method.card_type),
                     card_isin: Some(item.response.payment_method.first_six),
+                    // This none because this field is specific to stripebilling.
+                    charge_id: None,
                 },
             ),
             ..item.data

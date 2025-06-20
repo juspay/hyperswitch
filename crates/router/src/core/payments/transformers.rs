@@ -1827,6 +1827,38 @@ where
 }
 
 #[cfg(feature = "v2")]
+impl<F, Op, D> ToResponse<F, D, Op> for api::PaymentAttemptListResponse
+where
+    F: Clone,
+    Op: Debug,
+    D: OperationSessionGetters<F>,
+{
+    #[allow(clippy::too_many_arguments)]
+    fn generate_response(
+        payment_data: D,
+        _customer: Option<domain::Customer>,
+        _base_url: &str,
+        _operation: Op,
+        _connector_request_reference_id_config: &ConnectorRequestReferenceIdConfig,
+        _connector_http_status_code: Option<u16>,
+        _external_latency: Option<u128>,
+        _is_latency_header_enabled: Option<bool>,
+        _merchant_context: &domain::MerchantContext,
+    ) -> RouterResponse<Self> {
+        Ok(services::ApplicationResponse::JsonWithHeaders((
+            Self {
+                payment_attempt_list: payment_data
+                    .list_payments_attempts()
+                    .iter()
+                    .map(api_models::payments::PaymentAttemptResponse::foreign_from)
+                    .collect(),
+            },
+            vec![],
+        )))
+    }
+}
+
+#[cfg(feature = "v2")]
 impl<F> GenerateResponse<api_models::payments::PaymentsResponse>
     for hyperswitch_domain_models::payments::PaymentConfirmData<F>
 where
@@ -4957,6 +4989,7 @@ impl
         let revenue_recovery = feature_metadata.revenue_recovery.as_ref().map(|recovery| {
             api_models::payments::PaymentAttemptRevenueRecoveryData {
                 attempt_triggered_by: recovery.attempt_triggered_by,
+                charge_id: recovery.charge_id.clone(),
             }
         });
         Self { revenue_recovery }
