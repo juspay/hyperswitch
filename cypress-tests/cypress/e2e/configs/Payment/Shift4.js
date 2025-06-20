@@ -1,4 +1,27 @@
-import { customerAcceptance } from "./Commons";
+import {
+  customerAcceptance,
+  multiUseMandateData,
+  singleUseMandateData,
+} from "./Commons";
+
+// Default billing address with US country that can be customized for other countries
+const defaultBillingAddress = {
+  address: {
+    line1: "1467",
+    line2: "Harrison Street",
+    line3: "Harrison Street",
+    city: "San Fransico",
+    state: "California",
+    zip: "94122",
+    country: "US",
+    first_name: "joseph",
+    last_name: "Doe",
+  },
+  phone: {
+    number: "9123456789",
+    country_code: "+91",
+  },
+};
 
 const successfulNo3DSCardDetails = {
   card_number: "4242424242424242", // Non-3DS Shift4 test card
@@ -9,40 +32,13 @@ const successfulNo3DSCardDetails = {
 };
 
 const successfulThreeDSTestCardDetails = {
+  ...successfulNo3DSCardDetails,
   card_number: "4000000000003063", // Using standard test card with authentication_type: "three_ds"
-  card_exp_month: "10",
-  card_exp_year: "30",
-  card_holder_name: "Joseph Doe",
-  card_cvc: "999",
 };
 
 const failedNo3DSCardDetails = {
+  ...successfulNo3DSCardDetails,
   card_number: "4000000000000101", // Decline test card that reliably fails with Shift4
-  card_exp_month: "01",
-  card_exp_year: "35",
-  card_holder_name: "Joseph Doe",
-  card_cvc: "123",
-};
-
-// Mandate data for test cases (skipped for Shift4)
-const singleUseMandateData = {
-  customer_acceptance: customerAcceptance,
-  mandate_type: {
-    single_use: {
-      amount: 8000,
-      currency: "USD",
-    },
-  },
-};
-
-const multiUseMandateData = {
-  customer_acceptance: customerAcceptance,
-  mandate_type: {
-    multi_use: {
-      amount: 8000,
-      currency: "USD",
-    },
-  },
 };
 
 const payment_method_data_3ds = {
@@ -809,20 +805,10 @@ export const connectorDetails = {
           },
         },
         billing: {
+          ...defaultBillingAddress,
           address: {
-            line1: "1467",
-            line2: "Harrison Street",
-            line3: "Harrison Street",
-            city: "San Fransico",
-            state: "California",
-            zip: "94122",
+            ...defaultBillingAddress.address,
             country: "NL",
-            first_name: "joseph",
-            last_name: "Doe",
-          },
-          phone: {
-            number: "9123456789",
-            country_code: "+91",
           },
         },
       },
@@ -830,43 +816,6 @@ export const connectorDetails = {
         status: 200,
         body: {
           status: "requires_customer_action",
-        },
-      },
-    },
-    Giropay: {
-      Request: {
-        payment_method: "bank_redirect",
-        payment_method_type: "giropay",
-        payment_method_data: {
-          bank_redirect: {
-            giropay: {},
-          },
-        },
-        billing: {
-          address: {
-            line1: "1467",
-            line2: "Harrison Street",
-            line3: "Harrison Street",
-            city: "San Fransico",
-            state: "California",
-            zip: "94122",
-            country: "DE",
-            first_name: "joseph",
-            last_name: "Doe",
-          },
-          phone: {
-            number: "9123456789",
-            country_code: "+91",
-          },
-        },
-      },
-      Response: {
-        status: 200,
-        body: {
-          status: "failed",
-          error_code: "payment_method_not_available",
-          error_message:
-            "Giropay is deprecated and can no longer be used for payment acceptance. Please refer to https://docs.stripe.com/payments/giropay",
         },
       },
     },
@@ -892,20 +841,10 @@ export const connectorDetails = {
           },
         },
         billing: {
+          ...defaultBillingAddress,
           address: {
-            line1: "1467",
-            line2: "Harrison Street",
-            line3: "Harrison Street",
-            city: "San Fransico",
-            state: "California",
-            zip: "94122",
+            ...defaultBillingAddress.address,
             country: "AT",
-            first_name: "joseph",
-            last_name: "Doe",
-          },
-          phone: {
-            number: "9123456789",
-            country_code: "+91",
           },
         },
       },
