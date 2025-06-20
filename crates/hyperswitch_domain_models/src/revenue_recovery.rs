@@ -365,6 +365,7 @@ impl From<&payments::payment_attempt::PaymentAttempt> for RecoveryPaymentAttempt
                         revenue_recovery: feature_metadata.revenue_recovery.map(|recovery| {
                             api_payments::PaymentAttemptRevenueRecoveryData {
                                 attempt_triggered_by: recovery.attempt_triggered_by,
+                                charge_id: recovery.charge_id,
                             }
                         }),
                     },
