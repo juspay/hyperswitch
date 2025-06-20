@@ -105,6 +105,7 @@ impl IntoDirValue for api_enums::PaymentMethod {
             Self::CardRedirect => Ok(dirval!(PaymentMethod = CardRedirect)),
             Self::OpenBanking => Ok(dirval!(PaymentMethod = OpenBanking)),
             Self::MobilePayment => Ok(dirval!(PaymentMethod = MobilePayment)),
+            Self::ExternalProxyCardData => Ok(dirval!(PaymentMethod = ExternalProxyCardData)),
         }
     }
 }
@@ -133,6 +134,7 @@ impl IntoDirValue for (api_enums::PaymentMethodType, api_enums::PaymentMethod) {
             api_enums::PaymentMethodType::AmazonPay => Ok(dirval!(WalletType = AmazonPay)),
             api_enums::PaymentMethodType::Credit => Ok(dirval!(CardType = Credit)),
             api_enums::PaymentMethodType::Debit => Ok(dirval!(CardType = Debit)),
+            api_enums::PaymentMethodType::ProxyCard => Ok(dirval!(CardType = Proxy)),
             #[cfg(feature = "v2")]
             api_enums::PaymentMethodType::Card => Ok(dirval!(CardType = Card)),
             api_enums::PaymentMethodType::Giropay => Ok(dirval!(BankRedirectType = Giropay)),
@@ -167,6 +169,7 @@ impl IntoDirValue for (api_enums::PaymentMethodType, api_enums::PaymentMethod) {
                 | api_enums::PaymentMethod::MobilePayment
                 | api_enums::PaymentMethod::Voucher
                 | api_enums::PaymentMethod::OpenBanking
+                | api_enums::PaymentMethod::ExternalProxyCardData
                 | api_enums::PaymentMethod::GiftCard => Err(KgraphError::ContextConstructionError(
                     Box::new(AnalysisErrorType::NotSupported),
                 )),
@@ -186,6 +189,7 @@ impl IntoDirValue for (api_enums::PaymentMethodType, api_enums::PaymentMethod) {
                 | api_enums::PaymentMethod::MobilePayment
                 | api_enums::PaymentMethod::Voucher
                 | api_enums::PaymentMethod::OpenBanking
+                | api_enums::PaymentMethod::ExternalProxyCardData
                 | api_enums::PaymentMethod::GiftCard => Err(KgraphError::ContextConstructionError(
                     Box::new(AnalysisErrorType::NotSupported),
                 )),
