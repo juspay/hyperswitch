@@ -13,6 +13,7 @@ use super::AuthEventMetricRow;
 use crate::{
     query::{Aggregate, GroupByClause, QueryBuilder, QueryFilter, SeriesBucket, ToSql, Window},
     types::{AnalyticsCollection, AnalyticsDataSource, MetricsError, MetricsResult},
+    AuthInfo,
 };
 
 #[derive(Default)]
@@ -30,7 +31,7 @@ where
 {
     async fn load_metrics(
         &self,
-        merchant_id: &common_utils::id_type::MerchantId,
+        auth: &AuthInfo,
         dimensions: &[AuthEventDimensions],
         filters: &AuthEventFilters,
         granularity: Option<Granularity>,
@@ -64,10 +65,6 @@ where
             .switch()?;
 
         query_builder
-            .add_filter_clause("merchant_id", merchant_id)
-            .switch()?;
-
-        query_builder
             .add_filter_clause("authentication_status", AuthenticationStatus::Success)
             .switch()?;
         filters.set_filter_clause(&mut query_builder).switch()?;
@@ -75,6 +72,7 @@ where
             .set_filter_clause(&mut query_builder)
             .attach_printable("Error filtering time range")
             .switch()?;
+        auth.set_filter_clause(&mut query_builder).switch()?;
 
         for dim in dimensions.iter() {
             query_builder
