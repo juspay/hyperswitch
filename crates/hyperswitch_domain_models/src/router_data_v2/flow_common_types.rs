@@ -150,7 +150,7 @@ pub struct RevenueRecoveryRecordBackData;
 #[derive(Debug, Clone)]
 pub struct UasFlowData {
     pub authenticate_by: String,
-    pub source_authentication_id: String,
+    pub source_authentication_id: common_utils::id_type::AuthenticationId,
 }
 
 #[derive(Debug, Clone)]

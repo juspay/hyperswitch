@@ -66,6 +66,7 @@ Never share your secret api keys. Keep them guarded and secure.
         (name = "payment link", description = "Create payment link"),
         (name = "Routing", description = "Create and manage routing configurations"),
         (name = "Event", description = "Manage events"),
+        (name = "Authentication", description = "Create and manage authentication")
     ),
     // The paths will be displayed in the same order as they are registered here
     paths(
@@ -209,6 +210,9 @@ Never share your secret api keys. Keep them guarded and secure.
 
         // Routes for 3DS Decision Rule
         routes::three_ds_decision_rule::three_ds_decision_rule_execute,
+
+        // Routes for authentication
+        routes::authentication::authentication_create,
     ),
     components(schemas(
         common_utils::types::MinorUnit,
@@ -788,6 +792,9 @@ Never share your secret api keys. Keep them guarded and secure.
         euclid::frontend::dir::enums::CustomerDevicePlatform,
         euclid::frontend::dir::enums::CustomerDeviceType,
         euclid::frontend::dir::enums::CustomerDeviceDisplaySize,
+        api_models::authentication::AuthenticationCreateRequest,
+        api_models::authentication::AuthenticationResponse,
+        api_models::authentication::AcquirerDetails,
     )),
     modifiers(&SecurityAddon)
 )]
