@@ -6,13 +6,14 @@ impl KvStorePartition for PaymentMethod {}
 
 use common_enums::enums::MerchantStorageScheme;
 use common_utils::{errors::CustomResult, id_type, types::keymanager::KeyManagerState};
-use diesel_models::{
-    kv,
-    payment_method::{PaymentMethodUpdate, PaymentMethodUpdateInternal},
-};
+#[cfg(feature = "v1")]
+use diesel_models::kv;
+use diesel_models::payment_method::{PaymentMethodUpdate, PaymentMethodUpdateInternal};
 use error_stack::ResultExt;
+#[cfg(feature = "v1")]
+use hyperswitch_domain_models::behaviour::ReverseConversion;
 use hyperswitch_domain_models::{
-    behaviour::{Conversion, ReverseConversion},
+    behaviour::Conversion,
     merchant_key_store::MerchantKeyStore,
     payment_methods::{PaymentMethod as DomainPaymentMethod, PaymentMethodInterface},
 };
@@ -21,13 +22,14 @@ use router_env::{instrument, tracing};
 use super::MockDb;
 use crate::{
     diesel_error_to_data_error, errors,
-    kv_router_store::{
-        FilterResourceParams, FindResourceBy, InsertResourceParams, KVRouterStore,
-        UpdateResourceParams,
-    },
-    redis::kv_store::{Op, PartitionKey},
+    kv_router_store::{FindResourceBy, KVRouterStore},
     utils::{pg_connection_read, pg_connection_write},
     DatabaseStore, RouterStore,
+};
+#[cfg(feature = "v1")]
+use crate::{
+    kv_router_store::{FilterResourceParams, InsertResourceParams, UpdateResourceParams},
+    redis::kv_store::{Op, PartitionKey},
 };
 
 #[async_trait::async_trait]
@@ -389,7 +391,6 @@ impl<T: DatabaseStore> PaymentMethodInterface for KVRouterStore<T> {
         key_store: &MerchantKeyStore,
         fingerprint_id: &str,
     ) -> CustomResult<DomainPaymentMethod, errors::StorageError> {
-        let conn = pg_connection_read(self).await?;
         self.router_store
             .find_payment_method_by_fingerprint_id(state, key_store, fingerprint_id)
             .await
@@ -538,7 +539,7 @@ impl<T: DatabaseStore> PaymentMethodInterface for RouterStore<T> {
         key_store: &MerchantKeyStore,
         payment_method: DomainPaymentMethod,
         payment_method_update: PaymentMethodUpdate,
-        storage_scheme: MerchantStorageScheme,
+        _storage_scheme: MerchantStorageScheme,
     ) -> CustomResult<DomainPaymentMethod, errors::StorageError> {
         let payment_method = Conversion::convert(payment_method)
             .await
@@ -837,8 +838,8 @@ impl PaymentMethodInterface for MockDb {
     #[cfg(feature = "v2")]
     async fn find_payment_method_list_by_global_customer_id(
         &self,
-        state: &KeyManagerState,
-        key_store: &MerchantKeyStore,
+        _state: &KeyManagerState,
+        _key_store: &MerchantKeyStore,
         _id: &id_type::GlobalCustomerId,
         _limit: Option<i64>,
     ) -> CustomResult<Vec<DomainPaymentMethod>, errors::StorageError> {

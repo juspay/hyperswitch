@@ -547,7 +547,6 @@ pub async fn retrieve_customer(
         .find_customer_by_global_id(
             key_manager_state,
             &id,
-            merchant_context.get_merchant_account().get_id(),
             merchant_context.get_merchant_key_store(),
             merchant_context.get_merchant_account().storage_scheme,
         )
@@ -633,7 +632,6 @@ impl CustomerDeleteBridge for id_type::GlobalCustomerId {
             .find_customer_by_global_id(
                 key_manager_state,
                 self,
-                merchant_context.get_merchant_account().get_id(),
                 merchant_context.get_merchant_key_store(),
                 merchant_context.get_merchant_account().storage_scheme,
             )
@@ -745,7 +743,6 @@ impl CustomerDeleteBridge for id_type::GlobalCustomerId {
             key_manager_state,
             self,
             customer_orig,
-            merchant_context.get_merchant_account().get_id(),
             updated_customer,
             merchant_context.get_merchant_key_store(),
             merchant_context.get_merchant_account().storage_scheme,
@@ -1220,7 +1217,6 @@ impl VerifyIdForUpdateCustomer<'_> {
             .find_customer_by_global_id(
                 self.key_manager_state,
                 self.id,
-                self.merchant_account.get_id(),
                 self.key_store,
                 self.merchant_account.storage_scheme,
             )
@@ -1418,7 +1414,6 @@ impl CustomerUpdateBridge for customers::CustomerUpdateRequest {
                 key_manager_state,
                 &domain_customer.id,
                 domain_customer.to_owned(),
-                merchant_context.get_merchant_account().get_id(),
                 storage::CustomerUpdate::Update(Box::new(storage::CustomerGeneralUpdate {
                     name: encryptable_customer.name,
                     email: Box::new(encryptable_customer.email.map(|email| {

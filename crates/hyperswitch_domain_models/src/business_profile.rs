@@ -1418,7 +1418,7 @@ impl From<ProfileUpdate> for ProfileUpdateInternal {
                     merchant_business_country,
                     revenue_recovery_retry_algorithm_type: None,
                     revenue_recovery_retry_algorithm_data: None,
-                    is_iframe_redirection_enabled: None,
+                    is_iframe_redirection_enabled,
                     is_external_vault_enabled,
                     external_vault_connector_details,
                     merchant_category_code,

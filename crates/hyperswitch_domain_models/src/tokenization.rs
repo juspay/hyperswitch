@@ -2,15 +2,11 @@ use common_enums;
 use common_utils::{
     self,
     errors::{CustomResult, ValidationError},
-    id_type, pii,
-    types::{keymanager, MinorUnit},
+    types::keymanager,
 };
-use diesel_models::tokenization;
-use masking::{ExposeInterface, Secret};
+use masking::Secret;
 use serde::{Deserialize, Serialize};
 use time::PrimitiveDateTime;
-
-use crate::{merchant_key_store::MerchantKeyStore, types};
 
 #[cfg(all(feature = "v2", feature = "tokenization_v2"))]
 #[derive(Clone, Debug, Serialize, Deserialize)]

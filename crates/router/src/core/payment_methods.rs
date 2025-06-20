@@ -913,7 +913,6 @@ pub async fn create_payment_method_core(
     db.find_customer_by_global_id(
         key_manager_state,
         &customer_id,
-        merchant_context.get_merchant_account().get_id(),
         merchant_context.get_merchant_key_store(),
         merchant_context.get_merchant_account().storage_scheme,
     )
@@ -1257,7 +1256,6 @@ pub async fn payment_method_intent_create(
     db.find_customer_by_global_id(
         key_manager_state,
         &customer_id,
-        merchant_context.get_merchant_account().get_id(),
         merchant_context.get_merchant_key_store(),
         merchant_context.get_merchant_account().storage_scheme,
     )
@@ -2473,7 +2471,6 @@ pub async fn delete_payment_method_core(
         .find_customer_by_global_id(
             key_manager_state,
             &payment_method.customer_id,
-            merchant_context.get_merchant_account().get_id(),
             merchant_context.get_merchant_key_store(),
             merchant_context.get_merchant_account().storage_scheme,
         )
@@ -2630,7 +2627,6 @@ pub async fn payment_methods_session_create(
     db.find_customer_by_global_id(
         key_manager_state,
         &request.customer_id,
-        merchant_context.get_merchant_account().get_id(),
         merchant_context.get_merchant_key_store(),
         merchant_context.get_merchant_account().storage_scheme,
     )

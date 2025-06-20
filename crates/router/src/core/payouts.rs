@@ -1245,7 +1245,6 @@ pub async fn create_recipient(
                                     &state.into(),
                                     &customer_id,
                                     customer,
-                                    merchant_account.get_id(),
                                     updated_customer,
                                     key_store,
                                     merchant_account.storage_scheme,

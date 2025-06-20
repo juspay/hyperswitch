@@ -100,6 +100,7 @@ pub(crate) type FrmCheckoutRouterData =
 pub(crate) struct ResponseRouterDataV2<Flow, R, ResourceCommonData, Request, Response> {
     pub response: R,
     pub data: RouterDataV2<Flow, ResourceCommonData, Request, Response>,
+    #[allow(dead_code)] // Used for metadata passing but this is not read
     pub http_code: u16,
 }
 
