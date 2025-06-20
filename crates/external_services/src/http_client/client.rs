@@ -30,10 +30,7 @@ pub fn create_client(
         }
 
         logger::debug!("Creating HTTP client with mutual TLS (client cert + key)");
-        let client_builder = get_client_builder(
-            proxy_config,
-            merchant_proxy_url.as_ref().map(|url| url.clone()),
-        )?;
+        let client_builder = get_client_builder(proxy_config, merchant_proxy_url.clone())?;
 
         let identity = create_identity_from_certificate_and_key(
             encoded_certificate.clone(),
@@ -60,11 +57,8 @@ pub fn create_client(
         let cert = reqwest::Certificate::from_pem(pem.as_bytes())
             .change_context(HttpClientError::ClientConstructionFailed)
             .attach_printable("Failed to parse CA certificate PEM block")?;
-        let client_builder = get_client_builder(
-            proxy_config,
-            merchant_proxy_url.as_ref().map(|url| url.clone()),
-        )?
-        .add_root_certificate(cert);
+        let client_builder = get_client_builder(proxy_config, merchant_proxy_url.clone())?
+            .add_root_certificate(cert);
         return client_builder
             .use_rustls_tls()
             .build()
