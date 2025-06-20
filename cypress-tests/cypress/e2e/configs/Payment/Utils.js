@@ -6,6 +6,7 @@ import { connectorDetails as aciConnectorDetails } from "./Aci.js";
 import { connectorDetails as adyenConnectorDetails } from "./Adyen.js";
 import { connectorDetails as airwallexConnectorDetails } from "./Airwallex.js";
 import { connectorDetails as archipelConnectorDetails } from "./Archipel.js";
+import { connectorDetails as bamboraConnectorDetails } from "./bambora.js";
 import { connectorDetails as bamboraapacConnectorDetails } from "./Bamboraapac.js";
 import { connectorDetails as bankOfAmericaConnectorDetails } from "./BankOfAmerica.js";
 import { connectorDetails as bluesnapConnectorDetails } from "./Bluesnap.js";
@@ -45,6 +46,7 @@ const connectorDetails = {
   airwallex: airwallexConnectorDetails,
   adyen: adyenConnectorDetails,
   bankofamerica: bankOfAmericaConnectorDetails,
+  bambora: bamboraConnectorDetails,
   bamboraapac: bamboraapacConnectorDetails,
   bluesnap: bluesnapConnectorDetails,
   braintree: braintreeConnectorDetails,
