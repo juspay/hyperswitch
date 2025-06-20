@@ -1239,7 +1239,8 @@ impl RefundInterface for MockDb {
             .iter_mut()
             .find(|refund| this.refund_id == refund.refund_id)
             .map(|r| {
-                let refund_updated = diesel_refund::RefundUpdateInternal::from(refund).create_refund(r.clone());
+                let refund_updated =
+                    diesel_refund::RefundUpdateInternal::from(refund).create_refund(r.clone());
                 *r = refund_updated.clone();
                 refund_updated
             })
@@ -1262,7 +1263,8 @@ impl RefundInterface for MockDb {
             .iter_mut()
             .find(|refund| this.merchant_reference_id == refund.merchant_reference_id)
             .map(|r| {
-                let refund_updated = diesel_refund::RefundUpdateInternal::from(refund).create_refund(r.clone());
+                let refund_updated =
+                    diesel_refund::RefundUpdateInternal::from(refund).create_refund(r.clone());
                 *r = refund_updated.clone();
                 refund_updated
             })

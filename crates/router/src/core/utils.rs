@@ -4,7 +4,6 @@ pub mod refunds_validator;
 use std::{collections::HashSet, marker::PhantomData, str::FromStr};
 
 use api_models::enums::{Connector, DisputeStage, DisputeStatus};
-use diesel_models::refund as diesel_refund;
 #[cfg(feature = "payouts")]
 use api_models::payouts::PayoutVendorAccountDetails;
 use common_enums::{IntentStatus, RequestIncrementalAuthorization};
@@ -15,6 +14,7 @@ use common_utils::{
     ext_traits::AsyncExt,
     types::{keymanager::KeyManagerState, ConnectorTransactionIdTrait, MinorUnit},
 };
+use diesel_models::refund as diesel_refund;
 use error_stack::{report, ResultExt};
 #[cfg(feature = "v2")]
 use hyperswitch_domain_models::types::VaultRouterData;

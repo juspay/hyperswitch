@@ -1382,15 +1382,16 @@ pub async fn sync_refund_with_gateway_workflow(
     refund_tracker: &storage::ProcessTracker,
 ) -> Result<(), errors::ProcessTrackerError> {
     let key_manager_state = &state.into();
-    let refund_core =
-        serde_json::from_value::<diesel_refund::RefundCoreWorkflow>(refund_tracker.tracking_data.clone())
-            .change_context(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable_lazy(|| {
-                format!(
-                    "unable to convert into refund_core {:?}",
-                    refund_tracker.tracking_data
-                )
-            })?;
+    let refund_core = serde_json::from_value::<diesel_refund::RefundCoreWorkflow>(
+        refund_tracker.tracking_data.clone(),
+    )
+    .change_context(errors::ApiErrorResponse::InternalServerError)
+    .attach_printable_lazy(|| {
+        format!(
+            "unable to convert into refund_core {:?}",
+            refund_tracker.tracking_data
+        )
+    })?;
 
     let key_store = state
         .store
@@ -1473,15 +1474,16 @@ pub async fn trigger_refund_execute_workflow(
     refund_tracker: &storage::ProcessTracker,
 ) -> Result<(), errors::ProcessTrackerError> {
     let db = &*state.store;
-    let refund_core =
-        serde_json::from_value::<diesel_refund::RefundCoreWorkflow>(refund_tracker.tracking_data.clone())
-            .change_context(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable_lazy(|| {
-                format!(
-                    "unable to convert into refund_core {:?}",
-                    refund_tracker.tracking_data
-                )
-            })?;
+    let refund_core = serde_json::from_value::<diesel_refund::RefundCoreWorkflow>(
+        refund_tracker.tracking_data.clone(),
+    )
+    .change_context(errors::ApiErrorResponse::InternalServerError)
+    .attach_printable_lazy(|| {
+        format!(
+            "unable to convert into refund_core {:?}",
+            refund_tracker.tracking_data
+        )
+    })?;
     let key_manager_state = &state.into();
     let key_store = state
         .store
