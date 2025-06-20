@@ -9,7 +9,39 @@ use crate::{
     utils::OptionExt,
 };
 
-#[cfg(all(feature = "dummy_connector", feature = "v1"))]
+#[cfg(all(feature = "dummy_connector", feature = "v1"))] // v2
+pub async fn payment(
+    state: SessionState,
+    req: types::DummyConnectorPaymentRequest,
+) -> types::DummyConnectorResponse<types::DummyConnectorPaymentResponse> {
+    utils::tokio_mock_sleep(
+        state.conf.dummy_connector.payment_duration,
+        state.conf.dummy_connector.payment_tolerance,
+    )
+    .await;
+
+    let payment_attempt: types::DummyConnectorPaymentAttempt = req.into();
+    let payment_data =
+        types::DummyConnectorPaymentData::process_payment_attempt(&state, payment_attempt)?;
+
+    utils::store_data_in_redis(
+        &state,
+        payment_data.attempt_id.clone(),
+        payment_data.payment_id.clone(),
+        state.conf.dummy_connector.authorize_ttl,
+    )
+    .await?;
+    utils::store_data_in_redis(
+        &state,
+        payment_data.payment_id.get_string_repr().to_owned(),
+        payment_data.clone(),
+        state.conf.dummy_connector.payment_ttl,
+    )
+    .await?;
+    Ok(api::ApplicationResponse::Json(payment_data.into()))
+}
+
+#[cfg(all(feature = "dummy_connector", feature = "v2"))] // v2
 pub async fn payment(
     state: SessionState,
     req: types::DummyConnectorPaymentRequest,

@@ -915,6 +915,7 @@ pub async fn connector_delete(
 /// Merchant Account - Toggle KV
 ///
 /// Toggle KV mode for the Merchant Account
+#[cfg(feature = "v1")]
 #[instrument(skip_all)]
 pub async fn merchant_account_toggle_kv(
     state: web::Data<AppState>,
@@ -938,6 +939,29 @@ pub async fn merchant_account_toggle_kv(
     .await
 }
 
+#[cfg(feature = "v2")]
+#[instrument(skip_all)]
+pub async fn merchant_account_toggle_kv(
+    state: web::Data<AppState>,
+    req: HttpRequest,
+    path: web::Path<common_utils::id_type::MerchantId>,
+    json_payload: web::Json<admin::ToggleKVRequest>,
+) -> HttpResponse {
+    let flow = Flow::ConfigKeyUpdate;
+    let mut payload = json_payload.into_inner();
+    payload.merchant_id = path.into_inner();
+
+    api::server_wrap(
+        flow,
+        state,
+        &req,
+        payload,
+        |state, _, payload, _| kv_for_merchant(state, payload.merchant_id, payload.kv_enabled),
+        &auth::V2AdminApiAuth,
+        api_locking::LockAction::NotApplicable,
+    )
+    .await
+}
 /// Merchant Account - Transfer Keys
 ///
 /// Transfer Merchant Encryption key to keymanager
@@ -965,6 +989,7 @@ pub async fn merchant_account_toggle_all_kv(
 /// Merchant Account - KV Status
 ///
 /// Toggle KV mode for the Merchant Account
+#[cfg(feature = "v1")]
 #[instrument(skip_all)]
 pub async fn merchant_account_kv_status(
     state: web::Data<AppState>,
@@ -986,6 +1011,27 @@ pub async fn merchant_account_kv_status(
     .await
 }
 
+#[cfg(feature = "v2")]
+#[instrument(skip_all)]
+pub async fn merchant_account_kv_status(
+    state: web::Data<AppState>,
+    req: HttpRequest,
+    path: web::Path<common_utils::id_type::MerchantId>,
+) -> HttpResponse {
+    let flow = Flow::ConfigKeyFetch;
+    let merchant_id = path.into_inner();
+
+    api::server_wrap(
+        flow,
+        state,
+        &req,
+        merchant_id,
+        |state, _, req, _| check_merchant_account_kv_status(state, req),
+        &auth::V2AdminApiAuth,
+        api_locking::LockAction::NotApplicable,
+    )
+    .await
+}
 /// Merchant Account - KV Status
 ///
 /// Toggle KV mode for the Merchant Account
