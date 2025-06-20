@@ -2,7 +2,7 @@
 let dashboardData = null;
 let connectorChart = null;
 let distributionChart = null;
-let executionTimeChart = null;
+const executionTimeChart = null;
 let avgDurationChart = null;
 
 // Convert connector name to PascalCase
@@ -10,7 +10,8 @@ function toPascalCase(str) {
   return str
     .toLowerCase()
     .split("_")
-    .map((word) => word.charAt(0).toUpperCase() + word.slice(1)).join('');
+    .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
+    .join("");
 }
 
 // Initialize the dashboard
