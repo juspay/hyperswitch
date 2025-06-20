@@ -4,6 +4,17 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2025.06.20.1
+
+### Features
+
+- **revenue_recovery:** Invoke attempt list instead of payment get in recovery webhooks flow ([#8393](https://github.com/juspay/hyperswitch/pull/8393)) ([`fc72c3e`](https://github.com/juspay/hyperswitch/commit/fc72c3eee826ca813010a09cb73178f5da88c71a))
+- **router:** Add v2 endpoint to list payment attempts by intent_id ([#8368](https://github.com/juspay/hyperswitch/pull/8368)) ([`7943fb4`](https://github.com/juspay/hyperswitch/commit/7943fb4bfb156e22d5329d45a580f90e02283604))
+
+**Full Changelog:** [`2025.06.20.0...2025.06.20.1`](https://github.com/juspay/hyperswitch/compare/2025.06.20.0...2025.06.20.1)
+
+- - -
+
 ## 2025.06.20.0
 
 ### Features

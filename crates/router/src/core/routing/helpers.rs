@@ -1539,7 +1539,7 @@ pub async fn push_metrics_with_update_window_for_contract_based_routing(
                 routing_events::RoutingEngine::IntelligentRouter,
                 routing_events::ApiMethod::Grpc)
                 .change_context(errors::ApiErrorResponse::InternalServerError)
-                .attach_printable("ContractRouting-Intelligent-Router: Failed to contruct RoutingEventsBuilder")?
+                .attach_printable("ContractRouting-Intelligent-Router: Failed to construct RoutingEventsBuilder")?
                 .trigger_event(state, closure)
                 .await
                 .change_context(errors::ApiErrorResponse::InternalServerError)
