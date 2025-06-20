@@ -34,7 +34,8 @@ impl PermissionGroupExt for PermissionGroup {
             | Self::AccountManage
             | Self::ReconOpsManage
             | Self::ReconReportsManage
-            | Self::InternalManage => PermissionScope::Write,
+            | Self::InternalManage
+            | Self::ThemeManage => PermissionScope::Write,
         }
     }
 
@@ -50,6 +51,7 @@ impl PermissionGroupExt for PermissionGroup {
             | Self::MerchantDetailsManage
             | Self::AccountView
             | Self::AccountManage => ParentGroup::Account,
+            Self::ThemeManage => ParentGroup::Theme,
             Self::ReconOpsView | Self::ReconOpsManage => ParentGroup::ReconOps,
             Self::ReconReportsView | Self::ReconReportsManage => ParentGroup::ReconReports,
             Self::InternalManage => ParentGroup::Internal,
@@ -103,6 +105,8 @@ impl PermissionGroupExt for PermissionGroup {
             Self::AccountManage => vec![Self::AccountView, Self::AccountManage],
 
             Self::InternalManage => vec![Self::InternalManage],
+
+            Self::ThemeManage => vec![Self::ThemeManage, Self::AccountView],
         }
     }
 }
@@ -127,6 +131,7 @@ impl ParentGroupExt for ParentGroup {
             Self::ReconOps => RECON_OPS.to_vec(),
             Self::ReconReports => RECON_REPORTS.to_vec(),
             Self::Internal => INTERNAL.to_vec(),
+            Self::Theme => THEME.to_vec(),
         }
     }
 
@@ -210,3 +215,5 @@ pub static RECON_REPORTS: [Resource; 4] = [
     Resource::ReconReports,
     Resource::Account,
 ];
+
+pub static THEME: [Resource; 1] = [Resource::Theme];

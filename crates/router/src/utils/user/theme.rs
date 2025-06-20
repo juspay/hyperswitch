@@ -224,3 +224,65 @@ pub async fn get_theme_using_optional_theme_id(
         }
     }
 }
+
+pub async fn get_theme_lineage_from_user_token(
+    user_from_token: &UserFromToken,
+    state: &SessionState,
+    request_entity_type: &EntityType,
+) -> UserResult<ThemeLineage> {
+    match request_entity_type {
+        EntityType::Profile => Ok(ThemeLineage::Profile {
+            tenant_id: user_from_token
+                .tenant_id
+                .clone()
+                .unwrap_or(state.tenant.tenant_id.clone()),
+            org_id: user_from_token.org_id.clone(),
+            merchant_id: user_from_token.merchant_id.clone(),
+            profile_id: user_from_token.profile_id.clone(),
+        }),
+        EntityType::Merchant => Ok(ThemeLineage::Merchant {
+            tenant_id: user_from_token
+                .tenant_id
+                .clone()
+                .unwrap_or(state.tenant.tenant_id.clone()),
+            org_id: user_from_token.org_id.clone(),
+            merchant_id: user_from_token.merchant_id.clone(),
+        }),
+        EntityType::Organization => Ok(ThemeLineage::Organization {
+            tenant_id: user_from_token
+                .tenant_id
+                .clone()
+                .unwrap_or(state.tenant.tenant_id.clone()),
+            org_id: user_from_token.org_id.clone(),
+        }),
+        EntityType::Tenant => Ok(ThemeLineage::Tenant {
+            tenant_id: user_from_token
+                .tenant_id
+                .clone()
+                .unwrap_or(state.tenant.tenant_id.clone()),
+        }),
+    }
+}
+
+pub fn get_lineage_from_theme(theme: &Theme) -> ThemeLineage {
+    match theme.entity_type {
+        EntityType::Tenant => ThemeLineage::Tenant {
+            tenant_id: theme.tenant_id.clone().into(),
+        },
+        EntityType::Organization => ThemeLineage::Organization {
+            tenant_id: theme.tenant_id.clone().into(),
+            org_id: theme.org_id.clone().map(Into::into).unwrap(),
+        },
+        EntityType::Merchant => ThemeLineage::Merchant {
+            tenant_id: theme.tenant_id.clone().into(),
+            org_id: theme.org_id.clone().map(Into::into).unwrap(),
+            merchant_id: theme.merchant_id.clone().map(Into::into).unwrap(),
+        },
+        EntityType::Profile => ThemeLineage::Profile {
+            tenant_id: theme.tenant_id.clone().into(),
+            org_id: theme.org_id.clone().map(Into::into).unwrap(),
+            merchant_id: theme.merchant_id.clone().map(Into::into).unwrap(),
+            profile_id: theme.profile_id.clone().map(Into::into).unwrap(),
+        },
+    }
+}
