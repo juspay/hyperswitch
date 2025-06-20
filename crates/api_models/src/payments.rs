@@ -290,7 +290,18 @@ pub struct MerchantConnectorDetails {
     }"#)]
     pub merchant_connector_creds: pii::SecretSerdeValue,
 }
+#[cfg(feature = "v2")]
+#[derive(Debug, serde::Serialize, serde::Deserialize, Clone, ToSchema)]
+pub struct PaymentAttemptListRequest {
+    #[schema(value_type = String)]
+    pub payment_intent_id: id_type::GlobalPaymentId,
+}
 
+#[cfg(feature = "v2")]
+#[derive(Debug, serde::Serialize, Clone, ToSchema)]
+pub struct PaymentAttemptListResponse {
+    pub payment_attempt_list: Vec<PaymentAttemptResponse>,
+}
 #[cfg(feature = "v2")]
 impl PaymentsCreateIntentRequest {
     pub fn get_feature_metadata_as_value(
