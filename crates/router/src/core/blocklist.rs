@@ -17,7 +17,7 @@ pub async fn add_entry_to_blocklist(
 ) -> RouterResponse<api_blocklist::AddToBlocklistResponse> {
     utils::insert_entry_into_blocklist(
         &state,
-        merchant_context.get_merchant_account().get_id(),
+        merchant_context.get_owner_merchant_account().get_id(),
         body,
     )
     .await
@@ -31,7 +31,7 @@ pub async fn remove_entry_from_blocklist(
 ) -> RouterResponse<api_blocklist::DeleteFromBlocklistResponse> {
     utils::delete_entry_from_blocklist(
         &state,
-        merchant_context.get_merchant_account().get_id(),
+        merchant_context.get_owner_merchant_account().get_id(),
         body,
     )
     .await
@@ -45,7 +45,7 @@ pub async fn list_blocklist_entries(
 ) -> RouterResponse<Vec<api_blocklist::BlocklistResponse>> {
     utils::list_blocklist_entries_for_merchant(
         &state,
-        merchant_context.get_merchant_account().get_id(),
+        merchant_context.get_owner_merchant_account().get_id(),
         query,
     )
     .await
@@ -59,7 +59,7 @@ pub async fn toggle_blocklist_guard(
 ) -> RouterResponse<api_blocklist::ToggleBlocklistResponse> {
     utils::toggle_blocklist_guard_for_merchant(
         &state,
-        merchant_context.get_merchant_account().get_id(),
+        merchant_context.get_owner_merchant_account().get_id(),
         query,
     )
     .await

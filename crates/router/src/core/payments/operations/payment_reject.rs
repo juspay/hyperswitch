@@ -47,8 +47,8 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, PaymentsCancelRequest
         let db = &*state.store;
         let key_manager_state = &state.into();
 
-        let merchant_id = merchant_context.get_merchant_account().get_id();
-        let storage_scheme = merchant_context.get_merchant_account().storage_scheme;
+        let merchant_id = merchant_context.get_owner_merchant_account().get_id();
+        let storage_scheme = merchant_context.get_owner_merchant_account().storage_scheme;
         let payment_id = payment_id
             .get_payment_intent_id()
             .change_context(errors::ApiErrorResponse::PaymentNotFound)?;
@@ -58,7 +58,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, PaymentsCancelRequest
                 key_manager_state,
                 &payment_id,
                 merchant_id,
-                merchant_context.get_merchant_key_store(),
+                merchant_context.get_owner_merchant_key_store(),
                 storage_scheme,
             )
             .await
@@ -89,30 +89,30 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, PaymentsCancelRequest
         let shipping_address = helpers::get_address_by_id(
             state,
             payment_intent.shipping_address_id.clone(),
-            merchant_context.get_merchant_key_store(),
+            merchant_context.get_owner_merchant_key_store(),
             &payment_intent.payment_id,
             merchant_id,
-            merchant_context.get_merchant_account().storage_scheme,
+            merchant_context.get_owner_merchant_account().storage_scheme,
         )
         .await?;
 
         let billing_address = helpers::get_address_by_id(
             state,
             payment_intent.billing_address_id.clone(),
-            merchant_context.get_merchant_key_store(),
+            merchant_context.get_owner_merchant_key_store(),
             &payment_intent.payment_id,
             merchant_id,
-            merchant_context.get_merchant_account().storage_scheme,
+            merchant_context.get_owner_merchant_account().storage_scheme,
         )
         .await?;
 
         let payment_method_billing = helpers::get_address_by_id(
             state,
             payment_attempt.payment_method_billing_address_id.clone(),
-            merchant_context.get_merchant_key_store(),
+            merchant_context.get_owner_merchant_key_store(),
             &payment_intent.payment_id,
             merchant_id,
-            merchant_context.get_merchant_account().storage_scheme,
+            merchant_context.get_owner_merchant_account().storage_scheme,
         )
         .await?;
 
@@ -120,11 +120,11 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, PaymentsCancelRequest
         let amount = payment_attempt.get_total_amount().into();
 
         let frm_response = if cfg!(feature = "frm") {
-            db.find_fraud_check_by_payment_id(payment_intent.payment_id.clone(), merchant_context.get_merchant_account().get_id().clone())
+            db.find_fraud_check_by_payment_id(payment_intent.payment_id.clone(), merchant_context.get_owner_merchant_account().get_id().clone())
                 .await
                 .change_context(errors::ApiErrorResponse::PaymentNotFound)
                 .attach_printable_lazy(|| {
-                    format!("Error while retrieving frm_response, merchant_id: {:?}, payment_id: {attempt_id}", merchant_context.get_merchant_account().get_id())
+                    format!("Error while retrieving frm_response, merchant_id: {:?}, payment_id: {attempt_id}", merchant_context.get_owner_merchant_account().get_id())
                 })
                 .ok()
         } else {
@@ -142,7 +142,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, PaymentsCancelRequest
             .store
             .find_business_profile_by_profile_id(
                 key_manager_state,
-                merchant_context.get_merchant_key_store(),
+                merchant_context.get_processor_merchant_key_store(),
                 profile_id,
             )
             .await
@@ -303,9 +303,12 @@ impl<F: Send + Clone + Sync> ValidateRequest<F, PaymentsCancelRequest, PaymentDa
         Ok((
             Box::new(self),
             operations::ValidateResult {
-                merchant_id: merchant_context.get_merchant_account().get_id().to_owned(),
+                merchant_id: merchant_context
+                    .get_owner_merchant_account()
+                    .get_id()
+                    .to_owned(),
                 payment_id: api::PaymentIdType::PaymentIntentId(request.payment_id.to_owned()),
-                storage_scheme: merchant_context.get_merchant_account().storage_scheme,
+                storage_scheme: merchant_context.get_owner_merchant_account().storage_scheme,
                 requeue: false,
             },
         ))

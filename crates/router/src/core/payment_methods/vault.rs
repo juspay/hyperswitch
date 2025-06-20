@@ -1306,7 +1306,10 @@ pub async fn add_payment_method_to_vault(
     existing_vault_id: Option<domain::VaultId>,
 ) -> CustomResult<pm_types::AddVaultResponse, errors::VaultError> {
     let payload = pm_types::AddVaultRequest {
-        entity_id: merchant_context.get_merchant_account().get_id().to_owned(),
+        entity_id: merchant_context
+            .get_owner_merchant_account()
+            .get_id()
+            .to_owned(),
         vault_id: existing_vault_id
             .unwrap_or(domain::VaultId::generate(uuid::Uuid::now_v7().to_string())),
         data: pmd,
@@ -1337,7 +1340,10 @@ pub async fn retrieve_payment_method_from_vault_internal(
     vault_id: &domain::VaultId,
 ) -> CustomResult<pm_types::VaultRetrieveResponse, errors::VaultError> {
     let payload = pm_types::VaultRetrieveRequest {
-        entity_id: merchant_context.get_merchant_account().get_id().to_owned(),
+        entity_id: merchant_context
+            .get_owner_merchant_account()
+            .get_id()
+            .to_owned(),
         vault_id: vault_id.to_owned(),
     }
     .encode_to_vec()
@@ -1505,12 +1511,12 @@ pub async fn retrieve_payment_method_from_vault_using_payment_token(
     let db = &*state.store;
     let key_manager_state = &state.into();
 
-    let storage_scheme = merchant_context.get_merchant_account().storage_scheme;
+    let storage_scheme = merchant_context.get_owner_merchant_account().storage_scheme;
 
     let payment_method = db
         .find_payment_method(
             key_manager_state,
-            merchant_context.get_merchant_key_store(),
+            merchant_context.get_owner_merchant_key_store(),
             &payment_method_id,
             storage_scheme,
         )
@@ -1566,7 +1572,7 @@ pub async fn retrieve_payment_method_from_vault(
                 domain::MerchantConnectorAccountTypeDetails::MerchantConnectorAccount(Box::new(
                     payments_core::helpers::get_merchant_connector_account_v2(
                         state,
-                        merchant_context.get_merchant_key_store(),
+                        merchant_context.get_processor_merchant_key_store(),
                         external_vault_source,
                     )
                     .await
@@ -1577,7 +1583,7 @@ pub async fn retrieve_payment_method_from_vault(
 
             retrieve_payment_method_from_vault_external(
                 state,
-                merchant_context.get_merchant_account(),
+                merchant_context.get_processor_merchant_account(),
                 pm,
                 merchant_connector_account,
             )
@@ -1607,7 +1613,10 @@ pub async fn delete_payment_method_data_from_vault_internal(
     vault_id: domain::VaultId,
 ) -> CustomResult<pm_types::VaultDeleteResponse, errors::VaultError> {
     let payload = pm_types::VaultDeleteRequest {
-        entity_id: merchant_context.get_merchant_account().get_id().to_owned(),
+        entity_id: merchant_context
+            .get_owner_merchant_account()
+            .get_id()
+            .to_owned(),
         vault_id,
     }
     .encode_to_vec()
@@ -1737,7 +1746,7 @@ pub async fn delete_payment_method_data_from_vault(
                 domain::MerchantConnectorAccountTypeDetails::MerchantConnectorAccount(Box::new(
                     payments_core::helpers::get_merchant_connector_account_v2(
                         state,
-                        merchant_context.get_merchant_key_store(),
+                        merchant_context.get_processor_merchant_key_store(),
                         external_vault_source,
                     )
                     .await
@@ -1748,7 +1757,7 @@ pub async fn delete_payment_method_data_from_vault(
 
             delete_payment_method_data_from_vault_external(
                 state,
-                merchant_context.get_merchant_account(),
+                merchant_context.get_processor_merchant_account(),
                 merchant_connector_account,
                 vault_id.clone(),
             )

@@ -52,15 +52,15 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsSessionR
 
         let db = &*state.store;
         let key_manager_state = &state.into();
-        let merchant_id = merchant_context.get_merchant_account().get_id();
-        let storage_scheme = merchant_context.get_merchant_account().storage_scheme;
+        let merchant_id = merchant_context.get_owner_merchant_account().get_id();
+        let storage_scheme = merchant_context.get_owner_merchant_account().storage_scheme;
 
         let mut payment_intent = db
             .find_payment_intent_by_payment_id_merchant_id(
                 &state.into(),
                 &payment_id,
                 merchant_id,
-                merchant_context.get_merchant_key_store(),
+                merchant_context.get_owner_merchant_key_store(),
                 storage_scheme,
             )
             .await
@@ -98,30 +98,30 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsSessionR
         let shipping_address = helpers::get_address_by_id(
             state,
             payment_intent.shipping_address_id.clone(),
-            merchant_context.get_merchant_key_store(),
+            merchant_context.get_owner_merchant_key_store(),
             &payment_intent.payment_id,
             merchant_id,
-            merchant_context.get_merchant_account().storage_scheme,
+            merchant_context.get_owner_merchant_account().storage_scheme,
         )
         .await?;
 
         let billing_address = helpers::get_address_by_id(
             state,
             payment_intent.billing_address_id.clone(),
-            merchant_context.get_merchant_key_store(),
+            merchant_context.get_owner_merchant_key_store(),
             &payment_intent.payment_id,
             merchant_id,
-            merchant_context.get_merchant_account().storage_scheme,
+            merchant_context.get_owner_merchant_account().storage_scheme,
         )
         .await?;
 
         let payment_method_billing = helpers::get_address_by_id(
             state,
             payment_attempt.payment_method_billing_address_id.clone(),
-            merchant_context.get_merchant_key_store(),
+            merchant_context.get_owner_merchant_key_store(),
             &payment_intent.payment_id,
             merchant_id,
-            merchant_context.get_merchant_account().storage_scheme,
+            merchant_context.get_owner_merchant_account().storage_scheme,
         )
         .await?;
 
@@ -146,7 +146,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsSessionR
             .async_map(|mcd| async {
                 helpers::insert_merchant_connector_creds_to_config(
                     db,
-                    merchant_context.get_merchant_account().get_id(),
+                    merchant_context.get_processor_merchant_account().get_id(),
                     mcd,
                 )
                 .await
@@ -164,7 +164,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsSessionR
         let business_profile = db
             .find_business_profile_by_profile_id(
                 key_manager_state,
-                merchant_context.get_merchant_key_store(),
+                merchant_context.get_processor_merchant_key_store(),
                 profile_id,
             )
             .await
@@ -295,9 +295,12 @@ impl<F: Send + Clone + Sync> ValidateRequest<F, api::PaymentsSessionRequest, Pay
         Ok((
             Box::new(self),
             operations::ValidateResult {
-                merchant_id: merchant_context.get_merchant_account().get_id().to_owned(),
+                merchant_id: merchant_context
+                    .get_owner_merchant_account()
+                    .get_id()
+                    .to_owned(),
                 payment_id: api::PaymentIdType::PaymentIntentId(given_payment_id),
-                storage_scheme: merchant_context.get_merchant_account().storage_scheme,
+                storage_scheme: merchant_context.get_owner_merchant_account().storage_scheme,
                 requeue: false,
             },
         ))
@@ -376,9 +379,9 @@ where
         let all_connector_accounts = db
             .find_merchant_connector_account_by_merchant_id_and_disabled_list(
                 &state.into(),
-                merchant_context.get_merchant_account().get_id(),
+                merchant_context.get_processor_merchant_account().get_id(),
                 false,
-                merchant_context.get_merchant_key_store(),
+                merchant_context.get_processor_merchant_key_store(),
             )
             .await
             .change_context(errors::ApiErrorResponse::InternalServerError)

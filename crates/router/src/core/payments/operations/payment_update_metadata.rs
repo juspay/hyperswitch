@@ -53,14 +53,14 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsUpdateMe
 
         let db = &*state.store;
         let key_manager_state: &KeyManagerState = &state.into();
-        let merchant_id = merchant_context.get_merchant_account().get_id();
-        let storage_scheme = merchant_context.get_merchant_account().storage_scheme;
+        let merchant_id = merchant_context.get_owner_merchant_account().get_id();
+        let storage_scheme = merchant_context.get_owner_merchant_account().storage_scheme;
         let mut payment_intent = db
             .find_payment_intent_by_payment_id_merchant_id(
                 &state.into(),
                 &payment_id,
                 merchant_id,
-                merchant_context.get_merchant_key_store(),
+                merchant_context.get_owner_merchant_key_store(),
                 storage_scheme,
             )
             .await
@@ -99,7 +99,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsUpdateMe
         let business_profile = db
             .find_business_profile_by_profile_id(
                 key_manager_state,
-                merchant_context.get_merchant_key_store(),
+                merchant_context.get_processor_merchant_key_store(),
                 profile_id,
             )
             .await
@@ -277,9 +277,12 @@ impl<F: Send + Clone + Sync> ValidateRequest<F, api::PaymentsUpdateMetadataReque
         Ok((
             Box::new(self),
             operations::ValidateResult {
-                merchant_id: merchant_context.get_merchant_account().get_id().to_owned(),
+                merchant_id: merchant_context
+                    .get_owner_merchant_account()
+                    .get_id()
+                    .to_owned(),
                 payment_id: api::PaymentIdType::PaymentIntentId(given_payment_id),
-                storage_scheme: merchant_context.get_merchant_account().storage_scheme,
+                storage_scheme: merchant_context.get_owner_merchant_account().storage_scheme,
                 requeue: false,
             },
         ))

@@ -42,9 +42,7 @@ pub async fn link_token_create(
         &req,
         payload,
         |state, auth, payload, _| {
-            let merchant_context = crate::types::domain::MerchantContext::NormalMerchant(Box::new(
-                crate::types::domain::Context(auth.merchant_account, auth.key_store),
-            ));
+            let merchant_context = auth.into();
             crate::core::pm_auth::create_link_token(
                 state,
                 merchant_context,
@@ -82,9 +80,7 @@ pub async fn exchange_token(
         &req,
         payload,
         |state, auth, payload, _| {
-            let merchant_context = crate::types::domain::MerchantContext::NormalMerchant(Box::new(
-                crate::types::domain::Context(auth.merchant_account, auth.key_store),
-            ));
+            let merchant_context = auth.into();
             crate::core::pm_auth::exchange_token_core(state, merchant_context, payload)
         },
         &*auth,

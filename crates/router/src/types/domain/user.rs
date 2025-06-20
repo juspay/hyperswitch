@@ -616,10 +616,9 @@ impl NewUserMerchant {
             .change_context(UserErrors::InternalServerError)
             .attach_printable("Failed to retrieve merchant account by merchant_id")?;
 
-        let merchant_context = domain::MerchantContext::NormalMerchant(Box::new(domain::Context(
-            merchant_account.clone(),
-            merchant_key_store,
-        )));
+        let merchant_context = domain::MerchantContext::StandardMerchant(Box::new(
+            domain::Context(merchant_account.clone(), merchant_key_store),
+        ));
 
         Box::pin(admin::create_profile(
             state,

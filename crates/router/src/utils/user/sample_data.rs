@@ -58,7 +58,7 @@ pub async fn generate_sample_data(
         .await
         .change_context::<SampleDataError>(SampleDataError::DataDoesNotExist)?;
 
-    let merchant_context = domain::MerchantContext::NormalMerchant(Box::new(domain::Context(
+    let merchant_context = domain::MerchantContext::StandardMerchant(Box::new(domain::Context(
         merchant_from_db.clone(),
         key_store,
     )));
@@ -108,7 +108,7 @@ pub async fn generate_sample_data(
                 .store
                 .list_profile_by_merchant_id(
                     key_manager_state,
-                    merchant_context.get_merchant_key_store(),
+                    merchant_context.get_processor_merchant_key_store(),
                     merchant_id,
                 )
                 .await

@@ -56,7 +56,7 @@ pub async fn migrate_payment_method(
     if let Some(connector_mandate_details) = &req.connector_mandate_details {
         controller
             .validate_merchant_connector_ids_in_connector_mandate_details(
-                merchant_context.get_merchant_key_store(),
+                merchant_context.get_processor_merchant_key_store(),
                 connector_mandate_details,
                 merchant_id,
                 card_bin_details.card_network.clone(),
@@ -121,7 +121,7 @@ pub async fn migrate_payment_method(
                 controller
                     .save_network_token_and_update_payment_method(
                         &req,
-                        merchant_context.get_merchant_key_store(),
+                        merchant_context.get_processor_merchant_key_store(),
                         network_token_data,
                         network_token_requestor_ref_id,
                         pm_id,
@@ -361,7 +361,7 @@ pub async fn get_client_secret_or_add_payment_method_for_migration(
     migration_status: &mut migration::RecordMigrationStatusBuilder,
     controller: &dyn PaymentMethodsController,
 ) -> CustomResult<ApplicationResponse<pm_api::PaymentMethodResponse>, errors::ApiErrorResponse> {
-    let merchant_id = merchant_context.get_merchant_account().get_id();
+    let merchant_id = merchant_context.get_owner_merchant_account().get_id();
     let customer_id = req.customer_id.clone().get_required_value("customer_id")?;
 
     #[cfg(not(feature = "payouts"))]
@@ -376,7 +376,7 @@ pub async fn get_client_secret_or_add_payment_method_for_migration(
         .async_map(|billing| {
             create_encrypted_data(
                 key_manager_state,
-                merchant_context.get_merchant_key_store(),
+                merchant_context.get_owner_merchant_key_store(),
                 billing,
             )
         })
@@ -504,7 +504,7 @@ pub async fn skip_locker_call_and_migrate_payment_method(
         .async_map(|billing| {
             create_encrypted_data(
                 key_manager_state,
-                merchant_context.get_merchant_key_store(),
+                merchant_context.get_owner_merchant_key_store(),
                 billing,
             )
         })
@@ -518,8 +518,8 @@ pub async fn skip_locker_call_and_migrate_payment_method(
             &state.into(),
             &customer_id,
             &merchant_id,
-            merchant_context.get_merchant_key_store(),
-            merchant_context.get_merchant_account().storage_scheme,
+            merchant_context.get_owner_merchant_key_store(),
+            merchant_context.get_owner_merchant_account().storage_scheme,
         )
         .await
         .to_not_found_response(errors::ApiErrorResponse::CustomerNotFound)?;
@@ -531,7 +531,7 @@ pub async fn skip_locker_call_and_migrate_payment_method(
     let payment_method_data_encrypted: Option<Encryptable<Secret<serde_json::Value>>> = Some(
         create_encrypted_data(
             &state.into(),
-            merchant_context.get_merchant_key_store(),
+            merchant_context.get_owner_merchant_key_store(),
             payment_method_card_details,
         )
         .await
@@ -551,7 +551,7 @@ pub async fn skip_locker_call_and_migrate_payment_method(
     let response = db
         .insert_payment_method(
             &state.into(),
-            merchant_context.get_merchant_key_store(),
+            merchant_context.get_owner_merchant_key_store(),
             domain_pm::PaymentMethod {
                 customer_id: customer_id.to_owned(),
                 merchant_id: merchant_id.to_owned(),
@@ -588,7 +588,7 @@ pub async fn skip_locker_call_and_migrate_payment_method(
                 network_token_locker_id: None,
                 network_token_payment_method_data: None,
             },
-            merchant_context.get_merchant_account().storage_scheme,
+            merchant_context.get_owner_merchant_account().storage_scheme,
         )
         .await
         .change_context(errors::ApiErrorResponse::InternalServerError)

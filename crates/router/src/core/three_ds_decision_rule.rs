@@ -31,7 +31,7 @@ pub async fn execute_three_ds_decision_rule(
     let routing_algorithm = db
         .find_routing_algorithm_by_algorithm_id_merchant_id(
             &request.routing_id,
-            merchant_context.get_merchant_account().get_id(),
+            merchant_context.get_processor_merchant_account().get_id(),
         )
         .await
         .to_not_found_response(errors::ApiErrorResponse::ResourceIdNotFound)?;

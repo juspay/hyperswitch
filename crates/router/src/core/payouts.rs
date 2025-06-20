@@ -183,7 +183,7 @@ pub async fn make_connector_decision(
             {
                 let config_bool = retry::config_should_call_gsm_payout(
                     &*state.store,
-                    merchant_context.get_merchant_account().get_id(),
+                    merchant_context.get_processor_merchant_account().get_id(),
                     PayoutRetryType::SingleConnector,
                 )
                 .await;
@@ -218,7 +218,7 @@ pub async fn make_connector_decision(
             {
                 let config_multiple_connector_bool = retry::config_should_call_gsm_payout(
                     &*state.store,
-                    merchant_context.get_merchant_account().get_id(),
+                    merchant_context.get_processor_merchant_account().get_id(),
                     PayoutRetryType::MultiConnector,
                 )
                 .await;
@@ -236,7 +236,7 @@ pub async fn make_connector_decision(
 
                 let config_single_connector_bool = retry::config_should_call_gsm_payout(
                     &*state.store,
-                    merchant_context.get_merchant_account().get_id(),
+                    merchant_context.get_processor_merchant_account().get_id(),
                     PayoutRetryType::SingleConnector,
                 )
                 .await;
@@ -345,9 +345,9 @@ pub async fn payouts_create_core(
             &customer_id,
             &payout_attempt.merchant_id,
             payout_type,
-            merchant_context.get_merchant_key_store(),
+            merchant_context.get_owner_merchant_key_store(),
             Some(&mut payout_data),
-            merchant_context.get_merchant_account().storage_scheme,
+            merchant_context.get_owner_merchant_account().storage_scheme,
         )
         .await?;
     }
@@ -480,9 +480,9 @@ pub async fn payouts_update_core(
             &customer_id,
             &payout_attempt.merchant_id,
             payout_data.payouts.payout_type,
-            merchant_context.get_merchant_key_store(),
+            merchant_context.get_owner_merchant_key_store(),
             Some(&mut payout_data),
-            merchant_context.get_merchant_account().storage_scheme,
+            merchant_context.get_owner_merchant_account().storage_scheme,
         )
         .await?;
     }
@@ -589,7 +589,7 @@ pub async fn payouts_cancel_core(
                 &payout_attempt,
                 updated_payout_attempt,
                 &payout_data.payouts,
-                merchant_context.get_merchant_account().storage_scheme,
+                merchant_context.get_owner_merchant_account().storage_scheme,
             )
             .await
             .change_context(errors::ApiErrorResponse::InternalServerError)
@@ -600,7 +600,7 @@ pub async fn payouts_cancel_core(
                 &payout_data.payouts,
                 storage::PayoutsUpdate::StatusUpdate { status },
                 &payout_data.payout_attempt,
-                merchant_context.get_merchant_account().storage_scheme,
+                merchant_context.get_owner_merchant_account().storage_scheme,
             )
             .await
             .change_context(errors::ApiErrorResponse::InternalServerError)
@@ -698,9 +698,9 @@ pub async fn payouts_fulfill_core(
             &customer_id,
             &payout_attempt.merchant_id,
             payout_data.payouts.payout_type,
-            merchant_context.get_merchant_key_store(),
+            merchant_context.get_owner_merchant_key_store(),
             Some(&mut payout_data),
-            merchant_context.get_merchant_account().storage_scheme,
+            merchant_context.get_owner_merchant_account().storage_scheme,
         )
         .await?
         .get_required_value("payout_method_data")?,
@@ -743,13 +743,13 @@ pub async fn payouts_list_core(
     constraints: payouts::PayoutListConstraints,
 ) -> RouterResponse<payouts::PayoutListResponse> {
     validator::validate_payout_list_request(&constraints)?;
-    let merchant_id = merchant_context.get_merchant_account().get_id();
+    let merchant_id = merchant_context.get_owner_merchant_account().get_id();
     let db = state.store.as_ref();
     let payouts = helpers::filter_by_constraints(
         db,
         &constraints,
         merchant_id,
-        merchant_context.get_merchant_account().storage_scheme,
+        merchant_context.get_owner_merchant_account().storage_scheme,
     )
     .await
     .to_not_found_response(errors::ApiErrorResponse::PayoutNotFound)?;
@@ -775,8 +775,8 @@ pub async fn payouts_list_core(
                             &(&state).into(),
                             &customer_id,
                             merchant_id,
-                            merchant_context.get_merchant_key_store(),
-                            merchant_context.get_merchant_account().storage_scheme,
+                            merchant_context.get_owner_merchant_key_store(),
+                            merchant_context.get_owner_merchant_account().storage_scheme,
                         )
                         .await
                         .map_err(|err| {
@@ -803,9 +803,9 @@ pub async fn payouts_list_core(
                     payout.address_id.as_deref(),
                     merchant_id,
                     payout.customer_id.as_ref(),
-                    merchant_context.get_merchant_key_store(),
+                    merchant_context.get_owner_merchant_key_store(),
                     &payout_id_as_payment_id_type,
-                    merchant_context.get_merchant_account().storage_scheme,
+                    merchant_context.get_owner_merchant_account().storage_scheme,
                 )
                 .await
                 .transpose()
@@ -872,9 +872,9 @@ pub async fn payouts_filtered_list_core(
         Option<diesel_models::Address>,
     )> = db
         .filter_payouts_and_attempts(
-            merchant_context.get_merchant_account().get_id(),
+            merchant_context.get_owner_merchant_account().get_id(),
             &constraints,
-            merchant_context.get_merchant_account().storage_scheme,
+            merchant_context.get_owner_merchant_account().storage_scheme,
         )
         .await
         .to_not_found_response(errors::ApiErrorResponse::PayoutNotFound)?;
@@ -886,9 +886,9 @@ pub async fn payouts_filtered_list_core(
                     domain::Customer::convert_back(
                         &(&state).into(),
                         cust,
-                        &(merchant_context.get_merchant_key_store().clone()).key,
+                        &(merchant_context.get_owner_merchant_key_store().clone()).key,
                         merchant_context
-                            .get_merchant_key_store()
+                            .get_owner_merchant_key_store()
                             .merchant_id
                             .clone()
                             .into(),
@@ -907,9 +907,9 @@ pub async fn payouts_filtered_list_core(
                     domain::Address::convert_back(
                         &(&state).into(),
                         addr,
-                        &(merchant_context.get_merchant_key_store().clone()).key,
+                        &(merchant_context.get_owner_merchant_key_store().clone()).key,
                         merchant_context
-                            .get_merchant_key_store()
+                            .get_owner_merchant_key_store()
                             .merchant_id
                             .clone()
                             .into(),
@@ -934,7 +934,7 @@ pub async fn payouts_filtered_list_core(
 
     let active_payout_ids = db
         .filter_active_payout_ids_by_constraints(
-            merchant_context.get_merchant_account().get_id(),
+            merchant_context.get_owner_merchant_account().get_id(),
             &constraints,
         )
         .await
@@ -943,7 +943,7 @@ pub async fn payouts_filtered_list_core(
 
     let total_count = db
         .get_total_count_of_filtered_payouts(
-            merchant_context.get_merchant_account().get_id(),
+            merchant_context.get_owner_merchant_account().get_id(),
             &active_payout_ids,
             filters.connector.clone(),
             filters.currency.clone(),
@@ -978,9 +978,9 @@ pub async fn payouts_list_available_filters_core(
     let db = state.store.as_ref();
     let payouts = db
         .filter_payouts_by_time_range_constraints(
-            merchant_context.get_merchant_account().get_id(),
+            merchant_context.get_owner_merchant_account().get_id(),
             &time_range,
-            merchant_context.get_merchant_account().storage_scheme,
+            merchant_context.get_owner_merchant_account().storage_scheme,
         )
         .await
         .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
@@ -990,7 +990,7 @@ pub async fn payouts_list_available_filters_core(
     let filters = db
         .get_filters_for_payouts(
             payouts.as_slice(),
-            merchant_context.get_merchant_account().get_id(),
+            merchant_context.get_owner_merchant_account().get_id(),
             storage_enums::MerchantStorageScheme::PostgresOnly,
         )
         .await
@@ -1052,7 +1052,7 @@ pub async fn call_connector_payout(
                 &payout_data.payout_attempt,
                 updated_payout_attempt,
                 payouts,
-                merchant_context.get_merchant_account().storage_scheme,
+                merchant_context.get_owner_merchant_account().storage_scheme,
             )
             .await
             .change_context(errors::ApiErrorResponse::InternalServerError)
@@ -1073,9 +1073,9 @@ pub async fn call_connector_payout(
                 &customer_id,
                 &payout_attempt.merchant_id,
                 payouts.payout_type,
-                merchant_context.get_merchant_key_store(),
+                merchant_context.get_owner_merchant_key_store(),
                 Some(payout_data),
-                merchant_context.get_merchant_account().storage_scheme,
+                merchant_context.get_owner_merchant_account().storage_scheme,
             )
             .await?
             .get_required_value("payout_method_data")?,
@@ -1225,11 +1225,14 @@ pub async fn create_recipient(
                                 db.update_customer_by_customer_id_merchant_id(
                                     &state.into(),
                                     customer_id,
-                                    merchant_context.get_merchant_account().get_id().to_owned(),
+                                    merchant_context
+                                        .get_owner_merchant_account()
+                                        .get_id()
+                                        .to_owned(),
                                     customer,
                                     updated_customer,
-                                    merchant_context.get_merchant_key_store(),
-                                    merchant_context.get_merchant_account().storage_scheme,
+                                    merchant_context.get_owner_merchant_key_store(),
+                                    merchant_context.get_owner_merchant_account().storage_scheme,
                                 )
                                 .await
                                 .change_context(errors::ApiErrorResponse::InternalServerError)
@@ -1290,7 +1293,7 @@ pub async fn create_recipient(
                             &payout_data.payout_attempt,
                             updated_payout_attempt,
                             &payout_data.payouts,
-                            merchant_context.get_merchant_account().storage_scheme,
+                            merchant_context.get_owner_merchant_account().storage_scheme,
                         )
                         .await
                         .change_context(errors::ApiErrorResponse::InternalServerError)
@@ -1300,7 +1303,7 @@ pub async fn create_recipient(
                             &payout_data.payouts,
                             storage::PayoutsUpdate::StatusUpdate { status },
                             &payout_data.payout_attempt,
-                            merchant_context.get_merchant_account().storage_scheme,
+                            merchant_context.get_owner_merchant_account().storage_scheme,
                         )
                         .await
                         .change_context(errors::ApiErrorResponse::InternalServerError)
@@ -1326,7 +1329,7 @@ pub async fn create_recipient(
                             &payout_data.payout_attempt,
                             updated_payout_attempt,
                             &payout_data.payouts,
-                            merchant_context.get_merchant_account().storage_scheme,
+                            merchant_context.get_owner_merchant_account().storage_scheme,
                         )
                         .await
                         .change_context(errors::ApiErrorResponse::InternalServerError)
@@ -1336,7 +1339,7 @@ pub async fn create_recipient(
                             &payout_data.payouts,
                             storage::PayoutsUpdate::StatusUpdate { status },
                             &payout_data.payout_attempt,
-                            merchant_context.get_merchant_account().storage_scheme,
+                            merchant_context.get_owner_merchant_account().storage_scheme,
                         )
                         .await
                         .change_context(errors::ApiErrorResponse::InternalServerError)
@@ -1453,7 +1456,7 @@ pub async fn check_payout_eligibility(
                     payout_attempt,
                     updated_payout_attempt,
                     &payout_data.payouts,
-                    merchant_context.get_merchant_account().storage_scheme,
+                    merchant_context.get_owner_merchant_account().storage_scheme,
                 )
                 .await
                 .change_context(errors::ApiErrorResponse::InternalServerError)
@@ -1463,7 +1466,7 @@ pub async fn check_payout_eligibility(
                     &payout_data.payouts,
                     storage::PayoutsUpdate::StatusUpdate { status },
                     &payout_data.payout_attempt,
-                    merchant_context.get_merchant_account().storage_scheme,
+                    merchant_context.get_owner_merchant_account().storage_scheme,
                 )
                 .await
                 .change_context(errors::ApiErrorResponse::InternalServerError)
@@ -1512,7 +1515,7 @@ pub async fn check_payout_eligibility(
                     &payout_data.payout_attempt,
                     updated_payout_attempt,
                     &payout_data.payouts,
-                    merchant_context.get_merchant_account().storage_scheme,
+                    merchant_context.get_owner_merchant_account().storage_scheme,
                 )
                 .await
                 .change_context(errors::ApiErrorResponse::InternalServerError)
@@ -1522,7 +1525,7 @@ pub async fn check_payout_eligibility(
                     &payout_data.payouts,
                     storage::PayoutsUpdate::StatusUpdate { status },
                     &payout_data.payout_attempt,
-                    merchant_context.get_merchant_account().storage_scheme,
+                    merchant_context.get_owner_merchant_account().storage_scheme,
                 )
                 .await
                 .change_context(errors::ApiErrorResponse::InternalServerError)
@@ -1568,7 +1571,7 @@ pub async fn complete_create_payout(
                     payout_attempt,
                     updated_payout_attempt,
                     &payout_data.payouts,
-                    merchant_context.get_merchant_account().storage_scheme,
+                    merchant_context.get_owner_merchant_account().storage_scheme,
                 )
                 .await
                 .change_context(errors::ApiErrorResponse::InternalServerError)
@@ -1580,7 +1583,7 @@ pub async fn complete_create_payout(
                         status: storage::enums::PayoutStatus::RequiresFulfillment,
                     },
                     &payout_data.payout_attempt,
-                    merchant_context.get_merchant_account().storage_scheme,
+                    merchant_context.get_owner_merchant_account().storage_scheme,
                 )
                 .await
                 .change_context(errors::ApiErrorResponse::InternalServerError)
@@ -1669,7 +1672,7 @@ pub async fn create_payout(
                     payout_attempt,
                     updated_payout_attempt,
                     &payout_data.payouts,
-                    merchant_context.get_merchant_account().storage_scheme,
+                    merchant_context.get_owner_merchant_account().storage_scheme,
                 )
                 .await
                 .change_context(errors::ApiErrorResponse::InternalServerError)
@@ -1679,7 +1682,7 @@ pub async fn create_payout(
                     &payout_data.payouts,
                     storage::PayoutsUpdate::StatusUpdate { status },
                     &payout_data.payout_attempt,
-                    merchant_context.get_merchant_account().storage_scheme,
+                    merchant_context.get_owner_merchant_account().storage_scheme,
                 )
                 .await
                 .change_context(errors::ApiErrorResponse::InternalServerError)
@@ -1728,7 +1731,7 @@ pub async fn create_payout(
                     &payout_data.payout_attempt,
                     updated_payout_attempt,
                     &payout_data.payouts,
-                    merchant_context.get_merchant_account().storage_scheme,
+                    merchant_context.get_owner_merchant_account().storage_scheme,
                 )
                 .await
                 .change_context(errors::ApiErrorResponse::InternalServerError)
@@ -1738,7 +1741,7 @@ pub async fn create_payout(
                     &payout_data.payouts,
                     storage::PayoutsUpdate::StatusUpdate { status },
                     &payout_data.payout_attempt,
-                    merchant_context.get_merchant_account().storage_scheme,
+                    merchant_context.get_owner_merchant_account().storage_scheme,
                 )
                 .await
                 .change_context(errors::ApiErrorResponse::InternalServerError)
@@ -1939,7 +1942,7 @@ pub async fn update_retrieve_payout_tracker<F, T>(
                     payout_attempt,
                     updated_payout_attempt,
                     &payout_data.payouts,
-                    merchant_context.get_merchant_account().storage_scheme,
+                    merchant_context.get_owner_merchant_account().storage_scheme,
                 )
                 .await
                 .change_context(errors::ApiErrorResponse::InternalServerError)
@@ -1949,7 +1952,7 @@ pub async fn update_retrieve_payout_tracker<F, T>(
                     &payout_data.payouts,
                     storage::PayoutsUpdate::StatusUpdate { status },
                     &payout_data.payout_attempt,
-                    merchant_context.get_merchant_account().storage_scheme,
+                    merchant_context.get_owner_merchant_account().storage_scheme,
                 )
                 .await
                 .change_context(errors::ApiErrorResponse::InternalServerError)
@@ -2052,7 +2055,7 @@ pub async fn create_recipient_disburse_account(
                     payout_attempt,
                     updated_payout_attempt,
                     &payout_data.payouts,
-                    merchant_context.get_merchant_account().storage_scheme,
+                    merchant_context.get_owner_merchant_account().storage_scheme,
                 )
                 .await
                 .change_context(errors::ApiErrorResponse::InternalServerError)
@@ -2106,10 +2109,10 @@ pub async fn create_recipient_disburse_account(
                     payout_data.payment_method = Some(
                         db.update_payment_method(
                             &(state.into()),
-                            merchant_context.get_merchant_key_store(),
+                            merchant_context.get_owner_merchant_key_store(),
                             pm_method,
                             pm_update,
-                            merchant_context.get_merchant_account().storage_scheme,
+                            merchant_context.get_owner_merchant_account().storage_scheme,
                         )
                         .await
                         .change_context(errors::ApiErrorResponse::PaymentMethodNotFound)
@@ -2172,7 +2175,7 @@ pub async fn create_recipient_disburse_account(
                     &payout_data.payout_attempt,
                     updated_payout_attempt,
                     &payout_data.payouts,
-                    merchant_context.get_merchant_account().storage_scheme,
+                    merchant_context.get_owner_merchant_account().storage_scheme,
                 )
                 .await
                 .change_context(errors::ApiErrorResponse::InternalServerError)
@@ -2238,7 +2241,7 @@ pub async fn cancel_payout(
                     &payout_data.payout_attempt,
                     updated_payout_attempt,
                     &payout_data.payouts,
-                    merchant_context.get_merchant_account().storage_scheme,
+                    merchant_context.get_owner_merchant_account().storage_scheme,
                 )
                 .await
                 .change_context(errors::ApiErrorResponse::InternalServerError)
@@ -2248,7 +2251,7 @@ pub async fn cancel_payout(
                     &payout_data.payouts,
                     storage::PayoutsUpdate::StatusUpdate { status },
                     &payout_data.payout_attempt,
-                    merchant_context.get_merchant_account().storage_scheme,
+                    merchant_context.get_owner_merchant_account().storage_scheme,
                 )
                 .await
                 .change_context(errors::ApiErrorResponse::InternalServerError)
@@ -2290,7 +2293,7 @@ pub async fn cancel_payout(
                     &payout_data.payout_attempt,
                     updated_payout_attempt,
                     &payout_data.payouts,
-                    merchant_context.get_merchant_account().storage_scheme,
+                    merchant_context.get_owner_merchant_account().storage_scheme,
                 )
                 .await
                 .change_context(errors::ApiErrorResponse::InternalServerError)
@@ -2300,7 +2303,7 @@ pub async fn cancel_payout(
                     &payout_data.payouts,
                     storage::PayoutsUpdate::StatusUpdate { status },
                     &payout_data.payout_attempt,
-                    merchant_context.get_merchant_account().storage_scheme,
+                    merchant_context.get_owner_merchant_account().storage_scheme,
                 )
                 .await
                 .change_context(errors::ApiErrorResponse::InternalServerError)
@@ -2377,7 +2380,7 @@ pub async fn fulfill_payout(
                     &payout_data.payout_attempt,
                     updated_payout_attempt,
                     &payout_data.payouts,
-                    merchant_context.get_merchant_account().storage_scheme,
+                    merchant_context.get_owner_merchant_account().storage_scheme,
                 )
                 .await
                 .change_context(errors::ApiErrorResponse::InternalServerError)
@@ -2387,7 +2390,7 @@ pub async fn fulfill_payout(
                     &payout_data.payouts,
                     storage::PayoutsUpdate::StatusUpdate { status },
                     &payout_data.payout_attempt,
-                    merchant_context.get_merchant_account().storage_scheme,
+                    merchant_context.get_owner_merchant_account().storage_scheme,
                 )
                 .await
                 .change_context(errors::ApiErrorResponse::InternalServerError)
@@ -2461,7 +2464,7 @@ pub async fn fulfill_payout(
                     &payout_data.payout_attempt,
                     updated_payout_attempt,
                     &payout_data.payouts,
-                    merchant_context.get_merchant_account().storage_scheme,
+                    merchant_context.get_owner_merchant_account().storage_scheme,
                 )
                 .await
                 .change_context(errors::ApiErrorResponse::InternalServerError)
@@ -2471,7 +2474,7 @@ pub async fn fulfill_payout(
                     &payout_data.payouts,
                     storage::PayoutsUpdate::StatusUpdate { status },
                     &payout_data.payout_attempt,
-                    merchant_context.get_merchant_account().storage_scheme,
+                    merchant_context.get_owner_merchant_account().storage_scheme,
                 )
                 .await
                 .change_context(errors::ApiErrorResponse::InternalServerError)
@@ -2526,7 +2529,10 @@ pub async fn response_handler(
 
     let response = api::PayoutCreateResponse {
         payout_id: payouts.payout_id.to_owned(),
-        merchant_id: merchant_context.get_merchant_account().get_id().to_owned(),
+        merchant_id: merchant_context
+            .get_owner_merchant_account()
+            .get_id()
+            .to_owned(),
         amount: payouts.amount,
         currency: payouts.destination_currency.to_owned(),
         connector: payout_attempt.connector,
@@ -2609,13 +2615,13 @@ pub async fn payout_create_db_entries(
     payment_method: Option<PaymentMethod>,
 ) -> RouterResult<PayoutData> {
     let db = &*state.store;
-    let merchant_id = merchant_context.get_merchant_account().get_id();
+    let merchant_id = merchant_context.get_owner_merchant_account().get_id();
     let customer_id = customer.map(|cust| cust.customer_id.clone());
 
     // Validate whether profile_id passed in request is valid and is linked to the merchant
     let business_profile = validate_and_get_business_profile(
         state,
-        merchant_context.get_merchant_key_store(),
+        merchant_context.get_processor_merchant_key_store(),
         profile_id,
         merchant_id,
     )
@@ -2655,9 +2661,9 @@ pub async fn payout_create_db_entries(
         None,
         merchant_id,
         customer_id.as_ref(),
-        merchant_context.get_merchant_key_store(),
+        merchant_context.get_owner_merchant_key_store(),
         &payout_id_as_payment_id_type,
-        merchant_context.get_merchant_account().storage_scheme,
+        merchant_context.get_owner_merchant_account().storage_scheme,
     )
     .await?;
     let address_id = billing_address.to_owned().map(|address| address.address_id);
@@ -2728,7 +2734,7 @@ pub async fn payout_create_db_entries(
     let payouts = db
         .insert_payout(
             payouts_req,
-            merchant_context.get_merchant_account().storage_scheme,
+            merchant_context.get_owner_merchant_account().storage_scheme,
         )
         .await
         .to_duplicate_response(errors::ApiErrorResponse::DuplicatePayout {
@@ -2776,7 +2782,7 @@ pub async fn payout_create_db_entries(
         .insert_payout_attempt(
             payout_attempt_req,
             &payouts,
-            merchant_context.get_merchant_account().storage_scheme,
+            merchant_context.get_owner_merchant_account().storage_scheme,
         )
         .await
         .to_duplicate_response(errors::ApiErrorResponse::DuplicatePayout {
@@ -2825,7 +2831,7 @@ pub async fn make_payout_data(
     locale: &str,
 ) -> RouterResult<PayoutData> {
     let db = &*state.store;
-    let merchant_id = merchant_context.get_merchant_account().get_id();
+    let merchant_id = merchant_context.get_owner_merchant_account().get_id();
     let payout_id = match req {
         payouts::PayoutRequest::PayoutActionRequest(r) => r.payout_id.clone(),
         payouts::PayoutRequest::PayoutCreateRequest(r) => r.payout_id.clone().unwrap_or_default(),
@@ -2836,7 +2842,7 @@ pub async fn make_payout_data(
         .find_payout_by_merchant_id_payout_id(
             merchant_id,
             &payout_id,
-            merchant_context.get_merchant_account().storage_scheme,
+            merchant_context.get_owner_merchant_account().storage_scheme,
         )
         .await
         .to_not_found_response(errors::ApiErrorResponse::PayoutNotFound)?;
@@ -2848,7 +2854,7 @@ pub async fn make_payout_data(
         .find_payout_attempt_by_merchant_id_payout_attempt_id(
             merchant_id,
             &payout_attempt_id,
-            merchant_context.get_merchant_account().storage_scheme,
+            merchant_context.get_owner_merchant_account().storage_scheme,
         )
         .await
         .to_not_found_response(errors::ApiErrorResponse::PayoutNotFound)?;
@@ -2871,9 +2877,9 @@ pub async fn make_payout_data(
         payouts.address_id.as_deref(),
         merchant_id,
         customer_id,
-        merchant_context.get_merchant_key_store(),
+        merchant_context.get_owner_merchant_key_store(),
         &payout_id_as_payment_id_type,
-        merchant_context.get_merchant_account().storage_scheme,
+        merchant_context.get_owner_merchant_account().storage_scheme,
     )
     .await?;
 
@@ -2885,8 +2891,8 @@ pub async fn make_payout_data(
                 &state.into(),
                 customer_id,
                 merchant_id,
-                merchant_context.get_merchant_key_store(),
-                merchant_context.get_merchant_account().storage_scheme,
+                merchant_context.get_owner_merchant_key_store(),
+                merchant_context.get_owner_merchant_account().storage_scheme,
             )
             .await
             .map_err(|err| err.change_context(errors::ApiErrorResponse::InternalServerError))
@@ -2905,7 +2911,7 @@ pub async fn make_payout_data(
     // Validate whether profile_id passed in request is valid and is linked to the merchant
     let business_profile = validate_and_get_business_profile(
         state,
-        merchant_context.get_merchant_key_store(),
+        merchant_context.get_processor_merchant_key_store(),
         &profile_id,
         merchant_id,
     )
@@ -2924,11 +2930,11 @@ pub async fn make_payout_data(
                         None,
                         Some(&payout_token),
                         &customer_id,
-                        merchant_context.get_merchant_account().get_id(),
+                        merchant_context.get_owner_merchant_account().get_id(),
                         payouts.payout_type,
-                        merchant_context.get_merchant_key_store(),
+                        merchant_context.get_owner_merchant_key_store(),
                         None,
-                        merchant_context.get_merchant_account().storage_scheme,
+                        merchant_context.get_owner_merchant_account().storage_scheme,
                     )
                     .await?
                 }
@@ -2953,7 +2959,7 @@ pub async fn make_payout_data(
                 &payout_attempt,
                 update_additional_payout_method_data,
                 &payouts,
-                merchant_context.get_merchant_account().storage_scheme,
+                merchant_context.get_owner_merchant_account().storage_scheme,
             )
             .await
             .change_context(errors::ApiErrorResponse::InternalServerError)
@@ -2969,9 +2975,9 @@ pub async fn make_payout_data(
             Some(
                 payment_helpers::get_merchant_connector_account(
                     state,
-                    merchant_context.get_merchant_account().get_id(),
+                    merchant_context.get_processor_merchant_account().get_id(),
                     None,
-                    merchant_context.get_merchant_key_store(),
+                    merchant_context.get_processor_merchant_key_store(),
                     &profile_id,
                     connector_name.as_str(),
                     payout_attempt.merchant_connector_id.as_ref(),
@@ -3001,9 +3007,9 @@ pub async fn make_payout_data(
         payment_method = Some(
             db.find_payment_method(
                 &(state.into()),
-                merchant_context.get_merchant_key_store(),
+                merchant_context.get_owner_merchant_key_store(),
                 &pm_id,
-                merchant_context.get_merchant_account().storage_scheme,
+                merchant_context.get_owner_merchant_account().storage_scheme,
             )
             .await
             .change_context(errors::ApiErrorResponse::PaymentMethodNotFound)
@@ -3259,9 +3265,9 @@ pub async fn get_mca_from_profile_id(
 ) -> RouterResult<payment_helpers::MerchantConnectorAccountType> {
     let merchant_connector_account = payment_helpers::get_merchant_connector_account(
         state,
-        merchant_context.get_merchant_account().get_id(),
+        merchant_context.get_processor_merchant_account().get_id(),
         None,
-        merchant_context.get_merchant_key_store(),
+        merchant_context.get_processor_merchant_key_store(),
         profile_id,
         connector_name,
         merchant_connector_id,

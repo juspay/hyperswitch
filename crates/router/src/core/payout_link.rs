@@ -43,13 +43,13 @@ pub async fn initiate_payout_link(
     request_headers: &header::HeaderMap,
 ) -> RouterResponse<services::GenericLinkFormData> {
     let db: &dyn StorageInterface = &*state.store;
-    let merchant_id = merchant_context.get_merchant_account().get_id();
+    let merchant_id = merchant_context.get_owner_merchant_account().get_id();
     // Fetch payout
     let payout = db
         .find_payout_by_merchant_id_payout_id(
             merchant_id,
             &req.payout_id,
-            merchant_context.get_merchant_account().storage_scheme,
+            merchant_context.get_owner_merchant_account().storage_scheme,
         )
         .await
         .to_not_found_response(errors::ApiErrorResponse::PayoutNotFound)?;
@@ -57,7 +57,7 @@ pub async fn initiate_payout_link(
         .find_payout_attempt_by_merchant_id_payout_attempt_id(
             merchant_id,
             &format!("{}_{}", payout.payout_id, payout.attempt_count),
-            merchant_context.get_merchant_account().storage_scheme,
+            merchant_context.get_owner_merchant_account().storage_scheme,
         )
         .await
         .to_not_found_response(errors::ApiErrorResponse::PayoutNotFound)?;
@@ -140,8 +140,8 @@ pub async fn initiate_payout_link(
                     &(&state).into(),
                     &customer_id,
                     &req.merchant_id,
-                    merchant_context.get_merchant_key_store(),
-                    merchant_context.get_merchant_account().storage_scheme,
+                    merchant_context.get_owner_merchant_key_store(),
+                    merchant_context.get_owner_merchant_account().storage_scheme,
                 )
                 .await
                 .change_context(errors::ApiErrorResponse::InvalidRequestData {
@@ -160,7 +160,7 @@ pub async fn initiate_payout_link(
                     db.find_address_by_address_id(
                         &(&state).into(),
                         address_id,
-                        merchant_context.get_merchant_key_store(),
+                        merchant_context.get_owner_merchant_key_store(),
                     )
                     .await
                 })
@@ -221,7 +221,7 @@ pub async fn initiate_payout_link(
             let js_data = payouts::PayoutLinkDetails {
                 publishable_key: masking::Secret::new(
                     merchant_context
-                        .get_merchant_account()
+                        .get_owner_merchant_account()
                         .clone()
                         .publishable_key,
                 ),
@@ -341,9 +341,9 @@ pub async fn filter_payout_methods(
     let all_mcas = db
         .find_merchant_connector_account_by_merchant_id_and_disabled_list(
             key_manager_state,
-            merchant_context.get_merchant_account().get_id(),
+            merchant_context.get_processor_merchant_account().get_id(),
             false,
-            merchant_context.get_merchant_key_store(),
+            merchant_context.get_processor_merchant_key_store(),
         )
         .await
         .to_not_found_response(errors::ApiErrorResponse::MerchantAccountNotFound)?;

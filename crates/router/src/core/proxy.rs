@@ -19,8 +19,8 @@ pub async fn proxy_core(
     let vault_id = req_wrapper
         .get_vault_id(
             &state,
-            merchant_context.get_merchant_key_store(),
-            merchant_context.get_merchant_account().storage_scheme,
+            merchant_context.get_owner_merchant_key_store(),
+            merchant_context.get_owner_merchant_account().storage_scheme,
         )
         .await?;
 

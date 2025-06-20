@@ -90,8 +90,8 @@ pub async fn form_payment_link_data(
             &(state).into(),
             &payment_id,
             &merchant_id,
-            merchant_context.get_merchant_key_store(),
-            merchant_context.get_merchant_account().storage_scheme,
+            merchant_context.get_owner_merchant_key_store(),
+            merchant_context.get_owner_merchant_account().storage_scheme,
         )
         .await
         .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
@@ -102,7 +102,7 @@ pub async fn form_payment_link_data(
         .change_context(errors::ApiErrorResponse::PaymentLinkNotFound)?;
 
     let merchant_name_from_merchant_account = merchant_context
-        .get_merchant_account()
+        .get_owner_merchant_account()
         .merchant_name
         .clone()
         .map(|merchant_name| merchant_name.into_inner().peek().to_owned())
@@ -158,7 +158,7 @@ pub async fn form_payment_link_data(
     let business_profile = db
         .find_business_profile_by_profile_id(
             key_manager_state,
-            merchant_context.get_merchant_key_store(),
+            merchant_context.get_processor_merchant_key_store(),
             &profile_id,
         )
         .await
@@ -221,7 +221,7 @@ pub async fn form_payment_link_data(
             &payment_intent.payment_id,
             &merchant_id,
             &attempt_id.clone(),
-            merchant_context.get_merchant_account().storage_scheme,
+            merchant_context.get_owner_merchant_account().storage_scheme,
         )
         .await
         .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
@@ -254,7 +254,7 @@ pub async fn form_payment_link_data(
                 &payment_intent.payment_id,
                 &merchant_id,
                 &attempt_id.clone(),
-                merchant_context.get_merchant_account().storage_scheme,
+                merchant_context.get_owner_merchant_account().storage_scheme,
             )
             .await
             .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
@@ -295,7 +295,7 @@ pub async fn form_payment_link_data(
         return_url,
         session_expiry,
         pub_key: merchant_context
-            .get_merchant_account()
+            .get_owner_merchant_account()
             .publishable_key
             .to_owned(),
         client_secret,
@@ -891,8 +891,8 @@ pub async fn get_payment_link_status(
             key_manager_state,
             &payment_id,
             &merchant_id,
-            merchant_context.get_merchant_key_store(),
-            merchant_context.get_merchant_account().storage_scheme,
+            merchant_context.get_owner_merchant_key_store(),
+            merchant_context.get_owner_merchant_account().storage_scheme,
         )
         .await
         .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
@@ -903,7 +903,7 @@ pub async fn get_payment_link_status(
             &payment_intent.payment_id,
             &merchant_id,
             &attempt_id.clone(),
-            merchant_context.get_merchant_account().storage_scheme,
+            merchant_context.get_owner_merchant_account().storage_scheme,
         )
         .await
         .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
@@ -914,7 +914,7 @@ pub async fn get_payment_link_status(
         .change_context(errors::ApiErrorResponse::PaymentLinkNotFound)?;
 
     let merchant_name_from_merchant_account = merchant_context
-        .get_merchant_account()
+        .get_owner_merchant_account()
         .merchant_name
         .clone()
         .map(|merchant_name| merchant_name.into_inner().peek().to_owned())
@@ -987,7 +987,7 @@ pub async fn get_payment_link_status(
     let business_profile = db
         .find_business_profile_by_profile_id(
             key_manager_state,
-            merchant_context.get_merchant_key_store(),
+            merchant_context.get_processor_merchant_key_store(),
             &profile_id,
         )
         .await

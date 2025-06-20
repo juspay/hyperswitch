@@ -71,10 +71,9 @@ impl ProcessTrackerWorkflow<SessionState> for PaymentsSyncWorkflow {
             )
             .await?;
 
-        let merchant_context = domain::MerchantContext::NormalMerchant(Box::new(domain::Context(
-            merchant_account.clone(),
-            key_store.clone(),
-        )));
+        let merchant_context = domain::MerchantContext::StandardMerchant(Box::new(
+            domain::Context(merchant_account.clone(), key_store.clone()),
+        ));
         // TODO: Add support for ReqState in PT flows
         let (mut payment_data, _, customer, _, _) =
             Box::pin(payment_flows::payments_operation_core::<

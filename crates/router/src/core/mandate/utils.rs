@@ -28,7 +28,10 @@ pub async fn construct_mandate_revoke_router_data(
         .change_context(errors::ApiErrorResponse::InternalServerError)?;
     let router_data = types::RouterData {
         flow: PhantomData,
-        merchant_id: merchant_context.get_merchant_account().get_id().clone(),
+        merchant_id: merchant_context
+            .get_owner_merchant_account()
+            .get_id()
+            .clone(),
         customer_id: Some(mandate.customer_id),
         tenant_id: state.tenant.tenant_id.clone(),
         connector_customer: None,

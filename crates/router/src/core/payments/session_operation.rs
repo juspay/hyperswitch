@@ -151,8 +151,8 @@ where
         .get_customer_details(
             state,
             &mut payment_data,
-            merchant_context.get_merchant_key_store(),
-            merchant_context.get_merchant_account().storage_scheme,
+            merchant_context.get_owner_merchant_key_store(),
+            merchant_context.get_owner_merchant_account().storage_scheme,
         )
         .await
         .to_not_found_response(errors::ApiErrorResponse::CustomerNotFound)
@@ -194,9 +194,9 @@ where
                     req_state,
                     payment_data.clone(),
                     customer.clone(),
-                    merchant_context.get_merchant_account().storage_scheme,
+                    merchant_context.get_owner_merchant_account().storage_scheme,
                     None,
-                    merchant_context.get_merchant_key_store(),
+                    merchant_context.get_owner_merchant_key_store(),
                     None,
                     header_payload.clone(),
                 )

@@ -5,7 +5,7 @@ use super::app::AppState;
 use crate::{
     core::{api_locking, mandate},
     services::{api, authentication as auth, authorization::permissions::Permission},
-    types::{api::mandates, domain},
+    types::api::mandates,
 };
 
 /// Mandates - Retrieve Mandate
@@ -28,9 +28,7 @@ pub async fn get_mandate(
         &req,
         mandate_id,
         |state, auth: auth::AuthenticationData, req, _| {
-            let merchant_context = domain::MerchantContext::NormalMerchant(Box::new(
-                domain::Context(auth.merchant_account, auth.key_store),
-            ));
+            let merchant_context = auth.into();
             mandate::get_mandate(state, merchant_context, req)
         },
         &auth::HeaderAuth(auth::ApiKeyAuth {
@@ -59,9 +57,7 @@ pub async fn revoke_mandate(
         &req,
         mandate_id,
         |state, auth: auth::AuthenticationData, req, _| {
-            let merchant_context = domain::MerchantContext::NormalMerchant(Box::new(
-                domain::Context(auth.merchant_account, auth.key_store),
-            ));
+            let merchant_context = auth.into();
             mandate::revoke_mandate(state, merchant_context, req)
         },
         &auth::HeaderAuth(auth::ApiKeyAuth {
@@ -87,9 +83,7 @@ pub async fn retrieve_mandates_list(
         &req,
         payload,
         |state, auth: auth::AuthenticationData, req, _| {
-            let merchant_context = domain::MerchantContext::NormalMerchant(Box::new(
-                domain::Context(auth.merchant_account, auth.key_store),
-            ));
+            let merchant_context = auth.into();
             mandate::retrieve_mandates_list(state, merchant_context, req)
         },
         auth::auth_type(

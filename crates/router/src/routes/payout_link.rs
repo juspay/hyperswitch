@@ -8,7 +8,6 @@ use crate::{
         api,
         authentication::{self as auth},
     },
-    types::domain,
     AppState,
 };
 #[cfg(feature = "v1")]
@@ -30,9 +29,7 @@ pub async fn render_payout_link(
         &req,
         payload.clone(),
         |state, auth, req, _| {
-            let merchant_context = domain::MerchantContext::NormalMerchant(Box::new(
-                domain::Context(auth.merchant_account, auth.key_store),
-            ));
+            let merchant_context = auth.into();
             initiate_payout_link(state, merchant_context, req, headers)
         },
         &auth::MerchantIdAuth(merchant_id),

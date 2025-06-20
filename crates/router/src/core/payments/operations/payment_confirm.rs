@@ -79,8 +79,8 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
     {
         let key_manager_state = &state.into();
 
-        let merchant_id = merchant_context.get_merchant_account().get_id();
-        let storage_scheme = merchant_context.get_merchant_account().storage_scheme;
+        let merchant_id = merchant_context.get_owner_merchant_account().get_id();
+        let storage_scheme = merchant_context.get_owner_merchant_account().storage_scheme;
         let (currency, amount);
 
         let payment_id = payment_id
@@ -97,7 +97,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
                 key_manager_state,
                 &payment_id,
                 &m_merchant_id,
-                merchant_context.get_merchant_key_store(),
+                merchant_context.get_owner_merchant_key_store(),
                 storage_scheme,
             )
             .await
@@ -162,7 +162,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
 
         let store = state.store.clone();
         let key_manager_state_clone = key_manager_state.clone();
-        let key_store_clone = merchant_context.get_merchant_key_store().clone();
+        let key_store_clone = merchant_context.get_processor_merchant_key_store().clone();
 
         let business_profile_fut = tokio::spawn(
             async move {
@@ -210,7 +210,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
         let m_payment_intent_payment_id = payment_intent.payment_id.clone();
         let m_customer_details_customer_id = customer_details.customer_id.clone();
         let m_payment_intent_customer_id = payment_intent.customer_id.clone();
-        let m_key_store = merchant_context.get_merchant_key_store().clone();
+        let m_key_store = merchant_context.get_owner_merchant_key_store().clone();
         let session_state = state.clone();
 
         let shipping_address_fut = tokio::spawn(
@@ -238,7 +238,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
         let m_payment_intent_customer_id = payment_intent.customer_id.clone();
         let m_payment_intent_billing_address_id = payment_intent.billing_address_id.clone();
         let m_payment_intent_payment_id = payment_intent.payment_id.clone();
-        let m_key_store = merchant_context.get_merchant_key_store().clone();
+        let m_key_store = merchant_context.get_owner_merchant_key_store().clone();
         let session_state = state.clone();
 
         let billing_address_fut = tokio::spawn(
@@ -336,7 +336,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
                             payment_intent,
                             payment_attempt,
                             state,
-                            merchant_context.get_merchant_key_store(),
+                            merchant_context.get_owner_merchant_key_store(),
                             storage_scheme,
                         )
                         .await?;
@@ -508,7 +508,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
             .and_then(|pmd| pmd.billing.clone());
         let m_payment_intent_customer_id = payment_intent.customer_id.clone();
         let m_payment_intent_payment_id = payment_intent.payment_id.clone();
-        let m_key_store = merchant_context.get_merchant_key_store().clone();
+        let m_key_store = merchant_context.get_owner_merchant_key_store().clone();
         let m_customer_details_customer_id = customer_details.customer_id.clone();
         let m_merchant_id = merchant_id.clone();
         let session_state = state.clone();
@@ -609,7 +609,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
 
             let payment_method_info = helpers::retrieve_payment_method_from_db_with_token_data(
                 state,
-                merchant_context.get_merchant_key_store(),
+                merchant_context.get_owner_merchant_key_store(),
                 &token_data,
                 storage_scheme,
             )
@@ -1843,7 +1843,6 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for
         let key_manager_state = state.into();
         let is_payment_processor_token_flow =
             payment_data.payment_intent.is_payment_processor_token_flow;
-
         let payment_intent_fut = tokio::spawn(
             async move {
                 m_db.update_payment_intent(
@@ -1970,7 +1969,7 @@ impl<F: Send + Clone + Sync> ValidateRequest<F, api::PaymentsRequest, PaymentDat
 
         let request_merchant_id = request.merchant_id.as_ref();
         helpers::validate_merchant_id(
-            merchant_context.get_merchant_account().get_id(),
+            merchant_context.get_owner_merchant_account().get_id(),
             request_merchant_id,
         )
         .change_context(errors::ApiErrorResponse::InvalidDataFormat {
@@ -2007,9 +2006,12 @@ impl<F: Send + Clone + Sync> ValidateRequest<F, api::PaymentsRequest, PaymentDat
         Ok((
             Box::new(self),
             operations::ValidateResult {
-                merchant_id: merchant_context.get_merchant_account().get_id().to_owned(),
+                merchant_id: merchant_context
+                    .get_owner_merchant_account()
+                    .get_id()
+                    .to_owned(),
                 payment_id,
-                storage_scheme: merchant_context.get_merchant_account().storage_scheme,
+                storage_scheme: merchant_context.get_owner_merchant_account().storage_scheme,
                 requeue: matches!(
                     request.retry_action,
                     Some(api_models::enums::RetryAction::Requeue)
