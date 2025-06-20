@@ -10,7 +10,7 @@ use common_utils::{
     ext_traits::AsyncExt,
     types::{AmountConvertor, StringMinorUnitForConnector},
 };
-use diesel_models::ConnectorMandateReferenceId;
+use diesel_models::{ConnectorMandateReferenceId, refund as diesel_refund};
 use error_stack::{report, ResultExt};
 use hyperswitch_domain_models::{
     mandates::CommonMandateReference,
@@ -1021,7 +1021,7 @@ async fn refunds_incoming_webhook_flow(
     let refund_id = refund.refund_id.to_owned();
     //if source verified then update refund status else trigger refund sync
     let updated_refund = if source_verified {
-        let refund_update = storage::RefundUpdate::StatusUpdate {
+        let refund_update = diesel_refund::RefundUpdate::StatusUpdate {
             connector_refund_id: None,
             sent_to_gateway: true,
             refund_status: common_enums::RefundStatus::foreign_try_from(event_type)

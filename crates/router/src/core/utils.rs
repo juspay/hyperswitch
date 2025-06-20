@@ -4,6 +4,7 @@ pub mod refunds_validator;
 use std::{collections::HashSet, marker::PhantomData, str::FromStr};
 
 use api_models::enums::{Connector, DisputeStage, DisputeStatus};
+use diesel_models::refund as diesel_refund;
 #[cfg(feature = "payouts")]
 use api_models::payouts::PayoutVendorAccountDetails;
 use common_enums::{IntentStatus, RequestIncrementalAuthorization};
@@ -249,7 +250,7 @@ pub async fn construct_refund_router_data<'a, F>(
     merchant_context: &domain::MerchantContext,
     payment_intent: &'a storage::PaymentIntent,
     payment_attempt: &storage::PaymentAttempt,
-    refund: &'a storage::Refund,
+    refund: &'a diesel_refund::Refund,
     merchant_connector_account: &MerchantConnectorAccount,
 ) -> RouterResult<types::RefundsRouterData<F>> {
     let auth_type = merchant_connector_account
@@ -406,7 +407,7 @@ pub async fn construct_refund_router_data<'a, F>(
     money: (MinorUnit, enums::Currency),
     payment_intent: &'a storage::PaymentIntent,
     payment_attempt: &storage::PaymentAttempt,
-    refund: &'a storage::Refund,
+    refund: &'a diesel_refund::Refund,
     creds_identifier: Option<String>,
     split_refunds: Option<router_request_types::SplitRefundsRequest>,
 ) -> RouterResult<types::RefundsRouterData<F>> {
