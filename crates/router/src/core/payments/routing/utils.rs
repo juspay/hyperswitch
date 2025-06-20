@@ -933,7 +933,7 @@ impl From<TransactionType> for AlgorithmType {
 
 impl From<RoutableConnectorChoice> for ConnectorInfo {
     fn from(c: RoutableConnectorChoice) -> Self {
-        ConnectorInfo {
+        Self {
             gateway_name: c.connector.to_string(),
             gateway_id: c
                 .merchant_connector_id
@@ -944,7 +944,7 @@ impl From<RoutableConnectorChoice> for ConnectorInfo {
 
 impl From<Box<RoutableConnectorChoice>> for ConnectorInfo {
     fn from(c: Box<RoutableConnectorChoice>) -> Self {
-        ConnectorInfo {
+        Self {
             gateway_name: c.connector.to_string(),
             gateway_id: c
                 .merchant_connector_id
@@ -955,7 +955,7 @@ impl From<Box<RoutableConnectorChoice>> for ConnectorInfo {
 
 impl From<ConnectorVolumeSplit> for VolumeSplit<ConnectorInfo> {
     fn from(v: ConnectorVolumeSplit) -> Self {
-        VolumeSplit {
+        Self {
             split: v.split,
             output: ConnectorInfo {
                 gateway_name: v.connector.connector.to_string(),

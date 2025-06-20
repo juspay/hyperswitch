@@ -185,10 +185,7 @@ pub async fn retrieve_merchant_routing_dictionary(
                 .ok() // Avoid throwing error if Decision Engine is not available or other errors
                 .map(|mut de_routing| de_result.append(&mut de_routing));
             // filter de_result based on transaction type
-            de_result = de_result
-                .into_iter()
-                .filter(|record| record.algorithm_for == Some(transaction_type))
-                .collect();
+            de_result.retain(|record| record.algorithm_for == Some(transaction_type));
             // append dynamic routing algorithms to de_result
             de_result.append(
                 &mut result
@@ -1367,6 +1364,7 @@ pub async fn retrieve_linked_routing_config(
                 vec![record.foreign_into()];
             let de_records = retrieve_decision_engine_active_rules(
                 &state,
+                &transaction_type,
                 profile_id.clone(),
                 hs_records.clone(),
             )
@@ -1421,7 +1419,9 @@ pub async fn retrieve_linked_routing_config(
                 )
                 .await
                 .to_not_found_response(errors::ApiErrorResponse::ResourceIdNotFound)?;
-            active_algorithms.push(record.foreign_into());
+            if record.algorithm_for == transaction_type {
+                active_algorithms.push(record.foreign_into());
+            }
         }
     }
 
@@ -1433,11 +1433,12 @@ pub async fn retrieve_linked_routing_config(
 
 pub async fn retrieve_decision_engine_active_rules(
     state: &SessionState,
+    transaction_type: &enums::TransactionType,
     profile_id: common_utils::id_type::ProfileId,
     hs_records: Vec<routing_types::RoutingDictionaryRecord>,
 ) -> Vec<routing_types::RoutingDictionaryRecord> {
     let mut de_records =
-        list_de_euclid_active_routing_algorithm(&state, profile_id.get_string_repr().to_owned())
+        list_de_euclid_active_routing_algorithm(state, profile_id.get_string_repr().to_owned())
             .await
             .map_err(|e| {
                 router_env::logger::error!(?e, "Failed to list DE Euclid active routing algorithm");
@@ -1451,6 +1452,9 @@ pub async fn retrieve_decision_engine_active_rules(
         .collect::<Vec<_>>();
     de_records.append(&mut dynamic_algos);
     de_records
+        .into_iter()
+        .filter(|r| r.algorithm_for == Some(*transaction_type))
+        .collect::<Vec<_>>()
 }
 // List all the default fallback algorithms under all the profile under a merchant
 pub async fn retrieve_default_routing_config_for_profiles(
@@ -2468,17 +2472,26 @@ pub async fn migrate_rules_for_profile(
     })?;
 
     #[cfg(feature = "v1")]
-    let active_payment_routing_id: Option<common_utils::id_type::RoutingId> = business_profile
-        .routing_algorithm
-        .map(|val| val.parse_value::<routing_types::RoutingAlgorithmRef>("RoutingAlgorithmRef"))
-        .transpose()
-        .change_context(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable("unable to deserialize routing algorithm ref from merchant account")?
-        .unwrap_or_default()
-        .algorithm_id;
+    let active_payment_routing_ids: Vec<Option<common_utils::id_type::RoutingId>> = vec![
+        business_profile
+            .get_payment_routing_algorithm()
+            .attach_printable("Failed to get payment routing algorithm")?
+            .unwrap_or_default()
+            .algorithm_id,
+        business_profile
+            .get_payout_routing_algorithm()
+            .attach_printable("Failed to get payout routing algorithm")?
+            .unwrap_or_default()
+            .algorithm_id,
+        business_profile
+            .get_frm_routing_algorithm()
+            .attach_printable("Failed to get frm routing algorithm")?
+            .unwrap_or_default()
+            .algorithm_id,
+    ];
 
     #[cfg(feature = "v2")]
-    let active_payment_routing_id = business_profile.routing_algorithm_id.clone();
+    let active_payment_routing_ids = [business_profile.routing_algorithm_id.clone()];
 
     let routing_metadatas = state
         .store
@@ -2575,7 +2588,7 @@ pub async fn migrate_rules_for_profile(
         match create_de_euclid_routing_algo(&state, &routing_rule).await {
             Ok(decision_engine_routing_id) => {
                 let mut is_active_rule = false;
-                if active_payment_routing_id == Some(algorithm.algorithm_id.clone()) {
+                if active_payment_routing_ids.contains(&Some(algorithm.algorithm_id.clone())) {
                     link_de_euclid_routing_algorithm(
                         &state,
                         ActivateRoutingConfigRequest {
