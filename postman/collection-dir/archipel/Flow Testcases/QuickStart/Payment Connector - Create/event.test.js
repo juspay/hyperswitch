@@ -19,6 +19,7 @@ pm.test(
 // Set response object as internal variable
 let jsonData = pm.response.json();
 
+// Validate if connector_type is payment_processor
 pm.test(
     "[POST]::/account/:account_id/connectors - Validate connector_type",
     function () {
@@ -28,6 +29,7 @@ pm.test(
     },
 );
 
+// Validate if connector_name is archipel
 pm.test(
     "[POST]::/account/:account_id/connectors - Validate connector_name",
     function () {
@@ -37,6 +39,7 @@ pm.test(
     },
 );
 
+// Validate if connector_account_details are not empty
 pm.test(
     "[POST]::/account/:account_id/connectors - Validate merchant_connector_id",
     function () {
@@ -61,6 +64,7 @@ pm.test(
     },
 );
 
+// Validate if connector_account_details is not empty
 pm.test(
     "[POST]::/account/:account_id/connectors - Validate auth_type is HeaderKey",
     function () {
@@ -77,21 +81,23 @@ pm.test(
     },
 );
 
+// Validate if test_mode is true
 pm.test(
     "[POST]::/account/:account_id/connectors - Validate is not test_mode",
     function () {
-        pm.expect(jsonData.test_mode).to.be.false;
+        pm.expect(jsonData.test_mode).to.be.true;
     },
 );
 
-
+// Validate if disabled is false
 pm.test(
     "[POST]::/account/:account_id/connectors - Validate is not disabled",
     function () {
-        pm.expect(jsonData.test_mode).to.be.false;
+        pm.expect(jsonData.disabled).to.be.false;
     },
 );
 
+// Validate if status is active
 pm.test(
     "[POST]::/account/:account_id/connectors - Validate have active status",
     function () {

@@ -77,7 +77,7 @@
         }
       },
       "profile_id": "{{profile_id}}",
-      "test_mode": false,
+      "test_mode": true,
       "disabled": false,
       "payment_methods_enabled": [
         {
