@@ -104,7 +104,7 @@ pub fn get_client_builder(
             reqwest::Proxy::http(url)
                 .change_context(HttpClientError::InvalidProxyConfiguration)
                 .attach_printable("HTTP proxy configuration error")?
-                .no_proxy(proxy_exclusion_config),
+                .no_proxy(proxy_exclusion_config.clone()),
         );
     }
 
