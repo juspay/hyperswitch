@@ -1557,6 +1557,11 @@ impl MerchantAccount {
                             .route(web::put().to(admin::update_merchant_account)),
                     )
                     .service(
+                        web::resource("/kv")
+                            .route(web::post().to(admin::merchant_account_toggle_kv))
+                            .route(web::get().to(admin::merchant_account_kv_status)),
+                    )
+                    .service(
                         web::resource("/profiles").route(web::get().to(profiles::profiles_list)),
                     ),
             )
