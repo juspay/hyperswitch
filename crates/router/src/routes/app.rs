@@ -2533,7 +2533,7 @@ impl User {
                     .route(web::delete().to(user::delete_sample_data)),
             )
         }
-
+        // Admin Theme
         route = route.service(
             web::scope("/admin/theme")
                 .service(
@@ -2549,7 +2549,7 @@ impl User {
                         .route(web::delete().to(user::theme::delete_theme)),
                 ),
         );
-
+        // User Theme
         route = route.service(
             web::scope("/theme")
                 .service(web::resource("").route(web::post().to(user::theme::create_user_theme)))
