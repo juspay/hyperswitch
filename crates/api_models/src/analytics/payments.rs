@@ -6,9 +6,12 @@ use std::{
 use common_utils::id_type;
 
 use super::{ForexMetric, NameDescription, TimeRange};
-use crate::enums::{
-    AttemptStatus, AuthenticationType, CardNetwork, Connector, Currency, PaymentMethod,
-    PaymentMethodType,
+use crate::{
+    enums::{
+        AttemptStatus, AuthenticationType, CardNetwork, Connector, Currency, PaymentMethod,
+        PaymentMethodType,
+    },
+    events::routing,
 };
 
 #[derive(Clone, Debug, Default, serde::Deserialize, serde::Serialize)]
@@ -43,6 +46,8 @@ pub struct PaymentFilters {
     pub error_reason: Vec<String>,
     #[serde(default)]
     pub first_attempt: Vec<bool>,
+    #[serde(default)]
+    pub routing_approach: Vec<common_enums::RoutingApproach>,
 }
 
 #[derive(
@@ -84,6 +89,7 @@ pub enum PaymentDimensions {
     CardLast4,
     CardIssuer,
     ErrorReason,
+    RoutingApproach,
 }
 
 #[derive(
@@ -200,6 +206,7 @@ pub struct PaymentMetricsBucketIdentifier {
     pub card_last_4: Option<String>,
     pub card_issuer: Option<String>,
     pub error_reason: Option<String>,
+    pub routing_approach: Option<common_enums::RoutingApproach>,
     #[serde(rename = "time_range")]
     pub time_bucket: TimeRange,
     // Coz FE sucks
@@ -225,6 +232,7 @@ impl PaymentMetricsBucketIdentifier {
         card_last_4: Option<String>,
         card_issuer: Option<String>,
         error_reason: Option<String>,
+        routing_approach: Option<common_enums::RoutingApproach>,
         normalized_time_range: TimeRange,
     ) -> Self {
         Self {
@@ -242,6 +250,7 @@ impl PaymentMetricsBucketIdentifier {
             card_last_4,
             card_issuer,
             error_reason,
+            routing_approach,
             time_bucket: normalized_time_range,
             start_time: normalized_time_range.start_time,
         }
@@ -264,6 +273,7 @@ impl Hash for PaymentMetricsBucketIdentifier {
         self.card_last_4.hash(state);
         self.card_issuer.hash(state);
         self.error_reason.hash(state);
+        self.routing_approach.map(|i| i.to_string()).hash(state);
         self.time_bucket.hash(state);
     }
 }
