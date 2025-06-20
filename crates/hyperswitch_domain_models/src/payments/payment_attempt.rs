@@ -739,6 +739,12 @@ impl PaymentAttempt {
             revenue_recovery: Some({
                 PaymentAttemptRevenueRecoveryData {
                     attempt_triggered_by: request.triggered_by,
+                    charge_id: request.feature_metadata.as_ref().and_then(|metadata| {
+                        metadata
+                            .revenue_recovery
+                            .as_ref()
+                            .and_then(|data| data.charge_id.clone())
+                    }),
                 }
             }),
         };
@@ -2794,6 +2800,8 @@ pub struct PaymentAttemptFeatureMetadata {
 #[derive(Debug, Clone, serde::Serialize, PartialEq)]
 pub struct PaymentAttemptRevenueRecoveryData {
     pub attempt_triggered_by: common_enums::TriggeredBy,
+    // stripe specific field used to identify duplicate attempts.
+    pub charge_id: Option<String>,
 }
 
 #[cfg(feature = "v2")]
@@ -2804,6 +2812,7 @@ impl From<&PaymentAttemptFeatureMetadata> for DieselPaymentAttemptFeatureMetadat
                 .as_ref()
                 .map(|recovery_data| DieselPassiveChurnRecoveryData {
                     attempt_triggered_by: recovery_data.attempt_triggered_by,
+                    charge_id: recovery_data.charge_id.clone(),
                 });
         Self { revenue_recovery }
     }
@@ -2816,6 +2825,7 @@ impl From<DieselPaymentAttemptFeatureMetadata> for PaymentAttemptFeatureMetadata
             item.revenue_recovery
                 .map(|recovery_data| PaymentAttemptRevenueRecoveryData {
                     attempt_triggered_by: recovery_data.attempt_triggered_by,
+                    charge_id: recovery_data.charge_id,
                 });
         Self { revenue_recovery }
     }

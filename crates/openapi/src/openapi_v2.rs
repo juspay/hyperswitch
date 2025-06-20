@@ -433,6 +433,8 @@ Never share your secret api keys. Keep them guarded and secure.
         api_models::payments::PaymentsCreateIntentRequest,
         api_models::payments::PaymentsUpdateIntentRequest,
         api_models::payments::PaymentsIntentResponse,
+        api_models::payments::PaymentAttemptListRequest,
+        api_models::payments::PaymentAttemptListResponse,
         api_models::payments::PazeWalletData,
         api_models::payments::AmountDetails,
         api_models::payments::AmountDetailsUpdate,
