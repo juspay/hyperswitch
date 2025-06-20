@@ -8,6 +8,7 @@ import { connectorDetails as airwallexConnectorDetails } from "./Airwallex.js";
 import { connectorDetails as archipelConnectorDetails } from "./Archipel.js";
 import { connectorDetails as bamboraapacConnectorDetails } from "./Bamboraapac.js";
 import { connectorDetails as bankOfAmericaConnectorDetails } from "./BankOfAmerica.js";
+import { connectorDetails as billwerkConnectorDetails } from "./Billwerk.js";
 import { connectorDetails as bluesnapConnectorDetails } from "./Bluesnap.js";
 import { connectorDetails as braintreeConnectorDetails } from "./Braintree.js";
 import { connectorDetails as checkoutConnectorDetails } from "./Checkout.js";
@@ -42,10 +43,12 @@ import { connectorDetails as xenditConnectorDetails } from "./Xendit.js";
 
 const connectorDetails = {
   aci: aciConnectorDetails,
-  airwallex: airwallexConnectorDetails,
   adyen: adyenConnectorDetails,
-  bankofamerica: bankOfAmericaConnectorDetails,
+  airwallex: airwallexConnectorDetails,
+  archipel: archipelConnectorDetails,
   bamboraapac: bamboraapacConnectorDetails,
+  bankofamerica: bankOfAmericaConnectorDetails,
+  billwerk: billwerkConnectorDetails,
   bluesnap: bluesnapConnectorDetails,
   braintree: braintreeConnectorDetails,
   checkout: checkoutConnectorDetails,
@@ -77,7 +80,6 @@ const connectorDetails = {
   worldpay: worldpayConnectorDetails,
   worldpayxml: worldpayxmlConnectorDetails,
   xendit: xenditConnectorDetails,
-  archipel: archipelConnectorDetails,
 };
 
 export default function getConnectorDetails(connectorId) {
@@ -338,6 +340,7 @@ export const CONNECTOR_LISTS = {
   EXCLUDE: {
     CONNECTOR_AGNOSTIC_NTID: [
       "bankofamerica",
+      "billwerk",
       "braintree",
       "facilitapay",
       "fiuu",

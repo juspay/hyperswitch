@@ -726,6 +726,12 @@ impl PaymentAttempt {
             revenue_recovery: Some({
                 PaymentAttemptRevenueRecoveryData {
                     attempt_triggered_by: request.triggered_by,
+                    charge_id: request.feature_metadata.as_ref().and_then(|metadata| {
+                        metadata
+                            .revenue_recovery
+                            .as_ref()
+                            .and_then(|data| data.charge_id.clone())
+                    }),
                 }
             }),
         };
@@ -1757,7 +1763,7 @@ pub enum PaymentAttemptUpdate {
         status: storage_enums::AttemptStatus,
         updated_by: String,
         connector: String,
-        merchant_connector_id: id_type::MerchantConnectorAccountId,
+        merchant_connector_id: Option<id_type::MerchantConnectorAccountId>,
         authentication_type: storage_enums::AuthenticationType,
         connector_request_reference_id: Option<String>,
     },
@@ -2559,7 +2565,7 @@ impl From<PaymentAttemptUpdate> for diesel_models::PaymentAttemptUpdateInternal 
                 error_code: None,
                 error_reason: None,
                 updated_by,
-                merchant_connector_id: Some(merchant_connector_id),
+                merchant_connector_id,
                 unified_code: None,
                 unified_message: None,
                 connector_payment_id: None,
@@ -2781,6 +2787,8 @@ pub struct PaymentAttemptFeatureMetadata {
 #[derive(Debug, Clone, serde::Serialize, PartialEq)]
 pub struct PaymentAttemptRevenueRecoveryData {
     pub attempt_triggered_by: common_enums::TriggeredBy,
+    // stripe specific field used to identify duplicate attempts.
+    pub charge_id: Option<String>,
 }
 
 #[cfg(feature = "v2")]
@@ -2791,6 +2799,7 @@ impl From<&PaymentAttemptFeatureMetadata> for DieselPaymentAttemptFeatureMetadat
                 .as_ref()
                 .map(|recovery_data| DieselPassiveChurnRecoveryData {
                     attempt_triggered_by: recovery_data.attempt_triggered_by,
+                    charge_id: recovery_data.charge_id.clone(),
                 });
         Self { revenue_recovery }
     }
@@ -2803,6 +2812,7 @@ impl From<DieselPaymentAttemptFeatureMetadata> for PaymentAttemptFeatureMetadata
             item.revenue_recovery
                 .map(|recovery_data| PaymentAttemptRevenueRecoveryData {
                     attempt_triggered_by: recovery_data.attempt_triggered_by,
+                    charge_id: recovery_data.charge_id,
                 });
         Self { revenue_recovery }
     }
