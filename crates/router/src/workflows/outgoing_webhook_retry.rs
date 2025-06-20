@@ -5,10 +5,10 @@ use api_models::{
     webhook_events::OutgoingWebhookRequestContent,
     webhooks::{OutgoingWebhook, OutgoingWebhookContent},
 };
-use common_utils::id_type;
 use common_utils::{
     consts::DEFAULT_LOCALE,
     ext_traits::{StringExt, ValueExt},
+    id_type,
 };
 use diesel_models::process_tracker::business_status;
 use error_stack::ResultExt;

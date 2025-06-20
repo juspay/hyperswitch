@@ -1230,8 +1230,7 @@ pub async fn update_payouts_and_payout_attempt(
     let payout_id_as_payment_id_type =
         id_type::PaymentId::try_from(std::borrow::Cow::Owned(payout_id.to_string()))
             .change_context(errors::ApiErrorResponse::InvalidRequestData {
-                message: "payout_id contains invalid data for PaymentId conversion"
-                    .to_string(),
+                message: "payout_id contains invalid data for PaymentId conversion".to_string(),
             })
             .attach_printable("Error converting payout_id to PaymentId type")?;
 

@@ -27,6 +27,7 @@ use diesel::{
     serialize::{Output, ToSql},
     sql_types,
 };
+pub use payout::PayoutId;
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
 
@@ -55,7 +56,6 @@ pub use self::{
     tenant::TenantId,
 };
 use crate::{fp_utils::when, generate_id_with_default_len};
-pub use payout::PayoutId;
 
 #[inline]
 fn is_valid_id_character(input_char: char) -> bool {
