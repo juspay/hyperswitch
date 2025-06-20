@@ -289,7 +289,7 @@ impl AmountDetails {
     }
 
     /// Get the action to whether calculate external tax or not as a boolean value
-    fn get_external_tax_action_as_bool(&self) -> bool {
+    pub fn get_external_tax_action_as_bool(&self) -> bool {
         self.skip_external_tax_calculation.as_bool()
     }
 
@@ -843,6 +843,16 @@ where
     pub client_secret: Option<Secret<String>>,
     pub vault_session_details: Option<VaultSessionDetails>,
     pub connector_customer_id: Option<String>,
+}
+
+#[cfg(feature = "v2")]
+#[derive(Clone)]
+pub struct PaymentAttemptListData<F>
+where
+    F: Clone,
+{
+    pub flow: PhantomData<F>,
+    pub payment_attempt_list: Vec<PaymentAttempt>,
 }
 
 // TODO: Check if this can be merged with existing payment data

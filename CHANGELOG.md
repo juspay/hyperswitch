@@ -4,6 +4,20 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2025.06.20.0
+
+### Features
+
+- **kafka:** Add payment_intent payment_attempt and refund kafka events for v2 ([#8328](https://github.com/juspay/hyperswitch/pull/8328)) ([`305ca9b`](https://github.com/juspay/hyperswitch/commit/305ca9bda9d3c5bf3cc97458b7ed07b79e894154))
+
+### Bug Fixes
+
+- **connectors:** [worldpayvantiv] change endpoint, add billing address and fix 5xx incase of psync ([#8354](https://github.com/juspay/hyperswitch/pull/8354)) ([`5f7055f`](https://github.com/juspay/hyperswitch/commit/5f7055fc8c0d4b4c5e329fa6a527371338ef3b38))
+
+**Full Changelog:** [`2025.06.19.0...2025.06.20.0`](https://github.com/juspay/hyperswitch/compare/2025.06.19.0...2025.06.20.0)
+
+- - -
+
 ## 2025.06.19.0
 
 ### Bug Fixes

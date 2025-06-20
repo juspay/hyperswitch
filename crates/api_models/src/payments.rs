@@ -290,7 +290,18 @@ pub struct MerchantConnectorDetails {
     }"#)]
     pub merchant_connector_creds: pii::SecretSerdeValue,
 }
+#[cfg(feature = "v2")]
+#[derive(Debug, serde::Serialize, serde::Deserialize, Clone, ToSchema)]
+pub struct PaymentAttemptListRequest {
+    #[schema(value_type = String)]
+    pub payment_intent_id: id_type::GlobalPaymentId,
+}
 
+#[cfg(feature = "v2")]
+#[derive(Debug, serde::Serialize, Clone, ToSchema)]
+pub struct PaymentAttemptListResponse {
+    pub payment_attempt_list: Vec<PaymentAttemptResponse>,
+}
 #[cfg(feature = "v2")]
 impl PaymentsCreateIntentRequest {
     pub fn get_feature_metadata_as_value(
@@ -5560,25 +5571,24 @@ impl From<&PaymentsRequest> for PaymentsCreateIntentRequest {
             billing: request.billing.clone(),
             shipping: request.shipping.clone(),
             customer_id: request.customer_id.clone(),
-            customer_present: request.customer_present.clone(),
+            customer_present: request.customer_present,
             description: request.description.clone(),
             return_url: request.return_url.clone(),
             setup_future_usage: request.setup_future_usage,
-            apply_mit_exemption: request.apply_mit_exemption.clone(),
+            apply_mit_exemption: request.apply_mit_exemption,
             statement_descriptor: request.statement_descriptor.clone(),
             order_details: request.order_details.clone(),
             allowed_payment_method_types: request.allowed_payment_method_types.clone(),
             metadata: request.metadata.clone(),
             connector_metadata: request.connector_metadata.clone(),
             feature_metadata: request.feature_metadata.clone(),
-            payment_link_enabled: request.payment_link_enabled.clone(),
+            payment_link_enabled: request.payment_link_enabled,
             payment_link_config: request.payment_link_config.clone(),
             request_incremental_authorization: request.request_incremental_authorization,
             session_expiry: request.session_expiry,
             frm_metadata: request.frm_metadata.clone(),
             request_external_three_ds_authentication: request
-                .request_external_three_ds_authentication
-                .clone(),
+                .request_external_three_ds_authentication,
             force_3ds_challenge: request.force_3ds_challenge,
             merchant_connector_details: request.merchant_connector_details.clone(),
         }
