@@ -2562,20 +2562,3 @@ pub async fn delete_decision_engine_merchant(
 
     Ok(())
 }
-
-pub async fn update_routing_approach_in_attempt(
-    state: &SessionState,
-    payment_attempt: domain_payments::payment_attempt::PaymentAttempt,
-    routing_approach: common_enums::RoutingApproach,
-    storage_scheme: common_enums::MerchantStorageScheme,
-) -> RouterResult<domain_payments::payment_attempt::PaymentAttempt> {
-    let db = state.store.as_ref();
-    let attempt_update = hyperswitch_domain_models::payments::payment_attempt::PaymentAttemptUpdate::RoutingApproachUpdate { routing_approach: Some(routing_approach), updated_by: "fix this".to_string() };
-    let updated_attempt = db
-        .update_payment_attempt_with_attempt_id(payment_attempt, attempt_update, storage_scheme)
-        .await
-        .change_context(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable("Failed to update routing approach in payment attempt")?;
-
-    Ok(updated_attempt)
-}

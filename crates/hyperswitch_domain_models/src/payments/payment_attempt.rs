@@ -1219,6 +1219,7 @@ pub enum PaymentAttemptUpdate {
         customer_acceptance: Option<pii::SecretSerdeValue>,
         connector_mandate_detail: Option<ConnectorMandateReferenceId>,
         card_discovery: Option<common_enums::CardDiscovery>,
+        routing_approach: Option<storage_enums::RoutingApproach>, // where all to add this one
     },
     RejectUpdate {
         status: storage_enums::AttemptStatus,
@@ -1354,10 +1355,6 @@ pub enum PaymentAttemptUpdate {
         updated_by: String,
         connector_metadata: Option<serde_json::Value>,
     },
-    RoutingApproachUpdate {
-        routing_approach: Option<storage_enums::RoutingApproach>,
-        updated_by: String,
-    },
 }
 
 #[cfg(feature = "v1")]
@@ -1481,6 +1478,7 @@ impl PaymentAttemptUpdate {
                 customer_acceptance,
                 connector_mandate_detail,
                 card_discovery,
+                routing_approach,
             } => DieselPaymentAttemptUpdate::ConfirmUpdate {
                 amount: net_amount.get_order_amount(),
                 currency,
@@ -1516,6 +1514,7 @@ impl PaymentAttemptUpdate {
                 order_tax_amount: net_amount.get_order_tax_amount(),
                 connector_mandate_detail,
                 card_discovery,
+                routing_approach,
             },
             Self::VoidUpdate {
                 status,
@@ -1738,13 +1737,6 @@ impl PaymentAttemptUpdate {
             } => DieselPaymentAttemptUpdate::PostSessionTokensUpdate {
                 updated_by,
                 connector_metadata,
-            },
-            Self::RoutingApproachUpdate {
-                routing_approach,
-                updated_by,
-            } => DieselPaymentAttemptUpdate::RoutingApproachUpdate {
-                routing_approach,
-                updated_by,
             },
         }
     }
