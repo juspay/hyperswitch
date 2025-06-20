@@ -10481,7 +10481,7 @@ impl<F: Clone> OperationSessionGetters<F> for PaymentAttemptListData<F> {
         todo!()
     }
 
-    fn get_refunds(&self) -> Vec<storage::Refund> {
+    fn get_refunds(&self) -> Vec<diesel_refund::Refund> {
         todo!()
     }
 
