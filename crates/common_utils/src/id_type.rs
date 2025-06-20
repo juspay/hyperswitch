@@ -10,6 +10,7 @@ mod merchant;
 mod merchant_connector_account;
 mod organization;
 mod payment;
+mod payout;
 mod profile;
 mod profile_acquirer;
 mod refunds;
@@ -54,6 +55,7 @@ pub use self::{
     tenant::TenantId,
 };
 use crate::{fp_utils::when, generate_id_with_default_len};
+pub use payout::PayoutId;
 
 #[inline]
 fn is_valid_id_character(input_char: char) -> bool {

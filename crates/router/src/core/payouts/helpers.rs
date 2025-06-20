@@ -1201,7 +1201,8 @@ pub async fn update_payouts_and_payout_attempt(
         return Err(report!(errors::ApiErrorResponse::InvalidRequestData {
             message: format!(
                 "Payout {} cannot be updated for status {}",
-                payout_id, status
+                payout_id.get_string_repr(),
+                status
             ),
         }));
     }
@@ -1227,9 +1228,10 @@ pub async fn update_payouts_and_payout_attempt(
     // We have to do this because the function that is being used to create / get address is from payments
     // which expects a payment_id
     let payout_id_as_payment_id_type =
-        id_type::PaymentId::try_from(std::borrow::Cow::Owned(payout_id.clone()))
+        id_type::PaymentId::try_from(std::borrow::Cow::Owned(payout_id.to_string()))
             .change_context(errors::ApiErrorResponse::InvalidRequestData {
-                message: "payout_id contains invalid data".to_string(),
+                message: "payout_id contains invalid data for PaymentId conversion"
+                    .to_string(),
             })
             .attach_printable("Error converting payout_id to PaymentId type")?;
 

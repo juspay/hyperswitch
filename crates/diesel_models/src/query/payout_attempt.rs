@@ -56,13 +56,13 @@ impl PayoutAttempt {
     pub async fn find_by_merchant_id_payout_id(
         conn: &PgPooledConn,
         merchant_id: &common_utils::id_type::MerchantId,
-        payout_id: &str,
+        payout_id: &common_utils::id_type::PayoutId,
     ) -> StorageResult<Self> {
         generics::generic_find_one::<<Self as HasTable>::Table, _, _>(
             conn,
             dsl::merchant_id
                 .eq(merchant_id.to_owned())
-                .and(dsl::payout_id.eq(payout_id.to_owned())),
+                .and(dsl::payout_id.eq(payout_id.to_string())),
         )
         .await
     }
@@ -95,17 +95,31 @@ impl PayoutAttempt {
         .await
     }
 
+    pub async fn find_by_merchant_id_merchant_order_reference_id(
+        conn: &PgPooledConn,
+        merchant_id_input: &common_utils::id_type::MerchantId,
+        merchant_order_reference_id_input: &str,
+    ) -> StorageResult<Self> {
+        generics::generic_find_one::<<Self as HasTable>::Table, _, _>(
+            conn,
+            dsl::merchant_id.eq(merchant_id_input.to_owned()).and(
+                dsl::merchant_order_reference_id.eq(merchant_order_reference_id_input.to_owned()),
+            ),
+        )
+        .await
+    }
+
     pub async fn update_by_merchant_id_payout_id(
         conn: &PgPooledConn,
         merchant_id: &common_utils::id_type::MerchantId,
-        payout_id: &str,
+        payout_id: &common_utils::id_type::PayoutId,
         payout: PayoutAttemptUpdate,
     ) -> StorageResult<Self> {
         generics::generic_update_with_results::<<Self as HasTable>::Table, _, _, _>(
             conn,
             dsl::merchant_id
                 .eq(merchant_id.to_owned())
-                .and(dsl::payout_id.eq(payout_id.to_owned())),
+                .and(dsl::payout_id.eq(payout_id.to_string())),
             PayoutAttemptUpdateInternal::from(payout),
         )
         .await?
@@ -160,7 +174,7 @@ impl PayoutAttempt {
 
         let active_payout_ids = payouts
             .iter()
-            .map(|payout| payout.payout_id.clone())
+            .map(|payout| payout.payout_id.to_string()) // Use to_string() now that Display is implemented
             .collect::<Vec<String>>();
 
         let filter = <Self as HasTable>::table()

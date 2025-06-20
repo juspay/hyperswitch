@@ -5,6 +5,7 @@ use api_models::{
     webhook_events::OutgoingWebhookRequestContent,
     webhooks::{OutgoingWebhook, OutgoingWebhookContent},
 };
+use common_utils::id_type;
 use common_utils::{
     consts::DEFAULT_LOCALE,
     ext_traits::{StringExt, ValueExt},
@@ -283,7 +284,7 @@ impl ProcessTrackerWorkflow<SessionState> for OutgoingWebhookRetryWorkflow {
 #[instrument(skip_all)]
 pub(crate) async fn get_webhook_delivery_retry_schedule_time(
     db: &dyn StorageInterface,
-    merchant_id: &common_utils::id_type::MerchantId,
+    merchant_id: &id_type::MerchantId,
     retry_count: i32,
 ) -> Option<time::PrimitiveDateTime> {
     let key = "pt_mapping_outgoing_webhooks";
@@ -329,7 +330,7 @@ pub(crate) async fn get_webhook_delivery_retry_schedule_time(
 #[instrument(skip_all)]
 pub(crate) async fn retry_webhook_delivery_task(
     db: &dyn StorageInterface,
-    merchant_id: &common_utils::id_type::MerchantId,
+    merchant_id: &id_type::MerchantId,
     process: storage::ProcessTracker,
 ) -> errors::CustomResult<(), errors::StorageError> {
     let schedule_time =
@@ -385,15 +386,14 @@ async fn get_outgoing_webhook_content_and_event_type(
     match tracking_data.event_class {
         diesel_models::enums::EventClass::Payments => {
             let payment_id = tracking_data.primary_object_id.clone();
-            let payment_id =
-                common_utils::id_type::PaymentId::try_from(std::borrow::Cow::Owned(payment_id))
-                    .map_err(|payment_id_parsing_error| {
-                        logger::error!(
-                            ?payment_id_parsing_error,
-                            "Failed to parse payment ID from tracking data"
-                        );
-                        errors::ProcessTrackerError::DeserializationFailed
-                    })?;
+            let payment_id = id_type::PaymentId::try_from(std::borrow::Cow::Owned(payment_id))
+                .map_err(|payment_id_parsing_error| {
+                    logger::error!(
+                        ?payment_id_parsing_error,
+                        "Failed to parse payment ID from tracking data"
+                    );
+                    errors::ProcessTrackerError::DeserializationFailed
+                })?;
             let request = PaymentsRetrieveRequest {
                 resource_id: PaymentIdType::PaymentIntentId(payment_id),
                 merchant_id: Some(tracking_data.merchant_id.clone()),
@@ -539,7 +539,9 @@ async fn get_outgoing_webhook_content_and_event_type(
         diesel_models::enums::EventClass::Payouts => {
             let payout_id = tracking_data.primary_object_id.clone();
             let request = payout_models::PayoutRequest::PayoutActionRequest(
-                payout_models::PayoutActionRequest { payout_id },
+                payout_models::PayoutActionRequest {
+                    payout_id: id_type::PayoutId::try_from(std::borrow::Cow::Owned(payout_id))?,
+                },
             );
 
             let payout_data = Box::pin(payouts::make_payout_data(

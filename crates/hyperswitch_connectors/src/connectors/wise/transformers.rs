@@ -15,6 +15,8 @@ use hyperswitch_domain_models::types::{PayoutsResponseData, PayoutsRouterData};
 use hyperswitch_interfaces::errors::ConnectorError;
 use masking::Secret;
 use serde::{Deserialize, Serialize};
+#[cfg(feature = "payouts")]
+use uuid;
 
 #[cfg(feature = "payouts")]
 use crate::types::PayoutsResponseRouterData;
@@ -507,10 +509,16 @@ impl<F> TryFrom<&PayoutsRouterData<F>> for WisePayoutCreateRequest {
                         field_name: "profile",
                     }
                 })?;
+
+                let customer_transaction_id =
+                    uuid::Uuid::parse_str(&item.connector_request_reference_id)
+                        .map(|parsed_uuid| parsed_uuid.to_string())
+                        .unwrap_or_else(|_| uuid::Uuid::new_v4().to_string());
+
                 Ok(Self {
                     target_account,
                     quote_uuid,
-                    customer_transaction_id: request.payout_id,
+                    customer_transaction_id,
                     details: wise_transfer_details,
                 })
             }

@@ -47,13 +47,13 @@ impl Payouts {
     pub async fn find_by_merchant_id_payout_id(
         conn: &PgPooledConn,
         merchant_id: &common_utils::id_type::MerchantId,
-        payout_id: &str,
+        payout_id: &common_utils::id_type::PayoutId,
     ) -> StorageResult<Self> {
         generics::generic_find_one::<<Self as HasTable>::Table, _, _>(
             conn,
             dsl::merchant_id
                 .eq(merchant_id.to_owned())
-                .and(dsl::payout_id.eq(payout_id.to_owned())),
+                .and(dsl::payout_id.eq(payout_id.to_string())),
         )
         .await
     }
@@ -61,14 +61,14 @@ impl Payouts {
     pub async fn update_by_merchant_id_payout_id(
         conn: &PgPooledConn,
         merchant_id: &common_utils::id_type::MerchantId,
-        payout_id: &str,
+        payout_id: &common_utils::id_type::PayoutId,
         payout: PayoutsUpdate,
     ) -> StorageResult<Self> {
         generics::generic_update_with_results::<<Self as HasTable>::Table, _, _, _>(
             conn,
             dsl::merchant_id
                 .eq(merchant_id.to_owned())
-                .and(dsl::payout_id.eq(payout_id.to_owned())),
+                .and(dsl::payout_id.eq(payout_id.to_string())),
             PayoutsUpdateInternal::from(payout),
         )
         .await?
@@ -82,13 +82,13 @@ impl Payouts {
     pub async fn find_optional_by_merchant_id_payout_id(
         conn: &PgPooledConn,
         merchant_id: &common_utils::id_type::MerchantId,
-        payout_id: &str,
+        payout_id: &common_utils::id_type::PayoutId,
     ) -> StorageResult<Option<Self>> {
         generics::generic_find_one_optional::<<Self as HasTable>::Table, _, _>(
             conn,
             dsl::merchant_id
                 .eq(merchant_id.to_owned())
-                .and(dsl::payout_id.eq(payout_id.to_owned())),
+                .and(dsl::payout_id.eq(payout_id.to_string())),
         )
         .await
     }
@@ -96,17 +96,21 @@ impl Payouts {
     pub async fn get_total_count_of_payouts(
         conn: &PgPooledConn,
         merchant_id: &common_utils::id_type::MerchantId,
-        active_payout_ids: &[String],
+        active_payout_ids: &[common_utils::id_type::PayoutId],
         connector: Option<Vec<String>>,
         currency: Option<Vec<enums::Currency>>,
         status: Option<Vec<enums::PayoutStatus>>,
         payout_type: Option<Vec<enums::PayoutType>>,
     ) -> StorageResult<i64> {
+        let active_payout_ids_str: Vec<String> = active_payout_ids
+            .iter()
+            .map(|pid| pid.to_string())
+            .collect();
         let mut filter = <Self as HasTable>::table()
             .inner_join(payout_attempt::table.on(payout_attempt::dsl::payout_id.eq(dsl::payout_id)))
             .count()
             .filter(dsl::merchant_id.eq(merchant_id.to_owned()))
-            .filter(dsl::payout_id.eq_any(active_payout_ids.to_owned()))
+            .filter(dsl::payout_id.eq_any(active_payout_ids_str))
             .into_boxed();
 
         if let Some(connector) = connector {

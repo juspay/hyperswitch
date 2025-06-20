@@ -4,8 +4,6 @@ use async_trait::async_trait;
 use common_utils::pii::Email;
 use error_stack::Report;
 use masking::Secret;
-#[cfg(feature = "payouts")]
-use router::core::utils as core_utils;
 use router::{
     configs::settings::Settings,
     core::{errors::ConnectorError, payments},
@@ -454,8 +452,7 @@ pub trait ConnectorActions: Connector {
     ) -> RouterData<Flow, types::PayoutsData, Res> {
         self.generate_data(
             types::PayoutsData {
-                payout_id: core_utils::get_or_generate_uuid("payout_id", None)
-                    .map_or("payout_3154763247".to_string(), |p| p),
+                payout_id: common_utils::id_type::PayoutId::default(),
                 amount: 1,
                 minor_amount: MinorUnit::new(1),
                 connector_payout_id,

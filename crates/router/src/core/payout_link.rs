@@ -227,7 +227,7 @@ pub async fn initiate_payout_link(
                 ),
                 client_secret: link_data.client_secret.clone(),
                 payout_link_id: payout_link.link_id,
-                payout_id: payout_link.primary_reference,
+                payout_id: payout_link.primary_reference.clone(),
                 customer_id: customer.customer_id,
                 session_expiry: payout_link.expiry,
                 return_url: payout_link
@@ -284,7 +284,7 @@ pub async fn initiate_payout_link(
                 .await?;
             let js_data = payouts::PayoutLinkStatusDetails {
                 payout_link_id: payout_link.link_id,
-                payout_id: payout_link.primary_reference,
+                payout_id: payout_link.primary_reference.clone(),
                 customer_id: link_data.customer_id,
                 session_expiry: payout_link.expiry,
                 return_url: payout_link
