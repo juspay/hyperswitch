@@ -1387,7 +1387,7 @@ impl ConnectorAuthTypeAndMetadataValidation<'_> {
             | api_enums::Connector::DummyConnector5
             | api_enums::Connector::DummyConnector6
             | api_enums::Connector::DummyConnector7 => {
-                dummyconnector::transformers::DummyConnectorAuthType::try_from(self.auth_type)?;
+                hyperswitch_connectors::connectors::dummyconnector::transformers::DummyConnectorAuthType::try_from(self.auth_type)?;
                 Ok(())
             }
             api_enums::Connector::Aci => {
@@ -1706,6 +1706,10 @@ impl ConnectorAuthTypeAndMetadataValidation<'_> {
                 redsys::transformers::RedsysAuthType::try_from(self.auth_type)?;
                 Ok(())
             }
+            // api_enums::Connector::Santander => {
+            //     santander::transformers::SantanderAuthType::try_from(self.auth_type)?;
+            //     Ok(())
+            // },
             api_enums::Connector::Shift4 => {
                 shift4::transformers::Shift4AuthType::try_from(self.auth_type)?;
                 Ok(())
