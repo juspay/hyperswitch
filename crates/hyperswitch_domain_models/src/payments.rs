@@ -746,6 +746,8 @@ impl PaymentIntent {
             invoice_next_billing_time: None,
             card_isin: None,
             card_network: None,
+            // No charge id is present here since it is an internal payment and we didn't call connector yet.
+            charge_id: None,
         })
     }
 
@@ -843,6 +845,16 @@ where
     pub client_secret: Option<Secret<String>>,
     pub vault_session_details: Option<VaultSessionDetails>,
     pub connector_customer_id: Option<String>,
+}
+
+#[cfg(feature = "v2")]
+#[derive(Clone)]
+pub struct PaymentAttemptListData<F>
+where
+    F: Clone,
+{
+    pub flow: PhantomData<F>,
+    pub payment_attempt_list: Vec<PaymentAttempt>,
 }
 
 // TODO: Check if this can be merged with existing payment data
