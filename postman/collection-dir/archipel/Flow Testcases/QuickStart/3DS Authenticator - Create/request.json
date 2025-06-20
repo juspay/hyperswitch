@@ -50,11 +50,11 @@
       "connector_name": "netcetera",
       "connector_account_details": {
         "auth_type": "CertificateAuth",
-        "certificate": "{{three_ds_authenticator_certificate}}",
-        "private_key": "{{three_ds_authenticator_private_key}}"
+        "certificate": "{{netcetera_certificate}}",
+        "private_key": "{{netcetera_private_key}}"
       },
       "metadata": {
-        "merchant_configuration_id": "{{three_ds_authenticator_merchant_configuration_id}}",
+        "merchant_configuration_id": "{{netcetera_merchant_configuration_id}}",
         "endpoint_prefix": "flowbird",
         "pull_mechanism_for_external_3ds_enabled": false
       },
