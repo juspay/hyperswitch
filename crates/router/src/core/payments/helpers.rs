@@ -7050,14 +7050,24 @@ pub fn validate_platform_request_for_marketplace(
             stripe_split_payment,
         )) => match amount {
             api::Amount::Zero => {
-                if stripe_split_payment.application_fees.get_amount_as_i64() != 0 {
+                if stripe_split_payment
+                    .application_fees
+                    .as_ref()
+                    .map_or(MinorUnit::zero(), |amount| *amount)
+                    != MinorUnit::zero()
+                {
                     return Err(errors::ApiErrorResponse::InvalidDataValue {
                         field_name: "split_payments.stripe_split_payment.application_fees",
                     });
                 }
             }
             api::Amount::Value(amount) => {
-                if stripe_split_payment.application_fees.get_amount_as_i64() > amount.into() {
+                if stripe_split_payment
+                    .application_fees
+                    .as_ref()
+                    .map_or(MinorUnit::zero(), |amount| *amount)
+                    > amount.into()
+                {
                     return Err(errors::ApiErrorResponse::InvalidDataValue {
                         field_name: "split_payments.stripe_split_payment.application_fees",
                     });
