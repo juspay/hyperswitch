@@ -405,48 +405,52 @@ export const connectorDetails = {
         payment_method_data: {
           card: successfulNo3DSCardDetails,
         },
-        currency: "USD",
-        mandate_data: multiUseMandateData,
       },
       Response: {
         status: 200,
         body: {
           status: "succeeded",
+          payment_method_data: paymentMethodDataNo3DSResponse,
+        },
+      },
+    },    
+    MandateMultiUseNo3DSManualCapture: {
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_capture",
           payment_method_data: paymentMethodDataNo3DSResponse,
         },
       },
     },
-    MandateSingleUseNo3DSAutoCapture: {
-      Request: {
-        payment_method: "card",
-        payment_method_data: {
-          card: successfulNo3DSCardDetails,
+    MITManualCapture: {
+      Request: {},
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_capture",
         },
-        currency: "USD",
-        mandate_data: singleUseMandateData,
+      },
+    },
+    MandateSingleUseNo3DSAutoCapture: {
+      Configs: {
+        TRIGGER_SKIP: true,
       },
       Response: {
         status: 200,
         body: {
           status: "succeeded",
-          payment_method_data: paymentMethodDataNo3DSResponse,
         },
       },
-      MandateSingleUseNo3DSManualCapture: {
-        Request: {
-          payment_method: "card",
-          payment_method_data: {
-            card: successfulNo3DSCardDetails,
-          },
-          currency: "USD",
-          mandate_data: singleUseMandateData,
-        },
-        Response: {
-          status: 200,
-          body: {
-            status: "requires_capture",
-            payment_method_data: paymentMethodDataNo3DSResponse,
-          },
+    },
+    MandateSingleUseNo3DSManualCapture: {
+      Configs: {
+        TRIGGER_SKIP: true,
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_capture",
         },
       },
     },
