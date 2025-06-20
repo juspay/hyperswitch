@@ -2434,7 +2434,7 @@ pub async fn update_decision_engine_dynamic_routing_setup(
     Ok(())
 }
 
-#[cfg(all(feature = "v1", feature = "dynamic_routing"))]]
+#[cfg(all(feature = "v1", feature = "dynamic_routing"))]
 pub async fn get_decision_engine_active_dynamic_routing_algorithm(
     state: &SessionState,
     profile_id: &id_type::ProfileId,
