@@ -424,9 +424,9 @@ pub async fn list_de_euclid_routing_algorithms(
 pub async fn list_de_euclid_active_routing_algorithm(
     state: &SessionState,
     created_by: String,
-) -> RoutingResult<api_routing::RoutingDictionaryRecord> {
+) -> RoutingResult<Vec<api_routing::RoutingDictionaryRecord>> {
     logger::debug!("decision_engine_euclid: list api call for euclid active routing algorithm");
-    let response: RoutingAlgorithmRecord = EuclidApiClient::send_decision_engine_request(
+    let response: Vec<RoutingAlgorithmRecord> = EuclidApiClient::send_decision_engine_request(
         state,
         services::Method::Post,
         format!("routing/list/active/{created_by}").as_str(),
@@ -440,7 +440,10 @@ pub async fn list_de_euclid_active_routing_algorithm(
         "Response from decision engine API is empty".to_string(),
     ))?;
 
-    Ok(routing_algorithm::RoutingProfileMetadata::from(response).foreign_into())
+    Ok(response
+        .into_iter()
+        .map(|record| routing_algorithm::RoutingProfileMetadata::from(record).foreign_into())
+        .collect())
 }
 
 pub fn compare_and_log_result<T: RoutingEq<T> + Serialize>(
@@ -978,7 +981,6 @@ pub enum StaticRoutingAlgorithm {
 #[serde(rename_all = "snake_case")]
 pub struct RoutingMetadata {
     pub kind: enums::RoutingAlgorithmKind,
-    pub algorithm_for: TransactionType,
 }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
@@ -998,6 +1000,7 @@ pub struct RoutingAlgorithmRecord {
     pub description: Option<String>,
     pub created_by: id_type::ProfileId,
     pub algorithm_data: StaticRoutingAlgorithm,
+    pub algorithm_for: TransactionType,
     pub metadata: Option<RoutingMetadata>,
     pub created_at: time::PrimitiveDateTime,
     pub modified_at: time::PrimitiveDateTime,
@@ -1005,13 +1008,7 @@ pub struct RoutingAlgorithmRecord {
 
 impl From<RoutingAlgorithmRecord> for routing_algorithm::RoutingProfileMetadata {
     fn from(record: RoutingAlgorithmRecord) -> Self {
-        let (kind, algorithm_for) = match record.metadata {
-            Some(metadata) => (metadata.kind, metadata.algorithm_for),
-            None => (
-                enums::RoutingAlgorithmKind::Advanced,
-                TransactionType::default(),
-            ),
-        };
+        let kind = record.metadata.map_or(enums::RoutingAlgorithmKind::Advanced, |metadata| metadata.kind);
         Self {
             profile_id: record.created_by,
             algorithm_id: record.id,
@@ -1020,7 +1017,7 @@ impl From<RoutingAlgorithmRecord> for routing_algorithm::RoutingProfileMetadata 
             kind,
             created_at: record.created_at,
             modified_at: record.modified_at,
-            algorithm_for,
+            algorithm_for: record.algorithm_for,
         }
     }
 }

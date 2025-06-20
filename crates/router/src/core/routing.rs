@@ -25,8 +25,6 @@ use external_services::grpc_client::dynamic_routing::{
 use helpers::update_decision_engine_dynamic_routing_setup;
 use hyperswitch_domain_models::{mandates, payment_address};
 use payment_methods::helpers::StorageErrorExt;
-#[cfg(all(feature = "v1", feature = "dynamic_routing"))]
-use router_env::logger;
 use rustc_hash::FxHashSet;
 #[cfg(all(feature = "v1", feature = "dynamic_routing"))]
 use storage_impl::redis::cache;
@@ -54,7 +52,7 @@ use crate::{
     },
     db::StorageInterface,
     routes::SessionState,
-    services::{api as service_api, logger},
+    services::api as service_api,
     types::{
         api, domain,
         storage::{self, enums as storage_enums},
@@ -186,6 +184,21 @@ pub async fn retrieve_merchant_routing_dictionary(
                 })
                 .ok() // Avoid throwing error if Decision Engine is not available or other errors
                 .map(|mut de_routing| de_result.append(&mut de_routing));
+            // filter de_result based on transaction type
+            de_result = de_result
+                .into_iter()
+                .filter(|record| record.algorithm_for == Some(transaction_type))
+                .collect();
+            // append dynamic routing algorithms to de_result
+            de_result.append(
+                &mut result
+                    .clone()
+                    .into_iter()
+                    .filter(|record: &routing_types::RoutingDictionaryRecord| {
+                        record.kind == routing_types::RoutingAlgorithmKind::Dynamic
+                    })
+                    .collect::<Vec<_>>(),
+            );
         }
         compare_and_log_result(
             de_result.clone(),
@@ -333,8 +346,6 @@ pub async fn create_routing_algorithm_under_profile(
 ) -> RouterResponse<routing_types::RoutingDictionaryRecord> {
     use api_models::routing::StaticRoutingAlgorithm as EuclidAlgorithm;
 
-    use crate::services::logger;
-
     metrics::ROUTING_CREATE_REQUEST_RECEIVED.add(1, &[]);
     let db = state.store.as_ref();
     let key_manager_state = &(&state).into();
@@ -402,7 +413,7 @@ pub async fn create_routing_algorithm_under_profile(
             EuclidAlgorithm::Advanced(program) => match program.try_into() {
                 Ok(internal_program) => Some(StaticRoutingAlgorithm::Advanced(internal_program)),
                 Err(e) => {
-                    logger::error!(decision_engine_error = ?e, "decision_engine_euclid");
+                    router_env::logger::error!(decision_engine_error = ?e, "decision_engine_euclid");
                     None
                 }
             },
@@ -420,7 +431,7 @@ pub async fn create_routing_algorithm_under_profile(
                 Some(StaticRoutingAlgorithm::VolumeSplit(converted))
             }
             EuclidAlgorithm::ThreeDsDecisionRule(_) => {
-                logger::error!(
+                router_env::logger::error!(
                     "decision_engine_euclid: ThreeDsDecisionRules are not yet implemented"
                 );
                 None
@@ -437,7 +448,6 @@ pub async fn create_routing_algorithm_under_profile(
                 algorithm_for: transaction_type.into(),
                 metadata: Some(RoutingMetadata {
                     kind: algorithm.get_kind().foreign_into(),
-                    algorithm_for: transaction_type.to_owned(),
                 }),
             };
 
@@ -454,7 +464,7 @@ pub async fn create_routing_algorithm_under_profile(
                     if let errors::RoutingError::DecisionEngineValidationError(msg) =
                         e.current_context()
                     {
-                        logger::error!(
+                        router_env::logger::error!(
                             decision_engine_euclid_error = ?msg,
                             decision_engine_euclid_request = ?routing_rule,
                             "failed to create rule in decision_engine with validation error"
@@ -462,7 +472,7 @@ pub async fn create_routing_algorithm_under_profile(
                     }
                 }
                 Err(e) => {
-                    logger::error!(
+                    router_env::logger::error!(
                         decision_engine_euclid_error = ?e,
                         decision_engine_euclid_request = ?routing_rule,
                         "failed to create rule in decision_engine"
@@ -473,9 +483,9 @@ pub async fn create_routing_algorithm_under_profile(
     }
 
     if decision_engine_routing_id.is_some() {
-        logger::info!(routing_flow=?"create_euclid_routing_algorithm", is_equal=?"true", "decision_engine_euclid");
+        router_env::logger::info!(routing_flow=?"create_euclid_routing_algorithm", is_equal=?"true", "decision_engine_euclid");
     } else {
-        logger::info!(routing_flow=?"create_euclid_routing_algorithm", is_equal=?"false", "decision_engine_euclid");
+        router_env::logger::info!(routing_flow=?"create_euclid_routing_algorithm", is_equal=?"false", "decision_engine_euclid");
     }
 
     let timestamp = common_utils::date_time::now();
@@ -1355,16 +1365,12 @@ pub async fn retrieve_linked_routing_config(
                 .to_not_found_response(errors::ApiErrorResponse::ResourceIdNotFound)?;
             let hs_records: Vec<routing_types::RoutingDictionaryRecord> =
                 vec![record.foreign_into()];
-            let de_records = list_de_euclid_active_routing_algorithm(
+            let de_records = retrieve_decision_engine_active_rules(
                 &state,
-                profile_id.get_string_repr().to_owned(),
+                profile_id.clone(),
+                hs_records.clone(),
             )
-            .await
-            .map_err(|e| {
-                logger::error!(?e, "Failed to list DE Euclid active routing algorithm");
-            })
-            .ok() // Avoid throwing error if Decision Engine is not available or other errors thrown
-            .map_or(Vec::new(), |de_record| vec![de_record.clone()]);
+            .await;
             compare_and_log_result(
                 de_records.clone(),
                 hs_records.clone(),
@@ -1423,6 +1429,28 @@ pub async fn retrieve_linked_routing_config(
     Ok(service_api::ApplicationResponse::Json(
         routing_types::LinkedRoutingConfigRetrieveResponse::ProfileBased(active_algorithms),
     ))
+}
+
+pub async fn retrieve_decision_engine_active_rules(
+    state: &SessionState,
+    profile_id: common_utils::id_type::ProfileId,
+    hs_records: Vec<routing_types::RoutingDictionaryRecord>,
+) -> Vec<routing_types::RoutingDictionaryRecord> {
+    let mut de_records =
+        list_de_euclid_active_routing_algorithm(&state, profile_id.get_string_repr().to_owned())
+            .await
+            .map_err(|e| {
+                router_env::logger::error!(?e, "Failed to list DE Euclid active routing algorithm");
+            })
+            .ok() // Avoid throwing error if Decision Engine is not available or other errors thrown
+            .unwrap_or_default();
+    // Use Hs records to list the dynamic algorithms as DE is not supporting dynamic algorithms in HS standard
+    let mut dynamic_algos = hs_records
+        .into_iter()
+        .filter(|record| record.kind == routing_types::RoutingAlgorithmKind::Dynamic)
+        .collect::<Vec<_>>();
+    de_records.append(&mut dynamic_algos);
+    de_records
 }
 // List all the default fallback algorithms under all the profile under a merchant
 pub async fn retrieve_default_routing_config_for_profiles(
@@ -1803,7 +1831,7 @@ pub async fn success_based_routing_update_configs(
         cache_entries_to_redact,
     )
     .await
-    .map_err(|e| logger::error!("unable to publish into the redact channel for evicting the success based routing config cache {e:?}"));
+    .map_err(|e| router_env::logger::error!("unable to publish into the redact channel for evicting the success based routing config cache {e:?}"));
 
     let new_record = record.foreign_into();
 
@@ -1907,7 +1935,7 @@ pub async fn elimination_routing_update_configs(
         cache_entries_to_redact,
     )
     .await
-    .map_err(|e| logger::error!("unable to publish into the redact channel for evicting the elimination routing config cache {e:?}")).ok();
+    .map_err(|e| router_env::logger::error!("unable to publish into the redact channel for evicting the elimination routing config cache {e:?}")).ok();
 
     let new_record = record.foreign_into();
 
@@ -2244,7 +2272,7 @@ pub async fn contract_based_routing_update_configs(
         cache_entries_to_redact,
     )
     .await
-    .map_err(|e| logger::error!("unable to publish into the redact channel for evicting the contract based routing config cache {e:?}"));
+    .map_err(|e| router_env::logger::error!("unable to publish into the redact channel for evicting the contract based routing config cache {e:?}"));
 
     let new_record = record.foreign_into();
 
@@ -2481,7 +2509,7 @@ pub async fn migrate_rules_for_profile(
         {
             Ok(algo) => algo,
             Err(e) => {
-                logger::error!(?e, ?algorithm_id, "Failed to fetch routing algorithm");
+                router_env::logger::error!(?e, ?algorithm_id, "Failed to fetch routing algorithm");
                 push_error(algorithm_id, format!("Fetch error: {:?}", e));
                 continue;
             }
@@ -2495,7 +2523,11 @@ pub async fn migrate_rules_for_profile(
             Ok(EuclidAlgorithm::Advanced(program)) => match program.try_into() {
                 Ok(ip) => Some(StaticRoutingAlgorithm::Advanced(ip)),
                 Err(e) => {
-                    logger::error!(?e, ?algorithm_id, "Failed to convert advanced program");
+                    router_env::logger::error!(
+                        ?e,
+                        ?algorithm_id,
+                        "Failed to convert advanced program"
+                    );
                     push_error(algorithm_id.clone(), format!("Conversion error: {:?}", e));
                     None
                 }
@@ -2510,7 +2542,7 @@ pub async fn migrate_rules_for_profile(
                 splits.into_iter().map(Into::into).collect(),
             )),
             Ok(EuclidAlgorithm::ThreeDsDecisionRule(_)) => {
-                logger::info!(
+                router_env::logger::info!(
                     ?algorithm_id,
                     "Skipping 3DS rule migration (not supported yet)"
                 );
@@ -2518,7 +2550,7 @@ pub async fn migrate_rules_for_profile(
                 None
             }
             Err(e) => {
-                logger::error!(?e, ?algorithm_id, "Failed to parse algorithm");
+                router_env::logger::error!(?e, ?algorithm_id, "Failed to parse algorithm");
                 push_error(algorithm_id.clone(), format!("Parse error: {:?}", e));
                 None
             }
@@ -2537,7 +2569,6 @@ pub async fn migrate_rules_for_profile(
             algorithm_for: algorithm.algorithm_for.into(),
             metadata: Some(RoutingMetadata {
                 kind: algorithm.kind,
-                algorithm_for: algorithm.algorithm_for,
             }),
         };
 
@@ -2565,7 +2596,7 @@ pub async fn migrate_rules_for_profile(
                 });
             }
             Err(err) => {
-                logger::error!(
+                router_env::logger::error!(
                     decision_engine_rule_migration_error = ?err,
                     algorithm_id = ?algorithm.algorithm_id,
                     "Failed to insert into decision engine"

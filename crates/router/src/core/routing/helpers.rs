@@ -72,6 +72,7 @@ pub const CONTRACT_BASED_DYNAMIC_ROUTING_ALGORITHM: &str =
 
 pub const DECISION_ENGINE_RULE_CREATE_ENDPOINT: &str = "rule/create";
 pub const DECISION_ENGINE_RULE_UPDATE_ENDPOINT: &str = "rule/update";
+pub const DECISION_ENGINE_RULE_GET_ENDPOINT: &str = "rule/get";
 pub const DECISION_ENGINE_RULE_DELETE_ENDPOINT: &str = "rule/delete";
 pub const DECISION_ENGINE_MERCHANT_BASE_ENDPOINT: &str = "merchant-account";
 pub const DECISION_ENGINE_MERCHANT_CREATE_ENDPOINT: &str = "merchant-account/create";
@@ -2431,6 +2432,32 @@ pub async fn update_decision_engine_dynamic_routing_setup(
     .attach_printable("Unable to update decision engine dynamic routing")?;
 
     Ok(())
+}
+
+pub async fn get_decision_engine_active_dynamic_routing_algorithm(
+    state: &SessionState,
+    profile_id: &id_type::ProfileId,
+    dynamic_routing_type: open_router::DecisionEngineDynamicAlgorithmType,
+) -> RouterResult<Option<open_router::DecisionEngineConfigSetupRequest>> {
+    logger::debug!("decision_engine_euclid: GET api call for decision active {:?} routing algorithm", dynamic_routing_type);
+    let request = open_router::GetDecisionEngineConfigRequest {
+        merchant_id: profile_id.get_string_repr().to_owned(),
+        config: dynamic_routing_type,
+    };
+    let response: Option<open_router::DecisionEngineConfigSetupRequest> = routing_utils::ConfigApiClient::send_decision_engine_request(
+        state,
+        services::Method::Post,
+        DECISION_ENGINE_RULE_GET_ENDPOINT,
+        Some(request),
+        None,
+        None,
+    )
+    .await
+    .change_context(errors::ApiErrorResponse::InternalServerError)
+    .attach_printable("Failed to get active dynamic algorithm from decision engine")?
+    .response;
+
+    Ok(response)
 }
 
 #[cfg(all(feature = "dynamic_routing", feature = "v1"))]
