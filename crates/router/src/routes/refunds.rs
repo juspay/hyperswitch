@@ -3,9 +3,9 @@ use common_utils;
 use router_env::{instrument, tracing, Flow};
 
 use super::app::AppState;
-#[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "refunds_v2")))]
+#[cfg(feature = "v1")]
 use crate::core::refunds::*;
-#[cfg(all(feature = "v2", feature = "refunds_v2"))]
+#[cfg(feature = "v2")]
 use crate::core::refunds_v2::*;
 use crate::{
     core::api_locking,
@@ -47,7 +47,7 @@ mod internal_payload_types {
 /// Refunds - Create
 ///
 /// To create a refund against an already processed payment
-#[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "refunds_v2")))]
+#[cfg(feature = "v1")]
 #[utoipa::path(
     post,
     path = "/refunds",
@@ -94,7 +94,7 @@ pub async fn refunds_create(
     .await
 }
 
-#[cfg(all(feature = "v2", feature = "refunds_v2"))]
+#[cfg(feature = "v2")]
 #[instrument(skip_all, fields(flow = ?Flow::RefundsCreate))]
 // #[post("")]
 pub async fn refunds_create(
@@ -146,7 +146,7 @@ pub async fn refunds_create(
     .await
 }
 
-#[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "refunds_v2")))]
+#[cfg(feature = "v1")]
 /// Refunds - Retrieve (GET)
 ///
 /// To retrieve the properties of a Refund. This may be used to get the status of a previously initiated payment or next action for an ongoing payment
@@ -216,7 +216,7 @@ pub async fn refunds_retrieve(
     .await
 }
 
-#[cfg(all(feature = "v2", feature = "refunds_v2"))]
+#[cfg(feature = "v2")]
 #[instrument(skip_all, fields(flow))]
 pub async fn refunds_retrieve(
     state: web::Data<AppState>,
@@ -266,7 +266,7 @@ pub async fn refunds_retrieve(
     .await
 }
 
-#[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "refunds_v2")))]
+#[cfg(feature = "v1")]
 /// Refunds - Retrieve (POST)
 ///
 /// To retrieve the properties of a Refund. This may be used to get the status of a previously initiated payment or next action for an ongoing payment
@@ -321,7 +321,7 @@ pub async fn refunds_retrieve_with_body(
     .await
 }
 
-#[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "refunds_v2")))]
+#[cfg(feature = "v1")]
 /// Refunds - Update
 ///
 /// To update the properties of a Refund object. This may include attaching a reason for the refund or metadata fields
@@ -371,7 +371,7 @@ pub async fn refunds_update(
     .await
 }
 
-#[cfg(all(feature = "v2", feature = "refunds_v2"))]
+#[cfg(feature = "v2")]
 #[instrument(skip_all, fields(flow = ?Flow::RefundsUpdate))]
 pub async fn refunds_metadata_update(
     state: web::Data<AppState>,
@@ -410,11 +410,7 @@ pub async fn refunds_metadata_update(
     .await
 }
 
-#[cfg(all(
-    any(feature = "v1", feature = "v2"),
-    not(feature = "refunds_v2"),
-    feature = "olap"
-))]
+#[cfg(all(feature = "v1", feature = "olap"))]
 /// Refunds - List
 ///
 /// To list the refunds associated with a payment_id or with the merchant, if payment_id is not provided
@@ -462,7 +458,7 @@ pub async fn refunds_list(
     .await
 }
 
-#[cfg(all(feature = "v2", feature = "refunds_v2", feature = "olap"))]
+#[cfg(all(feature = "v2", feature = "olap"))]
 #[instrument(skip_all, fields(flow = ?Flow::RefundsList))]
 pub async fn refunds_list(
     state: web::Data<AppState>,
@@ -493,11 +489,7 @@ pub async fn refunds_list(
     .await
 }
 
-#[cfg(all(
-    any(feature = "v1", feature = "v2"),
-    not(feature = "refunds_v2"),
-    feature = "olap"
-))]
+#[cfg(all(feature = "v1", feature = "olap"))]
 /// Refunds - List at profile level
 ///
 /// To list the refunds associated with a payment_id or with the merchant, if payment_id is not provided
@@ -550,11 +542,7 @@ pub async fn refunds_list_profile(
     .await
 }
 
-#[cfg(all(
-    any(feature = "v1", feature = "v2"),
-    not(feature = "refunds_v2"),
-    feature = "olap"
-))]
+#[cfg(all(feature = "v1", feature = "olap"))]
 /// Refunds - Filter
 ///
 /// To list the refunds filters associated with list of connectors, currencies and payment statuses
@@ -602,11 +590,7 @@ pub async fn refunds_filter_list(
     .await
 }
 
-#[cfg(all(
-    any(feature = "v1", feature = "v2"),
-    not(feature = "refunds_v2"),
-    feature = "olap"
-))]
+#[cfg(all(feature = "v1", feature = "olap"))]
 /// Refunds - Filter V2
 ///
 /// To list the refunds filters associated with list of connectors, currencies and payment statuses
@@ -649,11 +633,7 @@ pub async fn get_refunds_filters(state: web::Data<AppState>, req: HttpRequest) -
     .await
 }
 
-#[cfg(all(
-    any(feature = "v1", feature = "v2"),
-    not(feature = "refunds_v2"),
-    feature = "olap"
-))]
+#[cfg(all(feature = "v1", feature = "olap"))]
 /// Refunds - Filter V2 at profile level
 ///
 /// To list the refunds filters associated with list of connectors, currencies and payment statuses
@@ -703,11 +683,7 @@ pub async fn get_refunds_filters_profile(
     .await
 }
 
-#[cfg(all(
-    any(feature = "v1", feature = "v2"),
-    not(feature = "refunds_v2"),
-    feature = "olap"
-))]
+#[cfg(all(feature = "v1", feature = "olap"))]
 #[instrument(skip_all, fields(flow = ?Flow::RefundsAggregate))]
 pub async fn get_refunds_aggregates(
     state: web::Data<AppState>,
@@ -742,11 +718,7 @@ pub async fn get_refunds_aggregates(
     .await
 }
 
-#[cfg(all(
-    any(feature = "v1", feature = "v2"),
-    not(feature = "refunds_v2"),
-    feature = "olap"
-))]
+#[cfg(all(feature = "v1", feature = "olap"))]
 #[instrument(skip_all, fields(flow = ?Flow::RefundsManualUpdate))]
 pub async fn refunds_manual_update(
     state: web::Data<AppState>,
@@ -769,11 +741,7 @@ pub async fn refunds_manual_update(
     .await
 }
 
-#[cfg(all(
-    any(feature = "v1", feature = "v2"),
-    not(feature = "refunds_v2"),
-    feature = "olap"
-))]
+#[cfg(all(feature = "v1", feature = "olap"))]
 #[instrument(skip_all, fields(flow = ?Flow::RefundsAggregate))]
 pub async fn get_refunds_aggregate_profile(
     state: web::Data<AppState>,
