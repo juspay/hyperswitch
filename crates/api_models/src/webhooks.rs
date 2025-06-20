@@ -98,7 +98,7 @@ pub enum WebhookResponseTracker {
     },
     #[cfg(feature = "payouts")]
     Payout {
-        payout_id: String,
+        payout_id: common_utils::id_type::PayoutId,
         status: common_enums::PayoutStatus,
     },
     #[cfg(feature = "v1")]
