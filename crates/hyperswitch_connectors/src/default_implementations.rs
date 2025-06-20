@@ -121,7 +121,6 @@ macro_rules! default_imp_for_authorize_session_token {
 }
 
 default_imp_for_authorize_session_token!(
-    connectors::Authipay,
     connectors::Vgs,
     connectors::Aci,
     connectors::Adyen,
@@ -129,6 +128,7 @@ default_imp_for_authorize_session_token!(
     connectors::Airwallex,
     connectors::Amazonpay,
     connectors::Archipel,
+    connectors::Authipay,
     connectors::Authorizedotnet,
     connectors::Bambora,
     connectors::Bamboraapac,
@@ -242,7 +242,6 @@ macro_rules! default_imp_for_calculate_tax {
 }
 
 default_imp_for_calculate_tax!(
-    connectors::Authipay,
     connectors::Vgs,
     connectors::Aci,
     connectors::Adyen,
@@ -250,6 +249,7 @@ default_imp_for_calculate_tax!(
     connectors::Airwallex,
     connectors::Amazonpay,
     connectors::Archipel,
+    connectors::Authipay,
     connectors::Authorizedotnet,
     connectors::Bambora,
     connectors::Bamboraapac,
@@ -364,7 +364,6 @@ macro_rules! default_imp_for_session_update {
 }
 
 default_imp_for_session_update!(
-    connectors::Authipay,
     connectors::Vgs,
     connectors::Aci,
     connectors::Adyen,
@@ -372,6 +371,7 @@ default_imp_for_session_update!(
     connectors::Airwallex,
     connectors::Amazonpay,
     connectors::Archipel,
+    connectors::Authipay,
     connectors::Authorizedotnet,
     connectors::Bambora,
     connectors::Bamboraapac,
@@ -486,7 +486,6 @@ macro_rules! default_imp_for_post_session_tokens {
 }
 
 default_imp_for_post_session_tokens!(
-    connectors::Authipay,
     connectors::Vgs,
     connectors::Aci,
     connectors::Adyen,
@@ -494,6 +493,7 @@ default_imp_for_post_session_tokens!(
     connectors::Airwallex,
     connectors::Amazonpay,
     connectors::Archipel,
+    connectors::Authipay,
     connectors::Authorizedotnet,
     connectors::Bambora,
     connectors::Bamboraapac,
@@ -730,13 +730,13 @@ macro_rules! default_imp_for_update_metadata {
 }
 
 default_imp_for_update_metadata!(
-    connectors::Authipay,
     connectors::Aci,
     connectors::Adyen,
     connectors::Adyenplatform,
     connectors::Airwallex,
     connectors::Amazonpay,
     connectors::Archipel,
+    connectors::Authipay,
     connectors::Authorizedotnet,
     connectors::Bambora,
     connectors::Bamboraapac,
@@ -854,13 +854,13 @@ macro_rules! default_imp_for_complete_authorize {
 }
 
 default_imp_for_complete_authorize!(
-    connectors::Authipay,
     connectors::Vgs,
     connectors::Aci,
     connectors::Adyen,
     connectors::Adyenplatform,
     connectors::Amazonpay,
     connectors::Archipel,
+    connectors::Authipay,
     connectors::Bamboraapac,
     connectors::Bankofamerica,
     connectors::Barclaycard,
@@ -957,13 +957,13 @@ macro_rules! default_imp_for_incremental_authorization {
 }
 
 default_imp_for_incremental_authorization!(
-    connectors::Authipay,
     connectors::Vgs,
     connectors::Aci,
     connectors::Adyen,
     connectors::Adyenplatform,
     connectors::Airwallex,
     connectors::Amazonpay,
+    connectors::Authipay,
     connectors::Authorizedotnet,
     connectors::Bambora,
     connectors::Bamboraapac,
@@ -1078,7 +1078,6 @@ macro_rules! default_imp_for_create_customer {
 }
 
 default_imp_for_create_customer!(
-    connectors::Authipay,
     connectors::Vgs,
     connectors::Aci,
     connectors::Adyen,
@@ -1086,6 +1085,7 @@ default_imp_for_create_customer!(
     connectors::Airwallex,
     connectors::Amazonpay,
     connectors::Archipel,
+    connectors::Authipay,
     connectors::Authorizedotnet,
     connectors::Bambora,
     connectors::Bamboraapac,
@@ -1199,13 +1199,13 @@ macro_rules! default_imp_for_connector_redirect_response {
 }
 
 default_imp_for_connector_redirect_response!(
-    connectors::Authipay,
     connectors::Vgs,
     connectors::Aci,
     connectors::Adyen,
     connectors::Adyenplatform,
     connectors::Amazonpay,
     connectors::Archipel,
+    connectors::Authipay,
     connectors::Billwerk,
     connectors::Bitpay,
     connectors::Bamboraapac,
@@ -1301,12 +1301,12 @@ macro_rules! default_imp_for_pre_processing_steps{
 }
 
 default_imp_for_pre_processing_steps!(
-    connectors::Authipay,
     connectors::Vgs,
     connectors::Aci,
     connectors::Adyenplatform,
     connectors::Amazonpay,
     connectors::Archipel,
+    connectors::Authipay,
     connectors::Authorizedotnet,
     connectors::Bambora,
     connectors::Bamboraapac,
@@ -1412,7 +1412,6 @@ macro_rules! default_imp_for_post_processing_steps{
 }
 
 default_imp_for_post_processing_steps!(
-    connectors::Authipay,
     connectors::Vgs,
     connectors::Aci,
     connectors::Adyen,
@@ -1420,6 +1419,7 @@ default_imp_for_post_processing_steps!(
     connectors::Airwallex,
     connectors::Amazonpay,
     connectors::Archipel,
+    connectors::Authipay,
     connectors::Authorizedotnet,
     connectors::Bambora,
     connectors::Bamboraapac,
@@ -1535,7 +1535,6 @@ macro_rules! default_imp_for_approve {
 }
 
 default_imp_for_approve!(
-    connectors::Authipay,
     connectors::Vgs,
     connectors::Aci,
     connectors::Adyen,
@@ -1543,6 +1542,7 @@ default_imp_for_approve!(
     connectors::Airwallex,
     connectors::Amazonpay,
     connectors::Archipel,
+    connectors::Authipay,
     connectors::Authorizedotnet,
     connectors::Bambora,
     connectors::Bamboraapac,
@@ -1659,7 +1659,6 @@ macro_rules! default_imp_for_reject {
 }
 
 default_imp_for_reject!(
-    connectors::Authipay,
     connectors::Vgs,
     connectors::Aci,
     connectors::Adyen,
@@ -1667,6 +1666,7 @@ default_imp_for_reject!(
     connectors::Airwallex,
     connectors::Amazonpay,
     connectors::Archipel,
+    connectors::Authipay,
     connectors::Authorizedotnet,
     connectors::Bambora,
     connectors::Bamboraapac,
@@ -1783,7 +1783,6 @@ macro_rules! default_imp_for_webhook_source_verification {
 }
 
 default_imp_for_webhook_source_verification!(
-    connectors::Authipay,
     connectors::Vgs,
     connectors::Aci,
     connectors::Adyen,
@@ -1791,6 +1790,7 @@ default_imp_for_webhook_source_verification!(
     connectors::Airwallex,
     connectors::Amazonpay,
     connectors::Archipel,
+    connectors::Authipay,
     connectors::Authorizedotnet,
     connectors::Bambora,
     connectors::Bamboraapac,
@@ -1907,13 +1907,13 @@ macro_rules! default_imp_for_accept_dispute {
 }
 
 default_imp_for_accept_dispute!(
-    connectors::Authipay,
     connectors::Vgs,
     connectors::Aci,
     connectors::Adyenplatform,
     connectors::Airwallex,
     connectors::Amazonpay,
     connectors::Archipel,
+    connectors::Authipay,
     connectors::Authorizedotnet,
     connectors::Bambora,
     connectors::Bamboraapac,
@@ -2029,13 +2029,13 @@ macro_rules! default_imp_for_submit_evidence {
 }
 
 default_imp_for_submit_evidence!(
-    connectors::Authipay,
     connectors::Vgs,
     connectors::Aci,
     connectors::Adyenplatform,
     connectors::Airwallex,
     connectors::Amazonpay,
     connectors::Archipel,
+    connectors::Authipay,
     connectors::Authorizedotnet,
     connectors::Bambora,
     connectors::Bamboraapac,
@@ -2150,13 +2150,13 @@ macro_rules! default_imp_for_defend_dispute {
 }
 
 default_imp_for_defend_dispute!(
-    connectors::Authipay,
     connectors::Vgs,
     connectors::Aci,
     connectors::Adyenplatform,
     connectors::Airwallex,
     connectors::Amazonpay,
     connectors::Archipel,
+    connectors::Authipay,
     connectors::Authorizedotnet,
     connectors::Bambora,
     connectors::Bamboraapac,
@@ -2281,13 +2281,13 @@ macro_rules! default_imp_for_file_upload {
 }
 
 default_imp_for_file_upload!(
-    connectors::Authipay,
     connectors::Vgs,
     connectors::Aci,
     connectors::Adyenplatform,
     connectors::Airwallex,
     connectors::Amazonpay,
     connectors::Archipel,
+    connectors::Authipay,
     connectors::Authorizedotnet,
     connectors::Bambora,
     connectors::Bamboraapac,
@@ -2395,12 +2395,12 @@ macro_rules! default_imp_for_payouts {
 }
 
 default_imp_for_payouts!(
-    connectors::Authipay,
     connectors::Vgs,
     connectors::Aci,
     connectors::Airwallex,
     connectors::Amazonpay,
     connectors::Archipel,
+    connectors::Authipay,
     connectors::Authorizedotnet,
     connectors::Bambora,
     connectors::Bamboraapac,
@@ -2511,13 +2511,13 @@ macro_rules! default_imp_for_payouts_create {
 
 #[cfg(feature = "payouts")]
 default_imp_for_payouts_create!(
-    connectors::Authipay,
     connectors::Vgs,
     connectors::Aci,
     connectors::Adyenplatform,
     connectors::Airwallex,
     connectors::Amazonpay,
     connectors::Archipel,
+    connectors::Authipay,
     connectors::Authorizedotnet,
     connectors::Bambora,
     connectors::Bamboraapac,
@@ -2631,7 +2631,6 @@ macro_rules! default_imp_for_payouts_retrieve {
 
 #[cfg(feature = "payouts")]
 default_imp_for_payouts_retrieve!(
-    connectors::Authipay,
     connectors::Vgs,
     connectors::Aci,
     connectors::Adyen,
@@ -2639,6 +2638,7 @@ default_imp_for_payouts_retrieve!(
     connectors::Airwallex,
     connectors::Amazonpay,
     connectors::Archipel,
+    connectors::Authipay,
     connectors::Authorizedotnet,
     connectors::Bambora,
     connectors::Bamboraapac,
@@ -2755,13 +2755,13 @@ macro_rules! default_imp_for_payouts_eligibility {
 
 #[cfg(feature = "payouts")]
 default_imp_for_payouts_eligibility!(
-    connectors::Authipay,
     connectors::Vgs,
     connectors::Aci,
     connectors::Adyenplatform,
     connectors::Airwallex,
     connectors::Amazonpay,
     connectors::Archipel,
+    connectors::Authipay,
     connectors::Authorizedotnet,
     connectors::Bambora,
     connectors::Bamboraapac,
@@ -2877,12 +2877,12 @@ macro_rules! default_imp_for_payouts_fulfill {
 
 #[cfg(feature = "payouts")]
 default_imp_for_payouts_fulfill!(
-    connectors::Authipay,
     connectors::Vgs,
     connectors::Aci,
     connectors::Airwallex,
     connectors::Amazonpay,
     connectors::Archipel,
+    connectors::Authipay,
     connectors::Authorizedotnet,
     connectors::Bambora,
     connectors::Bamboraapac,
@@ -2994,13 +2994,13 @@ macro_rules! default_imp_for_payouts_cancel {
 
 #[cfg(feature = "payouts")]
 default_imp_for_payouts_cancel!(
-    connectors::Authipay,
     connectors::Vgs,
     connectors::Aci,
     connectors::Adyenplatform,
     connectors::Airwallex,
     connectors::Amazonpay,
     connectors::Archipel,
+    connectors::Authipay,
     connectors::Authorizedotnet,
     connectors::Bambora,
     connectors::Bamboraapac,
@@ -3115,7 +3115,6 @@ macro_rules! default_imp_for_payouts_quote {
 
 #[cfg(feature = "payouts")]
 default_imp_for_payouts_quote!(
-    connectors::Authipay,
     connectors::Vgs,
     connectors::Aci,
     connectors::Adyen,
@@ -3123,6 +3122,7 @@ default_imp_for_payouts_quote!(
     connectors::Airwallex,
     connectors::Amazonpay,
     connectors::Archipel,
+    connectors::Authipay,
     connectors::Authorizedotnet,
     connectors::Bambora,
     connectors::Bamboraapac,
@@ -3238,7 +3238,6 @@ macro_rules! default_imp_for_payouts_recipient {
 
 #[cfg(feature = "payouts")]
 default_imp_for_payouts_recipient!(
-    connectors::Authipay,
     connectors::Vgs,
     connectors::Aci,
     connectors::Adyen,
@@ -3246,6 +3245,7 @@ default_imp_for_payouts_recipient!(
     connectors::Airwallex,
     connectors::Amazonpay,
     connectors::Archipel,
+    connectors::Authipay,
     connectors::Authorizedotnet,
     connectors::Bambora,
     connectors::Bamboraapac,
@@ -3360,7 +3360,6 @@ macro_rules! default_imp_for_payouts_recipient_account {
 
 #[cfg(feature = "payouts")]
 default_imp_for_payouts_recipient_account!(
-    connectors::Authipay,
     connectors::Vgs,
     connectors::Aci,
     connectors::Adyen,
@@ -3368,6 +3367,7 @@ default_imp_for_payouts_recipient_account!(
     connectors::Airwallex,
     connectors::Amazonpay,
     connectors::Archipel,
+    connectors::Authipay,
     connectors::Authorizedotnet,
     connectors::Bambora,
     connectors::Bamboraapac,
@@ -3484,7 +3484,6 @@ macro_rules! default_imp_for_frm_sale {
 
 #[cfg(feature = "frm")]
 default_imp_for_frm_sale!(
-    connectors::Authipay,
     connectors::Vgs,
     connectors::Aci,
     connectors::Adyen,
@@ -3492,6 +3491,7 @@ default_imp_for_frm_sale!(
     connectors::Airwallex,
     connectors::Amazonpay,
     connectors::Archipel,
+    connectors::Authipay,
     connectors::Authorizedotnet,
     connectors::Bambora,
     connectors::Bamboraapac,
@@ -3608,7 +3608,6 @@ macro_rules! default_imp_for_frm_checkout {
 
 #[cfg(feature = "frm")]
 default_imp_for_frm_checkout!(
-    connectors::Authipay,
     connectors::Vgs,
     connectors::Aci,
     connectors::Adyen,
@@ -3616,6 +3615,7 @@ default_imp_for_frm_checkout!(
     connectors::Airwallex,
     connectors::Amazonpay,
     connectors::Archipel,
+    connectors::Authipay,
     connectors::Authorizedotnet,
     connectors::Bambora,
     connectors::Bamboraapac,
@@ -3732,7 +3732,6 @@ macro_rules! default_imp_for_frm_transaction {
 
 #[cfg(feature = "frm")]
 default_imp_for_frm_transaction!(
-    connectors::Authipay,
     connectors::Vgs,
     connectors::Aci,
     connectors::Adyen,
@@ -3740,6 +3739,7 @@ default_imp_for_frm_transaction!(
     connectors::Airwallex,
     connectors::Amazonpay,
     connectors::Archipel,
+    connectors::Authipay,
     connectors::Authorizedotnet,
     connectors::Bambora,
     connectors::Bamboraapac,
@@ -3856,7 +3856,6 @@ macro_rules! default_imp_for_frm_fulfillment {
 
 #[cfg(feature = "frm")]
 default_imp_for_frm_fulfillment!(
-    connectors::Authipay,
     connectors::Vgs,
     connectors::Aci,
     connectors::Adyen,
@@ -3864,6 +3863,7 @@ default_imp_for_frm_fulfillment!(
     connectors::Airwallex,
     connectors::Amazonpay,
     connectors::Archipel,
+    connectors::Authipay,
     connectors::Authorizedotnet,
     connectors::Bambora,
     connectors::Bamboraapac,
@@ -3980,7 +3980,6 @@ macro_rules! default_imp_for_frm_record_return {
 
 #[cfg(feature = "frm")]
 default_imp_for_frm_record_return!(
-    connectors::Authipay,
     connectors::Vgs,
     connectors::Aci,
     connectors::Adyen,
@@ -3988,6 +3987,7 @@ default_imp_for_frm_record_return!(
     connectors::Airwallex,
     connectors::Amazonpay,
     connectors::Archipel,
+    connectors::Authipay,
     connectors::Authorizedotnet,
     connectors::Bambora,
     connectors::Bamboraapac,
@@ -4101,7 +4101,6 @@ macro_rules! default_imp_for_revoking_mandates {
 }
 
 default_imp_for_revoking_mandates!(
-    connectors::Authipay,
     connectors::Vgs,
     connectors::Aci,
     connectors::Adyen,
@@ -4109,6 +4108,7 @@ default_imp_for_revoking_mandates!(
     connectors::Airwallex,
     connectors::Amazonpay,
     connectors::Archipel,
+    connectors::Authipay,
     connectors::Authorizedotnet,
     connectors::Bambora,
     connectors::Bamboraapac,
@@ -4220,7 +4220,6 @@ macro_rules! default_imp_for_uas_pre_authentication {
 }
 
 default_imp_for_uas_pre_authentication!(
-    connectors::Authipay,
     connectors::Vgs,
     connectors::Aci,
     connectors::Adyen,
@@ -4228,6 +4227,7 @@ default_imp_for_uas_pre_authentication!(
     connectors::Airwallex,
     connectors::Amazonpay,
     connectors::Archipel,
+    connectors::Authipay,
     connectors::Authorizedotnet,
     connectors::Bambora,
     connectors::Bamboraapac,
@@ -4341,7 +4341,6 @@ macro_rules! default_imp_for_uas_post_authentication {
 }
 
 default_imp_for_uas_post_authentication!(
-    connectors::Authipay,
     connectors::Vgs,
     connectors::Aci,
     connectors::Adyen,
@@ -4349,6 +4348,7 @@ default_imp_for_uas_post_authentication!(
     connectors::Airwallex,
     connectors::Amazonpay,
     connectors::Archipel,
+    connectors::Authipay,
     connectors::Authorizedotnet,
     connectors::Bambora,
     connectors::Bamboraapac,
@@ -4463,7 +4463,6 @@ macro_rules! default_imp_for_uas_authentication_confirmation {
 }
 
 default_imp_for_uas_authentication_confirmation!(
-    connectors::Authipay,
     connectors::Vgs,
     connectors::Aci,
     connectors::Adyen,
@@ -4471,6 +4470,7 @@ default_imp_for_uas_authentication_confirmation!(
     connectors::Airwallex,
     connectors::Amazonpay,
     connectors::Archipel,
+    connectors::Authipay,
     connectors::Authorizedotnet,
     connectors::Bambora,
     connectors::Bamboraapac,
@@ -4577,13 +4577,13 @@ macro_rules! default_imp_for_connector_request_id {
     };
 }
 default_imp_for_connector_request_id!(
-    connectors::Authipay,
     connectors::Vgs,
     connectors::Aci,
     connectors::Adyen,
     connectors::Adyenplatform,
     connectors::Airwallex,
     connectors::Archipel,
+    connectors::Authipay,
     connectors::Authorizedotnet,
     connectors::Amazonpay,
     connectors::Bambora,
@@ -4693,7 +4693,6 @@ macro_rules! default_imp_for_fraud_check {
 }
 #[cfg(feature = "frm")]
 default_imp_for_fraud_check!(
-    connectors::Authipay,
     connectors::Vgs,
     connectors::Aci,
     connectors::Adyen,
@@ -4701,6 +4700,7 @@ default_imp_for_fraud_check!(
     connectors::Airwallex,
     connectors::Amazonpay,
     connectors::Archipel,
+    connectors::Authipay,
     connectors::Authorizedotnet,
     connectors::Bambora,
     connectors::Bamboraapac,
@@ -4839,7 +4839,6 @@ macro_rules! default_imp_for_connector_authentication {
 }
 
 default_imp_for_connector_authentication!(
-    connectors::Authipay,
     connectors::Vgs,
     connectors::Aci,
     connectors::Adyen,
@@ -4847,6 +4846,7 @@ default_imp_for_connector_authentication!(
     connectors::Airwallex,
     connectors::Amazonpay,
     connectors::Archipel,
+    connectors::Authipay,
     connectors::Authorizedotnet,
     connectors::Bambora,
     connectors::Bamboraapac,
@@ -4958,7 +4958,6 @@ macro_rules! default_imp_for_uas_authentication {
     };
 }
 default_imp_for_uas_authentication!(
-    connectors::Authipay,
     connectors::Vgs,
     connectors::Aci,
     connectors::Adyen,
@@ -4966,6 +4965,7 @@ default_imp_for_uas_authentication!(
     connectors::Airwallex,
     connectors::Amazonpay,
     connectors::Archipel,
+    connectors::Authipay,
     connectors::Authorizedotnet,
     connectors::Bambora,
     connectors::Bamboraapac,
@@ -5072,7 +5072,6 @@ macro_rules! default_imp_for_revenue_recovery {
 }
 
 default_imp_for_revenue_recovery! {
-    connectors::Authipay,
     connectors::Vgs,
     connectors::Aci,
     connectors::Adyen,
@@ -5080,6 +5079,7 @@ default_imp_for_revenue_recovery! {
     connectors::Airwallex,
     connectors::Amazonpay,
     connectors::Archipel,
+    connectors::Authipay,
     connectors::Authorizedotnet,
     connectors::Bambora,
     connectors::Bamboraapac,
@@ -5197,7 +5197,6 @@ macro_rules! default_imp_for_billing_connector_payment_sync {
 
 #[cfg(all(feature = "v2", feature = "revenue_recovery"))]
 default_imp_for_billing_connector_payment_sync!(
-    connectors::Authipay,
     connectors::Vgs,
     connectors::Aci,
     connectors::Adyen,
@@ -5205,6 +5204,7 @@ default_imp_for_billing_connector_payment_sync!(
     connectors::Airwallex,
     connectors::Amazonpay,
     connectors::Archipel,
+    connectors::Authipay,
     connectors::Authorizedotnet,
     connectors::Bambora,
     connectors::Bamboraapac,
@@ -5321,7 +5321,6 @@ macro_rules! default_imp_for_revenue_recovery_record_back {
 
 #[cfg(all(feature = "v2", feature = "revenue_recovery"))]
 default_imp_for_revenue_recovery_record_back!(
-    connectors::Authipay,
     connectors::Vgs,
     connectors::Aci,
     connectors::Adyen,
@@ -5329,6 +5328,7 @@ default_imp_for_revenue_recovery_record_back!(
     connectors::Airwallex,
     connectors::Amazonpay,
     connectors::Archipel,
+    connectors::Authipay,
     connectors::Authorizedotnet,
     connectors::Bambora,
     connectors::Bamboraapac,
@@ -5444,13 +5444,13 @@ macro_rules! default_imp_for_billing_connector_invoice_sync {
 
 #[cfg(all(feature = "v2", feature = "revenue_recovery"))]
 default_imp_for_billing_connector_invoice_sync!(
-    connectors::Authipay,
     connectors::Aci,
     connectors::Adyen,
     connectors::Adyenplatform,
     connectors::Airwallex,
     connectors::Amazonpay,
     connectors::Archipel,
+    connectors::Authipay,
     connectors::Authorizedotnet,
     connectors::Bambora,
     connectors::Bamboraapac,
@@ -5561,13 +5561,13 @@ macro_rules! default_imp_for_external_vault {
 }
 
 default_imp_for_external_vault!(
-    connectors::Authipay,
     connectors::Aci,
     connectors::Adyen,
     connectors::Adyenplatform,
     connectors::Airwallex,
     connectors::Amazonpay,
     connectors::Archipel,
+    connectors::Authipay,
     connectors::Authorizedotnet,
     connectors::Barclaycard,
     connectors::Bambora,
@@ -5684,13 +5684,13 @@ macro_rules! default_imp_for_external_vault_insert {
 }
 
 default_imp_for_external_vault_insert!(
-    connectors::Authipay,
     connectors::Aci,
     connectors::Adyen,
     connectors::Adyenplatform,
     connectors::Airwallex,
     connectors::Amazonpay,
     connectors::Archipel,
+    connectors::Authipay,
     connectors::Authorizedotnet,
     connectors::Barclaycard,
     connectors::Bambora,
@@ -5807,13 +5807,13 @@ macro_rules! default_imp_for_external_vault_retrieve {
 }
 
 default_imp_for_external_vault_retrieve!(
-    connectors::Authipay,
     connectors::Aci,
     connectors::Adyen,
     connectors::Adyenplatform,
     connectors::Airwallex,
     connectors::Amazonpay,
     connectors::Archipel,
+    connectors::Authipay,
     connectors::Authorizedotnet,
     connectors::Barclaycard,
     connectors::Bambora,
@@ -5930,13 +5930,13 @@ macro_rules! default_imp_for_external_vault_delete {
 }
 
 default_imp_for_external_vault_delete!(
-    connectors::Authipay,
     connectors::Aci,
     connectors::Adyen,
     connectors::Adyenplatform,
     connectors::Airwallex,
     connectors::Amazonpay,
     connectors::Archipel,
+    connectors::Authipay,
     connectors::Authorizedotnet,
     connectors::Barclaycard,
     connectors::Bambora,
