@@ -2440,23 +2440,27 @@ pub async fn get_decision_engine_active_dynamic_routing_algorithm(
     profile_id: &id_type::ProfileId,
     dynamic_routing_type: open_router::DecisionEngineDynamicAlgorithmType,
 ) -> RouterResult<Option<open_router::DecisionEngineConfigSetupRequest>> {
-    logger::debug!("decision_engine_euclid: GET api call for decision active {:?} routing algorithm", dynamic_routing_type);
+    logger::debug!(
+        "decision_engine_euclid: GET api call for decision active {:?} routing algorithm",
+        dynamic_routing_type
+    );
     let request = open_router::GetDecisionEngineConfigRequest {
         merchant_id: profile_id.get_string_repr().to_owned(),
         config: dynamic_routing_type,
     };
-    let response: Option<open_router::DecisionEngineConfigSetupRequest> = routing_utils::ConfigApiClient::send_decision_engine_request(
-        state,
-        services::Method::Post,
-        DECISION_ENGINE_RULE_GET_ENDPOINT,
-        Some(request),
-        None,
-        None,
-    )
-    .await
-    .change_context(errors::ApiErrorResponse::InternalServerError)
-    .attach_printable("Failed to get active dynamic algorithm from decision engine")?
-    .response;
+    let response: Option<open_router::DecisionEngineConfigSetupRequest> =
+        routing_utils::ConfigApiClient::send_decision_engine_request(
+            state,
+            services::Method::Post,
+            DECISION_ENGINE_RULE_GET_ENDPOINT,
+            Some(request),
+            None,
+            None,
+        )
+        .await
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Failed to get active dynamic algorithm from decision engine")?
+        .response;
 
     Ok(response)
 }
