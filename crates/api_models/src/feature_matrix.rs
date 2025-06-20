@@ -71,6 +71,9 @@ pub struct ConnectorFeatureMatrixResponse {
     /// The category of the connector
     #[schema(value_type = Option<PaymentConnectorCategory>, example = "payment_gateway")]
     pub category: Option<common_enums::PaymentConnectorCategory>,
+    /// The integration status of the connector
+    #[schema(value_type = Option<ConnectorIntegrationStatus>, example = "live")]
+    pub integration_status: Option<common_enums::ConnectorIntegrationStatus>,
     /// The list of payment methods supported by the connector
     pub supported_payment_methods: Vec<SupportedPaymentMethod>,
     /// The list of webhook flows supported by the connector
