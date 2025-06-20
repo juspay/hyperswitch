@@ -1,9 +1,11 @@
 use async_trait::async_trait;
 use common_enums as enums;
+use error_stack::ResultExt;
 use hyperswitch_domain_models::errors::api_error_response::ApiErrorResponse;
 #[cfg(feature = "v2")]
 use hyperswitch_domain_models::payments::PaymentConfirmData;
 use masking::ExposeInterface;
+use rust_grpc_client::payments as payments_grpc;
 
 // use router_env::tracing::Instrument;
 use super::{ConstructFlowSpecificData, Feature};
@@ -13,6 +15,10 @@ use crate::{
         mandate,
         payments::{
             self, access_token, customers, helpers, tokenization, transformers, PaymentData,
+        },
+        unified_connector_service::{
+            build_unified_connector_service_auth_headers,
+            handle_unified_connector_service_response_for_payment_authorize,
         },
     },
     logger,
@@ -432,6 +438,48 @@ impl Feature<api::Authorize, types::PaymentsAuthorizeData> for types::PaymentsAu
         )?;
 
         Ok(should_continue_payment)
+    }
+
+    async fn call_unified_connector_service<'a>(
+        &mut self,
+        state: &SessionState,
+        merchant_connector_account: helpers::MerchantConnectorAccountType,
+    ) -> RouterResult<()> {
+        let client = state
+            .unified_connector_service_client
+            .clone()
+            .ok_or(ApiErrorResponse::InternalServerError)?;
+
+        let request = payments_grpc::PaymentsAuthorizeRequest::foreign_try_from(self)
+            .change_context(ApiErrorResponse::InternalServerError)
+            .attach_printable("Failed to construct Payment Authorize Request")?;
+
+        let metadata = build_unified_connector_service_auth_headers(merchant_connector_account)
+            .change_context(ApiErrorResponse::InternalServerError)
+            .attach_printable("Failed to construct request metadata")?;
+
+        let mut request = tonic::Request::new(request);
+        *request.metadata_mut() = metadata;
+
+        let response = client
+            .payment_authorize(request)
+            .await
+            .change_context(ApiErrorResponse::InternalServerError)
+            .attach_printable("Failed to authorize payment")?;
+
+        let payment_authorize_response = response.into_inner();
+
+        let (status, router_data_response) =
+            handle_unified_connector_service_response_for_payment_authorize(
+                payment_authorize_response,
+            )
+            .change_context(ApiErrorResponse::InternalServerError)
+            .attach_printable("Failed to deserialize UCS response")?;
+
+        self.status = status;
+        self.response = router_data_response;
+
+        Ok(())
     }
 }
 
