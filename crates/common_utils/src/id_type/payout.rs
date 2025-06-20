@@ -1,11 +1,3 @@
-// In crates/common_utils/src/id_type/payout.rs
-
-// The macros like `crate::id_type` are defined within the `common_utils` crate,
-// likely in `common_utils/src/id_type/mod.rs` or a file included there,
-// making them accessible via `crate::` from within `payout.rs`.
-// Specific type imports like `AlphaNumericId` or `LengthId` are encapsulated
-// by these macros or are part of the `id_type` prelude if one exists.
-
 crate::id_type!(
     PayoutId,
     "A type for payout_id that can be used for payout ids"
@@ -14,7 +6,6 @@ crate::impl_id_type_methods!(PayoutId, "payout_id");
 
 // This is to display the `PayoutId` as PayoutId(abcd)
 crate::impl_debug_id_type!(PayoutId);
-// Using the user-specified prefix "payout_"
 crate::impl_default_id_type!(PayoutId, "payout_");
 crate::impl_try_from_cow_str_id_type!(PayoutId, "payout_id");
 

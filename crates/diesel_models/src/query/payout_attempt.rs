@@ -174,7 +174,7 @@ impl PayoutAttempt {
 
         let active_payout_ids = payouts
             .iter()
-            .map(|payout| payout.payout_id.to_string()) // Use to_string() now that Display is implemented
+            .map(|payout| payout.payout_id.to_string())
             .collect::<Vec<String>>();
 
         let filter = <Self as HasTable>::table()

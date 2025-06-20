@@ -432,7 +432,7 @@ impl<T: DatabaseStore> PayoutsInterface for crate::RouterStore<T> {
         _storage_scheme: MerchantStorageScheme,
     ) -> error_stack::Result<Payouts, StorageError> {
         let conn = pg_connection_read(self).await?;
-        DieselPayouts::find_by_merchant_id_payout_id(&conn, merchant_id, payout_id) // Pass PayoutId directly
+        DieselPayouts::find_by_merchant_id_payout_id(&conn, merchant_id, payout_id)
             .await
             .map(Payouts::from_storage_model)
             .map_err(|er| {
@@ -449,7 +449,7 @@ impl<T: DatabaseStore> PayoutsInterface for crate::RouterStore<T> {
         _storage_scheme: MerchantStorageScheme,
     ) -> error_stack::Result<Option<Payouts>, StorageError> {
         let conn = pg_connection_read(self).await?;
-        DieselPayouts::find_optional_by_merchant_id_payout_id(&conn, merchant_id, payout_id) // Pass PayoutId directly
+        DieselPayouts::find_optional_by_merchant_id_payout_id(&conn, merchant_id, payout_id)
             .await
             .map(|x| x.map(Payouts::from_storage_model))
             .map_err(|er| {

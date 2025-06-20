@@ -91,7 +91,7 @@ pub struct PayoutAttempt {
     pub unified_code: Option<UnifiedCode>,
     pub unified_message: Option<UnifiedMessage>,
     pub additional_payout_method_data: Option<payout_method_utils::AdditionalPayoutMethodData>,
-    pub merchant_order_reference_id: Option<String>, // Added field
+    pub merchant_order_reference_id: Option<String>,
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -118,7 +118,7 @@ pub struct PayoutAttemptNew {
     pub unified_code: Option<UnifiedCode>,
     pub unified_message: Option<UnifiedMessage>,
     pub additional_payout_method_data: Option<payout_method_utils::AdditionalPayoutMethodData>,
-    pub merchant_order_reference_id: Option<String>, // Added field
+    pub merchant_order_reference_id: Option<String>,
 }
 
 #[derive(Debug, Clone)]

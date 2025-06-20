@@ -2527,7 +2527,7 @@ pub async fn response_handler(
     let response = api::PayoutCreateResponse {
         payout_id: payouts.payout_id.to_owned(),
         merchant_id: merchant_context.get_merchant_account().get_id().to_owned(),
-        merchant_order_reference_id: payout_attempt.merchant_order_reference_id.clone(), // Added field
+        merchant_order_reference_id: payout_attempt.merchant_order_reference_id.clone(),
         amount: payouts.amount,
         currency: payouts.destination_currency.to_owned(),
         connector: payout_attempt.connector,
