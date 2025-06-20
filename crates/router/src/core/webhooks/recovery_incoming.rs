@@ -467,44 +467,49 @@ impl RevenueRecoveryAttempt {
         )>,
         errors::RevenueRecoveryError,
     > {
-        let attempt_response = Box::pin(payments::payments_core::<
-            router_flow_types::payments::PSync,
-            api_payments::PaymentsResponse,
-            _,
-            _,
-            _,
-            hyperswitch_domain_models::payments::PaymentStatusData<
-                router_flow_types::payments::PSync,
-            >,
-        >(
-            state.clone(),
-            req_state.clone(),
-            merchant_context.clone(),
-            profile.clone(),
-            payments::operations::PaymentGet,
-            api_payments::PaymentsRetrieveRequest {
-                force_sync: false,
-                expand_attempts: true,
-                param: None,
-                all_keys_required: None,
-            },
-            payment_intent.payment_id.clone(),
-            payments::CallConnectorAction::Avoid,
-            hyperswitch_domain_models::payments::HeaderPayload::default(),
-        ))
-        .await;
+        let attempt_response =
+            Box::pin(payments::payments_list_attempts_using_payment_intent_id::<
+                payments::operations::PaymentGetListAttempts,
+                api_payments::PaymentAttemptListResponse,
+                _,
+                payments::operations::payment_attempt_list::PaymentGetListAttempts,
+                hyperswitch_domain_models::payments::PaymentAttemptListData<
+                    payments::operations::PaymentGetListAttempts,
+                >,
+            >(
+                state.clone(),
+                req_state.clone(),
+                merchant_context.clone(),
+                profile.clone(),
+                payments::operations::PaymentGetListAttempts,
+                api_payments::PaymentAttemptListRequest {
+                    payment_intent_id: payment_intent.payment_id.clone(),
+                },
+                payment_intent.payment_id.clone(),
+                hyperswitch_domain_models::payments::HeaderPayload::default(),
+            ))
+            .await;
         let response = match attempt_response {
             Ok(services::ApplicationResponse::JsonWithHeaders((payments_response, _))) => {
-                let final_attempt =
-                    self.0
-                        .connector_transaction_id
-                        .as_ref()
-                        .and_then(|transaction_id| {
-                            payments_response
-                                .find_attempt_in_attempts_list_using_connector_transaction_id(
-                                    transaction_id,
-                                )
-                        });
+                let final_attempt = self
+                    .0
+                    .charge_id
+                    .as_ref()
+                    .map(|charge_id| {
+                        payments_response
+                            .find_attempt_in_attempts_list_using_charge_id(charge_id.clone())
+                    })
+                    .unwrap_or_else(|| {
+                        self.0
+                            .connector_transaction_id
+                            .as_ref()
+                            .and_then(|transaction_id| {
+                                payments_response
+                                    .find_attempt_in_attempts_list_using_connector_transaction_id(
+                                        transaction_id,
+                                    )
+                            })
+                    });
                 let payment_attempt =
                     final_attempt.map(|attempt_res| revenue_recovery::RecoveryPaymentAttempt {
                         attempt_id: attempt_res.id.to_owned(),
@@ -545,14 +550,17 @@ impl RevenueRecoveryAttempt {
         errors::RevenueRecoveryError,
     > {
         let payment_connector_id =   payment_connector_account.as_ref().map(|account: &hyperswitch_domain_models::merchant_connector_account::MerchantConnectorAccount| account.id.clone());
-        let request_payload = self.create_payment_record_request(
-            billing_connector_account_id,
-            payment_connector_id,
-            payment_connector_account
-                .as_ref()
-                .map(|account| account.connector_name),
-            common_enums::TriggeredBy::External,
-        );
+        let request_payload = self
+            .create_payment_record_request(
+                state,
+                billing_connector_account_id,
+                payment_connector_id,
+                payment_connector_account
+                    .as_ref()
+                    .map(|account| account.connector_name),
+                common_enums::TriggeredBy::External,
+            )
+            .await?;
         let attempt_response = Box::pin(payments::record_attempt_core(
             state.clone(),
             req_state.clone(),
@@ -593,13 +601,15 @@ impl RevenueRecoveryAttempt {
         Ok(response)
     }
 
-    pub fn create_payment_record_request(
+    pub async fn create_payment_record_request(
         &self,
+        state: &SessionState,
         billing_merchant_connector_account_id: &id_type::MerchantConnectorAccountId,
         payment_merchant_connector_account_id: Option<id_type::MerchantConnectorAccountId>,
         payment_connector: Option<common_enums::connector_enums::Connector>,
         triggered_by: common_enums::TriggeredBy,
-    ) -> api_payments::PaymentsAttemptRecordRequest {
+    ) -> CustomResult<api_payments::PaymentsAttemptRecordRequest, errors::RevenueRecoveryError>
+    {
         let revenue_recovery_attempt_data = &self.0;
         let amount_details =
             api_payments::PaymentAttemptAmountDetails::from(revenue_recovery_attempt_data);
@@ -607,11 +617,30 @@ impl RevenueRecoveryAttempt {
             revenue_recovery: Some(api_payments::PaymentAttemptRevenueRecoveryData {
                 // Since we are recording the external paymenmt attempt, this is hardcoded to External
                 attempt_triggered_by: triggered_by,
+                charge_id: self.0.charge_id.clone(),
             }),
         };
+
+        let card_info = revenue_recovery_attempt_data
+            .card_isin
+            .clone()
+            .async_and_then(|isin| async move {
+                let issuer_identifier_number = isin.clone();
+                state
+                    .store
+                    .get_card_info(issuer_identifier_number.as_str())
+                    .await
+                    .map_err(|error| services::logger::warn!(card_info_error=?error))
+                    .ok()
+            })
+            .await
+            .flatten();
+
+        let card_issuer = card_info.and_then(|info| info.card_issuer);
+
         let error =
             Option::<api_payments::RecordAttemptErrorDetails>::from(revenue_recovery_attempt_data);
-        api_payments::PaymentsAttemptRecordRequest {
+        Ok(api_payments::PaymentsAttemptRecordRequest {
             amount_details,
             status: revenue_recovery_attempt_data.status,
             billing: None,
@@ -637,7 +666,9 @@ impl RevenueRecoveryAttempt {
             retry_count: revenue_recovery_attempt_data.retry_count,
             invoice_next_billing_time: revenue_recovery_attempt_data.invoice_next_billing_time,
             triggered_by,
-        }
+            card_network: revenue_recovery_attempt_data.card_network.clone(),
+            card_issuer,
+        })
     }
 
     pub async fn find_payment_merchant_connector_account(

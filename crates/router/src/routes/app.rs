@@ -3,6 +3,7 @@ use std::{collections::HashMap, sync::Arc};
 use actix_web::{web, Scope};
 #[cfg(all(feature = "olap", feature = "v1"))]
 use api_models::routing::RoutingRetrieveQuery;
+use api_models::routing::RuleMigrationQuery;
 #[cfg(feature = "olap")]
 use common_enums::TransactionType;
 #[cfg(feature = "partial-auth")]
@@ -639,6 +640,10 @@ impl Payments {
                         .route(web::post().to(payments::payment_confirm_intent)),
                 )
                 .service(
+                    web::resource("/list_attempts")
+                        .route(web::get().to(payments::list_payment_attempts)),
+                )
+                .service(
                     web::resource("/proxy-confirm-intent")
                         .route(web::post().to(payments::proxy_confirm_intent)),
                 )
@@ -654,7 +659,11 @@ impl Payments {
                     web::resource("/create-external-sdk-tokens")
                         .route(web::post().to(payments::payments_connector_session)),
                 )
-                .service(web::resource("").route(web::get().to(payments::payment_status)))
+                .service(
+                    web::resource("")
+                        .route(web::get().to(payments::payment_status))
+                        .route(web::post().to(payments::payments_status_with_gateway_creds)),
+                )
                 .service(
                     web::resource("/start-redirection")
                         .route(web::get().to(payments::payments_start_redirection)),
@@ -905,6 +914,11 @@ impl Routing {
                     )
                 })),
             )
+            .service(web::resource("/rule/migrate").route(web::post().to(
+                |state, req, query: web::Query<RuleMigrationQuery>| {
+                    routing::migrate_routing_rules_for_profile(state, req, query)
+                },
+            )))
             .service(
                 web::resource("/deactivate").route(web::post().to(|state, req, payload| {
                     routing::routing_unlink_config(state, req, payload, None)
@@ -1080,6 +1094,10 @@ impl Customers {
                     web::resource("/total-payment-methods")
                         .route(web::get().to(payment_methods::get_total_payment_method_count)),
                 )
+                .service(
+                    web::resource("/{id}/saved-payment-methods")
+                        .route(web::get().to(payment_methods::list_customer_payment_method_api)),
+                )
         }
         #[cfg(all(feature = "oltp", feature = "v2"))]
         {
@@ -1090,10 +1108,6 @@ impl Customers {
                         .route(web::put().to(customers::customers_update))
                         .route(web::get().to(customers::customers_retrieve))
                         .route(web::delete().to(customers::customers_delete)),
-                )
-                .service(
-                    web::resource("/{id}/saved-payment-methods")
-                        .route(web::get().to(payment_methods::list_customer_payment_method_api)),
                 )
         }
         route

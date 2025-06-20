@@ -79,6 +79,7 @@ impl From<Flow> for ApiIdentifier {
             | Flow::ToggleDynamicRouting
             | Flow::UpdateDynamicRoutingConfigs
             | Flow::DecisionManagerUpsertConfig
+            | Flow::DecisionEngineRuleMigration
             | Flow::VolumeSplitOnRoutingType => Self::Routing,
 
             Flow::RetrieveForexFlow => Self::Forex,
@@ -160,7 +161,8 @@ impl From<Flow> for ApiIdentifier {
             | Flow::PaymentsCreateAndConfirmIntent
             | Flow::PaymentStartRedirection
             | Flow::ProxyConfirmIntent
-            | Flow::PaymentsRetrieveUsingMerchantReferenceId => Self::Payments,
+            | Flow::PaymentsRetrieveUsingMerchantReferenceId
+            | Flow::PaymentAttemptsList => Self::Payments,
 
             Flow::PayoutsCreate
             | Flow::PayoutsRetrieve
