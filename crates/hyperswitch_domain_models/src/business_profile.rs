@@ -20,8 +20,10 @@ use diesel_models::business_profile::{
 use error_stack::ResultExt;
 use masking::{ExposeInterface, PeekInterface, Secret};
 
-use crate::errors::api_error_response;
-use crate::type_encryption::{crypto_operation, AsyncLift, CryptoOperation};
+use crate::{
+    errors::api_error_response,
+    type_encryption::{crypto_operation, AsyncLift, CryptoOperation},
+};
 #[cfg(feature = "v1")]
 #[derive(Clone, Debug)]
 pub struct Profile {
@@ -1226,7 +1228,9 @@ impl Profile {
             })
             .transpose()
             .change_context(api_error_response::ApiErrorResponse::InternalServerError)
-            .attach_printable("unable to deserialize payout routing algorithm ref from merchant account")
+            .attach_printable(
+                "unable to deserialize payout routing algorithm ref from merchant account",
+            )
     }
 
     #[cfg(feature = "v1")]
@@ -1243,9 +1247,10 @@ impl Profile {
             })
             .transpose()
             .change_context(api_error_response::ApiErrorResponse::InternalServerError)
-            .attach_printable("unable to deserialize frm routing algorithm ref from merchant account")
+            .attach_printable(
+                "unable to deserialize frm routing algorithm ref from merchant account",
+            )
     }
-
 }
 
 #[cfg(feature = "v2")]
