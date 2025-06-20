@@ -19,22 +19,22 @@ pm.test(
 // Set response object as internal variable
 let jsonData = pm.response.json();
 
-// Validate if connector_type is payment_processor
+// Validate if connector_type is authentication_processor
 pm.test(
     "[POST]::/account/:account_id/connectors - Validate connector_type",
     function () {
         pm.expect(jsonData.connector_type).to.equal(
-            "payment_processor",
+            "authentication_processor",
         );
     },
 );
 
-// Validate if connector_name is archipel
+// Validate if connector_name is netcetera
 pm.test(
     "[POST]::/account/:account_id/connectors - Validate connector_name",
     function () {
         pm.expect(jsonData.connector_name).to.equal(
-            "archipel",
+            "netcetera",
         );
     },
 );
@@ -64,21 +64,21 @@ pm.test(
     },
 );
 
-// Validate if auth_type is HeaderKey
+// Validate if auth_type is CertificateAuth
 pm.test(
-    "[POST]::/account/:account_id/connectors - Validate auth_type is HeaderKey",
+    "[POST]::/account/:account_id/connectors - Validate auth_type is CertificateAuth",
     function () {
         pm.expect(jsonData.connector_account_details.auth_type).to.equal(
-            "HeaderKey"
+            "CertificateAuth"
         );
     },
 );
 
-// Validate if metadata contains tenant_id
+// Validate if metadata contains merchant_configuration_id
 pm.test(
-    "[POST]::/account/:account_id/connectors - Validate metadata contains tenant_id",
+    "[POST]::/account/:account_id/connectors - Validate metadata contains merchant_configuration_id",
     function () {
-        pm.expect(jsonData.metadata.tenant_id).to.not.be.null;
+        pm.expect(jsonData.metadata.merchant_configuration_id).to.not.be.null;
     },
 );
 
@@ -107,4 +107,3 @@ pm.test(
         );
     },
 );
-
