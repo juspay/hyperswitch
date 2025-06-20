@@ -48,7 +48,7 @@ sha1 = { version = "0.10.6" }
 strum = { version = "0.26", features = ["derive"] }
 time = "0.3.41"
 unicode-normalization = "0.1.24"
-utoipa = { version = "4.2.3", features = ["preserve_order", "preserve_path_order", "time"] }
+utoipa = { version = "5.4.0", features = ["preserve_order", "preserve_path_order", "time"] }
 url = "2.5.4"
 urlencoding = "2.1.3"
 uuid = { version = "1.17.0", features = ["v4"] }
