@@ -1,12 +1,13 @@
 use common_enums::enums;
-use common_utils::types::StringMinorUnit;
+use common_utils::{ext_traits::Encode, types::StringMinorUnit};
 use hyperswitch_domain_models::{
     payment_method_data::PaymentMethodData,
     router_data::{ConnectorAuthType, RouterData},
     router_flow_types::refunds::{Execute, RSync},
-    router_request_types::ResponseId,
-    router_response_types::{PaymentsResponseData, RefundsResponseData},
-    types::{PaymentsAuthorizeRouterData, RefundsRouterData},
+    router_request_types::{ResponseId, VaultRequestData},
+    router_response_types::{PaymentsResponseData, RefundsResponseData, VaultResponseData},
+    types::{PaymentsAuthorizeRouterData, RefundsRouterData, VaultRouterData},
+    vault::PaymentMethodVaultingData,
 };
 use hyperswitch_interfaces::errors;
 use masking::Secret;
@@ -33,11 +34,17 @@ impl<T> From<(StringMinorUnit, T)> for VgsRouterData<T> {
     }
 }
 
+#[derive(Default, Debug, Serialize, PartialEq)]
+pub struct VgsTokenRequestItem {
+    value: String,
+    classifiers: Vec<String>,
+    format: String,
+}
+
 //TODO: Fill the struct with respective fields
 #[derive(Default, Debug, Serialize, PartialEq)]
 pub struct VgsPaymentsRequest {
-    amount: StringMinorUnit,
-    card: VgsCard,
+    data: Vec<VgsTokenRequestItem>,
 }
 
 #[derive(Default, Debug, Serialize, Eq, PartialEq)]
@@ -46,24 +53,28 @@ pub struct VgsCard {
     expiry_month: Secret<String>,
     expiry_year: Secret<String>,
     cvc: Secret<String>,
-    complete: bool,
+    card_holder_name: Secret<String>,
 }
 
-impl TryFrom<&VgsRouterData<&PaymentsAuthorizeRouterData>> for VgsPaymentsRequest {
+#[cfg(feature = "v2")]
+impl<F> TryFrom<&VaultRouterData<F>> for VgsPaymentsRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(item: &VgsRouterData<&PaymentsAuthorizeRouterData>) -> Result<Self, Self::Error> {
-        match item.router_data.request.payment_method_data.clone() {
-            PaymentMethodData::Card(req_card) => {
+    fn try_from(item: &VaultRouterData<F>) -> Result<Self, Self::Error> {
+        match item.request.payment_method_vaulting_data.clone() {
+            Some(PaymentMethodVaultingData::Card(req_card)) => {
                 let card = VgsCard {
                     number: req_card.card_number,
                     expiry_month: req_card.card_exp_month,
                     expiry_year: req_card.card_exp_year,
-                    cvc: req_card.card_cvc,
-                    complete: item.router_data.request.is_auto_capture()?,
+                    cvc: req_card.card_cvc.unwrap(),
+                    card_holder_name: req_card.card_holder_name.unwrap(),
                 };
                 Ok(Self {
-                    amount: item.amount.clone(),
-                    card,
+                    data: vec![VgsTokenRequestItem {
+                        value: card.encode_to_string_of_json().unwrap(),
+                        classifiers: vec!["data".to_string()],
+                        format: "UUID".to_string(),
+                    }],
                 })
             }
             _ => Err(errors::ConnectorError::NotImplemented("Payment method".to_string()).into()),
@@ -75,7 +86,6 @@ impl TryFrom<&VgsRouterData<&PaymentsAuthorizeRouterData>> for VgsPaymentsReques
 // Auth Struct
 pub struct VgsAuthType {
     pub(super) username: Secret<String>,
-    #[allow(dead_code)]
     pub(super) password: Secret<String>,
 }
 
@@ -83,7 +93,7 @@ impl TryFrom<&ConnectorAuthType> for VgsAuthType {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(auth_type: &ConnectorAuthType) -> Result<Self, Self::Error> {
         match auth_type {
-            ConnectorAuthType::SignatureKey { api_key, key1, .. } => Ok(Self {
+            ConnectorAuthType::BodyKey { api_key, key1 } => Ok(Self {
                 username: api_key.to_owned(),
                 password: key1.to_owned(),
             }),
@@ -112,107 +122,39 @@ impl From<VgsPaymentStatus> for common_enums::AttemptStatus {
     }
 }
 
+#[derive(Default, Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct VgsAliasItem {
+    alias: String,
+    format: String,
+}
+
+#[derive(Default, Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct VgsTokenResponseItem {
+    value: String,
+    classifiers: Vec<String>,
+    aliases: Vec<VgsAliasItem>,
+    created_at: String,
+    storage: String,
+}
+
 //TODO: Fill the struct with respective fields
 #[derive(Default, Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct VgsPaymentsResponse {
-    status: VgsPaymentStatus,
-    id: String,
+    data: Vec<VgsTokenResponseItem>,
 }
 
-impl<F, T> TryFrom<ResponseRouterData<F, VgsPaymentsResponse, T, PaymentsResponseData>>
-    for RouterData<F, T, PaymentsResponseData>
+impl<F> TryFrom<ResponseRouterData<F, VgsPaymentsResponse, VaultRequestData, VaultResponseData>>
+    for RouterData<F, VaultRequestData, VaultResponseData>
 {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
-        item: ResponseRouterData<F, VgsPaymentsResponse, T, PaymentsResponseData>,
+        item: ResponseRouterData<F, VgsPaymentsResponse, VaultRequestData, VaultResponseData>,
     ) -> Result<Self, Self::Error> {
         Ok(Self {
-            status: common_enums::AttemptStatus::from(item.response.status),
-            response: Ok(PaymentsResponseData::TransactionResponse {
-                resource_id: ResponseId::ConnectorTransactionId(item.response.id),
-                redirection_data: Box::new(None),
-                mandate_reference: Box::new(None),
-                connector_metadata: None,
-                network_txn_id: None,
-                connector_response_reference_id: None,
-                incremental_authorization_allowed: None,
-                charges: None,
-            }),
-            ..item.data
-        })
-    }
-}
-
-//TODO: Fill the struct with respective fields
-// REFUND :
-// Type definition for RefundRequest
-#[derive(Default, Debug, Serialize)]
-pub struct VgsRefundRequest {
-    pub amount: StringMinorUnit,
-}
-
-impl<F> TryFrom<&VgsRouterData<&RefundsRouterData<F>>> for VgsRefundRequest {
-    type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(item: &VgsRouterData<&RefundsRouterData<F>>) -> Result<Self, Self::Error> {
-        Ok(Self {
-            amount: item.amount.to_owned(),
-        })
-    }
-}
-
-// Type definition for Refund Response
-
-#[allow(dead_code)]
-#[derive(Debug, Serialize, Default, Deserialize, Clone)]
-pub enum RefundStatus {
-    Succeeded,
-    Failed,
-    #[default]
-    Processing,
-}
-
-impl From<RefundStatus> for enums::RefundStatus {
-    fn from(item: RefundStatus) -> Self {
-        match item {
-            RefundStatus::Succeeded => Self::Success,
-            RefundStatus::Failed => Self::Failure,
-            RefundStatus::Processing => Self::Pending,
-            //TODO: Review mapping
-        }
-    }
-}
-
-//TODO: Fill the struct with respective fields
-#[derive(Default, Debug, Clone, Serialize, Deserialize)]
-pub struct RefundResponse {
-    id: String,
-    status: RefundStatus,
-}
-
-impl TryFrom<RefundsResponseRouterData<Execute, RefundResponse>> for RefundsRouterData<Execute> {
-    type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(
-        item: RefundsResponseRouterData<Execute, RefundResponse>,
-    ) -> Result<Self, Self::Error> {
-        Ok(Self {
-            response: Ok(RefundsResponseData {
-                connector_refund_id: item.response.id.to_string(),
-                refund_status: enums::RefundStatus::from(item.response.status),
-            }),
-            ..item.data
-        })
-    }
-}
-
-impl TryFrom<RefundsResponseRouterData<RSync, RefundResponse>> for RefundsRouterData<RSync> {
-    type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(
-        item: RefundsResponseRouterData<RSync, RefundResponse>,
-    ) -> Result<Self, Self::Error> {
-        Ok(Self {
-            response: Ok(RefundsResponseData {
-                connector_refund_id: item.response.id.to_string(),
-                refund_status: enums::RefundStatus::from(item.response.status),
+            status: common_enums::AttemptStatus::Failure,
+            response: Ok(VaultResponseData::ExternalVaultInsertResponse {
+                connector_vault_id: item.response.data[0].aliases[0].alias.clone(),
+                fingerprint_id: item.response.data[0].aliases[0].alias.clone(),
             }),
             ..item.data
         })
@@ -221,9 +163,15 @@ impl TryFrom<RefundsResponseRouterData<RSync, RefundResponse>> for RefundsRouter
 
 //TODO: Fill the struct with respective fields
 #[derive(Default, Debug, Serialize, Deserialize, PartialEq)]
-pub struct VgsErrorResponse {
-    pub status_code: u16,
+pub struct VgsErrorItem {
+    pub status: u16,
     pub code: String,
-    pub message: String,
-    pub reason: Option<String>,
+    pub detail: Option<String>,
+}
+
+//TODO: Fill the struct with respective fields
+#[derive(Default, Debug, Serialize, Deserialize, PartialEq)]
+pub struct VgsErrorResponse {
+    pub errors: Vec<VgsErrorItem>,
+    pub trace_id: String,
 }

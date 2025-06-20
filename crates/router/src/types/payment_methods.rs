@@ -60,6 +60,13 @@ pub struct AddVaultResponse {
 
 #[cfg(feature = "v2")]
 #[derive(Debug, serde::Deserialize, serde::Serialize)]
+pub struct AddVaultResponseExternal {
+    pub connector_vault_id: String,
+    pub fingerprint_id: String,
+}
+
+#[cfg(feature = "v2")]
+#[derive(Debug, serde::Deserialize, serde::Serialize)]
 pub struct AddVault;
 
 #[cfg(feature = "v2")]
