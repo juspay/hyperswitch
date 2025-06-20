@@ -59,7 +59,12 @@ use crate::core::routing::transformers::OpenRouterDecideGatewayRequestExt;
 use crate::routes::app::SessionStateInfo;
 use crate::{
     core::{
-        errors, errors as oss_errors, payments::routing::utils::DecisionEngineApiHandler, routing,
+        errors, errors as oss_errors,
+        payments::{
+            routing::utils::DecisionEngineApiHandler, OperationSessionGetters,
+            OperationSessionSetters,
+        },
+        routing,
     },
     logger, services,
     types::{
@@ -432,7 +437,11 @@ pub async fn perform_static_routing_v1(
     algorithm_id: Option<&common_utils::id_type::RoutingId>,
     business_profile: &domain::Profile,
     transaction_data: &routing::TransactionData<'_>,
-) -> RoutingResult<Vec<routing_types::RoutableConnectorChoice>> {
+    payment_attempt: Option<oss_storage::PaymentAttempt>,
+) -> RoutingResult<(
+    Vec<routing_types::RoutableConnectorChoice>,
+    Option<oss_storage::PaymentAttempt>,
+)> {
     let algorithm_id = if let Some(id) = algorithm_id {
         id
     } else {
@@ -449,7 +458,7 @@ pub async fn perform_static_routing_v1(
             .get_default_fallback_list_of_connector_under_profile()
             .change_context(errors::RoutingError::FallbackConfigFetchFailed)?;
 
-        return Ok(fallback_config);
+        return Ok((fallback_config, None));
     };
     let cached_algorithm = ensure_algorithm_cached_v1(
         state,
@@ -461,12 +470,31 @@ pub async fn perform_static_routing_v1(
     .await?;
 
     Ok(match cached_algorithm.as_ref() {
-        CachedAlgorithm::Single(conn) => vec![(**conn).clone()],
+        CachedAlgorithm::Single(conn) => (vec![(**conn).clone()], None),
 
-        CachedAlgorithm::Priority(plist) => plist.clone(),
+        CachedAlgorithm::Priority(plist) => (plist.clone(), None),
 
-        CachedAlgorithm::VolumeSplit(splits) => perform_volume_split(splits.to_vec())
-            .change_context(errors::RoutingError::ConnectorSelectionFailed)?,
+        CachedAlgorithm::VolumeSplit(splits) => {
+            let response = perform_volume_split(splits.to_vec())
+                .change_context(errors::RoutingError::ConnectorSelectionFailed)?;
+
+            let new_attempt = payment_attempt
+                .async_map(|attempt| {
+                    routing::helpers::update_routing_approach_in_attempt(
+                        state,
+                        attempt.clone(),
+                        common_enums::RoutingApproach::VolumeBasedRouting,
+                        common_enums::MerchantStorageScheme::PostgresOnly, // fix this one as well
+                    )
+                })
+                .await
+                .transpose()
+                .change_context(errors::RoutingError::OpenRouterError(
+                    "Failed to update payment_attempt".to_string(),
+                ))?;
+
+            (response, new_attempt)
+        }
 
         CachedAlgorithm::Advanced(interpreter) => {
             let backend_input = match transaction_data {
@@ -514,6 +542,23 @@ pub async fn perform_static_routing_v1(
                 logger::error!(decision_engine_euclid_evaluate_error=?e, "decision_engine_euclid: error in evaluation of rule")
             ).unwrap_or_default();
             let routable_connectors = execute_dsl_and_get_connector_v1(backend_input, interpreter)?;
+
+            // udpate routing approach in attempt
+            let new_attempt = payment_attempt
+                .async_map(|attempt| {
+                    routing::helpers::update_routing_approach_in_attempt(
+                        state,
+                        attempt.clone(),
+                        common_enums::RoutingApproach::RuleBasedRouting,
+                        common_enums::MerchantStorageScheme::PostgresOnly, // fix this one as well
+                    )
+                })
+                .await
+                .transpose()
+                .change_context(errors::RoutingError::OpenRouterError(
+                    "Failed to update payment_attempt".to_string(),
+                ))?;
+
             let connectors = routable_connectors
                 .iter()
                 .map(|c| c.connector.to_string())
@@ -527,7 +572,7 @@ pub async fn perform_static_routing_v1(
                 connectors,
                 "evaluate_routing".to_string(),
             );
-            routable_connectors
+            (routable_connectors, new_attempt)
         }
     })
 }
@@ -1577,12 +1622,17 @@ pub fn make_dsl_input_for_surcharge(
 }
 
 #[cfg(all(feature = "v1", feature = "dynamic_routing"))]
-pub async fn perform_dynamic_routing_with_open_router(
+pub async fn perform_dynamic_routing_with_open_router<F, D>(
     state: &SessionState,
     routable_connectors: Vec<api_routing::RoutableConnectorChoice>,
     profile: &domain::Profile,
     payment_data: oss_storage::PaymentAttempt,
-) -> RoutingResult<Vec<api_routing::RoutableConnectorChoice>> {
+    old_payment_data: &mut D,
+) -> RoutingResult<Vec<api_routing::RoutableConnectorChoice>>
+where
+    F: Send + Clone,
+    D: OperationSessionGetters<F> + OperationSessionSetters<F> + Send + Sync + Clone,
+{
     let dynamic_routing_algo_ref: api_routing::DynamicRoutingAlgorithmRef = profile
         .dynamic_routing_algorithm
         .clone()
@@ -1614,6 +1664,7 @@ pub async fn perform_dynamic_routing_with_open_router(
             profile.get_id(),
             &payment_data,
             is_elimination_enabled,
+            old_payment_data,
         )
         .await?;
 
@@ -1646,12 +1697,18 @@ pub async fn perform_dynamic_routing_with_open_router(
 }
 
 #[cfg(feature = "v1")]
-pub async fn perform_open_routing_for_debit_routing(
+pub async fn perform_open_routing_for_debit_routing<F, D>(
     state: &SessionState,
-    payment_attempt: &oss_storage::PaymentAttempt,
     co_badged_card_request: or_types::CoBadgedCardRequest,
     card_isin: Option<Secret<String>>,
-) -> RoutingResult<or_types::DebitRoutingOutput> {
+    old_payment_data: &mut D,
+) -> RoutingResult<or_types::DebitRoutingOutput>
+where
+    F: Send + Clone,
+    D: OperationSessionGetters<F> + OperationSessionSetters<F> + Send + Sync + Clone,
+{
+    let payment_attempt = old_payment_data.get_payment_attempt().clone();
+
     logger::debug!(
         "performing debit routing with open_router for profile {}",
         payment_attempt.profile_id.get_string_repr()
@@ -1665,7 +1722,7 @@ pub async fn perform_open_routing_for_debit_routing(
     );
 
     let open_router_req_body = OpenRouterDecideGatewayRequest::construct_debit_request(
-        payment_attempt,
+        &payment_attempt,
         metadata,
         card_isin,
         Some(or_types::RankingAlgorithm::NtwBasedRouting),
@@ -1696,17 +1753,35 @@ pub async fn perform_open_routing_for_debit_routing(
 
     let output = match response {
         Ok(events_response) => {
-            let debit_routing_output = events_response
-                .response
-                .ok_or(errors::RoutingError::OpenRouterError(
-                    "Response from decision engine API is empty".to_string(),
-                ))?
+            let response =
+                events_response
+                    .response
+                    .ok_or(errors::RoutingError::OpenRouterError(
+                        "Response from decision engine API is empty".to_string(),
+                    ))?;
+
+            let debit_routing_output = response
                 .debit_routing_output
                 .get_required_value("debit_routing_output")
                 .change_context(errors::RoutingError::OpenRouterError(
                     "Failed to parse the response from open_router".into(),
                 ))
                 .attach_printable("debit_routing_output is missing in the open routing response")?;
+
+            let new_attempt = routing::helpers::update_routing_approach_in_attempt(
+                state,
+                payment_attempt,
+                common_enums::RoutingApproach::from_decision_engine_approach(
+                    &response.routing_approach,
+                ),
+                common_enums::MerchantStorageScheme::PostgresOnly, // fix this one as well
+            )
+            .await
+            .change_context(errors::RoutingError::OpenRouterError(
+                "Failed to update payment_attempt".to_string(),
+            ))?;
+
+            old_payment_data.set_payment_attempt(new_attempt);
 
             Ok(debit_routing_output)
         }
@@ -1820,13 +1895,18 @@ pub async fn perform_dynamic_routing_with_intelligent_router(
 
 #[cfg(all(feature = "v1", feature = "dynamic_routing"))]
 #[instrument(skip_all)]
-pub async fn perform_decide_gateway_call_with_open_router(
+pub async fn perform_decide_gateway_call_with_open_router<F, D>(
     state: &SessionState,
     mut routable_connectors: Vec<api_routing::RoutableConnectorChoice>,
     profile_id: &common_utils::id_type::ProfileId,
     payment_attempt: &oss_storage::PaymentAttempt,
     is_elimination_enabled: bool,
-) -> RoutingResult<Vec<api_routing::RoutableConnectorChoice>> {
+    old_payment_data: &mut D,
+) -> RoutingResult<Vec<api_routing::RoutableConnectorChoice>>
+where
+    F: Send + Clone,
+    D: OperationSessionGetters<F> + OperationSessionSetters<F> + Send + Sync + Clone,
+{
     logger::debug!(
         "performing decide_gateway call with open_router for profile {}",
         profile_id.get_string_repr()
@@ -1882,6 +1962,23 @@ pub async fn perform_decide_gateway_call_with_open_router(
                 )
                 .to_string(),
             );
+
+            // update attempt here
+            let attempt = old_payment_data.get_payment_attempt().clone();
+            let new_attempt = routing::helpers::update_routing_approach_in_attempt(
+                state,
+                attempt,
+                common_enums::RoutingApproach::from_decision_engine_approach(
+                    &decided_gateway.routing_approach,
+                ),
+                common_enums::MerchantStorageScheme::PostgresOnly, // fix this one as well
+            )
+            .await
+            .change_context(errors::RoutingError::OpenRouterError(
+                "Failed to update payment_attempt".to_string(),
+            ))?;
+
+            old_payment_data.set_payment_attempt(new_attempt);
 
             if let Some(gateway_priority_map) = decided_gateway.gateway_priority_map {
                 logger::debug!(gateway_priority_map=?gateway_priority_map, routing_approach=decided_gateway.routing_approach, "open_router decide_gateway call response");
@@ -2135,6 +2232,7 @@ pub async fn perform_success_based_routing(
                 })?;
 
         routing_event.set_routing_approach(success_based_connectors.routing_approach.to_string());
+        // update attempt here
 
         let mut connectors = Vec::with_capacity(success_based_connectors.labels_with_score.len());
         for label_with_score in success_based_connectors.labels_with_score {
@@ -2531,6 +2629,8 @@ pub async fn perform_contract_based_routing(
                     .to_string(),
             status_code: 500,
         })?;
+
+        // update attempt here
 
         let mut connectors = Vec::with_capacity(contract_based_connectors.labels_with_score.len());
 

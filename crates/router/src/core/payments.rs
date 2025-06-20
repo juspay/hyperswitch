@@ -7874,12 +7874,13 @@ pub async fn route_connector_v2_for_payments(
         .as_ref()
         .or(business_profile.routing_algorithm_id.as_ref());
 
-    let connectors = routing::perform_static_routing_v1(
+    let (connectors, _) = routing::perform_static_routing_v1(
         state,
         merchant_context.get_merchant_account().get_id(),
         routing_algorithm_id,
         business_profile,
         &TransactionData::Payment(transaction_data.clone()),
+        None,
     )
     .await
     .change_context(errors::ApiErrorResponse::InternalServerError)?;
@@ -7941,15 +7942,18 @@ where
         algorithm_ref.algorithm_id
     };
 
-    let connectors = routing::perform_static_routing_v1(
+    let (connectors, new_attempt) = routing::perform_static_routing_v1(
         state,
         merchant_context.get_merchant_account().get_id(),
         routing_algorithm_id.as_ref(),
         business_profile,
         &TransactionData::Payment(transaction_data.clone()),
+        Some(payment_data.get_payment_attempt().clone()),
     )
     .await
     .change_context(errors::ApiErrorResponse::InternalServerError)?;
+
+    new_attempt.map(|attempt| payment_data.set_payment_attempt(attempt));
 
     #[cfg(all(feature = "v1", feature = "dynamic_routing"))]
     let payment_attempt = transaction_data.payment_attempt.clone();
@@ -7999,6 +8003,7 @@ where
                     connectors.clone(),
                     business_profile,
                     payment_attempt,
+                    payment_data,
                 )
                 .await
                 .map_err(|e| logger::error!(open_routing_error=?e))
@@ -8118,12 +8123,13 @@ pub async fn route_connector_v1_for_payouts(
         algorithm_ref.algorithm_id
     };
 
-    let connectors = routing::perform_static_routing_v1(
+    let (connectors, _) = routing::perform_static_routing_v1(
         state,
         merchant_context.get_merchant_account().get_id(),
         routing_algorithm_id.as_ref(),
         business_profile,
         &TransactionData::Payout(transaction_data),
+        None,
     )
     .await
     .change_context(errors::ApiErrorResponse::InternalServerError)?;
