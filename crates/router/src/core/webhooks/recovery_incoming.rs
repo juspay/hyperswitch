@@ -495,11 +495,11 @@ impl RevenueRecoveryAttempt {
                     .0
                     .charge_id
                     .as_ref()
-                    .and_then(|charge_id| {
+                    .map(|charge_id| {
                         payments_response
                             .find_attempt_in_attempts_list_using_charge_id(charge_id.clone())
                     })
-                    .or_else(|| {
+                    .unwrap_or_else(|| {
                         self.0
                             .connector_transaction_id
                             .as_ref()
