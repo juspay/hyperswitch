@@ -187,7 +187,7 @@ impl ConnectorCommon for Authipay {
         // Set status code from the response, or 400 if error code is a "404"
         if let Some(error_code) = &response.error.code {
             if error_code == "404" {
-                error_response.status_code = 400;
+                error_response.status_code = 404;
             } else {
                 error_response.status_code = res.status_code;
             }
@@ -210,12 +210,10 @@ impl ConnectorValidation for Authipay {
         match capture_method {
             enums::CaptureMethod::Automatic
             | enums::CaptureMethod::Manual
-            | enums::CaptureMethod::ManualMultiple
             | enums::CaptureMethod::SequentialAutomatic => Ok(()),
-            enums::CaptureMethod::Scheduled => Err(utils::construct_not_implemented_error_report(
-                capture_method,
-                self.id(),
-            )),
+            enums::CaptureMethod::Scheduled | enums::CaptureMethod::ManualMultiple => Err(
+                utils::construct_not_implemented_error_report(capture_method, self.id()),
+            ),
         }
     }
 }
@@ -778,7 +776,6 @@ static AUTHIPAY_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMethods> =
             enums::CaptureMethod::Automatic,
             enums::CaptureMethod::SequentialAutomatic,
             enums::CaptureMethod::Manual,
-            enums::CaptureMethod::ManualMultiple,
         ];
 
         let supported_card_network = vec![
@@ -831,7 +828,7 @@ static AUTHIPAY_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMethods> =
 
 static AUTHIPAY_CONNECTOR_INFO: ConnectorInfo = ConnectorInfo {
     display_name: "Authipay",
-    description: "Authipay is a payment gateway for the EMEA region, supporting card payments with authorization, capture, and refund capabilities.",
+    description: "Authipay is a Fiserv-powered payment gateway for the EMEA region supporting Visa and Mastercard transactions. Features include flexible capture methods (automatic, manual, sequential), partial captures/refunds, payment tokenization, and secure HMAC SHA256 authentication.",
     connector_type: enums::PaymentConnectorCategory::PaymentGateway,
 };
 

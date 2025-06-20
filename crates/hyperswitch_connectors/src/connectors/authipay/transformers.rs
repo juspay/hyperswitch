@@ -116,9 +116,18 @@ impl TryFrom<&AuthipayRouterData<&PaymentsAuthorizeRouterData>> for AuthipayPaym
 
                 // Determine request type based on capture method
                 let request_type = match item.router_data.request.capture_method {
-                    Some(enums::CaptureMethod::Manual)
-                    | Some(enums::CaptureMethod::ManualMultiple) => "PaymentCardPreAuthTransaction",
-                    _ => "PaymentCardSaleTransaction", // Automatic capture (default)
+                    Some(enums::CaptureMethod::Manual) => "PaymentCardPreAuthTransaction",
+                    Some(enums::CaptureMethod::Automatic) => "PaymentCardSaleTransaction",
+                    Some(enums::CaptureMethod::SequentialAutomatic) => "PaymentCardSaleTransaction",
+                    Some(enums::CaptureMethod::ManualMultiple)
+                    | Some(enums::CaptureMethod::Scheduled) => {
+                        return Err(errors::ConnectorError::NotSupported {
+                            message: "Capture method not supported by Authipay".to_string(),
+                            connector: "Authipay",
+                        }
+                        .into());
+                    }
+                    None => "PaymentCardSaleTransaction", // Default when not specified
                 };
 
                 let request = Self {
@@ -157,32 +166,58 @@ impl TryFrom<&ConnectorAuthType> for AuthipayAuthType {
         }
     }
 }
-// Payment Status enum
+// Transaction Status enum (like Fiserv's FiservPaymentStatus)
 #[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq)]
 #[serde(rename_all = "UPPERCASE")]
-pub enum AuthipayPaymentStatus {
-    APPROVED,
-    AUTHORIZED,
-    CAPTURED,
-    RETURNED,
-    DECLINED,
-    FAILED,
+pub enum AuthipayTransactionStatus {
+    Authorized,
+    Captured,
+    Voided,
+    Declined,
+    Failed,
     #[default]
-    PROCESSING,
+    Processing,
 }
 
-impl From<AuthipayPaymentStatus> for enums::AttemptStatus {
-    fn from(item: AuthipayPaymentStatus) -> Self {
+impl From<AuthipayTransactionStatus> for enums::AttemptStatus {
+    fn from(item: AuthipayTransactionStatus) -> Self {
         match item {
-            AuthipayPaymentStatus::APPROVED | AuthipayPaymentStatus::CAPTURED => Self::Charged,
-            AuthipayPaymentStatus::DECLINED | AuthipayPaymentStatus::FAILED => Self::Failure,
-            AuthipayPaymentStatus::PROCESSING => Self::Pending,
-            AuthipayPaymentStatus::AUTHORIZED => Self::Authorized,
-            AuthipayPaymentStatus::RETURNED => Self::Voided,
+            AuthipayTransactionStatus::Captured => Self::Charged,
+            AuthipayTransactionStatus::Declined | AuthipayTransactionStatus::Failed => {
+                Self::Failure
+            }
+            AuthipayTransactionStatus::Processing => Self::Pending,
+            AuthipayTransactionStatus::Authorized => Self::Authorized,
+            AuthipayTransactionStatus::Voided => Self::Voided,
         }
     }
 }
 
+// Transaction Processing Details (like Fiserv's TransactionProcessingDetails)
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub struct AuthipayTransactionProcessingDetails {
+    pub order_id: String,
+    pub transaction_id: String,
+}
+
+// Gateway Response (like Fiserv's GatewayResponse)
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub struct AuthipayGatewayResponse {
+    pub transaction_state: AuthipayTransactionStatus,
+    pub transaction_processing_details: AuthipayTransactionProcessingDetails,
+}
+
+// Payment Receipt (like Fiserv's PaymentReceipt)
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub struct AuthipayPaymentReceipt {
+    pub approved_amount: Amount,
+    pub processor_response_details: Option<Processor>,
+}
+
+// Main Response (like Fiserv's FiservPaymentsResponse) - but flat for JSON deserialization
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 #[serde(rename_all = "camelCase")]
 pub struct AuthipayPaymentsResponse {
@@ -210,6 +245,81 @@ pub struct AuthipayPaymentsResponse {
     approval_code: String,
     scheme_transaction_id: Option<String>,
     processor: Processor,
+}
+
+impl AuthipayPaymentsResponse {
+    /// Get gateway response (like Fiserv's gateway_response)
+    pub fn gateway_response(&self) -> AuthipayGatewayResponse {
+        AuthipayGatewayResponse {
+            transaction_state: self.get_transaction_status(),
+            transaction_processing_details: AuthipayTransactionProcessingDetails {
+                order_id: self.order_id.clone(),
+                transaction_id: self.ipg_transaction_id.clone(),
+            },
+        }
+    }
+
+    /// Get payment receipt (like Fiserv's payment_receipt)
+    pub fn payment_receipt(&self) -> AuthipayPaymentReceipt {
+        AuthipayPaymentReceipt {
+            approved_amount: self.approved_amount.clone(),
+            processor_response_details: Some(self.processor.clone()),
+        }
+    }
+
+    /// Determine the transaction status based on transaction type and various status fields (like Fiserv)
+    fn get_transaction_status(&self) -> AuthipayTransactionStatus {
+        match self.transaction_type.as_str() {
+            "RETURN" => {
+                // Refund transaction - use transaction_result
+                match self.transaction_result.as_deref() {
+                    Some("APPROVED") => AuthipayTransactionStatus::Captured,
+                    Some("DECLINED") | Some("FAILED") => AuthipayTransactionStatus::Failed,
+                    _ => AuthipayTransactionStatus::Processing,
+                }
+            }
+            "VOID" => {
+                // Void transaction - use transaction_result
+                match self.transaction_result.as_deref() {
+                    Some("APPROVED") => AuthipayTransactionStatus::Voided,
+                    Some("DECLINED") | Some("FAILED") => AuthipayTransactionStatus::Failed,
+                    _ => AuthipayTransactionStatus::Processing,
+                }
+            }
+            _ => {
+                // Payment transaction - prioritize transaction_state over transaction_status
+                match self.transaction_state.as_deref() {
+                    Some("AUTHORIZED") => AuthipayTransactionStatus::Authorized,
+                    Some("CAPTURED") => AuthipayTransactionStatus::Captured,
+                    Some("VOIDED") => AuthipayTransactionStatus::Voided,
+                    Some("DECLINED") | Some("FAILED") => AuthipayTransactionStatus::Failed,
+                    _ => {
+                        // Fallback to transaction_status with transaction_type context
+                        match (
+                            self.transaction_type.as_str(),
+                            self.transaction_status.as_deref(),
+                        ) {
+                            // For PREAUTH transactions, "APPROVED" means authorized and awaiting capture
+                            ("PREAUTH", Some("APPROVED")) => AuthipayTransactionStatus::Authorized,
+                            // For POSTAUTH transactions, "APPROVED" means successfully captured
+                            ("POSTAUTH", Some("APPROVED")) => AuthipayTransactionStatus::Captured,
+                            // For SALE transactions, "APPROVED" means completed payment
+                            ("SALE", Some("APPROVED")) => AuthipayTransactionStatus::Captured,
+                            // For VOID transactions, "APPROVED" means successfully voided
+                            ("VOID", Some("APPROVED")) => AuthipayTransactionStatus::Voided,
+                            // Generic status mappings for other cases
+                            (_, Some("APPROVED")) => AuthipayTransactionStatus::Captured,
+                            (_, Some("AUTHORIZED")) => AuthipayTransactionStatus::Authorized,
+                            (_, Some("DECLINED") | Some("FAILED")) => {
+                                AuthipayTransactionStatus::Failed
+                            }
+                            _ => AuthipayTransactionStatus::Processing,
+                        }
+                    }
+                }
+            }
+        }
+    }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
@@ -265,75 +375,35 @@ impl<F, T> TryFrom<ResponseRouterData<F, AuthipayPaymentsResponse, T, PaymentsRe
     fn try_from(
         item: ResponseRouterData<F, AuthipayPaymentsResponse, T, PaymentsResponseData>,
     ) -> Result<Self, Self::Error> {
-        // Determine status based on transaction type
-        let status = match item.response.transaction_type.as_str() {
-            "RETURN" => {
-                // Refund transaction - use transaction_result
-                match item.response.transaction_result.as_deref() {
-                    Some("APPROVED") => enums::AttemptStatus::Charged,
-                    Some("DECLINED") | Some("FAILED") => enums::AttemptStatus::Failure,
-                    _ => enums::AttemptStatus::Pending,
-                }
-            }
-            "VOID" => {
-                // Void transaction - use transaction_result
-                match item.response.transaction_result.as_deref() {
-                    Some("APPROVED") => enums::AttemptStatus::Voided,
-                    Some("DECLINED") | Some("FAILED") => enums::AttemptStatus::Failure,
-                    _ => enums::AttemptStatus::Pending,
-                }
-            }
-            _ => {
-                // Payment transaction - prioritize transaction_state over transaction_status for manual capture
-                match item.response.transaction_state.as_deref() {
-                    Some("AUTHORIZED") => enums::AttemptStatus::Authorized,
-                    Some("CAPTURED") => enums::AttemptStatus::Charged,
-                    Some("VOIDED") => enums::AttemptStatus::Voided,
-                    Some("DECLINED") | Some("FAILED") => enums::AttemptStatus::Failure,
-                    _ => {
-                        // Fallback to transaction_status, considering transaction_type for proper manual capture handling
-                        match (
-                            item.response.transaction_type.as_str(),
-                            item.response.transaction_status.as_deref(),
-                        ) {
-                            // For PREAUTH transactions, "APPROVED" means authorized and awaiting capture
-                            ("PREAUTH", Some("APPROVED")) => enums::AttemptStatus::Authorized,
-                            // For POSTAUTH transactions, "APPROVED" means successfully captured
-                            ("POSTAUTH", Some("APPROVED")) => enums::AttemptStatus::Charged,
-                            // For SALE transactions, "APPROVED" means completed payment
-                            ("SALE", Some("APPROVED")) => enums::AttemptStatus::Charged,
-                            // For VOID transactions, "APPROVED" means successfully voided
-                            ("VOID", Some("APPROVED")) => enums::AttemptStatus::Voided,
-                            // Generic status mappings for other cases
-                            (_, Some("APPROVED")) => enums::AttemptStatus::Charged,
-                            (_, Some("AUTHORIZED")) => enums::AttemptStatus::Authorized,
-                            (_, Some("DECLINED") | Some("FAILED")) => enums::AttemptStatus::Failure,
-                            _ => enums::AttemptStatus::Pending,
-                        }
-                    }
-                }
-            }
-        };
+        // Get gateway response (like Fiserv pattern)
+        let gateway_resp = item.response.gateway_response();
 
-        // Store order_id in connector_metadata for void operations
+        // Store order_id in connector_metadata for void operations (like Fiserv)
         let mut metadata = std::collections::HashMap::new();
         metadata.insert(
             "order_id".to_string(),
-            serde_json::Value::String(item.response.order_id.clone()),
+            serde_json::Value::String(gateway_resp.transaction_processing_details.order_id.clone()),
         );
         let connector_metadata = Some(serde_json::Value::Object(serde_json::Map::from_iter(
             metadata,
         )));
 
         Ok(Self {
-            status,
+            status: enums::AttemptStatus::from(gateway_resp.transaction_state.clone()),
             response: Ok(PaymentsResponseData::TransactionResponse {
-                resource_id: ResponseId::ConnectorTransactionId(item.response.ipg_transaction_id),
+                resource_id: ResponseId::ConnectorTransactionId(
+                    gateway_resp
+                        .transaction_processing_details
+                        .transaction_id
+                        .clone(),
+                ),
                 redirection_data: Box::new(None),
                 mandate_reference: Box::new(None),
                 connector_metadata,
                 network_txn_id: None,
-                connector_response_reference_id: Some(item.response.order_id),
+                connector_response_reference_id: Some(
+                    gateway_resp.transaction_processing_details.order_id.clone(),
+                ),
                 incremental_authorization_allowed: None,
                 charges: None,
             }),
@@ -515,7 +585,7 @@ pub struct AuthipayErrorResponse {
 impl From<&AuthipayErrorResponse> for ErrorResponse {
     fn from(item: &AuthipayErrorResponse) -> Self {
         Self {
-            status_code: 0, // This will be overridden by the HTTP status code
+            status_code: 500, // Default to Internal Server Error, will be overridden by actual HTTP status
             code: item.error.code.clone().unwrap_or_default(),
             message: item.error.message.clone(),
             reason: None,
