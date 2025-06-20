@@ -20,6 +20,8 @@
     "cypress:ci:report": "npm run cypress:ci && npm run report:generate",
     "cypress:payments:report": "npm run cypress:payments && npm run report:generate",
     "cypress:payouts:report": "npm run cypress:payouts && npm run report:generate",
+    "build": "node build.js",
+    "build:clean": "node build.js clean",
     "format": "prettier --config .prettierrc . --write",
     "format:check": "prettier --config .prettierrc . --check",
     "lint": "eslint ."
