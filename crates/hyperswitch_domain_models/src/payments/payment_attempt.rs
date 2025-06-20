@@ -646,8 +646,10 @@ impl PaymentAttempt {
         let payment_method_type_data = payment_intent.get_payment_method_type();
 
         let payment_method_subtype_data = payment_intent.get_payment_method_sub_type();
-
         let authentication_type = payment_intent.authentication_type.unwrap_or_default();
+        let connector_request_reference_id = payment_intent
+.merchant_reference_id.clone()
+.map(|id| id.get_string_repr().to_owned());
         Ok(Self {
             payment_id: payment_intent.id.clone(),
             merchant_id: payment_intent.merchant_id.clone(),
@@ -698,7 +700,7 @@ impl PaymentAttempt {
             card_discovery: None,
             processor_merchant_id: payment_intent.merchant_id.clone(),
             created_by: None,
-            connector_request_reference_id: None,
+            connector_request_reference_id,
         })
     }
 
@@ -752,7 +754,9 @@ impl PaymentAttempt {
             .as_ref()
             .map(|txn_id| txn_id.get_id().clone());
         let connector = request.connector.map(|connector| connector.to_string());
-
+        let connector_request_reference_id = payment_intent
+        .merchant_reference_id.clone()
+        .map(|id| id.get_string_repr().to_owned()); 
         Ok(Self {
             payment_id: payment_intent.id.clone(),
             merchant_id: payment_intent.merchant_id.clone(),
@@ -804,7 +808,7 @@ impl PaymentAttempt {
             charges: None,
             processor_merchant_id: payment_intent.merchant_id.clone(),
             created_by: None,
-            connector_request_reference_id: None,
+            connector_request_reference_id,
         })
     }
 
