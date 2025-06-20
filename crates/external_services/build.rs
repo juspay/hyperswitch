@@ -30,23 +30,28 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Compilation for dynamic_routing protos
     #[cfg(feature = "dynamic_routing")]
     {
-        let proto_base_path = router_env::workspace_path().join("proto");
+        // Get the directory of the current crate
+
+        let proto_path = router_env::workspace_path().join("proto");
+        let success_rate_proto_file = proto_path.join("success_rate.proto");
+        let contract_routing_proto_file = proto_path.join("contract_routing.proto");
+        let elimination_proto_file = proto_path.join("elimination_rate.proto");
+        let health_check_proto_file = proto_path.join("health_check.proto");
         let out_dir = std::path::PathBuf::from(std::env::var("OUT_DIR")?);
-        let dr_proto_files = [
-            proto_base_path.join("success_rate.proto"),
-            proto_base_path.join("contract_routing.proto"),
-            proto_base_path.join("elimination_rate.proto"),
-            proto_base_path.join("health_check.proto"),
-        ];
-        println!(
-            "Compiling dynamic_routing proto files: {:?}",
-            dr_proto_files
-        );
+
+        // Compile the .proto file
         tonic_build::configure()
-            .out_dir(&out_dir)
-            .compile_well_known_types(true)
-            .compile(&dr_proto_files, &[&proto_base_path])
-            .expect("Failed to compile dynamic routing proto files");
+            .out_dir(out_dir)
+            .compile(
+                &[
+                    success_rate_proto_file,
+                    health_check_proto_file,
+                    elimination_proto_file,
+                    contract_routing_proto_file,
+                ],
+                &[proto_path],
+            )
+            .expect("Failed to compile proto files");
     }
     Ok(())
 }
