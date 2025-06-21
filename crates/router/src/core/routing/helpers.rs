@@ -54,7 +54,10 @@ use crate::{
 };
 #[cfg(feature = "v1")]
 use crate::{
-    core::payments::routing::utils::{self as routing_utils, DecisionEngineApiHandler},
+    core::payments::{
+        routing::utils::{self as routing_utils, DecisionEngineApiHandler},
+        OperationSessionGetters, OperationSessionSetters,
+    },
     services,
 };
 #[cfg(all(feature = "dynamic_routing", feature = "v1"))]
@@ -338,11 +341,7 @@ impl RoutingDecisionData {
     pub fn apply_routing_decision<F, D>(&self, payment_data: &mut D)
     where
         F: Send + Clone,
-        D: crate::core::payments::OperationSessionGetters<F>
-            + crate::core::payments::OperationSessionSetters<F>
-            + Send
-            + Sync
-            + Clone,
+        D: OperationSessionGetters<F> + OperationSessionSetters<F> + Send + Sync + Clone,
     {
         match self {
             Self::DebitRouting(data) => data.apply_debit_routing_decision(payment_data),
@@ -364,11 +363,7 @@ impl DebitRoutingDecisionData {
     pub fn apply_debit_routing_decision<F, D>(&self, payment_data: &mut D)
     where
         F: Send + Clone,
-        D: crate::core::payments::OperationSessionGetters<F>
-            + crate::core::payments::OperationSessionSetters<F>
-            + Send
-            + Sync
-            + Clone,
+        D: OperationSessionGetters<F> + OperationSessionSetters<F> + Send + Sync + Clone,
     {
         payment_data.set_card_network(self.card_network.clone());
         self.debit_routing_result

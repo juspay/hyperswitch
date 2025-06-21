@@ -15,7 +15,7 @@ use api_models::{
     },
     enums::{
         AttemptStatus, AuthenticationType, Connector, Currency, DisputeStage, IntentStatus,
-        PaymentMethod, PaymentMethodType,
+        PaymentMethod, PaymentMethodType, RoutingApproach,
     },
     refunds::RefundStatus,
 };
@@ -514,7 +514,8 @@ impl_to_sql_for_to_string!(
     &bool,
     &u64,
     u64,
-    Order
+    Order,
+    RoutingApproach
 );
 
 impl_to_sql_for_to_string!(

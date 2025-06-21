@@ -1522,6 +1522,18 @@ impl RoutingApproach {
     }
 }
 
+impl From<RoutingApproach> for common_enums::RoutingApproach {
+    fn from(approach: RoutingApproach) -> Self {
+        match approach {
+            RoutingApproach::Exploitation => Self::SuccessRateExploitation,
+            RoutingApproach::Exploration => Self::SuccessRateExploration,
+            RoutingApproach::ContractBased => Self::ContractBasedRouting,
+            RoutingApproach::StaticRouting => Self::RuleBasedRouting,
+            _ => Self::DefaultFallback,
+        }
+    }
+}
+
 impl std::fmt::Display for RoutingApproach {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {

@@ -63,11 +63,19 @@ pub mod routes {
                                 .route(web::post().to(get_merchant_payment_metrics)),
                         )
                         .service(
+                            web::resource("metrics/routing")
+                                .route(web::post().to(get_merchant_payment_metrics)),
+                        )
+                        .service(
                             web::resource("metrics/refunds")
                                 .route(web::post().to(get_merchant_refund_metrics)),
                         )
                         .service(
                             web::resource("filters/payments")
+                                .route(web::post().to(get_merchant_payment_filters)),
+                        )
+                        .service(
+                            web::resource("filters/routing")
                                 .route(web::post().to(get_merchant_payment_filters)),
                         )
                         .service(
@@ -88,7 +96,7 @@ pub mod routes {
                         )
                         .service(
                             web::resource("report/payments")
-                                .route(web::post().to(generate_merchant_payment_report)),
+                                .route(web::post().to(generate_merchant_payment_report)), // do we replicate this for routing as well?
                         )
                         .service(
                             web::resource("report/authentications")
@@ -176,11 +184,19 @@ pub mod routes {
                                         .route(web::post().to(get_merchant_payment_metrics)),
                                 )
                                 .service(
+                                    web::resource("metrics/routing")
+                                        .route(web::post().to(get_merchant_payment_metrics)),
+                                )
+                                .service(
                                     web::resource("metrics/refunds")
                                         .route(web::post().to(get_merchant_refund_metrics)),
                                 )
                                 .service(
                                     web::resource("filters/payments")
+                                        .route(web::post().to(get_merchant_payment_filters)),
+                                )
+                                .service(
+                                    web::resource("filters/routing")
                                         .route(web::post().to(get_merchant_payment_filters)),
                                 )
                                 .service(
@@ -242,6 +258,14 @@ pub mod routes {
                                         .route(web::post().to(get_org_payment_filters)),
                                 )
                                 .service(
+                                    web::resource("metrics/routing")
+                                        .route(web::post().to(get_org_payment_metrics)),
+                                )
+                                .service(
+                                    web::resource("filters/routing")
+                                        .route(web::post().to(get_org_payment_filters)),
+                                )
+                                .service(
                                     web::resource("metrics/refunds")
                                         .route(web::post().to(get_org_refund_metrics)),
                                 )
@@ -289,6 +313,14 @@ pub mod routes {
                                 )
                                 .service(
                                     web::resource("filters/payments")
+                                        .route(web::post().to(get_profile_payment_filters)),
+                                )
+                                .service(
+                                    web::resource("metrics/routing")
+                                        .route(web::post().to(get_profile_payment_metrics)),
+                                )
+                                .service(
+                                    web::resource("filters/routing")
                                         .route(web::post().to(get_profile_payment_filters)),
                                 )
                                 .service(
@@ -354,7 +386,7 @@ pub mod routes {
                     web::scope("/v2")
                         .service(
                             web::resource("/metrics/payments")
-                                .route(web::post().to(get_merchant_payment_intent_metrics)),
+                                .route(web::post().to(get_merchant_payment_intent_metrics)), // do we replicate this for routing as well?
                         )
                         .service(
                             web::resource("/filters/payments")
