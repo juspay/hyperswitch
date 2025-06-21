@@ -92,6 +92,7 @@ pub mod headers {
     pub const X_CLIENT_SECRET: &str = "X-Client-Secret";
     pub const X_CUSTOMER_ID: &str = "X-Customer-Id";
     pub const X_CONNECTED_MERCHANT_ID: &str = "x-connected-merchant-id";
+    pub const X_PLATFORM_MERCHANT_ID: &str = "x-platform-merchant-id";
 }
 
 pub mod pii {

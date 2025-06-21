@@ -285,6 +285,10 @@ pub enum StripeErrorCode {
     PlatformBadRequest,
     #[error(error_type = StripeErrorType::HyperswitchError, code = "", message = "Platform Unauthorized Request")]
     PlatformUnauthorizedRequest,
+    #[error(error_type = StripeErrorType::HyperswitchError, code = "", message = "Connected Bad Request")]
+    ConnectedBadRequest,
+    #[error(error_type = StripeErrorType::HyperswitchError, code = "", message = "Connected Unauthorized Request")]
+    ConnectedUnauthorizedRequest,
     #[error(error_type = StripeErrorType::HyperswitchError, code = "", message = "Profile Acquirer not found")]
     ProfileAcquirerNotFound,
     // [#216]: https://github.com/juspay/hyperswitch/issues/216
@@ -694,6 +698,10 @@ impl From<errors::ApiErrorResponse> for StripeErrorCode {
             errors::ApiErrorResponse::ProfileAcquirerNotFound { .. } => {
                 Self::ProfileAcquirerNotFound
             }
+            errors::ApiErrorResponse::ConnectedAccountAuthNotSupported => Self::ConnectedBadRequest,
+            errors::ApiErrorResponse::InvalidConnectedOperation => {
+                Self::ConnectedUnauthorizedRequest
+            }
         }
     }
 }
@@ -703,7 +711,9 @@ impl actix_web::ResponseError for StripeErrorCode {
         use reqwest::StatusCode;
 
         match self {
-            Self::Unauthorized | Self::PlatformUnauthorizedRequest => StatusCode::UNAUTHORIZED,
+            Self::Unauthorized
+            | Self::PlatformUnauthorizedRequest
+            | Self::ConnectedUnauthorizedRequest => StatusCode::UNAUTHORIZED,
             Self::InvalidRequestUrl | Self::GenericNotFoundError { .. } => StatusCode::NOT_FOUND,
             Self::ParameterUnknown { .. } | Self::HyperswitchUnprocessableEntity { .. } => {
                 StatusCode::UNPROCESSABLE_ENTITY
@@ -768,6 +778,7 @@ impl actix_web::ResponseError for StripeErrorCode {
             | Self::PaymentMethodDeleteFailed
             | Self::ExtendedCardInfoNotFound
             | Self::PlatformBadRequest
+            | Self::ConnectedBadRequest
             | Self::LinkConfigurationError { .. } => StatusCode::BAD_REQUEST,
             Self::RefundFailed
             | Self::PayoutFailed
