@@ -9,7 +9,9 @@ use common_utils::{
     types::{AmountConvertor, ConnectorTransactionId, MinorUnit, StringMinorUnitForConnector},
 };
 #[cfg(feature = "v1")]
-use diesel_models::{enums as storage_enums, DisputeNew, RefundNew, user::sample_data::PaymentAttemptBatchNew};
+use diesel_models::{
+    enums as storage_enums, user::sample_data::PaymentAttemptBatchNew, DisputeNew, RefundNew,
+};
 #[cfg(feature = "v1")]
 use error_stack::ResultExt;
 #[cfg(feature = "v1")]

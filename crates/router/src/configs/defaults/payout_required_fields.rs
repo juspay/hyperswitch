@@ -1,16 +1,13 @@
 use std::collections::HashMap;
 
-use api_models::{
-    enums::{
-        CountryAlpha2, FieldType,
-        PayoutConnectors,
-    },
-    payment_methods::RequiredFieldInfo,
-};
 #[cfg(feature = "v1")]
 use api_models::enums::{
     PaymentMethod::{BankTransfer, Card, Wallet},
     PaymentMethodType,
+};
+use api_models::{
+    enums::{CountryAlpha2, FieldType, PayoutConnectors},
+    payment_methods::RequiredFieldInfo,
 };
 
 #[cfg(feature = "v1")]
