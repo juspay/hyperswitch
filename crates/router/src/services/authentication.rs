@@ -451,7 +451,7 @@ where
                 is_platform_allowed,
             } => match caller_merchant_account.merchant_account_type {
                 MerchantAccountType::Connected if !is_connected_allowed => Err(report!(
-                    errors::ApiErrorResponse::PlatformAccountAuthNotSupported
+                    errors::ApiErrorResponse::ConnectedAccountAuthNotSupported
                 ))
                 .attach_printable("Connected merchant access not allowed"),
                 MerchantAccountType::Platform if !is_platform_allowed => Err(report!(
@@ -579,7 +579,7 @@ where
         match merchant.merchant_account_type {
             MerchantAccountType::Connected if !self.is_connected_allowed => {
                 return Err(report!(
-                    errors::ApiErrorResponse::PlatformAccountAuthNotSupported
+                    errors::ApiErrorResponse::ConnectedAccountAuthNotSupported
                 ))
                 .attach_printable("Connected Merchant is not authorized to access the resource");
             }
@@ -710,7 +710,7 @@ where
         match merchant.merchant_account_type {
             MerchantAccountType::Connected if !self.is_connected_allowed => {
                 return Err(report!(
-                    errors::ApiErrorResponse::PlatformAccountAuthNotSupported
+                    errors::ApiErrorResponse::ConnectedAccountAuthNotSupported
                 ))
                 .attach_printable("Connected Merchant is not authorized to access the resource");
             }
@@ -2660,7 +2660,7 @@ where
         match merchant.merchant_account_type {
             MerchantAccountType::Connected if !self.is_connected_allowed => {
                 return Err(report!(
-                    errors::ApiErrorResponse::PlatformAccountAuthNotSupported
+                    errors::ApiErrorResponse::ConnectedAccountAuthNotSupported
                 ))
                 .attach_printable("Connected Merchant is not authorized to access the resource");
             }
@@ -4630,14 +4630,14 @@ where
     let headers_struct = HeaderMapStruct::new(request_headers);
     match base_merchant.merchant_account_type {
         MerchantAccountType::Platform => {
-            let connected_id = headers_struct
+            let merchant_id_from_header = headers_struct
                 .get_id_type_from_header_if_present::<id_type::MerchantId>(
                     headers::X_CONNECTED_MERCHANT_ID,
                 )?
                 .ok_or_else(|| report!(errors::ApiErrorResponse::InvalidPlatformOperation))
                 .attach_printable("X-Connected-Merchant-Id is required for platform accounts")?;
 
-            let target_merchant = fetch_merchant(state, &connected_id).await?;
+            let target_merchant = fetch_merchant(state, &merchant_id_from_header).await?;
 
             if target_merchant.organization_id != base_merchant.organization_id {
                 return Err(errors::ApiErrorResponse::InvalidPlatformOperation)
@@ -4654,30 +4654,30 @@ where
                     Ok((target_merchant, Some(base_merchant)))
                 }
                 _ => Err(errors::ApiErrorResponse::InvalidPlatformOperation)
-                    .attach_printable("Merchant is neither Platform nor Connected"),
+                    .attach_printable("Merchant Id from header is neither Platform nor Connected"),
             }
         }
         MerchantAccountType::Connected => {
-            let platform_id = headers_struct
+            let merchant_id_from_header = headers_struct
                 .get_id_type_from_header_if_present::<id_type::MerchantId>(
                     headers::X_PLATFORM_MERCHANT_ID,
                 )?
-                .ok_or_else(|| report!(errors::ApiErrorResponse::InvalidPlatformOperation))
+                .ok_or_else(|| report!(errors::ApiErrorResponse::InvalidConnectedOperation))
                 .attach_printable("X-Platform-Merchant-Id is required for connected accounts")?;
 
-            let platform = fetch_merchant(state, &platform_id).await?;
+            let platform_merchant = fetch_merchant(state, &merchant_id_from_header).await?;
 
-            if platform.organization_id != base_merchant.organization_id {
-                return Err(errors::ApiErrorResponse::InvalidPlatformOperation)
-                    .attach_printable("Platform merchant not in same org as connected");
+            if platform_merchant.organization_id != base_merchant.organization_id {
+                return Err(errors::ApiErrorResponse::InvalidConnectedOperation)
+                    .attach_printable("Platform merchant not in same org as connected merchant");
             }
 
-            if platform.merchant_account_type != MerchantAccountType::Platform {
-                return Err(errors::ApiErrorResponse::InvalidPlatformOperation)
-                    .attach_printable("Merchant is not of type Platform");
+            if platform_merchant.merchant_account_type != MerchantAccountType::Platform {
+                return Err(errors::ApiErrorResponse::InvalidConnectedOperation)
+                    .attach_printable("Merchant Id from header is not of type Platform");
             }
 
-            Ok((base_merchant, Some(platform)))
+            Ok((base_merchant, Some(platform_merchant)))
         }
         MerchantAccountType::Standard => {
             if request_headers.contains_key(headers::X_CONNECTED_MERCHANT_ID)
@@ -4708,13 +4708,13 @@ where
             &state.store().get_master_key().to_vec().into(),
         )
         .await
-        .to_not_found_response(errors::ApiErrorResponse::InvalidPlatformOperation)?;
+        .to_not_found_response(errors::ApiErrorResponse::Unauthorized)?;
 
     state
         .store()
         .find_merchant_account_by_merchant_id(key_manager_state, merchant_id, &key_store)
         .await
-        .to_not_found_response(errors::ApiErrorResponse::InvalidPlatformOperation)
+        .to_not_found_response(errors::ApiErrorResponse::Unauthorized)
 }
 
 fn throw_error_if_platform_merchant_authentication_required(
