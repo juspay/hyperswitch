@@ -130,7 +130,7 @@ impl OutgoingWebhookEventMetric for OutgoingWebhookContent {
                 content: masking::masked_serialize(&refund_payload)
                     .unwrap_or(serde_json::json!({"error":"failed to serialize"})),
             }),
-            Self::DisputeDetails(dispute_payload) => {
+            Self::DisputeDetails(_dispute_payload) => {
                 //TODO: add support for dispute outgoing webhook
                 todo!()
             }
