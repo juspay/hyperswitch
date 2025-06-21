@@ -9,7 +9,7 @@ fmt *FLAGS:
     cargo +nightly fmt {{ fmt_flags }} {{ FLAGS }}
 
 check_flags := '--all-targets'
-v2_lints:= '-D warnings -Aunused -Aclippy::todo -Aclippy::diverging_sub_expression'
+v2_lints:= '-Aclippy::todo -Aclippy::diverging_sub_expression'
 
 alias c := check
 

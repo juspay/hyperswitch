@@ -70,7 +70,7 @@ pub async fn check_if_connector_exists(
             .to_not_found_response(ApiErrorResponse::MerchantConnectorAccountNotFound {
                 id: connector_id.get_string_repr().to_string(),
             })?;
-        
+
         Ok(())
     }
 
@@ -80,7 +80,6 @@ pub async fn check_if_connector_exists(
         let _ = key_store;
         todo!()
     };
-
 }
 
 pub async fn set_tracking_id_in_configs(

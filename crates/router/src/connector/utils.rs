@@ -27,10 +27,10 @@ use hyperswitch_domain_models::payments::payment_attempt::PaymentAttempt;
 use masking::{Deserialize, ExposeInterface, Secret};
 use regex::Regex;
 
-#[cfg(feature = "frm")]
-use crate::types::fraud_check;
 #[cfg(feature = "v1")]
 use crate::core::errors::ApiErrorResponse;
+#[cfg(feature = "frm")]
+use crate::types::fraud_check;
 use crate::{
     consts,
     core::{

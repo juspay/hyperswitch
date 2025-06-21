@@ -18,12 +18,9 @@ use error_stack::ResultExt;
 #[cfg(feature = "v1")]
 use masking::PeekInterface;
 use router_env::tracing::{self, instrument};
-#[cfg(feature = "v1")]
-use scheduler::{
-    types::process_data,
-    utils as scheduler_utils,
-};
 use scheduler::consumer::{self, workflows::ProcessTrackerWorkflow};
+#[cfg(feature = "v1")]
+use scheduler::{types::process_data, utils as scheduler_utils};
 
 #[cfg(all(feature = "payouts", feature = "v1"))]
 use crate::core::payouts;
@@ -38,11 +35,7 @@ use crate::{
     routes::app::ReqState,
     types::domain,
 };
-use crate::{
-    errors,
-    routes::SessionState,
-    types::storage,
-};
+use crate::{errors, routes::SessionState, types::storage};
 
 pub struct OutgoingWebhookRetryWorkflow;
 

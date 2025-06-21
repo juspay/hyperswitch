@@ -1,6 +1,6 @@
+use common_utils::ext_traits::StringExt;
 #[cfg(feature = "v1")]
 use common_utils::ext_traits::{OptionExt, ValueExt};
-use common_utils::ext_traits::StringExt;
 use diesel_models::process_tracker::business_status;
 use error_stack::ResultExt;
 use router_env::logger;
@@ -16,20 +16,11 @@ use crate::{
         errors::StorageErrorExt,
         payments::{self as payment_flows, operations},
     },
-    
     services,
-    types::{
-        api, domain,
-        storage::enums,
-    },
+    types::{api, domain, storage::enums},
     utils,
 };
-use crate::{
-    db::StorageInterface,
-    errors,
-    routes::SessionState,
-    types::storage,
-};
+use crate::{db::StorageInterface, errors, routes::SessionState, types::storage};
 
 pub struct PaymentsSyncWorkflow;
 
