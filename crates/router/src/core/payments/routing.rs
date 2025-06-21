@@ -15,6 +15,7 @@ use api_models::{
     enums::{self as api_enums, CountryAlpha2},
     routing::ConnectorSelection,
 };
+#[cfg(all(feature = "v1", feature = "dynamic_routing"))]
 use common_utils::ext_traits::AsyncExt;
 use diesel_models::enums as storage_enums;
 use error_stack::ResultExt;
@@ -2046,6 +2047,7 @@ pub async fn update_gateway_score_with_open_router(
 /// success based dynamic routing
 #[cfg(all(feature = "v1", feature = "dynamic_routing"))]
 #[instrument(skip_all)]
+#[allow(clippy::too_many_arguments)]
 pub async fn perform_success_based_routing<F, D>(
     state: &SessionState,
     routable_connectors: Vec<api_routing::RoutableConnectorChoice>,
@@ -2429,6 +2431,7 @@ pub async fn perform_elimination_routing(
 }
 
 #[cfg(all(feature = "v1", feature = "dynamic_routing"))]
+#[allow(clippy::too_many_arguments)]
 pub async fn perform_contract_based_routing<F, D>(
     state: &SessionState,
     routable_connectors: Vec<api_routing::RoutableConnectorChoice>,

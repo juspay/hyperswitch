@@ -9561,6 +9561,13 @@ impl<F: Clone> OperationSessionSetters<F> for PaymentIntentData<F> {
     ) {
         self.vault_session_details = vault_session_details;
     }
+
+    fn set_routing_approach_in_attempt(
+        &mut self,
+        routing_approach: Option<enums::RoutingApproach>,
+    ) {
+        todo!()
+    }
 }
 
 #[cfg(feature = "v2")]
@@ -9850,6 +9857,13 @@ impl<F: Clone> OperationSessionSetters<F> for PaymentConfirmData<F> {
     ) {
         todo!()
     }
+
+    fn set_routing_approach_in_attempt(
+        &mut self,
+        routing_approach: Option<enums::RoutingApproach>,
+    ) {
+        todo!()
+    }
 }
 
 #[cfg(feature = "v2")]
@@ -10132,6 +10146,12 @@ impl<F: Clone> OperationSessionSetters<F> for PaymentStatusData<F> {
     fn set_vault_session_details(
         &mut self,
         external_vault_session_details: Option<api::VaultSessionDetails>,
+    ) {
+        todo!()
+    }
+    fn set_routing_approach_in_attempt(
+        &mut self,
+        routing_approach: Option<enums::RoutingApproach>,
     ) {
         todo!()
     }
@@ -10418,6 +10438,13 @@ impl<F: Clone> OperationSessionSetters<F> for PaymentCaptureData<F> {
     fn set_vault_session_details(
         &mut self,
         external_vault_session_details: Option<api::VaultSessionDetails>,
+    ) {
+        todo!()
+    }
+
+    fn set_routing_approach_in_attempt(
+        &mut self,
+        routing_approach: Option<enums::RoutingApproach>,
     ) {
         todo!()
     }

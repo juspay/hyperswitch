@@ -6,12 +6,9 @@ use std::{
 use common_utils::id_type;
 
 use super::{ForexMetric, NameDescription, TimeRange};
-use crate::{
-    enums::{
-        AttemptStatus, AuthenticationType, CardNetwork, Connector, Currency, PaymentMethod,
-        PaymentMethodType,
-    },
-    events::routing,
+use crate::enums::{
+    AttemptStatus, AuthenticationType, CardNetwork, Connector, Currency, PaymentMethod,
+    PaymentMethodType,
 };
 
 #[derive(Clone, Debug, Default, serde::Deserialize, serde::Serialize)]
