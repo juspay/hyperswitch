@@ -44,12 +44,12 @@
     },
     {
       "key": "archipel_tenant_id",
-      "value": "1234",
+      "value": "",
       "type": "string"
     },
     {
       "key": "archipel_platform_url",
-      "value": "185.149.63.6:19585",
+      "value": "",
       "type": "string"
     },
     {
