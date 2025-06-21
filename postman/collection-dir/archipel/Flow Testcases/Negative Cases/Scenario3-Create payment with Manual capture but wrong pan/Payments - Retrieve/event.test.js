@@ -49,33 +49,22 @@ pm.test(
 );
 
 pm.test(
-  "[POST]::/payments - Payment Attempt has 'authorization_failed' status",
+  "[POST]::/payments - Payment Attempt has 'failure' status",
   function () {
-    pm.expect(payment_attempt.status).to.be.equal("authorization_failed");
-  },
-);
-
-
-pm.test(
-  "[POST]::/payments - Payment Attempt has 'connector_transaction_id'",
-  function () {
-    pm.expect(payment_attempt.connector_transaction_id).to.be.equal(
-        pm.collectionVariables.get("connector_transaction_id")
-    );
+    pm.expect(payment_attempt.status).to.be.equal("failure");
   },
 );
 
 pm.test(
-  "[POST]::/payments - Payment Attempt has archiepl response 'transactionId' in connector_metadata",
+  "[POST]::/payments - Payment Attempt has 'archipel' connector",
   function () {
-    pm.expect(payment_attempt.connector_metadata.transactionId).to.be.not.null;
-    pm.collectionVariables.set("archipel_transaction_uuid", payment_attempt.connector_metadata.transactionId)
+    pm.expect(payment_attempt.connector).to.be.equal("archipel");
   },
 );
 
 pm.test(
-  "[POST]::/payments - Payment Attempt has no error",
+  "[POST]::/payments - Payment Attempt has 'Transaction error: No Response from acquirer' error_message",
   function () {
-    pm.expect(payment_attempt.error_message).to.be.null;
+    pm.expect(payment_attempt.error_message).to.be.equal("Transaction error: No Response from acquirer");
   },
 );

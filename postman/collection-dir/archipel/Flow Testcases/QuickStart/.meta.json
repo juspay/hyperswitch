@@ -5,6 +5,8 @@
     "API Key - Create",
     "Business Profile - Create",
     "Payment Connector - Create",
+    "3DS Authenticator - Create",
+    "3DS Authenticator - Configure",
     "Customer - Create",
     "Payments - Create",
     "Payments - Retrieve"

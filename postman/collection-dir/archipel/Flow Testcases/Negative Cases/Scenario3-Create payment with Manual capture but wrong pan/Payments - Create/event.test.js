@@ -47,6 +47,13 @@ if (jsonData?.client_secret) {
   );
 }
 
+pm.test(
+  "[POST]::/payments - Content check if 'connector' is archipel",
+  function () {
+    pm.expect(jsonData.connector).to.be.equal("archipel");
+  },
+);
+
 // Response body should have value "failed" for "status"
 if (jsonData?.status) {
   pm.test(
@@ -57,12 +64,15 @@ if (jsonData?.status) {
   );
 }
 
-pm.test(
-  "[POST]::/payments - Content check if 'connector' is archipel",
-  function () {
-    pm.expect(jsonData.connector).to.be.equal("archipel");
-  },
-);
+// Response body should have value "Transaction error: No Response from acquirer" for "error_message"
+if (jsonData?.status) {
+  pm.test(
+    "[POST]::/payments - Content check if value for 'error_message' matches 'Transaction error: No Response from acquirer'",
+    function () {
+      pm.expect(jsonData.error_message).to.eql("Transaction error: No Response from acquirer");
+    },
+  );
+}
 
 // Response body should have "connector_transaction_id"
 pm.test(
