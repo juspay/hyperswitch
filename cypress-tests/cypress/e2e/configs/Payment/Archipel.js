@@ -67,6 +67,7 @@ export const connectorDetails = {
     },
     PaymentIntentOffSession: {
       Request: {
+        setup_future_usage: "off_session",
         currency: "USD",
         billing: billingDetails,
       },
@@ -440,6 +441,20 @@ export const connectorDetails = {
       },
     },
     MandateSingleUseNo3DSManualCapture: {
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_capture",
+        },
+      },
+    },
+    SaveCardConfirmManualCaptureOffSession: {
+      Configs: {
+        TRIGGER_SKIP: true,
+      },
+      Request: {
+        setup_future_usage: "off_session",
+      },
       Response: {
         status: 200,
         body: {
