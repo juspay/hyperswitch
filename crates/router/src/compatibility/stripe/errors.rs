@@ -601,6 +601,7 @@ impl From<errors::ApiErrorResponse> for StripeErrorCode {
             errors::ApiErrorResponse::NotImplemented { .. } => Self::Unauthorized,
             errors::ApiErrorResponse::FlowNotSupported { .. } => Self::InternalServerError,
             errors::ApiErrorResponse::MandatePaymentDataMismatch { .. } => Self::PlatformBadRequest,
+            errors::ApiErrorResponse::MaxFieldLengthViolated { .. } => Self::PlatformBadRequest,
             errors::ApiErrorResponse::PaymentUnexpectedState {
                 current_flow,
                 field_name,

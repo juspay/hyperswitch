@@ -1,3 +1,13 @@
+const generateRandomAlphanumeric = (length) => {
+  const characters =
+    "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
+  let result = "";
+  for (let i = 0; i < length; i++) {
+    result += characters.charAt(Math.floor(Math.random() * characters.length));
+  }
+  return result;
+};
+
 const successfulNo3DSCardDetails = {
   card_number: "4111111111111111",
   card_exp_month: "08",
@@ -74,6 +84,7 @@ export const connectorDetails = {
   card_pm: {
     PaymentIntent: {
       Request: {
+        payment_id: generateRandomAlphanumeric(16),
         currency: "EUR",
         amount: 6000,
         customer_acceptance: null,
@@ -89,6 +100,7 @@ export const connectorDetails = {
     },
     PaymentIntentOffSession: {
       Request: {
+        payment_id: generateRandomAlphanumeric(16),
         currency: "EUR",
         amount: 6000,
         authentication_type: "no_three_ds",
@@ -107,7 +119,9 @@ export const connectorDetails = {
       Configs: {
         TRIGGER_SKIP: true,
       },
-      Request: {},
+      Request: {
+        payment_id: generateRandomAlphanumeric(16),
+      },
       Response: {
         status: 200,
         body: {
@@ -119,7 +133,9 @@ export const connectorDetails = {
       Configs: {
         TRIGGER_SKIP: true,
       },
-      Request: {},
+      Request: {
+        payment_id: generateRandomAlphanumeric(16),
+      },
       Response: {
         status: 200,
         body: {
@@ -132,6 +148,7 @@ export const connectorDetails = {
         TRIGGER_SKIP: true,
       },
       Request: {
+        payment_id: generateRandomAlphanumeric(16),
         payment_method: "card",
         billing: billingAddress,
         payment_method_data: {
@@ -152,6 +169,7 @@ export const connectorDetails = {
         TRIGGER_SKIP: true,
       },
       Request: {
+        payment_id: generateRandomAlphanumeric(16),
         payment_method: "card",
         billing: billingAddress,
         payment_method_data: {
@@ -169,6 +187,7 @@ export const connectorDetails = {
     },
     No3DSManualCapture: {
       Request: {
+        payment_id: generateRandomAlphanumeric(16),
         payment_method: "card",
         payment_method_data: {
           card: successfulNo3DSCardDetails,
@@ -185,6 +204,7 @@ export const connectorDetails = {
     },
     No3DSAutoCapture: {
       Request: {
+        payment_id: generateRandomAlphanumeric(16),
         payment_method: "card",
         payment_method_data: {
           card: successfulNo3DSCardDetails,
@@ -204,6 +224,7 @@ export const connectorDetails = {
         TRIGGER_SKIP: true,
       },
       Request: {
+        payment_id: generateRandomAlphanumeric(16),
         amount_to_capture: 6000,
       },
       Response: {
@@ -221,6 +242,7 @@ export const connectorDetails = {
         TRIGGER_SKIP: true,
       },
       Request: {
+        payment_id: generateRandomAlphanumeric(16),
         amount_to_capture: 2000,
       },
       Response: {
@@ -234,7 +256,9 @@ export const connectorDetails = {
       },
     },
     Void: {
-      Request: {},
+      Request: {
+        payment_id: generateRandomAlphanumeric(16),
+      },
       Response: {
         status: 200,
         body: {
@@ -247,6 +271,7 @@ export const connectorDetails = {
         TRIGGER_SKIP: true,
       },
       Request: {
+        payment_id: generateRandomAlphanumeric(16),
         amount: 6000,
       },
       Response: {
@@ -261,6 +286,7 @@ export const connectorDetails = {
         TRIGGER_SKIP: true,
       },
       Request: {
+        payment_id: generateRandomAlphanumeric(16),
         amount: 2000,
       },
       Response: {
@@ -283,6 +309,7 @@ export const connectorDetails = {
         TRIGGER_SKIP: true,
       },
       Request: {
+        payment_id: generateRandomAlphanumeric(16),
         payment_method: "card",
         payment_method_data: {
           card: successfulThreeDSTestCardDetails,
@@ -303,6 +330,7 @@ export const connectorDetails = {
         TRIGGER_SKIP: true,
       },
       Request: {
+        payment_id: generateRandomAlphanumeric(16),
         payment_method: "card",
         payment_method_data: {
           card: successfulThreeDSTestCardDetails,
@@ -320,6 +348,7 @@ export const connectorDetails = {
     },
     MandateMultiUseNo3DSAutoCapture: {
       Request: {
+        payment_id: generateRandomAlphanumeric(16),
         payment_method: "card",
         payment_method_data: {
           card: successfulNo3DSCardDetails,
@@ -335,6 +364,7 @@ export const connectorDetails = {
     },
     MandateMultiUseNo3DSManualCapture: {
       Request: {
+        payment_id: generateRandomAlphanumeric(16),
         payment_method: "card",
         payment_method_data: {
           card: successfulNo3DSCardDetails,
@@ -350,6 +380,7 @@ export const connectorDetails = {
     },
     MandateSingleUse3DSAutoCapture: {
       Request: {
+        payment_id: generateRandomAlphanumeric(16),
         payment_method: "card",
         payment_method_data: {
           card: successfulThreeDSTestCardDetails,
@@ -367,6 +398,7 @@ export const connectorDetails = {
     },
     MandateSingleUse3DSManualCapture: {
       Request: {
+        payment_id: generateRandomAlphanumeric(16),
         payment_method: "card",
         payment_method_data: {
           card: successfulThreeDSTestCardDetails,
@@ -384,6 +416,7 @@ export const connectorDetails = {
     },
     MandateSingleUseNo3DSAutoCapture: {
       Request: {
+        payment_id: generateRandomAlphanumeric(16),
         payment_method: "card",
         payment_method_data: {
           card: successfulNo3DSCardDetails,
@@ -399,6 +432,7 @@ export const connectorDetails = {
     },
     MandateSingleUseNo3DSManualCapture: {
       Request: {
+        payment_id: generateRandomAlphanumeric(16),
         payment_method: "card",
         payment_method_data: {
           card: successfulNo3DSCardDetails,
@@ -417,6 +451,7 @@ export const connectorDetails = {
         TRIGGER_SKIP: true,
       },
       Request: {
+        payment_id: generateRandomAlphanumeric(16),
         amount: 6000,
       },
       Response: {
@@ -428,6 +463,7 @@ export const connectorDetails = {
     },
     ZeroAuthPaymentIntent: {
       Request: {
+        payment_id: generateRandomAlphanumeric(16),
         amount: 0,
         setup_future_usage: "off_session",
         currency: "EUR",
@@ -442,6 +478,7 @@ export const connectorDetails = {
     },
     ZeroAuthMandate: {
       Request: {
+        payment_id: generateRandomAlphanumeric(16),
         payment_method: "card",
         payment_method_data: {
           card: successfulNo3DSCardDetails,
@@ -457,6 +494,7 @@ export const connectorDetails = {
     },
     ZeroAuthConfirmPayment: {
       Request: {
+        payment_id: generateRandomAlphanumeric(16),
         payment_type: "setup_mandate",
         payment_method: "card",
         payment_method_type: "credit",
@@ -476,6 +514,7 @@ export const connectorDetails = {
         TRIGGER_SKIP: true,
       },
       Request: {
+        payment_id: generateRandomAlphanumeric(16),
         payment_method: "card",
         payment_method_data: {
           card: successfulThreeDSTestCardDetails,
@@ -497,6 +536,7 @@ export const connectorDetails = {
         TRIGGER_SKIP: true,
       },
       Request: {
+        payment_id: generateRandomAlphanumeric(16),
         payment_method: "card",
         payment_method_data: {
           card: successfulThreeDSTestCardDetails,
@@ -518,6 +558,7 @@ export const connectorDetails = {
         TRIGGER_SKIP: true,
       },
       Request: {
+        payment_id: generateRandomAlphanumeric(16),
         payment_method: "card",
         payment_method_data: {
           card: successfulThreeDSTestCardDetails,
@@ -540,6 +581,7 @@ export const connectorDetails = {
         TRIGGER_SKIP: true,
       },
       Request: {
+        payment_id: generateRandomAlphanumeric(16),
         payment_method: "card",
         payment_method_data: {
           card: successfulThreeDSTestCardDetails,
@@ -562,6 +604,7 @@ export const connectorDetails = {
         TRIGGER_SKIP: true,
       },
       Request: {
+        payment_id: generateRandomAlphanumeric(16),
         payment_method: "card",
         payment_method_type: "debit",
         payment_method_data: {
@@ -584,6 +627,7 @@ export const connectorDetails = {
         TRIGGER_SKIP: true,
       },
       Request: {
+        payment_id: generateRandomAlphanumeric(16),
         payment_method: "card",
         currency: "EUR",
         billing: billingAddress,
@@ -606,6 +650,7 @@ export const connectorDetails = {
         TRIGGER_SKIP: true,
       },
       Request: {
+        payment_id: generateRandomAlphanumeric(16),
         payment_method: "card",
         currency: "EUR",
         billing: billingAddress,
@@ -628,6 +673,7 @@ export const connectorDetails = {
         TRIGGER_SKIP: true,
       },
       Request: {
+        payment_id: generateRandomAlphanumeric(16),
         payment_method: "card",
         currency: "EUR",
         billing: billingAddress,
