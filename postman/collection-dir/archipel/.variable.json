@@ -44,12 +44,12 @@
     },
     {
       "key": "archipel_tenant_id",
-      "value": "",
+      "value": "1234",
       "type": "string"
     },
     {
       "key": "archipel_platform_url",
-      "value": "",
+      "value": "185.149.63.6:19585",
       "type": "string"
     },
     {
@@ -83,6 +83,31 @@
     {
       "key": "archipel_transaction_uuid",
       "value": ""
+    },
+    {
+      "key": "netcetera_certificate",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "netcetera_private_key",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "netcetera_merchant_configuration_id",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "netcetera_requestor_url",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "netcetera_requestor_app_url",
+      "value": "",
+      "type": "string"
     }
   ]
 }
