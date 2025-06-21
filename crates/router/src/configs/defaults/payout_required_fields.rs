@@ -3,12 +3,17 @@ use std::collections::HashMap;
 use api_models::{
     enums::{
         CountryAlpha2, FieldType,
-        PaymentMethod::{BankTransfer, Card, Wallet},
-        PaymentMethodType, PayoutConnectors,
+        PayoutConnectors,
     },
     payment_methods::RequiredFieldInfo,
 };
+#[cfg(feature = "v1")]
+use api_models::enums::{
+    PaymentMethod::{BankTransfer, Card, Wallet},
+    PaymentMethodType,
+};
 
+#[cfg(feature = "v1")]
 use crate::settings::{
     ConnectorFields, PaymentMethodType as PaymentMethodTypeInfo, PayoutRequiredFields,
     RequiredFieldFinal,
@@ -184,6 +189,7 @@ fn get_connector_payment_method_type_fields(
     }
 }
 
+#[cfg_attr(feature = "v2", allow(dead_code))] // This function is not used in v2
 fn get_card_fields() -> HashMap<String, RequiredFieldInfo> {
     HashMap::from([
         (
@@ -225,6 +231,7 @@ fn get_card_fields() -> HashMap<String, RequiredFieldInfo> {
     ])
 }
 
+#[cfg_attr(feature = "v2", allow(dead_code))] // This function is not used in v2
 fn get_bacs_fields() -> HashMap<String, RequiredFieldInfo> {
     HashMap::from([
         (
@@ -248,6 +255,7 @@ fn get_bacs_fields() -> HashMap<String, RequiredFieldInfo> {
     ])
 }
 
+#[cfg_attr(feature = "v2", allow(dead_code))] // This function is not used in v2
 fn get_pix_bank_transfer_fields() -> HashMap<String, RequiredFieldInfo> {
     HashMap::from([
         (
@@ -271,6 +279,7 @@ fn get_pix_bank_transfer_fields() -> HashMap<String, RequiredFieldInfo> {
     ])
 }
 
+#[cfg_attr(feature = "v2", allow(dead_code))] // This function is not used in v2
 fn get_sepa_fields() -> HashMap<String, RequiredFieldInfo> {
     HashMap::from([
         (
@@ -294,6 +303,7 @@ fn get_sepa_fields() -> HashMap<String, RequiredFieldInfo> {
     ])
 }
 
+#[cfg_attr(feature = "v2", allow(dead_code))] // This function is not used in v2
 fn get_paypal_fields() -> HashMap<String, RequiredFieldInfo> {
     HashMap::from([(
         "payout_method_data.wallet.telephone_number".to_string(),
@@ -306,6 +316,7 @@ fn get_paypal_fields() -> HashMap<String, RequiredFieldInfo> {
     )])
 }
 
+#[cfg_attr(feature = "v2", allow(dead_code))] // This function is not used in v2
 fn get_countries_for_connector(connector: PayoutConnectors) -> Vec<CountryAlpha2> {
     match connector {
         PayoutConnectors::Adyenplatform => vec![
@@ -337,6 +348,7 @@ fn get_countries_for_connector(connector: PayoutConnectors) -> Vec<CountryAlpha2
     }
 }
 
+#[cfg_attr(feature = "v2", allow(dead_code))] // This function is not used in v2
 fn get_billing_details(connector: PayoutConnectors) -> HashMap<String, RequiredFieldInfo> {
     match connector {
         PayoutConnectors::Adyen => HashMap::from([

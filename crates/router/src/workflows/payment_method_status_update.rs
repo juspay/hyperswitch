@@ -1,15 +1,21 @@
+#[cfg(feature = "v1")]
 use common_utils::ext_traits::ValueExt;
+#[cfg(feature = "v1")]
 use error_stack::ResultExt;
+#[cfg(feature = "v1")]
 use scheduler::{
-    consumer::types::process_data, utils as pt_utils, workflows::ProcessTrackerWorkflow,
+    consumer::types::process_data, utils as pt_utils,
 };
+use scheduler::workflows::ProcessTrackerWorkflow;
 
 use crate::{
     errors,
     logger::error,
     routes::SessionState,
-    types::storage::{self, PaymentMethodStatusTrackingData},
+    types::storage,
 };
+#[cfg(feature = "v1")]
+use crate::types::storage::PaymentMethodStatusTrackingData;
 pub struct PaymentMethodStatusUpdateWorkflow;
 
 #[async_trait::async_trait]
