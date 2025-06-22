@@ -330,7 +330,7 @@ impl<T: DatabaseStore> domain::CustomerInterface for kv_router_store::KVRouterSt
             key_store,
             decided_storage_scheme,
             new_customer.clone().insert(&conn),
-            new_customer.clone().into(), 
+            new_customer.clone().into(),
             kv_router_store::InsertResourceParams {
                 insertable: kv::Insertable::Customer(new_customer.clone()),
                 reverse_lookups,

@@ -38,7 +38,7 @@ use redis_interface::HsetnxReply;
 use router_env::{instrument, tracing};
 
 #[cfg(feature = "v2")]
-use crate::kv_router_store::{FindResourceBy, FilterResourceParams, UpdateResourceParams};
+use crate::kv_router_store::{FilterResourceParams, FindResourceBy, UpdateResourceParams};
 use crate::{
     diesel_error_to_data_error,
     errors::{self, RedisErrorExt},
@@ -1494,7 +1494,7 @@ impl<T: DatabaseStore> PaymentAttemptInterface for KVRouterStore<T> {
         merchant_key_store: &MerchantKeyStore,
         attempt_id: &common_utils::id_type::GlobalAttemptId,
         storage_scheme: MerchantStorageScheme,
-    ) -> error_stack::Result<PaymentAttempt, errors::StorageError> {    
+    ) -> error_stack::Result<PaymentAttempt, errors::StorageError> {
         let conn = pg_connection_read(self).await?;
         self.find_resource_by_id(
             key_manager_state,

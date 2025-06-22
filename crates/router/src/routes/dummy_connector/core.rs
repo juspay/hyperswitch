@@ -39,7 +39,7 @@ pub async fn payment(
     )
     .await?;
     Ok(api::ApplicationResponse::Json(payment_data.into()))
-}       
+}
 
 pub async fn payment_data(
     state: SessionState,
