@@ -38,9 +38,7 @@ use redis_interface::HsetnxReply;
 use router_env::{instrument, tracing};
 
 #[cfg(feature = "v2")]
-use crate::kv_router_store::FindResourceBy;
-#[cfg(feature = "v2")]
-use crate::kv_router_store::{FilterResourceParams, UpdateResourceParams};
+use crate::kv_router_store::{FindResourceBy, FilterResourceParams, UpdateResourceParams};
 use crate::{
     diesel_error_to_data_error,
     errors::{self, RedisErrorExt},
@@ -744,7 +742,7 @@ impl<T: DatabaseStore> PaymentAttemptInterface for KVRouterStore<T> {
         &self,
         key_manager_state: &KeyManagerState,
         merchant_key_store: &MerchantKeyStore,
-        payment_attempt: PaymentAttempt, // This is the v2 domain model
+        payment_attempt: PaymentAttempt,
         storage_scheme: MerchantStorageScheme,
     ) -> error_stack::Result<PaymentAttempt, errors::StorageError> {
         let decided_storage_scheme = Box::pin(decide_storage_scheme::<_, DieselPaymentAttempt>(
@@ -1204,7 +1202,7 @@ impl<T: DatabaseStore> PaymentAttemptInterface for KVRouterStore<T> {
         &self,
         key_manager_state: &KeyManagerState,
         merchant_key_store: &MerchantKeyStore,
-        payment_id: &common_utils::id_type::GlobalPaymentId, // This is the PaymentIntent ID
+        payment_id: &common_utils::id_type::GlobalPaymentId,
         storage_scheme: MerchantStorageScheme,
     ) -> error_stack::Result<PaymentAttempt, errors::StorageError> {
         let database_call = || {
@@ -1213,14 +1211,14 @@ impl<T: DatabaseStore> PaymentAttemptInterface for KVRouterStore<T> {
                     key_manager_state,
                     merchant_key_store,
                     payment_id,
-                    storage_scheme, // Use the original storage_scheme for the DB call
+                    storage_scheme,
                 )
         };
 
         let decided_storage_scheme = Box::pin(decide_storage_scheme::<_, DieselPaymentAttempt>(
             self,
-            storage_scheme, // The storage_scheme passed into the function
-            Op::Find,       // Operation is Find
+            storage_scheme,
+            Op::Find,
         ))
         .await;
 
@@ -1230,10 +1228,9 @@ impl<T: DatabaseStore> PaymentAttemptInterface for KVRouterStore<T> {
                 let key = PartitionKey::GlobalPaymentId { id: payment_id };
 
                 let redis_fut = async {
-                    // 1. Scan Redis for all attempts associated with the payment_id
                     let kv_result = kv_wrapper::<DieselPaymentAttempt, _, _>(
                         self,
-                        KvOperation::<DieselPaymentAttempt>::Scan("pa_*"), // Scan for fields starting with "pa_"
+                        KvOperation::<DieselPaymentAttempt>::Scan("pa_*"),
                         key.clone(),
                     )
                     .await?
@@ -1497,31 +1494,7 @@ impl<T: DatabaseStore> PaymentAttemptInterface for KVRouterStore<T> {
         merchant_key_store: &MerchantKeyStore,
         attempt_id: &common_utils::id_type::GlobalAttemptId,
         storage_scheme: MerchantStorageScheme,
-    ) -> error_stack::Result<PaymentAttempt, errors::StorageError> {
-        // Ignoring storage scheme for v2 implementation
-        // self.router_store
-        //     .find_payment_attempt_by_id(
-        //         key_manager_state,
-        //         merchant_key_store,
-        //         attempt_id,
-        //         storage_scheme,
-        //     )
-        //     .await
-        /*
-        let conn = pg_connection_read(self).await?;
-        self.find_resource_by_id(
-            state,
-            key_store,
-            storage_scheme,
-            PaymentMethod::find_by_id(&conn, payment_method_id),
-            FindResourceBy::LookupId(format!(
-                "payment_method_{}",
-                payment_method_id.get_string_repr()
-            )),
-        )
-        .await
-
-        */
+    ) -> error_stack::Result<PaymentAttempt, errors::StorageError> {    
         let conn = pg_connection_read(self).await?;
         self.find_resource_by_id(
             key_manager_state,
@@ -2252,7 +2225,4 @@ mod label {
     ) -> String {
         format!("attempt_global_id_{}", attempt_id.get_string_repr())
     }
-
-    //profile_id connector_transaction_id
-    //global_id
 }

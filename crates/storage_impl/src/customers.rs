@@ -27,7 +27,7 @@ mod label {
     use common_utils::id_type;
 
     pub(super) const MODEL_NAME: &str = "customer_v2";
-    pub(super) const CLUSTER_LABEL: &str = "cust"; // Matches existing field key prefix
+    pub(super) const CLUSTER_LABEL: &str = "cust";
 
     pub(super) fn get_global_id_label(global_customer_id: &id_type::GlobalCustomerId) -> String {
         format!(
@@ -303,7 +303,7 @@ impl<T: DatabaseStore> domain::CustomerInterface for kv_router_store::KVRouterSt
         let key = PartitionKey::GlobalId {
             id: id.get_string_repr(),
         };
-        let identifier = format!("cust_{}", id.get_string_repr()); // This is the field key for Redis HASH
+        let identifier = format!("cust_{}", id.get_string_repr());
         let mut new_customer = customer_data
             .construct_new()
             .await
@@ -311,7 +311,7 @@ impl<T: DatabaseStore> domain::CustomerInterface for kv_router_store::KVRouterSt
 
         let decided_storage_scheme = Box::pin(decide_storage_scheme::<_, customers::Customer>(
             self,
-            storage_scheme, // Original storage_scheme from function args
+            storage_scheme,
             Op::Insert,
         ))
         .await;
@@ -319,17 +319,6 @@ impl<T: DatabaseStore> domain::CustomerInterface for kv_router_store::KVRouterSt
 
         let mut reverse_lookups = Vec::new();
 
-        // Reverse lookup for GlobalCustomerId
-        // let reverse_lookup_global_id = diesel_models::reverse_lookup::ReverseLookupNew {
-        //     lookup_id: label::get_global_id_label(&customer_data.id),
-        //     pk_id: key.to_string(), // PartitionKey::GlobalId as string
-        //     sk_id: identifier.clone(), // Field key: "cust_{global_id}"
-        //     source: label::MODEL_NAME.to_string(),
-        //     updated_by: decided_storage_scheme.to_string(),
-        // };
-        // reverse_lookups.push(reverse_lookup_global_id);
-
-        // Reverse lookup for merchant_id + merchant_reference_id (if merchant_reference_id exists)
         if let Some(ref merchant_ref_id) = new_customer.merchant_reference_id {
             let reverse_lookup_merchant_scoped_id =
                 label::get_merchant_scoped_id_label(&new_customer.merchant_id, merchant_ref_id);
@@ -339,12 +328,12 @@ impl<T: DatabaseStore> domain::CustomerInterface for kv_router_store::KVRouterSt
         self.insert_resource(
             state,
             key_store,
-            decided_storage_scheme, // Use the decided scheme
+            decided_storage_scheme,
             new_customer.clone().insert(&conn),
-            new_customer.clone().into(), // Converts CustomerNew -> diesel_models::Customer for Redis value
+            new_customer.clone().into(), 
             kv_router_store::InsertResourceParams {
-                insertable: kv::Insertable::Customer(new_customer.clone()), // For TypedSql
-                reverse_lookups, // Pass the populated vector
+                insertable: kv::Insertable::Customer(new_customer.clone()),
+                reverse_lookups,
                 identifier,
                 key,
                 resource_type: "customer",
