@@ -629,7 +629,6 @@ where
         state: &KeyManagerState,
         id: &id_type::GlobalCustomerId,
         customer: Customer,
-        merchant_id: &id_type::MerchantId,
         customer_update: CustomerUpdate,
         key_store: &MerchantKeyStore,
         storage_scheme: MerchantStorageScheme,
@@ -640,7 +639,6 @@ where
         &self,
         state: &KeyManagerState,
         id: &id_type::GlobalCustomerId,
-        merchant_id: &id_type::MerchantId,
         key_store: &MerchantKeyStore,
         storage_scheme: MerchantStorageScheme,
     ) -> CustomResult<Customer, Self::Error>;
