@@ -140,6 +140,7 @@ impl TrainerClientConfig {
             .change_context_lazy(|| {
                 TrainerError::ConfigError(format!("Invalid URI: {}", uri_string))
             })?;
+        logger::info!("Connection established with trainer gRPC Server");
 
         let service_client = TrainerServiceClient::with_origin(hyper_client, uri);
         Ok(service_client)
