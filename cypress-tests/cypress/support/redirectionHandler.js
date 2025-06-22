@@ -414,20 +414,69 @@ function threeDsRedirection(redirectionUrl, expectedUrl, connectorId) {
           break;
           
         case "nuvei":
-          // For Nuvei, use a very simple approach that doesn't rely on finding specific elements
           cy.log("Handling Nuvei 3DS authentication");
           cy.wait(constants.WAIT_TIME); // Wait for the page to load
           
-          // Try to find any iframe and interact with it
+          // Check if we're on the Nuvei 3DS challenge page
           cy.get("body").then(($body) => {
-            if ($body.find("iframe").length > 0) {
+            const bodyText = $body.text();
+            
+            if (bodyText.includes("ThreeDS ACS Emulator") || bodyText.includes("Challenge Page")) {
+              cy.log("Found Nuvei 3DS challenge page");
+              
+              // Look for success buttons (based on UI test patterns)
+              cy.get("body").then(() => {
+                // Try to find and click success buttons
+                if ($body.find("#btn1").length > 0) {
+                  cy.log("Clicking btn1 for 3DS success");
+                  cy.get("#btn1").click();
+                  cy.wait(2000);
+                }
+                
+                if ($body.find("#btn5").length > 0) {
+                  cy.log("Clicking btn5 for 3DS completion");
+                  cy.get("#btn5").click();
+                  cy.wait(2000);
+                }
+                
+                // If no specific buttons found, try generic success patterns
+                if ($body.find("#btn1").length === 0 && $body.find("#btn5").length === 0) {
+                  // Look for any button with "success", "continue", or "submit" text
+                  cy.get("button, input[type='button'], input[type='submit']").then(($buttons) => {
+                    $buttons.each((index, button) => {
+                      const buttonText = Cypress.$(button).text().toLowerCase();
+                      const buttonValue = Cypress.$(button).val()?.toLowerCase() || '';
+                      
+                      if (buttonText.includes('success') || buttonText.includes('continue') || 
+                          buttonText.includes('submit') || buttonValue.includes('success')) {
+                        cy.log(`Clicking button: ${buttonText || buttonValue}`);
+                        cy.wrap(button).click();
+                        return false; // Break the loop
+                      }
+                    });
+                  });
+                }
+              });
+            } else if ($body.find("iframe").length > 0) {
               cy.log("Found iframe, attempting to interact with it");
-              cy.get("iframe").first().then(($iframe) => {
-                // Just wait and proceed - the test will continue to the return URL verification
-                cy.wait(constants.WAIT_TIME);
+              cy.get("iframe").first().its("0.contentDocument.body").within(() => {
+                // Look for 3DS challenge form elements
+                cy.get("body").then(($iframeBody) => {
+                  const iframeText = $iframeBody.text();
+                  
+                  if (iframeText.includes("ThreeDS") || iframeText.includes("Challenge")) {
+                    // Try to find and interact with 3DS elements
+                    cy.get("button, input[type='button'], input[type='submit']").then(($buttons) => {
+                      if ($buttons.length > 0) {
+                        cy.log("Clicking first available button in iframe");
+                        cy.wrap($buttons.first()).click();
+                      }
+                    });
+                  }
+                });
               });
             } else {
-              cy.log("No iframe found, continuing with test");
+              cy.log("No specific 3DS elements found, waiting for automatic redirect");
               cy.wait(constants.WAIT_TIME);
             }
           });
