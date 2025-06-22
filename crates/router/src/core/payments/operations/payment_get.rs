@@ -41,7 +41,8 @@ impl ValidateStatusForOperation for PaymentGet {
             | common_enums::IntentStatus::Failed
             | common_enums::IntentStatus::PartiallyCapturedAndCapturable
             | common_enums::IntentStatus::PartiallyCaptured
-            | common_enums::IntentStatus::Cancelled => Ok(()),
+            | common_enums::IntentStatus::Cancelled
+            | common_enums::IntentStatus::Conflicted => Ok(()),
             // These statuses are not valid for this operation
             common_enums::IntentStatus::RequiresConfirmation
             | common_enums::IntentStatus::RequiresPaymentMethod => {
@@ -177,7 +178,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentStatusData<F>, PaymentsRetriev
             }
         })?;
 
-        let payment_attempt = db
+        let mut payment_attempt = db
             .find_payment_attempt_by_id(
                 key_manager_state,
                 merchant_context.get_merchant_key_store(),
@@ -187,6 +188,11 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentStatusData<F>, PaymentsRetriev
             .await
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Could not find payment attempt given the attempt id")?;
+
+        payment_attempt.encoded_data = request
+            .param
+            .as_ref()
+            .map(|val| masking::Secret::new(val.clone()));
 
         let should_sync_with_connector =
             request.force_sync && payment_intent.status.should_force_sync_with_connector();
@@ -228,6 +234,8 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentStatusData<F>, PaymentsRetriev
             false => None,
         };
 
+        let merchant_connector_details = request.merchant_connector_details.clone();
+
         let payment_data = PaymentStatusData {
             flow: std::marker::PhantomData,
             payment_intent,
@@ -235,6 +243,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentStatusData<F>, PaymentsRetriev
             payment_address,
             attempts,
             should_sync_with_connector,
+            merchant_connector_details,
         };
 
         let get_trackers_response = operations::GetTrackerResponse { payment_data };
@@ -333,6 +342,26 @@ impl<F: Clone + Send + Sync> Domain<F, PaymentsRetrieveRequest, PaymentStatusDat
         } else {
             Ok(ConnectorCallType::Skip)
         }
+    }
+
+    #[cfg(feature = "v2")]
+    async fn get_connector_from_request<'a>(
+        &'a self,
+        state: &SessionState,
+        request: &PaymentsRetrieveRequest,
+        payment_data: &mut PaymentStatusData<F>,
+    ) -> CustomResult<api::ConnectorData, errors::ApiErrorResponse> {
+        use crate::core::payments::OperationSessionSetters;
+
+        let connector_data = helpers::get_connector_data_from_request(
+            state,
+            request.merchant_connector_details.clone(),
+        )
+        .await?;
+
+        payment_data
+            .set_connector_in_payment_attempt(Some(connector_data.connector_name.to_string()));
+        Ok(connector_data)
     }
 }
 

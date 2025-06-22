@@ -66,7 +66,10 @@ pub async fn organization_update(
         json_payload.into_inner(),
         |state, _, req, _| update_organization(state, org_id.clone(), req),
         auth::auth_type(
-            &auth::AdminApiAuth,
+            &auth::PlatformOrgAdminAuth {
+                is_admin_auth_allowed: true,
+                organization_id: Some(organization_id.clone()),
+            },
             &auth::JWTAuthOrganizationFromRoute {
                 organization_id,
                 required_permission: Permission::OrganizationAccountWrite,
@@ -128,7 +131,10 @@ pub async fn organization_retrieve(
         payload,
         |state, _, req, _| get_organization(state, req),
         auth::auth_type(
-            &auth::AdminApiAuth,
+            &auth::PlatformOrgAdminAuth {
+                is_admin_auth_allowed: true,
+                organization_id: Some(organization_id.clone()),
+            },
             &auth::JWTAuthOrganizationFromRoute {
                 organization_id,
                 required_permission: Permission::OrganizationAccountRead,
@@ -186,7 +192,10 @@ pub async fn merchant_account_create(
         &req,
         json_payload.into_inner(),
         |state, auth, req, _| create_merchant_account(state, req, auth),
-        &auth::AdminApiAuthWithApiKeyFallback,
+        &auth::PlatformOrgAdminAuth {
+            is_admin_auth_allowed: true,
+            organization_id: None,
+        },
         api_locking::LockAction::NotApplicable,
     ))
     .await
@@ -249,7 +258,10 @@ pub async fn retrieve_merchant_account(
         payload,
         |state, _, req, _| get_merchant_account(state, req, None),
         auth::auth_type(
-            &auth::AdminApiAuthWithApiKeyFallbackAndMerchantIdFromRoute(merchant_id.clone()),
+            &auth::PlatformOrgAdminAuthWithMerchantIdFromRoute {
+                merchant_id_from_route: merchant_id.clone(),
+                is_admin_auth_allowed: true,
+            },
             &auth::JWTAuthMerchantFromRoute {
                 merchant_id,
                 // This should ideally be MerchantAccountRead, but since FE is calling this API for
@@ -348,11 +360,12 @@ pub async fn merchant_account_list(
         state,
         &req,
         query_params.into_inner(),
-        |state, auth: Option<auth::AuthenticationDataWithOrg>, request, _| {
-            list_merchant_account(state, request, auth)
-        },
+        |state, auth, request, _| list_merchant_account(state, request, auth),
         auth::auth_type(
-            &auth::AdminApiAuthWithApiKeyFallback,
+            &auth::PlatformOrgAdminAuth {
+                is_admin_auth_allowed: true,
+                organization_id: None,
+            },
             &auth::JWTAuthMerchantFromHeader {
                 required_permission: Permission::MerchantAccountRead,
             },
@@ -411,7 +424,10 @@ pub async fn update_merchant_account(
         json_payload.into_inner(),
         |state, _, req, _| merchant_account_update(state, &merchant_id, None, req),
         auth::auth_type(
-            &auth::AdminApiAuthWithApiKeyFallbackAndMerchantIdFromRoute(merchant_id.clone()),
+            &auth::PlatformOrgAdminAuthWithMerchantIdFromRoute {
+                merchant_id_from_route: merchant_id.clone(),
+                is_admin_auth_allowed: true,
+            },
             &auth::JWTAuthMerchantFromRoute {
                 merchant_id: merchant_id.clone(),
                 required_permission: Permission::MerchantAccountWrite,
@@ -547,22 +563,6 @@ pub async fn connector_create(
 ///
 /// Retrieve Merchant Connector Details
 #[cfg(feature = "v1")]
-#[utoipa::path(
-    get,
-    path = "/accounts/{account_id}/connectors/{connector_id}",
-    params(
-        ("account_id" = String, Path, description = "The unique identifier for the merchant account"),
-        ("connector_id" = i32, Path, description = "The unique identifier for the Merchant Connector")
-    ),
-    responses(
-        (status = 200, description = "Merchant Connector retrieved successfully", body = MerchantConnectorResponse),
-        (status = 404, description = "Merchant Connector does not exist in records"),
-        (status = 401, description = "Unauthorized request")
-    ),
-    tag = "Merchant Connector Account",
-    operation_id = "Retrieve a Merchant Connector",
-    security(("admin_api_key" = []))
-)]
 #[instrument(skip_all, fields(flow = ?Flow::MerchantConnectorsRetrieve))]
 pub async fn connector_retrieve(
     state: web::Data<AppState>,
@@ -685,21 +685,6 @@ pub async fn connector_list(
 /// Merchant Connector - List
 ///
 /// List Merchant Connector Details for the merchant
-#[utoipa::path(
-    get,
-    path = "/accounts/{account_id}/connectors",
-    params(
-        ("account_id" = String, Path, description = "The unique identifier for the merchant account"),
-    ),
-    responses(
-        (status = 200, description = "Merchant Connector list retrieved successfully", body = Vec<MerchantConnectorResponse>),
-        (status = 404, description = "Merchant Connector does not exist in records"),
-        (status = 401, description = "Unauthorized request")
-    ),
-    tag = "Merchant Connector Account",
-    operation_id = "List all Merchant Connectors Admin",
-    security(("admin_api_key" = []))
-)]
 #[cfg(feature = "v1")]
 #[instrument(skip_all, fields(flow = ?Flow::MerchantConnectorsList))]
 pub async fn connector_list(
@@ -733,21 +718,6 @@ pub async fn connector_list(
 /// Merchant Connector - List
 ///
 /// List Merchant Connector Details for the merchant
-#[utoipa::path(
-    get,
-    path = "/accounts/{account_id}/profile/connectors",
-    params(
-        ("account_id" = String, Path, description = "The unique identifier for the merchant account"),
-    ),
-    responses(
-        (status = 200, description = "Merchant Connector list retrieved successfully", body = Vec<MerchantConnectorResponse>),
-        (status = 404, description = "Merchant Connector does not exist in records"),
-        (status = 401, description = "Unauthorized request")
-    ),
-    tag = "Merchant Connector Account",
-    operation_id = "List all Merchant Connectors for The given Profile",
-    security(("admin_api_key" = []))
-)]
 #[instrument(skip_all, fields(flow = ?Flow::MerchantConnectorsList))]
 pub async fn connector_list_profile(
     state: web::Data<AppState>,
@@ -786,23 +756,6 @@ pub async fn connector_list_profile(
 ///
 /// To update an existing Merchant Connector. Helpful in enabling / disabling different payment methods and other settings for the connector etc.
 #[cfg(feature = "v1")]
-#[utoipa::path(
-    post,
-    path = "/accounts/{account_id}/connectors/{connector_id}",
-    request_body = MerchantConnectorUpdate,
-    params(
-        ("account_id" = String, Path, description = "The unique identifier for the merchant account"),
-        ("connector_id" = i32, Path, description = "The unique identifier for the Merchant Connector")
-    ),
-    responses(
-        (status = 200, description = "Merchant Connector Updated", body = MerchantConnectorResponse),
-        (status = 404, description = "Merchant Connector does not exist in records"),
-        (status = 401, description = "Unauthorized request")
-    ),
-   tag = "Merchant Connector Account",
-   operation_id = "Update a Merchant Connector",
-   security(("admin_api_key" = []))
-)]
 #[instrument(skip_all, fields(flow = ?Flow::MerchantConnectorsUpdate))]
 pub async fn connector_update(
     state: web::Data<AppState>,
@@ -847,22 +800,6 @@ pub async fn connector_update(
 ///
 /// To update an existing Merchant Connector. Helpful in enabling / disabling different payment methods and other settings for the connector etc.
 #[cfg(feature = "v2")]
-#[utoipa::path(
-    post,
-    path = "/connector_accounts/{id}",
-    request_body = MerchantConnectorUpdate,
-    params(
-        ("id" = i32, Path, description = "The unique identifier for the Merchant Connector")
-    ),
-    responses(
-        (status = 200, description = "Merchant Connector Updated", body = MerchantConnectorResponse),
-        (status = 404, description = "Merchant Connector does not exist in records"),
-        (status = 401, description = "Unauthorized request")
-    ),
-   tag = "Merchant Connector Account",
-   operation_id = "Update a Merchant Connector",
-   security(("admin_api_key" = []))
-)]
 #[instrument(skip_all, fields(flow = ?Flow::MerchantConnectorsUpdate))]
 pub async fn connector_update(
     state: web::Data<AppState>,
@@ -897,22 +834,6 @@ pub async fn connector_update(
 ///
 /// Delete or Detach a Merchant Connector from Merchant Account
 #[cfg(feature = "v1")]
-#[utoipa::path(
-    delete,
-    path = "/accounts/{account_id}/connectors/{connector_id}",
-    params(
-        ("account_id" = String, Path, description = "The unique identifier for the merchant account"),
-        ("connector_id" = i32, Path, description = "The unique identifier for the Merchant Connector")
-    ),
-    responses(
-        (status = 200, description = "Merchant Connector Deleted", body = MerchantConnectorDeleteResponse),
-        (status = 404, description = "Merchant Connector does not exist in records"),
-        (status = 401, description = "Unauthorized request")
-    ),
-    tag = "Merchant Connector Account",
-    operation_id = "Delete a Merchant Connector",
-    security(("admin_api_key" = []))
-)]
 #[instrument(skip_all, fields(flow = ?Flow::MerchantConnectorsDelete))]
 pub async fn connector_delete(
     state: web::Data<AppState>,

@@ -180,6 +180,8 @@ pub enum Flow {
     PaymentsConfirmIntent,
     /// Payments create and confirm intent flow
     PaymentsCreateAndConfirmIntent,
+    /// Payment attempt list flow
+    PaymentAttemptsList,
     #[cfg(feature = "payouts")]
     /// Payouts create flow
     PayoutsCreate,
@@ -249,6 +251,8 @@ pub enum Flow {
     RoutingRetrieveDefaultConfig,
     /// Routing retrieve dictionary
     RoutingRetrieveDictionary,
+    /// Rule migration for decision-engine
+    DecisionEngineRuleMigration,
     /// Routing update config
     RoutingUpdateConfig,
     /// Routing update default config
@@ -594,6 +598,10 @@ pub enum Flow {
     CloneConnector,
     ///Proxy Flow
     Proxy,
+    ProfileAcquirerCreate,
+    ProfileAcquirerUpdate,
+    /// ThreeDs Decision Rule Execute flow
+    ThreeDsDecisionRuleExecute,
 }
 
 /// Trait for providing generic behaviour to flow metric

@@ -136,6 +136,8 @@ pub struct PaymentMethod {
     pub gateway_token: String,
     pub funding_source: RecurlyFundingTypes,
     pub object: RecurlyPaymentObject,
+    pub card_type: common_enums::CardNetwork,
+    pub first_six: String,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -204,6 +206,10 @@ impl
                     payment_method_type: common_enums::PaymentMethod::from(
                         item.response.payment_method.object,
                     ),
+                    card_network: Some(item.response.payment_method.card_type),
+                    card_isin: Some(item.response.payment_method.first_six),
+                    // This none because this field is specific to stripebilling.
+                    charge_id: None,
                 },
             ),
             ..item.data
@@ -273,13 +279,12 @@ impl TryFrom<enums::AttemptStatus> for RecurlyRecordStatus {
             | enums::AttemptStatus::Pending
             | enums::AttemptStatus::PaymentMethodAwaited
             | enums::AttemptStatus::ConfirmationAwaited
-            | enums::AttemptStatus::DeviceDataCollectionPending => {
-                Err(errors::ConnectorError::NotSupported {
-                    message: "Record back flow is only supported for terminal status".to_string(),
-                    connector: "recurly",
-                }
-                .into())
+            | enums::AttemptStatus::DeviceDataCollectionPending
+            | enums::AttemptStatus::IntegrityFailure => Err(errors::ConnectorError::NotSupported {
+                message: "Record back flow is only supported for terminal status".to_string(),
+                connector: "recurly",
             }
+            .into()),
         }
     }
 }

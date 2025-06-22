@@ -1,4 +1,6 @@
 pub use ::payment_methods::controller::{DataDuplicationCheck, DeleteCardResp};
+#[cfg(feature = "v2")]
+use api_models::payment_methods::PaymentMethodResponseItem;
 use api_models::{enums as api_enums, payment_methods::Card};
 use common_utils::{
     ext_traits::{Encode, StringExt},
@@ -7,13 +9,13 @@ use common_utils::{
     request::RequestContent,
 };
 use error_stack::ResultExt;
-#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+#[cfg(feature = "v2")]
 use hyperswitch_domain_models::payment_method_data;
 use josekit::jwe;
 use router_env::tracing_actix_web::RequestId;
 use serde::{Deserialize, Serialize};
 
-#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+#[cfg(feature = "v2")]
 use crate::types::{payment_methods as pm_types, transformers};
 use crate::{
     configs::settings,
@@ -81,7 +83,7 @@ pub struct CardReqBody {
     pub card_reference: String,
 }
 
-#[cfg(all(feature = "v2", feature = "customer_v2"))]
+#[cfg(feature = "v2")]
 #[derive(Debug, Deserialize, Serialize)]
 pub struct CardReqBodyV2 {
     pub merchant_id: id_type::MerchantId,
@@ -272,7 +274,7 @@ pub async fn get_decrypted_vault_response_payload(
         .attach_printable("Jws Decryption failed for JwsBody for vault")
 }
 
-#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+#[cfg(feature = "v2")]
 pub async fn create_jwe_body_for_vault(
     jwekey: &settings::Jwekey,
     jws: &str,
@@ -407,11 +409,7 @@ pub async fn mk_add_locker_request_hs(
     Ok(request)
 }
 
-#[cfg(all(
-    any(feature = "v1", feature = "v2"),
-    not(feature = "payment_methods_v2"),
-    feature = "payouts"
-))]
+#[cfg(all(feature = "v1", feature = "payouts"))]
 pub fn mk_add_bank_response_hs(
     bank: api::BankPayout,
     bank_reference: String,
@@ -428,15 +426,15 @@ pub fn mk_add_bank_response_hs(
         card: None,
         metadata: req.metadata,
         created: Some(common_utils::date_time::now()),
-        recurring_enabled: false,           // [#256]
-        installment_payment_enabled: false, // #[#256]
+        recurring_enabled: Some(false),           // [#256]
+        installment_payment_enabled: Some(false), // #[#256]
         payment_experience: Some(vec![api_models::enums::PaymentExperience::RedirectToUrl]),
         last_used_at: Some(common_utils::date_time::now()),
         client_secret: None,
     }
 }
 
-#[cfg(all(feature = "v2", feature = "payment_methods_v2", feature = "payouts"))]
+#[cfg(all(feature = "v2", feature = "payouts"))]
 pub fn mk_add_bank_response_hs(
     _bank: api::BankPayout,
     _bank_reference: String,
@@ -446,10 +444,7 @@ pub fn mk_add_bank_response_hs(
     todo!()
 }
 
-#[cfg(all(
-    any(feature = "v1", feature = "v2"),
-    not(feature = "payment_methods_v2")
-))]
+#[cfg(feature = "v1")]
 pub fn mk_add_card_response_hs(
     card: api::CardDetail,
     card_reference: String,
@@ -491,15 +486,15 @@ pub fn mk_add_card_response_hs(
         card: Some(card),
         metadata: req.metadata,
         created: Some(common_utils::date_time::now()),
-        recurring_enabled: false,           // [#256]
-        installment_payment_enabled: false, // #[#256]
+        recurring_enabled: Some(false),           // [#256]
+        installment_payment_enabled: Some(false), // #[#256]
         payment_experience: Some(vec![api_models::enums::PaymentExperience::RedirectToUrl]),
         last_used_at: Some(common_utils::date_time::now()), // [#256]
         client_secret: req.client_secret,
     }
 }
 
-#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+#[cfg(feature = "v2")]
 pub fn mk_add_card_response_hs(
     card: api::CardDetail,
     card_reference: String,
@@ -509,7 +504,7 @@ pub fn mk_add_card_response_hs(
     todo!()
 }
 
-#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+#[cfg(feature = "v2")]
 pub fn generate_pm_vaulting_req_from_update_request(
     pm_create: domain::PaymentMethodVaultingData,
     pm_update: api::PaymentMethodUpdateData,
@@ -536,7 +531,7 @@ pub fn generate_pm_vaulting_req_from_update_request(
     }
 }
 
-#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+#[cfg(feature = "v2")]
 pub fn generate_payment_method_response(
     payment_method: &domain::PaymentMethod,
     single_use_token: &Option<payment_method_data::SingleUsePaymentMethodToken>,
@@ -596,7 +591,7 @@ pub fn generate_payment_method_response(
         payment_method_type: payment_method.get_payment_method_type(),
         payment_method_subtype: payment_method.get_payment_method_subtype(),
         created: Some(payment_method.created_at),
-        recurring_enabled: false,
+        recurring_enabled: Some(false),
         last_used_at: Some(payment_method.last_used_at),
         payment_method_data: pmd,
         connector_tokens,
@@ -740,7 +735,7 @@ pub async fn mk_delete_card_request_hs(
 }
 
 // Need to fix this once we start moving to v2 completion
-#[cfg(all(feature = "v2", feature = "customer_v2"))]
+#[cfg(feature = "v2")]
 pub async fn mk_delete_card_request_hs_by_id(
     jwekey: &settings::Jwekey,
     locker: &settings::Locker,
@@ -798,10 +793,7 @@ pub fn mk_delete_card_response(
     })
 }
 
-#[cfg(all(
-    any(feature = "v1", feature = "v2"),
-    not(feature = "payment_methods_v2")
-))]
+#[cfg(feature = "v1")]
 pub fn get_card_detail(
     pm: &domain::PaymentMethod,
     response: Card,
@@ -830,7 +822,7 @@ pub fn get_card_detail(
     Ok(card_detail)
 }
 
-#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+#[cfg(feature = "v2")]
 pub fn get_card_detail(
     _pm: &domain::PaymentMethod,
     response: Card,
@@ -930,7 +922,73 @@ pub fn mk_card_value2(
 }
 
 #[cfg(feature = "v2")]
-impl transformers::ForeignTryFrom<domain::PaymentMethod> for api::CustomerPaymentMethod {
+impl transformers::ForeignTryFrom<(domain::PaymentMethod, String)>
+    for api::CustomerPaymentMethodResponseItem
+{
+    type Error = error_stack::Report<errors::ValidationError>;
+
+    fn foreign_try_from(
+        (item, payment_token): (domain::PaymentMethod, String),
+    ) -> Result<Self, Self::Error> {
+        // For payment methods that are active we should always have the payment method subtype
+        let payment_method_subtype =
+            item.payment_method_subtype
+                .ok_or(errors::ValidationError::MissingRequiredField {
+                    field_name: "payment_method_subtype".to_string(),
+                })?;
+
+        // For payment methods that are active we should always have the payment method type
+        let payment_method_type =
+            item.payment_method_type
+                .ok_or(errors::ValidationError::MissingRequiredField {
+                    field_name: "payment_method_type".to_string(),
+                })?;
+
+        let payment_method_data = item
+            .payment_method_data
+            .map(|payment_method_data| payment_method_data.into_inner())
+            .map(|payment_method_data| match payment_method_data {
+                api_models::payment_methods::PaymentMethodsData::Card(
+                    card_details_payment_method,
+                ) => {
+                    let card_details = api::CardDetailFromLocker::from(card_details_payment_method);
+                    api_models::payment_methods::PaymentMethodListData::Card(card_details)
+                }
+                api_models::payment_methods::PaymentMethodsData::BankDetails(..) => todo!(),
+                api_models::payment_methods::PaymentMethodsData::WalletDetails(..) => {
+                    todo!()
+                }
+            });
+
+        let payment_method_billing = item
+            .payment_method_billing_address
+            .clone()
+            .map(|billing| billing.into_inner())
+            .map(From::from);
+
+        // TODO: check how we can get this field
+        let recurring_enabled = true;
+
+        Ok(Self {
+            id: item.id,
+            customer_id: item.customer_id,
+            payment_method_type,
+            payment_method_subtype,
+            created: item.created_at,
+            last_used_at: item.last_used_at,
+            recurring_enabled,
+            payment_method_data,
+            bank: None,
+            requires_cvv: true,
+            is_default: false,
+            billing: payment_method_billing,
+            payment_token,
+        })
+    }
+}
+
+#[cfg(feature = "v2")]
+impl transformers::ForeignTryFrom<domain::PaymentMethod> for PaymentMethodResponseItem {
     type Error = error_stack::Report<errors::ValidationError>;
 
     fn foreign_try_from(item: domain::PaymentMethod) -> Result<Self, Self::Error> {
@@ -986,7 +1044,7 @@ impl transformers::ForeignTryFrom<domain::PaymentMethod> for api::CustomerPaymen
         });
 
         // TODO: check how we can get this field
-        let recurring_enabled = true;
+        let recurring_enabled = Some(true);
 
         let psp_tokenization_enabled = item.connector_mandate_details.and_then(|details| {
             details.payments.map(|payments| {

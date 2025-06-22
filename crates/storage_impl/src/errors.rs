@@ -193,6 +193,8 @@ pub enum ConnectorError {
     InvalidDataFormat { field_name: &'static str },
     #[error("Payment Method data / Payment Method Type / Payment Experience Mismatch ")]
     MismatchedPaymentData,
+    #[error("Field {fields} doesn't match with the ones used during mandate creation")]
+    MandatePaymentDataMismatch { fields: String },
     #[error("Failed to parse Wallet token")]
     InvalidWalletToken { wallet_name: String },
     #[error("Missing Connector Related Transaction ID")]
@@ -279,4 +281,10 @@ pub enum RecoveryError {
     RecordBackToBillingConnectorFailed,
     #[error("Failed to fetch billing connector account id")]
     BillingMerchantConnectorAccountIdNotFound,
+}
+
+#[derive(Debug, Clone, thiserror::Error)]
+pub enum HealthCheckDecisionEngineError {
+    #[error("Failed to establish Decision Engine connection")]
+    FailedToCallDecisionEngineService,
 }
