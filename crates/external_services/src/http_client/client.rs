@@ -109,8 +109,6 @@ pub fn get_client_builder(
                 .attach_printable("HTTP proxy configuration error")?
                 .no_proxy(proxy_exclusion_config.clone()),
         );
-
-    logger::debug!("{:?} HTTP CLient Request",client_builder)
     }
 
     if let Some(merchant_url) = merchant_proxy_url {
@@ -121,6 +119,8 @@ pub fn get_client_builder(
                 .no_proxy(proxy_exclusion_config.clone()),
         );
     }
+
+    logger::debug!("{:?} HTTP CLient Request",client_builder);
     
     Ok(client_builder)
 }
