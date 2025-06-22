@@ -7,10 +7,9 @@ use time::PrimitiveDateTime;
 use utoipa::ToSchema;
 
 use super::payments::AmountFilter;
-use crate::{
-    admin::{self, MerchantConnectorInfo},
-    enums,
-};
+#[cfg(feature = "v1")]
+use crate::admin;
+use crate::{admin::MerchantConnectorInfo, enums};
 
 #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "refunds_v2")))]
 #[derive(Default, Debug, ToSchema, Clone, Deserialize, Serialize)]
