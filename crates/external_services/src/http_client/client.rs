@@ -91,15 +91,6 @@ pub fn get_client_builder(
     // Proxy all HTTPS traffic through the merchant-specific proxy if provided,
     // otherwise use the configured HTTPS proxy
 
-    if let Some(merchant_url) = merchant_proxy_url {
-        client_builder = client_builder.proxy(
-            reqwest::Proxy::https(merchant_url.expose())
-                .change_context(HttpClientError::InvalidProxyConfiguration)
-                .attach_printable("Merchant HTTPS proxy configuration error")?
-                .no_proxy(proxy_exclusion_config.clone()),
-        );
-    }
-
 
     if let Some(url) = proxy_config.https_url.as_ref() {
         client_builder = client_builder.proxy(
@@ -122,6 +113,15 @@ pub fn get_client_builder(
     logger::debug!("{:?} HTTP CLient Request",client_builder)
     }
 
+    if let Some(merchant_url) = merchant_proxy_url {
+        client_builder = client_builder.proxy(
+            reqwest::Proxy::https(merchant_url.expose())
+                .change_context(HttpClientError::InvalidProxyConfiguration)
+                .attach_printable("Merchant HTTPS proxy configuration error")?
+                .no_proxy(proxy_exclusion_config.clone()),
+        );
+    }
+    
     Ok(client_builder)
 }
 
