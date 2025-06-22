@@ -3038,8 +3038,17 @@ pub async fn payment_methods_session_confirm(
     };
 
     let update_payment_method_session = hyperswitch_domain_models::payment_methods::PaymentMethodsSessionUpdateEnum::UpdateAssociatedPaymentMethods {
-        associated_payment_methods:  Some(vec![parent_payment_method_token])
+        associated_payment_methods:  Some(vec![parent_payment_method_token.clone()])
     };
+
+    vault::insert_cvc_using_payment_token(
+        &state,
+        &parent_payment_method_token,
+        create_payment_method_request.payment_method_data.clone(),
+        request.payment_method_type,
+        intent_fulfillment_time,
+    )
+    .await?;
 
     let payment_method_session = db
         .update_payment_method_session(
