@@ -41,8 +41,6 @@ use hyper_util::client::legacy::connect::HttpConnector;
 ))]
 use router_env::logger;
 use serde;
-#[cfg(all(feature = "revenue_recovery", feature = "v2"))]
-use tokio::sync::OnceCell;
 #[cfg(any(
     feature = "dynamic_routing",
     all(feature = "revenue_recovery", feature = "v2")
@@ -72,15 +70,9 @@ pub struct GrpcClients {
     /// Health Check client for all gRPC services
     #[cfg(feature = "dynamic_routing")]
     pub health_client: HealthCheckClient,
-    #[cfg(feature = "v2")]
-    /// Recovery trainer client
-    pub trainer_client_cell: OnceCell<Box<dyn TrainerClientInterface>>,
-    #[cfg(feature = "v2")]
-    /// Config for the trainer client, used for lazy initialization
-    pub trainer_config: TrainerClientConfig,
-    #[cfg(feature = "v2")]
-    /// Hyper client for the trainer, used for lazy initialization
-    pub hyper_client_for_trainer: Client,
+    /// Shared Client
+    #[cfg(any(feature = "dynamic_routing", all(feature = "revenue_recovery", feature = "v2")))]
+    pub shared_hyper_client: Client,
 }
 
 /// Type that contains the configs required to construct a  gRPC client with its respective services.
@@ -124,23 +116,14 @@ impl GrpcClientSettings {
             .await
             .expect("Failed to build gRPC connections");
 
-        #[cfg(all(feature = "revenue_recovery", feature = "v2"))]
-        let trainer_config = self.trainer_client.clone();
-
-        #[cfg(all(feature = "revenue_recovery", feature = "v2"))]
-        let hyper_client_for_trainer_clone = client.clone(); // Clone hyper client for trainer
 
         Arc::new(GrpcClients {
             #[cfg(feature = "dynamic_routing")]
             dynamic_routing: dynamic_routing_connection,
             #[cfg(feature = "dynamic_routing")]
             health_client,
-            #[cfg(all(feature = "revenue_recovery", feature = "v2"))]
-            trainer_client_cell: OnceCell::new(),
-            #[cfg(all(feature = "revenue_recovery", feature = "v2"))]
-            trainer_config,
-            #[cfg(all(feature = "revenue_recovery", feature = "v2"))]
-            hyper_client_for_trainer: hyper_client_for_trainer_clone,
+            #[cfg(any(feature = "dynamic_routing", all(feature = "revenue_recovery", feature = "v2")))]
+            shared_hyper_client: client,
         })
     }
 }
