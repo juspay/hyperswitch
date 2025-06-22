@@ -71,7 +71,10 @@ pub struct GrpcClients {
     #[cfg(feature = "dynamic_routing")]
     pub health_client: HealthCheckClient,
     /// Shared Client
-    #[cfg(any(feature = "dynamic_routing", all(feature = "revenue_recovery", feature = "v2")))]
+    #[cfg(any(
+        feature = "dynamic_routing",
+        all(feature = "revenue_recovery", feature = "v2")
+    ))]
     pub shared_hyper_client: Client,
 }
 
@@ -116,13 +119,15 @@ impl GrpcClientSettings {
             .await
             .expect("Failed to build gRPC connections");
 
-
         Arc::new(GrpcClients {
             #[cfg(feature = "dynamic_routing")]
             dynamic_routing: dynamic_routing_connection,
             #[cfg(feature = "dynamic_routing")]
             health_client,
-            #[cfg(any(feature = "dynamic_routing", all(feature = "revenue_recovery", feature = "v2")))]
+            #[cfg(any(
+                feature = "dynamic_routing",
+                all(feature = "revenue_recovery", feature = "v2")
+            ))]
             shared_hyper_client: client,
         })
     }
