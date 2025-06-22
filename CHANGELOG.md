@@ -4,6 +4,61 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2025.06.20.1
+
+### Features
+
+- **revenue_recovery:** Invoke attempt list instead of payment get in recovery webhooks flow ([#8393](https://github.com/juspay/hyperswitch/pull/8393)) ([`fc72c3e`](https://github.com/juspay/hyperswitch/commit/fc72c3eee826ca813010a09cb73178f5da88c71a))
+- **router:** Add v2 endpoint to list payment attempts by intent_id ([#8368](https://github.com/juspay/hyperswitch/pull/8368)) ([`7943fb4`](https://github.com/juspay/hyperswitch/commit/7943fb4bfb156e22d5329d45a580f90e02283604))
+
+**Full Changelog:** [`2025.06.20.0...2025.06.20.1`](https://github.com/juspay/hyperswitch/compare/2025.06.20.0...2025.06.20.1)
+
+- - -
+
+## 2025.06.20.0
+
+### Features
+
+- **kafka:** Add payment_intent payment_attempt and refund kafka events for v2 ([#8328](https://github.com/juspay/hyperswitch/pull/8328)) ([`305ca9b`](https://github.com/juspay/hyperswitch/commit/305ca9bda9d3c5bf3cc97458b7ed07b79e894154))
+
+### Bug Fixes
+
+- **connectors:** [worldpayvantiv] change endpoint, add billing address and fix 5xx incase of psync ([#8354](https://github.com/juspay/hyperswitch/pull/8354)) ([`5f7055f`](https://github.com/juspay/hyperswitch/commit/5f7055fc8c0d4b4c5e329fa6a527371338ef3b38))
+
+**Full Changelog:** [`2025.06.19.0...2025.06.20.0`](https://github.com/juspay/hyperswitch/compare/2025.06.19.0...2025.06.20.0)
+
+- - -
+
+## 2025.06.19.0
+
+### Bug Fixes
+
+- **connector:** [STRIPE] Retrieving Connect Account Id from Mandate Metadata in MITs ([#8326](https://github.com/juspay/hyperswitch/pull/8326)) ([`17c30b6`](https://github.com/juspay/hyperswitch/commit/17c30b6105d9086585edac0c89432b1f4568c3de))
+- **router:** Move Customer PML endpoint to OLAP (v2) ([#8303](https://github.com/juspay/hyperswitch/pull/8303)) ([`aee3f64`](https://github.com/juspay/hyperswitch/commit/aee3f6441f83d0641f0f38be79d4790303271d92))
+
+**Full Changelog:** [`2025.06.18.0...2025.06.19.0`](https://github.com/juspay/hyperswitch/compare/2025.06.18.0...2025.06.19.0)
+
+- - -
+
+## 2025.06.18.0
+
+### Features
+
+- **core:** Accept merchant_connector_details in Payments and Psync flow ([#8199](https://github.com/juspay/hyperswitch/pull/8199)) ([`b8b1960`](https://github.com/juspay/hyperswitch/commit/b8b19605d83b94d248bb68a3fc7d83e22187a5b1))
+- **payment_methods:** Populate connector_customer during customer creation step in payment methods migrate flow ([#8319](https://github.com/juspay/hyperswitch/pull/8319)) ([`3899ddd`](https://github.com/juspay/hyperswitch/commit/3899ddd52941aa6ba756f9a00b078245d7b47532))
+
+### Bug Fixes
+
+- **connector:** [ARCHIPEL] Make card_holder_name as none if cardholder field is none ([#8359](https://github.com/juspay/hyperswitch/pull/8359)) ([`7f6f4c4`](https://github.com/juspay/hyperswitch/commit/7f6f4c47fe0610196b19ce730a0cfd0da405d775))
+
+### Refactors
+
+- **routing:** Routing events core refactor ([#8323](https://github.com/juspay/hyperswitch/pull/8323)) ([`4d36be8`](https://github.com/juspay/hyperswitch/commit/4d36be87ec090ae57f8568d33c99cc1108ecc2b8))
+
+**Full Changelog:** [`2025.06.17.0...2025.06.18.0`](https://github.com/juspay/hyperswitch/compare/2025.06.17.0...2025.06.18.0)
+
+- - -
+
 ## 2025.06.17.0
 
 ### Features

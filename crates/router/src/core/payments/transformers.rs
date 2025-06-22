@@ -185,7 +185,7 @@ pub async fn construct_payment_router_data_for_authorize<'a>(
     connector_id: &str,
     merchant_context: &domain::MerchantContext,
     customer: &'a Option<domain::Customer>,
-    merchant_connector_account: &domain::MerchantConnectorAccount,
+    merchant_connector_account: &domain::MerchantConnectorAccountTypeDetails,
     _merchant_recipient_data: Option<types::MerchantRecipientData>,
     header_payload: Option<hyperswitch_domain_models::payments::HeaderPayload>,
 ) -> RouterResult<types::PaymentsAuthorizeRouterData> {
@@ -225,11 +225,17 @@ pub async fn construct_payment_router_data_for_authorize<'a>(
         None,
     ));
 
-    let webhook_url = Some(helpers::create_webhook_url(
-        router_base_url,
-        &attempt.merchant_id,
-        merchant_connector_account.get_id().get_string_repr(),
-    ));
+    let webhook_url = match merchant_connector_account {
+        domain::MerchantConnectorAccountTypeDetails::MerchantConnectorAccount(
+            merchant_connector_account,
+        ) => Some(helpers::create_webhook_url(
+            router_base_url,
+            &attempt.merchant_id,
+            merchant_connector_account.get_id().get_string_repr(),
+        )),
+        // TODO: Implement for connectors that require a webhook URL to be included in the request payload.
+        domain::MerchantConnectorAccountTypeDetails::MerchantConnectorDetails(_) => None,
+    };
 
     let router_return_url = payment_data
         .payment_intent
@@ -355,7 +361,7 @@ pub async fn construct_payment_router_data_for_authorize<'a>(
         // TODO: Create unified address
         address: payment_data.payment_address.clone(),
         auth_type: payment_data.payment_attempt.authentication_type,
-        connector_meta_data: merchant_connector_account.metadata.clone(),
+        connector_meta_data: merchant_connector_account.get_metadata(),
         connector_wallets_details: None,
         request,
         response: Err(hyperswitch_domain_models::router_data::ErrorResponse::default()),
@@ -395,9 +401,6 @@ pub async fn construct_payment_router_data_for_authorize<'a>(
         psd2_sca_exemption_type: None,
         whole_connector_response: None,
     };
-    crate::logger::debug!(?router_data, "Constructed router data for authorize");
-    crate::logger::debug!("Connector Customer Object: {:?}", customer.clone());
-
     Ok(router_data)
 }
 
@@ -410,7 +413,7 @@ pub async fn construct_payment_router_data_for_capture<'a>(
     connector_id: &str,
     merchant_context: &domain::MerchantContext,
     customer: &'a Option<domain::Customer>,
-    merchant_connector_account: &domain::MerchantConnectorAccount,
+    merchant_connector_account: &domain::MerchantConnectorAccountTypeDetails,
     _merchant_recipient_data: Option<types::MerchantRecipientData>,
     header_payload: Option<hyperswitch_domain_models::payments::HeaderPayload>,
 ) -> RouterResult<types::PaymentsCaptureRouterData> {
@@ -574,7 +577,7 @@ pub async fn construct_router_data_for_psync<'a>(
     connector_id: &str,
     merchant_context: &domain::MerchantContext,
     customer: &'a Option<domain::Customer>,
-    merchant_connector_account: &domain::MerchantConnectorAccount,
+    merchant_connector_account: &domain::MerchantConnectorAccountTypeDetails,
     _merchant_recipient_data: Option<types::MerchantRecipientData>,
     header_payload: Option<hyperswitch_domain_models::payments::HeaderPayload>,
 ) -> RouterResult<types::PaymentsSyncRouterData> {
@@ -700,7 +703,7 @@ pub async fn construct_payment_router_data_for_sdk_session<'a>(
     connector_id: &str,
     merchant_context: &domain::MerchantContext,
     customer: &'a Option<domain::Customer>,
-    merchant_connector_account: &domain::MerchantConnectorAccount,
+    merchant_connector_account: &domain::MerchantConnectorAccountTypeDetails,
     _merchant_recipient_data: Option<types::MerchantRecipientData>,
     header_payload: Option<hyperswitch_domain_models::payments::HeaderPayload>,
 ) -> RouterResult<types::PaymentsSessionRouterData> {
@@ -882,7 +885,7 @@ pub async fn construct_payment_router_data_for_setup_mandate<'a>(
     connector_id: &str,
     merchant_context: &domain::MerchantContext,
     customer: &'a Option<domain::Customer>,
-    merchant_connector_account: &domain::MerchantConnectorAccount,
+    merchant_connector_account: &domain::MerchantConnectorAccountTypeDetails,
     _merchant_recipient_data: Option<types::MerchantRecipientData>,
     header_payload: Option<hyperswitch_domain_models::payments::HeaderPayload>,
 ) -> RouterResult<types::SetupMandateRouterData> {
@@ -907,7 +910,7 @@ pub async fn construct_payment_router_data_for_setup_mandate<'a>(
 
     let connector_customer_id = customer.as_ref().and_then(|customer| {
         customer
-            .get_connector_customer_id(&merchant_connector_account.get_id())
+            .get_connector_customer_id(merchant_connector_account)
             .map(String::from)
     });
 
@@ -923,11 +926,19 @@ pub async fn construct_payment_router_data_for_setup_mandate<'a>(
         None,
     ));
 
-    let webhook_url = Some(helpers::create_webhook_url(
-        router_base_url,
-        &attempt.merchant_id,
-        merchant_connector_account.get_id().get_string_repr(),
-    ));
+    let webhook_url = match merchant_connector_account {
+        domain::MerchantConnectorAccountTypeDetails::MerchantConnectorAccount(
+            merchant_connector_account,
+        ) => Some(helpers::create_webhook_url(
+            router_base_url,
+            &attempt.merchant_id,
+            merchant_connector_account.get_id().get_string_repr(),
+        )),
+        // TODO: Implement for connectors that require a webhook URL to be included in the request payload.
+        domain::MerchantConnectorAccountTypeDetails::MerchantConnectorDetails(_) => {
+            todo!("Add webhook URL to request for this connector")
+        }
+    };
 
     let router_return_url = payment_data
         .payment_intent
@@ -1779,11 +1790,11 @@ where
                     .map(|shipping| shipping.into_inner())
                     .map(From::from),
                 customer_id: payment_intent.customer_id.clone(),
-                customer_present: payment_intent.customer_present.clone(),
+                customer_present: payment_intent.customer_present,
                 description: payment_intent.description.clone(),
                 return_url: payment_intent.return_url.clone(),
                 setup_future_usage: payment_intent.setup_future_usage,
-                apply_mit_exemption: payment_intent.apply_mit_exemption.clone(),
+                apply_mit_exemption: payment_intent.apply_mit_exemption,
                 statement_descriptor: payment_intent.statement_descriptor.clone(),
                 order_details: payment_intent.order_details.clone().map(|order_details| {
                     order_details
@@ -1798,7 +1809,7 @@ where
                     .feature_metadata
                     .clone()
                     .map(|feature_metadata| feature_metadata.convert_back()),
-                payment_link_enabled: payment_intent.enable_payment_link.clone(),
+                payment_link_enabled: payment_intent.enable_payment_link,
                 payment_link_config: payment_intent
                     .payment_link_config
                     .clone()
@@ -1807,8 +1818,39 @@ where
                 expires_on: payment_intent.session_expiry,
                 frm_metadata: payment_intent.frm_metadata.clone(),
                 request_external_three_ds_authentication: payment_intent
-                    .request_external_three_ds_authentication
-                    .clone(),
+                    .request_external_three_ds_authentication,
+            },
+            vec![],
+        )))
+    }
+}
+
+#[cfg(feature = "v2")]
+impl<F, Op, D> ToResponse<F, D, Op> for api::PaymentAttemptListResponse
+where
+    F: Clone,
+    Op: Debug,
+    D: OperationSessionGetters<F>,
+{
+    #[allow(clippy::too_many_arguments)]
+    fn generate_response(
+        payment_data: D,
+        _customer: Option<domain::Customer>,
+        _base_url: &str,
+        _operation: Op,
+        _connector_request_reference_id_config: &ConnectorRequestReferenceIdConfig,
+        _connector_http_status_code: Option<u16>,
+        _external_latency: Option<u128>,
+        _is_latency_header_enabled: Option<bool>,
+        _merchant_context: &domain::MerchantContext,
+    ) -> RouterResponse<Self> {
+        Ok(services::ApplicationResponse::JsonWithHeaders((
+            Self {
+                payment_attempt_list: payment_data
+                    .list_payments_attempts()
+                    .iter()
+                    .map(api_models::payments::PaymentAttemptResponse::foreign_from)
+                    .collect(),
             },
             vec![],
         )))
@@ -1845,12 +1887,7 @@ where
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Connector is none when constructing response")?;
 
-        let merchant_connector_id = payment_attempt
-            .merchant_connector_id
-            .clone()
-            .get_required_value("merchant_connector_id")
-            .change_context(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable("Merchant connector id is none when constructing response")?;
+        let merchant_connector_id = payment_attempt.merchant_connector_id.clone();
 
         let error = payment_attempt
             .error
@@ -1915,7 +1952,7 @@ where
             connector_transaction_id: payment_attempt.connector_payment_id.clone(),
             connector_reference_id: None,
             connector_token_details,
-            merchant_connector_id: Some(merchant_connector_id),
+            merchant_connector_id,
             browser_info: None,
             error,
             return_url,
@@ -1926,6 +1963,7 @@ where
             billing: None,  //TODO: add this
             shipping: None, //TODO: add this
             is_iframe_redirection_enabled: None,
+            merchant_reference_id: payment_intent.merchant_reference_id.clone(),
         };
 
         Ok(services::ApplicationResponse::JsonWithHeaders((
@@ -2020,6 +2058,7 @@ where
             attempts,
             return_url,
             is_iframe_redirection_enabled: payment_intent.is_iframe_redirection_enabled,
+            merchant_reference_id: payment_intent.merchant_reference_id.clone(),
         };
 
         Ok(services::ApplicationResponse::JsonWithHeaders((
@@ -4949,6 +4988,7 @@ impl
         let revenue_recovery = feature_metadata.revenue_recovery.as_ref().map(|recovery| {
             api_models::payments::PaymentAttemptRevenueRecoveryData {
                 attempt_triggered_by: recovery.attempt_triggered_by,
+                charge_id: recovery.charge_id.clone(),
             }
         });
         Self { revenue_recovery }

@@ -269,8 +269,39 @@ pub struct PaymentsCreateIntentRequest {
 
     /// Indicates if 3ds challenge is forced
     pub force_3ds_challenge: Option<bool>,
+
+    /// Merchant connector details used to make payments.
+    pub merchant_connector_details: Option<MerchantConnectorDetails>,
 }
 
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema)]
+#[cfg(feature = "v2")]
+pub struct MerchantConnectorDetails {
+    /// The connector used for the payment
+    #[schema(value_type = Connector)]
+    pub connector_name: api_enums::Connector,
+
+    /// The merchant connector credentials used for the payment
+    #[schema(value_type = Object, example = r#"{
+        "merchant_connector_creds": {
+            "auth_type": "HeaderKey",
+            "api_key":"sk_test_xxxxxexamplexxxxxx12345"
+        },
+    }"#)]
+    pub merchant_connector_creds: pii::SecretSerdeValue,
+}
+#[cfg(feature = "v2")]
+#[derive(Debug, serde::Serialize, serde::Deserialize, Clone, ToSchema)]
+pub struct PaymentAttemptListRequest {
+    #[schema(value_type = String)]
+    pub payment_intent_id: id_type::GlobalPaymentId,
+}
+
+#[cfg(feature = "v2")]
+#[derive(Debug, serde::Serialize, Clone, ToSchema)]
+pub struct PaymentAttemptListResponse {
+    pub payment_attempt_list: Vec<PaymentAttemptResponse>,
+}
 #[cfg(feature = "v2")]
 impl PaymentsCreateIntentRequest {
     pub fn get_feature_metadata_as_value(
@@ -1637,6 +1668,9 @@ pub struct PaymentAttemptRevenueRecoveryData {
     /// Flag to find out whether an attempt was created by external or internal system.
     #[schema(value_type = Option<TriggeredBy>, example = "internal")]
     pub attempt_triggered_by: common_enums::TriggeredBy,
+    // stripe specific field used to identify duplicate attempts.
+    #[schema(value_type = Option<String>, example = "ch_123abc456def789ghi012klmn")]
+    pub charge_id: Option<String>,
 }
 
 #[derive(
@@ -5396,6 +5430,9 @@ pub struct PaymentsConfirmIntentRequest {
 
     #[schema(example = "187282ab-40ef-47a9-9206-5099ba31e432")]
     pub payment_token: Option<String>,
+
+    /// Merchant connector details used to make payments.
+    pub merchant_connector_details: Option<MerchantConnectorDetails>,
 }
 
 #[cfg(feature = "v2")]
@@ -5568,6 +5605,9 @@ pub struct PaymentsRequest {
 
     /// Indicates if the redirection has to open in the iframe
     pub is_iframe_redirection_enabled: Option<bool>,
+
+    /// Merchant connector details used to make payments.
+    pub merchant_connector_details: Option<MerchantConnectorDetails>,
 }
 
 #[cfg(feature = "v2")]
@@ -5582,26 +5622,26 @@ impl From<&PaymentsRequest> for PaymentsCreateIntentRequest {
             billing: request.billing.clone(),
             shipping: request.shipping.clone(),
             customer_id: request.customer_id.clone(),
-            customer_present: request.customer_present.clone(),
+            customer_present: request.customer_present,
             description: request.description.clone(),
             return_url: request.return_url.clone(),
             setup_future_usage: request.setup_future_usage,
-            apply_mit_exemption: request.apply_mit_exemption.clone(),
+            apply_mit_exemption: request.apply_mit_exemption,
             statement_descriptor: request.statement_descriptor.clone(),
             order_details: request.order_details.clone(),
             allowed_payment_method_types: request.allowed_payment_method_types.clone(),
             metadata: request.metadata.clone(),
             connector_metadata: request.connector_metadata.clone(),
             feature_metadata: request.feature_metadata.clone(),
-            payment_link_enabled: request.payment_link_enabled.clone(),
+            payment_link_enabled: request.payment_link_enabled,
             payment_link_config: request.payment_link_config.clone(),
             request_incremental_authorization: request.request_incremental_authorization,
             session_expiry: request.session_expiry,
             frm_metadata: request.frm_metadata.clone(),
             request_external_three_ds_authentication: request
-                .request_external_three_ds_authentication
-                .clone(),
+                .request_external_three_ds_authentication,
             force_3ds_challenge: request.force_3ds_challenge,
+            merchant_connector_details: request.merchant_connector_details.clone(),
         }
     }
 }
@@ -5619,6 +5659,7 @@ impl From<&PaymentsRequest> for PaymentsConfirmIntentRequest {
             browser_info: request.browser_info.clone(),
             payment_method_id: request.payment_method_id.clone(),
             payment_token: None,
+            merchant_connector_details: request.merchant_connector_details.clone(),
         }
     }
 }
@@ -5626,10 +5667,31 @@ impl From<&PaymentsRequest> for PaymentsConfirmIntentRequest {
 // Serialize is implemented because, this will be serialized in the api events.
 // Usually request types should not have serialize implemented.
 //
-/// Request for Payment Status
+/// Request body for Payment Status
 #[cfg(feature = "v2")]
 #[derive(Debug, serde::Deserialize, serde::Serialize, ToSchema)]
 pub struct PaymentsRetrieveRequest {
+    /// A boolean used to indicate if the payment status should be fetched from the connector
+    /// If this is set to true, the status will be fetched from the connector
+    #[serde(default)]
+    pub force_sync: bool,
+    /// A boolean used to indicate if all the attempts needs to be fetched for the intent.
+    /// If this is set to true, attempts list will be available in the response.
+    #[serde(default)]
+    pub expand_attempts: bool,
+    /// These are the query params that are sent in case of redirect response.
+    /// These can be ingested by the connector to take necessary actions.
+    pub param: Option<String>,
+    /// If enabled, provides whole connector response
+    pub all_keys_required: Option<bool>,
+    /// Merchant connector details used to make payments.
+    pub merchant_connector_details: Option<MerchantConnectorDetails>,
+}
+
+#[cfg(feature = "v2")]
+#[derive(Debug, serde::Deserialize, serde::Serialize, ToSchema)]
+/// Request for Payment Status
+pub struct PaymentsStatusRequest {
     /// A boolean used to indicate if the payment status should be fetched from the connector
     /// If this is set to true, the status will be fetched from the connector
     #[serde(default)]
@@ -5788,25 +5850,47 @@ pub struct PaymentsResponse {
 
     /// Indicates if the redirection has to open in the iframe
     pub is_iframe_redirection_enabled: Option<bool>,
+
+    /// Unique identifier for the payment. This ensures idempotency for multiple payments
+    /// that have been done by a single merchant.
+    #[schema(
+        value_type = Option<String>,
+        min_length = 30,
+        max_length = 30,
+        example = "pay_mbabizu24mvu3mela5njyhpit4"
+    )]
+    pub merchant_reference_id: Option<id_type::PaymentReferenceId>,
 }
 
 #[cfg(feature = "v2")]
-impl PaymentsResponse {
+impl PaymentAttemptListResponse {
     pub fn find_attempt_in_attempts_list_using_connector_transaction_id(
-        self,
+        &self,
         connector_transaction_id: &common_utils::types::ConnectorTransactionId,
     ) -> Option<PaymentAttemptResponse> {
-        self.attempts
-            .as_ref()
-            .and_then(|attempts| {
-                attempts.iter().find(|attempt| {
-                    attempt
-                        .connector_payment_id
+        self.payment_attempt_list.iter().find_map(|attempt| {
+            attempt
+                .connector_payment_id
+                .as_ref()
+                .filter(|txn_id| *txn_id == connector_transaction_id)
+                .map(|_| attempt.clone())
+        })
+    }
+    pub fn find_attempt_in_attempts_list_using_charge_id(
+        &self,
+        charge_id: String,
+    ) -> Option<PaymentAttemptResponse> {
+        self.payment_attempt_list.iter().find_map(|attempt| {
+            attempt.feature_metadata.as_ref().and_then(|metadata| {
+                metadata.revenue_recovery.as_ref().and_then(|recovery| {
+                    recovery
+                        .charge_id
                         .as_ref()
-                        .is_some_and(|txn_id| txn_id == connector_transaction_id)
+                        .filter(|id| **id == charge_id)
+                        .map(|_| attempt.clone())
                 })
             })
-            .cloned()
+        })
     }
 }
 

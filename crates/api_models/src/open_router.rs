@@ -58,14 +58,14 @@ pub struct PaymentInfo {
     // cardSwitchProvider: Option<Secret<String>>,
 }
 
-#[derive(Debug, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Serialize, Deserialize, PartialEq, Clone)]
 pub struct DecidedGateway {
     pub gateway_priority_map: Option<HashMap<String, f64>>,
     pub debit_routing_output: Option<DebitRoutingOutput>,
     pub routing_approach: String,
 }
 
-#[derive(Debug, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Serialize, Deserialize, PartialEq, Clone)]
 pub struct DebitRoutingOutput {
     pub co_badged_card_networks: Vec<common_enums::CardNetwork>,
     pub issuer_country: common_enums::CountryAlpha2,
@@ -121,7 +121,7 @@ pub struct DebitRoutingRequestData {
     pub card_type: common_enums::CardType,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct ErrorResponse {
     pub status: String,
     pub error_code: String,
@@ -132,7 +132,7 @@ pub struct ErrorResponse {
     pub is_dynamic_mga_enabled: bool,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct UnifiedError {
     pub code: String,
     pub user_message: String,
