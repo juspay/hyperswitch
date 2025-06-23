@@ -1,3 +1,5 @@
+use std::borrow::Cow;
+
 use common_enums::enums as api_enums;
 use common_types::primitive_wrappers;
 use common_utils::{
@@ -19,7 +21,6 @@ use diesel_models::business_profile::{
 };
 use error_stack::ResultExt;
 use masking::{ExposeInterface, PeekInterface, Secret};
-use std::borrow::Cow;
 
 use crate::{
     errors::api_error_response,
@@ -1253,7 +1254,7 @@ impl Profile {
             )
     }
 
-        pub fn get_payment_webhook_statuses(&self) -> Cow<'_, [common_enums::IntentStatus]> {
+    pub fn get_payment_webhook_statuses(&self) -> Cow<'_, [common_enums::IntentStatus]> {
         self.webhook_details
             .as_ref()
             .and_then(|details| details.payment_statuses_enabled.as_ref())

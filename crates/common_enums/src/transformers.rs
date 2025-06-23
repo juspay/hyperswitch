@@ -2,13 +2,12 @@ use std::fmt::{Display, Formatter};
 
 use serde::{Deserialize, Serialize};
 
+#[cfg(feature = "payouts")]
+use crate::enums::PayoutStatus;
 use crate::enums::{
     AttemptStatus, Country, CountryAlpha2, CountryAlpha3, DisputeStatus, EventType, IntentStatus,
     MandateStatus, PaymentMethod, PaymentMethodType, RefundStatus,
 };
-
-#[cfg(feature = "payouts")]
-use crate::enums::PayoutStatus;
 
 impl Display for NumericCountryCodeParseError {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
