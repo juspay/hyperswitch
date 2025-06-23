@@ -5,7 +5,7 @@ use common_utils::{
     date_time,
     encryption::Encryption,
     errors::{CustomResult, ValidationError},
-    ext_traits::OptionExt,
+    ext_traits::{OptionExt, ValueExt},
     pii, type_name,
     types::keymanager,
 };
@@ -20,8 +20,10 @@ use diesel_models::business_profile::{
 use error_stack::ResultExt;
 use masking::{ExposeInterface, PeekInterface, Secret};
 
-use crate::type_encryption::{crypto_operation, AsyncLift, CryptoOperation};
-
+use crate::{
+    errors::api_error_response,
+    type_encryption::{crypto_operation, AsyncLift, CryptoOperation},
+};
 #[cfg(feature = "v1")]
 #[derive(Clone, Debug)]
 pub struct Profile {
@@ -1211,6 +1213,60 @@ impl Profile {
             })
             .map(|(_, acquirer_config)| acquirer_config.clone())
     }
+
+    pub fn get_payment_routing_algorithm(
+        &self,
+    ) -> CustomResult<
+        Option<api_models::routing::RoutingAlgorithmRef>,
+        api_error_response::ApiErrorResponse,
+    > {
+        self.routing_algorithm
+            .clone()
+            .map(|val| {
+                val.parse_value::<api_models::routing::RoutingAlgorithmRef>("RoutingAlgorithmRef")
+            })
+            .transpose()
+            .change_context(api_error_response::ApiErrorResponse::InternalServerError)
+            .attach_printable("unable to deserialize routing algorithm ref from merchant account")
+    }
+
+    #[cfg(feature = "v1")]
+    pub fn get_payout_routing_algorithm(
+        &self,
+    ) -> CustomResult<
+        Option<api_models::routing::RoutingAlgorithmRef>,
+        api_error_response::ApiErrorResponse,
+    > {
+        self.payout_routing_algorithm
+            .clone()
+            .map(|val| {
+                val.parse_value::<api_models::routing::RoutingAlgorithmRef>("RoutingAlgorithmRef")
+            })
+            .transpose()
+            .change_context(api_error_response::ApiErrorResponse::InternalServerError)
+            .attach_printable(
+                "unable to deserialize payout routing algorithm ref from merchant account",
+            )
+    }
+
+    #[cfg(feature = "v1")]
+    pub fn get_frm_routing_algorithm(
+        &self,
+    ) -> CustomResult<
+        Option<api_models::routing::RoutingAlgorithmRef>,
+        api_error_response::ApiErrorResponse,
+    > {
+        self.frm_routing_algorithm
+            .clone()
+            .map(|val| {
+                val.parse_value::<api_models::routing::RoutingAlgorithmRef>("RoutingAlgorithmRef")
+            })
+            .transpose()
+            .change_context(api_error_response::ApiErrorResponse::InternalServerError)
+            .attach_printable(
+                "unable to deserialize frm routing algorithm ref from merchant account",
+            )
+    }
 }
 
 #[cfg(feature = "v2")]
@@ -1378,7 +1434,7 @@ impl From<ProfileUpdate> for ProfileUpdateInternal {
                     merchant_business_country,
                     revenue_recovery_retry_algorithm_type: None,
                     revenue_recovery_retry_algorithm_data: None,
-                    is_iframe_redirection_enabled: None,
+                    is_iframe_redirection_enabled,
                     is_external_vault_enabled,
                     external_vault_connector_details,
                     merchant_category_code,
