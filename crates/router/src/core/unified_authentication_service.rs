@@ -37,6 +37,7 @@ use crate::{
     consts,
     core::{
         errors::utils::StorageErrorExt,
+        payment_methods::vault::Vaultable,
         unified_authentication_service::types::{
             ClickToPay, ExternalAuthentication, UnifiedAuthenticationService,
             UNIFIED_AUTHENTICATION_SERVICE,
@@ -788,6 +789,22 @@ pub async fn authentication_eligibility_core(
     )
     .await?;
 
+    if updated_authentication.error_code.is_none() && updated_authentication.error_message.is_none()
+    {
+        let stringyfied_card_data = payment_method_data
+            .get_value1(None)
+            .change_context(ApiErrorResponse::InternalServerError)?;
+
+        crate::core::payment_methods::vault::create_tokenize(
+            &state,
+            stringyfied_card_data,
+            None,
+            authentication_id.get_string_repr().to_string(),
+            merchant_context.get_merchant_key_store().key.get_inner(),
+        )
+        .await?;
+    }
+
     let response = AuthenticationEligibilityResponse {
         authentication_id: updated_authentication.authentication_id,
         next_api_action: req.get_next_action_api(
@@ -804,6 +821,8 @@ pub async fn authentication_eligibility_core(
         directory_server_id: updated_authentication.directory_server_id,
         threeds_server_transaction_id: updated_authentication.threeds_server_transaction_id,
         profile_id,
+        error_message: updated_authentication.error_message,
+        error_code: updated_authentication.error_code,
     };
 
     Ok(hyperswitch_domain_models::api::ApplicationResponse::Json(

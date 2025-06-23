@@ -182,6 +182,8 @@ pub struct AuthenticationEligibilityResponse {
     pub connector_metadata: Option<serde_json::Value>,
     pub directory_server_id: Option<String>,
     pub profile_id: id_type::ProfileId,
+    pub error_message: Option<String>,
+    pub error_code: Option<String>,
 }
 
 impl ApiEventMetric for AuthenticationEligibilityRequest {
