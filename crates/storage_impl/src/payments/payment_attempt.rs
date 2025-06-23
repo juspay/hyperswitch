@@ -6,6 +6,8 @@ use common_utils::{
     fallback_reverse_lookup_not_found,
     types::{ConnectorTransactionId, ConnectorTransactionIdTrait, CreatedBy},
 };
+#[cfg(feature = "v1")]
+use diesel_models::payment_attempt::PaymentAttemptNew as DieselPaymentAttemptNew;
 use diesel_models::{
     enums::{
         MandateAmountData as DieselMandateAmountData, MandateDataType as DieselMandateType,
@@ -15,8 +17,6 @@ use diesel_models::{
     payment_attempt::PaymentAttempt as DieselPaymentAttempt,
     reverse_lookup::{ReverseLookup, ReverseLookupNew},
 };
-#[cfg(feature = "v1")]
-use diesel_models::{payment_attempt::PaymentAttemptNew as DieselPaymentAttemptNew};
 use error_stack::ResultExt;
 #[cfg(feature = "v1")]
 use hyperswitch_domain_models::payments::payment_attempt::PaymentAttemptNew;
@@ -35,19 +35,18 @@ use hyperswitch_domain_models::{
 };
 #[cfg(feature = "v2")]
 use label::*;
-
 use redis_interface::HsetnxReply;
 use router_env::{instrument, tracing};
 
 #[cfg(feature = "v2")]
 use crate::kv_router_store::{FilterResourceParams, FindResourceBy, UpdateResourceParams};
 use crate::{
-    errors::RedisErrorExt,
     diesel_error_to_data_error, errors,
+    errors::RedisErrorExt,
     kv_router_store::KVRouterStore,
     lookup::ReverseLookupInterface,
-    utils::{pg_connection_read, pg_connection_write,try_redis_get_else_try_database_get},
     redis::kv_store::{decide_storage_scheme, kv_wrapper, KvOperation, Op, PartitionKey},
+    utils::{pg_connection_read, pg_connection_write, try_redis_get_else_try_database_get},
     DataModelExt, DatabaseStore, RouterStore,
 };
 
