@@ -1082,7 +1082,7 @@ diesel::table! {
     use diesel::sql_types::*;
     use crate::enums::diesel_exports::*;
 
-    payout_attempt (payout_attempt_id) {
+    payout_attempt (payout_attempt_id, merchant_id) {
         #[max_length = 64]
         payout_attempt_id -> Varchar,
         #[max_length = 64]
@@ -1119,6 +1119,8 @@ diesel::table! {
         #[max_length = 1024]
         unified_message -> Nullable<Varchar>,
         additional_payout_method_data -> Nullable<Jsonb>,
+        #[max_length = 255]
+        merchant_order_reference_id -> Nullable<Varchar>,
     }
 }
 
@@ -1126,7 +1128,7 @@ diesel::table! {
     use diesel::sql_types::*;
     use crate::enums::diesel_exports::*;
 
-    payouts (payout_id) {
+    payouts (payout_id, merchant_id) {
         #[max_length = 64]
         payout_id -> Varchar,
         #[max_length = 64]
