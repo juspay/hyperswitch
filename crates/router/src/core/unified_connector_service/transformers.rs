@@ -1,25 +1,27 @@
-use common_enums::{enums::PaymentMethod, AttemptStatus, AuthenticationType, PaymentMethodType};
+use std::collections::HashMap;
+
+use common_enums::{AttemptStatus, AuthenticationType};
 use common_utils::request::Method;
 use diesel_models::enums as storage_enums;
 use error_stack::ResultExt;
-use hyperswitch_connectors::utils::CardData;
 use hyperswitch_domain_models::{
     router_data::RouterData,
     router_flow_types::payments::Authorize,
     router_request_types::{AuthenticationData, PaymentsAuthorizeData},
-    router_response_types::{MandateReference, PaymentsResponseData, RedirectForm},
+    router_response_types::{PaymentsResponseData, RedirectForm},
 };
 use masking::{ExposeInterface, PeekInterface};
-use router_env::logger;
-use rust_grpc_client::payments as payments_grpc;
+use unified_connector_service_client::payments::{self as payments_grpc, Identifier};
 
 use crate::{
-    core::unified_connector_service::errors::UnifiedConnectorServiceError,
+    core::unified_connector_service::{
+        construct_payment_method, errors::UnifiedConnectorServiceError,
+    },
     types::transformers::ForeignTryFrom,
 };
 
 impl ForeignTryFrom<&RouterData<Authorize, PaymentsAuthorizeData, PaymentsResponseData>>
-    for payments_grpc::PaymentsAuthorizeRequest
+    for payments_grpc::PaymentServiceAuthorizeRequest
 {
     type Error = error_stack::Report<UnifiedConnectorServiceError>;
 
@@ -28,18 +30,16 @@ impl ForeignTryFrom<&RouterData<Authorize, PaymentsAuthorizeData, PaymentsRespon
     ) -> Result<Self, Self::Error> {
         let currency = payments_grpc::Currency::foreign_try_from(router_data.request.currency)?;
 
-        let payment_method =
-            payments_grpc::PaymentMethod::foreign_try_from(router_data.payment_method)?;
-
-        let payment_method_type = router_data
+        let payment_method = router_data
             .request
             .payment_method_type
-            .map(payments_grpc::PaymentMethodType::foreign_try_from)
+            .map(|payment_method_type| {
+                construct_payment_method(
+                    router_data.request.payment_method_data.clone(),
+                    payment_method_type,
+                )
+            })
             .transpose()?;
-
-        let payment_method_data = payments_grpc::PaymentMethodData::foreign_try_from(
-            router_data.request.payment_method_data.clone(),
-        )?;
 
         let address = payments_grpc::PaymentAddress::foreign_try_from(router_data.address.clone())?;
 
@@ -68,19 +68,10 @@ impl ForeignTryFrom<&RouterData<Authorize, PaymentsAuthorizeData, PaymentsRespon
         Ok(Self {
             amount: router_data.request.amount,
             currency: currency.into(),
-            payment_method: payment_method.into(),
-            payment_method_type: payment_method_type
-                .map(|payment_method_type| payment_method_type.into()),
-            payment_method_data: Some(payment_method_data),
-            connector_customer: router_data
-                .request
-                .customer_id
-                .as_ref()
-                .map(|id| id.get_string_repr().to_string()),
+            payment_method,
             return_url: router_data.request.router_return_url.clone(),
             address: Some(address),
             auth_type: auth_type.into(),
-            connector_request_reference_id: router_data.connector_request_reference_id.clone(),
             enrolled_for_3ds: router_data.request.enrolled_for_3ds,
             request_incremental_authorization: router_data
                 .request
@@ -90,22 +81,10 @@ impl ForeignTryFrom<&RouterData<Authorize, PaymentsAuthorizeData, PaymentsRespon
                 .request
                 .email
                 .clone()
-                .map(|e| e.expose().peek().clone()),
+                .map(|e| e.expose().expose()),
             browser_info,
-            connector_meta_data: router_data.connector_meta_data.as_ref().and_then(|secret| {
-                let binding = secret.clone();
-                let value = binding.peek(); // Expose the secret value
-                serde_json::to_vec(&value)
-                    .map_err(|err| {
-                        // Handle or log error as needed
-                        logger::error!(error=?err);
-                        err
-                    })
-                    .ok()
-            }),
             access_token: None,
             session_token: None,
-            payment_method_token: None,
             order_tax_amount: router_data
                 .request
                 .order_tax_amount
@@ -133,6 +112,17 @@ impl ForeignTryFrom<&RouterData<Authorize, PaymentsAuthorizeData, PaymentsRespon
                 .request
                 .shipping_cost
                 .map(|shipping_cost| shipping_cost.get_amount_as_i64()),
+            request_ref_id: Some(Identifier {
+                id_type: Some(payments_grpc::identifier::IdType::Id(
+                    router_data.payment_id.clone(),
+                )),
+            }),
+            connector_customer_id: router_data
+                .request
+                .customer_id
+                .as_ref()
+                .map(|id| id.get_string_repr().to_string()),
+            metadata: HashMap::new(),
         })
     }
 }
@@ -150,171 +140,6 @@ impl ForeignTryFrom<common_enums::Currency> for payments_grpc::Currency {
     }
 }
 
-impl ForeignTryFrom<PaymentMethod> for payments_grpc::PaymentMethod {
-    type Error = error_stack::Report<UnifiedConnectorServiceError>;
-
-    fn foreign_try_from(payment_method: PaymentMethod) -> Result<Self, Self::Error> {
-        match payment_method {
-            PaymentMethod::Card => Ok(Self::Card),
-            _ => Err(UnifiedConnectorServiceError::NotImplemented(format!(
-                "Unimplemented payment method: {:?}",
-                payment_method
-            ))
-            .into()),
-        }
-    }
-}
-
-impl ForeignTryFrom<PaymentMethodType> for payments_grpc::PaymentMethodType {
-    type Error = error_stack::Report<UnifiedConnectorServiceError>;
-
-    fn foreign_try_from(payment_method_type: PaymentMethodType) -> Result<Self, Self::Error> {
-        match payment_method_type {
-            PaymentMethodType::Ach => Ok(Self::Ach),
-            PaymentMethodType::Affirm => Ok(Self::Affirm),
-            PaymentMethodType::AfterpayClearpay => Ok(Self::AfterpayClearpay),
-            PaymentMethodType::Alfamart => Ok(Self::Alfamart),
-            PaymentMethodType::AliPay => Ok(Self::AliPay),
-            PaymentMethodType::AliPayHk => Ok(Self::AliPayHk),
-            PaymentMethodType::Alma => Ok(Self::Alma),
-            PaymentMethodType::AmazonPay => Ok(Self::AmazonPay),
-            PaymentMethodType::ApplePay => Ok(Self::ApplePay),
-            PaymentMethodType::Atome => Ok(Self::Atome),
-            PaymentMethodType::Bacs => Ok(Self::Bacs),
-            PaymentMethodType::BancontactCard => Ok(Self::BancontactCard),
-            PaymentMethodType::Becs => Ok(Self::Becs),
-            PaymentMethodType::Benefit => Ok(Self::Benefit),
-            PaymentMethodType::Bizum => Ok(Self::Bizum),
-            PaymentMethodType::Blik => Ok(Self::Blik),
-            PaymentMethodType::Boleto => Ok(Self::Boleto),
-            PaymentMethodType::BcaBankTransfer => Ok(Self::BcaBankTransfer),
-            PaymentMethodType::BniVa => Ok(Self::BniVa),
-            PaymentMethodType::BriVa => Ok(Self::BriVa),
-            PaymentMethodType::CardRedirect => Ok(Self::CardRedirect),
-            PaymentMethodType::CimbVa => Ok(Self::CimbVa),
-            PaymentMethodType::ClassicReward => Ok(Self::ClassicReward),
-            PaymentMethodType::Credit => Ok(Self::Credit),
-            PaymentMethodType::CryptoCurrency => Ok(Self::CryptoCurrency),
-            PaymentMethodType::Cashapp => Ok(Self::Cashapp),
-            PaymentMethodType::Dana => Ok(Self::Dana),
-            PaymentMethodType::DanamonVa => Ok(Self::DanamonVa),
-            PaymentMethodType::Debit => Ok(Self::Debit),
-            PaymentMethodType::DuitNow => Ok(Self::DuitNow),
-            PaymentMethodType::Efecty => Ok(Self::Efecty),
-            PaymentMethodType::Eft => Ok(Self::Eft),
-            PaymentMethodType::Eps => Ok(Self::Eps),
-            PaymentMethodType::Fps => Ok(Self::Fps),
-            PaymentMethodType::Evoucher => Ok(Self::Evoucher),
-            PaymentMethodType::Giropay => Ok(Self::Giropay),
-            PaymentMethodType::Givex => Ok(Self::Givex),
-            PaymentMethodType::GooglePay => Ok(Self::GooglePay),
-            PaymentMethodType::GoPay => Ok(Self::GoPay),
-            PaymentMethodType::Gcash => Ok(Self::Gcash),
-            PaymentMethodType::Ideal => Ok(Self::Ideal),
-            PaymentMethodType::Interac => Ok(Self::Interac),
-            PaymentMethodType::Indomaret => Ok(Self::Indomaret),
-            PaymentMethodType::KakaoPay => Ok(Self::KakaoPay),
-            PaymentMethodType::LocalBankRedirect => Ok(Self::LocalBankRedirect),
-            PaymentMethodType::MandiriVa => Ok(Self::MandiriVa),
-            PaymentMethodType::Knet => Ok(Self::Knet),
-            PaymentMethodType::MbWay => Ok(Self::MbWay),
-            PaymentMethodType::MobilePay => Ok(Self::MobilePay),
-            PaymentMethodType::Momo => Ok(Self::Momo),
-            PaymentMethodType::MomoAtm => Ok(Self::MomoAtm),
-            PaymentMethodType::Multibanco => Ok(Self::Multibanco),
-            PaymentMethodType::OnlineBankingThailand => Ok(Self::OnlineBankingThailand),
-            PaymentMethodType::OnlineBankingCzechRepublic => Ok(Self::OnlineBankingCzechRepublic),
-            PaymentMethodType::OnlineBankingFinland => Ok(Self::OnlineBankingFinland),
-            PaymentMethodType::OnlineBankingFpx => Ok(Self::OnlineBankingFpx),
-            PaymentMethodType::OnlineBankingPoland => Ok(Self::OnlineBankingPoland),
-            PaymentMethodType::OnlineBankingSlovakia => Ok(Self::OnlineBankingSlovakia),
-            PaymentMethodType::Oxxo => Ok(Self::Oxxo),
-            PaymentMethodType::PagoEfectivo => Ok(Self::PagoEfectivo),
-            PaymentMethodType::PermataBankTransfer => Ok(Self::PermataBankTransfer),
-            PaymentMethodType::OpenBankingUk => Ok(Self::OpenBankingUk),
-            PaymentMethodType::PayBright => Ok(Self::PayBright),
-            PaymentMethodType::Paze => Ok(Self::Paze),
-            PaymentMethodType::Pix => Ok(Self::Pix),
-            PaymentMethodType::PaySafeCard => Ok(Self::PaySafeCard),
-            PaymentMethodType::Przelewy24 => Ok(Self::Przelewy24),
-            PaymentMethodType::PromptPay => Ok(Self::PromptPay),
-            PaymentMethodType::Pse => Ok(Self::Pse),
-            PaymentMethodType::RedCompra => Ok(Self::RedCompra),
-            PaymentMethodType::RedPagos => Ok(Self::RedPagos),
-            PaymentMethodType::SamsungPay => Ok(Self::SamsungPay),
-            PaymentMethodType::Sepa => Ok(Self::Sepa),
-            PaymentMethodType::SepaBankTransfer => Ok(Self::SepaBankTransfer),
-            PaymentMethodType::Sofort => Ok(Self::Sofort),
-            PaymentMethodType::Swish => Ok(Self::Swish),
-            PaymentMethodType::TouchNGo => Ok(Self::TouchNGo),
-            PaymentMethodType::Trustly => Ok(Self::Trustly),
-            PaymentMethodType::Twint => Ok(Self::Twint),
-            PaymentMethodType::UpiCollect => Ok(Self::UpiCollect),
-            PaymentMethodType::UpiIntent => Ok(Self::UpiIntent),
-            PaymentMethodType::Vipps => Ok(Self::Vipps),
-            PaymentMethodType::VietQr => Ok(Self::VietQr),
-            PaymentMethodType::Venmo => Ok(Self::Venmo),
-            PaymentMethodType::Walley => Ok(Self::Walley),
-            PaymentMethodType::WeChatPay => Ok(Self::WeChatPay),
-            PaymentMethodType::SevenEleven => Ok(Self::SevenEleven),
-            PaymentMethodType::Lawson => Ok(Self::Lawson),
-            PaymentMethodType::MiniStop => Ok(Self::MiniStop),
-            PaymentMethodType::FamilyMart => Ok(Self::FamilyMart),
-            PaymentMethodType::Seicomart => Ok(Self::Seicomart),
-            PaymentMethodType::PayEasy => Ok(Self::PayEasy),
-            PaymentMethodType::LocalBankTransfer => Ok(Self::LocalBankTransfer),
-            PaymentMethodType::OpenBankingPIS => Ok(Self::OpenBankingPis),
-            PaymentMethodType::DirectCarrierBilling => Ok(Self::DirectCarrierBilling),
-            PaymentMethodType::InstantBankTransfer => Ok(Self::InstantBankTransfer),
-            _ => Err(UnifiedConnectorServiceError::NotImplemented(format!(
-                "Unimplemented payment method type: {:?}",
-                payment_method_type
-            ))
-            .into()),
-        }
-    }
-}
-
-impl ForeignTryFrom<hyperswitch_domain_models::payment_method_data::PaymentMethodData>
-    for payments_grpc::PaymentMethodData
-{
-    type Error = error_stack::Report<UnifiedConnectorServiceError>;
-
-    fn foreign_try_from(
-        payment_method_data: hyperswitch_domain_models::payment_method_data::PaymentMethodData,
-    ) -> Result<Self, Self::Error> {
-        match payment_method_data {
-            hyperswitch_domain_models::payment_method_data::PaymentMethodData::Card(card) => {
-                Ok(Self {
-                    data: Some(payments_grpc::payment_method_data::Data::Card(
-                        payments_grpc::Card {
-                            card_number: card.card_number.get_card_no(),
-                            card_exp_month: card
-                                .get_card_expiry_month_2_digit()
-                                .attach_printable(
-                                    "Failed to extract 2-digit expiry month from card",
-                                )
-                                .change_context(UnifiedConnectorServiceError::InvalidDataFormat {
-                                    field_name: "card_exp_month",
-                                })?
-                                .peek()
-                                .to_string(),
-                            card_exp_year: card.get_expiry_year_4_digit().peek().to_string(),
-                            card_cvc: card.card_cvc.peek().to_string(),
-                            ..Default::default()
-                        },
-                    )),
-                })
-            }
-            _ => Err(UnifiedConnectorServiceError::NotImplemented(format!(
-                "Unimplemented payment method: {:?}",
-                payment_method_data
-            ))
-            .into()),
-        }
-    }
-}
-
 impl ForeignTryFrom<hyperswitch_domain_models::payment_address::PaymentAddress>
     for payments_grpc::PaymentAddress
 {
@@ -323,146 +148,89 @@ impl ForeignTryFrom<hyperswitch_domain_models::payment_address::PaymentAddress>
     fn foreign_try_from(
         payment_address: hyperswitch_domain_models::payment_address::PaymentAddress,
     ) -> Result<Self, Self::Error> {
-        let shipping = match payment_address.get_shipping() {
-            Some(address) => {
-                let country = address
-                    .address
-                    .as_ref()
-                    .and_then(|details| {
-                        details.country.as_ref().and_then(|c| {
-                            payments_grpc::CountryAlpha2::from_str_name(&c.to_string())
-                        })
-                    })
-                    .ok_or_else(|| {
-                        UnifiedConnectorServiceError::RequestEncodingFailedWithReason(
-                            "Invalid country code".to_string(),
-                        )
-                    })
-                    .attach_printable("Invalid country code")?
-                    .into();
+        let shipping = payment_address.get_shipping().and_then(|address| {
+            let details = address.address.as_ref()?;
 
-                Some(payments_grpc::Address {
-                    address: address.address.as_ref().map(|details| {
-                        payments_grpc::AddressDetails {
-                            city: details.city.clone(),
-                            country: Some(country),
-                            line1: details.line1.as_ref().map(|l| l.peek().to_string()),
-                            line2: details.line2.as_ref().map(|l| l.peek().to_string()),
-                            line3: details.line3.as_ref().map(|l| l.peek().to_string()),
-                            zip: details.zip.as_ref().map(|z| z.peek().to_string()),
-                            state: details.state.as_ref().map(|s| s.peek().to_string()),
-                            first_name: details.first_name.as_ref().map(|f| f.peek().to_string()),
-                            last_name: details.last_name.as_ref().map(|l| l.peek().to_string()),
-                        }
-                    }),
-                    phone: address
-                        .phone
-                        .as_ref()
-                        .map(|phone| payments_grpc::PhoneDetails {
-                            number: phone.number.as_ref().map(|n| n.peek().to_string()),
-                            country_code: phone.country_code.clone(),
-                        }),
-                    email: address.email.as_ref().map(|e| e.peek().to_string()),
+            let get_str =
+                |opt: &Option<masking::Secret<String>>| opt.as_ref().map(|s| s.peek().to_owned());
+
+            let get_plain = |opt: &Option<String>| opt.clone();
+
+            let country = details
+                .country
+                .as_ref()
+                .and_then(|c| payments_grpc::CountryAlpha2::from_str_name(&c.to_string()))
+                .ok_or_else(|| {
+                    UnifiedConnectorServiceError::RequestEncodingFailedWithReason(
+                        "Invalid country code".to_string(),
+                    )
                 })
-            }
-            None => None,
-        };
+                .attach_printable("Invalid country code")
+                .ok()? // Return None if invalid
+                .into();
 
-        let billing = match payment_address.get_payment_billing() {
-            Some(address) => {
-                let country = address
-                    .address
+            Some(payments_grpc::Address {
+                first_name: get_str(&details.first_name),
+                last_name: get_str(&details.last_name),
+                line1: get_str(&details.line1),
+                line2: get_str(&details.line2),
+                line3: get_str(&details.line3),
+                city: get_plain(&details.city),
+                state: get_str(&details.state),
+                zip_code: get_str(&details.zip),
+                country_alpha2_code: Some(country),
+                email: address.email.as_ref().map(|e| e.peek().to_string()),
+                phone_number: address
+                    .phone
                     .as_ref()
-                    .and_then(|details| {
-                        details.country.as_ref().and_then(|c| {
-                            payments_grpc::CountryAlpha2::from_str_name(&c.to_string())
-                        })
-                    })
-                    .ok_or_else(|| {
-                        UnifiedConnectorServiceError::RequestEncodingFailedWithReason(
-                            "Invalid country code".to_string(),
-                        )
-                    })
-                    .attach_printable("Invalid country code")?
-                    .into();
+                    .and_then(|phone| phone.number.as_ref().map(|n| n.peek().to_string())),
+                phone_country_code: address.phone.as_ref().and_then(|p| p.country_code.clone()),
+            })
+        });
 
-                Some(payments_grpc::Address {
-                    address: address.address.as_ref().map(|details| {
-                        payments_grpc::AddressDetails {
-                            city: details.city.clone(),
-                            country: Some(country),
-                            line1: details.line1.as_ref().map(|l| l.peek().to_string()),
-                            line2: details.line2.as_ref().map(|l| l.peek().to_string()),
-                            line3: details.line3.as_ref().map(|l| l.peek().to_string()),
-                            zip: details.zip.as_ref().map(|z| z.peek().to_string()),
-                            state: details.state.as_ref().map(|s| s.peek().to_string()),
-                            first_name: details.first_name.as_ref().map(|f| f.peek().to_string()),
-                            last_name: details.last_name.as_ref().map(|l| l.peek().to_string()),
-                        }
-                    }),
-                    phone: address
-                        .phone
-                        .as_ref()
-                        .map(|phone| payments_grpc::PhoneDetails {
-                            number: phone.number.as_ref().map(|n| n.peek().to_string()),
-                            country_code: phone.country_code.clone(),
-                        }),
-                    email: address.email.as_ref().map(|e| e.peek().to_string()),
+        let billing = payment_address.get_payment_billing().and_then(|address| {
+            let details = address.address.as_ref()?;
+
+            let get_str =
+                |opt: &Option<masking::Secret<String>>| opt.as_ref().map(|s| s.peek().to_owned());
+
+            let get_plain = |opt: &Option<String>| opt.clone();
+
+            let country = details
+                .country
+                .as_ref()
+                .and_then(|c| payments_grpc::CountryAlpha2::from_str_name(&c.to_string()))
+                .ok_or_else(|| {
+                    UnifiedConnectorServiceError::RequestEncodingFailedWithReason(
+                        "Invalid country code".to_string(),
+                    )
                 })
-            }
-            None => None,
-        };
+                .attach_printable("Invalid country code")
+                .ok()? // Return None if invalid
+                .into();
 
-        let unified_payment_method_billing = match payment_address.get_payment_method_billing() {
-            Some(address) => {
-                let country = address
-                    .address
+            Some(payments_grpc::Address {
+                first_name: get_str(&details.first_name),
+                last_name: get_str(&details.last_name),
+                line1: get_str(&details.line1),
+                line2: get_str(&details.line2),
+                line3: get_str(&details.line3),
+                city: get_plain(&details.city),
+                state: get_str(&details.state),
+                zip_code: get_str(&details.zip),
+                country_alpha2_code: Some(country),
+                email: address.email.as_ref().map(|e| e.peek().to_string()),
+                phone_number: address
+                    .phone
                     .as_ref()
-                    .and_then(|details| {
-                        details.country.as_ref().and_then(|c| {
-                            payments_grpc::CountryAlpha2::from_str_name(&c.to_string())
-                        })
-                    })
-                    .ok_or_else(|| {
-                        UnifiedConnectorServiceError::RequestEncodingFailedWithReason(
-                            "Invalid country code".to_string(),
-                        )
-                    })
-                    .attach_printable("Invalid country code")?
-                    .into();
-
-                Some(payments_grpc::Address {
-                    address: address.address.as_ref().map(|details| {
-                        payments_grpc::AddressDetails {
-                            city: details.city.clone(),
-                            country: Some(country),
-                            line1: details.line1.as_ref().map(|l| l.peek().to_string()),
-                            line2: details.line2.as_ref().map(|l| l.peek().to_string()),
-                            line3: details.line3.as_ref().map(|l| l.peek().to_string()),
-                            zip: details.zip.as_ref().map(|z| z.peek().to_string()),
-                            state: details.state.as_ref().map(|s| s.peek().to_string()),
-                            first_name: details.first_name.as_ref().map(|f| f.peek().to_string()),
-                            last_name: details.last_name.as_ref().map(|l| l.peek().to_string()),
-                        }
-                    }),
-                    phone: address
-                        .phone
-                        .as_ref()
-                        .map(|phone| payments_grpc::PhoneDetails {
-                            number: phone.number.as_ref().map(|n| n.peek().to_string()),
-                            country_code: phone.country_code.clone(),
-                        }),
-                    email: address.email.as_ref().map(|e| e.peek().to_string()),
-                })
-            }
-            None => None,
-        };
+                    .and_then(|phone| phone.number.as_ref().map(|n| n.peek().to_string())),
+                phone_country_code: address.phone.as_ref().and_then(|p| p.country_code.clone()),
+            })
+        });
 
         Ok(Self {
-            shipping: shipping.clone(),
-            billing: billing.clone(),
-            unified_payment_method_billing: unified_payment_method_billing.clone(),
-            payment_method_billing: unified_payment_method_billing.clone(),
+            shipping_address: shipping,
+            billing_address: billing,
         })
     }
 }
@@ -493,7 +261,6 @@ impl ForeignTryFrom<hyperswitch_domain_models::router_request_types::BrowserInfo
             language: browser_info.language,
             screen_height: browser_info.screen_height,
             screen_width: browser_info.screen_width,
-            time_zone: browser_info.time_zone,
             ip_address: browser_info.ip_address.map(|ip| ip.to_string()),
             accept_header: browser_info.accept_header,
             user_agent: browser_info.user_agent,
@@ -501,6 +268,7 @@ impl ForeignTryFrom<hyperswitch_domain_models::router_request_types::BrowserInfo
             os_version: browser_info.os_version,
             device_model: browser_info.device_model,
             accept_language: browser_info.accept_language,
+            time_zone_offset_minutes: browser_info.time_zone,
         })
     }
 }
@@ -526,48 +294,53 @@ impl ForeignTryFrom<AuthenticationData> for payments_grpc::AuthenticationData {
         Ok(Self {
             eci: authentication_data.eci,
             cavv: authentication_data.cavv.peek().to_string(),
-            threeds_server_transaction_id: authentication_data.threeds_server_transaction_id,
+            threeds_server_transaction_id: authentication_data.threeds_server_transaction_id.map(
+                |id| Identifier {
+                    id_type: Some(payments_grpc::identifier::IdType::Id(id)),
+                },
+            ),
             message_version: None,
-            ds_trans_id: authentication_data.ds_trans_id,
+            ds_transaction_id: authentication_data.ds_trans_id,
         })
     }
 }
 
-impl ForeignTryFrom<payments_grpc::AttemptStatus> for AttemptStatus {
+impl ForeignTryFrom<payments_grpc::PaymentStatus> for AttemptStatus {
     type Error = error_stack::Report<UnifiedConnectorServiceError>;
 
-    fn foreign_try_from(grpc_status: payments_grpc::AttemptStatus) -> Result<Self, Self::Error> {
+    fn foreign_try_from(grpc_status: payments_grpc::PaymentStatus) -> Result<Self, Self::Error> {
         match grpc_status {
-            payments_grpc::AttemptStatus::Started => Ok(Self::Started),
-            payments_grpc::AttemptStatus::AuthenticationFailed => Ok(Self::AuthenticationFailed),
-            payments_grpc::AttemptStatus::RouterDeclined => Ok(Self::RouterDeclined),
-            payments_grpc::AttemptStatus::AuthenticationPending => Ok(Self::AuthenticationPending),
-            payments_grpc::AttemptStatus::AuthenticationSuccessful => {
+            payments_grpc::PaymentStatus::Started => Ok(Self::Started),
+            payments_grpc::PaymentStatus::AuthenticationFailed => Ok(Self::AuthenticationFailed),
+            payments_grpc::PaymentStatus::RouterDeclined => Ok(Self::RouterDeclined),
+            payments_grpc::PaymentStatus::AuthenticationPending => Ok(Self::AuthenticationPending),
+            payments_grpc::PaymentStatus::AuthenticationSuccessful => {
                 Ok(Self::AuthenticationSuccessful)
             }
-            payments_grpc::AttemptStatus::Authorized => Ok(Self::Authorized),
-            payments_grpc::AttemptStatus::AuthorizationFailed => Ok(Self::AuthorizationFailed),
-            payments_grpc::AttemptStatus::Charged => Ok(Self::Charged),
-            payments_grpc::AttemptStatus::Authorizing => Ok(Self::Authorizing),
-            payments_grpc::AttemptStatus::CodInitiated => Ok(Self::CodInitiated),
-            payments_grpc::AttemptStatus::Voided => Ok(Self::Voided),
-            payments_grpc::AttemptStatus::VoidInitiated => Ok(Self::VoidInitiated),
-            payments_grpc::AttemptStatus::CaptureInitiated => Ok(Self::CaptureInitiated),
-            payments_grpc::AttemptStatus::CaptureFailed => Ok(Self::CaptureFailed),
-            payments_grpc::AttemptStatus::VoidFailed => Ok(Self::VoidFailed),
-            payments_grpc::AttemptStatus::AutoRefunded => Ok(Self::AutoRefunded),
-            payments_grpc::AttemptStatus::PartialCharged => Ok(Self::PartialCharged),
-            payments_grpc::AttemptStatus::PartialChargedAndChargeable => {
+            payments_grpc::PaymentStatus::Authorized => Ok(Self::Authorized),
+            payments_grpc::PaymentStatus::AuthorizationFailed => Ok(Self::AuthorizationFailed),
+            payments_grpc::PaymentStatus::Charged => Ok(Self::Charged),
+            payments_grpc::PaymentStatus::Authorizing => Ok(Self::Authorizing),
+            payments_grpc::PaymentStatus::CodInitiated => Ok(Self::CodInitiated),
+            payments_grpc::PaymentStatus::Voided => Ok(Self::Voided),
+            payments_grpc::PaymentStatus::VoidInitiated => Ok(Self::VoidInitiated),
+            payments_grpc::PaymentStatus::CaptureInitiated => Ok(Self::CaptureInitiated),
+            payments_grpc::PaymentStatus::CaptureFailed => Ok(Self::CaptureFailed),
+            payments_grpc::PaymentStatus::VoidFailed => Ok(Self::VoidFailed),
+            payments_grpc::PaymentStatus::AutoRefunded => Ok(Self::AutoRefunded),
+            payments_grpc::PaymentStatus::PartialCharged => Ok(Self::PartialCharged),
+            payments_grpc::PaymentStatus::PartialChargedAndChargeable => {
                 Ok(Self::PartialChargedAndChargeable)
             }
-            payments_grpc::AttemptStatus::Unresolved => Ok(Self::Unresolved),
-            payments_grpc::AttemptStatus::Pending => Ok(Self::Pending),
-            payments_grpc::AttemptStatus::Failure => Ok(Self::Failure),
-            payments_grpc::AttemptStatus::PaymentMethodAwaited => Ok(Self::PaymentMethodAwaited),
-            payments_grpc::AttemptStatus::ConfirmationAwaited => Ok(Self::ConfirmationAwaited),
-            payments_grpc::AttemptStatus::DeviceDataCollectionPending => {
+            payments_grpc::PaymentStatus::Unresolved => Ok(Self::Unresolved),
+            payments_grpc::PaymentStatus::Pending => Ok(Self::Pending),
+            payments_grpc::PaymentStatus::Failure => Ok(Self::Failure),
+            payments_grpc::PaymentStatus::PaymentMethodAwaited => Ok(Self::PaymentMethodAwaited),
+            payments_grpc::PaymentStatus::ConfirmationAwaited => Ok(Self::ConfirmationAwaited),
+            payments_grpc::PaymentStatus::DeviceDataCollectionPending => {
                 Ok(Self::DeviceDataCollectionPending)
             }
+            payments_grpc::PaymentStatus::AttemptStatusUnspecified => Ok(Self::Unresolved),
         }
     }
 }
@@ -595,28 +368,19 @@ impl ForeignTryFrom<payments_grpc::RedirectForm> for RedirectForm {
     }
 }
 
-impl ForeignTryFrom<payments_grpc::Method> for Method {
+impl ForeignTryFrom<payments_grpc::HttpMethod> for Method {
     type Error = error_stack::Report<UnifiedConnectorServiceError>;
 
-    fn foreign_try_from(value: payments_grpc::Method) -> Result<Self, Self::Error> {
+    fn foreign_try_from(value: payments_grpc::HttpMethod) -> Result<Self, Self::Error> {
         match value {
-            payments_grpc::Method::Get => Ok(Self::Get),
-            payments_grpc::Method::Post => Ok(Self::Post),
+            payments_grpc::HttpMethod::Get => Ok(Self::Get),
+            payments_grpc::HttpMethod::Post => Ok(Self::Post),
+            payments_grpc::HttpMethod::Put => todo!(),
+            payments_grpc::HttpMethod::Delete => todo!(),
+            payments_grpc::HttpMethod::Unspecified => {
+                Err(UnifiedConnectorServiceError::ResponseDeserializationFailed)
+                    .attach_printable("Invalid Http Method")
+            }
         }
-    }
-}
-
-impl ForeignTryFrom<payments_grpc::MandateReference> for MandateReference {
-    type Error = error_stack::Report<UnifiedConnectorServiceError>;
-
-    fn foreign_try_from(
-        mandate_reference: payments_grpc::MandateReference,
-    ) -> Result<Self, Self::Error> {
-        Ok(Self {
-            connector_mandate_id: mandate_reference.connector_mandate_id,
-            payment_method_id: None,
-            mandate_metadata: None,
-            connector_mandate_request_reference_id: None,
-        })
     }
 }

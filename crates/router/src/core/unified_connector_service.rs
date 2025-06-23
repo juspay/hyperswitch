@@ -1,18 +1,21 @@
 use api_models::admin::ConnectorAuthType;
-use common_enums::AttemptStatus;
+use common_enums::{AttemptStatus, PaymentMethodType};
 use common_utils::{errors::CustomResult, ext_traits::ValueExt};
 use error_stack::ResultExt;
+use hyperswitch_connectors::utils::CardData;
 use hyperswitch_domain_models::{
     merchant_context::MerchantContext,
     router_data::{ErrorResponse, RouterData},
-    router_response_types::{MandateReference, PaymentsResponseData, RedirectForm},
+    router_response_types::{PaymentsResponseData, RedirectForm},
 };
-use masking::PeekInterface;
+use masking::{ExposeInterface, PeekInterface};
 use router_env::logger;
-use rust_grpc_client::payments::{
-    self as payments_grpc, payment_service_client::PaymentServiceClient, PaymentsAuthorizeResponse,
-};
 use tonic::metadata::{MetadataMap, MetadataValue};
+use unified_connector_service_client::payments::{
+    self as payments_grpc, payment_method::PaymentMethod,
+    payment_service_client::PaymentServiceClient, CardDetails, CardPaymentMethodType,
+    PaymentServiceAuthorizeResponse,
+};
 
 use crate::{
     configs::settings::UnifiedConnectorService,
@@ -27,8 +30,8 @@ use crate::{
     types::transformers::ForeignTryFrom,
 };
 
-pub mod errors;
-pub mod transformers;
+mod errors;
+mod transformers;
 
 /// Result type for Dynamic Routing
 pub type UnifiedConnectorServiceResult<T> = CustomResult<T, UnifiedConnectorServiceError>;
@@ -58,19 +61,16 @@ impl UnifiedConnectorServiceClient {
     /// Performs Payment Authorize
     pub async fn payment_authorize(
         &self,
-        request: tonic::Request<payments_grpc::PaymentsAuthorizeRequest>,
-    ) -> UnifiedConnectorServiceResult<tonic::Response<PaymentsAuthorizeResponse>> {
+        request: tonic::Request<payments_grpc::PaymentServiceAuthorizeRequest>,
+    ) -> UnifiedConnectorServiceResult<tonic::Response<PaymentServiceAuthorizeResponse>> {
         self.client
             .clone()
-            .payment_authorize(request)
+            .authorize(request)
             .await
             .change_context(UnifiedConnectorServiceError::ConnectionError(
                 "Failed to authorize payment through Unified Connector Service".to_owned(),
             ))
-            .map_err(|err| {
-                logger::error!(error=?err);
-                err
-            })
+            .inspect_err(|error| logger::error!(?error))
     }
 }
 
@@ -99,6 +99,66 @@ pub async fn should_call_unified_connector_service<F: Clone, T>(
 
     let should_execute = should_execute_based_on_rollout(state, &config_key).await?;
     Ok(should_execute && state.unified_connector_service_client.is_some())
+}
+
+pub fn construct_payment_method(
+    payment_method_data: hyperswitch_domain_models::payment_method_data::PaymentMethodData,
+    payment_method_type: PaymentMethodType,
+) -> Result<payments_grpc::PaymentMethod, error_stack::Report<UnifiedConnectorServiceError>> {
+    match payment_method_data {
+        hyperswitch_domain_models::payment_method_data::PaymentMethodData::Card(card) => {
+            let card_exp_month = card
+                .get_card_expiry_month_2_digit()
+                .attach_printable("Failed to extract 2-digit expiry month from card")
+                .change_context(UnifiedConnectorServiceError::InvalidDataFormat {
+                    field_name: "card_exp_month",
+                })?
+                .peek()
+                .to_string();
+
+            let card_details = CardDetails {
+                card_number: card.card_number.get_card_no(),
+                card_exp_month,
+                card_exp_year: card.get_expiry_year_4_digit().peek().to_string(),
+                card_cvc: card.card_cvc.peek().to_string(),
+                card_holder_name: card.card_holder_name.map(|name| name.expose()),
+                card_issuer: card.card_issuer.clone(),
+                card_network: None,
+                card_type: card.card_type.clone(),
+                bank_code: card.bank_code.clone(),
+                nick_name: card.nick_name.map(|n| n.expose()),
+                card_issuing_country_alpha2: card.card_issuing_country.clone(),
+            };
+
+            let grpc_card_type = match payment_method_type {
+                PaymentMethodType::Credit => {
+                    payments_grpc::card_payment_method_type::CardType::Credit(card_details)
+                }
+                PaymentMethodType::Debit => {
+                    payments_grpc::card_payment_method_type::CardType::Debit(card_details)
+                }
+                _ => {
+                    return Err(UnifiedConnectorServiceError::NotImplemented(format!(
+                        "Unimplemented card payment method type: {:?}",
+                        payment_method_type
+                    ))
+                    .into());
+                }
+            };
+
+            Ok(payments_grpc::PaymentMethod {
+                payment_method: Some(PaymentMethod::Card(CardPaymentMethodType {
+                    card_type: Some(grpc_card_type),
+                })),
+            })
+        }
+
+        _ => Err(UnifiedConnectorServiceError::NotImplemented(format!(
+            "Unimplemented payment method: {:?}",
+            payment_method_data
+        ))
+        .into()),
+    }
 }
 
 pub fn build_unified_connector_service_auth_headers(
@@ -209,19 +269,36 @@ pub fn build_unified_connector_service_auth_headers(
 }
 
 pub fn handle_unified_connector_service_response_for_payment_authorize(
-    response: PaymentsAuthorizeResponse,
+    response: PaymentServiceAuthorizeResponse,
 ) -> CustomResult<
     (AttemptStatus, Result<PaymentsResponseData, ErrorResponse>),
     UnifiedConnectorServiceError,
 > {
     let status = AttemptStatus::foreign_try_from(response.status())?;
 
+    let connector_response_reference_id =
+        response.response_ref_id.as_ref().and_then(|identifier| {
+            identifier
+                .id_type
+                .clone()
+                .and_then(|id_type| match id_type {
+                    payments_grpc::identifier::IdType::Id(id) => Some(id),
+                    payments_grpc::identifier::IdType::EncodedData(encoded_data) => {
+                        Some(encoded_data)
+                    }
+                    payments_grpc::identifier::IdType::NoResponseIdMarker(_) => None,
+                })
+        });
+
     let router_data_response = match status {
         AttemptStatus::Charged |
         AttemptStatus::Authorized |
         AttemptStatus::AuthenticationPending |
         AttemptStatus::DeviceDataCollectionPending => Ok(PaymentsResponseData::TransactionResponse {
-            resource_id: hyperswitch_domain_models::router_request_types::ResponseId::ConnectorTransactionId(response.connector_response_reference_id().to_owned()),
+            resource_id: match connector_response_reference_id.as_ref() {
+                Some(connector_response_reference_id) => hyperswitch_domain_models::router_request_types::ResponseId::ConnectorTransactionId(connector_response_reference_id.clone()),
+                None => hyperswitch_domain_models::router_request_types::ResponseId::NoResponseId,
+            },
             redirection_data: Box::new(
                 response
                     .redirection_data
@@ -229,16 +306,10 @@ pub fn handle_unified_connector_service_response_for_payment_authorize(
                     .map(RedirectForm::foreign_try_from)
                     .transpose()?
             ),
-            mandate_reference: Box::new(
-                response
-                    .mandate_reference
-                    .clone()
-                    .map(MandateReference::foreign_try_from)
-                    .transpose()?
-            ),
+            mandate_reference: Box::new(None),
             connector_metadata: None,
             network_txn_id: response.network_txn_id.clone(),
-            connector_response_reference_id: Some(response.connector_response_reference_id().to_owned()),
+            connector_response_reference_id,
             incremental_authorization_allowed: response.incremental_authorization_allowed,
             charges: None,
         }),
@@ -248,7 +319,7 @@ pub fn handle_unified_connector_service_response_for_payment_authorize(
             reason: Some(response.error_message().to_owned()),
             status_code: 500,
             attempt_status: Some(status),
-            connector_transaction_id: Some(response.connector_response_reference_id().to_owned()),
+            connector_transaction_id: connector_response_reference_id,
             network_decline_code: None,
             network_advice_code: None,
             network_error_message: None,
