@@ -42,7 +42,6 @@ pub async fn authentication_create(
     .await
 }
 
-
 #[cfg(feature = "v1")]
 #[instrument(skip_all, fields(flow = ?Flow::AuthenticationEligibility))]
 pub async fn authentication_eligibility(
@@ -76,7 +75,7 @@ pub async fn authentication_eligibility(
                 state,
                 merchant_context,
                 req,
-                authentication_id.clone()
+                authentication_id.clone(),
             )
         },
         &*auth,

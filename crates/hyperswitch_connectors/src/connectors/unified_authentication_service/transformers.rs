@@ -526,7 +526,6 @@ impl TryFrom<&UnifiedAuthenticationServiceRouterData<&UasAuthenticationConfirmat
     }
 }
 
-
 impl TryFrom<&UasPreAuthenticationRouterData>
     for UnifiedAuthenticationServicePreAuthenticateRequest
 {
