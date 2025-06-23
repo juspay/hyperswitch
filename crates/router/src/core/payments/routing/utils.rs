@@ -1,19 +1,26 @@
-use std::{
-    collections::{HashMap, HashSet},
-    str::FromStr,
-};
+use std::collections::{HashMap, HashSet};
 
 use api_models::{
-    open_router as or_types, routing as api_routing,
-    routing::{ConnectorSelection, RoutableConnectorChoice},
+    open_router as or_types,
+    routing::{
+        self as api_routing, ConnectorSelection, ConnectorVolumeSplit, RoutableConnectorChoice,
+    },
 };
 use async_trait::async_trait;
-use common_utils::{ext_traits::BytesExt, id_type};
+use common_enums::TransactionType;
+use common_utils::{
+    ext_traits::{BytesExt, StringExt},
+    id_type,
+};
 use diesel_models::{enums, routing_algorithm};
 use error_stack::ResultExt;
-use euclid::{backend::BackendInput, frontend::ast};
+use euclid::{
+    backend::BackendInput,
+    frontend::ast::{self},
+};
 #[cfg(all(feature = "v1", feature = "dynamic_routing"))]
 use external_services::grpc_client::dynamic_routing as ir_client;
+use hyperswitch_domain_models::business_profile;
 use hyperswitch_interfaces::events::routing_api_logs as routing_events;
 use router_env::tracing_actix_web::RequestId;
 use serde::{Deserialize, Serialize};
@@ -40,17 +47,6 @@ pub trait DecisionEngineApiHandler {
     where
         Req: Serialize + Send + Sync + 'static + Clone,
         Res: Serialize + serde::de::DeserializeOwned + Send + 'static + std::fmt::Debug + Clone;
-
-    async fn send_decision_engine_request_without_response_parsing<Req>(
-        state: &SessionState,
-        http_method: services::Method,
-        path: &str,
-        request_body: Option<Req>,
-        timeout: Option<u64>,
-        events_wrapper: Option<RoutingEventsWrapper<Req>>,
-    ) -> RoutingResult<()>
-    where
-        Req: Serialize + Send + Sync + 'static + Clone;
 }
 
 // Struct to implement the DecisionEngineApiHandler trait
@@ -71,7 +67,7 @@ pub async fn build_and_send_decision_engine_http_request<Req, Res, ErrRes>(
 ) -> RoutingResult<RoutingEventsResponse<Res>>
 where
     Req: Serialize + Send + Sync + 'static + Clone,
-    Res: Serialize + serde::de::DeserializeOwned + std::fmt::Debug + Clone,
+    Res: Serialize + serde::de::DeserializeOwned + std::fmt::Debug + Clone + 'static,
     ErrRes: serde::de::DeserializeOwned + std::fmt::Debug + Clone + DecisionEngineErrorsInterface,
 {
     let decision_engine_base_url = &state.conf.open_router.url;
@@ -109,6 +105,15 @@ where
 
                 let resp = should_parse_response
                     .then(|| {
+                        if std::any::TypeId::of::<Res>() == std::any::TypeId::of::<String>()
+                            && resp.response.is_empty()
+                        {
+                            return serde_json::from_str::<Res>("\"\"").change_context(
+                                errors::RoutingError::OpenRouterError(
+                                    "Failed to parse empty response as String".into(),
+                                ),
+                            );
+                        }
                         let response_type: Res = resp
                             .response
                             .parse_struct(std::any::type_name::<Res>())
@@ -209,35 +214,6 @@ impl DecisionEngineApiHandler for EuclidApiClient {
         logger::debug!(parsed_response = ?parsed_response, response_type = %std::any::type_name::<Res>(), euclid_request_path = %path, "decision_engine_euclid: Successfully parsed response from Euclid API");
         Ok(event_response)
     }
-
-    async fn send_decision_engine_request_without_response_parsing<Req>(
-        state: &SessionState,
-        http_method: services::Method,
-        path: &str,
-        request_body: Option<Req>,
-        timeout: Option<u64>,
-        events_wrapper: Option<RoutingEventsWrapper<Req>>,
-    ) -> RoutingResult<()>
-    where
-        Req: Serialize + Send + Sync + 'static + Clone,
-    {
-        let event_response =
-            build_and_send_decision_engine_http_request::<Req, (), DeErrorResponse>(
-                state,
-                http_method,
-                path,
-                request_body,
-                timeout,
-                "not parsing response",
-                events_wrapper,
-            )
-            .await?;
-
-        let response = event_response.response;
-
-        logger::debug!(euclid_response = ?response, euclid_request_path = %path, "decision_engine_routing: Received raw response from Euclid API");
-        Ok(())
-    }
 }
 
 #[async_trait]
@@ -274,35 +250,6 @@ impl DecisionEngineApiHandler for ConfigApiClient {
                 ))?;
         logger::debug!(parsed_response = ?parsed_response, response_type = %std::any::type_name::<Res>(), decision_engine_request_path = %path, "decision_engine_config: Successfully parsed response from Decision Engine config API");
         Ok(events_response)
-    }
-
-    async fn send_decision_engine_request_without_response_parsing<Req>(
-        state: &SessionState,
-        http_method: services::Method,
-        path: &str,
-        request_body: Option<Req>,
-        timeout: Option<u64>,
-        events_wrapper: Option<RoutingEventsWrapper<Req>>,
-    ) -> RoutingResult<()>
-    where
-        Req: Serialize + Send + Sync + 'static + Clone,
-    {
-        let event_response =
-            build_and_send_decision_engine_http_request::<Req, (), DeErrorResponse>(
-                state,
-                http_method,
-                path,
-                request_body,
-                timeout,
-                "not parsing response",
-                events_wrapper,
-            )
-            .await?;
-
-        let response = event_response.response;
-
-        logger::debug!(decision_engine_response = ?response, decision_engine_request_path = %path, "decision_engine_config: Received raw response from Decision Engine config API");
-        Ok(())
     }
 }
 
@@ -342,35 +289,6 @@ impl DecisionEngineApiHandler for SRApiClient {
         logger::debug!(parsed_response = ?parsed_response, response_type = %std::any::type_name::<Res>(), decision_engine_request_path = %path, "decision_engine_config: Successfully parsed response from Decision Engine config API");
         Ok(events_response)
     }
-
-    async fn send_decision_engine_request_without_response_parsing<Req>(
-        state: &SessionState,
-        http_method: services::Method,
-        path: &str,
-        request_body: Option<Req>,
-        timeout: Option<u64>,
-        events_wrapper: Option<RoutingEventsWrapper<Req>>,
-    ) -> RoutingResult<()>
-    where
-        Req: Serialize + Send + Sync + 'static + Clone,
-    {
-        let event_response =
-            build_and_send_decision_engine_http_request::<Req, (), or_types::ErrorResponse>(
-                state,
-                http_method,
-                path,
-                request_body,
-                timeout,
-                "not parsing response",
-                events_wrapper,
-            )
-            .await?;
-
-        let response = event_response.response;
-
-        logger::debug!(decision_engine_response = ?response, decision_engine_request_path = %path, "decision_engine_config: Received raw response from Decision Engine config API");
-        Ok(())
-    }
 }
 
 const EUCLID_API_TIMEOUT: u64 = 5;
@@ -380,7 +298,7 @@ pub async fn perform_decision_euclid_routing(
     input: BackendInput,
     created_by: String,
     events_wrapper: RoutingEventsWrapper<RoutingEvaluateRequest>,
-) -> RoutingResult<Vec<ConnectorInfo>> {
+) -> RoutingResult<Vec<RoutableConnectorChoice>> {
     logger::debug!("decision_engine_euclid: evaluate api call for euclid routing evaluation");
 
     let mut events_wrapper = events_wrapper;
@@ -413,47 +331,8 @@ pub async fn perform_decision_euclid_routing(
                 status_code: 500,
             })?;
 
-    let connector_info = euclid_response.evaluated_output.clone();
-    let mut routable_connectors = Vec::new();
-    for conn in &connector_info {
-        let connector = common_enums::RoutableConnectors::from_str(conn.gateway_name.as_str())
-            .change_context(errors::RoutingError::GenericConversionError {
-                from: "String".to_string(),
-                to: "RoutableConnectors".to_string(),
-            })
-            .attach_printable(
-                "decision_engine_euclid: unable to convert String to RoutableConnectors",
-            )
-            .ok();
-        let mca_id = conn
-            .gateway_id
-            .as_ref()
-            .map(|id| {
-                id_type::MerchantConnectorAccountId::wrap(id.to_string())
-        .change_context(errors::RoutingError::GenericConversionError {
-            from: "String".to_string(),
-            to: "MerchantConnectorAccountId".to_string(),
-        })
-        .attach_printable(
-            "decision_engine_euclid: unable to convert MerchantConnectorAccountId from string",
-        )
-            })
-            .transpose()
-            .ok()
-            .flatten();
-
-        if let Some(conn) = connector {
-            let connector = RoutableConnectorChoice {
-                choice_kind: api_routing::RoutableChoiceKind::FullStruct,
-                connector: conn,
-                merchant_connector_id: mca_id,
-            };
-            routable_connectors.push(connector);
-        }
-    }
-
     routing_event.set_routing_approach(RoutingApproach::StaticRouting.to_string());
-    routing_event.set_routable_connectors(routable_connectors);
+    routing_event.set_routable_connectors(euclid_response.evaluated_output.clone());
     state.event_handler.log_event(&routing_event);
 
     // Need to log euclid response event here
@@ -498,7 +377,7 @@ pub async fn link_de_euclid_routing_algorithm(
 ) -> RoutingResult<()> {
     logger::debug!("decision_engine_euclid: link api call for euclid routing algorithm");
 
-    EuclidApiClient::send_decision_engine_request_without_response_parsing(
+    EuclidApiClient::send_decision_engine_request::<_, String>(
         state,
         services::Method::Post,
         "routing/activate",
@@ -542,6 +421,31 @@ pub async fn list_de_euclid_routing_algorithms(
         .collect::<Vec<_>>())
 }
 
+pub async fn list_de_euclid_active_routing_algorithm(
+    state: &SessionState,
+    created_by: String,
+) -> RoutingResult<Vec<api_routing::RoutingDictionaryRecord>> {
+    logger::debug!("decision_engine_euclid: list api call for euclid active routing algorithm");
+    let response: Vec<RoutingAlgorithmRecord> = EuclidApiClient::send_decision_engine_request(
+        state,
+        services::Method::Post,
+        format!("routing/list/active/{created_by}").as_str(),
+        None::<()>,
+        Some(EUCLID_API_TIMEOUT),
+        None,
+    )
+    .await?
+    .response
+    .ok_or(errors::RoutingError::OpenRouterError(
+        "Response from decision engine API is empty".to_string(),
+    ))?;
+
+    Ok(response
+        .into_iter()
+        .map(|record| routing_algorithm::RoutingProfileMetadata::from(record).foreign_into())
+        .collect())
+}
+
 pub fn compare_and_log_result<T: RoutingEq<T> + Serialize>(
     de_result: Vec<T>,
     result: Vec<T>,
@@ -566,7 +470,8 @@ pub trait RoutingEq<T> {
 
 impl RoutingEq<Self> for api_routing::RoutingDictionaryRecord {
     fn is_equal(a: &Self, b: &Self) -> bool {
-        a.name == b.name
+        a.id == b.id
+            && a.name == b.name
             && a.profile_id == b.profile_id
             && a.description == b.description
             && a.kind == b.kind
@@ -577,6 +482,14 @@ impl RoutingEq<Self> for api_routing::RoutingDictionaryRecord {
 impl RoutingEq<Self> for String {
     fn is_equal(a: &Self, b: &Self) -> bool {
         a.to_lowercase() == b.to_lowercase()
+    }
+}
+
+impl RoutingEq<Self> for RoutableConnectorChoice {
+    fn is_equal(a: &Self, b: &Self) -> bool {
+        a.connector.eq(&b.connector)
+            && a.choice_kind.eq(&b.choice_kind)
+            && a.merchant_connector_id.eq(&b.merchant_connector_id)
     }
 }
 
@@ -772,8 +685,30 @@ pub struct RoutingEvaluateRequest {
 pub struct RoutingEvaluateResponse {
     pub status: String,
     pub output: serde_json::Value,
-    pub evaluated_output: Vec<ConnectorInfo>,
-    pub eligible_connectors: Vec<ConnectorInfo>,
+    #[serde(deserialize_with = "deserialize_connector_choices")]
+    pub evaluated_output: Vec<RoutableConnectorChoice>,
+    #[serde(deserialize_with = "deserialize_connector_choices")]
+    pub eligible_connectors: Vec<RoutableConnectorChoice>,
+}
+
+/// Routable Connector chosen for a payment
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct DeRoutableConnectorChoice {
+    pub gateway_name: common_enums::RoutableConnectors,
+    pub gateway_id: Option<id_type::MerchantConnectorAccountId>,
+}
+
+fn deserialize_connector_choices<'de, D>(
+    deserializer: D,
+) -> Result<Vec<RoutableConnectorChoice>, D::Error>
+where
+    D: serde::Deserializer<'de>,
+{
+    let infos = Vec::<DeRoutableConnectorChoice>::deserialize(deserializer)?;
+    Ok(infos
+        .into_iter()
+        .map(RoutableConnectorChoice::from)
+        .collect())
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
@@ -794,12 +729,24 @@ pub enum ValueType {
     MetadataVariant(MetadataValue),
     /// Represents a arbitrary String value
     StrValue(String),
+    /// Represents a global reference, which is a reference to a global variable
     GlobalRef(String),
+    /// Represents an array of numbers. This is basically used for
+    /// "one of the given numbers" operations
+    /// eg: payment.method.amount = (1, 2, 3)
+    NumberArray(Vec<u64>),
+    /// Similar to NumberArray but for enum variants
+    /// eg: payment.method.cardtype = (debit, credit)
+    EnumVariantArray(Vec<String>),
+    /// Like a number array but can include comparisons. Useful for
+    /// conditions like "500 < amount < 1000"
+    /// eg: payment.amount = (> 500, < 1000)
+    NumberComparisonArray(Vec<NumberComparison>),
 }
 
 pub type Metadata = HashMap<String, serde_json::Value>;
 /// Represents a number comparison for "NumberComparisonArrayValue"
-#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[derive(Clone, Debug, Eq, Hash, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub struct NumberComparison {
     pub comparison_type: ComparisonType,
@@ -917,9 +864,20 @@ impl ConnectorInfo {
     }
 }
 
+impl From<DeRoutableConnectorChoice> for RoutableConnectorChoice {
+    fn from(choice: DeRoutableConnectorChoice) -> Self {
+        Self {
+            choice_kind: api_routing::RoutableChoiceKind::FullStruct,
+            connector: choice.gateway_name,
+            merchant_connector_id: choice.gateway_id,
+        }
+    }
+}
+
 #[derive(Clone, Debug, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum Output {
+    Single(ConnectorInfo),
     Priority(Vec<ConnectorInfo>),
     VolumeSplit(Vec<VolumeSplit<ConnectorInfo>>),
     VolumeSplitPriority(Vec<VolumeSplit<Vec<ConnectorInfo>>>),
@@ -949,12 +907,73 @@ pub struct RoutingRule {
     pub description: Option<String>,
     pub metadata: Option<RoutingMetadata>,
     pub created_by: String,
+    #[serde(default)]
+    pub algorithm_for: AlgorithmType,
     pub algorithm: StaticRoutingAlgorithm,
+}
+#[derive(Debug, Clone, Default, serde::Serialize, serde::Deserialize, strum::Display)]
+#[serde(rename_all = "snake_case")]
+#[strum(serialize_all = "snake_case")]
+pub enum AlgorithmType {
+    #[default]
+    Payment,
+    Payout,
+    ThreeDsAuthentication,
+}
+
+impl From<TransactionType> for AlgorithmType {
+    fn from(transaction_type: TransactionType) -> Self {
+        match transaction_type {
+            TransactionType::Payment => Self::Payment,
+            TransactionType::Payout => Self::Payout,
+            TransactionType::ThreeDsAuthentication => Self::ThreeDsAuthentication,
+        }
+    }
+}
+
+impl From<RoutableConnectorChoice> for ConnectorInfo {
+    fn from(c: RoutableConnectorChoice) -> Self {
+        Self {
+            gateway_name: c.connector.to_string(),
+            gateway_id: c
+                .merchant_connector_id
+                .map(|mca_id| mca_id.get_string_repr().to_string()),
+        }
+    }
+}
+
+impl From<Box<RoutableConnectorChoice>> for ConnectorInfo {
+    fn from(c: Box<RoutableConnectorChoice>) -> Self {
+        Self {
+            gateway_name: c.connector.to_string(),
+            gateway_id: c
+                .merchant_connector_id
+                .map(|mca_id| mca_id.get_string_repr().to_string()),
+        }
+    }
+}
+
+impl From<ConnectorVolumeSplit> for VolumeSplit<ConnectorInfo> {
+    fn from(v: ConnectorVolumeSplit) -> Self {
+        Self {
+            split: v.split,
+            output: ConnectorInfo {
+                gateway_name: v.connector.connector.to_string(),
+                gateway_id: v
+                    .connector
+                    .merchant_connector_id
+                    .map(|mca_id| mca_id.get_string_repr().to_string()),
+            },
+        }
+    }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(tag = "type", content = "data", rename_all = "snake_case")]
 pub enum StaticRoutingAlgorithm {
+    Single(Box<ConnectorInfo>),
+    Priority(Vec<ConnectorInfo>),
+    VolumeSplit(Vec<VolumeSplit<ConnectorInfo>>),
     Advanced(Program),
 }
 
@@ -962,7 +981,6 @@ pub enum StaticRoutingAlgorithm {
 #[serde(rename_all = "snake_case")]
 pub struct RoutingMetadata {
     pub kind: enums::RoutingAlgorithmKind,
-    pub algorithm_for: enums::TransactionType,
 }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
@@ -981,7 +999,8 @@ pub struct RoutingAlgorithmRecord {
     pub name: String,
     pub description: Option<String>,
     pub created_by: id_type::ProfileId,
-    pub algorithm_data: Program,
+    pub algorithm_data: StaticRoutingAlgorithm,
+    pub algorithm_for: TransactionType,
     pub metadata: Option<RoutingMetadata>,
     pub created_at: time::PrimitiveDateTime,
     pub modified_at: time::PrimitiveDateTime,
@@ -989,12 +1008,11 @@ pub struct RoutingAlgorithmRecord {
 
 impl From<RoutingAlgorithmRecord> for routing_algorithm::RoutingProfileMetadata {
     fn from(record: RoutingAlgorithmRecord) -> Self {
-        let (kind, algorithm_for) = match record.metadata {
-            Some(metadata) => (metadata.kind, metadata.algorithm_for),
-            None => (
-                enums::RoutingAlgorithmKind::Advanced,
-                enums::TransactionType::default(),
-            ),
+        let kind = match record.algorithm_data {
+            StaticRoutingAlgorithm::Single(_) => enums::RoutingAlgorithmKind::Single,
+            StaticRoutingAlgorithm::Priority(_) => enums::RoutingAlgorithmKind::Priority,
+            StaticRoutingAlgorithm::VolumeSplit(_) => enums::RoutingAlgorithmKind::VolumeSplit,
+            StaticRoutingAlgorithm::Advanced(_) => enums::RoutingAlgorithmKind::Advanced,
         };
         Self {
             profile_id: record.created_by,
@@ -1004,7 +1022,7 @@ impl From<RoutingAlgorithmRecord> for routing_algorithm::RoutingProfileMetadata 
             kind,
             created_at: record.created_at,
             modified_at: record.modified_at,
-            algorithm_for,
+            algorithm_for: record.algorithm_for,
         }
     }
 }
@@ -1106,8 +1124,20 @@ fn convert_value(v: ast::ValueType) -> RoutingResult<ValueType> {
             value: m.value,
         })),
         StrValue(s) => Ok(ValueType::StrValue(s)),
-        _ => Err(error_stack::Report::new(
-            errors::RoutingError::InvalidRoutingAlgorithmStructure,
+
+        NumberArray(arr) => Ok(ValueType::NumberArray(
+            arr.into_iter()
+                .map(|n| n.get_amount_as_i64().try_into().unwrap_or_default())
+                .collect(),
+        )),
+        EnumVariantArray(arr) => Ok(ValueType::EnumVariantArray(arr)),
+        NumberComparisonArray(arr) => Ok(ValueType::NumberComparisonArray(
+            arr.into_iter()
+                .map(|nc| NumberComparison {
+                    comparison_type: convert_comparison_type(nc.comparison_type),
+                    number: nc.number.get_amount_as_i64().try_into().unwrap_or_default(),
+                })
+                .collect(),
         )),
     }
 }
@@ -1136,6 +1166,29 @@ fn stringify_choice(c: RoutableConnectorChoice) -> ConnectorInfo {
     )
 }
 
+pub async fn select_routing_result<T>(
+    state: &SessionState,
+    business_profile: &business_profile::Profile,
+    hyperswitch_result: T,
+    de_result: T,
+) -> T {
+    let routing_result_source: Option<api_routing::RoutingResultSource> = state
+        .store
+        .find_config_by_key(&format!(
+            "routing_result_source_{0}",
+            business_profile.get_id().get_string_repr()
+        ))
+        .await
+        .map(|c| c.config.parse_enum("RoutingResultSource").ok())
+        .unwrap_or(None); //Ignore errors so that we can use the hyperswitch result as a fallback
+    if let Some(api_routing::RoutingResultSource::DecisionEngine) = routing_result_source {
+        logger::debug!(business_profile_id=?business_profile.get_id(), "Using Decision Engine routing result");
+        de_result
+    } else {
+        logger::debug!(business_profile_id=?business_profile.get_id(), "Using Hyperswitch routing result");
+        hyperswitch_result
+    }
+}
 pub trait DecisionEngineErrorsInterface {
     fn get_error_message(&self) -> String;
     fn get_error_code(&self) -> String;

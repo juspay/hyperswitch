@@ -3,11 +3,10 @@ use std::marker::PhantomData;
 
 #[cfg(feature = "v2")]
 use api_models::payments::{MerchantConnectorDetails, SessionToken, VaultSessionDetails};
+#[cfg(feature = "v1")]
 use common_types::primitive_wrappers::{
     AlwaysRequestExtendedAuthorization, RequestExtendedAuthorizationBool,
 };
-#[cfg(feature = "v2")]
-use common_utils::ext_traits::OptionExt;
 use common_utils::{
     self,
     crypto::Encryptable,
@@ -21,8 +20,6 @@ use diesel_models::payment_intent::TaxDetails;
 #[cfg(feature = "v2")]
 use error_stack::ResultExt;
 use masking::Secret;
-#[cfg(feature = "v2")]
-use payment_intent::PaymentIntentUpdate;
 use router_derive::ToEncryption;
 use rustc_hash::FxHashMap;
 use serde_json::Value;
@@ -33,18 +30,15 @@ pub mod payment_intent;
 
 use common_enums as storage_enums;
 #[cfg(feature = "v2")]
-use diesel_models::{
-    ephemeral_key,
-    types::{FeatureMetadata, OrderDetailsWithAmount},
-};
+use diesel_models::types::{FeatureMetadata, OrderDetailsWithAmount};
 
 use self::payment_attempt::PaymentAttempt;
 #[cfg(feature = "v2")]
 use crate::{
-    address::Address, business_profile, customer, errors, merchant_account,
-    merchant_connector_account, merchant_connector_account::MerchantConnectorAccountTypeDetails,
-    merchant_context, payment_address, payment_method_data, payment_methods, revenue_recovery,
-    routing, ApiModelToDieselModelConvertor,
+    address::Address, business_profile, customer, errors, merchant_connector_account,
+    merchant_connector_account::MerchantConnectorAccountTypeDetails, merchant_context,
+    payment_address, payment_method_data, payment_methods, revenue_recovery, routing,
+    ApiModelToDieselModelConvertor,
 };
 #[cfg(feature = "v1")]
 use crate::{payment_method_data, RemoteStorageObject};
