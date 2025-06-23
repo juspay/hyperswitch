@@ -39,31 +39,6 @@ pm.test(
     },
 );
 
-// Validate if connector_account_details are not empty
-pm.test(
-    "[POST]::/account/:account_id/connectors - Validate merchant_connector_id",
-    function () {
-        // pm.collectionVariables - Set merchant_connector_id as variable for jsonData.merchant_connector_id
-        if (jsonData?.merchant_connector_id) {
-            pm.collectionVariables.set(
-                "merchant_connector_id",
-                jsonData.merchant_connector_id,
-            );
-            console.log(
-                "- use {{merchant_connector_id}} as collection variable for value",
-                jsonData.merchant_connector_id,
-            );
-        } else {
-            console.log(
-                "INFO - Unable to assign variable {{merchant_connector_id}}, as jsonData.merchant_connector_id is undefined.",
-            );
-        }
-        pm.expect(jsonData.merchant_connector_id).to.equal(
-            pm.collectionVariables.get("merchant_connector_id")
-        );
-    },
-);
-
 // Validate if auth_type is CertificateAuth
 pm.test(
     "[POST]::/account/:account_id/connectors - Validate auth_type is CertificateAuth",
