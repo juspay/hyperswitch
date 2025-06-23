@@ -325,6 +325,7 @@ pub enum PaymentIntentUpdate {
     },
 }
 
+#[cfg(feature = "v1")]
 impl PaymentIntentUpdate {
     pub fn is_confirm_operation(&self) -> bool {
         match self {
@@ -374,6 +375,13 @@ pub enum PaymentIntentUpdate {
     },
     /// UpdateIntent
     UpdateIntent(Box<PaymentIntentUpdateFields>),
+}
+
+#[cfg(feature = "v2")]
+impl PaymentIntentUpdate {
+    pub fn is_confirm_operation(&self) -> bool {
+        matches!(self, Self::ConfirmIntent { .. })
+    }
 }
 
 #[cfg(feature = "v1")]
