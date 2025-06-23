@@ -8,6 +8,7 @@
     "Scenario4a-Void a payment",
     "Scenario4b-Void a partially captured payment",
     "Scenario4c-Void a successful payment",
+    "Scenario5-Create a mandate and recurring payment",
     "Scenario8a-Incremental authorization",
     "Scenario8b-Incremental authorization with partial capture",
     "Scenario9a-Refund full payment",
