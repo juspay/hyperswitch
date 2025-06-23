@@ -101,7 +101,7 @@ pub async fn should_call_unified_connector_service<F: Clone, T>(
     Ok(should_execute && state.unified_connector_service_client.is_some())
 }
 
-pub fn construct_payment_method(
+pub fn build_unified_connector_service_payment_method(
     payment_method_data: hyperswitch_domain_models::payment_method_data::PaymentMethodData,
     payment_method_type: PaymentMethodType,
 ) -> Result<payments_grpc::PaymentMethod, error_stack::Report<UnifiedConnectorServiceError>> {
