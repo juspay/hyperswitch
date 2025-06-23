@@ -2550,15 +2550,16 @@ pub enum MigrationStatus {
 
 impl PaymentMethodRecord {
     fn create_address(&self) -> Option<payments::AddressDetails> {
-        if self.billing_address_city.is_some() ||
-           self.billing_address_country.is_some() ||
-           self.billing_address_line1.is_some() ||
-           self.billing_address_line2.is_some() ||
-           self.billing_address_state.is_some() ||
-           self.billing_address_line3.is_some() ||
-           self.billing_address_zip.is_some() ||
-           self.billing_address_first_name.is_some() ||
-           self.billing_address_last_name.is_some() {
+        if self.billing_address_city.is_some()
+            || self.billing_address_country.is_some()
+            || self.billing_address_line1.is_some()
+            || self.billing_address_line2.is_some()
+            || self.billing_address_state.is_some()
+            || self.billing_address_line3.is_some()
+            || self.billing_address_zip.is_some()
+            || self.billing_address_first_name.is_some()
+            || self.billing_address_last_name.is_some()
+        {
             Some(payments::AddressDetails {
                 city: self.billing_address_city.clone(),
                 country: self.billing_address_country,
@@ -2589,7 +2590,7 @@ impl PaymentMethodRecord {
     fn create_billing(&self) -> Option<payments::Address> {
         let address = self.create_address();
         let phone = self.create_phone();
-        
+
         if address.is_some() || phone.is_some() || self.email.is_some() {
             Some(payments::Address {
                 address,
