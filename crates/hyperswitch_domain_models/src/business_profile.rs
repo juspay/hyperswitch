@@ -1214,6 +1214,7 @@ impl Profile {
             .map(|(_, acquirer_config)| acquirer_config.clone())
     }
 
+    #[cfg(feature = "v1")]
     pub fn get_payment_routing_algorithm(
         &self,
     ) -> CustomResult<
