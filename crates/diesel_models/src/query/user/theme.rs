@@ -161,4 +161,11 @@ impl Theme {
         )
         .await
     }
+    pub async fn delete_by_theme_id(conn: &PgPooledConn, theme_id: String) -> StorageResult<Self> {
+        generics::generic_delete_one_with_result::<<Self as HasTable>::Table, _, _>(
+            conn,
+            dsl::theme_id.eq(theme_id),
+        )
+        .await
+    }
 }

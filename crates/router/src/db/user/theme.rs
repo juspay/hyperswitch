@@ -42,6 +42,11 @@ pub trait ThemeInterface {
         theme_id: String,
         lineage: ThemeLineage,
     ) -> CustomResult<storage::Theme, errors::StorageError>;
+
+    async fn delete_theme_by_theme_id(
+        &self,
+        theme_id: String,
+    ) -> CustomResult<storage::Theme, errors::StorageError>;
 }
 
 #[async_trait::async_trait]
@@ -105,6 +110,16 @@ impl ThemeInterface for Store {
     ) -> CustomResult<storage::Theme, errors::StorageError> {
         let conn = connection::pg_connection_write(self).await?;
         storage::Theme::delete_by_theme_id_and_lineage(&conn, theme_id, lineage)
+            .await
+            .map_err(|error| report!(errors::StorageError::from(error)))
+    }
+
+    async fn delete_theme_by_theme_id(
+        &self,
+        theme_id: String,
+    ) -> CustomResult<storage::Theme, errors::StorageError> {
+        let conn = connection::pg_connection_write(self).await?;
+        storage::Theme::delete_by_theme_id(&conn, theme_id)
             .await
             .map_err(|error| report!(errors::StorageError::from(error)))
     }
@@ -320,6 +335,23 @@ impl ThemeInterface for MockDb {
 
         let theme = themes.remove(index);
 
+        Ok(theme)
+    }
+
+    async fn delete_theme_by_theme_id(
+        &self,
+        theme_id: String,
+    ) -> CustomResult<storage::Theme, errors::StorageError> {
+        let mut themes = self.themes.lock().await;
+        let index = themes
+            .iter()
+            .position(|theme| theme.theme_id == theme_id)
+            .ok_or(errors::StorageError::ValueNotFound(format!(
+                "Theme with id {} not found",
+                theme_id
+            )))?;
+
+        let theme = themes.remove(index);
         Ok(theme)
     }
 }

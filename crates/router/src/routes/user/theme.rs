@@ -198,8 +198,8 @@ pub async fn update_user_theme(
         state,
         &req,
         payload,
-        |state, _user: auth::UserFromToken, payload, _| {
-            theme_core::update_theme(state, theme_id.clone(), payload)
+        |state, user: auth::UserFromToken, payload, _| {
+            theme_core::update_user_theme(state, theme_id.clone(), user, payload)
         },
         &auth::JWTAuth {
             permission: Permission::OrganizationThemeWrite,

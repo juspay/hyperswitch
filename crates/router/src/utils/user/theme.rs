@@ -286,3 +286,21 @@ pub fn get_lineage_from_theme(theme: &Theme) -> ThemeLineage {
         },
     }
 }
+
+pub async fn validate_user_can_access_theme(
+    user_from_token: &UserFromToken,
+    state: &SessionState,
+    theme: &Theme,
+) -> UserResult<()> {
+    let user_lineage =
+        get_theme_lineage_from_user_token(user_from_token, state, &theme.entity_type).await?;
+    let theme_lineage = get_lineage_from_theme(theme);
+
+    if user_lineage != theme_lineage {
+        return Err(UserErrors::InvalidThemeLineage(
+            "User does not have permission to access this theme".to_string(),
+        )
+        .into());
+    }
+    Ok(())
+}

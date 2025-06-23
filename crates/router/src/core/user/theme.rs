@@ -225,17 +225,9 @@ pub async fn update_theme(
 }
 
 pub async fn delete_theme(state: SessionState, theme_id: String) -> UserResponse<()> {
-    let theme = state
-        .store
-        .find_theme_by_theme_id(theme_id.clone())
-        .await
-        .to_not_found_response(UserErrors::ThemeNotFound)?;
-
-    let lineage = theme_utils::get_lineage_from_theme(&theme);
-
     state
         .store
-        .delete_theme_by_lineage_and_theme_id(theme_id.clone(), lineage)
+        .delete_theme_by_theme_id(theme_id.clone())
         .await
         .to_not_found_response(UserErrors::ThemeNotFound)?;
 
@@ -339,4 +331,66 @@ pub async fn delete_user_theme(
     // So, we are not deleting the theme folder from the theme storage.
 
     Ok(ApplicationResponse::StatusOk)
+}
+
+pub async fn update_user_theme(
+    state: SessionState,
+    theme_id: String,
+    user_from_token: UserFromToken,
+    request: theme_api::UpdateThemeRequest,
+) -> UserResponse<theme_api::GetThemeResponse> {
+    let db_theme = state
+        .store
+        .find_theme_by_theme_id(theme_id.clone())
+        .await
+        .to_not_found_response(UserErrors::ThemeNotFound)?;
+
+    theme_utils::validate_user_can_access_theme(&user_from_token, &state, &db_theme).await?;
+
+    let db_theme = match request.email_config {
+        Some(email_config) => {
+            let theme_update = ThemeUpdate::EmailConfig { email_config };
+            state
+                .store
+                .update_theme_by_theme_id(theme_id.clone(), theme_update)
+                .await
+                .to_not_found_response(UserErrors::ThemeNotFound)?
+        }
+        None => db_theme,
+    };
+
+    if let Some(theme_data) = request.theme_data {
+        theme_utils::upload_file_to_theme_bucket(
+            &state,
+            &theme_utils::get_theme_file_key(&db_theme.theme_id),
+            theme_data
+                .encode_to_vec()
+                .change_context(UserErrors::InternalServerError)
+                .attach_printable("Failed to parse ThemeData")?,
+        )
+        .await?;
+    }
+
+    let file = theme_utils::retrieve_file_from_theme_bucket(
+        &state,
+        &theme_utils::get_theme_file_key(&db_theme.theme_id),
+    )
+    .await?;
+
+    let parsed_data = file
+        .to_bytes()
+        .parse_struct("ThemeData")
+        .change_context(UserErrors::InternalServerError)?;
+
+    Ok(ApplicationResponse::Json(theme_api::GetThemeResponse {
+        email_config: db_theme.email_config(),
+        theme_id: db_theme.theme_id,
+        entity_type: db_theme.entity_type,
+        tenant_id: db_theme.tenant_id,
+        org_id: db_theme.org_id,
+        merchant_id: db_theme.merchant_id,
+        profile_id: db_theme.profile_id,
+        theme_name: db_theme.theme_name,
+        theme_data: parsed_data,
+    }))
 }
