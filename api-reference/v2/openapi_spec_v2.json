@@ -1958,18 +1958,6 @@
               "type": "string"
             },
             "example": "pro_abcdefghijklmnop"
-          },
-          {
-            "name": "X-Client-Secret",
-            "in": "header",
-            "description": "Client Secret Associated with the payment intent",
-            "required": true,
-            "schema": {
-              "type": "string"
-            },
-            "example": {
-              "X-Client-Secret": "12345_pay_0193e41106e07e518940f8b51b9c8121_secret_0193e41107027a928d61d292e6a5dba9"
-            }
           }
         ],
         "requestBody": {
@@ -2222,18 +2210,6 @@
               "type": "string"
             },
             "example": "pro_abcdefghijklmnop"
-          },
-          {
-            "name": "X-Client-Secret",
-            "in": "header",
-            "description": "Client Secret Associated with the payment intent",
-            "required": true,
-            "schema": {
-              "type": "string"
-            },
-            "example": {
-              "X-Client-Secret": "12345_pay_0193e41106e07e518940f8b51b9c8121_secret_0193e41107027a928d61d292e6a5dba9"
-            }
           }
         ],
         "responses": {
@@ -3538,6 +3514,8 @@
         "tags": [
           "Tokenization"
         ],
+        "summary": "Tokenization - Create",
+        "description": "Create a token with customer_id",
         "operationId": "create_token_vault_api",
         "requestBody": {
           "content": {
@@ -4671,9 +4649,7 @@
             "$ref": "#/components/schemas/NoThirdPartySdkSessionResponse"
           },
           {
-            "type": "object",
-            "default": null,
-            "nullable": true
+            "$ref": "#/components/schemas/NullObject"
           }
         ]
       },
@@ -14703,6 +14679,10 @@
           }
         }
       },
+      "NullObject": {
+        "default": null,
+        "nullable": true
+      },
       "NumberComparison": {
         "type": "object",
         "description": "Represents a number comparison for \"NumberComparisonArrayValue\"",
@@ -15512,6 +15492,31 @@
           }
         }
       },
+      "PaymentAttemptListRequest": {
+        "type": "object",
+        "required": [
+          "payment_intent_id"
+        ],
+        "properties": {
+          "payment_intent_id": {
+            "type": "string"
+          }
+        }
+      },
+      "PaymentAttemptListResponse": {
+        "type": "object",
+        "required": [
+          "payment_attempt_list"
+        ],
+        "properties": {
+          "payment_attempt_list": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PaymentAttemptResponse"
+            }
+          }
+        }
+      },
       "PaymentAttemptRecordResponse": {
         "type": "object",
         "required": [
@@ -15686,6 +15691,11 @@
                 "$ref": "#/components/schemas/TriggeredBy"
               }
             ],
+            "nullable": true
+          },
+          "charge_id": {
+            "type": "string",
+            "example": "ch_123abc456def789ghi012klmn",
             "nullable": true
           }
         }

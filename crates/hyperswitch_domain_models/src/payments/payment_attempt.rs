@@ -3,6 +3,7 @@ use api_models::enums::Connector;
 use common_enums as storage_enums;
 #[cfg(feature = "v2")]
 use common_types::payments as common_payments_types;
+#[cfg(feature = "v1")]
 use common_types::primitive_wrappers::{
     ExtendedAuthorizationAppliedBool, RequestExtendedAuthorizationBool,
 };
@@ -22,10 +23,12 @@ use common_utils::{
         ConnectorTransactionId, ConnectorTransactionIdTrait, CreatedBy, MinorUnit,
     },
 };
+#[cfg(feature = "v1")]
 use diesel_models::{
-    ConnectorMandateReferenceId, PaymentAttempt as DieselPaymentAttempt,
-    PaymentAttemptNew as DieselPaymentAttemptNew,
-    PaymentAttemptUpdate as DieselPaymentAttemptUpdate,
+    ConnectorMandateReferenceId, PaymentAttemptUpdate as DieselPaymentAttemptUpdate,
+};
+use diesel_models::{
+    PaymentAttempt as DieselPaymentAttempt, PaymentAttemptNew as DieselPaymentAttemptNew,
 };
 #[cfg(feature = "v2")]
 use diesel_models::{
@@ -38,7 +41,9 @@ use masking::PeekInterface;
 use masking::Secret;
 #[cfg(feature = "v2")]
 use rustc_hash::FxHashMap;
-use serde::{Deserialize, Serialize};
+#[cfg(feature = "v1")]
+use serde::Deserialize;
+use serde::Serialize;
 #[cfg(feature = "v2")]
 use serde_json::Value;
 use time::PrimitiveDateTime;
@@ -53,10 +58,11 @@ use crate::{
     router_response_types,
     type_encryption::{crypto_operation, CryptoOperation},
 };
+use crate::{behaviour, errors, ForeignIDRef};
+#[cfg(feature = "v1")]
 use crate::{
-    behaviour, errors,
     mandates::{MandateDataType, MandateDetails},
-    router_request_types, ForeignIDRef,
+    router_request_types,
 };
 
 #[async_trait::async_trait]
@@ -720,6 +726,12 @@ impl PaymentAttempt {
             revenue_recovery: Some({
                 PaymentAttemptRevenueRecoveryData {
                     attempt_triggered_by: request.triggered_by,
+                    charge_id: request.feature_metadata.as_ref().and_then(|metadata| {
+                        metadata
+                            .revenue_recovery
+                            .as_ref()
+                            .and_then(|data| data.charge_id.clone())
+                    }),
                 }
             }),
         };
@@ -2404,7 +2416,7 @@ impl behaviour::Conversion for PaymentAttempt {
             connector_metadata,
             payment_experience,
             payment_method_data,
-            routing_result,
+            routing_result: _,
             preprocessing_step_id,
             multiple_capture_count,
             connector_response_reference_id,
@@ -2424,8 +2436,8 @@ impl behaviour::Conversion for PaymentAttempt {
             payment_method_type,
             connector_payment_id,
             payment_method_subtype,
-            authentication_applied,
-            external_reference_id,
+            authentication_applied: _,
+            external_reference_id: _,
             id,
             payment_method_id,
             payment_method_billing_address,
@@ -2775,6 +2787,8 @@ pub struct PaymentAttemptFeatureMetadata {
 #[derive(Debug, Clone, serde::Serialize, PartialEq)]
 pub struct PaymentAttemptRevenueRecoveryData {
     pub attempt_triggered_by: common_enums::TriggeredBy,
+    // stripe specific field used to identify duplicate attempts.
+    pub charge_id: Option<String>,
 }
 
 #[cfg(feature = "v2")]
@@ -2785,6 +2799,7 @@ impl From<&PaymentAttemptFeatureMetadata> for DieselPaymentAttemptFeatureMetadat
                 .as_ref()
                 .map(|recovery_data| DieselPassiveChurnRecoveryData {
                     attempt_triggered_by: recovery_data.attempt_triggered_by,
+                    charge_id: recovery_data.charge_id.clone(),
                 });
         Self { revenue_recovery }
     }
@@ -2797,6 +2812,7 @@ impl From<DieselPaymentAttemptFeatureMetadata> for PaymentAttemptFeatureMetadata
             item.revenue_recovery
                 .map(|recovery_data| PaymentAttemptRevenueRecoveryData {
                     attempt_triggered_by: recovery_data.attempt_triggered_by,
+                    charge_id: recovery_data.charge_id,
                 });
         Self { revenue_recovery }
     }
