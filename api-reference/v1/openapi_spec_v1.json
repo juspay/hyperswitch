@@ -7337,14 +7337,6 @@
             "description": "The business profile that is associated with this authentication",
             "nullable": true
           },
-          "authentication_connector": {
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/AuthenticationConnectors"
-              }
-            ],
-            "nullable": true
-          },
           "customer": {
             "allOf": [
               {
@@ -7439,14 +7431,6 @@
           "force_3ds_challenge": {
             "type": "boolean",
             "description": "Whether 3DS challenge was forced.",
-            "nullable": true
-          },
-          "authentication_connector": {
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/AuthenticationConnectors"
-              }
-            ],
             "nullable": true
           },
           "return_url": {
