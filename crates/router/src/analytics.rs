@@ -96,7 +96,7 @@ pub mod routes {
                         )
                         .service(
                             web::resource("report/payments")
-                                .route(web::post().to(generate_merchant_payment_report)), // do we replicate this for routing as well?
+                                .route(web::post().to(generate_merchant_payment_report)),
                         )
                         .service(
                             web::resource("report/authentications")
@@ -386,7 +386,7 @@ pub mod routes {
                     web::scope("/v2")
                         .service(
                             web::resource("/metrics/payments")
-                                .route(web::post().to(get_merchant_payment_intent_metrics)), // do we replicate this for routing as well?
+                                .route(web::post().to(get_merchant_payment_intent_metrics)),
                         )
                         .service(
                             web::resource("/filters/payments")
