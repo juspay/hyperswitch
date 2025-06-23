@@ -1679,6 +1679,16 @@ pub enum FutureUsage {
     OnSession,
 }
 
+impl FutureUsage {
+    /// Indicates whether the payment method should be saved for future use or not
+    pub fn is_off_session(self) -> bool {
+        match self {
+            Self::OffSession => true,
+            Self::OnSession => false,
+        }
+    }
+}
+
 #[derive(
     Clone,
     Copy,
@@ -7977,7 +7987,9 @@ pub enum SuccessBasedRoutingConclusiveState {
 }
 
 /// Whether 3ds authentication is requested or not
-#[derive(Clone, Debug, PartialEq, serde::Serialize, serde::Deserialize, Default, ToSchema)]
+#[derive(
+    Clone, Copy, Debug, PartialEq, serde::Serialize, serde::Deserialize, Default, ToSchema,
+)]
 pub enum External3dsAuthenticationRequest {
     /// Request for 3ds authentication
     Enable,
@@ -7987,7 +7999,9 @@ pub enum External3dsAuthenticationRequest {
 }
 
 /// Whether payment link is requested to be enabled or not for this transaction
-#[derive(Clone, Debug, PartialEq, serde::Serialize, serde::Deserialize, Default, ToSchema)]
+#[derive(
+    Clone, Copy, Debug, PartialEq, serde::Serialize, serde::Deserialize, Default, ToSchema,
+)]
 pub enum EnablePaymentLinkRequest {
     /// Request for enabling payment link
     Enable,
@@ -7996,7 +8010,9 @@ pub enum EnablePaymentLinkRequest {
     Skip,
 }
 
-#[derive(Clone, Debug, PartialEq, serde::Serialize, serde::Deserialize, Default, ToSchema)]
+#[derive(
+    Clone, Copy, Debug, PartialEq, serde::Serialize, serde::Deserialize, Default, ToSchema,
+)]
 pub enum MitExemptionRequest {
     /// Request for applying MIT exemption
     Apply,
@@ -8006,7 +8022,9 @@ pub enum MitExemptionRequest {
 }
 
 /// Set to `present` to indicate that the customer is in your checkout flow during this payment, and therefore is able to authenticate. This parameter should be `absent` when merchant's doing merchant initiated payments and customer is not present while doing the payment.
-#[derive(Clone, Debug, PartialEq, serde::Serialize, serde::Deserialize, Default, ToSchema)]
+#[derive(
+    Clone, Copy, Debug, PartialEq, serde::Serialize, serde::Deserialize, Default, ToSchema,
+)]
 #[serde(rename_all = "snake_case")]
 pub enum PresenceOfCustomerDuringPayment {
     /// Customer is present during the payment. This is the default value
