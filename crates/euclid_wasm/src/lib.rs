@@ -480,8 +480,9 @@ pub fn get_payout_description_category() -> JsResult {
 
 #[wasm_bindgen(js_name = getValidWebhookStatus)]
 pub fn get_valid_webhook_status(key: &str) -> JsResult {
-    let event_class =
-        EventClass::from_str(key).map_err(|_| "Invalid webhook event type received".to_string())?;
+    let event_class = EventClass::from_str(key)
+        .map_err(|_| "Invalid webhook event type received".to_string())
+        .err_to_js()?;
 
     match event_class {
         EventClass::Payments => {

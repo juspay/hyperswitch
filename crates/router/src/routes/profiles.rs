@@ -226,6 +226,7 @@ pub async fn profile_update(
 ) -> HttpResponse {
     let flow = Flow::ProfileUpdate;
     let profile_id = path.into_inner();
+    let payload = json_payload.into_inner();
     if let Err(api_error) = payload
         .webhook_details
         .as_ref()

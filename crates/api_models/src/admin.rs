@@ -691,6 +691,18 @@ pub struct WebhookDetails {
     #[schema(value_type = Option<String>, example = "www.ekart.com/webhooks")]
     pub webhook_url: Option<Secret<String>>,
 
+    /// If this property is true, a webhook message is posted whenever a new payment is created
+    #[schema(example = true)]
+    pub payment_created_enabled: Option<bool>,
+
+    /// If this property is true, a webhook message is posted whenever a payment is successful
+    #[schema(example = true)]
+    pub payment_succeeded_enabled: Option<bool>,
+
+    /// If this property is true, a webhook message is posted whenever a payment fails
+    #[schema(example = true)]
+    pub payment_failed_enabled: Option<bool>,
+
     /// List of payment statuses that triggers a webhook for payment intents
     #[schema(value_type = Vec<IntentStatus>, example = json!(["succeeded", "failed", "partially_captured", "requires_merchant_action"]))]
     pub payment_statuses_enabled: Option<Vec<api_enums::IntentStatus>>,
@@ -706,55 +718,40 @@ pub struct WebhookDetails {
 }
 
 impl WebhookDetails {
-    pub fn validate(&self) -> Result<(), String> {
-        use strum::IntoEnumIterator;
-        if let Some(payment_statuses) = &self.payment_statuses_enabled {
-            let valid_payment_statuses: Vec<api_enums::IntentStatus> =
-                api_enums::IntentStatus::iter()
-                    .filter(|s| Into::<Option<api_enums::EventType>>::into(*s).is_some())
-                    .collect();
-            for status in payment_statuses {
-                if !valid_payment_statuses.contains(status) {
-                    return Err(format!(
-                        "Invalid payment webhook status provided: {:?}",
-                        status
-                    ));
-                }
+    fn validate_statuses<T>(statuses: &[T], status_type_name: &str) -> Result<(), String>
+    where
+        T: strum::IntoEnumIterator + Copy + PartialEq + std::fmt::Debug,
+        T: Into<Option<api_enums::EventType>>,
+    {
+        let valid_statuses: Vec<T> = T::iter().filter(|s| (*s).into().is_some()).collect();
+
+        for status in statuses {
+            if !valid_statuses.contains(status) {
+                return Err(format!(
+                    "Invalid {} webhook status provided: {:?}",
+                    status_type_name, status
+                ));
             }
+        }
+        Ok(())
+    }
+
+    pub fn validate(&self) -> Result<(), String> {
+        if let Some(payment_statuses) = &self.payment_statuses_enabled {
+            Self::validate_statuses(payment_statuses, "payment")?;
         }
 
         if let Some(refund_statuses) = &self.refund_statuses_enabled {
-            let valid_refund_statuses: Vec<api_enums::RefundStatus> =
-                api_enums::RefundStatus::iter()
-                    .filter(|s| Into::<Option<api_enums::EventType>>::into(*s).is_some())
-                    .collect();
-            for status in refund_statuses {
-                if !valid_refund_statuses.contains(status) {
-                    return Err(format!(
-                        "Invalid refund webhook status provided: {:?}",
-                        status
-                    ));
-                }
-            }
+            Self::validate_statuses(refund_statuses, "refund")?;
         }
 
         #[cfg(feature = "payouts")]
         {
             if let Some(payout_statuses) = &self.payout_statuses_enabled {
-                let valid_payout_statuses: Vec<api_enums::PayoutStatus> =
-                    api_enums::PayoutStatus::iter()
-                        .filter(|s| Into::<Option<api_enums::EventType>>::into(*s).is_some())
-                        .collect();
-                for status in payout_statuses {
-                    if !valid_payout_statuses.contains(status) {
-                        return Err(format!(
-                            "Invalid payout webhook status provided: {:?}",
-                            status
-                        ));
-                    }
-                }
+                Self::validate_statuses(payout_statuses, "payout")?;
             }
         }
+
         Ok(())
     }
 }

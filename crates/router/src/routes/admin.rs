@@ -403,25 +403,11 @@ pub async fn update_merchant_account(
 ) -> HttpResponse {
     let flow = Flow::MerchantsAccountUpdate;
     let merchant_id = mid.into_inner();
-    let payload = json_payload.into_inner();
-    if let Err(api_error) = payload
-        .webhook_details
-        .as_ref()
-        .map(|details| {
-            details
-                .validate()
-                .map_err(|message| errors::ApiErrorResponse::InvalidRequestData { message })
-        })
-        .transpose()
-    {
-        return api::log_and_return_error_response(api_error.into());
-    }
-
     Box::pin(api::server_wrap(
         flow,
         state,
         &req,
-        payload,
+        json_payload.into_inner(),
         |state, _, req, _| merchant_account_update(state, &merchant_id, None, req),
         auth::auth_type(
             &auth::V2AdminApiAuth,
