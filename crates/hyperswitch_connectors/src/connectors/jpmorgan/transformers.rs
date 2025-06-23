@@ -522,6 +522,7 @@ pub struct TransactionData {
 pub struct JpmorganRefundRequest {
     pub merchant: MerchantRefundReq,
     pub amount: MinorUnit,
+    pub currency: common_enums::Currency,
 }
 
 #[derive(Default, Debug, Serialize, Deserialize)]
@@ -532,8 +533,20 @@ pub struct MerchantRefundReq {
 
 impl<F> TryFrom<&JpmorganRouterData<&RefundsRouterData<F>>> for JpmorganRefundRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(_item: &JpmorganRouterData<&RefundsRouterData<F>>) -> Result<Self, Self::Error> {
-        Err(errors::ConnectorError::NotImplemented("Refunds".to_string()).into())
+    fn try_from(item: &JpmorganRouterData<&RefundsRouterData<F>>) -> Result<Self, Self::Error> {
+        let merchant_software = JpmorganMerchantSoftware {
+            company_name: String::from("JPMC").into(),
+            product_name: String::from("Hyperswitch").into(),
+        };
+        let merchant = MerchantRefundReq { merchant_software };
+        let amount = item.amount;
+        let currency = item.router_data.request.currency;
+
+        Ok(Self {
+            merchant,
+            amount,
+            currency,
+        })
     }
 }
 
@@ -578,17 +591,23 @@ pub struct RefundResponse {
 }
 
 pub fn refund_status_from_transaction_state(
+    response_status: JpmorganResponseStatus,
     transaction_state: JpmorganTransactionState,
 ) -> common_enums::RefundStatus {
-    match transaction_state {
-        JpmorganTransactionState::Voided | JpmorganTransactionState::Closed => {
-            common_enums::RefundStatus::Success
-        }
-        JpmorganTransactionState::Declined | JpmorganTransactionState::Error => {
+    match response_status {
+        JpmorganResponseStatus::Success => match transaction_state {
+            JpmorganTransactionState::Voided | JpmorganTransactionState::Closed => {
+                common_enums::RefundStatus::Success
+            }
+            JpmorganTransactionState::Declined | JpmorganTransactionState::Error => {
+                common_enums::RefundStatus::Failure
+            }
+            JpmorganTransactionState::Pending | JpmorganTransactionState::Authorized => {
+                common_enums::RefundStatus::Pending
+            }
+        },
+        JpmorganResponseStatus::Denied | JpmorganResponseStatus::Error => {
             common_enums::RefundStatus::Failure
-        }
-        JpmorganTransactionState::Pending | JpmorganTransactionState::Authorized => {
-            common_enums::RefundStatus::Pending
         }
     }
 }
@@ -608,6 +627,7 @@ impl TryFrom<RefundsResponseRouterData<Execute, JpmorganRefundResponse>>
                     .clone()
                     .ok_or(errors::ConnectorError::ResponseHandlingFailed)?,
                 refund_status: refund_status_from_transaction_state(
+                    item.response.response_status,
                     item.response.transaction_state,
                 ),
             }),
@@ -639,6 +659,7 @@ impl TryFrom<RefundsResponseRouterData<RSync, JpmorganRefundSyncResponse>>
             response: Ok(RefundsResponseData {
                 connector_refund_id: item.response.transaction_id.clone(),
                 refund_status: refund_status_from_transaction_state(
+                    item.response.response_status,
                     item.response.transaction_state,
                 ),
             }),
