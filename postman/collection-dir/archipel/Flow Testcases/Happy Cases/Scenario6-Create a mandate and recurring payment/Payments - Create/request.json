@@ -24,7 +24,7 @@
       "capture_method": "automatic",
       "amount_to_capture": 500,
       "profile_id": "{{profile_id}}",
-      "customer_id": "ArchiPELCustomer",
+      "customer_id": "{{customer_id}}",
       "email": "john_doe@gmail.com",
       "name": "John Doe",
       "phone": "8056594427",
