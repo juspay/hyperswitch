@@ -35,13 +35,13 @@
                 "$ref": "#/components/schemas/PaymentsCreateRequest"
               },
               "examples": {
-                "1. Create a payment with minimal fields": {
+                "01. Create a payment with minimal fields": {
                   "value": {
                     "amount": 6540,
                     "currency": "USD"
                   }
                 },
-                "2. Create a payment with customer details and metadata": {
+                "02. Create a payment with customer details and metadata": {
                   "value": {
                     "amount": 6540,
                     "currency": "USD",
@@ -61,21 +61,21 @@
                     "statement_descriptor_suffix": "JS"
                   }
                 },
-                "3. Create a 3DS payment": {
+                "03. Create a 3DS payment": {
                   "value": {
                     "amount": 6540,
                     "authentication_type": "three_ds",
                     "currency": "USD"
                   }
                 },
-                "4. Create a manual capture payment (basic)": {
+                "04. Create a manual capture payment (basic)": {
                   "value": {
                     "amount": 6540,
                     "capture_method": "manual",
                     "currency": "USD"
                   }
                 },
-                "5. Create a setup mandate payment": {
+                "05. Create a setup mandate payment": {
                   "value": {
                     "amount": 6540,
                     "authentication_type": "no_three_ds",
@@ -119,7 +119,7 @@
                     "setup_future_usage": "off_session"
                   }
                 },
-                "6. Create a recurring payment with mandate_id": {
+                "06. Create a recurring payment with mandate_id": {
                   "value": {
                     "amount": 6540,
                     "authentication_type": "no_three_ds",
@@ -130,7 +130,7 @@
                     "off_session": true
                   }
                 },
-                "7. Create a payment and save the card": {
+                "07. Create a payment and save the card": {
                   "value": {
                     "amount": 6540,
                     "authentication_type": "no_three_ds",
@@ -158,7 +158,7 @@
                     "setup_future_usage": "off_session"
                   }
                 },
-                "8. Create a payment using an already saved card's token": {
+                "08. Create a payment using an already saved card's token": {
                   "value": {
                     "amount": 6540,
                     "card_cvc": "123",
@@ -169,7 +169,7 @@
                     "payment_token": "{{payment_token}}"
                   }
                 },
-                "9. Create a payment with billing details": {
+                "09. Create a payment with billing details": {
                   "value": {
                     "amount": 6540,
                     "billing": {
@@ -194,6 +194,89 @@
                       "id": "cus_abcdefgh"
                     }
                   }
+                },
+                "10. Create a Stripe Split Payments CIT call": {
+                  "value": {
+                    "amount": 200,
+                    "amount_to_capture": 200,
+                    "authentication_type": "no_three_ds",
+                    "billing": {
+                      "address": {
+                        "city": "San Fransico",
+                        "country": "US",
+                        "first_name": "joseph",
+                        "last_name": "Doe",
+                        "line1": "1467",
+                        "line2": "Harrison Street",
+                        "line3": "Harrison Street",
+                        "state": "California",
+                        "zip": "94122"
+                      },
+                      "phone": {
+                        "country_code": "+91",
+                        "number": "9999999999"
+                      }
+                    },
+                    "capture_method": "automatic",
+                    "confirm": true,
+                    "currency": "USD",
+                    "customer_acceptance": {
+                      "acceptance_type": "offline",
+                      "accepted_at": "1963-05-03T04:07:52.723Z",
+                      "online": {
+                        "ip_address": "125.0.0.1",
+                        "user_agent": "amet irure esse"
+                      }
+                    },
+                    "customer_id": "StripeCustomer123",
+                    "description": "Its my first payment request",
+                    "name": "John Doe",
+                    "payment_method": "card",
+                    "payment_method_data": {
+                      "card": {
+                        "card_cvc": "123",
+                        "card_exp_month": "09",
+                        "card_exp_year": "25",
+                        "card_holder_name": "joseph Doe",
+                        "card_number": "4242424242424242"
+                      }
+                    },
+                    "payment_method_type": "debit",
+                    "phone": "999999999",
+                    "phone_country_code": "+65",
+                    "profile_id": "pro_abcdefghijklmnop",
+                    "return_url": "https://hyperswitch.io",
+                    "setup_future_usage": "off_session",
+                    "split_payments": {
+                      "stripe_split_payment": {
+                        "application_fees": 100,
+                        "charge_type": "direct",
+                        "transfer_account_id": "acct_123456789"
+                      }
+                    }
+                  }
+                },
+                "11. Create a Stripe Split Payments MIT call": {
+                  "value": {
+                    "amount": 200,
+                    "confirm": true,
+                    "currency": "USD",
+                    "customer_id": "StripeCustomer123",
+                    "description": "Subsequent Mandate Test Payment (MIT from New CIT Demo)",
+                    "off_session": true,
+                    "profile_id": "pro_abcdefghijklmnop",
+                    "recurring_details": {
+                      "data": "pm_123456789",
+                      "type": "payment_method_id"
+                    },
+                    "split_payments": {
+                      "stripe_split_payment": {
+                        "application_fees": 11,
+                        "charge_type": "direct",
+                        "transfer_account_id": "acct_123456789"
+                      }
+                    }
+                  }
                 }
               }
             }
@@ -209,7 +292,7 @@
                   "$ref": "#/components/schemas/PaymentsCreateResponseOpenApi"
                 },
                 "examples": {
-                  "1. Response for minimal payment creation (requires payment method)": {
+                  "01. Response for minimal payment creation (requires payment method)": {
                     "value": {
                       "amount": 6540,
                       "amount_capturable": 6540,
@@ -224,7 +307,7 @@
                       "status": "requires_payment_method"
                     }
                   },
-                  "2. Response for payment with customer details (requires payment method)": {
+                  "02. Response for payment with customer details (requires payment method)": {
                     "value": {
                       "amount": 6540,
                       "attempt_count": 1,
@@ -256,7 +339,7 @@
                       "status": "requires_payment_method"
                     }
                   },
-                  "3. Response for 3DS payment creation (requires payment method)": {
+                  "03. Response for 3DS payment creation (requires payment method)": {
                     "value": {
                       "amount": 6540,
                       "attempt_count": 1,
@@ -271,7 +354,7 @@
                       "status": "requires_payment_method"
                     }
                   },
-                  "4. Response for basic manual capture payment (requires payment method)": {
+                  "04. Response for basic manual capture payment (requires payment method)": {
                     "value": {
                       "amount": 6540,
                       "attempt_count": 1,
@@ -286,7 +369,7 @@
                       "status": "requires_payment_method"
                     }
                   },
-                  "5. Response for successful setup mandate payment": {
+                  "05. Response for successful setup mandate payment": {
                     "value": {
                       "amount": 6540,
                       "amount_capturable": 0,
@@ -337,7 +420,7 @@
                       "status": "succeeded"
                     }
                   },
-                  "6. Response for successful recurring payment with mandate_id": {
+                  "06. Response for successful recurring payment with mandate_id": {
                     "value": {
                       "amount": 6540,
                       "amount_capturable": 0,
@@ -360,7 +443,7 @@
                       "status": "succeeded"
                     }
                   },
-                  "7. Response for successful payment with card saved": {
+                  "07. Response for successful payment with card saved": {
                     "value": {
                       "amount": 6540,
                       "amount_capturable": 0,
@@ -395,7 +478,7 @@
                       "status": "succeeded"
                     }
                   },
-                  "8. Response for successful payment using saved card token": {
+                  "08. Response for successful payment using saved card token": {
                     "value": {
                       "amount": 6540,
                       "amount_capturable": 0,
@@ -415,7 +498,7 @@
                       "status": "succeeded"
                     }
                   },
-                  "9. Response for payment with billing details (requires payment method)": {
+                  "09. Response for payment with billing details (requires payment method)": {
                     "value": {
                       "amount": 6540,
                       "attempt_count": 1,
@@ -454,6 +537,92 @@
                       "payment_id": "pay_manualbill_xxxxxxxxxxxx",
                       "profile_id": "pro_pzzzzzzzzzzz",
                       "status": "requires_payment_method"
+                    }
+                  },
+                  "10. Response for the CIT call for Stripe Split Payments": {
+                    "value": {
+                      "amount": 200,
+                      "attempt_count": 1,
+                      "billing": {
+                        "address": {
+                          "city": "San Fransico",
+                          "country": "US",
+                          "first_name": "joseph",
+                          "last_name": "Doe",
+                          "line1": "1467",
+                          "line2": "Harrison Street",
+                          "state": "California",
+                          "zip": "94122"
+                        },
+                        "phone": {
+                          "country_code": "+91",
+                          "number": "9123456789"
+                        }
+                      },
+                      "client_secret": "pay_manualbill_xxxxxxxxxxxx_secret_szzzzzzzzzzz",
+                      "connector_mandate_id": "pm_abcdefgh",
+                      "created": "2023-10-26T10:30:00Z",
+                      "currency": "USD",
+                      "customer": {
+                        "email": "john@example.com",
+                        "id": "cus_abcdefgh",
+                        "name": "John Dough",
+                        "phone": "9123456789"
+                      },
+                      "customer_id": "cus_abcdefgh",
+                      "ephemeral_key": {
+                        "customer_id": "cus_abcdefgh",
+                        "secret": "epk_ephemeralxxxxxxxxxxxx"
+                      },
+                      "expires_on": "2023-10-26T10:45:00Z",
+                      "merchant_id": "merchant_myyyyyyyyyyyy",
+                      "payment_id": "pay_manualbill_xxxxxxxxxxxx",
+                      "payment_method_id": "pm_123456789",
+                      "profile_id": "pro_pzzzzzzzzzzz",
+                      "status": "succeeded"
+                    }
+                  },
+                  "11. Response for the MIT call for Stripe Split Payments": {
+                    "value": {
+                      "amount": 200,
+                      "attempt_count": 1,
+                      "billing": {
+                        "address": {
+                          "city": "San Fransico",
+                          "country": "US",
+                          "first_name": "joseph",
+                          "last_name": "Doe",
+                          "line1": "1467",
+                          "line2": "Harrison Street",
+                          "state": "California",
+                          "zip": "94122"
+                        },
+                        "phone": {
+                          "country_code": "+91",
+                          "number": "9123456789"
+                        }
+                      },
+                      "client_secret": "pay_manualbill_xxxxxxxxxxxx_secret_szzzzzzzzzzz",
+                      "connector_mandate_id": "pm_abcdefgh",
+                      "created": "2023-10-26T10:30:00Z",
+                      "currency": "USD",
+                      "customer": {
+                        "email": "john@example.com",
+                        "id": "cus_abcdefgh",
+                        "name": "John Dough",
+                        "phone": "9123456789"
+                      },
+                      "customer_id": "cus_abcdefgh",
+                      "ephemeral_key": {
+                        "customer_id": "cus_abcdefgh",
+                        "secret": "epk_ephemeralxxxxxxxxxxxx"
+                      },
+                      "expires_on": "2023-10-26T10:45:00Z",
+                      "merchant_id": "merchant_myyyyyyyyyyyy",
+                      "payment_id": "pay_manualbill_xxxxxxxxxxxx",
+                      "payment_method_id": "pm_123456789",
+                      "profile_id": "pro_pzzzzzzzzzzz",
+                      "status": "succeeded"
                     }
                   }
                 }
@@ -1068,18 +1237,18 @@
             "schema": {
               "type": "string"
             }
+          },
+          {
+            "name": "client_secret",
+            "in": "query",
+            "description": "This is a token which expires after 15 minutes, used from the client to authenticate and create sessions from the SDK",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "nullable": true
+            }
           }
         ],
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/RetrievePaymentLinkRequest"
-              }
-            }
-          },
-          "required": true
-        },
         "responses": {
           "200": {
             "description": "Gets details regarding payment link",
@@ -1156,7 +1325,7 @@
         ]
       }
     },
-    "/{payment_id}/complete_authorize": {
+    "/payments/{payment_id}/complete_authorize": {
       "post": {
         "tags": [
           "Payments"
@@ -2053,7 +2222,7 @@
         ]
       }
     },
-    "/accounts/{account_id}/connectors": {
+    "/account/{account_id}/connectors": {
       "post": {
         "tags": [
           "Merchant Connector Account"
@@ -2186,7 +2355,7 @@
         ]
       }
     },
-    "/accounts/{account_id}/connectors/{connector_id}": {
+    "/account/{account_id}/connectors/{merchant_connector_id}": {
       "get": {
         "tags": [
           "Merchant Connector Account"
@@ -2205,13 +2374,12 @@
             }
           },
           {
-            "name": "connector_id",
+            "name": "merchant_connector_id",
             "in": "path",
             "description": "The unique identifier for the Merchant Connector",
             "required": true,
             "schema": {
-              "type": "integer",
-              "format": "int32"
+              "type": "string"
             }
           }
         ],
@@ -2257,13 +2425,12 @@
             }
           },
           {
-            "name": "connector_id",
+            "name": "merchant_connector_id",
             "in": "path",
             "description": "The unique identifier for the Merchant Connector",
             "required": true,
             "schema": {
-              "type": "integer",
-              "format": "int32"
+              "type": "string"
             }
           }
         ],
@@ -2338,13 +2505,12 @@
             }
           },
           {
-            "name": "connector_id",
+            "name": "merchant_connector_id",
             "in": "path",
             "description": "The unique identifier for the Merchant Connector",
             "required": true,
             "schema": {
-              "type": "integer",
-              "format": "int32"
+              "type": "string"
             }
           }
         ],
@@ -2616,7 +2782,7 @@
       }
     },
     "/customers/{customer_id}/mandates": {
-      "post": {
+      "get": {
         "tags": [
           "Mandates"
         ],
@@ -2855,6 +3021,32 @@
         "summary": "Customers - List",
         "description": "Lists all the customers for a particular merchant id.",
         "operationId": "List all Customers for a Merchant",
+        "parameters": [
+          {
+            "name": "offset",
+            "in": "query",
+            "description": "Offset for pagination",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "format": "int32",
+              "nullable": true,
+              "minimum": 0
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "description": "Limit for pagination",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "format": "int32",
+              "nullable": true,
+              "minimum": 0
+            }
+          }
+        ],
         "responses": {
           "200": {
             "description": "Customers retrieved",
@@ -2946,74 +3138,94 @@
         "operationId": "List all Payment Methods for a Merchant",
         "parameters": [
           {
-            "name": "account_id",
-            "in": "path",
-            "description": "The unique identifier for the merchant account",
-            "required": true,
+            "name": "client_secret",
+            "in": "query",
+            "description": "This is a token which expires after 15 minutes, used from the client to authenticate and create sessions from the SDK",
+            "required": false,
             "schema": {
-              "type": "string"
+              "type": "string",
+              "nullable": true
             }
           },
           {
-            "name": "accepted_country",
+            "name": "accepted_countries",
             "in": "query",
             "description": "The two-letter ISO currency code",
-            "required": true,
+            "required": false,
             "schema": {
               "type": "array",
               "items": {
-                "type": "string"
-              }
+                "$ref": "#/components/schemas/CountryAlpha2"
+              },
+              "nullable": true
             }
           },
           {
-            "name": "accepted_currency",
-            "in": "path",
+            "name": "accepted_currencies",
+            "in": "query",
             "description": "The three-letter ISO currency code",
-            "required": true,
+            "required": false,
             "schema": {
               "type": "array",
               "items": {
                 "$ref": "#/components/schemas/Currency"
-              }
+              },
+              "nullable": true
             }
           },
           {
-            "name": "minimum_amount",
+            "name": "amount",
             "in": "query",
-            "description": "The minimum amount accepted for processing by the particular payment method.",
-            "required": true,
+            "description": "The amount accepted for processing by the particular payment method.",
+            "required": false,
             "schema": {
               "type": "integer",
-              "format": "int64"
+              "format": "int64",
+              "nullable": true
             }
           },
           {
-            "name": "maximum_amount",
-            "in": "query",
-            "description": "The maximum amount accepted for processing by the particular payment method.",
-            "required": true,
-            "schema": {
-              "type": "integer",
-              "format": "int64"
-            }
-          },
-          {
-            "name": "recurring_payment_enabled",
+            "name": "recurring_enabled",
             "in": "query",
             "description": "Indicates whether the payment method is eligible for recurring payments",
-            "required": true,
+            "required": false,
             "schema": {
-              "type": "boolean"
+              "type": "boolean",
+              "nullable": true
             }
           },
           {
             "name": "installment_payment_enabled",
             "in": "query",
             "description": "Indicates whether the payment method is eligible for installment payments",
-            "required": true,
+            "required": false,
             "schema": {
-              "type": "boolean"
+              "type": "boolean",
+              "nullable": true
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "description": "Indicates the limit of last used payment methods",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "format": "int64",
+              "nullable": true
+            }
+          },
+          {
+            "name": "card_networks",
+            "in": "query",
+            "description": "Indicates whether the payment method is eligible for card netwotks",
+            "required": false,
+            "schema": {
+              "type": "array",
+              "items": {
+                "$ref": "#/components/schemas/CardNetwork"
+              },
+              "nullable": true
             }
           }
         ],
@@ -3064,65 +3276,94 @@
             }
           },
           {
-            "name": "accepted_country",
+            "name": "client_secret",
             "in": "query",
-            "description": "The two-letter ISO currency code",
-            "required": true,
+            "description": "This is a token which expires after 15 minutes, used from the client to authenticate and create sessions from the SDK",
+            "required": false,
             "schema": {
-              "type": "array",
-              "items": {
-                "type": "string"
-              }
+              "type": "string",
+              "nullable": true
             }
           },
           {
-            "name": "accepted_currency",
-            "in": "path",
+            "name": "accepted_countries",
+            "in": "query",
+            "description": "The two-letter ISO currency code",
+            "required": false,
+            "schema": {
+              "type": "array",
+              "items": {
+                "$ref": "#/components/schemas/CountryAlpha2"
+              },
+              "nullable": true
+            }
+          },
+          {
+            "name": "accepted_currencies",
+            "in": "query",
             "description": "The three-letter ISO currency code",
-            "required": true,
+            "required": false,
             "schema": {
               "type": "array",
               "items": {
                 "$ref": "#/components/schemas/Currency"
-              }
+              },
+              "nullable": true
             }
           },
           {
-            "name": "minimum_amount",
+            "name": "amount",
             "in": "query",
-            "description": "The minimum amount accepted for processing by the particular payment method.",
-            "required": true,
+            "description": "The amount accepted for processing by the particular payment method.",
+            "required": false,
             "schema": {
               "type": "integer",
-              "format": "int64"
+              "format": "int64",
+              "nullable": true
             }
           },
           {
-            "name": "maximum_amount",
-            "in": "query",
-            "description": "The maximum amount accepted for processing by the particular payment method.",
-            "required": true,
-            "schema": {
-              "type": "integer",
-              "format": "int64"
-            }
-          },
-          {
-            "name": "recurring_payment_enabled",
+            "name": "recurring_enabled",
             "in": "query",
             "description": "Indicates whether the payment method is eligible for recurring payments",
-            "required": true,
+            "required": false,
             "schema": {
-              "type": "boolean"
+              "type": "boolean",
+              "nullable": true
             }
           },
           {
             "name": "installment_payment_enabled",
             "in": "query",
             "description": "Indicates whether the payment method is eligible for installment payments",
-            "required": true,
+            "required": false,
             "schema": {
-              "type": "boolean"
+              "type": "boolean",
+              "nullable": true
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "description": "Indicates the limit of last used payment methods",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "format": "int64",
+              "nullable": true
+            }
+          },
+          {
+            "name": "card_networks",
+            "in": "query",
+            "description": "Indicates whether the payment method is eligible for card netwotks",
+            "required": false,
+            "schema": {
+              "type": "array",
+              "items": {
+                "$ref": "#/components/schemas/CardNetwork"
+              },
+              "nullable": true
             }
           }
         ],
@@ -3161,83 +3402,94 @@
         "operationId": "List Customer Payment Methods via Client Secret",
         "parameters": [
           {
-            "name": "client-secret",
-            "in": "path",
-            "description": "A secret known only to your client and the authorization server. Used for client side authentication",
-            "required": true,
+            "name": "client_secret",
+            "in": "query",
+            "description": "This is a token which expires after 15 minutes, used from the client to authenticate and create sessions from the SDK",
+            "required": false,
             "schema": {
-              "type": "string"
+              "type": "string",
+              "nullable": true
             }
           },
           {
-            "name": "customer_id",
-            "in": "path",
-            "description": "The unique identifier for the customer account",
-            "required": true,
-            "schema": {
-              "type": "string"
-            }
-          },
-          {
-            "name": "accepted_country",
+            "name": "accepted_countries",
             "in": "query",
             "description": "The two-letter ISO currency code",
-            "required": true,
+            "required": false,
             "schema": {
               "type": "array",
               "items": {
-                "type": "string"
-              }
+                "$ref": "#/components/schemas/CountryAlpha2"
+              },
+              "nullable": true
             }
           },
           {
-            "name": "accepted_currency",
-            "in": "path",
+            "name": "accepted_currencies",
+            "in": "query",
             "description": "The three-letter ISO currency code",
-            "required": true,
+            "required": false,
             "schema": {
               "type": "array",
               "items": {
                 "$ref": "#/components/schemas/Currency"
-              }
+              },
+              "nullable": true
             }
           },
           {
-            "name": "minimum_amount",
+            "name": "amount",
             "in": "query",
-            "description": "The minimum amount accepted for processing by the particular payment method.",
-            "required": true,
+            "description": "The amount accepted for processing by the particular payment method.",
+            "required": false,
             "schema": {
               "type": "integer",
-              "format": "int64"
+              "format": "int64",
+              "nullable": true
             }
           },
           {
-            "name": "maximum_amount",
-            "in": "query",
-            "description": "The maximum amount accepted for processing by the particular payment method.",
-            "required": true,
-            "schema": {
-              "type": "integer",
-              "format": "int64"
-            }
-          },
-          {
-            "name": "recurring_payment_enabled",
+            "name": "recurring_enabled",
             "in": "query",
             "description": "Indicates whether the payment method is eligible for recurring payments",
-            "required": true,
+            "required": false,
             "schema": {
-              "type": "boolean"
+              "type": "boolean",
+              "nullable": true
             }
           },
           {
             "name": "installment_payment_enabled",
             "in": "query",
             "description": "Indicates whether the payment method is eligible for installment payments",
-            "required": true,
+            "required": false,
             "schema": {
-              "type": "boolean"
+              "type": "boolean",
+              "nullable": true
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "description": "Indicates the limit of last used payment methods",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "format": "int64",
+              "nullable": true
+            }
+          },
+          {
+            "name": "card_networks",
+            "in": "query",
+            "description": "Indicates whether the payment method is eligible for card netwotks",
+            "required": false,
+            "schema": {
+              "type": "array",
+              "items": {
+                "$ref": "#/components/schemas/CardNetwork"
+              },
+              "nullable": true
             }
           }
         ],
@@ -4660,7 +4912,7 @@
         ]
       }
     },
-    "/account/:account_id/business_profile/:profile_id/dynamic_routing/contracts/toggle": {
+    "/account/{account_id}/business_profile/{profile_id}/dynamic_routing/contracts/toggle": {
       "post": {
         "tags": [
           "Routing"
@@ -7064,9 +7316,7 @@
             "$ref": "#/components/schemas/NoThirdPartySdkSessionResponse"
           },
           {
-            "type": "object",
-            "default": null,
-            "nullable": true
+            "$ref": "#/components/schemas/NullObject"
           }
         ]
       },
@@ -17696,6 +17946,10 @@
             "nullable": true
           }
         }
+      },
+      "NullObject": {
+        "default": null,
+        "nullable": true
       },
       "NumberComparison": {
         "type": "object",
@@ -30640,6 +30894,11 @@
         "in": "header",
         "name": "api-key",
         "description": "Ephemeral keys provide temporary access to singular data, such as access to a single customer object for a short period of time."
+      },
+      "jwt_key": {
+        "type": "http",
+        "scheme": "bearer",
+        "bearerFormat": "JWT"
       },
       "publishable_key": {
         "type": "apiKey",
