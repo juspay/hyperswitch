@@ -713,7 +713,7 @@ pub struct WebhookDetails {
 
     /// List of payout statuses that triggers a webhook for payouts
     #[cfg(feature = "payouts")]
-    #[schema(value_type = Option<Vec<api_enums::PayoutStatus>>, example = json!(["success", "failed"]))]
+    #[schema(value_type = Option<Vec<PayoutStatus>>, example = json!(["success", "failed"]))]
     pub payout_statuses_enabled: Option<Vec<api_enums::PayoutStatus>>,
 }
 

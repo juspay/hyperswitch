@@ -30652,6 +30652,10 @@
       },
       "WebhookDetails": {
         "type": "object",
+        "required": [
+          "payment_statuses_enabled",
+          "refund_statuses_enabled"
+        ],
         "properties": {
           "webhook_version": {
             "type": "string",
@@ -30696,6 +30700,42 @@
             "type": "boolean",
             "description": "If this property is true, a webhook message is posted whenever a payment fails",
             "example": true,
+            "nullable": true
+          },
+          "payment_statuses_enabled": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/IntentStatus"
+            },
+            "description": "List of payment statuses that triggers a webhook for payment intents",
+            "example": [
+              "succeeded",
+              "failed",
+              "partially_captured",
+              "requires_merchant_action"
+            ]
+          },
+          "refund_statuses_enabled": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/IntentStatus"
+            },
+            "description": "List of refund statuses that triggers a webhook for refunds",
+            "example": [
+              "success",
+              "failure"
+            ]
+          },
+          "payout_statuses_enabled": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PayoutStatus"
+            },
+            "description": "List of payout statuses that triggers a webhook for payouts",
+            "example": [
+              "success",
+              "failed"
+            ],
             "nullable": true
           }
         },
