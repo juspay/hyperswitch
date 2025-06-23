@@ -18,20 +18,19 @@
       }
     },
     "raw_json_formatted": {
-      "amount": 6540,
+      "amount": 500,
       "currency": "USD",
       "confirm": true,
       "capture_method": "automatic",
-      "capture_on": "2022-09-10T10:11:12Z",
-      "amount_to_capture": 6540,
-      "customer_id": "StripeCustomer",
+      "amount_to_capture": 500,
+      "profile_id": "{{profile_id}}",
+      "customer_id": "ArchiPELCustomer",
       "email": "guest@example.com",
       "name": "John Doe",
-      "phone": "999999999",
-      "phone_country_code": "+65",
+      "phone": "8056594427",
+      "phone_country_code": "+91",
       "description": "Its my first payment request",
       "authentication_type": "no_three_ds",
-      "return_url": "https://duck.com",
       "mandate_id": "{{mandate_id}}",
       "off_session": true,
       "shipping": {
@@ -43,16 +42,11 @@
           "state": "California",
           "zip": "94122",
           "country": "US",
-          "first_name": "sundari"
+          "first_name": "joseph"
         }
       },
       "statement_descriptor_name": "joseph",
-      "statement_descriptor_suffix": "JS",
-      "metadata": {
-        "udf1": "value1",
-        "new_customer": "true",
-        "login_date": "2019-09-10T10:11:12Z"
-      }
+      "statement_descriptor_suffix": "JS"
     }
   },
   "url": {

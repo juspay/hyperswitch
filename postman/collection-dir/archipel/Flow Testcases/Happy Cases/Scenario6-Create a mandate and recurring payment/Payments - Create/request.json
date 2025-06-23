@@ -23,21 +23,21 @@
       "confirm": true,
       "capture_method": "automatic",
       "amount_to_capture": 500,
-      "customer_id": "StripeCustomer",
-      "email": "guest@example.com",
+      "profile_id": "{{profile_id}}",
+      "customer_id": "ArchiPELCustomer",
+      "email": "john_doe@gmail.com",
       "name": "John Doe",
-      "phone": "999999999",
-      "phone_country_code": "+65",
-      "description": "Its my first payment request",
+      "phone": "8056594427",
+      "phone_country_code": "+91",
+      "description": "{{$randomLoremSentence}}",
       "authentication_type": "no_three_ds",
-      "return_url": "https://duck.com",
       "payment_method": "card",
       "payment_method_data": {
         "card": {
-          "card_number": "378282246310005",
+          "card_number": "5185570141917102",
           "card_exp_month": "10",
-          "card_exp_year": "25",
-          "card_holder_name": "joseph Doe",
+          "card_exp_year": "50",
+          "card_holder_name": "John Doe",
           "card_cvc": "123"
         }
       },
@@ -75,7 +75,7 @@
           "state": "California",
           "zip": "94122",
           "country": "US",
-          "first_name": "sundari"
+          "first_name": "joseph"
         }
       },
       "shipping": {
@@ -87,16 +87,11 @@
           "state": "California",
           "zip": "94122",
           "country": "US",
-          "first_name": "sundari"
+          "first_name": "joseph"
         }
       },
-      "statement_descriptor_name": "joseph",
-      "statement_descriptor_suffix": "JS",
-      "metadata": {
-        "udf1": "value1",
-        "new_customer": "true",
-        "login_date": "2019-09-10T10:11:12Z"
-      }
+      "statement_descriptor_name": "Joseph Doe",
+      "statement_descriptor_suffix": "JS"
     }
   },
   "url": {
