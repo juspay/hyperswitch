@@ -1,6 +1,7 @@
 import csv
 import requests
 import json
+import time
 from pathlib import Path
 
 # === Config ===
@@ -9,8 +10,10 @@ INPUT_CSV = SCRIPT_DIR / "local_data.csv"
 OUTPUT_CSV = SCRIPT_DIR / "local_data_migration_result.csv"
 FAILURE_CSV = SCRIPT_DIR / "failed_algorithms.csv"
 
-API_URL = "http://127.0.0.1:8080/routing/rule/migrate"
-API_KEY = "API_KEY"
+# API_URL = "https://integ-api.hyperswitch.io/routing/rule/migrate"
+# API_KEY = "BbprfuJw3fA5Ar5EGigEPsQ!ervJ&ywR!TV!Y*$H^obR$d@5Bx^AA@#QFh3LsrK9"
+API_URL = "http://localhost:8080/routing/rule/migrate"
+API_KEY = "test_admin"
 
 HEADERS = {
     "Content-Type": "application/json",
@@ -26,7 +29,9 @@ with open(INPUT_CSV, newline='') as infile, open(OUTPUT_CSV, 'w', newline='') as
     writer = csv.DictWriter(outfile, fieldnames=fieldnames)
     writer.writeheader()
 
+    counter = 0
     for row in reader:
+        counter+=1
         profile_id = row["profile_id"]
         merchant_id = row["merchant_id"]
 
@@ -77,6 +82,8 @@ with open(INPUT_CSV, newline='') as infile, open(OUTPUT_CSV, 'w', newline='') as
 
             print(f"✔ Migrated: {list(migrated_ids)} | ❌ Failed: {list(not_migrated)}")
 
+            if counter%5==0:
+                time.sleep(5)
         except Exception as e:
             print(f"❌ Exception for profile_id={profile_id}: {str(e)}")
             row["not_migrated_algorithm_ids"] = f"ERROR: {str(e)}"
