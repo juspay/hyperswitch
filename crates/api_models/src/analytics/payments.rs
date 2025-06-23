@@ -8,7 +8,7 @@ use common_utils::id_type;
 use super::{ForexMetric, NameDescription, TimeRange};
 use crate::enums::{
     AttemptStatus, AuthenticationType, CardNetwork, Connector, Currency, PaymentMethod,
-    PaymentMethodType,
+    PaymentMethodType, RoutingApproach,
 };
 
 #[derive(Clone, Debug, Default, serde::Deserialize, serde::Serialize)]
@@ -44,7 +44,7 @@ pub struct PaymentFilters {
     #[serde(default)]
     pub first_attempt: Vec<bool>,
     #[serde(default)]
-    pub routing_approach: Vec<common_enums::RoutingApproach>,
+    pub routing_approach: Vec<RoutingApproach>,
 }
 
 #[derive(
@@ -203,7 +203,7 @@ pub struct PaymentMetricsBucketIdentifier {
     pub card_last_4: Option<String>,
     pub card_issuer: Option<String>,
     pub error_reason: Option<String>,
-    pub routing_approach: Option<common_enums::RoutingApproach>,
+    pub routing_approach: Option<RoutingApproach>,
     #[serde(rename = "time_range")]
     pub time_bucket: TimeRange,
     // Coz FE sucks
@@ -229,7 +229,7 @@ impl PaymentMetricsBucketIdentifier {
         card_last_4: Option<String>,
         card_issuer: Option<String>,
         error_reason: Option<String>,
-        routing_approach: Option<common_enums::RoutingApproach>,
+        routing_approach: Option<RoutingApproach>,
         normalized_time_range: TimeRange,
     ) -> Self {
         Self {

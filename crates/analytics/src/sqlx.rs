@@ -731,7 +731,11 @@ impl<'a> FromRow<'a, PgRow> for super::payments::metrics::PaymentMetricRow {
             ColumnNotFound(_) => Ok(Default::default()),
             e => Err(e),
         })?;
-        // add here
+        let routing_approach: Option<DBEnumWrapper<RoutingApproach>> =
+            row.try_get("routing_approach").or_else(|e| match e {
+                ColumnNotFound(_) => Ok(Default::default()),
+                e => Err(e),
+            })?;
         let total: Option<bigdecimal::BigDecimal> = row.try_get("total").or_else(|e| match e {
             ColumnNotFound(_) => Ok(Default::default()),
             e => Err(e),
@@ -740,11 +744,7 @@ impl<'a> FromRow<'a, PgRow> for super::payments::metrics::PaymentMetricRow {
             ColumnNotFound(_) => Ok(Default::default()),
             e => Err(e),
         })?;
-        let routing_approach: Option<DBEnumWrapper<RoutingApproach>> =
-            row.try_get("routing_approach").or_else(|e| match e {
-                ColumnNotFound(_) => Ok(Default::default()),
-                e => Err(e),
-            })?;
+
         // Removing millisecond precision to get accurate diffs against clickhouse
         let start_bucket: Option<PrimitiveDateTime> = row
             .try_get::<Option<PrimitiveDateTime>, _>("start_bucket")?
@@ -841,6 +841,11 @@ impl<'a> FromRow<'a, PgRow> for super::payments::distribution::PaymentDistributi
             ColumnNotFound(_) => Ok(Default::default()),
             e => Err(e),
         })?;
+        let routing_approach: Option<DBEnumWrapper<RoutingApproach>> =
+            row.try_get("routing_approach").or_else(|e| match e {
+                ColumnNotFound(_) => Ok(Default::default()),
+                e => Err(e),
+            })?;
         let total: Option<bigdecimal::BigDecimal> = row.try_get("total").or_else(|e| match e {
             ColumnNotFound(_) => Ok(Default::default()),
             e => Err(e),
@@ -857,11 +862,7 @@ impl<'a> FromRow<'a, PgRow> for super::payments::distribution::PaymentDistributi
             ColumnNotFound(_) => Ok(Default::default()),
             e => Err(e),
         })?;
-        let routing_approach: Option<DBEnumWrapper<RoutingApproach>> =
-            row.try_get("routing_approach").or_else(|e| match e {
-                ColumnNotFound(_) => Ok(Default::default()),
-                e => Err(e),
-            })?;
+
         // Removing millisecond precision to get accurate diffs against clickhouse
         let start_bucket: Option<PrimitiveDateTime> = row
             .try_get::<Option<PrimitiveDateTime>, _>("start_bucket")?

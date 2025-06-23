@@ -8530,7 +8530,7 @@ impl RoutingApproach {
         match approach {
             "SR_SELECTION_V3_ROUTING" => Self::SuccessRateExploitation,
             "SR_V3_HEDGING" => Self::SuccessRateExploration,
-            // add debit routing approach
+            "NTW_BASED_ROUTING" => Self::DebitRouting,
             _ => Self::DefaultFallback,
         }
     }
