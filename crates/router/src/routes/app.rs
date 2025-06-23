@@ -656,6 +656,10 @@ impl Payments {
                         .route(web::post().to(payments::payment_confirm_intent)),
                 )
                 .service(
+                    web::resource("/list_attempts")
+                        .route(web::get().to(payments::list_payment_attempts)),
+                )
+                .service(
                     web::resource("/proxy-confirm-intent")
                         .route(web::post().to(payments::proxy_confirm_intent)),
                 )
@@ -1106,6 +1110,10 @@ impl Customers {
                     web::resource("/total-payment-methods")
                         .route(web::get().to(payment_methods::get_total_payment_method_count)),
                 )
+                .service(
+                    web::resource("/{id}/saved-payment-methods")
+                        .route(web::get().to(payment_methods::list_customer_payment_method_api)),
+                )
         }
         #[cfg(all(feature = "oltp", feature = "v2"))]
         {
@@ -1116,10 +1124,6 @@ impl Customers {
                         .route(web::put().to(customers::customers_update))
                         .route(web::get().to(customers::customers_retrieve))
                         .route(web::delete().to(customers::customers_delete)),
-                )
-                .service(
-                    web::resource("/{id}/saved-payment-methods")
-                        .route(web::get().to(payment_methods::list_customer_payment_method_api)),
                 )
         }
         route

@@ -10,8 +10,9 @@ use hyperswitch_domain_models::{
 use masking::PeekInterface;
 use router_env::{instrument, tracing};
 
+#[cfg(feature = "v1")]
+use crate::diesel_error_to_data_error;
 use crate::{
-    diesel_error_to_data_error,
     errors::StorageError,
     kv_router_store,
     redis::kv_store::{decide_storage_scheme, KvStorePartition, Op, PartitionKey},
@@ -404,7 +405,6 @@ impl<T: DatabaseStore> domain::CustomerInterface for kv_router_store::KVRouterSt
         &self,
         state: &KeyManagerState,
         id: &id_type::GlobalCustomerId,
-        _merchant_id: &id_type::MerchantId,
         key_store: &MerchantKeyStore,
         storage_scheme: MerchantStorageScheme,
     ) -> CustomResult<domain::Customer, StorageError> {
@@ -438,7 +438,6 @@ impl<T: DatabaseStore> domain::CustomerInterface for kv_router_store::KVRouterSt
         state: &KeyManagerState,
         id: &id_type::GlobalCustomerId,
         customer: domain::Customer,
-        _merchant_id: &id_type::MerchantId,
         customer_update: domain::CustomerUpdate,
         key_store: &MerchantKeyStore,
         storage_scheme: MerchantStorageScheme,
@@ -706,11 +705,10 @@ impl<T: DatabaseStore> domain::CustomerInterface for RouterStore<T> {
         &self,
         state: &KeyManagerState,
         id: &id_type::GlobalCustomerId,
-        customer: domain::Customer,
-        merchant_id: &id_type::MerchantId,
+        _customer: domain::Customer,
         customer_update: domain::CustomerUpdate,
         key_store: &MerchantKeyStore,
-        storage_scheme: MerchantStorageScheme,
+        _storage_scheme: MerchantStorageScheme,
     ) -> CustomResult<domain::Customer, StorageError> {
         let conn = pg_connection_write(self).await?;
         self.call_database(
@@ -727,7 +725,6 @@ impl<T: DatabaseStore> domain::CustomerInterface for RouterStore<T> {
         &self,
         state: &KeyManagerState,
         id: &id_type::GlobalCustomerId,
-        merchant_id: &id_type::MerchantId,
         key_store: &MerchantKeyStore,
         _storage_scheme: MerchantStorageScheme,
     ) -> CustomResult<domain::Customer, StorageError> {
@@ -784,10 +781,10 @@ impl domain::CustomerInterface for MockDb {
     #[cfg(feature = "v2")]
     async fn find_optional_by_merchant_id_merchant_reference_id(
         &self,
-        state: &KeyManagerState,
-        customer_id: &id_type::CustomerId,
-        merchant_id: &id_type::MerchantId,
-        key_store: &MerchantKeyStore,
+        _state: &KeyManagerState,
+        _customer_id: &id_type::CustomerId,
+        _merchant_id: &id_type::MerchantId,
+        _key_store: &MerchantKeyStore,
         _storage_scheme: MerchantStorageScheme,
     ) -> CustomResult<Option<domain::Customer>, StorageError> {
         todo!()
@@ -910,7 +907,6 @@ impl domain::CustomerInterface for MockDb {
         _state: &KeyManagerState,
         _id: &id_type::GlobalCustomerId,
         _customer: domain::Customer,
-        _merchant_id: &id_type::MerchantId,
         _customer_update: domain::CustomerUpdate,
         _key_store: &MerchantKeyStore,
         _storage_scheme: MerchantStorageScheme,
@@ -924,7 +920,6 @@ impl domain::CustomerInterface for MockDb {
         &self,
         _state: &KeyManagerState,
         _id: &id_type::GlobalCustomerId,
-        _merchant_id: &id_type::MerchantId,
         _key_store: &MerchantKeyStore,
         _storage_scheme: MerchantStorageScheme,
     ) -> CustomResult<domain::Customer, StorageError> {
