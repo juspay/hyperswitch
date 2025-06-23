@@ -272,16 +272,8 @@ pub struct JpmorganPaymentsResponse {
 #[serde(rename_all = "camelCase")]
 pub struct Merchant {
     merchant_id: Option<String>,
-    merchant_software: MerchantSoftware,
+    merchant_software: JpmorganMerchantSoftware,
     merchant_category_code: Option<String>,
-}
-
-#[derive(Default, Debug, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct MerchantSoftware {
-    company_name: Secret<String>,
-    product_name: Secret<String>,
-    version: Option<Secret<String>>,
 }
 
 #[derive(Default, Debug, Deserialize, Serialize)]
@@ -528,7 +520,7 @@ pub struct JpmorganRefundRequest {
 #[derive(Default, Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct MerchantRefundReq {
-    pub merchant_software: MerchantSoftware,
+    pub merchant_software: JpmorganMerchantSoftware,
 }
 
 impl<F> TryFrom<&JpmorganRouterData<&RefundsRouterData<F>>> for JpmorganRefundRequest {
@@ -582,12 +574,6 @@ impl From<RefundStatus> for common_enums::RefundStatus {
             RefundStatus::Processing => Self::Pending,
         }
     }
-}
-
-#[derive(Default, Debug, Clone, Serialize, Deserialize)]
-pub struct RefundResponse {
-    id: String,
-    status: RefundStatus,
 }
 
 pub fn refund_status_from_transaction_state(
