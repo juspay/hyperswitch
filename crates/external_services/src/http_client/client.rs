@@ -114,7 +114,7 @@ pub fn get_client_builder(
                 .no_proxy(proxy_exclusion_config.clone()),
         );
     }
-    
+
     // Proxy all HTTP traffic through the configured HTTP proxy
     if let Some(url) = proxy_config.http_url.as_ref() {
         let http_url = if let Some(merchant_url) = merchant_proxy_url.as_ref() {
@@ -132,7 +132,7 @@ pub fn get_client_builder(
     }
 
     logger::debug!("{:?} HTTP CLient Request", client_builder);
-    
+
     Ok(client_builder)
 }
 
