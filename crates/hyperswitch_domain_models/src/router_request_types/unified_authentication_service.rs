@@ -54,7 +54,7 @@ pub struct PaymentDetails {
     pub card_expiry_date: Secret<String>,
     pub cardholder_name: Option<Secret<String>>,
     pub card_token_number: Secret<String>,
-    pub account_type: Option<common_enums::CardNetwork>,
+    pub account_type: Option<common_enums::PaymentMethodType>,
 }
 
 #[derive(Clone, serde::Deserialize, Debug, serde::Serialize)]

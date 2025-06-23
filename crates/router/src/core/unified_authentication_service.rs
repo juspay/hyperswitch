@@ -2,7 +2,10 @@ pub mod types;
 pub mod utils;
 
 use api_models::{
-    authentication::{AcquirerDetails, AuthenticationCreateRequest, AuthenticationResponse},
+    authentication::{
+        AcquirerDetails, AuthenticationCreateRequest, AuthenticationEligibilityRequest,
+        AuthenticationEligibilityResponse, AuthenticationResponse,
+    },
     payments,
 };
 use diesel_models::authentication::{Authentication, AuthenticationNew};
@@ -24,6 +27,7 @@ use hyperswitch_domain_models::{
         UasPreAuthenticationRouterData,
     },
 };
+use masking::PeekInterface;
 
 use super::{
     errors::{RouterResponse, RouterResult},
@@ -251,8 +255,8 @@ impl UnifiedAuthenticationService for ExternalAuthentication {
     fn get_pre_authentication_request_data(
         payment_method_data: Option<&domain::PaymentMethodData>,
         _service_details: Option<payments::CtpServiceDetails>,
-        _amount: common_utils::types::MinorUnit,
-        _currency: Option<common_enums::Currency>,
+        amount: common_utils::types::MinorUnit,
+        currency: Option<common_enums::Currency>,
     ) -> RouterResult<UasPreAuthenticationRequestData> {
         let payment_method_data = payment_method_data
             .ok_or(ApiErrorResponse::InternalServerError)
@@ -267,14 +271,20 @@ impl UnifiedAuthenticationService for ExternalAuthentication {
                     card_expiry_date: card.card_exp_year.clone(),
                     cardholder_name: card.card_holder_name.clone(),
                     card_token_number: card.card_cvc.clone(),
-                    account_type: card.card_network.clone(),
+                    account_type: None,
                 })
             } else {
                 None
             };
+        let transaction_details = TransactionDetails {
+            amount: Some(amount),
+            currency,
+            device_channel: None,
+            message_category: None,
+        };
         Ok(UasPreAuthenticationRequestData {
             service_details: None,
-            transaction_details: None,
+            transaction_details: Some(transaction_details),
             payment_details,
             authentication_info: None,
         })
@@ -506,6 +516,8 @@ pub async fn create_new_authentication(
     acquirer_bin: Option<String>,
     acquirer_merchant_id: Option<String>,
     acquirer_country_code: Option<String>,
+    amount: Option<common_utils::types::MinorUnit>,
+    currency: Option<common_enums::Currency>,
 ) -> RouterResult<Authentication> {
     let service_details_value = service_details
         .map(serde_json::to_value)
@@ -557,6 +569,8 @@ pub async fn create_new_authentication(
         authentication_client_secret,
         force_3ds_challenge,
         psd2_sca_exemption_type,
+        amount,
+        currency,
     };
     state
         .store
@@ -615,8 +629,7 @@ pub async fn authentication_create_core(
     let new_authentication = create_new_authentication(
         &state,
         merchant_id.clone(),
-        req.authentication_connector
-            .map(|connector| connector.to_string()),
+        None,
         profile_id.clone(),
         None,
         None,
@@ -636,6 +649,8 @@ pub async fn authentication_create_core(
         req.acquirer_details
             .clone()
             .and_then(|acquirer_details| acquirer_details.country_code),
+        Some(req.amount),
+        Some(req.currency),
     )
     .await?;
 
@@ -645,18 +660,24 @@ pub async fn authentication_create_core(
         country_code: new_authentication.acquirer_country_code,
     });
 
+    let amount = new_authentication
+        .amount
+        .ok_or(ApiErrorResponse::InternalServerError)?;
+    let currency = new_authentication
+        .currency
+        .ok_or(ApiErrorResponse::InternalServerError)?;
+
     let response = AuthenticationResponse {
         authentication_id: new_authentication.authentication_id,
         client_secret: new_authentication
             .authentication_client_secret
             .map(masking::Secret::new),
-        amount: req.amount,
-        currency: req.currency,
+        amount,
+        currency,
         customer: None,
         force_3ds_challenge,
         merchant_id: merchant_id.clone(),
         status: new_authentication.authentication_status,
-        authentication_connector: new_authentication.authentication_connector,
         return_url: req.return_url.clone(),
         created_at: Some(common_utils::date_time::now()),
         error_code: None,
@@ -666,6 +687,123 @@ pub async fn authentication_create_core(
         browser_info: None,
         psd2_sca_exemption_type: new_authentication.psd2_sca_exemption_type,
         acquirer_details,
+    };
+
+    Ok(hyperswitch_domain_models::api::ApplicationResponse::Json(
+        response,
+    ))
+}
+
+#[cfg(feature = "v1")]
+pub async fn authentication_eligibility_core(
+    state: SessionState,
+    merchant_context: domain::MerchantContext,
+    req: AuthenticationEligibilityRequest,
+    authentication_id: common_utils::id_type::AuthenticationId,
+) -> RouterResponse<AuthenticationEligibilityResponse> {
+    let merchant_account = merchant_context.get_merchant_account();
+    let merchant_id = merchant_account.get_id();
+    let db = &*state.store;
+    let authentication = db
+        .find_authentication_by_merchant_id_authentication_id(merchant_id, &authentication_id)
+        .await
+        .to_not_found_response(ApiErrorResponse::AuthenticationNotFound {
+            id: authentication_id.get_string_repr().to_owned(),
+        })?;
+
+    if let Some(cs) = &req.client_secret {
+        let is_client_secret_expired =
+            utils::authenticate_authentication_client_secret_and_check_expiry(
+                cs.peek(),
+                &authentication,
+            )?;
+
+        if is_client_secret_expired {
+            return Err(ApiErrorResponse::ClientSecretExpired.into());
+        };
+    };
+    let key_manager_state = (&state).into();
+
+    let profile_id = crate::core::utils::get_profile_id_from_business_details(
+        &key_manager_state,
+        None,
+        None,
+        &merchant_context,
+        None,
+        db,
+        true,
+    )
+    .await?;
+
+    let business_profile = db
+        .find_business_profile_by_profile_id(
+            &key_manager_state,
+            merchant_context.get_merchant_key_store(),
+            &profile_id,
+        )
+        .await
+        .to_not_found_response(ApiErrorResponse::ProfileNotFound {
+            id: profile_id.get_string_repr().to_owned(),
+        })?;
+
+    let (authentication_connector, three_ds_connector_account) =
+        crate::core::authentication::utils::get_authentication_connector_data(
+            &state,
+            merchant_context.get_merchant_key_store(),
+            &business_profile,
+        )
+        .await?;
+
+    let authentication_connector_name = authentication_connector.to_string();
+
+    let payment_method_data = domain::PaymentMethodData::from(req.payment_method_data.clone());
+
+    let amount = authentication
+        .amount
+        .ok_or(ApiErrorResponse::InternalServerError)
+        .attach_printable("no amount found in authentication table")?;
+
+    let pre_auth_response =
+        <ExternalAuthentication as UnifiedAuthenticationService>::pre_authentication(
+            &state,
+            merchant_id,
+            None,
+            Some(&payment_method_data),
+            &three_ds_connector_account,
+            &authentication_connector_name,
+            &authentication_id,
+            req.payment_method,
+            amount,
+            authentication.currency,
+            None,
+        )
+        .await?;
+
+    let updated_authentication = utils::external_authentication_update_trackers(
+        &state,
+        pre_auth_response,
+        authentication.clone(),
+        None,
+        merchant_context.get_merchant_key_store(),
+    )
+    .await?;
+
+    let response = AuthenticationEligibilityResponse {
+        authentication_id: updated_authentication.authentication_id,
+        next_api_action: req.get_next_action_api(
+            state.base_url,
+            authentication_id.get_string_repr().to_string(),
+        ),
+        status: updated_authentication.authentication_status,
+        maximum_supported_3ds_version: updated_authentication.maximum_supported_version,
+        connector_authentication_id: updated_authentication.connector_authentication_id,
+        three_ds_method_data: updated_authentication.three_ds_method_data,
+        three_ds_method_url: updated_authentication.three_ds_method_url,
+        message_version: updated_authentication.message_version,
+        connector_metadata: updated_authentication.connector_metadata,
+        directory_server_id: updated_authentication.directory_server_id,
+        threeds_server_transaction_id: updated_authentication.threeds_server_transaction_id,
+        profile_id,
     };
 
     Ok(hyperswitch_domain_models::api::ApplicationResponse::Json(
