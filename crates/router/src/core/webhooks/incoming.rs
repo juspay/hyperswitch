@@ -867,7 +867,10 @@ async fn payouts_incoming_webhook_flow(
                 business_profile,
                 outgoing_event_type,
                 enums::EventClass::Payouts,
-                updated_payout_attempt.payout_id.get_string_repr().to_string(),
+                updated_payout_attempt
+                    .payout_id
+                    .get_string_repr()
+                    .to_string(),
                 enums::EventObjectType::PayoutDetails,
                 api::OutgoingWebhookContent::PayoutDetails(Box::new(payout_create_response)),
                 Some(updated_payout_attempt.created_at),

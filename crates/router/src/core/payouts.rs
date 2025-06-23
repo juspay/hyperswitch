@@ -790,12 +790,13 @@ pub async fn payouts_list_core(
                     _ => None,
                 };
 
-                let payout_id_as_payment_id_type =
-                    common_utils::id_type::PaymentId::wrap(payout.payout_id.get_string_repr().to_string())
-                        .change_context(errors::ApiErrorResponse::InvalidRequestData {
-                            message: "payout_id contains invalid data".to_string(),
-                        })
-                        .attach_printable("Error converting payout_id to PaymentId type")?;
+                let payout_id_as_payment_id_type = common_utils::id_type::PaymentId::wrap(
+                    payout.payout_id.get_string_repr().to_string(),
+                )
+                .change_context(errors::ApiErrorResponse::InvalidRequestData {
+                    message: "payout_id contains invalid data".to_string(),
+                })
+                .attach_printable("Error converting payout_id to PaymentId type")?;
 
                 let payment_addr = payment_helpers::create_or_find_address_for_payment_by_request(
                     &state,
@@ -2641,12 +2642,13 @@ pub async fn payout_create_db_entries(
 
     // We have to do this because the function that is being used to create / get address is from payments
     // which expects a payment_id
-    let payout_id_as_payment_id_type =
-        common_utils::id_type::PaymentId::try_from(std::borrow::Cow::Owned(payout_id.get_string_repr().to_string()))
-            .change_context(errors::ApiErrorResponse::InvalidRequestData {
-                message: "payout_id contains invalid data".to_string(),
-            })
-            .attach_printable("Error converting payout_id to PaymentId type")?;
+    let payout_id_as_payment_id_type = common_utils::id_type::PaymentId::try_from(
+        std::borrow::Cow::Owned(payout_id.get_string_repr().to_string()),
+    )
+    .change_context(errors::ApiErrorResponse::InvalidRequestData {
+        message: "payout_id contains invalid data".to_string(),
+    })
+    .attach_printable("Error converting payout_id to PaymentId type")?;
 
     // Get or create address
     let billing_address = payment_helpers::create_or_find_address_for_payment_by_request(
