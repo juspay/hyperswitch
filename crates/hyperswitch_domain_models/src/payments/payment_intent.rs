@@ -241,6 +241,7 @@ pub struct PaymentIntentUpdateFields {
     pub tax_details: Option<diesel_models::TaxDetails>,
     pub force_3ds_challenge: Option<bool>,
     pub is_iframe_redirection_enabled: Option<bool>,
+    pub is_confirm_operation: bool,
 }
 
 #[cfg(feature = "v1")]
@@ -322,6 +323,15 @@ pub enum PaymentIntentUpdate {
         updated_by: String,
         shipping_details: Option<Encryptable<Secret<serde_json::Value>>>,
     },
+}
+
+impl PaymentIntentUpdate {
+    pub fn is_confirm_operation(&self) -> bool {
+        match self {
+            Self::Update(value) => value.is_confirm_operation,
+            _ => false,
+        }
+    }
 }
 
 #[cfg(feature = "v2")]

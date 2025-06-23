@@ -1854,7 +1854,7 @@ impl PaymentIntentInterface for KafkaStore {
             .update_payment_intent(
                 state,
                 this.clone(),
-                payment_intent,
+                payment_intent.clone(),
                 key_store,
                 storage_scheme,
             )
@@ -1866,7 +1866,7 @@ impl PaymentIntentInterface for KafkaStore {
                 &intent,
                 Some(this),
                 self.tenant_id.clone(),
-                state.infra_values.clone(),
+                state.add_confirm_value_in_infra_values(payment_intent.is_confirm_operation()),
             )
             .await
         {
