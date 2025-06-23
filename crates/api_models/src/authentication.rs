@@ -90,10 +90,6 @@ pub struct AuthenticationResponse {
     #[schema(value_type = Currency)]
     pub currency: enums::Currency,
 
-    /// Customer details, if provided in the request.
-    #[schema(value_type = Option<CustomerDetails>)]
-    pub customer: Option<CustomerDetails>,
-
     /// Whether 3DS challenge was forced.
     pub force_3ds_challenge: Option<bool>,
 
@@ -115,17 +111,9 @@ pub struct AuthenticationResponse {
     #[schema(example = "Failed while verifying the card")]
     pub error_message: Option<String>,
 
-    /// You can specify up to 50 keys, with key names up to 40 characters long and values up to 500 characters long. Metadata is useful for storing additional, structured information on an object.
-    #[schema(value_type = Option<Object>, example = r#"{ "udf1": "some-value", "udf2": "some-value" }"#)]
-    pub metadata: Option<serde_json::Value>,
-
     /// The business profile that is associated with this payment
     #[schema(value_type = Option<String>)]
     pub profile_id: Option<id_type::ProfileId>,
-
-    #[schema(value_type = Option<BrowserInformation>)]
-    /// The browser information used for this payment
-    pub browser_info: Option<serde_json::Value>,
 
     /// Choose what kind of sca exemption is required for this payment
     #[schema(value_type = Option<ScaExemptionType>)]

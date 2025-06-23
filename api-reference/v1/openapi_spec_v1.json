@@ -7428,14 +7428,6 @@
           "currency": {
             "$ref": "#/components/schemas/Currency"
           },
-          "customer": {
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/CustomerDetails"
-              }
-            ],
-            "nullable": true
-          },
           "force_3ds_challenge": {
             "type": "boolean",
             "description": "Whether 3DS challenge was forced.",
@@ -7471,22 +7463,9 @@
             "example": "Failed while verifying the card",
             "nullable": true
           },
-          "metadata": {
-            "type": "object",
-            "description": "You can specify up to 50 keys, with key names up to 40 characters long and values up to 500 characters long. Metadata is useful for storing additional, structured information on an object.",
-            "nullable": true
-          },
           "profile_id": {
             "type": "string",
             "description": "The business profile that is associated with this payment",
-            "nullable": true
-          },
-          "browser_info": {
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/BrowserInformation"
-              }
-            ],
             "nullable": true
           },
           "psd2_sca_exemption_type": {

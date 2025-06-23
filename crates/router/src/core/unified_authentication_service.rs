@@ -497,6 +497,9 @@ pub async fn create_new_authentication(
     acquirer_bin: Option<String>,
     acquirer_merchant_id: Option<String>,
     acquirer_country_code: Option<String>,
+    amount: Option<common_utils::types::MinorUnit>,
+    currency: Option<common_enums::Currency>,
+    return_url: Option<String>,
 ) -> RouterResult<Authentication> {
     let service_details_value = service_details
         .map(serde_json::to_value)
@@ -548,6 +551,9 @@ pub async fn create_new_authentication(
         authentication_client_secret,
         force_3ds_challenge,
         psd2_sca_exemption_type,
+        return_url,
+        amount,
+        currency,
     };
     state
         .store
@@ -627,6 +633,9 @@ pub async fn authentication_create_core(
         req.acquirer_details
             .clone()
             .and_then(|acquirer_details| acquirer_details.country_code),
+        Some(req.amount),
+        Some(req.currency),
+        req.return_url,
     )
     .await?;
 
@@ -636,25 +645,29 @@ pub async fn authentication_create_core(
         country_code: new_authentication.acquirer_country_code,
     });
 
+    let amount = new_authentication
+        .amount
+        .ok_or(ApiErrorResponse::InternalServerError)?;
+    let currency = new_authentication
+        .currency
+        .ok_or(ApiErrorResponse::InternalServerError)?;
+
     let response = AuthenticationResponse {
         authentication_id: new_authentication.authentication_id,
         client_secret: new_authentication
             .authentication_client_secret
             .map(masking::Secret::new),
-        amount: req.amount,
-        currency: req.currency,
-        customer: None,
-        force_3ds_challenge,
-        merchant_id: merchant_id.clone(),
+        amount,
+        currency,
+        force_3ds_challenge: new_authentication.force_3ds_challenge,
+        merchant_id: new_authentication.merchant_id.clone(),
         status: new_authentication.authentication_status,
         authentication_connector: new_authentication.authentication_connector,
-        return_url: req.return_url.clone(),
-        created_at: Some(common_utils::date_time::now()),
-        error_code: None,
-        error_message: None,
-        metadata: req.metadata.clone(),
+        return_url: new_authentication.return_url,
+        created_at: Some(new_authentication.created_at),
+        error_code: new_authentication.error_code,
+        error_message: new_authentication.error_message,
         profile_id: Some(profile_id),
-        browser_info: None,
         psd2_sca_exemption_type: new_authentication.psd2_sca_exemption_type,
         acquirer_details,
     };
