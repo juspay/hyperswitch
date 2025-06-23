@@ -15,7 +15,7 @@ use unified_connector_service_client::payments::{self as payments_grpc, Identifi
 
 use crate::{
     core::unified_connector_service::{
-        construct_payment_method, errors::UnifiedConnectorServiceError,
+        build_unified_connector_service_payment_method, errors::UnifiedConnectorServiceError,
     },
     types::transformers::ForeignTryFrom,
 };
@@ -34,7 +34,7 @@ impl ForeignTryFrom<&RouterData<Authorize, PaymentsAuthorizeData, PaymentsRespon
             .request
             .payment_method_type
             .map(|payment_method_type| {
-                construct_payment_method(
+                build_unified_connector_service_payment_method(
                     router_data.request.payment_method_data.clone(),
                     payment_method_type,
                 )
@@ -122,7 +122,17 @@ impl ForeignTryFrom<&RouterData<Authorize, PaymentsAuthorizeData, PaymentsRespon
                 .customer_id
                 .as_ref()
                 .map(|id| id.get_string_repr().to_string()),
-            metadata: HashMap::new(),
+            metadata: router_data
+                .request
+                .metadata
+                .as_ref()
+                .and_then(|val| val.as_object())
+                .map(|map| {
+                    map.iter()
+                        .filter_map(|(k, v)| v.as_str().map(|s| (k.clone(), s.to_string())))
+                        .collect::<HashMap<String, String>>()
+                })
+                .unwrap_or_default(),
         })
     }
 }
@@ -375,8 +385,8 @@ impl ForeignTryFrom<payments_grpc::HttpMethod> for Method {
         match value {
             payments_grpc::HttpMethod::Get => Ok(Self::Get),
             payments_grpc::HttpMethod::Post => Ok(Self::Post),
-            payments_grpc::HttpMethod::Put => todo!(),
-            payments_grpc::HttpMethod::Delete => todo!(),
+            payments_grpc::HttpMethod::Put => Ok(Self::Put),
+            payments_grpc::HttpMethod::Delete => Ok(Self::Delete),
             payments_grpc::HttpMethod::Unspecified => {
                 Err(UnifiedConnectorServiceError::ResponseDeserializationFailed)
                     .attach_printable("Invalid Http Method")
