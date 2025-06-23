@@ -7,18 +7,14 @@ use cards::CardNumber;
 use cards::{CardNumber, NetworkToken};
 #[cfg(feature = "v2")]
 use common_types::primitive_wrappers;
-#[cfg(feature = "v2")]
-use common_utils::generate_id;
 use common_utils::id_type;
-#[cfg(feature = "v2")]
-use hyperswitch_domain_models::payment_method_data::NetworkTokenDetails;
 use masking::Secret;
 use serde::{Deserialize, Serialize};
 
 #[cfg(feature = "v2")]
 use crate::{
     consts,
-    types::{api, domain, storage},
+    types::{domain, storage},
 };
 
 #[cfg(feature = "v2")]

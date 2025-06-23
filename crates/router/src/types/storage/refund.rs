@@ -1,19 +1,20 @@
 use api_models::payments::AmountFilter;
 use async_bb8_diesel::AsyncRunQueryDsl;
 use common_utils::errors::CustomResult;
-use diesel::{associations::HasTable, BoolExpressionMethods, ExpressionMethods, QueryDsl};
+#[cfg(feature = "v1")]
+use diesel::BoolExpressionMethods;
+use diesel::{associations::HasTable, ExpressionMethods, QueryDsl};
 pub use diesel_models::refund::{
     Refund, RefundCoreWorkflow, RefundNew, RefundUpdate, RefundUpdateInternal,
 };
-#[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "refunds_v2")))]
-use diesel_models::schema::refund::dsl;
 #[cfg(all(feature = "v2", feature = "refunds_v2"))]
 use diesel_models::schema_v2::refund::dsl;
+#[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "refunds_v2")))]
 use diesel_models::{
     enums::{Currency, RefundStatus},
-    errors,
-    query::generics::db_metrics,
+    schema::refund::dsl,
 };
+use diesel_models::{errors, query::generics::db_metrics};
 use error_stack::ResultExt;
 use hyperswitch_domain_models::refunds;
 

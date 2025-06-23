@@ -28,6 +28,8 @@ use unicode_segmentation::UnicodeSegmentation;
 #[cfg(feature = "keymanager_create")]
 use {base64::Engine, common_utils::types::keymanager::EncryptionTransferRequest};
 
+#[cfg(feature = "v1")]
+use crate::services::authentication::AuthenticationDataWithOrg;
 use crate::{
     consts,
     core::{
@@ -36,10 +38,7 @@ use crate::{
     },
     db::GlobalStorageInterface,
     routes::SessionState,
-    services::{
-        self,
-        authentication::{AuthenticationDataWithOrg, UserFromToken},
-    },
+    services::{self, authentication::UserFromToken},
     types::{domain, transformers::ForeignFrom},
     utils::{self, user::password},
 };
@@ -416,6 +415,7 @@ pub struct NewUserMerchant {
     company_name: Option<UserCompanyName>,
     new_organization: NewUserOrganization,
     product_type: Option<common_enums::MerchantProductType>,
+    #[cfg_attr(feature = "v2", allow(dead_code))]
     merchant_account_type: Option<common_enums::MerchantAccountRequestType>,
 }
 

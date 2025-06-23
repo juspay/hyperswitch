@@ -13,15 +13,18 @@ use common_utils::{
 };
 use diesel_models::enums as storage_enums;
 use error_stack::{report, ResultExt};
+#[cfg(feature = "v1")]
 use hyperswitch_domain_models::payments::payment_intent::CustomerData;
 use masking::{ExposeInterface, PeekInterface, Secret};
 
 use super::domain;
+#[cfg(feature = "v1")]
+use crate::headers::{X_CLIENT_SOURCE, X_CLIENT_VERSION};
 use crate::{
     core::errors,
     headers::{
-        ACCEPT_LANGUAGE, BROWSER_NAME, X_APP_ID, X_CLIENT_PLATFORM, X_CLIENT_SOURCE,
-        X_CLIENT_VERSION, X_MERCHANT_DOMAIN, X_PAYMENT_CONFIRM_SOURCE, X_REDIRECT_URI,
+        ACCEPT_LANGUAGE, BROWSER_NAME, X_APP_ID, X_CLIENT_PLATFORM, X_MERCHANT_DOMAIN,
+        X_PAYMENT_CONFIRM_SOURCE, X_REDIRECT_URI,
     },
     services::authentication::get_header_value_by_key,
     types::{
@@ -121,7 +124,7 @@ impl
     )> for payment_methods::PaymentMethodResponse
 {
     fn foreign_from(
-        (card_details, item): (
+        (_card_details, _item): (
             Option<payment_methods::CardDetailFromLocker>,
             domain::PaymentMethod,
         ),
@@ -1613,10 +1616,6 @@ impl ForeignTryFrom<&HeaderMap> for hyperswitch_domain_models::payments::HeaderP
 impl ForeignTryFrom<&HeaderMap> for hyperswitch_domain_models::payments::HeaderPayload {
     type Error = error_stack::Report<errors::ApiErrorResponse>;
     fn foreign_try_from(headers: &HeaderMap) -> Result<Self, Self::Error> {
-        use std::str::FromStr;
-
-        use crate::headers::X_CLIENT_SECRET;
-
         let payment_confirm_source: Option<api_enums::PaymentSource> =
             get_header_value_by_key(X_PAYMENT_CONFIRM_SOURCE.into(), headers)?
                 .map(|source| {
@@ -1647,12 +1646,6 @@ impl ForeignTryFrom<&HeaderMap> for hyperswitch_domain_models::payments::HeaderP
         let x_hs_latency = get_header_value_by_key(X_HS_LATENCY.into(), headers)
             .map(|value| value == Some("true"))
             .unwrap_or(false);
-
-        let client_source =
-            get_header_value_by_key(X_CLIENT_SOURCE.into(), headers)?.map(|val| val.to_string());
-
-        let client_version =
-            get_header_value_by_key(X_CLIENT_VERSION.into(), headers)?.map(|val| val.to_string());
 
         let browser_name_str =
             get_header_value_by_key(BROWSER_NAME.into(), headers)?.map(|val| val.to_string());
