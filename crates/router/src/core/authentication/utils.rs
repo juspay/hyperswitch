@@ -272,6 +272,9 @@ pub async fn create_new_authentication(
         authentication_client_secret,
         force_3ds_challenge,
         psd2_sca_exemption_type,
+        return_url: None,
+        amount: None,
+        currency: None,
     };
     state
         .store

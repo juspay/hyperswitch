@@ -160,6 +160,9 @@ impl AuthenticationInterface for MockDb {
             authentication_client_secret: authentication.authentication_client_secret,
             force_3ds_challenge: authentication.force_3ds_challenge,
             psd2_sca_exemption_type: authentication.psd2_sca_exemption_type,
+            return_url: authentication.return_url,
+            amount: authentication.amount,
+            currency: authentication.currency,
         };
         authentications.push(authentication.clone());
         Ok(authentication)
