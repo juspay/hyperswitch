@@ -514,6 +514,11 @@ where
     )
     .await;
 
+    operation
+        .to_domain()?
+        .apply_three_ds_authentication_strategy(state, &mut payment_data, &business_profile)
+        .await?;
+
     let should_add_task_to_process_tracker = should_add_task_to_process_tracker(&payment_data);
 
     let locale = header_payload.locale.clone();
@@ -1533,8 +1538,7 @@ where
     Ok(payment_dsl_data
         .payment_attempt
         .authentication_type
-        .or(output.override_3ds)
-        .or(Some(storage_enums::AuthenticationType::NoThreeDs)))
+        .or(output.override_3ds))
 }
 
 // TODO: Move to business profile surcharge column
