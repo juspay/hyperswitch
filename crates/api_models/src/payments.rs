@@ -7405,7 +7405,7 @@ pub enum ApplePaySessionResponse {
     /// This is the common response most of the times
     NoThirdPartySdk(NoThirdPartySdkSessionResponse),
     /// This is for the empty session response
-    NoSessionResponse,
+    NoSessionResponse(NullObject),
 }
 
 #[derive(Debug, Clone, Eq, PartialEq, serde::Serialize, ToSchema, serde::Deserialize)]
@@ -9000,4 +9000,31 @@ pub struct RecordAttemptErrorDetails {
     pub network_decline_code: Option<String>,
     /// A string indicating how to proceed with an network error if payment gateway provide one. This is used to understand the network error code better.
     pub network_error_message: Option<String>,
+}
+
+#[derive(Debug, Clone, Eq, PartialEq, ToSchema)]
+pub struct NullObject;
+
+impl Serialize for NullObject {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        serializer.serialize_none()
+    }
+}
+
+#[cfg(test)]
+mod null_object_test {
+    use serde_json;
+
+    use super::*;
+
+    #[allow(clippy::unwrap_used)]
+    #[test]
+    fn test_null_object_serialization() {
+        let null_object = NullObject;
+        let serialized = serde_json::to_string(&null_object).unwrap();
+        assert_eq!(serialized, "null");
+    }
 }

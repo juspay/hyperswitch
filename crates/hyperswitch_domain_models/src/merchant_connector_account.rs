@@ -1,8 +1,6 @@
 #[cfg(feature = "v2")]
 use std::collections::HashMap;
 
-#[cfg(feature = "v2")]
-use common_utils::transformers::ForeignTryFrom;
 use common_utils::{
     crypto::Encryptable,
     date_time,
@@ -26,7 +24,7 @@ use serde_json::Value;
 
 use super::behaviour;
 #[cfg(feature = "v2")]
-use crate::errors::{self, api_error_response};
+use crate::errors::api_error_response;
 use crate::{
     mandates::CommonMandateReference,
     router_data,

@@ -1959,17 +1959,6 @@ where
     json.parse_value(std::any::type_name::<T>()).switch()
 }
 
-pub fn construct_not_supported_error_report(
-    capture_method: enums::CaptureMethod,
-    connector_name: &'static str,
-) -> error_stack::Report<errors::ConnectorError> {
-    errors::ConnectorError::NotSupported {
-        message: capture_method.to_string(),
-        connector: connector_name,
-    }
-    .into()
-}
-
 impl ForeignTryFrom<String> for UsStatesAbbreviation {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn foreign_try_from(value: String) -> Result<Self, Self::Error> {
