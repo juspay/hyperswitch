@@ -87,21 +87,60 @@ impl TryFrom<&GlobalPayRouterData<&PaymentsAuthorizeRouterData>> for GlobalpayPa
     ) -> Result<Self, Self::Error> {
         let metadata = GlobalPayMeta::try_from(&item.router_data.connector_meta_data)?;
         let account_name = metadata.account_name;
-        let (initiator, stored_credential, brand_reference) =
+        let (initiator, stored_credential, connector_mandate_id) =
             get_mandate_details(item.router_data)?;
-        let payment_method_data = get_payment_method_data(item.router_data, brand_reference)?;
-        Ok(Self {
-            account_name,
-            amount: Some(item.amount.to_owned()),
-            currency: item.router_data.request.currency.to_string(),
 
-            reference: item.router_data.connector_request_reference_id.to_string(),
-            country: item.router_data.get_billing_country()?,
-            capture_mode: Some(requests::CaptureMode::from(
-                item.router_data.request.capture_method,
-            )),
-            payment_method: requests::PaymentMethod {
-                payment_method_data,
+        // Handle payment method for mandate vs normal payments
+        let payment_method = if let Some(mandate_id) = connector_mandate_id.clone() {
+            // For recurring mandate payments, we need to pass only payment method ID without card details
+            // GlobalPay expects either card details OR payment method ID, not both
+            requests::PaymentMethod {
+                payment_method_data: None,
+                authentication: None,
+                encryption: None,
+                entry_mode: Default::default(),
+                fingerprint_mode: None,
+                first_name: None,
+                id: Some(Secret::new(mandate_id)),
+                last_name: None,
+                name: None,
+                narrative: None,
+                storage_mode: None,
+            }
+        } else {
+            // For normal payments, create payment method data
+            let payment_method_data = match &item.router_data.request.payment_method_data {
+                payment_method_data::PaymentMethodData::Card(ccard) => {
+                    PaymentMethodData::Card(requests::Card {
+                        number: ccard.card_number.clone(),
+                        expiry_month: ccard.card_exp_month.clone(),
+                        expiry_year: ccard.get_card_expiry_year_2_digit()?,
+                        cvv: ccard.card_cvc.clone(),
+                        account_type: None,
+                        authcode: None,
+                        avs_address: None,
+                        avs_postal_code: None,
+                        brand_reference: None,
+                        chip_condition: None,
+                        funding: None,
+                        pin_block: None,
+                        tag: None,
+                        track: None,
+                    })
+                }
+                payment_method_data::PaymentMethodData::Wallet(wallet_data) => {
+                    get_wallet_data(wallet_data)?
+                }
+                payment_method_data::PaymentMethodData::BankRedirect(bank_redirect) => {
+                    PaymentMethodData::try_from(bank_redirect)?
+                }
+                _ => Err(errors::ConnectorError::NotImplemented(
+                    "Payment methods".to_string(),
+                ))?,
+            };
+
+            requests::PaymentMethod {
+                payment_method_data: Some(payment_method_data),
                 authentication: None,
                 encryption: None,
                 entry_mode: Default::default(),
@@ -112,7 +151,19 @@ impl TryFrom<&GlobalPayRouterData<&PaymentsAuthorizeRouterData>> for GlobalpayPa
                 name: None,
                 narrative: None,
                 storage_mode: None,
-            },
+            }
+        };
+
+        Ok(Self {
+            account_name,
+            amount: Some(item.amount.to_owned()),
+            currency: item.router_data.request.currency.to_string(),
+            reference: item.router_data.connector_request_reference_id.to_string(),
+            country: item.router_data.get_billing_country()?,
+            capture_mode: Some(requests::CaptureMode::from(
+                item.router_data.request.capture_method,
+            )),
+            payment_method,
             notifications: Some(requests::Notifications {
                 return_url: get_return_url(item.router_data),
                 challenge_return_url: None,
@@ -465,39 +516,6 @@ pub struct GlobalpayErrorResponse {
     pub error_code: String,
     pub detailed_error_code: String,
     pub detailed_error_description: String,
-}
-
-fn get_payment_method_data(
-    item: &PaymentsAuthorizeRouterData,
-    brand_reference: Option<String>,
-) -> Result<PaymentMethodData, Error> {
-    match &item.request.payment_method_data {
-        payment_method_data::PaymentMethodData::Card(ccard) => {
-            Ok(PaymentMethodData::Card(requests::Card {
-                number: ccard.card_number.clone(),
-                expiry_month: ccard.card_exp_month.clone(),
-                expiry_year: ccard.get_card_expiry_year_2_digit()?,
-                cvv: ccard.card_cvc.clone(),
-                account_type: None,
-                authcode: None,
-                avs_address: None,
-                avs_postal_code: None,
-                brand_reference,
-                chip_condition: None,
-                funding: None,
-                pin_block: None,
-                tag: None,
-                track: None,
-            }))
-        }
-        payment_method_data::PaymentMethodData::Wallet(wallet_data) => get_wallet_data(wallet_data),
-        payment_method_data::PaymentMethodData::BankRedirect(bank_redirect) => {
-            PaymentMethodData::try_from(bank_redirect)
-        }
-        _ => Err(errors::ConnectorError::NotImplemented(
-            "Payment methods".to_string(),
-        ))?,
-    }
 }
 
 fn get_return_url(item: &PaymentsAuthorizeRouterData) -> Option<String> {
