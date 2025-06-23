@@ -99,7 +99,7 @@ pub fn get_client_builder(
                 .no_proxy(proxy_exclusion_config.clone()),
         );
     }
-    
+
     if let Some(merchant_url) = merchant_proxy_url {
         client_builder = client_builder.proxy(
             reqwest::Proxy::https(merchant_url.expose())
@@ -119,8 +119,8 @@ pub fn get_client_builder(
         );
     }
 
-    logger::debug!("{:?} HTTP CLient Request",client_builder);
-    
+    logger::debug!("{:?} HTTP CLient Request", client_builder);
+
     Ok(client_builder)
 }
 
