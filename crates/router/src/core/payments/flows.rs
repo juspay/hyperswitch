@@ -18,9 +18,7 @@ use common_types::payments::CustomerAcceptance;
 use hyperswitch_domain_models::router_flow_types::{
     BillingConnectorInvoiceSync, BillingConnectorPaymentsSync, RecoveryRecordBack,
 };
-use hyperswitch_domain_models::{
-    router_request_types::PaymentsCaptureData,
-};
+use hyperswitch_domain_models::router_request_types::PaymentsCaptureData;
 
 use crate::{
     core::{
