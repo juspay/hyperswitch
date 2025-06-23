@@ -1108,7 +1108,7 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
             let algorithm_id = three_ds_decision_rule
                 .parse_value::<api::routing::RoutingAlgorithmRef>("RoutingAlgorithmRef")
                 .change_context(errors::ApiErrorResponse::InternalServerError)
-                .attach_printable("Could not decode merchant routing algorithm ref")?
+                .attach_printable("Could not decode profile routing algorithm ref")?
                 .algorithm_id
                 .ok_or(errors::ApiErrorResponse::InternalServerError)
                 .attach_printable("No algorithm_id found in three_ds_decision_rule_algorithm")?;
