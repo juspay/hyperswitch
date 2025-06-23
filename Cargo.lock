@@ -3519,7 +3519,7 @@ dependencies = [
 [[package]]
 name = "grpc-api-types"
 version = "0.1.0"
-source = "git+https://github.com/juspay/connector-service?branch=main#16c1d8451f3d28661d7e1c0351d47c33058082cc"
+source = "git+https://github.com/juspay/connector-service?rev=16c1d8451f3d28661d7e1c0351d47c33058082cc#16c1d8451f3d28661d7e1c0351d47c33058082cc"
 dependencies = [
  "axum 0.8.4",
  "cargo_metadata 0.19.2",
@@ -6892,7 +6892,7 @@ dependencies = [
 [[package]]
 name = "rust-grpc-client"
 version = "0.1.0"
-source = "git+https://github.com/juspay/connector-service?branch=main#16c1d8451f3d28661d7e1c0351d47c33058082cc"
+source = "git+https://github.com/juspay/connector-service?rev=16c1d8451f3d28661d7e1c0351d47c33058082cc#16c1d8451f3d28661d7e1c0351d47c33058082cc"
 dependencies = [
  "grpc-api-types",
 ]

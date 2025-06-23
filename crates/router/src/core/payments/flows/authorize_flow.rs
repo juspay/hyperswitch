@@ -5,7 +5,7 @@ use hyperswitch_domain_models::errors::api_error_response::ApiErrorResponse;
 #[cfg(feature = "v2")]
 use hyperswitch_domain_models::payments::PaymentConfirmData;
 use masking::ExposeInterface;
-use rust_grpc_client::payments as payments_grpc;
+use unified_connector_service_client::payments as payments_grpc;
 
 // use router_env::tracing::Instrument;
 use super::{ConstructFlowSpecificData, Feature};
@@ -430,7 +430,8 @@ impl Feature<api::Authorize, types::PaymentsAuthorizeData> for types::PaymentsAu
         let client = state
             .unified_connector_service_client
             .clone()
-            .ok_or(ApiErrorResponse::InternalServerError)?;
+            .ok_or(ApiErrorResponse::InternalServerError)
+            .attach_printable("Failed to fetch Unified Connector Service client")?;
 
         let request = payments_grpc::PaymentServiceAuthorizeRequest::foreign_try_from(self)
             .change_context(ApiErrorResponse::InternalServerError)
