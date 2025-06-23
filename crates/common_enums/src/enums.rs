@@ -29,7 +29,7 @@ pub mod diesel_exports {
         DbPaymentType as PaymentType, DbProcessTrackerStatus as ProcessTrackerStatus,
         DbRefundStatus as RefundStatus,
         DbRequestIncrementalAuthorization as RequestIncrementalAuthorization,
-        DbScaExemptionType as ScaExemptionType,
+        DbRoutingApproach as RoutingApproach, DbScaExemptionType as ScaExemptionType,
         DbSuccessBasedRoutingConclusiveState as SuccessBasedRoutingConclusiveState,
         DbTokenizationFlag as TokenizationFlag, DbWebhookDeliveryAttempt as WebhookDeliveryAttempt,
     };
@@ -8493,4 +8493,45 @@ pub enum TokenDataType {
     MultiUseToken,
     /// Fetch network token for the given payment method
     NetworkToken,
+}
+
+#[derive(
+    Clone,
+    Copy,
+    Debug,
+    Default,
+    Eq,
+    Hash,
+    PartialEq,
+    serde::Deserialize,
+    serde::Serialize,
+    strum::Display,
+    strum::VariantNames,
+    strum::EnumIter,
+    strum::EnumString,
+    ToSchema,
+)]
+#[router_derive::diesel_enum(storage_type = "db_enum")]
+#[serde(rename_all = "snake_case")]
+#[strum(serialize_all = "snake_case")]
+pub enum RoutingApproach {
+    SuccessRateExploitation,
+    SuccessRateExploration,
+    ContractBasedRouting,
+    DebitRouting,
+    RuleBasedRouting,
+    VolumeBasedRouting,
+    #[default]
+    DefaultFallback,
+}
+
+impl RoutingApproach {
+    pub fn from_decision_engine_approach(approach: &str) -> Self {
+        match approach {
+            "SR_SELECTION_V3_ROUTING" => Self::SuccessRateExploitation,
+            "SR_V3_HEDGING" => Self::SuccessRateExploration,
+            "NTW_BASED_ROUTING" => Self::DebitRouting,
+            _ => Self::DefaultFallback,
+        }
+    }
 }

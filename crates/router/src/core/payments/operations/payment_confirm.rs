@@ -1899,6 +1899,7 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for
                             .payment_attempt
                             .connector_mandate_detail,
                         card_discovery,
+                        routing_approach: payment_data.payment_attempt.routing_approach,
                     },
                     storage_scheme,
                 )

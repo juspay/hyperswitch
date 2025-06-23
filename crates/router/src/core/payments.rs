@@ -8000,7 +8000,7 @@ pub async fn route_connector_v2_for_payments(
         .as_ref()
         .or(business_profile.routing_algorithm_id.as_ref());
 
-    let connectors = routing::perform_static_routing_v1(
+    let (connectors, _) = routing::perform_static_routing_v1(
         state,
         merchant_context.get_merchant_account().get_id(),
         routing_algorithm_id,
@@ -8067,7 +8067,7 @@ where
         algorithm_ref.algorithm_id
     };
 
-    let connectors = routing::perform_static_routing_v1(
+    let (connectors, routing_approach) = routing::perform_static_routing_v1(
         state,
         merchant_context.get_merchant_account().get_id(),
         routing_algorithm_id.as_ref(),
@@ -8076,6 +8076,8 @@ where
     )
     .await
     .change_context(errors::ApiErrorResponse::InternalServerError)?;
+
+    payment_data.set_routing_approach_in_attempt(routing_approach);
 
     #[cfg(all(feature = "v1", feature = "dynamic_routing"))]
     let payment_attempt = transaction_data.payment_attempt.clone();
@@ -8125,6 +8127,7 @@ where
                     connectors.clone(),
                     business_profile,
                     payment_attempt,
+                    payment_data,
                 )
                 .await
                 .map_err(|e| logger::error!(open_routing_error=?e))
@@ -8167,7 +8170,7 @@ where
                     connectors.clone(),
                     business_profile,
                     dynamic_routing_config_params_interpolator,
-                    payment_data.get_payment_attempt(),
+                    payment_data,
                 )
                 .await
                 .map_err(|e| logger::error!(dynamic_routing_error=?e))
@@ -8244,7 +8247,7 @@ pub async fn route_connector_v1_for_payouts(
         algorithm_ref.algorithm_id
     };
 
-    let connectors = routing::perform_static_routing_v1(
+    let (connectors, _) = routing::perform_static_routing_v1(
         state,
         merchant_context.get_merchant_account().get_id(),
         routing_algorithm_id.as_ref(),
@@ -8969,6 +8972,7 @@ pub trait OperationSessionSetters<F> {
         &mut self,
         external_vault_session_details: Option<api::VaultSessionDetails>,
     );
+    fn set_routing_approach_in_attempt(&mut self, routing_approach: Option<enums::RoutingApproach>);
 }
 
 #[cfg(feature = "v1")]
@@ -9268,6 +9272,13 @@ impl<F: Clone> OperationSessionSetters<F> for PaymentData<F> {
     fn set_vault_operation(&mut self, vault_operation: domain_payments::VaultOperation) {
         self.vault_operation = Some(vault_operation);
     }
+
+    fn set_routing_approach_in_attempt(
+        &mut self,
+        routing_approach: Option<enums::RoutingApproach>,
+    ) {
+        self.payment_attempt.routing_approach = routing_approach;
+    }
 }
 
 #[cfg(feature = "v2")]
@@ -9553,6 +9564,13 @@ impl<F: Clone> OperationSessionSetters<F> for PaymentIntentData<F> {
         vault_session_details: Option<api::VaultSessionDetails>,
     ) {
         self.vault_session_details = vault_session_details;
+    }
+
+    fn set_routing_approach_in_attempt(
+        &mut self,
+        routing_approach: Option<enums::RoutingApproach>,
+    ) {
+        todo!()
     }
 }
 
@@ -9843,6 +9861,13 @@ impl<F: Clone> OperationSessionSetters<F> for PaymentConfirmData<F> {
     ) {
         todo!()
     }
+
+    fn set_routing_approach_in_attempt(
+        &mut self,
+        routing_approach: Option<enums::RoutingApproach>,
+    ) {
+        todo!()
+    }
 }
 
 #[cfg(feature = "v2")]
@@ -10125,6 +10150,12 @@ impl<F: Clone> OperationSessionSetters<F> for PaymentStatusData<F> {
     fn set_vault_session_details(
         &mut self,
         external_vault_session_details: Option<api::VaultSessionDetails>,
+    ) {
+        todo!()
+    }
+    fn set_routing_approach_in_attempt(
+        &mut self,
+        routing_approach: Option<enums::RoutingApproach>,
     ) {
         todo!()
     }
@@ -10411,6 +10442,13 @@ impl<F: Clone> OperationSessionSetters<F> for PaymentCaptureData<F> {
     fn set_vault_session_details(
         &mut self,
         external_vault_session_details: Option<api::VaultSessionDetails>,
+    ) {
+        todo!()
+    }
+
+    fn set_routing_approach_in_attempt(
+        &mut self,
+        routing_approach: Option<enums::RoutingApproach>,
     ) {
         todo!()
     }
