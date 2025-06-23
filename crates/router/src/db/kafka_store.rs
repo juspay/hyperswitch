@@ -4147,15 +4147,6 @@ impl ThemeInterface for KafkaStore {
             .await
     }
 
-    async fn delete_theme_by_lineage_and_theme_id(
-        &self,
-        theme_id: String,
-        lineage: ThemeLineage,
-    ) -> CustomResult<storage::theme::Theme, errors::StorageError> {
-        self.diesel_store
-            .delete_theme_by_lineage_and_theme_id(theme_id, lineage)
-            .await
-    }
     async fn delete_theme_by_theme_id(
         &self,
         theme_id: String,
