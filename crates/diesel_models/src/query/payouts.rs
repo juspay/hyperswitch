@@ -53,7 +53,7 @@ impl Payouts {
             conn,
             dsl::merchant_id
                 .eq(merchant_id.to_owned())
-                .and(dsl::payout_id.eq(payout_id.to_string())),
+                .and(dsl::payout_id.eq(payout_id.to_owned())),
         )
         .await
     }
@@ -68,7 +68,7 @@ impl Payouts {
             conn,
             dsl::merchant_id
                 .eq(merchant_id.to_owned())
-                .and(dsl::payout_id.eq(payout_id.to_string())),
+                .and(dsl::payout_id.eq(payout_id.to_owned())),
             PayoutsUpdateInternal::from(payout),
         )
         .await?
@@ -88,7 +88,7 @@ impl Payouts {
             conn,
             dsl::merchant_id
                 .eq(merchant_id.to_owned())
-                .and(dsl::payout_id.eq(payout_id.to_string())),
+                .and(dsl::payout_id.eq(payout_id.to_owned())),
         )
         .await
     }

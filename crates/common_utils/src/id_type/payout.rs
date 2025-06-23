@@ -6,7 +6,7 @@ crate::impl_id_type_methods!(PayoutId, "payout_id");
 
 // This is to display the `PayoutId` as PayoutId(abcd)
 crate::impl_debug_id_type!(PayoutId);
-crate::impl_default_id_type!(PayoutId, "payout_");
+crate::impl_default_id_type!(PayoutId, "payout");
 crate::impl_try_from_cow_str_id_type!(PayoutId, "payout_id");
 
 // Database related implementations so that this field can be used directly in the database tables

@@ -62,7 +62,7 @@ impl PayoutAttempt {
             conn,
             dsl::merchant_id
                 .eq(merchant_id.to_owned())
-                .and(dsl::payout_id.eq(payout_id.to_string())),
+                .and(dsl::payout_id.eq(payout_id.to_owned())),
         )
         .await
     }
@@ -119,7 +119,7 @@ impl PayoutAttempt {
             conn,
             dsl::merchant_id
                 .eq(merchant_id.to_owned())
-                .and(dsl::payout_id.eq(payout_id.to_string())),
+                .and(dsl::payout_id.eq(payout_id.to_owned())),
             PayoutAttemptUpdateInternal::from(payout),
         )
         .await?
@@ -174,8 +174,8 @@ impl PayoutAttempt {
 
         let active_payout_ids = payouts
             .iter()
-            .map(|payout| payout.payout_id.to_string())
-            .collect::<Vec<String>>();
+            .map(|payout| payout.payout_id.to_owned())
+            .collect::<Vec<common_utils::id_type::PayoutId>>();
 
         let filter = <Self as HasTable>::table()
             .filter(dsl::merchant_id.eq(merchant_id.to_owned()))

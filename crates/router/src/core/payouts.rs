@@ -791,7 +791,7 @@ pub async fn payouts_list_core(
                 };
 
                 let payout_id_as_payment_id_type =
-                    common_utils::id_type::PaymentId::wrap(payout.payout_id.to_string())
+                    common_utils::id_type::PaymentId::wrap(payout.payout_id.get_string_repr().to_string())
                         .change_context(errors::ApiErrorResponse::InvalidRequestData {
                             message: "payout_id contains invalid data".to_string(),
                         })
@@ -2642,7 +2642,7 @@ pub async fn payout_create_db_entries(
     // We have to do this because the function that is being used to create / get address is from payments
     // which expects a payment_id
     let payout_id_as_payment_id_type =
-        common_utils::id_type::PaymentId::try_from(std::borrow::Cow::Owned(payout_id.to_string()))
+        common_utils::id_type::PaymentId::try_from(std::borrow::Cow::Owned(payout_id.get_string_repr().to_string()))
             .change_context(errors::ApiErrorResponse::InvalidRequestData {
                 message: "payout_id contains invalid data".to_string(),
             })
@@ -2859,7 +2859,7 @@ pub async fn make_payout_data(
     // We have to do this because the function that is being used to create / get address is from payments
     // which expects a payment_id
     let payout_id_as_payment_id_type = common_utils::id_type::PaymentId::try_from(
-        std::borrow::Cow::Owned(payouts.payout_id.to_string()),
+        std::borrow::Cow::Owned(payouts.payout_id.get_string_repr().to_string()),
     )
     .change_context(errors::ApiErrorResponse::InvalidRequestData {
         message: "payout_id contains invalid data".to_string(),
@@ -3231,7 +3231,7 @@ pub async fn create_payout_link_db_entry(
 
     let payout_link = GenericLinkNew {
         link_id: payout_link_data.payout_link_id.to_string(),
-        primary_reference: payout_link_data.payout_id.to_string(),
+        primary_reference: payout_link_data.payout_id.get_string_repr().to_string(),
         merchant_id: merchant_id.to_owned(),
         link_type: common_enums::GenericLinkType::PayoutLink,
         link_status: GenericLinkStatus::PayoutLink(PayoutLinkStatus::Initiated),

@@ -475,7 +475,7 @@ pub async fn perform_static_routing_v1(
             .to_string(),
         #[cfg(feature = "payouts")]
         routing::TransactionData::Payout(payout_data) => {
-            payout_data.payout_attempt.payout_id.clone()
+            payout_data.payout_attempt.payout_id.get_string_repr().to_string()
         }
     };
 

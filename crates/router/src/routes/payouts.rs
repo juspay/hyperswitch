@@ -128,7 +128,7 @@ pub async fn payouts_confirm(
     let flow = Flow::PayoutsConfirm;
     let mut payload = json_payload.into_inner();
     let payout_id = path.into_inner();
-    tracing::Span::current().record("payout_id", payout_id.to_string());
+    tracing::Span::current().record("payout_id", payout_id.get_string_repr());
     payload.payout_id = Some(payout_id);
     payload.confirm = Some(true);
     let api_auth = auth::ApiKeyAuth::default();
