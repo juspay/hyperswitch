@@ -5,7 +5,6 @@
 let dashboardData = null;
 let connectorChart = null;
 let distributionChart = null;
-const executionTimeChart = null;
 let avgDurationChart = null;
 
 // Convert connector name to PascalCase
@@ -116,8 +115,6 @@ function updateSummaryCards() {
 
   // Update total connectors
   document.getElementById("totalConnectors").textContent = activeConnectors;
-
-  // No longer needed - Last Updated is the same as Last Run
 
   // Merge skipped and pending
   const totalSkippedPending =
@@ -801,12 +798,7 @@ function toggleTheme() {
   localStorage.setItem("dashboardTheme", isDark ? "dark" : "light");
 
   // Update charts if they exist
-  if (
-    connectorChart ||
-    distributionChart ||
-    executionTimeChart ||
-    avgDurationChart
-  ) {
+  if (connectorChart || distributionChart || avgDurationChart) {
     updateCharts();
   }
 }

@@ -18,10 +18,5 @@
       },
       "dest": "/$1"
     }
-  ],
-  "functions": {
-    "api/data-proxy.js": {
-      "maxDuration": 10
-    }
-  }
+  ]
 }
