@@ -267,22 +267,22 @@ pub async fn get_theme_lineage_from_user_token(
 pub fn get_lineage_from_theme(theme: &Theme) -> ThemeLineage {
     match theme.entity_type {
         EntityType::Tenant => ThemeLineage::Tenant {
-            tenant_id: theme.tenant_id.clone().into(),
+            tenant_id: theme.tenant_id.clone(),
         },
         EntityType::Organization => ThemeLineage::Organization {
-            tenant_id: theme.tenant_id.clone().into(),
-            org_id: theme.org_id.clone().map(Into::into).unwrap(),
+            tenant_id: theme.tenant_id.clone(),
+            org_id: theme.org_id.clone().unwrap_or_default(),
         },
         EntityType::Merchant => ThemeLineage::Merchant {
-            tenant_id: theme.tenant_id.clone().into(),
-            org_id: theme.org_id.clone().map(Into::into).unwrap(),
-            merchant_id: theme.merchant_id.clone().map(Into::into).unwrap(),
+            tenant_id: theme.tenant_id.clone(),
+            org_id: theme.org_id.clone().unwrap_or_default(),
+            merchant_id: theme.merchant_id.clone().unwrap_or_default(),
         },
         EntityType::Profile => ThemeLineage::Profile {
-            tenant_id: theme.tenant_id.clone().into(),
-            org_id: theme.org_id.clone().map(Into::into).unwrap(),
-            merchant_id: theme.merchant_id.clone().map(Into::into).unwrap(),
-            profile_id: theme.profile_id.clone().map(Into::into).unwrap(),
+            tenant_id: theme.tenant_id.clone(),
+            org_id: theme.org_id.clone().unwrap_or_default(),
+            merchant_id: theme.merchant_id.clone().unwrap_or_default(),
+            profile_id: theme.profile_id.clone().unwrap_or_default(),
         },
     }
 }
