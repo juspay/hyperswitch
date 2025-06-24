@@ -4,6 +4,17 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2025.06.18.0-hotfix1
+
+### Features
+
+- **connector:** [ARCHIPEL] fix Mastercard scheme string for Applepay payments ([#8451](https://github.com/juspay/hyperswitch/pull/8451)) ([`639f0ac`](https://github.com/juspay/hyperswitch/commit/639f0ac16d9e80d7781991f06c47c8357a459059))
+- **router:** Add confirm flag in kafka payment intent events ([#8444](https://github.com/juspay/hyperswitch/pull/8444)) ([`e6f305d`](https://github.com/juspay/hyperswitch/commit/e6f305dbde151b57f0f36e3f33f043acfa7d1ebd))
+
+**Full Changelog:** [`2025.06.18.0...2025.06.18.0-hotfix1`](https://github.com/juspay/hyperswitch/compare/2025.06.18.0...2025.06.18.0-hotfix1)
+
+- - -
+
 ## 2025.06.18.0
 
 ### Features
