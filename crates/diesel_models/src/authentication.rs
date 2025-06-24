@@ -52,6 +52,7 @@ pub struct Authentication {
     pub authentication_client_secret: Option<String>,
     pub force_3ds_challenge: Option<bool>,
     pub psd2_sca_exemption_type: Option<common_enums::ScaExemptionType>,
+    pub return_url: Option<String>,
     pub amount: Option<common_utils::types::MinorUnit>,
     pub currency: Option<common_enums::Currency>,
 }
@@ -106,6 +107,7 @@ pub struct AuthenticationNew {
     pub authentication_client_secret: Option<String>,
     pub force_3ds_challenge: Option<bool>,
     pub psd2_sca_exemption_type: Option<common_enums::ScaExemptionType>,
+    pub return_url: Option<String>,
     pub amount: Option<common_utils::types::MinorUnit>,
     pub currency: Option<common_enums::Currency>,
 }

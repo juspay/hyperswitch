@@ -1246,8 +1246,9 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
                             None,
                             None,
                             None,
-                            Some(payment_data.payment_intent.amount),
-                            payment_data.payment_intent.currency,
+                            None,
+                            None,
+                            None
                         )
                         .await?;
                         let authentication_store = hyperswitch_domain_models::router_request_types::authentication::AuthenticationStore {
@@ -1316,7 +1317,7 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
                     ..
                 } => {
                     let (authentication_connector, three_ds_connector_account) =
-                    authentication::utils::get_authentication_connector_data(state, key_store, business_profile).await?;
+                    authentication::utils::get_authentication_connector_data(state, key_store, business_profile, None).await?;
                 let authentication_connector_name = authentication_connector.to_string();
                 let authentication = authentication::utils::create_new_authentication(
                     state,
@@ -1399,7 +1400,7 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
                 },
                 helpers::UnifiedAuthenticationServiceFlow::ExternalAuthenticationPostAuthenticate {authentication_id} => {
                     let (authentication_connector, three_ds_connector_account) =
-                    authentication::utils::get_authentication_connector_data(state, key_store, business_profile).await?;
+                    authentication::utils::get_authentication_connector_data(state, key_store, business_profile, None).await?;
                 let is_pull_mechanism_enabled =
                     utils::check_if_pull_mechanism_for_external_3ds_enabled_from_connector_metadata(
                         three_ds_connector_account

@@ -1,4 +1,4 @@
-use common_enums::enums;
+use common_enums::{enums, AuthenticationConnectors};
 use common_utils::{
     events::{ApiEventMetric, ApiEventsType},
     id_type,
@@ -27,6 +27,10 @@ pub struct AuthenticationCreateRequest {
     #[schema(value_type = MinorUnit, example = 1000)]
     pub amount: common_utils::types::MinorUnit,
 
+    /// The connector to be used for authentication, if known.
+    #[schema(value_type = Option<AuthenticationConnectors>, example = "netcetera")]
+    pub authentication_connector: Option<AuthenticationConnectors>,
+
     /// The currency for the transaction, required.
     #[schema(value_type = Currency)]
     pub currency: common_enums::Currency,
@@ -54,8 +58,14 @@ pub struct AuthenticationCreateRequest {
 
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
 pub struct AcquirerDetails {
+    /// The bin of the card.
+    #[schema(value_type = Option<String>, example = "123456")]
     pub bin: Option<String>,
+    /// The merchant id of the card.
+    #[schema(value_type = Option<String>, example = "merchant_abc")]
     pub merchant_id: Option<String>,
+    /// The country code of the card.
+    #[schema(value_type = Option<String>, example = "US/34456")]
     pub country_code: Option<String>,
 }
 
@@ -86,9 +96,9 @@ pub struct AuthenticationResponse {
     #[schema(value_type = Currency)]
     pub currency: enums::Currency,
 
-    /// Customer details, if provided in the request.
-    #[schema(value_type = Option<CustomerDetails>)]
-    pub customer: Option<CustomerDetails>,
+    /// The connector to be used for authentication, if known.
+    #[schema(value_type = Option<AuthenticationConnectors>, example = "netcetera")]
+    pub authentication_connector: Option<String>,
 
     /// Whether 3DS challenge was forced.
     pub force_3ds_challenge: Option<bool>,
@@ -107,17 +117,9 @@ pub struct AuthenticationResponse {
     #[schema(example = "Failed while verifying the card")]
     pub error_message: Option<String>,
 
-    /// You can specify up to 50 keys, with key names up to 40 characters long and values up to 500 characters long. Metadata is useful for storing additional, structured information on an object.
-    #[schema(value_type = Option<Object>, example = r#"{ "udf1": "some-value", "udf2": "some-value" }"#)]
-    pub metadata: Option<serde_json::Value>,
-
     /// The business profile that is associated with this payment
     #[schema(value_type = Option<String>)]
     pub profile_id: Option<id_type::ProfileId>,
-
-    #[schema(value_type = Option<BrowserInformation>)]
-    /// The browser information used for this payment
-    pub browser_info: Option<serde_json::Value>,
 
     /// Choose what kind of sca exemption is required for this payment
     #[schema(value_type = Option<ScaExemptionType>)]
@@ -137,6 +139,7 @@ impl ApiEventMetric for AuthenticationCreateRequest {
             })
     }
 }
+
 impl ApiEventMetric for AuthenticationResponse {
     fn get_api_event_type(&self) -> Option<ApiEventsType> {
         Some(ApiEventsType::Authentication {

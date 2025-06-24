@@ -6527,14 +6527,20 @@
         "properties": {
           "bin": {
             "type": "string",
+            "description": "The bin of the card.",
+            "example": "123456",
             "nullable": true
           },
           "merchant_id": {
             "type": "string",
+            "description": "The merchant id of the card.",
+            "example": "merchant_abc",
             "nullable": true
           },
           "country_code": {
             "type": "string",
+            "description": "The country code of the card.",
+            "example": "US/34456",
             "nullable": true
           }
         }
@@ -7348,6 +7354,14 @@
           "amount": {
             "$ref": "#/components/schemas/MinorUnit"
           },
+          "authentication_connector": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/AuthenticationConnectors"
+              }
+            ],
+            "nullable": true
+          },
           "currency": {
             "$ref": "#/components/schemas/Currency"
           },
@@ -7420,10 +7434,10 @@
           "currency": {
             "$ref": "#/components/schemas/Currency"
           },
-          "customer": {
+          "authentication_connector": {
             "allOf": [
               {
-                "$ref": "#/components/schemas/CustomerDetails"
+                "$ref": "#/components/schemas/AuthenticationConnectors"
               }
             ],
             "nullable": true
@@ -7455,22 +7469,9 @@
             "example": "Failed while verifying the card",
             "nullable": true
           },
-          "metadata": {
-            "type": "object",
-            "description": "You can specify up to 50 keys, with key names up to 40 characters long and values up to 500 characters long. Metadata is useful for storing additional, structured information on an object.",
-            "nullable": true
-          },
           "profile_id": {
             "type": "string",
             "description": "The business profile that is associated with this payment",
-            "nullable": true
-          },
-          "browser_info": {
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/BrowserInformation"
-              }
-            ],
             "nullable": true
           },
           "psd2_sca_exemption_type": {
