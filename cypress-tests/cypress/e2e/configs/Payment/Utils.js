@@ -23,6 +23,7 @@ import { connectorDetails as fiservemeaConnectorDetails } from "./Fiservemea.js"
 import { connectorDetails as fiuuConnectorDetails } from "./Fiuu.js";
 import { connectorDetails as forteConnectorDetails } from "./Forte.js";
 import { connectorDetails as getnetConnectorDetails } from "./Getnet.js";
+import { connectorDetails as globalpayConnectorDetails } from "./Globalpay.js";
 import { connectorDetails as hipayConnectorDetails } from "./Hipay.js";
 import { connectorDetails as iatapayConnectorDetails } from "./Iatapay.js";
 import { connectorDetails as itaubankConnectorDetails } from "./ItauBank.js";
@@ -67,6 +68,7 @@ const connectorDetails = {
   fiuu: fiuuConnectorDetails,
   forte: forteConnectorDetails,
   getnet: getnetConnectorDetails,
+  globalpay: globalpayConnectorDetails,
   hipay: hipayConnectorDetails,
   iatapay: iatapayConnectorDetails,
   itaubank: itaubankConnectorDetails,
