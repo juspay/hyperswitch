@@ -3,7 +3,7 @@ use api_models::authentication::AuthenticationCreateRequest;
 use router_env::{instrument, tracing, Flow};
 
 use crate::{
-    core::api_locking,
+    core::{api_locking, unified_authentication_service},
     routes::app::{self},
     services::{api, authentication as auth},
     types::domain,
@@ -27,11 +27,7 @@ pub async fn authentication_create(
             let merchant_context = domain::MerchantContext::NormalMerchant(Box::new(
                 domain::Context(auth.merchant_account, auth.key_store),
             ));
-            crate::core::unified_authentication_service::authentication_create_core(
-                state,
-                merchant_context,
-                req,
-            )
+            unified_authentication_service::authentication_create_core(state, merchant_context, req)
         },
         &auth::HeaderAuth(auth::ApiKeyAuth {
             is_connected_allowed: false,

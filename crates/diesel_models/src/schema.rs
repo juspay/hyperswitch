@@ -127,6 +127,10 @@ diesel::table! {
         authentication_client_secret -> Nullable<Varchar>,
         force_3ds_challenge -> Nullable<Bool>,
         psd2_sca_exemption_type -> Nullable<ScaExemptionType>,
+        #[max_length = 2048]
+        return_url -> Nullable<Varchar>,
+        amount -> Nullable<Int8>,
+        currency -> Nullable<Currency>,
     }
 }
 
@@ -954,6 +958,7 @@ diesel::table! {
         #[max_length = 255]
         created_by -> Nullable<Varchar>,
         setup_future_usage_applied -> Nullable<FutureUsage>,
+        routing_approach -> Nullable<RoutingApproach>,
     }
 }
 

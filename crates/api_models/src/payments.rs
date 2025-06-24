@@ -290,7 +290,18 @@ pub struct MerchantConnectorDetails {
     }"#)]
     pub merchant_connector_creds: pii::SecretSerdeValue,
 }
+#[cfg(feature = "v2")]
+#[derive(Debug, serde::Serialize, serde::Deserialize, Clone, ToSchema)]
+pub struct PaymentAttemptListRequest {
+    #[schema(value_type = String)]
+    pub payment_intent_id: id_type::GlobalPaymentId,
+}
 
+#[cfg(feature = "v2")]
+#[derive(Debug, serde::Serialize, Clone, ToSchema)]
+pub struct PaymentAttemptListResponse {
+    pub payment_attempt_list: Vec<PaymentAttemptResponse>,
+}
 #[cfg(feature = "v2")]
 impl PaymentsCreateIntentRequest {
     pub fn get_feature_metadata_as_value(
@@ -1657,6 +1668,9 @@ pub struct PaymentAttemptRevenueRecoveryData {
     /// Flag to find out whether an attempt was created by external or internal system.
     #[schema(value_type = Option<TriggeredBy>, example = "internal")]
     pub attempt_triggered_by: common_enums::TriggeredBy,
+    // stripe specific field used to identify duplicate attempts.
+    #[schema(value_type = Option<String>, example = "ch_123abc456def789ghi012klmn")]
+    pub charge_id: Option<String>,
 }
 
 #[derive(
@@ -2974,6 +2988,15 @@ pub enum AdditionalPaymentData {
         #[serde(flatten)]
         details: Option<MobilePaymentData>,
     },
+}
+
+impl AdditionalPaymentData {
+    pub fn get_additional_card_info(&self) -> Option<AdditionalCardInfo> {
+        match self {
+            Self::Card(additional_card_info) => Some(*additional_card_info.clone()),
+            _ => None,
+        }
+    }
 }
 
 #[derive(Debug, Clone, Eq, PartialEq, serde::Deserialize, serde::Serialize)]
@@ -5801,22 +5824,34 @@ pub struct PaymentsResponse {
 }
 
 #[cfg(feature = "v2")]
-impl PaymentsResponse {
+impl PaymentAttemptListResponse {
     pub fn find_attempt_in_attempts_list_using_connector_transaction_id(
-        self,
+        &self,
         connector_transaction_id: &common_utils::types::ConnectorTransactionId,
     ) -> Option<PaymentAttemptResponse> {
-        self.attempts
-            .as_ref()
-            .and_then(|attempts| {
-                attempts.iter().find(|attempt| {
-                    attempt
-                        .connector_payment_id
+        self.payment_attempt_list.iter().find_map(|attempt| {
+            attempt
+                .connector_payment_id
+                .as_ref()
+                .filter(|txn_id| *txn_id == connector_transaction_id)
+                .map(|_| attempt.clone())
+        })
+    }
+    pub fn find_attempt_in_attempts_list_using_charge_id(
+        &self,
+        charge_id: String,
+    ) -> Option<PaymentAttemptResponse> {
+        self.payment_attempt_list.iter().find_map(|attempt| {
+            attempt.feature_metadata.as_ref().and_then(|metadata| {
+                metadata.revenue_recovery.as_ref().and_then(|recovery| {
+                    recovery
+                        .charge_id
                         .as_ref()
-                        .is_some_and(|txn_id| txn_id == connector_transaction_id)
+                        .filter(|id| **id == charge_id)
+                        .map(|_| attempt.clone())
                 })
             })
-            .cloned()
+        })
     }
 }
 
@@ -7331,7 +7366,7 @@ pub enum ApplePaySessionResponse {
     /// This is the common response most of the times
     NoThirdPartySdk(NoThirdPartySdkSessionResponse),
     /// This is for the empty session response
-    NoSessionResponse,
+    NoSessionResponse(NullObject),
 }
 
 #[derive(Debug, Clone, Eq, PartialEq, serde::Serialize, ToSchema, serde::Deserialize)]
@@ -8926,4 +8961,31 @@ pub struct RecordAttemptErrorDetails {
     pub network_decline_code: Option<String>,
     /// A string indicating how to proceed with an network error if payment gateway provide one. This is used to understand the network error code better.
     pub network_error_message: Option<String>,
+}
+
+#[derive(Debug, Clone, Eq, PartialEq, ToSchema)]
+pub struct NullObject;
+
+impl Serialize for NullObject {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        serializer.serialize_none()
+    }
+}
+
+#[cfg(test)]
+mod null_object_test {
+    use serde_json;
+
+    use super::*;
+
+    #[allow(clippy::unwrap_used)]
+    #[test]
+    fn test_null_object_serialization() {
+        let null_object = NullObject;
+        let serialized = serde_json::to_string(&null_object).unwrap();
+        assert_eq!(serialized, "null");
+    }
 }
