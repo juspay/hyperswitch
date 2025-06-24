@@ -575,7 +575,7 @@ where
             .await
             .to_not_found_response(errors::ApiErrorResponse::Unauthorized)?;
 
-        // Get connected merchant account if API call is done by Platform merchant account on behalf of connected merchant account
+        // API Level authorization check
         match merchant.merchant_account_type {
             MerchantAccountType::Connected if !self.is_connected_allowed => {
                 return Err(report!(
@@ -592,6 +592,7 @@ where
             _ => {}
         }
 
+        // Get connected and platform merchant account based on whether API call is done by Platform merchant account or Connected merchant account
         let (connected_merchant_account, platform_merchant_account) =
             if state.conf().platform.enabled {
                 resolve_platform_and_connected_merchant(state, request_headers, merchant.clone())
@@ -600,6 +601,7 @@ where
                 (merchant.clone(), None)
             };
 
+        // Construct the merchant account context
         let (merchant_account, key_store, platform_account_context) = resolve_merchant_context(
             state,
             merchant,
@@ -707,6 +709,7 @@ where
             .await
             .to_not_found_response(errors::ApiErrorResponse::Unauthorized)?;
 
+        // API Level authorization check
         match merchant.merchant_account_type {
             MerchantAccountType::Connected if !self.is_connected_allowed => {
                 return Err(report!(
@@ -723,6 +726,7 @@ where
             _ => {}
         }
 
+        // Get connected and platform merchant account based on whether API call is done by Platform merchant account or Connected merchant account
         let (connected_merchant_account, platform_merchant_account) =
             if state.conf().platform.enabled {
                 resolve_platform_and_connected_merchant(state, request_headers, merchant.clone())
@@ -731,6 +735,7 @@ where
                 (merchant.clone(), None)
             };
 
+        // Construct the merchant account context
         let (merchant_account, key_store, platform_account_context) = resolve_merchant_context(
             state,
             merchant,
@@ -1245,12 +1250,14 @@ where
                         .await
                         .to_not_found_response(errors::ApiErrorResponse::Unauthorized)?;
 
+                    // API Level authorization check
                     self.validate_api_key_variant_meta(
                         &self.0.api_key_variant_meta(),
                         &caller_merchant_account,
                         &merchant_id,
                     )?;
 
+                    // Construct the merchant account context
                     let auth = construct_authentication_data(
                         state,
                         &merchant_id,
@@ -1375,12 +1382,14 @@ where
         .await
         .to_not_found_response(errors::ApiErrorResponse::Unauthorized)?;
 
+    // // Get connected and platform merchant account based on whether API call is done by Platform merchant account or Connected merchant account
     let (connected_merchant_account, platform_merchant_account) = if state.conf().platform.enabled {
         resolve_platform_and_connected_merchant(state, request_headers, merchant.clone()).await?
     } else {
         (merchant.clone(), None)
     };
 
+    // Construct the merchant account context
     let (merchant_account, key_store, platform_account_context) = resolve_merchant_context(
         state,
         merchant,
@@ -2657,6 +2666,7 @@ where
             .await
             .to_not_found_response(errors::ApiErrorResponse::Unauthorized)?;
 
+        // API level authorization check
         match merchant.merchant_account_type {
             MerchantAccountType::Connected if !self.is_connected_allowed => {
                 return Err(report!(
@@ -2673,6 +2683,7 @@ where
             _ => {}
         }
 
+        // Get connected and platform merchant account based on whether API call is done by Platform merchant account or Connected merchant account
         let (connected_merchant_account, platform_merchant_account) =
             if state.conf().platform.enabled {
                 resolve_platform_and_connected_merchant(state, request_headers, merchant.clone())
@@ -2681,6 +2692,7 @@ where
                 (merchant.clone(), None)
             };
 
+        // Construct the merchant account context
         let (merchant_account, key_store, platform_account_context) = resolve_merchant_context(
             state,
             merchant,
@@ -4628,6 +4640,7 @@ where
     A: SessionStateInfo + Sync,
 {
     let headers_struct = HeaderMapStruct::new(request_headers);
+    // Header Level Authorization Check for Platform and Connected Merchants
     match base_merchant.merchant_account_type {
         MerchantAccountType::Platform => {
             let merchant_id_from_header = headers_struct
