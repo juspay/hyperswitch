@@ -46,6 +46,11 @@ pub async fn get_domain_info(
             download_dimensions: None,
             dimensions: utils::get_dispute_dimensions(),
         },
+        AnalyticsDomain::Routing => GetInfoResponse {
+            metrics: utils::get_payment_metrics_info(),
+            download_dimensions: None,
+            dimensions: utils::get_payment_dimensions(),
+        },
     };
     Ok(info)
 }
