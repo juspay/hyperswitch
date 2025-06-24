@@ -1241,10 +1241,11 @@ impl<T: DatabaseStore> PaymentAttemptInterface for KVRouterStore<T> {
                         payment_attempts.sort_by(|a, b| b.modified_at.cmp(&a.modified_at));
                         payment_attempts
                             .iter()
-                            .find(|&pa|
-                                pa.status == diesel_models::enums::AttemptStatus::Charged ||
-                                pa.status == diesel_models::enums::AttemptStatus::PartialCharged
-                            )
+                            .find(|&pa| {
+                                pa.status == diesel_models::enums::AttemptStatus::Charged
+                                    || pa.status
+                                        == diesel_models::enums::AttemptStatus::PartialCharged
+                            })
                             .cloned()
                             .ok_or(error_stack::report!(
                                 redis_interface::errors::RedisError::NotFound
