@@ -1,24 +1,5 @@
 #[cfg(feature = "v2")]
-use common_enums;
-#[cfg(feature = "v2")]
-use common_utils::{
-    id_type::{GlobalTokenId, MerchantId},
-    tokenization as tokenization_utils,
-};
-#[cfg(feature = "v2")]
-use diesel::{
-    associations::HasTable,
-    deserialize::FromSqlRow,
-    expression::AsExpression,
-    pg::Pg,
-    serialize::{Output, ToSql},
-    sql_types::{Jsonb, Text},
-    AsChangeset, Identifiable, Insertable, Queryable, Selectable,
-};
-#[cfg(feature = "v2")]
-use serde::{Deserialize, Serialize};
-#[cfg(feature = "v2")]
-use time::PrimitiveDateTime;
+use diesel::associations::HasTable;
 
 #[cfg(feature = "v2")]
 use crate::{
