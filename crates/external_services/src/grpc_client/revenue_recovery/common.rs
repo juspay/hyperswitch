@@ -5,6 +5,13 @@ use std::fmt::Debug;
 use common_utils::consts;
 use router_env::logger;
 
+/// Errors in time conversion
+#[derive(Debug, thiserror::Error)]
+pub enum DateTimeConversionError {
+    #[error("Invalid timestamp value from prost Timestamp: out of representable range")]
+    TimestampOutOfRange,
+}
+
 /// Contains recovery grpc headers
 #[derive(Debug)]
 pub struct GrpcRecoveryHeaders {

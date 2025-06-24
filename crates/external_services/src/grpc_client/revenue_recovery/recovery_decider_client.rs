@@ -102,7 +102,6 @@ impl RecoveryDeciderClientInterface for DeciderClient<Client> {
     ) -> RecoveryDeciderResult<DeciderResponse> {
         let request =
             super::common::create_revenue_recovery_grpc_request(request_payload, recovery_headers);
-        logger::info!(message_sent_to_recovery_decider_server=?request); // Client-specific logging
 
         logger::debug!(decider_request =?request);
 

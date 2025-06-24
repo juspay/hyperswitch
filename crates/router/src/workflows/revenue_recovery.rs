@@ -6,6 +6,8 @@ use common_utils::{
     id_type,
 };
 #[cfg(feature = "v2")]
+use diesel_models::types::BillingConnectorPaymentMethodDetails;
+#[cfg(feature = "v2")]
 use error_stack::ResultExt;
 #[cfg(feature = "v2")]
 use external_services::date_time;
@@ -220,22 +222,18 @@ pub(crate) async fn get_schedule_time_for_smart_retry(
     payment_intent: &PaymentIntent,
     retry_count: i32,
 ) -> Option<time::PrimitiveDateTime> {
-    let mut first_error_message = payment_attempt
+    let first_error_message = payment_attempt
         .error
         .as_ref()
         .map_or(String::new(), |error| error.message.clone());
 
-    let mut billing_state = payment_intent
+    let billing_state = payment_intent
         .billing_address
         .as_ref()
         .and_then(|addr_enc| addr_enc.get_inner().address.as_ref())
         .and_then(|details| details.state.as_ref())
         .map(|state_from_address| state_from_address.peek().clone())
         .unwrap_or_default();
-
-    let mut card_funding_str = String::new();
-    let mut card_network_str = String::new();
-    let mut card_issuer_str = String::new();
 
     // Check if payment_method_data itself is None
     if payment_attempt.payment_method_data.is_none() {
@@ -246,44 +244,73 @@ pub(crate) async fn get_schedule_time_for_smart_retry(
         );
     }
 
-    if let Some(pm_data_value) = payment_attempt.payment_method_data.as_ref() {
-        logger::debug!(
-            payment_intent_id = ?payment_intent.get_id(),
-            attempt_id = ?payment_attempt.get_id(),
-            pm_data_value_peek = ?pm_data_value.peek(),
-            message = "Attempting to parse payment_method_data"
-        );
-        match pm_data_value
-            .peek()
-            .clone()
-            .parse_value::<PaymentMethodData>("PaymentMethodData")
-        {
-            Ok(PaymentMethodData::Card(card_details)) => {
-                logger::debug!(
-                    payment_intent_id = ?payment_intent.get_id(),
-                    attempt_id = ?payment_attempt.get_id(),
-                    card_details_type = ?card_details.card_type,
-                    card_details_network = ?card_details.card_network,
-                    card_details_issuer = ?card_details.card_issuer,
-                    message = "Raw card details from PaymentMethodData::Card"
-                );
-                card_funding_str = card_details.card_type.clone().unwrap_or_default();
-                card_network_str = card_details
-                    .card_network
-                    .map_or(String::new(), |cn| cn.to_string());
-                card_issuer_str = card_details.card_issuer.clone().unwrap_or_default();
-            }
-            Ok(_) => {
-                logger::warn!("Payment method data is not for a card for recovery decider.")
-            }
-            Err(e) => {
-                logger::error!(
-                    "Failed to parse payment_method_data for recovery decider: {:?}",
-                    e
-                )
-            }
+    let card_network_opt = payment_intent
+        .feature_metadata
+        .as_ref()
+        .and_then(|revenue_recovery_data| {
+            revenue_recovery_data
+                .payment_revenue_recovery_metadata
+                .as_ref()
+        })
+        .and_then(|payment_metadata| {
+            payment_metadata
+                .billing_connector_payment_method_details
+                .as_ref()
+        })
+        .and_then(|details| match details {
+            BillingConnectorPaymentMethodDetails::Card(card_info) => card_info.card_network.clone(),
+            _ => None,
+        })
+        .map(|cn| cn.to_string());
+
+    let card_network_str = match card_network_opt {
+        Some(cn_str) => cn_str,
+        None => {
+            return None;
         }
-    }
+    };
+
+    let card_issuer_opt = payment_intent
+        .feature_metadata
+        .as_ref()
+        .and_then(|revenue_recovery_data| {
+            revenue_recovery_data
+                .payment_revenue_recovery_metadata
+                .as_ref()
+        })
+        .and_then(|payment_metadata| {
+            payment_metadata
+                .billing_connector_payment_method_details
+                .as_ref()
+        })
+        .and_then(|details| match details {
+            BillingConnectorPaymentMethodDetails::Card(card_info) => card_info.card_issuer.clone(),
+            _ => None,
+        });
+
+    let card_issuer_str = match card_issuer_opt {
+        Some(ci_str) => ci_str,
+        None => {
+            return None;
+        }
+    };
+
+    let card_funding_opt = payment_intent
+        .feature_metadata
+        .as_ref()
+        .and_then(|revenue_recovery_data| {
+            revenue_recovery_data
+                .payment_revenue_recovery_metadata
+                .as_ref()
+        })
+        .map(|payment_metadata| payment_metadata.payment_method_subtype.to_string());
+
+    let card_funding_str = match card_funding_opt {
+        Some(cf_str) => cf_str,
+        None => {
+            return None;
+        }
+    };
 
     let start_time_primitive = payment_intent.created_at;
     // 1 hr after the actual start time
@@ -305,6 +332,7 @@ pub(crate) async fn get_schedule_time_for_smart_retry(
         card_network = %card_network_str,
         card_issuer = %card_issuer_str
     );
+
 
     let decider_request = external_grpc_client::DeciderRequest {
         // Path updated
@@ -331,13 +359,16 @@ pub(crate) async fn get_schedule_time_for_smart_retry(
             .then_some(())
             .and(grpc_response.retry_time)
             .and_then(|prost_ts| {
-                date_time::convert_from_prost_timestamp(&prost_ts).or_else(|| {
-                    logger::error!(
-                        "Failed to convert prost timestamp for recovery decider. Timestamp: {:?}",
-                        prost_ts
-                    );
-                    None
-                })
+                match date_time::convert_from_prost_timestamp(&prost_ts) {
+                    Ok(pdt) => Some(pdt),
+                    Err(e) => {
+                        logger::error!(
+                            "Failed to convert retry_time from prost::Timestamp: {:?}",
+                            e
+                        );
+                        None // If conversion fails, treat as no valid retry time
+                    }
+                }
             }),
 
         Err(e) => {
