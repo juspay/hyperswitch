@@ -88,27 +88,20 @@ pub fn get_client_builder(
     let proxy_exclusion_config =
         reqwest::NoProxy::from_string(&proxy_config.bypass_proxy_hosts.clone().unwrap_or_default());
 
-    // Function to modify a proxy URL to include the merchant username
-    let modify_proxy_url = |url: &str, username: &str| -> String {
-        if let Some(scheme_end_idx) = url.find("://") {
-            let scheme = &url[0..scheme_end_idx + 3]; // Include "://"
-            let host_part = &url[scheme_end_idx + 3..];
-            format!("{}{}{}", scheme, format!("{}@", username), host_part)
-        } else {
-            url.to_string() // Return original if URL format is unexpected
-        }
-    };
-
-    // Proxy all HTTPS traffic through the configured HTTPS proxy
-    if let Some(url) = proxy_config.https_url.as_ref() {
-        let https_url = if let Some(merchant_url) = merchant_proxy_url.as_ref() {
-            modify_proxy_url(url, merchant_url.clone().expose().as_str())
-        } else {
-            url.to_string()
-        };
-
+    // Proxy all HTTPS traffic through the merchant-specific proxy if provided,
+    // otherwise use the configured HTTPS proxy
+    if let Some(merchant_url) = merchant_proxy_url {
         client_builder = client_builder.proxy(
-            reqwest::Proxy::https(&https_url)
+            reqwest::Proxy::https(merchant_url.expose())
+                .change_context(HttpClientError::InvalidProxyConfiguration)
+                .attach_printable("Merchant HTTPS proxy configuration error")?
+                .no_proxy(proxy_exclusion_config.clone()),
+        );
+    }
+
+    if let Some(url) = proxy_config.https_url.as_ref() {
+        client_builder = client_builder.proxy(
+            reqwest::Proxy::https(url)
                 .change_context(HttpClientError::InvalidProxyConfiguration)
                 .attach_printable("HTTPS proxy configuration error")?
                 .no_proxy(proxy_exclusion_config.clone()),
@@ -117,22 +110,16 @@ pub fn get_client_builder(
 
     // Proxy all HTTP traffic through the configured HTTP proxy
     if let Some(url) = proxy_config.http_url.as_ref() {
-        let http_url = if let Some(merchant_url) = merchant_proxy_url.as_ref() {
-            modify_proxy_url(url, merchant_url.clone().expose().as_str())
-        } else {
-            url.to_string()
-        };
-
         client_builder = client_builder.proxy(
-            reqwest::Proxy::http(&http_url)
+            reqwest::Proxy::http(url)
                 .change_context(HttpClientError::InvalidProxyConfiguration)
                 .attach_printable("HTTP proxy configuration error")?
                 .no_proxy(proxy_exclusion_config.clone()),
         );
     }
 
-    logger::debug!("{:?} HTTP CLient Request", client_builder);
-
+    logger::debug!("{:?} HTTP CLient Request",client_builder);
+    
     Ok(client_builder)
 }
 
