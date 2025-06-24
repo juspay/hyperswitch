@@ -36,6 +36,7 @@ import { connectorDetails as payboxConnectorDetails } from "./Paybox.js";
 import { connectorDetails as paypalConnectorDetails } from "./Paypal.js";
 import { connectorDetails as powertranzConnectorDetails } from "./PowerTranz.js";
 import { connectorDetails as redsysConnectorDetails } from "./Redsys.js";
+import { connectorDetails as staxConnectorDetails } from "./Stax.js";
 import { connectorDetails as shift4ConnectorDetails } from "./Shift4.js";
 import { connectorDetails as stripeConnectorDetails } from "./Stripe.js";
 import { connectorDetails as trustpayConnectorDetails } from "./Trustpay.js";
@@ -79,6 +80,7 @@ const connectorDetails = {
   paypal: paypalConnectorDetails,
   powertranz: powertranzConnectorDetails,
   redsys: redsysConnectorDetails,
+  stax: staxConnectorDetails,
   stripe: stripeConnectorDetails,
   shift4: shift4ConnectorDetails,
   trustpay: trustpayConnectorDetails,
@@ -345,6 +347,7 @@ export const CONNECTOR_LISTS = {
   // Exclusion lists (skip these connectors)
   EXCLUDE: {
     CONNECTOR_AGNOSTIC_NTID: [
+      "bamboraapac",
       "bankofamerica",
       "billwerk",
       "braintree",
@@ -353,7 +356,7 @@ export const CONNECTOR_LISTS = {
       "fiserv",
       "jpmorgan",
       "paypal",
-      "bamboraapac",
+      "stax",
     ],
     // Add more exclusion lists
   },
