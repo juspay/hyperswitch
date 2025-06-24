@@ -5,12 +5,13 @@ use error_stack::ResultExt;
 use hyperswitch_domain_models::{
     merchant_context::MerchantContext,
     router_data::{ErrorResponse, RouterData},
-    router_response_types::{MandateReference, PaymentsResponseData, RedirectForm},
+    router_response_types::{PaymentsResponseData, RedirectForm},
 };
 use masking::PeekInterface;
 use router_env::logger;
 use rust_grpc_client::payments::{
-    self as payments_grpc, payment_service_client::PaymentServiceClient, PaymentsAuthorizeResponse,
+    self as payments_grpc, payment_service_client::PaymentServiceClient,
+    PaymentServiceAuthorizeResponse,
 };
 use tonic::metadata::{MetadataMap, MetadataValue};
 
@@ -58,11 +59,11 @@ impl UnifiedConnectorServiceClient {
     /// Performs Payment Authorize
     pub async fn payment_authorize(
         &self,
-        request: tonic::Request<payments_grpc::PaymentsAuthorizeRequest>,
-    ) -> UnifiedConnectorServiceResult<tonic::Response<PaymentsAuthorizeResponse>> {
+        request: tonic::Request<payments_grpc::PaymentServiceAuthorizeRequest>,
+    ) -> UnifiedConnectorServiceResult<tonic::Response<PaymentServiceAuthorizeResponse>> {
         self.client
             .clone()
-            .payment_authorize(request)
+            .authorize(request)
             .await
             .change_context(UnifiedConnectorServiceError::ConnectionError(
                 "Failed to authorize payment through Unified Connector Service".to_owned(),
@@ -209,7 +210,7 @@ pub fn build_unified_connector_service_auth_headers(
 }
 
 pub fn handle_unified_connector_service_response_for_payment_authorize(
-    response: PaymentsAuthorizeResponse,
+    response: PaymentServiceAuthorizeResponse,
 ) -> CustomResult<
     (AttemptStatus, Result<PaymentsResponseData, ErrorResponse>),
     UnifiedConnectorServiceError,
@@ -221,7 +222,14 @@ pub fn handle_unified_connector_service_response_for_payment_authorize(
         AttemptStatus::Authorized |
         AttemptStatus::AuthenticationPending |
         AttemptStatus::DeviceDataCollectionPending => Ok(PaymentsResponseData::TransactionResponse {
-            resource_id: hyperswitch_domain_models::router_request_types::ResponseId::ConnectorTransactionId(response.connector_response_reference_id().to_owned()),
+            resource_id: hyperswitch_domain_models::router_request_types::ResponseId::ConnectorTransactionId(
+                response.response_ref_id.clone().and_then(|payments_grpc::Identifier { id_type }| {
+                    id_type.and_then(|id_type| match id_type {
+                        payments_grpc::identifier::IdType::Id(id) => Some(id),
+                        _ => None,
+                    })
+                }).unwrap_or_default()
+            ),
             redirection_data: Box::new(
                 response
                     .redirection_data
@@ -230,15 +238,16 @@ pub fn handle_unified_connector_service_response_for_payment_authorize(
                     .transpose()?
             ),
             mandate_reference: Box::new(
-                response
-                    .mandate_reference
-                    .clone()
-                    .map(MandateReference::foreign_try_from)
-                    .transpose()?
+                None
             ),
             connector_metadata: None,
             network_txn_id: response.network_txn_id.clone(),
-            connector_response_reference_id: Some(response.connector_response_reference_id().to_owned()),
+            connector_response_reference_id: response.response_ref_id.clone().and_then(|payments_grpc::Identifier { id_type }| {
+                id_type.and_then(|id_type| match id_type {
+                    payments_grpc::identifier::IdType::Id(id) => Some(id),
+                    _ => None,
+                })
+            }),
             incremental_authorization_allowed: response.incremental_authorization_allowed,
             charges: None,
         }),
@@ -248,7 +257,12 @@ pub fn handle_unified_connector_service_response_for_payment_authorize(
             reason: Some(response.error_message().to_owned()),
             status_code: 500,
             attempt_status: Some(status),
-            connector_transaction_id: Some(response.connector_response_reference_id().to_owned()),
+            connector_transaction_id: response.response_ref_id.and_then(|payments_grpc::Identifier { id_type }| {
+                id_type.and_then(|id_type| match id_type {
+                    payments_grpc::identifier::IdType::Id(id) => Some(id),
+                    _ => None,
+                })
+            }),
             network_decline_code: None,
             network_advice_code: None,
             network_error_message: None,

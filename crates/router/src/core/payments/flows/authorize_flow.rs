@@ -432,7 +432,7 @@ impl Feature<api::Authorize, types::PaymentsAuthorizeData> for types::PaymentsAu
             .clone()
             .ok_or(ApiErrorResponse::InternalServerError)?;
 
-        let request = payments_grpc::PaymentsAuthorizeRequest::foreign_try_from(self)
+        let request = payments_grpc::PaymentServiceAuthorizeRequest::foreign_try_from(self)
             .change_context(ApiErrorResponse::InternalServerError)
             .attach_printable("Failed to construct Payment Authorize Request")?;
 
