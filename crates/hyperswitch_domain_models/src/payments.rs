@@ -2,7 +2,7 @@
 use std::marker::PhantomData;
 
 #[cfg(feature = "v2")]
-use api_models::payments::{MerchantConnectorDetails, SessionToken, VaultSessionDetails};
+use api_models::payments::{SessionToken, VaultSessionDetails};
 #[cfg(feature = "v1")]
 use common_types::primitive_wrappers::{
     AlwaysRequestExtendedAuthorization, RequestExtendedAuthorizationBool,
@@ -865,7 +865,7 @@ where
     pub payment_address: payment_address::PaymentAddress,
     pub mandate_data: Option<api_models::payments::MandateIds>,
     pub payment_method: Option<payment_methods::PaymentMethod>,
-    pub merchant_connector_details: Option<MerchantConnectorDetails>,
+    pub merchant_connector_details: Option<common_types::domain::MerchantConnectorDetails>,
 }
 
 #[cfg(feature = "v2")]
@@ -918,7 +918,7 @@ where
     /// Should the payment status be synced with connector
     /// This will depend on the payment status and the force sync flag in the request
     pub should_sync_with_connector: bool,
-    pub merchant_connector_details: Option<MerchantConnectorDetails>,
+    pub merchant_connector_details: Option<common_types::domain::MerchantConnectorDetails>,
 }
 
 #[cfg(feature = "v2")]

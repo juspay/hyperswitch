@@ -271,24 +271,7 @@ pub struct PaymentsCreateIntentRequest {
     pub force_3ds_challenge: Option<bool>,
 
     /// Merchant connector details used to make payments.
-    pub merchant_connector_details: Option<MerchantConnectorDetails>,
-}
-
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema)]
-#[cfg(feature = "v2")]
-pub struct MerchantConnectorDetails {
-    /// The connector used for the payment
-    #[schema(value_type = Connector)]
-    pub connector_name: api_enums::Connector,
-
-    /// The merchant connector credentials used for the payment
-    #[schema(value_type = Object, example = r#"{
-        "merchant_connector_creds": {
-            "auth_type": "HeaderKey",
-            "api_key":"sk_test_xxxxxexamplexxxxxx12345"
-        },
-    }"#)]
-    pub merchant_connector_creds: pii::SecretSerdeValue,
+    pub merchant_connector_details: Option<common_types::domain::MerchantConnectorDetails>,
 }
 #[cfg(feature = "v2")]
 #[derive(Debug, serde::Serialize, serde::Deserialize, Clone, ToSchema)]
@@ -5384,7 +5367,7 @@ pub struct PaymentsConfirmIntentRequest {
     pub payment_token: Option<String>,
 
     /// Merchant connector details used to make payments.
-    pub merchant_connector_details: Option<MerchantConnectorDetails>,
+    pub merchant_connector_details: Option<common_types::domain::MerchantConnectorDetails>,
 }
 
 #[cfg(feature = "v2")]
@@ -5559,7 +5542,7 @@ pub struct PaymentsRequest {
     pub is_iframe_redirection_enabled: Option<bool>,
 
     /// Merchant connector details used to make payments.
-    pub merchant_connector_details: Option<MerchantConnectorDetails>,
+    pub merchant_connector_details: Option<common_types::domain::MerchantConnectorDetails>,
 }
 
 #[cfg(feature = "v2")]
@@ -5637,7 +5620,7 @@ pub struct PaymentsRetrieveRequest {
     /// If enabled, provides whole connector response
     pub all_keys_required: Option<bool>,
     /// Merchant connector details used to make payments.
-    pub merchant_connector_details: Option<MerchantConnectorDetails>,
+    pub merchant_connector_details: Option<common_types::domain::MerchantConnectorDetails>,
 }
 
 #[cfg(feature = "v2")]

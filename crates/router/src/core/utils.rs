@@ -250,7 +250,7 @@ pub async fn construct_refund_router_data<'a, F>(
     payment_intent: &'a storage::PaymentIntent,
     payment_attempt: &storage::PaymentAttempt,
     refund: &'a storage::Refund,
-    merchant_connector_account: &MerchantConnectorAccount,
+    merchant_connector_account: &domain::MerchantConnectorAccountTypeDetails,
 ) -> RouterResult<types::RefundsRouterData<F>> {
     let auth_type = merchant_connector_account
         .get_connector_account_details()
@@ -263,13 +263,17 @@ pub async fn construct_refund_router_data<'a, F>(
 
     let payment_method_type = payment_attempt.payment_method_type;
 
-    let merchant_connector_account_id = &merchant_connector_account.id;
-
-    let webhook_url = Some(helpers::create_webhook_url(
-        &state.base_url.clone(),
-        merchant_context.get_merchant_account().get_id(),
-        merchant_connector_account_id.get_string_repr(),
-    ));
+    let webhook_url = match merchant_connector_account {
+        domain::MerchantConnectorAccountTypeDetails::MerchantConnectorAccount(
+            merchant_connector_account,
+        ) => Some(helpers::create_webhook_url(
+            &state.base_url.clone(),
+            merchant_context.get_merchant_account().get_id(),
+            merchant_connector_account.get_id().get_string_repr(),
+        )),
+        // TODO: Implement for connectors that require a webhook URL to be included in the request payload.
+        domain::MerchantConnectorAccountTypeDetails::MerchantConnectorDetails(_) => None,
+    };
 
     let supported_connector = &state
         .conf
@@ -313,6 +317,13 @@ pub async fn construct_refund_router_data<'a, F>(
     let merchant_config_currency =
         braintree_metadata.and_then(|braintree| braintree.merchant_config_currency);
 
+    let connector_wallets_details = match merchant_connector_account {
+        domain::MerchantConnectorAccountTypeDetails::MerchantConnectorAccount(
+            merchant_connector_account,
+        ) => merchant_connector_account.get_connector_wallets_details(),
+        domain::MerchantConnectorAccountTypeDetails::MerchantConnectorDetails(_) => None,
+    };
+
     let router_data = types::RouterData {
         flow: PhantomData,
         merchant_id: merchant_context.get_merchant_account().get_id().clone(),
@@ -329,7 +340,7 @@ pub async fn construct_refund_router_data<'a, F>(
         address: PaymentAddress::default(),
         auth_type: payment_attempt.authentication_type,
         connector_meta_data: merchant_connector_account.get_metadata(),
-        connector_wallets_details: merchant_connector_account.get_connector_wallets_details(),
+        connector_wallets_details,
         amount_captured: payment_intent
             .amount_captured
             .map(|amt| amt.get_amount_as_i64()),

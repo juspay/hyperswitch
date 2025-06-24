@@ -1218,7 +1218,11 @@ impl Refunds {
         {
             route = route
                 .service(web::resource("").route(web::post().to(refunds::refunds_create)))
-                .service(web::resource("/{id}").route(web::get().to(refunds::refunds_retrieve)))
+                .service(
+                    web::resource("/{id}")
+                        .route(web::get().to(refunds::refunds_retrieve))
+                        .route(web::post().to(refunds::refunds_retrieve_with_gateway_creds)),
+                )
                 .service(
                     web::resource("/{id}/update_metadata")
                         .route(web::put().to(refunds::refunds_metadata_update)),
