@@ -2647,6 +2647,10 @@ impl Authentication {
                 web::resource("/{authentication_id}/eligibility")
                     .route(web::post().to(authentication::authentication_eligibility)),
             )
+            .service(
+                web::resource("/{authentication_id}/authenticate")
+                    .route(web::post().to(authentication::authentication_authenticate)),
+            )
     }
 }
 

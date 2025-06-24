@@ -3,7 +3,8 @@ pub mod utils;
 
 use api_models::{
     authentication::{
-        AcquirerDetails, AuthenticationCreateRequest, AuthenticationEligibilityRequest,
+        AcquirerDetails, AuthenticationAuthenticateRequest, AuthenticationAuthenticateResponse,
+        AuthenticationCreateRequest, AuthenticationEligibilityRequest,
         AuthenticationEligibilityResponse, AuthenticationResponse,
     },
     payments,
@@ -28,6 +29,7 @@ use hyperswitch_domain_models::{
     },
 };
 use masking::PeekInterface;
+use serde_json::from_str;
 
 use super::{
     errors::{RouterResponse, RouterResult},
@@ -883,6 +885,89 @@ pub async fn authentication_eligibility_core(
         profile_id,
     ));
 
+    Ok(hyperswitch_domain_models::api::ApplicationResponse::Json(
+        response,
+    ))
+}
+
+pub async fn authentication_authenticate_core(
+    state: SessionState,
+    merchant_context: domain::MerchantContext,
+    req: AuthenticationAuthenticateRequest,
+    authentication_id: common_utils::id_type::AuthenticationId,
+) -> RouterResponse<AuthenticationAuthenticateResponse> {
+    let merchant_account = merchant_context.get_merchant_account();
+    let merchant_id = merchant_account.get_id();
+    let db = &*state.store;
+    let authentication = db
+        .find_authentication_by_merchant_id_authentication_id(merchant_id, &authentication_id)
+        .await
+        .to_not_found_response(ApiErrorResponse::AuthenticationNotFound {
+            id: authentication_id.get_string_repr().to_owned(),
+        })?;
+
+    // if let Some(cs) = &req.client_secret {
+    //     let is_client_secret_expired =
+    //         utils::authenticate_authentication_client_secret_and_check_expiry(
+    //             cs.peek(),
+    //             &authentication,
+    //         )?;
+
+    //     if is_client_secret_expired {
+    //         return Err(ApiErrorResponse::ClientSecretExpired.into());
+    //     };
+    // };
+    let key_manager_state = (&state).into();
+
+    let profile_id = crate::core::utils::get_profile_id_from_business_details(
+        &key_manager_state,
+        None,
+        None,
+        &merchant_context,
+        None,
+        db,
+        true,
+    )
+    .await?;
+
+    let business_profile = db
+        .find_business_profile_by_profile_id(
+            &key_manager_state,
+            merchant_context.get_merchant_key_store(),
+            &profile_id,
+        )
+        .await
+        .to_not_found_response(ApiErrorResponse::ProfileNotFound {
+            id: profile_id.get_string_repr().to_owned(),
+        })?;
+
+    let connector = authentication
+        .authentication_connector
+        .ok_or(ApiErrorResponse::InternalServerError)?;
+
+    let tokenized_data = crate::core::payment_methods::vault::get_tokenized_data(
+        &state,
+        authentication_id.get_string_repr(),
+        false,
+        merchant_context.get_merchant_key_store().key.get_inner(),
+    )
+        .await
+        .inspect_err(|err| router_env::logger::error!(tokenized_data_result=?err))
+        .attach_printable("cavv not present after authentication flow")?;
+
+    
+
+    let response = AuthenticationAuthenticateResponse {
+        transaction_status: todo!(),
+        acs_url: todo!(),
+        challenge_request: todo!(),
+        acs_reference_number: todo!(),
+        acs_trans_id: todo!(),
+        three_dsserver_trans_id: todo!(),
+        acs_signed_content: todo!(),
+        three_ds_requestor_url: todo!(),
+        three_ds_requestor_app_url: todo!(),
+    };
     Ok(hyperswitch_domain_models::api::ApplicationResponse::Json(
         response,
     ))

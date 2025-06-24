@@ -198,3 +198,53 @@ impl ApiEventMetric for AuthenticationEligibilityResponse {
         })
     }
 }
+
+#[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
+pub struct AuthenticationAuthenticateRequest {
+    #[schema(value_type = String)]
+    pub client_secret: masking::Secret<String>,
+    /// SDK Information if request is from SDK
+    pub sdk_information: Option<crate::payments::SdkInformation>,
+    /// Device Channel indicating whether request is coming from App or Browser
+    pub device_channel: crate::payments::DeviceChannel,
+    /// Indicates if 3DS method data was successfully completed or not
+    pub threeds_method_comp_ind: crate::payments::ThreeDsCompletionIndicator,
+}
+
+
+impl ApiEventMetric for AuthenticationAuthenticateRequest {
+    fn get_api_event_type(&self) -> Option<ApiEventsType> {
+        None
+    }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
+pub struct AuthenticationAuthenticateResponse {
+     /// Indicates the transaction status
+    #[serde(rename = "trans_status")]
+    #[schema(value_type = TransactionStatus)]
+    pub transaction_status: common_enums::TransactionStatus,
+    /// Access Server URL to be used for challenge submission
+    pub acs_url: Option<String>,
+    /// Challenge request which should be sent to acs_url
+    pub challenge_request: Option<String>,
+    /// Unique identifier assigned by the EMVCo(Europay, Mastercard and Visa)
+    pub acs_reference_number: Option<String>,
+    /// Unique identifier assigned by the ACS to identify a single transaction
+    pub acs_trans_id: Option<String>,
+    /// Unique identifier assigned by the 3DS Server to identify a single transaction
+    pub three_dsserver_trans_id: Option<String>,
+    /// Contains the JWS object created by the ACS for the ARes(Authentication Response) message
+    pub acs_signed_content: Option<String>,
+    /// Three DS Requestor URL
+    pub three_ds_requestor_url: String,
+    /// Merchant app declaring their URL within the CReq message so that the Authentication app can call the Merchant app after OOB authentication has occurred
+    pub three_ds_requestor_app_url: Option<String>,
+}
+
+
+impl ApiEventMetric for AuthenticationAuthenticateResponse {
+    fn get_api_event_type(&self) -> Option<ApiEventsType> {
+        None
+    }
+}

@@ -1,5 +1,5 @@
 use actix_web::{web, HttpRequest, Responder};
-use api_models::authentication::{AuthenticationCreateRequest, AuthenticationEligibilityRequest};
+use api_models::authentication::{AuthenticationCreateRequest, AuthenticationEligibilityRequest, AuthenticationAuthenticateRequest};
 use router_env::{instrument, tracing, Flow};
 
 use crate::{
@@ -79,3 +79,49 @@ pub async fn authentication_eligibility(
     ))
     .await
 }
+
+#[cfg(feature = "v1")]
+#[instrument(skip_all, fields(flow = ?Flow::AuthenticationEligibility))]
+pub async fn authentication_authenticate(
+    state: web::Data<app::AppState>,
+    req: HttpRequest,
+    json_payload: web::Json<AuthenticationAuthenticateRequest>,
+    path: web::Path<common_utils::id_type::AuthenticationId>,
+) -> impl Responder {
+    let flow = Flow::AuthenticationEligibility;
+
+    let api_auth = auth::ApiKeyAuth::default();
+    let payload = json_payload.into_inner();
+
+    // let (auth, _) = match auth::check_client_secret_and_get_auth(req.headers(), &payload, api_auth)
+    // {
+    //     Ok((auth, _auth_flow)) => (auth, _auth_flow),
+    //     Err(e) => return api::log_and_return_error_response(e),
+    // };
+
+    let authentication_id = path.into_inner();
+    Box::pin(api::server_wrap(
+        flow,
+        state,
+        &req,
+        payload,
+        |state, auth: auth::AuthenticationData, req, _| {
+            let merchant_context = domain::MerchantContext::NormalMerchant(Box::new(
+                domain::Context(auth.merchant_account, auth.key_store),
+            ));
+            unified_authentication_service::authentication_authenticate_core(
+                state,
+                merchant_context,
+                req,
+                authentication_id.clone(),
+            )
+        },
+        &auth::HeaderAuth(auth::ApiKeyAuth {
+            is_connected_allowed: false,
+            is_platform_allowed: false,
+        }),
+        api_locking::LockAction::NotApplicable,
+    ))
+    .await
+}
+
