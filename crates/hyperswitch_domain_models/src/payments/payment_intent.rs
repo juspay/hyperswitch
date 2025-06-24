@@ -244,6 +244,7 @@ pub struct PaymentIntentUpdateFields {
     pub tax_details: Option<diesel_models::TaxDetails>,
     pub force_3ds_challenge: Option<bool>,
     pub is_iframe_redirection_enabled: Option<bool>,
+    pub is_confirm_operation: bool,
 }
 
 #[cfg(feature = "v1")]
@@ -327,6 +328,16 @@ pub enum PaymentIntentUpdate {
     },
 }
 
+#[cfg(feature = "v1")]
+impl PaymentIntentUpdate {
+    pub fn is_confirm_operation(&self) -> bool {
+        match self {
+            Self::Update(value) => value.is_confirm_operation,
+            _ => false,
+        }
+    }
+}
+
 #[cfg(feature = "v2")]
 #[derive(Debug, Clone, Serialize)]
 pub enum PaymentIntentUpdate {
@@ -367,6 +378,13 @@ pub enum PaymentIntentUpdate {
     },
     /// UpdateIntent
     UpdateIntent(Box<PaymentIntentUpdateFields>),
+}
+
+#[cfg(feature = "v2")]
+impl PaymentIntentUpdate {
+    pub fn is_confirm_operation(&self) -> bool {
+        matches!(self, Self::ConfirmIntent { .. })
+    }
 }
 
 #[cfg(feature = "v1")]
