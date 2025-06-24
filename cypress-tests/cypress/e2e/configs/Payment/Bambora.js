@@ -11,39 +11,11 @@ const successfulNo3DSCardDetails = {
   card_holder_name: "morino",
   card_cvc: "123",
 };
+const successfulThreeDSTestCardDetails = { ...successfulNo3DSCardDetails };
 
-const successfulThreeDSTestCardDetails = {
-  card_number: "4123450131003312",
-  card_exp_month: "10",
-  card_exp_year: "50",
-  card_holder_name: "morino",
-  card_cvc: "123",
-};
-
-const failedNo3DSCardDetails = {
+const failedNo3DSCardDetails= {
+  ...successfulNo3DSCardDetails,
   card_number: "4030000010001234",
-  card_exp_month: "01",
-  card_exp_year: "35",
-  card_holder_name: "joseph Doe",
-  card_cvc: "123",
-};
-
-const payment_method_data_3ds = {
-  card: {
-    last4: "3312",
-    card_type: "CREDIT",
-    card_network: "Visa",
-    card_issuer: "INTL HDQTRS-CENTER OWNED",
-    card_issuing_country: "TURKEY",
-    card_isin: "412345",
-    card_extended_bin: null,
-    card_exp_month: "10",
-    card_exp_year: "50",
-    card_holder_name: "morino",
-    payment_checks: null,
-    authentication_data: null,
-  },
-  billing: null,
 };
 
 const payment_method_data_no3ds = {
@@ -145,7 +117,6 @@ export const connectorDetails = {
         body: {
           status: "requires_customer_action",
           setup_future_usage: "on_session",
-          payment_method_data: payment_method_data_3ds,
         },
       },
     },
@@ -165,7 +136,6 @@ export const connectorDetails = {
         body: {
           status: "succeeded",
           setup_future_usage: "on_session",
-          payment_method_data: payment_method_data_3ds,
         },
       },
     },
