@@ -28,15 +28,13 @@ fn main() {
 
     #[allow(clippy::expect_used)]
     #[cfg(any(feature = "v1", feature = "v2"))]
-    {
-        std::fs::write(
-            file_path.clone(),
-            openapi
-                .to_pretty_json()
-                .expect("Failed to serialize OpenAPI specification as JSON"),
-        )
-        .expect("Failed to write OpenAPI specification to file");
-    }
+    std::fs::write(
+        file_path.clone(),
+        openapi
+            .to_pretty_json()
+            .expect("Failed to serialize OpenAPI specification as JSON"),
+    )
+    .expect("Failed to write OpenAPI specification to file");
 
     #[allow(clippy::expect_used)]
     #[cfg(feature = "v1")]
