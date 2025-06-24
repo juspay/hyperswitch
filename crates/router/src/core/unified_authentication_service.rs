@@ -32,6 +32,7 @@ use super::{
 use crate::{
     consts,
     core::{
+        utils as core_utils,
         errors::utils::StorageErrorExt,
         payments::PaymentData,
         unified_authentication_service::types::{
@@ -39,6 +40,7 @@ use crate::{
             UNIFIED_AUTHENTICATION_SERVICE,
         },
     },
+    types::transformers::ForeignFrom,
     db::domain,
     routes::SessionState,
 };
@@ -578,7 +580,7 @@ pub async fn authentication_create_core(
     let merchant_account = merchant_context.get_merchant_account();
     let merchant_id = merchant_account.get_id();
     let key_manager_state = (&state).into();
-    let profile_id = crate::core::utils::get_profile_id_from_business_details(
+    let profile_id = core_utils::get_profile_id_from_business_details(
         &key_manager_state,
         None,
         None,
@@ -640,39 +642,67 @@ pub async fn authentication_create_core(
     .await?;
 
     let acquirer_details = Some(AcquirerDetails {
-        bin: new_authentication.acquirer_bin,
-        merchant_id: new_authentication.acquirer_merchant_id,
-        country_code: new_authentication.acquirer_country_code,
+        bin: new_authentication.acquirer_bin.clone(),
+        merchant_id: new_authentication.acquirer_merchant_id.clone(),
+        country_code: new_authentication.acquirer_country_code.clone(),
     });
 
     let amount = new_authentication
         .amount
-        .ok_or(ApiErrorResponse::InternalServerError)?;
+        .ok_or(ApiErrorResponse::InternalServerError)
+        .attach_printable("amount failed to get amount from authentication table")?;
     let currency = new_authentication
         .currency
-        .ok_or(ApiErrorResponse::InternalServerError)?;
+        .ok_or(ApiErrorResponse::InternalServerError)
+        .attach_printable("currency failed to get currency from authentication table")?;
 
-    let response = AuthenticationResponse {
-        authentication_id: new_authentication.authentication_id,
-        client_secret: new_authentication
-            .authentication_client_secret
-            .map(masking::Secret::new),
+    let response = AuthenticationResponse::foreign_from((
+        new_authentication,
         amount,
         currency,
-        force_3ds_challenge: new_authentication.force_3ds_challenge,
-        merchant_id: new_authentication.merchant_id.clone(),
-        status: new_authentication.authentication_status,
-        authentication_connector: new_authentication.authentication_connector,
-        return_url: new_authentication.return_url,
-        created_at: Some(new_authentication.created_at),
-        error_code: new_authentication.error_code,
-        error_message: new_authentication.error_message,
-        profile_id: Some(profile_id),
-        psd2_sca_exemption_type: new_authentication.psd2_sca_exemption_type,
+        profile_id,
         acquirer_details,
-    };
+    ));
 
     Ok(hyperswitch_domain_models::api::ApplicationResponse::Json(
         response,
     ))
+}
+
+impl ForeignFrom<(
+    Authentication,
+    common_utils::types::MinorUnit,
+    common_enums::Currency,
+    common_utils::id_type::ProfileId,
+    Option<AcquirerDetails>,
+)> for AuthenticationResponse {
+    fn foreign_from(
+        (authentication, amount, currency, profile_id, acquirer_details): (
+            Authentication,
+            common_utils::types::MinorUnit,
+            common_enums::Currency,
+            common_utils::id_type::ProfileId,
+            Option<AcquirerDetails>,
+        ),
+    ) -> Self {
+        Self {
+            authentication_id: authentication.authentication_id,
+            client_secret: authentication
+                .authentication_client_secret
+                .map(masking::Secret::new),
+            amount,
+            currency,
+            force_3ds_challenge: authentication.force_3ds_challenge,
+            merchant_id: authentication.merchant_id,
+            status: authentication.authentication_status,
+            authentication_connector: authentication.authentication_connector,
+            return_url: authentication.return_url,
+            created_at: Some(authentication.created_at),
+            error_code: authentication.error_code,
+            error_message: authentication.error_message,
+            profile_id: Some(profile_id),
+            psd2_sca_exemption_type: authentication.psd2_sca_exemption_type,
+            acquirer_details,
+        }
+    }
 }

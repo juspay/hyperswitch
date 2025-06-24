@@ -58,8 +58,14 @@ pub struct AuthenticationCreateRequest {
 
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
 pub struct AcquirerDetails {
+    /// The bin of the card.
+    #[schema(value_type = Option<String>, example = "123456")]
     pub bin: Option<String>,
+    /// The merchant id of the card.
+    #[schema(value_type = Option<String>, example = "merchant_abc")]
     pub merchant_id: Option<String>,
+    /// The country code of the card.
+    #[schema(value_type = Option<String>, example = "US/34456")]
     pub country_code: Option<String>,
 }
 
@@ -133,6 +139,8 @@ impl ApiEventMetric for AuthenticationCreateRequest {
             })
     }
 }
+
+
 impl ApiEventMetric for AuthenticationResponse {
     fn get_api_event_type(&self) -> Option<ApiEventsType> {
         Some(ApiEventsType::Authentication {

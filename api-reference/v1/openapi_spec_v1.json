@@ -6527,14 +6527,20 @@
         "properties": {
           "bin": {
             "type": "string",
+            "description": "The bin of the card.",
+            "example": "123456",
             "nullable": true
           },
           "merchant_id": {
             "type": "string",
+            "description": "The merchant id of the card.",
+            "example": "merchant_abc",
             "nullable": true
           },
           "country_code": {
             "type": "string",
+            "description": "The country code of the card.",
+            "example": "US/34456",
             "nullable": true
           }
         }
