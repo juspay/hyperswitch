@@ -7379,11 +7379,6 @@
             ],
             "nullable": true
           },
-          "metadata": {
-            "type": "object",
-            "description": "Metadata for the authentication.",
-            "nullable": true
-          },
           "force_3ds_challenge": {
             "type": "boolean",
             "description": "Force 3DS challenge.",
