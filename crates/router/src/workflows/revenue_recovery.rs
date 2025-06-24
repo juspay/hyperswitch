@@ -329,7 +329,6 @@ pub(crate) async fn get_schedule_time_for_smart_retry(
     );
 
     let decider_request = external_grpc_client::DeciderRequest {
-        // Path updated
         first_error_message,
         billing_state,
         card_funding: card_funding_str,

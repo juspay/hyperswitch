@@ -9,6 +9,7 @@ use router_env::logger;
 #[derive(Debug, thiserror::Error)]
 pub enum DateTimeConversionError {
     #[error("Invalid timestamp value from prost Timestamp: out of representable range")]
+    /// Error for out of range
     TimestampOutOfRange,
 }
 

@@ -28,6 +28,7 @@ pub mod managers;
 /// crm module
 pub mod crm;
 
+#[cfg(feature = "v2")]
 /// date_time module
 pub mod date_time {
     use prost_types::Timestamp;
