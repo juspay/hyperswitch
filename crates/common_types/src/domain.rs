@@ -92,7 +92,7 @@ impl_to_sql_from_sql_json!(AcquirerConfigMap);
 /// Merchant connector details
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema)]
 #[cfg(feature = "v2")]
-pub struct MerchantConnectorDetails {
+pub struct MerchantConnectorAuthDetails {
     /// The connector used for the payment
     #[schema(value_type = Connector)]
     pub connector_name: common_enums::connector_enums::Connector,

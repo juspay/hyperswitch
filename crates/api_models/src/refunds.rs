@@ -1,5 +1,7 @@
 use std::collections::HashMap;
 
+#[cfg(feature = "v2")]
+use common_types::domain::MerchantConnectorAuthDetails;
 pub use common_utils::types::MinorUnit;
 use common_utils::{pii, types::TimeRange};
 use serde::{Deserialize, Serialize};
@@ -104,7 +106,7 @@ pub struct RefundsCreateRequest {
     pub metadata: Option<pii::SecretSerdeValue>,
 
     /// Merchant connector details used to make payments.
-    pub merchant_connector_details: Option<common_types::domain::MerchantConnectorDetails>,
+    pub merchant_connector_details: Option<MerchantConnectorAuthDetails>,
 }
 
 #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "refunds_v2")))]
@@ -126,7 +128,7 @@ pub struct RefundsRetrievePayload {
     pub force_sync: Option<bool>,
 
     /// Merchant connector details used to make payments.
-    pub merchant_connector_details: Option<common_types::domain::MerchantConnectorDetails>,
+    pub merchant_connector_details: Option<MerchantConnectorAuthDetails>,
 }
 
 #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "refunds_v2")))]
@@ -164,7 +166,7 @@ pub struct RefundsRetrieveRequest {
     pub force_sync: Option<bool>,
 
     /// Merchant connector details used to make payments.
-    pub merchant_connector_details: Option<common_types::domain::MerchantConnectorDetails>,
+    pub merchant_connector_details: Option<MerchantConnectorAuthDetails>,
 }
 
 #[derive(Default, Debug, ToSchema, Clone, Deserialize, Serialize)]

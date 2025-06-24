@@ -865,7 +865,7 @@ where
     pub payment_address: payment_address::PaymentAddress,
     pub mandate_data: Option<api_models::payments::MandateIds>,
     pub payment_method: Option<payment_methods::PaymentMethod>,
-    pub merchant_connector_details: Option<common_types::domain::MerchantConnectorDetails>,
+    pub merchant_connector_details: Option<common_types::domain::MerchantConnectorAuthDetails>,
 }
 
 #[cfg(feature = "v2")]
@@ -918,7 +918,7 @@ where
     /// Should the payment status be synced with connector
     /// This will depend on the payment status and the force sync flag in the request
     pub should_sync_with_connector: bool,
-    pub merchant_connector_details: Option<common_types::domain::MerchantConnectorDetails>,
+    pub merchant_connector_details: Option<common_types::domain::MerchantConnectorAuthDetails>,
 }
 
 #[cfg(feature = "v2")]

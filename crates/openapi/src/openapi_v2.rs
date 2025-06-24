@@ -188,7 +188,7 @@ Never share your secret api keys. Keep them guarded and secure.
         common_types::payments::XenditMultipleSplitRequest,
         common_types::domain::XenditSplitSubMerchantData,
         common_types::domain::AdyenSplitItem,
-        common_types::domain::MerchantConnectorDetails,
+        common_types::domain::MerchantConnectorAuthDetails,
         common_types::refunds::StripeSplitRefundRequest,
         common_utils::types::ChargeRefunds,
         common_types::payment_methods::PaymentMethodsEnabled,

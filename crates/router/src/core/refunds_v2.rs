@@ -223,7 +223,7 @@ pub async fn internal_trigger_refund_to_gateway(
     merchant_context: &domain::MerchantContext,
     payment_attempt: &storage::PaymentAttempt,
     payment_intent: &storage::PaymentIntent,
-    merchant_connector_details: common_types::domain::MerchantConnectorDetails,
+    merchant_connector_details: common_types::domain::MerchantConnectorAuthDetails,
 ) -> errors::RouterResult<storage::Refund> {
     let storage_scheme = merchant_context.get_merchant_account().storage_scheme;
 
@@ -846,7 +846,7 @@ pub async fn internal_sync_refund_with_gateway(
     payment_attempt: &storage::PaymentAttempt,
     payment_intent: &storage::PaymentIntent,
     refund: &storage::Refund,
-    merchant_connector_details: common_types::domain::MerchantConnectorDetails,
+    merchant_connector_details: common_types::domain::MerchantConnectorAuthDetails,
 ) -> errors::RouterResult<storage::Refund> {
     let connector_enum = merchant_connector_details.connector_name;
 
@@ -1036,7 +1036,7 @@ pub async fn validate_and_create_refund(
     refund_amount: common_utils_types::MinorUnit,
     req: refunds::RefundsCreateRequest,
     global_refund_id: id_type::GlobalRefundId,
-    merchant_connector_details: Option<common_types::domain::MerchantConnectorDetails>,
+    merchant_connector_details: Option<common_types::domain::MerchantConnectorAuthDetails>,
 ) -> errors::RouterResult<refunds::RefundResponse> {
     let db = &*state.store;
 
@@ -1250,7 +1250,7 @@ pub async fn schedule_refund_execution(
     merchant_context: &domain::MerchantContext,
     payment_attempt: &storage::PaymentAttempt,
     payment_intent: &storage::PaymentIntent,
-    merchant_connector_details: Option<common_types::domain::MerchantConnectorDetails>,
+    merchant_connector_details: Option<common_types::domain::MerchantConnectorAuthDetails>,
 ) -> errors::RouterResult<storage::Refund> {
     let db = &*state.store;
     let runner = storage::ProcessTrackerRunner::RefundWorkflowRouter;

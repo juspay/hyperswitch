@@ -95,7 +95,7 @@ impl MerchantConnectorAccount {
 #[derive(Clone, Debug)]
 pub enum MerchantConnectorAccountTypeDetails {
     MerchantConnectorAccount(Box<MerchantConnectorAccount>),
-    MerchantConnectorDetails(common_types::domain::MerchantConnectorDetails),
+    MerchantConnectorDetails(common_types::domain::MerchantConnectorAuthDetails),
 }
 
 #[cfg(feature = "v2")]

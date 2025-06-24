@@ -10,6 +10,8 @@ use cards::CardNumber;
 #[cfg(feature = "v2")]
 use common_enums::enums::PaymentConnectorTransmission;
 use common_enums::ProductType;
+#[cfg(feature = "v2")]
+use common_types::domain::MerchantConnectorAuthDetails;
 #[cfg(feature = "v1")]
 use common_types::primitive_wrappers::{
     ExtendedAuthorizationAppliedBool, RequestExtendedAuthorizationBool,
@@ -271,7 +273,7 @@ pub struct PaymentsCreateIntentRequest {
     pub force_3ds_challenge: Option<bool>,
 
     /// Merchant connector details used to make payments.
-    pub merchant_connector_details: Option<common_types::domain::MerchantConnectorDetails>,
+    pub merchant_connector_details: Option<MerchantConnectorAuthDetails>,
 }
 #[cfg(feature = "v2")]
 #[derive(Debug, serde::Serialize, serde::Deserialize, Clone, ToSchema)]
@@ -5367,7 +5369,7 @@ pub struct PaymentsConfirmIntentRequest {
     pub payment_token: Option<String>,
 
     /// Merchant connector details used to make payments.
-    pub merchant_connector_details: Option<common_types::domain::MerchantConnectorDetails>,
+    pub merchant_connector_details: Option<MerchantConnectorAuthDetails>,
 }
 
 #[cfg(feature = "v2")]
@@ -5542,7 +5544,7 @@ pub struct PaymentsRequest {
     pub is_iframe_redirection_enabled: Option<bool>,
 
     /// Merchant connector details used to make payments.
-    pub merchant_connector_details: Option<common_types::domain::MerchantConnectorDetails>,
+    pub merchant_connector_details: Option<MerchantConnectorAuthDetails>,
 }
 
 #[cfg(feature = "v2")]
@@ -5620,7 +5622,7 @@ pub struct PaymentsRetrieveRequest {
     /// If enabled, provides whole connector response
     pub all_keys_required: Option<bool>,
     /// Merchant connector details used to make payments.
-    pub merchant_connector_details: Option<common_types::domain::MerchantConnectorDetails>,
+    pub merchant_connector_details: Option<MerchantConnectorAuthDetails>,
 }
 
 #[cfg(feature = "v2")]
