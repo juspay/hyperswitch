@@ -43,10 +43,6 @@ pub struct AuthenticationCreateRequest {
     #[schema(value_type = Option<AcquirerDetails>)]
     pub acquirer_details: Option<AcquirerDetails>,
 
-    /// Metadata for the authentication.
-    #[schema(value_type = Option<Object>, example = json!({"order_id": "OR_12345"}))]
-    pub metadata: Option<serde_json::Value>,
-
     /// Force 3DS challenge.
     #[serde(default)]
     pub force_3ds_challenge: Option<bool>,
