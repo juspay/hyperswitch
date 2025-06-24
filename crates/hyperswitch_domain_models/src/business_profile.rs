@@ -1,5 +1,5 @@
 use common_enums::enums as api_enums;
-use common_types::primitive_wrappers;
+use common_types::{domain::AcquirerConfig, primitive_wrappers};
 use common_utils::{
     crypto::{OptionalEncryptableName, OptionalEncryptableValue},
     date_time,
@@ -1195,6 +1195,23 @@ impl Profile {
     #[cfg(feature = "v2")]
     pub fn is_vault_sdk_enabled(&self) -> bool {
         self.external_vault_connector_details.is_some()
+    }
+
+    #[cfg(feature = "v1")]
+    pub fn get_acquirer_details_from_network(
+        &self,
+        network: common_enums::CardNetwork,
+    ) -> Option<AcquirerConfig> {
+        // iterate over acquirer_config_map and find the acquirer config for the given network
+        self.acquirer_config_map
+            .as_ref()
+            .and_then(|acquirer_config_map| {
+                acquirer_config_map
+                    .0
+                    .iter()
+                    .find(|&(_, acquirer_config)| acquirer_config.network == network)
+            })
+            .map(|(_, acquirer_config)| acquirer_config.clone())
     }
 
     #[cfg(feature = "v1")]

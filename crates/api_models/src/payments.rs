@@ -3038,6 +3038,15 @@ pub enum AdditionalPaymentData {
     },
 }
 
+impl AdditionalPaymentData {
+    pub fn get_additional_card_info(&self) -> Option<AdditionalCardInfo> {
+        match self {
+            Self::Card(additional_card_info) => Some(*additional_card_info.clone()),
+            _ => None,
+        }
+    }
+}
+
 #[derive(Debug, Clone, Eq, PartialEq, serde::Deserialize, serde::Serialize)]
 pub struct KlarnaSdkPaymentMethod {
     pub payment_type: Option<String>,
