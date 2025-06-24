@@ -59,9 +59,12 @@ impl KeyManagerState {
     ) -> Option<serde_json::Value> {
         self.infra_values.clone().map(|mut infra_values| {
             if is_confirm_operation {
-                infra_values
-                    .as_object_mut()
-                    .map(|obj| obj.insert("is_confirm_operation".to_string(), serde_json::Value::Bool(true)));
+                infra_values.as_object_mut().map(|obj| {
+                    obj.insert(
+                        "is_confirm_operation".to_string(),
+                        serde_json::Value::Bool(true),
+                    )
+                });
             }
             infra_values
         })
