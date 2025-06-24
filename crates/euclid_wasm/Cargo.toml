@@ -16,7 +16,7 @@ dummy_connector = ["kgraph_utils/dummy_connector", "connector_configs/dummy_conn
 production = ["connector_configs/production"]
 sandbox = ["connector_configs/sandbox"]
 payouts = ["api_models/payouts", "common_enums/payouts", "euclid/payouts"]
-v1 = ["api_models/v1", "kgraph_utils/v1"]
+v1 = ["api_models/v1", "kgraph_utils/v1", "payouts"]
 v2 = []
 
 [dependencies]
