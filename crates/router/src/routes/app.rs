@@ -59,8 +59,8 @@ use super::verification::{apple_pay_merchant_registration, retrieve_apple_pay_ve
 #[cfg(feature = "oltp")]
 use super::webhooks::*;
 use super::{
-    admin, api_keys, cache::*, connector_onboarding, disputes, files, gsm, health::*, profiles,
-    relay, user, user_role,
+    admin, api_keys, cache::*, chat, connector_onboarding, disputes, files, gsm, health::*,
+    profiles, relay, user, user_role,
 };
 #[cfg(feature = "v1")]
 use super::{apple_pay_certificates_migration, blocklist, payment_link, webhook_events};
@@ -2171,6 +2171,17 @@ impl Gsm {
             .service(web::resource("/get").route(web::post().to(gsm::get_gsm_rule)))
             .service(web::resource("/update").route(web::post().to(gsm::update_gsm_rule)))
             .service(web::resource("/delete").route(web::post().to(gsm::delete_gsm_rule)))
+    }
+}
+
+#[cfg(feature = "olap")]
+pub struct Chat;
+#[cfg(all(feature = "olap"))]
+impl Chat {
+    pub fn server(state: AppState) -> Scope {
+        web::scope("/chat")
+            .app_data(web::Data::new(state))
+            .service(web::resource("/ask").route(web::get().to(chat::ask_chat)))
     }
 }
 

@@ -70,4 +70,5 @@ pub mod relay;
 #[cfg(feature = "v2")]
 pub mod revenue_recovery;
 
+pub mod chat;
 pub mod tokenization;
