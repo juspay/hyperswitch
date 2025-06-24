@@ -1,5 +1,4 @@
 import {
-  cardRequiredField,
   customerAcceptance,
   multiUseMandateData,
   singleUseMandateData,
@@ -46,35 +45,6 @@ const payment_method_data_no3ds = {
     authentication_data: null,
   },
   billing: null,
-};
-
-// Required fields for card payments
-const requiredFields = {
-  payment_methods: [
-    {
-      payment_method: "card",
-      payment_method_types: [
-        {
-          payment_method_type: "credit",
-          card_networks: [
-            {
-              eligible_connectors: ["forte"],
-            },
-          ],
-          required_fields: cardRequiredField,
-        },
-        {
-          payment_method_type: "debit",
-          card_networks: [
-            {
-              eligible_connectors: ["forte"],
-            },
-          ],
-          required_fields: cardRequiredField,
-        },
-      ],
-    },
-  ],
 };
 
 // Standard billing address for US payments
@@ -142,14 +112,6 @@ export const connectorDetails = {
         body: {
           status: "requires_payment_method",
           setup_future_usage: "off_session",
-        },
-      },
-    },
-    SessionToken: {
-      Response: {
-        status: 200,
-        body: {
-          session_token: [],
         },
       },
     },
@@ -956,17 +918,6 @@ export const connectorDetails = {
           error: refundErrorResponse,
         },
       },
-    },
-  },
-  pm_list: {
-    PmListResponse: {
-      PmListNull: {
-        payment_methods: [],
-      },
-      pmListDynamicFieldWithoutBilling: requiredFields,
-      pmListDynamicFieldWithBilling: requiredFields,
-      pmListDynamicFieldWithNames: requiredFields,
-      pmListDynamicFieldWithEmail: requiredFields,
     },
   },
 };
