@@ -32,17 +32,17 @@ use super::{
 use crate::{
     consts,
     core::{
-        utils as core_utils,
         errors::utils::StorageErrorExt,
         payments::PaymentData,
         unified_authentication_service::types::{
             ClickToPay, ExternalAuthentication, UnifiedAuthenticationService,
             UNIFIED_AUTHENTICATION_SERVICE,
         },
+        utils as core_utils,
     },
-    types::transformers::ForeignFrom,
     db::domain,
     routes::SessionState,
+    types::transformers::ForeignFrom,
 };
 
 #[cfg(feature = "v1")]
@@ -669,13 +669,15 @@ pub async fn authentication_create_core(
     ))
 }
 
-impl ForeignFrom<(
-    Authentication,
-    common_utils::types::MinorUnit,
-    common_enums::Currency,
-    common_utils::id_type::ProfileId,
-    Option<AcquirerDetails>,
-)> for AuthenticationResponse {
+impl
+    ForeignFrom<(
+        Authentication,
+        common_utils::types::MinorUnit,
+        common_enums::Currency,
+        common_utils::id_type::ProfileId,
+        Option<AcquirerDetails>,
+    )> for AuthenticationResponse
+{
     fn foreign_from(
         (authentication, amount, currency, profile_id, acquirer_details): (
             Authentication,
