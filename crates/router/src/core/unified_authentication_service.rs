@@ -37,7 +37,7 @@ use crate::{
     consts,
     core::{
         errors::utils::StorageErrorExt,
-        payment_methods::vault::{Vaultable,create_tokenize},
+        payment_methods::vault::{create_tokenize, Vaultable},
         unified_authentication_service::types::{
             ClickToPay, ExternalAuthentication, UnifiedAuthenticationService,
             UNIFIED_AUTHENTICATION_SERVICE,
@@ -729,12 +729,8 @@ impl
     }
 }
 
-impl
-    ForeignFrom<(
-        Authentication,
-        String,
-        common_utils::id_type::ProfileId,
-    )> for AuthenticationEligibilityResponse
+impl ForeignFrom<(Authentication, String, common_utils::id_type::ProfileId)>
+    for AuthenticationEligibilityResponse
 {
     fn foreign_from(
         (authentication, next_api_action, profile_id): (
