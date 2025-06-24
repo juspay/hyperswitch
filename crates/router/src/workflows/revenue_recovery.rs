@@ -270,7 +270,7 @@ pub(crate) async fn get_schedule_time_for_smart_retry(
         }
     };
 
-    let card_issuer_opt = payment_intent
+    let card_issuer_str = payment_intent
         .feature_metadata
         .as_ref()
         .and_then(|revenue_recovery_data| {
@@ -286,14 +286,10 @@ pub(crate) async fn get_schedule_time_for_smart_retry(
         .and_then(|details| match details {
             BillingConnectorPaymentMethodDetails::Card(card_info) => card_info.card_issuer.clone(),
             _ => None,
-        });
+        })
+        // will remove this after we are getting the card issuer from Stripe
+        .unwrap_or("CHASE".to_string());
 
-    let card_issuer_str = match card_issuer_opt {
-        Some(ci_str) => ci_str,
-        None => {
-            return None;
-        }
-    };
 
     let card_funding_opt = payment_intent
         .feature_metadata
