@@ -1699,6 +1699,7 @@ pub trait PaymentsAuthorizeRequestData {
     ) -> Result<Secret<String>, Error>;
     fn is_cit_mandate_payment(&self) -> bool;
     fn get_optional_network_transaction_id(&self) -> Option<String>;
+    fn get_optional_mandate_id(&self) -> Option<String>;
     fn get_optional_email(&self) -> Option<Email>;
     fn get_card_network_from_additional_payment_method_data(
         &self,
@@ -1838,6 +1839,10 @@ impl PaymentsAuthorizeRequestData for PaymentsAuthorizeData {
     }
 
     fn is_customer_initiated_mandate_payment(&self) -> bool {
+        println!(
+            "ssssssssss Customer acceptance: {:?}, Setup mandate details: {:?}, Setup future usage: {:?}",
+            self.customer_acceptance, self.setup_mandate_details, self.setup_future_usage
+        );
         (self.customer_acceptance.is_some() || self.setup_mandate_details.is_some())
             && self.setup_future_usage == Some(FutureUsage::OffSession)
     }
@@ -1911,6 +1916,20 @@ impl PaymentsAuthorizeRequestData for PaymentsAuthorizeData {
                 | None => None,
             })
     }
+
+    fn get_optional_mandate_id(&self) -> Option<String> {
+        self.mandate_id
+            .as_ref()
+            .and_then(|mandate_ids| match &mandate_ids.mandate_reference_id {
+                Some(payments::MandateReferenceId::ConnectorMandateId(mandate_reference)) => {
+                    mandate_reference.get_connector_mandate_id()
+                }
+                Some(payments::MandateReferenceId::NetworkMandateId(_))
+                | Some(payments::MandateReferenceId::NetworkTokenWithNTI(_))
+                | None => None,
+            })
+    }
+
     fn get_optional_email(&self) -> Option<Email> {
         self.email.clone()
     }

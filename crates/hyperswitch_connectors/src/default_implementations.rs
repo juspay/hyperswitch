@@ -1375,7 +1375,6 @@ default_imp_for_pre_processing_steps!(
     connectors::Wise,
     connectors::Worldline,
     connectors::Worldpay,
-    connectors::Worldpayvantiv,
     connectors::Worldpayxml,
     connectors::Wellsfargo,
     connectors::Wellsfargopayout,

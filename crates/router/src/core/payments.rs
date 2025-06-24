@@ -5212,6 +5212,14 @@ where
                     _ => false,
                 };
                 (router_data, should_continue)
+            } else if connector.connector_name == router_types::Connector::Worldpayvantiv
+                && payment_data.get_mandate_id().is_none()
+                && payment_data.get_payment_intent().setup_future_usage
+                    == Some(storage_enums::FutureUsage::OffSession)
+            {
+                router_data = router_data.preprocessing_steps(state, connector).await?;
+                let is_error_in_response = router_data.response.is_err();
+                (router_data, !is_error_in_response)
             } else {
                 (router_data, should_continue_payment)
             }
