@@ -97,6 +97,7 @@ pub mod headers {
 pub mod pii {
     //! Personal Identifiable Information protection.
 
+    #[cfg(feature = "v1")]
     pub(crate) use common_utils::pii::Email;
     #[doc(inline)]
     pub use masking::*;

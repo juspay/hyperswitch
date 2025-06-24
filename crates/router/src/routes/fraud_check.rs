@@ -1,6 +1,9 @@
+#[cfg(feature = "v1")]
 use actix_web::{web, HttpRequest, HttpResponse};
+#[cfg(feature = "v1")]
 use router_env::Flow;
 
+#[cfg(feature = "v1")]
 use crate::{
     core::{api_locking, fraud_check as frm_core},
     services::{self, api},

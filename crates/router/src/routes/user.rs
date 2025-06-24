@@ -1,7 +1,7 @@
 pub mod theme;
 
 use actix_web::{web, HttpRequest, HttpResponse};
-#[cfg(feature = "dummy_connector")]
+#[cfg(all(feature = "dummy_connector", feature = "v1"))]
 use api_models::user::sample_data::SampleDataRequest;
 use api_models::{
     errors::types::ApiErrorResponse,
