@@ -118,8 +118,8 @@ pub fn get_client_builder(
         );
     }
 
-    logger::debug!("{:?} HTTP CLient Request",client_builder);
-    
+    logger::debug!("{:?} HTTP CLient Request", client_builder);
+
     Ok(client_builder)
 }
 
