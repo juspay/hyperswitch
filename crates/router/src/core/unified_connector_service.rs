@@ -104,7 +104,7 @@ pub async fn should_call_unified_connector_service<F: Clone, T>(
 pub fn build_unified_connector_service_payment_method(
     payment_method_data: hyperswitch_domain_models::payment_method_data::PaymentMethodData,
     payment_method_type: PaymentMethodType,
-) -> Result<payments_grpc::PaymentMethod, error_stack::Report<UnifiedConnectorServiceError>> {
+) -> CustomResult<payments_grpc::PaymentMethod, UnifiedConnectorServiceError> {
     match payment_method_data {
         hyperswitch_domain_models::payment_method_data::PaymentMethodData::Card(card) => {
             let card_exp_month = card
