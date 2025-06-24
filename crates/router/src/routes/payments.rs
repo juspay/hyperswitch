@@ -447,7 +447,7 @@ pub async fn payments_retrieve(
     tracing::Span::current().record("flow", flow.to_string());
 
     let api_auth = auth::ApiKeyAuth {
-        is_connected_allowed: false,
+        is_connected_allowed: true,
         is_platform_allowed: true,
     };
 
@@ -1399,7 +1399,7 @@ pub async fn payments_list(
         },
         auth::auth_type(
             &auth::HeaderAuth(auth::ApiKeyAuth {
-                is_connected_allowed: false,
+                is_connected_allowed: true,
                 is_platform_allowed: true,
             }),
             &auth::JWTAuth {
