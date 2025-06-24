@@ -474,7 +474,6 @@ impl CustomerInterface for KafkaStore {
         state: &KeyManagerState,
         id: &id_type::GlobalCustomerId,
         customer: domain::Customer,
-        merchant_id: &id_type::MerchantId,
         customer_update: storage::CustomerUpdate,
         key_store: &domain::MerchantKeyStore,
         storage_scheme: MerchantStorageScheme,
@@ -484,7 +483,6 @@ impl CustomerInterface for KafkaStore {
                 state,
                 id,
                 customer,
-                merchant_id,
                 customer_update,
                 key_store,
                 storage_scheme,
@@ -549,12 +547,11 @@ impl CustomerInterface for KafkaStore {
         &self,
         state: &KeyManagerState,
         id: &id_type::GlobalCustomerId,
-        merchant_id: &id_type::MerchantId,
         key_store: &domain::MerchantKeyStore,
         storage_scheme: MerchantStorageScheme,
     ) -> CustomResult<domain::Customer, errors::StorageError> {
         self.diesel_store
-            .find_customer_by_global_id(state, id, merchant_id, key_store, storage_scheme)
+            .find_customer_by_global_id(state, id, key_store, storage_scheme)
             .await
     }
 
@@ -1857,7 +1854,7 @@ impl PaymentIntentInterface for KafkaStore {
             .update_payment_intent(
                 state,
                 this.clone(),
-                payment_intent,
+                payment_intent.clone(),
                 key_store,
                 storage_scheme,
             )
@@ -1869,7 +1866,7 @@ impl PaymentIntentInterface for KafkaStore {
                 &intent,
                 Some(this),
                 self.tenant_id.clone(),
-                state.infra_values.clone(),
+                state.add_confirm_value_in_infra_values(payment_intent.is_confirm_operation()),
             )
             .await
         {
@@ -3810,7 +3807,7 @@ impl AuthenticationInterface for KafkaStore {
     async fn find_authentication_by_merchant_id_authentication_id(
         &self,
         merchant_id: &id_type::MerchantId,
-        authentication_id: String,
+        authentication_id: &id_type::AuthenticationId,
     ) -> CustomResult<storage::Authentication, errors::StorageError> {
         self.diesel_store
             .find_authentication_by_merchant_id_authentication_id(merchant_id, authentication_id)

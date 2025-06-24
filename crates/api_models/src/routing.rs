@@ -1384,160 +1384,6 @@ impl std::fmt::Display for RoutingApproach {
         }
     }
 }
-
-#[derive(Clone, Debug, Serialize, Deserialize)]
-#[serde(rename_all = "snake_case")]
-pub struct BucketInformationEventResponse {
-    pub is_eliminated: bool,
-    pub bucket_name: Vec<String>,
-}
-
-#[derive(Clone, Debug, Serialize, Deserialize)]
-#[serde(rename_all = "snake_case")]
-pub struct EliminationInformationEventResponse {
-    pub entity: Option<BucketInformationEventResponse>,
-    pub global: Option<BucketInformationEventResponse>,
-}
-
-#[derive(Clone, Debug, Serialize, Deserialize)]
-#[serde(rename_all = "snake_case")]
-pub struct LabelWithStatusEliminationEventResponse {
-    pub label: String,
-    pub elimination_information: Option<EliminationInformationEventResponse>,
-}
-
-#[derive(Clone, Debug, Serialize, Deserialize)]
-#[serde(rename_all = "snake_case")]
-pub struct EliminationEventResponse {
-    pub labels_with_status: Vec<LabelWithStatusEliminationEventResponse>,
-}
-
-#[derive(Clone, Debug, Serialize, Deserialize)]
-#[serde(rename_all = "snake_case")]
-pub struct ScoreDataEventResponse {
-    pub score: f64,
-    pub label: String,
-    pub current_count: u64,
-}
-
-#[derive(Clone, Debug, Serialize, Deserialize)]
-#[serde(rename_all = "snake_case")]
-pub struct CalContractScoreEventResponse {
-    pub labels_with_score: Vec<ScoreDataEventResponse>,
-}
-
-#[derive(Clone, Copy, Debug, Serialize, Deserialize)]
-#[serde(rename_all = "snake_case")]
-pub struct CalGlobalSuccessRateConfigEventRequest {
-    pub entity_min_aggregates_size: u32,
-    pub entity_default_success_rate: f64,
-}
-
-#[derive(Clone, Debug, Serialize, Deserialize)]
-#[serde(rename_all = "snake_case")]
-pub struct CalGlobalSuccessRateEventRequest {
-    pub entity_id: String,
-    pub entity_params: String,
-    pub entity_labels: Vec<String>,
-    pub global_labels: Vec<String>,
-    pub config: Option<CalGlobalSuccessRateConfigEventRequest>,
-}
-
-#[derive(Clone, Debug, Serialize, Deserialize)]
-#[serde(rename_all = "snake_case")]
-pub struct UpdateSuccessRateWindowConfig {
-    pub max_aggregates_size: Option<u32>,
-    pub current_block_threshold: Option<CurrentBlockThreshold>,
-}
-
-#[derive(Clone, Debug, Serialize, Deserialize)]
-#[serde(rename_all = "snake_case")]
-pub struct UpdateLabelWithStatusEventRequest {
-    pub label: String,
-    pub status: bool,
-}
-
-#[derive(Clone, Debug, Serialize, Deserialize)]
-#[serde(rename_all = "snake_case")]
-pub struct UpdateSuccessRateWindowEventRequest {
-    pub id: String,
-    pub params: String,
-    pub labels_with_status: Vec<UpdateLabelWithStatusEventRequest>,
-    pub config: Option<UpdateSuccessRateWindowConfig>,
-    pub global_labels_with_status: Vec<UpdateLabelWithStatusEventRequest>,
-}
-
-#[derive(Clone, Debug, Serialize, Deserialize)]
-#[serde(rename_all = "snake_case")]
-pub struct UpdateSuccessRateWindowEventResponse {
-    pub status: UpdationStatusEventResponse,
-}
-
-#[derive(Clone, Debug, Serialize, Deserialize)]
-#[serde(rename_all = "snake_case")]
-pub enum UpdationStatusEventResponse {
-    WindowUpdationSucceeded,
-    WindowUpdationFailed,
-}
-
-#[derive(Clone, Debug, Serialize, Deserialize)]
-#[serde(rename_all = "snake_case")]
-pub struct LabelWithBucketNameEventRequest {
-    pub label: String,
-    pub bucket_name: String,
-}
-
-#[derive(Clone, Debug, Serialize, Deserialize)]
-#[serde(rename_all = "snake_case")]
-pub struct UpdateEliminationBucketEventRequest {
-    pub id: String,
-    pub params: String,
-    pub labels_with_bucket_name: Vec<LabelWithBucketNameEventRequest>,
-    pub config: Option<EliminationRoutingEventBucketConfig>,
-}
-
-#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
-#[serde(rename_all = "snake_case")]
-pub struct UpdateEliminationBucketEventResponse {
-    pub status: EliminationUpdationStatusEventResponse,
-}
-
-#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
-#[serde(rename_all = "snake_case")]
-pub enum EliminationUpdationStatusEventResponse {
-    BucketUpdationSucceeded,
-    BucketUpdationFailed,
-}
-
-#[derive(Clone, Debug, Serialize, Deserialize)]
-#[serde(rename_all = "snake_case")]
-pub struct ContractLabelInformationEventRequest {
-    pub label: String,
-    pub target_count: u64,
-    pub target_time: u64,
-    pub current_count: u64,
-}
-
-#[derive(Clone, Debug, Serialize, Deserialize)]
-#[serde(rename_all = "snake_case")]
-pub struct UpdateContractRequestEventRequest {
-    pub id: String,
-    pub params: String,
-    pub labels_information: Vec<ContractLabelInformationEventRequest>,
-}
-
-#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
-#[serde(rename_all = "snake_case")]
-pub struct UpdateContractEventResponse {
-    pub status: ContractUpdationStatusEventResponse,
-}
-
-#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
-#[serde(rename_all = "snake_case")]
-pub enum ContractUpdationStatusEventResponse {
-    ContractUpdationSucceeded,
-    ContractUpdationFailed,
-}
 #[derive(Clone, Debug, serde::Deserialize, serde::Serialize)]
 pub struct RuleMigrationQuery {
     pub profile_id: common_utils::id_type::ProfileId,
@@ -1563,6 +1409,7 @@ pub struct RuleMigrationResponse {
     pub profile_id: common_utils::id_type::ProfileId,
     pub euclid_algorithm_id: common_utils::id_type::RoutingId,
     pub decision_engine_algorithm_id: String,
+    pub is_active_rule: bool,
 }
 
 #[derive(Debug, serde::Serialize)]
@@ -1577,11 +1424,23 @@ impl RuleMigrationResponse {
         profile_id: common_utils::id_type::ProfileId,
         euclid_algorithm_id: common_utils::id_type::RoutingId,
         decision_engine_algorithm_id: String,
+        is_active_rule: bool,
     ) -> Self {
         Self {
             profile_id,
             euclid_algorithm_id,
             decision_engine_algorithm_id,
+            is_active_rule,
         }
     }
+}
+
+#[derive(Clone, Debug, serde::Deserialize, serde::Serialize, strum::Display, strum::EnumString)]
+#[serde(rename_all = "snake_case")]
+#[strum(serialize_all = "snake_case")]
+pub enum RoutingResultSource {
+    /// External Decision Engine
+    DecisionEngine,
+    /// Inbuilt Hyperswitch Routing Engine
+    HyperswitchRouting,
 }

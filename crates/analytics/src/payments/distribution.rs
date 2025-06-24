@@ -37,6 +37,7 @@ pub struct PaymentDistributionRow {
     pub total: Option<bigdecimal::BigDecimal>,
     pub count: Option<i64>,
     pub error_message: Option<String>,
+    pub routing_approach: Option<DBEnumWrapper<storage_enums::RoutingApproach>>,
     #[serde(with = "common_utils::custom_serde::iso8601::option")]
     pub start_bucket: Option<PrimitiveDateTime>,
     #[serde(with = "common_utils::custom_serde::iso8601::option")]

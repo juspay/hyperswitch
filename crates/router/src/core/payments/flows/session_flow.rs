@@ -40,7 +40,7 @@ impl
         connector_id: &str,
         merchant_context: &domain::MerchantContext,
         customer: &Option<domain::Customer>,
-        merchant_connector_account: &domain::MerchantConnectorAccount,
+        merchant_connector_account: &domain::MerchantConnectorAccountTypeDetails,
         merchant_recipient_data: Option<types::MerchantRecipientData>,
         header_payload: Option<hyperswitch_domain_models::payments::HeaderPayload>,
     ) -> RouterResult<types::PaymentsSessionRouterData> {
@@ -269,7 +269,9 @@ async fn create_applepay_session_token(
     let delayed_response = is_session_response_delayed(state, connector);
     if delayed_response {
         let delayed_response_apple_pay_session =
-            Some(payment_types::ApplePaySessionResponse::NoSessionResponse);
+            Some(payment_types::ApplePaySessionResponse::NoSessionResponse(
+                api_models::payments::NullObject,
+            ));
         create_apple_pay_session_response(
             router_data,
             delayed_response_apple_pay_session,
