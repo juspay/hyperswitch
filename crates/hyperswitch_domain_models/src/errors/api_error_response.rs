@@ -294,7 +294,7 @@ pub enum ApiErrorResponse {
     MandatePaymentDataMismatch { fields: String },
     #[error(error_type = ErrorType::InvalidRequestError, code = "IR_47", message = "API does not support connected account operation")]
     ConnectedAccountAuthNotSupported,
-    #[error(error_type = ErrorType::InvalidRequestError, code = "IR_44", message = "Invalid connected account operation")]
+    #[error(error_type = ErrorType::InvalidRequestError, code = "IR_48", message = "Invalid connected account operation")]
     InvalidConnectedOperation,
     #[error(error_type = ErrorType::InvalidRequestError, code = "WE_01", message = "Failed to authenticate the webhook")]
     WebhookAuthenticationFailed,
@@ -702,7 +702,7 @@ impl ErrorSwitch<api_models::errors::types::ApiErrorResponse> for ApiErrorRespon
                 AER::BadRequest(ApiError::new("IR", 47, "API does not support connected account operation", None))
             }
             Self::InvalidConnectedOperation => {
-                AER::Unauthorized(ApiError::new("IR", 44, "Invalid connected account operation", None))
+                AER::Unauthorized(ApiError::new("IR", 48, "Invalid connected account operation", None))
             }
         }
     }
