@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+/* eslint-disable no-console */
 
 import fs from "fs";
 
@@ -16,15 +17,31 @@ function createDirs() {
 function minifyJS(inputPath, outputPath) {
   let content = fs.readFileSync(inputPath, "utf8");
 
+  // Preserve eslint disable comments
+  const eslintComments = [];
+  content = content.replace(/\/\*\s*eslint-disable[\s\S]*?\*\//g, (match) => {
+    eslintComments.push(match);
+    return `/*ESLINT_PRESERVE_${eslintComments.length - 1}*/`;
+  });
+  content = content.replace(/\/\*\s*global[\s\S]*?\*\//g, (match) => {
+    eslintComments.push(match);
+    return `/*ESLINT_PRESERVE_${eslintComments.length - 1}*/`;
+  });
+
   // Basic minification
   content = content
-    .replace(/\/\*[\s\S]*?\*\//g, "") // Remove block comments
+    .replace(/\/\*[\s\S]*?\*\//g, "") // Remove other block comments
     .replace(/\/\/.*$/gm, "") // Remove line comments
     .replace(/\s+/g, " ") // Replace multiple spaces with single space
     .replace(/;\s*}/g, ";}") // Remove space before closing brace
     .replace(/{\s*/g, "{") // Remove space after opening brace
     .replace(/}\s*/g, "}") // Remove space after closing brace
     .trim();
+
+  // Restore eslint comments
+  eslintComments.forEach((comment, index) => {
+    content = content.replace(`/*ESLINT_PRESERVE_${index}*/`, comment);
+  });
 
   fs.writeFileSync(outputPath, content);
 }

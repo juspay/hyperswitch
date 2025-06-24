@@ -1,10 +1,10 @@
 #!/usr/bin/env node
+/* eslint-disable no-console */
 
-import http from "http";
 import fs from "fs";
-import path from "path";
+import http from "http";
+import path, { dirname } from "path";
 import { fileURLToPath } from "url";
-import { dirname } from "path";
 
 // Get the directory of the current module
 const __filename = fileURLToPath(import.meta.url);

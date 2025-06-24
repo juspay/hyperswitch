@@ -18,8 +18,6 @@
     "dashboard:serve": "node scripts/serve-dashboard.js",
     "dashboard": "npm run dashboard:serve",
     "cypress:ci:report": "npm run cypress:ci && npm run report:generate",
-    "cypress:payments:report": "npm run cypress:payments && npm run report:generate",
-    "cypress:payouts:report": "npm run cypress:payouts && npm run report:generate",
     "build": "node scripts/build.js",
     "build:clean": "node scripts/build.js clean",
     "format": "prettier --config .prettierrc . --write",

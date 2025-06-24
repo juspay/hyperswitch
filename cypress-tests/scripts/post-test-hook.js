@@ -1,7 +1,8 @@
+/* eslint-disable no-console */
 import { exec } from "child_process";
-import { promisify } from "util";
 import path from "path";
 import { fileURLToPath } from "url";
+import { promisify } from "util";
 
 const execAsync = promisify(exec);
 const __filename = fileURLToPath(import.meta.url);

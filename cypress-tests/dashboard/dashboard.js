@@ -1,3 +1,6 @@
+/* eslint-disable no-console */
+/* global Chart */
+
 // Dashboard JavaScript
 let dashboardData = null;
 let connectorChart = null;
