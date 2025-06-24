@@ -557,7 +557,6 @@ pub struct JpmorganRefundResponse {
     pub remaining_refundable_amount: Option<i64>,
 }
 
-#[allow(dead_code)]
 #[derive(Debug, Serialize, Default, Deserialize, Clone)]
 pub enum RefundStatus {
     Succeeded,
@@ -576,24 +575,23 @@ impl From<RefundStatus> for common_enums::RefundStatus {
     }
 }
 
-pub fn refund_status_from_transaction_state(
-    response_status: JpmorganResponseStatus,
-    transaction_state: JpmorganTransactionState,
-) -> common_enums::RefundStatus {
-    match response_status {
-        JpmorganResponseStatus::Success => match transaction_state {
-            JpmorganTransactionState::Voided | JpmorganTransactionState::Closed => {
-                common_enums::RefundStatus::Success
-            }
-            JpmorganTransactionState::Declined | JpmorganTransactionState::Error => {
-                common_enums::RefundStatus::Failure
-            }
-            JpmorganTransactionState::Pending | JpmorganTransactionState::Authorized => {
-                common_enums::RefundStatus::Pending
-            }
-        },
-        JpmorganResponseStatus::Denied | JpmorganResponseStatus::Error => {
-            common_enums::RefundStatus::Failure
+impl From<(JpmorganResponseStatus, JpmorganTransactionState)> for RefundStatus {
+    fn from(
+        (response_status, transaction_state): (JpmorganResponseStatus, JpmorganTransactionState),
+    ) -> Self {
+        match response_status {
+            JpmorganResponseStatus::Success => match transaction_state {
+                JpmorganTransactionState::Voided | JpmorganTransactionState::Closed => {
+                    Self::Succeeded
+                }
+                JpmorganTransactionState::Declined | JpmorganTransactionState::Error => {
+                    Self::Failed
+                }
+                JpmorganTransactionState::Pending | JpmorganTransactionState::Authorized => {
+                    Self::Processing
+                }
+            },
+            JpmorganResponseStatus::Denied | JpmorganResponseStatus::Error => Self::Failed,
         }
     }
 }
@@ -612,10 +610,11 @@ impl TryFrom<RefundsResponseRouterData<Execute, JpmorganRefundResponse>>
                     .transaction_id
                     .clone()
                     .ok_or(errors::ConnectorError::ResponseHandlingFailed)?,
-                refund_status: refund_status_from_transaction_state(
+                refund_status: RefundStatus::from((
                     item.response.response_status,
                     item.response.transaction_state,
-                ),
+                ))
+                .into(),
             }),
             ..item.data
         })
@@ -644,10 +643,11 @@ impl TryFrom<RefundsResponseRouterData<RSync, JpmorganRefundSyncResponse>>
         Ok(Self {
             response: Ok(RefundsResponseData {
                 connector_refund_id: item.response.transaction_id.clone(),
-                refund_status: refund_status_from_transaction_state(
+                refund_status: RefundStatus::from((
                     item.response.response_status,
                     item.response.transaction_state,
-                ),
+                ))
+                .into(),
             }),
             ..item.data
         })
