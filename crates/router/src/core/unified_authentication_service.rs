@@ -37,7 +37,7 @@ use crate::{
     consts,
     core::{
         errors::utils::StorageErrorExt,
-        payment_methods::vault::Vaultable,
+        payment_methods::vault::{Vaultable,create_tokenize},
         unified_authentication_service::types::{
             ClickToPay, ExternalAuthentication, UnifiedAuthenticationService,
             UNIFIED_AUTHENTICATION_SERVICE,
@@ -634,7 +634,8 @@ pub async fn authentication_create_core(
     let new_authentication = create_new_authentication(
         &state,
         merchant_id.clone(),
-        None,
+        req.authentication_connector
+            .map(|connector| connector.to_string()),
         profile_id.clone(),
         None,
         None,
@@ -724,6 +725,39 @@ impl
             profile_id: Some(profile_id),
             psd2_sca_exemption_type: authentication.psd2_sca_exemption_type,
             acquirer_details,
+        }
+    }
+}
+
+impl
+    ForeignFrom<(
+        Authentication,
+        String,
+        common_utils::id_type::ProfileId,
+    )> for AuthenticationEligibilityResponse
+{
+    fn foreign_from(
+        (authentication, next_api_action, profile_id): (
+            Authentication,
+            String,
+            common_utils::id_type::ProfileId,
+        ),
+    ) -> Self {
+        Self {
+            authentication_id: authentication.authentication_id,
+            next_api_action,
+            status: authentication.authentication_status,
+            maximum_supported_3ds_version: authentication.maximum_supported_version,
+            connector_authentication_id: authentication.connector_authentication_id,
+            three_ds_method_data: authentication.three_ds_method_data,
+            three_ds_method_url: authentication.three_ds_method_url,
+            message_version: authentication.message_version,
+            connector_metadata: authentication.connector_metadata,
+            directory_server_id: authentication.directory_server_id,
+            threeds_server_transaction_id: authentication.threeds_server_transaction_id,
+            profile_id,
+            error_message: authentication.error_message,
+            error_code: authentication.error_code,
         }
     }
 }
@@ -823,13 +857,14 @@ pub async fn authentication_eligibility_core(
     )
     .await?;
 
+    // Tokenise card data if authentication is successful
     if updated_authentication.error_code.is_none() && updated_authentication.error_message.is_none()
     {
         let stringyfied_card_data = payment_method_data
             .get_value1(None)
             .change_context(ApiErrorResponse::InternalServerError)?;
 
-        crate::core::payment_methods::vault::create_tokenize(
+        create_tokenize(
             &state,
             stringyfied_card_data,
             None,
@@ -839,25 +874,14 @@ pub async fn authentication_eligibility_core(
         .await?;
     }
 
-    let response = AuthenticationEligibilityResponse {
-        authentication_id: updated_authentication.authentication_id,
-        next_api_action: req.get_next_action_api(
+    let response = AuthenticationEligibilityResponse::foreign_from((
+        updated_authentication,
+        req.get_next_action_api(
             state.base_url,
             authentication_id.get_string_repr().to_string(),
         ),
-        status: updated_authentication.authentication_status,
-        maximum_supported_3ds_version: updated_authentication.maximum_supported_version,
-        connector_authentication_id: updated_authentication.connector_authentication_id,
-        three_ds_method_data: updated_authentication.three_ds_method_data,
-        three_ds_method_url: updated_authentication.three_ds_method_url,
-        message_version: updated_authentication.message_version,
-        connector_metadata: updated_authentication.connector_metadata,
-        directory_server_id: updated_authentication.directory_server_id,
-        threeds_server_transaction_id: updated_authentication.threeds_server_transaction_id,
         profile_id,
-        error_message: updated_authentication.error_message,
-        error_code: updated_authentication.error_code,
-    };
+    ));
 
     Ok(hyperswitch_domain_models::api::ApplicationResponse::Json(
         response,
