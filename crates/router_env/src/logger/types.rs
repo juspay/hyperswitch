@@ -594,10 +594,15 @@ pub enum Flow {
     TokenizationRetrieve,
     /// Clone Connector flow
     CloneConnector,
-    AuthenticationCreate, // Added new flow
+    /// Authentication Create flow
+    AuthenticationCreate,
+    /// Authentication Eligibility flow
+    AuthenticationEligibility,
     ///Proxy Flow
     Proxy,
+    /// Profile Acquirer Create flow
     ProfileAcquirerCreate,
+    /// Profile Acquirer Update flow
     ProfileAcquirerUpdate,
     /// ThreeDs Decision Rule Execute flow
     ThreeDsDecisionRuleExecute,

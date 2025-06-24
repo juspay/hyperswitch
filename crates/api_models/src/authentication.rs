@@ -19,10 +19,6 @@ pub struct AuthenticationCreateRequest {
     #[schema(value_type = Option<String>)]
     pub profile_id: Option<id_type::ProfileId>,
 
-    /// The connector to be used for authentication, if known.
-    #[schema(value_type = Option<AuthenticationConnectors>, example = "netcetera")]
-    pub authentication_connector: Option<AuthenticationConnectors>,
-
     /// Customer details.
     #[schema(value_type = Option<CustomerDetails>)]
     pub customer: Option<CustomerDetails>,
@@ -30,6 +26,10 @@ pub struct AuthenticationCreateRequest {
     /// The amount for the transaction, required.
     #[schema(value_type = MinorUnit, example = 1000)]
     pub amount: common_utils::types::MinorUnit,
+
+    /// The connector to be used for authentication, if known.
+    #[schema(value_type = Option<AuthenticationConnectors>, example = "netcetera")]
+    pub authentication_connector: Option<AuthenticationConnectors>,
 
     /// The currency for the transaction, required.
     #[schema(value_type = Currency)]
@@ -43,10 +43,6 @@ pub struct AuthenticationCreateRequest {
     #[schema(value_type = Option<AcquirerDetails>)]
     pub acquirer_details: Option<AcquirerDetails>,
 
-    /// Metadata for the authentication.
-    #[schema(value_type = Option<Object>, example = json!({"order_id": "OR_12345"}))]
-    pub metadata: Option<serde_json::Value>,
-
     /// Force 3DS challenge.
     #[serde(default)]
     pub force_3ds_challenge: Option<bool>,
@@ -58,8 +54,14 @@ pub struct AuthenticationCreateRequest {
 
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
 pub struct AcquirerDetails {
+    /// The bin of the card.
+    #[schema(value_type = Option<String>, example = "123456")]
     pub bin: Option<String>,
+    /// The merchant id of the card.
+    #[schema(value_type = Option<String>, example = "merchant_abc")]
     pub merchant_id: Option<String>,
+    /// The country code of the card.
+    #[schema(value_type = Option<String>, example = "US/34456")]
     pub country_code: Option<String>,
 }
 
@@ -90,16 +92,12 @@ pub struct AuthenticationResponse {
     #[schema(value_type = Currency)]
     pub currency: enums::Currency,
 
-    /// Customer details, if provided in the request.
-    #[schema(value_type = Option<CustomerDetails>)]
-    pub customer: Option<CustomerDetails>,
+    /// The connector to be used for authentication, if known.
+    #[schema(value_type = Option<AuthenticationConnectors>, example = "netcetera")]
+    pub authentication_connector: Option<String>,
 
     /// Whether 3DS challenge was forced.
     pub force_3ds_challenge: Option<bool>,
-
-    /// The connector to be used for authentication, if specified in request.
-    #[schema(value_type = Option<AuthenticationConnectors>)]
-    pub authentication_connector: Option<String>,
 
     /// The URL to which the user should be redirected after authentication, if provided.
     pub return_url: Option<String>,
@@ -115,17 +113,9 @@ pub struct AuthenticationResponse {
     #[schema(example = "Failed while verifying the card")]
     pub error_message: Option<String>,
 
-    /// You can specify up to 50 keys, with key names up to 40 characters long and values up to 500 characters long. Metadata is useful for storing additional, structured information on an object.
-    #[schema(value_type = Option<Object>, example = r#"{ "udf1": "some-value", "udf2": "some-value" }"#)]
-    pub metadata: Option<serde_json::Value>,
-
     /// The business profile that is associated with this payment
     #[schema(value_type = Option<String>)]
     pub profile_id: Option<id_type::ProfileId>,
-
-    #[schema(value_type = Option<BrowserInformation>)]
-    /// The browser information used for this payment
-    pub browser_info: Option<serde_json::Value>,
 
     /// Choose what kind of sca exemption is required for this payment
     #[schema(value_type = Option<ScaExemptionType>)]
@@ -145,7 +135,63 @@ impl ApiEventMetric for AuthenticationCreateRequest {
             })
     }
 }
+
 impl ApiEventMetric for AuthenticationResponse {
+    fn get_api_event_type(&self) -> Option<ApiEventsType> {
+        Some(ApiEventsType::Authentication {
+            authentication_id: self.authentication_id.clone(),
+        })
+    }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
+pub struct AuthenticationEligibilityRequest {
+    /// Payment method data
+    pub payment_method_data: crate::payments::PaymentMethodData,
+
+    /// Payment method
+    pub payment_method: common_enums::PaymentMethod,
+
+    pub client_secret: Option<masking::Secret<String>>,
+
+    /// The business profile that is associated with this payment
+    #[schema(value_type = Option<String>)]
+    pub profile_id: Option<id_type::ProfileId>,
+}
+
+impl AuthenticationEligibilityRequest {
+    pub fn get_next_action_api(self, base_url: String, authentication_id: String) -> String {
+        format!("{base_url}/authentication/{authentication_id}/authenticate")
+    }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
+pub struct AuthenticationEligibilityResponse {
+    pub authentication_id: id_type::AuthenticationId,
+    pub next_api_action: String,
+    /// The current status of the authentication (e.g., Started).
+    #[schema(value_type = AuthenticationStatus)]
+    pub status: common_enums::AuthenticationStatus,
+    pub threeds_server_transaction_id: Option<String>,
+    pub maximum_supported_3ds_version: Option<common_utils::types::SemanticVersion>,
+    pub connector_authentication_id: Option<String>,
+    pub three_ds_method_data: Option<String>,
+    pub three_ds_method_url: Option<String>,
+    pub message_version: Option<common_utils::types::SemanticVersion>,
+    pub connector_metadata: Option<serde_json::Value>,
+    pub directory_server_id: Option<String>,
+    pub profile_id: id_type::ProfileId,
+    pub error_message: Option<String>,
+    pub error_code: Option<String>,
+}
+
+impl ApiEventMetric for AuthenticationEligibilityRequest {
+    fn get_api_event_type(&self) -> Option<ApiEventsType> {
+        None
+    }
+}
+
+impl ApiEventMetric for AuthenticationEligibilityResponse {
     fn get_api_event_type(&self) -> Option<ApiEventsType> {
         Some(ApiEventsType::Authentication {
             authentication_id: self.authentication_id.clone(),

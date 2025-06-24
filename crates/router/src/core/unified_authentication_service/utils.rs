@@ -2,9 +2,10 @@ use std::marker::PhantomData;
 
 use common_enums::enums::PaymentMethod;
 use common_utils::ext_traits::{AsyncExt, ValueExt};
-use error_stack::ResultExt;
+use error_stack::{report, ResultExt};
 use hyperswitch_domain_models::{
     errors::api_error_response::ApiErrorResponse,
+    ext_traits::OptionExt,
     payment_address::PaymentAddress,
     router_data::{ConnectorAuthType, ErrorResponse, RouterData},
     router_data_v2::UasFlowData,
@@ -306,5 +307,34 @@ pub fn get_checkout_event_status_and_reason(
             Some("03".to_string()),
             Some("No Approval Code received".to_string()),
         ),
+    }
+}
+
+pub fn authenticate_authentication_client_secret_and_check_expiry(
+    req_client_secret: &String,
+    authentication: &diesel_models::authentication::Authentication,
+) -> RouterResult<bool> {
+    let stored_client_secret = authentication
+        .authentication_client_secret
+        .clone()
+        .get_required_value("authentication_client_secret")
+        .change_context(ApiErrorResponse::MissingRequiredField {
+            field_name: "client_secret",
+        })
+        .attach_printable("client secret not found in db")?;
+
+    if req_client_secret != &stored_client_secret {
+        Err(report!(ApiErrorResponse::ClientSecretInvalid))
+    } else {
+        let current_timestamp = common_utils::date_time::now();
+        let session_expiry = authentication
+            .created_at
+            .saturating_add(time::Duration::seconds(
+                crate::consts::DEFAULT_SESSION_EXPIRY,
+            ));
+
+        let expired = current_timestamp > session_expiry;
+
+        Ok(expired)
     }
 }
