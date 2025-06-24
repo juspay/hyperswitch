@@ -1987,6 +1987,7 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for
                         is_iframe_redirection_enabled: payment_data
                             .payment_intent
                             .is_iframe_redirection_enabled,
+                        is_confirm_operation: true, // Indicates that this is a confirm operation
                     })),
                     &m_key_store,
                     storage_scheme,
