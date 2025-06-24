@@ -1278,40 +1278,38 @@ pub async fn schedule_refund_execution(
                             Ok(refund)
                         }
                         api_models::refunds::RefundType::Instant => {
-                            let update_refund = if state
-                                .conf
-                                .merchant_id_auth
-                                .merchant_id_auth_enabled
-                            {
-                                let merchant_connector_details = match merchant_connector_details {
-                                    Some(details) => details,
-                                    None => {
-                                        return Err(report!(
+                            let update_refund =
+                                if state.conf.merchant_id_auth.merchant_id_auth_enabled {
+                                    let merchant_connector_details =
+                                        match merchant_connector_details {
+                                            Some(details) => details,
+                                            None => {
+                                                return Err(report!(
                                             errors::ApiErrorResponse::MissingRequiredField {
                                                 field_name: "merchant_connector_details"
                                             }
                                         ));
-                                    }
+                                            }
+                                        };
+                                    Box::pin(internal_trigger_refund_to_gateway(
+                                        state,
+                                        &refund,
+                                        merchant_context,
+                                        payment_attempt,
+                                        payment_intent,
+                                        merchant_connector_details,
+                                    ))
+                                    .await
+                                } else {
+                                    Box::pin(trigger_refund_to_gateway(
+                                        state,
+                                        &refund,
+                                        merchant_context,
+                                        payment_attempt,
+                                        payment_intent,
+                                    ))
+                                    .await
                                 };
-                                Box::pin(internal_trigger_refund_to_gateway(
-                                    state,
-                                    &refund,
-                                    merchant_context,
-                                    payment_attempt,
-                                    payment_intent,
-                                    merchant_connector_details,
-                                ))
-                                .await
-                            } else {
-                                Box::pin(trigger_refund_to_gateway(
-                                    state,
-                                    &refund,
-                                    merchant_context,
-                                    payment_attempt,
-                                    payment_intent,
-                                ))
-                                .await
-                            };
 
                             match update_refund {
                                 Ok(updated_refund_data) => {
