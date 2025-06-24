@@ -61,7 +61,7 @@ impl KeyManagerState {
             if is_confirm_operation {
                 infra_values
                     .as_object_mut()
-                    .map(|obj| obj.insert("confirm".to_string(), serde_json::Value::Bool(true)));
+                    .map(|obj| obj.insert("is_confirm_operation".to_string(), serde_json::Value::Bool(true)));
             }
             infra_values
         })
