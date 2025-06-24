@@ -2550,11 +2550,11 @@ pub enum MigrationStatus {
 
 impl PaymentMethodRecord {
     fn create_address(&self) -> Option<payments::AddressDetails> {
-        if self.billing_address_first_name.is_some() &&
-            self.billing_address_line1.is_some() &&
-            self.billing_address_zip.is_some() &&
-            self.billing_address_city.is_some() &&
-            self.billing_address_country.is_some()
+        if self.billing_address_first_name.is_some()
+            && self.billing_address_line1.is_some()
+            && self.billing_address_zip.is_some()
+            && self.billing_address_city.is_some()
+            && self.billing_address_country.is_some()
         {
             Some(payments::AddressDetails {
                 city: self.billing_address_city.clone(),
