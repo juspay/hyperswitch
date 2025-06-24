@@ -46,6 +46,7 @@
       "email": "guest@example.com",
       "profile_id": "{{profile_id}}",
       "name": "John Doe",
+      "setup_future_usage": "off_session",
       "phone": "8056594427",
       "phone_country_code": "+91",
       "description": "{{$randomLoremSentence}}",

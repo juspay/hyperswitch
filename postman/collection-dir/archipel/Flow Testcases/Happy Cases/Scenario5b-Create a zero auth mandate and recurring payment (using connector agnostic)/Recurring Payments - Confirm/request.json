@@ -31,7 +31,7 @@
     },
     {
       "key": "publishable_key",
-      "value": "pk_snd_8798c6a9114646f8b970b93ad5765ddf",
+      "value": "{{publishable_key}}",
       "type": "text",
       "disabled": true
     }
@@ -44,40 +44,9 @@
       }
     },
     "raw_json_formatted": {
+      "customer_id": "{{customer_id}}",
       "payment_method": "card",
-      "payment_method_type": "credit",
-      "payment_method_data": {
-        "card": {
-          "card_number": "5185570141917102",
-          "card_exp_month": "01",
-          "card_exp_year": "50",
-          "card_holder_name": "John Doe",
-          "card_cvc": "737"
-        }
-      },
-      "setup_future_usage": "off_session",
-      "payment_type": "setup_mandate",
-      "mandate_data": {
-        "customer_acceptance": {
-          "acceptance_type": "offline",
-          "accepted_at": "1963-05-03T04:07:52.723Z",
-          "online": {
-            "ip_address": "125.0.0.1",
-            "user_agent": "amet irure esse"
-          }
-        },
-        "mandate_type": {
-          "multi_use": {
-            "amount": 1000,
-            "currency": "USD",
-            "start_date": "2023-04-21T00:00:00Z",
-            "end_date": "2023-05-21T00:00:00Z",
-            "metadata": {
-              "frequency": "13"
-            }
-          }
-        }
-      }
+      "payment_token": "{{payment_token}}"
     }
   },
   "url": {
