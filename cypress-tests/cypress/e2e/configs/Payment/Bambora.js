@@ -1,4 +1,8 @@
-import { cardRequiredField, customerAcceptance } from "./Commons";
+import {
+  customerAcceptance,
+  multiUseMandateData,
+  singleUseMandateData,
+} from "./Commons";
 
 const successfulNo3DSCardDetails = {
   card_number: "4123450131003312",
@@ -22,26 +26,6 @@ const failedNo3DSCardDetails = {
   card_exp_year: "35",
   card_holder_name: "joseph Doe",
   card_cvc: "123",
-};
-
-const singleUseMandateData = {
-  customer_acceptance: customerAcceptance,
-  mandate_type: {
-    single_use: {
-      amount: 8000,
-      currency: "USD",
-    },
-  },
-};
-
-const multiUseMandateData = {
-  customer_acceptance: customerAcceptance,
-  mandate_type: {
-    multi_use: {
-      amount: 8000,
-      currency: "USD",
-    },
-  },
 };
 
 const payment_method_data_3ds = {
@@ -78,25 +62,6 @@ const payment_method_data_no3ds = {
     authentication_data: null,
   },
   billing: null,
-};
-
-const requiredFields = {
-  payment_methods: [
-    {
-      payment_method: "card",
-      payment_method_types: [
-        {
-          payment_method_type: "credit",
-          card_networks: [
-            {
-              eligible_connectors: ["bambora"],
-            },
-          ],
-          required_fields: cardRequiredField,
-        },
-      ],
-    },
-  ],
 };
 
 export const connectorDetails = {
@@ -157,7 +122,7 @@ export const connectorDetails = {
       Response: {
         status: 200,
         body: {
-          status: "succeeded", // Mapped from "approved": "1" and auto_capture
+          status: "succeeded",
           shipping_cost: 50,
           amount_received: 6050,
           amount: 6000,
@@ -178,7 +143,7 @@ export const connectorDetails = {
       Response: {
         status: 200,
         body: {
-          status: "requires_customer_action", // Mapped from 3DS response
+          status: "requires_customer_action",
           setup_future_usage: "on_session",
           payment_method_data: payment_method_data_3ds,
         },
@@ -217,7 +182,7 @@ export const connectorDetails = {
       Response: {
         status: 200,
         body: {
-          status: "requires_capture", // Mapped from "approved": "1" and manual capture
+          status: "requires_capture",
           payment_method: "card",
           attempt_count: 1,
           payment_method_data: payment_method_data_no3ds,
@@ -237,7 +202,7 @@ export const connectorDetails = {
       Response: {
         status: 200,
         body: {
-          status: "succeeded", // Mapped from "approved": "1" and auto capture
+          status: "succeeded",
           payment_method: "card",
           attempt_count: 1,
           payment_method_data: payment_method_data_no3ds,
@@ -256,10 +221,10 @@ export const connectorDetails = {
       Response: {
         status: 200,
         body: {
-          status: "failed", // Mapped from "approved": "0" or other non-"1"
-          error_code: "card_declined", // Placeholder, actual error code from Bambora
+          status: "failed",
+          error_code: "card_declined",
           error_message:
-            "message - Your card was declined., decline_code - generic_decline", // Placeholder
+            "message - Your card was declined., decline_code - generic_decline",
           unified_code: "UE_9000",
           unified_message: "Something went wrong",
         },
@@ -272,7 +237,7 @@ export const connectorDetails = {
       Response: {
         status: 200,
         body: {
-          status: "succeeded", // Mapped from "approved": "1"
+          status: "succeeded",
           amount: 6000,
           amount_capturable: 0,
           amount_received: 6000,
@@ -286,7 +251,7 @@ export const connectorDetails = {
       Response: {
         status: 200,
         body: {
-          status: "partially_captured", // Assuming Bambora supports partial capture and maps to this status
+          status: "partially_captured",
           amount: 6000,
           amount_capturable: 0,
           amount_received: 2000,
@@ -298,7 +263,7 @@ export const connectorDetails = {
       Response: {
         status: 200,
         body: {
-          status: "cancelled", // Mapped from "approved": "1"
+          status: "cancelled",
         },
       },
     },
@@ -309,7 +274,7 @@ export const connectorDetails = {
       Response: {
         status: 200,
         body: {
-          status: "succeeded", // Mapped from "approved": "1"
+          status: "succeeded",
         },
       },
     },
@@ -320,7 +285,7 @@ export const connectorDetails = {
       Response: {
         status: 200,
         body: {
-          status: "succeeded", // Mapped from "approved": "1"
+          status: "succeeded",
         },
       },
     },
@@ -331,7 +296,7 @@ export const connectorDetails = {
       Response: {
         status: 200,
         body: {
-          status: "succeeded", // Mapped from "approved": "1"
+          status: "succeeded",
         },
       },
     },
@@ -342,7 +307,7 @@ export const connectorDetails = {
       Response: {
         status: 200,
         body: {
-          status: "succeeded", // Mapped from "approved": "1"
+          status: "succeeded",
         },
       },
     },
@@ -350,7 +315,7 @@ export const connectorDetails = {
       Response: {
         status: 200,
         body: {
-          status: "succeeded", // Mapped from "approved": "1"
+          status: "succeeded",
         },
       },
     },
@@ -369,7 +334,7 @@ export const connectorDetails = {
       Response: {
         status: 200,
         body: {
-          status: "succeeded", // Mapped from "approved": "1" and auto_capture
+          status: "succeeded",
         },
       },
     },
@@ -528,23 +493,6 @@ export const connectorDetails = {
         },
       },
     },
-    PaymentMethodIdMandateNo3DSAutoCapture: {
-      Request: {
-        payment_method: "card",
-        payment_method_data: {
-          card: successfulNo3DSCardDetails,
-        },
-        currency: "USD",
-        mandate_data: null,
-        customer_acceptance: customerAcceptance,
-      },
-      Response: {
-        status: 200,
-        body: {
-          status: "succeeded",
-        },
-      },
-    },
     SaveCardUseNo3DSAutoCaptureOffSession: {
       Configs: {
         TRIGGER_SKIP: true, // Skip this test as Bambora doesn't support off_session for save card
@@ -646,7 +594,7 @@ export const connectorDetails = {
     },
     PaymentMethodIdMandateNo3DSAutoCapture: {
       Configs: {
-        TRIGGER_SKIP: true, // Skip this test as Bambora doesn't support off_session for save card
+        TRIGGER_SKIP: true,
       },
       Request: {
         payment_method: "card",
@@ -666,7 +614,7 @@ export const connectorDetails = {
     },
     PaymentMethodIdMandateNo3DSManualCapture: {
       Configs: {
-        TRIGGER_SKIP: true, 
+        TRIGGER_SKIP: true,
       },
       Request: {
         payment_method: "card",
@@ -686,7 +634,7 @@ export const connectorDetails = {
     },
     PaymentMethodIdMandate3DSAutoCapture: {
       Configs: {
-        TRIGGER_SKIP: true, 
+        TRIGGER_SKIP: true,
       },
       Request: {
         payment_method: "card",

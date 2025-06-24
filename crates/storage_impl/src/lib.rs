@@ -32,8 +32,6 @@ pub mod utils;
 
 use common_utils::{errors::CustomResult, types::keymanager::KeyManagerState};
 use database::store::PgPool;
-#[cfg(all(feature = "v2", feature = "tokenization_v2"))]
-use diesel_models::tokenization::Tokenization;
 pub mod tokenization;
 #[cfg(not(feature = "payouts"))]
 use hyperswitch_domain_models::{PayoutAttemptInterface, PayoutsInterface};

@@ -265,11 +265,11 @@
                     "pages": [
                       "v2/payment-methods/payment-method--create",
                       "v2/payment-methods/payment-method--create-intent",
-                      "v2/payment-methods/payment-method--payment-methods-list",
                       "v2/payment-methods/payment-method--confirm-intent",
                       "v2/payment-methods/payment-method--update",
                       "v2/payment-methods/payment-method--retrieve",
                       "v2/payment-methods/payment-method--delete",
+                      "v2/payment-methods/payment-method--list-customer-saved-payment-methods",
                       "v2/payment-methods/list-saved-payment-methods-for-a-customer"
                     ]
                   },
@@ -291,13 +291,17 @@
                       "v2/customers/customers--retrieve",
                       "v2/customers/customers--update",
                       "v2/customers/customers--delete",
-                      "v2/customers/customers--list",
-                      "v2/customers/customers--list-saved-payment-methods"
+                      "v2/customers/customers--list"
                     ]
                   },
                   {
                     "group": "Refunds",
-                    "pages": ["v2/refunds/refunds--create"]
+                    "pages": [
+                      "v2/refunds/refunds--create",
+                      "v2/refunds/refunds--metadata-update",
+                      "v2/refunds/refunds--retrieve",
+                      "v2/refunds/refunds--list"
+                    ]
                   }
                 ]
               },
@@ -373,6 +377,10 @@
                   {
                     "group": "Tokenization",
                     "pages": ["v2/tokenization/tokenization--create"]
+                  },
+                  {
+                    "group": "Revenue Recovery",
+                    "pages": ["v2/revenue-recovery/revenue-recovery--retrieve"]
                   }
                 ]
               }
