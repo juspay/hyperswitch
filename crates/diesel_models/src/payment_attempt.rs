@@ -941,7 +941,8 @@ impl PaymentAttemptUpdateInternal {
             unified_code: unified_code.flatten().or(source.unified_code),
             unified_message: unified_message.flatten().or(source.unified_message),
             net_amount: source.net_amount,
-            external_three_ds_authentication_attempted: source.external_three_ds_authentication_attempted,
+            external_three_ds_authentication_attempted: source
+                .external_three_ds_authentication_attempted,
             authentication_connector: source.authentication_connector,
             authentication_id: source.authentication_id,
             fingerprint_id: source.fingerprint_id,
