@@ -210,6 +210,7 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
         event_builder: Option<&mut ConnectorEvent>,
         res: Response,
     ) -> CustomResult<PaymentsAuthorizeRouterData, errors::ConnectorError> {
+        dbg!(&res.response);
         let response: elavon::ElavonPaymentsResponse =
             utils::deserialize_xml_to_struct(&res.response)?;
         event_builder.map(|i| i.set_response_body(&response));
@@ -633,6 +634,26 @@ static ELAVON_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMethods> = Laz
                     }
                 }),
             ),
+        },
+    );
+    elavon_supported_payment_methods.add(
+        PaymentMethod::Wallet,
+        PaymentMethodType::ApplePay,
+        PaymentMethodDetails {
+            mandates: enums::FeatureStatus::NotSupported,
+            refunds: enums::FeatureStatus::Supported,
+            supported_capture_methods: supported_capture_methods.clone(),
+            specific_features: None,
+        },
+    );
+    elavon_supported_payment_methods.add(
+        PaymentMethod::Wallet,
+        PaymentMethodType::GooglePay,
+        PaymentMethodDetails {
+            mandates: enums::FeatureStatus::NotSupported,
+            refunds: enums::FeatureStatus::Supported,
+            supported_capture_methods: supported_capture_methods.clone(),
+            specific_features: None,
         },
     );
 
