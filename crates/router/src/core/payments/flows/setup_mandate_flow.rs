@@ -1,4 +1,5 @@
 use async_trait::async_trait;
+use common_types::payments as common_payments_types;
 use router_env::logger;
 
 use super::{ConstructFlowSpecificData, Feature};
@@ -247,7 +248,7 @@ impl mandate::MandateBehaviour for types::SetupMandateRequestData {
     ) -> Option<&hyperswitch_domain_models::mandates::MandateData> {
         self.setup_mandate_details.as_ref()
     }
-    fn get_customer_acceptance(&self) -> Option<api_models::payments::CustomerAcceptance> {
-        self.customer_acceptance.clone().map(From::from)
+    fn get_customer_acceptance(&self) -> Option<common_payments_types::CustomerAcceptance> {
+        self.customer_acceptance.clone()
     }
 }

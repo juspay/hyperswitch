@@ -33,6 +33,7 @@ use api_models::{
     payments::{self as payments_api},
 };
 pub use common_enums::enums::CallConnectorAction;
+use common_types::payments as common_payments_types;
 use common_utils::{
     ext_traits::{AsyncExt, StringExt},
     id_type, pii,
@@ -51,7 +52,7 @@ use hyperswitch_domain_models::payments::{
 #[cfg(feature = "v2")]
 use hyperswitch_domain_models::router_response_types::RedirectForm;
 pub use hyperswitch_domain_models::{
-    mandates::{CustomerAcceptance, MandateData},
+    mandates::MandateData,
     payment_address::PaymentAddress,
     payments::{self as domain_payments, HeaderPayload},
     router_data::{PaymentMethodToken, RouterData},
@@ -3155,13 +3156,10 @@ impl PaymentRedirectFlow for PaymentAuthenticateCompleteAuthorize {
             .attach_printable("missing authentication_id in payment_attempt")?;
         let authentication = state
             .store
-            .find_authentication_by_merchant_id_authentication_id(
-                &merchant_id,
-                authentication_id.clone(),
-            )
+            .find_authentication_by_merchant_id_authentication_id(&merchant_id, &authentication_id)
             .await
             .to_not_found_response(errors::ApiErrorResponse::AuthenticationNotFound {
-                id: authentication_id,
+                id: authentication_id.get_string_repr().to_string(),
             })?;
         // Fetching merchant_connector_account to check if pull_mechanism is enabled for 3ds connector
         let authentication_merchant_connector_account = helpers::get_merchant_connector_account(
@@ -5963,7 +5961,7 @@ where
     pub mandate_connector: Option<MandateConnectorDetails>,
     pub currency: storage_enums::Currency,
     pub setup_mandate: Option<MandateData>,
-    pub customer_acceptance: Option<CustomerAcceptance>,
+    pub customer_acceptance: Option<common_payments_types::CustomerAcceptance>,
     pub address: PaymentAddress,
     pub token: Option<String>,
     pub token_data: Option<storage::PaymentTokenData>,
@@ -8426,7 +8424,7 @@ pub async fn payment_external_authentication<F: Clone + Sync>(
     let authentication = db
         .find_authentication_by_merchant_id_authentication_id(
             merchant_id,
-            payment_attempt
+            &payment_attempt
                 .authentication_id
                 .clone()
                 .ok_or(errors::ApiErrorResponse::InternalServerError)

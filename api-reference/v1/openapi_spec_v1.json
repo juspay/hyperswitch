@@ -6347,6 +6347,46 @@
           }
         ]
       }
+    },
+    "/authentication": {
+      "post": {
+        "tags": [
+          "Authentication"
+        ],
+        "summary": "Authentication - Create",
+        "description": "Create a new authentication for accessing our APIs from your servers.\n",
+        "operationId": "Create an Authentication",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AuthenticationCreateRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Authentication created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AuthenticationResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid data"
+          }
+        },
+        "security": [
+          {
+            "api_key": []
+          }
+        ]
+      }
     }
   },
   "components": {
@@ -6730,6 +6770,29 @@
             "type": "number",
             "format": "double",
             "description": "The fraud rate associated with the acquirer.",
+            "nullable": true
+          }
+        }
+      },
+      "AcquirerDetails": {
+        "type": "object",
+        "properties": {
+          "bin": {
+            "type": "string",
+            "description": "The bin of the card.",
+            "example": "123456",
+            "nullable": true
+          },
+          "merchant_id": {
+            "type": "string",
+            "description": "The merchant id of the card.",
+            "example": "merchant_abc",
+            "nullable": true
+          },
+          "country_code": {
+            "type": "string",
+            "description": "The country code of the card.",
+            "example": "US/34456",
             "nullable": true
           }
         }
@@ -7511,6 +7574,168 @@
           "juspaythreedsserver",
           "ctp_visa"
         ]
+      },
+      "AuthenticationCreateRequest": {
+        "type": "object",
+        "required": [
+          "amount",
+          "currency"
+        ],
+        "properties": {
+          "authentication_id": {
+            "type": "string",
+            "description": "The unique identifier for this authentication.",
+            "example": "auth_mbabizu24mvu3mela5njyhpit4",
+            "nullable": true
+          },
+          "profile_id": {
+            "type": "string",
+            "description": "The business profile that is associated with this authentication",
+            "nullable": true
+          },
+          "authentication_connector": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/AuthenticationConnectors"
+              }
+            ],
+            "nullable": true
+          },
+          "customer": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/CustomerDetails"
+              }
+            ],
+            "nullable": true
+          },
+          "amount": {
+            "$ref": "#/components/schemas/MinorUnit"
+          },
+          "currency": {
+            "$ref": "#/components/schemas/Currency"
+          },
+          "return_url": {
+            "type": "string",
+            "description": "The URL to which the user should be redirected after authentication.",
+            "example": "https://example.com/redirect",
+            "nullable": true
+          },
+          "acquirer_details": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/AcquirerDetails"
+              }
+            ],
+            "nullable": true
+          },
+          "force_3ds_challenge": {
+            "type": "boolean",
+            "description": "Force 3DS challenge.",
+            "nullable": true
+          },
+          "psd2_sca_exemption_type": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/ScaExemptionType"
+              }
+            ],
+            "nullable": true
+          }
+        }
+      },
+      "AuthenticationResponse": {
+        "type": "object",
+        "required": [
+          "authentication_id",
+          "merchant_id",
+          "status",
+          "amount",
+          "currency"
+        ],
+        "properties": {
+          "authentication_id": {
+            "type": "string",
+            "description": "The unique identifier for this authentication.",
+            "example": "auth_mbabizu24mvu3mela5njyhpit4"
+          },
+          "merchant_id": {
+            "type": "string",
+            "description": "This is an identifier for the merchant account. This is inferred from the API key\nprovided during the request",
+            "example": "merchant_abc"
+          },
+          "status": {
+            "$ref": "#/components/schemas/AuthenticationStatus"
+          },
+          "client_secret": {
+            "type": "string",
+            "description": "The client secret for this authentication, to be used for client-side operations.",
+            "example": "auth_mbabizu24mvu3mela5njyhpit4_secret_el9ksDkiB8hi6j9N78yo",
+            "nullable": true
+          },
+          "amount": {
+            "$ref": "#/components/schemas/MinorUnit"
+          },
+          "currency": {
+            "$ref": "#/components/schemas/Currency"
+          },
+          "force_3ds_challenge": {
+            "type": "boolean",
+            "description": "Whether 3DS challenge was forced.",
+            "nullable": true
+          },
+          "authentication_connector": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/AuthenticationConnectors"
+              }
+            ],
+            "nullable": true
+          },
+          "return_url": {
+            "type": "string",
+            "description": "The URL to which the user should be redirected after authentication, if provided.",
+            "nullable": true
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "example": "2022-09-10T10:11:12Z",
+            "nullable": true
+          },
+          "error_code": {
+            "type": "string",
+            "example": "E0001",
+            "nullable": true
+          },
+          "error_message": {
+            "type": "string",
+            "description": "If there was an error while calling the connector the error message is received here",
+            "example": "Failed while verifying the card",
+            "nullable": true
+          },
+          "profile_id": {
+            "type": "string",
+            "description": "The business profile that is associated with this payment",
+            "nullable": true
+          },
+          "psd2_sca_exemption_type": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/ScaExemptionType"
+              }
+            ],
+            "nullable": true
+          },
+          "acquirer_details": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/AcquirerDetails"
+              }
+            ],
+            "nullable": true
+          }
+        }
       },
       "AuthenticationStatus": {
         "type": "string",
@@ -17969,6 +18194,7 @@
       },
       "OnlineMandate": {
         "type": "object",
+        "description": "Details of online mandate",
         "required": [
           "ip_address",
           "user_agent"
@@ -31048,6 +31274,10 @@
     {
       "name": "Event",
       "description": "Manage events"
+    },
+    {
+      "name": "Authentication",
+      "description": "Create and manage authentication"
     }
   ]
 }
