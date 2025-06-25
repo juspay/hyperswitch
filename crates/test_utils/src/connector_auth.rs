@@ -19,6 +19,7 @@ pub struct ConnectorAuthentication {
     pub airwallex: Option<BodyKey>,
     pub amazonpay: Option<HeaderKey>,
     pub archipel: Option<NoKey>,
+    pub authipay: Option<SignatureKey>,
     pub authorizedotnet: Option<BodyKey>,
     pub bambora: Option<BodyKey>,
     pub bamboraapac: Option<HeaderKey>,
