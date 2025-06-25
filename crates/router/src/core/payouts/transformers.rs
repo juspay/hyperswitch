@@ -1,15 +1,16 @@
+#[cfg(feature = "v1")]
 use std::collections::HashMap;
 
+#[cfg(feature = "v1")]
 use common_utils::link_utils::EnabledPaymentMethod;
 
+#[cfg(feature = "v1")]
+use crate::settings::PayoutRequiredFields;
 #[cfg(all(feature = "v1", feature = "olap"))]
 use crate::types::transformers::ForeignInto;
+use crate::types::{api, transformers::ForeignFrom};
 #[cfg(feature = "olap")]
 use crate::types::{api::payments, domain, storage};
-use crate::{
-    settings::PayoutRequiredFields,
-    types::{api, transformers::ForeignFrom},
-};
 
 #[cfg(all(feature = "v2", feature = "olap"))]
 impl
@@ -21,7 +22,7 @@ impl
     )> for api::PayoutCreateResponse
 {
     fn foreign_from(
-        item: (
+        _item: (
             storage::Payouts,
             storage::PayoutAttempt,
             Option<domain::Customer>,

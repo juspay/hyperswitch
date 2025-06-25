@@ -1,5 +1,7 @@
 use async_trait::async_trait;
+#[cfg(feature = "v1")]
 use common_utils::ext_traits::ValueExt;
+#[cfg(feature = "v1")]
 use error_stack::ResultExt;
 
 use crate::{
@@ -8,17 +10,21 @@ use crate::{
         fraud_check::{FeatureFrm, FrmData},
         payments::{self, flows::ConstructFlowSpecificData, helpers},
     },
-    errors, services,
+    services,
     types::{
         api::{self, fraud_check as frm_api},
         domain,
         fraud_check::{
             FraudCheckResponseData, FraudCheckTransactionData, FrmTransactionRouterData,
         },
-        storage::enums as storage_enums,
-        ConnectorAuthType, MerchantRecipientData, ResponseId, RouterData,
+        MerchantRecipientData, RouterData,
     },
     SessionState,
+};
+#[cfg(feature = "v1")]
+use crate::{
+    errors,
+    types::{storage::enums as storage_enums, ConnectorAuthType, ResponseId},
 };
 
 #[async_trait]

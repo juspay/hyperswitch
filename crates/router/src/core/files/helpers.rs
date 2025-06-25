@@ -243,10 +243,10 @@ pub async fn retrieve_file_and_provider_file_id_from_file_id(
 #[cfg(feature = "v2")]
 //Upload file to connector if it supports / store it in S3 and return file_upload_provider, provider_file_id accordingly
 pub async fn upload_and_get_provider_provider_file_id_profile_id(
-    state: &SessionState,
-    merchant_context: &domain::MerchantContext,
-    create_file_request: &api::CreateFileRequest,
-    file_key: String,
+    _state: &SessionState,
+    _merchant_context: &domain::MerchantContext,
+    _create_file_request: &api::CreateFileRequest,
+    _file_key: String,
 ) -> CustomResult<
     (
         String,

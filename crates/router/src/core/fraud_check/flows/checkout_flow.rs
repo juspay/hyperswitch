@@ -1,6 +1,9 @@
 use async_trait::async_trait;
+#[cfg(feature = "v1")]
 use common_utils::{ext_traits::ValueExt, pii::Email};
+#[cfg(feature = "v1")]
 use error_stack::ResultExt;
+#[cfg(feature = "v1")]
 use masking::ExposeInterface;
 
 use super::{ConstructFlowSpecificData, FeatureFrm};
@@ -10,7 +13,7 @@ use crate::{
         fraud_check::types::FrmData,
         payments::{self, helpers},
     },
-    errors, services,
+    services,
     types::{
         api::{
             self,
@@ -18,10 +21,14 @@ use crate::{
         },
         domain,
         fraud_check::{FraudCheckCheckoutData, FraudCheckResponseData, FrmCheckoutRouterData},
-        storage::enums as storage_enums,
-        BrowserInformation, ConnectorAuthType, MerchantRecipientData, ResponseId, RouterData,
+        MerchantRecipientData, RouterData,
     },
     SessionState,
+};
+#[cfg(feature = "v1")]
+use crate::{
+    errors,
+    types::{storage::enums as storage_enums, BrowserInformation, ConnectorAuthType, ResponseId},
 };
 
 #[async_trait]

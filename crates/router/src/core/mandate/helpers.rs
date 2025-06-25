@@ -1,13 +1,16 @@
 use api_models::payments as api_payments;
 use common_enums::enums;
 use common_utils::errors::CustomResult;
+#[cfg(feature = "v1")]
 use diesel_models::Mandate;
+#[cfg(feature = "v1")]
 use error_stack::ResultExt;
 use hyperswitch_domain_models::mandates::MandateData;
 
+#[cfg(feature = "v1")]
+use crate::routes::SessionState;
 use crate::{
     core::{errors, payments},
-    routes::SessionState,
     types::{api, domain},
 };
 

@@ -13,7 +13,9 @@ use api_models::open_router;
 use api_models::routing as routing_types;
 #[cfg(all(feature = "dynamic_routing", feature = "v1"))]
 use common_utils::ext_traits::ValueExt;
-use common_utils::{ext_traits::Encode, id_type, types::keymanager::KeyManagerState};
+#[cfg(feature = "v1")]
+use common_utils::types::keymanager::KeyManagerState;
+use common_utils::{ext_traits::Encode, id_type};
 use diesel_models::configs;
 #[cfg(all(feature = "v1", feature = "dynamic_routing"))]
 use diesel_models::dynamic_routing_stats::{DynamicRoutingStatsNew, DynamicRoutingStatsUpdate};
@@ -35,21 +37,19 @@ use router_env::logger;
 #[cfg(feature = "v1")]
 use router_env::{instrument, tracing};
 use rustc_hash::FxHashSet;
+#[cfg(feature = "v1")]
 use storage_impl::redis::cache;
 #[cfg(all(feature = "dynamic_routing", feature = "v1"))]
 use storage_impl::redis::cache::Cacheable;
 
 #[cfg(all(feature = "dynamic_routing", feature = "v1"))]
 use crate::db::errors::StorageErrorExt;
-#[cfg(feature = "v2")]
-use crate::types::domain::MerchantConnectorAccount;
 #[cfg(all(feature = "dynamic_routing", feature = "v1"))]
 use crate::types::transformers::ForeignFrom;
 use crate::{
     core::errors::{self, RouterResult},
     db::StorageInterface,
-    routes::SessionState,
-    types::{domain, storage},
+    types::storage,
     utils::StringExt,
 };
 #[cfg(feature = "v1")]
@@ -63,6 +63,8 @@ use crate::{
     routes::app::SessionStateInfo,
     types::transformers::ForeignInto,
 };
+#[cfg(feature = "v1")]
+use crate::{routes::SessionState, types::domain};
 pub const SUCCESS_BASED_DYNAMIC_ROUTING_ALGORITHM: &str =
     "Success rate based dynamic routing algorithm";
 pub const ELIMINATION_BASED_DYNAMIC_ROUTING_ALGORITHM: &str =

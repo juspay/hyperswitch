@@ -12,6 +12,7 @@ use crate::{
     types::{self, storage},
 };
 
+#[cfg_attr(feature = "v2", allow(unreachable_code, unused_variables))] // This function has unreachable code in v2 due to todo!()
 pub async fn check_existence_and_add_domain_to_db(
     state: &SessionState,
     merchant_id: common_utils::id_type::MerchantId,
@@ -134,9 +135,9 @@ pub fn log_applepay_verification_response_if_error(
 
 #[cfg(feature = "v2")]
 pub async fn check_if_profile_id_is_present_in_payment_intent(
-    payment_id: PaymentId,
-    state: &SessionState,
-    auth_data: &AuthenticationData,
+    _payment_id: PaymentId,
+    _state: &SessionState,
+    _auth_data: &AuthenticationData,
 ) -> CustomResult<(), errors::ApiErrorResponse> {
     todo!()
 }

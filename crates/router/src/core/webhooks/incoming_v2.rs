@@ -22,10 +22,7 @@ use crate::{
         api_locking,
         errors::{self, ConnectorErrorExt, CustomResult, RouterResponse, StorageErrorExt},
         metrics,
-        payments::{
-            self,
-            transformers::{GenerateResponse, ToResponse},
-        },
+        payments::{self, transformers::GenerateResponse},
         webhooks::{
             create_event_and_trigger_outgoing_webhook, utils::construct_webhook_router_data,
         },
@@ -456,7 +453,7 @@ async fn payments_incoming_webhook_flow(
                 )
                 .await?;
 
-            let (payment_data, _req, customer, connector_http_status_code, external_latency) =
+            let (payment_data, _req, _customer, connector_http_status_code, external_latency) =
                 Box::pin(payments::payments_operation_core::<
                     api::PSync,
                     _,
