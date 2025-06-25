@@ -24,16 +24,6 @@ use health_check_client::HealthCheckClient;
     feature = "dynamic_routing",
     all(feature = "revenue_recovery", feature = "v2")
 ))]
-use http_body_util::combinators::UnsyncBoxBody;
-#[cfg(any(
-    feature = "dynamic_routing",
-    all(feature = "revenue_recovery", feature = "v2")
-))]
-use hyper::body::Bytes;
-#[cfg(any(
-    feature = "dynamic_routing",
-    all(feature = "revenue_recovery", feature = "v2")
-))]
 use hyper_util::client::legacy::connect::HttpConnector;
 #[cfg(any(
     feature = "dynamic_routing",
@@ -45,7 +35,7 @@ use serde;
     feature = "dynamic_routing",
     all(feature = "revenue_recovery", feature = "v2")
 ))]
-use tonic::Status;
+use tonic::body::Body;
 
 #[cfg(all(feature = "revenue_recovery", feature = "v2"))]
 pub use self::revenue_recovery::{
@@ -59,7 +49,7 @@ pub use self::revenue_recovery::{
     all(feature = "revenue_recovery", feature = "v2")
 ))]
 /// Hyper based Client type for maintaining connection pool for all gRPC services
-pub type Client = hyper_util::client::legacy::Client<HttpConnector, UnsyncBoxBody<Bytes, Status>>;
+pub type Client = hyper_util::client::legacy::Client<HttpConnector, Body>;
 
 /// Struct contains all the gRPC Clients
 #[derive(Debug, Clone)]
