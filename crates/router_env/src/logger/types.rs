@@ -180,6 +180,8 @@ pub enum Flow {
     PaymentsConfirmIntent,
     /// Payments create and confirm intent flow
     PaymentsCreateAndConfirmIntent,
+    /// Payment attempt list flow
+    PaymentAttemptsList,
     #[cfg(feature = "payouts")]
     /// Payouts create flow
     PayoutsCreate,
@@ -594,9 +596,13 @@ pub enum Flow {
     TokenizationRetrieve,
     /// Clone Connector flow
     CloneConnector,
+    /// Authentication Create flow
+    AuthenticationCreate,
     ///Proxy Flow
     Proxy,
+    /// Profile Acquirer Create flow
     ProfileAcquirerCreate,
+    /// Profile Acquirer Update flow
     ProfileAcquirerUpdate,
     /// ThreeDs Decision Rule Execute flow
     ThreeDsDecisionRuleExecute,

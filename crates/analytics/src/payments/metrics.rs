@@ -50,6 +50,7 @@ pub struct PaymentMetricRow {
     pub first_attempt: Option<bool>,
     pub total: Option<bigdecimal::BigDecimal>,
     pub count: Option<i64>,
+    pub routing_approach: Option<DBEnumWrapper<storage_enums::RoutingApproach>>,
     #[serde(with = "common_utils::custom_serde::iso8601::option")]
     pub start_bucket: Option<PrimitiveDateTime>,
     #[serde(with = "common_utils::custom_serde::iso8601::option")]

@@ -6,8 +6,10 @@ import { connectorDetails as aciConnectorDetails } from "./Aci.js";
 import { connectorDetails as adyenConnectorDetails } from "./Adyen.js";
 import { connectorDetails as airwallexConnectorDetails } from "./Airwallex.js";
 import { connectorDetails as archipelConnectorDetails } from "./Archipel.js";
+import { connectorDetails as bamboraConnectorDetails } from "./Bambora.js";
 import { connectorDetails as bamboraapacConnectorDetails } from "./Bamboraapac.js";
 import { connectorDetails as bankOfAmericaConnectorDetails } from "./BankOfAmerica.js";
+import { connectorDetails as billwerkConnectorDetails } from "./Billwerk.js";
 import { connectorDetails as bluesnapConnectorDetails } from "./Bluesnap.js";
 import { connectorDetails as braintreeConnectorDetails } from "./Braintree.js";
 import { connectorDetails as checkoutConnectorDetails } from "./Checkout.js";
@@ -20,7 +22,9 @@ import { connectorDetails as facilitapayConnectorDetails } from "./Facilitapay.j
 import { connectorDetails as fiservConnectorDetails } from "./Fiserv.js";
 import { connectorDetails as fiservemeaConnectorDetails } from "./Fiservemea.js";
 import { connectorDetails as fiuuConnectorDetails } from "./Fiuu.js";
+import { connectorDetails as forteConnectorDetails } from "./Forte.js";
 import { connectorDetails as getnetConnectorDetails } from "./Getnet.js";
+import { connectorDetails as globalpayConnectorDetails } from "./Globalpay.js";
 import { connectorDetails as hipayConnectorDetails } from "./Hipay.js";
 import { connectorDetails as iatapayConnectorDetails } from "./Iatapay.js";
 import { connectorDetails as itaubankConnectorDetails } from "./ItauBank.js";
@@ -32,7 +36,10 @@ import { connectorDetails as noonConnectorDetails } from "./Noon.js";
 import { connectorDetails as novalnetConnectorDetails } from "./Novalnet.js";
 import { connectorDetails as payboxConnectorDetails } from "./Paybox.js";
 import { connectorDetails as paypalConnectorDetails } from "./Paypal.js";
+import { connectorDetails as powertranzConnectorDetails } from "./PowerTranz.js";
 import { connectorDetails as redsysConnectorDetails } from "./Redsys.js";
+import { connectorDetails as staxConnectorDetails } from "./Stax.js";
+import { connectorDetails as shift4ConnectorDetails } from "./Shift4.js";
 import { connectorDetails as stripeConnectorDetails } from "./Stripe.js";
 import { connectorDetails as trustpayConnectorDetails } from "./Trustpay.js";
 import { connectorDetails as wellsfargoConnectorDetails } from "./WellsFargo.js";
@@ -42,10 +49,13 @@ import { connectorDetails as xenditConnectorDetails } from "./Xendit.js";
 
 const connectorDetails = {
   aci: aciConnectorDetails,
-  airwallex: airwallexConnectorDetails,
   adyen: adyenConnectorDetails,
-  bankofamerica: bankOfAmericaConnectorDetails,
+  airwallex: airwallexConnectorDetails,
+  archipel: archipelConnectorDetails,
+  bambora: bamboraConnectorDetails,
   bamboraapac: bamboraapacConnectorDetails,
+  bankofamerica: bankOfAmericaConnectorDetails,
+  billwerk: billwerkConnectorDetails,
   bluesnap: bluesnapConnectorDetails,
   braintree: braintreeConnectorDetails,
   checkout: checkoutConnectorDetails,
@@ -58,7 +68,9 @@ const connectorDetails = {
   fiserv: fiservConnectorDetails,
   fiservemea: fiservemeaConnectorDetails,
   fiuu: fiuuConnectorDetails,
+  forte: forteConnectorDetails,
   getnet: getnetConnectorDetails,
+  globalpay: globalpayConnectorDetails,
   hipay: hipayConnectorDetails,
   iatapay: iatapayConnectorDetails,
   itaubank: itaubankConnectorDetails,
@@ -70,14 +82,16 @@ const connectorDetails = {
   novalnet: novalnetConnectorDetails,
   paybox: payboxConnectorDetails,
   paypal: paypalConnectorDetails,
+  powertranz: powertranzConnectorDetails,
   redsys: redsysConnectorDetails,
+  stax: staxConnectorDetails,
   stripe: stripeConnectorDetails,
+  shift4: shift4ConnectorDetails,
   trustpay: trustpayConnectorDetails,
   wellsfargo: wellsfargoConnectorDetails,
   worldpay: worldpayConnectorDetails,
   worldpayxml: worldpayxmlConnectorDetails,
   xendit: xenditConnectorDetails,
-  archipel: archipelConnectorDetails,
 };
 
 export default function getConnectorDetails(connectorId) {
@@ -337,14 +351,16 @@ export const CONNECTOR_LISTS = {
   // Exclusion lists (skip these connectors)
   EXCLUDE: {
     CONNECTOR_AGNOSTIC_NTID: [
+      "bamboraapac",
       "bankofamerica",
+      "billwerk",
       "braintree",
       "facilitapay",
       "fiuu",
       "fiserv",
       "jpmorgan",
       "paypal",
-      "bamboraapac",
+      "stax",
     ],
     // Add more exclusion lists
   },

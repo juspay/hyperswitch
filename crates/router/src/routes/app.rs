@@ -76,6 +76,8 @@ pub use crate::analytics::opensearch::OpenSearchClient;
 use crate::analytics::AnalyticsProvider;
 #[cfg(feature = "partial-auth")]
 use crate::errors::RouterResult;
+#[cfg(feature = "oltp")]
+use crate::routes::authentication;
 #[cfg(feature = "v1")]
 use crate::routes::cards_info::{
     card_iin_info, create_cards_info, migrate_cards_info, update_cards_info,
@@ -640,6 +642,10 @@ impl Payments {
                 .service(
                     web::resource("/confirm-intent")
                         .route(web::post().to(payments::payment_confirm_intent)),
+                )
+                .service(
+                    web::resource("/list_attempts")
+                        .route(web::get().to(payments::list_payment_attempts)),
                 )
                 .service(
                     web::resource("/proxy-confirm-intent")
@@ -1216,11 +1222,7 @@ impl Refunds {
     }
 }
 
-#[cfg(all(
-    feature = "v2",
-    feature = "refunds_v2",
-    any(feature = "olap", feature = "oltp")
-))]
+#[cfg(all(feature = "v2", any(feature = "olap", feature = "oltp")))]
 impl Refunds {
     pub fn server(state: AppState) -> Scope {
         let mut route = web::scope("/v2/refunds").app_data(web::Data::new(state));
@@ -2650,6 +2652,17 @@ impl ProcessTracker {
                 web::resource("/{revenue_recovery_id}")
                     .route(web::get().to(revenue_recovery::revenue_recovery_pt_retrieve_api)),
             )
+    }
+}
+
+pub struct Authentication;
+
+#[cfg(feature = "v1")]
+impl Authentication {
+    pub fn server(state: AppState) -> Scope {
+        web::scope("/authentication")
+            .app_data(web::Data::new(state))
+            .service(web::resource("").route(web::post().to(authentication::authentication_create)))
     }
 }
 

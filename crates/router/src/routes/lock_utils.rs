@@ -43,6 +43,7 @@ pub enum ApiIdentifier {
     Hypersense,
     PaymentMethodSession,
     ProcessTracker,
+    Authentication,
     Proxy,
     TrainerClient,
     ProfileAcquirer,
@@ -164,7 +165,8 @@ impl From<Flow> for ApiIdentifier {
             | Flow::PaymentsCreateAndConfirmIntent
             | Flow::PaymentStartRedirection
             | Flow::ProxyConfirmIntent
-            | Flow::PaymentsRetrieveUsingMerchantReferenceId => Self::Payments,
+            | Flow::PaymentsRetrieveUsingMerchantReferenceId
+            | Flow::PaymentAttemptsList => Self::Payments,
 
             Flow::PayoutsCreate
             | Flow::PayoutsRetrieve
@@ -348,6 +350,8 @@ impl From<Flow> for ApiIdentifier {
             | Flow::PaymentMethodSessionUpdate => Self::PaymentMethodSession,
 
             Flow::RevenueRecoveryRetrieve => Self::ProcessTracker,
+
+            Flow::AuthenticationCreate => Self::Authentication,
             Flow::Proxy => Self::Proxy,
 
             Flow::ProfileAcquirerCreate | Flow::ProfileAcquirerUpdate => Self::ProfileAcquirer,

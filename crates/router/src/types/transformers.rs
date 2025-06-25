@@ -308,6 +308,7 @@ impl ForeignTryFrom<api_enums::Connector> for common_enums::RoutableConnectors {
             api_enums::Connector::Razorpay => Self::Razorpay,
             api_enums::Connector::Recurly => Self::Recurly,
             api_enums::Connector::Redsys => Self::Redsys,
+            // api_enums::Connector::Santander => Self::Santander,
             api_enums::Connector::Shift4 => Self::Shift4,
             api_enums::Connector::Signifyd => {
                 Err(common_utils::errors::ValidationError::InvalidValue {
@@ -397,25 +398,7 @@ impl ForeignFrom<storage_enums::MandateAmountData> for payments::MandateAmountDa
 impl ForeignFrom<payments::MandateData> for hyperswitch_domain_models::mandates::MandateData {
     fn foreign_from(d: payments::MandateData) -> Self {
         Self {
-            customer_acceptance: d.customer_acceptance.map(|d| {
-                hyperswitch_domain_models::mandates::CustomerAcceptance {
-                    acceptance_type: match d.acceptance_type {
-                        payments::AcceptanceType::Online => {
-                            hyperswitch_domain_models::mandates::AcceptanceType::Online
-                        }
-                        payments::AcceptanceType::Offline => {
-                            hyperswitch_domain_models::mandates::AcceptanceType::Offline
-                        }
-                    },
-                    accepted_at: d.accepted_at,
-                    online: d
-                        .online
-                        .map(|d| hyperswitch_domain_models::mandates::OnlineMandate {
-                            ip_address: d.ip_address,
-                            user_agent: d.user_agent,
-                        }),
-                }
-            }),
+            customer_acceptance: d.customer_acceptance,
             mandate_type: d.mandate_type.map(|d| match d {
                 payments::MandateType::MultiUse(Some(i)) => {
                     hyperswitch_domain_models::mandates::MandateDataType::MultiUse(Some(
