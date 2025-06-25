@@ -270,6 +270,3 @@ creds.json
 
 # Nix services data
 /data
-
-# Cypress Dashboard build
-**/dist
