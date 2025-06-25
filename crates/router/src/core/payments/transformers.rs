@@ -322,7 +322,7 @@ pub async fn construct_payment_router_data_for_authorize<'a>(
         merchant_config_currency: None,
         connector_testing_data: None,
         order_id: None,
-        santander_pix_qr_expiration_time: None
+        santander_pix_qr_expiration_time: None,
     };
     let connector_mandate_request_reference_id = payment_data
         .payment_attempt
