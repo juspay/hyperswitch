@@ -307,10 +307,10 @@ impl<F: Clone + Send + Sync> Domain<F, ProxyPaymentsRequest, PaymentConfirmData<
     #[instrument(skip_all)]
     async fn populate_payment_data<'a>(
         &'a self,
-        state: &SessionState,
+        _state: &SessionState,
         payment_data: &mut PaymentConfirmData<F>,
         _merchant_context: &domain::MerchantContext,
-        business_profile: &domain::Profile,
+        _business_profile: &domain::Profile,
         connector_data: &api::ConnectorData,
     ) -> CustomResult<(), errors::ApiErrorResponse> {
         let connector_request_reference_id = connector_data
