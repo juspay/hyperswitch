@@ -21,18 +21,20 @@ use common_utils::{
 };
 use diesel_models::{enums, types::OrderDetailsWithAmount};
 use error_stack::{report, ResultExt};
-use hyperswitch_domain_models::{
-    network_tokenization::NetworkTokenNumber, payments::payment_attempt::PaymentAttempt,
-};
+use hyperswitch_domain_models::network_tokenization::NetworkTokenNumber;
+#[cfg(feature = "v1")]
+use hyperswitch_domain_models::payments::payment_attempt::PaymentAttempt;
 use masking::{Deserialize, ExposeInterface, Secret};
 use regex::Regex;
 
+#[cfg(feature = "v1")]
+use crate::core::errors::ApiErrorResponse;
 #[cfg(feature = "frm")]
 use crate::types::fraud_check;
 use crate::{
     consts,
     core::{
-        errors::{self, ApiErrorResponse, CustomResult},
+        errors::{self, CustomResult},
         payments::{types::AuthenticationData, PaymentData},
     },
     pii::PeekInterface,

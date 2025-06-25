@@ -201,6 +201,7 @@ pub fn is_outgoing_webhook_disabled(
 
 const WEBHOOK_LOCK_PREFIX: &str = "WEBHOOK_LOCK";
 
+#[cfg_attr(feature = "v2", allow(dead_code))] // This function is not used in v2
 pub(super) async fn perform_redis_lock<A>(
     state: &A,
     unique_locking_key: &str,
@@ -247,6 +248,7 @@ where
     }
 }
 
+#[cfg_attr(feature = "v2", allow(dead_code))] // This function is not used in v2
 pub(super) async fn free_redis_lock<A>(
     state: &A,
     unique_locking_key: &str,

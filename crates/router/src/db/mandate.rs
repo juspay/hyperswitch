@@ -574,7 +574,7 @@ impl MandateInterface for MockDb {
     #[cfg(feature = "v2")]
     async fn find_mandate_by_global_customer_id(
         &self,
-        id: &id_type::GlobalCustomerId,
+        _id: &id_type::GlobalCustomerId,
     ) -> CustomResult<Vec<storage_types::Mandate>, errors::StorageError> {
         todo!()
     }

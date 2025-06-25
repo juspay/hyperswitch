@@ -3,20 +3,14 @@ use std::str::FromStr;
 use actix_web::http::header::HeaderMap;
 #[cfg(feature = "v1")]
 use api_models::payment_methods::PaymentMethodCreate;
-#[cfg(feature = "v2")]
-use api_models::payment_methods::PaymentMethodIntentConfirm;
 #[cfg(feature = "payouts")]
 use api_models::payouts;
 use api_models::{payment_methods::PaymentMethodListRequest, payments};
 use async_trait::async_trait;
 use common_enums::TokenPurpose;
 use common_utils::{date_time, fp_utils, id_type};
-#[cfg(feature = "v2")]
-use diesel_models::ephemeral_key;
 use error_stack::{report, ResultExt};
 use jsonwebtoken::{decode, Algorithm, DecodingKey, Validation};
-#[cfg(feature = "v2")]
-use masking::ExposeInterface;
 use masking::PeekInterface;
 use router_env::logger;
 use serde::Serialize;
@@ -2620,7 +2614,7 @@ where
                 common_utils::types::authentication::ResourceId::Payment(self_id),
                 common_utils::types::authentication::ResourceId::Payment(db_id),
             ) => {
-                fp_utils::when(self_id != db_id, || {
+                let _ = fp_utils::when(self_id != db_id, || {
                     Err::<(), errors::ApiErrorResponse>(errors::ApiErrorResponse::Unauthorized)
                 });
             }
@@ -2629,7 +2623,7 @@ where
                 common_utils::types::authentication::ResourceId::Customer(self_id),
                 common_utils::types::authentication::ResourceId::Customer(db_id),
             ) => {
-                fp_utils::when(self_id != db_id, || {
+                let _ = fp_utils::when(self_id != db_id, || {
                     Err::<(), errors::ApiErrorResponse>(errors::ApiErrorResponse::Unauthorized)
                 });
             }
@@ -2638,7 +2632,7 @@ where
                 common_utils::types::authentication::ResourceId::PaymentMethodSession(self_id),
                 common_utils::types::authentication::ResourceId::PaymentMethodSession(db_id),
             ) => {
-                fp_utils::when(self_id != db_id, || {
+                let _ = fp_utils::when(self_id != db_id, || {
                     Err::<(), errors::ApiErrorResponse>(errors::ApiErrorResponse::Unauthorized)
                 });
             }

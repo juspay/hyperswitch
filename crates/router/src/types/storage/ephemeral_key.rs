@@ -11,11 +11,11 @@ impl ForeignTryFrom<ClientSecretType> for api_models::ephemeral_key::ClientSecre
     type Error = errors::ApiErrorResponse;
     fn foreign_try_from(from: ClientSecretType) -> Result<Self, errors::ApiErrorResponse> {
         match from.resource_id {
-            common_utils::types::authentication::ResourceId::Payment(global_payment_id) => {
+            common_utils::types::authentication::ResourceId::Payment(_global_payment_id) => {
                 Err(errors::ApiErrorResponse::InternalServerError)
             }
             common_utils::types::authentication::ResourceId::PaymentMethodSession(
-                global_payment_id,
+                _global_payment_id,
             ) => Err(errors::ApiErrorResponse::InternalServerError),
             common_utils::types::authentication::ResourceId::Customer(global_customer_id) => {
                 Ok(Self {

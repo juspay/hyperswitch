@@ -21,11 +21,7 @@ use std::marker::PhantomData;
 pub use api_models::{enums::Connector, mandates};
 #[cfg(feature = "payouts")]
 pub use api_models::{enums::PayoutConnectors, payouts as payout_types};
-#[cfg(feature = "v2")]
-use common_utils::errors::CustomResult;
 pub use common_utils::{pii, pii::Email, request::RequestContent, types::MinorUnit};
-#[cfg(feature = "v2")]
-use error_stack::ResultExt;
 #[cfg(feature = "frm")]
 pub use hyperswitch_domain_models::router_data_v2::FrmFlowData;
 use hyperswitch_domain_models::router_flow_types::{
@@ -114,13 +110,15 @@ pub use hyperswitch_interfaces::types::{
 };
 
 pub use crate::core::payments::CustomerDetails;
+#[cfg(feature = "v1")]
+use crate::core::payments::OperationSessionGetters;
 #[cfg(feature = "payouts")]
 use crate::core::utils::IRRELEVANT_CONNECTOR_REQUEST_REFERENCE_ID_IN_PAYOUTS_FLOW;
 use crate::{
     consts,
     core::{
         errors::{self},
-        payments::{OperationSessionGetters, PaymentData},
+        payments::PaymentData,
     },
     services,
     types::transformers::{ForeignFrom, ForeignTryFrom},

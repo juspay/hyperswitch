@@ -1528,6 +1528,7 @@ mod merchant_connector_account_cache_tests {
     use api_models::enums::CountryAlpha2;
     use common_utils::{date_time, type_name, types::keymanager::Identifier};
     use diesel_models::enums::ConnectorType;
+    #[cfg(feature = "v1")]
     use error_stack::ResultExt;
     use masking::PeekInterface;
     use storage_impl::redis::{
@@ -1538,8 +1539,9 @@ mod merchant_connector_account_cache_tests {
     use time::macros::datetime;
     use tokio::sync::oneshot;
 
+    #[cfg(feature = "v1")]
+    use crate::{core::errors, types::domain::behaviour::Conversion};
     use crate::{
-        core::errors,
         db::{
             merchant_connector_account::MerchantConnectorAccountInterface,
             merchant_key_store::MerchantKeyStoreInterface, MasterKeyInterface, MockDb,
@@ -1549,10 +1551,7 @@ mod merchant_connector_account_cache_tests {
             app::{settings::Settings, StorageImpl},
         },
         services,
-        types::{
-            domain::{self, behaviour::Conversion},
-            storage,
-        },
+        types::{domain, storage},
     };
 
     #[allow(clippy::unwrap_used)]
@@ -1876,7 +1875,8 @@ mod merchant_connector_account_cache_tests {
                 .await
                 .unwrap();
             #[cfg(feature = "v2")]
-            let mca: domain::MerchantConnectorAccount = { todo!() };
+            let _mca: domain::MerchantConnectorAccount = { todo!() };
+            #[cfg(feature = "v1")]
             Conversion::convert(mca)
                 .await
                 .change_context(errors::StorageError::DecryptionError)

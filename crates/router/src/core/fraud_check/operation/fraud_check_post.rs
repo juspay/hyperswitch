@@ -1,42 +1,57 @@
 use async_trait::async_trait;
-use common_enums::{CaptureMethod, FrmSuggestion};
+#[cfg(feature = "v1")]
+use common_enums::CaptureMethod;
+use common_enums::FrmSuggestion;
+#[cfg(feature = "v1")]
 use common_utils::ext_traits::Encode;
+#[cfg(feature = "v1")]
 use hyperswitch_domain_models::payments::{
     payment_attempt::PaymentAttemptUpdate, payment_intent::PaymentIntentUpdate, HeaderPayload,
 };
 use router_env::{instrument, logger, tracing};
 
 use super::{Domain, FraudCheckOperation, GetTracker, UpdateTracker};
+#[cfg(feature = "v1")]
 use crate::{
     consts,
     core::{
-        errors::{RouterResult, StorageErrorExt},
-        fraud_check::{
-            self as frm_core,
-            types::{FrmData, PaymentDetails, PaymentToFrmData, CANCEL_INITIATED},
-            ConnectorDetailsCore, FrmConfigsObject,
-        },
-        payments,
+        errors::StorageErrorExt,
+        fraud_check::types::{PaymentDetails, CANCEL_INITIATED},
     },
     errors,
-    routes::app::ReqState,
     services::{self, api},
     types::{
         api::{
             enums::{AttemptStatus, IntentStatus},
-            fraud_check as frm_api, payments as payment_types, Capture, Void,
+            payments as payment_types, Capture, Void,
         },
-        domain,
-        fraud_check::{
-            FraudCheckResponseData, FraudCheckSaleData, FrmRequest, FrmResponse, FrmRouterData,
-        },
+        fraud_check::FraudCheckResponseData,
         storage::{
-            enums::{FraudCheckLastStep, FraudCheckStatus, FraudCheckType, MerchantDecision},
+            enums::{FraudCheckStatus, FraudCheckType, MerchantDecision},
             fraud_check::{FraudCheckNew, FraudCheckUpdate},
         },
         ResponseId,
     },
-    utils, SessionState,
+    utils,
+};
+use crate::{
+    core::{
+        errors::RouterResult,
+        fraud_check::{
+            self as frm_core,
+            types::{FrmData, PaymentToFrmData},
+            ConnectorDetailsCore, FrmConfigsObject,
+        },
+        payments,
+    },
+    routes::app::ReqState,
+    types::{
+        api::fraud_check as frm_api,
+        domain,
+        fraud_check::{FraudCheckSaleData, FrmRequest, FrmResponse, FrmRouterData},
+        storage::enums::FraudCheckLastStep,
+    },
+    SessionState,
 };
 
 #[derive(Debug, Clone, Copy)]
@@ -87,9 +102,9 @@ impl GetTracker<PaymentToFrmData> for FraudCheckPost {
     #[cfg(feature = "v2")]
     async fn get_trackers<'a>(
         &'a self,
-        state: &'a SessionState,
-        payment_data: PaymentToFrmData,
-        frm_connector_details: ConnectorDetailsCore,
+        _state: &'a SessionState,
+        _payment_data: PaymentToFrmData,
+        _frm_connector_details: ConnectorDetailsCore,
     ) -> RouterResult<Option<FrmData>> {
         todo!()
     }
@@ -385,12 +400,12 @@ where
     #[cfg(feature = "v2")]
     async fn update_tracker<'b>(
         &'b self,
-        state: &SessionState,
-        key_store: &domain::MerchantKeyStore,
-        mut frm_data: FrmData,
-        payment_data: &mut D,
-        frm_suggestion: Option<FrmSuggestion>,
-        frm_router_data: FrmRouterData,
+        _state: &SessionState,
+        _key_store: &domain::MerchantKeyStore,
+        mut _frm_data: FrmData,
+        _payment_data: &mut D,
+        _frm_suggestion: Option<FrmSuggestion>,
+        _frm_router_data: FrmRouterData,
     ) -> RouterResult<FrmData> {
         todo!()
     }

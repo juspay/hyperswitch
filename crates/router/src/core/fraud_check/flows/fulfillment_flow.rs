@@ -1,19 +1,24 @@
+#[cfg(feature = "v1")]
 use common_utils::ext_traits::{OptionExt, ValueExt};
+#[cfg(feature = "v1")]
 use error_stack::ResultExt;
+#[cfg(feature = "v1")]
 use router_env::tracing::{self, instrument};
 
 use crate::{
-    core::{
-        errors::RouterResult, fraud_check::frm_core_types::FrmFulfillmentRequest,
-        payments::helpers, utils as core_utils,
-    },
+    core::{errors::RouterResult, fraud_check::frm_core_types::FrmFulfillmentRequest},
+    types::{domain, fraud_check::FrmFulfillmentRouterData, storage},
+    SessionState,
+};
+#[cfg(feature = "v1")]
+use crate::{
+    core::{payments::helpers, utils as core_utils},
     errors,
     types::{
-        domain,
-        fraud_check::{FraudCheckFulfillmentData, FrmFulfillmentRouterData},
-        storage, ConnectorAuthType, ErrorResponse, PaymentAddress, RouterData,
+        fraud_check::FraudCheckFulfillmentData, ConnectorAuthType, ErrorResponse, PaymentAddress,
+        RouterData,
     },
-    utils, SessionState,
+    utils,
 };
 
 #[cfg(feature = "v2")]
