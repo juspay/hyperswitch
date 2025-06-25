@@ -439,11 +439,10 @@ fn get_vantiv_payment_method(
             if let Some(mandate_id) = mandate_id {
                 Ok(VantivPaymentMethodData {
                     card_data: None,
-                    token_data: 
-                       Some(WorldpayvantivCardToken {
-                            cnp_token: mandate_id.into(),
-                            exp_date: None,
-                        }),
+                    token_data: Some(WorldpayvantivCardToken {
+                        cnp_token: mandate_id.into(),
+                        exp_date: None,
+                    }),
                     processing_type: Some(RecurringProcessingType::MerchantInitiatedCOF),
                 })
             } else {
@@ -877,7 +876,7 @@ impl TryFrom<&WorldpayvantivRouterData<&PaymentsAuthorizeRouterData>> for CnpOnl
                     bill_to_address,
                     card: payment_method_data.card_data,
                     token: payment_method_data.token_data,
-                    processing_type:  payment_method_data.processing_type,
+                    processing_type: payment_method_data.processing_type,
                     original_network_transaction_id: network_transaction_id
                         .clone()
                         .map(|network_txn_id| Secret::new(network_txn_id)),
@@ -1544,8 +1543,8 @@ impl<F>
                 .clone()
                 .and_then(|mandate_ids| mandate_ids.connector_mandate_id),
             _ => None,
-        }.map(|mandate_id|
-        MandateReference {
+        }
+        .map(|mandate_id| MandateReference {
             connector_mandate_id: Some(mandate_id),
             payment_method_id: None,
             mandate_metadata: None,
