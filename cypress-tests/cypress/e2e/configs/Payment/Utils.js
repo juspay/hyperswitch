@@ -23,6 +23,7 @@ import { connectorDetails as fiservemeaConnectorDetails } from "./Fiservemea.js"
 import { connectorDetails as fiuuConnectorDetails } from "./Fiuu.js";
 import { connectorDetails as forteConnectorDetails } from "./Forte.js";
 import { connectorDetails as getnetConnectorDetails } from "./Getnet.js";
+import { connectorDetails as globalpayConnectorDetails } from "./Globalpay.js";
 import { connectorDetails as hipayConnectorDetails } from "./Hipay.js";
 import { connectorDetails as iatapayConnectorDetails } from "./Iatapay.js";
 import { connectorDetails as itaubankConnectorDetails } from "./ItauBank.js";
@@ -34,7 +35,9 @@ import { connectorDetails as noonConnectorDetails } from "./Noon.js";
 import { connectorDetails as novalnetConnectorDetails } from "./Novalnet.js";
 import { connectorDetails as payboxConnectorDetails } from "./Paybox.js";
 import { connectorDetails as paypalConnectorDetails } from "./Paypal.js";
+import { connectorDetails as powertranzConnectorDetails } from "./PowerTranz.js";
 import { connectorDetails as redsysConnectorDetails } from "./Redsys.js";
+import { connectorDetails as staxConnectorDetails } from "./Stax.js";
 import { connectorDetails as shift4ConnectorDetails } from "./Shift4.js";
 import { connectorDetails as stripeConnectorDetails } from "./Stripe.js";
 import { connectorDetails as trustpayConnectorDetails } from "./Trustpay.js";
@@ -65,6 +68,7 @@ const connectorDetails = {
   fiuu: fiuuConnectorDetails,
   forte: forteConnectorDetails,
   getnet: getnetConnectorDetails,
+  globalpay: globalpayConnectorDetails,
   hipay: hipayConnectorDetails,
   iatapay: iatapayConnectorDetails,
   itaubank: itaubankConnectorDetails,
@@ -76,7 +80,9 @@ const connectorDetails = {
   novalnet: novalnetConnectorDetails,
   paybox: payboxConnectorDetails,
   paypal: paypalConnectorDetails,
+  powertranz: powertranzConnectorDetails,
   redsys: redsysConnectorDetails,
+  stax: staxConnectorDetails,
   stripe: stripeConnectorDetails,
   shift4: shift4ConnectorDetails,
   trustpay: trustpayConnectorDetails,
@@ -352,6 +358,7 @@ export const CONNECTOR_LISTS = {
       "fiserv",
       "jpmorgan",
       "paypal",
+      "stax",
       "worldpayxml",
     ],
     // Add more exclusion lists
