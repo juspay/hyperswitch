@@ -19,15 +19,8 @@ pub use api_models::enums::Connector;
 use api_models::payment_methods;
 #[cfg(feature = "payouts")]
 pub use api_models::{enums::PayoutConnectors, payouts as payout_types};
-use common_utils::{
-    ext_traits::Encode,
-    id_type,
-};
 #[cfg(feature = "v1")]
-use common_utils::{
-    consts::DEFAULT_LOCALE,
-    ext_traits::OptionExt,
-};
+use common_utils::{consts::DEFAULT_LOCALE, ext_traits::OptionExt};
 #[cfg(feature = "v2")]
 use common_utils::{
     crypto::Encryptable,
@@ -36,6 +29,7 @@ use common_utils::{
     fp_utils::when,
     generate_id, types as util_types,
 };
+use common_utils::{ext_traits::Encode, id_type};
 use diesel_models::{
     enums, GenericLinkNew, PaymentMethodCollectLink, PaymentMethodCollectLinkData,
 };
