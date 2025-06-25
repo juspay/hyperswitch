@@ -1202,11 +1202,7 @@ impl Refunds {
     }
 }
 
-#[cfg(all(
-    feature = "v2",
-    feature = "refunds_v2",
-    any(feature = "olap", feature = "oltp")
-))]
+#[cfg(all(feature = "v2", any(feature = "olap", feature = "oltp")))]
 impl Refunds {
     pub fn server(state: AppState) -> Scope {
         let mut route = web::scope("/v2/refunds").app_data(web::Data::new(state));

@@ -39,7 +39,7 @@ use common_utils::{
     id_type, pii,
     types::{AmountConvertor, MinorUnit, Surcharge},
 };
-use diesel_models::{ephemeral_key, fraud_check::FraudCheck};
+use diesel_models::{ephemeral_key, fraud_check::FraudCheck, refund as diesel_refund};
 use error_stack::{report, ResultExt};
 use events::EventInfo;
 use futures::future::join_all;
@@ -5970,7 +5970,7 @@ where
     pub all_keys_required: Option<bool>,
     pub payment_method_data: Option<domain::PaymentMethodData>,
     pub payment_method_info: Option<domain::PaymentMethod>,
-    pub refunds: Vec<storage::Refund>,
+    pub refunds: Vec<diesel_refund::Refund>,
     pub disputes: Vec<storage::Dispute>,
     pub attempts: Option<Vec<storage::PaymentAttempt>>,
     pub sessions_token: Vec<api::SessionToken>,
@@ -8862,7 +8862,7 @@ pub trait OperationSessionGetters<F> {
         &self,
     ) -> Option<&hyperswitch_domain_models::router_request_types::authentication::AuthenticationStore>;
     fn get_frm_message(&self) -> Option<FraudCheck>;
-    fn get_refunds(&self) -> Vec<storage::Refund>;
+    fn get_refunds(&self) -> Vec<diesel_refund::Refund>;
     fn get_disputes(&self) -> Vec<storage::Dispute>;
     fn get_authorizations(&self) -> Vec<diesel_models::authorization::Authorization>;
     fn get_attempts(&self) -> Option<Vec<storage::PaymentAttempt>>;
@@ -9037,7 +9037,7 @@ impl<F: Clone> OperationSessionGetters<F> for PaymentData<F> {
         self.frm_message.clone()
     }
 
-    fn get_refunds(&self) -> Vec<storage::Refund> {
+    fn get_refunds(&self) -> Vec<diesel_refund::Refund> {
         self.refunds.clone()
     }
 
@@ -9349,7 +9349,7 @@ impl<F: Clone> OperationSessionGetters<F> for PaymentIntentData<F> {
         todo!()
     }
 
-    fn get_refunds(&self) -> Vec<storage::Refund> {
+    fn get_refunds(&self) -> Vec<diesel_refund::Refund> {
         todo!()
     }
 
@@ -9646,7 +9646,7 @@ impl<F: Clone> OperationSessionGetters<F> for PaymentConfirmData<F> {
         todo!()
     }
 
-    fn get_refunds(&self) -> Vec<storage::Refund> {
+    fn get_refunds(&self) -> Vec<diesel_refund::Refund> {
         todo!()
     }
 
@@ -9942,7 +9942,7 @@ impl<F: Clone> OperationSessionGetters<F> for PaymentStatusData<F> {
         todo!()
     }
 
-    fn get_refunds(&self) -> Vec<storage::Refund> {
+    fn get_refunds(&self) -> Vec<diesel_refund::Refund> {
         todo!()
     }
 
@@ -10234,7 +10234,7 @@ impl<F: Clone> OperationSessionGetters<F> for PaymentCaptureData<F> {
         todo!()
     }
 
-    fn get_refunds(&self) -> Vec<storage::Refund> {
+    fn get_refunds(&self) -> Vec<diesel_refund::Refund> {
         todo!()
     }
 
@@ -10521,7 +10521,7 @@ impl<F: Clone> OperationSessionGetters<F> for PaymentAttemptListData<F> {
         todo!()
     }
 
-    fn get_refunds(&self) -> Vec<storage::Refund> {
+    fn get_refunds(&self) -> Vec<diesel_refund::Refund> {
         todo!()
     }
 
