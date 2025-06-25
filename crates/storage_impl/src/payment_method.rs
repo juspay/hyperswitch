@@ -914,7 +914,7 @@ impl PaymentMethodInterface for MockDb {
                         key_store.merchant_id.clone().into(),
                     )
                     .await
-                    .change_context(errors::StorageError::DecryptionError)?)
+                    .map_err(|error| error_stack::report!(errors::StorageError::from(error)))?)
             }
             None => Err(errors::StorageError::ValueNotFound(
                 "cannot find payment method to delete".to_string(),

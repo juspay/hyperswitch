@@ -178,7 +178,7 @@ impl<T: DatabaseStore> RouterStore<T> {
                 key_store.merchant_id.clone().into(),
             )
             .await
-            .change_context(StorageError::DecryptionError)
+            .map_err(|error| error_stack::report!(StorageError::from(error)))
     }
 
     pub async fn find_optional_resource<D, R, M>(
@@ -206,7 +206,7 @@ impl<T: DatabaseStore> RouterStore<T> {
                         key_store.merchant_id.clone().into(),
                     )
                     .await
-                    .change_context(StorageError::DecryptionError)?,
+                    .map_err(|error| error_stack::report!(StorageError::from(error)))?,
             )),
             None => Ok(None),
         }
@@ -240,7 +240,7 @@ impl<T: DatabaseStore> RouterStore<T> {
                         key_store.merchant_id.clone().into(),
                     )
                     .await
-                    .change_context(StorageError::DecryptionError)
+                    .map_err(|error| error_stack::report!(StorageError::from(error)))
             })
             .collect::<Vec<_>>();
 

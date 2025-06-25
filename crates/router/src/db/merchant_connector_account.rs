@@ -255,7 +255,7 @@ impl MerchantConnectorAccountInterface for Store {
                 .await?
                 .convert(state, key_store.key.get_inner(), merchant_id.clone().into())
                 .await
-                .change_context(errors::StorageError::DeserializationFailed)
+                .map_err(|error| report!(errors::StorageError::from(error)))
         }
 
         #[cfg(feature = "accounts_cache")]
@@ -274,7 +274,7 @@ impl MerchantConnectorAccountInterface for Store {
                     key_store.merchant_id.clone().into(),
                 )
                 .await
-                .change_context(errors::StorageError::DecryptionError)
+                .map_err(|error| report!(errors::StorageError::from(error)))
             })
             .await
         }
@@ -310,7 +310,7 @@ impl MerchantConnectorAccountInterface for Store {
                     key_store.merchant_id.clone().into(),
                 )
                 .await
-                .change_context(errors::StorageError::DeserializationFailed)
+                .map_err(|error| report!(errors::StorageError::from(error)))
         }
 
         #[cfg(feature = "accounts_cache")]
@@ -329,7 +329,7 @@ impl MerchantConnectorAccountInterface for Store {
                     key_store.merchant_id.clone().into(),
                 )
                 .await
-                .change_context(errors::StorageError::DecryptionError)
+                .map_err(|error| report!(errors::StorageError::from(error)))
             })
             .await
         }
@@ -362,7 +362,7 @@ impl MerchantConnectorAccountInterface for Store {
                         key_store.merchant_id.clone().into(),
                     )
                     .await
-                    .change_context(errors::StorageError::DecryptionError)?,
+                    .map_err(|error| report!(errors::StorageError::from(error)))?,
                 )
             }
             Ok(output)
@@ -400,7 +400,7 @@ impl MerchantConnectorAccountInterface for Store {
                     key_store.merchant_id.clone().into(),
                 )
                 .await
-                .change_context(errors::StorageError::DecryptionError)
+                .map_err(|error| report!(errors::StorageError::from(error)))
         }
 
         #[cfg(feature = "accounts_cache")]
@@ -422,7 +422,7 @@ impl MerchantConnectorAccountInterface for Store {
                 key_store.merchant_id.clone().into(),
             )
             .await
-            .change_context(errors::StorageError::DecryptionError)
+            .map_err(|error| report!(errors::StorageError::from(error)))
         }
     }
 
@@ -451,7 +451,7 @@ impl MerchantConnectorAccountInterface for Store {
                     key_store.merchant_id.clone(),
                 )
                 .await
-                .change_context(errors::StorageError::DecryptionError)
+                .map_err(|error| report!(errors::StorageError::from(error)))
         }
 
         #[cfg(feature = "accounts_cache")]
@@ -471,7 +471,7 @@ impl MerchantConnectorAccountInterface for Store {
                 ),
             )
             .await
-            .change_context(errors::StorageError::DecryptionError)
+            .map_err(|error| report!(errors::StorageError::from(error)))
         }
     }
 
@@ -496,7 +496,7 @@ impl MerchantConnectorAccountInterface for Store {
                     key_store.merchant_id.clone().into(),
                 )
                 .await
-                .change_context(errors::StorageError::DecryptionError)
+                .map_err(|error| report!(errors::StorageError::from(error)))
             })
             .await
     }
@@ -527,7 +527,7 @@ impl MerchantConnectorAccountInterface for Store {
                         key_store.merchant_id.clone().into(),
                     )
                     .await
-                    .change_context(errors::StorageError::DecryptionError)?,
+                    .map_err(|error| report!(errors::StorageError::from(error)))?,
                 )
             }
             Ok(output)
@@ -562,7 +562,7 @@ impl MerchantConnectorAccountInterface for Store {
                             key_store.merchant_id.clone().into(),
                         )
                         .await
-                        .change_context(errors::StorageError::DecryptionError)?,
+                        .map_err(|error| report!(errors::StorageError::from(error)))?,
                     )
                 }
                 Ok(output)
@@ -595,7 +595,7 @@ impl MerchantConnectorAccountInterface for Store {
                             key_store.merchant_id.clone().into(),
                         )
                         .await
-                        .change_context(errors::StorageError::DecryptionError)?,
+                        .map_err(|error| report!(errors::StorageError::from(error)))?,
                     )
                 }
                 Ok(output)
@@ -743,7 +743,7 @@ impl MerchantConnectorAccountInterface for Store {
                         key_store.merchant_id.clone().into(),
                     )
                     .await
-                    .change_context(errors::StorageError::DecryptionError)
+                    .map_err(|error| report!(errors::StorageError::from(error)))
                 })
                 .await
         };
@@ -825,7 +825,7 @@ impl MerchantConnectorAccountInterface for Store {
                         ),
                     )
                     .await
-                    .change_context(errors::StorageError::DecryptionError)
+                    .map_err(|error| report!(errors::StorageError::from(error)))
                 })
                 .await
         };
@@ -1051,7 +1051,7 @@ impl MerchantConnectorAccountInterface for MockDb {
                         key_store.merchant_id.clone().into(),
                     )
                     .await
-                    .change_context(errors::StorageError::DecryptionError)
+                    .map_err(|error| report!(errors::StorageError::from(error)))
             })
             .await
         {
@@ -1103,7 +1103,7 @@ impl MerchantConnectorAccountInterface for MockDb {
                         key_store.merchant_id.clone().into(),
                     )
                     .await
-                    .change_context(errors::StorageError::DecryptionError)?,
+                    .map_err(|error| report!(errors::StorageError::from(error)))?,
             )
         }
         Ok(output)
@@ -1137,7 +1137,7 @@ impl MerchantConnectorAccountInterface for MockDb {
                     key_store.merchant_id.clone().into(),
                 )
                 .await
-                .change_context(errors::StorageError::DecryptionError),
+                .map_err(|error| report!(errors::StorageError::from(error))),
             None => Err(errors::StorageError::ValueNotFound(
                 "cannot find merchant connector account".to_string(),
             )
@@ -1171,7 +1171,7 @@ impl MerchantConnectorAccountInterface for MockDb {
                         key_store.merchant_id.clone().into(),
                     )
                     .await
-                    .change_context(errors::StorageError::DecryptionError)
+                    .map_err(|error| report!(errors::StorageError::from(error)))
             })
             .await
         {
@@ -1209,7 +1209,7 @@ impl MerchantConnectorAccountInterface for MockDb {
                         ),
                     )
                     .await
-                    .change_context(errors::StorageError::DecryptionError)
+                    .map_err(|error| report!(errors::StorageError::from(error)))
             })
             .await
         {
@@ -1267,7 +1267,7 @@ impl MerchantConnectorAccountInterface for MockDb {
                 key_store.merchant_id.clone().into(),
             )
             .await
-            .change_context(errors::StorageError::DecryptionError)
+            .map_err(|error| report!(errors::StorageError::from(error)))
     }
 
     #[cfg(feature = "v2")]
@@ -1311,7 +1311,7 @@ impl MerchantConnectorAccountInterface for MockDb {
                 ),
             )
             .await
-            .change_context(errors::StorageError::DecryptionError)
+            .map_err(|error| report!(errors::StorageError::from(error)))
     }
 
     async fn find_merchant_connector_account_by_merchant_id_and_disabled_list(
@@ -1346,7 +1346,7 @@ impl MerchantConnectorAccountInterface for MockDb {
                         key_store.merchant_id.clone().into(),
                     )
                     .await
-                    .change_context(errors::StorageError::DecryptionError)?,
+                    .map_err(|error| report!(errors::StorageError::from(error)))?,
             )
         }
         Ok(domain::MerchantConnectorAccounts::new(output))
@@ -1380,7 +1380,7 @@ impl MerchantConnectorAccountInterface for MockDb {
                         key_store.merchant_id.clone().into(),
                     )
                     .await
-                    .change_context(errors::StorageError::DecryptionError)?,
+                    .map_err(|error| report!(errors::StorageError::from(error)))?,
             )
         }
         Ok(output)
@@ -1414,7 +1414,7 @@ impl MerchantConnectorAccountInterface for MockDb {
                         key_store.merchant_id.clone().into(),
                     )
                     .await
-                    .change_context(errors::StorageError::DecryptionError)
+                    .map_err(|error| report!(errors::StorageError::from(error)))
             })
             .await;
 
@@ -1459,7 +1459,7 @@ impl MerchantConnectorAccountInterface for MockDb {
                         ),
                     )
                     .await
-                    .change_context(errors::StorageError::DecryptionError)
+                    .map_err(|error| report!(errors::StorageError::from(error)))
             })
             .await;
 

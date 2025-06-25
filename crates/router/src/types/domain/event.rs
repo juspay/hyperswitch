@@ -133,6 +133,28 @@ impl super::behaviour::Conversion for Event {
         })
     }
 
+    fn validate(
+        item: Self::DstType,
+        key_manager_identifier: common_utils::types::keymanager::Identifier,
+    ) -> CustomResult<(), ValidationError>
+    where
+        Self: Sized,
+    {
+        match key_manager_identifier {
+            common_utils::types::keymanager::Identifier::Merchant(merchant_id) => {
+                if item.merchant_id != Some(merchant_id) {
+                    return Err(ValidationError::IncorrectValueProvided {
+                        field_name: "Event ID",
+                    }
+                    .into());
+                }
+
+                Ok(())
+            }
+            _ => Ok(()),
+        }
+    }
+
     async fn convert_back(
         state: &KeyManagerState,
         item: Self::DstType,
