@@ -3,7 +3,7 @@ mod incoming;
 #[cfg(feature = "v2")]
 mod incoming_v2;
 #[cfg(feature = "v1")]
-pub mod network_tokenization_incoming;
+mod network_tokenization_incoming;
 #[cfg(feature = "v1")]
 mod outgoing;
 #[cfg(feature = "v2")]

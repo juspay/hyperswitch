@@ -126,7 +126,6 @@ pub async fn incoming_webhooks_wrapper<W: types::OutgoingWebhookType>(
 }
 
 #[cfg(feature = "v1")]
-#[allow(clippy::too_many_arguments)]
 pub async fn network_token_incoming_webhooks_wrapper<W: types::OutgoingWebhookType>(
     flow: &impl router_env::types::FlowMetric,
     state: SessionState,
@@ -156,8 +155,8 @@ pub async fn network_token_incoming_webhooks_wrapper<W: types::OutgoingWebhookTy
 
     let request_id = RequestId::extract(req)
         .await
-        .attach_printable("Unable to extract request id from request")
-        .change_context(errors::ApiErrorResponse::InternalServerError)?;
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Unable to extract request id from request")?;
     let auth_type = auth::AuthenticationType::NoAuth;
     let status_code = 200;
     let api_event = ApiEventsType::NetworkTokenWebhook {
@@ -661,7 +660,6 @@ fn handle_incoming_webhook_error(
     }
 }
 
-#[allow(clippy::too_many_arguments)]
 #[instrument(skip_all)]
 #[cfg(feature = "v1")]
 async fn network_token_incoming_webhooks_core<W: types::OutgoingWebhookType>(

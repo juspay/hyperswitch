@@ -1,6 +1,5 @@
 use common_enums::enums as common_enums;
 use common_types::callback_mapper::CallbackMapperData;
-// use serde::{self, Deserialize, Serialize};
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct CallbackMapper {

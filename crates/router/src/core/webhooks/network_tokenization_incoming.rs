@@ -5,7 +5,7 @@ use api_models::webhooks::WebhookResponseTracker;
 use async_trait::async_trait;
 use common_utils::{
     crypto::Encryptable,
-    ext_traits::{AsyncExt, ByteSliceExt},
+    ext_traits::{AsyncExt, ByteSliceExt, ValueExt},
     id_type,
 };
 use error_stack::{report, ResultExt};
@@ -105,7 +105,9 @@ impl NetworkTokenWebhookResponseExt for pm_types::PanMetadataUpdateBody {
             .clone()
             .map(|payment_method_data| payment_method_data.into_inner().expose())
             .and_then(|val| {
-                serde_json::from_value::<api::payment_methods::PaymentMethodsData>(val).ok()
+                val.parse_value::<api::payment_methods::PaymentMethodsData>("PaymentMethodsData")
+                    .map_err(|err| logger::error!(?err, "Failed to parse PaymentMethodsData"))
+                    .ok()
             })
             .and_then(|pmd| match pmd {
                 api::payment_methods::PaymentMethodsData::Card(token) => {
@@ -153,8 +155,10 @@ impl NetworkTokenWebhookResponseExt for pm_types::NetworkTokenMetaDataUpdateBody
             .network_token_payment_method_data
             .clone()
             .map(|x| x.into_inner().expose())
-            .and_then(|v| {
-                serde_json::from_value::<api::payment_methods::PaymentMethodsData>(v).ok()
+            .and_then(|val| {
+                val.parse_value::<api::payment_methods::PaymentMethodsData>("PaymentMethodsData")
+                    .map_err(|err| logger::error!(?err, "Failed to parse PaymentMethodsData"))
+                    .ok()
             })
             .and_then(|pmd| match pmd {
                 api::payment_methods::PaymentMethodsData::Card(token) => {
@@ -213,7 +217,7 @@ impl Authorization {
             Some(authorization_header) => match authorization_header.to_str() {
                 Ok(header_value) => Ok(header_value == secret.expose()),
                 Err(err) => {
-                    logger::error!("Failed to parse authorization header: {}", err);
+                    logger::error!(?err, "Failed to parse authorization header");
                     Err(errors::ApiErrorResponse::WebhookAuthenticationFailed)
                 }
             },
