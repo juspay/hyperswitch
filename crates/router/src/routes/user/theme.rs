@@ -251,8 +251,8 @@ pub async fn upload_file_to_user_theme_storage(
         state,
         &req,
         payload,
-        |state, _user: auth::UserFromToken, payload, _| {
-            theme_core::upload_file_to_theme_storage(state, theme_id.clone(), payload)
+        |state, user: auth::UserFromToken, payload, _| {
+            theme_core::upload_file_to_user_theme_storage(state, theme_id.clone(), user, payload)
         },
         &auth::DashboardNoPermissionAuth,
         api_locking::LockAction::NotApplicable,

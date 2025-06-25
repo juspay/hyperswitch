@@ -224,83 +224,34 @@ pub async fn get_theme_using_optional_theme_id(
         }
     }
 }
-
 pub async fn get_theme_lineage_from_user_token(
     user_from_token: &UserFromToken,
     state: &SessionState,
     request_entity_type: &EntityType,
 ) -> UserResult<ThemeLineage> {
-    match request_entity_type {
-        EntityType::Profile => Ok(ThemeLineage::Profile {
-            tenant_id: user_from_token
-                .tenant_id
-                .clone()
-                .unwrap_or(state.tenant.tenant_id.clone()),
-            org_id: user_from_token.org_id.clone(),
-            merchant_id: user_from_token.merchant_id.clone(),
-            profile_id: user_from_token.profile_id.clone(),
-        }),
-        EntityType::Merchant => Ok(ThemeLineage::Merchant {
-            tenant_id: user_from_token
-                .tenant_id
-                .clone()
-                .unwrap_or(state.tenant.tenant_id.clone()),
-            org_id: user_from_token.org_id.clone(),
-            merchant_id: user_from_token.merchant_id.clone(),
-        }),
-        EntityType::Organization => Ok(ThemeLineage::Organization {
-            tenant_id: user_from_token
-                .tenant_id
-                .clone()
-                .unwrap_or(state.tenant.tenant_id.clone()),
-            org_id: user_from_token.org_id.clone(),
-        }),
-        EntityType::Tenant => Ok(ThemeLineage::Tenant {
-            tenant_id: user_from_token
-                .tenant_id
-                .clone()
-                .unwrap_or(state.tenant.tenant_id.clone()),
-        }),
-    }
+    let tenant_id = user_from_token
+        .tenant_id
+        .clone()
+        .unwrap_or(state.tenant.tenant_id.clone());
+    let org_id = user_from_token.org_id.clone();
+    let merchant_id = user_from_token.merchant_id.clone();
+    let profile_id = user_from_token.profile_id.clone();
+
+    Ok(ThemeLineage::new(
+        request_entity_type.clone(),
+        tenant_id,
+        org_id,
+        merchant_id,
+        profile_id,
+    ))
 }
 
 pub fn get_lineage_from_theme(theme: &Theme) -> ThemeLineage {
-    match theme.entity_type {
-        EntityType::Tenant => ThemeLineage::Tenant {
-            tenant_id: theme.tenant_id.clone(),
-        },
-        EntityType::Organization => ThemeLineage::Organization {
-            tenant_id: theme.tenant_id.clone(),
-            org_id: theme.org_id.clone().unwrap_or_default(),
-        },
-        EntityType::Merchant => ThemeLineage::Merchant {
-            tenant_id: theme.tenant_id.clone(),
-            org_id: theme.org_id.clone().unwrap_or_default(),
-            merchant_id: theme.merchant_id.clone().unwrap_or_default(),
-        },
-        EntityType::Profile => ThemeLineage::Profile {
-            tenant_id: theme.tenant_id.clone(),
-            org_id: theme.org_id.clone().unwrap_or_default(),
-            merchant_id: theme.merchant_id.clone().unwrap_or_default(),
-            profile_id: theme.profile_id.clone().unwrap_or_default(),
-        },
-    }
-}
-
-pub async fn validate_user_can_access_theme(
-    user_from_token: &UserFromToken,
-    state: &SessionState,
-    theme: &Theme,
-) -> UserResult<()> {
-    let user_lineage =
-        get_theme_lineage_from_user_token(user_from_token, state, &theme.entity_type).await?;
-    let theme_lineage = get_lineage_from_theme(theme);
-
-    if user_lineage != theme_lineage {
-        return Err(UserErrors::InvalidThemeLineage(
-            "User does not have permission to access this theme".to_string(),
-        )
-        .into());
-    }
-    Ok(())
+    ThemeLineage::new(
+        theme.entity_type.clone(),
+        theme.tenant_id.clone(),
+        theme.org_id.clone().unwrap_or_default(),
+        theme.merchant_id.clone().unwrap_or_default(),
+        theme.profile_id.clone().unwrap_or_default(),
+    )
 }

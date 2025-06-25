@@ -313,8 +313,19 @@ pub async fn delete_user_theme(
         .find_theme_by_theme_id(theme_id.clone())
         .await
         .to_not_found_response(UserErrors::ThemeNotFound)?;
-
-    theme_utils::validate_user_can_access_theme(&user_from_token, &state, &db_theme).await?;
+    let user_lineage = theme_utils::get_theme_lineage_from_user_token(
+        &user_from_token,
+        &state,
+        &db_theme.entity_type,
+    )
+    .await?;
+    let theme_lineage = theme_utils::get_lineage_from_theme(&db_theme);
+    if user_lineage != theme_lineage {
+        return Err(UserErrors::InvalidThemeLineage(
+            "User does not have permission to access this theme".to_string(),
+        )
+        .into());
+    }
     state
         .store
         .delete_theme_by_theme_id(theme_id.clone())
@@ -338,8 +349,19 @@ pub async fn update_user_theme(
         .find_theme_by_theme_id(theme_id.clone())
         .await
         .to_not_found_response(UserErrors::ThemeNotFound)?;
-
-    theme_utils::validate_user_can_access_theme(&user_from_token, &state, &db_theme).await?;
+    let user_lineage = theme_utils::get_theme_lineage_from_user_token(
+        &user_from_token,
+        &state,
+        &db_theme.entity_type,
+    )
+    .await?;
+    let theme_lineage = theme_utils::get_lineage_from_theme(&db_theme);
+    if user_lineage != theme_lineage {
+        return Err(UserErrors::InvalidThemeLineage(
+            "User does not have permission to access this theme".to_string(),
+        )
+        .into());
+    }
 
     let db_theme = match request.email_config {
         Some(email_config) => {
@@ -387,4 +409,38 @@ pub async fn update_user_theme(
         theme_name: db_theme.theme_name,
         theme_data: parsed_data,
     }))
+}
+
+pub async fn upload_file_to_user_theme_storage(
+    state: SessionState,
+    theme_id: String,
+    user_from_token: UserFromToken,
+    request: theme_api::UploadFileRequest,
+) -> UserResponse<()> {
+    let db_theme = state
+        .store
+        .find_theme_by_theme_id(theme_id)
+        .await
+        .to_not_found_response(UserErrors::ThemeNotFound)?;
+    let user_lineage = theme_utils::get_theme_lineage_from_user_token(
+        &user_from_token,
+        &state,
+        &db_theme.entity_type,
+    )
+    .await?;
+    let theme_lineage = theme_utils::get_lineage_from_theme(&db_theme);
+    if user_lineage != theme_lineage {
+        return Err(UserErrors::InvalidThemeLineage(
+            "User does not have permission to access this theme".to_string(),
+        )
+        .into());
+    }
+    theme_utils::upload_file_to_theme_bucket(
+        &state,
+        &theme_utils::get_specific_file_key(&db_theme.theme_id, &request.asset_name),
+        request.asset_data.expose(),
+    )
+    .await?;
+
+    Ok(ApplicationResponse::StatusOk)
 }
