@@ -431,7 +431,7 @@ mod tests {
     }
 }
 
-#[cfg(feature = "tonic")]
+#[cfg(feature = "proto_tonic")]
 impl prost::Message for Secret<String, crate::WithType> {
     fn encode_raw(&self, buf: &mut impl bytes::BufMut) {
         prost::encoding::string::encode(1, self.peek(), buf);

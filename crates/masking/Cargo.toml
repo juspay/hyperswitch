@@ -13,7 +13,7 @@ alloc = ["zeroize/alloc"]
 serde = ["dep:serde", "dep:serde_json"]
 time = ["dep:time"]
 cassandra = ["dep:scylla"]
-tonic = ["dep:bytes", "dep:prost"]
+proto_tonic = ["dep:bytes", "dep:prost"]
 bytes = ["dep:bytes"]
 
 [package.metadata.docs.rs]
