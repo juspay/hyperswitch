@@ -1,3 +1,5 @@
+#[cfg(feature = "v2")]
+use common_types::payments as common_payments_types;
 use common_types::primitive_wrappers::{
     ExtendedAuthorizationAppliedBool, RequestExtendedAuthorizationBool,
 };
@@ -78,7 +80,7 @@ pub struct PaymentAttempt {
     pub fingerprint_id: Option<String>,
     pub client_source: Option<String>,
     pub client_version: Option<String>,
-    pub customer_acceptance: Option<pii::SecretSerdeValue>,
+    pub customer_acceptance: Option<masking::Secret<common_payments_types::CustomerAcceptance>>,
     pub profile_id: id_type::ProfileId,
     pub organization_id: id_type::OrganizationId,
     pub card_network: Option<String>,
@@ -319,7 +321,7 @@ pub struct PaymentAttemptNew {
     pub payment_method_billing_address: Option<common_utils::encryption::Encryption>,
     pub client_source: Option<String>,
     pub client_version: Option<String>,
-    pub customer_acceptance: Option<pii::SecretSerdeValue>,
+    pub customer_acceptance: Option<masking::Secret<common_payments_types::CustomerAcceptance>>,
     pub profile_id: id_type::ProfileId,
     pub organization_id: id_type::OrganizationId,
     pub card_network: Option<String>,
