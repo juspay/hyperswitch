@@ -10,9 +10,9 @@ use cards::CardNumber;
 #[cfg(feature = "v2")]
 use common_enums::enums::PaymentConnectorTransmission;
 use common_enums::ProductType;
-use common_types::payments as common_payments_types;
 #[cfg(feature = "v2")]
 use common_types::domain::MerchantConnectorAuthDetails;
+use common_types::payments as common_payments_types;
 #[cfg(feature = "v1")]
 use common_types::primitive_wrappers::{
     ExtendedAuthorizationAppliedBool, RequestExtendedAuthorizationBool,
