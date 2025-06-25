@@ -126,3 +126,36 @@ impl StrongEq for Vec<u8> {
         bool::from(lhs.ct_eq(rhs))
     }
 }
+
+#[cfg(feature = "proto_tonic")]
+impl prost::Message for StrongSecret<String, crate::WithType> {
+    fn encode_raw(&self, buf: &mut impl bytes::BufMut) {
+        prost::encoding::string::encode(1, self.peek(), buf);
+    }
+
+    fn merge_field(
+        &mut self,
+        tag: u32,
+        wire_type: prost::encoding::WireType,
+        buf: &mut impl bytes::Buf,
+        ctx: prost::encoding::DecodeContext,
+    ) -> Result<(), prost::DecodeError> {
+        if tag == 1 {
+            let mut value = String::new();
+            prost::encoding::string::merge(wire_type, &mut value, buf, ctx)?;
+            *self = Self::new(value);
+            Ok(())
+        } else {
+            prost::encoding::skip_field(wire_type, tag, buf, ctx)
+        }
+    }
+
+    fn encoded_len(&self) -> usize {
+        prost::encoding::string::encoded_len(1, self.peek())
+    }
+
+    fn clear(&mut self) {
+        *self = Self::new(String::new());
+    }
+}
+
