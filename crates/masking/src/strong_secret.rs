@@ -158,4 +158,3 @@ impl prost::Message for StrongSecret<String, crate::WithType> {
         *self = Self::new(String::new());
     }
 }
-
