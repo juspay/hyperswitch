@@ -15,7 +15,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 "google.protobuf.Timestamp",
                 "#[derive(serde::Serialize, serde::Deserialize)]",
             )
-            .compile(&v2_proto_files, &[&proto_base_path])
+            .compile_protos(&v2_proto_files, &[&proto_base_path])
             .expect("Failed to compile revenue-recovery proto files");
     }
 
@@ -36,8 +36,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         );
         tonic_build::configure()
             .out_dir(&out_dir)
-            .compile_well_known_types(true)
-            .compile(&dr_proto_files, &[&proto_base_path])
+            .compile_protos(&dr_proto_files, &[&proto_base_path])
             .expect("Failed to compile dynamic routing proto files");
     }
     Ok(())
