@@ -447,7 +447,7 @@ impl prost::Message for Secret<String, crate::WithType> {
         if tag == 1 {
             let mut value = String::new();
             prost::encoding::string::merge(wire_type, &mut value, buf, ctx)?;
-            *self = Secret::new(value);
+            *self = Self::new(value);
             Ok(())
         } else {
             prost::encoding::skip_field(wire_type, tag, buf, ctx)
@@ -459,6 +459,6 @@ impl prost::Message for Secret<String, crate::WithType> {
     }
 
     fn clear(&mut self) {
-        *self = Secret::new(String::new());
+        *self = Self::new(String::new());
     }
 }
