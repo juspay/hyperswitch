@@ -1958,18 +1958,6 @@
               "type": "string"
             },
             "example": "pro_abcdefghijklmnop"
-          },
-          {
-            "name": "X-Client-Secret",
-            "in": "header",
-            "description": "Client Secret Associated with the payment intent",
-            "required": true,
-            "schema": {
-              "type": "string"
-            },
-            "example": {
-              "X-Client-Secret": "12345_pay_0193e41106e07e518940f8b51b9c8121_secret_0193e41107027a928d61d292e6a5dba9"
-            }
           }
         ],
         "requestBody": {
@@ -2222,18 +2210,6 @@
               "type": "string"
             },
             "example": "pro_abcdefghijklmnop"
-          },
-          {
-            "name": "X-Client-Secret",
-            "in": "header",
-            "description": "Client Secret Associated with the payment intent",
-            "required": true,
-            "schema": {
-              "type": "string"
-            },
-            "example": {
-              "X-Client-Secret": "12345_pay_0193e41106e07e518940f8b51b9c8121_secret_0193e41107027a928d61d292e6a5dba9"
-            }
           }
         ],
         "responses": {
@@ -3538,6 +3514,8 @@
         "tags": [
           "Tokenization"
         ],
+        "summary": "Tokenization - Create",
+        "description": "Create a token with customer_id",
         "operationId": "create_token_vault_api",
         "requestBody": {
           "content": {
@@ -4671,9 +4649,7 @@
             "$ref": "#/components/schemas/NoThirdPartySdkSessionResponse"
           },
           {
-            "type": "object",
-            "default": null,
-            "nullable": true
+            "$ref": "#/components/schemas/NullObject"
           }
         ]
       },
@@ -6780,6 +6756,23 @@
           }
         }
       },
+      "BillingConnectorAdditionalCardInfo": {
+        "type": "object",
+        "required": [
+          "card_network"
+        ],
+        "properties": {
+          "card_network": {
+            "$ref": "#/components/schemas/CardNetwork"
+          },
+          "card_issuer": {
+            "type": "string",
+            "description": "Card Issuer",
+            "example": "JP MORGAN CHASE",
+            "nullable": true
+          }
+        }
+      },
       "BillingConnectorPaymentDetails": {
         "type": "object",
         "required": [
@@ -6795,6 +6788,31 @@
             "type": "string",
             "description": "Billing Connector's Customer Id"
           }
+        }
+      },
+      "BillingConnectorPaymentMethodDetails": {
+        "oneOf": [
+          {
+            "type": "object",
+            "required": [
+              "type",
+              "value"
+            ],
+            "properties": {
+              "type": {
+                "type": "string",
+                "enum": [
+                  "card"
+                ]
+              },
+              "value": {
+                "$ref": "#/components/schemas/BillingConnectorAdditionalCardInfo"
+              }
+            }
+          }
+        ],
+        "discriminator": {
+          "propertyName": "type"
         }
       },
       "BlikBankRedirectAdditionalData": {
@@ -13400,16 +13418,17 @@
       },
       "MerchantConnectorDetails": {
         "type": "object",
+        "required": [
+          "connector_name",
+          "merchant_connector_creds"
+        ],
         "properties": {
-          "connector_account_details": {
-            "type": "object",
-            "description": "Account details of the Connector. You can specify up to 50 keys, with key names up to 40 characters long and values up to 500 characters long. Useful for storing additional, structured information on an object.",
-            "nullable": true
+          "connector_name": {
+            "$ref": "#/components/schemas/Connector"
           },
-          "metadata": {
+          "merchant_connector_creds": {
             "type": "object",
-            "description": "Metadata is useful for storing additional, unstructured information on an object.",
-            "nullable": true
+            "description": "The merchant connector credentials used for the payment"
           }
         }
       },
@@ -14660,6 +14679,10 @@
           }
         }
       },
+      "NullObject": {
+        "default": null,
+        "nullable": true
+      },
       "NumberComparison": {
         "type": "object",
         "description": "Represents a number comparison for \"NumberComparisonArrayValue\"",
@@ -14678,6 +14701,7 @@
       },
       "OnlineMandate": {
         "type": "object",
+        "description": "Details of online mandate",
         "required": [
           "ip_address",
           "user_agent"
@@ -15468,6 +15492,31 @@
           }
         }
       },
+      "PaymentAttemptListRequest": {
+        "type": "object",
+        "required": [
+          "payment_intent_id"
+        ],
+        "properties": {
+          "payment_intent_id": {
+            "type": "string"
+          }
+        }
+      },
+      "PaymentAttemptListResponse": {
+        "type": "object",
+        "required": [
+          "payment_attempt_list"
+        ],
+        "properties": {
+          "payment_attempt_list": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PaymentAttemptResponse"
+            }
+          }
+        }
+      },
       "PaymentAttemptRecordResponse": {
         "type": "object",
         "required": [
@@ -15642,6 +15691,11 @@
                 "$ref": "#/components/schemas/TriggeredBy"
               }
             ],
+            "nullable": true
+          },
+          "charge_id": {
+            "type": "string",
+            "example": "ch_123abc456def789ghi012klmn",
             "nullable": true
           }
         }
@@ -17854,7 +17908,8 @@
           "billing_connector_payment_details",
           "payment_method_type",
           "payment_method_subtype",
-          "connector"
+          "connector",
+          "billing_connector_payment_method_details"
         ],
         "properties": {
           "total_retry_count": {
@@ -17894,10 +17949,31 @@
           "connector": {
             "$ref": "#/components/schemas/Connector"
           },
+          "billing_connector_payment_method_details": {
+            "$ref": "#/components/schemas/BillingConnectorPaymentMethodDetails"
+          },
           "invoice_next_billing_time": {
             "type": "string",
             "format": "date-time",
             "description": "Invoice Next billing time",
+            "nullable": true
+          },
+          "first_payment_attempt_pg_error_code": {
+            "type": "string",
+            "description": "First Payment Attempt Payment Gateway Error Code",
+            "example": "card_declined",
+            "nullable": true
+          },
+          "first_payment_attempt_network_decline_code": {
+            "type": "string",
+            "description": "First Payment Attempt Network Error Code",
+            "example": "05",
+            "nullable": true
+          },
+          "first_payment_attempt_network_advice_code": {
+            "type": "string",
+            "description": "First Payment Attempt Network Advice Code",
+            "example": "02",
             "nullable": true
           }
         }
@@ -18026,6 +18102,14 @@
           "payment_token": {
             "type": "string",
             "example": "187282ab-40ef-47a9-9206-5099ba31e432",
+            "nullable": true
+          },
+          "merchant_connector_details": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/MerchantConnectorDetails"
+              }
+            ],
             "nullable": true
           }
         },
@@ -18223,6 +18307,14 @@
           "force_3ds_challenge": {
             "type": "boolean",
             "description": "Indicates if 3ds challenge is forced",
+            "nullable": true
+          },
+          "merchant_connector_details": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/MerchantConnectorDetails"
+              }
+            ],
             "nullable": true
           }
         },
@@ -19010,6 +19102,14 @@
             "type": "boolean",
             "description": "Indicates if the redirection has to open in the iframe",
             "nullable": true
+          },
+          "merchant_connector_details": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/MerchantConnectorDetails"
+              }
+            ],
+            "nullable": true
           }
         },
         "additionalProperties": false
@@ -19186,12 +19286,20 @@
             "type": "boolean",
             "description": "Indicates if the redirection has to open in the iframe",
             "nullable": true
+          },
+          "merchant_reference_id": {
+            "type": "string",
+            "description": "Unique identifier for the payment. This ensures idempotency for multiple payments\nthat have been done by a single merchant.",
+            "example": "pay_mbabizu24mvu3mela5njyhpit4",
+            "nullable": true,
+            "maxLength": 30,
+            "minLength": 30
           }
         }
       },
       "PaymentsRetrieveRequest": {
         "type": "object",
-        "description": "Request for Payment Status",
+        "description": "Request body for Payment Status",
         "properties": {
           "force_sync": {
             "type": "boolean",
@@ -19209,6 +19317,14 @@
           "all_keys_required": {
             "type": "boolean",
             "description": "If enabled, provides whole connector response",
+            "nullable": true
+          },
+          "merchant_connector_details": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/MerchantConnectorDetails"
+              }
+            ],
             "nullable": true
           }
         }
@@ -19240,6 +19356,30 @@
                 "$ref": "#/components/schemas/VaultSessionDetails"
               }
             ],
+            "nullable": true
+          }
+        }
+      },
+      "PaymentsStatusRequest": {
+        "type": "object",
+        "description": "Request for Payment Status",
+        "properties": {
+          "force_sync": {
+            "type": "boolean",
+            "description": "A boolean used to indicate if the payment status should be fetched from the connector\nIf this is set to true, the status will be fetched from the connector"
+          },
+          "expand_attempts": {
+            "type": "boolean",
+            "description": "A boolean used to indicate if all the attempts needs to be fetched for the intent.\nIf this is set to true, attempts list will be available in the response."
+          },
+          "param": {
+            "type": "string",
+            "description": "These are the query params that are sent in case of redirect response.\nThese can be ingested by the connector to take necessary actions.",
+            "nullable": true
+          },
+          "all_keys_required": {
+            "type": "boolean",
+            "description": "If enabled, provides whole connector response",
             "nullable": true
           }
         }

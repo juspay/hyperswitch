@@ -1,6 +1,5 @@
 use common_enums;
 use common_utils::id_type::{GlobalCustomerId, GlobalTokenId};
-use masking::Secret;
 use serde::{Deserialize, Serialize};
 use time::PrimitiveDateTime;
 use utoipa::{schema, ToSchema};

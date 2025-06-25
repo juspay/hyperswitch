@@ -254,7 +254,7 @@ pub enum MandateIdType {
 
 #[derive(Clone)]
 pub enum AuthenticationIdType {
-    AuthenticationId(String),
+    AuthenticationId(common_utils::id_type::AuthenticationId),
     ConnectorAuthenticationId(String),
 }
 

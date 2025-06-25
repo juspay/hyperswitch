@@ -185,7 +185,7 @@ impl From<AuthenticationData> for Archipel3DS {
     }
 }
 
-#[derive(Debug, Serialize, Eq, PartialEq)]
+#[derive(Clone, Debug, Serialize, Eq, PartialEq)]
 #[serde(rename_all = "camelCase")]
 pub struct ArchipelCardHolder {
     billing_address: Option<ArchipelBillingAddress>,
@@ -199,7 +199,7 @@ impl From<Option<ArchipelBillingAddress>> for ArchipelCardHolder {
     }
 }
 
-#[derive(Debug, Serialize, Eq, PartialEq)]
+#[derive(Clone, Debug, Serialize, Eq, PartialEq)]
 #[serde(rename_all = "camelCase")]
 pub struct ArchipelBillingAddress {
     address: Option<Secret<String>>,
@@ -212,10 +212,16 @@ pub trait ToArchipelBillingAddress {
 
 impl ToArchipelBillingAddress for AddressDetails {
     fn to_archipel_billing_address(&self) -> Option<ArchipelBillingAddress> {
-        Some(ArchipelBillingAddress {
-            address: self.get_combined_address_line().ok(),
-            postal_code: self.get_optional_zip(),
-        })
+        let address = self.get_combined_address_line().ok();
+        let postal_code = self.get_optional_zip();
+
+        match (address, postal_code) {
+            (None, None) => None,
+            (addr, zip) => Some(ArchipelBillingAddress {
+                address: addr,
+                postal_code: zip,
+            }),
+        }
     }
 }
 
@@ -312,11 +318,22 @@ pub struct ArchipelCard {
     scheme: ArchipelCardScheme,
 }
 
-impl TryFrom<(Option<Secret<String>>, &Card)> for ArchipelCard {
+impl TryFrom<(Option<Secret<String>>, Option<ArchipelCardHolder>, &Card)> for ArchipelCard {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
-        (card_holder_name, ccard): (Option<Secret<String>>, &Card),
+        (card_holder_name, card_holder_billing, ccard): (
+            Option<Secret<String>>,
+            Option<ArchipelCardHolder>,
+            &Card,
+        ),
     ) -> Result<Self, Self::Error> {
+        // NOTE: Archipel does not accept `card.card_holder_name` field without `cardholder` field.
+        // So if `card_holder` is None, `card.card_holder_name` must also be None.
+        // However, the reverse is allowed — the `cardholder` field can exist without `card.card_holder_name`.
+        let card_holder_name = card_holder_billing
+            .as_ref()
+            .and_then(|_| ccard.card_holder_name.clone().or(card_holder_name.clone()));
+
         let scheme: ArchipelCardScheme = ccard.get_card_issuer().ok().into();
         Ok(Self {
             number: ccard.card_number.clone(),
@@ -326,7 +343,7 @@ impl TryFrom<(Option<Secret<String>>, &Card)> for ArchipelCard {
             },
             security_code: Some(ccard.card_cvc.clone()),
             application_selection_indicator: ApplicationSelectionIndicator::ByDefault,
-            card_holder_name: ccard.card_holder_name.clone().or(card_holder_name),
+            card_holder_name,
             scheme,
         })
     }
@@ -335,16 +352,28 @@ impl TryFrom<(Option<Secret<String>>, &Card)> for ArchipelCard {
 impl
     TryFrom<(
         Option<Secret<String>>,
+        Option<ArchipelCardHolder>,
         &hyperswitch_domain_models::payment_method_data::CardDetailsForNetworkTransactionId,
     )> for ArchipelCard
 {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
-        (card_holder_name, card_details): (
+        (card_holder_name, card_holder_billing, card_details): (
             Option<Secret<String>>,
+            Option<ArchipelCardHolder>,
             &hyperswitch_domain_models::payment_method_data::CardDetailsForNetworkTransactionId,
         ),
     ) -> Result<Self, Self::Error> {
+        // NOTE: Archipel does not accept `card.card_holder_name` field without `cardholder` field.
+        // So if `card_holder` is None, `card.card_holder_name` must also be None.
+        // However, the reverse is allowed — the `cardholder` field can exist without `card.card_holder_name`.
+        let card_holder_name = card_holder_billing.as_ref().and_then(|_| {
+            card_details
+                .card_holder_name
+                .clone()
+                .or(card_holder_name.clone())
+        });
+
         let scheme: ArchipelCardScheme = card_details.get_card_issuer().ok().into();
         Ok(Self {
             number: card_details.card_number.clone(),
@@ -354,7 +383,7 @@ impl
             },
             security_code: None,
             application_selection_indicator: ApplicationSelectionIndicator::ByDefault,
-            card_holder_name: card_details.card_holder_name.clone().or(card_holder_name),
+            card_holder_name,
             scheme,
         })
     }
@@ -424,7 +453,7 @@ impl From<&str> for ArchipelCardScheme {
             "Visa" => Self::Visa,
             "Amex" => Self::Amex,
             "Diners" => Self::Diners,
-            "Mastercard" => Self::Mastercard,
+            "MasterCard" => Self::Mastercard,
             "Discover" => Self::Discover,
             _ => Self::Unknown,
         }
@@ -660,15 +689,22 @@ impl TryFrom<(MinorUnit, &PaymentsAuthorizeRouterData)> for ArchipelPaymentInfor
             initiator: transaction_initiator.clone(),
         };
 
-        let card_holder_name: Option<Secret<String>> = router_data
-            .get_billing()
+        let cardholder = router_data
+            .get_billing_address()
             .ok()
-            .and_then(|billing| billing.get_optional_full_name());
-        let cardholder = Some(ArchipelCardHolder {
-            billing_address: router_data
-                .get_billing_address()
+            .and_then(|address| address.to_archipel_billing_address())
+            .map(|billing_address| ArchipelCardHolder {
+                billing_address: Some(billing_address),
+            });
+
+        // NOTE: Archipel does not accept `card.card_holder_name` field without `cardholder` field.
+        // So if `card_holder` is None, `card.card_holder_name` must also be None.
+        // However, the reverse is allowed — the `cardholder` field can exist without `card.card_holder_name`.
+        let card_holder_name = cardholder.as_ref().and_then(|_| {
+            router_data
+                .get_billing()
                 .ok()
-                .and_then(|address| address.to_archipel_billing_address()),
+                .and_then(|billing| billing.get_optional_full_name())
         });
 
         let indicator_status = if is_subsequent_trx {
@@ -715,13 +751,20 @@ impl TryFrom<ArchipelRouterData<&PaymentsAuthorizeRouterData>>
             router_data,
         } = item;
 
-        let payment_information = ArchipelPaymentInformation::try_from((amount, router_data))?;
+        let payment_information: ArchipelPaymentInformation =
+            ArchipelPaymentInformation::try_from((amount, router_data))?;
         let payment_method_data = match &item.router_data.request.payment_method_data {
-            PaymentMethodData::Card(ccard) => {
-                ArchipelCard::try_from((payment_information.card_holder_name, ccard))?
-            }
+            PaymentMethodData::Card(ccard) => ArchipelCard::try_from((
+                payment_information.card_holder_name,
+                payment_information.cardholder.clone(),
+                ccard,
+            ))?,
             PaymentMethodData::CardDetailsForNetworkTransactionId(card_details) => {
-                ArchipelCard::try_from((payment_information.card_holder_name, card_details))?
+                ArchipelCard::try_from((
+                    payment_information.card_holder_name,
+                    payment_information.cardholder.clone(),
+                    card_details,
+                ))?
             }
             PaymentMethodData::CardRedirect(..)
             | PaymentMethodData::Wallet(..)
@@ -1031,18 +1074,22 @@ impl TryFrom<ArchipelRouterData<&SetupMandateRouterData>> for ArchipelCardAuthor
             initiator: ArchipelPaymentInitiator::Customer,
         };
 
-        let card_holder_name = item
-            .router_data
-            .get_billing()
-            .ok()
-            .and_then(|billing| billing.get_optional_full_name());
-
         let cardholder = Some(ArchipelCardHolder {
             billing_address: item
                 .router_data
                 .get_billing_address()
                 .ok()
                 .and_then(|address| address.to_archipel_billing_address()),
+        });
+
+        // NOTE: Archipel does not accept `card.card_holder_name` field without `cardholder` field.
+        // So if `card_holder` is None, `card.card_holder_name` must also be None.
+        // However, the reverse is allowed — the `cardholder` field can exist without `card.card_holder_name`.
+        let card_holder_name = cardholder.as_ref().and_then(|_| {
+            item.router_data
+                .get_billing()
+                .ok()
+                .and_then(|billing| billing.get_optional_full_name())
         });
 
         let stored_on_file = true;
@@ -1062,9 +1109,11 @@ impl TryFrom<ArchipelRouterData<&SetupMandateRouterData>> for ArchipelCardAuthor
         };
 
         let card_data = match &item.router_data.request.payment_method_data {
-            PaymentMethodData::Card(ccard) => {
-                ArchipelCard::try_from((payment_information.card_holder_name, ccard))?
-            }
+            PaymentMethodData::Card(ccard) => ArchipelCard::try_from((
+                payment_information.card_holder_name,
+                payment_information.cardholder.clone(),
+                ccard,
+            ))?,
             _ => Err(errors::ConnectorError::NotImplemented(
                 utils::get_unimplemented_payment_method_error_message("Archipel"),
             ))?,
@@ -1072,7 +1121,7 @@ impl TryFrom<ArchipelRouterData<&SetupMandateRouterData>> for ArchipelCardAuthor
 
         Ok(Self {
             order: payment_information.order,
-            cardholder: payment_information.cardholder,
+            cardholder: payment_information.cardholder.clone(),
             card: card_data,
             three_ds: None,
             credential_indicator: payment_information.credential_indicator,

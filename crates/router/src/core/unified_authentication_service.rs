@@ -1,7 +1,10 @@
 pub mod types;
 pub mod utils;
 
-use api_models::payments;
+use api_models::{
+    authentication::{AcquirerDetails, AuthenticationCreateRequest, AuthenticationResponse},
+    payments,
+};
 use diesel_models::authentication::{Authentication, AuthenticationNew};
 use error_stack::ResultExt;
 use hyperswitch_domain_models::{
@@ -22,8 +25,12 @@ use hyperswitch_domain_models::{
     },
 };
 
-use super::{errors::RouterResult, payments::helpers::MerchantConnectorAccountType};
+use super::{
+    errors::{RouterResponse, RouterResult},
+    payments::helpers::MerchantConnectorAccountType,
+};
 use crate::{
+    consts,
     core::{
         errors::utils::StorageErrorExt,
         payments::PaymentData,
@@ -31,9 +38,11 @@ use crate::{
             ClickToPay, ExternalAuthentication, UnifiedAuthenticationService,
             UNIFIED_AUTHENTICATION_SERVICE,
         },
+        utils as core_utils,
     },
     db::domain,
     routes::SessionState,
+    types::transformers::ForeignFrom,
 };
 
 #[cfg(feature = "v1")]
@@ -95,7 +104,7 @@ impl<F: Clone + Sync> UnifiedAuthenticationService<F> for ClickToPay {
         payment_data: &PaymentData<F>,
         merchant_connector_account: &MerchantConnectorAccountType,
         connector_name: &str,
-        authentication_id: &str,
+        authentication_id: &common_utils::id_type::AuthenticationId,
         payment_method: common_enums::PaymentMethod,
     ) -> RouterResult<UasPreAuthenticationRouterData> {
         let pre_authentication_data = Self::get_pre_authentication_request_data(payment_data)?;
@@ -281,7 +290,7 @@ impl<F: Clone + Sync> UnifiedAuthenticationService<F> for ExternalAuthentication
         payment_data: &PaymentData<F>,
         merchant_connector_account: &MerchantConnectorAccountType,
         connector_name: &str,
-        authentication_id: &str,
+        authentication_id: &common_utils::id_type::AuthenticationId,
         payment_method: common_enums::PaymentMethod,
     ) -> RouterResult<UasPreAuthenticationRouterData> {
         let pre_authentication_data = Self::get_pre_authentication_request_data(payment_data)?;
@@ -472,20 +481,27 @@ impl<F: Clone + Sync> UnifiedAuthenticationService<F> for ExternalAuthentication
     }
 }
 
-#[cfg(feature = "v1")]
 #[allow(clippy::too_many_arguments)]
 pub async fn create_new_authentication(
     state: &SessionState,
     merchant_id: common_utils::id_type::MerchantId,
-    authentication_connector: String,
+    authentication_connector: Option<String>,
     profile_id: common_utils::id_type::ProfileId,
     payment_id: Option<common_utils::id_type::PaymentId>,
-    merchant_connector_id: common_utils::id_type::MerchantConnectorAccountId,
-    authentication_id: &str,
+    merchant_connector_id: Option<common_utils::id_type::MerchantConnectorAccountId>,
+    authentication_id: &common_utils::id_type::AuthenticationId,
     service_details: Option<payments::CtpServiceDetails>,
     authentication_status: common_enums::AuthenticationStatus,
     network_token: Option<payment_method_data::NetworkTokenData>,
     organization_id: common_utils::id_type::OrganizationId,
+    force_3ds_challenge: Option<bool>,
+    psd2_sca_exemption_type: Option<common_enums::ScaExemptionType>,
+    acquirer_bin: Option<String>,
+    acquirer_merchant_id: Option<String>,
+    acquirer_country_code: Option<String>,
+    amount: Option<common_utils::types::MinorUnit>,
+    currency: Option<common_enums::Currency>,
+    return_url: Option<String>,
 ) -> RouterResult<Authentication> {
     let service_details_value = service_details
         .map(serde_json::to_value)
@@ -494,6 +510,10 @@ pub async fn create_new_authentication(
         .attach_printable(
             "unable to parse service details into json value while inserting to DB",
         )?;
+    let authentication_client_secret = Some(common_utils::generate_id_with_default_len(&format!(
+        "{}_secret",
+        authentication_id.get_string_repr()
+    )));
     let new_authorization = AuthenticationNew {
         authentication_id: authentication_id.to_owned(),
         merchant_id,
@@ -513,8 +533,8 @@ pub async fn create_new_authentication(
         message_version: None,
         eci: network_token.and_then(|data| data.eci),
         trans_status: None,
-        acquirer_bin: None,
-        acquirer_merchant_id: None,
+        acquirer_bin,
+        acquirer_merchant_id,
         three_ds_method_data: None,
         three_ds_method_url: None,
         acs_url: None,
@@ -527,9 +547,15 @@ pub async fn create_new_authentication(
         merchant_connector_id,
         ds_trans_id: None,
         directory_server_id: None,
-        acquirer_country_code: None,
+        acquirer_country_code,
         service_details: service_details_value,
         organization_id,
+        authentication_client_secret,
+        force_3ds_challenge,
+        psd2_sca_exemption_type,
+        return_url,
+        amount,
+        currency,
     };
     state
         .store
@@ -538,7 +564,147 @@ pub async fn create_new_authentication(
         .to_duplicate_response(ApiErrorResponse::GenericDuplicateError {
             message: format!(
                 "Authentication with authentication_id {} already exists",
-                authentication_id
+                authentication_id.get_string_repr()
             ),
         })
+}
+
+// Modular authentication
+#[cfg(feature = "v1")]
+pub async fn authentication_create_core(
+    state: SessionState,
+    merchant_context: domain::MerchantContext,
+    req: AuthenticationCreateRequest,
+) -> RouterResponse<AuthenticationResponse> {
+    let db = &*state.store;
+    let merchant_account = merchant_context.get_merchant_account();
+    let merchant_id = merchant_account.get_id();
+    let key_manager_state = (&state).into();
+    let profile_id = core_utils::get_profile_id_from_business_details(
+        &key_manager_state,
+        None,
+        None,
+        &merchant_context,
+        req.profile_id.as_ref(),
+        db,
+        true,
+    )
+    .await?;
+
+    let business_profile = db
+        .find_business_profile_by_profile_id(
+            &key_manager_state,
+            merchant_context.get_merchant_key_store(),
+            &profile_id,
+        )
+        .await
+        .to_not_found_response(ApiErrorResponse::ProfileNotFound {
+            id: profile_id.get_string_repr().to_owned(),
+        })?;
+    let organization_id = merchant_account.organization_id.clone();
+    let authentication_id = common_utils::id_type::AuthenticationId::generate_authentication_id(
+        consts::AUTHENTICATION_ID_PREFIX,
+    );
+
+    let force_3ds_challenge = Some(
+        req.force_3ds_challenge
+            .unwrap_or(business_profile.force_3ds_challenge),
+    );
+
+    let new_authentication = create_new_authentication(
+        &state,
+        merchant_id.clone(),
+        req.authentication_connector
+            .map(|connector| connector.to_string()),
+        profile_id.clone(),
+        None,
+        None,
+        &authentication_id,
+        None,
+        common_enums::AuthenticationStatus::Started,
+        None,
+        organization_id,
+        force_3ds_challenge,
+        req.psd2_sca_exemption_type,
+        req.acquirer_details
+            .clone()
+            .and_then(|acquirer_details| acquirer_details.bin),
+        req.acquirer_details
+            .clone()
+            .and_then(|acquirer_details| acquirer_details.merchant_id),
+        req.acquirer_details
+            .clone()
+            .and_then(|acquirer_details| acquirer_details.country_code),
+        Some(req.amount),
+        Some(req.currency),
+        req.return_url,
+    )
+    .await?;
+
+    let acquirer_details = Some(AcquirerDetails {
+        bin: new_authentication.acquirer_bin.clone(),
+        merchant_id: new_authentication.acquirer_merchant_id.clone(),
+        country_code: new_authentication.acquirer_country_code.clone(),
+    });
+
+    let amount = new_authentication
+        .amount
+        .ok_or(ApiErrorResponse::InternalServerError)
+        .attach_printable("amount failed to get amount from authentication table")?;
+    let currency = new_authentication
+        .currency
+        .ok_or(ApiErrorResponse::InternalServerError)
+        .attach_printable("currency failed to get currency from authentication table")?;
+
+    let response = AuthenticationResponse::foreign_from((
+        new_authentication,
+        amount,
+        currency,
+        profile_id,
+        acquirer_details,
+    ));
+
+    Ok(hyperswitch_domain_models::api::ApplicationResponse::Json(
+        response,
+    ))
+}
+
+impl
+    ForeignFrom<(
+        Authentication,
+        common_utils::types::MinorUnit,
+        common_enums::Currency,
+        common_utils::id_type::ProfileId,
+        Option<AcquirerDetails>,
+    )> for AuthenticationResponse
+{
+    fn foreign_from(
+        (authentication, amount, currency, profile_id, acquirer_details): (
+            Authentication,
+            common_utils::types::MinorUnit,
+            common_enums::Currency,
+            common_utils::id_type::ProfileId,
+            Option<AcquirerDetails>,
+        ),
+    ) -> Self {
+        Self {
+            authentication_id: authentication.authentication_id,
+            client_secret: authentication
+                .authentication_client_secret
+                .map(masking::Secret::new),
+            amount,
+            currency,
+            force_3ds_challenge: authentication.force_3ds_challenge,
+            merchant_id: authentication.merchant_id,
+            status: authentication.authentication_status,
+            authentication_connector: authentication.authentication_connector,
+            return_url: authentication.return_url,
+            created_at: Some(authentication.created_at),
+            error_code: authentication.error_code,
+            error_message: authentication.error_message,
+            profile_id: Some(profile_id),
+            psd2_sca_exemption_type: authentication.psd2_sca_exemption_type,
+            acquirer_details,
+        }
+    }
 }

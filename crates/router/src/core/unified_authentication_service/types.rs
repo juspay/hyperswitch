@@ -55,7 +55,7 @@ pub trait UnifiedAuthenticationService<F: Clone + Sync> {
         _payment_data: &PaymentData<F>,
         _merchant_connector_account: &MerchantConnectorAccountType,
         _connector_name: &str,
-        _authentication_id: &str,
+        _authentication_id: &common_utils::id_type::AuthenticationId,
         _payment_method: common_enums::PaymentMethod,
     ) -> RouterResult<hyperswitch_domain_models::types::UasPreAuthenticationRouterData> {
         Err(errors::ApiErrorResponse::NotImplemented {

@@ -29,7 +29,7 @@ pub mod diesel_exports {
         DbPaymentType as PaymentType, DbProcessTrackerStatus as ProcessTrackerStatus,
         DbRefundStatus as RefundStatus,
         DbRequestIncrementalAuthorization as RequestIncrementalAuthorization,
-        DbScaExemptionType as ScaExemptionType,
+        DbRoutingApproach as RoutingApproach, DbScaExemptionType as ScaExemptionType,
         DbSuccessBasedRoutingConclusiveState as SuccessBasedRoutingConclusiveState,
         DbTokenizationFlag as TokenizationFlag, DbWebhookDeliveryAttempt as WebhookDeliveryAttempt,
     };
@@ -1677,6 +1677,16 @@ pub enum FutureUsage {
     OffSession,
     #[default]
     OnSession,
+}
+
+impl FutureUsage {
+    /// Indicates whether the payment method should be saved for future use or not
+    pub fn is_off_session(self) -> bool {
+        match self {
+            Self::OffSession => true,
+            Self::OnSession => false,
+        }
+    }
 }
 
 #[derive(
@@ -7975,7 +7985,9 @@ pub enum SuccessBasedRoutingConclusiveState {
 }
 
 /// Whether 3ds authentication is requested or not
-#[derive(Clone, Debug, PartialEq, serde::Serialize, serde::Deserialize, Default, ToSchema)]
+#[derive(
+    Clone, Copy, Debug, PartialEq, serde::Serialize, serde::Deserialize, Default, ToSchema,
+)]
 pub enum External3dsAuthenticationRequest {
     /// Request for 3ds authentication
     Enable,
@@ -7985,7 +7997,9 @@ pub enum External3dsAuthenticationRequest {
 }
 
 /// Whether payment link is requested to be enabled or not for this transaction
-#[derive(Clone, Debug, PartialEq, serde::Serialize, serde::Deserialize, Default, ToSchema)]
+#[derive(
+    Clone, Copy, Debug, PartialEq, serde::Serialize, serde::Deserialize, Default, ToSchema,
+)]
 pub enum EnablePaymentLinkRequest {
     /// Request for enabling payment link
     Enable,
@@ -7994,7 +8008,9 @@ pub enum EnablePaymentLinkRequest {
     Skip,
 }
 
-#[derive(Clone, Debug, PartialEq, serde::Serialize, serde::Deserialize, Default, ToSchema)]
+#[derive(
+    Clone, Copy, Debug, PartialEq, serde::Serialize, serde::Deserialize, Default, ToSchema,
+)]
 pub enum MitExemptionRequest {
     /// Request for applying MIT exemption
     Apply,
@@ -8004,7 +8020,9 @@ pub enum MitExemptionRequest {
 }
 
 /// Set to `present` to indicate that the customer is in your checkout flow during this payment, and therefore is able to authenticate. This parameter should be `absent` when merchant's doing merchant initiated payments and customer is not present while doing the payment.
-#[derive(Clone, Debug, PartialEq, serde::Serialize, serde::Deserialize, Default, ToSchema)]
+#[derive(
+    Clone, Copy, Debug, PartialEq, serde::Serialize, serde::Deserialize, Default, ToSchema,
+)]
 #[serde(rename_all = "snake_case")]
 pub enum PresenceOfCustomerDuringPayment {
     /// Customer is present during the payment. This is the default value
@@ -8481,6 +8499,47 @@ pub enum TokenDataType {
     Clone,
     Copy,
     Debug,
+    Default,
+    Eq,
+    Hash,
+    PartialEq,
+    serde::Deserialize,
+    serde::Serialize,
+    strum::Display,
+    strum::VariantNames,
+    strum::EnumIter,
+    strum::EnumString,
+    ToSchema,
+)]
+#[router_derive::diesel_enum(storage_type = "db_enum")]
+#[serde(rename_all = "snake_case")]
+#[strum(serialize_all = "snake_case")]
+pub enum RoutingApproach {
+    SuccessRateExploitation,
+    SuccessRateExploration,
+    ContractBasedRouting,
+    DebitRouting,
+    RuleBasedRouting,
+    VolumeBasedRouting,
+    #[default]
+    DefaultFallback,
+}
+
+impl RoutingApproach {
+    pub fn from_decision_engine_approach(approach: &str) -> Self {
+        match approach {
+            "SR_SELECTION_V3_ROUTING" => Self::SuccessRateExploitation,
+            "SR_V3_HEDGING" => Self::SuccessRateExploration,
+            "NTW_BASED_ROUTING" => Self::DebitRouting,
+            _ => Self::DefaultFallback,
+        }
+    }
+}
+
+#[derive(
+    Clone,
+    Copy,
+    Debug,
     Eq,
     PartialEq,
     serde::Serialize,
@@ -8491,6 +8550,7 @@ pub enum TokenDataType {
     Hash,
 )]
 #[serde(rename_all = "snake_case")]
+#[strum(serialize_all = "snake_case")]
 #[router_derive::diesel_enum(storage_type = "text")]
 pub enum CallbackMapperIdType {
     NetworkTokenRequestorRefernceID,

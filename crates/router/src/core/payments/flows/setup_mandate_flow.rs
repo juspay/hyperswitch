@@ -1,4 +1,5 @@
 use async_trait::async_trait;
+use common_types::payments as common_payments_types;
 use router_env::logger;
 
 use super::{ConstructFlowSpecificData, Feature};
@@ -76,7 +77,7 @@ impl
         connector_id: &str,
         merchant_context: &domain::MerchantContext,
         customer: &Option<domain::Customer>,
-        merchant_connector_account: &domain::MerchantConnectorAccount,
+        merchant_connector_account: &domain::MerchantConnectorAccountTypeDetails,
         merchant_recipient_data: Option<types::MerchantRecipientData>,
         header_payload: Option<hyperswitch_domain_models::payments::HeaderPayload>,
     ) -> RouterResult<types::SetupMandateRouterData> {
@@ -247,7 +248,7 @@ impl mandate::MandateBehaviour for types::SetupMandateRequestData {
     ) -> Option<&hyperswitch_domain_models::mandates::MandateData> {
         self.setup_mandate_details.as_ref()
     }
-    fn get_customer_acceptance(&self) -> Option<api_models::payments::CustomerAcceptance> {
-        self.customer_acceptance.clone().map(From::from)
+    fn get_customer_acceptance(&self) -> Option<common_payments_types::CustomerAcceptance> {
+        self.customer_acceptance.clone()
     }
 }
