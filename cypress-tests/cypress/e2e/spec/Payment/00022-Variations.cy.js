@@ -568,20 +568,8 @@ describe("Corner cases", () => {
       const data = getConnectorDetails(globalState.get("connectorId"))[
         "card_pm"
       ]["RefundGreaterAmount"];
-      const commonData = getConnectorDetails(globalState.get("commons"))[
-        "card_pm"
-      ]["RefundGreaterAmount"];
 
-      const newData = {
-        ...data,
-        Response: utils.getConnectorFlowDetails(
-          data,
-          commonData,
-          "ResponseCustom"
-        ),
-      };
-
-      cy.refundCallTest(fixtures.refundBody, newData, globalState);
+      cy.refundCallTest(fixtures.refundBody, data, globalState);
       if (shouldContinue) shouldContinue = utils.should_continue_further(data);
     });
   });
@@ -633,20 +621,8 @@ describe("Corner cases", () => {
       const data = getConnectorDetails(globalState.get("connectorId"))[
         "card_pm"
       ]["RefundGreaterAmount"];
-      const commonData = getConnectorDetails(globalState.get("commons"))[
-        "card_pm"
-      ]["RefundGreaterAmount"];
-
-      const newData = {
-        ...data,
-        Response: utils.getConnectorFlowDetails(
-          data,
-          commonData,
-          "ResponseCustom"
-        ),
-      };
-
-      cy.refundCallTest(fixtures.refundBody, newData, globalState);
+      
+      cy.refundCallTest(fixtures.refundBody, data, globalState);
 
       if (shouldContinue) shouldContinue = utils.should_continue_further(data);
     });

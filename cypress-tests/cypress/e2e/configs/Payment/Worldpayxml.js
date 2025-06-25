@@ -197,28 +197,21 @@ export const connectorDetails = {
         },
       },
     }),
-    RefundGreaterAmount: getCustomExchange({
+    RefundGreaterAmount: {
+      Request: {
+        amount: 6000000,
+      },
       Response: {
         status: 400,
         body: {
           error: {
             type: "invalid_request",
-            message:
-              "This Payment could not be refund because the amount is greater than the amount of the payment. The expected state is succeeded, partially_captured",
+            message: "This Payment could not be refund because it has a status of processing. The expected state is succeeded, partially_captured",
             code: "IR_14",
           },
         },
       },
-      ResponseCustom: {
-        status: 400,
-        body: {
-          type: "invalid_request",
-          message:
-            "This Payment could not be refund because it has a status of processing. The expected state is succeeded, partially_captured",
-          code: "IR_14",
-        },
-      },
-    }),
+    },
     ZeroAuthMandate: {
       Response: {
         status: 501,
