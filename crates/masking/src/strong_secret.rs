@@ -128,9 +128,12 @@ impl StrongEq for Vec<u8> {
 }
 
 #[cfg(feature = "proto_tonic")]
-impl prost::Message for StrongSecret<String, crate::WithType> {
+impl<T> prost::Message for StrongSecret<T, crate::WithType>
+where
+    T: prost::Message + Default + Clone + ZeroizableSecret,
+{
     fn encode_raw(&self, buf: &mut impl bytes::BufMut) {
-        prost::encoding::string::encode(1, self.peek(), buf);
+        self.inner_secret.encode_raw(buf);
     }
 
     fn merge_field(
@@ -141,9 +144,12 @@ impl prost::Message for StrongSecret<String, crate::WithType> {
         ctx: prost::encoding::DecodeContext,
     ) -> Result<(), prost::DecodeError> {
         if tag == 1 {
-            let mut value = String::new();
-            prost::encoding::string::merge(wire_type, &mut value, buf, ctx)?;
-            *self = Self::new(value);
+            let mut value = T::default();
+            T::merge_field(&mut value, tag, wire_type, buf, ctx)?;
+            *self = Self {
+                inner_secret: value,
+                masking_strategy: PhantomData,
+            };
             Ok(())
         } else {
             prost::encoding::skip_field(wire_type, tag, buf, ctx)
@@ -151,10 +157,10 @@ impl prost::Message for StrongSecret<String, crate::WithType> {
     }
 
     fn encoded_len(&self) -> usize {
-        prost::encoding::string::encoded_len(1, self.peek())
+        self.inner_secret.encoded_len()
     }
 
     fn clear(&mut self) {
-        *self = Self::new(String::new());
+        self.inner_secret = T::default();
     }
 }
