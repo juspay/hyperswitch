@@ -184,7 +184,7 @@ pub async fn populate_bin_details_for_masked_card(
         card_number.peek(),
     )
     .change_context(errors::ApiErrorResponse::InvalidRequestData {
-        message: "Invalid card number".to_string(),
+        message: "Invalid masked card number".to_string(),
     })?;
 
     let card_bin_details = if card_details.card_issuer.is_some()
@@ -223,7 +223,7 @@ impl
         let (card_isin, last4_digits) =
             get_card_bin_and_last4_digits_for_masked_card(card_details.card_number.peek())
                 .change_context(errors::ApiErrorResponse::InvalidRequestData {
-                    message: "Invalid card number".to_string(),
+                    message: "Invalid masked card number".to_string(),
                 })?;
         if let Some(card_bin_info) = card_info {
             Ok(Self {
@@ -298,7 +298,7 @@ impl
         let (card_isin, last4_digits) =
             get_card_bin_and_last4_digits_for_masked_card(card_details.card_number.peek())
                 .change_context(errors::ApiErrorResponse::InvalidRequestData {
-                    message: "Invalid card number".to_string(),
+                    message: "Invalid masked card number".to_string(),
                 })?;
         if let Some(card_bin_info) = card_info {
             Ok(Self {
