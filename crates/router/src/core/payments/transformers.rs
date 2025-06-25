@@ -322,6 +322,7 @@ pub async fn construct_payment_router_data_for_authorize<'a>(
         merchant_config_currency: None,
         connector_testing_data: None,
         order_id: None,
+        santander_pix_qr_expiration_time: None
     };
     let connector_mandate_request_reference_id = payment_data
         .payment_attempt
@@ -3487,6 +3488,15 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsAuthoriz
                 .as_ref()
                 .and_then(|noon| noon.order_category.clone())
         });
+
+        let santander_metadata = connector_metadata
+            .as_ref()
+            .and_then(|cm| cm.santander.clone());
+
+        let santander_expiration_time = santander_metadata
+            .as_ref()
+            .and_then(|santander| santander.billing_type.clone());
+
         let braintree_metadata = connector_metadata
             .as_ref()
             .and_then(|cm| cm.braintree.clone());
@@ -3664,6 +3674,7 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsAuthoriz
             additional_payment_method_data,
             shipping_cost,
             merchant_account_id,
+            santander_pix_qr_expiration_time: santander_expiration_time,
             merchant_config_currency,
             connector_testing_data,
             order_id: None,
