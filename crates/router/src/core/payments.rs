@@ -8403,6 +8403,10 @@ pub async fn payment_external_authentication<F: Clone + Sync>(
             authentication.clone(),
             None,
             merchant_context.get_merchant_key_store(),
+            None,
+            None,
+            None,
+            None,
         )
         .await?;
         authentication::AuthenticationResponse::try_from(authentication)?

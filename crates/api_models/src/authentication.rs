@@ -1,13 +1,13 @@
 use common_enums::{enums, AuthenticationConnectors};
 use common_utils::{
     events::{ApiEventMetric, ApiEventsType},
-    id_type,
+    id_type, pii,
 };
 use serde::{Deserialize, Serialize};
 use time::PrimitiveDateTime;
 use utoipa::ToSchema;
 
-use crate::payments::CustomerDetails;
+use crate::payments::{Address, BrowserInformation, CustomerDetails};
 
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
 pub struct AuthenticationCreateRequest {
@@ -144,7 +144,7 @@ impl ApiEventMetric for AuthenticationResponse {
     }
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
+#[derive(Debug, Serialize, Deserialize, ToSchema)]
 pub struct AuthenticationEligibilityRequest {
     /// Payment method data
     pub payment_method_data: crate::payments::PaymentMethodData,
@@ -157,6 +157,20 @@ pub struct AuthenticationEligibilityRequest {
     /// The business profile that is associated with this payment
     #[schema(value_type = Option<String>)]
     pub profile_id: Option<id_type::ProfileId>,
+
+    /// Billing address
+    #[schema(value_type = Option<Address>)]
+    pub billing: Option<Address>,
+
+    /// Shipping address
+    #[schema(value_type = Option<Address>)]
+    pub shipping: Option<Address>,
+
+    /// Browser information
+    #[schema(value_type = Option<BrowserInformation>)]
+    pub browser_information: Option<BrowserInformation>,
+
+    pub email: Option<pii::Email>,
 }
 
 impl AuthenticationEligibilityRequest {
@@ -211,7 +225,6 @@ pub struct AuthenticationAuthenticateRequest {
     pub threeds_method_comp_ind: crate::payments::ThreeDsCompletionIndicator,
 }
 
-
 impl ApiEventMetric for AuthenticationAuthenticateRequest {
     fn get_api_event_type(&self) -> Option<ApiEventsType> {
         None
@@ -220,7 +233,7 @@ impl ApiEventMetric for AuthenticationAuthenticateRequest {
 
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
 pub struct AuthenticationAuthenticateResponse {
-     /// Indicates the transaction status
+    /// Indicates the transaction status
     #[serde(rename = "trans_status")]
     #[schema(value_type = TransactionStatus)]
     pub transaction_status: common_enums::TransactionStatus,
@@ -241,7 +254,6 @@ pub struct AuthenticationAuthenticateResponse {
     /// Merchant app declaring their URL within the CReq message so that the Authentication app can call the Merchant app after OOB authentication has occurred
     pub three_ds_requestor_app_url: Option<String>,
 }
-
 
 impl ApiEventMetric for AuthenticationAuthenticateResponse {
     fn get_api_event_type(&self) -> Option<ApiEventsType> {

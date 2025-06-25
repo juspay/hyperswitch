@@ -1,5 +1,8 @@
 use actix_web::{web, HttpRequest, Responder};
-use api_models::authentication::{AuthenticationCreateRequest, AuthenticationEligibilityRequest, AuthenticationAuthenticateRequest};
+use api_models::authentication::{
+    AuthenticationAuthenticateRequest, AuthenticationCreateRequest,
+    AuthenticationEligibilityRequest,
+};
 use router_env::{instrument, tracing, Flow};
 
 use crate::{
@@ -124,4 +127,3 @@ pub async fn authentication_authenticate(
     ))
     .await
 }
-

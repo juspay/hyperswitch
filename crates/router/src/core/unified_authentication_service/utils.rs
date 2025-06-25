@@ -137,6 +137,10 @@ pub async fn external_authentication_update_trackers<F: Clone, Req>(
         hyperswitch_domain_models::router_request_types::authentication::AcquirerDetails,
     >,
     merchant_key_store: &hyperswitch_domain_models::merchant_key_store::MerchantKeyStore,
+    billing_address: Option<common_utils::encryption::Encryption>,
+    shipping_address: Option<common_utils::encryption::Encryption>,
+    email: Option<common_utils::encryption::Encryption>,
+    browser_info: Option<serde_json::Value>,
 ) -> RouterResult<diesel_models::authentication::Authentication> {
     let authentication_update = match router_data.response {
         Ok(response) => match response {
@@ -179,6 +183,10 @@ pub async fn external_authentication_update_trackers<F: Clone, Req>(
                     acquirer_country_code: acquirer_details
                         .and_then(|acquirer_details| acquirer_details.acquirer_country_code),
                     directory_server_id: authentication_details.directory_server_id,
+                    browser_info,
+                    email,
+                    billing_address,
+                    shipping_address,
                 },
             ),
             UasAuthenticationResponseData::Authentication {

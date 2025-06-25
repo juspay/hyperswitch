@@ -131,6 +131,10 @@ diesel::table! {
         return_url -> Nullable<Varchar>,
         amount -> Nullable<Int8>,
         currency -> Nullable<Currency>,
+        billing_address -> Nullable<Bytea>,
+        shipping_address -> Nullable<Bytea>,
+        browser_info -> Nullable<Jsonb>,
+        email -> Nullable<Bytea>,
     }
 }
 

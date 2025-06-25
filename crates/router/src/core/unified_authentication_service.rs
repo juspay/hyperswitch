@@ -1,4 +1,5 @@
 pub mod types;
+
 pub mod utils;
 
 use api_models::{
@@ -8,6 +9,12 @@ use api_models::{
         AuthenticationEligibilityResponse, AuthenticationResponse,
     },
     payments,
+};
+use common_utils::{
+    crypto::Encryptable,
+    errors::ReportSwitchExt,
+    ext_traits::AsyncExt,
+    types::keymanager::{self, KeyManagerState, ToEncryptable},
 };
 use diesel_models::authentication::{Authentication, AuthenticationNew};
 use error_stack::ResultExt;
@@ -28,7 +35,7 @@ use hyperswitch_domain_models::{
         UasPreAuthenticationRouterData,
     },
 };
-use masking::PeekInterface;
+use masking::{ExposeInterface, PeekInterface, SwitchStrategy};
 use serde_json::from_str;
 
 use super::{
@@ -39,7 +46,7 @@ use crate::{
     consts,
     core::{
         errors::utils::StorageErrorExt,
-        payment_methods::vault::{Vaultable,create_tokenize},
+        payment_methods::vault::{create_tokenize, Vaultable},
         unified_authentication_service::types::{
             ClickToPay, ExternalAuthentication, UnifiedAuthenticationService,
             UNIFIED_AUTHENTICATION_SERVICE,
@@ -48,7 +55,7 @@ use crate::{
     },
     db::domain,
     routes::SessionState,
-    types::transformers::ForeignFrom,
+    types::{domain::types::AsyncLift, transformers::ForeignFrom},
 };
 
 #[cfg(feature = "v1")]
@@ -578,6 +585,10 @@ pub async fn create_new_authentication(
         return_url,
         amount,
         currency,
+        billing_address: None,
+        shipping_address: None,
+        browser_info: None,
+        email: None,
     };
     state
         .store
@@ -731,12 +742,8 @@ impl
     }
 }
 
-impl
-    ForeignFrom<(
-        Authentication,
-        String,
-        common_utils::id_type::ProfileId,
-    )> for AuthenticationEligibilityResponse
+impl ForeignFrom<(Authentication, String, common_utils::id_type::ProfileId)>
+    for AuthenticationEligibilityResponse
 {
     fn foreign_from(
         (authentication, next_api_action, profile_id): (
@@ -771,6 +778,8 @@ pub async fn authentication_eligibility_core(
     req: AuthenticationEligibilityRequest,
     authentication_id: common_utils::id_type::AuthenticationId,
 ) -> RouterResponse<AuthenticationEligibilityResponse> {
+    use hyperswitch_domain_models::behaviour::ReverseConversion;
+
     let merchant_account = merchant_context.get_merchant_account();
     let merchant_id = merchant_account.get_id();
     let db = &*state.store;
@@ -850,12 +859,102 @@ pub async fn authentication_eligibility_core(
         )
         .await?;
 
+    let billing_details_encoded = req
+        .billing
+        .clone()
+        .map(|billing| {
+            common_utils::ext_traits::Encode::encode_to_value(&billing)
+                .map(masking::Secret::<serde_json::Value>::new)
+        })
+        .transpose()
+        .change_context(ApiErrorResponse::InternalServerError)
+        .attach_printable("Unable to encode billing details to serde_json::Value")?;
+
+    let shipping_details_encoded = req
+        .shipping
+        .clone()
+        .map(|shipping| {
+            common_utils::ext_traits::Encode::encode_to_value(&shipping)
+                .map(masking::Secret::<serde_json::Value>::new)
+        })
+        .transpose()
+        .change_context(ApiErrorResponse::InternalServerError)
+        .attach_printable("Unable to encode shipping details to serde_json::Value")?;
+
+    let encrypted_data = domain::types::crypto_operation(
+        &key_manager_state,
+        common_utils::type_name!(hyperswitch_domain_models::authentication::Authentication),
+        domain::types::CryptoOperation::BatchEncrypt(
+            hyperswitch_domain_models::authentication::UpdateEncryptableAuthentication::to_encryptable(
+                hyperswitch_domain_models::authentication::UpdateEncryptableAuthentication {
+                    billing_address: billing_details_encoded,
+                    shipping_address: shipping_details_encoded,
+                },
+            ),
+        ),
+        common_utils::types::keymanager::Identifier::Merchant(
+            merchant_context
+                .get_merchant_key_store()
+                .merchant_id
+                .clone(),
+        ),
+        merchant_context.get_merchant_key_store().key.peek(),
+    )
+    .await
+    .and_then(|val| val.try_into_batchoperation())
+    .change_context(ApiErrorResponse::InternalServerError)
+    .attach_printable("Unable to encrypt authentication data".to_string())?;
+
+    let encrypted_data = hyperswitch_domain_models::authentication::FromRequestEncryptableAuthentication::from_encryptable(encrypted_data)
+        .change_context(ApiErrorResponse::InternalServerError)
+        .attach_printable("Unable to encrypt the authentication data")?;
+
+    let email_encrypted = req
+        .email
+        .clone()
+        .async_lift(|inner| async {
+            domain::types::crypto_operation(
+                &key_manager_state,
+                common_utils::type_name!(Authentication),
+                domain::types::CryptoOperation::EncryptOptional(inner.map(|inner| inner.expose())),
+                common_utils::types::keymanager::Identifier::Merchant(
+                    merchant_context
+                        .get_merchant_key_store()
+                        .merchant_id
+                        .clone(),
+                ),
+                merchant_context.get_merchant_key_store().key.peek(),
+            )
+            .await
+            .and_then(|val| val.try_into_optionaloperation())
+        })
+        .await
+        .change_context(ApiErrorResponse::InternalServerError)
+        .attach_printable("Unable to encrypt email")?;
+
+    let browser_info = req
+        .browser_information
+        .as_ref()
+        .map(common_utils::ext_traits::Encode::encode_to_value)
+        .transpose()
+        .change_context(ApiErrorResponse::InvalidDataValue {
+            field_name: "browser_information",
+        })?;
+
     let updated_authentication = utils::external_authentication_update_trackers(
         &state,
         pre_auth_response,
         authentication.clone(),
         None,
         merchant_context.get_merchant_key_store(),
+        encrypted_data
+            .billing_address
+            .map(common_utils::encryption::Encryption::from),
+        encrypted_data
+            .shipping_address
+            .map(common_utils::encryption::Encryption::from),
+        email_encrypted.map(common_utils::encryption::Encryption::from),
+        browser_info,
     )
     .await?;
 
@@ -951,11 +1050,9 @@ pub async fn authentication_authenticate_core(
         false,
         merchant_context.get_merchant_key_store().key.get_inner(),
     )
-        .await
-        .inspect_err(|err| router_env::logger::error!(tokenized_data_result=?err))
-        .attach_printable("cavv not present after authentication flow")?;
-
-    
+    .await
+    .inspect_err(|err| router_env::logger::error!(tokenized_data_result=?err))
+    .attach_printable("cavv not present after authentication flow")?;
 
     let response = AuthenticationAuthenticateResponse {
         transaction_status: todo!(),
