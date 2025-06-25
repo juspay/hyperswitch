@@ -269,8 +269,6 @@ pub async fn internal_trigger_refund_to_gateway(
         access_token::add_access_token(state, &connector, merchant_context, &router_data, None)
             .await?;
 
-    logger::debug!(refund_router_data=?router_data);
-
     access_token::update_router_data_with_access_token_result(
         &add_access_token_result,
         &mut router_data,
@@ -876,8 +874,6 @@ pub async fn internal_sync_refund_with_gateway(
     let add_access_token_result =
         access_token::add_access_token(state, &connector, merchant_context, &router_data, None)
             .await?;
-
-    logger::debug!(refund_retrieve_router_data=?router_data);
 
     access_token::update_router_data_with_access_token_result(
         &add_access_token_result,
