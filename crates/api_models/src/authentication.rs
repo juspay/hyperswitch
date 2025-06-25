@@ -1,13 +1,13 @@
 use common_enums::{enums, AuthenticationConnectors};
 use common_utils::{
     events::{ApiEventMetric, ApiEventsType},
-    id_type,
+    id_type, pii,
 };
 use serde::{Deserialize, Serialize};
 use time::PrimitiveDateTime;
 use utoipa::ToSchema;
 
-use crate::payments::CustomerDetails;
+use crate::payments::{Address, BrowserInformation, CustomerDetails};
 
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
 pub struct AuthenticationCreateRequest {
@@ -144,7 +144,7 @@ impl ApiEventMetric for AuthenticationResponse {
     }
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
+#[derive(Debug, Serialize, Deserialize, ToSchema)]
 pub struct AuthenticationEligibilityRequest {
     /// Payment method data
     pub payment_method_data: crate::payments::PaymentMethodData,
@@ -157,15 +157,41 @@ pub struct AuthenticationEligibilityRequest {
     /// The business profile that is associated with this payment
     #[schema(value_type = Option<String>)]
     pub profile_id: Option<id_type::ProfileId>,
+
+    /// Billing address
+    #[schema(value_type = Option<Address>)]
+    pub billing: Option<Address>,
+
+    /// Shipping address
+    #[schema(value_type = Option<Address>)]
+    pub shipping: Option<Address>,
+
+    /// Browser information
+    #[schema(value_type = Option<BrowserInformation>)]
+    pub browser_information: Option<BrowserInformation>,
+
+    pub email: Option<pii::Email>,
 }
 
 impl AuthenticationEligibilityRequest {
-    pub fn get_next_action_api(self, base_url: String, authentication_id: String) -> String {
+    pub fn get_next_action_api(&self, base_url: String, authentication_id: String) -> String {
         format!("{base_url}/authentication/{authentication_id}/authenticate")
+    }
+
+    pub fn get_billing_address(&self) -> Option<Address> {
+        self.billing.clone()
+    }
+
+    pub fn get_shipping_address(&self) -> Option<Address> {
+        self.shipping.clone()
+    }
+
+    pub fn get_browser_information(&self) -> Option<BrowserInformation> {
+        self.browser_information.clone()
     }
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
+#[derive(Debug, Serialize, ToSchema)]
 pub struct AuthenticationEligibilityResponse {
     pub authentication_id: id_type::AuthenticationId,
     pub next_api_action: String,
@@ -183,6 +209,20 @@ pub struct AuthenticationEligibilityResponse {
     pub profile_id: id_type::ProfileId,
     pub error_message: Option<String>,
     pub error_code: Option<String>,
+    pub authentication_connector: Option<String>,
+    /// Billing address
+    #[schema(value_type = Option<Address>)]
+    pub billing: Option<Address>,
+
+    /// Shipping address
+    #[schema(value_type = Option<Address>)]
+    pub shipping: Option<Address>,
+
+    /// Browser information
+    #[schema(value_type = Option<BrowserInformation>)]
+    pub browser_information: Option<BrowserInformation>,
+
+    pub email: common_utils::crypto::OptionalEncryptableEmail,
 }
 
 impl ApiEventMetric for AuthenticationEligibilityRequest {

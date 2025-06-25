@@ -88,6 +88,10 @@ pub async fn update_trackers<F: Clone, Req>(
                 acquirer_country_code: acquirer_details
                     .and_then(|acquirer_details| acquirer_details.acquirer_country_code),
                 directory_server_id,
+                billing_address: None,
+                shipping_address: None,
+                browser_info: Box::new(None),
+                email: None,
             },
             AuthenticationResponseData::AuthNResponse {
                 authn_flow_type,
@@ -275,6 +279,10 @@ pub async fn create_new_authentication(
         return_url: None,
         amount: None,
         currency: None,
+        billing_address: None,
+        shipping_address: None,
+        browser_info: None,
+        email: None,
     };
     state
         .store

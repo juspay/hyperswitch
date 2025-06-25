@@ -1356,7 +1356,11 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
                     pre_auth_response,
                     authentication.clone(),
                     acquirer_details,
-                    key_store
+                    key_store,
+                    None,
+                    None,
+                    None,
+                    None,
                 ).await?;
                 let authentication_store = hyperswitch_domain_models::router_request_types::authentication::AuthenticationStore {
                     cavv: None, // since in case of pre_authentication cavv is not present
@@ -1435,7 +1439,11 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
                         post_auth_response,
                         authentication,
                         None,
-                        key_store
+                        key_store,
+                        None,
+                        None,
+                        None,
+                        None,
                     ).await?
                 } else {
                     authentication

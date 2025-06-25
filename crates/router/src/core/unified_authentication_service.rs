@@ -1,4 +1,5 @@
 pub mod types;
+
 pub mod utils;
 
 use api_models::{
@@ -8,6 +9,7 @@ use api_models::{
     },
     payments,
 };
+use common_utils::types::keymanager::ToEncryptable;
 use diesel_models::authentication::{Authentication, AuthenticationNew};
 use error_stack::ResultExt;
 use hyperswitch_domain_models::{
@@ -27,7 +29,7 @@ use hyperswitch_domain_models::{
         UasPreAuthenticationRouterData,
     },
 };
-use masking::PeekInterface;
+use masking::{ExposeInterface, PeekInterface};
 
 use super::{
     errors::{RouterResponse, RouterResult},
@@ -46,7 +48,7 @@ use crate::{
     },
     db::domain,
     routes::SessionState,
-    types::transformers::ForeignFrom,
+    types::{domain::types::AsyncLift, transformers::ForeignFrom},
 };
 
 #[cfg(feature = "v1")]
@@ -576,6 +578,10 @@ pub async fn create_new_authentication(
         return_url,
         amount,
         currency,
+        billing_address: None,
+        shipping_address: None,
+        browser_info: None,
+        email: None,
     };
     state
         .store
@@ -729,14 +735,34 @@ impl
     }
 }
 
-impl ForeignFrom<(Authentication, String, common_utils::id_type::ProfileId)>
-    for AuthenticationEligibilityResponse
+impl
+    ForeignFrom<(
+        Authentication,
+        String,
+        common_utils::id_type::ProfileId,
+        Option<payments::Address>,
+        Option<payments::Address>,
+        Option<payments::BrowserInformation>,
+        common_utils::crypto::OptionalEncryptableEmail,
+    )> for AuthenticationEligibilityResponse
 {
     fn foreign_from(
-        (authentication, next_api_action, profile_id): (
+        (
+            authentication,
+            next_api_action,
+            profile_id,
+            billing,
+            shipping,
+            browser_information,
+            email,
+        ): (
             Authentication,
             String,
             common_utils::id_type::ProfileId,
+            Option<payments::Address>,
+            Option<payments::Address>,
+            Option<payments::BrowserInformation>,
+            common_utils::crypto::OptionalEncryptableEmail,
         ),
     ) -> Self {
         Self {
@@ -754,6 +780,11 @@ impl ForeignFrom<(Authentication, String, common_utils::id_type::ProfileId)>
             profile_id,
             error_message: authentication.error_message,
             error_code: authentication.error_code,
+            billing,
+            shipping,
+            authentication_connector: authentication.authentication_connector,
+            browser_information,
+            email,
         }
     }
 }
@@ -844,12 +875,104 @@ pub async fn authentication_eligibility_core(
         )
         .await?;
 
+    let billing_details_encoded = req
+        .billing
+        .clone()
+        .map(|billing| {
+            common_utils::ext_traits::Encode::encode_to_value(&billing)
+                .map(masking::Secret::<serde_json::Value>::new)
+        })
+        .transpose()
+        .change_context(ApiErrorResponse::InternalServerError)
+        .attach_printable("Unable to encode billing details to serde_json::Value")?;
+
+    let shipping_details_encoded = req
+        .shipping
+        .clone()
+        .map(|shipping| {
+            common_utils::ext_traits::Encode::encode_to_value(&shipping)
+                .map(masking::Secret::<serde_json::Value>::new)
+        })
+        .transpose()
+        .change_context(ApiErrorResponse::InternalServerError)
+        .attach_printable("Unable to encode shipping details to serde_json::Value")?;
+
+    let encrypted_data = domain::types::crypto_operation(
+        &key_manager_state,
+        common_utils::type_name!(hyperswitch_domain_models::authentication::Authentication),
+        domain::types::CryptoOperation::BatchEncrypt(
+            hyperswitch_domain_models::authentication::UpdateEncryptableAuthentication::to_encryptable(
+                hyperswitch_domain_models::authentication::UpdateEncryptableAuthentication {
+                    billing_address: billing_details_encoded,
+                    shipping_address: shipping_details_encoded,
+                },
+            ),
+        ),
+        common_utils::types::keymanager::Identifier::Merchant(
+            merchant_context
+                .get_merchant_key_store()
+                .merchant_id
+                .clone(),
+        ),
+        merchant_context.get_merchant_key_store().key.peek(),
+    )
+    .await
+    .and_then(|val| val.try_into_batchoperation())
+    .change_context(ApiErrorResponse::InternalServerError)
+    .attach_printable("Unable to encrypt authentication data".to_string())?;
+
+    let encrypted_data = hyperswitch_domain_models::authentication::FromRequestEncryptableAuthentication::from_encryptable(encrypted_data)
+        .change_context(ApiErrorResponse::InternalServerError)
+        .attach_printable("Unable to get encrypted data for authentication after encryption")?;
+
+    let email_encrypted = req
+        .email
+        .clone()
+        .async_lift(|inner| async {
+            domain::types::crypto_operation(
+                &key_manager_state,
+                common_utils::type_name!(Authentication),
+                domain::types::CryptoOperation::EncryptOptional(inner.map(|inner| inner.expose())),
+                common_utils::types::keymanager::Identifier::Merchant(
+                    merchant_context
+                        .get_merchant_key_store()
+                        .merchant_id
+                        .clone(),
+                ),
+                merchant_context.get_merchant_key_store().key.peek(),
+            )
+            .await
+            .and_then(|val| val.try_into_optionaloperation())
+        })
+        .await
+        .change_context(ApiErrorResponse::InternalServerError)
+        .attach_printable("Unable to encrypt email")?;
+
+    let browser_info = req
+        .browser_information
+        .as_ref()
+        .map(common_utils::ext_traits::Encode::encode_to_value)
+        .transpose()
+        .change_context(ApiErrorResponse::InvalidDataValue {
+            field_name: "browser_information",
+        })?;
+
     let updated_authentication = utils::external_authentication_update_trackers(
         &state,
         pre_auth_response,
         authentication.clone(),
         None,
         merchant_context.get_merchant_key_store(),
+        encrypted_data
+            .billing_address
+            .map(common_utils::encryption::Encryption::from),
+        encrypted_data
+            .shipping_address
+            .map(common_utils::encryption::Encryption::from),
+        email_encrypted
+            .clone()
+            .map(common_utils::encryption::Encryption::from),
+        browser_info,
     )
     .await?;
 
@@ -877,6 +1000,10 @@ pub async fn authentication_eligibility_core(
             authentication_id.get_string_repr().to_string(),
         ),
         profile_id,
+        req.get_billing_address(),
+        req.get_shipping_address(),
+        req.get_browser_information(),
+        email_encrypted,
     ));
 
     Ok(hyperswitch_domain_models::api::ApplicationResponse::Json(

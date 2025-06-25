@@ -1,3 +1,4 @@
+use common_utils::encryption::Encryption;
 use diesel::{AsChangeset, Identifiable, Insertable, Queryable, Selectable};
 use serde::{self, Deserialize, Serialize};
 use serde_json;
@@ -55,6 +56,10 @@ pub struct Authentication {
     pub return_url: Option<String>,
     pub amount: Option<common_utils::types::MinorUnit>,
     pub currency: Option<common_enums::Currency>,
+    pub billing_address: Option<Encryption>,
+    pub shipping_address: Option<Encryption>,
+    pub browser_info: Option<serde_json::Value>,
+    pub email: Option<Encryption>,
 }
 
 impl Authentication {
@@ -110,6 +115,10 @@ pub struct AuthenticationNew {
     pub return_url: Option<String>,
     pub amount: Option<common_utils::types::MinorUnit>,
     pub currency: Option<common_enums::Currency>,
+    pub billing_address: Option<Encryption>,
+    pub shipping_address: Option<Encryption>,
+    pub browser_info: Option<serde_json::Value>,
+    pub email: Option<Encryption>,
 }
 
 #[derive(Debug)]
@@ -139,6 +148,10 @@ pub enum AuthenticationUpdate {
         acquirer_merchant_id: Option<String>,
         directory_server_id: Option<String>,
         acquirer_country_code: Option<String>,
+        billing_address: Option<Encryption>,
+        shipping_address: Option<Encryption>,
+        browser_info: Box<Option<serde_json::Value>>,
+        email: Option<Encryption>,
     },
     AuthenticationUpdate {
         trans_status: common_enums::TransactionStatus,
@@ -207,6 +220,10 @@ pub struct AuthenticationUpdateInternal {
     pub service_details: Option<serde_json::Value>,
     pub force_3ds_challenge: Option<bool>,
     pub psd2_sca_exemption_type: Option<common_enums::ScaExemptionType>,
+    pub billing_address: Option<Encryption>,
+    pub shipping_address: Option<Encryption>,
+    pub browser_info: Option<serde_json::Value>,
+    pub email: Option<Encryption>,
 }
 
 impl Default for AuthenticationUpdateInternal {
@@ -242,6 +259,10 @@ impl Default for AuthenticationUpdateInternal {
             service_details: Default::default(),
             force_3ds_challenge: Default::default(),
             psd2_sca_exemption_type: Default::default(),
+            billing_address: Default::default(),
+            shipping_address: Default::default(),
+            browser_info: Default::default(),
+            email: Default::default(),
         }
     }
 }
@@ -279,6 +300,10 @@ impl AuthenticationUpdateInternal {
             service_details,
             force_3ds_challenge,
             psd2_sca_exemption_type,
+            billing_address,
+            shipping_address,
+            browser_info,
+            email,
         } = self;
         Authentication {
             connector_authentication_id: connector_authentication_id
@@ -315,6 +340,10 @@ impl AuthenticationUpdateInternal {
             service_details: service_details.or(source.service_details),
             force_3ds_challenge: force_3ds_challenge.or(source.force_3ds_challenge),
             psd2_sca_exemption_type: psd2_sca_exemption_type.or(source.psd2_sca_exemption_type),
+            billing_address: billing_address.or(source.billing_address),
+            shipping_address: shipping_address.or(source.shipping_address),
+            browser_info: browser_info.or(source.browser_info),
+            email: email.or(source.email),
             ..source
         }
     }
@@ -368,6 +397,10 @@ impl From<AuthenticationUpdate> for AuthenticationUpdateInternal {
                 acquirer_merchant_id,
                 directory_server_id,
                 acquirer_country_code,
+                billing_address,
+                shipping_address,
+                browser_info,
+                email,
             } => Self {
                 threeds_server_transaction_id: Some(threeds_server_transaction_id),
                 maximum_supported_version: Some(maximum_supported_3ds_version),
@@ -381,6 +414,10 @@ impl From<AuthenticationUpdate> for AuthenticationUpdateInternal {
                 acquirer_merchant_id,
                 directory_server_id,
                 acquirer_country_code,
+                billing_address,
+                shipping_address,
+                browser_info: *browser_info,
+                email,
                 ..Default::default()
             },
             AuthenticationUpdate::AuthenticationUpdate {
