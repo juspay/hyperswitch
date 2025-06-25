@@ -256,8 +256,8 @@ where
             get_debit_routing_output::<F, D>(state, payment_data, acquirer_country).await?;
 
         logger::debug!(
-            "Sorted co-badged networks: {:?}",
-            debit_routing_output.co_badged_card_networks
+            "Sorted co-badged networks info: {:?}",
+            debit_routing_output.co_badged_card_networks_info
         );
 
         let key_store = db
@@ -281,7 +281,7 @@ where
             &profile_id,
             &key_store,
             vec![connector_data.clone()],
-            debit_routing_output.co_badged_card_networks.clone(),
+            debit_routing_output.get_co_badged_card_networks(),
         )
         .await
         .map_err(|error| {
@@ -306,15 +306,14 @@ where
 }
 
 pub async fn get_debit_routing_output<
-    F: Clone,
-    D: OperationSessionGetters<F> + OperationSessionSetters<F>,
+    F: Clone + Send,
+    D: OperationSessionGetters<F> + OperationSessionSetters<F> + Send + Sync + Clone,
 >(
     state: &SessionState,
     payment_data: &mut D,
     acquirer_country: enums::CountryAlpha2,
 ) -> Option<open_router::DebitRoutingOutput> {
     logger::debug!("Fetching sorted card networks");
-    let payment_attempt = payment_data.get_payment_attempt();
 
     let (saved_co_badged_card_data, saved_card_type, card_isin) =
         extract_saved_card_info(payment_data);
@@ -355,9 +354,9 @@ pub async fn get_debit_routing_output<
 
             routing::perform_open_routing_for_debit_routing(
                 state,
-                payment_attempt,
                 co_badged_card_request,
                 card_isin,
+                payment_data,
             )
             .await
             .map_err(|error| {
@@ -455,7 +454,7 @@ where
             &profile_id,
             &key_store,
             connector_data_list.clone(),
-            debit_routing_output.co_badged_card_networks.clone(),
+            debit_routing_output.get_co_badged_card_networks(),
         )
         .await
         .map_err(|error| {

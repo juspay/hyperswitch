@@ -410,6 +410,7 @@ pub async fn get_filters(
             PaymentDimensions::CardLast4 => fil.card_last_4,
             PaymentDimensions::CardIssuer => fil.card_issuer,
             PaymentDimensions::ErrorReason => fil.error_reason,
+            PaymentDimensions::RoutingApproach => fil.routing_approach.map(|i| i.as_ref().to_string()),
         })
         .collect::<Vec<String>>();
         res.query_data.push(FilterValue {

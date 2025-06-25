@@ -292,6 +292,13 @@ pub enum ApiErrorResponse {
     ExternalVaultFailed,
     #[error(error_type = ErrorType::InvalidRequestError, code = "IR_46", message = "Field {fields} doesn't match with the ones used during mandate creation")]
     MandatePaymentDataMismatch { fields: String },
+    #[error(error_type = ErrorType::InvalidRequestError, code = "IR_47", message = "Connector '{connector}' rejected field '{field_name}': length {received_length} exceeds maximum of {max_length}")]
+    MaxFieldLengthViolated {
+        connector: String,
+        field_name: String,
+        max_length: usize,
+        received_length: usize,
+    },
     #[error(error_type = ErrorType::InvalidRequestError, code = "WE_01", message = "Failed to authenticate the webhook")]
     WebhookAuthenticationFailed,
     #[error(error_type = ErrorType::InvalidRequestError, code = "WE_02", message = "Bad request received in webhook")]
@@ -656,7 +663,9 @@ impl ErrorSwitch<api_models::errors::types::ApiErrorResponse> for ApiErrorRespon
             Self::MandatePaymentDataMismatch { fields} => {
                 AER::BadRequest(ApiError::new("IR", 46, format!("Field {fields} doesn't match with the ones used during mandate creation"), Some(Extra {fields: Some(fields.to_owned()), ..Default::default()}))) //FIXME: error message
             }
-
+            Self::MaxFieldLengthViolated { connector, field_name,  max_length, received_length} => {
+                AER::BadRequest(ApiError::new("IR", 47, format!("Connector '{connector}' rejected field '{field_name}': length {received_length} exceeds maximum of {max_length}"), Some(Extra {connector: Some(connector.to_string()), ..Default::default()})))
+            }
             Self::WebhookAuthenticationFailed => {
                 AER::Unauthorized(ApiError::new("WE", 1, "Webhook authentication failed", None))
             }

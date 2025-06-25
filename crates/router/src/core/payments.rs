@@ -33,6 +33,7 @@ use api_models::{
     payments::{self as payments_api},
 };
 pub use common_enums::enums::CallConnectorAction;
+use common_types::payments as common_payments_types;
 use common_utils::{
     ext_traits::{AsyncExt, StringExt},
     id_type, pii,
@@ -51,7 +52,7 @@ use hyperswitch_domain_models::payments::{
 #[cfg(feature = "v2")]
 use hyperswitch_domain_models::router_response_types::RedirectForm;
 pub use hyperswitch_domain_models::{
-    mandates::{CustomerAcceptance, MandateData},
+    mandates::MandateData,
     payment_address::PaymentAddress,
     payments::{self as domain_payments, HeaderPayload},
     router_data::{PaymentMethodToken, RouterData},
@@ -513,6 +514,11 @@ where
         connector,
     )
     .await;
+
+    operation
+        .to_domain()?
+        .apply_three_ds_authentication_strategy(state, &mut payment_data, &business_profile)
+        .await?;
 
     let should_add_task_to_process_tracker = should_add_task_to_process_tracker(&payment_data);
 
@@ -1533,8 +1539,7 @@ where
     Ok(payment_dsl_data
         .payment_attempt
         .authentication_type
-        .or(output.override_3ds)
-        .or(Some(storage_enums::AuthenticationType::NoThreeDs)))
+        .or(output.override_3ds))
 }
 
 // TODO: Move to business profile surcharge column
@@ -2996,7 +3001,7 @@ impl PaymentRedirectFlow for PaymentRedirectSync {
             force_sync: true,
             expand_attempts: false,
             all_keys_required: None,
-            merchant_connector_details: todo!(), // TODO: Implement for connectors requiring 3DS or redirection-based authentication flows.
+            merchant_connector_details: None, // TODO: Implement for connectors requiring 3DS or redirection-based authentication flows.
         };
 
         let operation = operations::PaymentGet;
@@ -3151,13 +3156,10 @@ impl PaymentRedirectFlow for PaymentAuthenticateCompleteAuthorize {
             .attach_printable("missing authentication_id in payment_attempt")?;
         let authentication = state
             .store
-            .find_authentication_by_merchant_id_authentication_id(
-                &merchant_id,
-                authentication_id.clone(),
-            )
+            .find_authentication_by_merchant_id_authentication_id(&merchant_id, &authentication_id)
             .await
             .to_not_found_response(errors::ApiErrorResponse::AuthenticationNotFound {
-                id: authentication_id,
+                id: authentication_id.get_string_repr().to_string(),
             })?;
         // Fetching merchant_connector_account to check if pull_mechanism is enabled for 3ds connector
         let authentication_merchant_connector_account = helpers::get_merchant_connector_account(
@@ -5959,7 +5961,7 @@ where
     pub mandate_connector: Option<MandateConnectorDetails>,
     pub currency: storage_enums::Currency,
     pub setup_mandate: Option<MandateData>,
-    pub customer_acceptance: Option<CustomerAcceptance>,
+    pub customer_acceptance: Option<common_payments_types::CustomerAcceptance>,
     pub address: PaymentAddress,
     pub token: Option<String>,
     pub token_data: Option<storage::PaymentTokenData>,
@@ -7996,7 +7998,7 @@ pub async fn route_connector_v2_for_payments(
         .as_ref()
         .or(business_profile.routing_algorithm_id.as_ref());
 
-    let connectors = routing::perform_static_routing_v1(
+    let (connectors, _) = routing::perform_static_routing_v1(
         state,
         merchant_context.get_merchant_account().get_id(),
         routing_algorithm_id,
@@ -8063,7 +8065,7 @@ where
         algorithm_ref.algorithm_id
     };
 
-    let connectors = routing::perform_static_routing_v1(
+    let (connectors, routing_approach) = routing::perform_static_routing_v1(
         state,
         merchant_context.get_merchant_account().get_id(),
         routing_algorithm_id.as_ref(),
@@ -8072,6 +8074,8 @@ where
     )
     .await
     .change_context(errors::ApiErrorResponse::InternalServerError)?;
+
+    payment_data.set_routing_approach_in_attempt(routing_approach);
 
     #[cfg(all(feature = "v1", feature = "dynamic_routing"))]
     let payment_attempt = transaction_data.payment_attempt.clone();
@@ -8121,6 +8125,7 @@ where
                     connectors.clone(),
                     business_profile,
                     payment_attempt,
+                    payment_data,
                 )
                 .await
                 .map_err(|e| logger::error!(open_routing_error=?e))
@@ -8163,7 +8168,7 @@ where
                     connectors.clone(),
                     business_profile,
                     dynamic_routing_config_params_interpolator,
-                    payment_data.get_payment_attempt(),
+                    payment_data,
                 )
                 .await
                 .map_err(|e| logger::error!(dynamic_routing_error=?e))
@@ -8240,7 +8245,7 @@ pub async fn route_connector_v1_for_payouts(
         algorithm_ref.algorithm_id
     };
 
-    let connectors = routing::perform_static_routing_v1(
+    let (connectors, _) = routing::perform_static_routing_v1(
         state,
         merchant_context.get_merchant_account().get_id(),
         routing_algorithm_id.as_ref(),
@@ -8418,7 +8423,7 @@ pub async fn payment_external_authentication<F: Clone + Sync>(
     let authentication = db
         .find_authentication_by_merchant_id_authentication_id(
             merchant_id,
-            payment_attempt
+            &payment_attempt
                 .authentication_id
                 .clone()
                 .ok_or(errors::ApiErrorResponse::InternalServerError)
@@ -8965,6 +8970,7 @@ pub trait OperationSessionSetters<F> {
         &mut self,
         external_vault_session_details: Option<api::VaultSessionDetails>,
     );
+    fn set_routing_approach_in_attempt(&mut self, routing_approach: Option<enums::RoutingApproach>);
 }
 
 #[cfg(feature = "v1")]
@@ -9264,6 +9270,13 @@ impl<F: Clone> OperationSessionSetters<F> for PaymentData<F> {
     fn set_vault_operation(&mut self, vault_operation: domain_payments::VaultOperation) {
         self.vault_operation = Some(vault_operation);
     }
+
+    fn set_routing_approach_in_attempt(
+        &mut self,
+        routing_approach: Option<enums::RoutingApproach>,
+    ) {
+        self.payment_attempt.routing_approach = routing_approach;
+    }
 }
 
 #[cfg(feature = "v2")]
@@ -9549,6 +9562,13 @@ impl<F: Clone> OperationSessionSetters<F> for PaymentIntentData<F> {
         vault_session_details: Option<api::VaultSessionDetails>,
     ) {
         self.vault_session_details = vault_session_details;
+    }
+
+    fn set_routing_approach_in_attempt(
+        &mut self,
+        routing_approach: Option<enums::RoutingApproach>,
+    ) {
+        todo!()
     }
 }
 
@@ -9839,6 +9859,13 @@ impl<F: Clone> OperationSessionSetters<F> for PaymentConfirmData<F> {
     ) {
         todo!()
     }
+
+    fn set_routing_approach_in_attempt(
+        &mut self,
+        routing_approach: Option<enums::RoutingApproach>,
+    ) {
+        todo!()
+    }
 }
 
 #[cfg(feature = "v2")]
@@ -10121,6 +10148,12 @@ impl<F: Clone> OperationSessionSetters<F> for PaymentStatusData<F> {
     fn set_vault_session_details(
         &mut self,
         external_vault_session_details: Option<api::VaultSessionDetails>,
+    ) {
+        todo!()
+    }
+    fn set_routing_approach_in_attempt(
+        &mut self,
+        routing_approach: Option<enums::RoutingApproach>,
     ) {
         todo!()
     }
@@ -10407,6 +10440,13 @@ impl<F: Clone> OperationSessionSetters<F> for PaymentCaptureData<F> {
     fn set_vault_session_details(
         &mut self,
         external_vault_session_details: Option<api::VaultSessionDetails>,
+    ) {
+        todo!()
+    }
+
+    fn set_routing_approach_in_attempt(
+        &mut self,
+        routing_approach: Option<enums::RoutingApproach>,
     ) {
         todo!()
     }
