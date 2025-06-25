@@ -168,7 +168,7 @@ where
             let customer_acceptance = save_payment_method_data
                 .request
                 .get_customer_acceptance()
-                .or(mandate_data_customer_acceptance.clone().map(From::from))
+                .or(mandate_data_customer_acceptance.clone())
                 .map(|ca| ca.encode_to_value())
                 .transpose()
                 .change_context(errors::ApiErrorResponse::InternalServerError)

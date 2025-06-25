@@ -168,7 +168,8 @@ pub fn mk_app(
         {
             server_app = server_app
                 .service(routes::Refunds::server(state.clone()))
-                .service(routes::Mandates::server(state.clone()));
+                .service(routes::Mandates::server(state.clone()))
+                .service(routes::Authentication::server(state.clone()));
         }
     }
 

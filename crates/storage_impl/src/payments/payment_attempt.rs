@@ -685,6 +685,7 @@ impl<T: DatabaseStore> PaymentAttemptInterface for KVRouterStore<T> {
                     processor_merchant_id: payment_attempt.processor_merchant_id.clone(),
                     created_by: payment_attempt.created_by.clone(),
                     setup_future_usage_applied: payment_attempt.setup_future_usage_applied,
+                    routing_approach: payment_attempt.routing_approach,
                 };
 
                 let field = format!("pa_{}", created_attempt.attempt_id);
@@ -1887,6 +1888,7 @@ impl DataModelExt for PaymentAttempt {
             issuer_error_code: self.issuer_error_code,
             issuer_error_message: self.issuer_error_message,
             setup_future_usage_applied: self.setup_future_usage_applied,
+            routing_approach: self.routing_approach,
             // Below fields are deprecated. Please add any new fields above this line.
             connector_transaction_data: None,
             processor_merchant_id: Some(self.processor_merchant_id),
@@ -1981,6 +1983,7 @@ impl DataModelExt for PaymentAttempt {
                 .created_by
                 .and_then(|created_by| created_by.parse::<CreatedBy>().ok()),
             setup_future_usage_applied: storage_model.setup_future_usage_applied,
+            routing_approach: storage_model.routing_approach,
         }
     }
 }
@@ -2070,6 +2073,7 @@ impl DataModelExt for PaymentAttemptNew {
             processor_merchant_id: Some(self.processor_merchant_id),
             created_by: self.created_by.map(|created_by| created_by.to_string()),
             setup_future_usage_applied: self.setup_future_usage_applied,
+            routing_approach: self.routing_approach,
         }
     }
 
@@ -2152,6 +2156,7 @@ impl DataModelExt for PaymentAttemptNew {
                 .created_by
                 .and_then(|created_by| created_by.parse::<CreatedBy>().ok()),
             setup_future_usage_applied: storage_model.setup_future_usage_applied,
+            routing_approach: storage_model.routing_approach,
         }
     }
 }
