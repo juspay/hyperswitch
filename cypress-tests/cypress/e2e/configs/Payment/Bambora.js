@@ -13,7 +13,7 @@ const successfulNo3DSCardDetails = {
 };
 const successfulThreeDSTestCardDetails = { ...successfulNo3DSCardDetails };
 
-const failedNo3DSCardDetails= {
+const failedNo3DSCardDetails = {
   ...successfulNo3DSCardDetails,
   card_number: "4030000010001234",
 };
