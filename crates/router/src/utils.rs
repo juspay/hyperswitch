@@ -330,7 +330,7 @@ pub async fn find_mca_from_authentication_id_type(
         webhooks::AuthenticationIdType::AuthenticationId(authentication_id) => db
             .find_authentication_by_merchant_id_authentication_id(
                 merchant_context.get_merchant_account().get_id(),
-                authentication_id,
+                &authentication_id,
             )
             .await
             .to_not_found_response(errors::ApiErrorResponse::InternalServerError)?,
@@ -345,19 +345,21 @@ pub async fn find_mca_from_authentication_id_type(
     };
     #[cfg(feature = "v1")]
     {
+        // raise error if merchant_connector_id is not present since it should we be present in the current flow
+        let mca_id = authentication
+            .merchant_connector_id
+            .ok_or(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("merchant_connector_id not present in authentication record")?;
         db.find_by_merchant_connector_account_merchant_id_merchant_connector_id(
             &state.into(),
             merchant_context.get_merchant_account().get_id(),
-            &authentication.merchant_connector_id,
+            &mca_id,
             merchant_context.get_merchant_key_store(),
         )
         .await
         .to_not_found_response(
             errors::ApiErrorResponse::MerchantConnectorAccountNotFound {
-                id: authentication
-                    .merchant_connector_id
-                    .get_string_repr()
-                    .to_string(),
+                id: mca_id.get_string_repr().to_string(),
             },
         )
     }

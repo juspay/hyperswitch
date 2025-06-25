@@ -63,11 +63,19 @@ pub mod routes {
                                 .route(web::post().to(get_merchant_payment_metrics)),
                         )
                         .service(
+                            web::resource("metrics/routing")
+                                .route(web::post().to(get_merchant_payment_metrics)),
+                        )
+                        .service(
                             web::resource("metrics/refunds")
                                 .route(web::post().to(get_merchant_refund_metrics)),
                         )
                         .service(
                             web::resource("filters/payments")
+                                .route(web::post().to(get_merchant_payment_filters)),
+                        )
+                        .service(
+                            web::resource("filters/routing")
                                 .route(web::post().to(get_merchant_payment_filters)),
                         )
                         .service(
@@ -176,6 +184,10 @@ pub mod routes {
                                         .route(web::post().to(get_merchant_payment_metrics)),
                                 )
                                 .service(
+                                    web::resource("metrics/routing")
+                                        .route(web::post().to(get_merchant_payment_metrics)),
+                                )
+                                .service(
                                     web::resource("metrics/refunds")
                                         .route(web::post().to(get_merchant_refund_metrics)),
                                 )
@@ -185,6 +197,10 @@ pub mod routes {
                                 )
                                 .service(
                                     web::resource("filters/payments")
+                                        .route(web::post().to(get_merchant_payment_filters)),
+                                )
+                                .service(
+                                    web::resource("filters/routing")
                                         .route(web::post().to(get_merchant_payment_filters)),
                                 )
                                 .service(
@@ -254,6 +270,14 @@ pub mod routes {
                                         .route(web::post().to(get_org_payment_filters)),
                                 )
                                 .service(
+                                    web::resource("metrics/routing")
+                                        .route(web::post().to(get_org_payment_metrics)),
+                                )
+                                .service(
+                                    web::resource("filters/routing")
+                                        .route(web::post().to(get_org_payment_filters)),
+                                )
+                                .service(
                                     web::resource("metrics/refunds")
                                         .route(web::post().to(get_org_refund_metrics)),
                                 )
@@ -313,6 +337,14 @@ pub mod routes {
                                 )
                                 .service(
                                     web::resource("filters/payments")
+                                        .route(web::post().to(get_profile_payment_filters)),
+                                )
+                                .service(
+                                    web::resource("metrics/routing")
+                                        .route(web::post().to(get_profile_payment_metrics)),
+                                )
+                                .service(
+                                    web::resource("filters/routing")
                                         .route(web::post().to(get_profile_payment_filters)),
                                 )
                                 .service(
