@@ -86,6 +86,7 @@ pub struct Connectors {
     pub paypal: ConnectorParams,
     pub paystack: ConnectorParams,
     pub payu: ConnectorParams,
+    pub peachpayments: ConnectorParams,
     pub placetopay: ConnectorParams,
     pub plaid: ConnectorParams,
     pub powertranz: ConnectorParams,

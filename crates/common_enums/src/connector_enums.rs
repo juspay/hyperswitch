@@ -123,6 +123,7 @@ pub enum RoutableConnectors {
     Paypal,
     Paystack,
     Payu,
+    Peachpayments,
     Placetopay,
     Powertranz,
     Prophetpay,
@@ -284,6 +285,7 @@ pub enum Connector {
     Paypal,
     Paystack,
     Payu,
+    Peachpayments,
     Placetopay,
     Powertranz,
     Prophetpay,
@@ -456,6 +458,7 @@ impl Connector {
             | Self::Paypal
             | Self::Paystack
             | Self::Payu
+            | Self::Peachpayments
             | Self::Placetopay
             | Self::Powertranz
             | Self::Prophetpay
@@ -615,6 +618,7 @@ impl From<RoutableConnectors> for Connector {
             RoutableConnectors::Paypal => Self::Paypal,
             RoutableConnectors::Paystack => Self::Paystack,
             RoutableConnectors::Payu => Self::Payu,
+            RoutableConnectors::Peachpayments => Self::Peachpayments,
             RoutableConnectors::Placetopay => Self::Placetopay,
             RoutableConnectors::Powertranz => Self::Powertranz,
             RoutableConnectors::Prophetpay => Self::Prophetpay,
@@ -733,6 +737,7 @@ impl TryFrom<Connector> for RoutableConnectors {
             Connector::Paypal => Ok(Self::Paypal),
             Connector::Paystack => Ok(Self::Paystack),
             Connector::Payu => Ok(Self::Payu),
+            Connector::Peachpayments => Ok(Self::Peachpayments),
             Connector::Placetopay => Ok(Self::Placetopay),
             Connector::Powertranz => Ok(Self::Powertranz),
             Connector::Prophetpay => Ok(Self::Prophetpay),

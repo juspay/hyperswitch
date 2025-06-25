@@ -77,6 +77,7 @@ mod payone;
 mod paypal;
 mod paystack;
 mod payu;
+mod peachpayments;
 mod placetopay;
 mod plaid;
 mod powertranz;

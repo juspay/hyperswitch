@@ -27,7 +27,7 @@ pub use hyperswitch_connectors::connectors::{
     nomupay::Nomupay, noon, noon::Noon, nordea, nordea::Nordea, novalnet, novalnet::Novalnet,
     nuvei, nuvei::Nuvei, opayo, opayo::Opayo, opennode, opennode::Opennode, paybox, paybox::Paybox,
     payeezy, payeezy::Payeezy, payme, payme::Payme, payone, payone::Payone, paypal, paypal::Paypal,
-    paystack, paystack::Paystack, payu, payu::Payu, placetopay, placetopay::Placetopay, plaid,
+    paystack, paystack::Paystack, payu, payu::Payu, peachpayments, peachpayments::Peachpayments, placetopay, placetopay::Placetopay, plaid,
     plaid::Plaid, powertranz, powertranz::Powertranz, prophetpay, prophetpay::Prophetpay, rapyd,
     rapyd::Rapyd, razorpay, razorpay::Razorpay, recurly, recurly::Recurly, redsys, redsys::Redsys,
     riskified, riskified::Riskified, santander, santander::Santander, shift4, shift4::Shift4,
