@@ -1,7 +1,8 @@
+use common_utils::errors::CustomResult;
 #[cfg(feature = "v2")]
 use common_utils::types::keymanager::KeyManagerState;
+#[cfg(feature = "v1")]
 use common_utils::{
-    errors::CustomResult,
     fallback_reverse_lookup_not_found,
     types::{ConnectorTransactionId, ConnectorTransactionIdTrait, CreatedBy},
 };
@@ -10,12 +11,11 @@ use diesel_models::{
         MandateAmountData as DieselMandateAmountData, MandateDataType as DieselMandateType,
         MandateDetails as DieselMandateDetails, MerchantStorageScheme,
     },
-    kv,
-    payment_attempt::{
-        PaymentAttempt as DieselPaymentAttempt, PaymentAttemptNew as DieselPaymentAttemptNew,
-    },
+    payment_attempt::PaymentAttempt as DieselPaymentAttempt,
     reverse_lookup::{ReverseLookup, ReverseLookupNew},
 };
+#[cfg(feature = "v1")]
+use diesel_models::{kv, payment_attempt::PaymentAttemptNew as DieselPaymentAttemptNew};
 use error_stack::ResultExt;
 #[cfg(feature = "v1")]
 use hyperswitch_domain_models::payments::payment_attempt::PaymentAttemptNew;
@@ -28,21 +28,26 @@ use hyperswitch_domain_models::{
     mandates::{MandateAmountData, MandateDataType, MandateDetails},
     payments::payment_attempt::{PaymentAttempt, PaymentAttemptInterface, PaymentAttemptUpdate},
 };
-#[cfg(feature = "olap")]
+#[cfg(all(feature = "v1", feature = "olap"))]
 use hyperswitch_domain_models::{
     payments::payment_attempt::PaymentListFilters, payments::PaymentIntent,
 };
+#[cfg(feature = "v1")]
 use redis_interface::HsetnxReply;
 use router_env::{instrument, tracing};
 
 use crate::{
-    diesel_error_to_data_error,
-    errors::{self, RedisErrorExt},
+    diesel_error_to_data_error, errors,
     kv_router_store::KVRouterStore,
     lookup::ReverseLookupInterface,
-    redis::kv_store::{decide_storage_scheme, kv_wrapper, KvOperation, Op, PartitionKey},
-    utils::{pg_connection_read, pg_connection_write, try_redis_get_else_try_database_get},
+    utils::{pg_connection_read, pg_connection_write},
     DataModelExt, DatabaseStore, RouterStore,
+};
+#[cfg(feature = "v1")]
+use crate::{
+    errors::RedisErrorExt,
+    redis::kv_store::{decide_storage_scheme, kv_wrapper, KvOperation, Op, PartitionKey},
+    utils::try_redis_get_else_try_database_get,
 };
 
 #[async_trait::async_trait]
@@ -680,6 +685,7 @@ impl<T: DatabaseStore> PaymentAttemptInterface for KVRouterStore<T> {
                     processor_merchant_id: payment_attempt.processor_merchant_id.clone(),
                     created_by: payment_attempt.created_by.clone(),
                     setup_future_usage_applied: payment_attempt.setup_future_usage_applied,
+                    routing_approach: payment_attempt.routing_approach,
                 };
 
                 let field = format!("pa_{}", created_attempt.attempt_id);
@@ -1704,6 +1710,7 @@ impl DataModelExt for PaymentAttempt {
             issuer_error_code: self.issuer_error_code,
             issuer_error_message: self.issuer_error_message,
             setup_future_usage_applied: self.setup_future_usage_applied,
+            routing_approach: self.routing_approach,
             // Below fields are deprecated. Please add any new fields above this line.
             connector_transaction_data: None,
             processor_merchant_id: Some(self.processor_merchant_id),
@@ -1798,6 +1805,7 @@ impl DataModelExt for PaymentAttempt {
                 .created_by
                 .and_then(|created_by| created_by.parse::<CreatedBy>().ok()),
             setup_future_usage_applied: storage_model.setup_future_usage_applied,
+            routing_approach: storage_model.routing_approach,
         }
     }
 }
@@ -1887,6 +1895,7 @@ impl DataModelExt for PaymentAttemptNew {
             processor_merchant_id: Some(self.processor_merchant_id),
             created_by: self.created_by.map(|created_by| created_by.to_string()),
             setup_future_usage_applied: self.setup_future_usage_applied,
+            routing_approach: self.routing_approach,
         }
     }
 
@@ -1969,6 +1978,7 @@ impl DataModelExt for PaymentAttemptNew {
                 .created_by
                 .and_then(|created_by| created_by.parse::<CreatedBy>().ok()),
             setup_future_usage_applied: storage_model.setup_future_usage_applied,
+            routing_approach: storage_model.routing_approach,
         }
     }
 }

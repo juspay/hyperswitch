@@ -1566,6 +1566,10 @@ Cypress.Commands.add("setDefaultPaymentMethodTest", (globalState) => {
           payment_method_id
         );
         expect(response.body).to.have.property("customer_id", customer_id);
+      } else if (response.status === 400) {
+        expect(response.body.error.message).to.equal(
+          "Payment Method is already set as default"
+        );
       } else {
         defaultErrorHandler(response);
       }
