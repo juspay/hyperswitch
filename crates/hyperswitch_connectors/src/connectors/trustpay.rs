@@ -908,16 +908,6 @@ impl ConnectorIntegration<RSync, RefundsData, RefundsResponseData> for Trustpay 
 
 #[async_trait::async_trait]
 impl webhooks::IncomingWebhook for Trustpay {
-    async fn verify_webhook_source(
-        &self,
-        _request: &webhooks::IncomingWebhookRequestDetails<'_>,
-        _merchant_id: &common_utils::id_type::MerchantId,
-        _connector_webhook_details: Option<common_utils::pii::SecretSerdeValue>,
-        _connector_account_details: crypto::Encryptable<masking::Secret<serde_json::Value>>,
-        _connector_name: &str,
-    ) -> CustomResult<bool, errors::ConnectorError> {
-        Ok(true)
-    }
     fn get_webhook_object_reference_id(
         &self,
         request: &webhooks::IncomingWebhookRequestDetails<'_>,
