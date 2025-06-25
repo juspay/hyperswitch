@@ -621,7 +621,7 @@ describe("Corner cases", () => {
       const data = getConnectorDetails(globalState.get("connectorId"))[
         "card_pm"
       ]["RefundGreaterAmount"];
-      
+
       cy.refundCallTest(fixtures.refundBody, data, globalState);
 
       if (shouldContinue) shouldContinue = utils.should_continue_further(data);
