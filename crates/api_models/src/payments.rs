@@ -10,6 +10,7 @@ use cards::CardNumber;
 #[cfg(feature = "v2")]
 use common_enums::enums::PaymentConnectorTransmission;
 use common_enums::ProductType;
+use common_types::payments as common_payments_types;
 #[cfg(feature = "v2")]
 use common_types::domain::MerchantConnectorAuthDetails;
 #[cfg(feature = "v1")]
@@ -1030,7 +1031,7 @@ pub struct PaymentsRequest {
 
     /// This "CustomerAcceptance" object is passed during Payments-Confirm request, it enlists the type, time, and mode of acceptance properties related to an acceptance done by the customer. The customer_acceptance sub object is usually passed by the SDK or client.
     #[schema(value_type = Option<CustomerAcceptance>)]
-    pub customer_acceptance: Option<CustomerAcceptance>,
+    pub customer_acceptance: Option<common_payments_types::CustomerAcceptance>,
 
     /// A unique identifier to link the payment to a mandate. To do Recurring payments after a mandate has been created, pass the mandate_id instead of payment_method_data
     #[schema(max_length = 64, example = "mandate_iwer89rnjef349dni3")]
@@ -1861,7 +1862,8 @@ pub struct MandateData {
     /// A way to update the mandate's payment method details
     pub update_mandate_id: Option<String>,
     /// A consent from the customer to store the payment method
-    pub customer_acceptance: Option<CustomerAcceptance>,
+    #[schema(value_type = Option<CustomerAcceptance>)]
+    pub customer_acceptance: Option<common_payments_types::CustomerAcceptance>,
     /// A way to select the type of mandate used
     pub mandate_type: Option<MandateType>,
 }
@@ -1908,40 +1910,6 @@ impl Default for MandateType {
     fn default() -> Self {
         Self::MultiUse(None)
     }
-}
-
-/// This "CustomerAcceptance" object is passed during Payments-Confirm request, it enlists the type, time, and mode of acceptance properties related to an acceptance done by the customer. The customer_acceptance sub object is usually passed by the SDK or client.
-#[derive(Default, Eq, PartialEq, Debug, serde::Deserialize, serde::Serialize, Clone, ToSchema)]
-#[serde(deny_unknown_fields)]
-pub struct CustomerAcceptance {
-    /// Type of acceptance provided by the
-    #[schema(example = "online")]
-    pub acceptance_type: AcceptanceType,
-    /// Specifying when the customer acceptance was provided
-    #[schema(example = "2022-09-10T10:11:12Z")]
-    #[serde(default, with = "common_utils::custom_serde::iso8601::option")]
-    pub accepted_at: Option<PrimitiveDateTime>,
-    /// Information required for online mandate generation
-    pub online: Option<OnlineMandate>,
-}
-
-#[derive(Default, Debug, serde::Deserialize, serde::Serialize, PartialEq, Eq, Clone, ToSchema)]
-#[serde(rename_all = "lowercase")]
-/// This is used to indicate if the mandate was accepted online or offline
-pub enum AcceptanceType {
-    Online,
-    #[default]
-    Offline,
-}
-
-#[derive(Default, Eq, PartialEq, Debug, serde::Deserialize, serde::Serialize, Clone, ToSchema)]
-#[serde(deny_unknown_fields)]
-pub struct OnlineMandate {
-    /// Ip address of the customer machine from which the mandate was created
-    #[schema(value_type = String, example = "123.32.25.123")]
-    pub ip_address: Option<Secret<String, pii::IpAddress>>,
-    /// The user-agent of the customer's browser
-    pub user_agent: String,
 }
 
 #[derive(Default, Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
@@ -2973,6 +2941,15 @@ pub enum AdditionalPaymentData {
         #[serde(flatten)]
         details: Option<MobilePaymentData>,
     },
+}
+
+impl AdditionalPaymentData {
+    pub fn get_additional_card_info(&self) -> Option<AdditionalCardInfo> {
+        match self {
+            Self::Card(additional_card_info) => Some(*additional_card_info.clone()),
+            _ => None,
+        }
+    }
 }
 
 #[derive(Debug, Clone, Eq, PartialEq, serde::Deserialize, serde::Serialize)]
@@ -5355,7 +5332,7 @@ pub struct PaymentsConfirmIntentRequest {
 
     /// This "CustomerAcceptance" object is passed during Payments-Confirm request, it enlists the type, time, and mode of acceptance properties related to an acceptance done by the customer. The customer_acceptance sub object is usually passed by the SDK or client.
     #[schema(value_type = Option<CustomerAcceptance>)]
-    pub customer_acceptance: Option<CustomerAcceptance>,
+    pub customer_acceptance: Option<common_payments_types::CustomerAcceptance>,
 
     /// Additional details required by 3DS 2.0
     #[schema(value_type = Option<BrowserInformation>)]
@@ -5527,7 +5504,7 @@ pub struct PaymentsRequest {
 
     /// This "CustomerAcceptance" object is passed during Payments-Confirm request, it enlists the type, time, and mode of acceptance properties related to an acceptance done by the customer. The customer_acceptance sub object is usually passed by the SDK or client.
     #[schema(value_type = Option<CustomerAcceptance>)]
-    pub customer_acceptance: Option<CustomerAcceptance>,
+    pub customer_acceptance: Option<common_payments_types::CustomerAcceptance>,
 
     /// Additional details required by 3DS 2.0
     #[schema(value_type = Option<BrowserInformation>)]

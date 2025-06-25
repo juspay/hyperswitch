@@ -1854,7 +1854,7 @@ impl PaymentIntentInterface for KafkaStore {
             .update_payment_intent(
                 state,
                 this.clone(),
-                payment_intent,
+                payment_intent.clone(),
                 key_store,
                 storage_scheme,
             )
@@ -1866,7 +1866,7 @@ impl PaymentIntentInterface for KafkaStore {
                 &intent,
                 Some(this),
                 self.tenant_id.clone(),
-                state.infra_values.clone(),
+                state.add_confirm_value_in_infra_values(payment_intent.is_confirm_operation()),
             )
             .await
         {
@@ -3807,7 +3807,7 @@ impl AuthenticationInterface for KafkaStore {
     async fn find_authentication_by_merchant_id_authentication_id(
         &self,
         merchant_id: &id_type::MerchantId,
-        authentication_id: String,
+        authentication_id: &id_type::AuthenticationId,
     ) -> CustomResult<storage::Authentication, errors::StorageError> {
         self.diesel_store
             .find_authentication_by_merchant_id_authentication_id(merchant_id, authentication_id)
