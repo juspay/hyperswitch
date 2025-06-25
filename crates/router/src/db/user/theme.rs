@@ -41,6 +41,11 @@ pub trait ThemeInterface {
         &self,
         theme_id: String,
     ) -> CustomResult<storage::Theme, errors::StorageError>;
+
+    async fn find_all_themes_by_lineage_hierarchy(
+        &self,
+        lineage: ThemeLineage,
+    ) -> CustomResult<Vec<storage::Theme>, errors::StorageError>;
 }
 
 #[async_trait::async_trait]
@@ -106,6 +111,15 @@ impl ThemeInterface for Store {
             .await
             .map_err(|error| report!(errors::StorageError::from(error)))
     }
+    async fn find_all_themes_by_lineage_hierarchy(
+        &self,
+        lineage: ThemeLineage,
+    ) -> CustomResult<Vec<storage::Theme>, errors::StorageError> {
+        let conn = connection::pg_connection_read(self).await?;
+        storage::Theme::find_all_by_lineage_hierarchy(&conn, lineage)
+            .await
+            .map_err(|error| report!(errors::StorageError::from(error)))
+    }
 }
 
 fn check_theme_with_lineage(theme: &storage::Theme, lineage: &ThemeLineage) -> bool {
@@ -140,6 +154,57 @@ fn check_theme_with_lineage(theme: &storage::Theme, lineage: &ThemeLineage) -> b
                     .as_ref()
                     .is_some_and(|merchant_id_inner| merchant_id_inner == merchant_id)
                 && theme.profile_id.is_none()
+        }
+        ThemeLineage::Profile {
+            tenant_id,
+            org_id,
+            merchant_id,
+            profile_id,
+        } => {
+            &theme.tenant_id == tenant_id
+                && theme
+                    .org_id
+                    .as_ref()
+                    .is_some_and(|org_id_inner| org_id_inner == org_id)
+                && theme
+                    .merchant_id
+                    .as_ref()
+                    .is_some_and(|merchant_id_inner| merchant_id_inner == merchant_id)
+                && theme
+                    .profile_id
+                    .as_ref()
+                    .is_some_and(|profile_id_inner| profile_id_inner == profile_id)
+        }
+    }
+}
+
+fn check_theme_belongs_to_lineage_hierarchy(
+    theme: &storage::Theme,
+    lineage: &ThemeLineage,
+) -> bool {
+    match lineage {
+        ThemeLineage::Tenant { tenant_id } => &theme.tenant_id == tenant_id,
+        ThemeLineage::Organization { tenant_id, org_id } => {
+            &theme.tenant_id == tenant_id
+                && theme
+                    .org_id
+                    .as_ref()
+                    .is_some_and(|org_id_inner| org_id_inner == org_id)
+        }
+        ThemeLineage::Merchant {
+            tenant_id,
+            org_id,
+            merchant_id,
+        } => {
+            &theme.tenant_id == tenant_id
+                && theme
+                    .org_id
+                    .as_ref()
+                    .is_some_and(|org_id_inner| org_id_inner == org_id)
+                && theme
+                    .merchant_id
+                    .as_ref()
+                    .is_some_and(|merchant_id_inner| merchant_id_inner == merchant_id)
         }
         ThemeLineage::Profile {
             tenant_id,
@@ -315,5 +380,18 @@ impl ThemeInterface for MockDb {
 
         let theme = themes.remove(index);
         Ok(theme)
+    }
+    async fn find_all_themes_by_lineage_hierarchy(
+        &self,
+        lineage: ThemeLineage,
+    ) -> CustomResult<Vec<storage::Theme>, errors::StorageError> {
+        let themes = self.themes.lock().await;
+        let matching_themes: Vec<storage::Theme> = themes
+            .iter()
+            .filter(|theme| check_theme_belongs_to_lineage_hierarchy(theme, &lineage))
+            .cloned()
+            .collect();
+
+        Ok(matching_themes)
     }
 }

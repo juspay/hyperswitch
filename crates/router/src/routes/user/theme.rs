@@ -259,3 +259,27 @@ pub async fn upload_file_to_user_theme_storage(
     ))
     .await
 }
+
+pub async fn list_all_themes_in_lineage(
+    state: web::Data<AppState>,
+    req: HttpRequest,
+    query: web::Query<theme_api::ThemeListQuery>,
+) -> HttpResponse {
+    let flow = Flow::ListAllThemesInLineage;
+    let entity_type = query.into_inner().entity_type;
+
+    Box::pin(api::server_wrap(
+        flow,
+        state,
+        &req,
+        (),
+        |state, user: auth::UserFromToken, _payload, _| {
+            theme_core::list_all_themes_in_lineage(state, user, entity_type)
+        },
+        &auth::JWTAuth {
+            permission: Permission::OrganizationThemeWrite,
+        },
+        api_locking::LockAction::NotApplicable,
+    ))
+    .await
+}

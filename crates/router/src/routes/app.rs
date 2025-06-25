@@ -2558,6 +2558,10 @@ impl User {
             web::scope("/theme")
                 .service(web::resource("").route(web::post().to(user::theme::create_user_theme)))
                 .service(
+                    web::resource("/list")
+                        .route(web::get().to(user::theme::list_all_themes_in_lineage)),
+                )
+                .service(
                     web::resource("/{theme_id}")
                         .route(web::get().to(user::theme::get_user_theme_using_theme_id))
                         .route(web::put().to(user::theme::update_user_theme))

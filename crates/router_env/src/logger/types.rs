@@ -521,6 +521,8 @@ pub enum Flow {
     UpdateTheme,
     /// Delete theme
     DeleteTheme,
+    ///List All Themes In Lineage
+    ListAllThemesInLineage,
     /// List initial webhook delivery attempts
     WebhookEventInitialDeliveryAttemptList,
     /// List delivery attempts for a webhook event

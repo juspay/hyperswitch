@@ -238,7 +238,7 @@ pub async fn get_theme_lineage_from_user_token(
     let profile_id = user_from_token.profile_id.clone();
 
     Ok(ThemeLineage::new(
-        request_entity_type.clone(),
+        *request_entity_type,
         tenant_id,
         org_id,
         merchant_id,
@@ -248,7 +248,7 @@ pub async fn get_theme_lineage_from_user_token(
 
 pub fn get_lineage_from_theme(theme: &Theme) -> ThemeLineage {
     ThemeLineage::new(
-        theme.entity_type.clone(),
+        theme.entity_type,
         theme.tenant_id.clone(),
         theme.org_id.clone().unwrap_or_default(),
         theme.merchant_id.clone().unwrap_or_default(),

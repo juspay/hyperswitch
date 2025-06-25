@@ -1,4 +1,5 @@
 use api_models::user::theme as theme_api;
+use common_enums::EntityType;
 use common_utils::{
     ext_traits::{ByteSliceExt, Encode},
     types::user::ThemeLineage,
@@ -443,4 +444,61 @@ pub async fn upload_file_to_user_theme_storage(
     .await?;
 
     Ok(ApplicationResponse::StatusOk)
+}
+
+pub async fn list_all_themes_in_lineage(
+    state: SessionState,
+    user: UserFromToken,
+    entity_type: EntityType, // level to list themes for (tenant/org/merchant/profile)
+) -> UserResponse<theme_api::ListThemesResponse> {
+    let lineage =
+        theme_utils::get_theme_lineage_from_user_token(&user, &state, &entity_type).await?;
+
+    let db_themes = state
+        .store
+        .find_all_themes_by_lineage_hierarchy(lineage)
+        .await
+        .change_context(UserErrors::InternalServerError)?;
+
+    let mut themes = Vec::new();
+    for theme in db_themes {
+        match theme_utils::retrieve_file_from_theme_bucket(
+            &state,
+            &theme_utils::get_theme_file_key(&theme.theme_id),
+        )
+        .await
+        {
+            Ok(file) => {
+                match file
+                    .to_bytes()
+                    .parse_struct("ThemeData")
+                    .change_context(UserErrors::InternalServerError)
+                {
+                    Ok(parsed_data) => {
+                        themes.push(theme_api::GetThemeResponse {
+                            email_config: theme.email_config(),
+                            theme_id: theme.theme_id,
+                            theme_name: theme.theme_name,
+                            entity_type: theme.entity_type,
+                            tenant_id: theme.tenant_id,
+                            org_id: theme.org_id,
+                            merchant_id: theme.merchant_id,
+                            profile_id: theme.profile_id,
+                            theme_data: parsed_data,
+                        });
+                    }
+                    Err(_) => {
+                        continue; // Skip this theme if S3 file is missing
+                    }
+                }
+            }
+            Err(_) => {
+                continue;
+            }
+        }
+    }
+
+    Ok(ApplicationResponse::Json(theme_api::ListThemesResponse {
+        themes,
+    }))
 }

@@ -4150,6 +4150,15 @@ impl ThemeInterface for KafkaStore {
     ) -> CustomResult<storage::theme::Theme, errors::StorageError> {
         self.diesel_store.delete_theme_by_theme_id(theme_id).await
     }
+
+    async fn find_all_themes_by_lineage_hierarchy(
+        &self,
+        lineage: ThemeLineage,
+    ) -> CustomResult<Vec<storage::theme::Theme>, errors::StorageError> {
+        self.diesel_store
+            .find_all_themes_by_lineage_hierarchy(lineage)
+            .await
+    }
 }
 
 #[async_trait::async_trait]

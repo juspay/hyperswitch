@@ -292,6 +292,7 @@ impl From<Flow> for ApiIdentifier {
             | Flow::AuthSelect
             | Flow::GetThemeUsingLineage
             | Flow::GetThemeUsingThemeId
+            | Flow::ListAllThemesInLineage
             | Flow::UploadFileToThemeStorage
             | Flow::CreateTheme
             | Flow::UpdateTheme
