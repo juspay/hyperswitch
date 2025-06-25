@@ -277,7 +277,7 @@ pub async fn refunds_retrieve_with_gateway_creds(
                 is_platform_allowed: false,
             },
             &auth::JWTAuth {
-                permission: Permission::ProfileRefundWrite,
+                permission: Permission::ProfileRefundRead,
             },
             req.headers(),
         )
