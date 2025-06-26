@@ -1,4 +1,4 @@
-import { customerAcceptance, cardRequiredField, connectorDetails as commonConnectorDetails } from "./Commons";
+import { customerAcceptance, cardRequiredField,} from "./Commons";
 import { getCustomExchange } from "./Modifiers";
 
 // Test card details based on Nuvei test cards (from Rust tests)
@@ -118,35 +118,6 @@ const payment_method_data_3ds = {
     authentication_data: null,
   },
   billing: null,
-};
-
-// Required fields configuration
-const requiredFields = {
-  payment_methods: [
-    {
-      payment_method: "card",
-      payment_method_types: [
-        {
-          payment_method_type: "credit",
-          card_networks: [
-            {
-              eligible_connectors: ["nuvei"],
-            },
-          ],
-          required_fields: cardRequiredField,
-        },
-        {
-          payment_method_type: "debit",
-          card_networks: [
-            {
-              eligible_connectors: ["nuvei"],
-            },
-          ],
-          required_fields: cardRequiredField,
-        },
-      ],
-    },
-  ],
 };
 
 export const connectorDetails = {
