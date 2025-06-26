@@ -285,8 +285,6 @@ impl ConnectorIntegration<PreProcessing, PaymentsPreProcessingData, PaymentsResp
         req: &PaymentsPreProcessingRouterData,
         _connectors: &Connectors,
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
-        // let req_obj = airwallex::AirwallexIntentRequest::try_from(req)?;
-        // Ok(RequestContent::Json(Box::new(req_obj)))
 
         match &req.request.payment_method_data {
             Some(PaymentMethodData::PayLater(_)) => {
@@ -399,21 +397,8 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
             req,
         ))?;
         let connector_req = airwallex::AirwallexPaymentsRequest::try_from(&connector_router_data)?;
-        println!("connector_req: {}", serde_json::to_string(&connector_req).unwrap());
-        Ok(RequestContent::Json(Box::new(connector_req)))
 
-        // match &req.request.payment_method_data {
-        // PaymentMethodData::PayLater(_) => {
-        //     let paylater_req = airwallex::AirwallexPaylaterPaymentsRequest::try_from(&connector_router_data)?;
-        //     println!("paylater_req: {}", serde_json::to_string(&paylater_req).unwrap());
-        //     Ok(RequestContent::Json(Box::new(paylater_req)))
-        // },
-        // _ => {
-        //     let standard_req = airwallex::AirwallexPaymentsRequest::try_from(&connector_router_data)?;
-        //     println!("standard_req: {}", serde_json::to_string(&standard_req).unwrap());
-        //     Ok(RequestContent::Json(Box::new(standard_req)))
-        // }
-        // }
+        Ok(RequestContent::Json(Box::new(connector_req)))
     }
 
     fn build_request(
@@ -451,7 +436,6 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
         match response {
             AirwallexAuthResponse::AirwallexPaymentsResponse(response) => {
-                println!("payments wala flow");
                 event_builder.map(|i| i.set_response_body(&response));
                 router_env::logger::info!(connector_response=?response);
                 RouterData::try_from(ResponseRouterData {
@@ -462,7 +446,6 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
                 .change_context(errors::ConnectorError::ResponseHandlingFailed)
             }
             AirwallexAuthResponse::AirwallexRedirectResponse(response) => {
-                println!("redirect wala flow");
                 event_builder.map(|i| i.set_response_body(&response));
                 router_env::logger::info!(connector_response=?response);
                 RouterData::try_from(ResponseRouterData {
@@ -473,14 +456,6 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
                 .change_context(errors::ConnectorError::ResponseHandlingFailed)
             }
         }
-        //     event_builder.map(|i| i.set_response_body(&response));
-        //     router_env::logger::info!(connector_response=?response);
-        //     RouterData::try_from(ResponseRouterData {
-        //         response,
-        //         data: data.clone(),
-        //         http_code: res.status_code,
-        //     })
-        // .change_context(errors::ConnectorError::ResponseHandlingFailed)
     }
 
     fn get_error_response(
@@ -1284,17 +1259,6 @@ static AIRWALLEX_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMethods> =
         airwallex_supported_payment_methods.add(
             enums::PaymentMethod::BankRedirect,
             enums::PaymentMethodType::Blik,
-            PaymentMethodDetails {
-                mandates: enums::FeatureStatus::NotSupported,
-                refunds: enums::FeatureStatus::Supported,
-                supported_capture_methods: supported_capture_methods_redirect.clone(),
-                specific_features: None,
-            },
-        );
-
-        airwallex_supported_payment_methods.add(
-            enums::PaymentMethod::BankRedirect,
-            enums::PaymentMethodType::Ideal,
             PaymentMethodDetails {
                 mandates: enums::FeatureStatus::NotSupported,
                 refunds: enums::FeatureStatus::Supported,
