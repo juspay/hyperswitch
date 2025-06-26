@@ -1771,7 +1771,6 @@ Cypress.Commands.add(
             cy.log(
               `Request timed out, retrying... (attempt ${retryCount + 1})`
             );
-            cy.wait(5000); // Wait 5 seconds before retry
             return makeRequest(retryCount + 1);
           }
           return response;
