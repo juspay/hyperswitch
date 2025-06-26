@@ -25,6 +25,9 @@ pub mod hubspot_proxy;
 
 pub mod managers;
 
+/// Contains constants
+pub mod consts;
+
 /// crm module
 pub mod crm;
 

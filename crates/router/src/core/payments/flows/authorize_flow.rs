@@ -18,7 +18,7 @@ use crate::{
             self, access_token, customers, helpers, tokenization, transformers, PaymentData,
         },
         unified_connector_service::{
-            build_unified_connector_service_auth_headers,
+            build_unified_connector_service_auth_metadata,
             handle_unified_connector_service_response_for_payment_authorize,
         },
     },
@@ -429,24 +429,22 @@ impl Feature<api::Authorize, types::PaymentsAuthorizeData> for types::PaymentsAu
         merchant_connector_account: helpers::MerchantConnectorAccountType,
     ) -> RouterResult<()> {
         let client = state
+            .grpc_client
             .unified_connector_service_client
             .clone()
             .ok_or(ApiErrorResponse::InternalServerError)
             .attach_printable("Failed to fetch Unified Connector Service client")?;
 
-        let request = payments_grpc::PaymentServiceAuthorizeRequest::foreign_try_from(self)
+        let payment_authorize_request = payments_grpc::PaymentServiceAuthorizeRequest::foreign_try_from(self)
             .change_context(ApiErrorResponse::InternalServerError)
             .attach_printable("Failed to construct Payment Authorize Request")?;
 
-        let metadata = build_unified_connector_service_auth_headers(merchant_connector_account)
+        let connector_auth_metadata = build_unified_connector_service_auth_metadata(merchant_connector_account)
             .change_context(ApiErrorResponse::InternalServerError)
             .attach_printable("Failed to construct request metadata")?;
 
-        let mut request = tonic::Request::new(request);
-        *request.metadata_mut() = metadata;
-
         let response = client
-            .payment_authorize(request)
+            .payment_authorize(payment_authorize_request, connector_auth_metadata)
             .await
             .change_context(ApiErrorResponse::InternalServerError)
             .attach_printable("Failed to authorize payment")?;

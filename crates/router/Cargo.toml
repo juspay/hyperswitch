@@ -103,7 +103,6 @@ tera = "1.20.0"
 thiserror = "1.0.69"
 time = { version = "0.3.41", features = ["serde", "serde-well-known", "std", "parsing", "serde-human-readable"] }
 tokio = { version = "1.45.1", features = ["macros", "rt-multi-thread"] }
-tonic = "0.13.0"
 totp-rs = { version = "5.7.0", features = ["gen_secret", "otpauth"] }
 tracing-futures = { version = "0.2.5", features = ["tokio"] }
 unicode-segmentation = "1.12.0"
