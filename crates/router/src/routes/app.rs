@@ -99,7 +99,6 @@ pub use crate::{
 };
 use crate::{
     configs::{secrets_transformers, Settings},
-    core::unified_connector_service::UnifiedConnectorServiceClient,
     db::kafka_store::{KafkaStore, TenantID},
     routes::{hypersense as hypersense_routes, three_ds_decision_rule},
 };
@@ -129,7 +128,6 @@ pub struct SessionState {
     #[cfg(feature = "olap")]
     pub opensearch_client: Option<Arc<OpenSearchClient>>,
     pub grpc_client: Arc<GrpcClients>,
-    pub unified_connector_service_client: Option<Arc<UnifiedConnectorServiceClient>>,
     pub theme_storage_client: Arc<dyn FileStorageInterface>,
     pub locale: String,
     pub crm_client: Arc<dyn CrmInterface>,
@@ -244,7 +242,6 @@ pub struct AppState {
     pub file_storage_client: Arc<dyn FileStorageInterface>,
     pub encryption_client: Arc<dyn EncryptionManagementInterface>,
     pub grpc_client: Arc<GrpcClients>,
-    pub unified_connector_service_client: Option<Arc<UnifiedConnectorServiceClient>>,
     pub theme_storage_client: Arc<dyn FileStorageInterface>,
     pub crm_client: Arc<dyn CrmInterface>,
     pub infra_components: Option<serde_json::Value>,
@@ -412,16 +409,6 @@ impl AppState {
             let crm_client = conf.crm.get_crm_client().await;
 
             let grpc_client = conf.grpc_client.get_grpc_client_interface().await;
-            let unified_connector_service_client = match conf.unified_connector_service.clone() {
-                Some(unified_connector_service_client_config) => {
-                    UnifiedConnectorServiceClient::build_connections(
-                        unified_connector_service_client_config,
-                    )
-                    .await
-                    .map(Arc::new)
-                }
-                None => None,
-            };
             let infra_component_values = Self::process_env_mappings(conf.infra_values.clone());
             Self {
                 flow_name: String::from("default"),
@@ -441,7 +428,6 @@ impl AppState {
                 file_storage_client,
                 encryption_client,
                 grpc_client,
-                unified_connector_service_client,
                 theme_storage_client,
                 crm_client,
                 infra_components: infra_component_values,
@@ -536,7 +522,6 @@ impl AppState {
             #[cfg(feature = "olap")]
             opensearch_client: self.opensearch_client.clone(),
             grpc_client: Arc::clone(&self.grpc_client),
-            unified_connector_service_client: self.unified_connector_service_client.clone(),
             theme_storage_client: self.theme_storage_client.clone(),
             locale: locale.unwrap_or(common_utils::consts::DEFAULT_LOCALE.to_string()),
             crm_client: self.crm_client.clone(),
