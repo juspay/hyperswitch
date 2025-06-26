@@ -254,7 +254,7 @@ where
     T: prost::Message + Default + Clone,
 {
     fn encode_raw(&self, buf: &mut impl bytes::BufMut) {
-        prost::Message::encode_raw(self.peek(), buf);
+        self.peek().encode_raw(buf);
     }
 
     fn merge_field(
