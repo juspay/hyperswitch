@@ -4,6 +4,7 @@ use common_enums::{AttemptStatus, AuthenticationType};
 use common_utils::request::Method;
 use diesel_models::enums as storage_enums;
 use error_stack::ResultExt;
+use external_services::grpc_client::unified_connector_service::UnifiedConnectorServiceError;
 use hyperswitch_domain_models::{
     router_data::RouterData,
     router_flow_types::payments::Authorize,
@@ -14,9 +15,7 @@ use masking::{ExposeInterface, PeekInterface};
 use unified_connector_service_client::payments::{self as payments_grpc, Identifier};
 
 use crate::{
-    core::unified_connector_service::{
-        build_unified_connector_service_payment_method, errors::UnifiedConnectorServiceError,
-    },
+    core::unified_connector_service::build_unified_connector_service_payment_method,
     types::transformers::ForeignTryFrom,
 };
 

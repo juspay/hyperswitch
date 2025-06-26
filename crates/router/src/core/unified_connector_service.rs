@@ -2,6 +2,7 @@ use api_models::admin::ConnectorAuthType;
 use common_enums::{AttemptStatus, PaymentMethodType};
 use common_utils::{errors::CustomResult, ext_traits::ValueExt};
 use error_stack::ResultExt;
+use external_services::{consts, grpc_client::unified_connector_service::{ConnectorAuthMetadata, UnifiedConnectorServiceError}};
 use hyperswitch_connectors::utils::CardData;
 use hyperswitch_domain_models::{
     merchant_context::MerchantContext,
@@ -9,70 +10,23 @@ use hyperswitch_domain_models::{
     router_response_types::{PaymentsResponseData, RedirectForm},
 };
 use masking::{ExposeInterface, PeekInterface};
-use router_env::logger;
-use tonic::metadata::{MetadataMap, MetadataValue};
 use unified_connector_service_client::payments::{
-    self as payments_grpc, payment_method::PaymentMethod,
-    payment_service_client::PaymentServiceClient, CardDetails, CardPaymentMethodType,
+    self as payments_grpc, payment_method::PaymentMethod, CardDetails, CardPaymentMethodType,
     PaymentServiceAuthorizeResponse,
 };
 
 use crate::{
-    configs::settings::UnifiedConnectorService,
-    consts,
+    consts::UCS_ROLLOUT_PERCENT_CONFIG_PREFIX,
     core::{
         errors::RouterResult,
         payments::helpers::{should_execute_based_on_rollout, MerchantConnectorAccountType},
-        unified_connector_service::errors::UnifiedConnectorServiceError,
         utils::get_flow_name,
     },
     routes::SessionState,
     types::transformers::ForeignTryFrom,
 };
 
-mod errors;
 mod transformers;
-
-/// Result type for Dynamic Routing
-pub type UnifiedConnectorServiceResult<T> = CustomResult<T, UnifiedConnectorServiceError>;
-/// Contains the  Unified Connector Service client
-#[derive(Debug, Clone)]
-pub struct UnifiedConnectorServiceClient {
-    /// The Unified Connector Service Client
-    pub client: PaymentServiceClient<tonic::transport::Channel>,
-}
-
-impl UnifiedConnectorServiceClient {
-    /// Builds the connection to the gRPC service
-    pub async fn build_connections(config: UnifiedConnectorService) -> Option<Self> {
-        match PaymentServiceClient::connect(config.base_url.clone().get_string_repr().to_owned())
-            .await
-        {
-            Ok(unified_connector_service_client) => Some(Self {
-                client: unified_connector_service_client,
-            }),
-            Err(err) => {
-                logger::error!(error = ?err, "Failed to connect to Unified Connector Service");
-                None
-            }
-        }
-    }
-
-    /// Performs Payment Authorize
-    pub async fn payment_authorize(
-        &self,
-        request: tonic::Request<payments_grpc::PaymentServiceAuthorizeRequest>,
-    ) -> UnifiedConnectorServiceResult<tonic::Response<PaymentServiceAuthorizeResponse>> {
-        self.client
-            .clone()
-            .authorize(request)
-            .await
-            .change_context(UnifiedConnectorServiceError::ConnectionError(
-                "Failed to authorize payment through Unified Connector Service".to_owned(),
-            ))
-            .inspect_err(|error| logger::error!(?error))
-    }
-}
 
 pub async fn should_call_unified_connector_service<F: Clone, T>(
     state: &SessionState,
@@ -90,7 +44,7 @@ pub async fn should_call_unified_connector_service<F: Clone, T>(
 
     let config_key = format!(
         "{}_{}_{}_{}_{}",
-        consts::UCS_ROLLOUT_PERCENT_CONFIG_PREFIX,
+        UCS_ROLLOUT_PERCENT_CONFIG_PREFIX,
         merchant_id,
         connector_name,
         payment_method,
@@ -98,7 +52,7 @@ pub async fn should_call_unified_connector_service<F: Clone, T>(
     );
 
     let should_execute = should_execute_based_on_rollout(state, &config_key).await?;
-    Ok(should_execute && state.unified_connector_service_client.is_some())
+    Ok(should_execute && state.grpc_client.unified_connector_service_client.is_some())
 }
 
 pub fn build_unified_connector_service_payment_method(
@@ -161,11 +115,9 @@ pub fn build_unified_connector_service_payment_method(
     }
 }
 
-pub fn build_unified_connector_service_auth_headers(
+pub fn build_unified_connector_service_auth_metadata(
     merchant_connector_account: MerchantConnectorAccountType,
-) -> CustomResult<MetadataMap, UnifiedConnectorServiceError> {
-    let mut metadata = MetadataMap::new();
-
+) -> CustomResult<ConnectorAuthMetadata, UnifiedConnectorServiceError> {
     let auth_type: ConnectorAuthType = merchant_connector_account
         .get_connector_account_details()
         .parse_value("ConnectorAuthType")
@@ -191,81 +143,35 @@ pub fn build_unified_connector_service_auth_headers(
         }
     };
 
-    let parsed_connector_name = connector_name
-        .parse::<MetadataValue<_>>()
-        .change_context(UnifiedConnectorServiceError::InvalidConnectorName)
-        .attach_printable(format!("Failed to parse connector name: {connector_name}"))?;
-
-    metadata.append(consts::UCS_HEADER_CONNECTOR, parsed_connector_name);
-
-    let parse_metadata_value =
-        |value: &str,
-         context: &str|
-         -> CustomResult<MetadataValue<_>, UnifiedConnectorServiceError> {
-            value
-                .parse::<MetadataValue<_>>()
-                .change_context(UnifiedConnectorServiceError::HeaderInjectionFailed(
-                    context.to_string(),
-                ))
-                .attach_printable(format!(
-                    "Failed to parse metadata value for {context}: {value}"
-                ))
-        };
-
     match &auth_type {
         ConnectorAuthType::SignatureKey {
             api_key,
             key1,
             api_secret,
-        } => {
-            metadata.append(
-                consts::UCS_HEADER_AUTH_TYPE,
-                parse_metadata_value(consts::UCS_AUTH_SIGNATURE_KEY, consts::UCS_HEADER_AUTH_TYPE)?,
-            );
-            metadata.append(
-                consts::UCS_HEADER_API_KEY,
-                parse_metadata_value(api_key.peek(), consts::UCS_HEADER_API_KEY)?,
-            );
-            metadata.append(
-                consts::UCS_HEADER_KEY1,
-                parse_metadata_value(key1.peek(), consts::UCS_HEADER_KEY1)?,
-            );
-            metadata.append(
-                consts::UCS_HEADER_API_SECRET,
-                parse_metadata_value(api_secret.peek(), consts::UCS_HEADER_API_SECRET)?,
-            );
-        }
-        ConnectorAuthType::BodyKey { api_key, key1 } => {
-            metadata.append(
-                consts::UCS_HEADER_AUTH_TYPE,
-                parse_metadata_value(consts::UCS_AUTH_BODY_KEY, consts::UCS_HEADER_AUTH_TYPE)?,
-            );
-            metadata.append(
-                consts::UCS_HEADER_API_KEY,
-                parse_metadata_value(api_key.peek(), consts::UCS_HEADER_API_KEY)?,
-            );
-            metadata.append(
-                consts::UCS_HEADER_KEY1,
-                parse_metadata_value(key1.peek(), consts::UCS_HEADER_KEY1)?,
-            );
-        }
-        ConnectorAuthType::HeaderKey { api_key } => {
-            metadata.append(
-                consts::UCS_HEADER_AUTH_TYPE,
-                parse_metadata_value(consts::UCS_AUTH_HEADER_KEY, consts::UCS_HEADER_AUTH_TYPE)?,
-            );
-            metadata.append(
-                consts::UCS_HEADER_API_KEY,
-                parse_metadata_value(api_key.peek(), consts::UCS_HEADER_API_KEY)?,
-            );
-        }
-        _ => {
-            return Err(UnifiedConnectorServiceError::FailedToObtainAuthType)
-                .attach_printable("Unsupported ConnectorAuthType for header injection")?;
-        }
+        } => Ok(ConnectorAuthMetadata {
+            connector_name,
+            auth_type: consts::UCS_AUTH_SIGNATURE_KEY.to_string(),
+            api_key: Some(api_key.peek().to_string()),
+            key1: Some(key1.peek().to_string()),
+            api_secret: Some(api_secret.peek().to_string()),
+        }),
+        ConnectorAuthType::BodyKey { api_key, key1 } => Ok(ConnectorAuthMetadata {
+            connector_name,
+            auth_type: consts::UCS_AUTH_BODY_KEY.to_string(),
+            api_key: Some(api_key.peek().to_string()),
+            key1: Some(key1.peek().to_string()),
+            api_secret: None,
+        }),
+        ConnectorAuthType::HeaderKey { api_key } => Ok(ConnectorAuthMetadata {
+            connector_name,
+            auth_type: consts::UCS_AUTH_HEADER_KEY.to_string(),
+            api_key: Some(api_key.peek().to_string()),
+            key1: None,
+            api_secret: None,
+        }),
+        _ => Err(UnifiedConnectorServiceError::FailedToObtainAuthType)
+            .attach_printable("Unsupported ConnectorAuthType for header injection"),
     }
-
-    Ok(metadata)
 }
 
 pub fn handle_unified_connector_service_response_for_payment_authorize(
