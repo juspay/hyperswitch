@@ -13,6 +13,7 @@ use common_utils::{
 };
 use error_stack::{report, ResultExt};
 use hyperswitch_domain_models::{
+    payment_method_data::PaymentMethodData,
     router_data::{AccessToken, ErrorResponse, RouterData},
     router_flow_types::{
         access_token_auth::AccessTokenAuth,
@@ -34,7 +35,6 @@ use hyperswitch_domain_models::{
         PaymentsCompleteAuthorizeRouterData, PaymentsPreProcessingRouterData,
         PaymentsSyncRouterData, RefundSyncRouterData, RefundsRouterData, SetupMandateRouterData,
     },
-    payment_method_data::PaymentMethodData,
 };
 use hyperswitch_interfaces::{
     api::{
@@ -53,7 +53,10 @@ use router_env::logger;
 use transformers as airwallex;
 
 use crate::{
-    connectors::airwallex::transformers::AirwallexAuthResponse, constants::headers, types::{RefreshTokenRouterData, ResponseRouterData}, utils::{convert_amount, AccessTokenRequestInfo, RefundsRequestData}
+    connectors::airwallex::transformers::AirwallexAuthResponse,
+    constants::headers,
+    types::{RefreshTokenRouterData, ResponseRouterData},
+    utils::{convert_amount, AccessTokenRequestInfo, RefundsRequestData},
 };
 
 #[derive(Clone)]
@@ -285,16 +288,21 @@ impl ConnectorIntegration<PreProcessing, PaymentsPreProcessingData, PaymentsResp
         req: &PaymentsPreProcessingRouterData,
         _connectors: &Connectors,
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
-
         match &req.request.payment_method_data {
             Some(PaymentMethodData::PayLater(_)) => {
                 let paylater_req = airwallex::AirwallexPayLaterIntentRequest::try_from(req)?;
-                println!("paylater_req: {}", serde_json::to_string(&paylater_req).unwrap());
+                println!(
+                    "paylater_req: {}",
+                    serde_json::to_string(&paylater_req).unwrap()
+                );
                 Ok(RequestContent::Json(Box::new(paylater_req)))
-            },
+            }
             _ => {
                 let standard_req = airwallex::AirwallexIntentRequest::try_from(req)?;
-                println!("standard_req: {}", serde_json::to_string(&standard_req).unwrap());
+                println!(
+                    "standard_req: {}",
+                    serde_json::to_string(&standard_req).unwrap()
+                );
                 Ok(RequestContent::Json(Box::new(standard_req)))
             }
         }
@@ -430,7 +438,7 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
         res: Response,
     ) -> CustomResult<PaymentsAuthorizeRouterData, errors::ConnectorError> {
         dbg!(&res.response);
-        let response:AirwallexAuthResponse = res
+        let response: AirwallexAuthResponse = res
             .response
             .parse_struct("AirwallexAuthResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;

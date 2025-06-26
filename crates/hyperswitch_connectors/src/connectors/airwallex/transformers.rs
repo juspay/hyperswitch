@@ -1,11 +1,21 @@
 use common_enums::enums;
-use common_utils::{errors::ParsingError, pii::{IpAddress,Email}, request::Method, types::MinorUnit};
+use common_utils::{
+    errors::ParsingError,
+    pii::{Email, IpAddress},
+    request::Method,
+    types::MinorUnit,
+};
 use error_stack::ResultExt;
 use hyperswitch_domain_models::{
-    payment_method_data::{PayLaterData, PaymentMethodData, WalletData, BankRedirectData }, router_data::{AccessToken, ConnectorAuthType, RouterData}, router_flow_types::{
+    payment_method_data::{BankRedirectData, PayLaterData, PaymentMethodData, WalletData},
+    router_data::{AccessToken, ConnectorAuthType, RouterData},
+    router_flow_types::{
         refunds::{Execute, RSync},
         PSync,
-    }, router_request_types::{PaymentsSyncData, ResponseId}, router_response_types::{PaymentsResponseData, RedirectForm, RefundsResponseData}, types
+    },
+    router_request_types::{PaymentsSyncData, ResponseId},
+    router_response_types::{PaymentsResponseData, RedirectForm, RefundsResponseData},
+    types,
 };
 use hyperswitch_interfaces::{api, errors};
 use masking::{ExposeInterface, PeekInterface, Secret};
@@ -15,8 +25,10 @@ use url::Url;
 use uuid::Uuid;
 
 use crate::{
-    types::{RefundsResponseRouterData, ResponseRouterData}, utils::{self, BrowserInformationData, CardData as _, PaymentsAuthorizeRequestData ,RouterData as _
-    }
+    types::{RefundsResponseRouterData, ResponseRouterData},
+    utils::{
+        self, BrowserInformationData, CardData as _, PaymentsAuthorizeRequestData, RouterData as _,
+    },
 };
 
 pub struct AirwallexAuthType {
@@ -68,7 +80,7 @@ pub struct AirwallexPayLaterIntentRequest {
     merchant_order_id: String,
     // This data is required to whitelist Hyperswitch at Airwallex.
     referrer_data: ReferrerData,
-    order : AirwallexOrderData,
+    order: AirwallexOrderData,
 }
 
 impl TryFrom<&types::PaymentsPreProcessingRouterData> for AirwallexPayLaterIntentRequest {
@@ -92,27 +104,31 @@ impl TryFrom<&types::PaymentsPreProcessingRouterData> for AirwallexPayLaterInten
                     field_name: "currency",
                 })?;
 
-        let order = item.request.order_details.as_ref().map(|order_data| AirwallexOrderData {
-            products: order_data
-                .iter()
-                .map(|product| AirwallexProductData {
-                    name: product.product_name.clone(),
-                    quantity: product.quantity.clone(),
-                    unit_price: product.amount
-                })
-                .collect(),
-            shipping: Some(AirwallexShippingData {
-                first_name: item.get_optional_shipping_first_name(),
-                last_name: item.get_optional_shipping_last_name(),
-                phone_number:  item.get_optional_shipping_phone_number(),
-                address: AirwallexPLShippingAddress {
-                    country_code: item.get_optional_shipping_country(),
-                    city: item.get_optional_shipping_city(),
-                    street: item.get_optional_shipping_line1(),
-                    postcode: item.get_optional_shipping_zip(),
-                },
-            }),
-        });
+        let order = item
+            .request
+            .order_details
+            .as_ref()
+            .map(|order_data| AirwallexOrderData {
+                products: order_data
+                    .iter()
+                    .map(|product| AirwallexProductData {
+                        name: product.product_name.clone(),
+                        quantity: product.quantity.clone(),
+                        unit_price: product.amount,
+                    })
+                    .collect(),
+                shipping: Some(AirwallexShippingData {
+                    first_name: item.get_optional_shipping_first_name(),
+                    last_name: item.get_optional_shipping_last_name(),
+                    phone_number: item.get_optional_shipping_phone_number(),
+                    address: AirwallexPLShippingAddress {
+                        country_code: item.get_optional_shipping_country(),
+                        city: item.get_optional_shipping_city(),
+                        street: item.get_optional_shipping_line1(),
+                        postcode: item.get_optional_shipping_zip(),
+                    },
+                }),
+            });
 
         Ok(Self {
             request_id: Uuid::new_v4().to_string(),
@@ -203,7 +219,7 @@ pub struct AirwallexPaylaterPaymentsRequest {
 
 #[derive(Debug, Serialize, Eq, PartialEq)]
 pub struct AirwallexOrderData {
-    products : Vec<AirwallexProductData>,
+    products: Vec<AirwallexProductData>,
     shipping: Option<AirwallexShippingData>,
 }
 
@@ -317,14 +333,14 @@ pub struct GooglePayDetails {
 }
 
 #[derive(Debug, Serialize)]
-pub struct PaypalDetails{
+pub struct PaypalDetails {
     shopper_name: Option<Secret<String>>,
     country_code: Option<enums::CountryAlpha2>,
 }
 
 #[derive(Debug, Serialize)]
 #[serde(untagged)]
-pub enum AirwallexPayLaterData{
+pub enum AirwallexPayLaterData {
     Klarna(KlarnaData),
     Atome(AtomeData),
 }
@@ -337,24 +353,24 @@ pub struct KlarnaData {
 }
 
 #[derive(Debug, Serialize)]
-pub struct KlarnaDetails{
+pub struct KlarnaDetails {
     country_code: Option<enums::CountryAlpha2>,
     language: Option<String>,
     billing: Billing,
 }
 
 #[derive(Debug, Serialize)]
-pub struct Billing{
+pub struct Billing {
     date_of_birth: Option<Secret<String>>,
     email: Option<Email>,
     first_name: Option<Secret<String>>,
     last_name: Option<Secret<String>>,
-    phone_number:  Option<Secret<String>>,
+    phone_number: Option<Secret<String>>,
     address: AddressAirwallex,
 }
 
 #[derive(Debug, Serialize)]
-pub struct AddressAirwallex{
+pub struct AddressAirwallex {
     country_code: Option<enums::CountryAlpha2>,
     city: Option<String>,
     street: Option<Secret<String>>,
@@ -375,7 +391,7 @@ pub struct AtomeDetails {
 
 #[derive(Debug, Serialize)]
 #[serde(untagged)]
-pub enum AirwallexBankRedirectData{
+pub enum AirwallexBankRedirectData {
     Trustly(TrustlyData),
     Blik(BlikData),
 }
@@ -415,7 +431,7 @@ pub enum AirwallexPaymentType {
     Klarna,
     Atome,
     Trustly,
-    Blik
+    Blik,
 }
 
 #[derive(Debug, Serialize)]
@@ -437,7 +453,6 @@ pub struct AirwallexCardPaymentOptions {
     auto_capture: bool,
 }
 
-
 #[derive(Debug, Serialize)]
 pub struct AirwallexPayLaterPaymentOptions {
     auto_capture: bool,
@@ -450,7 +465,6 @@ impl TryFrom<&AirwallexRouterData<&types::PaymentsAuthorizeRouterData>>
     fn try_from(
         item: &AirwallexRouterData<&types::PaymentsAuthorizeRouterData>,
     ) -> Result<Self, Self::Error> {
-
         let mut payment_method_options = None;
         let request = &item.router_data.request;
         let payment_method = match request.payment_method_data.clone() {
@@ -481,15 +495,21 @@ impl TryFrom<&AirwallexRouterData<&types::PaymentsAuthorizeRouterData>>
                 };
 
                 payment_method_options = match paylater_data {
-                    PayLaterData::KlarnaRedirect { .. } => Some(AirwallexPaymentOptions::Klarna(paylater_options)),
-                    PayLaterData::AtomeRedirect { .. } => Some(AirwallexPaymentOptions::Atome(paylater_options)),
+                    PayLaterData::KlarnaRedirect { .. } => {
+                        Some(AirwallexPaymentOptions::Klarna(paylater_options))
+                    }
+                    PayLaterData::AtomeRedirect { .. } => {
+                        Some(AirwallexPaymentOptions::Atome(paylater_options))
+                    }
                     _ => None,
                 };
 
                 get_paylater_details(paylater_data, item)
-            },
-            PaymentMethodData::BankRedirect(ref bankredirect_data) => get_bankredirect_details(bankredirect_data, item),
-              PaymentMethodData::BankDebit(_)
+            }
+            PaymentMethodData::BankRedirect(ref bankredirect_data) => {
+                get_bankredirect_details(bankredirect_data, item)
+            }
+            PaymentMethodData::BankDebit(_)
             | PaymentMethodData::BankTransfer(_)
             | PaymentMethodData::CardRedirect(_)
             | PaymentMethodData::Crypto(_)
@@ -518,8 +538,12 @@ impl TryFrom<&AirwallexRouterData<&types::PaymentsAuthorizeRouterData>>
                 }
                 _ => request.complete_authorize_url.clone(),
             },
-            PaymentMethodData::BankRedirect(_bankredirect_data) => item.router_data.request.router_return_url.clone(),
-            PaymentMethodData::PayLater(_paylater_data) => item.router_data.request.router_return_url.clone(),
+            PaymentMethodData::BankRedirect(_bankredirect_data) => {
+                item.router_data.request.router_return_url.clone()
+            }
+            PaymentMethodData::PayLater(_paylater_data) => {
+                item.router_data.request.router_return_url.clone()
+            }
             _ => request.complete_authorize_url.clone(),
         };
 
@@ -572,14 +596,17 @@ fn get_device_data(
 
 fn get_paylater_details(
     paylater_data: &PayLaterData,
-    item: &AirwallexRouterData<&types::PaymentsAuthorizeRouterData>
-) -> Result<AirwallexPaymentMethod,  errors::ConnectorError> {
+    item: &AirwallexRouterData<&types::PaymentsAuthorizeRouterData>,
+) -> Result<AirwallexPaymentMethod, errors::ConnectorError> {
     let paylater_details = match paylater_data {
         PayLaterData::KlarnaRedirect {} => {
             AirwallexPaymentMethod::PayLater(AirwallexPayLaterData::Klarna(KlarnaData {
                 klarna: KlarnaDetails {
                     country_code: item.router_data.get_optional_billing_country(),
-                    language: item.router_data.request.get_optional_language_from_browser_info(),
+                    language: item
+                        .router_data
+                        .request
+                        .get_optional_language_from_browser_info(),
                     billing: Billing {
                         date_of_birth: None,
                         first_name: item.router_data.get_optional_billing_first_name(),
@@ -599,14 +626,14 @@ fn get_paylater_details(
         }
         PayLaterData::AtomeRedirect {} => {
             AirwallexPaymentMethod::PayLater(AirwallexPayLaterData::Atome(AtomeData {
-                atome: AtomeDetails { 
-                    shopper_phone: item.router_data.get_optional_billing_phone_number(), 
+                atome: AtomeDetails {
+                    shopper_phone: item.router_data.get_optional_billing_phone_number(),
                 },
                 payment_method_type: AirwallexPaymentType::Atome,
             }))
         }
         _ => Err(errors::ConnectorError::NotImplemented(
-                utils::get_unimplemented_payment_method_error_message("airwallex"),
+            utils::get_unimplemented_payment_method_error_message("airwallex"),
         ))?,
     };
     Ok(paylater_details)
@@ -616,7 +643,6 @@ fn get_bankredirect_details(
     bankredirect_data: &BankRedirectData,
     item: &AirwallexRouterData<&types::PaymentsAuthorizeRouterData>,
 ) -> Result<AirwallexPaymentMethod, errors::ConnectorError> {
-
     let bank_redirect_details = match bankredirect_data {
         BankRedirectData::Trustly { .. } => {
             AirwallexPaymentMethod::BankRedirect(AirwallexBankRedirectData::Trustly(TrustlyData {
@@ -662,7 +688,7 @@ fn get_wallet_details(
             AirwallexPaymentMethod::Wallets(AirwallexWalletData::Paypal(PaypalData {
                 paypal: PaypalDetails {
                     shopper_name: item.router_data.request.customer_name.clone(),
-                    country_code: item.router_data.get_optional_billing_country()
+                    country_code: item.router_data.get_optional_billing_country(),
                 },
                 payment_method_type: AirwallexPaymentType::Paypal,
             }))
@@ -841,14 +867,16 @@ fn get_payment_status(
         AirwallexPaymentStatus::RequiresCustomerAction => next_action.as_ref().map_or(
             enums::AttemptStatus::AuthenticationPending,
             |next_action| match next_action {
-                AirwallexNextAction::Payments(payments_next_action) => match payments_next_action.stage {
-                    AirwallexNextActionStage::WaitingDeviceDataCollection => {
-                        enums::AttemptStatus::DeviceDataCollectionPending
+                AirwallexNextAction::Payments(payments_next_action) => {
+                    match payments_next_action.stage {
+                        AirwallexNextActionStage::WaitingDeviceDataCollection => {
+                            enums::AttemptStatus::DeviceDataCollectionPending
+                        }
+                        AirwallexNextActionStage::WaitingUserInfoInput => {
+                            enums::AttemptStatus::AuthenticationPending
+                        }
                     }
-                    AirwallexNextActionStage::WaitingUserInfoInput => {
-                        enums::AttemptStatus::AuthenticationPending
-                    }
-                },
+                }
                 AirwallexNextAction::Redirect(_) => enums::AttemptStatus::AuthenticationPending,
             },
         ),
@@ -930,7 +958,6 @@ pub enum AirwallexAuthResponse {
 }
 
 fn get_redirection_form(response_url_data: AirwallexPaymentsNextAction) -> Option<RedirectForm> {
-    
     Some(RedirectForm::Form {
         endpoint: response_url_data.url.to_string(),
         method: response_url_data.method,
@@ -958,7 +985,7 @@ fn get_redirection_form(response_url_data: AirwallexPaymentsNextAction) -> Optio
                     .data
                     .token
                     .map(|token: Secret<String>| token.expose())
-                    .unwrap_or_default(),                    
+                    .unwrap_or_default(),
             ),
             (
                 "provider".to_string(),
@@ -979,11 +1006,18 @@ impl<F, T> TryFrom<ResponseRouterData<F, AirwallexPaymentsResponse, T, PaymentsR
     fn try_from(
         item: ResponseRouterData<F, AirwallexPaymentsResponse, T, PaymentsResponseData>,
     ) -> Result<Self, Self::Error> {
-
         let (status, redirection_data) = item.response.next_action.clone().map_or(
             // If no next action is there, map the status and set redirection form as None
             (
-                get_payment_status(&item.response.status, &item.response.next_action.clone().map(AirwallexNextAction::Payments).clone()),
+                get_payment_status(
+                    &item.response.status,
+                    &item
+                        .response
+                        .next_action
+                        .clone()
+                        .map(AirwallexNextAction::Payments)
+                        .clone(),
+                ),
                 None,
             ),
             |response_url_data| {
@@ -991,15 +1025,15 @@ impl<F, T> TryFrom<ResponseRouterData<F, AirwallexPaymentsResponse, T, PaymentsR
                 // process from our end it can cause an infinite loop to break this this check
                 // is added and fail the payment
                 // if let stage = response_url_data.stage.clone() {
-                    if matches!(
-                        (
-                            response_url_data.stage.clone(),
-                            item.data.status,
-                            item.response.status.clone(),
-                        ),
-                        // If the connector sends waiting for DDC and our status is already DDC Pending
-                        // that means we initiated the call to collect the data and now we expect a different response
-                        (
+                if matches!(
+                    (
+                        response_url_data.stage.clone(),
+                        item.data.status,
+                        item.response.status.clone(),
+                    ),
+                    // If the connector sends waiting for DDC and our status is already DDC Pending
+                    // that means we initiated the call to collect the data and now we expect a different response
+                    (
                             AirwallexNextActionStage::WaitingDeviceDataCollection,
                             enums::AttemptStatus::DeviceDataCollectionPending,
                             _
@@ -1012,15 +1046,22 @@ impl<F, T> TryFrom<ResponseRouterData<F, AirwallexPaymentsResponse, T, PaymentsR
                             enums::AttemptStatus::AuthenticationPending,
                             AirwallexPaymentStatus::RequiresCustomerAction,
                         )
-                    ) {
-                        (enums::AttemptStatus::AuthenticationFailed, None)
-                    } else {
-                        (
-                            //Build the redirect form and update the payment status
-                            get_payment_status(&item.response.status, &item.response.next_action.map(AirwallexNextAction::Payments).clone()),
-                            get_redirection_form(response_url_data),
-                        )
-                    }
+                ) {
+                    (enums::AttemptStatus::AuthenticationFailed, None)
+                } else {
+                    (
+                        //Build the redirect form and update the payment status
+                        get_payment_status(
+                            &item.response.status,
+                            &item
+                                .response
+                                .next_action
+                                .map(AirwallexNextAction::Payments)
+                                .clone(),
+                        ),
+                        get_redirection_form(response_url_data),
+                    )
+                }
             },
         );
         Ok(Self {
@@ -1048,27 +1089,35 @@ impl<F, T> TryFrom<ResponseRouterData<F, AirwallexRedirectResponse, T, PaymentsR
     fn try_from(
         item: ResponseRouterData<F, AirwallexRedirectResponse, T, PaymentsResponseData>,
     ) -> Result<Self, Self::Error> {
-
         let (status, redirection_data) = item.response.next_action.clone().map_or(
             // If no next action is there, map the status and set redirection form as None
             (
                 get_payment_status(
                     &item.response.status,
-                    &item.response.next_action.clone().map(AirwallexNextAction::Redirect).clone(),
+                    &item
+                        .response
+                        .next_action
+                        .clone()
+                        .map(AirwallexNextAction::Redirect)
+                        .clone(),
                 ),
                 None,
             ),
             |response_url_data| {
-                let redirection_data=
+                let redirection_data =
                     Some(RedirectForm::from((response_url_data.url, Method::Get)));
                 (
                     get_payment_status(
                         &item.response.status,
-                        &item.response.next_action.map(AirwallexNextAction::Redirect).clone(),
+                        &item
+                            .response
+                            .next_action
+                            .map(AirwallexNextAction::Redirect)
+                            .clone(),
                     ),
                     redirection_data,
                 )
-            }
+            },
         );
 
         Ok(Self {
@@ -1089,7 +1138,6 @@ impl<F, T> TryFrom<ResponseRouterData<F, AirwallexRedirectResponse, T, PaymentsR
     }
 }
 
-
 impl
     TryFrom<
         ResponseRouterData<
@@ -1109,7 +1157,15 @@ impl
             PaymentsResponseData,
         >,
     ) -> Result<Self, Self::Error> {
-        let status = get_payment_status(&item.response.status, &item.response.next_action.clone().map(AirwallexNextAction::Payments).clone());
+        let status = get_payment_status(
+            &item.response.status,
+            &item
+                .response
+                .next_action
+                .clone()
+                .map(AirwallexNextAction::Payments)
+                .clone(),
+        );
         let redirection_data = if let Some(redirect_url_data) = item.response.next_action {
             get_redirection_form(redirect_url_data)
         } else {
