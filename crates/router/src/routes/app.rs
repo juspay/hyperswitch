@@ -1711,6 +1711,24 @@ impl Webhooks {
         let mut route = web::scope("/webhooks")
             .app_data(web::Data::new(config))
             .service(
+                web::resource("/network_token_requestor/ref")
+                    .route(
+                        web::post().to(receive_network_token_requestor_incoming_webhook::<
+                            webhook_type::OutgoingWebhook,
+                        >),
+                    )
+                    .route(
+                        web::get().to(receive_network_token_requestor_incoming_webhook::<
+                            webhook_type::OutgoingWebhook,
+                        >),
+                    )
+                    .route(
+                        web::put().to(receive_network_token_requestor_incoming_webhook::<
+                            webhook_type::OutgoingWebhook,
+                        >),
+                    ),
+            )
+            .service(
                 web::resource("/{merchant_id}/{connector_id_or_name}")
                     .route(
                         web::post().to(receive_incoming_webhook::<webhook_type::OutgoingWebhook>),
