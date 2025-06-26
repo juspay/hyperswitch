@@ -4010,6 +4010,7 @@ where
 
 #[cfg(feature = "v2")]
 #[allow(clippy::too_many_arguments)]
+#[allow(clippy::type_complexity)]
 #[instrument(skip_all)]
 pub async fn call_connector_service_prerequisites<F, RouterDReq, ApiRequest, D>(
     state: &SessionState,
@@ -4093,7 +4094,7 @@ where
         payment_data.get_creds_identifier(),
         merchant_context.get_merchant_key_store(),
         business_profile.get_id(),
-        &connector.connector_name.to_string().as_str(),
+        connector.connector_name.to_string().as_str(),
         connector.merchant_connector_id.as_ref(),
     )
     .await?;
