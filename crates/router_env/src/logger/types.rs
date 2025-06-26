@@ -610,6 +610,8 @@ pub enum Flow {
     TriggerTrainingJob,
     //Recovery Trainer Job status flow
     GetTrainingJobStatus,
+    /// Incoming Network Token Webhook Receive
+    IncomingNetworkTokenWebhookReceive,
 }
 
 /// Trait for providing generic behaviour to flow metric

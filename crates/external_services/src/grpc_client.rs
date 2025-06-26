@@ -25,10 +25,7 @@ use health_check_client::HealthCheckClient;
     all(feature = "revenue_recovery", feature = "v2")
 ))]
 use hyper_util::client::legacy::connect::HttpConnector;
-#[cfg(any(
-    feature = "dynamic_routing",
-    all(feature = "revenue_recovery", feature = "v2")
-))]
+#[cfg(feature = "dynamic_routing")]
 use router_env::logger;
 use serde;
 #[cfg(any(
