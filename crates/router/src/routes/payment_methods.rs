@@ -10,6 +10,7 @@ use diesel_models::enums::IntentStatus;
 use error_stack::ResultExt;
 use hyperswitch_domain_models::{
     bulk_tokenization::CardNetworkTokenizeRequest, merchant_key_store::MerchantKeyStore,
+    payment_methods::PaymentMethodCustomerMigrate, transformers::ForeignTryFrom,
 };
 use router_env::{instrument, logger, tracing, Flow};
 
@@ -356,14 +357,15 @@ pub async fn migrate_payment_methods(
 
                 customers::migrate_customers(
                     state.clone(),
-                    req.iter()
-                        .map(|e| {
-                            payment_methods::PaymentMethodCustomerMigrate::from((
-                                e.clone(),
-                                merchant_id.clone(),
-                            ))
-                        })
-                        .collect(),
+                    Vec::<PaymentMethodCustomerMigrate>::foreign_try_from((
+                        req,
+                        merchant_id.clone(),
+                    ))
+                    .map_err(|e| {
+                        errors::ApiErrorResponse::InvalidRequestData {
+                            message: e.to_string(),
+                        }
+                    })?,
                     merchant_context.clone(),
                 )
                 .await

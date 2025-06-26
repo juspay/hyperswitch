@@ -2499,7 +2499,7 @@ pub struct PaymentMethodRecord {
     pub billing_address_line2: Option<masking::Secret<String>>,
     pub billing_address_line3: Option<masking::Secret<String>>,
     pub raw_card_number: Option<masking::Secret<String>>,
-    pub merchant_connector_id: Option<id_type::MerchantConnectorAccountId>,
+    pub merchant_connector_id: Option<String>,
     pub original_transaction_amount: Option<i64>,
     pub original_transaction_currency: Option<common_enums::Currency>,
     pub line_number: Option<i64>,
@@ -2518,7 +2518,7 @@ pub struct ConnectorCustomerDetails {
 #[derive(Debug, Clone, serde::Deserialize, serde::Serialize)]
 pub struct PaymentMethodCustomerMigrate {
     pub customer: customers::CustomerRequest,
-    pub connector_customer_details: Option<ConnectorCustomerDetails>,
+    pub connector_customer_details: Option<Vec<ConnectorCustomerDetails>>,
 }
 
 #[derive(Debug, Default, serde::Serialize)]
@@ -2635,39 +2635,44 @@ impl From<PaymentMethodMigrationResponseType> for PaymentMethodMigrationResponse
     }
 }
 
-impl
-    TryFrom<(
-        PaymentMethodRecord,
-        id_type::MerchantId,
-        Option<id_type::MerchantConnectorAccountId>,
-    )> for PaymentMethodMigrate
-{
+impl TryFrom<(PaymentMethodRecord, id_type::MerchantId, Option<String>)> for PaymentMethodMigrate {
     type Error = error_stack::Report<errors::ValidationError>;
     fn try_from(
-        item: (
-            PaymentMethodRecord,
-            id_type::MerchantId,
-            Option<id_type::MerchantConnectorAccountId>,
-        ),
+        item: (PaymentMethodRecord, id_type::MerchantId, Option<String>),
     ) -> Result<Self, Self::Error> {
-        let (record, merchant_id, mca_id) = item;
+        let (record, merchant_id, mca_ids) = item;
         let billing = record.create_billing();
 
         //  if payment instrument id is present then only construct this
         let connector_mandate_details = if record.payment_instrument_id.is_some() {
-            Some(PaymentsMandateReference(HashMap::from([(
-                mca_id.get_required_value("merchant_connector_id")?,
-                PaymentsMandateReferenceRecord {
-                    connector_mandate_id: record
-                        .payment_instrument_id
-                        .get_required_value("payment_instrument_id")?
-                        .peek()
-                        .to_string(),
-                    payment_method_type: record.payment_method_type,
-                    original_payment_authorized_amount: record.original_transaction_amount,
-                    original_payment_authorized_currency: record.original_transaction_currency,
-                },
-            )])))
+            mca_ids
+                .as_deref()
+                .map(|s| {
+                    s.split(',')
+                        .map(|mca_id| {
+                            let mca_id =
+                                id_type::MerchantConnectorAccountId::wrap(mca_id.to_string())?;
+                            Ok((
+                                mca_id,
+                                PaymentsMandateReferenceRecord {
+                                    connector_mandate_id: record
+                                        .payment_instrument_id
+                                        .clone()
+                                        .get_required_value("payment_instrument_id")?
+                                        .peek()
+                                        .to_string(),
+                                    payment_method_type: record.payment_method_type,
+                                    original_payment_authorized_amount: record
+                                        .original_transaction_amount,
+                                    original_payment_authorized_currency: record
+                                        .original_transaction_currency,
+                                },
+                            ))
+                        })
+                        .collect::<Result<HashMap<_, _>, Self::Error>>()
+                        .map(PaymentsMandateReference)
+                })
+                .transpose()?
         } else {
             None
         };
@@ -2720,45 +2725,6 @@ impl
             payment_method_data: None,
             network_transaction_id: record.original_transaction_id.clone(),
         })
-    }
-}
-
-#[cfg(feature = "v1")]
-impl From<(PaymentMethodRecord, id_type::MerchantId)> for PaymentMethodCustomerMigrate {
-    fn from(value: (PaymentMethodRecord, id_type::MerchantId)) -> Self {
-        let (record, merchant_id) = value;
-        Self {
-            customer: customers::CustomerRequest {
-                customer_id: Some(record.customer_id),
-                merchant_id,
-                name: record.name,
-                email: record.email,
-                phone: record.phone,
-                description: None,
-                phone_country_code: record.phone_country_code,
-                address: Some(payments::AddressDetails {
-                    city: record.billing_address_city,
-                    country: record.billing_address_country,
-                    line1: record.billing_address_line1,
-                    line2: record.billing_address_line2,
-                    state: record.billing_address_state,
-                    line3: record.billing_address_line3,
-                    zip: record.billing_address_zip,
-                    first_name: record.billing_address_first_name,
-                    last_name: record.billing_address_last_name,
-                }),
-                metadata: None,
-            },
-            connector_customer_details: record
-                .connector_customer_id
-                .zip(record.merchant_connector_id)
-                .map(
-                    |(connector_customer_id, merchant_connector_id)| ConnectorCustomerDetails {
-                        connector_customer_id,
-                        merchant_connector_id,
-                    },
-                ),
-        }
     }
 }
 
