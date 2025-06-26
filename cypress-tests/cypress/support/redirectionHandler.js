@@ -731,18 +731,21 @@ function threeDsRedirection(redirectionUrl, expectedUrl, connectorId) {
               cy.get('input[id="submit"]').click();
             });
           break;
-          
+
         case "nuvei":
           cy.log("Handling Nuvei 3DS authentication");
           cy.wait(constants.WAIT_TIME); // Wait for the page to load
-          
+
           // Check if we're on the Nuvei 3DS challenge page
           cy.get("body").then(($body) => {
             const bodyText = $body.text();
-            
-            if (bodyText.includes("ThreeDS ACS Emulator") || bodyText.includes("Challenge Page")) {
+
+            if (
+              bodyText.includes("ThreeDS ACS Emulator") ||
+              bodyText.includes("Challenge Page")
+            ) {
               cy.log("Found Nuvei 3DS challenge page");
-              
+
               // Look for success buttons (based on UI test patterns)
               cy.get("body").then(() => {
                 // Try to find and click success buttons
@@ -751,23 +754,33 @@ function threeDsRedirection(redirectionUrl, expectedUrl, connectorId) {
                   cy.get("#btn1").click();
                   cy.wait(2000);
                 }
-                
+
                 if ($body.find("#btn5").length > 0) {
                   cy.log("Clicking btn5 for 3DS completion");
                   cy.get("#btn5").click();
                   cy.wait(2000);
                 }
-                
+
                 // If no specific buttons found, try generic success patterns
-                if ($body.find("#btn1").length === 0 && $body.find("#btn5").length === 0) {
+                if (
+                  $body.find("#btn1").length === 0 &&
+                  $body.find("#btn5").length === 0
+                ) {
                   // Look for any button with "success", "continue", or "submit" text
-                  cy.get("button, input[type='button'], input[type='submit']").then(($buttons) => {
+                  cy.get(
+                    "button, input[type='button'], input[type='submit']"
+                  ).then(($buttons) => {
                     $buttons.each((index, button) => {
                       const buttonText = Cypress.$(button).text().toLowerCase();
-                      const buttonValue = Cypress.$(button).val()?.toLowerCase() || '';
-                      
-                      if (buttonText.includes('success') || buttonText.includes('continue') || 
-                          buttonText.includes('submit') || buttonValue.includes('success')) {
+                      const buttonValue =
+                        Cypress.$(button).val()?.toLowerCase() || "";
+
+                      if (
+                        buttonText.includes("success") ||
+                        buttonText.includes("continue") ||
+                        buttonText.includes("submit") ||
+                        buttonValue.includes("success")
+                      ) {
                         cy.log(`Clicking button: ${buttonText || buttonValue}`);
                         cy.wrap(button).click();
                         return false; // Break the loop
@@ -778,24 +791,34 @@ function threeDsRedirection(redirectionUrl, expectedUrl, connectorId) {
               });
             } else if ($body.find("iframe").length > 0) {
               cy.log("Found iframe, attempting to interact with it");
-              cy.get("iframe").first().its("0.contentDocument.body").within(() => {
-                // Look for 3DS challenge form elements
-                cy.get("body").then(($iframeBody) => {
-                  const iframeText = $iframeBody.text();
-                  
-                  if (iframeText.includes("ThreeDS") || iframeText.includes("Challenge")) {
-                    // Try to find and interact with 3DS elements
-                    cy.get("button, input[type='button'], input[type='submit']").then(($buttons) => {
-                      if ($buttons.length > 0) {
-                        cy.log("Clicking first available button in iframe");
-                        cy.wrap($buttons.first()).click();
-                      }
-                    });
-                  }
+              cy.get("iframe")
+                .first()
+                .its("0.contentDocument.body")
+                .within(() => {
+                  // Look for 3DS challenge form elements
+                  cy.get("body").then(($iframeBody) => {
+                    const iframeText = $iframeBody.text();
+
+                    if (
+                      iframeText.includes("ThreeDS") ||
+                      iframeText.includes("Challenge")
+                    ) {
+                      // Try to find and interact with 3DS elements
+                      cy.get(
+                        "button, input[type='button'], input[type='submit']"
+                      ).then(($buttons) => {
+                        if ($buttons.length > 0) {
+                          cy.log("Clicking first available button in iframe");
+                          cy.wrap($buttons.first()).click();
+                        }
+                      });
+                    }
+                  });
                 });
-              });
             } else {
-              cy.log("No specific 3DS elements found, waiting for automatic redirect");
+              cy.log(
+                "No specific 3DS elements found, waiting for automatic redirect"
+              );
               cy.wait(constants.WAIT_TIME);
             }
           });
@@ -865,7 +888,9 @@ function threeDsRedirection(redirectionUrl, expectedUrl, connectorId) {
           // Dlocal connector doesn't support 3DS yet, so this is a placeholder
           // As mentioned in grace/support/dlocal.md, 3DS support varies by acquirer/region
           // and is not currently implemented in the connector
-          cy.log("Dlocal 3DS handling - currently not implemented in connector");
+          cy.log(
+            "Dlocal 3DS handling - currently not implemented in connector"
+          );
           cy.wait(constants.WAIT_TIME);
           break;
         default:
@@ -924,29 +949,31 @@ function verifyReturnUrl(redirectionUrl, expectedUrl, forwardFlow) {
     cy.log("Skipping return URL verification as forwardFlow is false.");
     return;
   }
-  
+
   // Special case for Nuvei - we might still be on the Nuvei domain
   cy.url().then((currentUrl) => {
     const currentHost = new URL(currentUrl).host;
-    
-    if (currentHost.includes('safecharge.com')) {
-      cy.log(`Detected Nuvei domain (${currentHost}). Skipping host verification and proceeding with test.`);
-      
+
+    if (currentHost.includes("safecharge.com")) {
+      cy.log(
+        `Detected Nuvei domain (${currentHost}). Skipping host verification and proceeding with test.`
+      );
+
       // For Nuvei, we'll just wait and then proceed with the test
       cy.wait(CONSTANTS.WAIT_TIME);
-      
+
       // Manually navigate back to the expected URL to complete the test
       cy.visit(expectedUrl.href);
       return;
     }
-    
+
     // Standard verification for other connectors
     cy.log(`Verifying return URL. Expecting host: ${expectedUrl.host}`);
-    
+
     cy.location("host", { timeout: CONSTANTS.TIMEOUT }).should((host) => {
       expect(host).to.equal(expectedUrl.host);
     });
-    
+
     cy.url().then((url) => {
       cy.log(`Current URL for verification: ${url}`);
       cy.origin(
@@ -1001,8 +1028,8 @@ function verifyReturnUrl(redirectionUrl, expectedUrl, forwardFlow) {
                       cy.log("Warning: Page appears blank.");
                     } else {
                       // Check if any error pattern exists in the text
-                      const hasError = constants.ERROR_PATTERNS.some((pattern) =>
-                        pattern.test(pageText)
+                      const hasError = constants.ERROR_PATTERNS.some(
+                        (pattern) => pattern.test(pageText)
                       );
 
                       if (hasError) {
@@ -1133,7 +1160,7 @@ function waitForRedirect(redirectionUrl) {
   // we'll just wait a fixed amount of time to allow the redirection to complete
   cy.log(`Waiting for redirection from ${redirectionUrl} to complete...`);
   cy.wait(CONSTANTS.WAIT_TIME);
-  
+
   // Then check if we have either a different URL or an iframe
   cy.get("body").then(() => {
     cy.log("Redirection wait completed");
@@ -1150,10 +1177,10 @@ function handleFlow(
   // Special case for Nuvei - skip origin checks and just wait
   if (connectorId === "nuvei") {
     cy.log("Nuvei connector detected, using simplified flow handling");
-    
+
     // Wait for page to load
     cy.wait(CONSTANTS.WAIT_TIME);
-    
+
     // Execute callback with direct iframe handling
     const callbackArgs = {
       connectorId,
@@ -1161,12 +1188,12 @@ function handleFlow(
       expectedUrl: expectedUrl.origin,
       ...options,
     };
-    
+
     // Try to find and interact with the iframe
     cy.get("body").then(() => {
       callback(callbackArgs);
     });
-    
+
     return;
   }
 

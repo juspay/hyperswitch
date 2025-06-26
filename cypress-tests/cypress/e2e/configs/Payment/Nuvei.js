@@ -1,4 +1,4 @@
-import { customerAcceptance, cardRequiredField} from "./Commons";
+import { customerAcceptance, cardRequiredField } from "./Commons";
 import { getCustomExchange } from "./Modifiers";
 
 // Test card details based on Nuvei test cards (from Rust tests)
@@ -17,7 +17,6 @@ const successfulThreeDSCardDetails = {
   card_holder_name: "CL-BRW1",
   card_cvc: "123",
 };
-
 
 const failedCardDetails = {
   card_number: "4000000000000002",
@@ -62,7 +61,7 @@ const singleUseMandateData = {
       start_date: "2022-09-10T00:00:00Z",
       end_date: "2023-09-10T00:00:00Z",
       metadata: {
-        frequency: "1"
+        frequency: "1",
       },
     },
   },
@@ -77,7 +76,7 @@ const multiUseMandateData = {
       start_date: "2022-09-10T00:00:00Z",
       end_date: "2023-09-10T00:00:00Z",
       metadata: {
-        frequency: "13"
+        frequency: "13",
       },
     },
   },
@@ -282,7 +281,7 @@ export const connectorDetails = {
       Response: {
         status: 200,
         body: {
-          status:"succeeded",
+          status: "succeeded",
         },
       },
     }),
@@ -477,7 +476,7 @@ export const connectorDetails = {
         payment_method_data: {
           card: successfulNo3DSCardDetails,
         },
-        amount:11500,
+        amount: 11500,
         currency: "USD",
         mandate_data: singleUseMandateData,
       },
@@ -638,7 +637,7 @@ export const connectorDetails = {
     }),
 
     // MIT (Merchant Initiated Transaction) scenarios
-     MITAutoCapture: getCustomExchange({
+    MITAutoCapture: getCustomExchange({
       Configs: {
         TRIGGER_SKIP: true,
       },
@@ -654,7 +653,7 @@ export const connectorDetails = {
         status: 200,
         body: {
           status: "succeeded",
-          payment_method_id:null,
+          payment_method_id: null,
         },
       },
     }),
@@ -1272,8 +1271,6 @@ export const connectorDetails = {
         },
       },
     }),
-
-    
   },
 
   // Wallet payment methods
