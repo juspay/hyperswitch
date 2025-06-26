@@ -41,7 +41,7 @@ use hyperswitch_domain_models::{
     },
     router_data::KlarnaSdkResponse,
 };
-use hyperswitch_interfaces::integrity::{CheckIntegrity, FlowIntegrity, GetIntegrityObject};
+use hyperswitch_interfaces::{api::Payment, integrity::{CheckIntegrity, FlowIntegrity, GetIntegrityObject}};
 use josekit::jwe;
 use masking::{ExposeInterface, PeekInterface, SwitchStrategy};
 use openssl::{
@@ -80,6 +80,7 @@ use crate::{
     routes::{metrics, payment_methods as payment_methods_handler, SessionState},
     services,
     types::{
+        self as router_types,
         api::{self, admin, enums as api_enums, MandateValidationFieldsExt},
         domain::{self, types},
         storage::{self, enums as storage_enums, ephemeral_key, CardTokenData},
@@ -7367,3 +7368,35 @@ pub async fn get_merchant_connector_account_v2(
         .attach_printable("merchant_connector_id is not provided"),
     }
 }
+
+// pub fn update_router_data_with_create_order_result<F, D>(
+//     create_order_result: router_types::CreateOrderResult,
+//     router_data: &mut router_types::RouterData<F, router_types::PaymentsAuthorizeData, router_types::PaymentsResponseData>,
+//     should_continue_further: bool,
+//     payment_data: &mut D,
+// ) -> RouterResult<bool>
+//     where
+//         F: Clone,
+//         // RouterDReq: Send + Sync,
+//         D:  payments::OperationSessionSetters<F> + Send,
+// {
+//     if create_order_result.is_create_order_performed {
+//         match create_order_result.create_order_result {
+//             Ok(Some(order_id)) => {
+//                 payment_data.set_connector_order_id(Some(order_id.clone()));
+//                 router_data.request.order_id = Some(order_id.clone());
+//                 router_data.response =
+//                     Ok(router_types::PaymentsResponseData::PaymentsCreateOrderResponse { order_id });
+//                 Ok(true)
+//             }
+//             Ok(None) => Err(error_stack::report!(errors::ApiErrorResponse::InternalServerError)
+//                 .attach_printable("Order Id not found."))?,
+//             Err(err) => {
+//                 router_data.response = Err(err.clone());
+//                 Ok(false)
+//             }
+//         }
+//     } else {
+//         Ok(should_continue_further)
+//     }
+// }

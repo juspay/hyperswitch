@@ -23,7 +23,7 @@ use hyperswitch_domain_models::router_request_types::PaymentsCaptureData;
 use crate::{
     core::{
         errors::{ApiErrorResponse, RouterResult},
-        payments::{self, helpers},
+        payments::{self, helpers, OperationSessionGetters},
     },
     logger,
     routes::SessionState,
@@ -182,6 +182,22 @@ pub trait Feature<F, T> {
         &mut self,
         _state: &SessionState,
         _connector: &api::ConnectorData,
+        should_continue_payment: bool,
+    ) -> RouterResult<types::CreateOrderResult>
+    where
+        F: Clone,
+        Self: Sized,
+        dyn api::Connector: services::ConnectorIntegration<F, T, types::PaymentsResponseData>,
+    {
+        Ok(types::CreateOrderResult {
+            create_order_result: Ok(None),
+            is_create_order_performed: false,
+        })
+    }
+
+    async fn update_router_data_with_create_order_result(
+        &mut self,
+        _create_order_result: types::CreateOrderResult,
         should_continue_payment: bool,
     ) -> RouterResult<bool>
     where

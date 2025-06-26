@@ -389,6 +389,7 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentConfirmData<F>, ProxyPaymentsReque
             .payment_attempt
             .connector_request_reference_id
             .clone();
+        let order_id =  payment_data.payment_attempt.order_id.clone();
 
         let payment_attempt_update = hyperswitch_domain_models::payments::payment_attempt::PaymentAttemptUpdate::ConfirmIntent {
             status: attempt_status,
@@ -397,6 +398,7 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentConfirmData<F>, ProxyPaymentsReque
             merchant_connector_id,
             authentication_type,
             connector_request_reference_id,
+            order_id,
         };
 
         let updated_payment_intent = db
