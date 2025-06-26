@@ -1142,7 +1142,7 @@ diesel::table! {
     use diesel::sql_types::*;
     use crate::enums::diesel_exports::*;
 
-    payout_attempt (payout_attempt_id, merchant_id) {
+    payout_attempt (merchant_id, payout_attempt_id) {
         #[max_length = 64]
         payout_attempt_id -> Varchar,
         #[max_length = 64]
@@ -1188,7 +1188,7 @@ diesel::table! {
     use diesel::sql_types::*;
     use crate::enums::diesel_exports::*;
 
-    payouts (payout_id, merchant_id) {
+    payouts (merchant_id, payout_id) {
         #[max_length = 64]
         payout_id -> Varchar,
         #[max_length = 64]

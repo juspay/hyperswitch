@@ -102,15 +102,11 @@ impl Payouts {
         status: Option<Vec<enums::PayoutStatus>>,
         payout_type: Option<Vec<enums::PayoutType>>,
     ) -> StorageResult<i64> {
-        let active_payout_ids_str: Vec<String> = active_payout_ids
-            .iter()
-            .map(|pid| pid.get_string_repr().to_string())
-            .collect();
         let mut filter = <Self as HasTable>::table()
             .inner_join(payout_attempt::table.on(payout_attempt::dsl::payout_id.eq(dsl::payout_id)))
             .count()
             .filter(dsl::merchant_id.eq(merchant_id.to_owned()))
-            .filter(dsl::payout_id.eq_any(active_payout_ids_str))
+            .filter(dsl::payout_id.eq_any(active_payout_ids.to_vec()))
             .into_boxed();
 
         if let Some(connector) = connector {
