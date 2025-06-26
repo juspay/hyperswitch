@@ -3023,19 +3023,10 @@ impl
         let delivery_address =
             get_address_info(item.router_data.get_optional_shipping()).and_then(Result::ok);
         let telephone_number = item.router_data.get_optional_billing_phone_number();
+
         if let BankDebitData::AchBankDebit { .. } = bank_debit_data {
             if let Some(addr) = billing_address.as_mut() {
-                match item.router_data.get_billing_state_code() {
-                    Ok(state) => {
-                        addr.state_or_province = Some(state);
-                    }
-                    Err(_) => {
-                        return Err(errors::ConnectorError::MissingRequiredField {
-                            field_name: "billing.state_or_province",
-                        }
-                        .into());
-                    }
-                }
+                addr.state_or_province = Some(item.router_data.get_billing_state_code()?);
             }
         }
 
