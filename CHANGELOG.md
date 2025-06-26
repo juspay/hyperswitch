@@ -4,6 +4,27 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2025.06.26.0
+
+### Features
+
+- **connector:**
+  - Add click to pay feature for trustpay ([#8304](https://github.com/juspay/hyperswitch/pull/8304)) ([`46709ae`](https://github.com/juspay/hyperswitch/commit/46709ae3695eb1a6601c356397545f86de9f0f64))
+  - [jpmorgan] implement refund flow ([#8436](https://github.com/juspay/hyperswitch/pull/8436)) ([`cf92e1a`](https://github.com/juspay/hyperswitch/commit/cf92e1a5e10fe5e1a2f939038bf0a94bcaf01e92))
+
+### Refactors
+
+- **router:** Remove `refunds_v2` feature flag ([#8310](https://github.com/juspay/hyperswitch/pull/8310)) ([`c5c0e67`](https://github.com/juspay/hyperswitch/commit/c5c0e677f2a2d43170a66330c98e0ebc4d771717))
+- Move CustomerAcceptance to common_types ([#8299](https://github.com/juspay/hyperswitch/pull/8299)) ([`44d93e5`](https://github.com/juspay/hyperswitch/commit/44d93e572f45c0ff46936c6f352c767f5cd7daf4))
+
+### Miscellaneous Tasks
+
+- **postman:** Update Postman collection files ([`6419ad8`](https://github.com/juspay/hyperswitch/commit/6419ad85fbc08246a207e2601a36e4661bf805ff))
+
+**Full Changelog:** [`2025.06.25.0...2025.06.26.0`](https://github.com/juspay/hyperswitch/compare/2025.06.25.0...2025.06.26.0)
+
+- - -
+
 ## 2025.06.25.0
 
 ### Features
