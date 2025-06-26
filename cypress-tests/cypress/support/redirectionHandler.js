@@ -752,13 +752,11 @@ function threeDsRedirection(redirectionUrl, expectedUrl, connectorId) {
                 if ($body.find("#btn1").length > 0) {
                   cy.log("Clicking btn1 for 3DS success");
                   cy.get("#btn1").click();
-                  cy.wait(2000);
                 }
 
                 if ($body.find("#btn5").length > 0) {
                   cy.log("Clicking btn5 for 3DS completion");
                   cy.get("#btn5").click();
-                  cy.wait(2000);
                 }
 
                 // If no specific buttons found, try generic success patterns
