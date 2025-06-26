@@ -13,6 +13,7 @@ trap 'handle_interrupt' INT TERM
 VERSION="unknown"
 INSTALLATION_STATUS="initiated"
 SCARF_PARAMS=()
+INSTALLATION_BRANCH="dev" # Default to dev branch
 
 # Trap and handle any errors that occur during the script execution
 handle_error() {
@@ -104,18 +105,24 @@ echo_error() {
     printf "${RED}[ERROR]${NC} %s\n" "$1"
 }
 
-# Check if Git is available
-detect_git() {
-    if ! command -v git >/dev/null 2>&1; then
-        echo_warning "Git is not installed on this system."
-        echo_warning "To continue without Git, please run the following command manually:"
-        printf "\n  ${CYAN}docker compose up -d${NC}\n"
-        printf "\n"
-        exit 0
-    fi
-}
 # Check if current git state is a stable release
 is_stable_release() {
+    # Check if Git is installed
+    if ! command -v git >/dev/null 2>&1; then
+        return # git not installed
+    fi
+
+    # Check if inside a Git repository
+    if ! git rev-parse --is-inside-work-tree >/dev/null 2>&1; then
+        return # Not a git repo
+    fi
+
+    # Check if repo is juspay/hyperswitch
+    repo_url=$(git config --get remote.origin.url)
+    if [[ "$repo_url" != *"github.com/juspay/hyperswitch.git" ]]; then
+        return # Wrong repo
+    fi
+
     # Check if git repo is clean
     if [[ -n "$(git status --porcelain)" ]] || [[ "$(git rev-list --count HEAD ^$(git describe --tags --abbrev=0 2>/dev/null))" -gt 0 ]]; then
         return # Don't set branch; keep as default "dev"
@@ -126,7 +133,7 @@ is_stable_release() {
     current_branch=$(git rev-parse --abbrev-ref HEAD 2>/dev/null || echo "")
 
     if [["$current_branch" == "main" ]]; then
-        branch="main"
+        INSTALLATION_BRANCH="main"
         return
     fi
 
@@ -135,13 +142,13 @@ is_stable_release() {
     current_tag=$(git describe --tags --exact-match HEAD 2>/dev/null || echo "")
 
     if [[ -z "$current_tag" ]]; then
-        branch="dev"
+        INSTALLATION_BRANCH="dev"
         return
     fi
 
     # Ensure tag is stable format
     if ! [[ "$current_tag" =~ ^(v?[0-9]+\.[0-9]+\.[0-9]+(\.[0-9]+)?(\+hotfix\.[0-9]+|-hotfix[0-9]+)?|[0-9]{4}\.[0-9]{2}\.[0-9]{2}\.[0-9]+(-hotfix[0-9]+)?)$ ]]; then
-        branch="dev"
+        INSTALLATION_BRANCH="dev"
         return
     fi
 
@@ -150,15 +157,15 @@ is_stable_release() {
     latest_tag=$(git tag --points-at latest | grep -v "^latest$" | grep -E "^[0-9]|^v" | sort -V | tail -n 1)
 
     if [[ -z "$latest_tag" ]]; then
-        branch="dev"
+        INSTALLATION_BRANCH="dev"
         return
     fi
 
     # Compare tag <= latest
     if [[ "$current_tag" == "$latest_tag" ]] || [[ "$(printf "%s\n%s" "$current_tag" "$latest_tag" | sort -V | head -n1)" == "$current_tag" ]]; then
-        branch="latest"
+        INSTALLATION_BRANCH="latest"
     else
-        branch="dev"
+        INSTALLATION_BRANCH="dev"
     fi
 }
 
@@ -328,7 +335,7 @@ select_profile() {
 }
 
 scarf_call() {
-    if [[ "${branch:-}" != "dev" ]]; then
+    if [[ "${INSTALLATION_BRANCH}" == "main" ]] || [[ "${INSTALLATION_BRANCH}" == "latest" ]]; then
         # Call the Scarf webhook endpoint with the provided parameters
         chmod +x scripts/notify_scarf.sh
         if [ ${#SCARF_PARAMS[@]} -eq 0 ]; then
@@ -427,12 +434,7 @@ print_access_info() {
 }
 
 # Main execution flow
-detect_git
-is_stable_release || {
-    echo_warning "You are not on a stable release. This script is intended for use with stable releases only."
-    echo_warning "If you are testing a new feature or development version, please proceed with caution."
-    exit 0
-}
+is_stable_release
 scarf_call
 show_banner
 detect_docker_compose
