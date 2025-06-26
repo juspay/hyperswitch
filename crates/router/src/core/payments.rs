@@ -207,27 +207,28 @@ where
 
     let payment_data = match connector {
         ConnectorCallType::PreDetermined(connector_data) => {
-            let (mca_type, mca_type_details, router_data) = call_connector_service_prerequisites(
-                state,
-                req_state.clone(),
-                &merchant_context,
-                connector_data.connector_data.clone(),
-                &operation,
-                &mut payment_data,
-                &customer,
-                call_connector_action.clone(),
-                None,
-                header_payload.clone(),
-                #[cfg(feature = "frm")]
-                None,
-                #[cfg(not(feature = "frm"))]
-                None,
-                profile,
-                false,
-                false, //should_retry_with_pan is set to false in case of PreDetermined ConnectorCallType
-                req.get_all_keys_required(),
-            )
-            .await?;
+            let (mca_type, mca_type_details, updated_customer, router_data) =
+                call_connector_service_prerequisites(
+                    state,
+                    req_state.clone(),
+                    &merchant_context,
+                    connector_data.connector_data.clone(),
+                    &operation,
+                    &mut payment_data,
+                    &customer,
+                    call_connector_action.clone(),
+                    None,
+                    header_payload.clone(),
+                    #[cfg(feature = "frm")]
+                    None,
+                    #[cfg(not(feature = "frm"))]
+                    None,
+                    profile,
+                    false,
+                    false, //should_retry_with_pan is set to false in case of PreDetermined ConnectorCallType
+                    req.get_all_keys_required(),
+                )
+                .await?;
 
             let router_data = decide_unified_connector_service_call(
                 state,
@@ -249,6 +250,7 @@ where
                 mca_type,
                 mca_type_details,
                 router_data,
+                updated_customer,
             )
             .await?;
 
@@ -280,27 +282,28 @@ where
             let mut connectors = connectors.clone().into_iter();
             let connector_data = get_connector_data(&mut connectors)?;
 
-            let (mca_type, mca_type_details, router_data) = call_connector_service_prerequisites(
-                state,
-                req_state.clone(),
-                &merchant_context,
-                connector_data.connector_data.clone(),
-                &operation,
-                &mut payment_data,
-                &customer,
-                call_connector_action.clone(),
-                None,
-                header_payload.clone(),
-                #[cfg(feature = "frm")]
-                None,
-                #[cfg(not(feature = "frm"))]
-                None,
-                profile,
-                false,
-                false, //should_retry_with_pan is set to false in case of Retryable ConnectorCallType
-                req.get_all_keys_required(),
-            )
-            .await?;
+            let (mca_type, mca_type_details, updated_customer, router_data) =
+                call_connector_service_prerequisites(
+                    state,
+                    req_state.clone(),
+                    &merchant_context,
+                    connector_data.connector_data.clone(),
+                    &operation,
+                    &mut payment_data,
+                    &customer,
+                    call_connector_action.clone(),
+                    None,
+                    header_payload.clone(),
+                    #[cfg(feature = "frm")]
+                    None,
+                    #[cfg(not(feature = "frm"))]
+                    None,
+                    profile,
+                    false,
+                    false, //should_retry_with_pan is set to false in case of Retryable ConnectorCallType
+                    req.get_all_keys_required(),
+                )
+                .await?;
 
             let router_data = decide_unified_connector_service_call(
                 state,
@@ -322,6 +325,7 @@ where
                 mca_type,
                 mca_type_details,
                 router_data,
+                updated_customer,
             )
             .await?;
 
@@ -3915,6 +3919,7 @@ pub async fn call_connector_service<F, RouterDReq, ApiRequest, D>(
     all_keys_required: Option<bool>,
     merchant_connector_account_type_details: domain::MerchantConnectorAccountTypeDetails,
     mut router_data: RouterData<F, RouterDReq, router_types::PaymentsResponseData>,
+    updated_customer: Option<storage::CustomerUpdate>,
 ) -> RouterResult<RouterData<F, RouterDReq, router_types::PaymentsResponseData>>
 where
     F: Send + Clone + Sync,
@@ -3949,14 +3954,6 @@ where
         .create_order_at_connector(state, &connector, should_continue_further)
         .await?;
 
-    let updated_customer = call_create_connector_customer_if_required(
-        state,
-        customer,
-        merchant_context,
-        &merchant_connector_account_type_details,
-        payment_data,
-    )
-    .await?;
     // In case of authorize flow, pre-task and post-tasks are being called in build request
     // if we do not want to proceed further, then the function will return Ok(None, false)
     let (connector_request, should_continue_further) = if should_continue_further {
@@ -4033,6 +4030,7 @@ pub async fn call_connector_service_prerequisites<F, RouterDReq, ApiRequest, D>(
 ) -> RouterResult<(
     helpers::MerchantConnectorAccountType,
     domain::MerchantConnectorAccountTypeDetails,
+    Option<storage::CustomerUpdate>,
     RouterData<F, RouterDReq, router_types::PaymentsResponseData>,
 )>
 where
@@ -4068,6 +4066,15 @@ where
         )
         .await?;
 
+    let updated_customer = call_create_connector_customer_if_required(
+        state,
+        customer,
+        merchant_context,
+        &merchant_connector_account_type_details,
+        payment_data,
+    )
+    .await?;
+
     let router_data = payment_data
         .construct_router_data(
             state,
@@ -4094,6 +4101,7 @@ where
     Ok((
         merchant_connector_account_type,
         merchant_connector_account_type_details,
+        updated_customer,
         router_data,
     ))
 }
@@ -4119,6 +4127,7 @@ pub async fn decide_unified_connector_service_call<F, RouterDReq, ApiRequest, D>
     merchant_connector_account_type: helpers::MerchantConnectorAccountType,
     merchant_connector_account_type_details: domain::MerchantConnectorAccountTypeDetails,
     mut router_data: RouterData<F, RouterDReq, router_types::PaymentsResponseData>,
+    updated_customer: Option<storage::CustomerUpdate>,
 ) -> RouterResult<RouterData<F, RouterDReq, router_types::PaymentsResponseData>>
 where
     F: Send + Clone + Sync,
@@ -4190,6 +4199,7 @@ where
                     all_keys_required,
                     merchant_connector_account_type_details,
                     router_data,
+                    updated_customer,
                 )
                 .await
             }
