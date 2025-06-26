@@ -38,6 +38,7 @@ use crate::{
             self, helpers, operations, populate_surcharge_details, CustomerDetails, PaymentAddress,
             PaymentData,
         },
+        three_ds_decision_rule,
         unified_authentication_service::{
             self as uas_utils,
             types::{ClickToPay, UnifiedAuthenticationService},
@@ -51,7 +52,7 @@ use crate::{
         api::{self, ConnectorCallType, PaymentIdTypeExt},
         domain::{self},
         storage::{self, enums as storage_enums},
-        transformers::ForeignFrom,
+        transformers::{ForeignFrom, ForeignInto},
     },
     utils::{self, OptionExt},
 };
@@ -1093,6 +1094,110 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
         Ok(())
     }
 
+    async fn apply_three_ds_authentication_strategy<'a>(
+        &'a self,
+        state: &SessionState,
+        payment_data: &mut PaymentData<F>,
+        business_profile: &domain::Profile,
+    ) -> CustomResult<(), errors::ApiErrorResponse> {
+        // If the business profile has a three_ds_decision_rule_algorithm, we will use it to determine the 3DS strategy (authentication_type, exemption_type and force_three_ds_challenge)
+        if let Some(three_ds_decision_rule) =
+            business_profile.three_ds_decision_rule_algorithm.clone()
+        {
+            // Parse the three_ds_decision_rule to get the algorithm_id
+            let algorithm_id = three_ds_decision_rule
+                .parse_value::<api::routing::RoutingAlgorithmRef>("RoutingAlgorithmRef")
+                .change_context(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable("Could not decode profile routing algorithm ref")?
+                .algorithm_id
+                .ok_or(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable("No algorithm_id found in three_ds_decision_rule_algorithm")?;
+            // get additional card info from payment data
+            let additional_card_info = payment_data
+                .payment_attempt
+                .payment_method_data
+                .as_ref()
+                .map(|payment_method_data| {
+                    payment_method_data
+                        .clone()
+                        .parse_value::<api_models::payments::AdditionalPaymentData>(
+                            "additional_payment_method_data",
+                        )
+                })
+                .transpose()
+                .change_context(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable("unable to parse value into additional_payment_method_data")?
+                .and_then(|additional_payment_method_data| {
+                    additional_payment_method_data.get_additional_card_info()
+                });
+            // get acquirer details from business profile based on card network
+            let acquirer_config = additional_card_info.as_ref().and_then(|card_info| {
+                card_info
+                    .card_network
+                    .clone()
+                    .and_then(|network| business_profile.get_acquirer_details_from_network(network))
+            });
+            // get three_ds_decision_rule_output using algorithm_id and payment data
+            let decision = three_ds_decision_rule::get_three_ds_decision_rule_output(
+                state,
+                &business_profile.merchant_id,
+                api_models::three_ds_decision_rule::ThreeDsDecisionRuleExecuteRequest {
+                    routing_id: algorithm_id,
+                    payment: api_models::three_ds_decision_rule::PaymentData {
+                        amount: payment_data.payment_intent.amount,
+                        currency: payment_data
+                            .payment_intent
+                            .currency
+                            .ok_or(errors::ApiErrorResponse::InternalServerError)
+                            .attach_printable("currency is not set in payment intent")?,
+                    },
+                    payment_method: Some(
+                        api_models::three_ds_decision_rule::PaymentMethodMetaData {
+                            card_network: additional_card_info
+                                .as_ref()
+                                .and_then(|info| info.card_network.clone()),
+                        },
+                    ),
+                    issuer: Some(api_models::three_ds_decision_rule::IssuerData {
+                        name: additional_card_info
+                            .as_ref()
+                            .and_then(|info| info.card_issuer.clone()),
+                        country: additional_card_info
+                            .as_ref()
+                            .map(|info| info.card_issuing_country.clone().parse_enum("Country"))
+                            .transpose()
+                            .change_context(errors::ApiErrorResponse::InternalServerError)
+                            .attach_printable(
+                                "Error while getting country enum from issuer country",
+                            )?,
+                    }),
+                    customer_device: None,
+                    acquirer: acquirer_config.as_ref().map(|acquirer| {
+                        api_models::three_ds_decision_rule::AcquirerData {
+                            country: Some(common_enums::Country::from_alpha2(
+                                acquirer.merchant_country_code,
+                            )),
+                            fraud_rate: Some(acquirer.acquirer_fraud_rate),
+                        }
+                    }),
+                },
+            )
+            .await?;
+            logger::info!("Three DS Decision Rule Output: {:?}", decision);
+            // We should update authentication_type from the Three DS Decision if it is not already set
+            if payment_data.payment_attempt.authentication_type.is_none() {
+                payment_data.payment_attempt.authentication_type =
+                    Some(common_enums::AuthenticationType::foreign_from(decision));
+            }
+            // We should update psd2_sca_exemption_type from the Three DS Decision
+            payment_data.payment_intent.psd2_sca_exemption_type = decision.foreign_into();
+            // We should update force_3ds_challenge from the Three DS Decision
+            payment_data.payment_intent.force_3ds_challenge =
+                decision.should_force_3ds_challenge().then_some(true);
+        }
+        Ok(())
+    }
+
     #[allow(clippy::too_many_arguments)]
     async fn call_unified_authentication_service_if_eligible<'a>(
         &'a self,
@@ -1794,6 +1899,7 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for
                             .payment_attempt
                             .connector_mandate_detail,
                         card_discovery,
+                        routing_approach: payment_data.payment_attempt.routing_approach,
                     },
                     storage_scheme,
                 )

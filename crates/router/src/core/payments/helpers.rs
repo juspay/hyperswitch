@@ -3203,7 +3203,6 @@ pub async fn make_client_secret(
             db.find_customer_by_global_id(
                 key_manager_state,
                 global_customer_id,
-                merchant_context.get_merchant_account().get_id(),
                 merchant_context.get_merchant_key_store(),
                 merchant_context.get_merchant_account().storage_scheme,
             )
@@ -4432,6 +4431,7 @@ impl AttemptType {
             processor_merchant_id: old_payment_attempt.processor_merchant_id,
             created_by: old_payment_attempt.created_by,
             setup_future_usage_applied: None,
+            routing_approach: old_payment_attempt.routing_approach,
         }
     }
 
@@ -7050,14 +7050,24 @@ pub fn validate_platform_request_for_marketplace(
             stripe_split_payment,
         )) => match amount {
             api::Amount::Zero => {
-                if stripe_split_payment.application_fees.get_amount_as_i64() != 0 {
+                if stripe_split_payment
+                    .application_fees
+                    .as_ref()
+                    .map_or(MinorUnit::zero(), |amount| *amount)
+                    != MinorUnit::zero()
+                {
                     return Err(errors::ApiErrorResponse::InvalidDataValue {
                         field_name: "split_payments.stripe_split_payment.application_fees",
                     });
                 }
             }
             api::Amount::Value(amount) => {
-                if stripe_split_payment.application_fees.get_amount_as_i64() > amount.into() {
+                if stripe_split_payment
+                    .application_fees
+                    .as_ref()
+                    .map_or(MinorUnit::zero(), |amount| *amount)
+                    > amount.into()
+                {
                     return Err(errors::ApiErrorResponse::InvalidDataValue {
                         field_name: "split_payments.stripe_split_payment.application_fees",
                     });

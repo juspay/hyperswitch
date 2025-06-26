@@ -950,6 +950,7 @@ diesel::table! {
         #[max_length = 255]
         created_by -> Nullable<Varchar>,
         setup_future_usage_applied -> Nullable<FutureUsage>,
+        routing_approach -> Nullable<RoutingApproach>,
     }
 }
 

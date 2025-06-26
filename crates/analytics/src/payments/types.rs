@@ -109,6 +109,16 @@ where
                 .add_filter_in_range_clause("first_attempt", &self.first_attempt)
                 .attach_printable("Error adding first attempt filter")?;
         }
+
+        if !self.routing_approach.is_empty() {
+            builder
+                .add_filter_in_range_clause(
+                    PaymentDimensions::RoutingApproach,
+                    &self.routing_approach,
+                )
+                .attach_printable("Error adding routing approach filter")?;
+        }
+
         Ok(())
     }
 }

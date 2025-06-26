@@ -216,6 +216,7 @@ pub struct PaymentAttemptBatchNew {
     pub processor_merchant_id: Option<common_utils::id_type::MerchantId>,
     pub created_by: Option<String>,
     pub setup_future_usage_applied: Option<common_enums::FutureUsage>,
+    pub routing_approach: Option<common_enums::RoutingApproach>,
 }
 
 #[cfg(feature = "v1")]
@@ -301,6 +302,7 @@ impl PaymentAttemptBatchNew {
             processor_merchant_id: self.processor_merchant_id,
             created_by: self.created_by,
             setup_future_usage_applied: self.setup_future_usage_applied,
+            routing_approach: self.routing_approach,
         }
     }
 }

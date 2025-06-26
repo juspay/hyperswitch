@@ -85,6 +85,7 @@ mod prophetpay;
 mod rapyd;
 mod razorpay;
 mod redsys;
+mod santander;
 mod shift4;
 mod square;
 mod stax;

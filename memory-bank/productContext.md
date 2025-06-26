@@ -1,0 +1,6 @@
+# Product Context
+
+*   **Problem Solved:** The increasing complexity and fragmentation of the global payments ecosystem. Businesses struggle with integrating multiple processors, managing diverse payment methods, optimizing routing, handling fraud, and maintaining compliance (PCI DSS), hindering innovation and efficiency.
+*   **Core Functionality:** Hyperswitch acts as a central orchestration layer. It receives payment requests via its unified API or SDKs, routes them intelligently to the appropriate downstream connector (PSP, FRM provider, etc.) based on configured rules, manages the payment lifecycle, securely stores sensitive data (via Locker), and provides visibility and control through the Control Center.
+*   **User Experience Goals:** Provide developers with a simple, unified integration point. Offer businesses flexibility and control over their payment stack through a no-code UI (Control Center). Ensure reliability, security, and performance.
+*   **Value Proposition:** Reduce integration complexity, increase payment success rates through smart routing and retries, lower costs, improve security and compliance posture, enable faster innovation by abstracting payment complexities, offer transparency and control via open-source nature.

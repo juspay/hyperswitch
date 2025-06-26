@@ -2,15 +2,19 @@ use actix_multipart::form::{self, bytes, text};
 use api_models::payment_methods as pm_api;
 use csv::Reader;
 use error_stack::ResultExt;
+#[cfg(feature = "v1")]
 use hyperswitch_domain_models::{api, merchant_context};
 use masking::PeekInterface;
 use rdkafka::message::ToBytes;
 use router_env::{instrument, tracing};
 
-use crate::{controller as pm, core::errors, state};
+use crate::core::errors;
+#[cfg(feature = "v1")]
+use crate::{controller as pm, state};
 pub mod payment_methods;
 pub use payment_methods::migrate_payment_method;
 
+#[cfg(feature = "v1")]
 type PmMigrationResult<T> =
     errors::CustomResult<api::ApplicationResponse<T>, errors::ApiErrorResponse>;
 

@@ -2,8 +2,8 @@ use common_utils::events::{ApiEventMetric, ApiEventsType};
 
 #[cfg(feature = "v2")]
 use super::{
-    PaymentStartRedirectionRequest, PaymentsCreateIntentRequest, PaymentsGetIntentRequest,
-    PaymentsIntentResponse, PaymentsRequest,
+    PaymentAttemptListRequest, PaymentAttemptListResponse, PaymentStartRedirectionRequest,
+    PaymentsCreateIntentRequest, PaymentsGetIntentRequest, PaymentsIntentResponse, PaymentsRequest,
 };
 #[cfg(feature = "v2")]
 use crate::payment_methods::PaymentMethodListResponseForSession;
@@ -182,6 +182,22 @@ impl ApiEventMetric for PaymentsGetIntentRequest {
         Some(ApiEventsType::Payment {
             payment_id: self.id.clone(),
         })
+    }
+}
+
+#[cfg(feature = "v2")]
+impl ApiEventMetric for PaymentAttemptListRequest {
+    fn get_api_event_type(&self) -> Option<ApiEventsType> {
+        Some(ApiEventsType::Payment {
+            payment_id: self.payment_intent_id.clone(),
+        })
+    }
+}
+
+#[cfg(feature = "v2")]
+impl ApiEventMetric for PaymentAttemptListResponse {
+    fn get_api_event_type(&self) -> Option<ApiEventsType> {
+        None
     }
 }
 

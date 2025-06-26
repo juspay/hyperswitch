@@ -13,6 +13,7 @@ use std::{
     borrow::Cow,
     fmt::Display,
     iter::Sum,
+    num::NonZeroI64,
     ops::{Add, Mul, Sub},
     primitive::i64,
     str::FromStr,
@@ -449,6 +450,12 @@ impl MinorUnit {
     ///Convert minor unit to string minor unit
     fn to_minor_unit_as_string(self) -> Result<StringMinorUnit, error_stack::Report<ParsingError>> {
         Ok(StringMinorUnit::new(self.0.to_string()))
+    }
+}
+
+impl From<NonZeroI64> for MinorUnit {
+    fn from(val: NonZeroI64) -> Self {
+        Self::new(val.get())
     }
 }
 

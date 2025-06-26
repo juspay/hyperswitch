@@ -655,6 +655,10 @@ impl Payments {
                         .route(web::post().to(payments::payment_confirm_intent)),
                 )
                 .service(
+                    web::resource("/list_attempts")
+                        .route(web::get().to(payments::list_payment_attempts)),
+                )
+                .service(
                     web::resource("/proxy-confirm-intent")
                         .route(web::post().to(payments::proxy_confirm_intent)),
                 )

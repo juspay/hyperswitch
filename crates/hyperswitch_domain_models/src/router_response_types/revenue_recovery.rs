@@ -32,6 +32,8 @@ pub struct BillingConnectorPaymentsSyncResponse {
     pub card_network: Option<common_enums::CardNetwork>,
     /// card isin
     pub card_isin: Option<String>,
+    /// stripe specific id used to validate duplicate attempts.
+    pub charge_id: Option<String>,
 }
 
 #[derive(Debug, Clone)]

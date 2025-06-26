@@ -2,10 +2,11 @@
 use api_models::payment_methods::PaymentMethodsData;
 // specific imports because of using the macro
 use common_enums::enums::MerchantStorageScheme;
+#[cfg(feature = "v1")]
+use common_utils::crypto::OptionalEncryptableValue;
 #[cfg(feature = "v2")]
 use common_utils::{crypto::Encryptable, encryption::Encryption, types::keymanager::ToEncryptable};
 use common_utils::{
-    crypto::OptionalEncryptableValue,
     errors::{CustomResult, ParsingError, ValidationError},
     id_type, pii, type_name,
     types::keymanager,
@@ -24,12 +25,14 @@ use serde_json::Value;
 use time::PrimitiveDateTime;
 
 #[cfg(feature = "v2")]
-use crate::{address::Address, type_encryption::OptionalEncryptableJsonType};
+use crate::address::Address;
+#[cfg(feature = "v1")]
+use crate::{mandates, type_encryption::AsyncLift};
 use crate::{
-    mandates::{self, CommonMandateReference},
+    mandates::CommonMandateReference,
     merchant_key_store::MerchantKeyStore,
     payment_method_data as domain_payment_method_data,
-    type_encryption::{crypto_operation, AsyncLift, CryptoOperation},
+    type_encryption::{crypto_operation, CryptoOperation},
 };
 
 #[cfg(feature = "v2")]
@@ -477,7 +480,6 @@ impl super::behaviour::Conversion for PaymentMethod {
         Self: Sized,
     {
         use common_utils::ext_traits::ValueExt;
-        use masking::ExposeInterface;
 
         async {
             let decrypted_data = crypto_operation(

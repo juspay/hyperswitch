@@ -662,7 +662,7 @@ impl
     )> for SurchargeDetails
 {
     fn from(
-        (request_surcharge_details, payment_attempt): (
+        (_request_surcharge_details, _payment_attempt): (
             &RequestSurchargeDetails,
             &payments::payment_attempt::PaymentAttempt,
         ),

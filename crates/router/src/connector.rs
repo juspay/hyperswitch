@@ -1,7 +1,7 @@
-#[cfg(feature = "dummy_connector")]
-pub mod dummyconnector;
 pub mod utils;
 
+#[cfg(feature = "dummy_connector")]
+pub use hyperswitch_connectors::connectors::DummyConnector;
 pub use hyperswitch_connectors::connectors::{
     aci, aci::Aci, adyen, adyen::Adyen, adyenplatform, adyenplatform::Adyenplatform, airwallex,
     airwallex::Airwallex, amazonpay, amazonpay::Amazonpay, archipel, archipel::Archipel,
@@ -30,9 +30,9 @@ pub use hyperswitch_connectors::connectors::{
     paystack, paystack::Paystack, payu, payu::Payu, placetopay, placetopay::Placetopay, plaid,
     plaid::Plaid, powertranz, powertranz::Powertranz, prophetpay, prophetpay::Prophetpay, rapyd,
     rapyd::Rapyd, razorpay, razorpay::Razorpay, recurly, recurly::Recurly, redsys, redsys::Redsys,
-    riskified, riskified::Riskified, shift4, shift4::Shift4, signifyd, signifyd::Signifyd, square,
-    square::Square, stax, stax::Stax, stripe, stripe::Stripe, stripebilling,
-    stripebilling::Stripebilling, taxjar, taxjar::Taxjar, threedsecureio,
+    riskified, riskified::Riskified, santander, santander::Santander, shift4, shift4::Shift4,
+    signifyd, signifyd::Signifyd, square, square::Square, stax, stax::Stax, stripe, stripe::Stripe,
+    stripebilling, stripebilling::Stripebilling, taxjar, taxjar::Taxjar, threedsecureio,
     threedsecureio::Threedsecureio, thunes, thunes::Thunes, tokenio, tokenio::Tokenio, trustpay,
     trustpay::Trustpay, tsys, tsys::Tsys, unified_authentication_service,
     unified_authentication_service::UnifiedAuthenticationService, vgs, vgs::Vgs, volt, volt::Volt,
@@ -41,6 +41,3 @@ pub use hyperswitch_connectors::connectors::{
     worldpayvantiv::Worldpayvantiv, worldpayxml, worldpayxml::Worldpayxml, xendit, xendit::Xendit,
     zen, zen::Zen, zsl, zsl::Zsl,
 };
-
-#[cfg(feature = "dummy_connector")]
-pub use self::dummyconnector::DummyConnector;

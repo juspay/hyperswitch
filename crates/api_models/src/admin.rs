@@ -17,13 +17,12 @@ use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
 
 use super::payments::AddressDetails;
-#[cfg(feature = "v1")]
-use crate::routing;
 use crate::{
     consts::{MAX_ORDER_FULFILLMENT_EXPIRY, MIN_ORDER_FULFILLMENT_EXPIRY},
     enums as api_enums, payment_methods,
-    profile_acquirer::ProfileAcquirerResponse,
 };
+#[cfg(feature = "v1")]
+use crate::{profile_acquirer::ProfileAcquirerResponse, routing};
 
 #[derive(Clone, Debug, Deserialize, ToSchema, Serialize)]
 pub struct MerchantAccountListRequest {
