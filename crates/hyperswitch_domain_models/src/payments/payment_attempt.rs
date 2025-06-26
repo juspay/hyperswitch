@@ -1,6 +1,8 @@
 #[cfg(all(feature = "v1", feature = "olap"))]
 use api_models::enums::Connector;
 use common_enums as storage_enums;
+#[cfg(feature = "v2")]
+use common_types::payments as common_payments_types;
 #[cfg(feature = "v1")]
 use common_types::primitive_wrappers::{
     ExtendedAuthorizationAppliedBool, RequestExtendedAuthorizationBool,
@@ -436,12 +438,11 @@ pub struct PaymentAttempt {
     /// The connector that was used for external authentication
     pub authentication_connector: Option<String>,
     /// The foreign key reference to the authentication details
-    pub authentication_id: Option<String>,
+    pub authentication_id: Option<id_type::AuthenticationId>,
     pub fingerprint_id: Option<String>,
     pub client_source: Option<String>,
     pub client_version: Option<String>,
-    // TODO: use a type here instead of value
-    pub customer_acceptance: Option<pii::SecretSerdeValue>,
+    pub customer_acceptance: Option<Secret<common_payments_types::CustomerAcceptance>>,
     /// The profile id for the payment attempt. This will be derived from payment intent.
     pub profile_id: id_type::ProfileId,
     /// The organization id for the payment attempt. This will be derived from payment intent.
@@ -590,14 +591,7 @@ impl PaymentAttempt {
             charges: None,
             client_source: None,
             client_version: None,
-            customer_acceptance: request
-                .customer_acceptance
-                .as_ref()
-                .map(Encode::encode_to_value)
-                .transpose()
-                .change_context(errors::api_error_response::ApiErrorResponse::InternalServerError)
-                .attach_printable("Unable to encode customer_acceptance")?
-                .map(Secret::new),
+            customer_acceptance: request.customer_acceptance.clone().map(Secret::new),
             profile_id: payment_intent.profile_id.clone(),
             organization_id: payment_intent.organization_id.clone(),
             payment_method_type: request.payment_method_type,
@@ -885,7 +879,7 @@ pub struct PaymentAttempt {
     pub unified_message: Option<String>,
     pub external_three_ds_authentication_attempted: Option<bool>,
     pub authentication_connector: Option<String>,
-    pub authentication_id: Option<String>,
+    pub authentication_id: Option<id_type::AuthenticationId>,
     pub mandate_data: Option<MandateDetails>,
     pub payment_method_billing_address_id: Option<String>,
     pub fingerprint_id: Option<String>,
@@ -1144,7 +1138,7 @@ pub struct PaymentAttemptNew {
     pub unified_message: Option<String>,
     pub external_three_ds_authentication_attempted: Option<bool>,
     pub authentication_connector: Option<String>,
-    pub authentication_id: Option<String>,
+    pub authentication_id: Option<id_type::AuthenticationId>,
     pub mandate_data: Option<MandateDetails>,
     pub payment_method_billing_address_id: Option<String>,
     pub fingerprint_id: Option<String>,
@@ -1222,7 +1216,7 @@ pub enum PaymentAttemptUpdate {
         merchant_connector_id: Option<id_type::MerchantConnectorAccountId>,
         external_three_ds_authentication_attempted: Option<bool>,
         authentication_connector: Option<String>,
-        authentication_id: Option<String>,
+        authentication_id: Option<id_type::AuthenticationId>,
         payment_method_billing_address_id: Option<String>,
         fingerprint_id: Option<String>,
         payment_method_id: Option<String>,
@@ -1350,7 +1344,7 @@ pub enum PaymentAttemptUpdate {
         status: storage_enums::AttemptStatus,
         external_three_ds_authentication_attempted: Option<bool>,
         authentication_connector: Option<String>,
-        authentication_id: Option<String>,
+        authentication_id: Option<id_type::AuthenticationId>,
         updated_by: String,
     },
     ManualUpdate {

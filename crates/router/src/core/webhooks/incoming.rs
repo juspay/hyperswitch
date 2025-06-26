@@ -10,7 +10,7 @@ use common_utils::{
     ext_traits::AsyncExt,
     types::{AmountConvertor, StringMinorUnitForConnector},
 };
-use diesel_models::ConnectorMandateReferenceId;
+use diesel_models::{refund as diesel_refund, ConnectorMandateReferenceId};
 use error_stack::{report, ResultExt};
 use hyperswitch_domain_models::{
     mandates::CommonMandateReference,
@@ -1021,7 +1021,7 @@ async fn refunds_incoming_webhook_flow(
     let refund_id = refund.refund_id.to_owned();
     //if source verified then update refund status else trigger refund sync
     let updated_refund = if source_verified {
-        let refund_update = storage::RefundUpdate::StatusUpdate {
+        let refund_update = diesel_refund::RefundUpdate::StatusUpdate {
             connector_refund_id: None,
             sent_to_gateway: true,
             refund_status: common_enums::RefundStatus::foreign_try_from(event_type)
@@ -1277,11 +1277,11 @@ async fn external_authentication_incoming_webhook_flow(
                         .store
                         .find_authentication_by_merchant_id_authentication_id(
                             merchant_context.get_merchant_account().get_id(),
-                            authentication_id.clone(),
+                            &authentication_id,
                         )
                         .await
                         .to_not_found_response(errors::ApiErrorResponse::AuthenticationNotFound {
-                            id: authentication_id,
+                            id: authentication_id.get_string_repr().to_string(),
                         })
                         .attach_printable("Error while fetching authentication record"),
                     webhooks::AuthenticationIdType::ConnectorAuthenticationId(
@@ -1320,7 +1320,11 @@ async fn external_authentication_incoming_webhook_flow(
                     &state,
                     auth_val.expose(),
                     None,
-                    updated_authentication.authentication_id.clone(),
+                    updated_authentication
+                        .authentication_id
+                        .clone()
+                        .get_string_repr()
+                        .to_string(),
                     merchant_context.get_merchant_key_store().key.get_inner(),
                 )
             })

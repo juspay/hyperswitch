@@ -1,6 +1,7 @@
 #![allow(unused)]
 
 pub mod api_keys;
+pub mod authentication;
 pub mod blocklist;
 pub mod customers;
 pub mod disputes;

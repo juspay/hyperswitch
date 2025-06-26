@@ -883,7 +883,7 @@ card.debit = { connector_list = "cybersource" }
 connector_list = "adyen,archipel,cybersource,novalnet,stripe,worldpay"
 
 [connector_customer]
-connector_list = "gocardless,stax,stripe,facilitapay,hyperswitch_vault"
+connector_list = "adyen,facilitapay,gocardless,hyperswitch_vault,stax,stripe"
 payout_connector_list = "nomupay,stripe,wise"
 
 

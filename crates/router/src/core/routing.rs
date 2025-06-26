@@ -2483,11 +2483,6 @@ pub async fn migrate_rules_for_profile(
             .attach_printable("Failed to get payout routing algorithm")?
             .unwrap_or_default()
             .algorithm_id,
-        business_profile
-            .get_frm_routing_algorithm()
-            .attach_printable("Failed to get frm routing algorithm")?
-            .unwrap_or_default()
-            .algorithm_id,
     ];
 
     #[cfg(feature = "v2")]

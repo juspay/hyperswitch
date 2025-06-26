@@ -665,9 +665,9 @@ impl ConnectorIntegration<Execute, RefundsData, RefundsResponseData> for Jpmorga
     fn get_url(
         &self,
         _req: &RefundsRouterData<Execute>,
-        _connectors: &Connectors,
+        connectors: &Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        Err(errors::ConnectorError::NotImplemented("Refunds".to_string()).into())
+        Ok(format!("{}/refunds", self.base_url(connectors)))
     }
 
     fn get_request_body(
