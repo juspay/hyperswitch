@@ -7,6 +7,7 @@ use api_models::{
     payment_methods::PaymentMethodDataWalletInfo, payments::ConnectorMandateReferenceId,
 };
 use common_enums::{ConnectorMandateStatus, PaymentMethod};
+use common_types::callback_mapper::CallbackMapperData;
 use common_utils::{
     crypto::Encryptable,
     ext_traits::{AsyncExt, Encode, ValueExt},
@@ -17,6 +18,7 @@ use common_utils::{
 use error_stack::{report, ResultExt};
 #[cfg(feature = "v1")]
 use hyperswitch_domain_models::{
+    callback_mapper::CallbackMapper,
     mandates::{CommonMandateReference, PaymentsMandateReference, PaymentsMandateReferenceRecord},
     payment_method_data,
 };
@@ -754,11 +756,45 @@ where
                                         card.card_network
                                             .map(|card_network| card_network.to_string())
                                     }),
-                                    network_token_requestor_ref_id,
+                                    network_token_requestor_ref_id.clone(),
                                     network_token_locker_id,
                                     pm_network_token_data_encrypted,
                                 )
                                 .await?;
+
+                            match network_token_requestor_ref_id {
+                                Some(network_token_requestor_ref_id) => {
+                                    //Insert the network token reference ID along with merchant id, customer id in CallbackMapper table for its respective webooks
+                                    let callback_mapper_data =
+                                        CallbackMapperData::NetworkTokenWebhook {
+                                            merchant_id: merchant_context
+                                                .get_merchant_account()
+                                                .get_id()
+                                                .clone(),
+                                            customer_id,
+                                            payment_method_id: resp.payment_method_id.clone(),
+                                        };
+                                    let callback_mapper = CallbackMapper::new(
+                                        network_token_requestor_ref_id,
+                                        common_enums::CallbackMapperIdType::NetworkTokenRequestorRefernceID,
+                                        callback_mapper_data,
+                                        common_utils::date_time::now(),
+                                        common_utils::date_time::now(),
+                                    );
+
+                                    db.insert_call_back_mapper(callback_mapper)
+                                        .await
+                                        .change_context(
+                                            errors::ApiErrorResponse::InternalServerError,
+                                        )
+                                        .attach_printable(
+                                            "Failed to insert in Callback Mapper table",
+                                        )?;
+                                }
+                                None => {
+                                    logger::info!("Network token requestor reference ID is not available, skipping callback mapper insertion");
+                                }
+                            };
                         };
                     }
                 }
