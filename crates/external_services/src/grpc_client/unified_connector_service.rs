@@ -142,7 +142,6 @@ impl UnifiedConnectorServiceClient {
         payment_authorize_request: payments_grpc::PaymentServiceAuthorizeRequest,
         connector_auth_metadata: ConnectorAuthMetadata,
     ) -> UnifiedConnectorServiceResult<tonic::Response<PaymentServiceAuthorizeResponse>> {
-
         let mut request = tonic::Request::new(payment_authorize_request);
 
         let metadata = MetadataMap::try_from(connector_auth_metadata)?;
@@ -164,17 +163,22 @@ impl TryFrom<ConnectorAuthMetadata> for MetadataMap {
 
     fn try_from(meta: ConnectorAuthMetadata) -> Result<Self, Self::Error> {
         let mut metadata = MetadataMap::new();
-        let parse = |key: &str, value: &str| -> Result<MetadataValue<_>, UnifiedConnectorServiceError> {
-            value
-                .parse::<MetadataValue<_>>()
-                .map_err(|error| {
+        let parse =
+            |key: &str, value: &str| -> Result<MetadataValue<_>, UnifiedConnectorServiceError> {
+                value.parse::<MetadataValue<_>>().map_err(|error| {
                     logger::error!(?error);
                     UnifiedConnectorServiceError::HeaderInjectionFailed(key.to_string())
                 })
-        };
+            };
 
-        metadata.append(consts::UCS_HEADER_CONNECTOR, parse("connector", &meta.connector_name)?);
-        metadata.append(consts::UCS_HEADER_AUTH_TYPE, parse("auth_type", &meta.auth_type)?);
+        metadata.append(
+            consts::UCS_HEADER_CONNECTOR,
+            parse("connector", &meta.connector_name)?,
+        );
+        metadata.append(
+            consts::UCS_HEADER_AUTH_TYPE,
+            parse("auth_type", &meta.auth_type)?,
+        );
 
         if let Some(api_key) = meta.api_key {
             metadata.append(consts::UCS_HEADER_API_KEY, parse("api_key", &api_key)?);
@@ -183,7 +187,10 @@ impl TryFrom<ConnectorAuthMetadata> for MetadataMap {
             metadata.append(consts::UCS_HEADER_KEY1, parse("key1", &key1)?);
         }
         if let Some(api_secret) = meta.api_secret {
-            metadata.append(consts::UCS_HEADER_API_SECRET, parse("api_secret", &api_secret)?);
+            metadata.append(
+                consts::UCS_HEADER_API_SECRET,
+                parse("api_secret", &api_secret)?,
+            );
         }
 
         Ok(metadata)
