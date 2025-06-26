@@ -63,6 +63,7 @@ pub mod opayo;
 pub mod opennode;
 pub mod paybox;
 pub mod payeezy;
+pub mod payload;
 pub mod payme;
 pub mod payone;
 pub mod paypal;
@@ -117,13 +118,14 @@ pub use self::{
     klarna::Klarna, mifinity::Mifinity, mollie::Mollie, moneris::Moneris,
     multisafepay::Multisafepay, netcetera::Netcetera, nexinets::Nexinets, nexixpay::Nexixpay,
     nmi::Nmi, nomupay::Nomupay, noon::Noon, nordea::Nordea, novalnet::Novalnet, nuvei::Nuvei,
-    opayo::Opayo, opennode::Opennode, paybox::Paybox, payeezy::Payeezy, payme::Payme,
-    payone::Payone, paypal::Paypal, paystack::Paystack, payu::Payu, placetopay::Placetopay,
-    plaid::Plaid, powertranz::Powertranz, prophetpay::Prophetpay, rapyd::Rapyd, razorpay::Razorpay,
-    recurly::Recurly, redsys::Redsys, riskified::Riskified, shift4::Shift4, signifyd::Signifyd,
-    square::Square, stax::Stax, stripe::Stripe, stripebilling::Stripebilling, taxjar::Taxjar,
-    threedsecureio::Threedsecureio, thunes::Thunes, tokenio::Tokenio, trustpay::Trustpay,
-    tsys::Tsys, unified_authentication_service::UnifiedAuthenticationService, vgs::Vgs, volt::Volt,
+    opayo::Opayo, opennode::Opennode, paybox::Paybox, payeezy::Payeezy, payload::Payload,
+    payme::Payme, payone::Payone, paypal::Paypal, paystack::Paystack, payu::Payu,
+    placetopay::Placetopay, plaid::Plaid, powertranz::Powertranz, prophetpay::Prophetpay,
+    rapyd::Rapyd, razorpay::Razorpay, recurly::Recurly, redsys::Redsys, riskified::Riskified,
+    shift4::Shift4, signifyd::Signifyd, square::Square, stax::Stax, stripe::Stripe,
+    stripebilling::Stripebilling, taxjar::Taxjar, threedsecureio::Threedsecureio, thunes::Thunes,
+    tokenio::Tokenio, trustpay::Trustpay, tsys::Tsys,
+    unified_authentication_service::UnifiedAuthenticationService, vgs::Vgs, volt::Volt,
     wellsfargo::Wellsfargo, wellsfargopayout::Wellsfargopayout, wise::Wise, worldline::Worldline,
     worldpay::Worldpay, worldpayxml::Worldpayxml, xendit::Xendit, zen::Zen, zsl::Zsl,
 };
