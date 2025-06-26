@@ -13283,6 +13283,23 @@
           }
         }
       },
+      "MerchantConnectorAuthDetails": {
+        "type": "object",
+        "description": "Merchant connector details",
+        "required": [
+          "connector_name",
+          "merchant_connector_creds"
+        ],
+        "properties": {
+          "connector_name": {
+            "$ref": "#/components/schemas/Connector"
+          },
+          "merchant_connector_creds": {
+            "type": "object",
+            "description": "The merchant connector credentials used for the payment"
+          }
+        }
+      },
       "MerchantConnectorCreate": {
         "type": "object",
         "description": "Create a new Merchant Connector for the merchant account. The connector could be a payment processor / facilitator / acquirer or specialized services like Fraud / Accounting etc.\"",
@@ -13418,17 +13435,16 @@
       },
       "MerchantConnectorDetails": {
         "type": "object",
-        "required": [
-          "connector_name",
-          "merchant_connector_creds"
-        ],
         "properties": {
-          "connector_name": {
-            "$ref": "#/components/schemas/Connector"
-          },
-          "merchant_connector_creds": {
+          "connector_account_details": {
             "type": "object",
-            "description": "The merchant connector credentials used for the payment"
+            "description": "Account details of the Connector. You can specify up to 50 keys, with key names up to 40 characters long and values up to 500 characters long. Useful for storing additional, structured information on an object.",
+            "nullable": true
+          },
+          "metadata": {
+            "type": "object",
+            "description": "Metadata is useful for storing additional, unstructured information on an object.",
+            "nullable": true
           }
         }
       },
@@ -18107,7 +18123,7 @@
           "merchant_connector_details": {
             "allOf": [
               {
-                "$ref": "#/components/schemas/MerchantConnectorDetails"
+                "$ref": "#/components/schemas/MerchantConnectorAuthDetails"
               }
             ],
             "nullable": true
@@ -18312,7 +18328,7 @@
           "merchant_connector_details": {
             "allOf": [
               {
-                "$ref": "#/components/schemas/MerchantConnectorDetails"
+                "$ref": "#/components/schemas/MerchantConnectorAuthDetails"
               }
             ],
             "nullable": true
@@ -19106,7 +19122,7 @@
           "merchant_connector_details": {
             "allOf": [
               {
-                "$ref": "#/components/schemas/MerchantConnectorDetails"
+                "$ref": "#/components/schemas/MerchantConnectorAuthDetails"
               }
             ],
             "nullable": true
@@ -19322,7 +19338,7 @@
           "merchant_connector_details": {
             "allOf": [
               {
-                "$ref": "#/components/schemas/MerchantConnectorDetails"
+                "$ref": "#/components/schemas/MerchantConnectorAuthDetails"
               }
             ],
             "nullable": true
@@ -22083,6 +22099,14 @@
           "metadata": {
             "type": "object",
             "description": "Metadata is useful for storing additional, unstructured information on an object.",
+            "nullable": true
+          },
+          "merchant_connector_details": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/MerchantConnectorAuthDetails"
+              }
+            ],
             "nullable": true
           }
         },
