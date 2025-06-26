@@ -162,7 +162,7 @@ impl TryFrom<ConnectorAuthMetadata> for MetadataMap {
     type Error = UnifiedConnectorServiceError;
 
     fn try_from(meta: ConnectorAuthMetadata) -> Result<Self, Self::Error> {
-        let mut metadata = MetadataMap::new();
+        let mut metadata = Self::new();
         let parse =
             |key: &str, value: &str| -> Result<MetadataValue<_>, UnifiedConnectorServiceError> {
                 value.parse::<MetadataValue<_>>().map_err(|error| {
