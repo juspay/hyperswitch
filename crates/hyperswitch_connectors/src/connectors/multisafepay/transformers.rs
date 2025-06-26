@@ -66,6 +66,12 @@ pub enum Gateway {
     Paypal,
     Ideal,
     Giropay,
+    Trustly,
+    #[serde(rename = "AMAZONBTN")]
+    AmazonPayRedirect,
+    Alipay,
+    #[serde(rename = "WECHAT")]
+    WeChatPay,
 }
 
 #[serde_with::skip_serializing_none]
@@ -183,14 +189,28 @@ pub enum GatewayInfo {
 #[serde(untagged)]
 pub enum WalletInfo {
     GooglePay(GpayInfo),
+    AmazonPay(AmazonPayInfo),
+    Alipay(AlipayInfo),
+    WeChatPay(WeChatPayInfo),
 }
+
+#[derive(Debug, Clone, Serialize, Eq, PartialEq)]
+pub struct WeChatPayInfo {}
+
+#[derive(Debug, Clone, Serialize, Eq, PartialEq)]
+pub struct AlipayInfo {}
+
+#[derive(Debug, Clone, Serialize, Eq, PartialEq)]
+pub struct AmazonPayInfo {}
 
 #[derive(Clone, Debug, Eq, PartialEq, Serialize)]
 #[serde(untagged)]
 pub enum BankRedirectInfo {
     Ideal(IdealInfo),
+    Trustly(TrustlyInfo),
 }
-
+#[derive(Debug, Clone, Serialize, Eq, PartialEq)]
+pub struct TrustlyInfo {}
 #[derive(Debug, Clone, Serialize, Eq, PartialEq)]
 pub struct IdealInfo {
     pub issuer_id: MultisafepayBankNames,
@@ -489,11 +509,12 @@ impl TryFrom<&MultisafepayRouterData<&types::PaymentsAuthorizeRouterData>>
             PaymentMethodData::MandatePayment => Type::Direct,
             PaymentMethodData::Wallet(ref wallet_data) => match wallet_data {
                 WalletData::GooglePay(_) => Type::Direct,
+                WalletData::AmazonPayRedirect(_) => Type::Redirect,
                 WalletData::PaypalRedirect(_) => Type::Redirect,
+                WalletData::AliPayRedirect(_) => Type::Redirect,
+                WalletData::WeChatPayRedirect(_) => Type::Redirect,
                 WalletData::AliPayQr(_)
-                | WalletData::AliPayRedirect(_)
                 | WalletData::AliPayHkRedirect(_)
-                | WalletData::AmazonPayRedirect(_)
                 | WalletData::MomoRedirect(_)
                 | WalletData::KakaoPayRedirect(_)
                 | WalletData::GoPayRedirect(_)
@@ -512,7 +533,6 @@ impl TryFrom<&MultisafepayRouterData<&types::PaymentsAuthorizeRouterData>>
                 | WalletData::TwintRedirect {}
                 | WalletData::VippsRedirect {}
                 | WalletData::TouchNGoRedirect(_)
-                | WalletData::WeChatPayRedirect(_)
                 | WalletData::WeChatPayQr(_)
                 | WalletData::CashappQr(_)
                 | WalletData::SwishQr(_)
@@ -524,6 +544,7 @@ impl TryFrom<&MultisafepayRouterData<&types::PaymentsAuthorizeRouterData>>
             PaymentMethodData::BankRedirect(ref bank_data) => match bank_data {
                 BankRedirectData::Giropay { .. } => Type::Redirect,
                 BankRedirectData::Ideal { .. } => Type::Direct,
+                BankRedirectData::Trustly { .. } => Type::Redirect,
                 BankRedirectData::BancontactCard { .. }
                 | BankRedirectData::Bizum { .. }
                 | BankRedirectData::Blik { .. }
@@ -537,7 +558,6 @@ impl TryFrom<&MultisafepayRouterData<&types::PaymentsAuthorizeRouterData>>
                 | BankRedirectData::OpenBankingUk { .. }
                 | BankRedirectData::Przelewy24 { .. }
                 | BankRedirectData::Sofort { .. }
-                | BankRedirectData::Trustly { .. }
                 | BankRedirectData::OnlineBankingFpx { .. }
                 | BankRedirectData::OnlineBankingThailand { .. }
                 | BankRedirectData::LocalBankRedirect {} => {
@@ -557,10 +577,11 @@ impl TryFrom<&MultisafepayRouterData<&types::PaymentsAuthorizeRouterData>>
             PaymentMethodData::Wallet(ref wallet_data) => Some(match wallet_data {
                 WalletData::GooglePay(_) => Gateway::Googlepay,
                 WalletData::PaypalRedirect(_) => Gateway::Paypal,
+                WalletData::AmazonPayRedirect(_) => Gateway::AmazonPayRedirect,
+                WalletData::AliPayRedirect(_) => Gateway::Alipay,
+                WalletData::WeChatPayRedirect(_) => Gateway::WeChatPay,
                 WalletData::AliPayQr(_)
-                | WalletData::AliPayRedirect(_)
                 | WalletData::AliPayHkRedirect(_)
-                | WalletData::AmazonPayRedirect(_)
                 | WalletData::MomoRedirect(_)
                 | WalletData::KakaoPayRedirect(_)
                 | WalletData::GoPayRedirect(_)
@@ -579,7 +600,6 @@ impl TryFrom<&MultisafepayRouterData<&types::PaymentsAuthorizeRouterData>>
                 | WalletData::TwintRedirect {}
                 | WalletData::VippsRedirect {}
                 | WalletData::TouchNGoRedirect(_)
-                | WalletData::WeChatPayRedirect(_)
                 | WalletData::WeChatPayQr(_)
                 | WalletData::CashappQr(_)
                 | WalletData::SwishQr(_)
@@ -591,6 +611,7 @@ impl TryFrom<&MultisafepayRouterData<&types::PaymentsAuthorizeRouterData>>
             PaymentMethodData::BankRedirect(ref bank_data) => Some(match bank_data {
                 BankRedirectData::Giropay { .. } => Gateway::Giropay,
                 BankRedirectData::Ideal { .. } => Gateway::Ideal,
+                BankRedirectData::Trustly { .. } => Gateway::Trustly,
                 BankRedirectData::BancontactCard { .. }
                 | BankRedirectData::Bizum { .. }
                 | BankRedirectData::Blik { .. }
@@ -604,7 +625,6 @@ impl TryFrom<&MultisafepayRouterData<&types::PaymentsAuthorizeRouterData>>
                 | BankRedirectData::OpenBankingUk { .. }
                 | BankRedirectData::Przelewy24 { .. }
                 | BankRedirectData::Sofort { .. }
-                | BankRedirectData::Trustly { .. }
                 | BankRedirectData::OnlineBankingFpx { .. }
                 | BankRedirectData::OnlineBankingThailand { .. }
                 | BankRedirectData::LocalBankRedirect {} => {
@@ -718,11 +738,18 @@ impl TryFrom<&MultisafepayRouterData<&types::PaymentsAuthorizeRouterData>>
                         }
                     })))
                 }
+                WalletData::AmazonPayRedirect(_) => {
+                    Some(GatewayInfo::Wallet(WalletInfo::AmazonPay(AmazonPayInfo {})))
+                }
+                WalletData::AliPayRedirect(_) => {
+                    Some(GatewayInfo::Wallet(WalletInfo::Alipay(AlipayInfo {})))
+                }
                 WalletData::PaypalRedirect(_) => None,
+                WalletData::WeChatPayRedirect(_) => {
+                    Some(GatewayInfo::Wallet(WalletInfo::WeChatPay(WeChatPayInfo {})))
+                }
                 WalletData::AliPayQr(_)
-                | WalletData::AliPayRedirect(_)
                 | WalletData::AliPayHkRedirect(_)
-                | WalletData::AmazonPayRedirect(_)
                 | WalletData::MomoRedirect(_)
                 | WalletData::KakaoPayRedirect(_)
                 | WalletData::GoPayRedirect(_)
@@ -741,7 +768,6 @@ impl TryFrom<&MultisafepayRouterData<&types::PaymentsAuthorizeRouterData>>
                 | WalletData::TwintRedirect {}
                 | WalletData::VippsRedirect {}
                 | WalletData::TouchNGoRedirect(_)
-                | WalletData::WeChatPayRedirect(_)
                 | WalletData::WeChatPayQr(_)
                 | WalletData::CashappQr(_)
                 | WalletData::SwishQr(_)
@@ -780,6 +806,9 @@ impl TryFrom<&MultisafepayRouterData<&types::PaymentsAuthorizeRouterData>>
                         )?)?,
                     }),
                 )),
+                BankRedirectData::Trustly { .. } => Some(GatewayInfo::BankRedirect(
+                    BankRedirectInfo::Trustly(TrustlyInfo {}),
+                )),
                 BankRedirectData::BancontactCard { .. }
                 | BankRedirectData::Bizum { .. }
                 | BankRedirectData::Blik { .. }
@@ -794,7 +823,6 @@ impl TryFrom<&MultisafepayRouterData<&types::PaymentsAuthorizeRouterData>>
                 | BankRedirectData::OpenBankingUk { .. }
                 | BankRedirectData::Przelewy24 { .. }
                 | BankRedirectData::Sofort { .. }
-                | BankRedirectData::Trustly { .. }
                 | BankRedirectData::OnlineBankingFpx { .. }
                 | BankRedirectData::OnlineBankingThailand { .. }
                 | BankRedirectData::LocalBankRedirect {} => None,
