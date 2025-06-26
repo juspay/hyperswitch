@@ -67,8 +67,6 @@ pub enum Gateway {
     Ideal,
     Giropay,
     Trustly,
-    #[serde(rename = "AMAZONBTN")]
-    AmazonPayRedirect,
     Alipay,
     #[serde(rename = "WECHAT")]
     WeChatPay,
@@ -189,7 +187,6 @@ pub enum GatewayInfo {
 #[serde(untagged)]
 pub enum WalletInfo {
     GooglePay(GpayInfo),
-    AmazonPay(AmazonPayInfo),
     Alipay(AlipayInfo),
     WeChatPay(WeChatPayInfo),
 }
@@ -199,9 +196,6 @@ pub struct WeChatPayInfo {}
 
 #[derive(Debug, Clone, Serialize, Eq, PartialEq)]
 pub struct AlipayInfo {}
-
-#[derive(Debug, Clone, Serialize, Eq, PartialEq)]
-pub struct AmazonPayInfo {}
 
 #[derive(Clone, Debug, Eq, PartialEq, Serialize)]
 #[serde(untagged)]
@@ -509,12 +503,12 @@ impl TryFrom<&MultisafepayRouterData<&types::PaymentsAuthorizeRouterData>>
             PaymentMethodData::MandatePayment => Type::Direct,
             PaymentMethodData::Wallet(ref wallet_data) => match wallet_data {
                 WalletData::GooglePay(_) => Type::Direct,
-                WalletData::AmazonPayRedirect(_) => Type::Redirect,
                 WalletData::PaypalRedirect(_) => Type::Redirect,
                 WalletData::AliPayRedirect(_) => Type::Redirect,
                 WalletData::WeChatPayRedirect(_) => Type::Redirect,
                 WalletData::AliPayQr(_)
                 | WalletData::AliPayHkRedirect(_)
+                | WalletData::AmazonPayRedirect(_)
                 | WalletData::MomoRedirect(_)
                 | WalletData::KakaoPayRedirect(_)
                 | WalletData::GoPayRedirect(_)
@@ -577,11 +571,11 @@ impl TryFrom<&MultisafepayRouterData<&types::PaymentsAuthorizeRouterData>>
             PaymentMethodData::Wallet(ref wallet_data) => Some(match wallet_data {
                 WalletData::GooglePay(_) => Gateway::Googlepay,
                 WalletData::PaypalRedirect(_) => Gateway::Paypal,
-                WalletData::AmazonPayRedirect(_) => Gateway::AmazonPayRedirect,
                 WalletData::AliPayRedirect(_) => Gateway::Alipay,
                 WalletData::WeChatPayRedirect(_) => Gateway::WeChatPay,
                 WalletData::AliPayQr(_)
                 | WalletData::AliPayHkRedirect(_)
+                | WalletData::AmazonPayRedirect(_)
                 | WalletData::MomoRedirect(_)
                 | WalletData::KakaoPayRedirect(_)
                 | WalletData::GoPayRedirect(_)
@@ -738,9 +732,6 @@ impl TryFrom<&MultisafepayRouterData<&types::PaymentsAuthorizeRouterData>>
                         }
                     })))
                 }
-                WalletData::AmazonPayRedirect(_) => {
-                    Some(GatewayInfo::Wallet(WalletInfo::AmazonPay(AmazonPayInfo {})))
-                }
                 WalletData::AliPayRedirect(_) => {
                     Some(GatewayInfo::Wallet(WalletInfo::Alipay(AlipayInfo {})))
                 }
@@ -750,6 +741,7 @@ impl TryFrom<&MultisafepayRouterData<&types::PaymentsAuthorizeRouterData>>
                 }
                 WalletData::AliPayQr(_)
                 | WalletData::AliPayHkRedirect(_)
+                | WalletData::AmazonPayRedirect(_)
                 | WalletData::MomoRedirect(_)
                 | WalletData::KakaoPayRedirect(_)
                 | WalletData::GoPayRedirect(_)

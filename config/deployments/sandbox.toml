@@ -533,7 +533,6 @@ paypal = { country = "AF,AX,AL,DZ,AS,AD,AO,AI,AQ,AG,AR,AM,AW,AU,AT,AZ,BS,BH,BD,B
 ideal = { country = "NL", currency = "EUR" }
 klarna = { country = "AT,BE,DK,FI,FR,DE,IT,NL,NO,PT,ES,SE,GB", currency = "DKK,EUR,GBP,NOK,SEK" }
 trustly = { country = "AT,CZ,DK,EE,FI,DE,LV,LT,NL,NO,PL,PT,ES,SE,GB" , currency = "EUR,GBP,SEK"}
-amazon_pay = { country = "AT,BE,CY,DK,FR,DE,HU,IE,IT,LU,NL,PT,ES,SE,CH" , currency = "AUD, CHF, DKK, EUR, GBP, HKD, JPY, NOK, NZD, SEK, USD, ZAR"}
 ali_pay = {currency = "EUR,USD"}
 we_chat_pay = { currency = "EUR"}
 
