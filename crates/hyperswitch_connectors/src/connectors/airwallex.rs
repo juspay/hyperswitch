@@ -52,9 +52,7 @@ use router_env::logger;
 use transformers as airwallex;
 
 use crate::{
-    constants::headers,
-    types::{RefreshTokenRouterData, ResponseRouterData},
-    utils::{convert_amount, AccessTokenRequestInfo, RefundsRequestData},
+    connectors::airwallex::transformers::AirwallexAuthResponse, constants::headers, types::{RefreshTokenRouterData, ResponseRouterData}, utils::{convert_amount, AccessTokenRequestInfo, RefundsRequestData}
 };
 
 #[derive(Clone)]
@@ -387,6 +385,7 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
             req,
         ))?;
         let connector_req = airwallex::AirwallexPaymentsRequest::try_from(&connector_router_data)?;
+        println!("connector_req: {}", serde_json::to_string(&connector_req).unwrap());
         Ok(RequestContent::Json(Box::new(connector_req)))
     }
 
@@ -418,18 +417,43 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
         event_builder: Option<&mut ConnectorEvent>,
         res: Response,
     ) -> CustomResult<PaymentsAuthorizeRouterData, errors::ConnectorError> {
-        let response: airwallex::AirwallexPaymentsResponse = res
+        dbg!(&res.response);
+        let response:AirwallexAuthResponse = res
             .response
-            .parse_struct("AirwallexPaymentsResponse")
+            .parse_struct("AirwallexAuthResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
-        event_builder.map(|i| i.set_response_body(&response));
-        router_env::logger::info!(connector_response=?response);
-        RouterData::try_from(ResponseRouterData {
-            response,
-            data: data.clone(),
-            http_code: res.status_code,
-        })
-        .change_context(errors::ConnectorError::ResponseHandlingFailed)
+        match response {
+            AirwallexAuthResponse::AirwallexPaymentsResponse(response) => {
+                println!("payments wala flow");
+                event_builder.map(|i| i.set_response_body(&response));
+                router_env::logger::info!(connector_response=?response);
+                RouterData::try_from(ResponseRouterData {
+                    response,
+                    data: data.clone(),
+                    http_code: res.status_code,
+                })
+                .change_context(errors::ConnectorError::ResponseHandlingFailed)
+            }
+            AirwallexAuthResponse::AirwallexRedirectResponse(response) => {
+                println!("redirect wala flow");
+                event_builder.map(|i| i.set_response_body(&response));
+                router_env::logger::info!(connector_response=?response);
+                RouterData::try_from(ResponseRouterData {
+                    response,
+                    data: data.clone(),
+                    http_code: res.status_code,
+                })
+                .change_context(errors::ConnectorError::ResponseHandlingFailed)
+            }
+        }
+        //     event_builder.map(|i| i.set_response_body(&response));
+        //     router_env::logger::info!(connector_response=?response);
+        //     RouterData::try_from(ResponseRouterData {
+        //         response,
+        //         data: data.clone(),
+        //         http_code: res.status_code,
+        //     })
+        // .change_context(errors::ConnectorError::ResponseHandlingFailed)
     }
 
     fn get_error_response(
@@ -1120,6 +1144,11 @@ static AIRWALLEX_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMethods> =
             enums::CaptureMethod::SequentialAutomatic,
         ];
 
+        let supported_capture_methods_redirect = vec![
+            enums::CaptureMethod::Automatic,
+            enums::CaptureMethod::SequentialAutomatic,
+        ];
+
         let supported_card_network = vec![
             common_enums::CardNetwork::Visa,
             common_enums::CardNetwork::Mastercard,
@@ -1177,6 +1206,61 @@ static AIRWALLEX_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMethods> =
                 mandates: enums::FeatureStatus::NotSupported,
                 refunds: enums::FeatureStatus::Supported,
                 supported_capture_methods: supported_capture_methods.clone(),
+                specific_features: None,
+            },
+        );
+
+        airwallex_supported_payment_methods.add(
+            enums::PaymentMethod::Wallet,
+            enums::PaymentMethodType::Paypal,
+            PaymentMethodDetails {
+                mandates: enums::FeatureStatus::NotSupported,
+                refunds: enums::FeatureStatus::Supported,
+                supported_capture_methods: supported_capture_methods.clone(),
+                specific_features: None,
+            },
+        );
+
+        airwallex_supported_payment_methods.add(
+            enums::PaymentMethod::PayLater,
+            enums::PaymentMethodType::Klarna,
+            PaymentMethodDetails {
+                mandates: enums::FeatureStatus::NotSupported,
+                refunds: enums::FeatureStatus::Supported,
+                supported_capture_methods: supported_capture_methods.clone(),
+                specific_features: None,
+            },
+        );
+
+        airwallex_supported_payment_methods.add(
+            enums::PaymentMethod::BankRedirect,
+            enums::PaymentMethodType::Trustly,
+            PaymentMethodDetails {
+                mandates: enums::FeatureStatus::NotSupported,
+                refunds: enums::FeatureStatus::Supported,
+                supported_capture_methods: supported_capture_methods_redirect.clone(),
+                specific_features: None,
+            },
+        );
+
+        airwallex_supported_payment_methods.add(
+            enums::PaymentMethod::BankRedirect,
+            enums::PaymentMethodType::Blik,
+            PaymentMethodDetails {
+                mandates: enums::FeatureStatus::NotSupported,
+                refunds: enums::FeatureStatus::Supported,
+                supported_capture_methods: supported_capture_methods_redirect.clone(),
+                specific_features: None,
+            },
+        );
+
+        airwallex_supported_payment_methods.add(
+            enums::PaymentMethod::BankRedirect,
+            enums::PaymentMethodType::Ideal,
+            PaymentMethodDetails {
+                mandates: enums::FeatureStatus::NotSupported,
+                refunds: enums::FeatureStatus::Supported,
+                supported_capture_methods: supported_capture_methods_redirect.clone(),
                 specific_features: None,
             },
         );
