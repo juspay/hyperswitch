@@ -174,12 +174,24 @@ pub struct AuthenticationEligibilityRequest {
 }
 
 impl AuthenticationEligibilityRequest {
-    pub fn get_next_action_api(self, base_url: String, authentication_id: String) -> String {
+    pub fn get_next_action_api(&self, base_url: String, authentication_id: String) -> String {
         format!("{base_url}/authentication/{authentication_id}/authenticate")
+    }
+
+    pub fn get_billing_address(&self) -> Option<Address> {
+        self.billing.clone()
+    }
+
+    pub fn get_shipping_address(&self) -> Option<Address> {
+        self.shipping.clone()
+    }
+
+    pub fn get_browser_information(&self) -> Option<BrowserInformation> {
+        self.browser_information.clone()
     }
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
+#[derive(Debug, Serialize, ToSchema)]
 pub struct AuthenticationEligibilityResponse {
     pub authentication_id: id_type::AuthenticationId,
     pub next_api_action: String,
@@ -197,6 +209,20 @@ pub struct AuthenticationEligibilityResponse {
     pub profile_id: id_type::ProfileId,
     pub error_message: Option<String>,
     pub error_code: Option<String>,
+    pub authentication_connector: Option<String>,
+    /// Billing address
+    #[schema(value_type = Option<Address>)]
+    pub billing: Option<Address>,
+
+    /// Shipping address
+    #[schema(value_type = Option<Address>)]
+    pub shipping: Option<Address>,
+
+    /// Browser information
+    #[schema(value_type = Option<BrowserInformation>)]
+    pub browser_information: Option<BrowserInformation>,
+
+    pub email: common_utils::crypto::OptionalEncryptableEmail,
 }
 
 impl ApiEventMetric for AuthenticationEligibilityRequest {

@@ -129,6 +129,7 @@ pub fn construct_uas_router_data<F: Clone, Req, Res>(
     })
 }
 
+#[allow(clippy::too_many_arguments)]
 pub async fn external_authentication_update_trackers<F: Clone, Req>(
     state: &SessionState,
     router_data: RouterData<F, Req, UasAuthenticationResponseData>,
@@ -183,7 +184,7 @@ pub async fn external_authentication_update_trackers<F: Clone, Req>(
                     acquirer_country_code: acquirer_details
                         .and_then(|acquirer_details| acquirer_details.acquirer_country_code),
                     directory_server_id: authentication_details.directory_server_id,
-                    browser_info,
+                    browser_info: Box::new(browser_info),
                     email,
                     billing_address,
                     shipping_address,

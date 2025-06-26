@@ -90,7 +90,7 @@ pub async fn update_trackers<F: Clone, Req>(
                 directory_server_id,
                 billing_address: None,
                 shipping_address: None,
-                browser_info: None,
+                browser_info: Box::new(None),
                 email: None,
             },
             AuthenticationResponseData::AuthNResponse {

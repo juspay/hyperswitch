@@ -88,6 +88,14 @@ impl PaymentMethodData {
             None
         }
     }
+
+    pub fn get_card(&self) -> Option<&Card> {
+        if let Self::Card(card) = self {
+            Some(card)
+        } else {
+            None
+        }
+    }
 }
 
 #[derive(Eq, PartialEq, Clone, Debug, Serialize, Deserialize, Default)]

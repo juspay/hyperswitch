@@ -1,5 +1,5 @@
 use common_enums::enums;
-use common_utils::types::FloatMajorUnit;
+use common_utils::types::{FloatMajorUnit, MinorUnit};
 use hyperswitch_domain_models::{
     router_data::{ConnectorAuthType, RouterData},
     router_request_types::unified_authentication_service::{
@@ -8,13 +8,14 @@ use hyperswitch_domain_models::{
     },
     types::{
         UasAuthenticationConfirmationRouterData, UasPostAuthenticationRouterData,
-        UasPreAuthenticationRouterData,
+        UasPreAuthenticationRouterData,UasAuthenticationRouterData
     },
 };
 use hyperswitch_interfaces::errors;
 use masking::Secret;
 use serde::{Deserialize, Serialize};
 use time::PrimitiveDateTime;
+use common_utils::ext_traits::OptionExt;
 
 use crate::types::ResponseRouterData;
 //TODO: Fill the struct with respective fields
@@ -108,7 +109,7 @@ pub struct PaymentDetails {
     pub account_type: Option<common_enums::PaymentMethodType>,
 }
 
-#[derive(Default, Debug, Serialize, PartialEq)]
+#[derive(Default, Clone, Debug, Serialize, Deserialize)]
 pub struct TransactionDetails {
     pub amount: FloatMajorUnit,
     pub currency: enums::Currency,
@@ -119,11 +120,13 @@ pub struct TransactionDetails {
     pub transaction_type: Option<String>,
     pub otp_value: Option<String>,
     pub three_ds_data: Option<ThreeDSData>,
+    pub message_category: Option<hyperswitch_domain_models::router_request_types::authentication::MessageCategory>,
 }
 
-#[derive(Default, Debug, Serialize, PartialEq)]
+#[derive(Debug, Clone, Serialize)]
 pub struct ThreeDSData {
-    pub browser: BrowserInfo,
+    pub preferred_protocol_version: common_utils::types::SemanticVersion,
+    pub browser: hyperswitch_domain_models::router_request_types::BrowserInformation,
     pub acquirer: Acquirer,
 }
 
@@ -179,7 +182,7 @@ pub struct MerchantDetails {
     pub merchant_category_code: u32,
 }
 
-#[derive(Default, Debug, Serialize, PartialEq)]
+#[derive(Default,Clone, Debug, Serialize, PartialEq, Deserialize)]
 pub struct Address {
     pub city: String,
     pub country: String,
@@ -190,7 +193,7 @@ pub struct Address {
     pub state: Secret<String>,
 }
 
-#[derive(Default, Debug, Serialize, PartialEq)]
+#[derive(Default,Clone, Debug, Serialize, PartialEq, Deserialize)]
 pub struct CustomerDetails {
     pub name: Secret<String>,
     pub email: Option<Secret<String>>,
@@ -283,6 +286,7 @@ impl TryFrom<&UnifiedAuthenticationServiceRouterData<&UasPreAuthenticationRouter
                 transaction_type: None,
                 otp_value: None,
                 three_ds_data: None,
+                message_category: None
             }),
         })
     }
@@ -694,4 +698,86 @@ pub struct ThreeDsMethodDataForm {
 pub struct ThreeDsMethodData {
     pub three_ds_method_notification_url: String,
     pub server_transaction_id: String,
+}
+
+#[derive(Default, Serialize, Deserialize, Debug)]
+pub struct UnifiedAuthenticationServiceAuthenticateRequest {
+    pub authenticate_by: String,
+    pub source_authentication_id: common_utils::id_type::AuthenticationId,
+    pub transaction_details: TransactionDetails,
+    pub device_details: DeviceDetails,
+    pub customer_details: Option<CustomerDetails>,
+    pub connector_metadata: Option<serde_json::Value>,
+    pub billing_address: Option<Address>,
+    pub auth_creds: ConnectorAuthType,
+}
+
+#[derive(Clone, Serialize, Deserialize, Debug)]
+pub struct DeviceDetails {
+    pub device_channel: api_models::payments::DeviceChannel,
+    pub browser_info: api_models::payments::BrowserInformation,
+}   
+
+impl TryFrom<UnifiedAuthenticationServiceRouterData<&UasAuthenticationRouterData>>
+    for UnifiedAuthenticationServiceAuthenticateRequest
+{
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(
+        item: UnifiedAuthenticationServiceRouterData<&UasAuthenticationRouterData>,
+    ) -> Result<Self, Self::Error> {
+        let authentication_id = item.router_data.authentication_id.clone().ok_or(
+            errors::ConnectorError::MissingRequiredField {
+                field_name: "authentication_id",
+            },
+        )?;
+
+        // let acquirer = Acquirer {
+        //     bin: item.request.pre_authentication_data.acquirer_bin,
+        //     merchant_id: item.request.pre_authentication_data.acquirer_merchant_id,
+        // };
+
+        let three_ds_data = ThreeDSData {
+            preferred_protocol_version: item.router_data.request.pre_authentication_data.message_version,
+            browser: item.router_data.request.browser_details.clone(),
+            acquirer,
+            
+        };
+
+        let device_details = DeviceDetails {
+            device_channel: item.router_data.request.transaction_details.device_channel,
+            browser_info: item.router_data.request.browser_details,
+        };
+        let transaction_details = TransactionDetails {
+            amount:item.amount,
+            currency: item
+                .router_data
+                .request
+                .transaction_details
+                .currency
+                .get_required_value("currency"),
+            date: None,
+            pan_source: None,
+            protection_type: None,
+            entry_mode: None,
+            transaction_type: None,
+            otp_value: None,
+            three_ds_data: Some(three_ds_data),
+            message_category: item.request.transaction_details.message_category,
+        };
+        let auth_type =
+            UnifiedAuthenticationServiceAuthType::try_from(&item.connector_auth_type)?;
+
+        Ok(Self {
+            authenticate_by: item.connector.clone(),
+            source_authentication_id: authentication_id,
+            transaction_details,
+            auth_creds: auth_type,
+            device_details,
+            customer_details: None,
+            connector_metadata: None,
+            billing_address: item.request.billing_address.clone(),
+            acquirer_bin: item.request.pre_authentication_data.acquirer_bin,
+            acquirer_merchant_id:  item.request.pre_authentication_data.acquirer_merchant_id
+        })
+    }
 }

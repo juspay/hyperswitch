@@ -150,7 +150,7 @@ pub enum AuthenticationUpdate {
         acquirer_country_code: Option<String>,
         billing_address: Option<Encryption>,
         shipping_address: Option<Encryption>,
-        browser_info: Option<serde_json::Value>,
+        browser_info: Box<Option<serde_json::Value>>,
         email: Option<Encryption>,
     },
     AuthenticationUpdate {
@@ -416,7 +416,7 @@ impl From<AuthenticationUpdate> for AuthenticationUpdateInternal {
                 acquirer_country_code,
                 billing_address,
                 shipping_address,
-                browser_info,
+                browser_info: *browser_info,
                 email,
                 ..Default::default()
             },
