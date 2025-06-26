@@ -281,10 +281,7 @@ pub enum RecoveryError {
     RecordBackToBillingConnectorFailed,
     #[error("Failed to fetch billing connector account id")]
     BillingMerchantConnectorAccountIdNotFound,
-    #[error("Failed to publish event to kafka")]
-    KafkaEventPublishFailed,
 }
-
 #[derive(Debug, Clone, thiserror::Error)]
 pub enum HealthCheckDecisionEngineError {
     #[error("Failed to establish Decision Engine connection")]

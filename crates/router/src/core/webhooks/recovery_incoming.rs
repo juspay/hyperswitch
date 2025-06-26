@@ -140,15 +140,14 @@ pub async fn recovery_incoming_webhook_flow(
         // Passing `merchant_context` here
         let recovery_payment_tuple =
             &RecoveryPaymentTuple::new(&recovery_intent_from_payment_attempt, attempt);
-        RecoveryPaymentTuple::publish_revenue_recovery_event_to_kafka(
+        if let Err(e) = RecoveryPaymentTuple::publish_revenue_recovery_event_to_kafka(
             &state,
             recovery_payment_tuple,
         )
         .await
-        .map_err(|e| {
-            router_env::logger::error!("Failed to publish revenue recovery event to Kafka: {:?}", e)
-        })
-        .ok();
+        {
+            router_env::logger::error!("Failed to publish revenue recovery event to kafka: {}", e);
+        };
     }
 
     let attempt_triggered_by = recovery_attempt_from_payment_attempt

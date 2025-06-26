@@ -128,12 +128,16 @@ impl RevenueRecoveryPaymentsAttemptStatus {
                     .await?;
 
                 // publish events to kafka
-                recovery_incoming_flow::RecoveryPaymentTuple::publish_revenue_recovery_event_to_kafka(
+                if let Err(e) = recovery_incoming_flow::RecoveryPaymentTuple::publish_revenue_recovery_event_to_kafka(
                     state,
                     &recovery_payment_tuple,
                 )
-                .await
-                .change_context(errors::RecoveryError::KafkaEventPublishFailed)?;
+                .await{
+                    router_env::logger::error!(
+                        "Failed to publish revenue recovery event to kafka: {}",
+                        e
+                    );
+                };
 
                 // Record a successful transaction back to Billing Connector
                 // TODO: Add support for retrying failed outgoing recordback webhooks
@@ -157,12 +161,16 @@ impl RevenueRecoveryPaymentsAttemptStatus {
                     .await?;
 
                 // publish events to kafka
-                recovery_incoming_flow::RecoveryPaymentTuple::publish_revenue_recovery_event_to_kafka(
+                if let Err(e) = recovery_incoming_flow::RecoveryPaymentTuple::publish_revenue_recovery_event_to_kafka(
                     state,
                     &recovery_payment_tuple,
                 )
-                .await
-                .change_context(errors::RecoveryError::KafkaEventPublishFailed)?;
+                .await{
+                    router_env::logger::error!(
+                        "Failed to publish revenue recovery event to kafka: {}",
+                        e
+                    );
+                };
 
                 // get a reschedule time
                 let schedule_time = get_schedule_time_to_retry_mit_payments(
