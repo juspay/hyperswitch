@@ -2,7 +2,10 @@ use api_models::admin::ConnectorAuthType;
 use common_enums::{AttemptStatus, PaymentMethodType};
 use common_utils::{errors::CustomResult, ext_traits::ValueExt};
 use error_stack::ResultExt;
-use external_services::{consts, grpc_client::unified_connector_service::{ConnectorAuthMetadata, UnifiedConnectorServiceError}};
+use external_services::{
+    consts,
+    grpc_client::unified_connector_service::{ConnectorAuthMetadata, UnifiedConnectorServiceError},
+};
 use hyperswitch_connectors::utils::CardData;
 use hyperswitch_domain_models::{
     merchant_context::MerchantContext,
@@ -44,11 +47,7 @@ pub async fn should_call_unified_connector_service<F: Clone, T>(
 
     let config_key = format!(
         "{}_{}_{}_{}_{}",
-        UCS_ROLLOUT_PERCENT_CONFIG_PREFIX,
-        merchant_id,
-        connector_name,
-        payment_method,
-        flow_name
+        UCS_ROLLOUT_PERCENT_CONFIG_PREFIX, merchant_id, connector_name, payment_method, flow_name
     );
 
     let should_execute = should_execute_based_on_rollout(state, &config_key).await?;
