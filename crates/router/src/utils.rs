@@ -161,7 +161,7 @@ impl<E> ConnectorResponseExt
 }
 
 #[inline]
-pub fn get_payout_attempt_id(payout_id: impl std::fmt::Display, attempt_count: i16) -> String {
+pub fn get_payout_attempt_id(payout_id: &str, attempt_count: i16) -> String {
     format!("{payout_id}_{attempt_count}")
 }
 

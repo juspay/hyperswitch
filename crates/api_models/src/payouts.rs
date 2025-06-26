@@ -16,7 +16,7 @@ use utoipa::ToSchema;
 
 use crate::{enums as api_enums, payment_methods::RequiredFieldInfo, payments};
 
-#[derive(Debug, Deserialize, Serialize, Clone, ToSchema)]
+#[derive(Debug, Serialize, Clone, ToSchema)]
 pub enum PayoutRequest {
     PayoutActionRequest(PayoutActionRequest),
     PayoutCreateRequest(Box<PayoutCreateRequest>),
@@ -646,7 +646,7 @@ pub struct PayoutRetrieveBody {
     pub merchant_id: Option<id_type::MerchantId>,
 }
 
-#[derive(Default, Debug, Serialize, ToSchema, Clone, Deserialize)]
+#[derive(Debug, Serialize, ToSchema, Clone, Deserialize)]
 pub struct PayoutRetrieveRequest {
     /// Unique identifier for the payout. This ensures idempotency for multiple payouts
     /// that have been done by a single merchant. This field is auto generated and is returned in the API response.
@@ -668,9 +668,7 @@ pub struct PayoutRetrieveRequest {
     pub merchant_id: Option<id_type::MerchantId>,
 }
 
-#[derive(
-    Default, Debug, Deserialize, Serialize, Clone, ToSchema, router_derive::PolymorphicSchema,
-)]
+#[derive(Debug, Serialize, Clone, ToSchema, router_derive::PolymorphicSchema)]
 #[generate_schemas(PayoutCancelRequest, PayoutFulfillRequest)]
 pub struct PayoutActionRequest {
     /// Unique identifier for the payout. This ensures idempotency for multiple payouts
@@ -681,7 +679,6 @@ pub struct PayoutActionRequest {
         max_length = 30,
         example = "187282ab-40ef-47a9-9206-5099ba31e432"
     )]
-    #[serde(skip_deserializing)]
     pub payout_id: id_type::PayoutId,
 }
 

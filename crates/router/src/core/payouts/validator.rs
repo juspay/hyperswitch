@@ -3,7 +3,10 @@ use std::collections::HashSet;
 use actix_web::http::header;
 #[cfg(feature = "olap")]
 use common_utils::errors::CustomResult;
-use common_utils::validation::validate_domain_against_allowed_domains;
+use common_utils::{
+    id_type::{self, GenerateId},
+    validation::validate_domain_against_allowed_domains,
+};
 use diesel_models::generic_link::PayoutLink;
 use error_stack::{report, ResultExt};
 use hyperswitch_domain_models::payment_methods::PaymentMethod;
@@ -29,8 +32,8 @@ use crate::{
 #[instrument(skip(db))]
 pub async fn validate_uniqueness_of_payout_id_against_merchant_id(
     db: &dyn StorageInterface,
-    payout_id: &common_utils::id_type::PayoutId,
-    merchant_id: &common_utils::id_type::MerchantId,
+    payout_id: &id_type::PayoutId,
+    merchant_id: &id_type::MerchantId,
     storage_scheme: storage::enums::MerchantStorageScheme,
 ) -> RouterResult<Option<storage::Payouts>> {
     let maybe_payouts = db
@@ -75,9 +78,9 @@ pub async fn validate_create_request(
     merchant_context: &domain::MerchantContext,
     req: &payouts::PayoutCreateRequest,
 ) -> RouterResult<(
-    common_utils::id_type::PayoutId,
+    id_type::PayoutId,
     Option<payouts::PayoutMethodData>,
-    common_utils::id_type::ProfileId,
+    id_type::ProfileId,
     Option<domain::Customer>,
     Option<PaymentMethod>,
 )> {
@@ -103,7 +106,7 @@ pub async fn validate_create_request(
     let db: &dyn StorageInterface = &*state.store;
     let payout_id = match req.payout_id.as_ref() {
         Some(provided_payout_id) => provided_payout_id.clone(),
-        None => common_utils::id_type::PayoutId::default(),
+        None => id_type::PayoutId::generate(),
     };
 
     match validate_uniqueness_of_payout_id_against_merchant_id(
@@ -115,7 +118,7 @@ pub async fn validate_create_request(
     .await
     .attach_printable_lazy(|| {
         format!(
-            "Unique violation while checking payout_id: {} against merchant_id: {:?}",
+            "Unique violation while checking payout_id: {:?} against merchant_id: {:?}",
             payout_id, merchant_id
         )
     })? {

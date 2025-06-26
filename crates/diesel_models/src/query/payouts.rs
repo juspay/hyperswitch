@@ -104,7 +104,7 @@ impl Payouts {
     ) -> StorageResult<i64> {
         let active_payout_ids_str: Vec<String> = active_payout_ids
             .iter()
-            .map(|pid| pid.to_string())
+            .map(|pid| pid.get_string_repr().to_string())
             .collect();
         let mut filter = <Self as HasTable>::table()
             .inner_join(payout_attempt::table.on(payout_attempt::dsl::payout_id.eq(dsl::payout_id)))

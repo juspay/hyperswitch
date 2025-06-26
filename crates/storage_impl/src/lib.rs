@@ -417,7 +417,7 @@ impl UniqueConstraints for diesel_models::Payouts {
         vec![format!(
             "po_{}_{}",
             self.merchant_id.get_string_repr(),
-            self.payout_id
+            self.payout_id.get_string_repr()
         )]
     }
     fn table_name(&self) -> &str {

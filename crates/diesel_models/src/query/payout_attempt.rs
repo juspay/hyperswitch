@@ -166,7 +166,7 @@ impl PayoutAttempt {
             .map(|payout| {
                 format!(
                     "{}_{}",
-                    payout.payout_id.clone(),
+                    payout.payout_id.get_string_repr(),
                     payout.attempt_count.clone()
                 )
             })

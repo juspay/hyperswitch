@@ -80,7 +80,7 @@ impl<T: DatabaseStore> PayoutsInterface for KVRouterStore<T> {
                     payout_id: &payout_id,
                 };
                 let key_str = key.to_string();
-                let field = format!("po_{}", new.payout_id);
+                let field = format!("po_{}", new.payout_id.get_string_repr());
                 let created_payout = Payouts {
                     payout_id: new.payout_id.clone(),
                     merchant_id: new.merchant_id.clone(),
@@ -151,7 +151,7 @@ impl<T: DatabaseStore> PayoutsInterface for KVRouterStore<T> {
             merchant_id: &this.merchant_id,
             payout_id: &this.payout_id,
         };
-        let field = format!("po_{}", this.payout_id);
+        let field = format!("po_{}", this.payout_id.get_string_repr());
         let storage_scheme = Box::pin(decide_storage_scheme::<_, DieselPayouts>(
             self,
             storage_scheme,
@@ -232,7 +232,7 @@ impl<T: DatabaseStore> PayoutsInterface for KVRouterStore<T> {
                     merchant_id,
                     payout_id,
                 };
-                let field = format!("po_{}", payout_id);
+                let field = format!("po_{}", payout_id.get_string_repr());
                 Box::pin(utils::try_redis_get_else_try_database_get(
                     async {
                         Box::pin(kv_wrapper::<DieselPayouts, _, _>(
@@ -283,7 +283,7 @@ impl<T: DatabaseStore> PayoutsInterface for KVRouterStore<T> {
                     merchant_id,
                     payout_id,
                 };
-                let field = format!("po_{}", payout_id);
+                let field = format!("po_{}", payout_id.get_string_repr());
                 Box::pin(utils::try_redis_get_else_try_database_get(
                     async {
                         Box::pin(kv_wrapper::<DieselPayouts, _, _>(
@@ -494,11 +494,12 @@ impl<T: DatabaseStore> PayoutsInterface for crate::RouterStore<T> {
 
                 query = match (params.starting_at, params.starting_after_id.as_ref()) {
                     (Some(starting_at), _) => query.filter(po_dsl::created_at.ge(starting_at)),
-                    (None, Some(starting_after_payout_id_ref)) => {
+                    (None, Some(starting_after_id)) => {
+                        // TODO: Fetch partial columns for this query since we only need some columns
                         let starting_at = self
                             .find_payout_by_merchant_id_payout_id(
                                 merchant_id,
-                                starting_after_payout_id_ref,
+                                starting_after_id,
                                 storage_scheme,
                             )
                             .await?
@@ -510,11 +511,12 @@ impl<T: DatabaseStore> PayoutsInterface for crate::RouterStore<T> {
 
                 query = match (params.ending_at, params.ending_before_id.as_ref()) {
                     (Some(ending_at), _) => query.filter(po_dsl::created_at.le(ending_at)),
-                    (None, Some(ending_before_payout_id_ref)) => {
+                    (None, Some(ending_before_id)) => {
+                        // TODO: Fetch partial columns for this query since we only need some columns
                         let ending_at = self
                             .find_payout_by_merchant_id_payout_id(
                                 merchant_id,
-                                ending_before_payout_id_ref,
+                                ending_before_id,
                                 storage_scheme,
                             )
                             .await?
@@ -622,11 +624,11 @@ impl<T: DatabaseStore> PayoutsInterface for crate::RouterStore<T> {
 
                 query = match (params.starting_at, params.starting_after_id.as_ref()) {
                     (Some(starting_at), _) => query.filter(po_dsl::created_at.ge(starting_at)),
-                    (None, Some(starting_after_payout_id_ref)) => {
+                    (None, Some(starting_after_id)) => {
                         let starting_at = self
                             .find_payout_by_merchant_id_payout_id(
                                 merchant_id,
-                                starting_after_payout_id_ref,
+                                starting_after_id,
                                 storage_scheme,
                             )
                             .await?
@@ -638,11 +640,11 @@ impl<T: DatabaseStore> PayoutsInterface for crate::RouterStore<T> {
 
                 query = match (params.ending_at, params.ending_before_id.as_ref()) {
                     (Some(ending_at), _) => query.filter(po_dsl::created_at.le(ending_at)),
-                    (None, Some(ending_before_payout_id_ref)) => {
+                    (None, Some(ending_before_id)) => {
                         let ending_at = self
                             .find_payout_by_merchant_id_payout_id(
                                 merchant_id,
-                                ending_before_payout_id_ref,
+                                ending_before_id,
                                 storage_scheme,
                             )
                             .await?
@@ -678,8 +680,8 @@ impl<T: DatabaseStore> PayoutsInterface for crate::RouterStore<T> {
                 };
 
                 query = match &params.payout_method {
-                    Some(payout_method_filters) if !payout_method_filters.is_empty() => {
-                        query.filter(po_dsl::payout_type.eq_any(payout_method_filters.clone()))
+                    Some(payout_method) if !payout_method.is_empty() => {
+                        query.filter(po_dsl::payout_type.eq_any(payout_method.clone()))
                     }
                     _ => query,
                 };

@@ -161,12 +161,12 @@ pub async fn payouts_confirm(
 pub async fn payouts_cancel(
     state: web::Data<AppState>,
     req: HttpRequest,
-    json_payload: web::Json<payout_types::PayoutActionRequest>,
     path: web::Path<id_type::PayoutId>,
 ) -> HttpResponse {
     let flow = Flow::PayoutsCancel;
-    let mut payload = json_payload.into_inner();
-    payload.payout_id = path.into_inner();
+    let payload = payout_types::PayoutActionRequest {
+        payout_id: path.into_inner(),
+    };
 
     Box::pin(api::server_wrap(
         flow,
@@ -192,12 +192,12 @@ pub async fn payouts_cancel(
 pub async fn payouts_fulfill(
     state: web::Data<AppState>,
     req: HttpRequest,
-    json_payload: web::Json<payout_types::PayoutActionRequest>,
     path: web::Path<id_type::PayoutId>,
 ) -> HttpResponse {
     let flow = Flow::PayoutsFulfill;
-    let mut payload = json_payload.into_inner();
-    payload.payout_id = path.into_inner();
+    let payload = payout_types::PayoutActionRequest {
+        payout_id: path.into_inner(),
+    };
 
     Box::pin(api::server_wrap(
         flow,
