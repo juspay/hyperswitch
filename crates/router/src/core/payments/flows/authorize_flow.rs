@@ -1,7 +1,7 @@
 use async_trait::async_trait;
 use common_enums as enums;
-use error_stack::ResultExt;
 use common_types::payments as common_payments_types;
+use error_stack::ResultExt;
 use hyperswitch_domain_models::errors::api_error_response::ApiErrorResponse;
 #[cfg(feature = "v2")]
 use hyperswitch_domain_models::payments::PaymentConfirmData;
