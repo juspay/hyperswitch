@@ -19562,7 +19562,19 @@
         "additionalProperties": false
       },
       "PayoutActionRequest": {
-        "type": "object"
+        "type": "object",
+        "required": [
+          "payout_id"
+        ],
+        "properties": {
+          "payout_id": {
+            "type": "string",
+            "description": "Unique identifier for the payout. This ensures idempotency for multiple payouts\nthat have been done by a single merchant. This field is auto generated and is returned in the API response.",
+            "example": "187282ab-40ef-47a9-9206-5099ba31e432",
+            "maxLength": 30,
+            "minLength": 30
+          }
+        }
       },
       "PayoutAttemptResponse": {
         "type": "object",
