@@ -48,7 +48,7 @@ pub struct GrpcClientSettings {
     #[cfg(feature = "dynamic_routing")]
     /// Configs for Dynamic Routing Client
     pub dynamic_routing_client: DynamicRoutingClientConfig,
-    /// Base URL for Unified Connector Service
+    /// Configs for Unified Connector Service client
     pub unified_connector_service: Option<UnifiedConnectorServiceClientConfig>,
 }
 

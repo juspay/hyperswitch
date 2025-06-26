@@ -377,5 +377,5 @@ base_url = "http://localhost:8080" # base url to call hyperswitch vault service
 merchant_ids = "merchant_ids"           # Comma-separated list of allowed merchant IDs
 connector_names = "connector_names"     # Comma-separated list of allowed connector names
 
-[unified_connector_service]
+[grpc_client.unified_connector_service]
 base_url = "http://localhost:8000/"     # Unified Connector Service URL
