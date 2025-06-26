@@ -227,7 +227,6 @@ pub struct NextAction {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct RazorpayPaymentsResponse {
     pub razorpay_payment_id: String,
-    pub next: Option<Vec<NextAction>>,
 }
 
 impl<F, T> TryFrom<ResponseRouterData<F, RazorpayPaymentsResponse, T, PaymentsResponseData>>

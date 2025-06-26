@@ -316,7 +316,7 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
         connectors: &Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
         Ok(format!(
-            "{}v1/payments/create/json",
+            "{}v1/payments/create/upi",
             self.base_url(connectors)
         ))
     }
