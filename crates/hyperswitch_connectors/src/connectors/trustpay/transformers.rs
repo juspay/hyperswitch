@@ -145,12 +145,13 @@ pub struct BankPaymentInformation {
     pub debtor: Option<DebtorInformation>,
 }
 
-#[derive(Debug, Serialize, Deserialize, Eq, PartialEq, Clone)]
+#[derive(Debug, Serialize, Deserialize, PartialEq, Clone)]
 #[serde(rename_all = "PascalCase")]
 pub struct BankPaymentInformationResponse {
     pub status: TrustpayBankRedirectPaymentStatus,
     pub status_reason_information: Option<StatusReasonInformation>,
     pub references: ReferencesResponse,
+    pub amount: WebhookAmount,
 }
 
 #[derive(Debug, Serialize, Eq, PartialEq)]
