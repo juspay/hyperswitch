@@ -1,4 +1,4 @@
-import { customerAcceptance, cardRequiredField,} from "./Commons";
+import { customerAcceptance, cardRequiredField} from "./Commons";
 import { getCustomExchange } from "./Modifiers";
 
 // Test card details based on Nuvei test cards (from Rust tests)
