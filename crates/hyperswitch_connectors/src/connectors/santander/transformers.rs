@@ -1,7 +1,6 @@
 use api_models::payments::{
     ImmediateBillingType, QrCodeInformation, SantanderBillingType, ScheduledBillingType,
 };
-use chrono::{DateTime, Utc};
 use common_enums::enums;
 use common_utils::{
     errors::CustomResult,
@@ -216,7 +215,7 @@ impl
         let (expiration_time, due_date, validity) = match billing_type {
             Some(SantanderBillingType::Immediate(data)) => (data.expiration_time, None, None),
             Some(SantanderBillingType::Scheduled(data)) => {
-                (None, data.due_date, data.validity_after_expiration)
+                (None, data.due_date.clone(), data.validity_after_expiration)
             }
             None => (None, None, None),
         };
@@ -227,7 +226,7 @@ impl
             })
         } else if due_date.is_some() {
             SantanderBillingType::Scheduled(ScheduledBillingType {
-                due_date,
+                due_date: due_date.clone(),
                 validity_after_expiration: Some(
                     validity.unwrap_or(DEFAULT_VALIDITY_AFTER_EXPIRATION_TIME),
                 ),
@@ -432,7 +431,7 @@ pub struct SantanderVoidResponse {
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct SantanderCalendar {
     #[serde(rename = "calendario")]
-    pub creation: DateTime<Utc>,
+    pub creation: String,
     #[serde(rename = "expiracao")]
     pub expiration: i32,
 }

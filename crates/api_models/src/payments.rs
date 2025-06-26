@@ -6907,7 +6907,7 @@ pub struct ImmediateBillingType {
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema)]
 #[serde(rename_all = "camelCase")]
 pub struct ScheduledBillingType {
-    pub due_date: Option<chrono::NaiveDate>,
+    pub due_date: Option<String>,
     pub validity_after_expiration: Option<i32>,
 }
 
