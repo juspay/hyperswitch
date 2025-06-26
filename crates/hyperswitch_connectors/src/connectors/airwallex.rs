@@ -34,6 +34,7 @@ use hyperswitch_domain_models::{
         PaymentsCompleteAuthorizeRouterData, PaymentsPreProcessingRouterData,
         PaymentsSyncRouterData, RefundSyncRouterData, RefundsRouterData, SetupMandateRouterData,
     },
+    payment_method_data::PaymentMethodData,
 };
 use hyperswitch_interfaces::{
     api::{
@@ -284,8 +285,21 @@ impl ConnectorIntegration<PreProcessing, PaymentsPreProcessingData, PaymentsResp
         req: &PaymentsPreProcessingRouterData,
         _connectors: &Connectors,
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
-        let req_obj = airwallex::AirwallexIntentRequest::try_from(req)?;
-        Ok(RequestContent::Json(Box::new(req_obj)))
+        // let req_obj = airwallex::AirwallexIntentRequest::try_from(req)?;
+        // Ok(RequestContent::Json(Box::new(req_obj)))
+
+        match &req.request.payment_method_data {
+            Some(PaymentMethodData::PayLater(_)) => {
+                let paylater_req = airwallex::AirwallexPayLaterIntentRequest::try_from(req)?;
+                println!("paylater_req: {}", serde_json::to_string(&paylater_req).unwrap());
+                Ok(RequestContent::Json(Box::new(paylater_req)))
+            },
+            _ => {
+                let standard_req = airwallex::AirwallexIntentRequest::try_from(req)?;
+                println!("standard_req: {}", serde_json::to_string(&standard_req).unwrap());
+                Ok(RequestContent::Json(Box::new(standard_req)))
+            }
+        }
     }
 
     fn build_request(
@@ -387,6 +401,19 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
         let connector_req = airwallex::AirwallexPaymentsRequest::try_from(&connector_router_data)?;
         println!("connector_req: {}", serde_json::to_string(&connector_req).unwrap());
         Ok(RequestContent::Json(Box::new(connector_req)))
+
+        // match &req.request.payment_method_data {
+        // PaymentMethodData::PayLater(_) => {
+        //     let paylater_req = airwallex::AirwallexPaylaterPaymentsRequest::try_from(&connector_router_data)?;
+        //     println!("paylater_req: {}", serde_json::to_string(&paylater_req).unwrap());
+        //     Ok(RequestContent::Json(Box::new(paylater_req)))
+        // },
+        // _ => {
+        //     let standard_req = airwallex::AirwallexPaymentsRequest::try_from(&connector_router_data)?;
+        //     println!("standard_req: {}", serde_json::to_string(&standard_req).unwrap());
+        //     Ok(RequestContent::Json(Box::new(standard_req)))
+        // }
+        // }
     }
 
     fn build_request(
@@ -1228,6 +1255,17 @@ static AIRWALLEX_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMethods> =
                 mandates: enums::FeatureStatus::NotSupported,
                 refunds: enums::FeatureStatus::Supported,
                 supported_capture_methods: supported_capture_methods.clone(),
+                specific_features: None,
+            },
+        );
+
+        airwallex_supported_payment_methods.add(
+            enums::PaymentMethod::PayLater,
+            enums::PaymentMethodType::Atome,
+            PaymentMethodDetails {
+                mandates: enums::FeatureStatus::NotSupported,
+                refunds: enums::FeatureStatus::Supported,
+                supported_capture_methods: supported_capture_methods_redirect.clone(),
                 specific_features: None,
             },
         );
