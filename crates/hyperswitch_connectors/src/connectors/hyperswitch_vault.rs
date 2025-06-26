@@ -188,6 +188,10 @@ where
                 format!("api-key={api_key}").into_masked(),
             ),
             (
+                headers::X_FEATURE.to_string(),
+                "hyperswitch-custom-v2".to_string().into_masked(),
+            ),
+            (
                 headers::X_PROFILE_ID.to_string(),
                 auth.profile_id.expose().into_masked(),
             ),
