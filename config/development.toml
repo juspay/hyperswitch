@@ -91,8 +91,7 @@ tunnel_private_key = ""
 
 [connectors.supported]
 wallets = ["klarna", "mifinity", "braintree", "applepay", "adyen"]
-rewards = ["cashtocode",
-    "celerocommerce", "zen"]
+rewards = ["cashtocode", "zen"]
 cards = [
     "aci",
     "adyen",
@@ -110,6 +109,7 @@ cards = [
     "bluesnap",
     "boku",
     "braintree",
+    "celerocommerce",
     "checkout",
     "coinbase",
     "coingate",
