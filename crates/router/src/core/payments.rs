@@ -5284,10 +5284,10 @@ fn is_payment_flow_allowed_for_connector(
     payment_flow: PaymentFlow,
 ) -> bool {
     if payment_flow == PaymentFlow::Mandates {
-        match mandate_flow_enabled {
-            Some(storage_enums::FutureUsage::OffSession) => true,
-            _ => false,
-        }
+        matches!(
+            mandate_flow_enabled,
+            Some(storage_enums::FutureUsage::OffSession)
+        )
     } else {
         false
     }
@@ -5685,7 +5685,7 @@ where
                     payment_method,
                     payment_method_type,
                     &apple_pay_flow,
-                    &mandate_flow_enabled,
+                    mandate_flow_enabled,
                 )?;
 
             add_apple_pay_flow_metrics(
