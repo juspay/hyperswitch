@@ -464,7 +464,26 @@ impl TryFrom<&RedsysRouterData<&PaymentsPreProcessingRouterData>> for RedsysTran
                 } else {
                     RedsysTransactionType::Preauthorization
                 };
-                let ds_merchant_order = connector_utils::generate_12_digit_number().to_string();
+
+                let ds_merchant_order = match item.router_data.is_payment_id_from_merchant {
+                    Some(true) => {
+                        if item.router_data.payment_id.len() <= 12 {
+                            Ok(item.router_data.payment_id.clone())
+                        } else {
+                            Err(errors::ConnectorError::MaxFieldLengthViolated {
+                                connector: "Redsys".to_string(),
+                                field_name: "ds_merchant_order".to_string(),
+                                max_length: 12,
+                                received_length: item.router_data.payment_id.len(),
+                            })
+                        }
+                    }
+                    _ => {
+                        let generated_id = connector_utils::generate_12_digit_number().to_string();
+                        Ok(generated_id)
+                    }
+                }?;
+                
                 let card_data =
                     RedsysCardData::try_from(&item.router_data.request.payment_method_data)?;
                 Ok(PaymentsRequest {

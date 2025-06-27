@@ -172,6 +172,7 @@ where
         authentication_id: None,
         psd2_sca_exemption_type: None,
         whole_connector_response: None,
+        is_payment_id_from_merchant:payment_data.payment_intent.is_payment_id_from_merchant,
     };
     Ok(router_data)
 }
@@ -400,6 +401,7 @@ pub async fn construct_payment_router_data_for_authorize<'a>(
         authentication_id: None,
         psd2_sca_exemption_type: None,
         whole_connector_response: None,
+        is_payment_id_from_merchant: payment_data.payment_intent.is_payment_id_from_merchant,
     };
 
     Ok(router_data)
@@ -564,6 +566,7 @@ pub async fn construct_payment_router_data_for_capture<'a>(
         psd2_sca_exemption_type: None,
         authentication_id: None,
         whole_connector_response: None,
+        is_payment_id_from_merchant: None,
     };
 
     Ok(router_data)
@@ -690,6 +693,7 @@ pub async fn construct_router_data_for_psync<'a>(
         authentication_id: None,
         psd2_sca_exemption_type: None,
         whole_connector_response: None,
+        is_payment_id_from_merchant: None,
     };
 
     Ok(router_data)
@@ -872,6 +876,7 @@ pub async fn construct_payment_router_data_for_sdk_session<'a>(
         psd2_sca_exemption_type: None,
         authentication_id: None,
         whole_connector_response: None,
+        is_payment_id_from_merchant: None,
     };
 
     Ok(router_data)
@@ -1089,6 +1094,7 @@ pub async fn construct_payment_router_data_for_setup_mandate<'a>(
         authentication_id: None,
         psd2_sca_exemption_type: None,
         whole_connector_response: None,
+        is_payment_id_from_merchant: None,
     };
 
     Ok(router_data)
@@ -1288,6 +1294,7 @@ where
         authentication_id: None,
         psd2_sca_exemption_type: payment_data.payment_intent.psd2_sca_exemption_type,
         whole_connector_response: None,
+        is_payment_id_from_merchant:payment_data.payment_intent.is_payment_id_from_merchant,
     };
 
     Ok(router_data)
@@ -1478,6 +1485,7 @@ pub async fn construct_payment_router_data_for_update_metadata<'a>(
         authentication_id: None,
         psd2_sca_exemption_type: payment_data.payment_intent.psd2_sca_exemption_type,
         whole_connector_response: None,
+        is_payment_id_from_merchant:payment_data.payment_intent.is_payment_id_from_merchant,
     };
 
     Ok(router_data)
