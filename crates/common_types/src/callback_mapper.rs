@@ -9,11 +9,11 @@ use diesel::{AsExpression, FromSqlRow};
 pub enum CallbackMapperData {
     /// data variant used while processing the network token webhook
     NetworkTokenWebhook {
-        /// Merchant id assiociated with the network token requestor reference id
+        /// Merchant id associated with the network token requestor reference id
         merchant_id: id_type::MerchantId,
-        /// Payment Method id assiociated with the network token requestor reference id
+        /// Payment Method id associated with the network token requestor reference id
         payment_method_id: String,
-        /// Customer id assiociated with the network token requestor reference id
+        /// Customer id associated with the network token requestor reference id
         customer_id: id_type::CustomerId,
     },
 }

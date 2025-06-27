@@ -776,7 +776,7 @@ where
                                         };
                                     let callback_mapper = CallbackMapper::new(
                                         network_token_requestor_ref_id,
-                                        common_enums::CallbackMapperIdType::NetworkTokenRequestorRefernceID,
+                                        common_enums::CallbackMapperIdType::NetworkTokenRequestorReferenceID,
                                         callback_mapper_data,
                                         common_utils::date_time::now(),
                                         common_utils::date_time::now(),
