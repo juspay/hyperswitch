@@ -10,19 +10,18 @@ use common_utils::{
     id_type, pii, type_name,
     types::keymanager::{Identifier, KeyManagerState, ToEncryptable},
 };
-#[cfg(feature = "v2")]
-use diesel_models::merchant_connector_account::{
-    BillingAccountReference as DieselBillingAccountReference,
-    MerchantConnectorAccountFeatureMetadata as DieselMerchantConnectorAccountFeatureMetadata,
-    RevenueRecoveryMetadata as DieselRevenueRecoveryMetadata,
-};
-use diesel_models::{enums, merchant_connector_account::MerchantConnectorAccountUpdateInternal};
+// #[cfg(feature = "v2")]
+// use diesel_models::merchant_connector_account::{
+//     BillingAccountReference as DieselBillingAccountReference,
+//     MerchantConnectorAccountFeatureMetadata as DieselMerchantConnectorAccountFeatureMetadata,
+//     RevenueRecoveryMetadata as DieselRevenueRecoveryMetadata,
+// };
+// use diesel_models::{enums, merchant_connector_account::MerchantConnectorAccountUpdateInternal};
 use error_stack::ResultExt;
 use masking::{PeekInterface, Secret};
 use rustc_hash::FxHashMap;
 use serde_json::Value;
 
-use super::behaviour;
 #[cfg(feature = "v2")]
 use crate::errors::api_error_response;
 use crate::{
@@ -187,7 +186,7 @@ pub struct MerchantConnectorAccount {
     pub connector_account_details: Encryptable<Secret<Value>>,
     pub disabled: Option<bool>,
     pub payment_methods_enabled: Option<Vec<common_types::payment_methods::PaymentMethodsEnabled>>,
-    pub connector_type: enums::ConnectorType,
+    pub connector_type: common_enums::ConnectorType,
     pub metadata: Option<pii::SecretSerdeValue>,
     pub frm_configs: Option<Vec<pii::SecretSerdeValue>>,
     pub connector_label: Option<String>,
@@ -197,7 +196,7 @@ pub struct MerchantConnectorAccount {
     pub profile_id: id_type::ProfileId,
     pub applepay_verified_domains: Option<Vec<String>>,
     pub pm_auth_config: Option<pii::SecretSerdeValue>,
-    pub status: enums::ConnectorStatus,
+    pub status: common_enums::ConnectorStatus,
     #[encrypt]
     pub connector_wallets_details: Option<Encryptable<Secret<Value>>>,
     #[encrypt]
@@ -427,7 +426,7 @@ pub enum MerchantConnectorAccountUpdate {
 #[derive(Debug)]
 pub enum MerchantConnectorAccountUpdate {
     Update {
-        connector_type: Option<enums::ConnectorType>,
+        connector_type: Option<common_enums::ConnectorType>,
         connector_account_details: Box<Option<Encryptable<pii::SecretSerdeValue>>>,
         disabled: Option<bool>,
         payment_methods_enabled: Option<Vec<common_types::payment_methods::PaymentMethodsEnabled>>,
@@ -437,7 +436,7 @@ pub enum MerchantConnectorAccountUpdate {
         applepay_verified_domains: Option<Vec<String>>,
         pm_auth_config: Box<Option<pii::SecretSerdeValue>>,
         connector_label: Option<String>,
-        status: Option<enums::ConnectorStatus>,
+        status: Option<common_enums::ConnectorStatus>,
         connector_wallets_details: Box<Option<Encryptable<pii::SecretSerdeValue>>>,
         additional_merchant_data: Box<Option<Encryptable<pii::SecretSerdeValue>>>,
         feature_metadata: Box<Option<MerchantConnectorAccountFeatureMetadata>>,

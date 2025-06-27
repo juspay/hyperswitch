@@ -18,7 +18,7 @@ use common_utils::{
     id_type, pii,
     types::{keymanager::ToEncryptable, CreatedBy, MinorUnit},
 };
-use diesel_models::payment_intent::TaxDetails;
+// use diesel_models::payment_intent::TaxDetails;
 #[cfg(feature = "v2")]
 use error_stack::ResultExt;
 use masking::Secret;
@@ -263,7 +263,7 @@ pub struct AmountDetails {
     /// The shipping cost of the order. This has to be collected from the merchant
     pub shipping_cost: Option<MinorUnit>,
     /// Tax details related to the order. This will be calculated by the external tax provider
-    pub tax_details: Option<TaxDetails>,
+    pub tax_details: Option<common_types::payments::TaxDetails>,
     /// The action to whether calculate tax by calling external tax provider or not
     pub skip_external_tax_calculation: common_enums::TaxCalculationOverride,
     /// The action to whether calculate surcharge or not
@@ -380,7 +380,7 @@ impl AmountDetails {
             shipping_cost: req.shipping_cost().or(self.shipping_cost),
             tax_details: req
                 .order_tax_amount()
-                .map(|order_tax_amount| TaxDetails {
+                .map(|order_tax_amount| common_types::payments::TaxDetails {
                     default: Some(common_types::payments::DefaultTax { order_tax_amount }),
                     payment_method_type: None,
                 })

@@ -58,7 +58,7 @@ use crate::{
     router_response_types,
     type_encryption::{crypto_operation, CryptoOperation},
 };
-use crate::{behaviour, errors, ForeignIDRef};
+use crate::{errors, ForeignIDRef};
 #[cfg(feature = "v1")]
 use crate::{
     mandates::{MandateDataType, MandateDetails},

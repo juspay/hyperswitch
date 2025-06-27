@@ -12,9 +12,9 @@ use common_utils::{
         Description,
     },
 };
-use diesel_models::{
-    customers as storage_types, customers::CustomerUpdateInternal, query::customers as query,
-};
+// use diesel_models::{
+//     customers as storage_types, customers::CustomerUpdateInternal, query::customers as query,
+// };
 use error_stack::ResultExt;
 use masking::{PeekInterface, Secret, SwitchStrategy};
 use rustc_hash::FxHashMap;
@@ -22,7 +22,7 @@ use time::PrimitiveDateTime;
 
 #[cfg(feature = "v2")]
 use crate::merchant_connector_account::MerchantConnectorAccountTypeDetails;
-use crate::{behaviour, merchant_key_store::MerchantKeyStore, type_encryption as types};
+use crate::{merchant_key_store::MerchantKeyStore, type_encryption as types};
 
 #[cfg(feature = "v1")]
 #[derive(Clone, Debug, router_derive::ToEncryption)]

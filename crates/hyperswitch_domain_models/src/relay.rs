@@ -6,7 +6,7 @@ use common_utils::{
     pii,
     types::{keymanager, MinorUnit},
 };
-use diesel_models::relay::RelayUpdateInternal;
+// use diesel_models::relay::RelayUpdateInternal;
 use error_stack::ResultExt;
 use masking::{ExposeInterface, Secret};
 use serde::{self, Deserialize, Serialize};

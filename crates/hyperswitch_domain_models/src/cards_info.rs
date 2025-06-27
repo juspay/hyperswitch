@@ -1,5 +1,5 @@
 use common_utils::errors;
-use diesel_models::cards_info;
+// use diesel_models::cards_info;
 
 #[async_trait::async_trait]
 pub trait CardsInfoInterface {

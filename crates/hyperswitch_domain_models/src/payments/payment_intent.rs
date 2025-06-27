@@ -35,7 +35,6 @@ use crate::address::Address;
 #[cfg(feature = "v2")]
 use crate::routing;
 use crate::{
-    behaviour,
     merchant_key_store::MerchantKeyStore,
     type_encryption::{crypto_operation, CryptoOperation},
 };

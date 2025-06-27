@@ -11,7 +11,7 @@ use common_utils::{
     id_type, pii, type_name,
     types::keymanager,
 };
-use diesel_models::{enums as storage_enums, PaymentMethodUpdate};
+// use diesel_models::{enums as storage_enums, PaymentMethodUpdate};
 use error_stack::ResultExt;
 #[cfg(feature = "v1")]
 use masking::ExposeInterface;
@@ -103,15 +103,15 @@ pub struct PaymentMethod {
     pub external_vault_source: Option<id_type::MerchantConnectorAccountId>,
     pub created_at: PrimitiveDateTime,
     pub last_modified: PrimitiveDateTime,
-    pub payment_method_type: Option<storage_enums::PaymentMethod>,
-    pub payment_method_subtype: Option<storage_enums::PaymentMethodType>,
+    pub payment_method_type: Option<common_enums::PaymentMethod>,
+    pub payment_method_subtype: Option<common_enums::PaymentMethodType>,
     #[encrypt(ty = Value)]
     pub payment_method_data: Option<Encryptable<PaymentMethodsData>>,
     pub locker_id: Option<VaultId>,
     pub last_used_at: PrimitiveDateTime,
     pub connector_mandate_details: Option<CommonMandateReference>,
     pub customer_acceptance: Option<pii::SecretSerdeValue>,
-    pub status: storage_enums::PaymentMethodStatus,
+    pub status: common_enums::PaymentMethodStatus,
     pub network_transaction_id: Option<String>,
     pub client_secret: Option<String>,
     #[encrypt(ty = Value)]
@@ -162,7 +162,7 @@ impl PaymentMethod {
     }
 
     #[cfg(feature = "v2")]
-    pub fn get_payment_method_type(&self) -> Option<storage_enums::PaymentMethod> {
+    pub fn get_payment_method_type(&self) -> Option<common_enums::PaymentMethod> {
         self.payment_method_type
     }
 
@@ -172,7 +172,7 @@ impl PaymentMethod {
     }
 
     #[cfg(feature = "v2")]
-    pub fn get_payment_method_subtype(&self) -> Option<storage_enums::PaymentMethodType> {
+    pub fn get_payment_method_subtype(&self) -> Option<common_enums::PaymentMethodType> {
         self.payment_method_subtype
     }
 

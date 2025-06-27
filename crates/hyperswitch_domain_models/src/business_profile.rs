@@ -9,14 +9,14 @@ use common_utils::{
     pii, type_name,
     types::keymanager,
 };
-use diesel_models::business_profile::{
-    AuthenticationConnectorDetails, BusinessPaymentLinkConfig, BusinessPayoutLinkConfig,
-    CardTestingGuardConfig, ProfileUpdateInternal, WebhookDetails,
-};
-#[cfg(feature = "v2")]
-use diesel_models::business_profile::{
-    ExternalVaultConnectorDetails, RevenueRecoveryAlgorithmData,
-};
+// use diesel_models::business_profile::{
+//     AuthenticationConnectorDetails, BusinessPaymentLinkConfig, BusinessPayoutLinkConfig,
+//     CardTestingGuardConfig, ProfileUpdateInternal, WebhookDetails,
+// };
+// #[cfg(feature = "v2")]
+// use diesel_models::business_profile::{
+//     ExternalVaultConnectorDetails, RevenueRecoveryAlgorithmData,
+// };
 use error_stack::ResultExt;
 use masking::{ExposeInterface, PeekInterface, Secret};
 

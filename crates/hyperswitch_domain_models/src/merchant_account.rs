@@ -1,3 +1,5 @@
+#[cfg(feature = "v2")]
+use common_enums::MerchantStorageScheme;
 use common_utils::{
     crypto::{OptionalEncryptableName, OptionalEncryptableValue},
     date_time,
@@ -7,9 +9,9 @@ use common_utils::{
     pii, type_name,
     types::keymanager::{self},
 };
-use diesel_models::{
-    enums::MerchantStorageScheme, merchant_account::MerchantAccountUpdateInternal,
-};
+// use diesel_models::{
+//     enums::MerchantStorageScheme, merchant_account::MerchantAccountUpdateInternal,
+// };
 use error_stack::ResultExt;
 use masking::{PeekInterface, Secret};
 use router_env::logger;

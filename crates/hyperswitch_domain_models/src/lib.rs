@@ -1,6 +1,5 @@
 pub mod address;
 pub mod api;
-pub mod behaviour;
 pub mod bulk_tokenization;
 pub mod business_profile;
 pub mod callback_mapper;
@@ -139,7 +138,7 @@ impl ApiModelToDieselModelConvertor<ApiFeatureMetadata> for FeatureMetadata {
 }
 
 #[cfg(feature = "v2")]
-impl ApiModelToDieselModelConvertor<ApiFeatureMetadata> for FeatureMetadata {
+impl ApiModelToDieselModelConvertor<ApiFeatureMetadata> for common_types::payments::FeatureMetadata {
     fn convert_from(from: ApiFeatureMetadata) -> Self {
         let ApiFeatureMetadata {
             redirect_response,
@@ -149,12 +148,12 @@ impl ApiModelToDieselModelConvertor<ApiFeatureMetadata> for FeatureMetadata {
         } = from;
 
         Self {
-            redirect_response: redirect_response.map(RedirectResponse::convert_from),
+            redirect_response: redirect_response.map(common_types::payments::RedirectResponse::convert_from),
             search_tags,
             apple_pay_recurring_details: apple_pay_recurring_details
-                .map(ApplePayRecurringDetails::convert_from),
+                .map(common_types::payments::ApplePayRecurringDetails::convert_from),
             payment_revenue_recovery_metadata: payment_revenue_recovery_metadata
-                .map(PaymentRevenueRecoveryMetadata::convert_from),
+                .map(common_types::payments::PaymentRevenueRecoveryMetadata::convert_from),
         }
     }
 
@@ -178,7 +177,7 @@ impl ApiModelToDieselModelConvertor<ApiFeatureMetadata> for FeatureMetadata {
     }
 }
 
-impl ApiModelToDieselModelConvertor<ApiRedirectResponse> for RedirectResponse {
+impl ApiModelToDieselModelConvertor<ApiRedirectResponse> for common_types::payments::RedirectResponse {
     fn convert_from(from: ApiRedirectResponse) -> Self {
         let ApiRedirectResponse {
             param,
@@ -203,7 +202,7 @@ impl ApiModelToDieselModelConvertor<ApiRedirectResponse> for RedirectResponse {
 }
 
 impl ApiModelToDieselModelConvertor<ApiRecurringPaymentIntervalUnit>
-    for RecurringPaymentIntervalUnit
+    for common_types::payments::RecurringPaymentIntervalUnit
 {
     fn convert_from(from: ApiRecurringPaymentIntervalUnit) -> Self {
         match from {
@@ -226,7 +225,7 @@ impl ApiModelToDieselModelConvertor<ApiRecurringPaymentIntervalUnit>
 }
 
 impl ApiModelToDieselModelConvertor<ApiApplePayRegularBillingDetails>
-    for ApplePayRegularBillingDetails
+    for common_types::payments::ApplePayRegularBillingDetails
 {
     fn convert_from(from: ApiApplePayRegularBillingDetails) -> Self {
         Self {
@@ -235,7 +234,7 @@ impl ApiModelToDieselModelConvertor<ApiApplePayRegularBillingDetails>
             recurring_payment_end_date: from.recurring_payment_end_date,
             recurring_payment_interval_unit: from
                 .recurring_payment_interval_unit
-                .map(RecurringPaymentIntervalUnit::convert_from),
+                .map(common_types::payments::RecurringPaymentIntervalUnit::convert_from),
             recurring_payment_interval_count: from.recurring_payment_interval_count,
         }
     }
@@ -253,11 +252,11 @@ impl ApiModelToDieselModelConvertor<ApiApplePayRegularBillingDetails>
     }
 }
 
-impl ApiModelToDieselModelConvertor<ApiApplePayRecurringDetails> for ApplePayRecurringDetails {
+impl ApiModelToDieselModelConvertor<ApiApplePayRecurringDetails> for common_types::payments::ApplePayRecurringDetails {
     fn convert_from(from: ApiApplePayRecurringDetails) -> Self {
         Self {
             payment_description: from.payment_description,
-            regular_billing: ApplePayRegularBillingDetails::convert_from(from.regular_billing),
+            regular_billing: common_types::payments::ApplePayRegularBillingDetails::convert_from(from.regular_billing),
             billing_agreement: from.billing_agreement,
             management_url: from.management_url,
         }
@@ -275,7 +274,7 @@ impl ApiModelToDieselModelConvertor<ApiApplePayRecurringDetails> for ApplePayRec
 
 #[cfg(feature = "v2")]
 impl ApiModelToDieselModelConvertor<ApiBillingConnectorAdditionalCardInfo>
-    for BillingConnectorAdditionalCardInfo
+    for common_types::payments::BillingConnectorAdditionalCardInfo
 {
     fn convert_from(from: ApiBillingConnectorAdditionalCardInfo) -> Self {
         Self {
@@ -294,12 +293,12 @@ impl ApiModelToDieselModelConvertor<ApiBillingConnectorAdditionalCardInfo>
 
 #[cfg(feature = "v2")]
 impl ApiModelToDieselModelConvertor<ApiBillingConnectorPaymentMethodDetails>
-    for BillingConnectorPaymentMethodDetails
+    for common_types::payments::BillingConnectorPaymentMethodDetails
 {
     fn convert_from(from: ApiBillingConnectorPaymentMethodDetails) -> Self {
         match from {
             ApiBillingConnectorPaymentMethodDetails::Card(data) => {
-                Self::Card(BillingConnectorAdditionalCardInfo::convert_from(data))
+                Self::Card(common_types::payments::BillingConnectorAdditionalCardInfo::convert_from(data))
             }
         }
     }
@@ -312,14 +311,14 @@ impl ApiModelToDieselModelConvertor<ApiBillingConnectorPaymentMethodDetails>
 }
 
 #[cfg(feature = "v2")]
-impl ApiModelToDieselModelConvertor<ApiRevenueRecoveryMetadata> for PaymentRevenueRecoveryMetadata {
+impl ApiModelToDieselModelConvertor<ApiRevenueRecoveryMetadata> for common_types::payments::PaymentRevenueRecoveryMetadata {
     fn convert_from(from: ApiRevenueRecoveryMetadata) -> Self {
         Self {
             total_retry_count: from.total_retry_count,
             payment_connector_transmission: from.payment_connector_transmission.unwrap_or_default(),
             billing_connector_id: from.billing_connector_id,
             active_attempt_payment_connector_id: from.active_attempt_payment_connector_id,
-            billing_connector_payment_details: BillingConnectorPaymentDetails::convert_from(
+            billing_connector_payment_details: common_types::payments::BillingConnectorPaymentDetails::convert_from(
                 from.billing_connector_payment_details,
             ),
             payment_method_type: from.payment_method_type,
@@ -328,7 +327,7 @@ impl ApiModelToDieselModelConvertor<ApiRevenueRecoveryMetadata> for PaymentReven
             invoice_next_billing_time: from.invoice_next_billing_time,
             billing_connector_payment_method_details: from
                 .billing_connector_payment_method_details
-                .map(BillingConnectorPaymentMethodDetails::convert_from),
+                .map(common_types::payments::BillingConnectorPaymentMethodDetails::convert_from),
             first_payment_attempt_network_advice_code: from
                 .first_payment_attempt_network_advice_code,
             first_payment_attempt_network_decline_code: from
@@ -364,7 +363,7 @@ impl ApiModelToDieselModelConvertor<ApiRevenueRecoveryMetadata> for PaymentReven
 
 #[cfg(feature = "v2")]
 impl ApiModelToDieselModelConvertor<ApiBillingConnectorPaymentDetails>
-    for BillingConnectorPaymentDetails
+    for common_types::payments::BillingConnectorPaymentDetails
 {
     fn convert_from(from: ApiBillingConnectorPaymentDetails) -> Self {
         Self {
@@ -451,7 +450,7 @@ impl ApiModelToDieselModelConvertor<ApiOrderDetailsWithAmount> for OrderDetailsW
 
 #[cfg(feature = "v2")]
 impl ApiModelToDieselModelConvertor<api_models::admin::PaymentLinkConfigRequest>
-    for diesel_models::payment_intent::PaymentLinkConfigRequestForPayments
+    for common_types::payments::PaymentLinkConfigRequestForPayments
 {
     fn convert_from(item: api_models::admin::PaymentLinkConfigRequest) -> Self {
         Self {
@@ -468,14 +467,14 @@ impl ApiModelToDieselModelConvertor<api_models::admin::PaymentLinkConfigRequest>
                 transaction_details
                     .into_iter()
                     .map(|transaction_detail| {
-                        diesel_models::PaymentLinkTransactionDetails::convert_from(
+                        common_types::payments::PaymentLinkTransactionDetails::convert_from(
                             transaction_detail,
                         )
                     })
                     .collect()
             }),
             background_image: item.background_image.map(|background_image| {
-                diesel_models::business_profile::PaymentLinkBackgroundImageConfig::convert_from(
+                common_types::payments::PaymentLinkBackgroundImageConfig::convert_from(
                     background_image,
                 )
             }),
@@ -561,7 +560,7 @@ impl ApiModelToDieselModelConvertor<api_models::admin::PaymentLinkConfigRequest>
 
 #[cfg(feature = "v2")]
 impl ApiModelToDieselModelConvertor<api_models::admin::PaymentLinkTransactionDetails>
-    for diesel_models::PaymentLinkTransactionDetails
+    for common_types::payments::PaymentLinkTransactionDetails
 {
     fn convert_from(from: api_models::admin::PaymentLinkTransactionDetails) -> Self {
         Self {
@@ -569,7 +568,7 @@ impl ApiModelToDieselModelConvertor<api_models::admin::PaymentLinkTransactionDet
             value: from.value,
             ui_configuration: from
                 .ui_configuration
-                .map(diesel_models::TransactionDetailsUiConfiguration::convert_from),
+                .map(common_types::payments::TransactionDetailsUiConfiguration::convert_from),
         }
     }
     fn convert_back(self) -> api_models::admin::PaymentLinkTransactionDetails {
@@ -589,7 +588,7 @@ impl ApiModelToDieselModelConvertor<api_models::admin::PaymentLinkTransactionDet
 
 #[cfg(feature = "v2")]
 impl ApiModelToDieselModelConvertor<api_models::admin::PaymentLinkBackgroundImageConfig>
-    for diesel_models::business_profile::PaymentLinkBackgroundImageConfig
+    for common_types::payments::PaymentLinkBackgroundImageConfig
 {
     fn convert_from(from: api_models::admin::PaymentLinkBackgroundImageConfig) -> Self {
         Self {
@@ -614,7 +613,7 @@ impl ApiModelToDieselModelConvertor<api_models::admin::PaymentLinkBackgroundImag
 
 #[cfg(feature = "v2")]
 impl ApiModelToDieselModelConvertor<api_models::admin::TransactionDetailsUiConfiguration>
-    for diesel_models::TransactionDetailsUiConfiguration
+    for common_types::payments::TransactionDetailsUiConfiguration
 {
     fn convert_from(from: api_models::admin::TransactionDetailsUiConfiguration) -> Self {
         Self {
@@ -645,8 +644,8 @@ impl From<api_models::payments::AmountDetails> for payments::AmountDetails {
             currency: amount_details.currency(),
             shipping_cost: amount_details.shipping_cost(),
             tax_details: amount_details.order_tax_amount().map(|order_tax_amount| {
-                diesel_models::TaxDetails {
-                    default: Some(diesel_models::DefaultTax { order_tax_amount }),
+                common_types::payments::TaxDetails {
+                    default: Some(common_types::payments::DefaultTax { order_tax_amount }),
                     payment_method_type: None,
                 }
             }),
