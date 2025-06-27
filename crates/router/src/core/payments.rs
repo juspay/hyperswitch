@@ -419,17 +419,36 @@ where
         .get_connector_from_request(state, &req, &mut payment_data)
         .await?;
 
-    let router_data = internal_call_connector_service(
+    let (mca_type_details, router_data) = internal_call_connector_service_prerequisites(
+        state,
+        &merchant_context,
+        connector_data.clone(),
+        &operation,
+        &mut payment_data,
+        profile,
+    )
+    .await?;
+
+    let router_data = decide_unified_connector_service_call(
         state,
         req_state.clone(),
         &merchant_context,
-        connector_data,
+        connector_data.clone(),
         &operation,
         &mut payment_data,
+        &None,
         call_connector_action.clone(),
+        None, // schedule_time is not used in PreDetermined ConnectorCallType
         header_payload.clone(),
+        #[cfg(feature = "frm")]
+        None,
         profile,
+        false,
+        false,
         req.get_all_keys_required(),
+        mca_type_details,
+        router_data,
+        None,
     )
     .await?;
 
@@ -4091,6 +4110,70 @@ where
         router_data,
     ))
 }
+
+#[cfg(feature = "v2")]
+#[instrument(skip_all)]
+pub async fn internal_call_connector_service_prerequisites<F, RouterDReq, ApiRequest, D>(
+    state: &SessionState,
+    merchant_context: &domain::MerchantContext,
+    connector: api::ConnectorData,
+    operation: &BoxedOperation<'_, F, ApiRequest, D>,
+    payment_data: &mut D,
+    business_profile: &domain::Profile,
+) -> RouterResult<(
+    domain::MerchantConnectorAccountTypeDetails,
+    RouterData<F, RouterDReq, router_types::PaymentsResponseData>,
+)>
+where
+    F: Send + Clone + Sync,
+    RouterDReq: Send + Sync,
+
+    // To create connector flow specific interface data
+    D: OperationSessionGetters<F> + OperationSessionSetters<F> + Send + Sync + Clone,
+    D: ConstructFlowSpecificData<F, RouterDReq, router_types::PaymentsResponseData>,
+    RouterData<F, RouterDReq, router_types::PaymentsResponseData>: Feature<F, RouterDReq> + Send,
+    // To construct connector flow specific api
+    dyn api::Connector:
+        services::api::ConnectorIntegration<F, RouterDReq, router_types::PaymentsResponseData>,
+{
+    let merchant_connector_details =
+        payment_data
+            .get_merchant_connector_details()
+            .ok_or_else(|| {
+                error_stack::report!(errors::ApiErrorResponse::InternalServerError)
+                    .attach_printable("Merchant connector details not found in payment data")
+            })?;
+    let merchant_connector_account =
+        domain::MerchantConnectorAccountTypeDetails::MerchantConnectorDetails(
+            merchant_connector_details,
+        );
+
+    operation
+        .to_domain()?
+        .populate_payment_data(
+            state,
+            payment_data,
+            merchant_context,
+            business_profile,
+            &connector,
+        )
+        .await?;
+
+    let router_data = payment_data
+        .construct_router_data(
+            state,
+            connector.connector.id(),
+            merchant_context,
+            &None,
+            &merchant_connector_account,
+            None,
+            None,
+        )
+        .await?;
+
+    Ok((merchant_connector_account, router_data))
+}
+
 #[cfg(feature = "v2")]
 #[allow(clippy::too_many_arguments)]
 #[instrument(skip_all)]
@@ -4169,27 +4252,44 @@ where
                 Ok(router_data)
             }
             false => {
-                call_connector_service(
-                    state,
-                    req_state,
-                    merchant_context,
-                    connector,
-                    operation,
-                    payment_data,
-                    customer,
-                    call_connector_action,
-                    schedule_time,
-                    header_payload,
-                    frm_suggestion,
-                    business_profile,
-                    is_retry_payment,
-                    should_retry_with_pan,
-                    all_keys_required,
-                    merchant_connector_account_type_details,
-                    router_data,
-                    updated_customer,
-                )
-                .await
+                if state.conf.merchant_id_auth.merchant_id_auth_enabled {
+                    internal_call_connector_service(
+                        state,
+                        req_state.clone(),
+                        merchant_context,
+                        connector,
+                        operation,
+                        payment_data,
+                        call_connector_action.clone(),
+                        header_payload.clone(),
+                        business_profile,
+                        all_keys_required,
+                        router_data,
+                    )
+                    .await
+                } else {
+                    call_connector_service(
+                        state,
+                        req_state,
+                        merchant_context,
+                        connector,
+                        operation,
+                        payment_data,
+                        customer,
+                        call_connector_action,
+                        schedule_time,
+                        header_payload,
+                        frm_suggestion,
+                        business_profile,
+                        is_retry_payment,
+                        should_retry_with_pan,
+                        all_keys_required,
+                        merchant_connector_account_type_details,
+                        router_data,
+                        updated_customer,
+                    )
+                    .await
+                }
             }
         };
 
@@ -4510,6 +4610,7 @@ pub async fn internal_call_connector_service<F, RouterDReq, ApiRequest, D>(
     header_payload: HeaderPayload,
     business_profile: &domain::Profile,
     all_keys_required: Option<bool>,
+    mut router_data: RouterData<F, RouterDReq, router_types::PaymentsResponseData>,
 ) -> RouterResult<RouterData<F, RouterDReq, router_types::PaymentsResponseData>>
 where
     F: Send + Clone + Sync,
@@ -4524,41 +4625,6 @@ where
         services::api::ConnectorIntegration<F, RouterDReq, router_types::PaymentsResponseData>,
 {
     let stime_connector = Instant::now();
-
-    let merchant_connector_details =
-        payment_data
-            .get_merchant_connector_details()
-            .ok_or_else(|| {
-                error_stack::report!(errors::ApiErrorResponse::InternalServerError)
-                    .attach_printable("Merchant connector details not found in payment data")
-            })?;
-    let merchant_connector_account =
-        domain::MerchantConnectorAccountTypeDetails::MerchantConnectorDetails(
-            merchant_connector_details,
-        );
-
-    operation
-        .to_domain()?
-        .populate_payment_data(
-            state,
-            payment_data,
-            merchant_context,
-            business_profile,
-            &connector,
-        )
-        .await?;
-
-    let mut router_data = payment_data
-        .construct_router_data(
-            state,
-            connector.connector.id(),
-            merchant_context,
-            &None,
-            &merchant_connector_account,
-            None,
-            None,
-        )
-        .await?;
 
     let add_access_token_result = router_data
         .add_access_token(
