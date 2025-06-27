@@ -1897,6 +1897,8 @@ where
 
         let payment_address = self.payment_address;
 
+        let whole_connector_response = self.whole_connector_response;
+
         let payment_method_data =
             Some(api_models::payments::PaymentMethodDataResponseWithBilling {
                 payment_method_data: None,
@@ -1965,6 +1967,7 @@ where
             shipping: None, //TODO: add this
             is_iframe_redirection_enabled: None,
             merchant_reference_id: payment_intent.merchant_reference_id.clone(),
+            whole_connector_response,
         };
 
         Ok(services::ApplicationResponse::JsonWithHeaders((
@@ -2022,6 +2025,8 @@ where
                     .map(From::from),
             });
 
+        let whole_connector_response = self.whole_connector_response;
+
         let connector_token_details = self
             .payment_attempt
             .connector_token_details
@@ -2060,6 +2065,7 @@ where
             return_url,
             is_iframe_redirection_enabled: payment_intent.is_iframe_redirection_enabled,
             merchant_reference_id: payment_intent.merchant_reference_id.clone(),
+            whole_connector_response,
         };
 
         Ok(services::ApplicationResponse::JsonWithHeaders((

@@ -680,6 +680,7 @@ where
             should_sync_with_connector: true,
             payment_address,
             merchant_connector_details: None,
+            whole_connector_response: None,
         },
     })
 }
