@@ -1,5 +1,4 @@
 use common_enums::{AttemptStatus, PaymentMethodType};
-use hyperswitch_domain_models::router_data::ConnectorAuthType;
 use common_utils::{errors::CustomResult, ext_traits::ValueExt};
 use error_stack::ResultExt;
 use external_services::{
@@ -8,12 +7,10 @@ use external_services::{
 };
 use hyperswitch_connectors::utils::CardData;
 #[cfg(feature = "v2")]
-use hyperswitch_domain_models::{
-    merchant_connector_account::MerchantConnectorAccountTypeDetails
-};
+use hyperswitch_domain_models::merchant_connector_account::MerchantConnectorAccountTypeDetails;
 use hyperswitch_domain_models::{
     merchant_context::MerchantContext,
-    router_data::{ErrorResponse, RouterData},
+    router_data::{ConnectorAuthType, ErrorResponse, RouterData},
     router_response_types::{PaymentsResponseData, RedirectForm},
 };
 use masking::{ExposeInterface, PeekInterface};
