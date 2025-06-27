@@ -2467,7 +2467,7 @@ impl behaviour::Conversion for PaymentAttempt {
             processor_merchant_id,
             created_by,
             connector_request_reference_id,
-            order_id
+            order_id,
         } = self;
 
         let card_network = payment_method_data

@@ -3549,17 +3549,17 @@ where
         .create_order_at_connector(state, &connector, should_continue_further)
         .await?;
 
-        if add_create_order_result.is_create_order_performed {
-            if let Ok(order_id_opt) = &add_create_order_result.create_order_result {
-                payment_data.set_connector_order_id(order_id_opt.clone());
-            }
-            should_continue_further = router_data
-                .update_router_data_with_create_order_result(
-                    add_create_order_result,
-                    should_continue_further,
-                )
-                .await?;
+    if add_create_order_result.is_create_order_performed {
+        if let Ok(order_id_opt) = &add_create_order_result.create_order_result {
+            payment_data.set_connector_order_id(order_id_opt.clone());
         }
+        should_continue_further = router_data
+            .update_router_data_with_create_order_result(
+                add_create_order_result,
+                should_continue_further,
+            )
+            .await?;
+    }
 
     let updated_customer = call_create_connector_customer_if_required(
         state,
@@ -3754,7 +3754,11 @@ where
     )
     .await?;
 
-    let mut router_data: RouterData<F, RouterDReq, hyperswitch_domain_models::router_response_types::PaymentsResponseData> = payment_data
+    let mut router_data: RouterData<
+        F,
+        RouterDReq,
+        hyperswitch_domain_models::router_response_types::PaymentsResponseData,
+    > = payment_data
         .construct_router_data(
             state,
             connector.connector.id(),
@@ -3783,24 +3787,22 @@ where
         &call_connector_action,
     );
 
-
-        let add_create_order_result = router_data
+    let add_create_order_result = router_data
         .create_order_at_connector(state, &connector, should_continue_further)
         .await?;
 
-        if add_create_order_result.is_create_order_performed {
-
-            if let Ok(order_id_opt) = &add_create_order_result.create_order_result {
-                payment_data.set_connector_order_id(order_id_opt.clone());
-            }
-
-            should_continue_further = router_data
-                .update_router_data_with_create_order_result(
-                    add_create_order_result,
-                    should_continue_further,
-                )
-                .await?;
+    if add_create_order_result.is_create_order_performed {
+        if let Ok(order_id_opt) = &add_create_order_result.create_order_result {
+            payment_data.set_connector_order_id(order_id_opt.clone());
         }
+
+        should_continue_further = router_data
+            .update_router_data_with_create_order_result(
+                add_create_order_result,
+                should_continue_further,
+            )
+            .await?;
+    }
 
     // In case of authorize flow, pre-task and post-tasks are being called in build request
     // if we do not want to proceed further, then the function will return Ok(None, false)
@@ -4242,17 +4244,17 @@ where
         .create_order_at_connector(state, &connector, should_continue_further)
         .await?;
 
-        if add_create_order_result.is_create_order_performed {
-            if let Ok(order_id_opt) = &add_create_order_result.create_order_result {
-                payment_data.set_connector_order_id(order_id_opt.clone());
-            }
-            should_continue_further = router_data
-                .update_router_data_with_create_order_result(
-                    add_create_order_result,
-                    should_continue_further,
-                )
-                .await?;
+    if add_create_order_result.is_create_order_performed {
+        if let Ok(order_id_opt) = &add_create_order_result.create_order_result {
+            payment_data.set_connector_order_id(order_id_opt.clone());
         }
+        should_continue_further = router_data
+            .update_router_data_with_create_order_result(
+                add_create_order_result,
+                should_continue_further,
+            )
+            .await?;
+    }
 
     let (connector_request, should_continue_further) = if should_continue_further {
         router_data
@@ -9611,7 +9613,6 @@ impl<F: Clone> OperationSessionSetters<F> for PaymentIntentData<F> {
     fn set_connector_order_id(&mut self, order_id: Option<String>) {
         todo!()
     }
-    
 
     fn set_vault_session_details(
         &mut self,

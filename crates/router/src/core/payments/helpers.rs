@@ -41,7 +41,10 @@ use hyperswitch_domain_models::{
     },
     router_data::KlarnaSdkResponse,
 };
-use hyperswitch_interfaces::{api::Payment, integrity::{CheckIntegrity, FlowIntegrity, GetIntegrityObject}};
+use hyperswitch_interfaces::{
+    api::Payment,
+    integrity::{CheckIntegrity, FlowIntegrity, GetIntegrityObject},
+};
 use josekit::jwe;
 use masking::{ExposeInterface, PeekInterface, SwitchStrategy};
 use openssl::{

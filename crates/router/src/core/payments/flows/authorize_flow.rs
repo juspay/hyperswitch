@@ -807,4 +807,3 @@ async fn create_order_at_connector<F: Clone>(
         })
     }
 }
-
