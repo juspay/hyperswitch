@@ -163,7 +163,7 @@ impl MerchantConnectorAccountTypeDetails {
             Self::MerchantConnectorAccount(merchant_connector_account) => {
                 Some(merchant_connector_account.connector_name)
             }
-            Self::MerchantConnectorDetails(_) => None,
+            Self::MerchantConnectorDetails(mca_details) => Some(mca_details.connector_name.clone()),
         }
     }
 
