@@ -172,7 +172,7 @@ where
         authentication_id: None,
         psd2_sca_exemption_type: None,
         whole_connector_response: None,
-        is_payment_id_from_merchant:payment_data.payment_intent.is_payment_id_from_merchant,
+        is_payment_id_from_merchant: payment_data.payment_intent.is_payment_id_from_merchant,
     };
     Ok(router_data)
 }
@@ -1294,7 +1294,7 @@ where
         authentication_id: None,
         psd2_sca_exemption_type: payment_data.payment_intent.psd2_sca_exemption_type,
         whole_connector_response: None,
-        is_payment_id_from_merchant:payment_data.payment_intent.is_payment_id_from_merchant,
+        is_payment_id_from_merchant: payment_data.payment_intent.is_payment_id_from_merchant,
     };
 
     Ok(router_data)
@@ -1485,7 +1485,7 @@ pub async fn construct_payment_router_data_for_update_metadata<'a>(
         authentication_id: None,
         psd2_sca_exemption_type: payment_data.payment_intent.psd2_sca_exemption_type,
         whole_connector_response: None,
-        is_payment_id_from_merchant:payment_data.payment_intent.is_payment_id_from_merchant,
+        is_payment_id_from_merchant: payment_data.payment_intent.is_payment_id_from_merchant,
     };
 
     Ok(router_data)

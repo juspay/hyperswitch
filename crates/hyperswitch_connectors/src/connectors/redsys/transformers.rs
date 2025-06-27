@@ -483,7 +483,7 @@ impl TryFrom<&RedsysRouterData<&PaymentsPreProcessingRouterData>> for RedsysTran
                         Ok(generated_id)
                     }
                 }?;
-                
+
                 let card_data =
                     RedsysCardData::try_from(&item.router_data.request.payment_method_data)?;
                 Ok(PaymentsRequest {

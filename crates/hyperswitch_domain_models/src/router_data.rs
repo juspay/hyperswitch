@@ -108,7 +108,7 @@ pub struct RouterData<Flow, Request, Response> {
 
     /// Indicates whether the payment ID was provided by the merchant (true),
     /// or generated internally by Hyperswitch (false)
-    pub is_payment_id_from_merchant:Option<bool>,
+    pub is_payment_id_from_merchant: Option<bool>,
 }
 
 // Different patterns of authentication.
