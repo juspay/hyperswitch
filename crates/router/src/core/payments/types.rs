@@ -368,12 +368,12 @@ impl SurchargeMetadata {
 
 impl
     ForeignTryFrom<
-        &hyperswitch_domain_models::router_request_types::authentication::AuthenticationStore,
+        &AuthenticationStore,
     > for AuthenticationData
 {
     type Error = error_stack::Report<errors::ApiErrorResponse>;
     fn foreign_try_from(
-        authentication_store: &hyperswitch_domain_models::router_request_types::authentication::AuthenticationStore,
+        authentication_store: &AuthenticationStore,
     ) -> Result<Self, Self::Error> {
         let authentication = &authentication_store.authentication;
         if authentication.authentication_status == common_enums::AuthenticationStatus::Success {

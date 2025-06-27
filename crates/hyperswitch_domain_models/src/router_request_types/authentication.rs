@@ -116,33 +116,33 @@ pub struct PreAuthenticationData {
     pub connector_metadata: Option<serde_json::Value>,
 }
 
-impl TryFrom<&diesel_models::authentication::Authentication> for PreAuthenticationData {
-    type Error = Report<ApiErrorResponse>;
+// impl TryFrom<&diesel_models::authentication::Authentication> for PreAuthenticationData {
+//     type Error = Report<ApiErrorResponse>;
 
-    fn try_from(
-        authentication: &diesel_models::authentication::Authentication,
-    ) -> Result<Self, Self::Error> {
-        let error_message = ApiErrorResponse::UnprocessableEntity { message: "Pre Authentication must be completed successfully before Authentication can be performed".to_string() };
-        let threeds_server_transaction_id = authentication
-            .threeds_server_transaction_id
-            .clone()
-            .get_required_value("threeds_server_transaction_id")
-            .change_context(error_message.clone())?;
-        let message_version = authentication
-            .message_version
-            .clone()
-            .get_required_value("message_version")
-            .change_context(error_message)?;
-        Ok(Self {
-            threeds_server_transaction_id,
-            message_version,
-            acquirer_bin: authentication.acquirer_bin.clone(),
-            acquirer_merchant_id: authentication.acquirer_merchant_id.clone(),
-            connector_metadata: authentication.connector_metadata.clone(),
-            acquirer_country_code: authentication.acquirer_country_code.clone(),
-        })
-    }
-}
+//     fn try_from(
+//         authentication: &diesel_models::authentication::Authentication,
+//     ) -> Result<Self, Self::Error> {
+//         let error_message = ApiErrorResponse::UnprocessableEntity { message: "Pre Authentication must be completed successfully before Authentication can be performed".to_string() };
+//         let threeds_server_transaction_id = authentication
+//             .threeds_server_transaction_id
+//             .clone()
+//             .get_required_value("threeds_server_transaction_id")
+//             .change_context(error_message.clone())?;
+//         let message_version = authentication
+//             .message_version
+//             .clone()
+//             .get_required_value("message_version")
+//             .change_context(error_message)?;
+//         Ok(Self {
+//             threeds_server_transaction_id,
+//             message_version,
+//             acquirer_bin: authentication.acquirer_bin.clone(),
+//             acquirer_merchant_id: authentication.acquirer_merchant_id.clone(),
+//             connector_metadata: authentication.connector_metadata.clone(),
+//             acquirer_country_code: authentication.acquirer_country_code.clone(),
+//         })
+//     }
+// }
 
 #[derive(Clone, Default, Debug, Serialize, Deserialize)]
 pub struct ThreeDsMethodData {
@@ -160,10 +160,4 @@ pub struct AcquirerDetails {
 #[derive(Clone, Debug, Deserialize)]
 pub struct ExternalThreeDSConnectorMetadata {
     pub pull_mechanism_for_external_3ds_enabled: Option<bool>,
-}
-
-#[derive(Clone, Debug)]
-pub struct AuthenticationStore {
-    pub cavv: Option<masking::Secret<String>>,
-    pub authentication: diesel_models::authentication::Authentication,
 }

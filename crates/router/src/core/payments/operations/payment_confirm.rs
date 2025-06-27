@@ -1352,7 +1352,7 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
                             None
                         )
                         .await?;
-                        let authentication_store = hyperswitch_domain_models::router_request_types::authentication::AuthenticationStore {
+                        let authentication_store = AuthenticationStore {
                             cavv: network_token.and_then(|token| token.token_cryptogram),
                             authentication
                         };
@@ -1450,7 +1450,7 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
                     acquirer_details,
                     key_store
                 ).await?;
-                let authentication_store = hyperswitch_domain_models::router_request_types::authentication::AuthenticationStore {
+                let authentication_store = AuthenticationStore {
                     cavv: None, // since in case of pre_authentication cavv is not present
                     authentication
                 };
@@ -1534,7 +1534,7 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
 
                 let tokenized_data = crate::core::payment_methods::vault::get_tokenized_data(state, authentication_id.get_string_repr(), false, key_store.key.get_inner()).await?;
 
-                let authentication_store = hyperswitch_domain_models::router_request_types::authentication::AuthenticationStore {
+                let authentication_store = AuthenticationStore {
                     cavv: Some(masking::Secret::new(tokenized_data.value1)),
                     authentication: updated_authentication
                 };

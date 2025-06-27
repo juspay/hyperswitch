@@ -475,7 +475,7 @@ async fn get_tracker_for_sync<
             })?;
 
         Some(
-            hyperswitch_domain_models::router_request_types::authentication::AuthenticationStore {
+            AuthenticationStore {
                 authentication,
                 cavv: None, // marking this as None since we don't need authentication value in payment status flow
             },

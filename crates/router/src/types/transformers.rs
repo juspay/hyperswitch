@@ -980,11 +980,11 @@ impl ForeignFrom<storage::Authorization> for payments::IncrementalAuthorizationR
 
 impl
     ForeignFrom<
-        &hyperswitch_domain_models::router_request_types::authentication::AuthenticationStore,
+        &AuthenticationStore,
     > for payments::ExternalAuthenticationDetailsResponse
 {
     fn foreign_from(
-        authn_store: &hyperswitch_domain_models::router_request_types::authentication::AuthenticationStore,
+        authn_store: &AuthenticationStore,
     ) -> Self {
         let authn_data = &authn_store.authentication;
         let version = authn_data

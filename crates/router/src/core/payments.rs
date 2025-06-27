@@ -8870,7 +8870,7 @@ pub trait OperationSessionGetters<F> {
     fn get_poll_config(&self) -> Option<router_types::PollConfig>;
     fn get_authentication(
         &self,
-    ) -> Option<&hyperswitch_domain_models::router_request_types::authentication::AuthenticationStore>;
+    ) -> Option<&AuthenticationStore>;
     fn get_frm_message(&self) -> Option<FraudCheck>;
     fn get_refunds(&self) -> Vec<diesel_refund::Refund>;
     fn get_disputes(&self) -> Vec<storage::Dispute>;
@@ -9038,7 +9038,7 @@ impl<F: Clone> OperationSessionGetters<F> for PaymentData<F> {
 
     fn get_authentication(
         &self,
-    ) -> Option<&hyperswitch_domain_models::router_request_types::authentication::AuthenticationStore>
+    ) -> Option<&AuthenticationStore>
     {
         self.authentication.as_ref()
     }
@@ -9350,7 +9350,7 @@ impl<F: Clone> OperationSessionGetters<F> for PaymentIntentData<F> {
 
     fn get_authentication(
         &self,
-    ) -> Option<&hyperswitch_domain_models::router_request_types::authentication::AuthenticationStore>
+    ) -> Option<&AuthenticationStore>
     {
         todo!()
     }
@@ -9647,7 +9647,7 @@ impl<F: Clone> OperationSessionGetters<F> for PaymentConfirmData<F> {
 
     fn get_authentication(
         &self,
-    ) -> Option<&hyperswitch_domain_models::router_request_types::authentication::AuthenticationStore>
+    ) -> Option<&AuthenticationStore>
     {
         todo!()
     }
@@ -9943,7 +9943,7 @@ impl<F: Clone> OperationSessionGetters<F> for PaymentStatusData<F> {
 
     fn get_authentication(
         &self,
-    ) -> Option<&hyperswitch_domain_models::router_request_types::authentication::AuthenticationStore>
+    ) -> Option<&AuthenticationStore>
     {
         todo!()
     }
@@ -10235,7 +10235,7 @@ impl<F: Clone> OperationSessionGetters<F> for PaymentCaptureData<F> {
 
     fn get_authentication(
         &self,
-    ) -> Option<&hyperswitch_domain_models::router_request_types::authentication::AuthenticationStore>
+    ) -> Option<&AuthenticationStore>
     {
         todo!()
     }
@@ -10522,7 +10522,7 @@ impl<F: Clone> OperationSessionGetters<F> for PaymentAttemptListData<F> {
 
     fn get_authentication(
         &self,
-    ) -> Option<&hyperswitch_domain_models::router_request_types::authentication::AuthenticationStore>
+    ) -> Option<&AuthenticationStore>
     {
         todo!()
     }
