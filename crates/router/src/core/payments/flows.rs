@@ -228,8 +228,7 @@ pub trait Feature<F, T> {
     async fn call_unified_connector_service<'a>(
         &mut self,
         _state: &SessionState,
-        #[cfg(feature = "v1")]
-        _merchant_connector_account: helpers::MerchantConnectorAccountType,
+        #[cfg(feature = "v1")] _merchant_connector_account: helpers::MerchantConnectorAccountType,
         #[cfg(feature = "v2")]
         _merchant_connector_account: domain::MerchantConnectorAccountTypeDetails,
     ) -> RouterResult<()>
