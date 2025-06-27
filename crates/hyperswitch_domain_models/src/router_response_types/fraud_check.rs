@@ -7,7 +7,7 @@ use crate::router_response_types::ResponseId;
 pub enum FraudCheckResponseData {
     TransactionResponse {
         resource_id: ResponseId,
-        status: diesel_models::enums::FraudCheckStatus,
+        status: common_enums::FraudCheckStatus,
         connector_metadata: Option<serde_json::Value>,
         reason: Option<serde_json::Value>,
         score: Option<i32>,
