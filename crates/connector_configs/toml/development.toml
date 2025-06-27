@@ -1338,6 +1338,39 @@ merchant_id_evoucher="MerchantId Evoucher"
 [cashtocode.connector_webhook_details]
 merchant_secret="Source verification key"
 
+[celerocommerce]
+[[celerocommerce.credit]]
+  payment_method_type = "Mastercard"
+[[celerocommerce.credit]]
+  payment_method_type = "Visa"
+[[celerocommerce.credit]]
+  payment_method_type = "AmericanExpress"
+[[celerocommerce.credit]]
+  payment_method_type = "Discover"
+[[celerocommerce.credit]]
+  payment_method_type = "JCB"
+[[celerocommerce.credit]]
+  payment_method_type = "DinersClub"
+[[celerocommerce.credit]]
+  payment_method_type = "UnionPay"
+[[celerocommerce.debit]]
+  payment_method_type = "Mastercard"
+[[celerocommerce.debit]]
+  payment_method_type = "Visa"
+[[celerocommerce.debit]]
+  payment_method_type = "AmericanExpress"
+[[celerocommerce.debit]]
+  payment_method_type = "Discover"
+[[celerocommerce.debit]]
+  payment_method_type = "JCB"
+[[celerocommerce.debit]]
+  payment_method_type = "DinersClub"
+[[celerocommerce.debit]]
+  payment_method_type = "UnionPay"
+[celerocommerce.connector_auth.HeaderKey]
+api_key="API Key"
+
+
 [checkout]
 [[checkout.credit]]
   payment_method_type = "Mastercard"
