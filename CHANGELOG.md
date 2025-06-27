@@ -4,6 +4,21 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2025.06.27.0
+
+### Features
+
+- **core:** Accept merchant_connector_details in Refunds create and retrieve flow ([#8441](https://github.com/juspay/hyperswitch/pull/8441)) ([`b185d85`](https://github.com/juspay/hyperswitch/commit/b185d85f6b55a8a99d4942a7a0966f5f731a920c))
+- Kv changes for V2 feature ([#8198](https://github.com/juspay/hyperswitch/pull/8198)) ([`d2740f0`](https://github.com/juspay/hyperswitch/commit/d2740f0322a0ec1327515c0159b64c930307f451))
+
+### Bug Fixes
+
+- **connector:** [TRUSTPAY] Consuming Amount in PSync Response ([#8455](https://github.com/juspay/hyperswitch/pull/8455)) ([`537d175`](https://github.com/juspay/hyperswitch/commit/537d1755329c372f318df24aeda984d22f0b7a19))
+
+**Full Changelog:** [`2025.06.26.1...2025.06.27.0`](https://github.com/juspay/hyperswitch/compare/2025.06.26.1...2025.06.27.0)
+
+- - -
+
 ## 2025.06.26.1
 
 ### Features
