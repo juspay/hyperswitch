@@ -1,13 +1,13 @@
 /**
  * CeleroCommerce Cypress Test Configuration
- * 
+ *
  * This configuration is based on the CeleroCommerce API specifications:
  * - Base URL: Production: https://app.gotnpgateway.com, Sandbox: https://sandbox.gotnpgateway.com
  * - Authentication: Bearer Token with "api_{private_key}" format
  * - Supported Countries: US only
  * - Supported Currency: USD (primary), others supported by processor
  * - Supported Cards: Visa, MasterCard, Discover, Amex
- * 
+ *
  * Features Supported:
  * ✓ Authorization/Sale transactions
  * ✓ Capture (full and partial)
@@ -17,7 +17,7 @@
  * ✓ Payment sync via search API
  * ✗ 3DS authentication
  * ✗ Webhooks
- * 
+ *
  * Test Cards:
  * - Success: 4111111111111111 (Visa)
  * - Decline: 4000000000000002
