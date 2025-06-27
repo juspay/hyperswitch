@@ -868,8 +868,8 @@ pub async fn payouts_filtered_list_core(
     let list: Vec<(
         storage::Payouts,
         storage::PayoutAttempt,
-        Option<diesel_models::Customer>,
-        Option<diesel_models::Address>,
+        Option<domain::Customer>,
+        Option<domain::Address>,
     )> = db
         .filter_payouts_and_attempts(
             merchant_context.get_merchant_account().get_id(),
@@ -881,48 +881,17 @@ pub async fn payouts_filtered_list_core(
     let list = core_utils::filter_objects_based_on_profile_id_list(profile_id_list, list);
     let data: Vec<api::PayoutCreateResponse> =
         join_all(list.into_iter().map(|(p, pa, customer, address)| async {
-            let customer: Option<domain::Customer> = customer
-                .async_and_then(|cust| async {
-                    domain::Customer::convert_back(
-                        &(&state).into(),
-                        cust,
-                        &(merchant_context.get_merchant_key_store().clone()).key,
-                        merchant_context
-                            .get_merchant_key_store()
-                            .merchant_id
-                            .clone()
-                            .into(),
-                    )
-                    .await
-                    .map_err(|err| {
-                        let msg = format!("failed to convert customer for id: {:?}", p.customer_id);
-                        logger::warn!(?err, msg);
-                    })
-                    .ok()
-                })
-                .await;
 
             let payout_addr: Option<payment_enums::Address> = address
-                .async_and_then(|addr| async {
-                    domain::Address::convert_back(
-                        &(&state).into(),
-                        addr,
-                        &(merchant_context.get_merchant_key_store().clone()).key,
-                        merchant_context
-                            .get_merchant_key_store()
-                            .merchant_id
-                            .clone()
-                            .into(),
-                    )
-                    .await
+                .and_then(|addr|  {
+                    addr
                     .map(ForeignFrom::foreign_from)
                     .map_err(|err| {
                         let msg = format!("failed to convert address for id: {:?}", p.address_id);
                         logger::warn!(?err, msg);
                     })
                     .ok()
-                })
-                .await;
+                });
 
             Some((p, pa, customer, payout_addr))
         }))
