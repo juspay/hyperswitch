@@ -60,15 +60,16 @@ use api_models::payments::{
     BillingConnectorPaymentMethodDetails as ApiBillingConnectorPaymentMethodDetails,
     PaymentRevenueRecoveryMetadata as ApiRevenueRecoveryMetadata,
 };
-use diesel_models::types::{
-    ApplePayRecurringDetails, ApplePayRegularBillingDetails, FeatureMetadata,
-    OrderDetailsWithAmount, RecurringPaymentIntervalUnit, RedirectResponse,
-};
-#[cfg(feature = "v2")]
-use diesel_models::types::{
-    BillingConnectorAdditionalCardInfo, BillingConnectorPaymentDetails,
-    BillingConnectorPaymentMethodDetails, PaymentRevenueRecoveryMetadata,
-};
+use common_types::payments::OrderDetailsWithAmount;
+// use diesel_models::types::{
+//     ApplePayRecurringDetails, ApplePayRegularBillingDetails, FeatureMetadata,
+//     OrderDetailsWithAmount, RecurringPaymentIntervalUnit, RedirectResponse,
+// };
+// #[cfg(feature = "v2")]
+// use diesel_models::types::{
+//     BillingConnectorAdditionalCardInfo, BillingConnectorPaymentDetails,
+//     BillingConnectorPaymentMethodDetails, PaymentRevenueRecoveryMetadata,
+// };
 
 #[derive(Clone, Debug, Eq, PartialEq, serde::Serialize)]
 pub enum RemoteStorageObject<T: ForeignIDRef> {

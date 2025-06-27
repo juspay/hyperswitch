@@ -3,6 +3,8 @@ use std::marker::PhantomData;
 
 #[cfg(feature = "v2")]
 use api_models::payments::{SessionToken, VaultSessionDetails};
+#[cfg(feature = "v2")]
+use common_types::payments::OrderDetailsWithAmount;
 #[cfg(feature = "v1")]
 use common_types::primitive_wrappers::{
     AlwaysRequestExtendedAuthorization, RequestExtendedAuthorizationBool,
@@ -29,8 +31,8 @@ pub mod payment_attempt;
 pub mod payment_intent;
 
 use common_enums as storage_enums;
-#[cfg(feature = "v2")]
-use diesel_models::types::{FeatureMetadata, OrderDetailsWithAmount};
+// #[cfg(feature = "v2")]
+// use diesel_models::types::{FeatureMetadata, OrderDetailsWithAmount};
 
 use self::payment_attempt::PaymentAttempt;
 #[cfg(feature = "v2")]
