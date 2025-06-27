@@ -1084,7 +1084,11 @@ pub trait Authenticate {
 }
 
 #[cfg(feature = "v2")]
-impl Authenticate for api_models::payments::PaymentsConfirmIntentRequest {}
+impl Authenticate for api_models::payments::PaymentsConfirmIntentRequest {
+    fn get_all_keys_required(&self) -> Option<bool> {
+        self.all_keys_required
+    }
+}
 #[cfg(feature = "v2")]
 impl Authenticate for api_models::payments::ProxyPaymentsRequest {}
 
