@@ -223,7 +223,7 @@ pub struct PaymentMethod {
     /// Unique Global Payments generated id used to reference a stored payment method on the
     /// Global Payments system. Often referred to as the payment method token. This value can be
     /// used instead of payment method details such as a card number and expiry date.
-    pub id: Option<Secret<String>>,
+    pub id: Option<String>,
     /// Specify the surname of the owner of the payment method.
     pub last_name: Option<Secret<String>>,
     /// The full name of the owner of the payment method.
@@ -811,4 +811,48 @@ pub struct GlobalpayCaptureRequest {
 #[derive(Default, Debug, Serialize)]
 pub struct GlobalpayCancelRequest {
     pub amount: Option<StringMinorUnit>,
+}
+
+#[derive(Default, Debug, Serialize, Deserialize)]
+#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
+pub enum UsageMode {
+    /// This value must be used if using the Hosted Fields or the Drop-in UI integration types.
+    /// When creating the payment method token, this option ensures the payment method token is temporary and will be removed once a transaction is executed or after a short period of time.
+    #[default]
+    Single,
+    /// When creating the payment method token, this indicates it is permanent and can be used to create many transactions.
+    Multiple,
+    /// When using the payment method token to transaction process, this indicates to use the card number also known as the PAN or FPAN when bothe the card number and the network token are available.
+    UseCardNumber,
+    /// When using the payment method token to transaction process, this indicates to use the network token instead of the card number if both are available.
+    UseNetworkToken,
+}
+
+#[derive(Default, Debug, Serialize, Deserialize)]
+pub struct GlobalPayPayer {
+    /// Unique identifier for the Payer on the Global Payments system.
+    #[serde(rename = "id", skip_serializing_if = "Option::is_none")]
+    pub payer_id: Option<String>,
+}
+
+#[derive(Default, Debug, Serialize)]
+pub struct GlobalPayPaymentMethodsRequest {
+    /// A meaningful label for the merchant account set by Global Payments.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub account_name: Option<String>,
+    /// Merchant defined field to uniquely reference the stored payment method.
+    pub reference: String,
+    /// Indicates the behaviour of the payment method token.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub usage_mode: Option<UsageMode>,
+    /// Indicates whether to execute the fingerprint signature functionality.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub fingerprint_mode: Option<FingerprintMode>,
+    /// The name of the owner of the payment method. For example the cardholder's name.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub name: Option<Secret<String>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub payer: Option<GlobalPayPayer>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub card: Option<Card>,
 }
