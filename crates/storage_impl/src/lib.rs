@@ -9,6 +9,7 @@ use hyperswitch_domain_models::{
 use masking::StrongSecret;
 use redis::{kv_store::RedisConnInterface, pub_sub::PubSubInterface, RedisStore};
 mod address;
+mod behaviour;
 pub mod callback_mapper;
 pub mod cards_info;
 pub mod config;
