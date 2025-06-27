@@ -727,6 +727,28 @@ impl super::behaviour::Conversion for MerchantAccount {
         Ok(diesel_models::MerchantAccount::from(setter))
     }
 
+    fn validate(
+        item: Self::DstType,
+        key_manager_identifier: keymanager::Identifier,
+    ) -> CustomResult<(), ValidationError>
+    where
+        Self: Sized,
+    {
+        match key_manager_identifier {
+            keymanager::Identifier::Merchant(merchant_id) => {
+                if *item.get_id() != merchant_id {
+                    return Err(ValidationError::IncorrectValueProvided {
+                        field_name: "MerchantAccount ID",
+                    }
+                    .into());
+                }
+
+                Ok(())
+            }
+            _ => Ok(()),
+        }
+    }
+
     async fn convert_back(
         state: &keymanager::KeyManagerState,
         item: Self::DstType,

@@ -30,6 +30,16 @@ impl super::behaviour::Conversion for UserKeyStore {
         })
     }
 
+    fn validate(
+        _item: Self::DstType,
+        _key_manager_identifier: Identifier,
+    ) -> CustomResult<(), ValidationError>
+    where
+        Self: Sized,
+    {
+        Ok(())
+    }
+
     async fn convert_back(
         state: &KeyManagerState,
         item: Self::DstType,
