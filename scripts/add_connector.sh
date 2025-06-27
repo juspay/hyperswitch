@@ -67,12 +67,20 @@ default_impl_files=(
   "crates/hyperswitch_connectors/src/default_implementations_v2.rs"
 )
 
+# Inserts the new connector into macro blocks in default_implementations files.
+# - If previous_connector exists in a macro, new_connector is added after it (maintaining logical order).
+# - If previous_connector is missing, new_connector is added at the top of the macro block.
+# - Ensures no duplicate entries and handles all default_imp macro variants.
+# Iterate through all files where default implementations are defined
 for file in "${default_impl_files[@]}"; do
   tmpfile="${file}.tmp"
 
+  # Use AWK to parse and update macro blocks for connector registration
   awk -v prev="$previous_connector_camelcase" -v new="$payment_gateway_camelcase" '
   BEGIN { in_macro = 0 }
+
   {
+    # Detect the beginning of a macro block like: default_imp_for_connector_authentication! {
     if ($0 ~ /^default_imp_for_.*!\s*[\({]$/) {
       in_macro = 1
       inserted = 0
@@ -87,10 +95,13 @@ for file in "${default_impl_files[@]}"; do
       next
     }
 
+    # If currently parsing a macro block
     if (in_macro) {
+      # Detect the closing line of the macro block
       if ((macro_close == "}" && $0 ~ /^[[:space:]]*}[[:space:]]*$/) ||
           (macro_close == ");" && $0 ~ /^[[:space:]]*\);[[:space:]]*$/)) {
 
+        # Analyze all collected lines inside macro to see if prev/new connectors are already present
         for (i = 1; i <= macro_lines_count; i++) {
           line = macro_lines[i]
           clean = line
@@ -100,13 +111,17 @@ for file in "${default_impl_files[@]}"; do
           if (clean == "connectors::" new ",") found_new = 1
         }
 
+        # Print the macro header first
         print macro_header
 
+        # If neither previous nor new connector is found in the list,
+        # insert the new connector at the top by default
         if (!found_prev && !found_new) {
           print "    connectors::" new ","
           inserted = 1
         }
 
+        # Now, go line by line through macro content and print each line
         for (i = 1; i <= macro_lines_count; i++) {
           line = macro_lines[i]
           clean = line
@@ -115,6 +130,8 @@ for file in "${default_impl_files[@]}"; do
 
           print "    " clean
 
+          # If we haven't inserted the new connector yet, and we just printed the previous connector,
+          # insert the new connector right after it
           if (!inserted && clean == "connectors::" prev ",") {
             if (!found_new) {
               print "    connectors::" new ","
@@ -123,15 +140,18 @@ for file in "${default_impl_files[@]}"; do
           }
         }
 
+        # Print the closing bracket/parenthesis of the macro
         print $0
         in_macro = 0
         next
       }
 
+      # Collect the current line as part of macro body
       macro_lines[++macro_lines_count] = $0
       next
     }
 
+    # For all lines outside macro blocks, print as is
     print $0
   }' "$file" > "$tmpfile" && mv "$tmpfile" "$file"
 done
