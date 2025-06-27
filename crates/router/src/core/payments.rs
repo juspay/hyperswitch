@@ -2129,6 +2129,7 @@ pub async fn record_attempt_core(
         should_sync_with_connector: false,
         payment_address: payment_data.payment_address.clone(),
         merchant_connector_details: None,
+        whole_connector_response: None,
     };
 
     let payment_status_data = (req.triggered_by == common_enums::TriggeredBy::Internal)
@@ -2162,6 +2163,7 @@ pub async fn record_attempt_core(
                     should_sync_with_connector: true,
                     payment_address: payment_data.payment_address.clone(),
                     merchant_connector_details: None,
+                    whole_connector_response: None,
                 },
             },
             CallConnectorAction::Trigger,

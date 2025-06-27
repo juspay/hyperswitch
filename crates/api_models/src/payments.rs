@@ -5362,6 +5362,9 @@ pub struct PaymentsConfirmIntentRequest {
 
     /// Merchant connector details used to make payments.
     pub merchant_connector_details: Option<MerchantConnectorDetails>,
+
+    /// If enabled, provides whole connector response
+    pub all_keys_required: Option<bool>,
 }
 
 #[cfg(feature = "v2")]
@@ -5537,6 +5540,9 @@ pub struct PaymentsRequest {
 
     /// Merchant connector details used to make payments.
     pub merchant_connector_details: Option<MerchantConnectorDetails>,
+
+    /// If enabled, provides whole connector response
+    pub all_keys_required: Option<bool>,
 }
 
 #[cfg(feature = "v2")]
@@ -5589,6 +5595,7 @@ impl From<&PaymentsRequest> for PaymentsConfirmIntentRequest {
             payment_method_id: request.payment_method_id.clone(),
             payment_token: None,
             merchant_connector_details: request.merchant_connector_details.clone(),
+            all_keys_required: request.all_keys_required,
         }
     }
 }
@@ -5789,6 +5796,9 @@ pub struct PaymentsResponse {
         example = "pay_mbabizu24mvu3mela5njyhpit4"
     )]
     pub merchant_reference_id: Option<id_type::PaymentReferenceId>,
+
+    /// Contains whole connector response
+    pub whole_connector_response: Option<String>,
 }
 
 #[cfg(feature = "v2")]
