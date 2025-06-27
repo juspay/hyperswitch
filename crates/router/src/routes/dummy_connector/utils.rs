@@ -323,7 +323,7 @@ impl types::DummyConnectorCard {
                     Ok(types::DummyConnectorCardFlow::NoThreeDS(
                         types::DummyConnectorStatus::Failed,
                         Some(errors::DummyConnectorErrors::PaymentDeclined {
-                            message: "Internal Server Error",
+                            message: "Internal Server Error from Connector, Please try again later",
                         }),
                     ))
                 }
