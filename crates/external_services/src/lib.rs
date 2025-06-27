@@ -28,6 +28,44 @@ pub mod managers;
 /// crm module
 pub mod crm;
 
+#[cfg(feature = "v2")]
+/// date_time module
+pub mod date_time {
+    use prost_types::Timestamp;
+    // use masking::{Deserialize, Serialize};
+    use time::{OffsetDateTime, PrimitiveDateTime};
+
+    use super::grpc_client::revenue_recovery::common;
+
+    /// Converts a `time::PrimitiveDateTime` to a `prost_types::Timestamp`.
+    pub fn convert_to_prost_timestamp(dt: PrimitiveDateTime) -> Timestamp {
+        let odt = dt.assume_utc();
+        Timestamp {
+            seconds: odt.unix_timestamp(),
+            // This conversion is safe as nanoseconds (0..999_999_999) always fit within an i32.
+            #[allow(clippy::as_conversions)]
+            nanos: odt.nanosecond() as i32,
+        }
+    }
+
+    /// Converts a `prost_types::Timestamp` to an `time::PrimitiveDateTime`.
+    pub fn convert_from_prost_timestamp(
+        ts: &Timestamp,
+    ) -> Result<PrimitiveDateTime, common::DateTimeConversionError> {
+        let timestamp_nanos = i128::from(ts.seconds) * 1_000_000_000 + i128::from(ts.nanos);
+
+        OffsetDateTime::from_unix_timestamp_nanos(timestamp_nanos)
+            .map(|offset_dt| PrimitiveDateTime::new(offset_dt.date(), offset_dt.time()))
+            .map_err(|original_error| {
+                router_env::logger::debug!(
+                    "Prost timestamp conversion failed: {:?}",
+                    original_error
+                );
+                common::DateTimeConversionError::TimestampOutOfRange
+            })
+    }
+}
+
 /// Crate specific constants
 #[cfg(feature = "aws_kms")]
 pub mod consts {

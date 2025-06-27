@@ -1,0 +1,25 @@
+syntax = "proto3";
+
+package decider;
+
+import "google/protobuf/timestamp.proto";
+
+service Decider {
+  rpc Decide (DeciderRequest) returns (DeciderResponse);
+}
+
+message DeciderRequest {
+  string first_error_message = 1;
+  string billing_state = 2;
+  string card_funding = 3;
+  string card_network = 4;
+  string card_issuer = 5;
+  google.protobuf.Timestamp start_time = 6;
+  google.protobuf.Timestamp end_time = 7;
+  double retry_count = 8;
+}
+
+message DeciderResponse {
+  bool retry_flag = 1;
+  google.protobuf.Timestamp retry_time = 2;
+}
