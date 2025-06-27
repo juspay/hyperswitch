@@ -1,5 +1,5 @@
-use api_models::admin::ConnectorAuthType;
 use common_enums::{AttemptStatus, PaymentMethodType};
+use hyperswitch_domain_models::router_data::ConnectorAuthType;
 use common_utils::{errors::CustomResult, ext_traits::ValueExt};
 use error_stack::ResultExt;
 use external_services::{
@@ -7,6 +7,10 @@ use external_services::{
     grpc_client::unified_connector_service::{ConnectorAuthMetadata, UnifiedConnectorServiceError},
 };
 use hyperswitch_connectors::utils::CardData;
+#[cfg(feature = "v2")]
+use hyperswitch_domain_models::{
+    merchant_connector_account::MerchantConnectorAccountTypeDetails
+};
 use hyperswitch_domain_models::{
     merchant_context::MerchantContext,
     router_data::{ErrorResponse, RouterData},
@@ -115,13 +119,21 @@ pub fn build_unified_connector_service_payment_method(
 }
 
 pub fn build_unified_connector_service_auth_metadata(
-    merchant_connector_account: MerchantConnectorAccountType,
+    #[cfg(feature = "v1")] merchant_connector_account: MerchantConnectorAccountType,
+    #[cfg(feature = "v2")] merchant_connector_account: MerchantConnectorAccountTypeDetails,
 ) -> CustomResult<ConnectorAuthMetadata, UnifiedConnectorServiceError> {
+    #[cfg(feature = "v1")]
     let auth_type: ConnectorAuthType = merchant_connector_account
         .get_connector_account_details()
         .parse_value("ConnectorAuthType")
         .change_context(UnifiedConnectorServiceError::FailedToObtainAuthType)
         .attach_printable("Failed while parsing value for ConnectorAuthType")?;
+
+    #[cfg(feature = "v2")]
+    let auth_type: ConnectorAuthType = merchant_connector_account
+        .get_connector_account_details()
+        .change_context(UnifiedConnectorServiceError::FailedToObtainAuthType)
+        .attach_printable("Failed to obtain ConnectorAuthType")?;
 
     let connector_name = {
         #[cfg(feature = "v1")]

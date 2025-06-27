@@ -207,7 +207,7 @@ where
 
     let payment_data = match connector {
         ConnectorCallType::PreDetermined(connector_data) => {
-            let (mca_type, mca_type_details, updated_customer, router_data) =
+            let (mca_type_details, updated_customer, router_data) =
                 call_connector_service_prerequisites(
                     state,
                     req_state.clone(),
@@ -247,7 +247,6 @@ where
                 false,
                 false,
                 req.get_all_keys_required(),
-                mca_type,
                 mca_type_details,
                 router_data,
                 updated_customer,
@@ -282,7 +281,7 @@ where
             let mut connectors = connectors.clone().into_iter();
             let connector_data = get_connector_data(&mut connectors)?;
 
-            let (mca_type, mca_type_details, updated_customer, router_data) =
+            let (mca_type_details, updated_customer, router_data) =
                 call_connector_service_prerequisites(
                     state,
                     req_state.clone(),
@@ -322,7 +321,6 @@ where
                 true,
                 false,
                 req.get_all_keys_required(),
-                mca_type,
                 mca_type_details,
                 router_data,
                 updated_customer,
@@ -4029,7 +4027,6 @@ pub async fn call_connector_service_prerequisites<F, RouterDReq, ApiRequest, D>(
     should_retry_with_pan: bool,
     all_keys_required: Option<bool>,
 ) -> RouterResult<(
-    helpers::MerchantConnectorAccountType,
     domain::MerchantConnectorAccountTypeDetails,
     Option<storage::CustomerUpdate>,
     RouterData<F, RouterDReq, router_types::PaymentsResponseData>,
@@ -4088,19 +4085,7 @@ where
         )
         .await?;
 
-    let merchant_connector_account_type = helpers::get_merchant_connector_account(
-        state,
-        merchant_context.get_merchant_account().get_id(),
-        payment_data.get_creds_identifier(),
-        merchant_context.get_merchant_key_store(),
-        business_profile.get_id(),
-        connector.connector_name.to_string().as_str(),
-        connector.merchant_connector_id.as_ref(),
-    )
-    .await?;
-
     Ok((
-        merchant_connector_account_type,
         merchant_connector_account_type_details,
         updated_customer,
         router_data,
@@ -4125,7 +4110,6 @@ pub async fn decide_unified_connector_service_call<F, RouterDReq, ApiRequest, D>
     is_retry_payment: bool,
     should_retry_with_pan: bool,
     all_keys_required: Option<bool>,
-    merchant_connector_account_type: helpers::MerchantConnectorAccountType,
     merchant_connector_account_type_details: domain::MerchantConnectorAccountTypeDetails,
     mut router_data: RouterData<F, RouterDReq, router_types::PaymentsResponseData>,
     updated_customer: Option<storage::CustomerUpdate>,
@@ -4176,7 +4160,10 @@ where
                     .await?;
 
                 router_data
-                    .call_unified_connector_service(state, merchant_connector_account_type.clone())
+                    .call_unified_connector_service(
+                        state,
+                        merchant_connector_account_type_details.clone(),
+                    )
                     .await?;
 
                 Ok(router_data)

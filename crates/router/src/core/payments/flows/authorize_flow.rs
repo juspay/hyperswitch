@@ -426,7 +426,9 @@ impl Feature<api::Authorize, types::PaymentsAuthorizeData> for types::PaymentsAu
     async fn call_unified_connector_service<'a>(
         &mut self,
         state: &SessionState,
-        merchant_connector_account: helpers::MerchantConnectorAccountType,
+        #[cfg(feature = "v1")] merchant_connector_account: helpers::MerchantConnectorAccountType,
+        #[cfg(feature = "v2")]
+        merchant_connector_account: domain::MerchantConnectorAccountTypeDetails,
     ) -> RouterResult<()> {
         let client = state
             .grpc_client
