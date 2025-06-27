@@ -1718,3 +1718,735 @@ impl<T: DatabaseStore> PaymentIntentInterface for crate::RouterStore<T> {
         })
     }
 }
+
+// This conversion is used in the `update_payment_intent` function
+#[cfg(feature = "v2")]
+impl TryFrom<PaymentIntentUpdate> for diesel_models::PaymentIntentUpdateInternal {
+    type Error = error_stack::Report<ParsingError>;
+    fn try_from(payment_intent_update: PaymentIntentUpdate) -> Result<Self, Self::Error> {
+        match payment_intent_update {
+            PaymentIntentUpdate::ConfirmIntent {
+                status,
+                active_attempt_id,
+                updated_by,
+            } => Ok(Self {
+                status: Some(status),
+                active_attempt_id: Some(active_attempt_id),
+                prerouting_algorithm: None,
+                modified_at: common_utils::date_time::now(),
+                amount: None,
+                amount_captured: None,
+                currency: None,
+                shipping_cost: None,
+                tax_details: None,
+                skip_external_tax_calculation: None,
+                surcharge_applicable: None,
+                surcharge_amount: None,
+                tax_on_surcharge: None,
+                routing_algorithm_id: None,
+                capture_method: None,
+                authentication_type: None,
+                billing_address: None,
+                shipping_address: None,
+                customer_present: None,
+                description: None,
+                return_url: None,
+                setup_future_usage: None,
+                apply_mit_exemption: None,
+                statement_descriptor: None,
+                order_details: None,
+                allowed_payment_method_types: None,
+                metadata: None,
+                connector_metadata: None,
+                feature_metadata: None,
+                payment_link_config: None,
+                request_incremental_authorization: None,
+                session_expiry: None,
+                frm_metadata: None,
+                request_external_three_ds_authentication: None,
+                updated_by,
+                force_3ds_challenge: None,
+                is_iframe_redirection_enabled: None,
+            }),
+
+            PaymentIntentUpdate::ConfirmIntentPostUpdate {
+                status,
+                updated_by,
+                amount_captured,
+                feature_metadata,
+            } => Ok(Self {
+                status: Some(status),
+                active_attempt_id: None,
+                prerouting_algorithm: None,
+                modified_at: common_utils::date_time::now(),
+                amount_captured,
+                amount: None,
+                currency: None,
+                shipping_cost: None,
+                tax_details: None,
+                skip_external_tax_calculation: None,
+                surcharge_applicable: None,
+                surcharge_amount: None,
+                tax_on_surcharge: None,
+                routing_algorithm_id: None,
+                capture_method: None,
+                authentication_type: None,
+                billing_address: None,
+                shipping_address: None,
+                customer_present: None,
+                description: None,
+                return_url: None,
+                setup_future_usage: None,
+                apply_mit_exemption: None,
+                statement_descriptor: None,
+                order_details: None,
+                allowed_payment_method_types: None,
+                metadata: None,
+                connector_metadata: None,
+                feature_metadata: feature_metadata.map(|val| *val),
+                payment_link_config: None,
+                request_incremental_authorization: None,
+                session_expiry: None,
+                frm_metadata: None,
+                request_external_three_ds_authentication: None,
+                updated_by,
+                force_3ds_challenge: None,
+                is_iframe_redirection_enabled: None,
+            }),
+            PaymentIntentUpdate::SyncUpdate {
+                status,
+                amount_captured,
+                updated_by,
+            } => Ok(Self {
+                status: Some(status),
+                active_attempt_id: None,
+                prerouting_algorithm: None,
+                modified_at: common_utils::date_time::now(),
+                amount: None,
+                currency: None,
+                amount_captured,
+                shipping_cost: None,
+                tax_details: None,
+                skip_external_tax_calculation: None,
+                surcharge_applicable: None,
+                surcharge_amount: None,
+                tax_on_surcharge: None,
+                routing_algorithm_id: None,
+                capture_method: None,
+                authentication_type: None,
+                billing_address: None,
+                shipping_address: None,
+                customer_present: None,
+                description: None,
+                return_url: None,
+                setup_future_usage: None,
+                apply_mit_exemption: None,
+                statement_descriptor: None,
+                order_details: None,
+                allowed_payment_method_types: None,
+                metadata: None,
+                connector_metadata: None,
+                feature_metadata: None,
+                payment_link_config: None,
+                request_incremental_authorization: None,
+                session_expiry: None,
+                frm_metadata: None,
+                request_external_three_ds_authentication: None,
+                updated_by,
+                force_3ds_challenge: None,
+                is_iframe_redirection_enabled: None,
+            }),
+            PaymentIntentUpdate::CaptureUpdate {
+                status,
+                amount_captured,
+                updated_by,
+            } => Ok(Self {
+                status: Some(status),
+                amount_captured,
+                active_attempt_id: None,
+                prerouting_algorithm: None,
+                modified_at: common_utils::date_time::now(),
+                amount: None,
+                currency: None,
+                shipping_cost: None,
+                tax_details: None,
+                skip_external_tax_calculation: None,
+                surcharge_applicable: None,
+                surcharge_amount: None,
+                tax_on_surcharge: None,
+                routing_algorithm_id: None,
+                capture_method: None,
+                authentication_type: None,
+                billing_address: None,
+                shipping_address: None,
+                customer_present: None,
+                description: None,
+                return_url: None,
+                setup_future_usage: None,
+                apply_mit_exemption: None,
+                statement_descriptor: None,
+                order_details: None,
+                allowed_payment_method_types: None,
+                metadata: None,
+                connector_metadata: None,
+                feature_metadata: None,
+                payment_link_config: None,
+                request_incremental_authorization: None,
+                session_expiry: None,
+                frm_metadata: None,
+                request_external_three_ds_authentication: None,
+                updated_by,
+                force_3ds_challenge: None,
+                is_iframe_redirection_enabled: None,
+            }),
+            PaymentIntentUpdate::SessionIntentUpdate {
+                prerouting_algorithm,
+                updated_by,
+            } => Ok(Self {
+                status: None,
+                active_attempt_id: None,
+                modified_at: common_utils::date_time::now(),
+                amount_captured: None,
+                prerouting_algorithm: Some(
+                    prerouting_algorithm
+                        .encode_to_value()
+                        .attach_printable("Failed to Serialize prerouting_algorithm")?,
+                ),
+                amount: None,
+                currency: None,
+                shipping_cost: None,
+                tax_details: None,
+                skip_external_tax_calculation: None,
+                surcharge_applicable: None,
+                surcharge_amount: None,
+                tax_on_surcharge: None,
+                routing_algorithm_id: None,
+                capture_method: None,
+                authentication_type: None,
+                billing_address: None,
+                shipping_address: None,
+                customer_present: None,
+                description: None,
+                return_url: None,
+                setup_future_usage: None,
+                apply_mit_exemption: None,
+                statement_descriptor: None,
+                order_details: None,
+                allowed_payment_method_types: None,
+                metadata: None,
+                connector_metadata: None,
+                feature_metadata: None,
+                payment_link_config: None,
+                request_incremental_authorization: None,
+                session_expiry: None,
+                frm_metadata: None,
+                request_external_three_ds_authentication: None,
+                updated_by,
+                force_3ds_challenge: None,
+                is_iframe_redirection_enabled: None,
+            }),
+            PaymentIntentUpdate::UpdateIntent(boxed_intent) => {
+                let PaymentIntentUpdateFields {
+                    amount,
+                    currency,
+                    shipping_cost,
+                    tax_details,
+                    skip_external_tax_calculation,
+                    skip_surcharge_calculation,
+                    surcharge_amount,
+                    tax_on_surcharge,
+                    routing_algorithm_id,
+                    capture_method,
+                    authentication_type,
+                    billing_address,
+                    shipping_address,
+                    customer_present,
+                    description,
+                    return_url,
+                    setup_future_usage,
+                    apply_mit_exemption,
+                    statement_descriptor,
+                    order_details,
+                    allowed_payment_method_types,
+                    metadata,
+                    connector_metadata,
+                    feature_metadata,
+                    payment_link_config,
+                    request_incremental_authorization,
+                    session_expiry,
+                    frm_metadata,
+                    request_external_three_ds_authentication,
+                    active_attempt_id,
+                    updated_by,
+                    force_3ds_challenge,
+                    is_iframe_redirection_enabled,
+                } = *boxed_intent;
+                Ok(Self {
+                    status: None,
+                    active_attempt_id,
+                    prerouting_algorithm: None,
+                    modified_at: common_utils::date_time::now(),
+                    amount_captured: None,
+                    amount,
+                    currency,
+                    shipping_cost,
+                    tax_details,
+                    skip_external_tax_calculation: skip_external_tax_calculation
+                        .map(|val| val.as_bool()),
+                    surcharge_applicable: skip_surcharge_calculation.map(|val| val.as_bool()),
+                    surcharge_amount,
+                    tax_on_surcharge,
+                    routing_algorithm_id,
+                    capture_method,
+                    authentication_type,
+                    billing_address: billing_address.map(Encryption::from),
+                    shipping_address: shipping_address.map(Encryption::from),
+                    customer_present: customer_present.map(|val| val.as_bool()),
+                    description,
+                    return_url,
+                    setup_future_usage,
+                    apply_mit_exemption: apply_mit_exemption.map(|val| val.as_bool()),
+                    statement_descriptor,
+                    order_details,
+                    allowed_payment_method_types: allowed_payment_method_types
+                        .map(|allowed_payment_method_types| {
+                            allowed_payment_method_types.encode_to_value()
+                        })
+                        .and_then(|r| r.ok().map(Secret::new)),
+                    metadata,
+                    connector_metadata,
+                    feature_metadata,
+                    payment_link_config,
+                    request_incremental_authorization,
+                    session_expiry,
+                    frm_metadata,
+                    request_external_three_ds_authentication:
+                        request_external_three_ds_authentication.map(|val| val.as_bool()),
+
+                    updated_by,
+                    force_3ds_challenge,
+                    is_iframe_redirection_enabled,
+                })
+            }
+            PaymentIntentUpdate::RecordUpdate {
+                status,
+                feature_metadata,
+                updated_by,
+                active_attempt_id,
+            } => Ok(Self {
+                status: Some(status),
+                amount_captured: None,
+                active_attempt_id: Some(active_attempt_id),
+                modified_at: common_utils::date_time::now(),
+                amount: None,
+                currency: None,
+                shipping_cost: None,
+                tax_details: None,
+                skip_external_tax_calculation: None,
+                surcharge_applicable: None,
+                surcharge_amount: None,
+                tax_on_surcharge: None,
+                routing_algorithm_id: None,
+                capture_method: None,
+                authentication_type: None,
+                billing_address: None,
+                shipping_address: None,
+                customer_present: None,
+                description: None,
+                return_url: None,
+                setup_future_usage: None,
+                apply_mit_exemption: None,
+                statement_descriptor: None,
+                order_details: None,
+                allowed_payment_method_types: None,
+                metadata: None,
+                connector_metadata: None,
+                feature_metadata: *feature_metadata,
+                payment_link_config: None,
+                request_incremental_authorization: None,
+                prerouting_algorithm: None,
+                session_expiry: None,
+                frm_metadata: None,
+                request_external_three_ds_authentication: None,
+                updated_by,
+                force_3ds_challenge: None,
+                is_iframe_redirection_enabled: None,
+            }),
+        }
+    }
+}
+
+
+#[cfg(feature = "v2")]
+#[async_trait::async_trait]
+impl behaviour::Conversion for PaymentIntent {
+    type DstType = DieselPaymentIntent;
+    type NewDstType = DieselPaymentIntentNew;
+
+    async fn convert(self) -> CustomResult<Self::DstType, ValidationError> {
+        let Self {
+            merchant_id,
+            amount_details,
+            status,
+            amount_captured,
+            customer_id,
+            description,
+            return_url,
+            metadata,
+            statement_descriptor,
+            created_at,
+            modified_at,
+            last_synced,
+            setup_future_usage,
+            active_attempt_id,
+            order_details,
+            allowed_payment_method_types,
+            connector_metadata,
+            feature_metadata,
+            attempt_count,
+            profile_id,
+            payment_link_id,
+            frm_merchant_decision,
+            updated_by,
+            request_incremental_authorization,
+            authorization_count,
+            session_expiry,
+            request_external_three_ds_authentication,
+            frm_metadata,
+            customer_details,
+            merchant_reference_id,
+            billing_address,
+            shipping_address,
+            capture_method,
+            id,
+            authentication_type,
+            prerouting_algorithm,
+            organization_id,
+            enable_payment_link,
+            apply_mit_exemption,
+            customer_present,
+            routing_algorithm_id,
+            payment_link_config,
+            split_payments,
+            force_3ds_challenge,
+            force_3ds_challenge_trigger,
+            processor_merchant_id,
+            created_by,
+            is_iframe_redirection_enabled,
+        } = self;
+        Ok(DieselPaymentIntent {
+            skip_external_tax_calculation: Some(amount_details.get_external_tax_action_as_bool()),
+            surcharge_applicable: Some(amount_details.get_surcharge_action_as_bool()),
+            merchant_id,
+            status,
+            amount: amount_details.order_amount,
+            currency: amount_details.currency,
+            amount_captured,
+            customer_id,
+            description,
+            return_url,
+            metadata,
+            statement_descriptor,
+            created_at,
+            modified_at,
+            last_synced,
+            setup_future_usage: Some(setup_future_usage),
+            active_attempt_id,
+            order_details: order_details.map(|order_details| {
+                order_details
+                    .into_iter()
+                    .map(|order_detail| Secret::new(order_detail.expose()))
+                    .collect::<Vec<_>>()
+            }),
+            allowed_payment_method_types: allowed_payment_method_types
+                .map(|allowed_payment_method_types| {
+                    allowed_payment_method_types
+                        .encode_to_value()
+                        .change_context(ValidationError::InvalidValue {
+                            message: "Failed to serialize allowed_payment_method_types".to_string(),
+                        })
+                })
+                .transpose()?
+                .map(Secret::new),
+            connector_metadata,
+            feature_metadata,
+            attempt_count,
+            profile_id,
+            frm_merchant_decision,
+            payment_link_id,
+            updated_by,
+
+            request_incremental_authorization: Some(request_incremental_authorization),
+            authorization_count,
+            session_expiry,
+            request_external_three_ds_authentication: Some(
+                request_external_three_ds_authentication.as_bool(),
+            ),
+            frm_metadata,
+            customer_details: customer_details.map(Encryption::from),
+            billing_address: billing_address.map(Encryption::from),
+            shipping_address: shipping_address.map(Encryption::from),
+            capture_method: Some(capture_method),
+            id,
+            authentication_type,
+            prerouting_algorithm: prerouting_algorithm
+                .map(|prerouting_algorithm| {
+                    prerouting_algorithm.encode_to_value().change_context(
+                        ValidationError::InvalidValue {
+                            message: "Failed to serialize prerouting_algorithm".to_string(),
+                        },
+                    )
+                })
+                .transpose()?,
+            merchant_reference_id,
+            surcharge_amount: amount_details.surcharge_amount,
+            tax_on_surcharge: amount_details.tax_on_surcharge,
+            organization_id,
+            shipping_cost: amount_details.shipping_cost,
+            tax_details: amount_details.tax_details,
+            enable_payment_link: Some(enable_payment_link.as_bool()),
+            apply_mit_exemption: Some(apply_mit_exemption.as_bool()),
+            customer_present: Some(customer_present.as_bool()),
+            payment_link_config,
+            routing_algorithm_id,
+            psd2_sca_exemption_type: None,
+            request_extended_authorization: None,
+            platform_merchant_id: None,
+            split_payments,
+            force_3ds_challenge,
+            force_3ds_challenge_trigger,
+            processor_merchant_id: Some(processor_merchant_id),
+            created_by: created_by.map(|cb| cb.to_string()),
+            is_iframe_redirection_enabled,
+        })
+    }
+    async fn convert_back(
+        state: &KeyManagerState,
+        storage_model: Self::DstType,
+        key: &Secret<Vec<u8>>,
+        key_manager_identifier: keymanager::Identifier,
+    ) -> CustomResult<Self, ValidationError>
+    where
+        Self: Sized,
+    {
+        async {
+            let decrypted_data = crypto_operation(
+                state,
+                type_name!(Self::DstType),
+                CryptoOperation::BatchDecrypt(super::EncryptedPaymentIntent::to_encryptable(
+                    super::EncryptedPaymentIntent {
+                        billing_address: storage_model.billing_address,
+                        shipping_address: storage_model.shipping_address,
+                        customer_details: storage_model.customer_details,
+                    },
+                )),
+                key_manager_identifier,
+                key.peek(),
+            )
+            .await
+            .and_then(|val| val.try_into_batchoperation())?;
+
+            let data = super::EncryptedPaymentIntent::from_encryptable(decrypted_data)
+                .change_context(common_utils::errors::CryptoError::DecodingFailed)
+                .attach_printable("Invalid batch operation data")?;
+
+            let amount_details = super::AmountDetails {
+                order_amount: storage_model.amount,
+                currency: storage_model.currency,
+                surcharge_amount: storage_model.surcharge_amount,
+                tax_on_surcharge: storage_model.tax_on_surcharge,
+                shipping_cost: storage_model.shipping_cost,
+                tax_details: storage_model.tax_details,
+                skip_external_tax_calculation: common_enums::TaxCalculationOverride::from(
+                    storage_model.skip_external_tax_calculation,
+                ),
+                skip_surcharge_calculation: common_enums::SurchargeCalculationOverride::from(
+                    storage_model.surcharge_applicable,
+                ),
+                amount_captured: storage_model.amount_captured,
+            };
+
+            let billing_address = data
+                .billing_address
+                .map(|billing| {
+                    billing.deserialize_inner_value(|value| value.parse_value("Address"))
+                })
+                .transpose()
+                .change_context(common_utils::errors::CryptoError::DecodingFailed)
+                .attach_printable("Error while deserializing Address")?;
+
+            let shipping_address = data
+                .shipping_address
+                .map(|shipping| {
+                    shipping.deserialize_inner_value(|value| value.parse_value("Address"))
+                })
+                .transpose()
+                .change_context(common_utils::errors::CryptoError::DecodingFailed)
+                .attach_printable("Error while deserializing Address")?;
+            let allowed_payment_method_types = storage_model
+                .allowed_payment_method_types
+                .map(|allowed_payment_method_types| {
+                    allowed_payment_method_types.parse_value("Vec<PaymentMethodType>")
+                })
+                .transpose()
+                .change_context(common_utils::errors::CryptoError::DecodingFailed)?;
+            Ok::<Self, error_stack::Report<common_utils::errors::CryptoError>>(Self {
+                merchant_id: storage_model.merchant_id.clone(),
+                status: storage_model.status,
+                amount_details,
+                amount_captured: storage_model.amount_captured,
+                customer_id: storage_model.customer_id,
+                description: storage_model.description,
+                return_url: storage_model.return_url,
+                metadata: storage_model.metadata,
+                statement_descriptor: storage_model.statement_descriptor,
+                created_at: storage_model.created_at,
+                modified_at: storage_model.modified_at,
+                last_synced: storage_model.last_synced,
+                setup_future_usage: storage_model.setup_future_usage.unwrap_or_default(),
+                active_attempt_id: storage_model.active_attempt_id,
+                order_details: storage_model.order_details.map(|order_details| {
+                    order_details
+                        .into_iter()
+                        .map(|order_detail| Secret::new(order_detail.expose()))
+                        .collect::<Vec<_>>()
+                }),
+                allowed_payment_method_types,
+                connector_metadata: storage_model.connector_metadata,
+                feature_metadata: storage_model.feature_metadata,
+                attempt_count: storage_model.attempt_count,
+                profile_id: storage_model.profile_id,
+                frm_merchant_decision: storage_model.frm_merchant_decision,
+                payment_link_id: storage_model.payment_link_id,
+                updated_by: storage_model.updated_by,
+                request_incremental_authorization: storage_model
+                    .request_incremental_authorization
+                    .unwrap_or_default(),
+                authorization_count: storage_model.authorization_count,
+                session_expiry: storage_model.session_expiry,
+                request_external_three_ds_authentication: storage_model
+                    .request_external_three_ds_authentication
+                    .into(),
+                frm_metadata: storage_model.frm_metadata,
+                customer_details: data.customer_details,
+                billing_address,
+                shipping_address,
+                capture_method: storage_model.capture_method.unwrap_or_default(),
+                id: storage_model.id,
+                merchant_reference_id: storage_model.merchant_reference_id,
+                organization_id: storage_model.organization_id,
+                authentication_type: storage_model.authentication_type,
+                prerouting_algorithm: storage_model
+                    .prerouting_algorithm
+                    .map(|prerouting_algorithm_value| {
+                        prerouting_algorithm_value
+                            .parse_value("PaymentRoutingInfo")
+                            .change_context(common_utils::errors::CryptoError::DecodingFailed)
+                    })
+                    .transpose()?,
+                enable_payment_link: storage_model.enable_payment_link.into(),
+                apply_mit_exemption: storage_model.apply_mit_exemption.into(),
+                customer_present: storage_model.customer_present.into(),
+                payment_link_config: storage_model.payment_link_config,
+                routing_algorithm_id: storage_model.routing_algorithm_id,
+                split_payments: storage_model.split_payments,
+                force_3ds_challenge: storage_model.force_3ds_challenge,
+                force_3ds_challenge_trigger: storage_model.force_3ds_challenge_trigger,
+                processor_merchant_id: storage_model
+                    .processor_merchant_id
+                    .unwrap_or(storage_model.merchant_id),
+                created_by: storage_model
+                    .created_by
+                    .and_then(|created_by| created_by.parse::<CreatedBy>().ok()),
+                is_iframe_redirection_enabled: storage_model.is_iframe_redirection_enabled,
+            })
+        }
+        .await
+        .change_context(ValidationError::InvalidValue {
+            message: "Failed while decrypting payment intent".to_string(),
+        })
+    }
+
+    async fn construct_new(self) -> CustomResult<Self::NewDstType, ValidationError> {
+        let amount_details = self.amount_details;
+
+        Ok(DieselPaymentIntentNew {
+            surcharge_applicable: Some(amount_details.get_surcharge_action_as_bool()),
+            skip_external_tax_calculation: Some(amount_details.get_external_tax_action_as_bool()),
+            merchant_id: self.merchant_id,
+            status: self.status,
+            amount: amount_details.order_amount,
+            currency: amount_details.currency,
+            amount_captured: self.amount_captured,
+            customer_id: self.customer_id,
+            description: self.description,
+            return_url: self.return_url,
+            metadata: self.metadata,
+            statement_descriptor: self.statement_descriptor,
+            created_at: self.created_at,
+            modified_at: self.modified_at,
+            last_synced: self.last_synced,
+            setup_future_usage: Some(self.setup_future_usage),
+            active_attempt_id: self.active_attempt_id,
+            order_details: self.order_details,
+            allowed_payment_method_types: self
+                .allowed_payment_method_types
+                .map(|allowed_payment_method_types| {
+                    allowed_payment_method_types
+                        .encode_to_value()
+                        .change_context(ValidationError::InvalidValue {
+                            message: "Failed to serialize allowed_payment_method_types".to_string(),
+                        })
+                })
+                .transpose()?
+                .map(Secret::new),
+            connector_metadata: self.connector_metadata,
+            feature_metadata: self.feature_metadata,
+            attempt_count: self.attempt_count,
+            profile_id: self.profile_id,
+            frm_merchant_decision: self.frm_merchant_decision,
+            payment_link_id: self.payment_link_id,
+            updated_by: self.updated_by,
+
+            request_incremental_authorization: Some(self.request_incremental_authorization),
+            authorization_count: self.authorization_count,
+            session_expiry: self.session_expiry,
+            request_external_three_ds_authentication: Some(
+                self.request_external_three_ds_authentication.as_bool(),
+            ),
+            frm_metadata: self.frm_metadata,
+            customer_details: self.customer_details.map(Encryption::from),
+            billing_address: self.billing_address.map(Encryption::from),
+            shipping_address: self.shipping_address.map(Encryption::from),
+            capture_method: Some(self.capture_method),
+            id: self.id,
+            merchant_reference_id: self.merchant_reference_id,
+            authentication_type: self.authentication_type,
+            prerouting_algorithm: self
+                .prerouting_algorithm
+                .map(|prerouting_algorithm| {
+                    prerouting_algorithm.encode_to_value().change_context(
+                        ValidationError::InvalidValue {
+                            message: "Failed to serialize prerouting_algorithm".to_string(),
+                        },
+                    )
+                })
+                .transpose()?,
+            surcharge_amount: amount_details.surcharge_amount,
+            tax_on_surcharge: amount_details.tax_on_surcharge,
+            organization_id: self.organization_id,
+            shipping_cost: amount_details.shipping_cost,
+            tax_details: amount_details.tax_details,
+            enable_payment_link: Some(self.enable_payment_link.as_bool()),
+            apply_mit_exemption: Some(self.apply_mit_exemption.as_bool()),
+            platform_merchant_id: None,
+            force_3ds_challenge: self.force_3ds_challenge,
+            force_3ds_challenge_trigger: self.force_3ds_challenge_trigger,
+            processor_merchant_id: Some(self.processor_merchant_id),
+            created_by: self.created_by.map(|cb| cb.to_string()),
+            is_iframe_redirection_enabled: self.is_iframe_redirection_enabled,
+            routing_algorithm_id: self.routing_algorithm_id,
+        })
+    }
+}
+

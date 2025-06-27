@@ -278,7 +278,7 @@ pub struct AmountDetails {
 #[cfg(feature = "v2")]
 impl AmountDetails {
     /// Get the action to whether calculate surcharge or not as a boolean value
-    fn get_surcharge_action_as_bool(&self) -> bool {
+    pub fn get_surcharge_action_as_bool(&self) -> bool {
         self.skip_surcharge_calculation.as_bool()
     }
 

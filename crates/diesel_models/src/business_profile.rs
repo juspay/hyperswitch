@@ -772,7 +772,7 @@ pub struct PaymentLinkConfigRequest {
     pub enabled_saved_payment_method: Option<bool>,
     pub hide_card_nickname_field: Option<bool>,
     pub show_card_form_by_default: Option<bool>,
-    pub background_image: Option<PaymentLinkBackgroundImageConfig>,
+    pub background_image: Option<common_types::payments::PaymentLinkBackgroundImageConfig>,
     pub details_layout: Option<common_enums::PaymentLinkDetailsLayout>,
     pub payment_button_text: Option<String>,
     pub custom_message_for_card_terms: Option<String>,
@@ -790,12 +790,7 @@ pub struct PaymentLinkConfigRequest {
     pub color_icon_card_cvc_error: Option<String>,
 }
 
-#[derive(Clone, Debug, serde::Deserialize, serde::Serialize, PartialEq)]
-pub struct PaymentLinkBackgroundImageConfig {
-    pub url: common_utils::types::Url,
-    pub position: Option<common_enums::ElementPosition>,
-    pub size: Option<common_enums::ElementSize>,
-}
+
 
 common_utils::impl_to_sql_from_sql_json!(BusinessPaymentLinkConfig);
 
