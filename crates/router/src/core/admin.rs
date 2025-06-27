@@ -1363,6 +1363,10 @@ impl ConnectorAuthTypeAndMetadataValidation<'_> {
         use crate::connector::*;
 
         match self.connector_name {
+            api_enums::Connector::Dwolla => {
+                dwolla::transformers::DwollaAuthType::try_from(self.auth_type)?;
+                Ok(())
+            }
             api_enums::Connector::Vgs => {
                 vgs::transformers::VgsAuthType::try_from(self.auth_type)?;
                 Ok(())
