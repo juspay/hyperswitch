@@ -156,11 +156,11 @@ pub(crate) trait ForeignTryFrom<F>: Sized {
 }
 
 
-pub trait ForeignInto<T> {
+pub(crate) trait ForeignInto<T> {
     fn foreign_into(self) -> T;
 }
 
-pub trait ForeignTryInto<T> {
+pub(crate) trait ForeignTryInto<T> {
     type Error;
 
     fn foreign_try_into(self) -> Result<T, Self::Error>;
