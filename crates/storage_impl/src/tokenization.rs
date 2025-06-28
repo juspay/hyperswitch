@@ -147,3 +147,54 @@ impl<T: DatabaseStore> TokenizationInterface for KVRouterStore<T> {}
 
 #[cfg(not(all(feature = "v2", feature = "tokenization_v2")))]
 impl<T: DatabaseStore> TokenizationInterface for RouterStore<T> {}
+
+
+#[async_trait::async_trait]
+impl super::behaviour::Conversion for Tokenization {
+    type DstType = diesel_models::tokenization::Tokenization;
+    type NewDstType = diesel_models::tokenization::Tokenization;
+
+    async fn convert(self) -> CustomResult<Self::DstType, ValidationError> {
+        Ok(diesel_models::tokenization::Tokenization {
+            id: self.id,
+            merchant_id: self.merchant_id,
+            customer_id: self.customer_id,
+            locker_id: self.locker_id,
+            created_at: self.created_at,
+            updated_at: self.updated_at,
+            version: self.version,
+            flag: self.flag,
+        })
+    }
+
+    async fn convert_back(
+        _state: &keymanager::KeyManagerState,
+        item: Self::DstType,
+        _key: &Secret<Vec<u8>>,
+        _key_manager_identifier: keymanager::Identifier,
+    ) -> CustomResult<Self, ValidationError> {
+        Ok(Self {
+            id: item.id,
+            merchant_id: item.merchant_id,
+            customer_id: item.customer_id,
+            locker_id: item.locker_id,
+            created_at: item.created_at,
+            updated_at: item.updated_at,
+            flag: item.flag,
+            version: item.version,
+        })
+    }
+
+    async fn construct_new(self) -> CustomResult<Self::NewDstType, ValidationError> {
+        Ok(diesel_models::tokenization::Tokenization {
+            id: self.id,
+            merchant_id: self.merchant_id,
+            customer_id: self.customer_id,
+            locker_id: self.locker_id,
+            created_at: self.created_at,
+            updated_at: self.updated_at,
+            version: self.version,
+            flag: self.flag,
+        })
+    }
+}
