@@ -1,7 +1,39 @@
+use crate::utils::ForeignFrom;
+use common_utils::date_time;
+use common_utils::encryption::Encryption;
+use common_utils::errors::CustomResult;
+use common_utils::errors::ValidationError;
+use common_utils::type_name;
+use common_utils::types::keymanager;
+use common_utils::types::keymanager::ToEncryptable;
+use error_stack::ResultExt;
+use hyperswitch_domain_models::merchant_connector_account::EncryptedMerchantConnectorAccount;
+use hyperswitch_domain_models::merchant_connector_account::MerchantConnectorAccount;
+#[cfg(feature = "v2")]
+use hyperswitch_domain_models::merchant_connector_account::MerchantConnectorAccountFeatureMetadata;
+#[cfg(feature = "v2")]
+use hyperswitch_domain_models::merchant_connector_account::MerchantConnectorAccountUpdate;
+use hyperswitch_domain_models::type_encryption::crypto_operation;
+use hyperswitch_domain_models::type_encryption::CryptoOperation;
+use hyperswitch_domain_models::{business_profile::ProfileSetter, type_encryption::AsyncLift};
+use masking::PeekInterface;
+use masking::Secret;
+
+use std::collections::HashMap;
+
+use hyperswitch_domain_models::merchant_connector_account::{
+    AccountReferenceMap, RevenueRecoveryMetadata,
+};
+
+use diesel_models::merchant_connector_account::{
+    BillingAccountReference as DieselBillingAccountReference,
+    MerchantConnectorAccountFeatureMetadata as DieselMerchantConnectorAccountFeatureMetadata,
+    RevenueRecoveryMetadata as DieselRevenueRecoveryMetadata,
+};
 
 #[cfg(feature = "v2")]
 #[async_trait::async_trait]
-impl behaviour::Conversion for MerchantConnectorAccount {
+impl crate::behaviour::Conversion for MerchantConnectorAccount {
     type DstType = diesel_models::merchant_connector_account::MerchantConnectorAccount;
     type NewDstType = diesel_models::merchant_connector_account::MerchantConnectorAccountNew;
 
@@ -28,18 +60,18 @@ impl behaviour::Conversion for MerchantConnectorAccount {
                 connector_wallets_details: self.connector_wallets_details.map(Encryption::from),
                 additional_merchant_data: self.additional_merchant_data.map(|data| data.into()),
                 version: self.version,
-                feature_metadata: self.feature_metadata.map(From::from),
+                feature_metadata: self.feature_metadata.map(ForeignFrom::foreign_from),
             },
         )
     }
 
     async fn convert_back(
-        state: &KeyManagerState,
+        state: &keymanager::KeyManagerState,
         other: Self::DstType,
         key: &Secret<Vec<u8>>,
-        _key_manager_identifier: Identifier,
+        _key_manager_identifier: keymanager::Identifier,
     ) -> CustomResult<Self, ValidationError> {
-        let identifier = Identifier::Merchant(other.merchant_id.clone());
+        let identifier = keymanager::Identifier::Merchant(other.merchant_id.clone());
 
         let decrypted_data = crypto_operation(
             state,
@@ -87,7 +119,7 @@ impl behaviour::Conversion for MerchantConnectorAccount {
             connector_wallets_details: decrypted_data.connector_wallets_details,
             additional_merchant_data: decrypted_data.additional_merchant_data,
             version: other.version,
-            feature_metadata: other.feature_metadata.map(From::from),
+            feature_metadata: other.feature_metadata.map(ForeignFrom::foreign_from),
         })
     }
 
@@ -114,67 +146,51 @@ impl behaviour::Conversion for MerchantConnectorAccount {
             connector_wallets_details: self.connector_wallets_details.map(Encryption::from),
             additional_merchant_data: self.additional_merchant_data.map(|data| data.into()),
             version: self.version,
-            feature_metadata: self.feature_metadata.map(From::from),
+            feature_metadata: self.feature_metadata.map(ForeignFrom::foreign_from),
         })
     }
 }
 
 
 #[cfg(feature = "v2")]
-impl From<MerchantConnectorAccountUpdate> for MerchantConnectorAccountUpdateInternal {
-    fn from(merchant_connector_account_update: MerchantConnectorAccountUpdate) -> Self {
-        match merchant_connector_account_update {
-            MerchantConnectorAccountUpdate::Update {
-                connector_type,
-                connector_account_details,
-                disabled,
-                payment_methods_enabled,
-                metadata,
-                frm_configs,
-                connector_webhook_details,
-                applepay_verified_domains,
-                pm_auth_config,
-                connector_label,
-                status,
-                connector_wallets_details,
-                additional_merchant_data,
-                feature_metadata,
-            } => Self {
-                connector_type,
-                connector_account_details: connector_account_details.map(Encryption::from),
-                disabled,
-                payment_methods_enabled,
-                metadata,
-                frm_config: frm_configs,
-                modified_at: Some(date_time::now()),
-                connector_webhook_details: *connector_webhook_details,
-                applepay_verified_domains,
-                pm_auth_config: *pm_auth_config,
-                connector_label,
-                status,
-                connector_wallets_details: connector_wallets_details.map(Encryption::from),
-                additional_merchant_data: additional_merchant_data.map(Encryption::from),
-                feature_metadata: feature_metadata.map(From::from),
-            },
-            MerchantConnectorAccountUpdate::ConnectorWalletDetailsUpdate {
-                connector_wallets_details,
-            } => Self {
-                connector_wallets_details: Some(Encryption::from(connector_wallets_details)),
-                connector_type: None,
-                connector_account_details: None,
-                connector_label: None,
-                disabled: None,
-                payment_methods_enabled: None,
-                metadata: None,
-                modified_at: None,
-                connector_webhook_details: None,
-                frm_config: None,
-                applepay_verified_domains: None,
-                pm_auth_config: None,
-                status: None,
-                additional_merchant_data: None,
-                feature_metadata: None,
-            },
-        }
+impl ForeignFrom<MerchantConnectorAccountFeatureMetadata>
+    for DieselMerchantConnectorAccountFeatureMetadata
+{
+    fn foreign_from(feature_metadata: MerchantConnectorAccountFeatureMetadata) -> Self {
+        let revenue_recovery = feature_metadata.revenue_recovery.map(|recovery_metadata| {
+            DieselRevenueRecoveryMetadata {
+                max_retry_count: recovery_metadata.max_retry_count,
+                billing_connector_retry_threshold: recovery_metadata
+                    .billing_connector_retry_threshold,
+                billing_account_reference: DieselBillingAccountReference(
+                    recovery_metadata.mca_reference.recovery_to_billing,
+                ),
+            }
+        });
+        Self { revenue_recovery }
+    }
+}
+
+#[cfg(feature = "v2")]
+impl ForeignFrom<DieselMerchantConnectorAccountFeatureMetadata>
+    for MerchantConnectorAccountFeatureMetadata
+{
+    fn foreign_from(feature_metadata: DieselMerchantConnectorAccountFeatureMetadata) -> Self {
+        let revenue_recovery = feature_metadata.revenue_recovery.map(|recovery_metadata| {
+            let mut billing_to_recovery = HashMap::new();
+            for (key, value) in &recovery_metadata.billing_account_reference.0 {
+                billing_to_recovery.insert(value.to_string(), key.clone());
+            }
+            RevenueRecoveryMetadata {
+                max_retry_count: recovery_metadata.max_retry_count,
+                billing_connector_retry_threshold: recovery_metadata
+                    .billing_connector_retry_threshold,
+                mca_reference: AccountReferenceMap {
+                    recovery_to_billing: recovery_metadata.billing_account_reference.0,
+                    billing_to_recovery,
+                },
+            }
+        });
+        Self { revenue_recovery }
     }
 }

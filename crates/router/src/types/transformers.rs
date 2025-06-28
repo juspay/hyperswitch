@@ -14,6 +14,13 @@ use common_utils::{
 use diesel_models::enums as storage_enums;
 use error_stack::{report, ResultExt};
 use hyperswitch_domain_models::payments::payment_intent::CustomerData;
+#[cfg(feature = "v2")]
+use hyperswitch_domain_models::{
+    merchant_account::MerchantAccountUpdate,
+    merchant_connector_account::{
+        MerchantConnectorAccountFeatureMetadata, MerchantConnectorAccountUpdate,
+    },
+};
 use masking::{ExposeInterface, PeekInterface, Secret};
 
 use super::domain;
@@ -978,14 +985,8 @@ impl ForeignFrom<storage::Authorization> for payments::IncrementalAuthorizationR
     }
 }
 
-impl
-    ForeignFrom<
-        &AuthenticationStore,
-    > for payments::ExternalAuthenticationDetailsResponse
-{
-    fn foreign_from(
-        authn_store: &AuthenticationStore,
-    ) -> Self {
+impl ForeignFrom<&AuthenticationStore> for payments::ExternalAuthenticationDetailsResponse {
+    fn foreign_from(authn_store: &AuthenticationStore) -> Self {
         let authn_data = &authn_store.authentication;
         let version = authn_data
             .maximum_supported_version
@@ -2267,9 +2268,7 @@ impl ForeignFrom<common_types::business_profile::PaymentLinkConfigRequest>
 impl ForeignFrom<common_types::payments::PaymentLinkBackgroundImageConfig>
     for api_models::admin::PaymentLinkBackgroundImageConfig
 {
-    fn foreign_from(
-        item: common_types::payments::PaymentLinkBackgroundImageConfig,
-    ) -> Self {
+    fn foreign_from(item: common_types::payments::PaymentLinkBackgroundImageConfig) -> Self {
         Self {
             url: item.url,
             position: item.position,
@@ -2373,5 +2372,199 @@ impl ForeignFrom<card_info_types::CardInfoUpdateRequest> for storage::CardInfo {
             last_updated: Some(common_utils::date_time::now()),
             last_updated_provider: value.last_updated_provider,
         }
+    }
+}
+
+#[cfg(feature = "v2")]
+impl ForeignFrom<MerchantAccountUpdate> for diesel_models::MerchantAccountUpdateInternal {
+    fn foreign_from(merchant_account_update: MerchantAccountUpdate) -> Self {
+        let now = common_utils::date_time::now();
+
+        match merchant_account_update {
+            MerchantAccountUpdate::Update {
+                merchant_name,
+                merchant_details,
+                publishable_key,
+                metadata,
+            } => Self {
+                merchant_name: merchant_name.map(common_utils::encryption::Encryption::from),
+                merchant_details: merchant_details.map(common_utils::encryption::Encryption::from),
+                publishable_key,
+                metadata: metadata.map(|metadata| *metadata),
+                modified_at: now,
+                storage_scheme: None,
+                organization_id: None,
+                recon_status: None,
+                is_platform_account: None,
+                product_type: None,
+            },
+            MerchantAccountUpdate::StorageSchemeUpdate { storage_scheme } => Self {
+                storage_scheme: Some(storage_scheme),
+                modified_at: now,
+                merchant_name: None,
+                merchant_details: None,
+                publishable_key: None,
+                metadata: None,
+                organization_id: None,
+                recon_status: None,
+                is_platform_account: None,
+                product_type: None,
+            },
+            MerchantAccountUpdate::ReconUpdate { recon_status } => Self {
+                recon_status: Some(recon_status),
+                modified_at: now,
+                merchant_name: None,
+                merchant_details: None,
+                publishable_key: None,
+                storage_scheme: None,
+                metadata: None,
+                organization_id: None,
+                is_platform_account: None,
+                product_type: None,
+            },
+            MerchantAccountUpdate::ModifiedAtUpdate => Self {
+                modified_at: now,
+                merchant_name: None,
+                merchant_details: None,
+                publishable_key: None,
+                storage_scheme: None,
+                metadata: None,
+                organization_id: None,
+                recon_status: None,
+                is_platform_account: None,
+                product_type: None,
+            },
+            MerchantAccountUpdate::ToPlatformAccount => Self {
+                modified_at: now,
+                merchant_name: None,
+                merchant_details: None,
+                publishable_key: None,
+                storage_scheme: None,
+                metadata: None,
+                organization_id: None,
+                recon_status: None,
+                is_platform_account: Some(true),
+                product_type: None,
+            },
+        }
+    }
+}
+
+#[cfg(feature = "v2")]
+impl ForeignFrom<MerchantConnectorAccountUpdate>
+    for diesel_models::MerchantConnectorAccountUpdateInternal
+{
+    fn foreign_from(merchant_connector_account_update: MerchantConnectorAccountUpdate) -> Self {
+        match merchant_connector_account_update {
+            MerchantConnectorAccountUpdate::Update {
+                connector_type,
+                connector_account_details,
+                disabled,
+                payment_methods_enabled,
+                metadata,
+                frm_configs,
+                connector_webhook_details,
+                applepay_verified_domains,
+                pm_auth_config,
+                connector_label,
+                status,
+                connector_wallets_details,
+                additional_merchant_data,
+                feature_metadata,
+            } => Self {
+                connector_type,
+                connector_account_details: connector_account_details
+                    .map(common_utils::encryption::Encryption::from),
+                disabled,
+                payment_methods_enabled,
+                metadata,
+                frm_config: frm_configs,
+                modified_at: Some(common_utils::date_time::now()),
+                connector_webhook_details: *connector_webhook_details,
+                applepay_verified_domains,
+                pm_auth_config: *pm_auth_config,
+                connector_label,
+                status,
+                connector_wallets_details: connector_wallets_details
+                    .map(common_utils::encryption::Encryption::from),
+                additional_merchant_data: additional_merchant_data
+                    .map(common_utils::encryption::Encryption::from),
+                feature_metadata: feature_metadata.map(ForeignFrom::foreign_from),
+            },
+            MerchantConnectorAccountUpdate::ConnectorWalletDetailsUpdate {
+                connector_wallets_details,
+            } => Self {
+                connector_wallets_details: Some(common_utils::encryption::Encryption::from(
+                    connector_wallets_details,
+                )),
+                connector_type: None,
+                connector_account_details: None,
+                connector_label: None,
+                disabled: None,
+                payment_methods_enabled: None,
+                metadata: None,
+                modified_at: None,
+                connector_webhook_details: None,
+                frm_config: None,
+                applepay_verified_domains: None,
+                pm_auth_config: None,
+                status: None,
+                additional_merchant_data: None,
+                feature_metadata: None,
+            },
+        }
+    }
+}
+
+use diesel_models::merchant_connector_account::{
+    BillingAccountReference as DieselBillingAccountReference,
+    MerchantConnectorAccountFeatureMetadata as DieselMerchantConnectorAccountFeatureMetadata,
+    RevenueRecoveryMetadata as DieselRevenueRecoveryMetadata,
+};
+
+#[cfg(feature = "v2")]
+impl ForeignFrom<MerchantConnectorAccountFeatureMetadata>
+    for DieselMerchantConnectorAccountFeatureMetadata
+{
+    fn foreign_from(feature_metadata: MerchantConnectorAccountFeatureMetadata) -> Self {
+        let revenue_recovery = feature_metadata.revenue_recovery.map(|recovery_metadata| {
+            DieselRevenueRecoveryMetadata {
+                max_retry_count: recovery_metadata.max_retry_count,
+                billing_connector_retry_threshold: recovery_metadata
+                    .billing_connector_retry_threshold,
+                billing_account_reference: DieselBillingAccountReference(
+                    recovery_metadata.mca_reference.recovery_to_billing,
+                ),
+            }
+        });
+        Self { revenue_recovery }
+    }
+}
+
+#[cfg(feature = "v2")]
+impl ForeignFrom<DieselMerchantConnectorAccountFeatureMetadata>
+    for MerchantConnectorAccountFeatureMetadata
+{
+    fn foreign_from(feature_metadata: DieselMerchantConnectorAccountFeatureMetadata) -> Self {
+        let revenue_recovery = feature_metadata.revenue_recovery.map(|recovery_metadata| {
+            use hyperswitch_domain_models::merchant_connector_account::{
+                AccountReferenceMap, RevenueRecoveryMetadata,
+            };
+
+            let mut billing_to_recovery = std::collections::HashMap::new();
+            for (key, value) in &recovery_metadata.billing_account_reference.0 {
+                billing_to_recovery.insert(value.to_string(), key.clone());
+            }
+            RevenueRecoveryMetadata {
+                max_retry_count: recovery_metadata.max_retry_count,
+                billing_connector_retry_threshold: recovery_metadata
+                    .billing_connector_retry_threshold,
+                mca_reference: AccountReferenceMap {
+                    recovery_to_billing: recovery_metadata.billing_account_reference.0,
+                    billing_to_recovery,
+                },
+            }
+        });
+        Self { revenue_recovery }
     }
 }

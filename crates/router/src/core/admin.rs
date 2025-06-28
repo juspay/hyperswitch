@@ -3461,7 +3461,7 @@ pub async fn update_connector(
         .update_merchant_connector_account(
             key_manager_state,
             mca,
-            payment_connector.into(),
+            payment_connector.foreign_into(),
             &key_store,
         )
         .await
