@@ -11,7 +11,7 @@ use router_env::{instrument, tracing};
 #[cfg(feature = "v1")]
 use crate::diesel_error_to_data_error;
 use crate::{
-    behaviour::Conversion,
+    behaviour::{Conversion, ReverseConversion},
     errors::StorageError,
     kv_router_store,
     redis::kv_store::{decide_storage_scheme, KvStorePartition, Op, PartitionKey},
@@ -19,13 +19,17 @@ use crate::{
     utils::{pg_connection_read, pg_connection_write, ForeignFrom},
     CustomResult, DatabaseStore, KeyManagerState, MockDb, RouterStore,
 };
-
+use crate::utils::ForeignInto;
 use common_utils::encryption::Encryption;
 use common_utils::errors::ValidationError;
 use common_utils::types::keymanager;
 use hyperswitch_domain_models::type_encryption::crypto_operation;
 use hyperswitch_domain_models::type_encryption::CryptoOperation;
 use masking::Secret;
+use common_utils::types::keymanager::ToEncryptable;
+use masking::SwitchStrategy;
+
+
 
 use common_utils::crypto::Encryptable;
 use common_utils::date_time;
@@ -451,12 +455,13 @@ impl<T: DatabaseStore> domain::CustomerInterface for kv_router_store::KVRouterSt
         key_store: &MerchantKeyStore,
         storage_scheme: MerchantStorageScheme,
     ) -> CustomResult<domain::Customer, StorageError> {
+
         let conn = pg_connection_write(self).await?;
         let customer = Conversion::convert(customer)
             .await
             .change_context(StorageError::EncryptionError)?;
         let database_call =
-            customers::Customer::update_by_id(&conn, id.clone(), customer_update.clone().into());
+            customers::Customer::update_by_id(&conn, id.clone(), customer_update.clone().foreign_into());
         let key = PartitionKey::GlobalId {
             id: id.get_string_repr(),
         };
@@ -466,12 +471,12 @@ impl<T: DatabaseStore> domain::CustomerInterface for kv_router_store::KVRouterSt
             key_store,
             storage_scheme,
             database_call,
-            diesel_models::CustomerUpdateInternal::from(customer_update.clone())
+            diesel_models::CustomerUpdateInternal::foreign_from(customer_update.clone())
                 .apply_changeset(customer.clone()),
             kv_router_store::UpdateResourceParams {
                 updateable: kv::Updateable::CustomerUpdate(kv::CustomerUpdateMems {
                     orig: customer.clone(),
-                    update_data: customer_update.into(),
+                    update_data: customer_update.foreign_into(),
                 }),
                 operation: Op::Update(key.clone(), &field, customer.updated_by.as_deref()),
             },
@@ -666,7 +671,7 @@ impl<T: DatabaseStore> domain::CustomerInterface for RouterStore<T> {
     ) -> CustomResult<Vec<domain::Customer>, StorageError> {
         let conn = pg_connection_read(self).await?;
         let customer_list_constraints =
-            diesel_models::query::customers::CustomerListConstraints::from(constraints);
+            diesel_models::query::customers::CustomerListConstraints::foreign_from(constraints);
         self.find_resources(
             state,
             key_store,
@@ -723,7 +728,7 @@ impl<T: DatabaseStore> domain::CustomerInterface for RouterStore<T> {
         self.call_database(
             state,
             key_store,
-            customers::Customer::update_by_id(&conn, id.clone(), customer_update.into()),
+            customers::Customer::update_by_id(&conn, id.clone(), customer_update.foreign_into()),
         )
         .await
     }
@@ -1003,6 +1008,7 @@ impl Conversion for domain::Customer {
             merchant_id: item.merchant_id,
             name: encryptable_customer.name,
             email: encryptable_customer.email.map(|email| {
+
                 let encryptable: Encryptable<Secret<String, pii::EmailStrategy>> = Encryptable::new(
                     email.clone().into_inner().switch_strategy(),
                     email.into_encrypted(),
