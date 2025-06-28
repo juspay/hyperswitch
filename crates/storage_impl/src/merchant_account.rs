@@ -1,6 +1,24 @@
 #[cfg(feature = "v2")]
-impl From<MerchantAccountUpdate> for MerchantAccountUpdateInternal {
-    fn from(merchant_account_update: MerchantAccountUpdate) -> Self {
+use hyperswitch_domain_models::merchant_account::MerchantAccountUpdate;
+use common_utils::{date_time, encryption::Encryption};
+use hyperswitch_domain_models::merchant_context::MerchantAccount;
+use common_utils::errors::CustomResult;
+use common_utils::errors::ValidationError;
+use common_utils::types::keymanager;
+use masking::Secret;
+use hyperswitch_domain_models::type_encryption::crypto_operation;
+use common_utils::type_name;
+use hyperswitch_domain_models::type_encryption::CryptoOperation;
+use hyperswitch_domain_models::merchant_account::MerchantAccountSetter;
+
+#[cfg(feature = "v2")]
+use crate::utils::ForeignFrom;
+
+
+#[cfg(feature = "v2")]
+impl ForeignFrom<MerchantAccountUpdate> for diesel_models::MerchantAccountUpdateInternal {
+    fn foreign_from(merchant_account_update: MerchantAccountUpdate) -> Self {
+
         let now = date_time::now();
 
         match merchant_account_update {
@@ -92,7 +110,7 @@ impl super::behaviour::Conversion for MerchantAccount {
             modified_at: self.modified_at,
             organization_id: self.organization_id,
             recon_status: self.recon_status,
-            version: common_types::consts::API_VERSION,
+            version: common_utils::consts::API_VERSION,
             is_platform_account: self.is_platform_account,
             product_type: self.product_type,
             merchant_account_type: self.merchant_account_type,
@@ -118,7 +136,8 @@ impl super::behaviour::Conversion for MerchantAccount {
                 })?;
 
         async {
-            Ok::<Self, error_stack::Report<common_utils::errors::CryptoError>>(Self {
+
+            Ok::<Self, error_stack::Report<common_utils::errors::CryptoError>>(MerchantAccountSetter {
                 id,
                 merchant_name: item
                     .merchant_name
@@ -159,7 +178,7 @@ impl super::behaviour::Conversion for MerchantAccount {
                 version: item.version,
                 product_type: item.product_type,
                 merchant_account_type: item.merchant_account_type.unwrap_or_default(),
-            })
+            }.into())
         }
         .await
         .change_context(ValidationError::InvalidValue {
@@ -170,7 +189,7 @@ impl super::behaviour::Conversion for MerchantAccount {
     async fn construct_new(self) -> CustomResult<Self::NewDstType, ValidationError> {
         let now = date_time::now();
         Ok(diesel_models::merchant_account::MerchantAccountNew {
-            id: self.id,
+            id: self.get_id().clone(),
             merchant_name: self.merchant_name.map(Encryption::from),
             merchant_details: self.merchant_details.map(Encryption::from),
             publishable_key: Some(self.publishable_key),
@@ -179,7 +198,7 @@ impl super::behaviour::Conversion for MerchantAccount {
             modified_at: now,
             organization_id: self.organization_id,
             recon_status: self.recon_status,
-            version: common_types::consts::API_VERSION,
+            version: common_utils::consts::API_VERSION,
             is_platform_account: self.is_platform_account,
             product_type: self
                 .product_type
