@@ -102,6 +102,10 @@ pub struct RefundsCreateRequest {
     /// Metadata is useful for storing additional, unstructured information on an object.
     #[schema(value_type  = Option<Object>, example = r#"{ "city": "NY", "unit": "245" }"#)]
     pub metadata: Option<pii::SecretSerdeValue>,
+
+    /// Merchant connector details used to make payments.
+    #[schema(value_type = Option<MerchantConnectorAuthDetails>)]
+    pub merchant_connector_details: Option<common_types::domain::MerchantConnectorAuthDetails>,
 }
 
 #[cfg(feature = "v1")]
@@ -114,6 +118,16 @@ pub struct RefundsRetrieveBody {
 #[derive(Default, Debug, Clone, Deserialize)]
 pub struct RefundsRetrieveBody {
     pub force_sync: Option<bool>,
+}
+
+#[cfg(feature = "v2")]
+#[derive(Default, Debug, Clone, Deserialize)]
+pub struct RefundsRetrievePayload {
+    /// `force_sync` with the connector to get refund details
+    pub force_sync: Option<bool>,
+
+    /// Merchant connector details used to make payments.
+    pub merchant_connector_details: Option<common_types::domain::MerchantConnectorAuthDetails>,
 }
 
 #[cfg(feature = "v1")]
@@ -149,6 +163,10 @@ pub struct RefundsRetrieveRequest {
     /// `force_sync` with the connector to get refund details
     /// (defaults to false)
     pub force_sync: Option<bool>,
+
+    /// Merchant connector details used to make payments.
+    #[schema(value_type = Option<MerchantConnectorAuthDetails>)]
+    pub merchant_connector_details: Option<common_types::domain::MerchantConnectorAuthDetails>,
 }
 
 #[derive(Default, Debug, ToSchema, Clone, Deserialize, Serialize)]
@@ -323,7 +341,7 @@ pub struct RefundResponse {
     pub profile_id: common_utils::id_type::ProfileId,
     /// The merchant_connector_id of the processor through which this payment went through
     #[schema(value_type = String)]
-    pub merchant_connector_id: common_utils::id_type::MerchantConnectorAccountId,
+    pub merchant_connector_id: Option<common_utils::id_type::MerchantConnectorAccountId>,
     /// The reference id of the connector for the refund
     pub connector_refund_reference_id: Option<String>,
 }
