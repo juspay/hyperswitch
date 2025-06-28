@@ -358,7 +358,7 @@ pub async fn migrate_payment_methods(
                 customers::migrate_customers(
                     state.clone(),
                     Vec::<PaymentMethodCustomerMigrate>::foreign_try_from((
-                        req,
+                        &req,
                         merchant_id.clone(),
                     ))
                     .map_err(|e| {

@@ -19,7 +19,7 @@ use utoipa::{schema, ToSchema};
 #[cfg(feature = "payouts")]
 use crate::payouts;
 use crate::{
-    admin, customers, enums as api_enums,
+    admin, enums as api_enums,
     payments::{self, BankCodeResponse},
 };
 
@@ -2507,18 +2507,6 @@ pub struct PaymentMethodRecord {
     pub network_token_expiry_month: Option<masking::Secret<String>>,
     pub network_token_expiry_year: Option<masking::Secret<String>>,
     pub network_token_requestor_ref_id: Option<String>,
-}
-
-#[derive(Debug, Clone, serde::Deserialize, serde::Serialize)]
-pub struct ConnectorCustomerDetails {
-    pub connector_customer_id: String,
-    pub merchant_connector_id: id_type::MerchantConnectorAccountId,
-}
-
-#[derive(Debug, Clone, serde::Deserialize, serde::Serialize)]
-pub struct PaymentMethodCustomerMigrate {
-    pub customer: customers::CustomerRequest,
-    pub connector_customer_details: Option<Vec<ConnectorCustomerDetails>>,
 }
 
 #[derive(Debug, Default, serde::Serialize)]

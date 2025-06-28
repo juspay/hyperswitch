@@ -1,7 +1,7 @@
 #[cfg(feature = "v2")]
 pub use api_models::payment_methods::{
     CardDetail, CardDetailFromLocker, CardDetailsPaymentMethod, CardNetworkTokenizeRequest,
-    CardNetworkTokenizeResponse, CardType, ConnectorCustomerDetails,
+    CardNetworkTokenizeResponse, CardType,
     CustomerPaymentMethodResponseItem, DeleteTokenizeByTokenRequest, GetTokenizePayloadRequest,
     GetTokenizePayloadResponse, ListCountriesCurrenciesRequest, MigrateCardDetail,
     NetworkTokenDetailsPaymentMethod, NetworkTokenDetailsResponse, NetworkTokenResponse,
@@ -18,7 +18,7 @@ pub use api_models::payment_methods::{
 #[cfg(feature = "v1")]
 pub use api_models::payment_methods::{
     CardDetail, CardDetailFromLocker, CardDetailsPaymentMethod, CardNetworkTokenizeRequest,
-    CardNetworkTokenizeResponse, ConnectorCustomerDetails, CustomerPaymentMethod,
+    CardNetworkTokenizeResponse, CustomerPaymentMethod,
     CustomerPaymentMethodsListResponse, DefaultPaymentMethod, DeleteTokenizeByTokenRequest,
     GetTokenizePayloadRequest, GetTokenizePayloadResponse, ListCountriesCurrenciesRequest,
     MigrateCardDetail, PaymentMethodCollectLinkRenderRequest, PaymentMethodCollectLinkRequest,

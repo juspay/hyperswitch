@@ -235,8 +235,8 @@ migrate_v2_compatible:
 
 # Drop database if exists and then create a new 'hyperswitch_db' Database
 resurrect database_name=db_name:
-    psql "postgresql://{{ db_user }}@{{ db_host }}:{{ db_port }}/postgres" -c 'DROP DATABASE IF EXISTS {{ database_name }}';
-    psql "postgresql://{{ db_user }}@{{ db_host }}:{{ db_port }}/postgres" -c 'CREATE DATABASE {{ database_name }}';
+    psql -U postgres -c 'DROP DATABASE IF EXISTS  {{ database_name }}';
+    psql -U postgres -c 'CREATE DATABASE {{ database_name }}';
 
 ci_hack:
     scripts/ci-checks.sh
