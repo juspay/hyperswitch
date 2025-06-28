@@ -1,6 +1,10 @@
+use hyperswitch_domain_models::router_response_types::RedirectForm;
 
-impl From<RedirectForm> for diesel_models::payment_attempt::RedirectForm {
-    fn from(redirect_form: RedirectForm) -> Self {
+use crate::utils::ForeignFrom;
+
+
+impl ForeignFrom<RedirectForm> for diesel_models::payment_attempt::RedirectForm {
+    fn foreign_from(redirect_form: RedirectForm) -> Self {
         match redirect_form {
             RedirectForm::Form {
                 endpoint,
@@ -81,8 +85,8 @@ impl From<RedirectForm> for diesel_models::payment_attempt::RedirectForm {
     }
 }
 
-impl From<diesel_models::payment_attempt::RedirectForm> for RedirectForm {
-    fn from(redirect_form: diesel_models::payment_attempt::RedirectForm) -> Self {
+impl ForeignFrom<diesel_models::payment_attempt::RedirectForm> for RedirectForm {
+    fn foreign_from(redirect_form: diesel_models::payment_attempt::RedirectForm) -> Self {
         match redirect_form {
             diesel_models::payment_attempt::RedirectForm::Form {
                 endpoint,
