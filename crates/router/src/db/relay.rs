@@ -1,16 +1,47 @@
 use common_utils::types::keymanager::KeyManagerState;
 use diesel_models;
 use error_stack::{report, ResultExt};
+use hyperswitch_domain_models::relay::RelayUpdate;
 use storage_impl::behaviour::{Conversion, ReverseConversion};
 use storage_impl::MockDb;
 
 use super::domain;
+use crate::types::transformers::ForeignFrom;
 use crate::{
     connection,
     core::errors::{self, CustomResult},
     db::kafka_store::KafkaStore,
     services::Store,
 };
+
+
+impl ForeignFrom<RelayUpdate> for diesel_models::relay::RelayUpdateInternal {
+    fn foreign_from(value: RelayUpdate) -> Self {
+        match value {
+            RelayUpdate::ErrorUpdate {
+                error_code,
+                error_message,
+                status,
+            } => Self {
+                error_code: Some(error_code),
+                error_message: Some(error_message),
+                connector_reference_id: None,
+                status: Some(status),
+                modified_at: common_utils::date_time::now(),
+            },
+            RelayUpdate::StatusUpdate {
+                connector_reference_id,
+                status,
+            } => Self {
+                connector_reference_id,
+                status: Some(status),
+                error_code: None,
+                error_message: None,
+                modified_at: common_utils::date_time::now(),
+            },
+        }
+    }
+}
 
 #[async_trait::async_trait]
 pub trait RelayInterface {
@@ -82,7 +113,7 @@ impl RelayInterface for Store {
             .change_context(errors::StorageError::EncryptionError)?
             .update(
                 &conn,
-                diesel_models::relay::RelayUpdateInternal::from(relay_update),
+                diesel_models::relay::RelayUpdateInternal::foreign_from(relay_update),
             )
             .await
             .map_err(|error| report!(errors::StorageError::from(error)))?

@@ -2178,8 +2178,10 @@ pub async fn update_payment_method_connector_mandate_details(
     connector_mandate_details: Option<CommonMandateReference>,
     storage_scheme: MerchantStorageScheme,
 ) -> errors::CustomResult<(), errors::VaultError> {
+    use crate::types::transformers::ForeignInto;
+
     let pm_update = payment_method::PaymentMethodUpdate::ConnectorMandateDetailsUpdate {
-        connector_mandate_details: connector_mandate_details.map(|cmd| cmd.into()),
+        connector_mandate_details: connector_mandate_details.map(|cmd| cmd.foreign_into()),
     };
 
     db.update_payment_method(&(state.into()), key_store, pm, pm_update, storage_scheme)
