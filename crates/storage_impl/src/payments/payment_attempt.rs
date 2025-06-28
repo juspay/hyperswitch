@@ -12,7 +12,8 @@ use diesel_models::{
         MandateDetails as DieselMandateDetails, MerchantStorageScheme,
     },
     kv,
-    payment_attempt::PaymentAttempt as DieselPaymentAttempt, payment_attempt::PaymentAttemptNew as DieselPaymentAttemptNew, 
+    payment_attempt::PaymentAttempt as DieselPaymentAttempt,
+    payment_attempt::PaymentAttemptNew as DieselPaymentAttemptNew,
     reverse_lookup::{ReverseLookup, ReverseLookupNew},
 };
 
@@ -22,20 +23,32 @@ use diesel_models::{
     PaymentAttemptRecoveryData as DieselPassiveChurnRecoveryData,
 };
 
-#[cfg(feature = "v2")]
-use hyperswitch_domain_models::{PaymentAttemptFeatureMetadata, PaymentAttemptRevenueRecoveryData};
-
 use error_stack::ResultExt;
+#[cfg(feature = "v2")]
+use hyperswitch_domain_models::merchant_key_store::MerchantKeyStore;
 #[cfg(feature = "v1")]
 use hyperswitch_domain_models::payments::payment_attempt::PaymentAttemptNew;
-#[cfg(feature = "v2")]
-use hyperswitch_domain_models::{
-    merchant_key_store::MerchantKeyStore,
-};
 use hyperswitch_domain_models::{
     mandates::{MandateAmountData, MandateDataType, MandateDetails},
-    payments::payment_attempt::{PaymentAttempt, PaymentAttemptInterface, PaymentAttemptUpdate},
+    payments::payment_attempt::{
+        PaymentAttempt, PaymentAttemptFeatureMetadata, PaymentAttemptInterface,
+        PaymentAttemptRevenueRecoveryData, PaymentAttemptUpdate,
+    },
 };
+
+use masking::Secret;
+use common_utils::errors::ValidationError;
+use hyperswitch_domain_models::payments::payment_attempt::AttemptAmountDetailsSetter;
+use common_utils::{encryption::Encryption, types::ConnectorTransactionId};
+use common_utils::types::keymanager;
+use hyperswitch_domain_models::type_encryption::crypto_operation;
+use hyperswitch_domain_models::type_encryption::CryptoOperation;
+use hyperswitch_domain_models::payments::payment_attempt::EncryptedPaymentAttempt;
+use hyperswitch_domain_models::payments::payment_attempt::ErrorDetails;
+use common_utils::types::CreatedBy;
+use hyperswitch_domain_models::payments::payment_attempt::ConfirmIntentResponseUpdate;
+
+
 #[cfg(all(feature = "v1", feature = "olap"))]
 use hyperswitch_domain_models::{
     payments::payment_attempt::PaymentListFilters, payments::PaymentIntent,
@@ -46,7 +59,7 @@ use redis_interface::HsetnxReply;
 use router_env::{instrument, tracing};
 
 #[cfg(feature = "v2")]
-use crate::kv_router_store::{FilterResourceParams, FindResourceBy, UpdateResourceParams};
+use crate::{kv_router_store::{FilterResourceParams, FindResourceBy, UpdateResourceParams}, utils::ForeignFrom};
 use crate::{
     diesel_error_to_data_error, errors,
     errors::RedisErrorExt,
@@ -58,7 +71,6 @@ use crate::{
 };
 
 use crate::behaviour::Conversion;
-
 
 #[async_trait::async_trait]
 impl<T: DatabaseStore> PaymentAttemptInterface for RouterStore<T> {
@@ -140,7 +152,6 @@ impl<T: DatabaseStore> PaymentAttemptInterface for RouterStore<T> {
         payment_attempt: PaymentAttemptUpdate,
         _storage_scheme: MerchantStorageScheme,
     ) -> CustomResult<PaymentAttempt, errors::StorageError> {
-
         let conn = pg_connection_write(self).await?;
 
         Conversion::convert(this)
@@ -2248,7 +2259,6 @@ mod label {
     }
 }
 
-
 #[cfg(feature = "v2")]
 #[async_trait::async_trait]
 impl Conversion for PaymentAttempt {
@@ -2256,7 +2266,6 @@ impl Conversion for PaymentAttempt {
     type NewDstType = DieselPaymentAttemptNew;
 
     async fn convert(self) -> CustomResult<Self::DstType, ValidationError> {
-        use common_utils::encryption::Encryption;
 
         let card_network = self
             .payment_method_data
@@ -2319,7 +2328,7 @@ impl Conversion for PaymentAttempt {
             connector_request_reference_id,
         } = self;
 
-        let AttemptAmountDetails {
+        let AttemptAmountDetailsSetter {
             net_amount,
             tax_on_surcharge,
             surcharge_amount,
@@ -2327,7 +2336,7 @@ impl Conversion for PaymentAttempt {
             shipping_cost,
             amount_capturable,
             amount_to_capture,
-        } = amount_details;
+        } = amount_details.into();
 
         let (connector_payment_id, connector_payment_data) = connector_payment_id
             .map(ConnectorTransactionId::form_id_and_data)
@@ -2425,6 +2434,7 @@ impl Conversion for PaymentAttempt {
         Self: Sized,
     {
         async {
+
             let connector_payment_id = storage_model
                 .get_optional_connector_transaction_id()
                 .cloned();
@@ -2457,7 +2467,7 @@ impl Conversion for PaymentAttempt {
                 .change_context(common_utils::errors::CryptoError::DecodingFailed)
                 .attach_printable("Error while deserializing Address")?;
 
-            let amount_details = AttemptAmountDetails {
+            let amount_details = AttemptAmountDetailsSetter {
                 net_amount: storage_model.net_amount,
                 tax_on_surcharge: storage_model.tax_on_surcharge,
                 surcharge_amount: storage_model.surcharge_amount,
@@ -2465,7 +2475,7 @@ impl Conversion for PaymentAttempt {
                 shipping_cost: storage_model.shipping_cost,
                 amount_capturable: storage_model.amount_capturable,
                 amount_to_capture: storage_model.amount_to_capture,
-            };
+            }.into();
 
             let error = storage_model
                 .error_code
@@ -2691,8 +2701,8 @@ impl Conversion for PaymentAttempt {
 }
 
 #[cfg(feature = "v2")]
-impl From<PaymentAttemptUpdate> for diesel_models::PaymentAttemptUpdateInternal {
-    fn from(update: PaymentAttemptUpdate) -> Self {
+impl ForeignFrom<PaymentAttemptUpdate> for diesel_models::PaymentAttemptUpdateInternal {
+    fn foreign_from(update: PaymentAttemptUpdate) -> Self {
         match update {
             PaymentAttemptUpdate::ConfirmIntent {
                 status,
@@ -2760,6 +2770,7 @@ impl From<PaymentAttemptUpdate> for diesel_models::PaymentAttemptUpdateInternal 
                 connector_request_reference_id: None,
             },
             PaymentAttemptUpdate::ConfirmIntentResponse(confirm_intent_response_update) => {
+
                 let ConfirmIntentResponseUpdate {
                     status,
                     connector_payment_id,
@@ -2924,8 +2935,8 @@ impl From<PaymentAttemptUpdate> for diesel_models::PaymentAttemptUpdateInternal 
 }
 
 #[cfg(feature = "v2")]
-impl From<&PaymentAttemptFeatureMetadata> for DieselPaymentAttemptFeatureMetadata {
-    fn from(item: &PaymentAttemptFeatureMetadata) -> Self {
+impl ForeignFrom<&PaymentAttemptFeatureMetadata> for DieselPaymentAttemptFeatureMetadata {
+    fn foreign_from(item: &PaymentAttemptFeatureMetadata) -> Self {
         let revenue_recovery =
             item.revenue_recovery
                 .as_ref()
@@ -2938,8 +2949,8 @@ impl From<&PaymentAttemptFeatureMetadata> for DieselPaymentAttemptFeatureMetadat
 }
 
 #[cfg(feature = "v2")]
-impl From<DieselPaymentAttemptFeatureMetadata> for PaymentAttemptFeatureMetadata {
-    fn from(item: DieselPaymentAttemptFeatureMetadata) -> Self {
+impl ForeignFrom<DieselPaymentAttemptFeatureMetadata> for PaymentAttemptFeatureMetadata {
+    fn foreign_from(item: DieselPaymentAttemptFeatureMetadata) -> Self {
         let revenue_recovery =
             item.revenue_recovery
                 .map(|recovery_data| PaymentAttemptRevenueRecoveryData {
