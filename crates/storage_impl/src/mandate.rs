@@ -3,7 +3,7 @@ use diesel_models::Mandate;
 use hyperswitch_domain_models::mandates::{ConnectorTokenReferenceRecord, PaymentsTokenReference};
 use hyperswitch_domain_models::mandates::{CommonMandateReference, MandateAmountData, MandateDataType, MandateDetails, PayoutsMandateReference, PayoutsMandateReferenceRecord};
 
-use crate::{redis::kv_store::KvStorePartition, utils::ForeignFrom};
+use crate::{redis::kv_store::KvStorePartition, utils::{ForeignFrom, ForeignInto}};
 
 impl KvStorePartition for Mandate {}
 
@@ -26,9 +26,10 @@ impl ForeignFrom<diesel_models::enums::MandateDetails> for MandateDetails {
 impl ForeignFrom<MandateDataType> for diesel_models::enums::MandateDataType {
     fn foreign_from(value: MandateDataType) -> Self {
         match value {
-            MandateDataType::SingleUse(data) => Self::SingleUse(data.into()),
+            MandateDataType::SingleUse(data) => Self::SingleUse(data.foreign_into()),
             MandateDataType::MultiUse(None) => Self::MultiUse(None),
-            MandateDataType::MultiUse(Some(data)) => Self::MultiUse(Some(data.into())),
+            MandateDataType::MultiUse(Some(data)) => Self::MultiUse(Some(data.foreign_into())),
+
         }
     }
 }
@@ -38,9 +39,9 @@ impl ForeignFrom<diesel_models::enums::MandateDataType> for MandateDataType {
         use diesel_models::enums::MandateDataType as DieselMandateDataType;
 
         match value {
-            DieselMandateDataType::SingleUse(data) => Self::SingleUse(data.into()),
+            DieselMandateDataType::SingleUse(data) => Self::SingleUse(data.foreign_into()),
             DieselMandateDataType::MultiUse(None) => Self::MultiUse(None),
-            DieselMandateDataType::MultiUse(Some(data)) => Self::MultiUse(Some(data.into())),
+            DieselMandateDataType::MultiUse(Some(data)) => Self::MultiUse(Some(data.foreign_into())),
         }
     }
 }
@@ -73,8 +74,8 @@ impl ForeignFrom<diesel_models::enums::MandateAmountData> for MandateAmountData 
 impl ForeignFrom<diesel_models::CommonMandateReference> for CommonMandateReference {
     fn foreign_from(value: diesel_models::CommonMandateReference) -> Self {
         Self {
-            payments: value.payments.map(|payments| payments.into()),
-            payouts: value.payouts.map(|payouts| payouts.into()),
+            payments: value.payments.map(|payments| payments.foreign_into()),
+            payouts: value.payouts.map(|payouts| payouts.foreign_into()),
         }
     }
 }
@@ -82,8 +83,8 @@ impl ForeignFrom<diesel_models::CommonMandateReference> for CommonMandateReferen
 impl ForeignFrom<CommonMandateReference> for diesel_models::CommonMandateReference {
     fn foreign_from(value: CommonMandateReference) -> Self {
         Self {
-            payments: value.payments.map(|payments| payments.into()),
-            payouts: value.payouts.map(|payouts| payouts.into()),
+            payments: value.payments.map(|payments| payments.foreign_into()),
+            payouts: value.payouts.map(|payouts| payouts.foreign_into()),
         }
     }
 }
@@ -94,7 +95,7 @@ impl ForeignFrom<diesel_models::PayoutsMandateReference> for PayoutsMandateRefer
             value
                 .0
                 .into_iter()
-                .map(|(key, record)| (key, record.into()))
+                .map(|(key, record)| (key, record.foreign_into()))
                 .collect(),
         )
     }
@@ -106,7 +107,7 @@ impl ForeignFrom<PayoutsMandateReference> for diesel_models::PayoutsMandateRefer
             value
                 .0
                 .into_iter()
-                .map(|(key, record)| (key, record.into()))
+                .map(|(key, record)| (key, record.foreign_into()))
                 .collect(),
         )
     }
@@ -120,7 +121,7 @@ impl ForeignFrom<diesel_models::PaymentsTokenReference> for PaymentsTokenReferen
             value
                 .0
                 .into_iter()
-                .map(|(key, record)| (key, record.into()))
+                .map(|(key, record)| (key, record.foreign_into()))
                 .collect(),
         )
     }
@@ -133,7 +134,7 @@ impl ForeignFrom<PaymentsTokenReference> for diesel_models::PaymentsTokenReferen
             value
                 .0
                 .into_iter()
-                .map(|(key, record)| (key, record.into()))
+                .map(|(key, record)| (key, record.foreign_into()))
                 .collect(),
         )
     }
