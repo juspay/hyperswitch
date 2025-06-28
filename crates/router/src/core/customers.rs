@@ -97,7 +97,9 @@ pub async fn create_customer(
 trait CustomerCreateBridge {
     async fn create_domain_model_from_request<'a>(
         &'a self,
-        connector_customer_details: &'a Option<Vec<payment_methods_domain::ConnectorCustomerDetails>>,
+        connector_customer_details: &'a Option<
+            Vec<payment_methods_domain::ConnectorCustomerDetails>,
+        >,
         db: &'a dyn StorageInterface,
         merchant_reference_id: &'a Option<id_type::CustomerId>,
         merchant_context: &'a domain::MerchantContext,
@@ -116,7 +118,9 @@ trait CustomerCreateBridge {
 impl CustomerCreateBridge for customers::CustomerRequest {
     async fn create_domain_model_from_request<'a>(
         &'a self,
-        connector_customer_details: &'a Option<Vec<payment_methods_domain::ConnectorCustomerDetails>>,
+        connector_customer_details: &'a Option<
+            Vec<payment_methods_domain::ConnectorCustomerDetails>,
+        >,
         db: &'a dyn StorageInterface,
         merchant_reference_id: &'a Option<id_type::CustomerId>,
         merchant_context: &'a domain::MerchantContext,
@@ -230,7 +234,9 @@ impl CustomerCreateBridge for customers::CustomerRequest {
 impl CustomerCreateBridge for customers::CustomerRequest {
     async fn create_domain_model_from_request<'a>(
         &'a self,
-        connector_customer_details: &'a Option<Vec<payment_methods_domain::ConnectorCustomerDetails>>,
+        connector_customer_details: &'a Option<
+            Vec<payment_methods_domain::ConnectorCustomerDetails>,
+        >,
         _db: &'a dyn StorageInterface,
         merchant_reference_id: &'a Option<id_type::CustomerId>,
         merchant_context: &'a domain::MerchantContext,
@@ -1067,7 +1073,9 @@ pub async fn update_customer(
 trait CustomerUpdateBridge {
     async fn create_domain_model_from_request<'a>(
         &'a self,
-        connector_customer_details: &'a Option<Vec<payment_methods_domain::ConnectorCustomerDetails>>,
+        connector_customer_details: &'a Option<
+            Vec<payment_methods_domain::ConnectorCustomerDetails>,
+        >,
         db: &'a dyn StorageInterface,
         merchant_context: &'a domain::MerchantContext,
         key_manager_state: &'a KeyManagerState,
@@ -1239,7 +1247,9 @@ impl VerifyIdForUpdateCustomer<'_> {
 impl CustomerUpdateBridge for customers::CustomerUpdateRequest {
     async fn create_domain_model_from_request<'a>(
         &'a self,
-        _connector_customer_details: &'a Option<Vec<payment_methods_domain::ConnectorCustomerDetails>>,
+        _connector_customer_details: &'a Option<
+            Vec<payment_methods_domain::ConnectorCustomerDetails>,
+        >,
         db: &'a dyn StorageInterface,
         merchant_context: &'a domain::MerchantContext,
         key_manager_state: &'a KeyManagerState,
@@ -1344,7 +1354,9 @@ impl CustomerUpdateBridge for customers::CustomerUpdateRequest {
 impl CustomerUpdateBridge for customers::CustomerUpdateRequest {
     async fn create_domain_model_from_request<'a>(
         &'a self,
-        connector_customer_details: &'a Option<Vec<payment_methods_domain::ConnectorCustomerDetails>>,
+        connector_customer_details: &'a Option<
+            Vec<payment_methods_domain::ConnectorCustomerDetails>,
+        >,
         db: &'a dyn StorageInterface,
         merchant_context: &'a domain::MerchantContext,
         key_manager_state: &'a KeyManagerState,

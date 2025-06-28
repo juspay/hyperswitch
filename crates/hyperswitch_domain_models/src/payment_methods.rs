@@ -982,23 +982,19 @@ impl TryFrom<(payment_methods::PaymentMethodRecord, id_type::MerchantId)>
 }
 
 #[cfg(feature = "v1")]
-impl
-    ForeignTryFrom<(
-        &[payment_methods::PaymentMethodRecord],
-        id_type::MerchantId,
-    )> for Vec<PaymentMethodCustomerMigrate>
+impl ForeignTryFrom<(&[payment_methods::PaymentMethodRecord], id_type::MerchantId)>
+    for Vec<PaymentMethodCustomerMigrate>
 {
     type Error = error_stack::Report<ValidationError>;
 
     fn foreign_try_from(
-        (records, merchant_id): (
-            &[payment_methods::PaymentMethodRecord],
-            id_type::MerchantId,
-        ),
+        (records, merchant_id): (&[payment_methods::PaymentMethodRecord], id_type::MerchantId),
     ) -> Result<Self, Self::Error> {
         let (customers_migration, migration_errors): (Self, Vec<_>) = records
             .iter()
-            .map(|record| PaymentMethodCustomerMigrate::try_from((record.clone(), merchant_id.clone())))
+            .map(|record| {
+                PaymentMethodCustomerMigrate::try_from((record.clone(), merchant_id.clone()))
+            })
             .fold((Self::new(), Vec::new()), |mut acc, result| {
                 match result {
                     Ok(customer) => acc.0.push(customer),
