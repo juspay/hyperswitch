@@ -16,7 +16,7 @@ use router_env::{instrument, logger, tracing};
 
 use crate::{
     consts as router_consts,
-    core::errors::{self, RouterResult},
+    core::{authentication::AuthenticationStore, errors::{self, RouterResult}},
     routes::SessionState,
     types::{
         domain::Profile,
