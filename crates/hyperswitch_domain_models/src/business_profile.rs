@@ -1142,7 +1142,7 @@ impl From<ProfileSetter> for Profile {
             should_collect_cvv_during_payment: value.should_collect_cvv_during_payment,
             tax_connector_id: value.tax_connector_id,
             is_tax_connector_enabled: value.is_tax_connector_enabled,
-            version: common_types::consts::API_VERSION,
+            version: common_utils::consts::API_VERSION,
             is_network_tokenization_enabled: value.is_network_tokenization_enabled,
             is_click_to_pay_enabled: value.is_click_to_pay_enabled,
             authentication_product_ids: value.authentication_product_ids,

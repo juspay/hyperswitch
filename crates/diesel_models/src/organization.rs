@@ -189,7 +189,7 @@ impl OrganizationNew {
             metadata: None,
             created_at: common_utils::date_time::now(),
             modified_at: common_utils::date_time::now(),
-            version: common_types::consts::API_VERSION,
+            version: common_utils::consts::API_VERSION,
             organization_type,
             platform_merchant_id: None,
         }

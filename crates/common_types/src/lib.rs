@@ -3,7 +3,6 @@
 #![warn(missing_docs, missing_debug_implementations)]
 
 pub mod business_profile;
-pub mod consts;
 pub mod customers;
 pub mod domain;
 pub mod payment_methods;

@@ -188,3 +188,11 @@ pub const METRICS_HOST_TAG_NAME: &str = "host";
 
 /// API client request timeout (in seconds)
 pub const REQUEST_TIME_OUT: u64 = 30;
+
+/// API version
+#[cfg(feature = "v1")]
+pub const API_VERSION: common_enums::ApiVersion = common_enums::ApiVersion::V1;
+
+/// API version
+#[cfg(feature = "v2")]
+pub const API_VERSION: common_enums::ApiVersion = common_enums::ApiVersion::V2;

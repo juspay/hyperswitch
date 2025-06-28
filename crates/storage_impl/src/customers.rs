@@ -1,25 +1,34 @@
 use common_utils::{id_type, pii};
+#[cfg(feature = "v2")]
+use diesel_models::CustomerUpdateInternal;
 use diesel_models::{customers, kv};
 use error_stack::ResultExt;
 use futures::future::try_join_all;
-use hyperswitch_domain_models::{
-    behaviour::{Conversion, ReverseConversion},
-    customer as domain,
-    merchant_key_store::MerchantKeyStore,
-};
+use hyperswitch_domain_models::{customer as domain, merchant_key_store::MerchantKeyStore};
 use masking::PeekInterface;
 use router_env::{instrument, tracing};
 
 #[cfg(feature = "v1")]
 use crate::diesel_error_to_data_error;
 use crate::{
+    behaviour::Conversion,
     errors::StorageError,
     kv_router_store,
     redis::kv_store::{decide_storage_scheme, KvStorePartition, Op, PartitionKey},
     store::enums::MerchantStorageScheme,
-    utils::{pg_connection_read, pg_connection_write},
+    utils::{pg_connection_read, pg_connection_write, ForeignFrom},
     CustomResult, DatabaseStore, KeyManagerState, MockDb, RouterStore,
 };
+
+use common_utils::encryption::Encryption;
+use common_utils::errors::ValidationError;
+use common_utils::types::keymanager;
+use hyperswitch_domain_models::type_encryption::crypto_operation;
+use hyperswitch_domain_models::type_encryption::CryptoOperation;
+use masking::Secret;
+
+use common_utils::crypto::Encryptable;
+use common_utils::date_time;
 
 impl KvStorePartition for customers::Customer {}
 
@@ -928,10 +937,9 @@ impl domain::CustomerInterface for MockDb {
     }
 }
 
-
 #[cfg(feature = "v2")]
 #[async_trait::async_trait]
-impl behaviour::Conversion for Customer {
+impl Conversion for domain::Customer {
     type DstType = diesel_models::customers::Customer;
     type NewDstType = diesel_models::customers::CustomerNew;
     async fn convert(self) -> CustomResult<Self::DstType, ValidationError> {
@@ -966,11 +974,11 @@ impl behaviour::Conversion for Customer {
     where
         Self: Sized,
     {
-        let decrypted = types::crypto_operation(
+        let decrypted = crypto_operation(
             state,
             common_utils::type_name!(Self::DstType),
-            types::CryptoOperation::BatchDecrypt(EncryptedCustomer::to_encryptable(
-                EncryptedCustomer {
+            CryptoOperation::BatchDecrypt(domain::EncryptedCustomer::to_encryptable(
+                domain::EncryptedCustomer {
                     name: item.name.clone(),
                     phone: item.phone.clone(),
                     email: item.email.clone(),
@@ -984,11 +992,10 @@ impl behaviour::Conversion for Customer {
         .change_context(ValidationError::InvalidValue {
             message: "Failed while decrypting customer data".to_string(),
         })?;
-        let encryptable_customer = EncryptedCustomer::from_encryptable(decrypted).change_context(
-            ValidationError::InvalidValue {
+        let encryptable_customer = domain::EncryptedCustomer::from_encryptable(decrypted)
+            .change_context(ValidationError::InvalidValue {
                 message: "Failed while decrypting customer data".to_string(),
-            },
-        )?;
+            })?;
 
         Ok(Self {
             id: item.id,
@@ -1037,19 +1044,18 @@ impl behaviour::Conversion for Customer {
             updated_by: self.updated_by,
             default_billing_address: self.default_billing_address,
             default_shipping_address: self.default_shipping_address,
-            version: common_types::consts::API_VERSION,
+            version: common_utils::consts::API_VERSION,
             status: self.status,
         })
     }
 }
 
-
 #[cfg(feature = "v2")]
-impl From<CustomerUpdate> for CustomerUpdateInternal {
-    fn from(customer_update: CustomerUpdate) -> Self {
+impl ForeignFrom<domain::CustomerUpdate> for CustomerUpdateInternal {
+    fn foreign_from(customer_update: domain::CustomerUpdate) -> Self {
         match customer_update {
-            CustomerUpdate::Update(update) => {
-                let CustomerGeneralUpdate {
+            domain::CustomerUpdate::Update(update) => {
+                let domain::CustomerGeneralUpdate {
                     name,
                     email,
                     phone,
@@ -1078,7 +1084,7 @@ impl From<CustomerUpdate> for CustomerUpdateInternal {
                     status,
                 }
             }
-            CustomerUpdate::ConnectorCustomer { connector_customer } => Self {
+            domain::CustomerUpdate::ConnectorCustomer { connector_customer } => Self {
                 connector_customer,
                 name: None,
                 email: None,
@@ -1093,7 +1099,7 @@ impl From<CustomerUpdate> for CustomerUpdateInternal {
                 default_shipping_address: None,
                 status: None,
             },
-            CustomerUpdate::UpdateDefaultPaymentMethod {
+            domain::CustomerUpdate::UpdateDefaultPaymentMethod {
                 default_payment_method_id,
             } => Self {
                 default_payment_method_id,
@@ -1114,8 +1120,10 @@ impl From<CustomerUpdate> for CustomerUpdateInternal {
     }
 }
 
-impl ForeignFrom<CustomerListConstraints> for query::CustomerListConstraints {
-    fn foreign_from(value: CustomerListConstraints) -> Self {
+impl ForeignFrom<domain::CustomerListConstraints>
+    for diesel_models::query::customers::CustomerListConstraints
+{
+    fn foreign_from(value: domain::CustomerListConstraints) -> Self {
         Self {
             limit: i64::from(value.limit),
             offset: value.offset.map(i64::from),
