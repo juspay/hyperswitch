@@ -30,7 +30,6 @@ use error_stack::ResultExt;
 use hyperswitch_domain_models::payments::payment_attempt::PaymentAttemptNew;
 #[cfg(feature = "v2")]
 use hyperswitch_domain_models::{
-    behaviour::{Conversion, ReverseConversion},
     merchant_key_store::MerchantKeyStore,
 };
 use hyperswitch_domain_models::{
@@ -57,6 +56,9 @@ use crate::{
     utils::{pg_connection_read, pg_connection_write, try_redis_get_else_try_database_get},
     DataModelExt, DatabaseStore, RouterStore,
 };
+
+use crate::behaviour::Conversion;
+
 
 #[async_trait::async_trait]
 impl<T: DatabaseStore> PaymentAttemptInterface for RouterStore<T> {
@@ -138,6 +140,7 @@ impl<T: DatabaseStore> PaymentAttemptInterface for RouterStore<T> {
         payment_attempt: PaymentAttemptUpdate,
         _storage_scheme: MerchantStorageScheme,
     ) -> CustomResult<PaymentAttempt, errors::StorageError> {
+
         let conn = pg_connection_write(self).await?;
 
         Conversion::convert(this)
@@ -2248,7 +2251,7 @@ mod label {
 
 #[cfg(feature = "v2")]
 #[async_trait::async_trait]
-impl behaviour::Conversion for PaymentAttempt {
+impl Conversion for PaymentAttempt {
     type DstType = DieselPaymentAttempt;
     type NewDstType = DieselPaymentAttemptNew;
 

@@ -37,7 +37,6 @@ use hyperswitch_domain_models::payments::{
     payment_attempt::PaymentAttempt, payment_intent::PaymentIntentFetchConstraints,
 };
 use hyperswitch_domain_models::{
-    behaviour::Conversion,
     merchant_key_store::MerchantKeyStore,
     payments::{
         payment_intent::{PaymentIntentInterface, PaymentIntentUpdate},
@@ -2079,7 +2078,7 @@ impl TryFrom<PaymentIntentUpdate> for diesel_models::PaymentIntentUpdateInternal
 
 #[cfg(feature = "v2")]
 #[async_trait::async_trait]
-impl behaviour::Conversion for PaymentIntent {
+impl Conversion for PaymentIntent {
     type DstType = DieselPaymentIntent;
     type NewDstType = DieselPaymentIntentNew;
 

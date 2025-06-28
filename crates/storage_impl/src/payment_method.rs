@@ -13,7 +13,6 @@ use error_stack::ResultExt;
 #[cfg(feature = "v1")]
 use hyperswitch_domain_models::behaviour::ReverseConversion;
 use hyperswitch_domain_models::{
-    behaviour::Conversion,
     merchant_key_store::MerchantKeyStore,
     payment_methods::{PaymentMethod as DomainPaymentMethod, PaymentMethodInterface},
 };
@@ -31,6 +30,9 @@ use crate::{
     kv_router_store::{FilterResourceParams, InsertResourceParams, UpdateResourceParams},
     redis::kv_store::{Op, PartitionKey},
 };
+
+use crate::behaviour::Conversion;
+
 
 #[async_trait::async_trait]
 impl<T: DatabaseStore> PaymentMethodInterface for KVRouterStore<T> {
@@ -195,6 +197,7 @@ impl<T: DatabaseStore> PaymentMethodInterface for KVRouterStore<T> {
         payment_method_update: PaymentMethodUpdate,
         storage_scheme: MerchantStorageScheme,
     ) -> CustomResult<DomainPaymentMethod, errors::StorageError> {
+
         let payment_method = Conversion::convert(payment_method)
             .await
             .change_context(errors::StorageError::DecryptionError)?;
@@ -541,6 +544,7 @@ impl<T: DatabaseStore> PaymentMethodInterface for RouterStore<T> {
         payment_method_update: PaymentMethodUpdate,
         _storage_scheme: MerchantStorageScheme,
     ) -> CustomResult<DomainPaymentMethod, errors::StorageError> {
+
         let payment_method = Conversion::convert(payment_method)
             .await
             .change_context(errors::StorageError::DecryptionError)?;

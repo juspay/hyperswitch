@@ -5,13 +5,12 @@ use diesel_models as store;
 use error_stack::ResultExt;
 use futures::lock::{Mutex, MutexGuard};
 use hyperswitch_domain_models::{
-    behaviour::{Conversion, ReverseConversion},
     merchant_key_store::MerchantKeyStore,
     payments::{payment_attempt::PaymentAttempt, PaymentIntent},
 };
 use redis_interface::RedisSettings;
 
-use crate::{errors::StorageError, redis::RedisStore};
+use crate::{behaviour::{Conversion, ReverseConversion}, errors::StorageError, redis::RedisStore};
 
 pub mod payment_attempt;
 pub mod payment_intent;

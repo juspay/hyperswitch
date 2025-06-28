@@ -3,7 +3,6 @@ use std::{fmt::Debug, sync::Arc};
 use diesel_models as store;
 use error_stack::ResultExt;
 use hyperswitch_domain_models::{
-    behaviour::{Conversion, ReverseConversion},
     merchant_key_store::MerchantKeyStore,
 };
 use masking::StrongSecret;
@@ -44,6 +43,7 @@ use hyperswitch_domain_models::{PayoutAttemptInterface, PayoutsInterface};
 pub use mock_db::MockDb;
 use redis_interface::{errors::RedisError, RedisConnectionPool, SaddReply};
 
+use crate::behaviour::{Conversion, ReverseConversion};
 #[cfg(not(feature = "payouts"))]
 pub use crate::database::store::Store;
 pub use crate::{database::store::DatabaseStore, errors::StorageError};
