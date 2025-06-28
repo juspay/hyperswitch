@@ -32,6 +32,18 @@ use crate::{
 };
 
 use crate::behaviour::Conversion;
+use common_utils::errors::ValidationError;
+use common_utils::types::keymanager;
+use masking::Secret;
+use hyperswitch_domain_models::type_encryption::crypto_operation;
+use common_utils::type_name;
+use hyperswitch_domain_models::type_encryption::CryptoOperation;
+use hyperswitch_domain_models::payment_methods::EncryptedPaymentMethod;
+use hyperswitch_domain_models::payment_methods::VaultId;
+
+use hyperswitch_domain_models::payment_methods::PaymentMethodSession;
+use hyperswitch_domain_models::payment_methods::EncryptedPaymentMethodSession;
+
 
 
 #[async_trait::async_trait]
@@ -1201,6 +1213,7 @@ impl super::behaviour::Conversion for PaymentMethodSession {
         use common_utils::ext_traits::ValueExt;
 
         async {
+
             let decrypted_data = crypto_operation(
                 state,
                 type_name!(Self::DstType),
