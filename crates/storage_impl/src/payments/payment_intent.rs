@@ -74,6 +74,11 @@ use hyperswitch_domain_models::type_encryption::CryptoOperation;
 use masking::Secret;
 use common_utils::types::CreatedBy;
 
+use masking::PeekInterface;
+use masking::ExposeInterface;
+use common_utils::types::keymanager::ToEncryptable;
+use common_utils::ext_traits::ValueExt;
+
 use crate::behaviour::Conversion;
 
 #[async_trait::async_trait]
@@ -385,7 +390,7 @@ impl<T: DatabaseStore> PaymentIntentInterface for KVRouterStore<T> {
                 let key_str = key.to_string();
 
                 let diesel_intent_update =
-                    PaymentIntentUpdateInternal::try_from(payment_intent_update)
+                    PaymentIntentUpdateInternal::foreign_try_from(payment_intent_update)
                         .change_context(StorageError::DeserializationFailed)?;
                 let origin_diesel_intent = this
                     .convert()
@@ -830,7 +835,7 @@ impl<T: DatabaseStore> PaymentIntentInterface for crate::RouterStore<T> {
         _storage_scheme: MerchantStorageScheme,
     ) -> error_stack::Result<PaymentIntent, StorageError> {
         let conn = pg_connection_write(self).await?;
-        let diesel_payment_intent_update = PaymentIntentUpdateInternal::try_from(payment_intent)
+        let diesel_payment_intent_update = PaymentIntentUpdateInternal::foreign_try_from(payment_intent)
             .change_context(StorageError::DeserializationFailed)?;
         let diesel_payment_intent = this
             .convert()
