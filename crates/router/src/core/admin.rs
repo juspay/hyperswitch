@@ -12,7 +12,7 @@ use common_utils::{
     types::keymanager::{self as km_types, KeyManagerState, ToEncryptable},
 };
 #[cfg(all(any(feature = "v1", feature = "v2"), feature = "olap"))]
-use diesel_models::{business_profile::CardTestingGuardConfig, organization::OrganizationBridge};
+use diesel_models::{organization::OrganizationBridge};
 use diesel_models::{configs, payment_method};
 use error_stack::{report, FutureExt, ResultExt};
 use external_services::http_client::client;
@@ -4067,6 +4067,8 @@ impl ProfileCreateBridge for api::ProfileCreate {
         key_store: &domain::MerchantKeyStore,
         merchant_id: &id_type::MerchantId,
     ) -> RouterResult<domain::Profile> {
+        use common_types::business_profile::CardTestingGuardConfig;
+
         if let Some(session_expiry) = &self.session_expiry {
             helpers::validate_session_expiry(session_expiry.to_owned())?;
         }
@@ -4871,7 +4873,7 @@ impl ProfileWrapper {
         revenue_recovery_retry_algorithm_type: common_enums::RevenueRecoveryAlgorithmType,
     ) -> RouterResult<()> {
         let recovery_algorithm_data =
-            diesel_models::business_profile::RevenueRecoveryAlgorithmData {
+            common_types::business_profile::RevenueRecoveryAlgorithmData {
                 monitoring_configured_timestamp: date_time::now(),
             };
         let profile_update = domain::ProfileUpdate::RevenueRecoveryAlgorithmUpdate {
