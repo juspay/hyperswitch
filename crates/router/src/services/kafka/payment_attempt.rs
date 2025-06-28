@@ -206,7 +206,7 @@ pub struct KafkaPaymentAttempt<'a> {
     pub payment_method_billing_address: Option<masking::Secret<&'a address::Address>>, // adjusted from Encryption
     pub redirection_data: Option<&'a RedirectForm>,
     pub connector_payment_data: Option<String>,
-    pub connector_token_details: Option<&'a payment_attempt::ConnectorTokenDetails>,
+    pub connector_token_details: Option<&'a payments::ConnectorTokenDetails>,
     pub feature_metadata: Option<&'a PaymentAttemptFeatureMetadata>,
     pub network_advice_code: Option<String>,
     pub network_decline_code: Option<String>,

@@ -7,16 +7,14 @@ use common_utils::{
     crypto::Encryptable, hashing::HashedString, id_type, pii, types as common_types,
 };
 use diesel_models::enums as storage_enums;
-#[cfg(feature = "v2")]
-use diesel_models::{types as diesel_types, PaymentLinkConfigRequestForPayments};
-#[cfg(feature = "v2")]
-use diesel_models::{TaxDetails};
 use hyperswitch_domain_models::payments::PaymentIntent;
 #[cfg(feature = "v2")]
 use hyperswitch_domain_models::{address, routing};
 use masking::{PeekInterface, Secret};
 use serde_json::Value;
 use time::OffsetDateTime;
+
+use ::common_types::payments::TaxDetails;
 
 #[cfg(feature = "v1")]
 #[serde_with::skip_serializing_none]
@@ -87,7 +85,7 @@ pub struct KafkaPaymentIntentEvent<'a> {
     pub attempt_count: i16,
     pub profile_id: &'a id_type::ProfileId,
     pub customer_email: Option<HashedString<pii::EmailStrategy>>,
-    pub feature_metadata: Option<&'a diesel_types::FeatureMetadata>,
+    pub feature_metadata: Option<&'a payments::FeatureMetadata>,
     pub organization_id: &'a id_type::OrganizationId,
     pub order_details: Option<&'a Vec<Secret<OrderDetailsWithAmount>>>,
 
@@ -128,7 +126,7 @@ pub struct KafkaPaymentIntentEvent<'a> {
     pub apply_mit_exemption: common_enums::MitExemptionRequest,
     pub customer_present: common_enums::PresenceOfCustomerDuringPayment,
     pub routing_algorithm_id: Option<&'a id_type::RoutingId>,
-    pub payment_link_config: Option<&'a PaymentLinkConfigRequestForPayments>,
+    pub payment_link_config: Option<&'a payments::PaymentLinkConfigRequestForPayments>,
 
     #[serde(flatten)]
     infra_values: Option<Value>,
