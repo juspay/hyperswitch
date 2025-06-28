@@ -1,6 +1,14 @@
+use common_enums::RelayType;
+use hyperswitch_domain_models::relay::{Relay, RelayUpdate};
+use common_utils::errors::CustomResult;
+use common_utils::errors::ValidationError;
+use masking::Secret;
+use common_utils::types::keymanager;
 
-impl From<RelayUpdate> for RelayUpdateInternal {
-    fn from(value: RelayUpdate) -> Self {
+use crate::utils::ForeignFrom;
+
+impl ForeignFrom<RelayUpdate> for diesel_models::relay::RelayUpdateInternal {
+    fn foreign_from(value: RelayUpdate) -> Self {
         match value {
             RelayUpdate::ErrorUpdate {
                 error_code,
@@ -71,7 +79,7 @@ impl super::behaviour::Conversion for Relay {
             connector_id: item.connector_id,
             profile_id: item.profile_id,
             merchant_id: item.merchant_id,
-            relay_type: enums::RelayType::Refund,
+            relay_type: RelayType::Refund,
             request_data: item
                 .request_data
                 .map(|data| {
