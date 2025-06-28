@@ -256,26 +256,26 @@ impl<T: DatabaseStore> PaymentMethodInterface for KVRouterStore<T> {
         .await
     }
 
-    #[cfg(feature = "v2")]
-    #[instrument(skip_all)]
-    async fn update_payment_method(
-        &self,
-        state: &KeyManagerState,
-        key_store: &MerchantKeyStore,
-        payment_method: DomainPaymentMethod,
-        payment_method_update: PaymentMethodUpdate,
-        storage_scheme: MerchantStorageScheme,
-    ) -> CustomResult<DomainPaymentMethod, errors::StorageError> {
-        self.router_store
-            .update_payment_method(
-                state,
-                key_store,
-                payment_method,
-                payment_method_update,
-                storage_scheme,
-            )
-            .await
-    }
+    // #[cfg(feature = "v2")]
+    // #[instrument(skip_all)]
+    // async fn update_payment_method(
+    //     &self,
+    //     state: &KeyManagerState,
+    //     key_store: &MerchantKeyStore,
+    //     payment_method: DomainPaymentMethod,
+    //     payment_method_update: PaymentMethodUpdate,
+    //     storage_scheme: MerchantStorageScheme,
+    // ) -> CustomResult<DomainPaymentMethod, errors::StorageError> {
+    //     self.router_store
+    //         .update_payment_method(
+    //             state,
+    //             key_store,
+    //             payment_method,
+    //             payment_method_update,
+    //             storage_scheme,
+    //         )
+    //         .await
+    // }
 
     #[cfg(feature = "v1")]
     #[instrument(skip_all)]
@@ -552,28 +552,28 @@ impl<T: DatabaseStore> PaymentMethodInterface for RouterStore<T> {
         .await
     }
 
-    #[cfg(feature = "v2")]
-    #[instrument(skip_all)]
-    async fn update_payment_method(
-        &self,
-        state: &KeyManagerState,
-        key_store: &MerchantKeyStore,
-        payment_method: DomainPaymentMethod,
-        payment_method_update: PaymentMethodUpdate,
-        _storage_scheme: MerchantStorageScheme,
-    ) -> CustomResult<DomainPaymentMethod, errors::StorageError> {
+    // #[cfg(feature = "v2")]
+    // #[instrument(skip_all)]
+    // async fn update_payment_method(
+    //     &self,
+    //     state: &KeyManagerState,
+    //     key_store: &MerchantKeyStore,
+    //     payment_method: DomainPaymentMethod,
+    //     payment_method_update: PaymentMethodUpdate,
+    //     _storage_scheme: MerchantStorageScheme,
+    // ) -> CustomResult<DomainPaymentMethod, errors::StorageError> {
 
-        let payment_method = Conversion::convert(payment_method)
-            .await
-            .change_context(errors::StorageError::DecryptionError)?;
-        let conn = pg_connection_write(self).await?;
-        self.call_database(
-            state,
-            key_store,
-            payment_method.update_with_id(&conn, payment_method_update.into()),
-        )
-        .await
-    }
+    //     let payment_method = Conversion::convert(payment_method)
+    //         .await
+    //         .change_context(errors::StorageError::DecryptionError)?;
+    //     let conn = pg_connection_write(self).await?;
+    //     self.call_database(
+    //         state,
+    //         key_store,
+    //         payment_method.update_with_id(&conn, payment_method_update.into()),
+    //     )
+    //     .await
+    // }
 
     #[cfg(feature = "v1")]
     #[instrument(skip_all)]
@@ -945,30 +945,30 @@ impl PaymentMethodInterface for MockDb {
         }
     }
 
-    async fn update_payment_method(
-        &self,
-        state: &KeyManagerState,
-        key_store: &MerchantKeyStore,
-        payment_method: DomainPaymentMethod,
-        payment_method_update: PaymentMethodUpdate,
-        _storage_scheme: MerchantStorageScheme,
-    ) -> CustomResult<DomainPaymentMethod, errors::StorageError> {
-        let payment_method_updated = PaymentMethodUpdateInternal::from(payment_method_update)
-            .apply_changeset(
-                Conversion::convert(payment_method.clone())
-                    .await
-                    .change_context(errors::StorageError::EncryptionError)?,
-            );
-        self.update_resource::<PaymentMethod, _>(
-            state,
-            key_store,
-            self.payment_methods.lock().await,
-            payment_method_updated,
-            |pm| pm.get_id() == payment_method.get_id(),
-            "cannot update payment method".to_string(),
-        )
-        .await
-    }
+    // async fn update_payment_method(
+    //     &self,
+    //     state: &KeyManagerState,
+    //     key_store: &MerchantKeyStore,
+    //     payment_method: DomainPaymentMethod,
+    //     payment_method_update: PaymentMethodUpdate,
+    //     _storage_scheme: MerchantStorageScheme,
+    // ) -> CustomResult<DomainPaymentMethod, errors::StorageError> {
+    //     let payment_method_updated = PaymentMethodUpdateInternal::from(payment_method_update)
+    //         .apply_changeset(
+    //             Conversion::convert(payment_method.clone())
+    //                 .await
+    //                 .change_context(errors::StorageError::EncryptionError)?,
+    //         );
+    //     self.update_resource::<PaymentMethod, _>(
+    //         state,
+    //         key_store,
+    //         self.payment_methods.lock().await,
+    //         payment_method_updated,
+    //         |pm| pm.get_id() == payment_method.get_id(),
+    //         "cannot update payment method".to_string(),
+    //     )
+    //     .await
+    // }
 
     #[cfg(feature = "v2")]
     async fn delete_payment_method(

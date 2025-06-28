@@ -868,8 +868,8 @@ pub async fn payouts_filtered_list_core(
     let list: Vec<(
         storage::Payouts,
         storage::PayoutAttempt,
-        Option<domain::Customer>,
-        Option<domain::Address>,
+        Option<hyperswitch_domain_models::customer::Customer>,
+        Option<hyperswitch_domain_models::address::Address>,
     )> = db
         .filter_payouts_and_attempts(
             merchant_context.get_merchant_account().get_id(),
@@ -879,62 +879,57 @@ pub async fn payouts_filtered_list_core(
         .await
         .to_not_found_response(errors::ApiErrorResponse::PayoutNotFound)?;
     let list = core_utils::filter_objects_based_on_profile_id_list(profile_id_list, list);
-    let data: Vec<api::PayoutCreateResponse> =
-        join_all(list.into_iter().map(|(p, pa, customer, address)| async {
+    // let data: Vec<api::PayoutCreateResponse> =
+    //     join_all(list.into_iter().map(|(p, pa, customer, address)| async {
 
-            let payout_addr: Option<payment_enums::Address> = address
-                .and_then(|addr|  {
-                    addr
-                    .map(ForeignFrom::foreign_from)
-                    .map_err(|err| {
-                        let msg = format!("failed to convert address for id: {:?}", p.address_id);
-                        logger::warn!(?err, msg);
-                    })
-                    .ok()
-                });
+    //         let payout_addr: Option<payment_enums::Address> = address
+    //             .and_then(|addr|  {
+    //                 payment_enums::Address::foreign_from(addr)
+    //             });
 
-            Some((p, pa, customer, payout_addr))
-        }))
-        .await
-        .into_iter()
-        .flatten()
-        .map(ForeignFrom::foreign_from)
-        .collect();
+    //         Some((p, pa, customer, payout_addr))
+    //     }))
+    //     .await
+    //     .into_iter()
+    //     .flatten()
+    //     .map(ForeignFrom::foreign_from)
+    //     .collect();
 
-    let active_payout_ids = db
-        .filter_active_payout_ids_by_constraints(
-            merchant_context.get_merchant_account().get_id(),
-            &constraints,
-        )
-        .await
-        .change_context(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable("Failed to filter active payout ids based on the constraints")?;
+    // let active_payout_ids = db
+    //     .filter_active_payout_ids_by_constraints(
+    //         merchant_context.get_merchant_account().get_id(),
+    //         &constraints,
+    //     )
+    //     .await
+    //     .change_context(errors::ApiErrorResponse::InternalServerError)
+    //     .attach_printable("Failed to filter active payout ids based on the constraints")?;
 
-    let total_count = db
-        .get_total_count_of_filtered_payouts(
-            merchant_context.get_merchant_account().get_id(),
-            &active_payout_ids,
-            filters.connector.clone(),
-            filters.currency.clone(),
-            filters.status.clone(),
-            filters.payout_method.clone(),
-        )
-        .await
-        .change_context(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable_lazy(|| {
-            format!(
-                "Failed to fetch total count of filtered payouts for the given constraints - {:?}",
-                filters
-            )
-        })?;
+    // let total_count = db
+    //     .get_total_count_of_filtered_payouts(
+    //         merchant_context.get_merchant_account().get_id(),
+    //         &active_payout_ids,
+    //         filters.connector.clone(),
+    //         filters.currency.clone(),
+    //         filters.status.clone(),
+    //         filters.payout_method.clone(),
+    //     )
+    //     .await
+    //     .change_context(errors::ApiErrorResponse::InternalServerError)
+    //     .attach_printable_lazy(|| {
+    //         format!(
+    //             "Failed to fetch total count of filtered payouts for the given constraints - {:?}",
+    //             filters
+    //         )
+    //     })?;
 
-    Ok(services::ApplicationResponse::Json(
-        api::PayoutListResponse {
-            size: data.len(),
-            data,
-            total_count: Some(total_count),
-        },
-    ))
+    // Ok(services::ApplicationResponse::Json(
+    //     api::PayoutListResponse {
+    //         size: data.len(),
+    //         data,
+    //         total_count: Some(total_count),
+    //     },
+    // ))
+    todo!()
 }
 
 #[cfg(feature = "olap")]
@@ -2071,18 +2066,18 @@ pub async fn create_recipient_disburse_account(
                             connector_mandate_details: Some(common_connector_mandate),
                         };
 
-                    payout_data.payment_method = Some(
-                        db.update_payment_method(
-                            &(state.into()),
-                            merchant_context.get_merchant_key_store(),
-                            pm_method,
-                            pm_update,
-                            merchant_context.get_merchant_account().storage_scheme,
-                        )
-                        .await
-                        .change_context(errors::ApiErrorResponse::PaymentMethodNotFound)
-                        .attach_printable("Unable to find payment method")?,
-                    );
+                    // payout_data.payment_method = Some(
+                    //     db.update_payment_method(
+                    //         &(state.into()),
+                    //         merchant_context.get_merchant_key_store(),
+                    //         pm_method,
+                    //         pm_update,
+                    //         merchant_context.get_merchant_account().storage_scheme,
+                    //     )
+                    //     .await
+                    //     .change_context(errors::ApiErrorResponse::PaymentMethodNotFound)
+                    //     .attach_printable("Unable to find payment method")?,
+                    // );
                 } else {
                     #[cfg(feature = "v1")]
                     let customer_id = Some(customer_details.customer_id);

@@ -2258,24 +2258,24 @@ impl PaymentMethodInterface for KafkaStore {
             .await
     }
 
-    async fn update_payment_method(
-        &self,
-        state: &KeyManagerState,
-        key_store: &domain::MerchantKeyStore,
-        payment_method: domain::PaymentMethod,
-        payment_method_update: storage::PaymentMethodUpdate,
-        storage_scheme: MerchantStorageScheme,
-    ) -> CustomResult<domain::PaymentMethod, errors::StorageError> {
-        self.diesel_store
-            .update_payment_method(
-                state,
-                key_store,
-                payment_method,
-                payment_method_update,
-                storage_scheme,
-            )
-            .await
-    }
+    // async fn update_payment_method(
+    //     &self,
+    //     state: &KeyManagerState,
+    //     key_store: &domain::MerchantKeyStore,
+    //     payment_method: domain::PaymentMethod,
+    //     payment_method_update: storage::PaymentMethodUpdate,
+    //     storage_scheme: MerchantStorageScheme,
+    // ) -> CustomResult<domain::PaymentMethod, errors::StorageError> {
+    //     self.diesel_store
+    //         .update_payment_method(
+    //             state,
+    //             key_store,
+    //             payment_method,
+    //             payment_method_update,
+    //             storage_scheme,
+    //         )
+    //         .await
+    // }
 
     #[cfg(feature = "v1")]
     async fn delete_payment_method_by_merchant_id_payment_method_id(

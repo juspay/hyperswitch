@@ -548,14 +548,14 @@ pub trait PaymentMethodInterface {
         storage_scheme: MerchantStorageScheme,
     ) -> CustomResult<PaymentMethod, Self::Error>;
 
-    async fn update_payment_method(
-        &self,
-        state: &keymanager::KeyManagerState,
-        key_store: &MerchantKeyStore,
-        payment_method: PaymentMethod,
-        payment_method_update: PaymentMethodUpdate,
-        storage_scheme: MerchantStorageScheme,
-    ) -> CustomResult<PaymentMethod, Self::Error>;
+    // async fn update_payment_method(
+    //     &self,
+    //     state: &keymanager::KeyManagerState,
+    //     key_store: &MerchantKeyStore,
+    //     payment_method: PaymentMethod,
+    //     payment_method_update: PaymentMethodUpdate,
+    //     storage_scheme: MerchantStorageScheme,
+    // ) -> CustomResult<PaymentMethod, Self::Error>;
 
     #[cfg(feature = "v2")]
     async fn delete_payment_method(

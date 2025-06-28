@@ -2163,9 +2163,9 @@ pub async fn update_payment_method_and_last_used(
         scheme: card_scheme,
         last_used_at: common_utils::date_time::now(),
     };
-    db.update_payment_method(&(state.into()), key_store, pm, pm_update, storage_scheme)
-        .await
-        .change_context(errors::VaultError::UpdateInPaymentMethodDataTableFailed)?;
+    // db.update_payment_method(&(state.into()), key_store, pm, pm_update, storage_scheme)
+    //     .await
+    //     .change_context(errors::VaultError::UpdateInPaymentMethodDataTableFailed)?;
     Ok(())
 }
 
@@ -2184,9 +2184,9 @@ pub async fn update_payment_method_connector_mandate_details(
         connector_mandate_details: connector_mandate_details.map(|cmd| cmd.foreign_into()),
     };
 
-    db.update_payment_method(&(state.into()), key_store, pm, pm_update, storage_scheme)
-        .await
-        .change_context(errors::VaultError::UpdateInPaymentMethodDataTableFailed)?;
+    // db.update_payment_method(&(state.into()), key_store, pm, pm_update, storage_scheme)
+    //     .await
+    //     .change_context(errors::VaultError::UpdateInPaymentMethodDataTableFailed)?;
     Ok(())
 }
 
@@ -4739,18 +4739,18 @@ pub async fn update_last_used_at(
         last_used_at: common_utils::date_time::now(),
     };
 
-    state
-        .store
-        .update_payment_method(
-            &(state.into()),
-            key_store,
-            payment_method.clone(),
-            update_last_used,
-            storage_scheme,
-        )
-        .await
-        .change_context(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable("Failed to update the last_used_at in db")?;
+    // state
+    //     .store
+    //     .update_payment_method(
+    //         &(state.into()),
+    //         key_store,
+    //         payment_method.clone(),
+    //         update_last_used,
+    //         storage_scheme,
+    //     )
+    //     .await
+    //     .change_context(errors::ApiErrorResponse::InternalServerError)
+    //     .attach_printable("Failed to update the last_used_at in db")?;
 
     Ok(())
 }
