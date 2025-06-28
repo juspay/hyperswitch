@@ -2271,11 +2271,6 @@ pub async fn retrieve_extended_card_info(
 pub fn get_or_generate_payment_id(
     payload: &mut payment_types::PaymentsRequest,
 ) -> errors::RouterResult<()> {
-    payload.is_payment_id_from_merchant = matches!(
-        &payload.payment_id,
-        Some(payment_types::PaymentIdType::PaymentIntentId(_))
-    );
-
     let given_payment_id = payload
         .payment_id
         .clone()
@@ -2287,6 +2282,11 @@ pub fn get_or_generate_payment_id(
         .transpose()?;
 
     let payment_id = given_payment_id.unwrap_or(common_utils::id_type::PaymentId::default());
+
+    payload.is_payment_id_from_merchant = matches!(
+        &payload.payment_id,
+        Some(payment_types::PaymentIdType::PaymentIntentId(_))
+    );
 
     payload.payment_id = Some(api_models::payments::PaymentIdType::PaymentIntentId(
         payment_id,
