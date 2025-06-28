@@ -1034,8 +1034,8 @@ impl ForeignFrom<storage::FileMetadata> for api_models::files::FileMetadataRespo
     }
 }
 
-impl ForeignFrom<diesel_models::cards_info::CardInfo> for api_models::cards_info::CardInfoResponse {
-    fn foreign_from(item: diesel_models::cards_info::CardInfo) -> Self {
+impl ForeignFrom<hyperswitch_domain_models::cards_info::CardInfo> for api_models::cards_info::CardInfoResponse {
+    fn foreign_from(item: hyperswitch_domain_models::cards_info::CardInfo) -> Self {
         Self {
             card_iin: item.card_iin,
             card_type: item.card_type,
@@ -2337,7 +2337,7 @@ impl ForeignFrom<common_types::business_profile::BusinessGenericLinkConfig>
     }
 }
 
-impl ForeignFrom<card_info_types::CardInfoCreateRequest> for storage::CardInfo {
+impl ForeignFrom<card_info_types::CardInfoCreateRequest> for hyperswitch_domain_models::cards_info::CardInfo {
     fn foreign_from(value: card_info_types::CardInfoCreateRequest) -> Self {
         Self {
             card_iin: value.card_iin,
@@ -2356,7 +2356,7 @@ impl ForeignFrom<card_info_types::CardInfoCreateRequest> for storage::CardInfo {
     }
 }
 
-impl ForeignFrom<card_info_types::CardInfoUpdateRequest> for storage::CardInfo {
+impl ForeignFrom<card_info_types::CardInfoUpdateRequest> for hyperswitch_domain_models::cards_info::CardInfo {
     fn foreign_from(value: card_info_types::CardInfoUpdateRequest) -> Self {
         Self {
             card_iin: value.card_iin,
@@ -2371,6 +2371,78 @@ impl ForeignFrom<card_info_types::CardInfoUpdateRequest> for storage::CardInfo {
             date_created: common_utils::date_time::now(),
             last_updated: Some(common_utils::date_time::now()),
             last_updated_provider: value.last_updated_provider,
+        }
+    }
+}
+
+impl ForeignFrom<diesel_models::CardInfo> for hyperswitch_domain_models::cards_info::CardInfo {
+    fn foreign_from(from: diesel_models::CardInfo) -> Self {
+        Self {
+            card_iin: from.card_iin,
+            card_issuer: from.card_issuer,
+            card_network: from.card_network,
+            card_type: from.card_type,
+            card_subtype: from.card_subtype,
+            card_issuing_country: from.card_issuing_country,
+            bank_code_id: from.bank_code_id,
+            bank_code: from.bank_code,
+            country_code: from.country_code,
+            date_created: from.date_created,
+            last_updated: from.last_updated,
+            last_updated_provider: from.last_updated_provider,
+        }
+    }
+}
+
+impl ForeignFrom<hyperswitch_domain_models::cards_info::CardInfo> for diesel_models::CardInfo {
+    fn foreign_from(from: hyperswitch_domain_models::cards_info::CardInfo) -> Self {
+        Self {
+            card_iin: from.card_iin,
+            card_issuer: from.card_issuer,
+            card_network: from.card_network,
+            card_type: from.card_type,
+            card_subtype: from.card_subtype,
+            card_issuing_country: from.card_issuing_country,
+            bank_code_id: from.bank_code_id,
+            bank_code: from.bank_code,
+            country_code: from.country_code,
+            date_created: from.date_created,
+            last_updated: from.last_updated,
+            last_updated_provider: from.last_updated_provider,
+        }
+    }
+}
+
+impl ForeignFrom<diesel_models::UpdateCardInfo> for hyperswitch_domain_models::cards_info::UpdateCardInfo {
+    fn foreign_from(from: diesel_models::UpdateCardInfo) -> Self {
+        Self {
+            card_issuer: from.card_issuer,
+            card_network: from.card_network,
+            card_type: from.card_type,
+            card_subtype: from.card_subtype,
+            card_issuing_country: from.card_issuing_country,
+            bank_code_id: from.bank_code_id,
+            bank_code: from.bank_code,
+            country_code: from.country_code,
+            last_updated: from.last_updated,
+            last_updated_provider: from.last_updated_provider,
+        }
+    }
+}
+
+impl ForeignFrom<hyperswitch_domain_models::cards_info::UpdateCardInfo> for diesel_models::UpdateCardInfo {
+    fn foreign_from(from: hyperswitch_domain_models::cards_info::UpdateCardInfo) -> Self {
+        Self {
+            card_issuer: from.card_issuer,
+            card_network: from.card_network,
+            card_type: from.card_type,
+            card_subtype: from.card_subtype,
+            card_issuing_country: from.card_issuing_country,
+            bank_code_id: from.bank_code_id,
+            bank_code: from.bank_code,
+            country_code: from.country_code,
+            last_updated: from.last_updated,
+            last_updated_provider: from.last_updated_provider,
         }
     }
 }
