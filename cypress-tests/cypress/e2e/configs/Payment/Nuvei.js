@@ -1,7 +1,7 @@
-import { 
-  customerAcceptance, 
+import {
+  customerAcceptance,
   cardRequiredField,
-  successfulNo3DSCardDetails
+  successfulNo3DSCardDetails,
 } from "./Commons";
 import { getCustomExchange } from "./Modifiers";
 
@@ -44,7 +44,6 @@ const successfulThreeDSCardDetails = {
   card_holder_name: "CL-BRW1",
   card_cvc: "123",
 };
-
 
 // Payment method data objects for responses
 const payment_method_data_no3ds = {
