@@ -1,8 +1,12 @@
 use common_utils::{ext_traits::AsyncExt, types::keymanager::KeyManagerState};
 use error_stack::{report, ResultExt};
+#[cfg(feature = "v2")]
+use hyperswitch_domain_models::business_profile::ProfileUpdate;
 use router_env::{instrument, tracing};
 
 use super::Store;
+#[cfg(feature = "v2")]
+use crate::types::transformers::ForeignFrom;
 use crate::{
     connection,
     core::errors::{self, CustomResult},
@@ -15,6 +19,9 @@ use crate::{
         storage,
     },
 };
+
+use common_utils::encryption::Encryption;
+use hyperswitch_domain_models::business_profile::ProfileGeneralUpdate;
 
 #[async_trait::async_trait]
 pub trait ProfileInterface
@@ -454,12 +461,16 @@ impl ProfileInterface for MockDb {
 
 
 #[cfg(feature = "v2")]
-impl From<ProfileUpdate> for ProfileUpdateInternal {
-    fn from(profile_update: ProfileUpdate) -> Self {
+impl ForeignFrom<ProfileUpdate> for diesel_models::business_profile::ProfileUpdateInternal {
+    fn foreign_from(profile_update: ProfileUpdate) -> Self {
+        use common_utils::date_time;
+
         let now = date_time::now();
 
         match profile_update {
             ProfileUpdate::Update(update) => {
+
+
                 let ProfileGeneralUpdate {
                     profile_name,
                     return_url,
