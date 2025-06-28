@@ -680,3 +680,25 @@ pub struct PaymentLinkBackgroundImageConfig {
     pub position: Option<common_enums::ElementPosition>,
     pub size: Option<common_enums::ElementSize>,
 }
+
+
+
+#[cfg(feature = "v2")]
+#[derive(
+    Clone, Debug, PartialEq, Eq, serde::Deserialize, serde::Serialize, diesel::AsExpression,
+)]
+#[diesel(sql_type = diesel::sql_types::Jsonb)]
+pub struct ConnectorTokenDetails {
+    pub connector_mandate_id: Option<String>,
+    pub connector_token_request_reference_id: Option<String>,
+}
+
+#[cfg(feature = "v2")]
+common_utils::impl_to_sql_from_sql_json!(ConnectorTokenDetails);
+
+#[cfg(feature = "v2")]
+impl ConnectorTokenDetails {
+    pub fn get_connector_token_request_reference_id(&self) -> Option<String> {
+        self.connector_token_request_reference_id.clone()
+    }
+}

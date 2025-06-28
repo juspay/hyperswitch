@@ -2,7 +2,7 @@
 use api_models::enums::Connector;
 use common_enums as storage_enums;
 #[cfg(feature = "v2")]
-use common_types::payments as common_payments_types;
+use common_types::payments::{self as common_payments_types, ConnectorTokenDetails};
 #[cfg(feature = "v1")]
 use common_types::primitive_wrappers::{
     ExtendedAuthorizationAppliedBool, RequestExtendedAuthorizationBool,
@@ -373,15 +373,6 @@ pub struct ErrorDetails {
     pub network_decline_code: Option<String>,
     /// A string indicating how to proceed with an network error if payment gateway provide one. This is used to understand the network error code better.
     pub network_error_message: Option<String>,
-}
-
-#[cfg(feature = "v2")]
-#[derive(
-    Clone, Debug, PartialEq, Eq, serde::Serialize,
-)]
-pub struct ConnectorTokenDetails {
-    pub connector_mandate_id: Option<String>,
-    pub connector_token_request_reference_id: Option<String>,
 }
 
 /// Domain model for the payment attempt.

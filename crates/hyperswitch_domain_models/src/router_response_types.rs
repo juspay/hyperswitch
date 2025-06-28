@@ -218,7 +218,7 @@ impl PaymentsResponseData {
     pub fn get_updated_connector_token_details(
         &self,
         original_connector_mandate_request_reference_id: Option<String>,
-    ) -> Option<diesel_models::ConnectorTokenDetails> {
+    ) -> Option<common_types::payments::ConnectorTokenDetails> {
         if let Self::TransactionResponse {
             mandate_reference, ..
         } = self
@@ -229,7 +229,7 @@ impl PaymentsResponseData {
                     .connector_mandate_request_reference_id
                     .or(original_connector_mandate_request_reference_id);
 
-                diesel_models::ConnectorTokenDetails {
+                common_types::payments::ConnectorTokenDetails {
                     connector_mandate_id,
                     connector_token_request_reference_id: connector_mandate_request_reference_id,
                 }
