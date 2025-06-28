@@ -11,6 +11,10 @@ use common_utils::type_name;
 use hyperswitch_domain_models::type_encryption::CryptoOperation;
 use hyperswitch_domain_models::merchant_account::MerchantAccountSetter;
 
+use hyperswitch_domain_models::type_encryption::AsyncLift;
+use error_stack::ResultExt;
+use masking::PeekInterface;
+
 #[cfg(feature = "v2")]
 use crate::utils::ForeignFrom;
 
