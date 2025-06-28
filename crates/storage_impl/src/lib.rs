@@ -30,6 +30,7 @@ pub mod payments;
 #[cfg(feature = "payouts")]
 pub mod payouts;
 pub mod redis;
+pub mod relay;
 pub mod refund;
 mod reverse_lookup;
 pub mod utils;
