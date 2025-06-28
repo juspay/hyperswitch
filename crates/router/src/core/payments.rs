@@ -4217,6 +4217,16 @@ where
             )
             .await?,
         ));
+    operation
+        .to_domain()?
+        .populate_payment_data(
+            state,
+            payment_data,
+            merchant_context,
+            business_profile,
+            &connector,
+        )
+        .await?;
 
     let mut router_data = payment_data
         .construct_router_data(
@@ -9057,7 +9067,7 @@ pub trait OperationSessionGetters<F> {
     #[cfg(feature = "v2")]
     fn get_merchant_connector_details(
         &self,
-    ) -> Option<api_models::payments::MerchantConnectorDetails>;
+    ) -> Option<common_types::domain::MerchantConnectorAuthDetails>;
 
     fn get_connector_customer_id(&self) -> Option<String>;
     fn get_whole_connector_response(&self) -> Option<String>;
@@ -9568,7 +9578,7 @@ impl<F: Clone> OperationSessionGetters<F> for PaymentIntentData<F> {
 
     fn get_merchant_connector_details(
         &self,
-    ) -> Option<api_models::payments::MerchantConnectorDetails> {
+    ) -> Option<common_types::domain::MerchantConnectorAuthDetails> {
         todo!()
     }
 
@@ -9764,7 +9774,7 @@ impl<F: Clone> OperationSessionGetters<F> for PaymentConfirmData<F> {
 
     fn get_merchant_connector_details(
         &self,
-    ) -> Option<api_models::payments::MerchantConnectorDetails> {
+    ) -> Option<common_types::domain::MerchantConnectorAuthDetails> {
         self.merchant_connector_details.clone()
     }
 
@@ -10060,7 +10070,7 @@ impl<F: Clone> OperationSessionGetters<F> for PaymentStatusData<F> {
 
     fn get_merchant_connector_details(
         &self,
-    ) -> Option<api_models::payments::MerchantConnectorDetails> {
+    ) -> Option<common_types::domain::MerchantConnectorAuthDetails> {
         self.merchant_connector_details.clone()
     }
 
@@ -10351,7 +10361,7 @@ impl<F: Clone> OperationSessionGetters<F> for PaymentCaptureData<F> {
 
     fn get_merchant_connector_details(
         &self,
-    ) -> Option<api_models::payments::MerchantConnectorDetails> {
+    ) -> Option<common_types::domain::MerchantConnectorAuthDetails> {
         todo!()
     }
 
@@ -10785,7 +10795,7 @@ impl<F: Clone> OperationSessionGetters<F> for PaymentAttemptListData<F> {
     }
     fn get_merchant_connector_details(
         &self,
-    ) -> Option<api_models::payments::MerchantConnectorDetails> {
+    ) -> Option<common_types::domain::MerchantConnectorAuthDetails> {
         todo!()
     }
 

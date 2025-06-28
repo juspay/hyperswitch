@@ -4,6 +4,39 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2025.06.27.0
+
+### Features
+
+- **core:** Accept merchant_connector_details in Refunds create and retrieve flow ([#8441](https://github.com/juspay/hyperswitch/pull/8441)) ([`b185d85`](https://github.com/juspay/hyperswitch/commit/b185d85f6b55a8a99d4942a7a0966f5f731a920c))
+- Kv changes for V2 feature ([#8198](https://github.com/juspay/hyperswitch/pull/8198)) ([`d2740f0`](https://github.com/juspay/hyperswitch/commit/d2740f0322a0ec1327515c0159b64c930307f451))
+
+### Bug Fixes
+
+- **connector:** [TRUSTPAY] Consuming Amount in PSync Response ([#8455](https://github.com/juspay/hyperswitch/pull/8455)) ([`537d175`](https://github.com/juspay/hyperswitch/commit/537d1755329c372f318df24aeda984d22f0b7a19))
+
+**Full Changelog:** [`2025.06.26.1...2025.06.27.0`](https://github.com/juspay/hyperswitch/compare/2025.06.26.1...2025.06.27.0)
+
+- - -
+
+## 2025.06.26.1
+
+### Features
+
+- **router:** Add webhooks for network tokenization ([#6695](https://github.com/juspay/hyperswitch/pull/6695)) ([`ec6d0e4`](https://github.com/juspay/hyperswitch/commit/ec6d0e4d62a530163ae1c806dcf40ccfd264b246))
+
+### Bug Fixes
+
+- **recovery:** Populate connector request reference id in revenue recovery record attempt flow. ([#8434](https://github.com/juspay/hyperswitch/pull/8434)) ([`f1c5336`](https://github.com/juspay/hyperswitch/commit/f1c53366b28a89c82db0416ffe3e56b8a704afdf))
+
+### Build System / Dependencies
+
+- **deps:** Bump tonic version from 0.12 to 0.13 ([#8461](https://github.com/juspay/hyperswitch/pull/8461)) ([`9e43592`](https://github.com/juspay/hyperswitch/commit/9e435929f0ef45a6324c8d260c74ae3268470e72))
+
+**Full Changelog:** [`2025.06.26.0...2025.06.26.1`](https://github.com/juspay/hyperswitch/compare/2025.06.26.0...2025.06.26.1)
+
+- - -
+
 ## 2025.06.26.0
 
 ### Features
