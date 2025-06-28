@@ -284,28 +284,30 @@ impl ApiKeyInterface for KafkaStore {
     }
 }
 
+use hyperswitch_domain_models::cards_info::{CardInfo, UpdateCardInfo};
+
 #[async_trait::async_trait]
 impl CardsInfoInterface for KafkaStore {
     type Error = errors::StorageError;
     async fn get_card_info(
         &self,
         card_iin: &str,
-    ) -> CustomResult<Option<storage::CardInfo>, errors::StorageError> {
+    ) -> CustomResult<Option<CardInfo>, errors::StorageError> {
         self.diesel_store.get_card_info(card_iin).await
     }
 
     async fn add_card_info(
         &self,
-        data: storage::CardInfo,
-    ) -> CustomResult<storage::CardInfo, errors::StorageError> {
+        data: CardInfo,
+    ) -> CustomResult<CardInfo, errors::StorageError> {
         self.diesel_store.add_card_info(data).await
     }
 
     async fn update_card_info(
         &self,
         card_iin: String,
-        data: storage::UpdateCardInfo,
-    ) -> CustomResult<storage::CardInfo, errors::StorageError> {
+        data: UpdateCardInfo,
+    ) -> CustomResult<CardInfo, errors::StorageError> {
         self.diesel_store.update_card_info(card_iin, data).await
     }
 }
