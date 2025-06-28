@@ -1,5 +1,5 @@
 pub mod behaviour {
-    pub use hyperswitch_domain_models::behaviour::{Conversion, ReverseConversion};
+    pub use storage_impl::behaviour::{Conversion, ReverseConversion};
 }
 
 mod merchant_account {

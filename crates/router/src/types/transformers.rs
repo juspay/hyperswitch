@@ -18,7 +18,7 @@ use masking::{ExposeInterface, PeekInterface, Secret};
 
 use super::domain;
 use crate::{
-    core::errors,
+    core::{authentication::AuthenticationStore, errors},
     headers::{
         ACCEPT_LANGUAGE, BROWSER_NAME, X_APP_ID, X_CLIENT_PLATFORM, X_CLIENT_SOURCE,
         X_CLIENT_VERSION, X_MERCHANT_DOMAIN, X_PAYMENT_CONFIRM_SOURCE, X_REDIRECT_URI,
@@ -2030,7 +2030,7 @@ impl TryFrom<domain::Event> for api_models::webhook_events::EventRetrieveRespons
 }
 
 impl ForeignFrom<api_models::admin::AuthenticationConnectorDetails>
-    for diesel_models::business_profile::AuthenticationConnectorDetails
+    for common_types::business_profile::AuthenticationConnectorDetails
 {
     fn foreign_from(item: api_models::admin::AuthenticationConnectorDetails) -> Self {
         Self {
@@ -2041,10 +2041,10 @@ impl ForeignFrom<api_models::admin::AuthenticationConnectorDetails>
     }
 }
 
-impl ForeignFrom<diesel_models::business_profile::AuthenticationConnectorDetails>
+impl ForeignFrom<common_types::business_profile::AuthenticationConnectorDetails>
     for api_models::admin::AuthenticationConnectorDetails
 {
-    fn foreign_from(item: diesel_models::business_profile::AuthenticationConnectorDetails) -> Self {
+    fn foreign_from(item: common_types::business_profile::AuthenticationConnectorDetails) -> Self {
         Self {
             authentication_connectors: item.authentication_connectors,
             three_ds_requestor_url: item.three_ds_requestor_url,
@@ -2054,7 +2054,7 @@ impl ForeignFrom<diesel_models::business_profile::AuthenticationConnectorDetails
 }
 
 impl ForeignFrom<api_models::admin::ExternalVaultConnectorDetails>
-    for diesel_models::business_profile::ExternalVaultConnectorDetails
+    for common_types::business_profile::ExternalVaultConnectorDetails
 {
     fn foreign_from(item: api_models::admin::ExternalVaultConnectorDetails) -> Self {
         Self {
@@ -2064,10 +2064,10 @@ impl ForeignFrom<api_models::admin::ExternalVaultConnectorDetails>
     }
 }
 
-impl ForeignFrom<diesel_models::business_profile::ExternalVaultConnectorDetails>
+impl ForeignFrom<common_types::business_profile::ExternalVaultConnectorDetails>
     for api_models::admin::ExternalVaultConnectorDetails
 {
-    fn foreign_from(item: diesel_models::business_profile::ExternalVaultConnectorDetails) -> Self {
+    fn foreign_from(item: common_types::business_profile::ExternalVaultConnectorDetails) -> Self {
         Self {
             vault_connector_id: item.vault_connector_id,
             vault_sdk: item.vault_sdk,
@@ -2076,7 +2076,7 @@ impl ForeignFrom<diesel_models::business_profile::ExternalVaultConnectorDetails>
 }
 
 impl ForeignFrom<api_models::admin::CardTestingGuardConfig>
-    for diesel_models::business_profile::CardTestingGuardConfig
+    for common_types::business_profile::CardTestingGuardConfig
 {
     fn foreign_from(item: api_models::admin::CardTestingGuardConfig) -> Self {
         Self {
@@ -2100,10 +2100,10 @@ impl ForeignFrom<api_models::admin::CardTestingGuardConfig>
     }
 }
 
-impl ForeignFrom<diesel_models::business_profile::CardTestingGuardConfig>
+impl ForeignFrom<common_types::business_profile::CardTestingGuardConfig>
     for api_models::admin::CardTestingGuardConfig
 {
-    fn foreign_from(item: diesel_models::business_profile::CardTestingGuardConfig) -> Self {
+    fn foreign_from(item: common_types::business_profile::CardTestingGuardConfig) -> Self {
         Self {
             card_ip_blocking_status: match item.is_card_ip_blocking_enabled {
                 true => api_models::admin::CardTestingGuardStatus::Enabled,
@@ -2126,7 +2126,7 @@ impl ForeignFrom<diesel_models::business_profile::CardTestingGuardConfig>
 }
 
 impl ForeignFrom<api_models::admin::WebhookDetails>
-    for diesel_models::business_profile::WebhookDetails
+    for common_types::business_profile::WebhookDetails
 {
     fn foreign_from(item: api_models::admin::WebhookDetails) -> Self {
         Self {
@@ -2141,10 +2141,10 @@ impl ForeignFrom<api_models::admin::WebhookDetails>
     }
 }
 
-impl ForeignFrom<diesel_models::business_profile::WebhookDetails>
+impl ForeignFrom<common_types::business_profile::WebhookDetails>
     for api_models::admin::WebhookDetails
 {
-    fn foreign_from(item: diesel_models::business_profile::WebhookDetails) -> Self {
+    fn foreign_from(item: common_types::business_profile::WebhookDetails) -> Self {
         Self {
             webhook_version: item.webhook_version,
             webhook_username: item.webhook_username,
@@ -2158,7 +2158,7 @@ impl ForeignFrom<diesel_models::business_profile::WebhookDetails>
 }
 
 impl ForeignFrom<api_models::admin::BusinessPaymentLinkConfig>
-    for diesel_models::business_profile::BusinessPaymentLinkConfig
+    for common_types::business_profile::BusinessPaymentLinkConfig
 {
     fn foreign_from(item: api_models::admin::BusinessPaymentLinkConfig) -> Self {
         Self {
@@ -2175,10 +2175,10 @@ impl ForeignFrom<api_models::admin::BusinessPaymentLinkConfig>
     }
 }
 
-impl ForeignFrom<diesel_models::business_profile::BusinessPaymentLinkConfig>
+impl ForeignFrom<common_types::business_profile::BusinessPaymentLinkConfig>
     for api_models::admin::BusinessPaymentLinkConfig
 {
-    fn foreign_from(item: diesel_models::business_profile::BusinessPaymentLinkConfig) -> Self {
+    fn foreign_from(item: common_types::business_profile::BusinessPaymentLinkConfig) -> Self {
         Self {
             domain_name: item.domain_name,
             default_config: item.default_config.map(ForeignInto::foreign_into),
@@ -2194,7 +2194,7 @@ impl ForeignFrom<diesel_models::business_profile::BusinessPaymentLinkConfig>
 }
 
 impl ForeignFrom<api_models::admin::PaymentLinkConfigRequest>
-    for diesel_models::business_profile::PaymentLinkConfigRequest
+    for common_types::business_profile::PaymentLinkConfigRequest
 {
     fn foreign_from(item: api_models::admin::PaymentLinkConfigRequest) -> Self {
         Self {
@@ -2228,10 +2228,10 @@ impl ForeignFrom<api_models::admin::PaymentLinkConfigRequest>
     }
 }
 
-impl ForeignFrom<diesel_models::business_profile::PaymentLinkConfigRequest>
+impl ForeignFrom<common_types::business_profile::PaymentLinkConfigRequest>
     for api_models::admin::PaymentLinkConfigRequest
 {
-    fn foreign_from(item: diesel_models::business_profile::PaymentLinkConfigRequest) -> Self {
+    fn foreign_from(item: common_types::business_profile::PaymentLinkConfigRequest) -> Self {
         Self {
             theme: item.theme,
             logo: item.logo,
@@ -2264,11 +2264,11 @@ impl ForeignFrom<diesel_models::business_profile::PaymentLinkConfigRequest>
     }
 }
 
-impl ForeignFrom<diesel_models::business_profile::PaymentLinkBackgroundImageConfig>
+impl ForeignFrom<common_types::payments::PaymentLinkBackgroundImageConfig>
     for api_models::admin::PaymentLinkBackgroundImageConfig
 {
     fn foreign_from(
-        item: diesel_models::business_profile::PaymentLinkBackgroundImageConfig,
+        item: common_types::payments::PaymentLinkBackgroundImageConfig,
     ) -> Self {
         Self {
             url: item.url,
@@ -2279,7 +2279,7 @@ impl ForeignFrom<diesel_models::business_profile::PaymentLinkBackgroundImageConf
 }
 
 impl ForeignFrom<api_models::admin::PaymentLinkBackgroundImageConfig>
-    for diesel_models::business_profile::PaymentLinkBackgroundImageConfig
+    for common_types::payments::PaymentLinkBackgroundImageConfig
 {
     fn foreign_from(item: api_models::admin::PaymentLinkBackgroundImageConfig) -> Self {
         Self {
@@ -2291,7 +2291,7 @@ impl ForeignFrom<api_models::admin::PaymentLinkBackgroundImageConfig>
 }
 
 impl ForeignFrom<api_models::admin::BusinessPayoutLinkConfig>
-    for diesel_models::business_profile::BusinessPayoutLinkConfig
+    for common_types::business_profile::BusinessPayoutLinkConfig
 {
     fn foreign_from(item: api_models::admin::BusinessPayoutLinkConfig) -> Self {
         Self {
@@ -2302,10 +2302,10 @@ impl ForeignFrom<api_models::admin::BusinessPayoutLinkConfig>
     }
 }
 
-impl ForeignFrom<diesel_models::business_profile::BusinessPayoutLinkConfig>
+impl ForeignFrom<common_types::business_profile::BusinessPayoutLinkConfig>
     for api_models::admin::BusinessPayoutLinkConfig
 {
-    fn foreign_from(item: diesel_models::business_profile::BusinessPayoutLinkConfig) -> Self {
+    fn foreign_from(item: common_types::business_profile::BusinessPayoutLinkConfig) -> Self {
         Self {
             config: item.config.foreign_into(),
             form_layout: item.form_layout,
@@ -2315,7 +2315,7 @@ impl ForeignFrom<diesel_models::business_profile::BusinessPayoutLinkConfig>
 }
 
 impl ForeignFrom<api_models::admin::BusinessGenericLinkConfig>
-    for diesel_models::business_profile::BusinessGenericLinkConfig
+    for common_types::business_profile::BusinessGenericLinkConfig
 {
     fn foreign_from(item: api_models::admin::BusinessGenericLinkConfig) -> Self {
         Self {
@@ -2326,10 +2326,10 @@ impl ForeignFrom<api_models::admin::BusinessGenericLinkConfig>
     }
 }
 
-impl ForeignFrom<diesel_models::business_profile::BusinessGenericLinkConfig>
+impl ForeignFrom<common_types::business_profile::BusinessGenericLinkConfig>
     for api_models::admin::BusinessGenericLinkConfig
 {
-    fn foreign_from(item: diesel_models::business_profile::BusinessGenericLinkConfig) -> Self {
+    fn foreign_from(item: common_types::business_profile::BusinessGenericLinkConfig) -> Self {
         Self {
             domain_name: item.domain_name,
             allowed_domains: item.allowed_domains,
