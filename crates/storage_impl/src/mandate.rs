@@ -1,27 +1,30 @@
 use diesel_models::Mandate;
+#[cfg(feature = "v2")]
+use hyperswitch_domain_models::mandates::{ConnectorTokenReferenceRecord, PaymentsTokenReference};
+use hyperswitch_domain_models::mandates::{CommonMandateReference, MandateAmountData, MandateDataType, MandateDetails, PayoutsMandateReference, PayoutsMandateReferenceRecord};
 
-use crate::redis::kv_store::KvStorePartition;
+use crate::{redis::kv_store::KvStorePartition, utils::ForeignFrom};
 
 impl KvStorePartition for Mandate {}
 
-impl From<MandateDetails> for diesel_models::enums::MandateDetails {
-    fn from(value: MandateDetails) -> Self {
+impl ForeignFrom<MandateDetails> for diesel_models::enums::MandateDetails {
+    fn foreign_from(value: MandateDetails) -> Self {
         Self {
             update_mandate_id: value.update_mandate_id,
         }
     }
 }
 
-impl From<diesel_models::enums::MandateDetails> for MandateDetails {
-    fn from(value: diesel_models::enums::MandateDetails) -> Self {
+impl ForeignFrom<diesel_models::enums::MandateDetails> for MandateDetails {
+    fn foreign_from(value: diesel_models::enums::MandateDetails) -> Self {
         Self {
             update_mandate_id: value.update_mandate_id,
         }
     }
 }
 
-impl From<MandateDataType> for diesel_models::enums::MandateDataType {
-    fn from(value: MandateDataType) -> Self {
+impl ForeignFrom<MandateDataType> for diesel_models::enums::MandateDataType {
+    fn foreign_from(value: MandateDataType) -> Self {
         match value {
             MandateDataType::SingleUse(data) => Self::SingleUse(data.into()),
             MandateDataType::MultiUse(None) => Self::MultiUse(None),
@@ -30,8 +33,8 @@ impl From<MandateDataType> for diesel_models::enums::MandateDataType {
     }
 }
 
-impl From<diesel_models::enums::MandateDataType> for MandateDataType {
-    fn from(value: diesel_models::enums::MandateDataType) -> Self {
+impl ForeignFrom<diesel_models::enums::MandateDataType> for MandateDataType {
+    fn foreign_from(value: diesel_models::enums::MandateDataType) -> Self {
         use diesel_models::enums::MandateDataType as DieselMandateDataType;
 
         match value {
@@ -42,8 +45,8 @@ impl From<diesel_models::enums::MandateDataType> for MandateDataType {
     }
 }
 
-impl From<MandateAmountData> for diesel_models::enums::MandateAmountData {
-    fn from(value: MandateAmountData) -> Self {
+impl ForeignFrom<MandateAmountData> for diesel_models::enums::MandateAmountData {
+    fn foreign_from(value: MandateAmountData) -> Self {
         Self {
             amount: value.amount,
             currency: value.currency,
@@ -54,8 +57,8 @@ impl From<MandateAmountData> for diesel_models::enums::MandateAmountData {
     }
 }
 
-impl From<diesel_models::enums::MandateAmountData> for MandateAmountData {
-    fn from(value: diesel_models::enums::MandateAmountData) -> Self {
+impl ForeignFrom<diesel_models::enums::MandateAmountData> for MandateAmountData {
+    fn foreign_from(value: diesel_models::enums::MandateAmountData) -> Self {
         Self {
             amount: value.amount,
             currency: value.currency,
@@ -67,8 +70,8 @@ impl From<diesel_models::enums::MandateAmountData> for MandateAmountData {
 }
 
 
-impl From<diesel_models::CommonMandateReference> for CommonMandateReference {
-    fn from(value: diesel_models::CommonMandateReference) -> Self {
+impl ForeignFrom<diesel_models::CommonMandateReference> for CommonMandateReference {
+    fn foreign_from(value: diesel_models::CommonMandateReference) -> Self {
         Self {
             payments: value.payments.map(|payments| payments.into()),
             payouts: value.payouts.map(|payouts| payouts.into()),
@@ -76,8 +79,8 @@ impl From<diesel_models::CommonMandateReference> for CommonMandateReference {
     }
 }
 
-impl From<CommonMandateReference> for diesel_models::CommonMandateReference {
-    fn from(value: CommonMandateReference) -> Self {
+impl ForeignFrom<CommonMandateReference> for diesel_models::CommonMandateReference {
+    fn foreign_from(value: CommonMandateReference) -> Self {
         Self {
             payments: value.payments.map(|payments| payments.into()),
             payouts: value.payouts.map(|payouts| payouts.into()),
@@ -85,8 +88,8 @@ impl From<CommonMandateReference> for diesel_models::CommonMandateReference {
     }
 }
 
-impl From<diesel_models::PayoutsMandateReference> for PayoutsMandateReference {
-    fn from(value: diesel_models::PayoutsMandateReference) -> Self {
+impl ForeignFrom<diesel_models::PayoutsMandateReference> for PayoutsMandateReference {
+    fn foreign_from(value: diesel_models::PayoutsMandateReference) -> Self {
         Self(
             value
                 .0
@@ -97,8 +100,8 @@ impl From<diesel_models::PayoutsMandateReference> for PayoutsMandateReference {
     }
 }
 
-impl From<PayoutsMandateReference> for diesel_models::PayoutsMandateReference {
-    fn from(value: PayoutsMandateReference) -> Self {
+impl ForeignFrom<PayoutsMandateReference> for diesel_models::PayoutsMandateReference {
+    fn foreign_from(value: PayoutsMandateReference) -> Self {
         Self(
             value
                 .0
@@ -111,8 +114,8 @@ impl From<PayoutsMandateReference> for diesel_models::PayoutsMandateReference {
 
 
 #[cfg(feature = "v2")]
-impl From<diesel_models::PaymentsTokenReference> for PaymentsTokenReference {
-    fn from(value: diesel_models::PaymentsTokenReference) -> Self {
+impl ForeignFrom<diesel_models::PaymentsTokenReference> for PaymentsTokenReference {
+    fn foreign_from(value: diesel_models::PaymentsTokenReference) -> Self {
         Self(
             value
                 .0
@@ -124,8 +127,8 @@ impl From<diesel_models::PaymentsTokenReference> for PaymentsTokenReference {
 }
 
 #[cfg(feature = "v2")]
-impl From<PaymentsTokenReference> for diesel_models::PaymentsTokenReference {
-    fn from(value: PaymentsTokenReference) -> Self {
+impl ForeignFrom<PaymentsTokenReference> for diesel_models::PaymentsTokenReference {
+    fn foreign_from(value: PaymentsTokenReference) -> Self {
         Self(
             value
                 .0
@@ -136,16 +139,16 @@ impl From<PaymentsTokenReference> for diesel_models::PaymentsTokenReference {
     }
 }
 
-impl From<diesel_models::PayoutsMandateReferenceRecord> for PayoutsMandateReferenceRecord {
-    fn from(value: diesel_models::PayoutsMandateReferenceRecord) -> Self {
+impl ForeignFrom<diesel_models::PayoutsMandateReferenceRecord> for PayoutsMandateReferenceRecord {
+    fn foreign_from(value: diesel_models::PayoutsMandateReferenceRecord) -> Self {
         Self {
             transfer_method_id: value.transfer_method_id,
         }
     }
 }
 
-impl From<PayoutsMandateReferenceRecord> for diesel_models::PayoutsMandateReferenceRecord {
-    fn from(value: PayoutsMandateReferenceRecord) -> Self {
+impl ForeignFrom<PayoutsMandateReferenceRecord> for diesel_models::PayoutsMandateReferenceRecord {
+    fn foreign_from(value: PayoutsMandateReferenceRecord) -> Self {
         Self {
             transfer_method_id: value.transfer_method_id,
         }
@@ -153,8 +156,8 @@ impl From<PayoutsMandateReferenceRecord> for diesel_models::PayoutsMandateRefere
 }
 
 #[cfg(feature = "v2")]
-impl From<diesel_models::ConnectorTokenReferenceRecord> for ConnectorTokenReferenceRecord {
-    fn from(value: diesel_models::ConnectorTokenReferenceRecord) -> Self {
+impl ForeignFrom<diesel_models::ConnectorTokenReferenceRecord> for ConnectorTokenReferenceRecord {
+    fn foreign_from(value: diesel_models::ConnectorTokenReferenceRecord) -> Self {
         let diesel_models::ConnectorTokenReferenceRecord {
             connector_token,
             payment_method_subtype,
@@ -178,8 +181,8 @@ impl From<diesel_models::ConnectorTokenReferenceRecord> for ConnectorTokenRefere
 
 
 #[cfg(feature = "v2")]
-impl From<ConnectorTokenReferenceRecord> for diesel_models::ConnectorTokenReferenceRecord {
-    fn from(value: ConnectorTokenReferenceRecord) -> Self {
+impl ForeignFrom<ConnectorTokenReferenceRecord> for diesel_models::ConnectorTokenReferenceRecord {
+    fn foreign_from(value: ConnectorTokenReferenceRecord) -> Self {
         let ConnectorTokenReferenceRecord {
             connector_token,
             payment_method_subtype,
