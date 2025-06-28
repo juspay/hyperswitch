@@ -769,7 +769,7 @@ impl MerchantAccountCreateBridge for api::MerchantAccountCreate {
                     organization_id: organization.get_organization_id(),
                     recon_status: diesel_models::enums::ReconStatus::NotRequested,
                     is_platform_account: false,
-                    version: common_types::consts::API_VERSION,
+                    version: common_utils::consts::API_VERSION,
                     product_type: self.product_type,
                     merchant_account_type,
                 }),
@@ -2794,7 +2794,7 @@ impl MerchantConnectorAccountCreateBridge for api::MerchantConnectorCreate {
             status: connector_status,
             connector_wallets_details: encrypted_data.connector_wallets_details,
             additional_merchant_data: encrypted_data.additional_merchant_data,
-            version: common_types::consts::API_VERSION,
+            version: common_utils::consts::API_VERSION,
             feature_metadata,
         })
     }

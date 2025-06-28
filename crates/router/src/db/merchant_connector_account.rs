@@ -1856,7 +1856,7 @@ mod merchant_connector_account_cache_tests {
                 .unwrap(),
             ),
             additional_merchant_data: None,
-            version: common_types::consts::API_VERSION,
+            version: common_utils::consts::API_VERSION,
             feature_metadata: None,
         };
 
