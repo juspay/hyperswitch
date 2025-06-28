@@ -1,3 +1,13 @@
+use hyperswitch_domain_models::business_profile::Profile;
+use common_utils::errors::CustomResult;
+use common_utils::errors::ValidationError;
+use common_utils::encryption::Encryption;
+use common_utils::types::keymanager;
+use masking::Secret;
+use hyperswitch_domain_models::type_encryption::crypto_operation;
+use common_utils::type_name;
+use hyperswitch_domain_models::type_encryption::CryptoOperation;
+
 #[cfg(feature = "v2")]
 #[async_trait::async_trait]
 impl super::behaviour::Conversion for Profile {
@@ -6,7 +16,7 @@ impl super::behaviour::Conversion for Profile {
 
     async fn convert(self) -> CustomResult<Self::DstType, ValidationError> {
         Ok(diesel_models::business_profile::Profile {
-            id: self.id,
+            id: self.get_id().clone(),
             merchant_id: self.merchant_id,
             profile_name: self.profile_name,
             created_at: self.created_at,
@@ -83,7 +93,9 @@ impl super::behaviour::Conversion for Profile {
         Self: Sized,
     {
         async {
-            Ok::<Self, error_stack::Report<common_utils::errors::CryptoError>>(Self {
+            use hyperswitch_domain_models::business_profile::ProfileSetter;
+
+            Ok::<Self, error_stack::Report<common_utils::errors::CryptoError>>(ProfileSetter {
                 id: item.id,
                 merchant_id: item.merchant_id,
                 profile_name: item.profile_name,
@@ -136,7 +148,7 @@ impl super::behaviour::Conversion for Profile {
                 should_collect_cvv_during_payment: item.should_collect_cvv_during_payment,
                 tax_connector_id: item.tax_connector_id,
                 is_tax_connector_enabled: item.is_tax_connector_enabled.unwrap_or(false),
-                version: item.version,
+                // version: item.version,
                 is_network_tokenization_enabled: item.is_network_tokenization_enabled,
                 is_click_to_pay_enabled: item.is_click_to_pay_enabled,
                 authentication_product_ids: item.authentication_product_ids,
@@ -164,7 +176,7 @@ impl super::behaviour::Conversion for Profile {
                 is_external_vault_enabled: item.is_external_vault_enabled,
                 external_vault_connector_details: item.external_vault_connector_details,
                 merchant_category_code: item.merchant_category_code,
-            })
+            }.into())
         }
         .await
         .change_context(ValidationError::InvalidValue {
@@ -174,7 +186,7 @@ impl super::behaviour::Conversion for Profile {
 
     async fn construct_new(self) -> CustomResult<Self::NewDstType, ValidationError> {
         Ok(diesel_models::business_profile::ProfileNew {
-            id: self.id,
+            id: self.get_id().clone(),
             merchant_id: self.merchant_id,
             profile_name: self.profile_name,
             created_at: self.created_at,
