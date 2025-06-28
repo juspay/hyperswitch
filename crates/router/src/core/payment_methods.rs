@@ -1780,7 +1780,7 @@ pub async fn create_pm_additional_data_update(
         .map(|connector_token| {
             create_connector_token_details_update(connector_token, payment_method)
         })
-        .map(From::from);
+        .map(ForeignFrom::foreign_from);
 
     let pm_update = storage::PaymentMethodUpdate::GenericUpdate {
         // A new payment method is created with inactive state
