@@ -48,6 +48,8 @@ impl<T: DatabaseStore> TokenizationInterface for RouterStore<T> {
         key_manager_state: &KeyManagerState,
     ) -> CustomResult<hyperswitch_domain_models::tokenization::Tokenization, errors::StorageError>
     {
+        use crate::behaviour::{Conversion, ReverseConversion};
+
         let conn = connection::pg_connection_write(self).await?;
 
         tokenization
@@ -73,6 +75,8 @@ impl<T: DatabaseStore> TokenizationInterface for RouterStore<T> {
         key_manager_state: &KeyManagerState,
     ) -> CustomResult<hyperswitch_domain_models::tokenization::Tokenization, errors::StorageError>
     {
+        use crate::behaviour::ReverseConversion;
+
         let conn = connection::pg_connection_read(self).await?;
 
         let tokenization = diesel_models::tokenization::Tokenization::find_by_id(&conn, token)
