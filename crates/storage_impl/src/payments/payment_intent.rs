@@ -3,7 +3,7 @@ use api_models::payments::{AmountFilter, Order, SortBy, SortOn};
 #[cfg(feature = "olap")]
 use async_bb8_diesel::{AsyncConnection, AsyncRunQueryDsl};
 #[cfg(feature = "v2")]
-use common_utils::fallback_reverse_lookup_not_found;
+use common_utils::{errors::ParsingError, fallback_reverse_lookup_not_found};
 use common_utils::{
     ext_traits::{AsyncExt, Encode},
     types::keymanager::KeyManagerState,
@@ -30,6 +30,7 @@ use diesel_models::schema_v2::{
 };
 use diesel_models::{
     enums::MerchantStorageScheme, kv, payment_intent::PaymentIntent as DieselPaymentIntent,
+    PaymentIntentNew as DieselPaymentIntentNew,
 };
 use error_stack::ResultExt;
 #[cfg(feature = "olap")]
@@ -59,7 +60,21 @@ use crate::{
     DatabaseStore,
 };
 #[cfg(feature = "v2")]
-use crate::{errors, lookup::ReverseLookupInterface};
+use crate::{errors, lookup::ReverseLookupInterface, utils::ForeignTryFrom};
+use common_utils::encryption::Encryption;
+use common_utils::errors::CustomResult;
+use common_utils::errors::ValidationError;
+use common_utils::type_name;
+use common_utils::types::keymanager;
+use hyperswitch_domain_models::payments::payment_intent::PaymentIntentUpdateFields;
+use hyperswitch_domain_models::payments::AmountDetails;
+use hyperswitch_domain_models::payments::EncryptedPaymentIntent;
+use hyperswitch_domain_models::type_encryption::crypto_operation;
+use hyperswitch_domain_models::type_encryption::CryptoOperation;
+use masking::Secret;
+use common_utils::types::CreatedBy;
+
+use crate::behaviour::Conversion;
 
 #[async_trait::async_trait]
 impl<T: DatabaseStore> PaymentIntentInterface for KVRouterStore<T> {
@@ -1720,9 +1735,9 @@ impl<T: DatabaseStore> PaymentIntentInterface for crate::RouterStore<T> {
 
 // This conversion is used in the `update_payment_intent` function
 #[cfg(feature = "v2")]
-impl TryFrom<PaymentIntentUpdate> for diesel_models::PaymentIntentUpdateInternal {
+impl ForeignTryFrom<PaymentIntentUpdate> for diesel_models::PaymentIntentUpdateInternal {
     type Error = error_stack::Report<ParsingError>;
-    fn try_from(payment_intent_update: PaymentIntentUpdate) -> Result<Self, Self::Error> {
+    fn foreign_try_from(payment_intent_update: PaymentIntentUpdate) -> Result<Self, Self::Error> {
         match payment_intent_update {
             PaymentIntentUpdate::ConfirmIntent {
                 status,
@@ -2075,7 +2090,6 @@ impl TryFrom<PaymentIntentUpdate> for diesel_models::PaymentIntentUpdateInternal
     }
 }
 
-
 #[cfg(feature = "v2")]
 #[async_trait::async_trait]
 impl Conversion for PaymentIntent {
@@ -2229,11 +2243,12 @@ impl Conversion for PaymentIntent {
         Self: Sized,
     {
         async {
+
             let decrypted_data = crypto_operation(
                 state,
                 type_name!(Self::DstType),
-                CryptoOperation::BatchDecrypt(super::EncryptedPaymentIntent::to_encryptable(
-                    super::EncryptedPaymentIntent {
+                CryptoOperation::BatchDecrypt(EncryptedPaymentIntent::to_encryptable(
+                    EncryptedPaymentIntent {
                         billing_address: storage_model.billing_address,
                         shipping_address: storage_model.shipping_address,
                         customer_details: storage_model.customer_details,
@@ -2245,11 +2260,11 @@ impl Conversion for PaymentIntent {
             .await
             .and_then(|val| val.try_into_batchoperation())?;
 
-            let data = super::EncryptedPaymentIntent::from_encryptable(decrypted_data)
+            let data = EncryptedPaymentIntent::from_encryptable(decrypted_data)
                 .change_context(common_utils::errors::CryptoError::DecodingFailed)
                 .attach_printable("Invalid batch operation data")?;
 
-            let amount_details = super::AmountDetails {
+            let amount_details = AmountDetails {
                 order_amount: storage_model.amount,
                 currency: storage_model.currency,
                 surcharge_amount: storage_model.surcharge_amount,
@@ -2448,4 +2463,3 @@ impl Conversion for PaymentIntent {
         })
     }
 }
-
