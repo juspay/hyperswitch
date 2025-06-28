@@ -1,55 +1,9 @@
-import { customerAcceptance, cardRequiredField } from "./Commons";
+import { 
+  customerAcceptance, 
+  cardRequiredField,
+  successfulNo3DSCardDetails
+} from "./Commons";
 import { getCustomExchange } from "./Modifiers";
-
-// Test card details based on Nuvei test cards (from Rust tests)
-const successfulNo3DSCardDetails = {
-  card_number: "4444333322221111",
-  card_exp_month: "10",
-  card_exp_year: "25",
-  card_holder_name: "John Doe",
-  card_cvc: "123",
-};
-
-const successfulThreeDSCardDetails = {
-  card_number: "4000027891380961",
-  card_exp_month: "10",
-  card_exp_year: "25",
-  card_holder_name: "CL-BRW1",
-  card_cvc: "123",
-};
-
-const failedCardDetails = {
-  card_number: "4000000000000002",
-  card_exp_month: "01",
-  card_exp_year: "35",
-  card_holder_name: "John Doe",
-  card_cvc: "123",
-};
-
-// Invalid card details for error testing
-const invalidCardNumberDetails = {
-  card_number: "1234567891011",
-  card_exp_month: "10",
-  card_exp_year: "25",
-  card_holder_name: "John Doe",
-  card_cvc: "123",
-};
-
-const invalidCvcDetails = {
-  card_number: "4444333322221111",
-  card_exp_month: "10",
-  card_exp_year: "25",
-  card_holder_name: "John Doe",
-  card_cvc: "12345",
-};
-
-const invalidExpiryMonthDetails = {
-  card_number: "4444333322221111",
-  card_exp_month: "20",
-  card_exp_year: "25",
-  card_holder_name: "John Doe",
-  card_cvc: "123",
-};
 
 // Mandate data for supported mandate flows
 const singleUseMandateData = {
@@ -82,19 +36,29 @@ const multiUseMandateData = {
   },
 };
 
+// Test card details based on Nuvei test cards (from Rust tests)
+const successfulThreeDSCardDetails = {
+  card_number: "4000027891380961",
+  card_exp_month: "10",
+  card_exp_year: "25",
+  card_holder_name: "CL-BRW1",
+  card_cvc: "123",
+};
+
+
 // Payment method data objects for responses
 const payment_method_data_no3ds = {
   card: {
     last4: "1111",
     card_type: "CREDIT",
     card_network: "Visa",
-    card_issuer: "HDFC Bank",
-    card_issuing_country: "UNITEDSTATES",
-    card_isin: "444433",
+    card_issuer: "JP Morgan",
+    card_issuing_country: "INDIA",
+    card_isin: "411111",
     card_extended_bin: null,
-    card_exp_month: "10",
-    card_exp_year: "25",
-    card_holder_name: "John Doe",
+    card_exp_month: "08",
+    card_exp_year: "30",
+    card_holder_name: "joseph Doe",
     payment_checks: null,
     authentication_data: null,
   },
@@ -264,89 +228,6 @@ export const connectorDetails = {
           status: "requires_customer_action",
           setup_future_usage: "on_session",
           payment_method_data: payment_method_data_3ds,
-        },
-      },
-    }),
-
-    // Failed payment scenario
-    No3DSFailPayment: getCustomExchange({
-      Request: {
-        payment_method: "card",
-        payment_method_data: {
-          card: failedCardDetails,
-        },
-        customer_acceptance: null,
-        setup_future_usage: "on_session",
-      },
-      Response: {
-        status: 200,
-        body: {
-          status: "succeeded",
-        },
-      },
-    }),
-
-    // Invalid card number scenario
-    InvalidCardNumber: getCustomExchange({
-      Request: {
-        payment_method: "card",
-        payment_method_data: {
-          card: invalidCardNumberDetails,
-        },
-        customer_acceptance: null,
-        setup_future_usage: "on_session",
-      },
-      Response: {
-        status: 400,
-        body: {
-          error: {
-            message: "Json deserialize error: card number invalid",
-            code: "IR_06",
-          },
-        },
-      },
-    }),
-
-    // Invalid CVC scenario
-    InvalidCvc: getCustomExchange({
-      Request: {
-        payment_method: "card",
-        payment_method_data: {
-          card: invalidCvcDetails,
-        },
-        customer_acceptance: null,
-        setup_future_usage: "on_session",
-      },
-      Response: {
-        status: 400,
-        body: {
-          error: {
-            type: "invalid_request",
-            message: "cardData.CVV is invalid",
-            code: "IR_16",
-          },
-        },
-      },
-    }),
-
-    // Invalid expiry month scenario
-    InvalidExpiryMonth: getCustomExchange({
-      Request: {
-        payment_method: "card",
-        payment_method_data: {
-          card: invalidExpiryMonthDetails,
-        },
-        customer_acceptance: null,
-        setup_future_usage: "on_session",
-      },
-      Response: {
-        status: 400,
-        body: {
-          error: {
-            type: "invalid_request",
-            message: "Invalid Expiry Month",
-            code: "IR_16",
-          },
         },
       },
     }),
