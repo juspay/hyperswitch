@@ -47,7 +47,11 @@ use hyperswitch_domain_models::payments::payment_attempt::EncryptedPaymentAttemp
 use hyperswitch_domain_models::payments::payment_attempt::ErrorDetails;
 use common_utils::types::CreatedBy;
 use hyperswitch_domain_models::payments::payment_attempt::ConfirmIntentResponseUpdate;
-
+use crate::behaviour::ReverseConversion;
+use masking::PeekInterface;
+use common_utils::types::keymanager::ToEncryptable;
+use common_utils::ext_traits::ValueExt;
+use common_utils::types::ConnectorTransactionIdTrait;
 
 #[cfg(all(feature = "v1", feature = "olap"))]
 use hyperswitch_domain_models::{
@@ -103,6 +107,7 @@ impl<T: DatabaseStore> PaymentAttemptInterface for RouterStore<T> {
         payment_attempt: PaymentAttempt,
         _storage_scheme: MerchantStorageScheme,
     ) -> CustomResult<PaymentAttempt, errors::StorageError> {
+
         let conn = pg_connection_write(self).await?;
         payment_attempt
             .construct_new()
@@ -159,7 +164,7 @@ impl<T: DatabaseStore> PaymentAttemptInterface for RouterStore<T> {
             .change_context(errors::StorageError::EncryptionError)?
             .update_with_attempt_id(
                 &conn,
-                diesel_models::PaymentAttemptUpdateInternal::from(payment_attempt),
+                diesel_models::PaymentAttemptUpdateInternal::foreign_from(payment_attempt),
             )
             .await
             .map_err(|error| {
@@ -1009,7 +1014,7 @@ impl<T: DatabaseStore> PaymentAttemptInterface for KVRouterStore<T> {
         let conn = pg_connection_write(self).await?;
 
         let payment_attempt_internal =
-            diesel_models::PaymentAttemptUpdateInternal::from(payment_attempt_update);
+            diesel_models::PaymentAttemptUpdateInternal::foreign_from(payment_attempt_update);
         let updated_payment_attempt = payment_attempt_internal
             .clone()
             .apply_changeset(payment_attempt.clone());
@@ -2328,21 +2333,21 @@ impl Conversion for PaymentAttempt {
             connector_request_reference_id,
         } = self;
 
-        let AttemptAmountDetailsSetter {
-            net_amount,
-            tax_on_surcharge,
-            surcharge_amount,
-            order_tax_amount,
-            shipping_cost,
-            amount_capturable,
-            amount_to_capture,
-        } = amount_details.into();
+        // let AttemptAmountDetailsSetter {
+        //     net_amount,
+        //     tax_on_surcharge,
+        //     surcharge_amount,
+        //     order_tax_amount,
+        //     shipping_cost,
+        //     amount_capturable,
+        //     amount_to_capture,
+        // } = amount_details.into();
 
         let (connector_payment_id, connector_payment_data) = connector_payment_id
             .map(ConnectorTransactionId::form_id_and_data)
             .map(|(txn_id, txn_data)| (Some(txn_id), txn_data))
             .unwrap_or((None, None));
-        let feature_metadata = feature_metadata.as_ref().map(From::from);
+        let feature_metadata = feature_metadata.as_ref().map(ForeignFrom::foreign_from);
 
         Ok(DieselPaymentAttempt {
             payment_id,
@@ -2358,7 +2363,7 @@ impl Conversion for PaymentAttempt {
             modified_at,
             last_synced,
             cancellation_reason,
-            amount_to_capture,
+            amount_to_capture: amount_details.get_amount_to_capture(),
             browser_info,
             error_code: error.as_ref().map(|details| details.code.clone()),
             payment_token,
@@ -2370,10 +2375,10 @@ impl Conversion for PaymentAttempt {
             error_reason: error.as_ref().and_then(|details| details.reason.clone()),
             multiple_capture_count,
             connector_response_reference_id,
-            amount_capturable,
+            amount_capturable: amount_details.get_amount_capturable(),
             updated_by,
             merchant_connector_id,
-            redirection_data: redirection_data.map(From::from),
+            redirection_data: redirection_data.map(ForeignFrom::foreign_from),
             encoded_data,
             unified_code: error
                 .as_ref()
@@ -2381,7 +2386,7 @@ impl Conversion for PaymentAttempt {
             unified_message: error
                 .as_ref()
                 .and_then(|details| details.unified_message.clone()),
-            net_amount,
+            net_amount: amount_details.get_net_amount(),
             external_three_ds_authentication_attempted,
             authentication_connector,
             authentication_id,
@@ -2392,14 +2397,14 @@ impl Conversion for PaymentAttempt {
             profile_id,
             organization_id,
             card_network,
-            order_tax_amount,
-            shipping_cost,
+            order_tax_amount: amount_details.get_order_tax_amount(),
+            shipping_cost: amount_details.get_shipping_cost(),
             routing_result,
             authentication_applied,
             external_reference_id,
             connector,
-            surcharge_amount,
-            tax_on_surcharge,
+            surcharge_amount: amount_details.get_surcharge_amount(),
+            tax_on_surcharge: amount_details.get_tax_on_surcharge(),
             payment_method_billing_address: payment_method_billing_address.map(Encryption::from),
             connector_payment_data,
             connector_token_details,
@@ -2434,6 +2439,7 @@ impl Conversion for PaymentAttempt {
         Self: Sized,
     {
         async {
+
 
             let connector_payment_id = storage_model
                 .get_optional_connector_transaction_id()
@@ -2516,7 +2522,7 @@ impl Conversion for PaymentAttempt {
                 multiple_capture_count: storage_model.multiple_capture_count,
                 connector_response_reference_id: storage_model.connector_response_reference_id,
                 updated_by: storage_model.updated_by,
-                redirection_data: storage_model.redirection_data.map(From::from),
+                redirection_data: storage_model.redirection_data.map(ForeignFrom::foreign_from),
                 encoded_data: storage_model.encoded_data,
                 merchant_connector_id: storage_model.merchant_connector_id,
                 external_three_ds_authentication_attempted: storage_model
@@ -2537,7 +2543,7 @@ impl Conversion for PaymentAttempt {
                 payment_method_billing_address,
                 connector_token_details: storage_model.connector_token_details,
                 card_discovery: storage_model.card_discovery,
-                feature_metadata: storage_model.feature_metadata.map(From::from),
+                feature_metadata: storage_model.feature_metadata.map(ForeignFrom::foreign_from),
                 processor_merchant_id: storage_model
                     .processor_merchant_id
                     .unwrap_or(storage_model.merchant_id),
@@ -2647,7 +2653,7 @@ impl Conversion for PaymentAttempt {
             amount_capturable: amount_details.get_amount_capturable(),
             updated_by,
             merchant_connector_id,
-            redirection_data: redirection_data.map(From::from),
+            redirection_data: redirection_data.map(ForeignFrom::foreign_from),
             encoded_data,
             unified_code: error_details
                 .as_ref()
@@ -2655,7 +2661,7 @@ impl Conversion for PaymentAttempt {
             unified_message: error_details
                 .as_ref()
                 .and_then(|details| details.unified_message.clone()),
-            net_amount: amount_details.get_net_amount,
+            net_amount: amount_details.get_net_amount(),
             external_three_ds_authentication_attempted,
             authentication_connector,
             authentication_id,
@@ -2682,7 +2688,7 @@ impl Conversion for PaymentAttempt {
             extended_authorization_applied: None,
             request_extended_authorization: None,
             capture_before: None,
-            feature_metadata: feature_metadata.as_ref().map(From::from),
+            feature_metadata: feature_metadata.as_ref().map(ForeignFrom::foreign_from),
             connector,
             network_advice_code: error_details
                 .as_ref()
@@ -2796,7 +2802,7 @@ impl ForeignFrom<PaymentAttemptUpdate> for diesel_models::PaymentAttemptUpdateIn
                     connector_payment_id,
                     connector: None,
                     redirection_data: redirection_data
-                        .map(diesel_models::payment_attempt::RedirectForm::from),
+                        .map(diesel_models::payment_attempt::RedirectForm::foreign_from),
                     connector_metadata,
                     amount_to_capture: None,
                     connector_token_details,
