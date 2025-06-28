@@ -2509,8 +2509,8 @@ impl PayoutsInterface for KafkaStore {
         Vec<(
             storage::Payouts,
             storage::PayoutAttempt,
-            Option<domain::Customer>,
-            Option<domain::Address>,
+            Option<hyperswitch_domain_models::customer::Customer>,
+            Option<hyperswitch_domain_models::address::Address>,
         )>,
         errors::StorageError,
     > {
