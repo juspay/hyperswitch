@@ -106,11 +106,7 @@ use crate::{
     configs::settings::{ApplePayPreDecryptFlow, PaymentMethodTypeTokenFilter},
     consts,
     core::{
-        errors::{self, CustomResult, RouterResponse, RouterResult},
-        payment_methods::{cards, network_tokenization},
-        payouts,
-        routing::{self as core_routing},
-        utils::{self as core_utils},
+        authentication::AuthenticationStore, errors::{self, CustomResult, RouterResponse, RouterResult}, payment_methods::{cards, network_tokenization}, payouts, routing::{self as core_routing}, utils::{self as core_utils}
     },
     db::StorageInterface,
     logger,
@@ -5998,7 +5994,7 @@ where
     pub payment_link_data: Option<api_models::payments::PaymentLinkResponse>,
     pub incremental_authorization_details: Option<IncrementalAuthorizationDetails>,
     pub authorizations: Vec<diesel_models::authorization::Authorization>,
-    pub authentication: Option<domain::authentication::AuthenticationStore>,
+    pub authentication: Option<AuthenticationStore>,
     pub recurring_details: Option<RecurringDetails>,
     pub poll_config: Option<router_types::PollConfig>,
     pub tax_data: Option<TaxData>,
