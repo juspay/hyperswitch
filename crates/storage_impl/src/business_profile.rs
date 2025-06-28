@@ -7,6 +7,10 @@ use masking::Secret;
 use hyperswitch_domain_models::type_encryption::crypto_operation;
 use common_utils::type_name;
 use hyperswitch_domain_models::type_encryption::CryptoOperation;
+use masking::PeekInterface;
+use hyperswitch_domain_models::{business_profile::ProfileSetter, type_encryption::AsyncLift};
+use error_stack::ResultExt;
+
 
 #[cfg(feature = "v2")]
 #[async_trait::async_trait]
@@ -93,7 +97,6 @@ impl super::behaviour::Conversion for Profile {
         Self: Sized,
     {
         async {
-            use hyperswitch_domain_models::business_profile::ProfileSetter;
 
             Ok::<Self, error_stack::Report<common_utils::errors::CryptoError>>(ProfileSetter {
                 id: item.id,
