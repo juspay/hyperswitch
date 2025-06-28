@@ -31,6 +31,12 @@ use crate::{
     redis::kv_store::{Op, PartitionKey},
 };
 
+use common_utils::types::keymanager::ToEncryptable as _;
+use masking::PeekInterface as _;
+use crate::utils::ForeignFrom;
+use crate::utils::ForeignInto;
+
+
 use crate::behaviour::Conversion;
 use common_utils::errors::ValidationError;
 use common_utils::types::keymanager;
@@ -1017,6 +1023,7 @@ impl super::behaviour::Conversion for hyperswitch_domain_models::payment_methods
     type DstType = diesel_models::payment_method::PaymentMethod;
     type NewDstType = diesel_models::payment_method::PaymentMethodNew;
     async fn convert(self) -> CustomResult<Self::DstType, ValidationError> {
+
         Ok(Self::DstType {
             customer_id: self.customer_id,
             merchant_id: self.merchant_id,
@@ -1028,7 +1035,7 @@ impl super::behaviour::Conversion for hyperswitch_domain_models::payment_methods
             payment_method_data: self.payment_method_data.map(|val| val.into()),
             locker_id: self.locker_id.map(|id| id.get_string_repr().clone()),
             last_used_at: self.last_used_at,
-            connector_mandate_details: self.connector_mandate_details.map(|cmd| cmd.into()),
+            connector_mandate_details: self.connector_mandate_details.map(|cmd| cmd.foreign_into()),
             customer_acceptance: self.customer_acceptance,
             status: self.status,
             network_transaction_id: self.network_transaction_id,
@@ -1123,7 +1130,7 @@ impl super::behaviour::Conversion for hyperswitch_domain_models::payment_methods
                 payment_method_data,
                 locker_id: storage_model.locker_id.map(VaultId::generate),
                 last_used_at: storage_model.last_used_at,
-                connector_mandate_details: storage_model.connector_mandate_details.map(From::from),
+                connector_mandate_details: storage_model.connector_mandate_details.map(ForeignFrom::foreign_from),
                 customer_acceptance: storage_model.customer_acceptance,
                 status: storage_model.status,
                 network_transaction_id: storage_model.network_transaction_id,
@@ -1157,7 +1164,7 @@ impl super::behaviour::Conversion for hyperswitch_domain_models::payment_methods
             payment_method_data: self.payment_method_data.map(|val| val.into()),
             locker_id: self.locker_id.map(|id| id.get_string_repr().clone()),
             last_used_at: self.last_used_at,
-            connector_mandate_details: self.connector_mandate_details.map(|cmd| cmd.into()),
+            connector_mandate_details: self.connector_mandate_details.map(|cmd| cmd.foreign_into()),
             customer_acceptance: self.customer_acceptance,
             status: self.status,
             network_transaction_id: self.network_transaction_id,
