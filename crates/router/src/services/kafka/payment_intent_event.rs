@@ -2,6 +2,7 @@
 use ::common_types::{payments, primitive_wrappers::RequestExtendedAuthorizationBool};
 #[cfg(feature = "v2")]
 use common_enums::{self, RequestIncrementalAuthorization};
+use ::common_types::payments::OrderDetailsWithAmount;
 use common_utils::{
     crypto::Encryptable, hashing::HashedString, id_type, pii, types as common_types,
 };
@@ -9,7 +10,7 @@ use diesel_models::enums as storage_enums;
 #[cfg(feature = "v2")]
 use diesel_models::{types as diesel_types, PaymentLinkConfigRequestForPayments};
 #[cfg(feature = "v2")]
-use diesel_models::{types::OrderDetailsWithAmount, TaxDetails};
+use diesel_models::{TaxDetails};
 use hyperswitch_domain_models::payments::PaymentIntent;
 #[cfg(feature = "v2")]
 use hyperswitch_domain_models::{address, routing};

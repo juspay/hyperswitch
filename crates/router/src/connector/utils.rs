@@ -11,6 +11,7 @@ use api_models::{
     payments,
 };
 use base64::Engine;
+use common_types::payments::OrderDetailsWithAmount;
 use common_utils::{
     date_time,
     errors::{ParsingError, ReportSwitchExt},
@@ -19,7 +20,7 @@ use common_utils::{
     pii::{self, Email, IpAddress},
     types::{AmountConvertor, MinorUnit},
 };
-use diesel_models::{enums, types::OrderDetailsWithAmount};
+use diesel_models::enums;
 use error_stack::{report, ResultExt};
 use hyperswitch_domain_models::{
     network_tokenization::NetworkTokenNumber, payments::payment_attempt::PaymentAttempt,

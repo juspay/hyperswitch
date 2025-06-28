@@ -219,7 +219,7 @@ impl<F: Send + Clone> GetTracker<F, payments::PaymentIntentData<F>, PaymentsUpda
                 .into_iter()
                 .map(|order_detail| {
                     masking::Secret::new(
-                        diesel_models::types::OrderDetailsWithAmount::convert_from(order_detail),
+                        common_types::payments::OrderDetailsWithAmount;::convert_from(order_detail),
                     )
                 })
                 .collect()

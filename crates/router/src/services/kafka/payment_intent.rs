@@ -11,7 +11,10 @@ use diesel_models::enums as storage_enums;
 #[cfg(feature = "v2")]
 use diesel_models::{types as diesel_types, PaymentLinkConfigRequestForPayments};
 #[cfg(feature = "v2")]
-use diesel_models::{types::OrderDetailsWithAmount, TaxDetails};
+use diesel_models::{TaxDetails};
+
+use ::common_types::payments::OrderDetailsWithAmount;
+
 use hyperswitch_domain_models::payments::PaymentIntent;
 #[cfg(feature = "v2")]
 use hyperswitch_domain_models::{address, routing};
