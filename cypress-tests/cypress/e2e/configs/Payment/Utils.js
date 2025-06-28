@@ -361,6 +361,7 @@ export const CONNECTOR_LISTS = {
       "jpmorgan",
       "paypal",
       "stax",
+      "worldpayxml",
     ],
     // Add more exclusion lists
   },
