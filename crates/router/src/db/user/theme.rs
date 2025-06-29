@@ -42,7 +42,7 @@ pub trait ThemeInterface {
         theme_id: String,
     ) -> CustomResult<storage::Theme, errors::StorageError>;
 
-    async fn find_all_themes_by_lineage_hierarchy(
+    async fn list_themes_at_and_under_lineage(
         &self,
         lineage: ThemeLineage,
     ) -> CustomResult<Vec<storage::Theme>, errors::StorageError>;
@@ -111,7 +111,7 @@ impl ThemeInterface for Store {
             .await
             .map_err(|error| report!(errors::StorageError::from(error)))
     }
-    async fn find_all_themes_by_lineage_hierarchy(
+    async fn list_themes_at_and_under_lineage(
         &self,
         lineage: ThemeLineage,
     ) -> CustomResult<Vec<storage::Theme>, errors::StorageError> {
@@ -381,7 +381,7 @@ impl ThemeInterface for MockDb {
         let theme = themes.remove(index);
         Ok(theme)
     }
-    async fn find_all_themes_by_lineage_hierarchy(
+    async fn list_themes_at_and_under_lineage(
         &self,
         lineage: ThemeLineage,
     ) -> CustomResult<Vec<storage::Theme>, errors::StorageError> {

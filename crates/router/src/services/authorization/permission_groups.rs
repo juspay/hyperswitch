@@ -23,7 +23,8 @@ impl PermissionGroupExt for PermissionGroup {
             | Self::MerchantDetailsView
             | Self::AccountView
             | Self::ReconOpsView
-            | Self::ReconReportsView => PermissionScope::Read,
+            | Self::ReconReportsView
+            | Self::ThemeView => PermissionScope::Read,
 
             Self::OperationsManage
             | Self::ConnectorsManage
@@ -51,7 +52,8 @@ impl PermissionGroupExt for PermissionGroup {
             | Self::MerchantDetailsManage
             | Self::AccountView
             | Self::AccountManage => ParentGroup::Account,
-            Self::ThemeManage => ParentGroup::Theme,
+
+            Self::ThemeView | Self::ThemeManage => ParentGroup::Theme,
             Self::ReconOpsView | Self::ReconOpsManage => ParentGroup::ReconOps,
             Self::ReconReportsView | Self::ReconReportsManage => ParentGroup::ReconReports,
             Self::InternalManage => ParentGroup::Internal,
@@ -105,7 +107,7 @@ impl PermissionGroupExt for PermissionGroup {
             Self::AccountManage => vec![Self::AccountView, Self::AccountManage],
 
             Self::InternalManage => vec![Self::InternalManage],
-
+            Self::ThemeView => vec![Self::ThemeView],
             Self::ThemeManage => vec![Self::ThemeManage, Self::AccountView],
         }
     }

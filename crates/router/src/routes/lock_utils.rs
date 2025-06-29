@@ -293,11 +293,16 @@ impl From<Flow> for ApiIdentifier {
             | Flow::AuthSelect
             | Flow::GetThemeUsingLineage
             | Flow::GetThemeUsingThemeId
-            | Flow::ListAllThemesInLineage
             | Flow::UploadFileToThemeStorage
             | Flow::CreateTheme
             | Flow::UpdateTheme
             | Flow::DeleteTheme
+            | Flow::CreateUserTheme
+            | Flow::UpdateUserTheme
+            | Flow::DeleteUserTheme
+            | Flow::GetUserThemeUsingThemeId
+            | Flow::UploadFileToUserThemeStorage
+            | Flow::ListAllThemesInLineage
             | Flow::CloneConnector => Self::User,
 
             Flow::ListRolesV2

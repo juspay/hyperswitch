@@ -24,7 +24,6 @@ pub struct GetThemeResponse {
 pub struct ListThemesResponse {
     pub themes: Vec<GetThemeResponse>,
 }
-impl common_utils::events::ApiEventMetric for ListThemesResponse {}
 
 #[derive(Debug, MultipartForm)]
 pub struct UploadFileAssetData {

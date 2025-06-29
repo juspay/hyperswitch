@@ -18,6 +18,7 @@ use crate::{
     utils::user::theme as theme_utils,
 };
 
+// TODO: To be deprecated
 pub async fn get_theme_using_lineage(
     state: SessionState,
     lineage: ThemeLineage,
@@ -52,6 +53,7 @@ pub async fn get_theme_using_lineage(
     }))
 }
 
+// TODO: To be deprecated
 pub async fn get_theme_using_theme_id(
     state: SessionState,
     theme_id: String,
@@ -86,6 +88,7 @@ pub async fn get_theme_using_theme_id(
     }))
 }
 
+// TODO: To be deprecated
 pub async fn upload_file_to_theme_storage(
     state: SessionState,
     theme_id: String,
@@ -107,6 +110,7 @@ pub async fn upload_file_to_theme_storage(
     Ok(ApplicationResponse::StatusOk)
 }
 
+// TODO: To be deprecated
 pub async fn create_theme(
     state: SessionState,
     request: theme_api::CreateThemeRequest,
@@ -168,6 +172,7 @@ pub async fn create_theme(
     }))
 }
 
+// TODO: To be deprecated
 pub async fn update_theme(
     state: SessionState,
     theme_id: String,
@@ -225,6 +230,7 @@ pub async fn update_theme(
     }))
 }
 
+// TODO: To be deprecated
 pub async fn delete_theme(state: SessionState, theme_id: String) -> UserResponse<()> {
     state
         .store
@@ -322,10 +328,7 @@ pub async fn delete_user_theme(
     .await?;
     let theme_lineage = theme_utils::get_lineage_from_theme(&db_theme);
     if user_lineage != theme_lineage {
-        return Err(UserErrors::InvalidThemeLineage(
-            "User does not have permission to access this theme".to_string(),
-        )
-        .into());
+        return Err(UserErrors::ThemeNotFound.into());
     }
     state
         .store
@@ -358,10 +361,7 @@ pub async fn update_user_theme(
     .await?;
     let theme_lineage = theme_utils::get_lineage_from_theme(&db_theme);
     if user_lineage != theme_lineage {
-        return Err(UserErrors::InvalidThemeLineage(
-            "User does not have permission to access this theme".to_string(),
-        )
-        .into());
+        return Err(UserErrors::ThemeNotFound.into());
     }
 
     let db_theme = match request.email_config {
@@ -431,10 +431,7 @@ pub async fn upload_file_to_user_theme_storage(
     .await?;
     let theme_lineage = theme_utils::get_lineage_from_theme(&db_theme);
     if user_lineage != theme_lineage {
-        return Err(UserErrors::InvalidThemeLineage(
-            "User does not have permission to access this theme".to_string(),
-        )
-        .into());
+        return Err(UserErrors::ThemeNotFound.into());
     }
     theme_utils::upload_file_to_theme_bucket(
         &state,
@@ -456,7 +453,7 @@ pub async fn list_all_themes_in_lineage(
 
     let db_themes = state
         .store
-        .find_all_themes_by_lineage_hierarchy(lineage)
+        .list_themes_at_and_under_lineage(lineage)
         .await
         .change_context(UserErrors::InternalServerError)?;
 
@@ -500,5 +497,49 @@ pub async fn list_all_themes_in_lineage(
 
     Ok(ApplicationResponse::Json(theme_api::ListThemesResponse {
         themes,
+    }))
+}
+
+pub async fn get_user_theme_using_theme_id(
+    state: SessionState,
+    user_from_token: UserFromToken,
+    theme_id: String,
+) -> UserResponse<theme_api::GetThemeResponse> {
+    let theme = state
+        .store
+        .find_theme_by_theme_id(theme_id.clone())
+        .await
+        .to_not_found_response(UserErrors::ThemeNotFound)?;
+    let user_lineage = theme_utils::get_theme_lineage_from_user_token(
+        &user_from_token,
+        &state,
+        &theme.entity_type,
+    )
+    .await?;
+    let theme_lineage = theme_utils::get_lineage_from_theme(&theme);
+    if user_lineage != theme_lineage {
+        return Err(UserErrors::ThemeNotFound.into());
+    }
+    let file = theme_utils::retrieve_file_from_theme_bucket(
+        &state,
+        &theme_utils::get_theme_file_key(&theme_id),
+    )
+    .await?;
+
+    let parsed_data = file
+        .to_bytes()
+        .parse_struct("ThemeData")
+        .change_context(UserErrors::InternalServerError)?;
+
+    Ok(ApplicationResponse::Json(theme_api::GetThemeResponse {
+        email_config: theme.email_config(),
+        theme_id: theme.theme_id,
+        theme_name: theme.theme_name,
+        entity_type: theme.entity_type,
+        tenant_id: theme.tenant_id,
+        org_id: theme.org_id,
+        merchant_id: theme.merchant_id,
+        profile_id: theme.profile_id,
+        theme_data: parsed_data,
     }))
 }

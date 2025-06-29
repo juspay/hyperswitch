@@ -104,7 +104,7 @@ generate_permissions! {
             entities: [Merchant]
         },
         Theme: {
-            scopes: [Write],
+            scopes: [Read,Write],
             entities: [Organization]
         }
     ]

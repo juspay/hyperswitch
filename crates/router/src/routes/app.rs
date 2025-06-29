@@ -2536,6 +2536,7 @@ impl User {
             )
         }
         // Admin Theme
+        // TODO: To be deprecated
         route = route.service(
             web::scope("/admin/theme")
                 .service(

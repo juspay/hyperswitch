@@ -144,7 +144,7 @@ pub async fn create_user_theme(
     req: HttpRequest,
     payload: web::Json<theme_api::CreateThemeRequest>,
 ) -> HttpResponse {
-    let flow = Flow::GetUserDetails;
+    let flow = Flow::CreateUserTheme;
     let payload = payload.into_inner();
     Box::pin(api::server_wrap(
         flow,
@@ -166,7 +166,7 @@ pub async fn get_user_theme_using_theme_id(
     req: HttpRequest,
     path: web::Path<String>,
 ) -> HttpResponse {
-    let flow = Flow::GetThemeUsingThemeId;
+    let flow = Flow::GetUserThemeUsingThemeId;
     let payload = path.into_inner();
 
     Box::pin(api::server_wrap(
@@ -174,10 +174,12 @@ pub async fn get_user_theme_using_theme_id(
         state,
         &req,
         payload,
-        |state, _user: auth::UserFromToken, payload, _| {
-            theme_core::get_theme_using_theme_id(state, payload)
+        |state, user: auth::UserFromToken, payload, _| {
+            theme_core::get_user_theme_using_theme_id(state, user, payload)
         },
-        &auth::DashboardNoPermissionAuth,
+        &auth::JWTAuth {
+            permission: Permission::OrganizationThemeRead,
+        },
         api_locking::LockAction::NotApplicable,
     ))
     .await
@@ -189,7 +191,7 @@ pub async fn update_user_theme(
     path: web::Path<String>,
     payload: web::Json<theme_api::UpdateThemeRequest>,
 ) -> HttpResponse {
-    let flow = Flow::UpdateTheme;
+    let flow = Flow::UpdateUserTheme;
     let theme_id = path.into_inner();
     let payload = payload.into_inner();
 
@@ -214,7 +216,7 @@ pub async fn delete_user_theme(
     req: HttpRequest,
     path: web::Path<String>,
 ) -> HttpResponse {
-    let flow = Flow::DeleteTheme;
+    let flow = Flow::DeleteUserTheme;
     let theme_id = path.into_inner();
 
     Box::pin(api::server_wrap(
@@ -239,7 +241,7 @@ pub async fn upload_file_to_user_theme_storage(
     path: web::Path<String>,
     MultipartForm(payload): MultipartForm<theme_api::UploadFileAssetData>,
 ) -> HttpResponse {
-    let flow = Flow::UploadFileToThemeStorage;
+    let flow = Flow::UploadFileToUserThemeStorage;
     let theme_id = path.into_inner();
     let payload = theme_api::UploadFileRequest {
         asset_name: payload.asset_name.into_inner(),
@@ -254,7 +256,9 @@ pub async fn upload_file_to_user_theme_storage(
         |state, user: auth::UserFromToken, payload, _| {
             theme_core::upload_file_to_user_theme_storage(state, theme_id.clone(), user, payload)
         },
-        &auth::DashboardNoPermissionAuth,
+        &auth::JWTAuth {
+            permission: Permission::OrganizationThemeWrite,
+        },
         api_locking::LockAction::NotApplicable,
     ))
     .await

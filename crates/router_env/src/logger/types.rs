@@ -521,6 +521,16 @@ pub enum Flow {
     UpdateTheme,
     /// Delete theme
     DeleteTheme,
+    /// Create user theme
+    CreateUserTheme,
+    /// Update user theme
+    UpdateUserTheme,
+    /// Delete user theme
+    DeleteUserTheme,
+    /// Upload file to user theme storage
+    UploadFileToUserThemeStorage,
+    /// Get user theme using theme id
+    GetUserThemeUsingThemeId,
     ///List All Themes In Lineage
     ListAllThemesInLineage,
     /// List initial webhook delivery attempts

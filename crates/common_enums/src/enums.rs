@@ -7496,6 +7496,7 @@ pub enum PermissionGroup {
     ReconOpsView,
     ReconOpsManage,
     InternalManage,
+    ThemeView,
     ThemeManage,
 }
 
