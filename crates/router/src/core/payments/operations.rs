@@ -33,18 +33,19 @@ pub mod payments_incremental_authorization;
 pub mod tax_calculation;
 
 #[cfg(feature = "v2")]
+pub mod payment_attempt_list;
+#[cfg(feature = "v2")]
 pub mod payment_attempt_record;
 #[cfg(feature = "v2")]
 pub mod payment_confirm_intent;
-#[cfg(feature = "v2")]
-pub mod proxy_payments_intent;
-
 #[cfg(feature = "v2")]
 pub mod payment_create_intent;
 #[cfg(feature = "v2")]
 pub mod payment_get_intent;
 #[cfg(feature = "v2")]
 pub mod payment_update_intent;
+#[cfg(feature = "v2")]
+pub mod proxy_payments_intent;
 
 #[cfg(feature = "v2")]
 pub mod payment_get;
@@ -59,6 +60,8 @@ use async_trait::async_trait;
 use error_stack::{report, ResultExt};
 use router_env::{instrument, tracing};
 
+#[cfg(feature = "v2")]
+pub use self::payment_attempt_list::PaymentGetListAttempts;
 #[cfg(feature = "v2")]
 pub use self::payment_get::PaymentGet;
 #[cfg(feature = "v2")]
@@ -292,6 +295,17 @@ pub trait Domain<F: Clone, R, D>: Send + Sync {
     ) -> CustomResult<api::ConnectorChoice, errors::ApiErrorResponse>;
 
     #[cfg(feature = "v2")]
+    async fn get_connector_from_request<'a>(
+        &'a self,
+        state: &SessionState,
+        request: &R,
+        payment_data: &mut D,
+    ) -> CustomResult<api::ConnectorData, errors::ApiErrorResponse> {
+        Err(report!(errors::ApiErrorResponse::InternalServerError))
+            .attach_printable_lazy(|| "get connector for tunnel not implemented".to_string())
+    }
+
+    #[cfg(feature = "v2")]
     async fn perform_routing<'a>(
         &'a self,
         merchant_context: &domain::MerchantContext,
@@ -369,6 +383,27 @@ pub trait Domain<F: Clone, R, D>: Send + Sync {
         _payment_id: &common_utils::id_type::PaymentId,
         _business_profile: &domain::Profile,
         _payment_method_data: Option<&domain::PaymentMethodData>,
+    ) -> CustomResult<(), errors::ApiErrorResponse> {
+        Ok(())
+    }
+
+    #[cfg(feature = "v2")]
+    async fn create_or_fetch_payment_method<'a>(
+        &'a self,
+        state: &SessionState,
+        merchant_context: &domain::MerchantContext,
+        business_profile: &domain::Profile,
+        payment_data: &mut D,
+    ) -> CustomResult<(), errors::ApiErrorResponse> {
+        Ok(())
+    }
+
+    /// This function is used to apply the 3DS authentication strategy
+    async fn apply_three_ds_authentication_strategy<'a>(
+        &'a self,
+        _state: &SessionState,
+        _payment_data: &mut D,
+        _business_profile: &domain::Profile,
     ) -> CustomResult<(), errors::ApiErrorResponse> {
         Ok(())
     }

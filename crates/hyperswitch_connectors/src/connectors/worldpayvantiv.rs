@@ -144,15 +144,7 @@ impl ConnectorCommon for Worldpayvantiv {
 }
 
 impl ConnectorValidation for Worldpayvantiv {
-    fn validate_mandate_payment(
-        &self,
-        pm_type: Option<api_models::enums::PaymentMethodType>,
-        pm_data: PaymentMethodData,
-    ) -> CustomResult<(), errors::ConnectorError> {
-        let mandate_supported_pmd =
-            std::collections::HashSet::from([connector_utils::PaymentMethodDataType::Card]);
-        connector_utils::is_mandate_supported(pm_data, pm_type, mandate_supported_pmd, self.id())
-    }
+    //TODO: implement functions when support enabled
 }
 
 impl ConnectorIntegration<Session, PaymentsSessionData, PaymentsResponseData> for Worldpayvantiv {
@@ -757,7 +749,7 @@ static WORLDPAYVANTIV_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMethod
             common_enums::PaymentMethod::Card,
             common_enums::PaymentMethodType::Credit,
             PaymentMethodDetails {
-                mandates: common_enums::FeatureStatus::Supported,
+                mandates: common_enums::FeatureStatus::NotSupported,
                 refunds: common_enums::FeatureStatus::Supported,
                 supported_capture_methods: supported_capture_methods.clone(),
                 specific_features: Some(
@@ -776,7 +768,7 @@ static WORLDPAYVANTIV_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMethod
             common_enums::PaymentMethod::Card,
             common_enums::PaymentMethodType::Debit,
             PaymentMethodDetails {
-                mandates: common_enums::FeatureStatus::Supported,
+                mandates: common_enums::FeatureStatus::NotSupported,
                 refunds: common_enums::FeatureStatus::Supported,
                 supported_capture_methods: supported_capture_methods.clone(),
                 specific_features: Some(

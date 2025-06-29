@@ -41,7 +41,7 @@ impl ValidateStatusForOperation for PaymentSessionIntent {
             | common_enums::IntentStatus::RequiresConfirmation
             | common_enums::IntentStatus::PartiallyCapturedAndCapturable
             | common_enums::IntentStatus::Succeeded
-            | common_enums::IntentStatus::Failed => {
+            | common_enums::IntentStatus::Failed | common_enums::IntentStatus::Conflicted => {
                 Err(errors::ApiErrorResponse::PreconditionFailed {
                     message: format!(
                         "You cannot create session token for this payment because it has status {intent_status}. Expected status is requires_payment_method.",
@@ -146,6 +146,8 @@ impl<F: Send + Clone + Sync> GetTracker<F, payments::PaymentIntentData<F>, Payme
             payment_intent,
             client_secret: None,
             sessions_token: vec![],
+            vault_session_details: None,
+            connector_customer_id: None,
         };
 
         let get_trackers_response = operations::GetTrackerResponse { payment_data };
@@ -164,9 +166,9 @@ impl<F: Clone + Sync> UpdateTracker<F, payments::PaymentIntentData<F>, PaymentsS
         state: &'b SessionState,
         _req_state: ReqState,
         mut payment_data: payments::PaymentIntentData<F>,
-        _customer: Option<domain::Customer>,
+        customer: Option<domain::Customer>,
         storage_scheme: enums::MerchantStorageScheme,
-        _updated_customer: Option<customer::CustomerUpdate>,
+        updated_customer: Option<customer::CustomerUpdate>,
         key_store: &domain::MerchantKeyStore,
         _frm_suggestion: Option<common_enums::FrmSuggestion>,
         _header_payload: hyperswitch_domain_models::payments::HeaderPayload,
@@ -242,7 +244,6 @@ impl<F: Clone + Send + Sync> Domain<F, PaymentsSessionRequest, payments::Payment
                     .find_customer_by_global_id(
                         &state.into(),
                         &id,
-                        &payment_data.payment_intent.merchant_id,
                         merchant_key_store,
                         storage_scheme,
                     )

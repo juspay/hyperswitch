@@ -162,6 +162,11 @@ max_age = 365     # Max age of a refund in days.
 outgoing_enabled = true
 redis_lock_expiry_seconds = 180
 
+# Controls whether merchant ID authentication is enabled.
+# When enabled, payment endpoints will accept and require a x-merchant-id header in the request.
+[merchant_id_auth]
+merchant_id_auth_enabled = false
+
 # Validity of an Ephemeral Key in Hours
 [eph_key]
 validity = 1
@@ -225,6 +230,7 @@ gocardless.base_url = "https://api-sandbox.gocardless.com"
 gpayments.base_url = "https://{{merchant_endpoint_prefix}}-test.api.as1.gpayments.net"
 helcim.base_url = "https://api.helcim.com/"
 hipay.base_url = "https://stage-secure-gateway.hipay-tpp.com/rest/"
+hyperswitch_vault.base_url = "http://localhost:8080"
 hipay.secondary_base_url = "https://stage-secure2-vault.hipay-tpp.com/rest/"
 hipay.third_base_url = "https://stage-api-gateway.hipay.com/"
 iatapay.base_url = "https://sandbox.iata-pay.iata.org/api/v1"
@@ -264,10 +270,11 @@ plaid.base_url = "https://sandbox.plaid.com"
 powertranz.base_url = "https://staging.ptranz.com/api/"
 prophetpay.base_url = "https://ccm-thirdparty.cps.golf/"
 rapyd.base_url = "https://sandboxapi.rapyd.net"
-razorpay.base_url = "https://sandbox.juspay.in/"
+razorpay.base_url = "https://api.razorpay.com/"
 recurly.base_url = "https://v3.recurly.com"
 redsys.base_url = "https://sis-t.redsys.es:25443"
 riskified.base_url = "https://sandbox.riskified.com/api"
+santander.base_url = "https://pix.santander.com.br/api/v1/sandbox/"
 shift4.base_url = "https://api.shift4.com/"
 signifyd.base_url = "https://api.signifyd.com/"
 square.base_url = "https://connect.squareupsandbox.com/"
@@ -278,7 +285,7 @@ stripebilling.base_url = "https://api.stripe.com/"
 taxjar.base_url = "https://api.sandbox.taxjar.com/v2/"
 threedsecureio.base_url = "https://service.sandbox.3dsecure.io"
 thunes.base_url = "https://api.limonetikqualif.com/"
-tokenio.base_url = "https://api.token.io"
+tokenio.base_url = "https://api.sandbox.token.io"
 stripe.base_url_file_upload = "https://files.stripe.com/"
 trustpay.base_url = "https://test-tpgw.trustpay.eu/"
 trustpay.base_url_bank_redirects = "https://aapi.trustpay.eu/"
@@ -291,7 +298,7 @@ wellsfargopayout.base_url = "https://api-sandbox.wellsfargo.com/"
 wise.base_url = "https://api.sandbox.transferwise.tech/"
 worldline.base_url = "https://eu.sandbox.api-ingenico.com/"
 worldpay.base_url = "https://try.access.worldpay.com/"
-worldpayvantiv.base_url = "https://www.testvantivcnp.com/sandbox/communicator/online"
+worldpayvantiv.base_url = "https://transact.vantivprelive.com/vap/communicator/online"
 worldpayxml.base_url = "https://secure-test.worldpay.com/jsp/merchant/xml/paymentService.jsp"
 xendit.base_url = "https://api.xendit.co"
 zsl.base_url = "https://api.sitoffalb.net/"
@@ -347,6 +354,7 @@ cards = [
   "gpayments",
   "helcim",
   "hipay",
+  "hyperswitch_vault",
   "mollie",
     "moneris",
   "paypal",
@@ -758,6 +766,8 @@ duit_now = { country = "MY", currency = "MYR" }
 
 [pm_filters.trustpay]
 instant_bank_transfer = { country = "CZ,SK,GB,AT,DE,IT", currency = "CZK, EUR, GBP" }
+instant_bank_transfer_poland = { country = "PL", currency = "PLN" }
+instant_bank_transfer_finland = { country = "FI", currency = "EUR" }
 sepa = { country = "ES,SK,AT,NL,DE,BE,FR,FI,PT,IE,EE,LT,LV,IT,GB", currency = "EUR" }
 
 [pm_filters.dlocal]
@@ -817,7 +827,7 @@ credit = {country = "AU,NZ,CN,HK,IN,LK,KR,MY,SG,GB,BE,FR,DE,IT,ME,NL,PL,ES,ZA,AR
 debit = {country = "AU,NZ,CN,HK,IN,LK,KR,MY,SG,GB,BE,FR,DE,IT,ME,NL,PL,ES,ZA,AR,BR,CO,MX,PA,UY,US,CA", currency = "AFN,ALL,DZD,AOA,ARS,AMD,AWG,AUD,AZN,BSD,BHD,BDT,BBD,BYN,BZD,BMD,BTN,BOB,VES,BAM,BWP,BRL,BND,BGN,BIF,KHR,CAD,CVE,KYD,XAF,CLP,CNY,COP,KMF,CDF,CRC,HRK,CUP,CZK,DKK,DJF,DOP,XCD,EGP,ERN,ETB,EUR,FKP,FJD,XPF,GMD,GEL,GHS,GIP,GTQ,GNF,GYD,HTG,HNL,HKD,HUF,ISK,INR,IDR,IRR,IQD,ILS,JMD,JPY,JOD,KZT,KES,KGS,KWD,LAK,LBP,LSL,LRD,LYD,MOP,MKD,MGA,MWK,MYR,MVR,MRU,MUR,MXN,MDL,MNT,MAD,MZN,MMK,NAD,NPR,ANG,NZD,NIO,NGN,VUV,KPW,NOK,OMR,PKR,PAB,PGK,PYG,PEN,PHP,PLN,GBP,QAR,RON,RUB,RWF,SHP,SVC,WST,STN,SAR,RSD,SCR,SLL,SGD,SBD,SOS,ZAR,KRW,SSP,LKR,SDG,SRD,SZL,SEK,CHF,SYP,TWD,TJS,TZS,THB,TOP,TTD,TND,TRY,TMT,UGX,UAH,AED,USD,UYU,UZS,VND,XOF,YER,ZMW,ZWL"}
 
 [connector_customer]
-connector_list = "gocardless,stax,stripe,facilitapay"
+connector_list = "adyen,facilitapay,gocardless,hyperswitch_vault,stax,stripe"
 payout_connector_list = "nomupay,stripe,wise"
 
 [bank_config.online_banking_fpx]
@@ -947,6 +957,7 @@ audit_events_topic = "topic"             # Kafka topic to be used for Payment Au
 payout_analytics_topic = "topic"         # Kafka topic to be used for Payouts and PayoutAttempt events
 consolidated_events_topic = "topic"      # Kafka topic to be used for Consolidated events
 authentication_analytics_topic = "topic" # Kafka topic to be used for Authentication events
+routing_logs_topic = "topic"             # Kafka topic to be used for Routing events
 
 # File storage configuration
 [file_storage]
@@ -1019,7 +1030,7 @@ control_center_url =  "http://localhost:9000"    # Control center URL
 encryption_key = "" # Encryption key used for encrypting data in user_authentication_methods table
 
 [locker_based_open_banking_connectors]
-connector_list = ""
+connector_list = "tokenio"
 
 [recipient_emails]
 recon = "test@example.com"
@@ -1039,9 +1050,10 @@ private_key= ""               # private key to decrypt  response payload from to
 key_id= ""                    # key id to encrypt data for token service
 delete_token_url= ""          # base url to delete token from token service
 check_token_status_url= ""    # base url to check token status from token service
+webhook_source_verification_key= "" # webhook source verification key to verify the webhook payload from token service
 
 [network_tokenization_supported_connectors]
-connector_list = "cybersource" # Supported connectors for network tokenization
+connector_list = "adyen,cybersource" # Supported connectors for network tokenization
 
 [network_transaction_id_supported_connectors]
 connector_list = "adyen,archipel,cybersource,novalnet,stripe,worldpay" # Supported connectors for network transaction id
@@ -1078,3 +1090,11 @@ retry_algorithm_type = "cascading" # type of retry algorithm
 [clone_connector_allowlist]
 merchant_ids = "merchant_ids"           # Comma-separated list of allowed merchant IDs
 connector_names = "connector_names"     # Comma-separated list of allowed connector names
+
+[infra_values]
+cluster = "CLUSTER"         # value of CLUSTER from deployment
+version = "HOSTNAME"        # value of HOSTNAME from deployment which tells its version
+
+[platform]
+enabled = false # Enable or disable platform features
+allow_connected_merchants = false # Enable or disable connected merchant account features

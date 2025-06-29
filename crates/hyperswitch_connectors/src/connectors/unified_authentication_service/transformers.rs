@@ -36,8 +36,8 @@ impl<T> From<(FloatMajorUnit, T)> for UnifiedAuthenticationServiceRouterData<T> 
 #[derive(Debug, Serialize)]
 pub struct UnifiedAuthenticationServicePreAuthenticateRequest {
     pub authenticate_by: String,
-    pub session_id: String,
-    pub source_authentication_id: String,
+    pub session_id: common_utils::id_type::AuthenticationId,
+    pub source_authentication_id: common_utils::id_type::AuthenticationId,
     pub authentication_info: Option<AuthenticationInfo>,
     pub service_details: Option<CtpServiceDetails>,
     pub customer_details: Option<CustomerDetails>,
@@ -49,7 +49,7 @@ pub struct UnifiedAuthenticationServicePreAuthenticateRequest {
 #[derive(Debug, Serialize)]
 pub struct UnifiedAuthenticationServiceAuthenticateConfirmationRequest {
     pub authenticate_by: String,
-    pub source_authentication_id: String,
+    pub source_authentication_id: common_utils::id_type::AuthenticationId,
     pub auth_creds: ConnectorAuthType,
     pub x_src_flow_id: Option<String>,
     pub transaction_amount: Option<FloatMajorUnit>,
@@ -338,7 +338,7 @@ impl<F, T>
 #[derive(Debug, Serialize)]
 pub struct UnifiedAuthenticationServicePostAuthenticateRequest {
     pub authenticate_by: String,
-    pub source_authentication_id: String,
+    pub source_authentication_id: common_utils::id_type::AuthenticationId,
     pub auth_creds: ConnectorAuthType,
 }
 

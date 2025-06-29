@@ -372,13 +372,13 @@ pub async fn payouts_confirm_core(
     merchant_context: domain::MerchantContext,
     req: payouts::PayoutCreateRequest,
 ) -> RouterResponse<payouts::PayoutCreateResponse> {
-    let mut payout_data = make_payout_data(
+    let mut payout_data = Box::pin(make_payout_data(
         &state,
         &merchant_context,
         None,
         &payouts::PayoutRequest::PayoutCreateRequest(Box::new(req.to_owned())),
         &state.locale,
-    )
+    ))
     .await?;
     let payout_attempt = payout_data.payout_attempt.to_owned();
     let status = payout_attempt.status;
@@ -435,13 +435,13 @@ pub async fn payouts_update_core(
     req: payouts::PayoutCreateRequest,
 ) -> RouterResponse<payouts::PayoutCreateResponse> {
     let payout_id = req.payout_id.clone().get_required_value("payout_id")?;
-    let mut payout_data = make_payout_data(
+    let mut payout_data = Box::pin(make_payout_data(
         &state,
         &merchant_context,
         None,
         &payouts::PayoutRequest::PayoutCreateRequest(Box::new(req.to_owned())),
         &state.locale,
-    )
+    ))
     .await?;
 
     let payout_attempt = payout_data.payout_attempt.to_owned();
@@ -509,13 +509,13 @@ pub async fn payouts_retrieve_core(
     profile_id: Option<common_utils::id_type::ProfileId>,
     req: payouts::PayoutRetrieveRequest,
 ) -> RouterResponse<payouts::PayoutCreateResponse> {
-    let mut payout_data = make_payout_data(
+    let mut payout_data = Box::pin(make_payout_data(
         &state,
         &merchant_context,
         profile_id,
         &payouts::PayoutRequest::PayoutRetrieveRequest(req.to_owned()),
         &state.locale,
-    )
+    ))
     .await?;
     let payout_attempt = payout_data.payout_attempt.to_owned();
     let status = payout_attempt.status;
@@ -550,13 +550,13 @@ pub async fn payouts_cancel_core(
     merchant_context: domain::MerchantContext,
     req: payouts::PayoutActionRequest,
 ) -> RouterResponse<payouts::PayoutCreateResponse> {
-    let mut payout_data = make_payout_data(
+    let mut payout_data = Box::pin(make_payout_data(
         &state,
         &merchant_context,
         None,
         &payouts::PayoutRequest::PayoutActionRequest(req.to_owned()),
         &state.locale,
-    )
+    ))
     .await?;
 
     let payout_attempt = payout_data.payout_attempt.to_owned();
@@ -641,13 +641,13 @@ pub async fn payouts_fulfill_core(
     merchant_context: domain::MerchantContext,
     req: payouts::PayoutActionRequest,
 ) -> RouterResponse<payouts::PayoutCreateResponse> {
-    let mut payout_data = make_payout_data(
+    let mut payout_data = Box::pin(make_payout_data(
         &state,
         &merchant_context,
         None,
         &payouts::PayoutRequest::PayoutActionRequest(req.to_owned()),
         &state.locale,
-    )
+    ))
     .await?;
 
     let payout_attempt = payout_data.payout_attempt.to_owned();
@@ -725,7 +725,7 @@ pub async fn payouts_fulfill_core(
     response_handler(&state, &merchant_context, &payout_data).await
 }
 
-#[cfg(all(feature = "olap", feature = "v2", feature = "customer_v2"))]
+#[cfg(all(feature = "olap", feature = "v2"))]
 pub async fn payouts_list_core(
     _state: SessionState,
     _merchant_context: domain::MerchantContext,
@@ -735,11 +735,7 @@ pub async fn payouts_list_core(
     todo!()
 }
 
-#[cfg(all(
-    feature = "olap",
-    any(feature = "v1", feature = "v2"),
-    not(feature = "customer_v2")
-))]
+#[cfg(all(feature = "olap", feature = "v1"))]
 pub async fn payouts_list_core(
     state: SessionState,
     merchant_context: domain::MerchantContext,
@@ -773,7 +769,7 @@ pub async fn payouts_list_core(
         {
             Ok(payout_attempt) => {
                 let domain_customer = match payout.customer_id.clone() {
-                    #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
+                    #[cfg(feature = "v1")]
                     Some(customer_id) => db
                         .find_customer_by_customer_id_merchant_id(
                             &(&state).into(),
@@ -1158,7 +1154,7 @@ pub async fn complete_create_recipient(
     Ok(())
 }
 
-#[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
+#[cfg(feature = "v1")]
 pub async fn create_recipient(
     state: &SessionState,
     merchant_context: &domain::MerchantContext,
@@ -1222,10 +1218,7 @@ pub async fn create_recipient(
                         )
                         .await
                     {
-                        #[cfg(all(
-                            any(feature = "v1", feature = "v2"),
-                            not(feature = "customer_v2")
-                        ))]
+                        #[cfg(feature = "v1")]
                         {
                             let customer_id = customer.customer_id.to_owned();
                             payout_data.customer_details = Some(
@@ -1244,7 +1237,7 @@ pub async fn create_recipient(
                             );
                         }
 
-                        #[cfg(all(feature = "v2", feature = "customer_v2"))]
+                        #[cfg(feature = "v2")]
                         {
                             let customer_id = customer.get_id().clone();
                             payout_data.customer_details = Some(
@@ -1252,7 +1245,6 @@ pub async fn create_recipient(
                                     &state.into(),
                                     &customer_id,
                                     customer,
-                                    merchant_account.get_id(),
                                     updated_customer,
                                     key_store,
                                     merchant_account.storage_scheme,
@@ -1358,7 +1350,7 @@ pub async fn create_recipient(
     Ok(())
 }
 
-#[cfg(all(feature = "v2", feature = "customer_v2"))]
+#[cfg(feature = "v2")]
 pub async fn create_recipient(
     state: &SessionState,
     merchant_context: &domain::MerchantContext,
@@ -2103,13 +2095,10 @@ pub async fn create_recipient_disburse_account(
                 if let Some(pm_method) = payout_data.payment_method.clone() {
                     let pm_update =
                         diesel_models::PaymentMethodUpdate::ConnectorMandateDetailsUpdate {
-                            #[cfg(all(
-                                any(feature = "v1", feature = "v2"),
-                                not(feature = "payment_methods_v2")
-                            ))]
+                            #[cfg(feature = "v1")]
                             connector_mandate_details: Some(connector_mandate_details_value),
 
-                            #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+                            #[cfg(feature = "v2")]
                             connector_mandate_details: Some(common_connector_mandate),
                         };
 
@@ -2126,10 +2115,10 @@ pub async fn create_recipient_disburse_account(
                         .attach_printable("Unable to find payment method")?,
                     );
                 } else {
-                    #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
+                    #[cfg(feature = "v1")]
                     let customer_id = Some(customer_details.customer_id);
 
-                    #[cfg(all(feature = "v2", feature = "customer_v2"))]
+                    #[cfg(feature = "v2")]
                     let customer_id = customer_details.merchant_reference_id;
 
                     if let Some(customer_id) = customer_id {
@@ -2501,15 +2490,12 @@ pub async fn response_handler(
     let payouts = payout_data.payouts.to_owned();
 
     let payout_method_id: Option<String> = payout_data.payment_method.as_ref().map(|pm| {
-        #[cfg(all(
-            any(feature = "v1", feature = "v2"),
-            not(feature = "payment_methods_v2")
-        ))]
+        #[cfg(feature = "v1")]
         {
             pm.payment_method_id.clone()
         }
 
-        #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+        #[cfg(feature = "v2")]
         {
             pm.id.clone().get_string_repr().to_string()
         }
@@ -2591,7 +2577,7 @@ pub async fn response_handler(
     Ok(services::ApplicationResponse::Json(response))
 }
 
-#[cfg(all(feature = "v2", feature = "customer_v2"))]
+#[cfg(feature = "v2")]
 #[allow(clippy::too_many_arguments)]
 pub async fn payout_create_db_entries(
     _state: &SessionState,
@@ -2608,7 +2594,7 @@ pub async fn payout_create_db_entries(
 }
 
 // DB entries
-#[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
+#[cfg(feature = "v1")]
 #[allow(clippy::too_many_arguments)]
 pub async fn payout_create_db_entries(
     state: &SessionState,
@@ -2818,7 +2804,7 @@ pub async fn payout_create_db_entries(
     })
 }
 
-#[cfg(all(feature = "v2", feature = "customer_v2"))]
+#[cfg(feature = "v2")]
 pub async fn make_payout_data(
     _state: &SessionState,
     _merchant_context: &domain::MerchantContext,
@@ -2829,7 +2815,7 @@ pub async fn make_payout_data(
     todo!()
 }
 
-#[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
+#[cfg(feature = "v1")]
 pub async fn make_payout_data(
     state: &SessionState,
     merchant_context: &domain::MerchantContext,

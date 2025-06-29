@@ -156,6 +156,7 @@ gocardless.base_url = "https://api-sandbox.gocardless.com"
 gpayments.base_url = "https://{{merchant_endpoint_prefix}}-test.api.as1.gpayments.net"
 helcim.base_url = "https://api.helcim.com/"
 hipay.base_url = "https://stage-secure-gateway.hipay-tpp.com/rest/"
+hyperswitch_vault.base_url = "http://localhost:8080"
 hipay.secondary_base_url = "https://stage-secure2-vault.hipay-tpp.com/rest/"
 hipay.third_base_url = "https://stage-api-gateway.hipay.com/"
 iatapay.base_url = "https://sandbox.iata-pay.iata.org/api/v1"
@@ -195,10 +196,11 @@ plaid.base_url = "https://sandbox.plaid.com"
 powertranz.base_url = "https://staging.ptranz.com/api/"
 prophetpay.base_url = "https://ccm-thirdparty.cps.golf/"
 rapyd.base_url = "https://sandboxapi.rapyd.net"
-razorpay.base_url = "https://sandbox.juspay.in/"
+razorpay.base_url = "https://api.razorpay.com/"
 recurly.base_url = "https://v3.recurly.com"
 redsys.base_url = "https://sis-t.redsys.es:25443"
 riskified.base_url = "https://sandbox.riskified.com/api"
+santander.base_url = "https://pix.santander.com.br/api/v1/sandbox/"
 shift4.base_url = "https://api.shift4.com/"
 signifyd.base_url = "https://api.signifyd.com/"
 square.base_url = "https://connect.squareupsandbox.com/"
@@ -209,7 +211,7 @@ stripebilling.base_url = "https://api.stripe.com/"
 taxjar.base_url = "https://api.sandbox.taxjar.com/v2/"
 threedsecureio.base_url = "https://service.sandbox.3dsecure.io"
 thunes.base_url = "https://api.limonetikqualif.com/"
-tokenio.base_url = "https://api.token.io"
+tokenio.base_url = "https://api.sandbox.token.io"
 stripe.base_url_file_upload = "https://files.stripe.com/"
 trustpay.base_url = "https://test-tpgw.trustpay.eu/"
 trustpay.base_url_bank_redirects = "https://aapi.trustpay.eu/"
@@ -222,7 +224,7 @@ wellsfargopayout.base_url = "https://api-sandbox.wellsfargo.com/"
 wise.base_url = "https://api.sandbox.transferwise.tech/"
 worldline.base_url = "https://eu.sandbox.api-ingenico.com/"
 worldpay.base_url = "https://try.access.worldpay.com/"
-worldpayvantiv.base_url = "https://www.testvantivcnp.com/sandbox/communicator/online"
+worldpayvantiv.base_url = "https://transact.vantivprelive.com/vap/communicator/online"
 worldpayxml.base_url = "https://secure-test.worldpay.com/jsp/merchant/xml/paymentService.jsp"
 xendit.base_url = "https://api.xendit.co"
 zen.base_url = "https://api.zen-test.com/"
@@ -278,6 +280,7 @@ cards = [
     "gpayments",
     "helcim",
     "hipay",
+    "hyperswitch_vault",
     "iatapay",
     "inespay",
     "itaubank",
@@ -308,6 +311,7 @@ cards = [
     "powertranz",
     "prophetpay",
     "redsys",
+    "santander",
     "shift4",
     "square",
     "stax",
@@ -722,6 +726,8 @@ debit = { country = "CN,HK,ID,MY,PH,SG,TH,TW,VN", currency = "CNY,HKD,IDR,MYR,PH
 
 [pm_filters.trustpay]
 instant_bank_transfer = { country = "CZ,SK,GB,AT,DE,IT", currency = "CZK, EUR, GBP" }
+instant_bank_transfer_poland = { country = "PL", currency = "PLN" }
+instant_bank_transfer_finland = { country = "FI", currency = "EUR" }
 sepa = { country = "ES,SK,AT,NL,DE,BE,FR,FI,PT,IE,EE,LT,LV,IT,GB", currency = "EUR" }
 
 [pm_filters.dlocal]
@@ -781,11 +787,11 @@ credit = {country = "AU,NZ,CN,HK,IN,LK,KR,MY,SG,GB,BE,FR,DE,IT,ME,NL,PL,ES,ZA,AR
 debit = {country = "AU,NZ,CN,HK,IN,LK,KR,MY,SG,GB,BE,FR,DE,IT,ME,NL,PL,ES,ZA,AR,BR,CO,MX,PA,UY,US,CA", currency = "AFN,ALL,DZD,AOA,ARS,AMD,AWG,AUD,AZN,BSD,BHD,BDT,BBD,BYN,BZD,BMD,BTN,BOB,VES,BAM,BWP,BRL,BND,BGN,BIF,KHR,CAD,CVE,KYD,XAF,CLP,CNY,COP,KMF,CDF,CRC,HRK,CUP,CZK,DKK,DJF,DOP,XCD,EGP,ERN,ETB,EUR,FKP,FJD,XPF,GMD,GEL,GHS,GIP,GTQ,GNF,GYD,HTG,HNL,HKD,HUF,ISK,INR,IDR,IRR,IQD,ILS,JMD,JPY,JOD,KZT,KES,KGS,KWD,LAK,LBP,LSL,LRD,LYD,MOP,MKD,MGA,MWK,MYR,MVR,MRU,MUR,MXN,MDL,MNT,MAD,MZN,MMK,NAD,NPR,ANG,NZD,NIO,NGN,VUV,KPW,NOK,OMR,PKR,PAB,PGK,PYG,PEN,PHP,PLN,GBP,QAR,RON,RUB,RWF,SHP,SVC,WST,STN,SAR,RSD,SCR,SLL,SGD,SBD,SOS,ZAR,KRW,SSP,LKR,SDG,SRD,SZL,SEK,CHF,SYP,TWD,TJS,TZS,THB,TOP,TTD,TND,TRY,TMT,UGX,UAH,AED,USD,UYU,UZS,VND,XOF,YER,ZMW,ZWL"}
 
 [pm_filters.authorizedotnet]
-credit = { country = "US, CA", currency = "CAD,USD"}
-debit = { country = "US, CA", currency = "CAD,USD"}
-google_pay = {country = "AL,DZ,AS,AO,AG,AR,AU,AT,AZ,BH,BY,BE,BR,BG,CA,CL,CO,HR,CZ,DK,DO,EG,EE,FI,FR,DE,GR,HK,HU,IN,ID,IE,IL,IT,JP,JO,KZ,KE,KW,LV,LB,LT,LU,MY,MX,NL,NZ,NO,OM,PK,PA,PE,PH,PL,PT,QA,RO,RU,SA,SG,SK,ZA,ES,LK,SE,CH,TW,TH,TR,UA,AE,GB,US,UY,VN", currency = "CHF,DKK,EUR,GBP,NOK,PLN,SEK,USD,AUD,NZD,CAD"}
-apple_pay = {country = "AL,AR,AM,AU,AT,AZ,BH,BE,BG,BR,CA,CL,CO,CR,HR,CY,CZ,DK,DO,EC,SV,EE,FO,FI,FR,GE,DE,GR,GL,GG,GT,HN,HK,HU,IS,IE,IM,IL,IT,JP,KZ,KW,LV,LI,LT,LU,MO,MY,MT,MX,MD,MC,ME,MA,NL,NZ,NO,PA,PY,PE,PL,PT,QA,RO,RS,SA,SG,SK,SI,ZA,ES,SE,CH,TW,UA,AE,GB,US,UY,VN", currency = "EUR,GBP,ISK,USD,AUD,CAD,BRL,CLP,COP,CRC,CZK,DKK,EGP,GEL,GHS,GTQ,HNL,HKD,HUF,ILS,INR,JPY,KZT,KRW,KWD,MAD,MXN,MYR,NOK,NZD,PEN,PLN,PYG,QAR,RON,SAR,SEK,SGD,THB,TWD,UAH,AED,VND,ZAR"}
-paypal = {country = "AD,AE,AG,AL,AM,AO,AR,AT,AU,AZ,BA,BB,BD,BE,BF,BG,BH,BI,BJ,BM,BN,BO,BR,BS,BT,BW,BY,BZ,CA,CD,CF,CG,CH,CI,CL,CM,CN,CO,CR,CU,CV,CY,CZ,DE,DJ,DK,DM,DO,DZ,EC,EE,EG,ER,ES,ET,FI,FJ,FK,FM,FO,FR,GA,GB,GD,GE,GF,GH,GI,GM,GN,GP,GQ,GR,GT,GU,GW,GY,HK,HN,HR,HU,ID,IE,IL,IN,IO,IQ,IS,IT,JM,JO,JP,KE,KG,KH,KI,KM,KN,KP,KR,KW,KY,KZ,LA,LB,LC,LI,LK,LR,LS,LT,LU,LV,LY,MA,MC,MD,ME,MG,MH,MK,ML,MM,MN,MO,MP,MQ,MR,MS,MT,MU,MV,MW,MX,MY,MZ,NA,NC,NE,NF,NG,NI,NL,NO,NP,NR,NU,NZ,OM,PA,PE,PF,PG,PH,PK,PL,PM,PN,PR,PS,PT,PW,PY,QA,RO,RS,RU,RW,SA,SB,SC,SD,SE,SG,SH,SI,SJ,SK,SL,SM,SN,SO,SR,SS,ST,SV,SY,SZ,TC,TD,TF,TG,TH,TJ,TK,TL,TM,TN,TO,TR,TT,TV,TW,TZ,UA,UG,US,UY,UZ,VA,VC,VE,VG,VI,VN,VU,WF,WS,YE,YT,ZA,ZM,ZW", currency = "AUD,BRL,CAD,CHF,CNY,CZK,DKK,EUR,GBP,HKD,HUF,ILS,JPY,MXN,MYR,NOK,NZD,PHP,PLN,SEK,SGD,THB,TWD,USD"}
+credit = {currency = "CAD,USD"}
+debit = {currency = "CAD,USD"}
+google_pay = {currency = "CHF,DKK,EUR,GBP,NOK,PLN,SEK,USD,AUD,NZD,CAD"}
+apple_pay = {currency = "EUR,GBP,ISK,USD,AUD,CAD,BRL,CLP,COP,CRC,CZK,DKK,EGP,GEL,GHS,GTQ,HNL,HKD,HUF,ILS,INR,JPY,KZT,KRW,KWD,MAD,MXN,MYR,NOK,NZD,PEN,PLN,PYG,QAR,RON,SAR,SEK,SGD,THB,TWD,UAH,AED,VND,ZAR"}
+paypal = {currency = "AUD,BRL,CAD,CHF,CNY,CZK,DKK,EUR,GBP,HKD,HUF,ILS,JPY,MXN,MYR,NOK,NZD,PHP,PLN,SEK,SGD,THB,TWD,USD"}
 
 [pm_filters.braintree]
 credit = { country = "AD,AT,AU,BE,BG,CA,CH,CY,CZ,DE,DK,EE,ES,FI,FR,GB,GG,GI,GR,HK,HR,HU,IE,IM,IT,JE,LI,LT,LU,LV,MT,MC,MY,NL,NO,NZ,PL,PT,RO,SE,SG,SI,SK,SM,US", currency = "AED,AMD,AOA,ARS,AUD,AWG,AZN,BAM,BBD,BDT,BGN,BIF,BMD,BND,BOB,BRL,BSD,BWP,BYN,BZD,CAD,CHF,CLP,CNY,COP,CRC,CVE,CZK,DJF,DKK,DOP,DZD,EGP,ETB,EUR,FJD,FKP,GBP,GEL,GHS,GIP,GMD,GNF,GTQ,GYD,HKD,HNL,HRK,HTG,HUF,IDR,ILS,INR,ISK,JMD,JPY,KES,KGS,KHR,KMF,KRW,KYD,KZT,LAK,LBP,LKR,LRD,LSL,MAD,MDL,MKD,MNT,MOP,MUR,MVR,MWK,MXN,MYR,MZN,NAD,NGN,NIO,NOK,NPR,NZD,PAB,PEN,PGK,PHP,PKR,PLN,PYG,QAR,RON,RSD,RUB,RWF,SAR,SBD,SCR,SEK,SGD,SHP,SLL,SOS,SRD,STD,SVC,SYP,SZL,THB,TJS,TOP,TRY,TTD,TWD,TZS,UAH,UGX,USD,UYU,UZS,VES,VND,VUV,WST,XAF,XCD,XOF,XPF,YER,ZAR,ZMW,ZWL"}
@@ -877,7 +883,7 @@ card.debit = { connector_list = "cybersource" }
 connector_list = "adyen,archipel,cybersource,novalnet,stripe,worldpay"
 
 [connector_customer]
-connector_list = "gocardless,stax,stripe,facilitapay"
+connector_list = "adyen,facilitapay,gocardless,hyperswitch_vault,stax,stripe"
 payout_connector_list = "nomupay,stripe,wise"
 
 
@@ -893,6 +899,9 @@ delay_between_retries_in_milliseconds = 500
 outgoing_enabled = true
 redis_lock_expiry_seconds = 180             # 3 * 60 seconds
 
+[merchant_id_auth]
+merchant_id_auth_enabled = false
+
 [events.kafka]
 brokers = ["localhost:9092"]
 fraud_check_analytics_topic = "hyperswitch-fraud-check-events"
@@ -907,6 +916,7 @@ audit_events_topic = "hyperswitch-audit-events"
 payout_analytics_topic = "hyperswitch-payout-events"
 consolidated_events_topic = "hyperswitch-consolidated-events"
 authentication_analytics_topic = "hyperswitch-authentication-events"
+routing_logs_topic = "hyperswitch-routing-api-events"
 
 [analytics]
 source = "sqlx"
@@ -1020,7 +1030,7 @@ sepa = { country = "ES,SK,AT,NL,DE,BE,FR,FI,PT,IE,EE,LT,LV,IT,CZ,DE,HU,NO,PL,SE,
 ach = { country = "US", currency = "USD" }
 
 [locker_based_open_banking_connectors]
-connector_list = ""
+connector_list = "tokenio"
 
 [cell_information]
 id = "12345"
@@ -1029,7 +1039,7 @@ id = "12345"
 card_networks = "Visa, AmericanExpress, Mastercard"
 
 [network_tokenization_supported_connectors]
-connector_list = "cybersource"
+connector_list = "adyen,cybersource"
 
 # EmailClient configuration. Only applicable when the `email` feature flag is enabled.
 [email]
@@ -1064,6 +1074,7 @@ background_color = "#FFFFFF"                                                    
 
 [platform]
 enabled = true
+allow_connected_merchants = true
 
 [authentication_providers]
 click_to_pay = {connector_list = "adyen, cybersource"}
@@ -1075,3 +1086,7 @@ retry_algorithm_type = "cascading" # type of retry algorithm
 [clone_connector_allowlist]
 merchant_ids = "merchant_123, merchant_234"     # Comma-separated list of allowed merchant IDs
 connector_names = "stripe, adyen"               # Comma-separated list of allowed connector names
+
+[infra_values]
+cluster = "CLUSTER"         # value of CLUSTER from deployment
+version = "HOSTNAME"        # value of HOSTNAME from deployment which tells its version

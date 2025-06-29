@@ -5,6 +5,7 @@ use api_models::{
     payments::GetAddressFromPaymentMethodData,
 };
 use async_trait::async_trait;
+use common_types::payments as common_payments_types;
 use common_utils::{
     ext_traits::{AsyncExt, Encode, ValueExt},
     type_name,
@@ -143,7 +144,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
                 id: profile_id.get_string_repr().to_owned(),
             })?
         };
-        let customer_acceptance = request.customer_acceptance.clone().map(From::from);
+        let customer_acceptance = request.customer_acceptance.clone();
 
         let recurring_details = request.recurring_details.clone();
 
@@ -1073,7 +1074,7 @@ impl<F: Send + Clone + Sync> ValidateRequest<F, api::PaymentsRequest, PaymentDat
 }
 
 impl PaymentCreate {
-    #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+    #[cfg(feature = "v2")]
     #[instrument(skip_all)]
     #[allow(clippy::too_many_arguments)]
     pub async fn make_payment_attempt(
@@ -1099,10 +1100,7 @@ impl PaymentCreate {
         todo!()
     }
 
-    #[cfg(all(
-        any(feature = "v1", feature = "v2"),
-        not(feature = "payment_methods_v2")
-    ))]
+    #[cfg(feature = "v1")]
     #[instrument(skip_all)]
     #[allow(clippy::too_many_arguments)]
     pub async fn make_payment_attempt(
@@ -1119,7 +1117,7 @@ impl PaymentCreate {
         payment_method_info: &Option<domain::PaymentMethod>,
         key_store: &domain::MerchantKeyStore,
         profile_id: common_utils::id_type::ProfileId,
-        customer_acceptance: &Option<payments::CustomerAcceptance>,
+        customer_acceptance: &Option<common_payments_types::CustomerAcceptance>,
         storage_scheme: enums::MerchantStorageScheme,
     ) -> RouterResult<(
         storage::PaymentAttemptNew,
@@ -1365,6 +1363,7 @@ impl PaymentCreate {
                 processor_merchant_id: merchant_id.to_owned(),
                 created_by: None,
                 setup_future_usage_applied: request.setup_future_usage,
+                routing_approach: Some(common_enums::RoutingApproach::default())
             },
             additional_pm_data,
 

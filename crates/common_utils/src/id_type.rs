@@ -2,6 +2,7 @@
 //! The id type can be used to create specific id types with custom behaviour
 
 mod api_key;
+mod authentication;
 mod client_secret;
 mod customer;
 #[cfg(feature = "v2")]
@@ -11,6 +12,7 @@ mod merchant_connector_account;
 mod organization;
 mod payment;
 mod profile;
+mod profile_acquirer;
 mod refunds;
 mod relay;
 mod routing;
@@ -39,6 +41,7 @@ pub use self::global_id::{
 };
 pub use self::{
     api_key::ApiKeyId,
+    authentication::AuthenticationId,
     client_secret::ClientSecretId,
     customer::CustomerId,
     merchant::MerchantId,
@@ -46,6 +49,7 @@ pub use self::{
     organization::OrganizationId,
     payment::{PaymentId, PaymentReferenceId},
     profile::ProfileId,
+    profile_acquirer::ProfileAcquirerId,
     refunds::RefundReferenceId,
     relay::RelayId,
     routing::RoutingId,

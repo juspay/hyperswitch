@@ -4,7 +4,12 @@
 //! of Routing configs.
 
 use actix_web::{web, HttpRequest, Responder};
-use api_models::{enums, routing as routing_types, routing::RoutingRetrieveQuery};
+use api_models::{
+    enums,
+    routing::{self as routing_types, RoutingRetrieveQuery},
+};
+use hyperswitch_domain_models::merchant_context::MerchantKeyStore;
+use payment_methods::core::errors::ApiErrorResponse;
 use router_env::{
     tracing::{self, instrument},
     Flow,
@@ -12,6 +17,7 @@ use router_env::{
 
 use crate::{
     core::{api_locking, conditional_config, routing, surcharge_decision_config},
+    db::errors::StorageErrorExt,
     routes::AppState,
     services::{api as oss_api, authentication as auth, authorization::permissions::Permission},
     types::domain,
@@ -22,7 +28,7 @@ pub async fn routing_create_config(
     state: web::Data<AppState>,
     req: HttpRequest,
     json_payload: web::Json<routing_types::RoutingConfigRequest>,
-    transaction_type: enums::TransactionType,
+    transaction_type: Option<enums::TransactionType>,
 ) -> impl Responder {
     let flow = Flow::RoutingCreateConfig;
     Box::pin(oss_api::server_wrap(
@@ -38,8 +44,10 @@ pub async fn routing_create_config(
                 state,
                 merchant_context,
                 auth.profile_id,
-                payload,
-                transaction_type,
+                payload.clone(),
+                transaction_type
+                    .or(payload.transaction_type)
+                    .unwrap_or(enums::TransactionType::Payment),
             )
         },
         auth::auth_type(
@@ -109,7 +117,8 @@ pub async fn routing_link_config(
     state: web::Data<AppState>,
     req: HttpRequest,
     path: web::Path<common_utils::id_type::RoutingId>,
-    transaction_type: &enums::TransactionType,
+    json_payload: web::Json<routing_types::RoutingActivatePayload>,
+    transaction_type: Option<enums::TransactionType>,
 ) -> impl Responder {
     let flow = Flow::RoutingLinkConfig;
     Box::pin(oss_api::server_wrap(
@@ -126,7 +135,9 @@ pub async fn routing_link_config(
                 merchant_context,
                 auth.profile_id,
                 algorithm,
-                transaction_type,
+                transaction_type
+                    .or(json_payload.transaction_type)
+                    .unwrap_or(enums::TransactionType::Payment),
             )
         },
         auth::auth_type(
@@ -289,7 +300,7 @@ pub async fn list_routing_configs(
     state: web::Data<AppState>,
     req: HttpRequest,
     query: web::Query<RoutingRetrieveQuery>,
-    transaction_type: &enums::TransactionType,
+    transaction_type: Option<enums::TransactionType>,
 ) -> impl Responder {
     let flow = Flow::RoutingRetrieveDictionary;
     Box::pin(oss_api::server_wrap(
@@ -305,8 +316,10 @@ pub async fn list_routing_configs(
                 state,
                 merchant_context,
                 None,
-                query_params,
-                transaction_type,
+                query_params.clone(),
+                transaction_type
+                    .or(query_params.transaction_type)
+                    .unwrap_or(enums::TransactionType::Payment),
             )
         },
         auth::auth_type(
@@ -330,7 +343,7 @@ pub async fn list_routing_configs_for_profile(
     state: web::Data<AppState>,
     req: HttpRequest,
     query: web::Query<RoutingRetrieveQuery>,
-    transaction_type: &enums::TransactionType,
+    transaction_type: Option<enums::TransactionType>,
 ) -> impl Responder {
     let flow = Flow::RoutingRetrieveDictionary;
     Box::pin(oss_api::server_wrap(
@@ -346,8 +359,10 @@ pub async fn list_routing_configs_for_profile(
                 state,
                 merchant_context,
                 auth.profile_id.map(|profile_id| vec![profile_id]),
-                query_params,
-                transaction_type,
+                query_params.clone(),
+                transaction_type
+                    .or(query_params.transaction_type)
+                    .unwrap_or(enums::TransactionType::Payment),
             )
         },
         auth::auth_type(
@@ -419,7 +434,7 @@ pub async fn routing_unlink_config(
     state: web::Data<AppState>,
     req: HttpRequest,
     payload: web::Json<routing_types::RoutingConfigRequest>,
-    transaction_type: &enums::TransactionType,
+    transaction_type: Option<enums::TransactionType>,
 ) -> impl Responder {
     let flow = Flow::RoutingUnlinkConfig;
     Box::pin(oss_api::server_wrap(
@@ -434,9 +449,11 @@ pub async fn routing_unlink_config(
             routing::unlink_routing_config(
                 state,
                 merchant_context,
-                payload_req,
+                payload_req.clone(),
                 auth.profile_id,
-                transaction_type,
+                transaction_type
+                    .or(payload_req.transaction_type)
+                    .unwrap_or(enums::TransactionType::Payment),
             )
         },
         auth::auth_type(
@@ -941,7 +958,7 @@ pub async fn routing_retrieve_linked_config(
     state: web::Data<AppState>,
     req: HttpRequest,
     query: web::Query<routing_types::RoutingRetrieveLinkQuery>,
-    transaction_type: &enums::TransactionType,
+    transaction_type: Option<enums::TransactionType>,
 ) -> impl Responder {
     use crate::services::authentication::AuthenticationData;
     let flow = Flow::RoutingRetrieveActiveConfig;
@@ -961,7 +978,9 @@ pub async fn routing_retrieve_linked_config(
                     merchant_context,
                     auth.profile_id,
                     query_params,
-                    transaction_type,
+                    transaction_type
+                        .or(query.transaction_type)
+                        .unwrap_or(enums::TransactionType::Payment),
                 )
             },
             auth::auth_type(
@@ -993,7 +1012,9 @@ pub async fn routing_retrieve_linked_config(
                     merchant_context,
                     auth.profile_id,
                     query_params,
-                    transaction_type,
+                    transaction_type
+                        .or(query.transaction_type)
+                        .unwrap_or(enums::TransactionType::Payment),
                 )
             },
             auth::auth_type(
@@ -1542,4 +1563,62 @@ pub async fn get_dynamic_routing_volume_split(
         api_locking::LockAction::NotApplicable,
     ))
     .await
+}
+
+use actix_web::HttpResponse;
+#[instrument(skip_all, fields(flow = ?Flow::DecisionEngineRuleMigration))]
+pub async fn migrate_routing_rules_for_profile(
+    state: web::Data<AppState>,
+    req: HttpRequest,
+    query: web::Query<routing_types::RuleMigrationQuery>,
+) -> HttpResponse {
+    let flow = Flow::DecisionEngineRuleMigration;
+
+    Box::pin(oss_api::server_wrap(
+        flow,
+        state,
+        &req,
+        query.into_inner(),
+        |state, _, query_params, _| async move {
+            let merchant_id = query_params.merchant_id.clone();
+            let (key_store, merchant_account) = get_merchant_account(&state, &merchant_id).await?;
+            let merchant_context = domain::MerchantContext::NormalMerchant(Box::new(
+                domain::Context(merchant_account, key_store),
+            ));
+            let res = Box::pin(routing::migrate_rules_for_profile(
+                state,
+                merchant_context,
+                query_params,
+            ))
+            .await?;
+            Ok(crate::services::ApplicationResponse::Json(res))
+        },
+        &auth::AdminApiAuth,
+        api_locking::LockAction::NotApplicable,
+    ))
+    .await
+}
+
+async fn get_merchant_account(
+    state: &super::SessionState,
+    merchant_id: &common_utils::id_type::MerchantId,
+) -> common_utils::errors::CustomResult<(MerchantKeyStore, domain::MerchantAccount), ApiErrorResponse>
+{
+    let key_manager_state = &state.into();
+    let key_store = state
+        .store
+        .get_merchant_key_store_by_merchant_id(
+            key_manager_state,
+            merchant_id,
+            &state.store.get_master_key().to_vec().into(),
+        )
+        .await
+        .to_not_found_response(ApiErrorResponse::MerchantAccountNotFound)?;
+
+    let merchant_account = state
+        .store
+        .find_merchant_account_by_merchant_id(key_manager_state, merchant_id, &key_store)
+        .await
+        .to_not_found_response(ApiErrorResponse::MerchantAccountNotFound)?;
+    Ok((key_store, merchant_account))
 }

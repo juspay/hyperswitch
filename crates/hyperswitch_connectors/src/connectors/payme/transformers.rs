@@ -572,7 +572,7 @@ impl<F>
                     ))) => Some(api_models::payments::SessionToken::ApplePay(Box::new(
                         api_models::payments::ApplepaySessionTokenResponse {
                             session_token_data: Some(
-                                api_models::payments::ApplePaySessionResponse::NoSessionResponse,
+                                api_models::payments::ApplePaySessionResponse::NoSessionResponse(api_models::payments::NullObject),
                             ),
                             payment_request_data: Some(
                                 api_models::payments::ApplePayPaymentRequest {
@@ -1230,7 +1230,7 @@ pub struct WebhookEventDataResource {
     pub payme_transaction_id: String,
     pub status_error_details: Option<String>,
     pub status_error_code: Option<u32>,
-    pub price: i64,
+    pub price: MinorUnit,
     pub currency: enums::Currency,
 }
 

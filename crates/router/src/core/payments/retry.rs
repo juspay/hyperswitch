@@ -16,6 +16,7 @@ use crate::{
             flows::{ConstructFlowSpecificData, Feature},
             operations,
         },
+        routing::helpers as routing_helpers,
     },
     db::StorageInterface,
     routes::{
@@ -109,6 +110,7 @@ where
             frm_suggestion,
             business_profile,
             false, //should_retry_with_pan is not applicable for step-up
+            None,
         )
         .await?;
     }
@@ -155,11 +157,20 @@ where
                             .unwrap_or(false)
                         && business_profile.is_clear_pan_retries_enabled;
 
-                    let connector = if should_retry_with_pan {
+                    let (connector, routing_decision) = if should_retry_with_pan {
                         // If should_retry_with_pan is true, it indicates that we are retrying with PAN using the same connector.
-                        original_connector_data.clone()
+                        (original_connector_data.clone(), None)
                     } else {
-                        super::get_connector_data(&mut connector_routing_data)?.connector_data
+                        let connector_routing_data =
+                            super::get_connector_data(&mut connector_routing_data)?;
+                        let routing_decision = connector_routing_data.network.map(|card_network| {
+                            routing_helpers::RoutingDecisionData::get_debit_routing_decision_data(
+                                card_network,
+                                None,
+                            )
+                        });
+
+                        (connector_routing_data.connector_data, routing_decision)
                     };
 
                     router_data = do_retry(
@@ -178,6 +189,7 @@ where
                         frm_suggestion,
                         business_profile,
                         should_retry_with_pan,
+                        routing_decision,
                     )
                     .await?;
 
@@ -329,6 +341,7 @@ pub async fn do_retry<F, ApiRequest, FData, D>(
     frm_suggestion: Option<storage_enums::FrmSuggestion>,
     business_profile: &domain::Profile,
     should_retry_with_pan: bool,
+    routing_decision: Option<routing_helpers::RoutingDecisionData>,
 ) -> RouterResult<types::RouterData<F, FData, types::PaymentsResponseData>>
 where
     F: Clone + Send + Sync,
@@ -372,7 +385,7 @@ where
         business_profile,
         true,
         should_retry_with_pan,
-        None,
+        routing_decision,
         None,
     )
     .await?;
@@ -689,6 +702,7 @@ pub fn make_new_payment_attempt(
         processor_merchant_id: old_payment_attempt.processor_merchant_id,
         created_by: old_payment_attempt.created_by,
         setup_future_usage_applied: setup_future_usage_intent, // setup future usage is picked from intent for new payment attempt
+        routing_approach: old_payment_attempt.routing_approach,
     }
 }
 
@@ -703,7 +717,6 @@ pub fn make_new_payment_attempt(
     todo!()
 }
 
-#[cfg(feature = "v1")]
 pub async fn get_merchant_config_for_gsm(
     db: &dyn StorageInterface,
     merchant_id: &common_utils::id_type::MerchantId,
@@ -769,7 +782,8 @@ impl<F: Send + Clone + Sync, FData: Send + Sync>
                 | storage_enums::AttemptStatus::PaymentMethodAwaited
                 | storage_enums::AttemptStatus::ConfirmationAwaited
                 | storage_enums::AttemptStatus::Unresolved
-                | storage_enums::AttemptStatus::DeviceDataCollectionPending => false,
+                | storage_enums::AttemptStatus::DeviceDataCollectionPending
+                | storage_enums::AttemptStatus::IntegrityFailure => false,
 
                 storage_enums::AttemptStatus::AuthenticationFailed
                 | storage_enums::AttemptStatus::AuthorizationFailed

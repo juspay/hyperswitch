@@ -244,7 +244,16 @@ impl super::settings::NetworkTokenizationService {
             Err(ApplicationError::InvalidConfigurationValueError(
                 "private_key must not be empty".into(),
             ))
-        })
+        })?;
+
+        when(
+            self.webhook_source_verification_key.is_default_or_empty(),
+            || {
+                Err(ApplicationError::InvalidConfigurationValueError(
+                    "webhook_source_verification_key must not be empty".into(),
+                ))
+            },
+        )
     }
 }
 
@@ -301,6 +310,19 @@ impl super::settings::KeyManagerConfig {
         when(self.enabled && self.url.is_default_or_empty(), || {
             Err(ApplicationError::InvalidConfigurationValueError(
                 "Invalid URL for Keymanager".into(),
+            ))
+        })
+    }
+}
+
+impl super::settings::Platform {
+    pub fn validate(&self) -> Result<(), ApplicationError> {
+        use common_utils::fp_utils::when;
+
+        when(!self.enabled && self.allow_connected_merchants, || {
+            Err(ApplicationError::InvalidConfigurationValueError(
+                "platform.allow_connected_merchants cannot be true when platform.enabled is false"
+                    .into(),
             ))
         })
     }
