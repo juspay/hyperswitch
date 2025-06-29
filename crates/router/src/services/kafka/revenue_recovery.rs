@@ -4,7 +4,6 @@ use time::OffsetDateTime;
 #[derive(serde::Serialize, Debug)]
 pub struct RevenueRecovery<'a> {
     pub merchant_id: &'a id_type::MerchantId,
-    pub invoice_id: Option<String>,
     pub invoice_amount: MinorUnit,
     pub invoice_currency: &'a common_enums::Currency,
     pub invoice_due_date: Option<OffsetDateTime>,
@@ -12,7 +11,6 @@ pub struct RevenueRecovery<'a> {
     pub billing_country: Option<&'a common_enums::CountryAlpha2>,
     pub billing_state: Option<String>,
     pub billing_city: Option<String>,
-    pub attempt_id: String,
     pub attempt_amount: MinorUnit,
     pub attempt_currency: &'a common_enums::Currency,
     pub attempt_status: &'a common_enums::AttemptStatus,
@@ -33,7 +31,7 @@ pub struct RevenueRecovery<'a> {
 
 impl super::KafkaMessage for RevenueRecovery<'_> {
     fn key(&self) -> String {
-        self.attempt_id.to_string()
+        self.merchant_id.get_string_repr().to_string()
     }
 
     fn event_type(&self) -> crate::events::EventType {

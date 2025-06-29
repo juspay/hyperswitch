@@ -15,7 +15,7 @@ use hyperswitch_domain_models::{
 use hyperswitch_interfaces::webhooks as interface_webhooks;
 use masking::PeekInterface;
 use router_env::{instrument, tracing};
-use services::kafka::revenue_recovery::RevenueRecovery;
+use services::kafka;
 
 use crate::{
     core::{
@@ -1257,12 +1257,6 @@ impl RecoveryPaymentTuple {
     ) -> CustomResult<(), errors::RevenueRecoveryError> {
         let payment_intent = &recovery_payment_tuple.0;
         let payment_attempt = &recovery_payment_tuple.1;
-        let invoice_id_str = payment_intent
-            .merchant_reference_id
-            .as_ref()
-            .map(|id| id.get_string_repr().to_string());
-        let attempt_id_str = payment_attempt.attempt_id.get_string_repr().to_string();
-
         let revenue_recovery_feature_metadata = payment_intent
             .feature_metadata
             .as_ref()
@@ -1298,9 +1292,8 @@ impl RecoveryPaymentTuple {
                     .and_then(|details| details.get_billing_connector_card_info())
             });
 
-        let event = RevenueRecovery {
+        let event = kafka::revenue_recovery::RevenueRecovery {
             merchant_id: &payment_intent.merchant_id,
-            invoice_id: invoice_id_str,
             invoice_amount: payment_intent.invoice_amount,
             invoice_currency: &payment_intent.invoice_currency,
             invoice_date: payment_intent.created_at.assume_utc(),
@@ -1309,7 +1302,6 @@ impl RecoveryPaymentTuple {
             billing_city,
             billing_country: billing_country.as_ref(),
             billing_state,
-            attempt_id: attempt_id_str,
             attempt_amount: payment_attempt.amount,
             attempt_currency: &payment_intent.invoice_currency.clone(),
             attempt_status: &payment_attempt.attempt_status.clone(),
