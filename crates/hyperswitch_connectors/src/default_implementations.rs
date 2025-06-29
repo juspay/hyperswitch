@@ -1011,7 +1011,6 @@ default_imp_for_incremental_authorization!(
     connectors::Fiuu,
     connectors::Forte,
     connectors::Getnet,
-    connectors::Globalpay,
     connectors::Globepay,
     connectors::Gocardless,
     connectors::Gpayments,
