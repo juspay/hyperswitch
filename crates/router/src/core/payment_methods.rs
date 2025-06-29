@@ -231,7 +231,7 @@ pub async fn initiate_pm_collect_link(
         link: url::Url::parse(url)
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable_lazy(|| {
-                format!("Failed to parse the payment method collect link - {}", url)
+                format!("Failed to parse the payment method collect link - {url}", )
             })?
             .into(),
         return_url: pm_collect_link.return_url,

@@ -468,7 +468,7 @@ impl<T> ConnectorErrorExt<T> for error_stack::Result<T, errors::ConnectorError> 
                 }
                 errors::ConnectorError::NotSupported { message, connector } => {
                     errors::ApiErrorResponse::NotSupported {
-                        message: format!("{} by {}", message, connector),
+                        message: format!("{message} by {connector}"),
                     }
                 }
                 errors::ConnectorError::NotImplemented(reason) => {
@@ -504,7 +504,7 @@ impl<T> ConnectorErrorExt<T> for error_stack::Result<T, errors::ConnectorError> 
                 }
                 errors::ConnectorError::NotSupported { message, connector } => {
                     errors::ApiErrorResponse::NotSupported {
-                        message: format!("{} by {}", message, connector),
+                        message: format!("{message} by {connector}"),
                     }
                 }
                 errors::ConnectorError::NotImplemented(reason) => {

@@ -29,7 +29,7 @@ pub fn get_theme_file_key(theme_id: &str) -> PathBuf {
 fn path_buf_to_str(path: &PathBuf) -> UserResult<&str> {
     path.to_str()
         .ok_or(UserErrors::InternalServerError)
-        .attach_printable(format!("Failed to convert path {:#?} to string", path))
+        .attach_printable(format!("Failed to convert path {path:#?} to string", ))
 }
 
 pub async fn retrieve_file_from_theme_bucket(

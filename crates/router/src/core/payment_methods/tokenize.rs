@@ -371,8 +371,8 @@ where
                 } else {
                     Err(report!(errors::ApiErrorResponse::NotSupported {
                         message: format!(
-                            "Network tokenization for {} is not supported",
-                            card_network
+                            "Network tokenization for {card_network} is not supported",
+
                         )
                     }))
                 }

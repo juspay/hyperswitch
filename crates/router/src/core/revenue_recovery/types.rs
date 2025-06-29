@@ -786,8 +786,8 @@ pub fn construct_recovery_record_back_router_data(
     )
     .change_context(errors::RecoveryError::RecordBackToBillingConnectorFailed)
     .attach_printable(format!(
-        "cannot find connector params for this connector {} in this flow",
-        connector
+        "cannot find connector params for this connector {connector} in this flow",
+
     ))?;
 
     let router_data = router_data_v2::RouterDataV2 {

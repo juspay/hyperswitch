@@ -76,8 +76,8 @@ where
         let signature_string = auth.api_key.clone().zip(auth.merchant_token.clone()).map(
             |(api_key, merchant_token)| {
                 format!(
-                    "{}{}{}{}{}",
-                    api_key, nonce, timestamp, merchant_token, request_payload
+                    "{api_key}{nonce}{timestamp}{merchant_token}{request_payload}",
+
                 )
             },
         );

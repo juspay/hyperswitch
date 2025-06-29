@@ -199,10 +199,7 @@ impl PaymentAttempt {
             .get_txn_id(txn_data.as_ref())
             .change_context(DatabaseError::Others)
             .attach_printable_lazy(|| {
-                format!(
-                    "Failed to retrieve txn_id for ({:?}, {:?})",
-                    txn_id, txn_data
-                )
+                format!("Failed to retrieve txn_id for ({txn_id:?}, {txn_data:?})",)
             })?;
         generics::generic_find_one::<<Self as HasTable>::Table, _, _>(
             conn,
@@ -227,8 +224,8 @@ impl PaymentAttempt {
             .change_context(DatabaseError::Others)
             .attach_printable_lazy(|| {
                 format!(
-                    "Failed to retrieve txn_id for ({:?}, {:?})",
-                    txn_id, txn_data
+                    "Failed to retrieve txn_id for ({txn_id:?}, {txn_data:?})",
+
                 )
             })?;
         generics::generic_find_one::<<Self as HasTable>::Table, _, _>(

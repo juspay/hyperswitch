@@ -317,7 +317,7 @@ impl ConnectorCommon for Paypal {
                     .iter()
                     .try_fold(String::new(), |mut acc, error| {
                         if let Some(description) = &error.description {
-                            write!(acc, "description - {} ;", description)
+                            write!(acc, "description - {description} ;" )
                                 .change_context(
                                     errors::ConnectorError::ResponseDeserializationFailed,
                                 )

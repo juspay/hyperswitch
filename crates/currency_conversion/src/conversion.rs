@@ -50,8 +50,8 @@ mod tests {
         let res =
             convert(&sample_rate, convert_from, convert_to, amount).expect("converted_currency");
         println!(
-            "The conversion from {} {} to {} is {:?}",
-            amount, convert_from, convert_to, res
+            "The conversion from {amount} {convert_from} to {convert_to} is {res:?}",
+
         );
     }
 
@@ -72,8 +72,8 @@ mod tests {
         let res =
             convert(&sample_rate, convert_from, convert_to, amount).expect("converted_currency");
         println!(
-            "The conversion from {} {} to {} is {:?}",
-            amount, convert_from, convert_to, res
+            "The conversion from {amount} {convert_from} to {convert_to} is {res:?}",
+
         );
     }
 
@@ -94,8 +94,8 @@ mod tests {
         let res =
             convert(&sample_rate, convert_from, convert_to, amount).expect("converted_currency");
         println!(
-            "The conversion from {} {} to {} is {:?}",
-            amount, convert_from, convert_to, res
+            "The conversion from {amount} {convert_from} to {convert_to} is {res:?}",
+
         );
     }
 }

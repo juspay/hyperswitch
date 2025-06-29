@@ -97,8 +97,8 @@ impl OrganizationInterface for super::MockDb {
             .cloned()
             .ok_or(
                 errors::StorageError::ValueNotFound(format!(
-                    "No organization available for org_id = {:?}",
-                    org_id
+                    "No organization available for org_id = {org_id:?}",
+
                 ))
                 .into(),
             )
@@ -132,8 +132,8 @@ impl OrganizationInterface for super::MockDb {
             })
             .ok_or(
                 errors::StorageError::ValueNotFound(format!(
-                    "No organization available for org_id = {:?}",
-                    org_id
+                    "No organization available for org_id = {org_id:?}",
+
                 ))
                 .into(),
             )

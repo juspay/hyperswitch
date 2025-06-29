@@ -1321,8 +1321,8 @@ fn deserialize_merchant_ids_inner(
             let trimmed = s.trim();
             id_type::MerchantId::wrap(trimmed.to_owned()).map_err(|error| {
                 format!(
-                    "Unable to deserialize `{}` as `MerchantId`: {error}",
-                    trimmed
+                    "Unable to deserialize `{trimmed}` as `MerchantId`: {error}",
+
                 )
             })
         })

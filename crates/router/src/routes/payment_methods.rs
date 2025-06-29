@@ -968,8 +968,8 @@ impl ParentPaymentMethodToken {
     ) -> Self {
         Self {
             key_for_token: format!(
-                "pm_token_{}_{}_hyperswitch",
-                parent_pm_token, payment_method
+                "pm_token_{parent_pm_token}_{payment_method}_hyperswitch",
+
             ),
         }
     }
@@ -979,8 +979,8 @@ impl ParentPaymentMethodToken {
         (parent_pm_token, payment_method): (&String, api_models::enums::PaymentMethod),
     ) -> String {
         format!(
-            "pm_token_{}_{}_hyperswitch",
-            parent_pm_token, payment_method
+            "pm_token_{parent_pm_token}_{payment_method}_hyperswitch",
+
         )
     }
 

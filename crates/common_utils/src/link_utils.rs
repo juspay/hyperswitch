@@ -283,8 +283,8 @@ mod domain_tests {
         for domain in valid_domains {
             assert!(
                 validate_strict_domain(domain),
-                "Could not validate strict domain: {}",
-                domain
+                "Could not validate strict domain: {domain}",
+
             );
         }
 
@@ -299,8 +299,8 @@ mod domain_tests {
         for domain in invalid_domains {
             assert!(
                 !validate_strict_domain(domain),
-                "Could not validate invalid strict domain: {}",
-                domain
+                "Could not validate invalid strict domain: {domain}",
+
             );
         }
     }
@@ -328,8 +328,8 @@ mod domain_tests {
         for domain in valid_domains {
             assert!(
                 validate_wildcard_domain(domain),
-                "Could not validate wildcard domain: {}",
-                domain
+                "Could not validate wildcard domain: {domain}",
+
             );
         }
 
@@ -349,8 +349,8 @@ mod domain_tests {
         for domain in invalid_domains {
             assert!(
                 !validate_wildcard_domain(domain),
-                "Could not validate invalid wildcard domain: {}",
-                domain
+                "Could not validate invalid wildcard domain: {domain}",
+
             );
         }
     }

@@ -823,14 +823,13 @@ pub(super) async fn get_or_create_customer_details(
                     .change_context(errors::ApiErrorResponse::InternalServerError)
                     .attach_printable_lazy(|| {
                         format!(
-                            "Failed to insert customer [id - {:?}] for merchant [id - {:?}]",
-                            customer_id, merchant_id
+                            "Failed to insert customer [id - {customer_id:?}] for merchant [id - {merchant_id:?}]",
                         )
                     })?,
                 ))
             } else {
                 Err(report!(errors::ApiErrorResponse::InvalidRequestData {
-                    message: format!("customer for id - {:?} not found", customer_id),
+                    message: format!("customer for id - {customer_id:?} not found", ),
                 }))
             }
         }
@@ -1200,8 +1199,8 @@ pub async fn update_payouts_and_payout_attempt(
     if is_payout_terminal_state(status) || is_payout_initiated(status) {
         return Err(report!(errors::ApiErrorResponse::InvalidRequestData {
             message: format!(
-                "Payout {} cannot be updated for status {}",
-                payout_id, status
+                "Payout {payout_id} cannot be updated for status {status}",
+
             ),
         }));
     }

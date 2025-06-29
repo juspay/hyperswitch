@@ -216,7 +216,7 @@ impl ConnectorIntegration<AccessTokenAuth, AccessTokenRequestData, AccessToken> 
         );
         let encoded_creds = common_utils::consts::BASE64_ENGINE.encode(creds);
 
-        let auth_string = format!("Basic {}", encoded_creds);
+        let auth_string = format!("Basic {encoded_creds}", );
         Ok(vec![
             (
                 headers::CONTENT_TYPE.to_string(),

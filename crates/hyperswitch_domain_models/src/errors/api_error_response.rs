@@ -390,7 +390,7 @@ impl ErrorSwitch<api_models::errors::types::ApiErrorResponse> for ApiErrorRespon
                 AER::InternalServerError(ApiError::new("HE", 0, "Something went wrong", None))
             },
             Self::HealthCheckError { message,component } => {
-                AER::InternalServerError(ApiError::new("HE",0,format!("{} health check failed with error: {}",component,message),None))
+                AER::InternalServerError(ApiError::new("HE",0,format!("{component} health check failed with error: {message}"),None))
             },
             Self::DuplicateRefundRequest => AER::BadRequest(ApiError::new("HE", 1, "Duplicate refund request. Refund already attempted with the refund ID", None)),
             Self::DuplicateMandate => AER::BadRequest(ApiError::new("HE", 1, "Duplicate mandate request. Mandate already attempted with the Mandate ID", None)),
@@ -691,7 +691,7 @@ impl ErrorSwitch<api_models::errors::types::ApiErrorResponse> for ApiErrorRespon
             } => AER::InternalServerError(ApiError::new(
                 "IE",
                 0,
-                format!("{} as data mismatched for {}", reason, field_names),
+                format!("{reason} as data mismatched for {field_names}"),
                 Some(Extra {
                     connector_transaction_id: connector_transaction_id.to_owned(),
                     ..Default::default()

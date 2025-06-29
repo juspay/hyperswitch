@@ -227,8 +227,8 @@ impl ThemeInterface for MockDb {
             .cloned()
             .ok_or(
                 errors::StorageError::ValueNotFound(format!(
-                    "Theme with id {} not found",
-                    theme_id
+                    "Theme with id {theme_id} not found",
+
                 ))
                 .into(),
             )
@@ -266,8 +266,8 @@ impl ThemeInterface for MockDb {
             .cloned()
             .ok_or(
                 errors::StorageError::ValueNotFound(format!(
-                    "Theme with lineage {:?} not found",
-                    lineage
+                    "Theme with lineage {lineage:?} not found",
+
                 ))
                 .into(),
             )
@@ -296,8 +296,8 @@ impl ThemeInterface for MockDb {
             })
             .ok_or_else(|| {
                 report!(errors::StorageError::ValueNotFound(format!(
-                    "Theme with id {} not found",
-                    theme_id,
+                    "Theme with id {theme_id} not found",
+
                 )))
             })
     }
@@ -314,8 +314,8 @@ impl ThemeInterface for MockDb {
                 theme.theme_id == theme_id && check_theme_with_lineage(theme, &lineage)
             })
             .ok_or(errors::StorageError::ValueNotFound(format!(
-                "Theme with id {} and lineage {:?} not found",
-                theme_id, lineage
+                "Theme with id {theme_id} and lineage {lineage:?} not found",
+
             )))?;
 
         let theme = themes.remove(index);

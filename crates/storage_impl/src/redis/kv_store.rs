@@ -176,7 +176,7 @@ where
 {
     let redis_conn = store.get_redis_conn()?;
 
-    let key = format!("{}", partition_key);
+    let key = format!("{partition_key}");
 
     let type_name = std::any::type_name::<T>();
     let operation = op.to_string();
@@ -292,7 +292,7 @@ impl std::fmt::Display for Op<'_> {
             Op::Insert => f.write_str("insert"),
             Op::Find => f.write_str("find"),
             Op::Update(p_key, _, updated_by) => {
-                f.write_str(&format!("update_{} for updated_by_{:?}", p_key, updated_by))
+                f.write_str(&format!("update_{p_key} for updated_by_{updated_by:?}"))
             }
         }
     }
