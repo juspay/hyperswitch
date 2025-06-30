@@ -11,19 +11,16 @@ use hyperswitch_domain_models::{
     router_response_types::{PaymentsResponseData, RefundsResponseData},
     types::{
         PaymentsAuthorizeRouterData, PaymentsCancelRouterData, PaymentsCaptureRouterData,
-      RefundsRouterData,
+        RefundsRouterData,
     },
 };
-use hyperswitch_interfaces::{errors, consts};
+use hyperswitch_interfaces::{consts, errors};
 use masking::{ExposeInterface, Secret};
 use serde::{Deserialize, Serialize};
 
 use crate::{
     types::{RefundsResponseRouterData, ResponseRouterData},
-    utils::{
-        self as connector_utils, CardData, PaymentsAuthorizeRequestData,
-        RouterData as _,
-    },
+    utils::{self as connector_utils, CardData, PaymentsAuthorizeRequestData, RouterData as _},
 };
 
 pub mod worldpayvantiv_constants {
@@ -121,8 +118,6 @@ pub struct CnpOnlineRequest {
     pub credit: Option<RefundRequest>,
 }
 
-
-
 #[derive(Debug, Serialize)]
 pub struct Authentication {
     pub user: Secret<String>,
@@ -162,7 +157,6 @@ pub struct BillToAddressData {
     pub country: Option<common_enums::CountryAlpha2>,
     pub phone: Option<Secret<String>>,
 }
-
 
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -314,7 +308,7 @@ impl TryFrom<&PaymentMethodData> for WorldpayvantivCardData {
                     exp_date,
                     card_validation_num: Some(card.card_cvc.clone()),
                 })
-            },
+            }
             PaymentMethodData::CardDetailsForNetworkTransactionId(card_data) => {
                 let card_type = match card_data.card_network.clone() {
                     Some(card_type) => WorldpayvativCardType::try_from(card_type)?,
@@ -329,12 +323,11 @@ impl TryFrom<&PaymentMethodData> for WorldpayvantivCardData {
                     exp_date,
                     card_validation_num: None,
                 })
-            },
+            }
             _ => Err(errors::ConnectorError::NotImplemented("Payment method".to_string()).into()),
         }
     }
 }
-
 
 impl<F> TryFrom<ResponseRouterData<F, VantivSyncResponse, PaymentsSyncData, PaymentsResponseData>>
     for RouterData<F, PaymentsSyncData, PaymentsResponseData>
@@ -346,12 +339,18 @@ impl<F> TryFrom<ResponseRouterData<F, VantivSyncResponse, PaymentsSyncData, Paym
         let status = get_attempt_status_for_psync(item.response.payment_status, item.data.status)?;
 
         if connector_utils::is_payment_failure(status) {
-            let error_code = item.response.payment_detail.as_ref().and_then(|detail| {
-                detail.response_reason_code.clone()
-            }).unwrap_or(consts::NO_ERROR_CODE.to_string());
-            let error_message = item.response.payment_detail.as_ref().and_then(|detail| {
-                detail.response_reason_message.clone()
-            }).unwrap_or(consts::NO_ERROR_MESSAGE.to_string());
+            let error_code = item
+                .response
+                .payment_detail
+                .as_ref()
+                .and_then(|detail| detail.response_reason_code.clone())
+                .unwrap_or(consts::NO_ERROR_CODE.to_string());
+            let error_message = item
+                .response
+                .payment_detail
+                .as_ref()
+                .and_then(|detail| detail.response_reason_message.clone())
+                .unwrap_or(consts::NO_ERROR_MESSAGE.to_string());
 
             Ok(Self {
                 status,
@@ -392,8 +391,10 @@ impl<F> TryFrom<ResponseRouterData<F, VantivSyncResponse, PaymentsSyncData, Paym
 fn get_bill_to_address(item: &PaymentsAuthorizeRouterData) -> Option<BillToAddressData> {
     let billing_address = item.get_optional_billing();
     billing_address.and_then(|billing_address| {
-        billing_address.address.clone().map(|address| {
-            BillToAddressData{
+        billing_address
+            .address
+            .clone()
+            .map(|address| BillToAddressData {
                 name: address.get_optional_full_name(),
                 address_line1: item.get_optional_billing_line1(),
                 city: item.get_optional_billing_city(),
@@ -402,8 +403,7 @@ fn get_bill_to_address(item: &PaymentsAuthorizeRouterData) -> Option<BillToAddre
                 email: item.get_optional_billing_email(),
                 country: item.get_optional_billing_country(),
                 phone: item.get_optional_billing_phone_number(),
-                }
-        })
+            })
     })
 }
 
@@ -466,7 +466,7 @@ impl TryFrom<&WorldpayvantivRouterData<&PaymentsAuthorizeRouterData>> for CnpOnl
             .map(|customer_id| customer_id.get_string_repr().to_string());
         let bill_to_address = get_bill_to_address(item.router_data);
 
-        let (processing_type, original_network_transaction_id) = 
+        let (processing_type, original_network_transaction_id) =
             get_processing_info(&item.router_data.request);
 
         let (authorization, sale) = if item.router_data.request.is_auto_capture()? {
@@ -517,7 +517,6 @@ impl TryFrom<&WorldpayvantivRouterData<&PaymentsAuthorizeRouterData>> for CnpOnl
     }
 }
 
-
 fn get_processing_info(
     request: &PaymentsAuthorizeData,
 ) -> (Option<VantivProcessingType>, Option<Secret<String>>) {
@@ -533,7 +532,6 @@ fn get_processing_info(
         _ => (None, None),
     }
 }
-
 
 impl TryFrom<&WorldpayvantivRouterData<&PaymentsCaptureRouterData>> for CnpOnlineRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
@@ -659,7 +657,6 @@ pub struct VantivSyncResponse {
     pub payment_detail: Option<PaymentDetail>,
 }
 
-
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct PaymentDetail {
@@ -690,7 +687,6 @@ pub enum PaymentStatus {
     StatusUnavailable,
     PaymentStatusNotFound,
 }
-
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -799,25 +795,20 @@ where
         item: ResponseRouterData<F, CnpOnlineResponse, PaymentsCaptureData, PaymentsResponseData>,
     ) -> Result<Self, Self::Error> {
         match item.response.capture_response {
-            Some(capture_response) => {
-                    Ok(Self {
-                        status: common_enums::AttemptStatus::CaptureInitiated,
-                        response: Ok(PaymentsResponseData::TransactionResponse {
-                            resource_id: ResponseId::ConnectorTransactionId(
-                                capture_response.cnp_txn_id,
-                            ),
-                            redirection_data: Box::new(None),
-                            mandate_reference: Box::new(None),
-                            connector_metadata: None,
-                            network_txn_id: None,
-                            connector_response_reference_id: None,
-                            incremental_authorization_allowed: None,
-                            charges: None,
-                        }),
-                        ..item.data
-                    })
-                
-            }
+            Some(capture_response) => Ok(Self {
+                status: common_enums::AttemptStatus::CaptureInitiated,
+                response: Ok(PaymentsResponseData::TransactionResponse {
+                    resource_id: ResponseId::ConnectorTransactionId(capture_response.cnp_txn_id),
+                    redirection_data: Box::new(None),
+                    mandate_reference: Box::new(None),
+                    connector_metadata: None,
+                    network_txn_id: None,
+                    connector_response_reference_id: None,
+                    incremental_authorization_allowed: None,
+                    charges: None,
+                }),
+                ..item.data
+            }),
             None => Ok(Self {
                 status: common_enums::AttemptStatus::CaptureFailed,
                 response: Err(ErrorResponse {
@@ -845,27 +836,22 @@ impl<F> TryFrom<ResponseRouterData<F, CnpOnlineResponse, PaymentsCancelData, Pay
         item: ResponseRouterData<F, CnpOnlineResponse, PaymentsCancelData, PaymentsResponseData>,
     ) -> Result<Self, Self::Error> {
         match item.response.void_response {
-            Some(void_response) => {
-                    Ok(Self {
-                        status: common_enums::AttemptStatus::VoidInitiated,
-                        response: Ok(PaymentsResponseData::TransactionResponse {
-                            resource_id: ResponseId::ConnectorTransactionId(
-                                void_response.cnp_txn_id,
-                            ),
-                            redirection_data: Box::new(None),
-                            mandate_reference: Box::new(None),
-                            connector_metadata: None,
-                            network_txn_id: None,
-                            connector_response_reference_id: None,
-                            incremental_authorization_allowed: None,
-                            charges: None,
-                        }),
-                        ..item.data
-                    })
-                
-            }
+            Some(void_response) => Ok(Self {
+                status: common_enums::AttemptStatus::VoidInitiated,
+                response: Ok(PaymentsResponseData::TransactionResponse {
+                    resource_id: ResponseId::ConnectorTransactionId(void_response.cnp_txn_id),
+                    redirection_data: Box::new(None),
+                    mandate_reference: Box::new(None),
+                    connector_metadata: None,
+                    network_txn_id: None,
+                    connector_response_reference_id: None,
+                    incremental_authorization_allowed: None,
+                    charges: None,
+                }),
+                ..item.data
+            }),
             None => Ok(Self {
-                 // Incase of API failure
+                // Incase of API failure
                 status: common_enums::AttemptStatus::VoidFailed,
                 response: Err(ErrorResponse {
                     code: item.response.response_code,
@@ -890,17 +876,14 @@ impl TryFrom<RefundsResponseRouterData<Execute, CnpOnlineResponse>> for RefundsR
         item: RefundsResponseRouterData<Execute, CnpOnlineResponse>,
     ) -> Result<Self, Self::Error> {
         match item.response.credit_response {
-            Some(credit_response) => {
-                    Ok(Self {
-                        response: Ok(RefundsResponseData {
-                            connector_refund_id: credit_response.cnp_txn_id,
-                           
-                            refund_status: common_enums::RefundStatus::Pending,
-                        }),
-                        ..item.data
-                    })
-                
-            }
+            Some(credit_response) => Ok(Self {
+                response: Ok(RefundsResponseData {
+                    connector_refund_id: credit_response.cnp_txn_id,
+
+                    refund_status: common_enums::RefundStatus::Pending,
+                }),
+                ..item.data
+            }),
             None => Ok(Self {
                 response: Err(ErrorResponse {
                     code: item.response.response_code,
@@ -975,7 +958,6 @@ impl<F>
                 let network_txn_id = sale_response.network_transaction_id.map(|network_transaction_id| network_transaction_id.expose());
 
                     Ok(Self {
-                       
                         status: common_enums::AttemptStatus::Pending,
                         response: Ok(PaymentsResponseData::TransactionResponse {
                             resource_id: ResponseId::ConnectorTransactionId(sale_response.cnp_txn_id),
@@ -989,7 +971,6 @@ impl<F>
                         }),
                         ..item.data
                     })
-                
             },
             (None, Some(auth_response)) => {
                     let report_group = WorldpayvantivPaymentMetadata {
@@ -1001,7 +982,6 @@ impl<F>
                 let network_txn_id = auth_response.network_transaction_id.map(|network_transaction_id| network_transaction_id.expose());
 
                     Ok(Self {
-                       
                         status: common_enums::AttemptStatus::Authorizing,
                         response: Ok(PaymentsResponseData::TransactionResponse {
                             resource_id: ResponseId::ConnectorTransactionId(auth_response.cnp_txn_id),
@@ -1016,10 +996,8 @@ impl<F>
                         ..item.data
                     })
             },
-            (None, None) => { 
-                // Incase of API failure
-                Ok(Self {
-                status: common_enums::AttemptStatus::Failure,
+            (None, None) => { // Incase of API failure
+                Ok(Self {status: common_enums::AttemptStatus::Failure,
                 response: Err(ErrorResponse {
                     code: item.response.response_code.clone(),
                     message: item.response.message.clone(),
@@ -1033,8 +1011,7 @@ impl<F>
                 }),
                 ..item.data
             })},
-            (_, _) => {  
-                Err(errors::ConnectorError::UnexpectedResponseError(
+            (_, _) => {  Err(errors::ConnectorError::UnexpectedResponseError(
                 bytes::Bytes::from("Only one of 'sale_response' or 'authorisation_response' is expected, but both were received".to_string()),
              ))?
             },
@@ -1049,34 +1026,37 @@ impl TryFrom<RefundsResponseRouterData<RSync, VantivSyncResponse>> for RefundsRo
     ) -> Result<Self, Self::Error> {
         let refund_status = get_refund_status_for_rsync(item.response.payment_status)?;
         if connector_utils::is_refund_failure(refund_status) {
-            let error_code = item.response.payment_detail.as_ref().and_then(|detail| {
-                detail.response_reason_code.clone()
-            }).unwrap_or(consts::NO_ERROR_CODE.to_string());
-            let error_message = item.response.payment_detail.as_ref().and_then(|detail| {
-                detail.response_reason_message.clone()
-            }).unwrap_or(consts::NO_ERROR_MESSAGE.to_string());
+            let error_code = item
+                .response
+                .payment_detail
+                .as_ref()
+                .and_then(|detail| detail.response_reason_code.clone())
+                .unwrap_or(consts::NO_ERROR_CODE.to_string());
+            let error_message = item
+                .response
+                .payment_detail
+                .as_ref()
+                .and_then(|detail| detail.response_reason_message.clone())
+                .unwrap_or(consts::NO_ERROR_MESSAGE.to_string());
 
-        Ok(Self {
-            response: Err(ErrorResponse {
-                code: error_code.clone(),
-                message: error_message.clone(),
-                reason: Some(error_message.clone()),
-                status_code: item.http_code,
-                attempt_status: None,
-                connector_transaction_id: None,
-                network_advice_code: None,
-                network_decline_code: None,
-                network_error_message: None,
-            }),
-            ..item.data
-        })
+            Ok(Self {
+                response: Err(ErrorResponse {
+                    code: error_code.clone(),
+                    message: error_message.clone(),
+                    reason: Some(error_message.clone()),
+                    status_code: item.http_code,
+                    attempt_status: None,
+                    connector_transaction_id: None,
+                    network_advice_code: None,
+                    network_decline_code: None,
+                    network_error_message: None,
+                }),
+                ..item.data
+            })
         } else {
             Ok(Self {
                 response: Ok(RefundsResponseData {
-                    connector_refund_id: item
-                        .response
-                        .payment_id
-                        .to_string(),
+                    connector_refund_id: item.response.payment_id.to_string(),
                     refund_status,
                 }),
                 ..item.data
@@ -1823,43 +1803,43 @@ pub enum WorldpayvantivResponseCode {
     ExceedsRtpTransactionLimit,
 }
 
-
 fn get_attempt_status_for_psync(
     vantiv_status: PaymentStatus,
     previous_status: common_enums::AttemptStatus,
 ) -> Result<common_enums::AttemptStatus, errors::ConnectorError> {
     match vantiv_status {
-        PaymentStatus::ProcessedSuccessfully =>
-         if previous_status == common_enums::AttemptStatus::Authorizing {
-            Ok(common_enums::AttemptStatus::Authorized)
-        } else if  previous_status == common_enums::AttemptStatus::VoidInitiated{
-            Ok(common_enums::AttemptStatus::Voided)
+        PaymentStatus::ProcessedSuccessfully => {
+            if previous_status == common_enums::AttemptStatus::Authorizing {
+                Ok(common_enums::AttemptStatus::Authorized)
+            } else if previous_status == common_enums::AttemptStatus::VoidInitiated {
+                Ok(common_enums::AttemptStatus::Voided)
+            } else {
+                Ok(common_enums::AttemptStatus::Charged)
+            }
         }
-        else {
-            Ok(common_enums::AttemptStatus::Charged)
-        },
-        PaymentStatus::TransactionDeclined =>  if previous_status == common_enums::AttemptStatus::Authorizing {
-            Ok(common_enums::AttemptStatus::AuthorizationFailed)
-        } else if  previous_status == common_enums::AttemptStatus::VoidInitiated{
-            Ok(common_enums::AttemptStatus::VoidFailed)
+        PaymentStatus::TransactionDeclined => {
+            if previous_status == common_enums::AttemptStatus::Authorizing {
+                Ok(common_enums::AttemptStatus::AuthorizationFailed)
+            } else if previous_status == common_enums::AttemptStatus::VoidInitiated {
+                Ok(common_enums::AttemptStatus::VoidFailed)
+            } else {
+                Ok(common_enums::AttemptStatus::Failure)
+            }
         }
-        else {
-            Ok(common_enums::AttemptStatus::Failure)
-        },
         PaymentStatus::PaymentStatusNotFound => Ok(common_enums::AttemptStatus::Unresolved),
         PaymentStatus::NotYetProcessed | PaymentStatus::StatusUnavailable => Ok(previous_status),
     }
 }
-
-
 
 fn get_refund_status_for_rsync(
     vantiv_status: PaymentStatus,
 ) -> Result<common_enums::RefundStatus, errors::ConnectorError> {
     match vantiv_status {
         PaymentStatus::ProcessedSuccessfully => Ok(common_enums::RefundStatus::Success),
-        PaymentStatus::TransactionDeclined =>  Ok(common_enums::RefundStatus::Failure),
+        PaymentStatus::TransactionDeclined => Ok(common_enums::RefundStatus::Failure),
         PaymentStatus::PaymentStatusNotFound => Ok(common_enums::RefundStatus::ManualReview),
-        PaymentStatus::NotYetProcessed | PaymentStatus::StatusUnavailable => Ok(common_enums::RefundStatus::Pending),
+        PaymentStatus::NotYetProcessed | PaymentStatus::StatusUnavailable => {
+            Ok(common_enums::RefundStatus::Pending)
+        }
     }
 }

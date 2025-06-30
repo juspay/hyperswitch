@@ -1,18 +1,19 @@
 pub mod transformers;
 
 use std::sync::LazyLock;
-use masking::{Mask, PeekInterface};
+
 use base64::Engine;
 use common_utils::{
-    ext_traits::BytesExt,
+    consts::BASE64_ENGINE,
     errors::CustomResult,
+    ext_traits::BytesExt,
     request::{Method, Request, RequestBuilder, RequestContent},
     types::{AmountConvertor, MinorUnit, MinorUnitForConnector},
-    consts::BASE64_ENGINE,
 };
 use error_stack::{report, ResultExt};
 use hyperswitch_domain_models::{
-    router_data::{AccessToken, ErrorResponse, RouterData, ConnectorAuthType},
+    payment_method_data::PaymentMethodData,
+    router_data::{AccessToken, ConnectorAuthType, ErrorResponse, RouterData},
     router_flow_types::{
         access_token_auth::AccessTokenAuth,
         payments::{Authorize, Capture, PSync, PaymentMethodToken, Session, SetupMandate, Void},
@@ -31,7 +32,6 @@ use hyperswitch_domain_models::{
         PaymentsAuthorizeRouterData, PaymentsCancelRouterData, PaymentsCaptureRouterData,
         PaymentsSyncRouterData, RefundSyncRouterData, RefundsRouterData,
     },
-    payment_method_data::PaymentMethodData,
 };
 use hyperswitch_interfaces::{
     api::{
@@ -39,12 +39,13 @@ use hyperswitch_interfaces::{
         ConnectorValidation,
     },
     configs::Connectors,
+    consts::NO_ERROR_CODE,
     errors,
     events::connector_api_logs::ConnectorEvent,
     types::{self, Response},
     webhooks,
-    consts::NO_ERROR_CODE
 };
+use masking::{Mask, PeekInterface};
 use transformers as worldpayvantiv;
 
 use crate::{constants::headers, types::ResponseRouterData, utils as connector_utils};
@@ -299,7 +300,7 @@ impl ConnectorIntegration<PSync, PaymentsSyncData, PaymentsResponseData> for Wor
         req: &PaymentsSyncRouterData,
         _connectors: &Connectors,
     ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
-       self.get_auth_header(&req.connector_auth_type)
+        self.get_auth_header(&req.connector_auth_type)
     }
 
     fn get_content_type(&self) -> &'static str {
@@ -311,11 +312,14 @@ impl ConnectorIntegration<PSync, PaymentsSyncData, PaymentsResponseData> for Wor
         req: &PaymentsSyncRouterData,
         connectors: &Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        Ok(format!("{}/reports/dtrPaymentStatus/{}", connectors.worldpayvantiv.secondary_base_url.to_owned(), 
-        req.request
-        .connector_transaction_id
-        .get_connector_transaction_id()
-        .change_context(errors::ConnectorError::MissingConnectorTransactionID)?))
+        Ok(format!(
+            "{}/reports/dtrPaymentStatus/{}",
+            connectors.worldpayvantiv.secondary_base_url.to_owned(),
+            req.request
+                .connector_transaction_id
+                .get_connector_transaction_id()
+                .change_context(errors::ConnectorError::MissingConnectorTransactionID)?
+        ))
     }
 
     fn build_request(
@@ -339,9 +343,10 @@ impl ConnectorIntegration<PSync, PaymentsSyncData, PaymentsResponseData> for Wor
         event_builder: Option<&mut ConnectorEvent>,
         res: Response,
     ) -> CustomResult<PaymentsSyncRouterData, errors::ConnectorError> {
-        let response: worldpayvantiv::VantivSyncResponse = res.response
-                .parse_struct("VantivSyncResponse")
-                .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+        let response: worldpayvantiv::VantivSyncResponse = res
+            .response
+            .parse_struct("VantivSyncResponse")
+            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
         RouterData::try_from(ResponseRouterData {
@@ -637,20 +642,22 @@ impl ConnectorIntegration<RSync, RefundsData, RefundsResponseData> for Worldpayv
         _connectors: &Connectors,
     ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
         self.get_auth_header(&req.connector_auth_type)
-     }
- 
-     fn get_content_type(&self) -> &'static str {
-         "application/json"
-     }
+    }
+
+    fn get_content_type(&self) -> &'static str {
+        "application/json"
+    }
 
     fn get_url(
         &self,
         req: &RefundSyncRouterData,
         connectors: &Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        Ok(format!("{}/reports/dtrPaymentStatus/{}", connectors.worldpayvantiv.secondary_base_url.to_owned(), 
-        req.request
-        .connector_transaction_id))
+        Ok(format!(
+            "{}/reports/dtrPaymentStatus/{}",
+            connectors.worldpayvantiv.secondary_base_url.to_owned(),
+            req.request.connector_transaction_id
+        ))
     }
 
     fn build_request(
@@ -674,9 +681,10 @@ impl ConnectorIntegration<RSync, RefundsData, RefundsResponseData> for Worldpayv
         event_builder: Option<&mut ConnectorEvent>,
         res: Response,
     ) -> CustomResult<RefundSyncRouterData, errors::ConnectorError> {
-        let response: worldpayvantiv::VantivSyncResponse = res.response
-        .parse_struct("VantivSyncResponse")
-        .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+        let response: worldpayvantiv::VantivSyncResponse = res
+            .response
+            .parse_struct("VantivSyncResponse")
+            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
 
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
@@ -806,9 +814,9 @@ fn handle_vantiv_json_error_response(
     event_builder: Option<&mut ConnectorEvent>,
 ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
     let response: Result<worldpayvantiv::VantivSyncErrorResponse, _> = res
-    .response
-    .parse_struct("VantivSyncErrorResponse")
-    .change_context(errors::ConnectorError::ResponseDeserializationFailed);
+        .response
+        .parse_struct("VantivSyncErrorResponse")
+        .change_context(errors::ConnectorError::ResponseDeserializationFailed);
 
     match response {
         Ok(response_data) => {
