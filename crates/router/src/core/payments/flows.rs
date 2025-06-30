@@ -23,7 +23,7 @@ use hyperswitch_domain_models::router_request_types::PaymentsCaptureData;
 use crate::{
     core::{
         errors::{ApiErrorResponse, RouterResult},
-        payments::{self, helpers, OperationSessionGetters},
+        payments::{self, helpers},
     },
     logger,
     routes::SessionState,
