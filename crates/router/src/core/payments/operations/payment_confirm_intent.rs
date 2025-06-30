@@ -589,6 +589,11 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentConfirmData<F>, PaymentsConfirmInt
             .connector_request_reference_id
             .clone();
 
+        let connector_response_reference_id = payment_data
+            .payment_attempt
+            .connector_response_reference_id
+            .clone();
+
         let payment_attempt_update = match &payment_data.payment_method {
             // In the case of a tokenized payment method, we update the payment attempt with the tokenized payment method details.
             Some(payment_method) => {
@@ -612,6 +617,7 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentConfirmData<F>, PaymentsConfirmInt
                     merchant_connector_id,
                     authentication_type,
                     connector_request_reference_id,
+                    connector_response_reference_id,
                 }
             }
         };

@@ -508,6 +508,7 @@ pub struct PaymentsSyncData {
     pub split_payments: Option<common_types::payments::SplitPaymentsRequest>,
     pub amount: MinorUnit,
     pub integrity_object: Option<SyncIntegrityObject>,
+    pub connector_response_reference_id: Option<String>,
 }
 
 #[derive(Debug, Default, Clone)]

@@ -3547,9 +3547,21 @@ where
         &call_connector_action,
     );
 
-    let should_continue_further = router_data
+    let add_create_order_result = router_data
         .create_order_at_connector(state, &connector, should_continue_further)
         .await?;
+
+    if add_create_order_result.is_create_order_performed {
+        if let Ok(order_id_opt) = &add_create_order_result.create_order_result {
+            payment_data.set_connector_response_reference_id(order_id_opt.clone());
+        }
+        should_continue_further = router_data
+            .update_router_data_with_create_order_result(
+                add_create_order_result,
+                should_continue_further,
+            )
+            .await?;
+    }
 
     let updated_customer = call_create_connector_customer_if_required(
         state,
@@ -3767,15 +3779,27 @@ where
 
     router_data = router_data.add_session_token(state, &connector).await?;
 
-    let should_continue_further = access_token::update_router_data_with_access_token_result(
+    let mut should_continue_further = access_token::update_router_data_with_access_token_result(
         &add_access_token_result,
         &mut router_data,
         &call_connector_action,
     );
 
-    let should_continue_further = router_data
+    let add_create_order_result = router_data
         .create_order_at_connector(state, &connector, should_continue_further)
         .await?;
+
+    if add_create_order_result.is_create_order_performed {
+        if let Ok(order_id_opt) = &add_create_order_result.create_order_result {
+            payment_data.set_connector_response_reference_id(order_id_opt.clone());
+        }
+        should_continue_further = router_data
+            .update_router_data_with_create_order_result(
+                add_create_order_result,
+                should_continue_further,
+            )
+            .await?;
+    }
 
     // In case of authorize flow, pre-task and post-tasks are being called in build request
     // if we do not want to proceed further, then the function will return Ok(None, false)
@@ -4213,9 +4237,21 @@ where
         &call_connector_action,
     );
 
-    let should_continue_further = router_data
+    let add_create_order_result = router_data
         .create_order_at_connector(state, &connector, should_continue_further)
         .await?;
+
+    if add_create_order_result.is_create_order_performed {
+        if let Ok(order_id_opt) = &add_create_order_result.create_order_result {
+            payment_data.set_connector_response_reference_id(order_id_opt.clone());
+        }
+        should_continue_further = router_data
+            .update_router_data_with_create_order_result(
+                add_create_order_result,
+                should_continue_further,
+            )
+            .await?;
+    }
 
     let (connector_request, should_continue_further) = if should_continue_further {
         router_data
@@ -8978,6 +9014,9 @@ pub trait OperationSessionSetters<F> {
     fn set_connector_request_reference_id(&mut self, reference_id: Option<String>);
 
     #[cfg(feature = "v2")]
+    fn set_connector_response_reference_id(&mut self, reference_id: Option<String>);
+
+    #[cfg(feature = "v2")]
     fn set_vault_session_details(
         &mut self,
         external_vault_session_details: Option<api::VaultSessionDetails>,
@@ -9569,6 +9608,10 @@ impl<F: Clone> OperationSessionSetters<F> for PaymentIntentData<F> {
         todo!()
     }
 
+    fn set_connector_response_reference_id(&mut self, reference_id: Option<String>) {
+        todo!()
+    }
+
     fn set_vault_session_details(
         &mut self,
         vault_session_details: Option<api::VaultSessionDetails>,
@@ -9865,6 +9908,10 @@ impl<F: Clone> OperationSessionSetters<F> for PaymentConfirmData<F> {
         self.payment_attempt.connector_request_reference_id = reference_id;
     }
 
+    fn set_connector_response_reference_id(&mut self, reference_id: Option<String>) {
+        self.payment_attempt.connector_response_reference_id = reference_id;
+    }
+
     fn set_vault_session_details(
         &mut self,
         external_vault_session_details: Option<api::VaultSessionDetails>,
@@ -10157,6 +10204,10 @@ impl<F: Clone> OperationSessionSetters<F> for PaymentStatusData<F> {
         todo!()
     }
 
+    fn set_connector_response_reference_id(&mut self, reference_id: Option<String>) {
+        todo!()
+    }
+
     fn set_vault_session_details(
         &mut self,
         external_vault_session_details: Option<api::VaultSessionDetails>,
@@ -10446,6 +10497,10 @@ impl<F: Clone> OperationSessionSetters<F> for PaymentCaptureData<F> {
     }
 
     fn set_connector_request_reference_id(&mut self, reference_id: Option<String>) {
+        todo!()
+    }
+
+    fn set_connector_response_reference_id(&mut self, reference_id: Option<String>) {
         todo!()
     }
 

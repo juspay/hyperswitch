@@ -626,6 +626,7 @@ pub async fn construct_router_data_for_psync<'a>(
         // TODO: Get the charges object from feature metadata
         split_payments: None,
         payment_experience: None,
+        connector_response_reference_id: attempt.connector_response_reference_id.clone(),
     };
 
     // TODO: evaluate the fields in router data, if they are required or not
@@ -1941,6 +1942,13 @@ where
             .clone()
             .or(profile.return_url.clone());
 
+        let connector_response_reference_id =
+            payment_attempt.connector_response_reference_id.clone();
+        println!(
+            "????connector_response_reference_id: {:?}",
+            connector_response_reference_id
+        );
+
         let response = api_models::payments::PaymentsResponse {
             id: payment_intent.id.clone(),
             status: payment_intent.status,
@@ -1953,7 +1961,7 @@ where
             payment_method_subtype: Some(payment_attempt.payment_method_subtype),
             next_action,
             connector_transaction_id: payment_attempt.connector_payment_id.clone(),
-            connector_reference_id: None,
+            connector_reference_id: payment_attempt.connector_response_reference_id.clone(),
             connector_token_details,
             merchant_connector_id,
             browser_info: None,
@@ -2052,7 +2060,7 @@ where
             payment_method_type: Some(payment_attempt.payment_method_type),
             payment_method_subtype: Some(payment_attempt.payment_method_subtype),
             connector_transaction_id: payment_attempt.connector_payment_id.clone(),
-            connector_reference_id: None,
+            connector_reference_id: payment_attempt.connector_response_reference_id.clone(),
             merchant_connector_id,
             browser_info: None,
             connector_token_details,
