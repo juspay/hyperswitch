@@ -102,6 +102,10 @@ generate_permissions! {
         InternalConnector: {
             scopes: [Write],
             entities: [Merchant]
+        },
+        Theme: {
+            scopes: [Read,Write],
+            entities: [Organization]
         }
     ]
 }
@@ -137,6 +141,7 @@ pub fn get_resource_name(resource: Resource, entity_type: EntityType) -> Option<
         (Resource::Account, EntityType::Merchant) => Some("Merchant Account"),
         (Resource::Account, EntityType::Organization) => Some("Organization Account"),
         (Resource::Account, EntityType::Tenant) => Some("Tenant Account"),
+        (Resource::Theme, _) => Some("Themes"),
         (Resource::InternalConnector, _) => None,
     }
 }

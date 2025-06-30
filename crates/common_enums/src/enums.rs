@@ -7496,6 +7496,8 @@ pub enum PermissionGroup {
     ReconOpsView,
     ReconOpsManage,
     InternalManage,
+    ThemeView,
+    ThemeManage,
 }
 
 #[derive(Clone, Debug, serde::Serialize, PartialEq, Eq, Hash, strum::EnumIter)]
@@ -7509,6 +7511,7 @@ pub enum ParentGroup {
     ReconReports,
     Account,
     Internal,
+    Theme,
 }
 
 #[derive(Debug, Clone, Copy, Eq, PartialEq, Hash, serde::Serialize)]
@@ -7539,6 +7542,7 @@ pub enum Resource {
     ReconConfig,
     RevenueRecovery,
     InternalConnector,
+    Theme,
 }
 
 #[derive(Debug, Clone, Copy, Eq, PartialEq, Ord, PartialOrd, serde::Serialize, Hash)]

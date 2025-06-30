@@ -42,7 +42,7 @@ use crate::{
     },
     payment_methods::*,
     payments::*,
-    user::{UserKeyTransferRequest, UserTransferKeyResponse},
+    user::{theme::ListThemesResponse, UserKeyTransferRequest, UserTransferKeyResponse},
     verifications::*,
 };
 
@@ -237,3 +237,5 @@ impl ApiEventMetric for tokenization::GenericTokenizationRequest {}
 
 #[cfg(feature = "tokenization_v2")]
 impl ApiEventMetric for tokenization::GenericTokenizationResponse {}
+
+impl ApiEventMetric for ListThemesResponse {}

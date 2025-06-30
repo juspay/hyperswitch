@@ -224,3 +224,34 @@ pub async fn get_theme_using_optional_theme_id(
         }
     }
 }
+pub async fn get_theme_lineage_from_user_token(
+    user_from_token: &UserFromToken,
+    state: &SessionState,
+    request_entity_type: &EntityType,
+) -> UserResult<ThemeLineage> {
+    let tenant_id = user_from_token
+        .tenant_id
+        .clone()
+        .unwrap_or(state.tenant.tenant_id.clone());
+    let org_id = user_from_token.org_id.clone();
+    let merchant_id = user_from_token.merchant_id.clone();
+    let profile_id = user_from_token.profile_id.clone();
+
+    Ok(ThemeLineage::new(
+        *request_entity_type,
+        tenant_id,
+        org_id,
+        merchant_id,
+        profile_id,
+    ))
+}
+
+pub fn get_lineage_from_theme(theme: &Theme) -> ThemeLineage {
+    ThemeLineage::new(
+        theme.entity_type,
+        theme.tenant_id.clone(),
+        theme.org_id.clone().unwrap_or_default(),
+        theme.merchant_id.clone().unwrap_or_default(),
+        theme.profile_id.clone().unwrap_or_default(),
+    )
+}
