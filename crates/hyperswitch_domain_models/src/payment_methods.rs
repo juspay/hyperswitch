@@ -2,10 +2,11 @@
 use api_models::payment_methods::PaymentMethodsData;
 // specific imports because of using the macro
 use common_enums::enums::MerchantStorageScheme;
-#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+#[cfg(feature = "v1")]
+use common_utils::crypto::OptionalEncryptableValue;
+#[cfg(feature = "v2")]
 use common_utils::{crypto::Encryptable, encryption::Encryption, types::keymanager::ToEncryptable};
 use common_utils::{
-    crypto::OptionalEncryptableValue,
     errors::{CustomResult, ParsingError, ValidationError},
     id_type, pii, type_name,
     types::keymanager,
@@ -23,24 +24,22 @@ use rustc_hash::FxHashMap;
 use serde_json::Value;
 use time::PrimitiveDateTime;
 
-#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
-use crate::{address::Address, type_encryption::OptionalEncryptableJsonType};
+#[cfg(feature = "v2")]
+use crate::address::Address;
+#[cfg(feature = "v1")]
+use crate::{mandates, type_encryption::AsyncLift};
 use crate::{
-    mandates::{self, CommonMandateReference},
+    mandates::CommonMandateReference,
     merchant_key_store::MerchantKeyStore,
     payment_method_data as domain_payment_method_data,
-    type_encryption::{crypto_operation, AsyncLift, CryptoOperation},
+    type_encryption::{crypto_operation, CryptoOperation},
 };
 
-#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+#[cfg(feature = "v2")]
 #[derive(Debug, serde::Deserialize, serde::Serialize, Clone)]
 pub struct VaultId(String);
 
-#[cfg(any(
-    feature = "v2",
-    feature = "payment_methods_v2",
-    feature = "tokenization_v2"
-))]
+#[cfg(any(feature = "v2", feature = "tokenization_v2"))]
 impl VaultId {
     pub fn get_string_repr(&self) -> &String {
         &self.0
@@ -50,10 +49,7 @@ impl VaultId {
         Self(id)
     }
 }
-#[cfg(all(
-    any(feature = "v1", feature = "v2"),
-    not(feature = "payment_methods_v2")
-))]
+#[cfg(feature = "v1")]
 #[derive(Clone, Debug)]
 pub struct PaymentMethod {
     pub customer_id: id_type::CustomerId,
@@ -92,7 +88,7 @@ pub struct PaymentMethod {
     pub network_token_payment_method_data: OptionalEncryptableValue,
 }
 
-#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+#[cfg(feature = "v2")]
 #[derive(Clone, Debug, router_derive::ToEncryption)]
 pub struct PaymentMethod {
     /// The identifier for the payment method. Using this recurring payments can be made
@@ -131,10 +127,7 @@ pub struct PaymentMethod {
 }
 
 impl PaymentMethod {
-    #[cfg(all(
-        any(feature = "v1", feature = "v2"),
-        not(feature = "payment_methods_v2")
-    ))]
+    #[cfg(feature = "v1")]
     pub fn get_id(&self) -> &String {
         &self.payment_method_id
     }
@@ -158,41 +151,32 @@ impl PaymentMethod {
             })
     }
 
-    #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+    #[cfg(feature = "v2")]
     pub fn get_id(&self) -> &id_type::GlobalPaymentMethodId {
         &self.id
     }
 
-    #[cfg(all(
-        any(feature = "v1", feature = "v2"),
-        not(feature = "payment_methods_v2")
-    ))]
+    #[cfg(feature = "v1")]
     pub fn get_payment_method_type(&self) -> Option<storage_enums::PaymentMethod> {
         self.payment_method
     }
 
-    #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+    #[cfg(feature = "v2")]
     pub fn get_payment_method_type(&self) -> Option<storage_enums::PaymentMethod> {
         self.payment_method_type
     }
 
-    #[cfg(all(
-        any(feature = "v1", feature = "v2"),
-        not(feature = "payment_methods_v2")
-    ))]
+    #[cfg(feature = "v1")]
     pub fn get_payment_method_subtype(&self) -> Option<storage_enums::PaymentMethodType> {
         self.payment_method_type
     }
 
-    #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+    #[cfg(feature = "v2")]
     pub fn get_payment_method_subtype(&self) -> Option<storage_enums::PaymentMethodType> {
         self.payment_method_subtype
     }
 
-    #[cfg(all(
-        any(feature = "v1", feature = "v2"),
-        not(feature = "payment_methods_v2")
-    ))]
+    #[cfg(feature = "v1")]
     pub fn get_common_mandate_reference(&self) -> Result<CommonMandateReference, ParsingError> {
         let payments_data = self
             .connector_mandate_details
@@ -239,7 +223,7 @@ impl PaymentMethod {
         })
     }
 
-    #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+    #[cfg(feature = "v2")]
     pub fn get_common_mandate_reference(&self) -> Result<CommonMandateReference, ParsingError> {
         if let Some(value) = &self.connector_mandate_details {
             Ok(value.clone())
@@ -265,10 +249,7 @@ impl PaymentMethod {
     }
 }
 
-#[cfg(all(
-    any(feature = "v1", feature = "v2"),
-    not(feature = "payment_methods_v2")
-))]
+#[cfg(feature = "v1")]
 #[async_trait::async_trait]
 impl super::behaviour::Conversion for PaymentMethod {
     type DstType = diesel_models::payment_method::PaymentMethod;
@@ -452,7 +433,7 @@ impl super::behaviour::Conversion for PaymentMethod {
     }
 }
 
-#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+#[cfg(feature = "v2")]
 #[async_trait::async_trait]
 impl super::behaviour::Conversion for PaymentMethod {
     type DstType = diesel_models::payment_method::PaymentMethod;
@@ -499,7 +480,6 @@ impl super::behaviour::Conversion for PaymentMethod {
         Self: Sized,
     {
         use common_utils::ext_traits::ValueExt;
-        use masking::ExposeInterface;
 
         async {
             let decrypted_data = crypto_operation(
@@ -736,10 +716,7 @@ impl super::behaviour::Conversion for PaymentMethodSession {
 #[async_trait::async_trait]
 pub trait PaymentMethodInterface {
     type Error;
-    #[cfg(all(
-        any(feature = "v1", feature = "v2"),
-        not(feature = "payment_methods_v2")
-    ))]
+    #[cfg(feature = "v1")]
     async fn find_payment_method(
         &self,
         state: &keymanager::KeyManagerState,
@@ -748,7 +725,7 @@ pub trait PaymentMethodInterface {
         storage_scheme: MerchantStorageScheme,
     ) -> CustomResult<PaymentMethod, Self::Error>;
 
-    #[cfg(all(feature = "v2", feature = "customer_v2"))]
+    #[cfg(feature = "v2")]
     async fn find_payment_method(
         &self,
         state: &keymanager::KeyManagerState,
@@ -757,10 +734,7 @@ pub trait PaymentMethodInterface {
         storage_scheme: MerchantStorageScheme,
     ) -> CustomResult<PaymentMethod, Self::Error>;
 
-    #[cfg(all(
-        any(feature = "v1", feature = "v2"),
-        not(feature = "payment_methods_v2")
-    ))]
+    #[cfg(feature = "v1")]
     async fn find_payment_method_by_locker_id(
         &self,
         state: &keymanager::KeyManagerState,
@@ -769,10 +743,7 @@ pub trait PaymentMethodInterface {
         storage_scheme: MerchantStorageScheme,
     ) -> CustomResult<PaymentMethod, Self::Error>;
 
-    #[cfg(all(
-        any(feature = "v1", feature = "v2"),
-        not(feature = "payment_methods_v2")
-    ))]
+    #[cfg(feature = "v1")]
     async fn find_payment_method_by_customer_id_merchant_id_list(
         &self,
         state: &keymanager::KeyManagerState,
@@ -783,7 +754,7 @@ pub trait PaymentMethodInterface {
     ) -> CustomResult<Vec<PaymentMethod>, Self::Error>;
 
     // Need to fix this once we start moving to v2 for payment method
-    #[cfg(all(feature = "v2", feature = "customer_v2"))]
+    #[cfg(feature = "v2")]
     async fn find_payment_method_list_by_global_customer_id(
         &self,
         state: &keymanager::KeyManagerState,
@@ -792,10 +763,7 @@ pub trait PaymentMethodInterface {
         limit: Option<i64>,
     ) -> CustomResult<Vec<PaymentMethod>, Self::Error>;
 
-    #[cfg(all(
-        any(feature = "v1", feature = "v2"),
-        not(feature = "payment_methods_v2")
-    ))]
+    #[cfg(feature = "v1")]
     #[allow(clippy::too_many_arguments)]
     async fn find_payment_method_by_customer_id_merchant_id_status(
         &self,
@@ -808,7 +776,7 @@ pub trait PaymentMethodInterface {
         storage_scheme: MerchantStorageScheme,
     ) -> CustomResult<Vec<PaymentMethod>, Self::Error>;
 
-    #[cfg(all(feature = "v2", feature = "customer_v2"))]
+    #[cfg(feature = "v2")]
     #[allow(clippy::too_many_arguments)]
     async fn find_payment_method_by_global_customer_id_merchant_id_status(
         &self,
@@ -821,10 +789,7 @@ pub trait PaymentMethodInterface {
         storage_scheme: MerchantStorageScheme,
     ) -> CustomResult<Vec<PaymentMethod>, Self::Error>;
 
-    #[cfg(all(
-        any(feature = "v1", feature = "v2"),
-        not(feature = "payment_methods_v2")
-    ))]
+    #[cfg(feature = "v1")]
     async fn get_payment_method_count_by_customer_id_merchant_id_status(
         &self,
         customer_id: &id_type::CustomerId,
@@ -855,7 +820,7 @@ pub trait PaymentMethodInterface {
         storage_scheme: MerchantStorageScheme,
     ) -> CustomResult<PaymentMethod, Self::Error>;
 
-    #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+    #[cfg(feature = "v2")]
     async fn delete_payment_method(
         &self,
         state: &keymanager::KeyManagerState,
@@ -863,7 +828,7 @@ pub trait PaymentMethodInterface {
         payment_method: PaymentMethod,
     ) -> CustomResult<PaymentMethod, Self::Error>;
 
-    #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+    #[cfg(feature = "v2")]
     async fn find_payment_method_by_fingerprint_id(
         &self,
         state: &keymanager::KeyManagerState,
@@ -871,10 +836,7 @@ pub trait PaymentMethodInterface {
         fingerprint_id: &str,
     ) -> CustomResult<PaymentMethod, Self::Error>;
 
-    #[cfg(all(
-        any(feature = "v1", feature = "v2"),
-        not(feature = "payment_methods_v2")
-    ))]
+    #[cfg(feature = "v1")]
     async fn delete_payment_method_by_merchant_id_payment_method_id(
         &self,
         state: &keymanager::KeyManagerState,
@@ -953,10 +915,7 @@ pub struct PaymentMethodsSessionUpdateInternal {
     pub tokenization_data: Option<pii::SecretSerdeValue>,
 }
 
-#[cfg(all(
-    any(feature = "v1", feature = "v2"),
-    not(feature = "payment_methods_v2")
-))]
+#[cfg(feature = "v1")]
 #[cfg(test)]
 mod tests {
     #![allow(clippy::unwrap_used)]

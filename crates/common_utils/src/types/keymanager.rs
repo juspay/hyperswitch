@@ -49,6 +49,26 @@ pub struct KeyManagerState {
     pub ca: Secret<String>,
     #[cfg(feature = "keymanager_mtls")]
     pub cert: Secret<String>,
+    pub infra_values: Option<serde_json::Value>,
+}
+
+impl KeyManagerState {
+    pub fn add_confirm_value_in_infra_values(
+        &self,
+        is_confirm_operation: bool,
+    ) -> Option<serde_json::Value> {
+        self.infra_values.clone().map(|mut infra_values| {
+            if is_confirm_operation {
+                infra_values.as_object_mut().map(|obj| {
+                    obj.insert(
+                        "is_confirm_operation".to_string(),
+                        serde_json::Value::Bool(true),
+                    )
+                });
+            }
+            infra_values
+        })
+    }
 }
 
 pub trait GetKeymanagerTenant {

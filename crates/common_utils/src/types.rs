@@ -13,6 +13,7 @@ use std::{
     borrow::Cow,
     fmt::Display,
     iter::Sum,
+    num::NonZeroI64,
     ops::{Add, Mul, Sub},
     primitive::i64,
     str::FromStr,
@@ -452,6 +453,12 @@ impl MinorUnit {
     }
 }
 
+impl From<NonZeroI64> for MinorUnit {
+    fn from(val: NonZeroI64) -> Self {
+        Self::new(val.get())
+    }
+}
+
 impl Display for MinorUnit {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "{}", self.0)
@@ -520,7 +527,20 @@ impl Sum for MinorUnit {
 }
 
 /// Connector specific types to send
-#[derive(Default, Debug, serde::Deserialize, serde::Serialize, Clone, PartialEq)]
+#[derive(
+    Default,
+    Debug,
+    serde::Deserialize,
+    AsExpression,
+    serde::Serialize,
+    Clone,
+    PartialEq,
+    Eq,
+    Hash,
+    ToSchema,
+    PartialOrd,
+)]
+#[diesel(sql_type = sql_types::Text)]
 pub struct StringMinorUnit(String);
 
 impl StringMinorUnit {
@@ -541,6 +561,45 @@ impl StringMinorUnit {
             .to_i64()
             .ok_or(ParsingError::DecimalToI64ConversionFailure)?;
         Ok(MinorUnit::new(amount_i64))
+    }
+}
+
+impl Display for StringMinorUnit {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.0)
+    }
+}
+
+impl<DB> FromSql<sql_types::Text, DB> for StringMinorUnit
+where
+    DB: Backend,
+    String: FromSql<sql_types::Text, DB>,
+{
+    fn from_sql(value: DB::RawValue<'_>) -> deserialize::Result<Self> {
+        let val = String::from_sql(value)?;
+        Ok(Self(val))
+    }
+}
+
+impl<DB> ToSql<sql_types::Text, DB> for StringMinorUnit
+where
+    DB: Backend,
+    String: ToSql<sql_types::Text, DB>,
+{
+    fn to_sql<'b>(&'b self, out: &mut Output<'b, '_, DB>) -> diesel::serialize::Result {
+        self.0.to_sql(out)
+    }
+}
+
+impl<DB> Queryable<sql_types::Text, DB> for StringMinorUnit
+where
+    DB: Backend,
+    Self: FromSql<sql_types::Text, DB>,
+{
+    type Row = Self;
+
+    fn build(row: Self::Row) -> deserialize::Result<Self> {
+        Ok(row)
     }
 }
 

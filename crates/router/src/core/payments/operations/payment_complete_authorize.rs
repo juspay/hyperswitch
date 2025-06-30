@@ -11,16 +11,13 @@ use crate::{
     core::{
         errors::{self, CustomResult, RouterResult, StorageErrorExt},
         mandate::helpers as m_helpers,
-        payments::{
-            self, helpers, operations, CustomerAcceptance, CustomerDetails, PaymentAddress,
-            PaymentData,
-        },
+        payments::{self, helpers, operations, CustomerDetails, PaymentAddress, PaymentData},
     },
     events::audit_events::{AuditEvent, AuditEventType},
     routes::{app::ReqState, SessionState},
     services,
     types::{
-        api::{self, PaymentIdTypeExt},
+        api::{self, CustomerAcceptance, PaymentIdTypeExt},
         domain,
         storage::{self, enums as storage_enums},
     },
@@ -139,11 +136,8 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
             payment_intent.customer_id.as_ref(),
         ))
         .await?;
-        let customer_acceptance: Option<CustomerAcceptance> = request
-            .customer_acceptance
-            .clone()
-            .map(From::from)
-            .or(payment_method_info
+        let customer_acceptance: Option<CustomerAcceptance> =
+            request.customer_acceptance.clone().or(payment_method_info
                 .clone()
                 .map(|pm| {
                     pm.customer_acceptance

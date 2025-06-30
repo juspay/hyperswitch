@@ -2,7 +2,7 @@
 use api_models::payouts::{self, PayoutMethodData};
 use api_models::{
     enums,
-    payments::{self, QrCodeInformation, VoucherNextStepData},
+    payments::{self, PollConfig, QrCodeInformation, VoucherNextStepData},
 };
 use cards::CardNumber;
 use common_enums::enums as storage_enums;
@@ -90,11 +90,13 @@ impl TryFrom<&Option<common_utils::pii::SecretSerdeValue>> for AdyenConnectorMet
     fn try_from(
         meta_data: &Option<common_utils::pii::SecretSerdeValue>,
     ) -> Result<Self, Self::Error> {
-        let metadata: Self = utils::to_connector_meta_from_secret::<Self>(meta_data.clone())
-            .change_context(errors::ConnectorError::InvalidConnectorConfig {
-                config: "metadata",
-            })?;
-        Ok(metadata)
+        match meta_data {
+            Some(metadata) => utils::to_connector_meta_from_secret::<Self>(Some(metadata.clone()))
+                .change_context(errors::ConnectorError::InvalidConnectorConfig {
+                    config: "metadata",
+                }),
+            None => Ok(Self::default()),
+        }
     }
 }
 
@@ -1763,29 +1765,31 @@ type RecurringDetails = (Option<AdyenRecurringModel>, Option<bool>, Option<Strin
 fn get_recurring_processing_model(
     item: &PaymentsAuthorizeRouterData,
 ) -> Result<RecurringDetails, Error> {
-    match (item.request.setup_future_usage, item.request.off_session) {
-        (Some(storage_enums::FutureUsage::OffSession), _) => {
+    let shopper_reference = match item.get_connector_customer_id() {
+        Ok(connector_customer_id) => Some(connector_customer_id),
+        Err(_) => {
             let customer_id = item.get_customer_id()?;
-            let shopper_reference = format!(
+            Some(format!(
                 "{}_{}",
                 item.merchant_id.get_string_repr(),
                 customer_id.get_string_repr()
-            );
+            ))
+        }
+    };
+
+    match (item.request.setup_future_usage, item.request.off_session) {
+        (Some(storage_enums::FutureUsage::OffSession), _) => {
             let store_payment_method = item.request.is_mandate_payment();
             Ok((
                 Some(AdyenRecurringModel::UnscheduledCardOnFile),
                 Some(store_payment_method),
-                Some(shopper_reference),
+                shopper_reference,
             ))
         }
         (_, Some(true)) => Ok((
             Some(AdyenRecurringModel::UnscheduledCardOnFile),
             None,
-            Some(format!(
-                "{}_{}",
-                item.merchant_id.get_string_repr(),
-                item.get_customer_id()?.get_string_repr()
-            )),
+            shopper_reference,
         )),
         _ => Ok((None, None, None)),
     }
@@ -1965,17 +1969,18 @@ fn get_social_security_number(voucher_data: &VoucherData) -> Option<Secret<Strin
     }
 }
 
-fn build_shopper_reference(
-    customer_id: &Option<common_utils::id_type::CustomerId>,
-    merchant_id: common_utils::id_type::MerchantId,
-) -> Option<String> {
-    customer_id.clone().map(|c_id| {
-        format!(
-            "{}_{}",
-            merchant_id.get_string_repr(),
-            c_id.get_string_repr()
-        )
-    })
+fn build_shopper_reference(item: &PaymentsAuthorizeRouterData) -> Option<String> {
+    match item.get_connector_customer_id() {
+        Ok(connector_customer_id) => Some(connector_customer_id),
+        Err(_) => match item.get_customer_id() {
+            Ok(customer_id) => Some(format!(
+                "{}_{}",
+                item.merchant_id.get_string_repr(),
+                customer_id.get_string_repr()
+            )),
+            Err(_) => None,
+        },
+    }
 }
 
 impl TryFrom<(&BankDebitData, &PaymentsAuthorizeRouterData)> for AdyenPaymentMethod<'_> {
@@ -2549,6 +2554,8 @@ impl TryFrom<(&BankTransferData, &PaymentsAuthorizeRouterData)> for AdyenPayment
             | BankTransferData::MultibancoBankTransfer { .. }
             | BankTransferData::LocalBankTransfer { .. }
             | BankTransferData::InstantBankTransfer {}
+            | BankTransferData::InstantBankTransferFinland {}
+            | BankTransferData::InstantBankTransferPoland {}
             | BankTransferData::Pse {} => Err(errors::ConnectorError::NotImplemented(
                 utils::get_unimplemented_payment_method_error_message("Adyen"),
             )
@@ -2894,10 +2901,7 @@ impl TryFrom<(&AdyenRouterData<&PaymentsAuthorizeRouterData>, &Card)> for AdyenP
         let amount = get_amount_data(item);
         let auth_type = AdyenAuthType::try_from(&item.router_data.connector_auth_type)?;
         let shopper_interaction = AdyenShopperInteraction::from(item.router_data);
-        let shopper_reference = build_shopper_reference(
-            &item.router_data.customer_id,
-            item.router_data.merchant_id.clone(),
-        );
+        let shopper_reference = build_shopper_reference(item.router_data);
         let (recurring_processing_model, store_payment_method, _) =
             get_recurring_processing_model(item.router_data)?;
         let browser_info = get_browser_info(item.router_data)?;
@@ -3014,11 +3018,17 @@ impl
             .clone()
             .and_then(get_device_fingerprint);
 
-        let billing_address =
+        let mut billing_address =
             get_address_info(item.router_data.get_optional_billing()).and_then(Result::ok);
         let delivery_address =
             get_address_info(item.router_data.get_optional_shipping()).and_then(Result::ok);
         let telephone_number = item.router_data.get_optional_billing_phone_number();
+
+        if let BankDebitData::AchBankDebit { .. } = bank_debit_data {
+            if let Some(addr) = billing_address.as_mut() {
+                addr.state_or_province = Some(item.router_data.get_billing_state_code()?);
+            }
+        }
 
         let request = AdyenPaymentRequest {
             amount,
@@ -3502,10 +3512,7 @@ impl
         let additional_data = get_additional_data(item.router_data);
         let country_code = get_country_code(item.router_data.get_optional_billing());
         let shopper_interaction = AdyenShopperInteraction::from(item.router_data);
-        let shopper_reference = build_shopper_reference(
-            &item.router_data.customer_id,
-            item.router_data.merchant_id.clone(),
-        );
+        let shopper_reference = build_shopper_reference(item.router_data);
         let (recurring_processing_model, store_payment_method, _) =
             get_recurring_processing_model(item.router_data)?;
         let return_url = item.router_data.request.get_router_return_url()?;
@@ -4227,6 +4234,7 @@ pub fn get_qr_metadata(
 pub struct WaitScreenData {
     display_from_timestamp: i128,
     display_to_timestamp: Option<i128>,
+    poll_config: Option<PollConfig>,
 }
 
 pub fn get_wait_screen_metadata(
@@ -4237,14 +4245,16 @@ pub fn get_wait_screen_metadata(
             let current_time = OffsetDateTime::now_utc().unix_timestamp_nanos();
             Ok(Some(serde_json::json!(WaitScreenData {
                 display_from_timestamp: current_time,
-                display_to_timestamp: Some(current_time + Duration::minutes(1).whole_nanoseconds())
+                display_to_timestamp: Some(current_time + Duration::minutes(1).whole_nanoseconds()),
+                poll_config: None
             })))
         }
         PaymentType::Mbway => {
             let current_time = OffsetDateTime::now_utc().unix_timestamp_nanos();
             Ok(Some(serde_json::json!(WaitScreenData {
                 display_from_timestamp: current_time,
-                display_to_timestamp: None
+                display_to_timestamp: None,
+                poll_config: None
             })))
         }
         PaymentType::Affirm
@@ -5815,10 +5825,7 @@ impl
         let amount = get_amount_data(item);
         let auth_type = AdyenAuthType::try_from(&item.router_data.connector_auth_type)?;
         let shopper_interaction = AdyenShopperInteraction::from(item.router_data);
-        let shopper_reference = build_shopper_reference(
-            &item.router_data.customer_id,
-            item.router_data.merchant_id.clone(),
-        );
+        let shopper_reference = build_shopper_reference(item.router_data);
         let (recurring_processing_model, store_payment_method, _) =
             get_recurring_processing_model(item.router_data)?;
         let browser_info = get_browser_info(item.router_data)?;

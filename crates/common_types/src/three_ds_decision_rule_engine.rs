@@ -37,6 +37,13 @@ pub enum ThreeDSDecision {
 }
 impl_to_sql_from_sql_json!(ThreeDSDecision);
 
+impl ThreeDSDecision {
+    /// Checks if the decision is to mandate a 3DS challenge
+    pub fn should_force_3ds_challenge(self) -> bool {
+        matches!(self, Self::ChallengeRequested)
+    }
+}
+
 /// Struct representing the output configuration for the 3DS Decision Rule Engine.
 #[derive(
     Serialize, Default, Deserialize, Debug, Clone, PartialEq, Eq, FromSqlRow, AsExpression, ToSchema,
@@ -46,6 +53,14 @@ pub struct ThreeDSDecisionRule {
     /// The decided 3DS action based on the rules
     pub decision: ThreeDSDecision,
 }
+
+impl ThreeDSDecisionRule {
+    /// Returns the decision
+    pub fn get_decision(&self) -> ThreeDSDecision {
+        self.decision
+    }
+}
+
 impl_to_sql_from_sql_json!(ThreeDSDecisionRule);
 
 impl EuclidDirFilter for ThreeDSDecisionRule {
