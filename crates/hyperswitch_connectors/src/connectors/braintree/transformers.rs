@@ -248,6 +248,24 @@ pub struct TransactionTiming {
     when: String,
 }
 
+pub(crate) fn validate_currency(
+    request_currency: enums::Currency,
+    merchant_config_currency: Option<enums::Currency>,
+) -> Result<(), errors::ConnectorError> {
+    let merchant_config_currency =
+        merchant_config_currency.ok_or(errors::ConnectorError::NoConnectorMetaData)?;
+    if request_currency != merchant_config_currency {
+        Err(errors::ConnectorError::NotSupported {
+            message: format!(
+                "currency {} is not supported for this merchant account",
+                request_currency
+            ),
+            connector: "Braintree",
+        })?
+    }
+    Ok(())
+}
+
 impl
     TryFrom<(
         &BraintreeRouterData<&types::PaymentsAuthorizeRouterData>,
@@ -316,7 +334,7 @@ impl TryFrom<&BraintreeRouterData<&types::PaymentsAuthorizeRouterData>>
                     config: "metadata",
                 })?
         };
-        utils::validate_currency(
+        validate_currency(
             item.router_data.request.currency,
             Some(metadata.merchant_config_currency),
         )?;
@@ -930,7 +948,7 @@ impl<F> TryFrom<BraintreeRouterData<&RefundsRouterData<F>>> for BraintreeRefundR
                 })?
         };
 
-        utils::validate_currency(
+        validate_currency(
             item.router_data.request.currency,
             Some(metadata.merchant_config_currency),
         )?;
@@ -1060,7 +1078,7 @@ impl TryFrom<&types::RefundSyncRouterData> for BraintreeRSyncRequest {
                 errors::ConnectorError::InvalidConnectorConfig { config: "metadata" },
             )?
         };
-        utils::validate_currency(
+        validate_currency(
             item.request.currency,
             Some(metadata.merchant_config_currency),
         )?;
@@ -1852,7 +1870,7 @@ impl TryFrom<&BraintreeRouterData<&types::PaymentsCompleteAuthorizeRouterData>>
                     config: "metadata",
                 })?
         };
-        utils::validate_currency(
+        validate_currency(
             item.router_data.request.currency,
             Some(metadata.merchant_config_currency),
         )?;
