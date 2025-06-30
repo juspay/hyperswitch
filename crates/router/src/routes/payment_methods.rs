@@ -355,21 +355,43 @@ pub async fn migrate_payment_methods(
                     domain::Context(merchant_account.clone(), key_store.clone()),
                 ));
 
-                customers::migrate_customers(
-                    state.clone(),
-                    Vec::<PaymentMethodCustomerMigrate>::foreign_try_from((
-                        &req,
-                        merchant_id.clone(),
-                    ))
-                    .map_err(|e| {
-                        errors::ApiErrorResponse::InvalidRequestData {
-                            message: e.to_string(),
+                let mut mca_cache = std::collections::HashMap::new();
+                let customers = Vec::<PaymentMethodCustomerMigrate>::foreign_try_from((
+                    &req,
+                    merchant_id.clone(),
+                ))
+                .map_err(|e| errors::ApiErrorResponse::InvalidRequestData {
+                    message: e.to_string(),
+                })?;
+
+                for record in &customers {
+                    if let Some(connector_customer_details) = &record.connector_customer_details {
+                        for connector_customer in connector_customer_details {
+                            if !mca_cache.contains_key(&connector_customer.merchant_connector_id) {
+                                let mca = state
+                        .store
+                        .find_by_merchant_connector_account_merchant_id_merchant_connector_id(
+                            &(&state).into(),
+                            &merchant_id,
+                            &connector_customer.merchant_connector_id,
+                            merchant_context.get_merchant_key_store(),
+                        )
+                        .await
+                        .to_not_found_response(
+                            errors::ApiErrorResponse::MerchantConnectorAccountNotFound {
+                                id: connector_customer.merchant_connector_id.get_string_repr().to_string(),
+                            },
+                        )?;
+                                mca_cache
+                                    .insert(connector_customer.merchant_connector_id.clone(), mca);
+                            }
                         }
-                    })?,
-                    merchant_context.clone(),
-                )
-                .await
-                .change_context(errors::ApiErrorResponse::InternalServerError)?;
+                    }
+                }
+
+                customers::migrate_customers(state.clone(), customers, merchant_context.clone())
+                    .await
+                    .change_context(errors::ApiErrorResponse::InternalServerError)?;
                 let controller = cards::PmCards {
                     state: &state,
                     merchant_context: &merchant_context,
