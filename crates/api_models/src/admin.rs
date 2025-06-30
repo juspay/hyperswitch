@@ -14,7 +14,7 @@ use common_utils::{crypto::OptionalEncryptableName, ext_traits::ValueExt};
 use masking::ExposeInterface;
 use masking::{PeekInterface, Secret};
 use serde::{Deserialize, Serialize};
-use utoipa::ToSchema;
+use utoipa::{openapi::schema, ToSchema};
 
 use super::payments::AddressDetails;
 use crate::{
@@ -996,6 +996,18 @@ pub struct RevenueRecoveryMetadata {
     /// Merchants need to provide a mapping between these merchant connector account and the corresponding account reference IDs for each `billing connector`.
     #[schema(value_type = u16, example = r#"{ "mca_vDSg5z6AxnisHq5dbJ6g": "stripe_123", "mca_vDSg5z6AumisHqh4x5m1": "adyen_123" }"#)]
     pub billing_account_reference: HashMap<id_type::MerchantConnectorAccountId, String>,
+    #[schema(value_type = Option<SwitchPaymentMethodConfig>)]
+    /// Configuration for switching payment methods based on retry and time thresholds
+    pub switch_payment_method_config: Option<SwitchPaymentMethodConfig>,
+}
+
+#[derive(Debug, Clone,serde::Deserialize, serde::Serialize, ToSchema)]
+/// Configuration for switching payment methods based on retry and time thresholds
+pub struct SwitchPaymentMethodConfig {
+    /// retry threshould after which payment method to be switched
+    pub retry_threshold: u16,
+    /// time threshold after which payment method to be switched in days after the created at time
+    pub time_threshold_after_creation: u16,
 }
 
 #[derive(Debug, Clone, serde::Deserialize, serde::Serialize, ToSchema)]

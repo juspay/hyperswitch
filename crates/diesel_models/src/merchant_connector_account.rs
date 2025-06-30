@@ -297,6 +297,17 @@ pub struct RevenueRecoveryMetadata {
     /// Merchants need to provide a mapping between these merchant connector account and the corresponding  
     /// account reference IDs for each `billing connector`.
     pub billing_account_reference: BillingAccountReference,
+    /// Config specifying which payment method to be used
+    pub switch_payment_method_config: Option<SwitchPaymentMethodConfig>,
+}
+
+#[cfg(feature = "v2")]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct SwitchPaymentMethodConfig {
+    /// Retry threshould after which payment method to be switched
+    pub retry_threshold: u16,
+    /// Time threshold after which payment method to be switched in days after the created at time
+    pub time_threshold_after_creation: u16,
 }
 
 #[cfg(feature = "v2")]
