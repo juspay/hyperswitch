@@ -1,5 +1,8 @@
 {
   "openapi": "3.0.3",
+  "x-mcp": {
+    "enabled": true
+  },
   "info": {
     "title": "Hyperswitch - API Documentation",
     "description": "\n## Get started\n\nHyperswitch provides a collection of APIs that enable you to process and manage payments.\nOur APIs accept and return JSON in the HTTP body, and return standard HTTP response codes.\n\nYou can consume the APIs directly using your favorite HTTP/REST library.\n\nWe have a testing environment referred to \"sandbox\", which you can setup to test API calls without\naffecting production data.\nCurrently, our sandbox environment is live while our production environment is under development\nand will be available soon.\nYou can sign up on our Dashboard to get API keys to access Hyperswitch API.\n\n### Environment\n\nUse the following base URLs when making requests to the APIs:\n\n| Environment   |  Base URL                          |\n|---------------|------------------------------------|\n| Sandbox       | <https://sandbox.hyperswitch.io>   |\n| Production    | <https://api.hyperswitch.io>       |\n\n## Authentication\n\nWhen you sign up on our [dashboard](https://app.hyperswitch.io) and create a merchant\naccount, you are given a secret key (also referred as api-key) and a publishable key.\nYou may authenticate all API requests with Hyperswitch server by providing the appropriate key in\nthe request Authorization header.\n\n| Key             |  Description                                                                                  |\n|-----------------|-----------------------------------------------------------------------------------------------|\n| api-key         | Private key. Used to authenticate all API requests from your merchant server                  |\n| publishable key | Unique identifier for your account. Used to authenticate API requests from your app's client  |\n\nNever share your secret api keys. Keep them guarded and secure.\n",
@@ -18194,6 +18197,7 @@
       },
       "OnlineMandate": {
         "type": "object",
+        "description": "Details of online mandate",
         "required": [
           "ip_address",
           "user_agent"
@@ -30877,6 +30881,10 @@
       },
       "WebhookDetails": {
         "type": "object",
+        "required": [
+          "payment_statuses_enabled",
+          "refund_statuses_enabled"
+        ],
         "properties": {
           "webhook_version": {
             "type": "string",
@@ -30921,6 +30929,42 @@
             "type": "boolean",
             "description": "If this property is true, a webhook message is posted whenever a payment fails",
             "example": true,
+            "nullable": true
+          },
+          "payment_statuses_enabled": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/IntentStatus"
+            },
+            "description": "List of payment statuses that triggers a webhook for payment intents",
+            "example": [
+              "succeeded",
+              "failed",
+              "partially_captured",
+              "requires_merchant_action"
+            ]
+          },
+          "refund_statuses_enabled": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/IntentStatus"
+            },
+            "description": "List of refund statuses that triggers a webhook for refunds",
+            "example": [
+              "success",
+              "failure"
+            ]
+          },
+          "payout_statuses_enabled": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PayoutStatus"
+            },
+            "description": "List of payout statuses that triggers a webhook for payouts",
+            "example": [
+              "success",
+              "failed"
+            ],
             "nullable": true
           }
         },

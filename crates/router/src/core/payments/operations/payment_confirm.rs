@@ -789,7 +789,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
             mandate_id: mandate_id.clone(),
             mandate_connector,
             setup_mandate,
-            customer_acceptance: customer_acceptance.map(From::from),
+            customer_acceptance,
             token,
             address: unified_address,
             token_data,

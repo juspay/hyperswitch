@@ -1,6 +1,8 @@
 #[cfg(all(feature = "v1", feature = "olap"))]
 use api_models::enums::Connector;
 use common_enums as storage_enums;
+#[cfg(feature = "v2")]
+use common_types::payments as common_payments_types;
 #[cfg(feature = "v1")]
 use common_types::primitive_wrappers::{
     ExtendedAuthorizationAppliedBool, RequestExtendedAuthorizationBool,
@@ -440,8 +442,7 @@ pub struct PaymentAttempt {
     pub fingerprint_id: Option<String>,
     pub client_source: Option<String>,
     pub client_version: Option<String>,
-    // TODO: use a type here instead of value
-    pub customer_acceptance: Option<pii::SecretSerdeValue>,
+    pub customer_acceptance: Option<Secret<common_payments_types::CustomerAcceptance>>,
     /// The profile id for the payment attempt. This will be derived from payment intent.
     pub profile_id: id_type::ProfileId,
     /// The organization id for the payment attempt. This will be derived from payment intent.
@@ -590,14 +591,7 @@ impl PaymentAttempt {
             charges: None,
             client_source: None,
             client_version: None,
-            customer_acceptance: request
-                .customer_acceptance
-                .as_ref()
-                .map(Encode::encode_to_value)
-                .transpose()
-                .change_context(errors::api_error_response::ApiErrorResponse::InternalServerError)
-                .attach_printable("Unable to encode customer_acceptance")?
-                .map(Secret::new),
+            customer_acceptance: request.customer_acceptance.clone().map(Secret::new),
             profile_id: payment_intent.profile_id.clone(),
             organization_id: payment_intent.organization_id.clone(),
             payment_method_type: request.payment_method_type,
@@ -652,7 +646,6 @@ impl PaymentAttempt {
         let payment_method_type_data = payment_intent.get_payment_method_type();
 
         let payment_method_subtype_data = payment_intent.get_payment_method_sub_type();
-
         let authentication_type = payment_intent.authentication_type.unwrap_or_default();
         Ok(Self {
             payment_id: payment_intent.id.clone(),
@@ -758,7 +751,10 @@ impl PaymentAttempt {
             .as_ref()
             .map(|txn_id| txn_id.get_id().clone());
         let connector = request.connector.map(|connector| connector.to_string());
-
+        let connector_request_reference_id = payment_intent
+            .merchant_reference_id
+            .as_ref()
+            .map(|id| id.get_string_repr().to_owned());
         Ok(Self {
             payment_id: payment_intent.id.clone(),
             merchant_id: payment_intent.merchant_id.clone(),
@@ -810,7 +806,7 @@ impl PaymentAttempt {
             charges: None,
             processor_merchant_id: payment_intent.merchant_id.clone(),
             created_by: None,
-            connector_request_reference_id: None,
+            connector_request_reference_id,
         })
     }
 
