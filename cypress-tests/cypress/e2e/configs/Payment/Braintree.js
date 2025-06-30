@@ -572,37 +572,38 @@ export const connectorDetails = {
         },
       },
     },
-    SaveCardConfirmAutoCaptureOffSession: {
-      Request: {
-        setup_future_usage: "off_session",
-      },
-      Response: {
-        status: 400,
-        body: {
-          error: {
-            message:
-              "No eligible connector was found for the current payment method configuration",
-              // "Selected payment method through braintree is not implemented",
-            type: "invalid_request",
-          },
-        },
-      },
-    },
-    SaveCardConfirmAutoCaptureOffSessionWithoutBilling: {
-      Request: {
-        setup_future_usage: "off_session",
-        billing: null,
-      },
-      Response: {
-        status: 400,
-        body: {
-          error: {
-            message:
-              "No eligible connector was found for the current payment method configuration",
-            type: "invalid_request",
-          },
-        },
-      },
-    },
+    // SaveCardConfirmAutoCaptureOffSession: {
+    //   Request: {
+    //     setup_future_usage: "off_session",
+    //   },
+    //   Response: {
+    //     status: 400,
+    //     body: {
+    //       error: {
+    //         message:
+    //           "No eligible connector was found for the current payment method configuration",
+    //         // "Selected payment method through braintree is not implemented",
+    //         type: "invalid_request",
+    //       },
+    //     },
+    //   },
+    // },
+    // SaveCardConfirmAutoCaptureOffSessionWithoutBilling: {
+    //   Request: {
+    //     setup_future_usage: "off_session",
+    //     billing: null,
+    //   },
+    //   Response: {
+    //     status: 400,
+    //     body: {
+    //       error: {
+    //         message:
+    //           "No eligible connector was found for the current payment method configuration",
+    //         // "Selected payment method through braintree is not implemented",
+    //         type: "invalid_request",
+    //       },
+    //     },
+    //   },
+    // },
   },
 };
