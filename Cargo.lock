@@ -3948,6 +3948,7 @@ dependencies = [
  "common_enums",
  "common_types",
  "common_utils",
+ "crc",
  "encoding_rs",
  "error-stack",
  "hex",

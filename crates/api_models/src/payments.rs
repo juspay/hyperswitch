@@ -6837,6 +6837,7 @@ pub struct ConnectorMetadata {
     pub noon: Option<NoonData>,
     pub braintree: Option<BraintreeData>,
     pub adyen: Option<AdyenConnectorMetadata>,
+    pub santander: Option<SantanderData>,
 }
 
 impl ConnectorMetadata {
@@ -6869,6 +6870,32 @@ impl ConnectorMetadata {
 pub struct AirwallexData {
     /// payload required by airwallex
     payload: Option<String>,
+}
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema)]
+#[serde(rename_all = "camelCase")]
+pub struct SantanderData {
+    pub billing_type: Option<SantanderBillingType>,
+}
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema)]
+#[serde(rename_all = "camelCase")]
+pub enum SantanderBillingType {
+    Immediate(ImmediateBillingType),
+    Scheduled(ScheduledBillingType),
+}
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema)]
+#[serde(rename_all = "camelCase")]
+pub struct ImmediateBillingType {
+    pub expiration_time: Option<i32>,
+}
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema)]
+#[serde(rename_all = "camelCase")]
+pub struct ScheduledBillingType {
+    pub due_date: Option<String>,
+    pub validity_after_expiration: Option<i32>,
 }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema)]
