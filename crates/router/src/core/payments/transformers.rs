@@ -1942,13 +1942,6 @@ where
             .clone()
             .or(profile.return_url.clone());
 
-        let connector_response_reference_id =
-            payment_attempt.connector_response_reference_id.clone();
-        println!(
-            "????connector_response_reference_id: {:?}",
-            connector_response_reference_id
-        );
-
         let response = api_models::payments::PaymentsResponse {
             id: payment_intent.id.clone(),
             status: payment_intent.status,
@@ -3731,6 +3724,10 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsSyncData
             currency: payment_data.currency,
             split_payments: payment_data.payment_intent.split_payments,
             payment_experience: payment_data.payment_attempt.payment_experience,
+            connector_response_reference_id: payment_data
+                .payment_attempt
+                .connector_response_reference_id
+                .clone(),
         })
     }
 }

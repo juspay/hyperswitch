@@ -330,7 +330,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, RazorpaySyncResponse, T, PaymentsRespon
     ) -> Result<Self, Self::Error> {
         let status = match item.response.items.last() {
             Some(last_item) => {
-                let razorpay_status = last_item.status.clone();
+                let razorpay_status = last_item.status;
                 get_psync_razorpay_payment_status(razorpay_status)
             }
             None => item.data.status,

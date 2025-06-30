@@ -3541,7 +3541,7 @@ where
 
     router_data = router_data.add_session_token(state, &connector).await?;
 
-    let should_continue_further = access_token::update_router_data_with_access_token_result(
+    let mut should_continue_further = access_token::update_router_data_with_access_token_result(
         &add_access_token_result,
         &mut router_data,
         &call_connector_action,
@@ -9013,7 +9013,6 @@ pub trait OperationSessionSetters<F> {
     #[cfg(feature = "v2")]
     fn set_connector_request_reference_id(&mut self, reference_id: Option<String>);
 
-    #[cfg(feature = "v2")]
     fn set_connector_response_reference_id(&mut self, reference_id: Option<String>);
 
     #[cfg(feature = "v2")]
@@ -9327,6 +9326,10 @@ impl<F: Clone> OperationSessionSetters<F> for PaymentData<F> {
         routing_approach: Option<enums::RoutingApproach>,
     ) {
         self.payment_attempt.routing_approach = routing_approach;
+    }
+
+    fn set_connector_response_reference_id(&mut self, reference_id: Option<String>) {
+        self.payment_attempt.connector_response_reference_id = reference_id;
     }
 }
 
