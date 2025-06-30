@@ -2644,7 +2644,7 @@ impl From<PaymentMethodMigrationResponseType> for PaymentMethodMigrationResponse
 impl
     TryFrom<(
         &PaymentMethodRecord,
-        &id_type::MerchantId,
+        id_type::MerchantId,
         Option<&Vec<id_type::MerchantConnectorAccountId>>,
     )> for PaymentMethodMigrate
 {
@@ -2653,7 +2653,7 @@ impl
     fn try_from(
         item: (
             &PaymentMethodRecord,
-            &id_type::MerchantId,
+            id_type::MerchantId,
             Option<&Vec<id_type::MerchantConnectorAccountId>>,
         ),
     ) -> Result<Self, Self::Error> {
@@ -2684,7 +2684,7 @@ impl
         };
 
         Ok(Self {
-            merchant_id: merchant_id.clone(),
+            merchant_id,
             customer_id: Some(record.customer_id.clone()),
             card: Some(MigrateCardDetail {
                 card_number: record

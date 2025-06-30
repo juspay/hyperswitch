@@ -30,31 +30,36 @@ pub async fn migrate_payment_methods(
     let mut result = Vec::with_capacity(payment_methods.len());
 
     for record in payment_methods {
-        let migrate_request =
-            pm_api::PaymentMethodMigrate::try_from((&record, merchant_id, mca_ids.as_ref()))
-                .map_err(|err| errors::ApiErrorResponse::InvalidRequestData {
-                    message: format!("error: {:?}", err),
-                })
-                .attach_printable("record deserialization failed")?;
-
-        let migration_result = migrate_payment_method(
-            state,
-            migrate_request,
-            merchant_id,
-            merchant_context,
-            controller,
-        )
-        .await
-        .and_then(|res| match res {
-            api::ApplicationResponse::Json(response) => Ok(response),
-            _ => Err(errors::ApiErrorResponse::InternalServerError.into()),
+        let req = pm_api::PaymentMethodMigrate::try_from((
+            &record,
+            merchant_id.clone(),
+            mca_ids.as_ref(),
+        ))
+        .map_err(|err| errors::ApiErrorResponse::InvalidRequestData {
+            message: format!("error: {:?}", err),
         })
-        .map_err(|e| e.to_string());
+        .attach_printable("record deserialization failed");
 
-        result.push(pm_api::PaymentMethodMigrationResponse::from((
-            migration_result,
-            record,
-        )));
+        let res = match req {
+            Ok(migrate_request) => {
+                let res = migrate_payment_method(
+                    state,
+                    migrate_request,
+                    merchant_id,
+                    merchant_context,
+                    controller,
+                )
+                .await;
+                match res {
+                    Ok(api::ApplicationResponse::Json(response)) => Ok(response),
+                    Err(e) => Err(e.to_string()),
+                    _ => Err("Failed to migrate payment method".to_string()),
+                }
+            }
+            Err(e) => Err(e.to_string()),
+        };
+
+        result.push(pm_api::PaymentMethodMigrationResponse::from((res, record)));
     }
     Ok(api::ApplicationResponse::Json(result))
 }
