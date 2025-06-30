@@ -1456,14 +1456,14 @@ impl ConnectorAuthTypeAndMetadataValidation<'_> {
                 chargebee::transformers::ChargebeeMetadata::try_from(self.connector_meta_data)?;
                 Ok(())
             }
+            // api_enums::Connector::Checkbook => {
+            //     checkbook::transformers::CheckbookAuthType::try_from(self.auth_type)?;
+            //     Ok(())
+            // },
             api_enums::Connector::Checkout => {
                 checkout::transformers::CheckoutAuthType::try_from(self.auth_type)?;
                 Ok(())
             }
-            // api_enums::Connector::Chequebookdotio => {
-            //     chequebookdotio::transformers::ChequebookdotioAuthType::try_from(self.auth_type)?;
-            //     Ok(())
-            // },
             api_enums::Connector::Coinbase => {
                 coinbase::transformers::CoinbaseAuthType::try_from(self.auth_type)?;
                 coinbase::transformers::CoinbaseConnectorMeta::try_from(self.connector_meta_data)?;

@@ -75,8 +75,8 @@ pub enum RoutableConnectors {
     Braintree,
     Cashtocode,
     Chargebee,
+    // Checkbook,
     Checkout,
-    // Chequebookdotio,
     Coinbase,
     Coingate,
     Cryptopay,
@@ -231,8 +231,8 @@ pub enum Connector {
     Braintree,
     Cashtocode,
     Chargebee,
+    // Checkbook,
     Checkout,
-    // Chequebookdotio,
     Coinbase,
     Coingate,
     Cryptopay,
@@ -414,7 +414,7 @@ impl Connector {
             | Self::Braintree
             | Self::Cashtocode
             | Self::Chargebee
-            // | Self::Chequebookdotio
+            // | Self::Checkbook
             | Self::Coinbase
             | Self::Coingate
             | Self::Cryptopay
@@ -575,8 +575,8 @@ impl From<RoutableConnectors> for Connector {
             RoutableConnectors::Braintree => Self::Braintree,
             RoutableConnectors::Cashtocode => Self::Cashtocode,
             RoutableConnectors::Chargebee => Self::Chargebee,
+            // RoutableConnectors::Checkbook => Self::Checkbook,
             RoutableConnectors::Checkout => Self::Checkout,
-            // RoutableConnectors::Chequebookdotio => Self::Chequebookdotio,
             RoutableConnectors::Coinbase => Self::Coinbase,
             RoutableConnectors::Cryptopay => Self::Cryptopay,
             RoutableConnectors::Cybersource => Self::Cybersource,
@@ -694,8 +694,8 @@ impl TryFrom<Connector> for RoutableConnectors {
             Connector::Braintree => Ok(Self::Braintree),
             Connector::Cashtocode => Ok(Self::Cashtocode),
             Connector::Chargebee => Ok(Self::Chargebee),
+            // Connector::Checkbook => Ok(Self::Checkbook),
             Connector::Checkout => Ok(Self::Checkout),
-            // Connector::Chequebookdotio => Ok(Self::Chequebookdotio),
             Connector::Coinbase => Ok(Self::Coinbase),
             Connector::Coingate => Ok(Self::Coingate),
             Connector::Cryptopay => Ok(Self::Cryptopay),

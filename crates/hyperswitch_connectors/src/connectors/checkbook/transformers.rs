@@ -18,12 +18,12 @@ use crate::{
 };
 
 //TODO: Fill the struct with respective fields
-pub struct ChequebookdotioRouterData<T> {
+pub struct CheckbookRouterData<T> {
     pub amount: FloatMajorUnit, // The type of amount that a connector accepts, for example, String, i64, f64, etc.
     pub router_data: T,
 }
 
-impl<T> From<(FloatMajorUnit, T)> for ChequebookdotioRouterData<T> {
+impl<T> From<(FloatMajorUnit, T)> for CheckbookRouterData<T> {
     fn from((amount, item): (FloatMajorUnit, T)) -> Self {
         //Todo :  use utils to convert the amount to the type of amount that a connector accepts
         Self {
@@ -35,13 +35,13 @@ impl<T> From<(FloatMajorUnit, T)> for ChequebookdotioRouterData<T> {
 
 //TODO: Fill the struct with respective fields
 #[derive(Default, Debug, Serialize, PartialEq)]
-pub struct ChequebookdotioPaymentsRequest {
+pub struct CheckbookPaymentsRequest {
     amount: FloatMajorUnit,
-    card: ChequebookdotioCard,
+    card: CheckbookCard,
 }
 
 #[derive(Default, Debug, Serialize, Eq, PartialEq)]
-pub struct ChequebookdotioCard {
+pub struct CheckbookCard {
     number: cards::CardNumber,
     expiry_month: Secret<String>,
     expiry_year: Secret<String>,
@@ -49,16 +49,14 @@ pub struct ChequebookdotioCard {
     complete: bool,
 }
 
-impl TryFrom<&ChequebookdotioRouterData<&PaymentsAuthorizeRouterData>>
-    for ChequebookdotioPaymentsRequest
-{
+impl TryFrom<&CheckbookRouterData<&PaymentsAuthorizeRouterData>> for CheckbookPaymentsRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
-        item: &ChequebookdotioRouterData<&PaymentsAuthorizeRouterData>,
+        item: &CheckbookRouterData<&PaymentsAuthorizeRouterData>,
     ) -> Result<Self, Self::Error> {
         match item.router_data.request.payment_method_data.clone() {
             PaymentMethodData::Card(req_card) => {
-                let card = ChequebookdotioCard {
+                let card = CheckbookCard {
                     number: req_card.card_number,
                     expiry_month: req_card.card_exp_month,
                     expiry_year: req_card.card_exp_year,
@@ -66,7 +64,7 @@ impl TryFrom<&ChequebookdotioRouterData<&PaymentsAuthorizeRouterData>>
                     complete: item.router_data.request.is_auto_capture()?,
                 };
                 Ok(Self {
-                    amount: item.amount.clone(),
+                    amount: item.amount,
                     card,
                 })
             }
@@ -77,11 +75,11 @@ impl TryFrom<&ChequebookdotioRouterData<&PaymentsAuthorizeRouterData>>
 
 //TODO: Fill the struct with respective fields
 // Auth Struct
-pub struct ChequebookdotioAuthType {
+pub struct CheckbookAuthType {
     pub(super) api_key: Secret<String>,
 }
 
-impl TryFrom<&ConnectorAuthType> for ChequebookdotioAuthType {
+impl TryFrom<&ConnectorAuthType> for CheckbookAuthType {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(auth_type: &ConnectorAuthType) -> Result<Self, Self::Error> {
         match auth_type {
@@ -96,36 +94,36 @@ impl TryFrom<&ConnectorAuthType> for ChequebookdotioAuthType {
 //TODO: Append the remaining status flags
 #[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq)]
 #[serde(rename_all = "lowercase")]
-pub enum ChequebookdotioPaymentStatus {
+pub enum CheckbookPaymentStatus {
     Succeeded,
     Failed,
     #[default]
     Processing,
 }
 
-impl From<ChequebookdotioPaymentStatus> for common_enums::AttemptStatus {
-    fn from(item: ChequebookdotioPaymentStatus) -> Self {
+impl From<CheckbookPaymentStatus> for common_enums::AttemptStatus {
+    fn from(item: CheckbookPaymentStatus) -> Self {
         match item {
-            ChequebookdotioPaymentStatus::Succeeded => Self::Charged,
-            ChequebookdotioPaymentStatus::Failed => Self::Failure,
-            ChequebookdotioPaymentStatus::Processing => Self::Authorizing,
+            CheckbookPaymentStatus::Succeeded => Self::Charged,
+            CheckbookPaymentStatus::Failed => Self::Failure,
+            CheckbookPaymentStatus::Processing => Self::Authorizing,
         }
     }
 }
 
 //TODO: Fill the struct with respective fields
 #[derive(Default, Debug, Clone, Serialize, Deserialize, PartialEq)]
-pub struct ChequebookdotioPaymentsResponse {
-    status: ChequebookdotioPaymentStatus,
+pub struct CheckbookPaymentsResponse {
+    status: CheckbookPaymentStatus,
     id: String,
 }
 
-impl<F, T> TryFrom<ResponseRouterData<F, ChequebookdotioPaymentsResponse, T, PaymentsResponseData>>
+impl<F, T> TryFrom<ResponseRouterData<F, CheckbookPaymentsResponse, T, PaymentsResponseData>>
     for RouterData<F, T, PaymentsResponseData>
 {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
-        item: ResponseRouterData<F, ChequebookdotioPaymentsResponse, T, PaymentsResponseData>,
+        item: ResponseRouterData<F, CheckbookPaymentsResponse, T, PaymentsResponseData>,
     ) -> Result<Self, Self::Error> {
         Ok(Self {
             status: common_enums::AttemptStatus::from(item.response.status),
@@ -148,17 +146,13 @@ impl<F, T> TryFrom<ResponseRouterData<F, ChequebookdotioPaymentsResponse, T, Pay
 // REFUND :
 // Type definition for RefundRequest
 #[derive(Default, Debug, Serialize)]
-pub struct ChequebookdotioRefundRequest {
+pub struct CheckbookRefundRequest {
     pub amount: FloatMajorUnit,
 }
 
-impl<F> TryFrom<&ChequebookdotioRouterData<&RefundsRouterData<F>>>
-    for ChequebookdotioRefundRequest
-{
+impl<F> TryFrom<&CheckbookRouterData<&RefundsRouterData<F>>> for CheckbookRefundRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(
-        item: &ChequebookdotioRouterData<&RefundsRouterData<F>>,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(item: &CheckbookRouterData<&RefundsRouterData<F>>) -> Result<Self, Self::Error> {
         Ok(Self {
             amount: item.amount.to_owned(),
         })
@@ -226,7 +220,7 @@ impl TryFrom<RefundsResponseRouterData<RSync, RefundResponse>> for RefundsRouter
 
 //TODO: Fill the struct with respective fields
 #[derive(Default, Debug, Serialize, Deserialize, PartialEq)]
-pub struct ChequebookdotioErrorResponse {
+pub struct CheckbookErrorResponse {
     pub status_code: u16,
     pub code: String,
     pub message: String,

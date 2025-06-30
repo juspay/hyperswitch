@@ -341,7 +341,7 @@ api_key = "MyApiKey"
 key1 = "Merchant id"
 api_secret = "Secret key"
 
-[chequebookdotio]
+[checkbook]
 api_key="Client ID"
 key1 ="Client Secret"
 

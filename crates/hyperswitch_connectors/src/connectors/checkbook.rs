@@ -37,16 +37,16 @@ use hyperswitch_interfaces::{
     webhooks,
 };
 use masking::{ExposeInterface, Mask};
-use transformers as chequebookdotio;
+use transformers as checkbook;
 
 use crate::{constants::headers, types::ResponseRouterData, utils};
 
 #[derive(Clone)]
-pub struct Chequebookdotio {
+pub struct Checkbook {
     amount_converter: &'static (dyn AmountConvertor<Output = FloatMajorUnit> + Sync),
 }
 
-impl Chequebookdotio {
+impl Checkbook {
     pub fn new() -> &'static Self {
         &Self {
             amount_converter: &FloatMajorUnitForConnector,
@@ -54,26 +54,26 @@ impl Chequebookdotio {
     }
 }
 
-impl api::Payment for Chequebookdotio {}
-impl api::PaymentSession for Chequebookdotio {}
-impl api::ConnectorAccessToken for Chequebookdotio {}
-impl api::MandateSetup for Chequebookdotio {}
-impl api::PaymentAuthorize for Chequebookdotio {}
-impl api::PaymentSync for Chequebookdotio {}
-impl api::PaymentCapture for Chequebookdotio {}
-impl api::PaymentVoid for Chequebookdotio {}
-impl api::Refund for Chequebookdotio {}
-impl api::RefundExecute for Chequebookdotio {}
-impl api::RefundSync for Chequebookdotio {}
-impl api::PaymentToken for Chequebookdotio {}
+impl api::Payment for Checkbook {}
+impl api::PaymentSession for Checkbook {}
+impl api::ConnectorAccessToken for Checkbook {}
+impl api::MandateSetup for Checkbook {}
+impl api::PaymentAuthorize for Checkbook {}
+impl api::PaymentSync for Checkbook {}
+impl api::PaymentCapture for Checkbook {}
+impl api::PaymentVoid for Checkbook {}
+impl api::Refund for Checkbook {}
+impl api::RefundExecute for Checkbook {}
+impl api::RefundSync for Checkbook {}
+impl api::PaymentToken for Checkbook {}
 
 impl ConnectorIntegration<PaymentMethodToken, PaymentMethodTokenizationData, PaymentsResponseData>
-    for Chequebookdotio
+    for Checkbook
 {
     // Not Implemented (R)
 }
 
-impl<Flow, Request, Response> ConnectorCommonExt<Flow, Request, Response> for Chequebookdotio
+impl<Flow, Request, Response> ConnectorCommonExt<Flow, Request, Response> for Checkbook
 where
     Self: ConnectorIntegration<Flow, Request, Response>,
 {
@@ -92,9 +92,9 @@ where
     }
 }
 
-impl ConnectorCommon for Chequebookdotio {
+impl ConnectorCommon for Checkbook {
     fn id(&self) -> &'static str {
-        "chequebookdotio"
+        "checkbook"
     }
 
     fn get_currency_unit(&self) -> api::CurrencyUnit {
@@ -106,14 +106,14 @@ impl ConnectorCommon for Chequebookdotio {
     }
 
     fn base_url<'a>(&self, connectors: &'a Connectors) -> &'a str {
-        connectors.chequebookdotio.base_url.as_ref()
+        connectors.checkbook.base_url.as_ref()
     }
 
     fn get_auth_header(
         &self,
         auth_type: &ConnectorAuthType,
     ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
-        let auth = chequebookdotio::ChequebookdotioAuthType::try_from(auth_type)
+        let auth = checkbook::CheckbookAuthType::try_from(auth_type)
             .change_context(errors::ConnectorError::FailedToObtainAuthType)?;
         Ok(vec![(
             headers::AUTHORIZATION.to_string(),
@@ -126,9 +126,9 @@ impl ConnectorCommon for Chequebookdotio {
         res: Response,
         event_builder: Option<&mut ConnectorEvent>,
     ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
-        let response: chequebookdotio::ChequebookdotioErrorResponse = res
+        let response: checkbook::CheckbookErrorResponse = res
             .response
-            .parse_struct("ChequebookdotioErrorResponse")
+            .parse_struct("CheckbookErrorResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
 
         event_builder.map(|i| i.set_response_body(&response));
@@ -148,27 +148,22 @@ impl ConnectorCommon for Chequebookdotio {
     }
 }
 
-impl ConnectorValidation for Chequebookdotio {
+impl ConnectorValidation for Checkbook {
     //TODO: implement functions when support enabled
 }
 
-impl ConnectorIntegration<Session, PaymentsSessionData, PaymentsResponseData> for Chequebookdotio {
+impl ConnectorIntegration<Session, PaymentsSessionData, PaymentsResponseData> for Checkbook {
     //TODO: implement sessions flow
 }
 
-impl ConnectorIntegration<AccessTokenAuth, AccessTokenRequestData, AccessToken>
-    for Chequebookdotio
-{
-}
+impl ConnectorIntegration<AccessTokenAuth, AccessTokenRequestData, AccessToken> for Checkbook {}
 
 impl ConnectorIntegration<SetupMandate, SetupMandateRequestData, PaymentsResponseData>
-    for Chequebookdotio
+    for Checkbook
 {
 }
 
-impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData>
-    for Chequebookdotio
-{
+impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData> for Checkbook {
     fn get_headers(
         &self,
         req: &PaymentsAuthorizeRouterData,
@@ -200,9 +195,8 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
             req.request.currency,
         )?;
 
-        let connector_router_data = chequebookdotio::ChequebookdotioRouterData::from((amount, req));
-        let connector_req =
-            chequebookdotio::ChequebookdotioPaymentsRequest::try_from(&connector_router_data)?;
+        let connector_router_data = checkbook::CheckbookRouterData::from((amount, req));
+        let connector_req = checkbook::CheckbookPaymentsRequest::try_from(&connector_router_data)?;
         Ok(RequestContent::Json(Box::new(connector_req)))
     }
 
@@ -234,9 +228,9 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
         event_builder: Option<&mut ConnectorEvent>,
         res: Response,
     ) -> CustomResult<PaymentsAuthorizeRouterData, errors::ConnectorError> {
-        let response: chequebookdotio::ChequebookdotioPaymentsResponse = res
+        let response: checkbook::CheckbookPaymentsResponse = res
             .response
-            .parse_struct("Chequebookdotio PaymentsAuthorizeResponse")
+            .parse_struct("Checkbook PaymentsAuthorizeResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
@@ -256,7 +250,7 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
     }
 }
 
-impl ConnectorIntegration<PSync, PaymentsSyncData, PaymentsResponseData> for Chequebookdotio {
+impl ConnectorIntegration<PSync, PaymentsSyncData, PaymentsResponseData> for Checkbook {
     fn get_headers(
         &self,
         req: &PaymentsSyncRouterData,
@@ -298,9 +292,9 @@ impl ConnectorIntegration<PSync, PaymentsSyncData, PaymentsResponseData> for Che
         event_builder: Option<&mut ConnectorEvent>,
         res: Response,
     ) -> CustomResult<PaymentsSyncRouterData, errors::ConnectorError> {
-        let response: chequebookdotio::ChequebookdotioPaymentsResponse = res
+        let response: checkbook::CheckbookPaymentsResponse = res
             .response
-            .parse_struct("chequebookdotio PaymentsSyncResponse")
+            .parse_struct("checkbook PaymentsSyncResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
@@ -320,7 +314,7 @@ impl ConnectorIntegration<PSync, PaymentsSyncData, PaymentsResponseData> for Che
     }
 }
 
-impl ConnectorIntegration<Capture, PaymentsCaptureData, PaymentsResponseData> for Chequebookdotio {
+impl ConnectorIntegration<Capture, PaymentsCaptureData, PaymentsResponseData> for Checkbook {
     fn get_headers(
         &self,
         req: &PaymentsCaptureRouterData,
@@ -375,9 +369,9 @@ impl ConnectorIntegration<Capture, PaymentsCaptureData, PaymentsResponseData> fo
         event_builder: Option<&mut ConnectorEvent>,
         res: Response,
     ) -> CustomResult<PaymentsCaptureRouterData, errors::ConnectorError> {
-        let response: chequebookdotio::ChequebookdotioPaymentsResponse = res
+        let response: checkbook::CheckbookPaymentsResponse = res
             .response
-            .parse_struct("Chequebookdotio PaymentsCaptureResponse")
+            .parse_struct("Checkbook PaymentsCaptureResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
@@ -397,9 +391,9 @@ impl ConnectorIntegration<Capture, PaymentsCaptureData, PaymentsResponseData> fo
     }
 }
 
-impl ConnectorIntegration<Void, PaymentsCancelData, PaymentsResponseData> for Chequebookdotio {}
+impl ConnectorIntegration<Void, PaymentsCancelData, PaymentsResponseData> for Checkbook {}
 
-impl ConnectorIntegration<Execute, RefundsData, RefundsResponseData> for Chequebookdotio {
+impl ConnectorIntegration<Execute, RefundsData, RefundsResponseData> for Checkbook {
     fn get_headers(
         &self,
         req: &RefundsRouterData<Execute>,
@@ -431,10 +425,8 @@ impl ConnectorIntegration<Execute, RefundsData, RefundsResponseData> for Chequeb
             req.request.currency,
         )?;
 
-        let connector_router_data =
-            chequebookdotio::ChequebookdotioRouterData::from((refund_amount, req));
-        let connector_req =
-            chequebookdotio::ChequebookdotioRefundRequest::try_from(&connector_router_data)?;
+        let connector_router_data = checkbook::CheckbookRouterData::from((refund_amount, req));
+        let connector_req = checkbook::CheckbookRefundRequest::try_from(&connector_router_data)?;
         Ok(RequestContent::Json(Box::new(connector_req)))
     }
 
@@ -463,9 +455,9 @@ impl ConnectorIntegration<Execute, RefundsData, RefundsResponseData> for Chequeb
         event_builder: Option<&mut ConnectorEvent>,
         res: Response,
     ) -> CustomResult<RefundsRouterData<Execute>, errors::ConnectorError> {
-        let response: chequebookdotio::RefundResponse = res
+        let response: checkbook::RefundResponse = res
             .response
-            .parse_struct("chequebookdotio RefundResponse")
+            .parse_struct("checkbook RefundResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
@@ -485,7 +477,7 @@ impl ConnectorIntegration<Execute, RefundsData, RefundsResponseData> for Chequeb
     }
 }
 
-impl ConnectorIntegration<RSync, RefundsData, RefundsResponseData> for Chequebookdotio {
+impl ConnectorIntegration<RSync, RefundsData, RefundsResponseData> for Checkbook {
     fn get_headers(
         &self,
         req: &RefundSyncRouterData,
@@ -530,9 +522,9 @@ impl ConnectorIntegration<RSync, RefundsData, RefundsResponseData> for Chequeboo
         event_builder: Option<&mut ConnectorEvent>,
         res: Response,
     ) -> CustomResult<RefundSyncRouterData, errors::ConnectorError> {
-        let response: chequebookdotio::RefundResponse = res
+        let response: checkbook::RefundResponse = res
             .response
-            .parse_struct("chequebookdotio RefundSyncResponse")
+            .parse_struct("checkbook RefundSyncResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
@@ -553,7 +545,7 @@ impl ConnectorIntegration<RSync, RefundsData, RefundsResponseData> for Chequeboo
 }
 
 #[async_trait::async_trait]
-impl webhooks::IncomingWebhook for Chequebookdotio {
+impl webhooks::IncomingWebhook for Checkbook {
     fn get_webhook_object_reference_id(
         &self,
         _request: &webhooks::IncomingWebhookRequestDetails<'_>,
@@ -576,4 +568,4 @@ impl webhooks::IncomingWebhook for Chequebookdotio {
     }
 }
 
-impl ConnectorSpecifications for Chequebookdotio {}
+impl ConnectorSpecifications for Checkbook {}
