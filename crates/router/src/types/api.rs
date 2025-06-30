@@ -441,6 +441,9 @@ impl ConnectorData {
                 enums::Connector::DummyBillingConnector => Ok(ConnectorEnum::Old(Box::new(
                     &connector::DummyConnector::<8>,
                 ))),
+                // enums::Connector::Dwolla => {
+                //     Ok(ConnectorEnum::Old(Box::new(connector::Dwolla::new())))
+                // }
                 enums::Connector::Ebanx => {
                     Ok(ConnectorEnum::Old(Box::new(connector::Ebanx::new())))
                 }

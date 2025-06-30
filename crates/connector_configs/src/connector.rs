@@ -207,6 +207,7 @@ pub struct ConnectorConfig {
     pub deutschebank: Option<ConnectorTomlConfig>,
     pub digitalvirgo: Option<ConnectorTomlConfig>,
     pub dlocal: Option<ConnectorTomlConfig>,
+    pub dwolla: Option<ConnectorTomlConfig>,
     pub ebanx_payout: Option<ConnectorTomlConfig>,
     pub elavon: Option<ConnectorTomlConfig>,
     pub facilitapay: Option<ConnectorTomlConfig>,
