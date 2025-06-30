@@ -353,7 +353,6 @@ impl ConnectorConfig {
         let connector_data = Self::new()?;
         match connector {
             Connector::Aci => Ok(connector_data.aci),
-            // PRAGMA: connector
             Connector::Payload => Ok(connector_data.payload),
             Connector::Adyen => Ok(connector_data.adyen),
             Connector::Adyenplatform => Err("Use get_payout_connector_config".to_string()),

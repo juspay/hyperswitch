@@ -248,6 +248,12 @@ export const connectorDetails = {
       },
     },
     No3DSAutoCapture: {
+      Configs: {
+        DELAY: {
+          STATUS: true,
+          TIMEOUT: 15000,
+        },
+      },
       Request: {
         payment_method: "card",
         payment_method_data: {

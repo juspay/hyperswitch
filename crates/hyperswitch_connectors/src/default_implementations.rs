@@ -118,7 +118,6 @@ macro_rules! default_imp_for_authorize_session_token {
 }
 
 default_imp_for_authorize_session_token!(
-    connectors::Payload,
     connectors::Vgs,
     connectors::Aci,
     connectors::Adyen,
@@ -179,6 +178,7 @@ default_imp_for_authorize_session_token!(
     connectors::Opennode,
     connectors::Paybox,
     connectors::Payeezy,
+    connectors::Payload,
     connectors::Payme,
     connectors::Payone,
     connectors::Paypal,
@@ -237,7 +237,6 @@ macro_rules! default_imp_for_calculate_tax {
 }
 
 default_imp_for_calculate_tax!(
-    connectors::Payload,
     connectors::Vgs,
     connectors::Aci,
     connectors::Adyen,
@@ -303,6 +302,7 @@ default_imp_for_calculate_tax!(
     connectors::Novalnet,
     connectors::Nuvei,
     connectors::Payeezy,
+    connectors::Payload,
     connectors::Payme,
     connectors::Payone,
     connectors::Paypal,
@@ -357,7 +357,6 @@ macro_rules! default_imp_for_session_update {
 }
 
 default_imp_for_session_update!(
-    connectors::Payload,
     connectors::Vgs,
     connectors::Aci,
     connectors::Adyen,
@@ -428,6 +427,7 @@ default_imp_for_session_update!(
     connectors::Nuvei,
     connectors::Paybox,
     connectors::Payeezy,
+    connectors::Payload,
     connectors::Payme,
     connectors::Payone,
     connectors::Paystack,
@@ -477,7 +477,6 @@ macro_rules! default_imp_for_post_session_tokens {
 }
 
 default_imp_for_post_session_tokens!(
-    connectors::Payload,
     connectors::Vgs,
     connectors::Aci,
     connectors::Adyen,
@@ -548,6 +547,7 @@ default_imp_for_post_session_tokens!(
     connectors::Nuvei,
     connectors::Paybox,
     connectors::Payeezy,
+    connectors::Payload,
     connectors::Payme,
     connectors::Payone,
     connectors::Paystack,
@@ -597,7 +597,6 @@ macro_rules! default_imp_for_update_metadata {
 }
 
 default_imp_for_update_metadata!(
-    connectors::Payload,
     connectors::Aci,
     connectors::Adyen,
     connectors::Adyenplatform,
@@ -666,6 +665,7 @@ default_imp_for_update_metadata!(
     connectors::Nmi,
     connectors::Paybox,
     connectors::Payeezy,
+    connectors::Payload,
     connectors::Payme,
     connectors::Paystack,
     connectors::Payu,
@@ -719,7 +719,6 @@ macro_rules! default_imp_for_complete_authorize {
 }
 
 default_imp_for_complete_authorize!(
-    connectors::Payload,
     connectors::Vgs,
     connectors::Aci,
     connectors::Adyen,
@@ -771,6 +770,7 @@ default_imp_for_complete_authorize!(
     connectors::Opayo,
     connectors::Opennode,
     connectors::Payeezy,
+    connectors::Payload,
     connectors::Payone,
     connectors::Paystack,
     connectors::Payu,
@@ -820,7 +820,6 @@ macro_rules! default_imp_for_incremental_authorization {
 }
 
 default_imp_for_incremental_authorization!(
-    connectors::Payload,
     connectors::Vgs,
     connectors::Aci,
     connectors::Adyen,
@@ -880,6 +879,7 @@ default_imp_for_incremental_authorization!(
     connectors::Nuvei,
     connectors::Paybox,
     connectors::Payeezy,
+    connectors::Payload,
     connectors::Payme,
     connectors::Payone,
     connectors::Paypal,
@@ -939,7 +939,6 @@ macro_rules! default_imp_for_create_customer {
 }
 
 default_imp_for_create_customer!(
-    connectors::Payload,
     connectors::Vgs,
     connectors::Aci,
     connectors::Adyen,
@@ -1003,6 +1002,7 @@ default_imp_for_create_customer!(
     connectors::Nuvei,
     connectors::Paybox,
     connectors::Payeezy,
+    connectors::Payload,
     connectors::Payme,
     connectors::Payone,
     connectors::Paypal,
@@ -1059,7 +1059,6 @@ macro_rules! default_imp_for_connector_redirect_response {
 }
 
 default_imp_for_connector_redirect_response!(
-    connectors::Payload,
     connectors::Vgs,
     connectors::Aci,
     connectors::Adyen,
@@ -1110,6 +1109,7 @@ default_imp_for_connector_redirect_response!(
     connectors::Opayo,
     connectors::Opennode,
     connectors::Payeezy,
+    connectors::Payload,
     connectors::Paystack,
     connectors::Payone,
     connectors::Payu,
@@ -1159,7 +1159,6 @@ macro_rules! default_imp_for_pre_processing_steps{
 }
 
 default_imp_for_pre_processing_steps!(
-    connectors::Payload,
     connectors::Vgs,
     connectors::Aci,
     connectors::Adyenplatform,
@@ -1214,6 +1213,7 @@ default_imp_for_pre_processing_steps!(
     connectors::Opennode,
     connectors::Paybox,
     connectors::Payeezy,
+    connectors::Payload,
     connectors::Paystack,
     connectors::Payone,
     connectors::Payu,
@@ -1268,7 +1268,6 @@ macro_rules! default_imp_for_post_processing_steps{
 }
 
 default_imp_for_post_processing_steps!(
-    connectors::Payload,
     connectors::Vgs,
     connectors::Aci,
     connectors::Adyen,
@@ -1330,6 +1329,7 @@ default_imp_for_post_processing_steps!(
     connectors::Nuvei,
     connectors::Paybox,
     connectors::Payeezy,
+    connectors::Payload,
     connectors::Payme,
     connectors::Payone,
     connectors::Paypal,
@@ -1389,7 +1389,6 @@ macro_rules! default_imp_for_approve {
 }
 
 default_imp_for_approve!(
-    connectors::Payload,
     connectors::Vgs,
     connectors::Aci,
     connectors::Adyen,
@@ -1451,6 +1450,7 @@ default_imp_for_approve!(
     connectors::Nuvei,
     connectors::Paybox,
     connectors::Payeezy,
+    connectors::Payload,
     connectors::Payme,
     connectors::Paypal,
     connectors::Paystack,
@@ -1511,7 +1511,6 @@ macro_rules! default_imp_for_reject {
 }
 
 default_imp_for_reject!(
-    connectors::Payload,
     connectors::Vgs,
     connectors::Aci,
     connectors::Adyen,
@@ -1573,6 +1572,7 @@ default_imp_for_reject!(
     connectors::Nuvei,
     connectors::Paybox,
     connectors::Payeezy,
+    connectors::Payload,
     connectors::Payone,
     connectors::Payme,
     connectors::Paypal,
@@ -1633,7 +1633,6 @@ macro_rules! default_imp_for_webhook_source_verification {
 }
 
 default_imp_for_webhook_source_verification!(
-    connectors::Payload,
     connectors::Vgs,
     connectors::Aci,
     connectors::Adyen,
@@ -1696,6 +1695,7 @@ default_imp_for_webhook_source_verification!(
     connectors::Payone,
     connectors::Paybox,
     connectors::Payeezy,
+    connectors::Payload,
     connectors::Payme,
     connectors::Paystack,
     connectors::Payu,
@@ -1755,7 +1755,6 @@ macro_rules! default_imp_for_accept_dispute {
 }
 
 default_imp_for_accept_dispute!(
-    connectors::Payload,
     connectors::Vgs,
     connectors::Aci,
     connectors::Adyenplatform,
@@ -1815,6 +1814,7 @@ default_imp_for_accept_dispute!(
     connectors::Nuvei,
     connectors::Paybox,
     connectors::Payeezy,
+    connectors::Payload,
     connectors::Payme,
     connectors::Payone,
     connectors::Paypal,
@@ -1875,7 +1875,6 @@ macro_rules! default_imp_for_submit_evidence {
 }
 
 default_imp_for_submit_evidence!(
-    connectors::Payload,
     connectors::Vgs,
     connectors::Aci,
     connectors::Adyenplatform,
@@ -1935,6 +1934,7 @@ default_imp_for_submit_evidence!(
     connectors::Nuvei,
     connectors::Paybox,
     connectors::Payeezy,
+    connectors::Payload,
     connectors::Payme,
     connectors::Paypal,
     connectors::Payone,
@@ -1994,7 +1994,6 @@ macro_rules! default_imp_for_defend_dispute {
 }
 
 default_imp_for_defend_dispute!(
-    connectors::Payload,
     connectors::Vgs,
     connectors::Aci,
     connectors::Adyenplatform,
@@ -2054,6 +2053,7 @@ default_imp_for_defend_dispute!(
     connectors::Nuvei,
     connectors::Paybox,
     connectors::Payeezy,
+    connectors::Payload,
     connectors::Payme,
     connectors::Payone,
     connectors::Paypal,
@@ -2123,7 +2123,6 @@ macro_rules! default_imp_for_file_upload {
 }
 
 default_imp_for_file_upload!(
-    connectors::Payload,
     connectors::Vgs,
     connectors::Aci,
     connectors::Adyenplatform,
@@ -2183,6 +2182,7 @@ default_imp_for_file_upload!(
     connectors::Nuvei,
     connectors::Paybox,
     connectors::Payeezy,
+    connectors::Payload,
     connectors::Payme,
     connectors::Payone,
     connectors::Paypal,
@@ -2235,7 +2235,6 @@ macro_rules! default_imp_for_payouts {
 }
 
 default_imp_for_payouts!(
-    connectors::Payload,
     connectors::Vgs,
     connectors::Aci,
     connectors::Airwallex,
@@ -2296,6 +2295,7 @@ default_imp_for_payouts!(
     connectors::Novalnet,
     connectors::Nuvei,
     connectors::Payeezy,
+    connectors::Payload,
     connectors::Payme,
     connectors::Paystack,
     connectors::Payu,
@@ -2349,7 +2349,6 @@ macro_rules! default_imp_for_payouts_create {
 
 #[cfg(feature = "payouts")]
 default_imp_for_payouts_create!(
-    connectors::Payload,
     connectors::Vgs,
     connectors::Aci,
     connectors::Adyenplatform,
@@ -2408,6 +2407,7 @@ default_imp_for_payouts_create!(
     connectors::Nuvei,
     connectors::Paybox,
     connectors::Payeezy,
+    connectors::Payload,
     connectors::Payme,
     connectors::Payone,
     connectors::Paystack,
@@ -2467,7 +2467,6 @@ macro_rules! default_imp_for_payouts_retrieve {
 
 #[cfg(feature = "payouts")]
 default_imp_for_payouts_retrieve!(
-    connectors::Payload,
     connectors::Vgs,
     connectors::Aci,
     connectors::Adyen,
@@ -2528,6 +2527,7 @@ default_imp_for_payouts_retrieve!(
     connectors::Nuvei,
     connectors::Paybox,
     connectors::Payeezy,
+    connectors::Payload,
     connectors::Payme,
     connectors::Paystack,
     connectors::Payu,
@@ -2589,7 +2589,6 @@ macro_rules! default_imp_for_payouts_eligibility {
 
 #[cfg(feature = "payouts")]
 default_imp_for_payouts_eligibility!(
-    connectors::Payload,
     connectors::Vgs,
     connectors::Aci,
     connectors::Adyenplatform,
@@ -2648,6 +2647,7 @@ default_imp_for_payouts_eligibility!(
     connectors::Nuvei,
     connectors::Paybox,
     connectors::Payeezy,
+    connectors::Payload,
     connectors::Payme,
     connectors::Paypal,
     connectors::Paystack,
@@ -2709,7 +2709,6 @@ macro_rules! default_imp_for_payouts_fulfill {
 
 #[cfg(feature = "payouts")]
 default_imp_for_payouts_fulfill!(
-    connectors::Payload,
     connectors::Vgs,
     connectors::Aci,
     connectors::Airwallex,
@@ -2766,6 +2765,7 @@ default_imp_for_payouts_fulfill!(
     connectors::Nuvei,
     connectors::Paybox,
     connectors::Payeezy,
+    connectors::Payload,
     connectors::Payme,
     connectors::Paystack,
     connectors::Payu,
@@ -2824,7 +2824,6 @@ macro_rules! default_imp_for_payouts_cancel {
 
 #[cfg(feature = "payouts")]
 default_imp_for_payouts_cancel!(
-    connectors::Payload,
     connectors::Vgs,
     connectors::Aci,
     connectors::Adyenplatform,
@@ -2883,6 +2882,7 @@ default_imp_for_payouts_cancel!(
     connectors::Nuvei,
     connectors::Paybox,
     connectors::Payeezy,
+    connectors::Payload,
     connectors::Payme,
     connectors::Paypal,
     connectors::Paystack,
@@ -2943,7 +2943,6 @@ macro_rules! default_imp_for_payouts_quote {
 
 #[cfg(feature = "payouts")]
 default_imp_for_payouts_quote!(
-    connectors::Payload,
     connectors::Vgs,
     connectors::Aci,
     connectors::Adyen,
@@ -3003,6 +3002,7 @@ default_imp_for_payouts_quote!(
     connectors::Nuvei,
     connectors::Paybox,
     connectors::Payeezy,
+    connectors::Payload,
     connectors::Payone,
     connectors::Payme,
     connectors::Paypal,
@@ -3064,7 +3064,6 @@ macro_rules! default_imp_for_payouts_recipient {
 
 #[cfg(feature = "payouts")]
 default_imp_for_payouts_recipient!(
-    connectors::Payload,
     connectors::Vgs,
     connectors::Aci,
     connectors::Adyen,
@@ -3124,6 +3123,7 @@ default_imp_for_payouts_recipient!(
     connectors::Nuvei,
     connectors::Paybox,
     connectors::Payeezy,
+    connectors::Payload,
     connectors::Payme,
     connectors::Payone,
     connectors::Paypal,
@@ -3184,7 +3184,6 @@ macro_rules! default_imp_for_payouts_recipient_account {
 
 #[cfg(feature = "payouts")]
 default_imp_for_payouts_recipient_account!(
-    connectors::Payload,
     connectors::Vgs,
     connectors::Aci,
     connectors::Adyen,
@@ -3245,6 +3244,7 @@ default_imp_for_payouts_recipient_account!(
     connectors::Nuvei,
     connectors::Paybox,
     connectors::Payeezy,
+    connectors::Payload,
     connectors::Payme,
     connectors::Payone,
     connectors::Paypal,
@@ -3306,7 +3306,6 @@ macro_rules! default_imp_for_frm_sale {
 
 #[cfg(feature = "frm")]
 default_imp_for_frm_sale!(
-    connectors::Payload,
     connectors::Vgs,
     connectors::Aci,
     connectors::Adyen,
@@ -3368,6 +3367,7 @@ default_imp_for_frm_sale!(
     connectors::Nuvei,
     connectors::Paybox,
     connectors::Payeezy,
+    connectors::Payload,
     connectors::Payme,
     connectors::Payone,
     connectors::Paypal,
@@ -3428,7 +3428,6 @@ macro_rules! default_imp_for_frm_checkout {
 
 #[cfg(feature = "frm")]
 default_imp_for_frm_checkout!(
-    connectors::Payload,
     connectors::Vgs,
     connectors::Aci,
     connectors::Adyen,
@@ -3490,6 +3489,7 @@ default_imp_for_frm_checkout!(
     connectors::Nuvei,
     connectors::Paybox,
     connectors::Payeezy,
+    connectors::Payload,
     connectors::Payme,
     connectors::Payone,
     connectors::Paypal,
@@ -3550,7 +3550,6 @@ macro_rules! default_imp_for_frm_transaction {
 
 #[cfg(feature = "frm")]
 default_imp_for_frm_transaction!(
-    connectors::Payload,
     connectors::Vgs,
     connectors::Aci,
     connectors::Adyen,
@@ -3612,6 +3611,7 @@ default_imp_for_frm_transaction!(
     connectors::Nuvei,
     connectors::Paybox,
     connectors::Payeezy,
+    connectors::Payload,
     connectors::Payme,
     connectors::Payone,
     connectors::Paypal,
@@ -3672,7 +3672,6 @@ macro_rules! default_imp_for_frm_fulfillment {
 
 #[cfg(feature = "frm")]
 default_imp_for_frm_fulfillment!(
-    connectors::Payload,
     connectors::Vgs,
     connectors::Aci,
     connectors::Adyen,
@@ -3735,6 +3734,7 @@ default_imp_for_frm_fulfillment!(
     connectors::Payone,
     connectors::Paybox,
     connectors::Payeezy,
+    connectors::Payload,
     connectors::Payme,
     connectors::Paypal,
     connectors::Paystack,
@@ -3794,7 +3794,6 @@ macro_rules! default_imp_for_frm_record_return {
 
 #[cfg(feature = "frm")]
 default_imp_for_frm_record_return!(
-    connectors::Payload,
     connectors::Vgs,
     connectors::Aci,
     connectors::Adyen,
@@ -3856,6 +3855,7 @@ default_imp_for_frm_record_return!(
     connectors::Nuvei,
     connectors::Paybox,
     connectors::Payeezy,
+    connectors::Payload,
     connectors::Payme,
     connectors::Payone,
     connectors::Paypal,
@@ -3913,7 +3913,6 @@ macro_rules! default_imp_for_revoking_mandates {
 }
 
 default_imp_for_revoking_mandates!(
-    connectors::Payload,
     connectors::Vgs,
     connectors::Aci,
     connectors::Adyen,
@@ -3972,6 +3971,7 @@ default_imp_for_revoking_mandates!(
     connectors::Nuvei,
     connectors::Paybox,
     connectors::Payeezy,
+    connectors::Payload,
     connectors::Payme,
     connectors::Payone,
     connectors::Paypal,
@@ -4030,7 +4030,6 @@ macro_rules! default_imp_for_uas_pre_authentication {
 }
 
 default_imp_for_uas_pre_authentication!(
-    connectors::Payload,
     connectors::Vgs,
     connectors::Aci,
     connectors::Adyen,
@@ -4091,6 +4090,7 @@ default_imp_for_uas_pre_authentication!(
     connectors::Opennode,
     connectors::Nuvei,
     connectors::Payeezy,
+    connectors::Payload,
     connectors::Payme,
     connectors::Payone,
     connectors::Paypal,
@@ -4149,7 +4149,6 @@ macro_rules! default_imp_for_uas_post_authentication {
 }
 
 default_imp_for_uas_post_authentication!(
-    connectors::Payload,
     connectors::Vgs,
     connectors::Aci,
     connectors::Adyen,
@@ -4210,6 +4209,7 @@ default_imp_for_uas_post_authentication!(
     connectors::Opennode,
     connectors::Nuvei,
     connectors::Payeezy,
+    connectors::Payload,
     connectors::Payme,
     connectors::Payone,
     connectors::Paypal,
@@ -4269,7 +4269,6 @@ macro_rules! default_imp_for_uas_authentication_confirmation {
 }
 
 default_imp_for_uas_authentication_confirmation!(
-    connectors::Payload,
     connectors::Vgs,
     connectors::Aci,
     connectors::Adyen,
@@ -4330,6 +4329,7 @@ default_imp_for_uas_authentication_confirmation!(
     connectors::Opennode,
     connectors::Nuvei,
     connectors::Payeezy,
+    connectors::Payload,
     connectors::Payme,
     connectors::Payone,
     connectors::Paystack,
@@ -4381,7 +4381,6 @@ macro_rules! default_imp_for_connector_request_id {
     };
 }
 default_imp_for_connector_request_id!(
-    connectors::Payload,
     connectors::Vgs,
     connectors::Aci,
     connectors::Adyen,
@@ -4441,6 +4440,7 @@ default_imp_for_connector_request_id!(
     connectors::Opayo,
     connectors::Opennode,
     connectors::Payeezy,
+    connectors::Payload,
     connectors::Paystack,
     connectors::Payu,
     connectors::Payme,
@@ -4495,7 +4495,6 @@ macro_rules! default_imp_for_fraud_check {
 }
 #[cfg(feature = "frm")]
 default_imp_for_fraud_check!(
-    connectors::Payload,
     connectors::Vgs,
     connectors::Aci,
     connectors::Adyen,
@@ -4556,6 +4555,7 @@ default_imp_for_fraud_check!(
     connectors::Nuvei,
     connectors::Opayo,
     connectors::Payeezy,
+    connectors::Payload,
     connectors::Paystack,
     connectors::Paypal,
     connectors::Payu,
@@ -4639,7 +4639,6 @@ macro_rules! default_imp_for_connector_authentication {
 }
 
 default_imp_for_connector_authentication!(
-    connectors::Payload,
     connectors::Vgs,
     connectors::Aci,
     connectors::Adyen,
@@ -4699,6 +4698,7 @@ default_imp_for_connector_authentication!(
     connectors::Opayo,
     connectors::Opennode,
     connectors::Payeezy,
+    connectors::Payload,
     connectors::Paystack,
     connectors::Payu,
     connectors::Payone,
@@ -4756,7 +4756,6 @@ macro_rules! default_imp_for_uas_authentication {
     };
 }
 default_imp_for_uas_authentication!(
-    connectors::Payload,
     connectors::Vgs,
     connectors::Aci,
     connectors::Adyen,
@@ -4814,6 +4813,7 @@ default_imp_for_uas_authentication!(
     connectors::Nexixpay,
     connectors::Nuvei,
     connectors::Payeezy,
+    connectors::Payload,
     connectors::Paypal,
     connectors::Paystack,
     connectors::Payu,
@@ -4868,7 +4868,6 @@ macro_rules! default_imp_for_revenue_recovery {
 }
 
 default_imp_for_revenue_recovery! {
-    connectors::Payload,
     connectors::Vgs,
     connectors::Aci,
     connectors::Adyen,
@@ -4930,6 +4929,7 @@ default_imp_for_revenue_recovery! {
     connectors::Opayo,
     connectors::Opennode,
     connectors::Payeezy,
+    connectors::Payload,
     connectors::Paystack,
     connectors::Payu,
     connectors::Paypal,
@@ -4991,7 +4991,6 @@ macro_rules! default_imp_for_billing_connector_payment_sync {
 
 #[cfg(all(feature = "v2", feature = "revenue_recovery"))]
 default_imp_for_billing_connector_payment_sync!(
-    connectors::Payload,
     connectors::Vgs,
     connectors::Aci,
     connectors::Adyen,
@@ -5053,6 +5052,7 @@ default_imp_for_billing_connector_payment_sync!(
     connectors::Opayo,
     connectors::Opennode,
     connectors::Payeezy,
+    connectors::Payload,
     connectors::Paystack,
     connectors::Payu,
     connectors::Paypal,
@@ -5113,7 +5113,6 @@ macro_rules! default_imp_for_revenue_recovery_record_back {
 
 #[cfg(all(feature = "v2", feature = "revenue_recovery"))]
 default_imp_for_revenue_recovery_record_back!(
-    connectors::Payload,
     connectors::Vgs,
     connectors::Aci,
     connectors::Adyen,
@@ -5174,6 +5173,7 @@ default_imp_for_revenue_recovery_record_back!(
     connectors::Opayo,
     connectors::Opennode,
     connectors::Payeezy,
+    connectors::Payload,
     connectors::Paystack,
     connectors::Payu,
     connectors::Paypal,
@@ -5234,7 +5234,6 @@ macro_rules! default_imp_for_billing_connector_invoice_sync {
 
 #[cfg(all(feature = "v2", feature = "revenue_recovery"))]
 default_imp_for_billing_connector_invoice_sync!(
-    connectors::Payload,
     connectors::Aci,
     connectors::Adyen,
     connectors::Adyenplatform,
@@ -5295,6 +5294,7 @@ default_imp_for_billing_connector_invoice_sync!(
     connectors::Opayo,
     connectors::Opennode,
     connectors::Payeezy,
+    connectors::Payload,
     connectors::Paystack,
     connectors::Payu,
     connectors::Paypal,
@@ -5349,7 +5349,6 @@ macro_rules! default_imp_for_external_vault {
 }
 
 default_imp_for_external_vault!(
-    connectors::Payload,
     connectors::Aci,
     connectors::Adyen,
     connectors::Adyenplatform,
@@ -5410,6 +5409,7 @@ default_imp_for_external_vault!(
     connectors::Opayo,
     connectors::Opennode,
     connectors::Payeezy,
+    connectors::Payload,
     connectors::Paystack,
     connectors::Payu,
     connectors::Paypal,
@@ -5470,7 +5470,6 @@ macro_rules! default_imp_for_external_vault_insert {
 }
 
 default_imp_for_external_vault_insert!(
-    connectors::Payload,
     connectors::Aci,
     connectors::Adyen,
     connectors::Adyenplatform,
@@ -5542,6 +5541,7 @@ default_imp_for_external_vault_insert!(
     connectors::Moneris,
     connectors::Multisafepay,
     connectors::Paybox,
+    connectors::Payload,
     connectors::Payme,
     connectors::Payone,
     connectors::Placetopay,
@@ -5591,7 +5591,6 @@ macro_rules! default_imp_for_external_vault_retrieve {
 }
 
 default_imp_for_external_vault_retrieve!(
-    connectors::Payload,
     connectors::Aci,
     connectors::Adyen,
     connectors::Adyenplatform,
@@ -5652,6 +5651,7 @@ default_imp_for_external_vault_retrieve!(
     connectors::Opayo,
     connectors::Opennode,
     connectors::Payeezy,
+    connectors::Payload,
     connectors::Paystack,
     connectors::Payu,
     connectors::Paypal,
@@ -5712,7 +5712,6 @@ macro_rules! default_imp_for_external_vault_delete {
 }
 
 default_imp_for_external_vault_delete!(
-    connectors::Payload,
     connectors::Aci,
     connectors::Adyen,
     connectors::Adyenplatform,
@@ -5773,6 +5772,7 @@ default_imp_for_external_vault_delete!(
     connectors::Opayo,
     connectors::Opennode,
     connectors::Payeezy,
+    connectors::Payload,
     connectors::Paystack,
     connectors::Payu,
     connectors::Paypal,

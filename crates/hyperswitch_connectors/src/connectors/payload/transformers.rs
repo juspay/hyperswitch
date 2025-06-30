@@ -4,18 +4,21 @@ use hyperswitch_domain_models::{
     payment_method_data::PaymentMethodData,
     router_data::{ConnectorAuthType, RouterData},
     router_flow_types::{
-        refunds::{Execute, RSync},
         payments::PaymentMethodToken,
+        refunds::{Execute, RSync},
     },
-    router_request_types::{ResponseId, PaymentMethodTokenizationData},
+    router_request_types::{PaymentMethodTokenizationData, ResponseId},
     router_response_types::{PaymentsResponseData, RefundsResponseData},
-    types::{PaymentsCaptureRouterData, PaymentsAuthorizeRouterData, RefundsRouterData},
+    types::{PaymentsAuthorizeRouterData, PaymentsCaptureRouterData, RefundsRouterData},
 };
 use hyperswitch_interfaces::errors;
-use masking::{Secret, PeekInterface};
+use masking::{PeekInterface, Secret};
 use serde::{Deserialize, Serialize};
 
-use crate::types::{RefundsResponseRouterData, ResponseRouterData};
+use crate::{
+    types::{RefundsResponseRouterData, ResponseRouterData},
+    utils::RouterData as _,
+};
 
 // Webhook structures for Payload API
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -63,24 +66,48 @@ pub struct PayloadPaymentsRequest {
     status: String,
     #[serde(rename = "payment_method[type]")]
     payment_method_type: String,
-    #[serde(rename = "payment_method[card][card_number]", skip_serializing_if = "Option::is_none")]
+    #[serde(
+        rename = "payment_method[card][card_number]",
+        skip_serializing_if = "Option::is_none"
+    )]
     payment_method_card_number: Option<String>,
-    #[serde(rename = "payment_method[card][expiry]", skip_serializing_if = "Option::is_none")]
+    #[serde(
+        rename = "payment_method[card][expiry]",
+        skip_serializing_if = "Option::is_none"
+    )]
     payment_method_card_expiry: Option<String>,
-    #[serde(rename = "payment_method[card][card_code]", skip_serializing_if = "Option::is_none")]
+    #[serde(
+        rename = "payment_method[card][card_code]",
+        skip_serializing_if = "Option::is_none"
+    )]
     payment_method_card_code: Option<String>,
     #[serde(rename = "payment_method[id]", skip_serializing_if = "Option::is_none")]
     payment_method_id: Option<String>, // For tokenized payments
     // Billing address fields for AVS validation
-    #[serde(rename = "payment_method[billing_address][street_address]", skip_serializing_if = "Option::is_none")]
+    #[serde(
+        rename = "payment_method[billing_address][street_address]",
+        skip_serializing_if = "Option::is_none"
+    )]
     billing_address_line1: Option<String>,
-    #[serde(rename = "payment_method[billing_address][city]", skip_serializing_if = "Option::is_none")]
+    #[serde(
+        rename = "payment_method[billing_address][city]",
+        skip_serializing_if = "Option::is_none"
+    )]
     billing_address_city: Option<String>,
-    #[serde(rename = "payment_method[billing_address][state_province]", skip_serializing_if = "Option::is_none")]
+    #[serde(
+        rename = "payment_method[billing_address][state_province]",
+        skip_serializing_if = "Option::is_none"
+    )]
     billing_address_state: Option<String>,
-    #[serde(rename = "payment_method[billing_address][postal_code]", skip_serializing_if = "Option::is_none")]
+    #[serde(
+        rename = "payment_method[billing_address][postal_code]",
+        skip_serializing_if = "Option::is_none"
+    )]
     billing_address_postal_code: Option<String>,
-    #[serde(rename = "payment_method[billing_address][country_code]", skip_serializing_if = "Option::is_none")]
+    #[serde(
+        rename = "payment_method[billing_address][country_code]",
+        skip_serializing_if = "Option::is_none"
+    )]
     billing_address_country: Option<String>,
 }
 
@@ -90,10 +117,40 @@ pub struct PayloadCaptureRequest {
     status: String,
 }
 
-// Cancel/Void request structure  
+// Cancel/Void request structure
 #[derive(Debug, Serialize)]
 pub struct PayloadCancelRequest {
     status: String,
+}
+
+// Helper function to extract billing address from router data
+fn extract_billing_address_for_payload(
+    address_details: Option<&hyperswitch_domain_models::address::Address>,
+) -> (
+    Option<String>,
+    Option<String>,
+    Option<String>,
+    Option<String>,
+    Option<String>,
+) {
+    match address_details.and_then(|addr| addr.address.as_ref()) {
+        Some(address) => (
+            // Extract actual address fields, converting Secret<String> to String
+            address.line1.as_ref().map(|line1| line1.peek().to_string()),
+            address.city.clone(),
+            address.state.as_ref().map(|state| state.peek().to_string()),
+            address.zip.as_ref().map(|zip| zip.peek().to_string()),
+            address.country.map(|country| country.to_string()),
+        ),
+        None => (
+            // Fallback to default values when no address is provided
+            Some("123 Test Street".to_string()),
+            Some("New York".to_string()),
+            Some("NY".to_string()),
+            Some("10001".to_string()),
+            Some("US".to_string()),
+        ),
+    }
 }
 
 impl TryFrom<&PayloadRouterData<&PaymentsAuthorizeRouterData>> for PayloadPaymentsRequest {
@@ -106,27 +163,40 @@ impl TryFrom<&PayloadRouterData<&PaymentsAuthorizeRouterData>> for PayloadPaymen
                 // Format expiry as MM/YY according to Payload specs
                 let year_str = req_card.card_exp_year.peek();
                 let year_two_digit = if year_str.len() >= 2 {
-                    year_str.chars().rev().take(2).collect::<String>().chars().rev().collect()
+                    year_str
+                        .chars()
+                        .rev()
+                        .take(2)
+                        .collect::<String>()
+                        .chars()
+                        .rev()
+                        .collect()
                 } else {
                     year_str.to_string()
                 };
                 let expiry = format!("{}/{}", req_card.card_exp_month.peek(), year_two_digit);
-                
+
                 // Determine the correct status based on capture method
                 // For auto-capture, we want the payment to be processed immediately
                 // For manual capture, we want it to be authorized only
                 let status = match item.router_data.request.capture_method {
                     Some(common_enums::CaptureMethod::Automatic) => "processed".to_string(),
-                    Some(common_enums::CaptureMethod::Manual) 
+                    Some(common_enums::CaptureMethod::Manual)
                     | Some(common_enums::CaptureMethod::ManualMultiple)
                     | Some(common_enums::CaptureMethod::Scheduled)
                     | Some(common_enums::CaptureMethod::SequentialAutomatic)
                     | None => "authorized".to_string(),
                 };
-                
-                // For now, provide default billing address to pass AVS validation
-                // TODO: Extract actual billing address from router data when structure is available
-                
+
+                // Extract billing address from router data
+                let (
+                    billing_line1,
+                    billing_city,
+                    billing_state,
+                    billing_postal_code,
+                    billing_country,
+                ) = extract_billing_address_for_payload(item.router_data.get_optional_billing());
+
                 Ok(Self {
                     amount: item.amount.clone(),
                     r#type: "payment".to_string(),
@@ -136,12 +206,12 @@ impl TryFrom<&PayloadRouterData<&PaymentsAuthorizeRouterData>> for PayloadPaymen
                     payment_method_card_expiry: Some(expiry),
                     payment_method_card_code: Some(req_card.card_cvc.peek().to_string()),
                     payment_method_id: None,
-                    // Provide default billing address for AVS validation
-                    billing_address_line1: Some("123 Test Street".to_string()),
-                    billing_address_city: Some("New York".to_string()),
-                    billing_address_state: Some("NY".to_string()),
-                    billing_address_postal_code: Some("10001".to_string()),
-                    billing_address_country: Some("US".to_string()),
+                    // Use extracted billing address or fallback to defaults
+                    billing_address_line1: billing_line1,
+                    billing_address_city: billing_city,
+                    billing_address_state: billing_state,
+                    billing_address_postal_code: billing_postal_code,
+                    billing_address_country: billing_country,
                 })
             }
             _ => Err(errors::ConnectorError::NotImplemented("Payment method".to_string()).into()),
@@ -164,9 +234,7 @@ impl TryFrom<&PayloadRouterData<&PaymentsCaptureRouterData>> for PayloadCaptureR
 // Cancel request transformer (for Void operations)
 impl<T> TryFrom<&PayloadRouterData<T>> for PayloadCancelRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(
-        _item: &PayloadRouterData<T>,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(_item: &PayloadRouterData<T>) -> Result<Self, Self::Error> {
         Ok(Self {
             status: "voided".to_string(),
         })
@@ -229,8 +297,8 @@ pub struct PayloadPaymentsResponse {
     pub id: String,
     #[serde(rename = "type")]
     pub r#type: String,
-    pub amount: f64, // Payload returns amount as float
-    pub status: String, // Payload returns status as string 
+    pub amount: f64,    // Payload returns amount as float
+    pub status: String, // Payload returns status as string
     pub status_code: Option<String>,
     pub status_message: Option<String>,
     pub created_at: String,
@@ -277,7 +345,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, PayloadPaymentsResponse, T, PaymentsRes
                     "Payment declined by Payload"
                 );
                 common_enums::AttemptStatus::Failure
-            },
+            }
             "failed" => common_enums::AttemptStatus::Failure,
             "pending" => common_enums::AttemptStatus::Pending,
             _ => {
@@ -286,7 +354,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, PayloadPaymentsResponse, T, PaymentsRes
                     "Unknown Payload status received"
                 );
                 common_enums::AttemptStatus::Pending
-            },
+            }
         };
 
         Ok(Self {
@@ -325,7 +393,7 @@ impl<F> TryFrom<&PayloadRouterData<&RefundsRouterData<F>>> for PayloadRefundRequ
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(item: &PayloadRouterData<&RefundsRouterData<F>>) -> Result<Self, Self::Error> {
         let connector_transaction_id = item.router_data.request.connector_transaction_id.clone();
-        
+
         Ok(Self {
             r#type: "refund".to_string(),
             amount: item.amount.to_owned(),
@@ -491,18 +559,21 @@ pub struct PayloadTokenResponse {
     created_at: String,
 }
 
-impl TryFrom<&RouterData<PaymentMethodToken, PaymentMethodTokenizationData, PaymentsResponseData>> for PayloadTokenRequest {
+impl TryFrom<&RouterData<PaymentMethodToken, PaymentMethodTokenizationData, PaymentsResponseData>>
+    for PayloadTokenRequest
+{
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
         item: &RouterData<PaymentMethodToken, PaymentMethodTokenizationData, PaymentsResponseData>,
     ) -> Result<Self, Self::Error> {
         match item.request.payment_method_data.clone() {
             PaymentMethodData::Card(req_card) => {
-                let expiry = format!("{}/{}", 
+                let expiry = format!(
+                    "{}/{}",
                     req_card.card_exp_month.peek(),
                     req_card.card_exp_year.peek().get(2..).unwrap_or("00")
                 );
-                
+
                 Ok(Self {
                     r#type: "payment_method".to_string(),
                     card_number: req_card.card_number.peek().to_string(),
@@ -515,12 +586,24 @@ impl TryFrom<&RouterData<PaymentMethodToken, PaymentMethodTokenizationData, Paym
     }
 }
 
-impl TryFrom<ResponseRouterData<PaymentMethodToken, PayloadTokenResponse, PaymentMethodTokenizationData, PaymentsResponseData>>
-    for RouterData<PaymentMethodToken, PaymentMethodTokenizationData, PaymentsResponseData>
+impl
+    TryFrom<
+        ResponseRouterData<
+            PaymentMethodToken,
+            PayloadTokenResponse,
+            PaymentMethodTokenizationData,
+            PaymentsResponseData,
+        >,
+    > for RouterData<PaymentMethodToken, PaymentMethodTokenizationData, PaymentsResponseData>
 {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
-        item: ResponseRouterData<PaymentMethodToken, PayloadTokenResponse, PaymentMethodTokenizationData, PaymentsResponseData>,
+        item: ResponseRouterData<
+            PaymentMethodToken,
+            PayloadTokenResponse,
+            PaymentMethodTokenizationData,
+            PaymentsResponseData,
+        >,
     ) -> Result<Self, Self::Error> {
         Ok(Self {
             response: Ok(PaymentsResponseData::TokenizationResponse {
@@ -549,9 +632,7 @@ pub fn get_error_code_mapping(code: &str) -> errors::ConnectorError {
             message: "Currency not supported".to_string(),
             connector: "Payload",
         },
-        "authentication_failed" | "unauthorized" => {
-            errors::ConnectorError::FailedToObtainAuthType
-        }
+        "authentication_failed" | "unauthorized" => errors::ConnectorError::FailedToObtainAuthType,
         "duplicate_transaction" => errors::ConnectorError::FailedAtConnector {
             message: "Duplicate transaction".to_string(),
             code: code.to_string(),

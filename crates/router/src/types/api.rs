@@ -327,7 +327,6 @@ impl ConnectorData {
         match enums::Connector::from_str(connector_name) {
             Ok(name) => match name {
                 enums::Connector::Aci => Ok(ConnectorEnum::Old(Box::new(connector::Aci::new()))),
-                // PRAGMA: api
                 enums::Connector::Payload => {
                     Ok(ConnectorEnum::Old(Box::new(connector::Payload::new())))
                 }

@@ -2,12 +2,13 @@ pub mod transformers;
 
 use std::sync::LazyLock;
 
+use api_models;
 use base64::Engine;
 use common_enums::enums::{self, PaymentMethodType};
 use common_utils::{
     consts::BASE64_ENGINE,
     errors::CustomResult,
-    ext_traits::{BytesExt, ByteSliceExt},
+    ext_traits::{ByteSliceExt, BytesExt},
     request::{Method, Request, RequestBuilder, RequestContent},
     types::{AmountConvertor, StringMinorUnit, StringMinorUnitForConnector},
 };
@@ -25,7 +26,10 @@ use hyperswitch_domain_models::{
         PaymentsCancelData, PaymentsCaptureData, PaymentsSessionData, PaymentsSyncData,
         RefundsData, SetupMandateRequestData,
     },
-    router_response_types::{ConnectorInfo, PaymentMethodDetails, PaymentsResponseData, RefundsResponseData, SupportedPaymentMethods, SupportedPaymentMethodsExt},
+    router_response_types::{
+        ConnectorInfo, PaymentMethodDetails, PaymentsResponseData, RefundsResponseData,
+        SupportedPaymentMethods, SupportedPaymentMethodsExt,
+    },
     types::{
         PaymentsAuthorizeRouterData, PaymentsCaptureRouterData, PaymentsSyncRouterData,
         RefundSyncRouterData, RefundsRouterData,
@@ -42,7 +46,6 @@ use hyperswitch_interfaces::{
     types::{self, Response},
     webhooks,
 };
-use api_models;
 use masking::{ExposeInterface, Mask};
 use transformers as payload;
 
@@ -125,7 +128,6 @@ impl Payload {
             amount_converter: &StringMinorUnitForConnector,
         }
     }
-
 }
 
 impl api::Payment for Payload {}
@@ -196,7 +198,10 @@ impl ConnectorIntegration<PaymentMethodToken, PaymentMethodTokenizationData, Pay
         data: &RouterData<PaymentMethodToken, PaymentMethodTokenizationData, PaymentsResponseData>,
         event_builder: Option<&mut ConnectorEvent>,
         res: Response,
-    ) -> CustomResult<RouterData<PaymentMethodToken, PaymentMethodTokenizationData, PaymentsResponseData>, errors::ConnectorError> {
+    ) -> CustomResult<
+        RouterData<PaymentMethodToken, PaymentMethodTokenizationData, PaymentsResponseData>,
+        errors::ConnectorError,
+    > {
         let response: payload::PayloadTokenResponse = res
             .response
             .parse_struct("Payload TokenResponse")
@@ -234,7 +239,7 @@ where
         )];
         let mut api_key = self.get_auth_header(&req.connector_auth_type)?;
         header.append(&mut api_key);
-        
+
         // Add enhanced idempotency key for payment operations to prevent duplicate transactions
         // Include timestamp to ensure uniqueness for legitimate separate transactions
         let timestamp = std::time::SystemTime::now()
@@ -242,11 +247,8 @@ where
             .unwrap_or_default()
             .as_millis();
         let idempotency_key = format!("{}-{}-{}", req.payment_id, req.attempt_id, timestamp);
-        header.push((
-            "X-Idempotency-Key".to_string(),
-            idempotency_key.into(),
-        ));
-        
+        header.push(("X-Idempotency-Key".to_string(), idempotency_key.into()));
+
         Ok(header)
     }
 }
@@ -317,31 +319,38 @@ impl ConnectorValidation for Payload {
         pmt: Option<PaymentMethodType>,
     ) -> CustomResult<(), errors::ConnectorError> {
         let capture_method = capture_method.unwrap_or_default();
-        
+
         // Use the feature matrix validation for consistent behavior
         let is_feature_supported = match self.get_supported_payment_methods() {
             Some(supported_payment_methods) => {
                 // Get the payment method details from the feature matrix
                 let payment_method_details = supported_payment_methods.get(&payment_method);
-                
+
                 match (payment_method_details, pmt) {
                     (Some(method_details), Some(payment_method_type)) => {
                         // Check if the specific payment method type is supported
-                        method_details.get(&payment_method_type)
-                            .map(|details| details.supported_capture_methods.contains(&capture_method))
+                        method_details
+                            .get(&payment_method_type)
+                            .map(|details| {
+                                details.supported_capture_methods.contains(&capture_method)
+                            })
                             .unwrap_or(false)
-                    },
+                    }
                     (Some(method_details), None) => {
                         // If no specific payment method type, check if any supported type supports this capture method
-                        method_details.values()
-                            .any(|details| details.supported_capture_methods.contains(&capture_method))
-                    },
+                        method_details.values().any(|details| {
+                            details.supported_capture_methods.contains(&capture_method)
+                        })
+                    }
                     _ => false,
                 }
-            },
+            }
             None => {
                 // Fallback to default behavior if no feature matrix is defined
-                matches!(capture_method, enums::CaptureMethod::Automatic | enums::CaptureMethod::SequentialAutomatic)
+                matches!(
+                    capture_method,
+                    enums::CaptureMethod::Automatic | enums::CaptureMethod::SequentialAutomatic
+                )
             }
         };
 
@@ -351,7 +360,8 @@ impl ConnectorValidation for Payload {
             Err(errors::ConnectorError::NotSupported {
                 message: format!("{} is not supported", capture_method),
                 connector: self.id(),
-            }.into())
+            }
+            .into())
         }
     }
 }
@@ -433,12 +443,12 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
             .response
             .parse_struct("Payload PaymentsAuthorizeResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
-        
+
         if let Some(event_builder) = event_builder {
             event_builder.set_response_body(&response);
         }
         router_env::logger::info!(connector_response=?response);
-        
+
         RouterData::try_from(ResponseRouterData {
             response,
             data: data.clone(),
@@ -476,7 +486,9 @@ impl ConnectorIntegration<PSync, PaymentsSyncData, PaymentsResponseData> for Pay
         Ok(format!(
             "{}/transactions/{}",
             self.base_url(connectors),
-            req.request.connector_transaction_id.get_connector_transaction_id()
+            req.request
+                .connector_transaction_id
+                .get_connector_transaction_id()
                 .change_context(errors::ConnectorError::MissingConnectorTransactionID)?
         ))
     }
@@ -653,7 +665,9 @@ impl ConnectorIntegration<Void, PaymentsCancelData, PaymentsResponseData> for Pa
                 .url(&types::PaymentsVoidType::get_url(self, req, connectors)?)
                 .attach_default_headers()
                 .headers(types::PaymentsVoidType::get_headers(self, req, connectors)?)
-                .set_body(types::PaymentsVoidType::get_request_body(self, req, connectors)?)
+                .set_body(types::PaymentsVoidType::get_request_body(
+                    self, req, connectors,
+                )?)
                 .build(),
         ))
     }
@@ -663,7 +677,10 @@ impl ConnectorIntegration<Void, PaymentsCancelData, PaymentsResponseData> for Pa
         data: &RouterData<Void, PaymentsCancelData, PaymentsResponseData>,
         event_builder: Option<&mut ConnectorEvent>,
         res: Response,
-    ) -> CustomResult<RouterData<Void, PaymentsCancelData, PaymentsResponseData>, errors::ConnectorError> {
+    ) -> CustomResult<
+        RouterData<Void, PaymentsCancelData, PaymentsResponseData>,
+        errors::ConnectorError,
+    > {
         let response: payload::PayloadPaymentsResponse = res
             .response
             .parse_struct("Payload PaymentsCancelResponse")
@@ -788,7 +805,10 @@ impl ConnectorIntegration<RSync, RefundsData, RefundsResponseData> for Payload {
         req: &RefundSyncRouterData,
         connectors: &Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        let connector_refund_id = req.request.connector_refund_id.as_ref()
+        let connector_refund_id = req
+            .request
+            .connector_refund_id
+            .as_ref()
             .ok_or_else(|| errors::ConnectorError::MissingConnectorRefundID)?;
         Ok(format!(
             "{}/transactions/{}",
@@ -856,9 +876,7 @@ impl webhooks::IncomingWebhook for Payload {
 
         if let Some(transaction) = &webhook_body.data.transaction {
             Ok(api_models::webhooks::ObjectReferenceId::PaymentId(
-                api_models::payments::PaymentIdType::ConnectorTransactionId(
-                    transaction.id.clone(),
-                ),
+                api_models::payments::PaymentIdType::ConnectorTransactionId(transaction.id.clone()),
             ))
         } else if let Some(refund) = &webhook_body.data.refund {
             Ok(api_models::webhooks::ObjectReferenceId::RefundId(
@@ -879,10 +897,18 @@ impl webhooks::IncomingWebhook for Payload {
             .change_context(errors::ConnectorError::WebhookBodyDecodingFailed)?;
 
         match webhook_body.event.as_str() {
-            "transaction.authorized" => Ok(api_models::webhooks::IncomingWebhookEvent::PaymentIntentAuthorizationSuccess),
-            "transaction.processed" => Ok(api_models::webhooks::IncomingWebhookEvent::PaymentIntentSuccess),
-            "transaction.cancelled" => Ok(api_models::webhooks::IncomingWebhookEvent::PaymentIntentCancelled),
-            "transaction.failed" => Ok(api_models::webhooks::IncomingWebhookEvent::PaymentIntentCancelled),
+            "transaction.authorized" => {
+                Ok(api_models::webhooks::IncomingWebhookEvent::PaymentIntentAuthorizationSuccess)
+            }
+            "transaction.processed" => {
+                Ok(api_models::webhooks::IncomingWebhookEvent::PaymentIntentSuccess)
+            }
+            "transaction.cancelled" => {
+                Ok(api_models::webhooks::IncomingWebhookEvent::PaymentIntentCancelled)
+            }
+            "transaction.failed" => {
+                Ok(api_models::webhooks::IncomingWebhookEvent::PaymentIntentCancelled)
+            }
             "refund.processed" => Ok(api_models::webhooks::IncomingWebhookEvent::RefundSuccess),
             "refund.failed" => Ok(api_models::webhooks::IncomingWebhookEvent::RefundFailure),
             _ => Ok(api_models::webhooks::IncomingWebhookEvent::EventNotSupported),

@@ -210,7 +210,6 @@ impl ForeignTryFrom<api_enums::Connector> for common_enums::RoutableConnectors {
     fn foreign_try_from(from: api_enums::Connector) -> Result<Self, Self::Error> {
         Ok(match from {
             api_enums::Connector::Aci => Self::Aci,
-            // PRAGMA: transformers
             api_enums::Connector::Payload => Self::Payload,
             api_enums::Connector::Adyen => Self::Adyen,
             api_enums::Connector::Adyenplatform => Self::Adyenplatform,
