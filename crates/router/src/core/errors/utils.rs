@@ -546,7 +546,7 @@ impl RedisErrorExt for error_stack::Report<errors::RedisError> {
     fn to_redis_failed_response(self, key: &str) -> error_stack::Report<errors::StorageError> {
         match self.current_context() {
             errors::RedisError::NotFound => self.change_context(
-                errors::StorageError::ValueNotFound(format!("Data does not exist for key {key}",)),
+                errors::StorageError::ValueNotFound(format!("Data does not exist for key {key}")),
             ),
             errors::RedisError::SetNxFailed => {
                 self.change_context(errors::StorageError::DuplicateValue {

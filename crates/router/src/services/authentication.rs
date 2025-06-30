@@ -1912,9 +1912,9 @@ impl<'a> HeaderMapStruct<'a> {
         self.headers
             .get(key)
             .ok_or(errors::ApiErrorResponse::InvalidRequestData {
-                message: format!("Missing header key: `{key}`",),
+                message: format!("Missing header key: `{key}`"),
             })
-            .attach_printable(format!("Failed to find header key: {key}",))?
+            .attach_printable(format!("Failed to find header key: {key}"))?
             .to_str()
             .change_context(errors::ApiErrorResponse::InvalidDataValue {
                 field_name: "`{key}` in headers",
@@ -1940,7 +1940,7 @@ impl<'a> HeaderMapStruct<'a> {
             .and_then(|header_value| {
                 T::try_from(std::borrow::Cow::Owned(header_value)).change_context(
                     errors::ApiErrorResponse::InvalidRequestData {
-                        message: format!("`{key}` header is invalid",),
+                        message: format!("`{key}` header is invalid"),
                     },
                 )
             })
@@ -1989,7 +1989,7 @@ impl<'a> HeaderMapStruct<'a> {
             .map(|value| {
                 T::try_from(std::borrow::Cow::Owned(value.to_owned())).change_context(
                     errors::ApiErrorResponse::InvalidRequestData {
-                        message: format!("`{key}` header is invalid",),
+                        message: format!("`{key}` header is invalid"),
                     },
                 )
             })

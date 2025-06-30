@@ -39,7 +39,7 @@ impl ExtractedPayload {
             .get(HEADER_MERCHANT_ID)
             .and_then(|value| value.to_str().ok())
             .ok_or_else(|| ApiErrorResponse::InvalidRequestData {
-                message: format!("`{HEADER_MERCHANT_ID}` header is invalid or not present",),
+                message: format!("`{HEADER_MERCHANT_ID}` header is invalid or not present"),
             })
             .map_err(error_stack::Report::from)
             .and_then(|merchant_id| {
@@ -57,11 +57,11 @@ impl ExtractedPayload {
             .get(HEADER_AUTH_TYPE)
             .and_then(|inner| inner.to_str().ok())
             .ok_or_else(|| ApiErrorResponse::InvalidRequestData {
-                message: format!("`{HEADER_AUTH_TYPE}` header not present",),
+                message: format!("`{HEADER_AUTH_TYPE}` header not present"),
             })?
             .parse::<PayloadType>()
             .change_context(ApiErrorResponse::InvalidRequestData {
-                message: format!("`{HEADER_AUTH_TYPE}` header not present",),
+                message: format!("`{HEADER_AUTH_TYPE}` header not present"),
             })?;
 
         let key_id = headers
@@ -70,7 +70,7 @@ impl ExtractedPayload {
             .map(|key_id| ApiKeyId::try_from(Cow::from(key_id.to_string())))
             .transpose()
             .change_context(ApiErrorResponse::InvalidRequestData {
-                message: format!("`{HEADER_KEY_ID}` header is invalid or not present",),
+                message: format!("`{HEADER_KEY_ID}` header is invalid or not present"),
             })?;
 
         Ok(Self {

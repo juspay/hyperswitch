@@ -450,7 +450,7 @@ pub async fn payouts_update_core(
     // Verify update feasibility
     if helpers::is_payout_terminal_state(status) || helpers::is_payout_initiated(status) {
         return Err(report!(errors::ApiErrorResponse::InvalidRequestData {
-            message: format!("Payout {payout_id} cannot be updated for status {status}",),
+            message: format!("Payout {payout_id} cannot be updated for status {status}"),
         }));
     }
     helpers::update_payouts_and_payout_attempt(&mut payout_data, &merchant_context, &req, &state)
@@ -3177,7 +3177,7 @@ pub async fn create_payout_link(
     );
     let link = url::Url::parse(&url)
         .change_context(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable_lazy(|| format!("Failed to form payout link URL - {url}",))?;
+        .attach_printable_lazy(|| format!("Failed to form payout link URL - {url}"))?;
     let req_enabled_payment_methods = payout_link_config_req
         .as_ref()
         .and_then(|req| req.enabled_payment_methods.to_owned());

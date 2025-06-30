@@ -287,9 +287,9 @@ impl SurchargeMetadata {
             }
             SurchargeKey::PaymentMethodData(payment_method, payment_method_type, card_network) => {
                 if let Some(card_network) = card_network {
-                    format!("{payment_method}_{payment_method_type}_{card_network}",)
+                    format!("{payment_method}_{payment_method_type}_{card_network}")
                 } else {
-                    format!("{payment_method}_{payment_method_type}",)
+                    format!("{payment_method}_{payment_method_type}")
                 }
             }
         }

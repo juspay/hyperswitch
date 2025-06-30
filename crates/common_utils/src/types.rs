@@ -168,7 +168,7 @@ impl<'de, const PRECISION: u8> Visitor<'de> for PercentageVisitor<PRECISION> {
             let string_value = value.to_string();
             Ok(Percentage::from_string(string_value.clone()).map_err(|_| {
                 serde::de::Error::invalid_value(
-                    serde::de::Unexpected::Other(&format!("percentage value {string_value}",)),
+                    serde::de::Unexpected::Other(&format!("percentage value {string_value}")),
                     &&*get_invalid_percentage_error_message(PRECISION),
                 )
             })?)
@@ -1306,7 +1306,7 @@ impl From<String> for ConnectorTransactionId {
             hasher.update(src.as_bytes());
             hasher.finalize_xof().fill(&mut output);
             let hash = hex::encode(output);
-            Self::HashedData(format!("hs_hash_{hash}",))
+            Self::HashedData(format!("hs_hash_{hash}"))
         // Default
         } else {
             Self::TxnId(src)

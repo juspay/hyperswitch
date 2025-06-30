@@ -845,16 +845,14 @@ where
                             .into_iter()
                             .collect::<Vec<String>>()
                             .join(" ");
-                        let csp_header = format!("frame-ancestors 'self' {domains_str};",);
+                        let csp_header = format!("frame-ancestors 'self' {domains_str};");
                         Some(HashSet::from([("content-security-policy", csp_header)]))
                     } else {
                         None
                     };
                     http_response_html_data(rendered_html, headers)
                 }
-                Err(_) => {
-                    http_response_err(format!("Error while rendering {link_type} HTML page",))
-                }
+                Err(_) => http_response_err(format!("Error while rendering {link_type} HTML page")),
             }
         }
 
@@ -1223,7 +1221,7 @@ pub fn build_redirection_form(
         }
         },
         RedirectForm::Html { html_data } => {
-            PreEscaped(format!("{html_data} <script>{logging_template}</script>",))
+            PreEscaped(format!("{html_data} <script>{logging_template}</script>"))
         }
         RedirectForm::BlueSnap {
             payment_fields_token,

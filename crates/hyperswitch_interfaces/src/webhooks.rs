@@ -110,7 +110,7 @@ pub trait IncomingWebhook: ConnectorCommon + Sync {
         connector_webhook_details: Option<common_utils::pii::SecretSerdeValue>,
     ) -> CustomResult<api_models::webhooks::ConnectorWebhookSecrets, errors::ConnectorError> {
         let debug_suffix =
-            format!("For merchant_id: {merchant_id:?}, and connector_name: {connector_name}",);
+            format!("For merchant_id: {merchant_id:?}, and connector_name: {connector_name}");
         let default_secret = "default_secret".to_string();
         let merchant_secret = match connector_webhook_details {
             Some(merchant_connector_webhook_details) => {

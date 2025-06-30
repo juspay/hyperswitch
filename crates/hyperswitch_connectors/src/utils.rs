@@ -1124,7 +1124,7 @@ impl CardData for Card {
     fn get_expiry_year_4_digit(&self) -> Secret<String> {
         let mut year = self.card_exp_year.peek().clone();
         if year.len() == 2 {
-            year = format!("20{year}",);
+            year = format!("20{year}");
         }
         Secret::new(year)
     }
@@ -1231,7 +1231,7 @@ impl CardData for CardDetailsForNetworkTransactionId {
     fn get_expiry_year_4_digit(&self) -> Secret<String> {
         let mut year = self.card_exp_year.peek().clone();
         if year.len() == 2 {
-            year = format!("20{year}",);
+            year = format!("20{year}");
         }
         Secret::new(year)
     }
@@ -5319,7 +5319,7 @@ pub fn is_mandate_supported(
     } else {
         match payment_method_type {
             Some(pm_type) => Err(errors::ConnectorError::NotSupported {
-                message: format!("{pm_type} mandate payment",),
+                message: format!("{pm_type} mandate payment"),
                 connector,
             }
             .into()),
@@ -5914,7 +5914,7 @@ impl CardData for api_models::payouts::CardPayout {
     fn get_expiry_year_4_digit(&self) -> Secret<String> {
         let mut year = self.expiry_year.peek().clone();
         if year.len() == 2 {
-            year = format!("20{year}",);
+            year = format!("20{year}");
         }
         Secret::new(year)
     }
@@ -5990,7 +5990,7 @@ impl NetworkTokenData for payment_method_data::NetworkTokenData {
     fn get_expiry_year_4_digit(&self) -> Secret<String> {
         let mut year = self.token_exp_year.peek().clone();
         if year.len() == 2 {
-            year = format!("20{year}",);
+            year = format!("20{year}");
         }
         Secret::new(year)
     }
@@ -5999,7 +5999,7 @@ impl NetworkTokenData for payment_method_data::NetworkTokenData {
     fn get_expiry_year_4_digit(&self) -> Secret<String> {
         let mut year = self.network_token_exp_year.peek().clone();
         if year.len() == 2 {
-            year = format!("20{year}",);
+            year = format!("20{year}");
         }
         Secret::new(year)
     }
@@ -6306,7 +6306,7 @@ where
             .clone()
             .parse_enum("Currency")
             .map(Some)
-            .map_err(|_| serde::de::Error::custom(format!("Invalid currency code: {value}",))),
+            .map_err(|_| serde::de::Error::custom(format!("Invalid currency code: {value}"))),
         _ => Ok(None),
     }
 }

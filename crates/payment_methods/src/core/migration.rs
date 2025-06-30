@@ -35,7 +35,7 @@ pub async fn migrate_payment_methods(
             mca_id.clone(),
         ))
         .map_err(|err| errors::ApiErrorResponse::InvalidRequestData {
-            message: format!("error: {err:?}",),
+            message: format!("error: {err:?}"),
         })
         .attach_printable("record deserialization failed");
         let res = match req {

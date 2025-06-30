@@ -287,7 +287,7 @@ pub(super) fn validate_payout_list_request(
         req.limit > PAYOUTS_LIST_MAX_LIMIT_GET || req.limit < 1,
         || {
             Err(errors::ApiErrorResponse::InvalidRequestData {
-                message: format!("limit should be in between 1 and {PAYOUTS_LIST_MAX_LIMIT_GET}",),
+                message: format!("limit should be in between 1 and {PAYOUTS_LIST_MAX_LIMIT_GET}"),
             })
         },
     )?;
@@ -302,7 +302,7 @@ pub(super) fn validate_payout_list_request_for_joins(
 
     utils::when(!(1..=PAYOUTS_LIST_MAX_LIMIT_POST).contains(&limit), || {
         Err(errors::ApiErrorResponse::InvalidRequestData {
-            message: format!("limit should be in between 1 and {PAYOUTS_LIST_MAX_LIMIT_POST}",),
+            message: format!("limit should be in between 1 and {PAYOUTS_LIST_MAX_LIMIT_POST}"),
         })
     })?;
     Ok(())
@@ -375,7 +375,7 @@ pub fn validate_payout_link_render_request_and_get_allowed_domains(
                         })
                     })
                     .attach_printable_lazy(|| {
-                        format!("Invalid URL found in request headers {origin_or_referer}",)
+                        format!("Invalid URL found in request headers {origin_or_referer}")
                     })?;
 
                 url.host_str()
@@ -387,7 +387,7 @@ pub fn validate_payout_link_render_request_and_get_allowed_domains(
                         })
                     })
                     .attach_printable_lazy(|| {
-                        format!("host or port not found in request headers {url:?}",)
+                        format!("host or port not found in request headers {url:?}")
                     })?
             };
 

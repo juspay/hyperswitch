@@ -379,7 +379,7 @@ impl ConnectorIntegration<CreateConnectorCustomer, ConnectorCustomerData, Paymen
                     .decline_code
                     .clone()
                     .map(|decline_code| {
-                        format!("message - {message}, decline_code - {decline_code}",)
+                        format!("message - {message}, decline_code - {decline_code}")
                     })
                     .unwrap_or(message)
             }),

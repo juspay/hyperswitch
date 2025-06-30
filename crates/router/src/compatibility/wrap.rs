@@ -143,7 +143,7 @@ where
             ) {
                 Ok(rendered_html) => api::http_response_html_data(rendered_html, None),
                 Err(_) => {
-                    api::http_response_err(format!("Error while rendering {link_type} HTML page",))
+                    api::http_response_err(format!("Error while rendering {link_type} HTML page"))
                 }
             }
         }

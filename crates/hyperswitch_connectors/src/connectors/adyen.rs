@@ -728,7 +728,7 @@ impl ConnectorIntegration<PSync, PaymentsSyncData, PaymentsResponseData> for Ady
             req.test_mode,
             &req.connector_meta_data,
         )?;
-        Ok(format!("{endpoint}{ADYEN_API_VERSION}/payments/details",))
+        Ok(format!("{endpoint}{ADYEN_API_VERSION}/payments/details"))
     }
 
     fn build_request(

@@ -2398,7 +2398,7 @@ pub fn get_error_reason(
             "{message}, detailed_error_information: {details}, avs_message: {avs_message}",
         )),
         (Some(message), Some(details), None) => {
-            Some(format!("{message}, detailed_error_information: {details}",))
+            Some(format!("{message}, detailed_error_information: {details}"))
         }
         (Some(message), None, Some(avs_message)) => {
             Some(format!("{message}, avs_message: {avs_message}"))

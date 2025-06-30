@@ -101,7 +101,7 @@ pub fn build_payout_link_html(
     context::insert_locales_in_context_for_payout_link(&mut context, locale);
     let js_script_tag = tera
         .render("document_scripts", &context)
-        .map(|js| format!("<script>{js}</script>",))
+        .map(|js| format!("<script>{js}</script>"))
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Failed to render JS template")?;
     context.insert("js_script_tag", &js_script_tag);
@@ -174,7 +174,7 @@ pub fn build_payout_link_status_html(
 
     let css_style_tag = tera
         .render("payout_link_status_styles", &context)
-        .map(|css| format!("<style>{css}</style>",))
+        .map(|css| format!("<style>{css}</style>"))
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Failed to render payout link status CSS template")?;
 
@@ -188,7 +188,7 @@ pub fn build_payout_link_status_html(
     context::insert_locales_in_context_for_payout_link_status(&mut context, locale);
     let js_script_tag = tera
         .render("payout_link_status_script", &context)
-        .map(|js| format!("<script>{js}</script>",))
+        .map(|js| format!("<script>{js}</script>"))
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Failed to render payout link status JS template")?;
 
@@ -221,7 +221,7 @@ pub fn build_pm_collect_link_status_html(
 
     let css_style_tag = tera
         .render("pm_collect_link_status_styles", &context)
-        .map(|css| format!("<style>{css}</style>",))
+        .map(|css| format!("<style>{css}</style>"))
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Failed to render payment method collect link status CSS template")?;
 
@@ -235,7 +235,7 @@ pub fn build_pm_collect_link_status_html(
 
     let js_script_tag = tera
         .render("pm_collect_link_status_script", &context)
-        .map(|js| format!("<script>{js}</script>",))
+        .map(|js| format!("<script>{js}</script>"))
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Failed to render payment method collect link status JS template")?;
 

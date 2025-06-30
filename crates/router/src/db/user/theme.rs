@@ -226,7 +226,7 @@ impl ThemeInterface for MockDb {
             .find(|theme| theme.theme_id == theme_id)
             .cloned()
             .ok_or(
-                errors::StorageError::ValueNotFound(format!("Theme with id {theme_id} not found",))
+                errors::StorageError::ValueNotFound(format!("Theme with id {theme_id} not found"))
                     .into(),
             )
     }

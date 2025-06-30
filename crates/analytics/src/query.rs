@@ -892,7 +892,7 @@ where
         }
 
         if let Some(limit_by) = &self.limit_by {
-            query.push_str(&format!(" {limit_by}",));
+            query.push_str(&format!(" {limit_by}"));
         }
 
         if !self.outer_select.is_empty() {

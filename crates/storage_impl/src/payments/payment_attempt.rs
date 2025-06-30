@@ -2224,7 +2224,7 @@ mod label {
         profile_id: &str,
         connector_transaction_id: &str,
     ) -> String {
-        format!("profile_{profile_id}_conn_txn_{connector_transaction_id}",)
+        format!("profile_{profile_id}_conn_txn_{connector_transaction_id}")
     }
 
     pub(super) fn get_global_id_label(

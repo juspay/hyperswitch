@@ -20,13 +20,13 @@ pub fn validate_secure_payment_link_render_request(
         .clone()
         .ok_or(report!(errors::ApiErrorResponse::InvalidRequestUrl))
         .attach_printable_lazy(|| {
-            format!("Secure payment link was not generated for {link_id}\nmissing allowed_domains",)
+            format!("Secure payment link was not generated for {link_id}\nmissing allowed_domains")
         })?;
 
     // Validate secure_link was generated
     if payment_link.secure_link.clone().is_none() {
         return Err(report!(errors::ApiErrorResponse::InvalidRequestUrl)).attach_printable_lazy(
-            || format!("Secure payment link was not generated for {link_id}\nmissing secure_link",),
+            || format!("Secure payment link was not generated for {link_id}\nmissing secure_link"),
         );
     }
 
@@ -78,7 +78,7 @@ pub fn validate_secure_payment_link_render_request(
                 })
             })
             .attach_printable_lazy(|| {
-                format!("Invalid URL found in request headers {origin_or_referer}",)
+                format!("Invalid URL found in request headers {origin_or_referer}")
             })?;
 
         url.host_str()
@@ -90,7 +90,7 @@ pub fn validate_secure_payment_link_render_request(
                 })
             })
             .attach_printable_lazy(|| {
-                format!("host or port not found in request headers {url:?}",)
+                format!("host or port not found in request headers {url:?}")
             })?
     };
 
