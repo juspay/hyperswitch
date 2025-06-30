@@ -342,12 +342,6 @@ pub struct SantanderValue {
     pub original: StringMajorUnit,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
-#[serde(rename_all = "camelCase")]
-pub struct SantanderValueResponse {
-    pub original: StringMajorUnit,
-}
-
 #[derive(Default, Debug, Clone, Serialize, Deserialize, PartialEq)]
 #[serde(rename_all = "camelCase")]
 pub struct SantanderAdditionalInfo {
@@ -396,7 +390,7 @@ pub struct SantanderPaymentsResponse {
     pub location: Option<String>,
     pub status: SantanderPaymentStatus,
     #[serde(rename = "valor")]
-    pub value: SantanderValueResponse,
+    pub value: SantanderValue,
     #[serde(rename = "chave")]
     pub key: Secret<String>,
     #[serde(rename = "solicitacaoPagador")]
@@ -419,7 +413,7 @@ pub struct SantanderVoidResponse {
     pub location: Option<String>,
     pub status: SantanderPaymentStatus,
     #[serde(rename = "valor")]
-    pub value: SantanderValueResponse,
+    pub value: SantanderValue,
     #[serde(rename = "chave")]
     pub key: Secret<String>,
     #[serde(rename = "solicitacaoPagador")]
@@ -445,7 +439,7 @@ pub struct SantanderPaymentsSyncResponse {
     #[serde(rename = "devedor")]
     pub debtor: Option<SantanderDebtor>,
     #[serde(rename = "valor")]
-    pub value: SantanderValueResponse,
+    pub value: SantanderValue,
     #[serde(rename = "chave")]
     pub key: Secret<String>,
     #[serde(rename = "solicitacaoPagador")]

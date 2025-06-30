@@ -700,6 +700,9 @@ crypto_currency = { country = "AL, AD, AT, BE, BA, BG, HR, CZ, DK, EE, FI, FR, D
 [pm_filters.paystack]
 eft = { country = "NG, ZA, GH, KE, CI", currency = "NGN, GHS, ZAR, KES, USD" }
 
+[pm_filters.santander]
+pix = { country = "BR", currency = "BRL" }
+
 [payout_method_filters.stripe]
 ach = { country = "US", currency = "USD" }
 
