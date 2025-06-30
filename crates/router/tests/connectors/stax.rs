@@ -13,7 +13,7 @@ impl utils::Connector for StaxTest {
     fn get_data(&self) -> types::api::ConnectorData {
         use router::connector::Stax;
         utils::construct_connector_data_old(
-            Box::new(&Stax),
+            Box::new(Stax::new()),
             types::Connector::Stax,
             types::api::GetToken::Connector,
             None,
