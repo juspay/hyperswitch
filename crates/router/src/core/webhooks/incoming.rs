@@ -864,7 +864,7 @@ async fn payments_incoming_webhook_flow(
 
             let status = payments_response.status;
 
-            let event_type: Option<enums::EventType> = payments_response.status.foreign_into();
+            let event_type: Option<enums::EventType> = payments_response.status.into();
 
             // If event is NOT an UnsupportedEvent, trigger Outgoing Webhook
             if let Some(outgoing_event_type) = event_type {
@@ -984,19 +984,12 @@ async fn payouts_incoming_webhook_flow(
                 )
             })?;
 
-        let event_type: Option<enums::EventType> = updated_payout_attempt.status.foreign_into();
+        let event_type: Option<enums::EventType> = updated_payout_attempt.status.into();
 
         // If event is NOT an UnsupportedEvent, trigger Outgoing Webhook
         if let Some(outgoing_event_type) = event_type {
-            let router_response =
+            let payout_create_response =
                 payouts::response_handler(&state, &merchant_context, &payout_data).await?;
-
-            let payout_create_response: payout_models::PayoutCreateResponse = match router_response
-            {
-                services::ApplicationResponse::Json(response) => response,
-                _ => Err(errors::ApiErrorResponse::WebhookResourceNotFound)
-                    .attach_printable("Failed to fetch the payout create response")?,
-            };
 
             Box::pin(super::create_event_and_trigger_outgoing_webhook(
                 state,
@@ -1192,7 +1185,7 @@ async fn refunds_incoming_webhook_flow(
         .await
         .attach_printable_lazy(|| format!("Failed while updating refund: refund_id: {refund_id}"))?
     };
-    let event_type: Option<enums::EventType> = updated_refund.refund_status.foreign_into();
+    let event_type: Option<enums::EventType> = updated_refund.refund_status.into();
 
     // If event is NOT an UnsupportedEvent, trigger Outgoing Webhook
     if let Some(outgoing_event_type) = event_type {
@@ -1508,8 +1501,7 @@ async fn external_authentication_incoming_webhook_flow(
                         let payment_id = payments_response.payment_id.clone();
 
                         let status = payments_response.status;
-                        let event_type: Option<enums::EventType> =
-                            payments_response.status.foreign_into();
+                        let event_type: Option<enums::EventType> = payments_response.status.into();
                         // Set poll_id as completed in redis to allow the fetch status of poll through retrieve_poll_status api from client
                         let poll_id = core_utils::get_poll_id(
                             merchant_context.get_merchant_account().get_id(),
@@ -1627,7 +1619,7 @@ async fn mandates_incoming_webhook_flow(
             )
             .await?,
         );
-        let event_type: Option<enums::EventType> = updated_mandate.mandate_status.foreign_into();
+        let event_type: Option<enums::EventType> = updated_mandate.mandate_status.into();
         if let Some(outgoing_event_type) = event_type {
             Box::pin(super::create_event_and_trigger_outgoing_webhook(
                 state,
@@ -1730,7 +1722,7 @@ async fn frm_incoming_webhook_flow(
             services::ApplicationResponse::JsonWithHeaders((payments_response, _)) => {
                 let payment_id = payments_response.payment_id.clone();
                 let status = payments_response.status;
-                let event_type: Option<enums::EventType> = payments_response.status.foreign_into();
+                let event_type: Option<enums::EventType> = payments_response.status.into();
                 if let Some(outgoing_event_type) = event_type {
                     let primary_object_created_at = payments_response.created;
                     Box::pin(super::create_event_and_trigger_outgoing_webhook(
@@ -1804,7 +1796,7 @@ async fn disputes_incoming_webhook_flow(
         )
         .await?;
         let disputes_response = Box::new(dispute_object.clone().foreign_into());
-        let event_type: enums::EventType = dispute_object.dispute_status.foreign_into();
+        let event_type: enums::EventType = dispute_object.dispute_status.into();
 
         Box::pin(super::create_event_and_trigger_outgoing_webhook(
             state,
@@ -1886,7 +1878,7 @@ async fn bank_transfer_webhook_flow(
         services::ApplicationResponse::JsonWithHeaders((payments_response, _)) => {
             let payment_id = payments_response.payment_id.clone();
 
-            let event_type: Option<enums::EventType> = payments_response.status.foreign_into();
+            let event_type: Option<enums::EventType> = payments_response.status.into();
             let status = payments_response.status;
 
             // If event is NOT an UnsupportedEvent, trigger Outgoing Webhook
