@@ -12,6 +12,7 @@ import { connectorDetails as bankOfAmericaConnectorDetails } from "./BankOfAmeri
 import { connectorDetails as billwerkConnectorDetails } from "./Billwerk.js";
 import { connectorDetails as bluesnapConnectorDetails } from "./Bluesnap.js";
 import { connectorDetails as braintreeConnectorDetails } from "./Braintree.js";
+import { connectorDetails as celerocommerceConnectorDetails } from "./Celerocommerce.js";
 import { connectorDetails as checkoutConnectorDetails } from "./Checkout.js";
 import { connectorDetails as commonConnectorDetails } from "./Commons.js";
 import { connectorDetails as cybersourceConnectorDetails } from "./Cybersource.js";
@@ -58,6 +59,7 @@ const connectorDetails = {
   billwerk: billwerkConnectorDetails,
   bluesnap: bluesnapConnectorDetails,
   braintree: braintreeConnectorDetails,
+  celerocommerce: celerocommerceConnectorDetails,
   checkout: checkoutConnectorDetails,
   commons: commonConnectorDetails,
   cybersource: cybersourceConnectorDetails,
