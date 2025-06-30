@@ -1,5 +1,4 @@
-use api_models::payouts;
-use api_models::webhooks;
+use api_models::{payouts, webhooks};
 use common_enums::enums;
 use common_utils::pii;
 use error_stack::{report, ResultExt};
