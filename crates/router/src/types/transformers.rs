@@ -444,31 +444,6 @@ impl ForeignFrom<payments::MandateAmountData> for storage_enums::MandateAmountDa
     }
 }
 
-impl ForeignFrom<api_enums::IntentStatus> for Option<storage_enums::EventType> {
-    fn foreign_from(value: api_enums::IntentStatus) -> Self {
-        match value {
-            api_enums::IntentStatus::Succeeded => Some(storage_enums::EventType::PaymentSucceeded),
-            api_enums::IntentStatus::Failed => Some(storage_enums::EventType::PaymentFailed),
-            api_enums::IntentStatus::Processing => {
-                Some(storage_enums::EventType::PaymentProcessing)
-            }
-            api_enums::IntentStatus::RequiresMerchantAction
-            | api_enums::IntentStatus::RequiresCustomerAction
-            | api_enums::IntentStatus::Conflicted => Some(storage_enums::EventType::ActionRequired),
-            api_enums::IntentStatus::Cancelled => Some(storage_enums::EventType::PaymentCancelled),
-            api_enums::IntentStatus::PartiallyCaptured
-            | api_enums::IntentStatus::PartiallyCapturedAndCapturable => {
-                Some(storage_enums::EventType::PaymentCaptured)
-            }
-            api_enums::IntentStatus::RequiresCapture => {
-                Some(storage_enums::EventType::PaymentAuthorized)
-            }
-            api_enums::IntentStatus::RequiresPaymentMethod
-            | api_enums::IntentStatus::RequiresConfirmation => None,
-        }
-    }
-}
-
 impl ForeignFrom<api_enums::PaymentMethodType> for api_enums::PaymentMethod {
     fn foreign_from(payment_method_type: api_enums::PaymentMethodType) -> Self {
         match payment_method_type {
@@ -611,66 +586,6 @@ impl ForeignTryFrom<payments::PaymentMethodData> for api_enums::PaymentMethod {
                     message: ("Mandate payments cannot have payment_method_data field".to_string()),
                 })
             }
-        }
-    }
-}
-
-impl ForeignFrom<storage_enums::RefundStatus> for Option<storage_enums::EventType> {
-    fn foreign_from(value: storage_enums::RefundStatus) -> Self {
-        match value {
-            storage_enums::RefundStatus::Success => Some(storage_enums::EventType::RefundSucceeded),
-            storage_enums::RefundStatus::Failure => Some(storage_enums::EventType::RefundFailed),
-            api_enums::RefundStatus::ManualReview
-            | api_enums::RefundStatus::Pending
-            | api_enums::RefundStatus::TransactionFailure => None,
-        }
-    }
-}
-
-impl ForeignFrom<storage_enums::PayoutStatus> for Option<storage_enums::EventType> {
-    fn foreign_from(value: storage_enums::PayoutStatus) -> Self {
-        match value {
-            storage_enums::PayoutStatus::Success => Some(storage_enums::EventType::PayoutSuccess),
-            storage_enums::PayoutStatus::Failed => Some(storage_enums::EventType::PayoutFailed),
-            storage_enums::PayoutStatus::Cancelled => {
-                Some(storage_enums::EventType::PayoutCancelled)
-            }
-            storage_enums::PayoutStatus::Initiated => {
-                Some(storage_enums::EventType::PayoutInitiated)
-            }
-            storage_enums::PayoutStatus::Expired => Some(storage_enums::EventType::PayoutExpired),
-            storage_enums::PayoutStatus::Reversed => Some(storage_enums::EventType::PayoutReversed),
-            storage_enums::PayoutStatus::Ineligible
-            | storage_enums::PayoutStatus::Pending
-            | storage_enums::PayoutStatus::RequiresCreation
-            | storage_enums::PayoutStatus::RequiresFulfillment
-            | storage_enums::PayoutStatus::RequiresPayoutMethodData
-            | storage_enums::PayoutStatus::RequiresVendorAccountCreation
-            | storage_enums::PayoutStatus::RequiresConfirmation => None,
-        }
-    }
-}
-
-impl ForeignFrom<storage_enums::DisputeStatus> for storage_enums::EventType {
-    fn foreign_from(value: storage_enums::DisputeStatus) -> Self {
-        match value {
-            storage_enums::DisputeStatus::DisputeOpened => Self::DisputeOpened,
-            storage_enums::DisputeStatus::DisputeExpired => Self::DisputeExpired,
-            storage_enums::DisputeStatus::DisputeAccepted => Self::DisputeAccepted,
-            storage_enums::DisputeStatus::DisputeCancelled => Self::DisputeCancelled,
-            storage_enums::DisputeStatus::DisputeChallenged => Self::DisputeChallenged,
-            storage_enums::DisputeStatus::DisputeWon => Self::DisputeWon,
-            storage_enums::DisputeStatus::DisputeLost => Self::DisputeLost,
-        }
-    }
-}
-
-impl ForeignFrom<storage_enums::MandateStatus> for Option<storage_enums::EventType> {
-    fn foreign_from(value: storage_enums::MandateStatus) -> Self {
-        match value {
-            storage_enums::MandateStatus::Active => Some(storage_enums::EventType::MandateActive),
-            storage_enums::MandateStatus::Revoked => Some(storage_enums::EventType::MandateRevoked),
-            storage_enums::MandateStatus::Inactive | storage_enums::MandateStatus::Pending => None,
         }
     }
 }
@@ -2136,8 +2051,11 @@ impl ForeignFrom<api_models::admin::WebhookDetails>
             webhook_password: item.webhook_password,
             webhook_url: item.webhook_url,
             payment_created_enabled: item.payment_created_enabled,
-            payment_succeeded_enabled: item.payment_succeeded_enabled,
             payment_failed_enabled: item.payment_failed_enabled,
+            payment_succeeded_enabled: item.payment_succeeded_enabled,
+            payment_statuses_enabled: item.payment_statuses_enabled,
+            refund_statuses_enabled: item.refund_statuses_enabled,
+            payout_statuses_enabled: item.payout_statuses_enabled,
         }
     }
 }
@@ -2152,8 +2070,11 @@ impl ForeignFrom<diesel_models::business_profile::WebhookDetails>
             webhook_password: item.webhook_password,
             webhook_url: item.webhook_url,
             payment_created_enabled: item.payment_created_enabled,
-            payment_succeeded_enabled: item.payment_succeeded_enabled,
             payment_failed_enabled: item.payment_failed_enabled,
+            payment_succeeded_enabled: item.payment_succeeded_enabled,
+            payment_statuses_enabled: item.payment_statuses_enabled,
+            refund_statuses_enabled: item.refund_statuses_enabled,
+            payout_statuses_enabled: item.payout_statuses_enabled,
         }
     }
 }
