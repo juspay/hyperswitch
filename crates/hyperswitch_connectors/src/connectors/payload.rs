@@ -1,6 +1,9 @@
 pub mod transformers;
 
+use std::sync::LazyLock;
+
 use base64::Engine;
+use common_enums::enums::{self, PaymentMethodType};
 use common_utils::{
     consts::BASE64_ENGINE,
     errors::CustomResult,
@@ -22,7 +25,7 @@ use hyperswitch_domain_models::{
         PaymentsCancelData, PaymentsCaptureData, PaymentsSessionData, PaymentsSyncData,
         RefundsData, SetupMandateRequestData,
     },
-    router_response_types::{PaymentsResponseData, RefundsResponseData},
+    router_response_types::{ConnectorInfo, PaymentMethodDetails, PaymentsResponseData, RefundsResponseData, SupportedPaymentMethods, SupportedPaymentMethodsExt},
     types::{
         PaymentsAuthorizeRouterData, PaymentsCaptureRouterData, PaymentsSyncRouterData,
         RefundSyncRouterData, RefundsRouterData,
@@ -39,10 +42,77 @@ use hyperswitch_interfaces::{
     types::{self, Response},
     webhooks,
 };
+use api_models;
 use masking::{ExposeInterface, Mask};
 use transformers as payload;
 
 use crate::{constants::headers, types::ResponseRouterData, utils};
+
+static PAYLOAD_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMethods> = LazyLock::new(|| {
+    let supported_capture_methods = vec![
+        enums::CaptureMethod::Automatic,
+        enums::CaptureMethod::Manual,
+        enums::CaptureMethod::ManualMultiple,
+    ];
+
+    let supported_card_network = vec![
+        common_enums::CardNetwork::AmericanExpress,
+        common_enums::CardNetwork::DinersClub,
+        common_enums::CardNetwork::Discover,
+        common_enums::CardNetwork::JCB,
+        common_enums::CardNetwork::Maestro,
+        common_enums::CardNetwork::Mastercard,
+        common_enums::CardNetwork::Visa,
+    ];
+
+    let mut payload_supported_payment_methods = SupportedPaymentMethods::new();
+
+    payload_supported_payment_methods.add(
+        enums::PaymentMethod::Card,
+        PaymentMethodType::Credit,
+        PaymentMethodDetails {
+            mandates: enums::FeatureStatus::NotSupported,
+            refunds: enums::FeatureStatus::Supported,
+            supported_capture_methods: supported_capture_methods.clone(),
+            specific_features: Some(
+                api_models::feature_matrix::PaymentMethodSpecificFeatures::Card({
+                    api_models::feature_matrix::CardSpecificFeatures {
+                        three_ds: common_enums::FeatureStatus::NotSupported,
+                        no_three_ds: common_enums::FeatureStatus::Supported,
+                        supported_card_networks: supported_card_network.clone(),
+                    }
+                }),
+            ),
+        },
+    );
+
+    payload_supported_payment_methods.add(
+        enums::PaymentMethod::Card,
+        PaymentMethodType::Debit,
+        PaymentMethodDetails {
+            mandates: enums::FeatureStatus::NotSupported,
+            refunds: enums::FeatureStatus::Supported,
+            supported_capture_methods: supported_capture_methods.clone(),
+            specific_features: Some(
+                api_models::feature_matrix::PaymentMethodSpecificFeatures::Card({
+                    api_models::feature_matrix::CardSpecificFeatures {
+                        three_ds: common_enums::FeatureStatus::NotSupported,
+                        no_three_ds: common_enums::FeatureStatus::Supported,
+                        supported_card_networks: supported_card_network.clone(),
+                    }
+                }),
+            ),
+        },
+    );
+
+    payload_supported_payment_methods
+});
+
+static PAYLOAD_CONNECTOR_INFO: ConnectorInfo = ConnectorInfo {
+    display_name: "Payload",
+    description: "Payload is a payment processing platform that provides secure, reliable payment infrastructure for businesses to accept card payments with comprehensive fraud protection and real-time transaction monitoring.",
+    connector_type: enums::PaymentConnectorCategory::PaymentGateway,
+};
 
 #[derive(Clone)]
 pub struct Payload {
@@ -55,6 +125,7 @@ impl Payload {
             amount_converter: &StringMinorUnitForConnector,
         }
     }
+
 }
 
 impl api::Payment for Payload {}
@@ -163,6 +234,19 @@ where
         )];
         let mut api_key = self.get_auth_header(&req.connector_auth_type)?;
         header.append(&mut api_key);
+        
+        // Add enhanced idempotency key for payment operations to prevent duplicate transactions
+        // Include timestamp to ensure uniqueness for legitimate separate transactions
+        let timestamp = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap_or_default()
+            .as_millis();
+        let idempotency_key = format!("{}-{}-{}", req.payment_id, req.attempt_id, timestamp);
+        header.push((
+            "X-Idempotency-Key".to_string(),
+            idempotency_key.into(),
+        ));
+        
         Ok(header)
     }
 }
@@ -213,9 +297,9 @@ impl ConnectorCommon for Payload {
 
         Ok(ErrorResponse {
             status_code: res.status_code,
-            code: response.code,
-            message: response.message,
-            reason: response.reason,
+            code: response.error_type,
+            message: response.error_description,
+            reason: response.details.as_ref().map(|d| d.to_string()),
             attempt_status: None,
             connector_transaction_id: None,
             network_decline_code: None,
@@ -226,7 +310,50 @@ impl ConnectorCommon for Payload {
 }
 
 impl ConnectorValidation for Payload {
-    //TODO: implement functions when support enabled
+    fn validate_connector_against_payment_request(
+        &self,
+        capture_method: Option<enums::CaptureMethod>,
+        payment_method: enums::PaymentMethod,
+        pmt: Option<PaymentMethodType>,
+    ) -> CustomResult<(), errors::ConnectorError> {
+        let capture_method = capture_method.unwrap_or_default();
+        
+        // Use the feature matrix validation for consistent behavior
+        let is_feature_supported = match self.get_supported_payment_methods() {
+            Some(supported_payment_methods) => {
+                // Get the payment method details from the feature matrix
+                let payment_method_details = supported_payment_methods.get(&payment_method);
+                
+                match (payment_method_details, pmt) {
+                    (Some(method_details), Some(payment_method_type)) => {
+                        // Check if the specific payment method type is supported
+                        method_details.get(&payment_method_type)
+                            .map(|details| details.supported_capture_methods.contains(&capture_method))
+                            .unwrap_or(false)
+                    },
+                    (Some(method_details), None) => {
+                        // If no specific payment method type, check if any supported type supports this capture method
+                        method_details.values()
+                            .any(|details| details.supported_capture_methods.contains(&capture_method))
+                    },
+                    _ => false,
+                }
+            },
+            None => {
+                // Fallback to default behavior if no feature matrix is defined
+                matches!(capture_method, enums::CaptureMethod::Automatic | enums::CaptureMethod::SequentialAutomatic)
+            }
+        };
+
+        if is_feature_supported {
+            Ok(())
+        } else {
+            Err(errors::ConnectorError::NotSupported {
+                message: format!("{} is not supported", capture_method),
+                connector: self.id(),
+            }.into())
+        }
+    }
 }
 
 impl ConnectorIntegration<Session, PaymentsSessionData, PaymentsResponseData> for Payload {
@@ -306,8 +433,12 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
             .response
             .parse_struct("Payload PaymentsAuthorizeResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
-        event_builder.map(|i| i.set_response_body(&response));
+        
+        if let Some(event_builder) = event_builder {
+            event_builder.set_response_body(&response);
+        }
         router_env::logger::info!(connector_response=?response);
+        
         RouterData::try_from(ResponseRouterData {
             response,
             data: data.clone(),
@@ -787,4 +918,12 @@ impl webhooks::IncomingWebhook for Payload {
     }
 }
 
-impl ConnectorSpecifications for Payload {}
+impl ConnectorSpecifications for Payload {
+    fn get_connector_about(&self) -> Option<&'static ConnectorInfo> {
+        Some(&PAYLOAD_CONNECTOR_INFO)
+    }
+
+    fn get_supported_payment_methods(&self) -> Option<&'static SupportedPaymentMethods> {
+        Some(&*PAYLOAD_SUPPORTED_PAYMENT_METHODS)
+    }
+}

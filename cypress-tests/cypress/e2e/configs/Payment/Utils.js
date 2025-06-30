@@ -35,6 +35,7 @@ import { connectorDetails as worldpayConnectorDetails } from "./WorldPay.js";
 import { connectorDetails as worldpayxmlConnectorDetails } from "./Worldpayxml.js";
 import { connectorDetails as xenditConnectorDetails } from "./Xendit.js";
 import { connectorDetails as archipelConnectorDetails } from "./Archipel.js";
+import { connectorDetails as payloadConnectorDetails } from "./Payload.js";
 
 const connectorDetails = {
   adyen: adyenConnectorDetails,
@@ -61,6 +62,7 @@ const connectorDetails = {
   noon: noonConnectorDetails,
   novalnet: novalnetConnectorDetails,
   paybox: payboxConnectorDetails,
+  payload: payloadConnectorDetails,
   paypal: paypalConnectorDetails,
   redsys: redsysConnectorDetails,
   stripe: stripeConnectorDetails,

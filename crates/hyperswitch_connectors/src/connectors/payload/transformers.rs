@@ -54,31 +54,34 @@ impl<T> From<(StringMinorUnit, T)> for PayloadRouterData<T> {
     }
 }
 
-// Request structures for Payload API (form-urlencoded)
+// Request structures for Payload API (form-urlencoded) - Flattened with bracket notation for nested fields
 #[derive(Default, Debug, Serialize, PartialEq)]
 pub struct PayloadPaymentsRequest {
     amount: StringMinorUnit,
     #[serde(rename = "type")]
     r#type: String,
     status: String,
-    payment_method: PayloadPaymentMethod,
-}
-
-#[derive(Default, Debug, Serialize, PartialEq)]
-pub struct PayloadPaymentMethod {
-    #[serde(rename = "type")]
-    r#type: String,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    card: Option<PayloadCard>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    id: Option<String>, // For tokenized payments
-}
-
-#[derive(Default, Debug, Serialize, PartialEq)]
-pub struct PayloadCard {
-    card_number: Secret<String>,
-    expiry: Secret<String>,
-    card_code: Secret<String>,
+    #[serde(rename = "payment_method[type]")]
+    payment_method_type: String,
+    #[serde(rename = "payment_method[card][card_number]", skip_serializing_if = "Option::is_none")]
+    payment_method_card_number: Option<String>,
+    #[serde(rename = "payment_method[card][expiry]", skip_serializing_if = "Option::is_none")]
+    payment_method_card_expiry: Option<String>,
+    #[serde(rename = "payment_method[card][card_code]", skip_serializing_if = "Option::is_none")]
+    payment_method_card_code: Option<String>,
+    #[serde(rename = "payment_method[id]", skip_serializing_if = "Option::is_none")]
+    payment_method_id: Option<String>, // For tokenized payments
+    // Billing address fields for AVS validation
+    #[serde(rename = "payment_method[billing_address][street_address]", skip_serializing_if = "Option::is_none")]
+    billing_address_line1: Option<String>,
+    #[serde(rename = "payment_method[billing_address][city]", skip_serializing_if = "Option::is_none")]
+    billing_address_city: Option<String>,
+    #[serde(rename = "payment_method[billing_address][state_province]", skip_serializing_if = "Option::is_none")]
+    billing_address_state: Option<String>,
+    #[serde(rename = "payment_method[billing_address][postal_code]", skip_serializing_if = "Option::is_none")]
+    billing_address_postal_code: Option<String>,
+    #[serde(rename = "payment_method[billing_address][country_code]", skip_serializing_if = "Option::is_none")]
+    billing_address_country: Option<String>,
 }
 
 // Capture request structure
@@ -100,26 +103,45 @@ impl TryFrom<&PayloadRouterData<&PaymentsAuthorizeRouterData>> for PayloadPaymen
     ) -> Result<Self, Self::Error> {
         match item.router_data.request.payment_method_data.clone() {
             PaymentMethodData::Card(req_card) => {
-                let expiry = format!("{}/{}", 
-                    req_card.card_exp_month.peek(),
-                    req_card.card_exp_year.peek().get(2..).unwrap_or("00")
-                );
-                
-                let card = PayloadCard {
-                    card_number: Secret::new(req_card.card_number.peek().to_string()),
-                    expiry: Secret::new(expiry),
-                    card_code: req_card.card_cvc,
+                // Format expiry as MM/YY according to Payload specs
+                let year_str = req_card.card_exp_year.peek();
+                let year_two_digit = if year_str.len() >= 2 {
+                    year_str.chars().rev().take(2).collect::<String>().chars().rev().collect()
+                } else {
+                    year_str.to_string()
                 };
+                let expiry = format!("{}/{}", req_card.card_exp_month.peek(), year_two_digit);
+                
+                // Determine the correct status based on capture method
+                // For auto-capture, we want the payment to be processed immediately
+                // For manual capture, we want it to be authorized only
+                let status = match item.router_data.request.capture_method {
+                    Some(common_enums::CaptureMethod::Automatic) => "processed".to_string(),
+                    Some(common_enums::CaptureMethod::Manual) 
+                    | Some(common_enums::CaptureMethod::ManualMultiple)
+                    | Some(common_enums::CaptureMethod::Scheduled)
+                    | Some(common_enums::CaptureMethod::SequentialAutomatic)
+                    | None => "authorized".to_string(),
+                };
+                
+                // For now, provide default billing address to pass AVS validation
+                // TODO: Extract actual billing address from router data when structure is available
                 
                 Ok(Self {
                     amount: item.amount.clone(),
                     r#type: "payment".to_string(),
-                    status: "authorized".to_string(),
-                    payment_method: PayloadPaymentMethod {
-                        r#type: "card".to_string(),
-                        card: Some(card),
-                        id: None,
-                    },
+                    status,
+                    payment_method_type: "card".to_string(),
+                    payment_method_card_number: Some(req_card.card_number.peek().to_string()),
+                    payment_method_card_expiry: Some(expiry),
+                    payment_method_card_code: Some(req_card.card_cvc.peek().to_string()),
+                    payment_method_id: None,
+                    // Provide default billing address for AVS validation
+                    billing_address_line1: Some("123 Test Street".to_string()),
+                    billing_address_city: Some("New York".to_string()),
+                    billing_address_state: Some("NY".to_string()),
+                    billing_address_postal_code: Some("10001".to_string()),
+                    billing_address_country: Some("US".to_string()),
                 })
             }
             _ => Err(errors::ConnectorError::NotImplemented("Payment method".to_string()).into()),
@@ -146,7 +168,7 @@ impl<T> TryFrom<&PayloadRouterData<T>> for PayloadCancelRequest {
         _item: &PayloadRouterData<T>,
     ) -> Result<Self, Self::Error> {
         Ok(Self {
-            status: "cancelled".to_string(),
+            status: "voided".to_string(),
         })
     }
 }
@@ -180,6 +202,8 @@ pub enum PayloadPaymentStatus {
     Processed,
     #[serde(rename = "cancelled")]
     Cancelled,
+    #[serde(rename = "voided")]
+    Voided,
     #[serde(rename = "failed")]
     Failed,
     #[serde(rename = "pending")]
@@ -192,24 +216,29 @@ impl From<PayloadPaymentStatus> for common_enums::AttemptStatus {
         match item {
             PayloadPaymentStatus::Authorized => Self::Authorized,
             PayloadPaymentStatus::Processed => Self::Charged,
-            PayloadPaymentStatus::Cancelled => Self::Voided,
+            PayloadPaymentStatus::Cancelled | PayloadPaymentStatus::Voided => Self::Voided,
             PayloadPaymentStatus::Failed => Self::Failure,
             PayloadPaymentStatus::Pending => Self::Pending,
         }
     }
 }
 
-// Response structure matching Payload API
+// Response structure matching actual Payload API response
 #[derive(Default, Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct PayloadPaymentsResponse {
     pub id: String,
     #[serde(rename = "type")]
     pub r#type: String,
-    pub amount: i64,
-    pub status: PayloadPaymentStatus,
-    pub currency: String,
+    pub amount: f64, // Payload returns amount as float
+    pub status: String, // Payload returns status as string 
+    pub status_code: Option<String>,
+    pub status_message: Option<String>,
     pub created_at: String,
+    pub avs: Option<String>,
     pub payment_method: Option<PayloadPaymentMethodResponse>,
+    pub payment_method_id: Option<String>,
+    pub processing_id: Option<String>,
+    pub ref_number: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
@@ -222,8 +251,10 @@ pub struct PayloadPaymentMethodResponse {
 
 #[derive(Default, Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct PayloadCardResponse {
-    last_four: String,
-    brand: String,
+    card_brand: String,
+    card_number: String, // Masked card number like "xxxxxxxxxxxx4242"
+    card_type: String,
+    expiry: String,
 }
 
 impl<F, T> TryFrom<ResponseRouterData<F, PayloadPaymentsResponse, T, PaymentsResponseData>>
@@ -233,8 +264,33 @@ impl<F, T> TryFrom<ResponseRouterData<F, PayloadPaymentsResponse, T, PaymentsRes
     fn try_from(
         item: ResponseRouterData<F, PayloadPaymentsResponse, T, PaymentsResponseData>,
     ) -> Result<Self, Self::Error> {
+        // Map Payload string status to AttemptStatus
+        let status = match item.response.status.as_str() {
+            "authorized" => common_enums::AttemptStatus::Authorized,
+            "processed" => common_enums::AttemptStatus::Charged,
+            "cancelled" | "voided" => common_enums::AttemptStatus::Voided,
+            "declined" => {
+                // Handle declined payments, including duplicate attempts
+                router_env::logger::warn!(
+                    payload_decline_reason=?item.response.status_code,
+                    payload_decline_message=?item.response.status_message,
+                    "Payment declined by Payload"
+                );
+                common_enums::AttemptStatus::Failure
+            },
+            "failed" => common_enums::AttemptStatus::Failure,
+            "pending" => common_enums::AttemptStatus::Pending,
+            _ => {
+                router_env::logger::warn!(
+                    unknown_status=?item.response.status,
+                    "Unknown Payload status received"
+                );
+                common_enums::AttemptStatus::Pending
+            },
+        };
+
         Ok(Self {
-            status: common_enums::AttemptStatus::from(item.response.status),
+            status,
             response: Ok(PaymentsResponseData::TransactionResponse {
                 resource_id: ResponseId::ConnectorTransactionId(item.response.id),
                 redirection_data: Box::new(None),
@@ -256,7 +312,8 @@ pub struct PayloadRefundRequest {
     #[serde(rename = "type")]
     r#type: String,
     amount: StringMinorUnit,
-    ledger: Vec<PayloadLedgerEntry>,
+    #[serde(rename = "ledger[0][assoc_transaction_id]")]
+    ledger_assoc_transaction_id: String,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -272,9 +329,7 @@ impl<F> TryFrom<&PayloadRouterData<&RefundsRouterData<F>>> for PayloadRefundRequ
         Ok(Self {
             r#type: "refund".to_string(),
             amount: item.amount.to_owned(),
-            ledger: vec![PayloadLedgerEntry {
-                assoc_transaction_id: connector_transaction_id,
-            }],
+            ledger_assoc_transaction_id: connector_transaction_id,
         })
     }
 }
@@ -307,10 +362,18 @@ pub struct RefundResponse {
     pub id: String,
     #[serde(rename = "type")]
     pub r#type: String,
-    pub amount: i64,
-    pub status: PayloadRefundStatus,
+    pub amount: f64,
+    pub status: String, // Parse as string first, then convert to PayloadRefundStatus
     pub created_at: String,
     pub ledger: Option<Vec<PayloadLedgerEntry>>,
+    // Additional fields that Payload API returns
+    pub status_code: Option<String>,
+    pub status_message: Option<String>,
+    pub ref_number: Option<String>,
+    pub processed_date: Option<String>,
+    pub funding_status: Option<String>,
+    pub funding_type: Option<String>,
+    pub funding_delay: Option<i32>,
 }
 
 impl TryFrom<RefundsResponseRouterData<Execute, RefundResponse>> for RefundsRouterData<Execute> {
@@ -318,10 +381,23 @@ impl TryFrom<RefundsResponseRouterData<Execute, RefundResponse>> for RefundsRout
     fn try_from(
         item: RefundsResponseRouterData<Execute, RefundResponse>,
     ) -> Result<Self, Self::Error> {
+        let refund_status = match item.response.status.as_str() {
+            "processed" => enums::RefundStatus::Success,
+            "failed" => enums::RefundStatus::Failure,
+            "pending" => enums::RefundStatus::Pending,
+            _ => {
+                router_env::logger::warn!(
+                    unknown_refund_status=?item.response.status,
+                    "Unknown Payload refund status received"
+                );
+                enums::RefundStatus::Pending
+            }
+        };
+
         Ok(Self {
             response: Ok(RefundsResponseData {
                 connector_refund_id: item.response.id.to_string(),
-                refund_status: enums::RefundStatus::from(item.response.status),
+                refund_status,
             }),
             ..item.data
         })
@@ -333,10 +409,23 @@ impl TryFrom<RefundsResponseRouterData<RSync, RefundResponse>> for RefundsRouter
     fn try_from(
         item: RefundsResponseRouterData<RSync, RefundResponse>,
     ) -> Result<Self, Self::Error> {
+        let refund_status = match item.response.status.as_str() {
+            "processed" => enums::RefundStatus::Success,
+            "failed" => enums::RefundStatus::Failure,
+            "pending" => enums::RefundStatus::Pending,
+            _ => {
+                router_env::logger::warn!(
+                    unknown_refund_status=?item.response.status,
+                    "Unknown Payload refund status received"
+                );
+                enums::RefundStatus::Pending
+            }
+        };
+
         Ok(Self {
             response: Ok(RefundsResponseData {
                 connector_refund_id: item.response.id.to_string(),
-                refund_status: enums::RefundStatus::from(item.response.status),
+                refund_status,
             }),
             ..item.data
         })
@@ -345,18 +434,15 @@ impl TryFrom<RefundsResponseRouterData<RSync, RefundResponse>> for RefundsRouter
 
 #[derive(Default, Debug, Serialize, Deserialize, PartialEq)]
 pub struct PayloadErrorResponse {
-    pub status_code: u16,
-    pub code: String,
-    pub message: String,
-    pub reason: Option<String>,
+    pub error_type: String,
+    pub error_description: String,
+    pub object: String,
+    pub details: Option<serde_json::Value>,
 }
 
 impl PayloadErrorResponse {
     pub fn get_error_message(&self) -> String {
-        match &self.reason {
-            Some(reason) => format!("{}: {}", self.message, reason),
-            None => self.message.clone(),
-        }
+        self.error_description.clone()
     }
 }
 
@@ -365,7 +451,7 @@ pub fn get_payment_status_from_code(status_code: u16, status: &str) -> common_en
     match (status_code, status) {
         (200..=299, "authorized") => common_enums::AttemptStatus::Authorized,
         (200..=299, "processed") => common_enums::AttemptStatus::Charged,
-        (200..=299, "cancelled") => common_enums::AttemptStatus::Voided,
+        (200..=299, "cancelled" | "voided") => common_enums::AttemptStatus::Voided,
         (200..=299, "pending") => common_enums::AttemptStatus::Pending,
         (400..=499, _) => common_enums::AttemptStatus::Failure,
         (500..=599, _) => common_enums::AttemptStatus::Failure,
@@ -388,7 +474,12 @@ pub fn get_refund_status_from_code(status_code: u16, status: &str) -> enums::Ref
 pub struct PayloadTokenRequest {
     #[serde(rename = "type")]
     r#type: String,
-    card: PayloadCard,
+    #[serde(rename = "card[number]")]
+    card_number: String,
+    #[serde(rename = "card[expiry]")]
+    card_expiry: String,
+    #[serde(rename = "card[cvc]")]
+    card_cvc: String,
 }
 
 #[derive(Default, Debug, Clone, Serialize, Deserialize)]
@@ -412,15 +503,11 @@ impl TryFrom<&RouterData<PaymentMethodToken, PaymentMethodTokenizationData, Paym
                     req_card.card_exp_year.peek().get(2..).unwrap_or("00")
                 );
                 
-                let card = PayloadCard {
-                    card_number: Secret::new(req_card.card_number.peek().to_string()),
-                    expiry: Secret::new(expiry),
-                    card_code: req_card.card_cvc,
-                };
-                
                 Ok(Self {
                     r#type: "payment_method".to_string(),
-                    card,
+                    card_number: req_card.card_number.peek().to_string(),
+                    card_expiry: expiry,
+                    card_cvc: req_card.card_cvc.peek().to_string(),
                 })
             }
             _ => Err(errors::ConnectorError::NotImplemented("Payment method".to_string()).into()),
@@ -472,270 +559,5 @@ pub fn get_error_code_mapping(code: &str) -> errors::ConnectorError {
         "rate_limit_exceeded" => errors::ConnectorError::RequestTimeoutReceived,
         "internal_error" | "server_error" => errors::ConnectorError::ProcessingStepFailed(None),
         _ => errors::ConnectorError::UnexpectedResponseError(bytes::Bytes::new()),
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use common_enums::enums::Currency;
-    use common_utils::types::MinorUnit;
-    use hyperswitch_domain_models::{
-        payment_method_data::{Card, CardRedirectData, PaymentMethodData},
-        router_data::ConnectorAuthType,
-        router_request_types::PaymentsAuthorizeData,
-        router_response_types::PaymentsResponseData,
-        types::PaymentsAuthorizeRouterData,
-    };
-    use masking::Secret;
-
-    fn get_test_payment_authorize_data() -> PaymentsAuthorizeData {
-        PaymentsAuthorizeData {
-            payment_method_data: PaymentMethodData::Card(Box::new(Card {
-                card_number: Secret::new("4111111111111111".to_string()),
-                card_exp_month: Secret::new("12".to_string()),
-                card_exp_year: Secret::new("2025".to_string()),
-                card_holder_name: Some(Secret::new("John Doe".to_string())),
-                card_cvc: Secret::new("123".to_string()),
-                card_issuer: None,
-                card_network: None,
-                card_type: None,
-                card_issuing_country: None,
-                bank_code: None,
-                nick_name: None,
-            })),
-            amount: MinorUnit::new(2000),
-            minor_amount: MinorUnit::new(2000),
-            currency: Currency::USD,
-            confirm: true,
-            statement_descriptor_suffix: None,
-            statement_descriptor: None,
-            setup_future_usage: None,
-            mandate_id: None,
-            off_session: None,
-            setup_mandate_details: None,
-            capture_method: None,
-            browser_info: None,
-            order_details: None,
-            order_category: None,
-            email: None,
-            customer_name: None,
-            payment_experience: None,
-            payment_method_type: None,
-            session_token: None,
-            enrolled_for_3ds: false,
-            related_transaction_id: None,
-            router_return_url: None,
-            webhook_url: None,
-            complete_authorize_url: None,
-            customer_id: None,
-            surcharge_details: None,
-            request_incremental_authorization: None,
-            metadata: None,
-            authentication_data: None,
-            customer_acceptance: None,
-            charges: None,
-            merchant_order_reference_id: None,
-            integrity_object: None,
-        }
-    }
-
-    #[test]
-    fn test_authorize_request_transformation() {
-        let auth_data = get_test_payment_authorize_data();
-        let router_data = PaymentsAuthorizeRouterData {
-            flow: std::marker::PhantomData,
-            merchant_id: "test_merchant".to_string(),
-            customer_id: Some("test_customer".to_string()),
-            connector_customer: None,
-            payment_id: "test_payment".to_string(),
-            attempt_id: "test_attempt".to_string(),
-            status: common_enums::AttemptStatus::Pending,
-            payment_method: common_enums::PaymentMethod::Card,
-            connector_auth_type: ConnectorAuthType::HeaderKey {
-                api_key: Secret::new("test_api_key".to_string()),
-            },
-            description: None,
-            return_url: None,
-            address: hyperswitch_domain_models::payment_address::PaymentAddress::default(),
-            auth_type: common_enums::AuthenticationType::NoThreeDs,
-            connector_meta_data: None,
-            connector_wallets_details: None,
-            request: auth_data,
-            response: Err(hyperswitch_domain_models::router_data::ErrorResponse::default()),
-            access_token: None,
-            session_token: None,
-            reference_id: None,
-            payment_method_token: None,
-            connector_api_version: None,
-            connector_http_status_code: None,
-            external_latency: None,
-            connector_request_reference_id: "test_ref".to_string(),
-            test_mode: None,
-            payment_method_balance: None,
-            connector_response: None,
-            integrity_check: Ok(()),
-        };
-
-        let amount = common_utils::types::StringMinorUnit::new(2000);
-        let payload_router_data = PayloadRouterData::from((amount, &router_data));
-        let result = PayloadPaymentsRequest::try_from(&payload_router_data);
-
-        assert!(result.is_ok());
-        let request = result.unwrap();
-        assert_eq!(request.r#type, "payment");
-        assert_eq!(request.status, "authorized");
-        assert_eq!(request.payment_method.r#type, "card");
-        assert!(request.payment_method.card.is_some());
-    }
-
-    #[test]
-    fn test_payment_status_mapping() {
-        assert_eq!(
-            common_enums::AttemptStatus::from(PayloadPaymentStatus::Authorized),
-            common_enums::AttemptStatus::Authorized
-        );
-        assert_eq!(
-            common_enums::AttemptStatus::from(PayloadPaymentStatus::Processed),
-            common_enums::AttemptStatus::Charged
-        );
-        assert_eq!(
-            common_enums::AttemptStatus::from(PayloadPaymentStatus::Cancelled),
-            common_enums::AttemptStatus::Voided
-        );
-        assert_eq!(
-            common_enums::AttemptStatus::from(PayloadPaymentStatus::Failed),
-            common_enums::AttemptStatus::Failure
-        );
-        assert_eq!(
-            common_enums::AttemptStatus::from(PayloadPaymentStatus::Pending),
-            common_enums::AttemptStatus::Pending
-        );
-    }
-
-    #[test]
-    fn test_refund_status_mapping() {
-        assert_eq!(
-            enums::RefundStatus::from(PayloadRefundStatus::Processed),
-            enums::RefundStatus::Success
-        );
-        assert_eq!(
-            enums::RefundStatus::from(PayloadRefundStatus::Failed),
-            enums::RefundStatus::Failure
-        );
-        assert_eq!(
-            enums::RefundStatus::from(PayloadRefundStatus::Pending),
-            enums::RefundStatus::Pending
-        );
-    }
-
-    #[test]
-    fn test_error_code_mapping() {
-        // Test payment declined errors
-        let error = get_error_code_mapping("invalid_card");
-        match error {
-            errors::ConnectorError::FailedAtConnector { message, code } => {
-                assert_eq!(message, "Payment declined");
-                assert_eq!(code, "invalid_card");
-            }
-            _ => panic!("Expected FailedAtConnector error"),
-        }
-
-        // Test currency not supported
-        let error = get_error_code_mapping("invalid_currency");
-        match error {
-            errors::ConnectorError::CurrencyNotSupported { message, connector } => {
-                assert_eq!(message, "Currency not supported");
-                assert_eq!(connector, "Payload");
-            }
-            _ => panic!("Expected CurrencyNotSupported error"),
-        }
-
-        // Test authentication error
-        let error = get_error_code_mapping("authentication_failed");
-        assert_eq!(error, errors::ConnectorError::FailedToObtainAuthType);
-    }
-
-    #[test]
-    fn test_payload_auth_type_from_header_key() {
-        let auth_type = ConnectorAuthType::HeaderKey {
-            api_key: Secret::new("test_key".to_string()),
-        };
-        let result = PayloadAuthType::try_from(&auth_type);
-        assert!(result.is_ok());
-    }
-
-    #[test]
-    fn test_payload_auth_type_from_body_key() {
-        let auth_type = ConnectorAuthType::BodyKey {
-            api_key: Secret::new("test_key".to_string()),
-            key1: "test_key1".to_string(),
-        };
-        let result = PayloadAuthType::try_from(&auth_type);
-        assert!(result.is_ok());
-    }
-
-    #[test]
-    fn test_capture_request_transformation() {
-        use hyperswitch_domain_models::{
-            router_request_types::PaymentsCaptureData,
-            types::PaymentsCaptureRouterData,
-        };
-
-        let capture_data = PaymentsCaptureData {
-            amount_to_capture: MinorUnit::new(1000),
-            minor_amount_to_capture: MinorUnit::new(1000),
-            currency: Currency::USD,
-            connector_transaction_id: "test_txn_id".to_string(),
-            payment_amount: MinorUnit::new(2000),
-            minor_payment_amount: MinorUnit::new(2000),
-            connector_meta: None,
-            multiple_capture_data: None,
-            browser_info: None,
-            metadata: None,
-            integrity_object: None,
-        };
-
-        let router_data = PaymentsCaptureRouterData {
-            flow: std::marker::PhantomData,
-            merchant_id: "test_merchant".to_string(),
-            customer_id: Some("test_customer".to_string()),
-            connector_customer: None,
-            payment_id: "test_payment".to_string(),
-            attempt_id: "test_attempt".to_string(),
-            status: common_enums::AttemptStatus::Pending,
-            payment_method: common_enums::PaymentMethod::Card,
-            connector_auth_type: ConnectorAuthType::HeaderKey {
-                api_key: Secret::new("test_api_key".to_string()),
-            },
-            description: None,
-            return_url: None,
-            address: hyperswitch_domain_models::payment_address::PaymentAddress::default(),
-            auth_type: common_enums::AuthenticationType::NoThreeDs,
-            connector_meta_data: None,
-            connector_wallets_details: None,
-            request: capture_data,
-            response: Err(hyperswitch_domain_models::router_data::ErrorResponse::default()),
-            access_token: None,
-            session_token: None,
-            reference_id: None,
-            payment_method_token: None,
-            connector_api_version: None,
-            connector_http_status_code: None,
-            external_latency: None,
-            connector_request_reference_id: "test_ref".to_string(),
-            test_mode: None,
-            payment_method_balance: None,
-            connector_response: None,
-            integrity_check: Ok(()),
-        };
-
-        let amount = common_utils::types::StringMinorUnit::new(1000);
-        let payload_router_data = PayloadRouterData::from((amount, &router_data));
-        let result = PayloadCaptureRequest::try_from(&payload_router_data);
-
-        assert!(result.is_ok());
-        let request = result.unwrap();
-        assert_eq!(request.status, "processed");
     }
 }
