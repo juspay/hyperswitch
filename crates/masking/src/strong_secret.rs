@@ -156,6 +156,6 @@ where
     }
 
     fn clear(&mut self) {
-        *self.peek_mut() = T::default();
+        self.peek_mut().clear();
     }
 }
