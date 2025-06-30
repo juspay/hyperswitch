@@ -55,6 +55,10 @@ pub enum PartitionKey<'a> {
     GlobalId {
         id: &'a str,
     },
+    #[cfg(feature = "v2")]
+    GlobalPaymentId {
+        id: &'a common_utils::id_type::GlobalPaymentId,
+    },
 }
 // PartitionKey::MerchantIdPaymentId {merchant_id, payment_id}
 impl std::fmt::Display for PartitionKey<'_> {
@@ -108,7 +112,11 @@ impl std::fmt::Display for PartitionKey<'_> {
             )),
 
             #[cfg(feature = "v2")]
-            PartitionKey::GlobalId { id } => f.write_str(&format!("cust_{id}",)),
+            PartitionKey::GlobalId { id } => f.write_str(&format!("global_cust_{id}",)),
+            #[cfg(feature = "v2")]
+            PartitionKey::GlobalPaymentId { id } => {
+                f.write_str(&format!("global_payment_{}", id.get_string_repr()))
+            }
         }
     }
 }

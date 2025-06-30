@@ -75,6 +75,10 @@ pub enum ApiEventsType {
         connector: String,
         payment_id: Option<id_type::PaymentId>,
     },
+    #[cfg(feature = "v1")]
+    NetworkTokenWebhook {
+        payment_method_id: Option<String>,
+    },
     #[cfg(feature = "v2")]
     Webhooks {
         connector: id_type::MerchantConnectorAccountId,

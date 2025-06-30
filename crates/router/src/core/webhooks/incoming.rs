@@ -7,7 +7,7 @@ use api_models::webhooks::{self, WebhookResponseTracker};
 use common_utils::{
     errors::ReportSwitchExt,
     events::ApiEventsType,
-    ext_traits::AsyncExt,
+    ext_traits::{AsyncExt, ByteSliceExt},
     types::{AmountConvertor, StringMinorUnitForConnector},
 };
 use diesel_models::{refund as diesel_refund, ConnectorMandateReferenceId};
@@ -28,10 +28,10 @@ use crate::{
     core::{
         api_locking,
         errors::{self, ConnectorErrorExt, CustomResult, RouterResponse, StorageErrorExt},
-        metrics,
+        metrics, payment_methods,
         payments::{self, tokenization},
         refunds, relay, utils as core_utils,
-        webhooks::utils::construct_webhook_router_data,
+        webhooks::{network_tokenization_incoming, utils::construct_webhook_router_data},
     },
     db::StorageInterface,
     events::api_logs::ApiEvent,
@@ -107,6 +107,68 @@ pub async fn incoming_webhooks_wrapper<W: types::OutgoingWebhookType>(
     let api_event = ApiEvent::new(
         state.tenant.tenant_id.clone(),
         Some(merchant_context.get_merchant_account().get_id().clone()),
+        flow,
+        &request_id,
+        request_duration,
+        status_code,
+        serialized_req,
+        Some(response_value),
+        None,
+        auth_type,
+        None,
+        api_event,
+        req,
+        req.method(),
+        infra,
+    );
+    state.event_handler().log_event(&api_event);
+    Ok(application_response)
+}
+
+#[cfg(feature = "v1")]
+pub async fn network_token_incoming_webhooks_wrapper<W: types::OutgoingWebhookType>(
+    flow: &impl router_env::types::FlowMetric,
+    state: SessionState,
+    req: &actix_web::HttpRequest,
+    body: actix_web::web::Bytes,
+) -> RouterResponse<serde_json::Value> {
+    let start_instant = Instant::now();
+
+    let request_details: IncomingWebhookRequestDetails<'_> = IncomingWebhookRequestDetails {
+        method: req.method().clone(),
+        uri: req.uri().clone(),
+        headers: req.headers(),
+        query_params: req.query_string().to_string(),
+        body: &body,
+    };
+
+    let (application_response, webhooks_response_tracker, serialized_req, merchant_id) = Box::pin(
+        network_token_incoming_webhooks_core::<W>(&state, request_details),
+    )
+    .await?;
+
+    logger::info!(incoming_webhook_payload = ?serialized_req);
+
+    let request_duration = Instant::now()
+        .saturating_duration_since(start_instant)
+        .as_millis();
+
+    let request_id = RequestId::extract(req)
+        .await
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Unable to extract request id from request")?;
+    let auth_type = auth::AuthenticationType::NoAuth;
+    let status_code = 200;
+    let api_event = ApiEventsType::NetworkTokenWebhook {
+        payment_method_id: webhooks_response_tracker.get_payment_method_id(),
+    };
+    let response_value = serde_json::to_value(&webhooks_response_tracker)
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Could not convert webhook effect to string")?;
+    let infra = state.infra_components.clone();
+    let api_event = ApiEvent::new(
+        state.tenant.tenant_id.clone(),
+        Some(merchant_id),
         flow,
         &request_id,
         request_duration,
@@ -598,6 +660,81 @@ fn handle_incoming_webhook_error(
     }
 }
 
+#[instrument(skip_all)]
+#[cfg(feature = "v1")]
+async fn network_token_incoming_webhooks_core<W: types::OutgoingWebhookType>(
+    state: &SessionState,
+    request_details: IncomingWebhookRequestDetails<'_>,
+) -> errors::RouterResult<(
+    services::ApplicationResponse<serde_json::Value>,
+    WebhookResponseTracker,
+    serde_json::Value,
+    common_utils::id_type::MerchantId,
+)> {
+    let serialized_request =
+        network_tokenization_incoming::get_network_token_resource_object(&request_details)
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Network Token Requestor Webhook deserialization failed")?
+            .masked_serialize()
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Could not convert webhook effect to string")?;
+
+    let network_tokenization_service = &state
+        .conf
+        .network_tokenization_service
+        .as_ref()
+        .ok_or(errors::NetworkTokenizationError::NetworkTokenizationServiceNotConfigured)
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Network Tokenization Service not configured")?;
+
+    //source verification
+    network_tokenization_incoming::Authorization::new(request_details.headers.get("Authorization"))
+        .verify_webhook_source(network_tokenization_service.get_inner())
+        .await?;
+
+    let response: network_tokenization_incoming::NetworkTokenWebhookResponse = request_details
+        .body
+        .parse_struct("NetworkTokenWebhookResponse")
+        .change_context(errors::ApiErrorResponse::WebhookUnprocessableEntity)?;
+
+    let (merchant_id, payment_method_id, _customer_id) = response
+        .fetch_merchant_id_payment_method_id_customer_id_from_callback_mapper(state)
+        .await?;
+
+    metrics::WEBHOOK_SOURCE_VERIFIED_COUNT.add(
+        1,
+        router_env::metric_attributes!((MERCHANT_ID, merchant_id.clone())),
+    );
+
+    let merchant_context =
+        network_tokenization_incoming::fetch_merchant_account_for_network_token_webhooks(
+            state,
+            &merchant_id,
+        )
+        .await?;
+    let payment_method =
+        network_tokenization_incoming::fetch_payment_method_for_network_token_webhooks(
+            state,
+            merchant_context.get_merchant_account(),
+            merchant_context.get_merchant_key_store(),
+            &payment_method_id,
+        )
+        .await?;
+
+    let response_data = response.get_response_data();
+
+    let webhook_resp_tracker = response_data
+        .update_payment_method(state, &payment_method, &merchant_context)
+        .await?;
+
+    Ok((
+        services::ApplicationResponse::StatusOk,
+        webhook_resp_tracker,
+        serialized_request,
+        merchant_id.clone(),
+    ))
+}
+
 #[allow(clippy::too_many_arguments)]
 #[instrument(skip_all)]
 async fn payments_incoming_webhook_flow(
@@ -727,7 +864,7 @@ async fn payments_incoming_webhook_flow(
 
             let status = payments_response.status;
 
-            let event_type: Option<enums::EventType> = payments_response.status.foreign_into();
+            let event_type: Option<enums::EventType> = payments_response.status.into();
 
             // If event is NOT an UnsupportedEvent, trigger Outgoing Webhook
             if let Some(outgoing_event_type) = event_type {
@@ -847,19 +984,12 @@ async fn payouts_incoming_webhook_flow(
                 )
             })?;
 
-        let event_type: Option<enums::EventType> = updated_payout_attempt.status.foreign_into();
+        let event_type: Option<enums::EventType> = updated_payout_attempt.status.into();
 
         // If event is NOT an UnsupportedEvent, trigger Outgoing Webhook
         if let Some(outgoing_event_type) = event_type {
-            let router_response =
+            let payout_create_response =
                 payouts::response_handler(&state, &merchant_context, &payout_data).await?;
-
-            let payout_create_response: payout_models::PayoutCreateResponse = match router_response
-            {
-                services::ApplicationResponse::Json(response) => response,
-                _ => Err(errors::ApiErrorResponse::WebhookResourceNotFound)
-                    .attach_printable("Failed to fetch the payout create response")?,
-            };
 
             Box::pin(super::create_event_and_trigger_outgoing_webhook(
                 state,
@@ -1055,7 +1185,7 @@ async fn refunds_incoming_webhook_flow(
         .await
         .attach_printable_lazy(|| format!("Failed while updating refund: refund_id: {refund_id}"))?
     };
-    let event_type: Option<enums::EventType> = updated_refund.refund_status.foreign_into();
+    let event_type: Option<enums::EventType> = updated_refund.refund_status.into();
 
     // If event is NOT an UnsupportedEvent, trigger Outgoing Webhook
     if let Some(outgoing_event_type) = event_type {
@@ -1316,7 +1446,7 @@ async fn external_authentication_incoming_webhook_flow(
         authentication_details
             .authentication_value
             .async_map(|auth_val| {
-                crate::core::payment_methods::vault::create_tokenize(
+                payment_methods::vault::create_tokenize(
                     &state,
                     auth_val.expose(),
                     None,
@@ -1371,8 +1501,7 @@ async fn external_authentication_incoming_webhook_flow(
                         let payment_id = payments_response.payment_id.clone();
 
                         let status = payments_response.status;
-                        let event_type: Option<enums::EventType> =
-                            payments_response.status.foreign_into();
+                        let event_type: Option<enums::EventType> = payments_response.status.into();
                         // Set poll_id as completed in redis to allow the fetch status of poll through retrieve_poll_status api from client
                         let poll_id = core_utils::get_poll_id(
                             merchant_context.get_merchant_account().get_id(),
@@ -1490,7 +1619,7 @@ async fn mandates_incoming_webhook_flow(
             )
             .await?,
         );
-        let event_type: Option<enums::EventType> = updated_mandate.mandate_status.foreign_into();
+        let event_type: Option<enums::EventType> = updated_mandate.mandate_status.into();
         if let Some(outgoing_event_type) = event_type {
             Box::pin(super::create_event_and_trigger_outgoing_webhook(
                 state,
@@ -1593,7 +1722,7 @@ async fn frm_incoming_webhook_flow(
             services::ApplicationResponse::JsonWithHeaders((payments_response, _)) => {
                 let payment_id = payments_response.payment_id.clone();
                 let status = payments_response.status;
-                let event_type: Option<enums::EventType> = payments_response.status.foreign_into();
+                let event_type: Option<enums::EventType> = payments_response.status.into();
                 if let Some(outgoing_event_type) = event_type {
                     let primary_object_created_at = payments_response.created;
                     Box::pin(super::create_event_and_trigger_outgoing_webhook(
@@ -1667,7 +1796,7 @@ async fn disputes_incoming_webhook_flow(
         )
         .await?;
         let disputes_response = Box::new(dispute_object.clone().foreign_into());
-        let event_type: enums::EventType = dispute_object.dispute_status.foreign_into();
+        let event_type: enums::EventType = dispute_object.dispute_status.into();
 
         Box::pin(super::create_event_and_trigger_outgoing_webhook(
             state,
@@ -1749,7 +1878,7 @@ async fn bank_transfer_webhook_flow(
         services::ApplicationResponse::JsonWithHeaders((payments_response, _)) => {
             let payment_id = payments_response.payment_id.clone();
 
-            let event_type: Option<enums::EventType> = payments_response.status.foreign_into();
+            let event_type: Option<enums::EventType> = payments_response.status.into();
             let status = payments_response.status;
 
             // If event is NOT an UnsupportedEvent, trigger Outgoing Webhook
