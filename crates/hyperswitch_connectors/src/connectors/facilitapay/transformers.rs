@@ -211,31 +211,30 @@ pub fn parse_facilitapay_error_response(
     let status_code = res.status_code;
     let response_body_bytes = res.response.clone();
 
-    let (message, raw_error) = match response_body_bytes
-        .parse_struct::<serde_json::Value>("FacilitapayErrorResponse")
-    {
-        Ok(json_value) => {
-            event_builder.map(|i| i.set_response_body(&json_value));
+    let (message, raw_error) =
+        match response_body_bytes.parse_struct::<serde_json::Value>("FacilitapayErrorResponse") {
+            Ok(json_value) => {
+                event_builder.map(|i| i.set_response_body(&json_value));
 
-            let message = extract_message_from_json(&json_value);
-            (
-                message,
-                serde_json::to_string(&json_value).unwrap_or_default(),
-            )
-        }
-        Err(_) => match String::from_utf8(response_body_bytes.to_vec()) {
-            Ok(text) => {
-                event_builder.map(|i| i.set_response_body(&text));
-                (text.clone(), text)
+                let message = extract_message_from_json(&json_value);
+                (
+                    message,
+                    serde_json::to_string(&json_value).unwrap_or_default(),
+                )
             }
-            Err(_) => (
-                "Invalid response format received".to_string(),
-                format!(
+            Err(_) => match String::from_utf8(response_body_bytes.to_vec()) {
+                Ok(text) => {
+                    event_builder.map(|i| i.set_response_body(&text));
+                    (text.clone(), text)
+                }
+                Err(_) => (
+                    "Invalid response format received".to_string(),
+                    format!(
                     "Unable to parse response as JSON or UTF-8 string. Status code: {status_code}",
                 ),
-            ),
-        },
-    };
+                ),
+            },
+        };
 
     Ok(ErrorResponse {
         status_code,
