@@ -1919,6 +1919,7 @@ pub enum PaymentMethodType {
     PaySafeCard,
     Przelewy24,
     PromptPay,
+    ProxyCard,
     Pse,
     RedCompra,
     RedPagos,
@@ -2039,6 +2040,7 @@ impl PaymentMethodType {
             Self::Przelewy24 => "Przelewy24",
             Self::PromptPay => "PromptPay",
             Self::Pse => "PSE",
+            Self::ProxyCard => "Proxy Card",
             Self::RedCompra => "RedCompra",
             Self::RedPagos => "RedPagos",
             Self::SamsungPay => "Samsung Pay",
@@ -2111,6 +2113,7 @@ pub enum PaymentMethod {
     GiftCard,
     OpenBanking,
     MobilePayment,
+    ExternalProxyCardData,
 }
 
 /// The type of the payment that differentiates between normal and various types of mandate payments. Use 'setup_mandate' in case of zero auth flow.
