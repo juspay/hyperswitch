@@ -10,9 +10,7 @@ INPUT_CSV = SCRIPT_DIR / "local_data.csv"
 OUTPUT_CSV = SCRIPT_DIR / "local_data_migration_result.csv"
 FAILURE_CSV = SCRIPT_DIR / "failed_algorithms.csv"
 
-# API_URL = "https://integ-api.hyperswitch.io/routing/rule/migrate"
-# API_KEY = "BbprfuJw3fA5Ar5EGigEPsQ!ervJ&ywR!TV!Y*$H^obR$d@5Bx^AA@#QFh3LsrK9"
-API_URL = "http://localhost:8080/routing/rule/migrate"
+API_URL = "http://sandbox.hyperswitch.io/routing/rule/migrate"
 API_KEY = "test_admin"
 
 HEADERS = {
