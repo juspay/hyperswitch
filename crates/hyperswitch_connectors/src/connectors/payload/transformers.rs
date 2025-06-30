@@ -193,7 +193,8 @@ impl TryFrom<&PayloadRouterData<&PaymentsAuthorizeRouterData>> for PayloadPaymen
                 };
 
                 // Extract billing address from router data
-                let billing_address = extract_billing_address_for_payload(item.router_data.get_optional_billing());
+                let billing_address =
+                    extract_billing_address_for_payload(item.router_data.get_optional_billing());
 
                 Ok(Self {
                     amount: item.amount.clone(),
