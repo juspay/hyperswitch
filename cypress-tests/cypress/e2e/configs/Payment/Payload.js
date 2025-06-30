@@ -240,7 +240,7 @@ export const connectorDetails = {
       Response: {
         status: 200,
         body: {
-          status: "succeeded", // Payload account has Two Step Verify Processing turned OFF
+          status: "requires_capture", // Manual capture should require explicit capture
           payment_method: "card",
           attempt_count: 1,
           payment_method_data: payment_method_data_no3ds,
