@@ -90,7 +90,6 @@ const connectorDetails = {
   trustpay: trustpayConnectorDetails,
   wellsfargo: wellsfargoConnectorDetails,
   worldpay: worldpayConnectorDetails,
-  worldpayvantiv: worldpayvantivConnectorDetails,
   worldpayxml: worldpayxmlConnectorDetails,
   xendit: xenditConnectorDetails,
 };
