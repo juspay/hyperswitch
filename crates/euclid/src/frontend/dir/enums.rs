@@ -98,6 +98,7 @@ pub enum WalletType {
     Mifinity,
     Paze,
     RevolutPay,
+    Skrill,
 }
 
 #[derive(
@@ -221,6 +222,7 @@ pub enum BankTransferType {
     InstantBankTransfer,
     InstantBankTransferFinland,
     InstantBankTransferPoland,
+    IndonesianBankTransfer,
 }
 
 #[derive(

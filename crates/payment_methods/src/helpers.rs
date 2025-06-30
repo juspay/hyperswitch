@@ -124,6 +124,7 @@ pub fn validate_payment_method_type_against_payment_method(
                 | api_enums::PaymentMethodType::Mifinity
                 | api_enums::PaymentMethodType::Paze
                 | api_enums::PaymentMethodType::RevolutPay
+                | api_enums::PaymentMethodType::Skrill
         ),
         api_enums::PaymentMethod::BankRedirect => matches!(
             payment_method_type,
@@ -167,6 +168,7 @@ pub fn validate_payment_method_type_against_payment_method(
                 | api_enums::PaymentMethodType::InstantBankTransfer
                 | api_enums::PaymentMethodType::InstantBankTransferFinland
                 | api_enums::PaymentMethodType::InstantBankTransferPoland
+                | api_enums::PaymentMethodType::IndonesianBankTransfer
         ),
         api_enums::PaymentMethod::BankDebit => matches!(
             payment_method_type,

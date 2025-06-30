@@ -249,6 +249,7 @@ pub enum WalletData {
     SwishQr(SwishQrData),
     Mifinity(MifinityData),
     RevolutPay(RevolutPayData),
+    SkrillRedirect(SkrillRedirection),
 }
 
 #[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize)]
@@ -361,6 +362,11 @@ pub struct MobilePayRedirection {}
 
 #[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize)]
 pub struct MbWayRedirection {}
+
+#[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize)]
+pub struct SkrillRedirection {
+    pub email: Option<Email>,
+}
 
 #[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize)]
 pub struct GooglePayPaymentMethodInfo {
@@ -642,6 +648,9 @@ pub enum BankTransferData {
     InstantBankTransfer {},
     InstantBankTransferFinland {},
     InstantBankTransferPoland {},
+    IndonesianBankTransfer {
+        bank_name: Option<common_enums::BankNames>,
+    },
 }
 
 #[derive(Debug, Clone, Eq, PartialEq, serde::Deserialize, serde::Serialize)]
@@ -1002,6 +1011,11 @@ impl From<api_models::payments::WalletData> for WalletData {
                 })
             }
             api_models::payments::WalletData::RevolutPay(_) => Self::RevolutPay(RevolutPayData {}),
+            api_models::payments::WalletData::SkrillRedirect(skrill_redirect_data) => {
+                Self::SkrillRedirect(SkrillRedirection {
+                    email: skrill_redirect_data.email,
+                })
+            }
         }
     }
 }
@@ -1560,6 +1574,11 @@ impl From<api_models::payments::BankTransferData> for BankTransferData {
             api_models::payments::BankTransferData::InstantBankTransferPoland {} => {
                 Self::InstantBankTransferPoland {}
             }
+            api_models::payments::BankTransferData::IndonesianBankTransfer {bank_name} => {
+                Self::IndonesianBankTransfer {
+                    bank_name,
+                }
+            }
         }
     }
 }
@@ -1602,6 +1621,9 @@ impl From<BankTransferData> for api_models::payments::additional_info::BankTrans
             BankTransferData::InstantBankTransfer {} => Self::InstantBankTransfer {},
             BankTransferData::InstantBankTransferFinland {} => Self::InstantBankTransferFinland {},
             BankTransferData::InstantBankTransferPoland {} => Self::InstantBankTransferPoland {},
+            BankTransferData::IndonesianBankTransfer { bank_name } => {
+                Self::IndonesianBankTransfer { bank_name }
+            },
         }
     }
 }
@@ -1774,6 +1796,7 @@ impl GetPaymentMethodType for WalletData {
             Self::SwishQr(_) => api_enums::PaymentMethodType::Swish,
             Self::Mifinity(_) => api_enums::PaymentMethodType::Mifinity,
             Self::RevolutPay(_) => api_enums::PaymentMethodType::RevolutPay,
+            Self::SkrillRedirect(_) => api_enums::PaymentMethodType::Skrill,
         }
     }
 }
@@ -1860,6 +1883,7 @@ impl GetPaymentMethodType for BankTransferData {
             Self::InstantBankTransferPoland {} => {
                 api_enums::PaymentMethodType::InstantBankTransferPoland
             }
+            Self::IndonesianBankTransfer { .. } => api_enums::PaymentMethodType::IndonesianBankTransfer,
         }
     }
 }

@@ -2716,6 +2716,7 @@ impl GetPaymentMethodType for WalletData {
             Self::SwishQr(_) => api_enums::PaymentMethodType::Swish,
             Self::Mifinity(_) => api_enums::PaymentMethodType::Mifinity,
             Self::RevolutPay(_) => api_enums::PaymentMethodType::RevolutPay,
+            Self::SkrillRedirect(_) => api_enums::PaymentMethodType::Skrill,
         }
     }
 }
@@ -2810,6 +2811,7 @@ impl GetPaymentMethodType for BankTransferData {
             Self::InstantBankTransferPoland {} => {
                 api_enums::PaymentMethodType::InstantBankTransferPoland
             }
+            Self::IndonesianBankTransfer { .. } => api_enums::PaymentMethodType::IndonesianBankTransfer,
         }
     }
 }
@@ -3477,6 +3479,9 @@ pub enum BankTransferData {
     InstantBankTransfer {},
     InstantBankTransferFinland {},
     InstantBankTransferPoland {},
+    IndonesianBankTransfer {
+        bank_name: Option<common_enums::BankNames>,
+    }
 }
 
 #[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
@@ -3549,6 +3554,7 @@ impl GetAddressFromPaymentMethodData for BankTransferData {
             | Self::Pse {}
             | Self::InstantBankTransfer {}
             | Self::InstantBankTransferFinland {}
+            | Self::IndonesianBankTransfer { .. }
             | Self::InstantBankTransferPoland {} => None,
         }
     }
@@ -3652,6 +3658,8 @@ pub enum WalletData {
     Mifinity(MifinityData),
     // The wallet data for RevolutPay
     RevolutPay(RevolutPayData),
+    // The wallet data for Skrill Redirection
+    SkrillRedirect(SkrillRedirection),
 }
 
 impl GetAddressFromPaymentMethodData for WalletData {
@@ -3673,6 +3681,13 @@ impl GetAddressFromPaymentMethodData for WalletData {
             Self::MobilePayRedirect(_) => None,
             Self::PaypalRedirect(paypal_redirect) => {
                 paypal_redirect.email.clone().map(|email| Address {
+                    email: Some(email),
+                    address: None,
+                    phone: None,
+                })
+            }
+            Self::SkrillRedirect(skrill_redirect) => {
+                skrill_redirect.email.clone().map(|email| Address {
                     email: Some(email),
                     address: None,
                     phone: None,
@@ -3905,6 +3920,13 @@ pub struct MbWayRedirection {
     /// Telephone number of the shopper. Should be Portuguese phone number.
     #[schema(value_type = String)]
     pub telephone_number: Option<Secret<String>>,
+}
+
+#[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
+pub struct SkrillRedirection {
+    /// skrill's email address
+    #[schema(max_length = 255, value_type = Option<String>, example = "johntest@test.com")]
+    pub email: Option<Email>,
 }
 
 #[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]

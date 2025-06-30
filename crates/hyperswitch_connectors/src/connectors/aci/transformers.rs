@@ -141,6 +141,7 @@ impl TryFrom<(&WalletData, &PaymentsAuthorizeRouterData)> for PaymentDetails {
             | WalletData::ApplePayRedirect(_)
             | WalletData::GooglePayRedirect(_)
             | WalletData::Mifinity(_)
+            | WalletData::SkrillRedirect(_)
             | WalletData::RevolutPay(_) => Err(errors::ConnectorError::NotImplemented(
                 "Payment method".to_string(),
             ))?,

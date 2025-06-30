@@ -1249,6 +1249,17 @@ static AIRWALLEX_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMethods> =
         );
 
         airwallex_supported_payment_methods.add(
+            enums::PaymentMethod::Wallet,
+            enums::PaymentMethodType::Skrill,
+            PaymentMethodDetails {
+                mandates: enums::FeatureStatus::NotSupported,
+                refunds: enums::FeatureStatus::Supported,
+                supported_capture_methods: supported_capture_methods_redirect.clone(),
+                specific_features: None,
+            },
+        );
+
+        airwallex_supported_payment_methods.add(
             enums::PaymentMethod::PayLater,
             enums::PaymentMethodType::Klarna,
             PaymentMethodDetails {
@@ -1298,6 +1309,17 @@ static AIRWALLEX_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMethods> =
             PaymentMethodDetails {
                 mandates: enums::FeatureStatus::NotSupported,
                 refunds: enums::FeatureStatus::Supported,
+                supported_capture_methods: supported_capture_methods_redirect.clone(),
+                specific_features: None,
+            },
+        );
+
+        airwallex_supported_payment_methods.add(
+            enums::PaymentMethod::BankTransfer,
+            enums::PaymentMethodType::IndonesianBankTransfer,
+            PaymentMethodDetails {
+                mandates: enums::FeatureStatus::NotSupported,
+                refunds: enums::FeatureStatus::NotSupported,
                 supported_capture_methods: supported_capture_methods_redirect.clone(),
                 specific_features: None,
             },

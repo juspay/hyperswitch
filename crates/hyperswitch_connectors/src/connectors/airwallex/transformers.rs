@@ -2,7 +2,7 @@ use common_enums::enums;
 use common_utils::{errors::ParsingError, pii::{IpAddress,Email}, request::Method, types::MinorUnit};
 use error_stack::ResultExt;
 use hyperswitch_domain_models::{
-    payment_method_data::{PayLaterData, PaymentMethodData, WalletData, BankRedirectData }, router_data::{AccessToken, ConnectorAuthType, RouterData}, router_flow_types::{
+    payment_method_data::{PayLaterData, PaymentMethodData, WalletData, BankRedirectData, BankTransferData }, router_data::{AccessToken, ConnectorAuthType, RouterData}, router_flow_types::{
         refunds::{Execute, RSync},
         PSync,
     }, router_request_types::{PaymentsSyncData, ResponseId}, router_response_types::{PaymentsResponseData, RedirectForm, RefundsResponseData}, types
@@ -273,6 +273,7 @@ pub enum AirwallexPaymentMethod {
     Wallets(AirwallexWalletData),
     PayLater(AirwallexPayLaterData),
     BankRedirect(AirwallexBankRedirectData),
+    BankTransfer(AirwallexBankTransferData),
 }
 
 #[derive(Debug, Serialize)]
@@ -294,6 +295,7 @@ pub struct AirwallexCardDetails {
 pub enum AirwallexWalletData {
     GooglePay(GooglePayData),
     Paypal(PaypalData),
+    Skrill(SkrillData),
 }
 
 #[derive(Debug, Serialize)]
@@ -311,6 +313,13 @@ pub struct PaypalData {
 }
 
 #[derive(Debug, Serialize)]
+pub struct SkrillData {
+    skrill: SkrillDetails,
+    #[serde(rename = "type")]
+    payment_method_type: AirwallexPaymentType,
+}
+
+#[derive(Debug, Serialize)]
 pub struct GooglePayDetails {
     encrypted_payment_token: Secret<String>,
     payment_data_type: GpayPaymentDataType,
@@ -319,6 +328,13 @@ pub struct GooglePayDetails {
 #[derive(Debug, Serialize)]
 pub struct PaypalDetails{
     shopper_name: Option<Secret<String>>,
+    country_code: Option<enums::CountryAlpha2>,
+}
+
+#[derive(Debug, Serialize)]
+pub struct SkrillDetails{
+    shopper_name: Option<Secret<String>>,
+    shopper_email: Option<Email>,
     country_code: Option<enums::CountryAlpha2>,
 }
 
@@ -371,6 +387,27 @@ pub struct AtomeData {
 #[derive(Debug, Serialize)]
 pub struct AtomeDetails {
     shopper_phone: Option<Secret<String>>,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(untagged)]
+pub enum AirwallexBankTransferData{
+    IndonesianBankTransfer(IndonesianBankTransferData),
+}
+
+#[derive(Debug, Serialize)]
+pub struct IndonesianBankTransferData {
+    bank_transfer: IndonesianBankTransferDetails,
+    #[serde(rename = "type")]
+    payment_method_type: AirwallexPaymentType,
+}
+
+#[derive(Debug, Serialize)]
+pub struct IndonesianBankTransferDetails{
+    shopper_name: Option<Secret<String>>,
+    shopper_email: Option<Email>,
+    bank_name: Option<common_enums::BankNames>,
+    country_code: Option<enums::CountryAlpha2>,
 }
 
 #[derive(Debug, Serialize)]
@@ -429,7 +466,9 @@ pub enum AirwallexPaymentType {
     Atome,
     Trustly,
     Blik,
-    Ideal
+    Ideal,
+    Skrill,
+    BankTransfer,
 }
 
 #[derive(Debug, Serialize)]
@@ -571,8 +610,25 @@ impl TryFrom<&AirwallexRouterData<&types::PaymentsAuthorizeRouterData>>
                 get_paylater_details(paylater_data, item)
             },
             PaymentMethodData::BankRedirect(ref bankredirect_data) => get_bankredirect_details(bankredirect_data, item),
+            PaymentMethodData::BankTransfer(ref banktransfer_data) => get_banktransfer_details(banktransfer_data, item),
+            // {
+            //     if let BankRedirectData::IndonesianBankTransfer { .. } = banktransfer_data {
+            //         payment_method_options = Some(AirwallexPaymentOptions::BankTransfer(
+            //             AirwallexBankTransferData::IndonesianBankTransfer(IndonesianBankTransferData {
+            //                 bank_transfer: IndonesianBankTransferDetails {
+            //                     shopper_name: item.router_data.get_optional_billing_full_name(),
+            //                     shopper_email: item.router_data.get_optional_billing_email(),
+            //                     bank_name: item.router_data.get_optional_billing_bank_name(),
+            //                     country_code: item.router_data.get_optional_billing_country(),
+            //                 },
+            //                 payment_method_type: AirwallexPaymentType::BankTransfer,
+            //             }),
+            //         ));
+            //     }
+            //     Err(errors::ConnectorError::NotImplemented(
+            //         utils::get_unimplemented_payment_method_error_message("airwallex"),
+            //     ))
               PaymentMethodData::BankDebit(_)
-            | PaymentMethodData::BankTransfer(_)
             | PaymentMethodData::CardRedirect(_)
             | PaymentMethodData::Crypto(_)
             | PaymentMethodData::MandatePayment
@@ -601,9 +657,13 @@ impl TryFrom<&AirwallexRouterData<&types::PaymentsAuthorizeRouterData>>
                 WalletData::PaypalRedirect(_paypal_details) => {
                     item.router_data.request.router_return_url.clone()
                 }
+                WalletData::SkrillRedirect(_skrill_details) => {
+                    item.router_data.request.router_return_url.clone()
+                }
                 _ => request.complete_authorize_url.clone(),
             },
             PaymentMethodData::BankRedirect(_bankredirect_data) => item.router_data.request.router_return_url.clone(),
+            PaymentMethodData::BankTransfer(_banktransfer_data) => item.router_data.request.router_return_url.clone(),
             PaymentMethodData::PayLater(_paylater_data) => item.router_data.request.router_return_url.clone(),
             _ => request.complete_authorize_url.clone(),
         };
@@ -657,6 +717,35 @@ fn get_device_data(
         timezone: info.get_time_zone()?.to_string(),
         language: info.get_language()?,
     })
+}
+
+fn get_banktransfer_details(
+    banktransfer_data: &BankTransferData,
+    item: &AirwallexRouterData<&types::PaymentsAuthorizeRouterData>,
+) -> Result<AirwallexPaymentMethod, errors::ConnectorError> {
+    println!("banktransfer_data: {:?}", banktransfer_data);
+    println!("item.router_data: {:?}", item.router_data);
+
+    let bank_transfer_details = match banktransfer_data {
+        BankTransferData::IndonesianBankTransfer { bank_name } => {
+            AirwallexPaymentMethod::BankTransfer(AirwallexBankTransferData::IndonesianBankTransfer(
+                IndonesianBankTransferData {
+                    bank_transfer: IndonesianBankTransferDetails {
+                        shopper_name: item.router_data.get_optional_billing_full_name(),
+                        shopper_email: item.router_data.get_optional_billing_email(),
+                        bank_name: bank_name.clone(),
+                        country_code: item.router_data.get_optional_billing_country(),
+                    },
+                    payment_method_type: AirwallexPaymentType::BankTransfer,
+                },
+            ))
+        }
+        _ => Err(errors::ConnectorError::NotImplemented(
+            utils::get_unimplemented_payment_method_error_message("airwallex"),
+        ))?,
+    };
+    println!("bank_transfer_details: {:?}", bank_transfer_details);
+    Ok(bank_transfer_details)
 }
 
 fn get_paylater_details(
@@ -749,6 +838,7 @@ fn get_wallet_details(
     wallet_data: &WalletData,
     item: &AirwallexRouterData<&types::PaymentsAuthorizeRouterData>,
 ) -> Result<AirwallexPaymentMethod, errors::ConnectorError> {
+    println!("wallet_data: {:?}", wallet_data);
     let wallet_details: AirwallexPaymentMethod = match wallet_data {
         WalletData::GooglePay(gpay_details) => {
             AirwallexPaymentMethod::Wallets(AirwallexWalletData::GooglePay(GooglePayData {
@@ -768,6 +858,16 @@ fn get_wallet_details(
                     country_code: item.router_data.get_optional_billing_country()
                 },
                 payment_method_type: AirwallexPaymentType::Paypal,
+            }))
+        }
+        WalletData::SkrillRedirect(skrill_details) => {
+            AirwallexPaymentMethod::Wallets(AirwallexWalletData::Skrill(SkrillData {
+                skrill: SkrillDetails {
+                    shopper_name: item.router_data.request.customer_name.clone(),
+                    shopper_email: skrill_details.email.clone(),
+                    country_code: item.router_data.get_optional_billing_country(),
+                },
+                payment_method_type: AirwallexPaymentType::Skrill,
             }))
         }
         WalletData::AliPayQr(_)

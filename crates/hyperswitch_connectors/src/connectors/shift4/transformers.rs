@@ -314,6 +314,7 @@ impl TryFrom<&WalletData> for Shift4PaymentMethod {
             | WalletData::CashappQr(_)
             | WalletData::SwishQr(_)
             | WalletData::Mifinity(_)
+            | WalletData::SkrillRedirect(_)
             | WalletData::RevolutPay(_) => Err(errors::ConnectorError::NotImplemented(
                 utils::get_unimplemented_payment_method_error_message("Shift4"),
             )
@@ -342,6 +343,7 @@ impl TryFrom<&BankTransferData> for Shift4PaymentMethod {
             | BankTransferData::InstantBankTransfer {}
             | BankTransferData::InstantBankTransferFinland { .. }
             | BankTransferData::InstantBankTransferPoland { .. }
+            | BankTransferData::IndonesianBankTransfer { .. }
             | BankTransferData::LocalBankTransfer { .. } => {
                 Err(errors::ConnectorError::NotImplemented(
                     utils::get_unimplemented_payment_method_error_message("Shift4"),

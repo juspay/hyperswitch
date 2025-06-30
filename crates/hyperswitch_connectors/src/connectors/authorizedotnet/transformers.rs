@@ -1,6 +1,6 @@
 use std::collections::BTreeMap;
 
-use api_models::webhooks::IncomingWebhookEvent;
+use api_models::{webhooks::IncomingWebhookEvent};
 use common_enums::enums;
 use common_utils::{
     errors::CustomResult,
@@ -467,6 +467,7 @@ impl TryFrom<&SetupMandateRouterData> for CreateCustomerProfileRequest {
                 | WalletData::CashappQr(_)
                 | WalletData::SwishQr(_)
                 | WalletData::Mifinity(_)
+                | WalletData::SkrillRedirect(_)
                 | WalletData::RevolutPay(_) => Err(errors::ConnectorError::NotImplemented(
                     utils::get_unimplemented_payment_method_error_message("authorizedotnet"),
                 ))?,
@@ -1927,6 +1928,7 @@ fn get_wallet_data(
         | WalletData::CashappQr(_)
         | WalletData::SwishQr(_)
         | WalletData::Mifinity(_)
+        | WalletData::SkrillRedirect(_)
         | WalletData::RevolutPay(_) => Err(errors::ConnectorError::NotImplemented(
             utils::get_unimplemented_payment_method_error_message("authorizedotnet"),
         ))?,

@@ -201,6 +201,7 @@ fn get_wallet_type(wallet_data: &WalletData) -> Result<String, errors::Connector
         | WalletData::CashappQr(_)
         | WalletData::SwishQr(_)
         | WalletData::Mifinity(_)
+        | WalletData::SkrillRedirect(_)
         | WalletData::RevolutPay(_) => Err(errors::ConnectorError::NotImplemented(
             utils::get_unimplemented_payment_method_error_message("boku"),
         )),
