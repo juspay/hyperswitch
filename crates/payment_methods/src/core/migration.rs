@@ -31,7 +31,11 @@ pub async fn migrate_payment_methods(
 
     for record in payment_methods {
         let migrate_request =
-            pm_api::PaymentMethodMigrate::from((&record, merchant_id, mca_ids.as_ref()));
+            pm_api::PaymentMethodMigrate::try_from((&record, merchant_id, mca_ids.as_ref()))
+                .map_err(|err| errors::ApiErrorResponse::InvalidRequestData {
+                    message: format!("error: {:?}", err),
+                })
+                .attach_printable("record deserialization failed")?;
 
         let migration_result = migrate_payment_method(
             state,

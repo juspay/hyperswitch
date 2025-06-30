@@ -7,6 +7,8 @@ use cards::CardNumber;
 use common_utils::crypto::OptionalEncryptableName;
 use common_utils::{
     consts::SURCHARGE_PERCENTAGE_PRECISION_LENGTH,
+    errors,
+    ext_traits::OptionExt,
     id_type, link_utils, pii,
     types::{MinorUnit, Percentage, Surcharge},
 };
@@ -2640,50 +2642,48 @@ impl From<PaymentMethodMigrationResponseType> for PaymentMethodMigrationResponse
 }
 
 impl
-    From<(
+    TryFrom<(
         &PaymentMethodRecord,
         &id_type::MerchantId,
         Option<&Vec<id_type::MerchantConnectorAccountId>>,
     )> for PaymentMethodMigrate
 {
-    fn from(
+    type Error = error_stack::Report<errors::ValidationError>;
+
+    fn try_from(
         item: (
             &PaymentMethodRecord,
             &id_type::MerchantId,
             Option<&Vec<id_type::MerchantConnectorAccountId>>,
         ),
-    ) -> Self {
+    ) -> Result<Self, Self::Error> {
         let (record, merchant_id, mca_ids) = item;
         let billing = record.create_billing();
-        let connector_mandate_details =
-            record
-                .payment_instrument_id
-                .as_ref()
-                .and_then(|payment_instrument_id| {
-                    mca_ids.as_ref().map(|ids| {
-                        let mandate_map: HashMap<_, _> = ids
-                            .iter()
-                            .map(|mca_id| {
-                                (
-                                    mca_id.clone(),
-                                    PaymentsMandateReferenceRecord {
-                                        connector_mandate_id: payment_instrument_id
-                                            .peek()
-                                            .to_string(),
-                                        payment_method_type: record.payment_method_type,
-                                        original_payment_authorized_amount: record
-                                            .original_transaction_amount,
-                                        original_payment_authorized_currency: record
-                                            .original_transaction_currency,
-                                    },
-                                )
-                            })
-                            .collect();
-                        PaymentsMandateReference(mandate_map)
-                    })
-                });
+        let connector_mandate_details = if let Some(payment_instrument_id) =
+            &record.payment_instrument_id
+        {
+            let ids = mca_ids.get_required_value("mca_ids")?;
+            let mandate_map: HashMap<_, _> = ids
+                .iter()
+                .map(|mca_id| {
+                    (
+                        mca_id.clone(),
+                        PaymentsMandateReferenceRecord {
+                            connector_mandate_id: payment_instrument_id.peek().to_string(),
+                            payment_method_type: record.payment_method_type,
+                            original_payment_authorized_amount: record.original_transaction_amount,
+                            original_payment_authorized_currency: record
+                                .original_transaction_currency,
+                        },
+                    )
+                })
+                .collect();
+            Some(PaymentsMandateReference(mandate_map))
+        } else {
+            None
+        };
 
-        Self {
+        Ok(Self {
             merchant_id: merchant_id.clone(),
             customer_id: Some(record.customer_id.clone()),
             card: Some(MigrateCardDetail {
@@ -2741,7 +2741,7 @@ impl
             wallet: None,
             payment_method_data: None,
             network_transaction_id: record.original_transaction_id.clone(),
-        }
+        })
     }
 }
 
