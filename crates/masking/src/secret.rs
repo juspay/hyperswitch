@@ -248,6 +248,41 @@ impl Strategy<serde_json::Value> for JsonMaskStrategy {
     }
 }
 
+#[cfg(feature = "proto_tonic")]
+impl<T> prost::Message for Secret<T, crate::WithType>
+where
+    T: prost::Message + Default + Clone,
+{
+    fn encode_raw(&self, buf: &mut impl bytes::BufMut) {
+        self.peek().encode_raw(buf);
+    }
+
+    fn merge_field(
+        &mut self,
+        tag: u32,
+        wire_type: prost::encoding::WireType,
+        buf: &mut impl bytes::Buf,
+        ctx: prost::encoding::DecodeContext,
+    ) -> Result<(), prost::DecodeError> {
+        if tag == 1 {
+            let mut value = T::default();
+            prost::Message::merge_field(&mut value, tag, wire_type, buf, ctx)?;
+            *self = Self::new(value);
+            Ok(())
+        } else {
+            prost::encoding::skip_field(wire_type, tag, buf, ctx)
+        }
+    }
+
+    fn encoded_len(&self) -> usize {
+        prost::Message::encoded_len(self.peek())
+    }
+
+    fn clear(&mut self) {
+        *self = Self::new(T::default());
+    }
+}
+
 #[cfg(test)]
 #[cfg(feature = "serde")]
 mod tests {
