@@ -223,7 +223,7 @@ cards = [
     "boku",
     "braintree",
     "checkout",
-    "celero"
+    "celero",
     "coinbase",
     "coingate",
     "cryptopay",
