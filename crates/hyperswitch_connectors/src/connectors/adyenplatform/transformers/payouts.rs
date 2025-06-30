@@ -70,7 +70,7 @@ pub struct AdyenBankAccountDetails {
 #[serde(rename_all = "camelCase")]
 pub struct AdyenAccountHolder {
     address: AdyenAddress,
-    first_name: Secret<String>,
+    first_name: Option<Secret<String>>,
     last_name: Option<Secret<String>>,
     full_name: Option<Secret<String>>,
     #[serde(rename = "reference")]
@@ -252,16 +252,30 @@ impl TryFrom<&hyperswitch_domain_models::address::AddressDetails> for AdyenAddre
     }
 }
 
-impl<F> TryFrom<&types::PayoutsRouterData<F>> for AdyenAccountHolder {
+impl<F> TryFrom<(&types::PayoutsRouterData<F>, enums::PayoutType)> for AdyenAccountHolder {
     type Error = Error;
 
-    fn try_from(router_data: &types::PayoutsRouterData<F>) -> Result<Self, Self::Error> {
+    fn try_from(
+        (router_data, payout_type): (&types::PayoutsRouterData<F>, enums::PayoutType),
+    ) -> Result<Self, Self::Error> {
         let billing_address = router_data.get_billing_address()?;
+        let (first_name, last_name, full_name) = match payout_type {
+            enums::PayoutType::Card => (
+                Some(router_data.get_billing_first_name()?),
+                Some(router_data.get_billing_last_name()?),
+                None,
+            ),
+            enums::PayoutType::Bank => (None, None, Some(router_data.get_billing_full_name()?)),
+            _ => Err(ConnectorError::NotSupported {
+                message: "Payout method not supported".to_string(),
+                connector: "Adyen",
+            })?,
+        };
         Ok(Self {
             address: billing_address.try_into()?,
-            first_name: router_data.get_billing_first_name()?,
-            last_name: router_data.get_optional_billing_last_name(),
-            full_name: router_data.get_optional_billing_full_name(),
+            first_name,
+            last_name,
+            full_name,
             customer_id: Some(router_data.get_customer_id()?.get_string_repr().to_owned()),
             entity_type: Some(EntityType::from(router_data.request.entity_type)),
         })
@@ -279,7 +293,8 @@ impl<F> TryFrom<&AdyenPlatformRouterData<&types::PayoutsRouterData<F>>> for Adye
                 utils::get_unimplemented_payment_method_error_message("Adyenplatform"),
             ))?,
             payouts::PayoutMethodData::Card(c) => {
-                let card_holder: AdyenAccountHolder = item.router_data.try_into()?;
+                let card_holder: AdyenAccountHolder =
+                    (item.router_data, enums::PayoutType::Card).try_into()?;
                 let card_identification = AdyenCardIdentification {
                     card_number: c.card_number,
                     expiry_month: c.expiry_month,
@@ -295,7 +310,8 @@ impl<F> TryFrom<&AdyenPlatformRouterData<&types::PayoutsRouterData<F>>> for Adye
                 (counterparty, None)
             }
             payouts::PayoutMethodData::Bank(bd) => {
-                let account_holder: AdyenAccountHolder = item.router_data.try_into()?;
+                let account_holder: AdyenAccountHolder =
+                    (item.router_data, enums::PayoutType::Bank).try_into()?;
                 let bank_details = match bd {
                     payouts::Bank::Sepa(b) => AdyenBankAccountIdentification {
                         bank_type: "iban".to_string(),

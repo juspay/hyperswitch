@@ -460,6 +460,15 @@ fn get_billing_details(connector: PayoutConnectors) -> HashMap<String, RequiredF
                     value: None,
                 },
             ),
+            (
+                "billing.address.last_name".to_string(),
+                RequiredFieldInfo {
+                    required_field: "billing.address.last_name".to_string(),
+                    display_name: "billing_address_last_name".to_string(),
+                    field_type: FieldType::Text,
+                    value: None,
+                },
+            ),
         ]),
         PayoutConnectors::Wise => HashMap::from([
             (
