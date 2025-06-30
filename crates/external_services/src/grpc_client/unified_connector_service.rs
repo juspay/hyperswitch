@@ -1,5 +1,6 @@
 use common_utils::{errors::CustomResult, types::Url};
 use error_stack::ResultExt;
+use masking::{PeekInterface, Secret};
 use router_env::logger;
 use tonic::metadata::{MetadataMap, MetadataValue};
 use unified_connector_service_client::payments::{
@@ -100,13 +101,13 @@ pub struct ConnectorAuthMetadata {
     pub auth_type: String,
 
     /// Optional API key used for authentication.
-    pub api_key: Option<String>,
+    pub api_key: Option<Secret<String>>,
 
     /// Optional additional key used by some authentication types.
-    pub key1: Option<String>,
+    pub key1: Option<Secret<String>>,
 
     /// Optional API secret used for signature or secure authentication.
-    pub api_secret: Option<String>,
+    pub api_secret: Option<Secret<String>>,
 }
 
 impl UnifiedConnectorServiceClient {
@@ -181,15 +182,15 @@ impl TryFrom<ConnectorAuthMetadata> for MetadataMap {
         );
 
         if let Some(api_key) = meta.api_key {
-            metadata.append(consts::UCS_HEADER_API_KEY, parse("api_key", &api_key)?);
+            metadata.append(consts::UCS_HEADER_API_KEY, parse("api_key", &api_key.peek())?);
         }
         if let Some(key1) = meta.key1 {
-            metadata.append(consts::UCS_HEADER_KEY1, parse("key1", &key1)?);
+            metadata.append(consts::UCS_HEADER_KEY1, parse("key1", &key1.peek())?);
         }
         if let Some(api_secret) = meta.api_secret {
             metadata.append(
                 consts::UCS_HEADER_API_SECRET,
-                parse("api_secret", &api_secret)?,
+                parse("api_secret", &api_secret.peek())?,
             );
         }
 

@@ -3,7 +3,6 @@ use common_enums::{AttemptStatus, PaymentMethodType};
 use common_utils::{errors::CustomResult, ext_traits::ValueExt};
 use error_stack::ResultExt;
 use external_services::{
-    consts,
     grpc_client::unified_connector_service::{ConnectorAuthMetadata, UnifiedConnectorServiceError},
 };
 use hyperswitch_connectors::utils::CardData;
@@ -19,7 +18,7 @@ use unified_connector_service_client::payments::{
 };
 
 use crate::{
-    consts::UCS_ROLLOUT_PERCENT_CONFIG_PREFIX,
+    consts,
     core::{
         errors::RouterResult,
         payments::helpers::{should_execute_based_on_rollout, MerchantConnectorAccountType},
@@ -47,7 +46,7 @@ pub async fn should_call_unified_connector_service<F: Clone, T>(
 
     let config_key = format!(
         "{}_{}_{}_{}_{}",
-        UCS_ROLLOUT_PERCENT_CONFIG_PREFIX, merchant_id, connector_name, payment_method, flow_name
+        consts::UCS_ROLLOUT_PERCENT_CONFIG_PREFIX, merchant_id, connector_name, payment_method, flow_name
     );
 
     let should_execute = should_execute_based_on_rollout(state, &config_key).await?;
@@ -150,21 +149,21 @@ pub fn build_unified_connector_service_auth_metadata(
         } => Ok(ConnectorAuthMetadata {
             connector_name,
             auth_type: consts::UCS_AUTH_SIGNATURE_KEY.to_string(),
-            api_key: Some(api_key.peek().to_string()),
-            key1: Some(key1.peek().to_string()),
-            api_secret: Some(api_secret.peek().to_string()),
+            api_key: Some(api_key.clone()),
+            key1: Some(key1.clone()),
+            api_secret: Some(api_secret.clone()),
         }),
         ConnectorAuthType::BodyKey { api_key, key1 } => Ok(ConnectorAuthMetadata {
             connector_name,
             auth_type: consts::UCS_AUTH_BODY_KEY.to_string(),
-            api_key: Some(api_key.peek().to_string()),
-            key1: Some(key1.peek().to_string()),
+            api_key: Some(api_key.clone()),
+            key1: Some(key1.clone()),
             api_secret: None,
         }),
         ConnectorAuthType::HeaderKey { api_key } => Ok(ConnectorAuthMetadata {
             connector_name,
             auth_type: consts::UCS_AUTH_HEADER_KEY.to_string(),
-            api_key: Some(api_key.peek().to_string()),
+            api_key: Some(api_key.clone()),
             key1: None,
             api_secret: None,
         }),
