@@ -1,6 +1,5 @@
-use api_models::payments::{
-    ImmediateBillingType, QrCodeInformation, SantanderBillingType, ScheduledBillingType,
-};
+use api_models::payments::QrCodeInformation;
+use chrono::Utc;
 use common_enums::enums;
 use common_utils::{
     errors::CustomResult,
@@ -12,7 +11,7 @@ use crc::{Algorithm, Crc};
 use error_stack::ResultExt;
 use hyperswitch_domain_models::{
     payment_method_data::{BankTransferData, PaymentMethodData},
-    router_data::{AccessToken, RouterData},
+    router_data::{AccessToken, ConnectorAuthType, RouterData},
     router_request_types::ResponseId,
     router_response_types::{PaymentsResponseData, RefundsResponseData},
     types::{PaymentsAuthorizeRouterData, PaymentsCancelRouterData, RefundsRouterData},
@@ -26,7 +25,7 @@ use url::Url;
 
 use crate::{
     types::{RefundsResponseRouterData, ResponseRouterData},
-    utils::{PaymentsAuthorizeRequestData, QrImage, RouterData as _},
+    utils::{QrImage, RouterData as _},
 };
 const CRC_16_CCITT_FALSE: Algorithm<u16> = Algorithm {
     width: 16,
@@ -42,7 +41,6 @@ const CRC_16_CCITT_FALSE: Algorithm<u16> = Algorithm {
 type Error = error_stack::Report<errors::ConnectorError>;
 
 const DEFAULT_EXPIRATION_TIME: i32 = 3600;
-const DEFAULT_VALIDITY_AFTER_EXPIRATION_TIME: i32 = 30;
 
 pub struct SantanderRouterData<T> {
     pub amount: StringMajorUnit,
@@ -136,6 +134,24 @@ pub struct SantanderCard {
     complete: bool,
 }
 
+pub struct SantanderAuthType {
+    pub(super) _api_key: Secret<String>,
+    pub(super) _key1: Secret<String>,
+}
+
+impl TryFrom<&ConnectorAuthType> for SantanderAuthType {
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(auth_type: &ConnectorAuthType) -> Result<Self, Self::Error> {
+        match auth_type {
+            ConnectorAuthType::BodyKey { api_key, key1 } => Ok(Self {
+                _api_key: api_key.to_owned(),
+                _key1: key1.to_owned(),
+            }),
+            _ => Err(errors::ConnectorError::FailedToObtainAuthType.into()),
+        }
+    }
+}
+
 impl<F, T> TryFrom<ResponseRouterData<F, SantanderAuthUpdateResponse, T, AccessToken>>
     for RouterData<F, T, AccessToken>
 {
@@ -210,54 +226,29 @@ impl
             return Err(errors::ConnectorError::NoConnectorMetaData)?;
         };
 
-        let billing_type = &value.0.router_data.request.santander_pix_qr_expiration_time;
+        let expiration_time = extract_field_from_mca_metadata(
+            value.0.router_data.connector_meta_data.clone(),
+            "expiration_time",
+        )
+        .map(|secret| {
+            secret
+                .expose()
+                .parse::<i32>()
+                .map_err(|_| errors::ConnectorError::ResponseHandlingFailed)
+        })
+        .transpose()?
+        .unwrap_or(DEFAULT_EXPIRATION_TIME);
 
-        let (expiration_time, due_date, validity) = match billing_type {
-            Some(SantanderBillingType::Immediate(data)) => (data.expiration_time, None, None),
-            Some(SantanderBillingType::Scheduled(data)) => {
-                (None, data.due_date.clone(), data.validity_after_expiration)
-            }
-            None => (None, None, None),
-        };
-
-        let calender = if expiration_time.is_some() {
-            SantanderBillingType::Immediate(ImmediateBillingType {
-                expiration_time: Some(expiration_time.unwrap_or(DEFAULT_EXPIRATION_TIME)),
-            })
-        } else if due_date.is_some() {
-            SantanderBillingType::Scheduled(ScheduledBillingType {
-                due_date: due_date.clone(),
-                validity_after_expiration: Some(
-                    validity.unwrap_or(DEFAULT_VALIDITY_AFTER_EXPIRATION_TIME),
-                ),
-            })
-        } else {
-            return Err(errors::ConnectorError::MissingRequiredField {
-                field_name: "due_date",
-            })?;
-        };
-
-        let debtor = if expiration_time.is_some() {
-            Some(SantanderDebtor::SantanderCob(SantanderCobDebtor {
-                cpf: None,
-                name: Some(value.0.router_data.get_billing_full_name()?),
-            }))
-        } else if due_date.is_some() || (expiration_time.is_none() && due_date.is_none()) {
-            Some(SantanderDebtor::SantanderCobv(SantanderCobvDebtor {
-                email: value.0.router_data.request.get_optional_email(),
-                street: value.0.router_data.get_optional_billing_line1(),
-                city: value.0.router_data.get_optional_billing_city(),
-                uf: None,
-                zip_code: value.0.router_data.get_optional_billing_zip(),
-                cpj: None,
-                name: value.0.router_data.get_optional_billing_full_name(),
-            }))
-        } else {
-            None
+        let debtor = SantanderDebtor {
+            cpf: None,
+            name: Some(value.0.router_data.get_billing_full_name()?),
         };
 
         Ok(Self {
-            calender,
+            calender: SantanderCalendar {
+                creation: Utc::now().to_rfc3339(),
+                expiration: expiration_time,
+            },
             debtor,
             value: SantanderValue {
                 original: value.0.amount.to_owned(),
@@ -273,9 +264,9 @@ impl
 #[serde(rename_all = "camelCase")]
 pub struct SantanderPaymentRequest {
     #[serde(rename = "calendario")]
-    pub calender: SantanderBillingType,
+    pub calender: SantanderCalendar,
     #[serde(rename = "devedor")]
-    pub debtor: Option<SantanderDebtor>,
+    pub debtor: SantanderDebtor,
     #[serde(rename = "valor")]
     pub value: SantanderValue,
     #[serde(rename = "chave")]
@@ -290,7 +281,7 @@ pub struct SantanderPaymentRequest {
 #[serde(rename_all = "camelCase")]
 pub struct SantanderPixQRPaymentRequest {
     #[serde(rename = "calendario")]
-    pub calender: SantanderBillingType,
+    pub calender: SantanderCalendar,
     #[serde(rename = "devedor")]
     pub debtor: Option<SantanderDebtor>,
     #[serde(rename = "valor")]
@@ -305,33 +296,8 @@ pub struct SantanderPixQRPaymentRequest {
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 #[serde(rename_all = "camelCase")]
-pub enum SantanderDebtor {
-    SantanderCob(SantanderCobDebtor),
-    SantanderCobv(SantanderCobvDebtor),
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
-#[serde(rename_all = "camelCase")]
-pub struct SantanderCobDebtor {
+pub struct SantanderDebtor {
     pub cpf: Option<Secret<String>>,
-    #[serde(rename = "nome")]
-    pub name: Option<Secret<String>>,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
-#[serde(rename_all = "camelCase")]
-pub struct SantanderCobvDebtor {
-    #[serde(rename = "email")]
-    pub email: Option<Email>,
-    #[serde(rename = "logradouro")]
-    pub street: Option<Secret<String>>,
-    #[serde(rename = "cidade")]
-    pub city: Option<String>,
-    #[serde(rename = "uf")]
-    pub uf: Option<Secret<String>>,
-    #[serde(rename = "cep")]
-    pub zip_code: Option<Secret<String>>,
-    pub cpj: Option<Secret<String>>,
     #[serde(rename = "nome")]
     pub name: Option<Secret<String>>,
 }

@@ -440,6 +440,7 @@ impl ConnectorConfig {
             Connector::Recurly => Ok(connector_data.recurly),
             Connector::Redsys => Ok(connector_data.redsys),
             Connector::Riskified => Ok(connector_data.riskified),
+            Connector::Santander => Ok(connector_data.santander),
             Connector::Shift4 => Ok(connector_data.shift4),
             Connector::Signifyd => Ok(connector_data.signifyd),
             Connector::Square => Ok(connector_data.square),

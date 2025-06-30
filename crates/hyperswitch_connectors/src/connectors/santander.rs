@@ -2,7 +2,6 @@ pub mod transformers;
 
 use std::sync::LazyLock;
 
-use api_models::payments::SantanderBillingType;
 use base64::Engine;
 use common_enums::enums;
 use common_utils::{
@@ -279,23 +278,11 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
         req: &PaymentsAuthorizeRouterData,
         connectors: &Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        match &req.request.santander_pix_qr_expiration_time {
-            Some(SantanderBillingType::Immediate(_)) => Ok(format!(
-                "{}cob/{}",
-                self.base_url(connectors),
-                req.payment_id
-            )),
-            Some(SantanderBillingType::Scheduled(_)) => Ok(format!(
-                "{}cobv/{}",
-                self.base_url(connectors),
-                req.payment_id
-            )),
-            None => Ok(format!(
-                "{}cob/{}",
-                self.base_url(connectors),
-                req.payment_id
-            )),
-        }
+        Ok(format!(
+            "{}cob/{}",
+            self.base_url(connectors),
+            req.payment_id
+        ))
     }
 
     fn get_request_body(

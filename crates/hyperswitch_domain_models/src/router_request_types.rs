@@ -78,7 +78,6 @@ pub struct PaymentsAuthorizeData {
     pub additional_payment_method_data: Option<AdditionalPaymentData>,
     pub merchant_account_id: Option<Secret<String>>,
     pub merchant_config_currency: Option<storage_enums::Currency>,
-    pub santander_pix_qr_expiration_time: Option<api_models::payments::SantanderBillingType>,
     pub connector_testing_data: Option<pii::SecretSerdeValue>,
     pub order_id: Option<String>,
 }
