@@ -1,7 +1,3 @@
-use crate::{
-    types::{RefundsResponseRouterData, ResponseRouterData},
-    utils::PaymentsAuthorizeRequestData,
-};
 use common_enums::enums;
 use common_utils::types::StringMajorUnit;
 use hyperswitch_domain_models::{
@@ -15,6 +11,11 @@ use hyperswitch_domain_models::{
 use hyperswitch_interfaces::errors;
 use masking::Secret;
 use serde::{Deserialize, Serialize};
+
+use crate::{
+    types::{RefundsResponseRouterData, ResponseRouterData},
+    utils::PaymentsAuthorizeRequestData,
+};
 
 //TODO: Fill the struct with respective fields
 pub struct DwollaRouterData<T> {
