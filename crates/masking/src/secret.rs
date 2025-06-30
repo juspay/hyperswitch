@@ -341,44 +341,36 @@ mod tests {
         assert!(
             masked_str.contains(&expected_name_mask),
             "Name not masked correctly. Expected: {expected_name_mask}"
-
         );
         assert!(
             masked_str.contains(&expected_email_mask),
             "Email not masked correctly. Expected: {expected_email_mask}",
-
         );
         assert!(
             masked_str.contains(&expected_card_mask),
             "Card number not masked correctly. Expected: {expected_card_mask}",
-
         );
         assert!(
             masked_str.contains(&expected_tag1_mask),
             "Tag not masked correctly. Expected: {expected_tag1_mask}",
-
         );
         assert!(
             masked_str.contains(&expected_short_mask),
             "Short string not masked correctly. Expected: {expected_short_mask}",
-
         );
 
         assert!(
             masked_str.contains(&expected_age_mask),
             "Age not masked correctly. Expected: {expected_age_mask}",
-
         );
         assert!(
             masked_str.contains(&expected_cvv_mask),
             "CVV not masked correctly. Expected: {expected_cvv_mask}",
-
         );
 
         assert!(
             masked_str.contains(expected_verified_mask),
             "Boolean not masked correctly. Expected: {expected_verified_mask}",
-
         );
 
         // Check structure preservation

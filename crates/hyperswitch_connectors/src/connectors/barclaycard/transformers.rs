@@ -1597,17 +1597,15 @@ pub fn get_error_reason(
     match (error_info, detailed_error_info, avs_error_info) {
         (Some(message), Some(details), Some(avs_message)) => Some(format!(
             "{message}, detailed_error_information: {details}, avs_message: {avs_message}",
-
         )),
-        (Some(message), Some(details), None) => Some(format!(
-            "{message}, detailed_error_information: {details}",
-
-        )),
+        (Some(message), Some(details), None) => {
+            Some(format!("{message}, detailed_error_information: {details}",))
+        }
         (Some(message), None, Some(avs_message)) => {
-            Some(format!("{message}, avs_message: {avs_message}",  ))
+            Some(format!("{message}, avs_message: {avs_message}",))
         }
         (None, Some(details), Some(avs_message)) => {
-            Some(format!("{details}, avs_message: {avs_message}",  ))
+            Some(format!("{details}, avs_message: {avs_message}",))
         }
         (Some(message), None, None) => Some(message),
         (None, Some(details), None) => Some(details),

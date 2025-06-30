@@ -185,7 +185,6 @@ where
                     errors::ConnectorError::MaxFieldLengthViolated {
                         field_name: format!(
                             "{address_type_str}.address.line1 & {address_type_str}.address.line2",
-
                         ),
                         connector: "Nexixpay".to_string(),
                         max_length: max_street_len,
@@ -201,7 +200,7 @@ where
             if length > max_city_len {
                 return Err(error_stack::Report::from(
                     errors::ConnectorError::MaxFieldLengthViolated {
-                        field_name: format!("{address_type_str}.address.city", ),
+                        field_name: format!("{address_type_str}.address.city",),
                         connector: "Nexixpay".to_string(),
                         max_length: max_city_len,
                         received_length: length,
@@ -216,7 +215,7 @@ where
             if length > max_post_code_len {
                 return Err(error_stack::Report::from(
                     errors::ConnectorError::MaxFieldLengthViolated {
-                        field_name: format!("{address_type_str}.address.zip", ),
+                        field_name: format!("{address_type_str}.address.zip",),
                         connector: "Nexixpay".to_string(),
                         max_length: max_post_code_len,
                         received_length: length,
@@ -231,7 +230,7 @@ where
             if length > max_country_len {
                 return Err(error_stack::Report::from(
                     errors::ConnectorError::MaxFieldLengthViolated {
-                        field_name: format!("{address_type_str}.address.country", ),
+                        field_name: format!("{address_type_str}.address.country",),
                         connector: "Nexixpay".to_string(),
                         max_length: max_country_len,
                         received_length: length,

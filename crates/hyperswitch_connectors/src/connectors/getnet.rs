@@ -649,7 +649,6 @@ impl ConnectorIntegration<RSync, RefundsData, RefundsResponseData> for Getnet {
 
         Ok(format!(
             "{endpoint}/merchants/{merchant_id}/payments/{transaction_id}",
-
         ))
     }
 

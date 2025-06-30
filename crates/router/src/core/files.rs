@@ -75,7 +75,7 @@ pub async fn files_create_core(
         .await
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable_lazy(|| {
-            format!("Unable to update file_metadata with file_id: {file_id}", )
+            format!("Unable to update file_metadata with file_id: {file_id}",)
         })?;
     Ok(ApplicationResponse::Json(files::CreateFileResponse {
         file_id,

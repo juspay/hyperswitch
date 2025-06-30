@@ -1346,7 +1346,7 @@ impl ConnectorAuthTypeAndMetadataValidation<'_> {
                 }
                 errors::ConnectorError::InvalidConnectorConfig { config: field_name } => err
                     .change_context(errors::ApiErrorResponse::InvalidRequestData {
-                        message: format!("The {field_name} is invalid", ),
+                        message: format!("The {field_name} is invalid",),
                     }),
                 errors::ConnectorError::FailedToObtainAuthType => {
                     err.change_context(errors::ApiErrorResponse::InvalidRequestData {
@@ -1816,7 +1816,7 @@ impl ConnectorAuthTypeValidation<'_> {
         let validate_non_empty_field = |field_value: &str, field_name: &str| {
             if field_value.trim().is_empty() {
                 Err(errors::ApiErrorResponse::InvalidDataFormat {
-                    field_name: format!("connector_account_details.{field_name}", ),
+                    field_name: format!("connector_account_details.{field_name}",),
                     expected_format: "a non empty String".to_string(),
                 }
                 .into())

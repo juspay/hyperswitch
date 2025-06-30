@@ -23,7 +23,6 @@ pub fn get_connector_auth(
         _ => Err(ApiErrorResponse::NotImplemented {
             message: NotImplementedMessage::Reason(format!(
                 "Onboarding is not implemented for {connector}",
-
             )),
         }
         .into()),

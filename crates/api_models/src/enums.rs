@@ -114,7 +114,7 @@ impl TryFrom<Connector> for PayoutConnectors {
             Connector::Paypal => Ok(Self::Paypal),
             Connector::Stripe => Ok(Self::Stripe),
             Connector::Wise => Ok(Self::Wise),
-            _ => Err(format!("Invalid payout connector {value}", )),
+            _ => Err(format!("Invalid payout connector {value}",)),
         }
     }
 }

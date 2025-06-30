@@ -279,7 +279,6 @@ pub fn validate_adyen_charge_refund(
             return Err(report!(errors::ApiErrorResponse::InvalidRequestData {
                 message: format!(
                     "No matching payment split item found for reference: {refund_split_reference}",
-
                 ),
             }));
         }

@@ -994,7 +994,6 @@ mod tests {
         assert!(
             result_mca.is_ok(),
             "Expected Ok, but got Err: {result_mca:?}",
-
         );
         let mca = result_mca.unwrap();
         assert!(payments.0.contains_key(&mca));
@@ -1037,7 +1036,6 @@ mod tests {
         assert!(
             result_mca.is_ok(),
             "Expected Ok, but got Err: {result_mca:?}",
-
         );
         let mca = result_mca.unwrap();
         assert!(payouts.0.contains_key(&mca));

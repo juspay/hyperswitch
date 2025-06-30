@@ -65,7 +65,6 @@ pub fn get_payment_body(
                 </soapenv:Body>
             </soapenv:Envelope>
         "#,
-
     );
 
     Ok(body.as_bytes().to_vec())

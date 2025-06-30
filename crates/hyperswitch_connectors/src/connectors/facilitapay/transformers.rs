@@ -230,9 +230,8 @@ pub fn parse_facilitapay_error_response(
                 Err(_) => (
                     "Invalid response format received".to_string(),
                     format!(
-                        "Unable to parse response as JSON or UTF-8 string. Status code: {status_code}",
-
-                    ),
+                    "Unable to parse response as JSON or UTF-8 string. Status code: {status_code}",
+                ),
                 ),
             },
         };

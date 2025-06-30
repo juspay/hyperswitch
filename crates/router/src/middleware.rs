@@ -178,7 +178,7 @@ where
 
 fn get_request_details_from_value(json_value: &serde_json::Value, parent_key: &str) -> String {
     match json_value {
-        serde_json::Value::Null => format!("{parent_key}: null", ),
+        serde_json::Value::Null => format!("{parent_key}: null",),
         serde_json::Value::Bool(b) => format!("{parent_key}: {b}"),
         serde_json::Value::Number(num) => format!("{}: {}", parent_key, num.to_string().len()),
         serde_json::Value::String(s) => format!("{}: {}", parent_key, s.len()),
@@ -377,7 +377,6 @@ where
                 serde_qs::from_str::<LocaleQueryParam>(query_params).map_err(|error| {
                     actix_web::error::ErrorBadRequest(format!(
                         "Could not convert query params to locale query parmas: {error:?}",
-
                     ))
                 })?;
             let accept_language_header = req.headers().get(http::header::ACCEPT_LANGUAGE);

@@ -218,7 +218,6 @@ impl ReverseLookupInterface for MockDb {
             .ok_or(
                 errors::StorageError::ValueNotFound(format!(
                     "No reverse lookup found for lookup_id = {lookup_id}",
-
                 ))
                 .into(),
             )

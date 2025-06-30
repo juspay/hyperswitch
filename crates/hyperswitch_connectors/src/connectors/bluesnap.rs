@@ -205,7 +205,6 @@ impl ConnectorCommon for Bluesnap {
                             (
                                 format!(
                                     "{REQUEST_TIMEOUT_PAYMENT_NOT_FOUND} in bluesnap dashboard",
-
                                 ),
                                 Some(enums::AttemptStatus::Failure), // when bluesnap throws 403 for payment not found, we update the payment status to failure.
                             )

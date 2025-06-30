@@ -829,7 +829,7 @@ pub(super) async fn get_or_create_customer_details(
                 ))
             } else {
                 Err(report!(errors::ApiErrorResponse::InvalidRequestData {
-                    message: format!("customer for id - {customer_id:?} not found", ),
+                    message: format!("customer for id - {customer_id:?} not found",),
                 }))
             }
         }
@@ -1198,10 +1198,7 @@ pub async fn update_payouts_and_payout_attempt(
     // Verify update feasibility
     if is_payout_terminal_state(status) || is_payout_initiated(status) {
         return Err(report!(errors::ApiErrorResponse::InvalidRequestData {
-            message: format!(
-                "Payout {payout_id} cannot be updated for status {status}",
-
-            ),
+            message: format!("Payout {payout_id} cannot be updated for status {status}",),
         }));
     }
 

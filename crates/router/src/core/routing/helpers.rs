@@ -404,7 +404,6 @@ impl RoutingAlgorithmHelpers<'_> {
                 errors::ApiErrorResponse::InvalidRequestData {
                     message: format!(
                         "connector with name '{connector_choice}' not found for the given profile",
-
                     )
                 }
             );

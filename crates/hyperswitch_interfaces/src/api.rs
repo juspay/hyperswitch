@@ -615,7 +615,7 @@ pub trait ConnectorValidation: ConnectorCommon + ConnectorSpecifications {
         let connector = self.id();
         match pm_type {
             Some(pm_type) => Err(errors::ConnectorError::NotSupported {
-                message: format!("{pm_type} mandate payment", ),
+                message: format!("{pm_type} mandate payment",),
                 connector,
             }
             .into()),

@@ -353,7 +353,6 @@ where
             let err_msg = format!("{err:?}");
             de::Error::custom(format_args!(
                 "Failed to deserialize PaymentsMandateReference `{err_msg}`",
-
             ))
         })?;
 
@@ -372,7 +371,6 @@ where
             let err_msg = format!("{err:?}");
             de::Error::custom(format_args!(
                 "Failed to deserialize CommonMandateReference `{err_msg}`",
-
             ))
         })?
         .flatten();
