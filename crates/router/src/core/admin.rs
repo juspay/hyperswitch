@@ -1451,6 +1451,10 @@ impl ConnectorAuthTypeAndMetadataValidation<'_> {
                 cashtocode::transformers::CashtocodeAuthType::try_from(self.auth_type)?;
                 Ok(())
             }
+            api_enums::Connector::Celero => {
+                celero::transformers::CeleroAuthType::try_from(self.auth_type)?;
+                Ok(())
+            }
             api_enums::Connector::Chargebee => {
                 chargebee::transformers::ChargebeeAuthType::try_from(self.auth_type)?;
                 chargebee::transformers::ChargebeeMetadata::try_from(self.connector_meta_data)?;
