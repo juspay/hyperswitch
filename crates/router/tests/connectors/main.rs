@@ -25,6 +25,7 @@ mod boku;
 mod cashtocode;
 mod chargebee;
 mod checkout;
+mod chequebookdotio;
 mod coinbase;
 mod cryptopay;
 mod cybersource;

@@ -341,6 +341,10 @@ api_key = "MyApiKey"
 key1 = "Merchant id"
 api_secret = "Secret key"
 
+[chequebookdotio]
+api_key="Client ID"
+key1 ="Client Secret"
+
 [santander]
 api_key="Client ID"
 key1 ="Client Secret"

@@ -192,6 +192,7 @@ pub struct ConnectorConfig {
     pub cashtocode: Option<ConnectorTomlConfig>,
     pub chargebee: Option<ConnectorTomlConfig>,
     pub checkout: Option<ConnectorTomlConfig>,
+    pub chequebookdotio: Option<ConnectorTomlConfig>,
     pub coinbase: Option<ConnectorTomlConfig>,
     pub coingate: Option<ConnectorTomlConfig>,
     pub cryptopay: Option<ConnectorTomlConfig>,

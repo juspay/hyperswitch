@@ -31,6 +31,7 @@ pub struct Connectors {
     pub cashtocode: ConnectorParams,
     pub chargebee: ConnectorParams,
     pub checkout: ConnectorParams,
+    pub chequebookdotio: ConnectorParams,
     pub coinbase: ConnectorParams,
     pub coingate: ConnectorParams,
     pub cryptopay: ConnectorParams,
