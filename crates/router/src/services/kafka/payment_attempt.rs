@@ -212,6 +212,7 @@ pub struct KafkaPaymentAttempt<'a> {
     pub network_decline_code: Option<String>,
     pub network_error_message: Option<String>,
     pub connector_request_reference_id: Option<String>,
+    pub order_id: Option<String>,
 }
 
 #[cfg(feature = "v2")]
@@ -267,6 +268,7 @@ impl<'a> KafkaPaymentAttempt<'a> {
             processor_merchant_id,
             created_by,
             connector_request_reference_id,
+            order_id,
         } = attempt;
 
         let (connector_payment_id, connector_payment_data) = connector_payment_id
@@ -368,6 +370,7 @@ impl<'a> KafkaPaymentAttempt<'a> {
                 .as_ref()
                 .and_then(|details| details.network_error_message.clone()),
             connector_request_reference_id: connector_request_reference_id.clone(),
+            order_id: order_id.clone(),
         }
     }
 }
