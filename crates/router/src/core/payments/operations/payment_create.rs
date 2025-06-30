@@ -311,6 +311,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
             profile_id.clone(),
             session_expiry,
             &business_profile,
+            Some(request.is_payment_id_from_merchant),
         )
         .await?;
 
@@ -1385,6 +1386,7 @@ impl PaymentCreate {
         profile_id: common_utils::id_type::ProfileId,
         session_expiry: PrimitiveDateTime,
         business_profile: &domain::Profile,
+        is_payment_id_from_merchant: Option<bool>,
     ) -> RouterResult<storage::PaymentIntent> {
         let created_at @ modified_at @ last_synced = common_utils::date_time::now();
 
@@ -1597,6 +1599,7 @@ impl PaymentCreate {
             is_iframe_redirection_enabled: request
                 .is_iframe_redirection_enabled
                 .or(business_profile.is_iframe_redirection_enabled),
+            is_payment_id_from_merchant,
         })
     }
 

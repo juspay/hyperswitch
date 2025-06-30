@@ -1053,6 +1053,7 @@ diesel::table! {
         is_iframe_redirection_enabled -> Nullable<Bool>,
         #[max_length = 2048]
         extended_return_url -> Nullable<Varchar>,
+        is_payment_id_from_merchant -> Nullable<Bool>,
     }
 }
 

@@ -63,6 +63,7 @@ pub struct PaymentIntent {
     pub processor_merchant_id: Option<common_utils::id_type::MerchantId>,
     pub created_by: Option<String>,
     pub is_iframe_redirection_enabled: Option<bool>,
+    pub is_payment_id_from_merchant: Option<bool>,
     pub merchant_reference_id: Option<common_utils::id_type::PaymentReferenceId>,
     pub billing_address: Option<Encryption>,
     pub shipping_address: Option<Encryption>,
@@ -155,6 +156,7 @@ pub struct PaymentIntent {
     pub created_by: Option<String>,
     pub is_iframe_redirection_enabled: Option<bool>,
     pub extended_return_url: Option<String>,
+    pub is_payment_id_from_merchant: Option<bool>,
 }
 
 #[derive(Clone, Debug, serde::Deserialize, serde::Serialize, diesel::AsExpression, PartialEq)]
@@ -352,6 +354,7 @@ pub struct PaymentIntentNew {
     pub routing_algorithm_id: Option<common_utils::id_type::RoutingId>,
     pub created_by: Option<String>,
     pub is_iframe_redirection_enabled: Option<bool>,
+    pub is_payment_id_from_merchant: Option<bool>,
 }
 
 #[cfg(feature = "v1")]
@@ -427,6 +430,7 @@ pub struct PaymentIntentNew {
     pub created_by: Option<String>,
     pub is_iframe_redirection_enabled: Option<bool>,
     pub extended_return_url: Option<String>,
+    pub is_payment_id_from_merchant: Option<bool>,
 }
 
 #[cfg(feature = "v2")]
@@ -744,6 +748,7 @@ impl PaymentIntentUpdateInternal {
             frm_merchant_decision: source.frm_merchant_decision,
             enable_payment_link: source.enable_payment_link,
             id: source.id,
+            is_payment_id_from_merchant: source.is_payment_id_from_merchant,
         }
     }
 }
