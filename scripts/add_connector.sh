@@ -80,7 +80,6 @@ for file in "${default_impl_files[@]}"; do
   BEGIN { in_macro = 0 }
 
   {
-    # Detect the beginning of a macro block like: default_imp_for_connector_authentication! {
     if ($0 ~ /^default_imp_for_.*!\s*[\({]$/) {
       in_macro = 1
       inserted = 0
@@ -95,13 +94,10 @@ for file in "${default_impl_files[@]}"; do
       next
     }
 
-    # If currently parsing a macro block
     if (in_macro) {
-      # Detect the closing line of the macro block
       if ((macro_close == "}" && $0 ~ /^[[:space:]]*}[[:space:]]*$/) ||
           (macro_close == ");" && $0 ~ /^[[:space:]]*\);[[:space:]]*$/)) {
 
-        # Analyze all collected lines inside macro to see if prev/new connectors are already present
         for (i = 1; i <= macro_lines_count; i++) {
           line = macro_lines[i]
           clean = line
@@ -111,17 +107,13 @@ for file in "${default_impl_files[@]}"; do
           if (clean == "connectors::" new ",") found_new = 1
         }
 
-        # Print the macro header first
         print macro_header
 
-        # If neither previous nor new connector is found in the list,
-        # insert the new connector at the top by default
         if (!found_prev && !found_new) {
           print "    connectors::" new ","
           inserted = 1
         }
 
-        # Now, go line by line through macro content and print each line
         for (i = 1; i <= macro_lines_count; i++) {
           line = macro_lines[i]
           clean = line
@@ -130,8 +122,6 @@ for file in "${default_impl_files[@]}"; do
 
           print "    " clean
 
-          # If we haven't inserted the new connector yet, and we just printed the previous connector,
-          # insert the new connector right after it
           if (!inserted && clean == "connectors::" prev ",") {
             if (!found_new) {
               print "    connectors::" new ","
@@ -140,18 +130,15 @@ for file in "${default_impl_files[@]}"; do
           }
         }
 
-        # Print the closing bracket/parenthesis of the macro
         print $0
         in_macro = 0
         next
       }
 
-      # Collect the current line as part of macro body
       macro_lines[++macro_lines_count] = $0
       next
     }
 
-    # For all lines outside macro blocks, print as is
     print $0
   }' "$file" > "$tmpfile" && mv "$tmpfile" "$file"
 done
@@ -187,15 +174,13 @@ sed -i'' -e "s/^default_imp_for_new_connector_integration_payouts!(/default_imp_
 sed -i'' -e "s/^default_imp_for_new_connector_integration_frm!(/default_imp_for_new_connector_integration_frm!(\n    connector::${payment_gateway_camelcase},/" crates/router/src/core/payments/connector_integration_v2_impls.rs
 sed -i'' -e "s/^default_imp_for_new_connector_integration_connector_authentication!(/default_imp_for_new_connector_integration_connector_authentication!(\n    connector::${payment_gateway_camelcase},/" crates/router/src/core/payments/connector_integration_v2_impls.rs
 
-
-
-# Remove temporary files created in above step
-rm $conn.rs-e $src/types/api.rs-e $src/configs/settings.rs-e config/development.toml-e config/docker_compose.toml-e config/config.example.toml-e loadtest/config/development.toml-e crates/api_models/src/connector_enums.rs-e crates/euclid/src/enums.rs-e crates/api_models/src/routing.rs-e $src/core/payments/flows.rs-e crates/common_enums/src/connector_enums.rs-e $src/types/transformers.rs-e $src/core/admin.rs-e crates/hyperswitch_connectors/src/default_implementations.rs-e crates/hyperswitch_connectors/src/default_implementations_v2.rs-e crates/hyperswitch_interfaces/src/configs.rs-e $src/connector.rs-e config/deployments/integration_test.toml-e config/deployments/production.toml-e config/deployments/sandbox.toml-e temp crates/connector_configs/src/connector.rs-e crates/router/tests/connectors/main.rs-e crates/router/src/core/payments/connector_integration_v2_impls.rs-e
-
 sed -i'' -e "/pub ${previous_connector}: ConnectorParams,/a\\
     pub ${payment_gateway}: ConnectorParams,
 " crates/hyperswitch_domain_models/src/configs.rs
-rm crates/hyperswitch_domain_models/src/configs.rs-e
+
+
+# Remove temporary files created in above step
+rm $conn.rs-e $src/types/api.rs-e $src/configs/settings.rs-e config/development.toml-e config/docker_compose.toml-e config/config.example.toml-e loadtest/config/development.toml-e crates/api_models/src/connector_enums.rs-e crates/euclid/src/enums.rs-e crates/api_models/src/routing.rs-e $src/core/payments/flows.rs-e crates/common_enums/src/connector_enums.rs-e $src/types/transformers.rs-e $src/core/admin.rs-e crates/hyperswitch_connectors/src/default_implementations.rs-e crates/hyperswitch_connectors/src/default_implementations_v2.rs-e crates/hyperswitch_interfaces/src/configs.rs-e $src/connector.rs-e config/deployments/integration_test.toml-e config/deployments/production.toml-e config/deployments/sandbox.toml-e temp crates/connector_configs/src/connector.rs-e crates/router/tests/connectors/main.rs-e crates/router/src/core/payments/connector_integration_v2_impls.rs-e crates/hyperswitch_domain_models/src/configs.rs-e
 
 cd $conn/
 
@@ -220,7 +205,7 @@ echo "\n\n[${payment_gateway}]\napi_key=\"API Key\"" >> ${tests}/sample_auth.tom
 # Remove temporary files created in above step
 rm ${tests}/main.rs-e ${test_utils}/connector_auth.rs-e
 cargo +nightly fmt --all
-cargo run
+cargo check --features v1
 echo "${GREEN}Successfully created connector. Running the tests of $payment_gateway.rs"
 
 # Runs tests for the new connector
