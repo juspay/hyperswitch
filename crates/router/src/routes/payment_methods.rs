@@ -332,10 +332,10 @@ pub async fn migrate_payment_methods(
     MultipartForm(form): MultipartForm<migration::PaymentMethodsMigrateForm>,
 ) -> HttpResponse {
     let flow = Flow::PaymentMethodsMigrate;
-    let (merchant_id, records, merchant_connector_id) =
-        match migration::get_payment_method_records(form) {
-            Ok((merchant_id, records, merchant_connector_id)) => {
-                (merchant_id, records, merchant_connector_id)
+    let (merchant_id, records, merchant_connector_ids) =
+        match form.validate_and_get_payment_method_records() {
+            Ok((merchant_id, records, merchant_connector_ids)) => {
+                (merchant_id, records, merchant_connector_ids)
             }
             Err(e) => return api::log_and_return_error_response(e.into()),
         };
@@ -346,7 +346,7 @@ pub async fn migrate_payment_methods(
         records,
         |state, _, req, _| {
             let merchant_id = merchant_id.clone();
-            let merchant_connector_id = merchant_connector_id.clone();
+            let merchant_connector_ids = merchant_connector_ids.clone();
             async move {
                 let (key_store, merchant_account) =
                     get_merchant_account(&state, &merchant_id).await?;
@@ -401,7 +401,7 @@ pub async fn migrate_payment_methods(
                     req,
                     &merchant_id,
                     &merchant_context,
-                    merchant_connector_id,
+                    merchant_connector_ids,
                     &controller,
                 ))
                 .await

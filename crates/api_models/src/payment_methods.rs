@@ -7,8 +7,6 @@ use cards::CardNumber;
 use common_utils::crypto::OptionalEncryptableName;
 use common_utils::{
     consts::SURCHARGE_PERCENTAGE_PRECISION_LENGTH,
-    errors,
-    ext_traits::OptionExt,
     id_type, link_utils, pii,
     types::{MinorUnit, Percentage, Surcharge},
 };
@@ -2516,7 +2514,8 @@ pub struct PaymentMethodRecord {
     pub billing_address_line2: Option<masking::Secret<String>>,
     pub billing_address_line3: Option<masking::Secret<String>>,
     pub raw_card_number: Option<masking::Secret<String>>,
-    pub merchant_connector_id: Option<String>,
+    pub merchant_connector_id: Option<id_type::MerchantConnectorAccountId>,
+    pub merchant_connector_ids: Option<String>,
     pub original_transaction_amount: Option<i64>,
     pub original_transaction_currency: Option<common_enums::Currency>,
     pub line_number: Option<i64>,
@@ -2640,54 +2639,60 @@ impl From<PaymentMethodMigrationResponseType> for PaymentMethodMigrationResponse
     }
 }
 
-impl TryFrom<(PaymentMethodRecord, id_type::MerchantId, Option<String>)> for PaymentMethodMigrate {
-    type Error = error_stack::Report<errors::ValidationError>;
-    fn try_from(
-        item: (PaymentMethodRecord, id_type::MerchantId, Option<String>),
-    ) -> Result<Self, Self::Error> {
+impl
+    From<(
+        &PaymentMethodRecord,
+        &id_type::MerchantId,
+        Option<&Vec<id_type::MerchantConnectorAccountId>>,
+    )> for PaymentMethodMigrate
+{
+    fn from(
+        item: (
+            &PaymentMethodRecord,
+            &id_type::MerchantId,
+            Option<&Vec<id_type::MerchantConnectorAccountId>>,
+        ),
+    ) -> Self {
         let (record, merchant_id, mca_ids) = item;
         let billing = record.create_billing();
+        let connector_mandate_details =
+            record
+                .payment_instrument_id
+                .as_ref()
+                .and_then(|payment_instrument_id| {
+                    mca_ids.as_ref().map(|ids| {
+                        let mandate_map: HashMap<_, _> = ids
+                            .iter()
+                            .map(|mca_id| {
+                                (
+                                    mca_id.clone(),
+                                    PaymentsMandateReferenceRecord {
+                                        connector_mandate_id: payment_instrument_id
+                                            .peek()
+                                            .to_string(),
+                                        payment_method_type: record.payment_method_type,
+                                        original_payment_authorized_amount: record
+                                            .original_transaction_amount,
+                                        original_payment_authorized_currency: record
+                                            .original_transaction_currency,
+                                    },
+                                )
+                            })
+                            .collect();
+                        PaymentsMandateReference(mandate_map)
+                    })
+                });
 
-        //  if payment instrument id is present then only construct this
-        let connector_mandate_details = if record.payment_instrument_id.is_some() {
-            mca_ids
-                .as_deref()
-                .map(|s| {
-                    s.split(',')
-                        .map(|mca_id| {
-                            let mca_id =
-                                id_type::MerchantConnectorAccountId::wrap(mca_id.to_string())?;
-                            Ok((
-                                mca_id,
-                                PaymentsMandateReferenceRecord {
-                                    connector_mandate_id: record
-                                        .payment_instrument_id
-                                        .clone()
-                                        .get_required_value("payment_instrument_id")?
-                                        .peek()
-                                        .to_string(),
-                                    payment_method_type: record.payment_method_type,
-                                    original_payment_authorized_amount: record
-                                        .original_transaction_amount,
-                                    original_payment_authorized_currency: record
-                                        .original_transaction_currency,
-                                },
-                            ))
-                        })
-                        .collect::<Result<HashMap<_, _>, Self::Error>>()
-                        .map(PaymentsMandateReference)
-                })
-                .transpose()?
-        } else {
-            None
-        };
-        Ok(Self {
-            merchant_id,
-            customer_id: Some(record.customer_id),
+        Self {
+            merchant_id: merchant_id.clone(),
+            customer_id: Some(record.customer_id.clone()),
             card: Some(MigrateCardDetail {
-                card_number: record.raw_card_number.unwrap_or(record.card_number_masked),
-                card_exp_month: record.card_expiry_month,
-                card_exp_year: record.card_expiry_year,
+                card_number: record
+                    .raw_card_number
+                    .clone()
+                    .unwrap_or_else(|| record.card_number_masked.clone()),
+                card_exp_month: record.card_expiry_month.clone(),
+                card_exp_year: record.card_expiry_year.clone(),
                 card_holder_name: record.name.clone(),
                 card_network: None,
                 card_type: None,
@@ -2697,10 +2702,16 @@ impl TryFrom<(PaymentMethodRecord, id_type::MerchantId, Option<String>)> for Pay
             }),
             network_token: Some(MigrateNetworkTokenDetail {
                 network_token_data: MigrateNetworkTokenData {
-                    network_token_number: record.network_token_number.unwrap_or_default(),
-                    network_token_exp_month: record.network_token_expiry_month.unwrap_or_default(),
-                    network_token_exp_year: record.network_token_expiry_year.unwrap_or_default(),
-                    card_holder_name: record.name,
+                    network_token_number: record.network_token_number.clone().unwrap_or_default(),
+                    network_token_exp_month: record
+                        .network_token_expiry_month
+                        .clone()
+                        .unwrap_or_default(),
+                    network_token_exp_year: record
+                        .network_token_expiry_year
+                        .clone()
+                        .unwrap_or_default(),
+                    card_holder_name: record.name.clone(),
                     nick_name: record.nick_name.clone(),
                     card_issuing_country: None,
                     card_network: None,
@@ -2709,6 +2720,7 @@ impl TryFrom<(PaymentMethodRecord, id_type::MerchantId, Option<String>)> for Pay
                 },
                 network_token_requestor_ref_id: record
                     .network_token_requestor_ref_id
+                    .clone()
                     .unwrap_or_default(),
             }),
             payment_method: record.payment_method,
@@ -2729,7 +2741,7 @@ impl TryFrom<(PaymentMethodRecord, id_type::MerchantId, Option<String>)> for Pay
             wallet: None,
             payment_method_data: None,
             network_transaction_id: record.original_transaction_id.clone(),
-        })
+        }
     }
 }
 

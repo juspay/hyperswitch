@@ -939,18 +939,50 @@ impl TryFrom<(payment_methods::PaymentMethodRecord, id_type::MerchantId)>
         let (record, merchant_id) = value;
         let connector_customer_details = record
             .connector_customer_id
-            .zip(record.merchant_connector_id)
-            .map(|(connector_customer_id, merchant_connector_ids)| {
-                merchant_connector_ids
-                    .split(',')
+            .and_then(|connector_customer_id| {
+                // Handle single merchant_connector_id
+                record
+                    .merchant_connector_id
+                    .as_ref()
                     .map(|merchant_connector_id| {
-                        id_type::MerchantConnectorAccountId::wrap(merchant_connector_id.to_string())
-                            .map(|merchant_connector_id| ConnectorCustomerDetails {
-                                connector_customer_id: connector_customer_id.clone(),
-                                merchant_connector_id,
+                        Ok(vec![ConnectorCustomerDetails {
+                            connector_customer_id: connector_customer_id.clone(),
+                            merchant_connector_id: merchant_connector_id.clone(),
+                        }])
+                    })
+                    // Handle comma-separated merchant_connector_ids
+                    .or_else(|| {
+                        record
+                            .merchant_connector_ids
+                            .as_ref()
+                            .map(|merchant_connector_ids_str| {
+                                merchant_connector_ids_str
+                                    .split(',')
+                                    .map(|id| id.trim())
+                                    .filter(|id| !id.is_empty())
+                                    .map(|merchant_connector_id| {
+                                        id_type::MerchantConnectorAccountId::wrap(
+                                            merchant_connector_id.to_string(),
+                                        )
+                                        .map_err(|_| {
+                                            error_stack::report!(ValidationError::InvalidValue {
+                                                message: format!(
+                                                    "Invalid merchant_connector_account_id: {}",
+                                                    merchant_connector_id
+                                                ),
+                                            })
+                                        })
+                                        .map(
+                                            |merchant_connector_id| ConnectorCustomerDetails {
+                                                connector_customer_id: connector_customer_id
+                                                    .clone(),
+                                                merchant_connector_id,
+                                            },
+                                        )
+                                    })
+                                    .collect::<Result<Vec<_>, _>>()
                             })
                     })
-                    .collect::<Result<Vec<_>, _>>()
             })
             .transpose()?;
 
