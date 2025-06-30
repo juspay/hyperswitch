@@ -11,6 +11,9 @@ export default [
   eslintPluginPrettierRecommended,
   eslintConfigPrettier,
   {
+    ignores: ["dist/**", "build/**", "node_modules/**"],
+  },
+  {
     languageOptions: {
       globals: {
         ...globals.browser,
