@@ -363,7 +363,7 @@ pub async fn payouts_create_core(
         .await?
     };
 
-    response_handler(&state, &merchant_context, &payout_data).await
+    trigger_webhook_and_handle_response(&state, &merchant_context, &payout_data).await
 }
 
 #[instrument(skip_all)]
@@ -426,7 +426,7 @@ pub async fn payouts_confirm_core(
     )
     .await?;
 
-    response_handler(&state, &merchant_context, &payout_data).await
+    trigger_webhook_and_handle_response(&state, &merchant_context, &payout_data).await
 }
 
 pub async fn payouts_update_core(
@@ -498,7 +498,7 @@ pub async fn payouts_update_core(
         .await?;
     }
 
-    response_handler(&state, &merchant_context, &payout_data).await
+    trigger_webhook_and_handle_response(&state, &merchant_context, &payout_data).await
 }
 
 #[cfg(all(feature = "payouts", feature = "v1"))]
@@ -541,7 +541,9 @@ pub async fn payouts_retrieve_core(
         .await?;
     }
 
-    response_handler(&state, &merchant_context, &payout_data).await
+    Ok(services::ApplicationResponse::Json(
+        response_handler(&state, &merchant_context, &payout_data).await?,
+    ))
 }
 
 #[instrument(skip_all)]
@@ -632,7 +634,9 @@ pub async fn payouts_cancel_core(
             .attach_printable("Payout cancellation failed for given Payout request")?;
     }
 
-    response_handler(&state, &merchant_context, &payout_data).await
+    Ok(services::ApplicationResponse::Json(
+        response_handler(&state, &merchant_context, &payout_data).await?,
+    ))
 }
 
 #[instrument(skip_all)]
@@ -722,7 +726,7 @@ pub async fn payouts_fulfill_core(
         }));
     }
 
-    response_handler(&state, &merchant_context, &payout_data).await
+    trigger_webhook_and_handle_response(&state, &merchant_context, &payout_data).await
 }
 
 #[cfg(all(feature = "olap", feature = "v2"))]
@@ -2481,11 +2485,21 @@ pub async fn fulfill_payout(
     Ok(())
 }
 
-pub async fn response_handler(
+pub async fn trigger_webhook_and_handle_response(
     state: &SessionState,
     merchant_context: &domain::MerchantContext,
     payout_data: &PayoutData,
 ) -> RouterResponse<payouts::PayoutCreateResponse> {
+    let response = response_handler(state, merchant_context, payout_data).await?;
+    utils::trigger_payouts_webhook(state, merchant_context, &response).await?;
+    Ok(services::ApplicationResponse::Json(response))
+}
+
+pub async fn response_handler(
+    state: &SessionState,
+    merchant_context: &domain::MerchantContext,
+    payout_data: &PayoutData,
+) -> RouterResult<payouts::PayoutCreateResponse> {
     let payout_attempt = payout_data.payout_attempt.to_owned();
     let payouts = payout_data.payouts.to_owned();
 
@@ -2574,7 +2588,8 @@ pub async fn response_handler(
             .attach_printable("Failed to parse payout link's URL")?,
         payout_method_id,
     };
-    Ok(services::ApplicationResponse::Json(response))
+
+    Ok(response)
 }
 
 #[cfg(feature = "v2")]

@@ -3,7 +3,7 @@ use router_env::{instrument, tracing, Flow};
 
 use super::app::AppState;
 use crate::{
-    core::{admin::*, api_locking},
+    core::{admin::*, api_locking, errors},
     services::{api, authentication as auth, authorization::permissions::Permission},
     types::{api::admin, domain},
 };
@@ -186,11 +186,25 @@ pub async fn merchant_account_create(
     json_payload: web::Json<admin::MerchantAccountCreate>,
 ) -> HttpResponse {
     let flow = Flow::MerchantsAccountCreate;
+    let payload = json_payload.into_inner();
+    if let Err(api_error) = payload
+        .webhook_details
+        .as_ref()
+        .map(|details| {
+            details
+                .validate()
+                .map_err(|message| errors::ApiErrorResponse::InvalidRequestData { message })
+        })
+        .transpose()
+    {
+        return api::log_and_return_error_response(api_error.into());
+    }
+
     Box::pin(api::server_wrap(
         flow,
         state,
         &req,
-        json_payload.into_inner(),
+        payload,
         |state, auth, req, _| create_merchant_account(state, req, auth),
         &auth::PlatformOrgAdminAuth {
             is_admin_auth_allowed: true,

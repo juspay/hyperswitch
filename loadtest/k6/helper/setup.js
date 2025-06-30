@@ -34,10 +34,7 @@ export function setup_merchant_apikey() {
         "webhook_details":{
             "webhook_version":"1.0.1",
             "webhook_username":"wh_store",
-            "webhook_password":"pwd_wh@101",
-            "payment_created_enabled":true,
-            "payment_succeeded_enabled":true,
-            "payment_failed_enabled":true
+            "webhook_password":"pwd_wh@101"
         },
         "routing_algorithm": {
             "type": "single",
@@ -126,10 +123,7 @@ export function setup_merchant_apikey() {
         "webhook_details":{
             "webhook_version":"1.0.1",
             "webhook_username":"wh_store",
-            "webhook_password":"pwd_wh@101",
-            "payment_created_enabled":true,
-            "payment_succeeded_enabled":true,
-            "payment_failed_enabled":true
+            "webhook_password":"pwd_wh@101"
         },
         "routing_algorithm": {
             "type": "single",

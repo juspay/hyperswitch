@@ -438,7 +438,7 @@ async fn get_outgoing_webhook_content_and_event_type(
                     })
                 }
             }?;
-            let event_type = Option::<EventType>::foreign_from(payments_response.status);
+            let event_type: Option<EventType> = payments_response.status.into();
             logger::debug!(current_resource_status=%payments_response.status);
 
             Ok((
@@ -462,7 +462,7 @@ async fn get_outgoing_webhook_content_and_event_type(
                 request,
             ))
             .await?;
-            let event_type = Option::<EventType>::foreign_from(refund.refund_status);
+            let event_type: Option<EventType> = refund.refund_status.into();
             logger::debug!(current_resource_status=%refund.refund_status);
             let refund_response = RefundResponse::foreign_from(refund);
 
@@ -495,7 +495,7 @@ async fn get_outgoing_webhook_content_and_event_type(
                     }
                 }
                 .map(Box::new)?;
-            let event_type = Some(EventType::foreign_from(dispute_response.dispute_status));
+            let event_type = Some(EventType::from(dispute_response.dispute_status));
             logger::debug!(current_resource_status=%dispute_response.dispute_status);
 
             Ok((
@@ -527,7 +527,7 @@ async fn get_outgoing_webhook_content_and_event_type(
                     }
                 }
                 .map(Box::new)?;
-            let event_type = Option::<EventType>::foreign_from(mandate_response.status);
+            let event_type: Option<EventType> = mandate_response.status.into();
             logger::debug!(current_resource_status=%mandate_response.status);
 
             Ok((
@@ -551,17 +551,10 @@ async fn get_outgoing_webhook_content_and_event_type(
             ))
             .await?;
 
-            let router_response =
+            let payout_create_response =
                 payouts::response_handler(&state, &merchant_context, &payout_data).await?;
 
-            let payout_create_response: payout_models::PayoutCreateResponse = match router_response
-            {
-                ApplicationResponse::Json(response) => response,
-                _ => Err(errors::ApiErrorResponse::WebhookResourceNotFound)
-                    .attach_printable("Failed to fetch the payout create response")?,
-            };
-
-            let event_type = Option::<EventType>::foreign_from(payout_data.payout_attempt.status);
+            let event_type: Option<EventType> = payout_data.payout_attempt.status.into();
             logger::debug!(current_resource_status=%payout_data.payout_attempt.status);
 
             Ok((

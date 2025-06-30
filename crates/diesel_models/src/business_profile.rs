@@ -747,6 +747,9 @@ pub struct WebhookDetails {
     pub payment_created_enabled: Option<bool>,
     pub payment_succeeded_enabled: Option<bool>,
     pub payment_failed_enabled: Option<bool>,
+    pub payment_statuses_enabled: Option<Vec<common_enums::IntentStatus>>,
+    pub refund_statuses_enabled: Option<Vec<common_enums::RefundStatus>>,
+    pub payout_statuses_enabled: Option<Vec<common_enums::PayoutStatus>>,
 }
 
 common_utils::impl_to_sql_from_sql_json!(WebhookDetails);
