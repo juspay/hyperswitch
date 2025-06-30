@@ -238,6 +238,11 @@ impl ForeignTryFrom<api_enums::Connector> for common_enums::RoutableConnectors {
                     message: "ctp mastercard is not a routable connector".to_string(),
                 })?
             }
+            api_enums::Connector::Custombilling => {
+                Err(common_utils::errors::ValidationError::InvalidValue {
+                    message: "custombilling is not a routable connector".to_string(),
+                })?
+            }
             api_enums::Connector::Cybersource => Self::Cybersource,
             api_enums::Connector::Datatrans => Self::Datatrans,
             api_enums::Connector::Deutschebank => Self::Deutschebank,

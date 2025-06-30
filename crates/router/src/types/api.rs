@@ -396,6 +396,9 @@ impl ConnectorData {
                 enums::Connector::CtpVisa => Ok(ConnectorEnum::Old(Box::new(
                     connector::UnifiedAuthenticationService::new(),
                 ))),
+                enums::Connector::Custombilling => {
+                    Ok(ConnectorEnum::Old(Box::new(connector::Custombilling::new())))
+                },
                 enums::Connector::Cybersource => {
                     Ok(ConnectorEnum::Old(Box::new(connector::Cybersource::new())))
                 }
