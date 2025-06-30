@@ -191,7 +191,7 @@ pub struct KafkaPaymentAttempt<'a> {
     pub authentication_connector: Option<String>,
     pub authentication_id: Option<String>,
     pub fingerprint_id: Option<String>,
-    pub customer_acceptance: Option<&'a masking::Secret<serde_json::Value>>,
+    pub customer_acceptance: Option<&'a masking::Secret<payments::CustomerAcceptance>>,
     pub shipping_cost: Option<MinorUnit>,
     pub order_tax_amount: Option<MinorUnit>,
     pub charges: Option<payments::ConnectorChargeResponseData>,
