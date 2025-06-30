@@ -191,6 +191,19 @@ pub trait Feature<F, T> {
     {
         Ok(should_continue_payment)
     }
+
+    async fn call_unified_connector_service<'a>(
+        &mut self,
+        _state: &SessionState,
+        _merchant_connector_account: helpers::MerchantConnectorAccountType,
+    ) -> RouterResult<()>
+    where
+        F: Clone,
+        Self: Sized,
+        dyn api::Connector: services::ConnectorIntegration<F, T, types::PaymentsResponseData>,
+    {
+        Ok(())
+    }
 }
 
 /// Determines whether a capture API call should be made for a payment attempt
