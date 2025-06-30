@@ -182,7 +182,10 @@ impl TryFrom<ConnectorAuthMetadata> for MetadataMap {
         );
 
         if let Some(api_key) = meta.api_key {
-            metadata.append(consts::UCS_HEADER_API_KEY, parse("api_key", &api_key.peek())?);
+            metadata.append(
+                consts::UCS_HEADER_API_KEY,
+                parse("api_key", &api_key.peek())?,
+            );
         }
         if let Some(key1) = meta.key1 {
             metadata.append(consts::UCS_HEADER_KEY1, parse("key1", &key1.peek())?);
