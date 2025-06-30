@@ -718,7 +718,10 @@ impl PaymentIntent {
             connector_transaction_id: None, // No connector id
             error_code: None,
             error_message: None,
-            processor_payment_method_token: revenue_recovery_metadata
+            processor_payment_method_token:revenue_recovery_metadata.billing_connector_payment_details.payment_method_units.first().and_then(|details| {
+                details.payment_processor_token.clone()
+            }),
+            payment_method_units: revenue_recovery_metadata
                 .billing_connector_payment_details
                 .payment_processor_token
                 .clone(),

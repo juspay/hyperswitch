@@ -8824,7 +8824,7 @@ impl PaymentRevenueRecoveryMetadata {
 #[cfg(feature = "v2")]
 pub struct BillingConnectorPaymentDetails {
     /// Payment Processor Token to process the Revenue Recovery Payment
-    pub payment_processor_token: Vec<PaymentProcessorTokenUnit>,
+    pub payment_method_units: Vec<PaymentProcessorTokenUnit>,
     /// Billing Connector's Customer Id
     pub connector_customer_id: String,
 }
@@ -8903,6 +8903,9 @@ pub struct PaymentsAttemptRecordRequest {
     #[schema(value_type = String, example = "1234567890")]
     pub processor_payment_method_token: String,
 
+    #[schema(value_type = PaymentProcessorTokenUnit)]
+    pub payment_method_units: Vec<PaymentProcessorTokenUnit>,
+
     /// customer id at payment connector for which mandate is attached.
     #[schema(value_type = String, example = "cust_12345")]
     pub connector_customer_id: String,
@@ -8927,6 +8930,9 @@ pub struct PaymentsAttemptRecordRequest {
     #[schema(example = "Chase")]
     /// Card Issuer
     pub card_issuer: Option<String>,
+
+    #[schema(value_type = PaymentMethodChosen)]
+    pub payment_method_chosen : common_enums::PaymentMethodChosen
 }
 
 /// Error details for the payment
