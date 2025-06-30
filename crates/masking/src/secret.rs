@@ -264,12 +264,8 @@ where
         buf: &mut impl bytes::Buf,
         ctx: prost::encoding::DecodeContext,
     ) -> Result<(), prost::DecodeError> {
-        if tag == 1 {
-            self.peek_mut().merge_field(tag, wire_type, buf, ctx)?;
-            Ok(())
-        } else {
-            prost::encoding::skip_field(wire_type, tag, buf, ctx)
-        }
+        self.peek_mut().merge_field(tag, wire_type, buf, ctx)?;
+        Ok(())
     }
 
     fn encoded_len(&self) -> usize {
