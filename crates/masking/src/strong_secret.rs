@@ -133,7 +133,7 @@ where
     T: prost::Message + Default + Clone + ZeroizableSecret,
 {
     fn encode_raw(&self, buf: &mut impl bytes::BufMut) {
-        self.inner_secret.encode_raw(buf);
+        self.peek().encode_raw(buf);
     }
 
     fn merge_field(
@@ -152,10 +152,10 @@ where
     }
 
     fn encoded_len(&self) -> usize {
-        self.inner_secret.encoded_len()
+        self.peek().encoded_len()
     }
 
     fn clear(&mut self) {
-        self.inner_secret = T::default();
+        *self.peek_mut() = T::default();
     }
 }

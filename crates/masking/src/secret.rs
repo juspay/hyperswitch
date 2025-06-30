@@ -273,11 +273,11 @@ where
     }
 
     fn encoded_len(&self) -> usize {
-        prost::Message::encoded_len(self.peek())
+        self.peek().encoded_len()
     }
 
     fn clear(&mut self) {
-        *self = Self::new(T::default());
+        self.peek_mut().clear()
     }
 }
 
