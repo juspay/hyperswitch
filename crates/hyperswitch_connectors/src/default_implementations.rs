@@ -1043,6 +1043,7 @@ default_imp_for_cancel_post_capture!(
     connectors::Redsys,
     connectors::Santander,
     connectors::Shift4,
+    connectors::Sift,
     connectors::Silverflow,
     connectors::Signifyd,
     connectors::Square,
@@ -1126,7 +1127,6 @@ macro_rules! default_imp_for_complete_authorize {
 }
 
 default_imp_for_complete_authorize!(
-    connectors::Sift,
     connectors::Silverflow,
     connectors::Vgs,
     connectors::Aci,
@@ -1204,6 +1204,7 @@ default_imp_for_complete_authorize!(
     connectors::Recurly,
     connectors::Riskified,
     connectors::Santander,
+    connectors::Sift,
     connectors::Signifyd,
     connectors::Stax,
     connectors::Square,
@@ -1641,7 +1642,6 @@ macro_rules! default_imp_for_pre_processing_steps{
 }
 
 default_imp_for_pre_processing_steps!(
-    connectors::Sift,
     connectors::Trustpayments,
     connectors::Silverflow,
     connectors::Vgs,
@@ -1730,6 +1730,7 @@ default_imp_for_pre_processing_steps!(
     connectors::Recurly,
     connectors::Riskified,
     connectors::Santander,
+    connectors::Sift,
     connectors::Signifyd,
     connectors::Stax,
     connectors::Square,
@@ -2851,6 +2852,7 @@ default_imp_for_fetch_disputes!(
     connectors::Riskified,
     connectors::Santander,
     connectors::Shift4,
+    connectors::Sift,
     connectors::Silverflow,
     connectors::Signifyd,
     connectors::Stax,
@@ -2991,6 +2993,7 @@ default_imp_for_dispute_sync!(
     connectors::Riskified,
     connectors::Santander,
     connectors::Shift4,
+    connectors::Sift,
     connectors::Silverflow,
     connectors::Signifyd,
     connectors::Stax,
