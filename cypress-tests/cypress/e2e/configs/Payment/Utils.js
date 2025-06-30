@@ -48,7 +48,6 @@ import { connectorDetails as worldpayxmlConnectorDetails } from "./Worldpayxml.j
 import { connectorDetails as xenditConnectorDetails } from "./Xendit.js";
 import { connectorDetails as payloadConnectorDetails } from "./Payload.js";
 
-
 const connectorDetails = {
   aci: aciConnectorDetails,
   adyen: adyenConnectorDetails,
