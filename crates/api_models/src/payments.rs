@@ -7713,6 +7713,10 @@ pub struct ResponsePaymentMethodTypesForPayments {
     #[schema(value_type = Option<PaymentExperience>)]
     pub payment_experience: Option<common_enums::PaymentExperience>,
 
+    /// The connector for the payment method
+    #[schema(value_type = Option<Connector>)]
+    pub eligible_connector: common_enums::connector_enums::Connector,
+
     /// payment method subtype specific information
     #[serde(flatten)]
     #[schema(value_type = Option<PaymentMethodSubtypeSpecificData>)]
