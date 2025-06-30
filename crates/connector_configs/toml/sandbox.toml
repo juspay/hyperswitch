@@ -6555,6 +6555,10 @@ merchant_secret="Source verification key"
 [katapult.connector_auth.HeaderKey]
 api_key = "API Key"
 
+[sift]
+[sift.connector_auth.HeaderKey]
+api_key = "API Key"
+
 [flexiti]
 [flexiti.connector_auth.BodyKey]
 api_key = "Client id"
