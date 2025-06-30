@@ -55,7 +55,7 @@ static PAYLOAD_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMethods> = La
     let supported_capture_methods = vec![
         enums::CaptureMethod::Automatic,
         enums::CaptureMethod::Manual,
-        enums::CaptureMethod::ManualMultiple,
+        // enums::CaptureMethod::ManualMultiple,
     ];
 
     let supported_card_network = vec![

@@ -41,6 +41,16 @@ pub struct PayloadWebhookSignature {
     pub signature: String,
 }
 
+// Struct to represent billing address fields for Payload API
+#[derive(Debug)]
+struct BillingAddressFields {
+    line1: Option<String>,
+    city: Option<String>,
+    state: Option<String>,
+    postal_code: Option<String>,
+    country: Option<String>,
+}
+
 //TODO: Fill the struct with respective fields
 pub struct PayloadRouterData<T> {
     pub amount: StringMinorUnit, // The type of amount that a connector accepts, for example, String, i64, f64, etc.
@@ -126,30 +136,24 @@ pub struct PayloadCancelRequest {
 // Helper function to extract billing address from router data
 fn extract_billing_address_for_payload(
     address_details: Option<&hyperswitch_domain_models::address::Address>,
-) -> (
-    Option<String>,
-    Option<String>,
-    Option<String>,
-    Option<String>,
-    Option<String>,
-) {
+) -> BillingAddressFields {
     match address_details.and_then(|addr| addr.address.as_ref()) {
-        Some(address) => (
+        Some(address) => BillingAddressFields {
             // Extract actual address fields, converting Secret<String> to String
-            address.line1.as_ref().map(|line1| line1.peek().to_string()),
-            address.city.clone(),
-            address.state.as_ref().map(|state| state.peek().to_string()),
-            address.zip.as_ref().map(|zip| zip.peek().to_string()),
-            address.country.map(|country| country.to_string()),
-        ),
-        None => (
+            line1: address.line1.as_ref().map(|line1| line1.peek().to_string()),
+            city: address.city.clone(),
+            state: address.state.as_ref().map(|state| state.peek().to_string()),
+            postal_code: address.zip.as_ref().map(|zip| zip.peek().to_string()),
+            country: address.country.map(|country| country.to_string()),
+        },
+        None => BillingAddressFields {
             // Fallback to default values when no address is provided
-            Some("123 Test Street".to_string()),
-            Some("New York".to_string()),
-            Some("NY".to_string()),
-            Some("10001".to_string()),
-            Some("US".to_string()),
-        ),
+            line1: Some("123 Test Street".to_string()),
+            city: Some("New York".to_string()),
+            state: Some("NY".to_string()),
+            postal_code: Some("10001".to_string()),
+            country: Some("US".to_string()),
+        },
     }
 }
 
@@ -189,13 +193,7 @@ impl TryFrom<&PayloadRouterData<&PaymentsAuthorizeRouterData>> for PayloadPaymen
                 };
 
                 // Extract billing address from router data
-                let (
-                    billing_line1,
-                    billing_city,
-                    billing_state,
-                    billing_postal_code,
-                    billing_country,
-                ) = extract_billing_address_for_payload(item.router_data.get_optional_billing());
+                let billing_address = extract_billing_address_for_payload(item.router_data.get_optional_billing());
 
                 Ok(Self {
                     amount: item.amount.clone(),
@@ -207,11 +205,11 @@ impl TryFrom<&PayloadRouterData<&PaymentsAuthorizeRouterData>> for PayloadPaymen
                     payment_method_card_code: Some(req_card.card_cvc.peek().to_string()),
                     payment_method_id: None,
                     // Use extracted billing address or fallback to defaults
-                    billing_address_line1: billing_line1,
-                    billing_address_city: billing_city,
-                    billing_address_state: billing_state,
-                    billing_address_postal_code: billing_postal_code,
-                    billing_address_country: billing_country,
+                    billing_address_line1: billing_address.line1,
+                    billing_address_city: billing_address.city,
+                    billing_address_state: billing_address.state,
+                    billing_address_postal_code: billing_address.postal_code,
+                    billing_address_country: billing_address.country,
                 })
             }
             _ => Err(errors::ConnectorError::NotImplemented("Payment method".to_string()).into()),
