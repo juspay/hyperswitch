@@ -8785,27 +8785,56 @@ impl PaymentRevenueRecoveryMetadata {
     ) {
         self.payment_connector_transmission = Some(payment_connector_transmission);
     }
-    pub fn get_payment_token_for_api_request(&self) -> mandates::ProcessorPaymentToken {
+    pub fn get_primary_payment_token_for_api_request(&self) -> mandates::ProcessorPaymentToken {
         mandates::ProcessorPaymentToken {
             processor_payment_token: self
                 .billing_connector_payment_details
-                .payment_processor_token
+                .payment_processor_token.first()
+                .unwrap_or(&PaymentProcessorTokenUnit {
+                    payment_processor_token: "FakePaymentProcessorToken".to_string(),
+                    exipry_month: None,
+                    expiry_year: None,
+                })
                 .clone(),
             merchant_connector_id: Some(self.active_attempt_payment_connector_id.clone()),
         }
     }
+
+    pub fn get_backup_payment_token_for_api_request(&self) -> mandates::ProcessorPaymentToken {
+        mandates::ProcessorPaymentToken {
+            processor_payment_token: self
+                .billing_connector_payment_details
+                .payment_processor_token.get(1)
+                .unwrap_or(&PaymentProcessorTokenUnit {
+                    payment_processor_token: "FakePaymentProcessorToken".to_string(),
+                    exipry_month: None,
+                    expiry_year: None,
+                })
+                .clone(),
+            merchant_connector_id: Some(self.active_attempt_payment_connector_id.clone()),
+        }
+    }
+
     pub fn get_merchant_connector_id_for_api_request(&self) -> id_type::MerchantConnectorAccountId {
         self.active_attempt_payment_connector_id.clone()
     }
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
+#[derive(Debug, Clone, Serialize, Deserialize, ToSchema, PartialEq, Eq)]
 #[cfg(feature = "v2")]
 pub struct BillingConnectorPaymentDetails {
     /// Payment Processor Token to process the Revenue Recovery Payment
-    pub payment_processor_token: String,
+    pub payment_processor_token: Vec<PaymentProcessorTokenUnit>,
     /// Billing Connector's Customer Id
     pub connector_customer_id: String,
+}
+
+#[cfg(feature="v2")]
+#[derive(Debug, Clone, Serialize, Deserialize, ToSchema, PartialEq, Eq)]
+pub struct PaymentProcessorTokenUnit {
+    pub payment_processor_token: String,
+    pub exipry_month: Option<String>,
+    pub expiry_year: Option<String>
 }
 
 // Serialize is required because the api event requires Serialize to be implemented

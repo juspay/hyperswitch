@@ -188,7 +188,7 @@ pub struct PaymentRevenueRecoveryMetadata {
 #[cfg(feature = "v2")]
 pub struct BillingConnectorPaymentDetails {
     /// Payment Processor Token to process the Revenue Recovery Payment
-    pub payment_processor_token: String,
+    pub payment_processor_token: Vec<PaymentProcessorTokenUnit>,
     /// Billing Connector's Customer Id
     pub connector_customer_id: String,
 }
@@ -207,4 +207,13 @@ pub struct BillingConnectorAdditionalCardInfo {
     pub card_network: Option<common_enums::enums::CardNetwork>,
     /// Card Issuer
     pub card_issuer: Option<String>,
+}
+
+
+#[cfg(feature="v2")]
+#[derive(Debug, Clone, Serialize, Deserialize, Eq, PartialEq)]
+pub struct PaymentProcessorTokenUnit {
+    pub payment_processor_token: String,
+    pub exipry_month: Option<String>,
+    pub expiry_year: Option<String>
 }

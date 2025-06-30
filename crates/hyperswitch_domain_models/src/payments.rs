@@ -720,7 +720,8 @@ impl PaymentIntent {
             error_message: None,
             processor_payment_method_token: revenue_recovery_metadata
                 .billing_connector_payment_details
-                .payment_processor_token,
+                .payment_processor_token
+                .clone(),
             connector_customer_id: revenue_recovery_metadata
                 .billing_connector_payment_details
                 .connector_customer_id,
@@ -1028,6 +1029,12 @@ where
             ),
         );
 
+        let payment_processor_token_unit = diesel_models::types::PaymentProcessorTokenUnit {
+            payment_processor_token: self.revenue_recovery_data.processor_payment_method_token.clone(),
+            expiry_year: None,
+            exipry_month: None
+        };
+
         let payment_revenue_recovery_metadata = match payment_attempt_connector {
             Some(connector) => Some(diesel_models::types::PaymentRevenueRecoveryMetadata {
                 // Update retry count by one.
@@ -1046,10 +1053,7 @@ where
                     .get_attempt_merchant_connector_account_id()?,
                 billing_connector_payment_details:
                     diesel_models::types::BillingConnectorPaymentDetails {
-                        payment_processor_token: self
-                            .revenue_recovery_data
-                            .processor_payment_method_token
-                            .clone(),
+                        payment_processor_token: vec![payment_processor_token_unit],
                         connector_customer_id: self
                             .revenue_recovery_data
                             .connector_customer_id

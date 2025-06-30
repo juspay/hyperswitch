@@ -5,6 +5,7 @@ use hyperswitch_domain_models::{
     merchant_context::{Context, MerchantContext},
     payments as payments_domain,
 };
+use time::Duration;
 
 use crate::{
     core::{
@@ -77,14 +78,56 @@ pub async fn call_psync_api(
 pub async fn call_proxy_api(
     state: &SessionState,
     payment_intent: &payments_domain::PaymentIntent,
+    process: &storage::ProcessTracker,
     revenue_recovery_payment_data: &storage::revenue_recovery::RevenueRecoveryPaymentData,
     revenue_recovery: &payments_api::PaymentRevenueRecoveryMetadata,
 ) -> RouterResult<payments_domain::PaymentConfirmData<api_types::Authorize>> {
     let operation = payments::operations::proxy_payments_intent::PaymentProxyIntent;
+
+    let billing_mca_id = revenue_recovery_payment_data
+        .billing_mca
+        .clone();
+
+    let billing_mca = state.store
+        .find_merchant_connector_account_by_id(state, billing_mca_id,revenue_recovery_payment_data.key_store)
+        .await.change_context(errors::ApiErrorResponse::MerchantConnectorAccountNotFound { id: billing_mca_id.to_string() })?;
+
+    let switch_payment_method_config = billing_mca.feature_metadata.and_then(|feature_metadata| {
+        feature_metadata.revenue_recovery.as_ref().map(|metadata| {
+            metadata.switch_payment_method_config
+        })
+    }).flatten();
+
+    let retry_threshold : i32 = switch_payment_method_config
+        .map(|config| config.retry_threshold)
+        .unwrap_or(-1)
+        .into();
+
+    let time_threshold : i64 = switch_payment_method_config
+        .map(|config| config.time_threshold_after_creation)
+        .unwrap_or(-1)
+        .into();
+
+    
+
+    let should_payment_method_be_switched = if retry_threshold == -1 && time_threshold == -1 {
+        false   
+    } else if process.retry_count>= retry_threshold ||  payment_intent.created_at.assume_utc() + Duration::days(time_threshold) <= time::OffsetDateTime::now_utc() {
+        true
+    } else {
+        false
+    };
+
+    let recurring_details = if should_payment_method_be_switched {
+        revenue_recovery.get_backup_payment_token_for_api_request()
+    } else{
+        revenue_recovery.get_primary_payment_token_for_api_request()
+    };
+
     let req = payments_api::ProxyPaymentsRequest {
         return_url: None,
         amount: payments_api::AmountDetails::new(payment_intent.amount_details.clone().into()),
-        recurring_details: revenue_recovery.get_payment_token_for_api_request(),
+        recurring_details,
         shipping: None,
         browser_info: None,
         connector: revenue_recovery.connector.to_string(),
