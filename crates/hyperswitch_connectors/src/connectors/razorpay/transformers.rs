@@ -11,7 +11,7 @@ use hyperswitch_domain_models::{
     payment_method_data::{PaymentMethodData, UpiData},
     router_data::{ConnectorAuthType, RouterData},
     router_flow_types::refunds::{Execute, RSync},
-    router_request_types::ResponseId,
+    router_request_types::{PaymentsAuthorizeData, ResponseId},
     router_response_types::{PaymentsResponseData, RefundsResponseData},
     types,
 };
@@ -230,15 +230,27 @@ pub struct RazorpayPaymentsResponse {
     pub next: Option<Vec<NextAction>>,
 }
 
-impl<F, T> TryFrom<ResponseRouterData<F, RazorpayPaymentsResponse, T, PaymentsResponseData>>
-    for RouterData<F, T, PaymentsResponseData>
+impl<F>
+    TryFrom<
+        ResponseRouterData<
+            F,
+            RazorpayPaymentsResponse,
+            PaymentsAuthorizeData,
+            PaymentsResponseData,
+        >,
+    > for RouterData<F, PaymentsAuthorizeData, PaymentsResponseData>
 {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
-        item: ResponseRouterData<F, RazorpayPaymentsResponse, T, PaymentsResponseData>,
+        item: ResponseRouterData<
+            F,
+            RazorpayPaymentsResponse,
+            PaymentsAuthorizeData,
+            PaymentsResponseData,
+        >,
     ) -> Result<Self, Self::Error> {
         let connector_metadata = get_wait_screen_metadata()?;
-
+        let order_id = item.data.request.get_order_id()?;
         Ok(Self {
             status: enums::AttemptStatus::AuthenticationPending,
             response: Ok(PaymentsResponseData::TransactionResponse {
@@ -249,7 +261,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, RazorpayPaymentsResponse, T, PaymentsRe
                 mandate_reference: Box::new(None),
                 connector_metadata,
                 network_txn_id: None,
-                connector_response_reference_id: Some(item.response.razorpay_payment_id),
+                connector_response_reference_id: Some(order_id),
                 incremental_authorization_allowed: None,
                 charges: None,
             }),
@@ -281,6 +293,12 @@ pub fn get_wait_screen_metadata() -> CustomResult<Option<serde_json::Value>, err
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct RazorpaySyncResponse {
+    items: Vec<RazorpaySyncItem>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct RazorpaySyncItem {
     id: String,
     status: RazorpayStatus,
 }
@@ -311,8 +329,15 @@ impl<F, T> TryFrom<ResponseRouterData<F, RazorpaySyncResponse, T, PaymentsRespon
     fn try_from(
         item: ResponseRouterData<F, RazorpaySyncResponse, T, PaymentsResponseData>,
     ) -> Result<Self, Self::Error> {
+        let status = match item.response.items.last() {
+            Some(last_item) => {
+                let razorpay_status = last_item.status.clone();
+                get_psync_razorpay_payment_status(razorpay_status)
+            }
+            None => item.data.status,
+        };
         Ok(Self {
-            status: get_psync_razorpay_payment_status(item.response.status),
+            status,
             response: Ok(PaymentsResponseData::TransactionResponse {
                 resource_id: ResponseId::NoResponseId,
                 redirection_data: Box::new(None),
