@@ -178,7 +178,8 @@ pub struct Authorization {
     pub amount: MinorUnit,
     pub order_source: OrderSource,
     pub bill_to_address: Option<BillToAddressData>,
-    pub card: WorldpayvantivCardData,
+    pub card: Option<WorldpayvantivCardData>,
+    pub token: Option<TokenizationData>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub processing_type: Option<VantivProcessingType>,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -198,7 +199,8 @@ pub struct Sale {
     pub amount: MinorUnit,
     pub order_source: OrderSource,
     pub bill_to_address: Option<BillToAddressData>,
-    pub card: WorldpayvantivCardData,
+    pub card: Option<WorldpayvantivCardData>,
+    pub token: Option<TokenizationData>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub processing_type: Option<VantivProcessingType>,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -290,9 +292,7 @@ impl TryFrom<&connector_utils::CardIssuer> for WorldpayvativCardType {
     }
 }
 
-impl TryFrom<&PaymentMethodData> for WorldpayvantivCardData {
-    type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(payment_method_data: &PaymentMethodData) -> Result<Self, Self::Error> {
+    fn get_vantiv_card_data(payment_method_data: &PaymentMethodData) -> Result<Option<WorldpayvantivCardData>, error_stack::Report<errors::ConnectorError>> {
         match payment_method_data {
             PaymentMethodData::Card(card) => {
                 let card_type = match card.card_network.clone() {
@@ -302,12 +302,12 @@ impl TryFrom<&PaymentMethodData> for WorldpayvantivCardData {
 
                 let exp_date = card.get_expiry_date_as_mmyy()?;
 
-                Ok(Self {
+                Ok(Some(WorldpayvantivCardData {
                     card_type,
                     number: card.card_number.clone(),
                     exp_date,
                     card_validation_num: Some(card.card_cvc.clone()),
-                })
+                }))
             }
             PaymentMethodData::CardDetailsForNetworkTransactionId(card_data) => {
                 let card_type = match card_data.card_network.clone() {
@@ -317,17 +317,19 @@ impl TryFrom<&PaymentMethodData> for WorldpayvantivCardData {
 
                 let exp_date = card_data.get_expiry_date_as_mmyy()?;
 
-                Ok(Self {
+                Ok(Some(WorldpayvantivCardData {
                     card_type,
                     number: card_data.card_number.clone(),
                     exp_date,
                     card_validation_num: None,
-                })
+                }))
+            },
+            PaymentMethodData::MandatePayment => {
+               Ok(None)
             }
             _ => Err(errors::ConnectorError::NotImplemented("Payment method".to_string()).into()),
         }
     }
-}
 
 impl<F> TryFrom<ResponseRouterData<F, VantivSyncResponse, PaymentsSyncData, PaymentsResponseData>>
     for RouterData<F, PaymentsSyncData, PaymentsResponseData>
@@ -428,7 +430,7 @@ impl TryFrom<&WorldpayvantivRouterData<&PaymentsAuthorizeRouterData>> for CnpOnl
             })?
         };
 
-        let card = WorldpayvantivCardData::try_from(
+        let card = get_vantiv_card_data(
             &item.router_data.request.payment_method_data.clone(),
         )?;
         let report_group = item
@@ -466,7 +468,7 @@ impl TryFrom<&WorldpayvantivRouterData<&PaymentsAuthorizeRouterData>> for CnpOnl
             .map(|customer_id| customer_id.get_string_repr().to_string());
         let bill_to_address = get_bill_to_address(item.router_data);
 
-        let (processing_type, original_network_transaction_id) =
+        let processing_info =
             get_processing_info(&item.router_data.request);
 
         let (authorization, sale) = if item.router_data.request.is_auto_capture()? {
@@ -480,9 +482,10 @@ impl TryFrom<&WorldpayvantivRouterData<&PaymentsAuthorizeRouterData>> for CnpOnl
                     amount: item.amount,
                     order_source: OrderSource::Ecommerce,
                     bill_to_address,
-                    card: card.clone(),
-                    processing_type,
-                    original_network_transaction_id,
+                    card,
+                    token: processing_info.token,
+                    processing_type: processing_info.processing_type,
+                    original_network_transaction_id: processing_info.network_transaction_id,
                 }),
             )
         } else {
@@ -495,9 +498,10 @@ impl TryFrom<&WorldpayvantivRouterData<&PaymentsAuthorizeRouterData>> for CnpOnl
                     amount: item.amount,
                     order_source: OrderSource::Ecommerce,
                     bill_to_address,
-                    card: card.clone(),
-                    processing_type,
-                    original_network_transaction_id,
+                    card,
+                    token: processing_info.token,
+                    processing_type: processing_info.processing_type,
+                    original_network_transaction_id: processing_info.network_transaction_id,
                 }),
                 None,
             )
@@ -517,19 +521,60 @@ impl TryFrom<&WorldpayvantivRouterData<&PaymentsAuthorizeRouterData>> for CnpOnl
     }
 }
 
+#[derive(Debug)]
+struct VantivMandateDetail {
+    processing_type: Option<VantivProcessingType>,
+    network_transaction_id: Option<Secret<String>>,
+    token: Option<TokenizationData>,
+}
+
+#[derive(Debug, Serialize)]
+pub struct TokenizationData {
+    cnp_token: Secret<String>,
+    exp_date: Secret<String>,
+}
+
 fn get_processing_info(
     request: &PaymentsAuthorizeData,
-) -> (Option<VantivProcessingType>, Option<Secret<String>>) {
-    match (
-        request.is_customer_initiated_mandate_payment(),
-        request.get_optional_network_transaction_id(),
-    ) {
-        (true, _) => (Some(VantivProcessingType::InitialCOF), None),
-        (false, Some(network_transaction_id)) => (
-            Some(VantivProcessingType::MerchantInitiatedCOF),
-            Some(Secret::new(network_transaction_id.to_string())),
-        ),
-        _ => (None, None),
+) -> VantivMandateDetail {
+    if request.is_customer_initiated_mandate_payment() {
+        VantivMandateDetail {
+            processing_type: Some(VantivProcessingType::InitialCOF),
+            network_transaction_id: None,
+            token: None,
+        }
+    } else {
+        match request
+            .mandate_id
+            .as_ref()
+            .and_then(|mandate| mandate.mandate_reference_id.clone())
+        {
+            Some(api_models::payments::MandateReferenceId::NetworkMandateId(
+                network_transaction_id,
+            )) => VantivMandateDetail {
+                processing_type: Some(VantivProcessingType::MerchantInitiatedCOF),
+                network_transaction_id: Some(network_transaction_id.into()),
+                token: None,
+            },
+            Some(api_models::payments::MandateReferenceId::ConnectorMandateId(
+                _,
+            )) => {
+                let token = Some(TokenizationData {
+                    cnp_token: Secret::new("Some token".to_string()),
+                    exp_date: Secret::new("12/34".to_string()),
+                });
+                VantivMandateDetail {
+                    processing_type: None,
+                    network_transaction_id: None,
+                    token,
+                }
+            }
+            _ => VantivMandateDetail {
+                processing_type: None,
+                network_transaction_id: None,
+                token: None,
+            },
+        }
     }
 }
 
