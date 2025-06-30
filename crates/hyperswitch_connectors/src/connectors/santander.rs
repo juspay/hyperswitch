@@ -365,11 +365,11 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
         });
 
         new_router_data
+            .change_context(errors::ConnectorError::ResponseHandlingFailed)
             .map(|mut router_data| {
                 router_data.request.integrity_object = Some(response_integrity_object);
                 router_data
             })
-            .change_context(errors::ConnectorError::ResponseHandlingFailed)
     }
 
     fn get_error_response(
@@ -456,11 +456,11 @@ impl ConnectorIntegration<PSync, PaymentsSyncData, PaymentsResponseData> for San
         });
 
         new_router_data
+            .change_context(errors::ConnectorError::ResponseHandlingFailed)
             .map(|mut router_data| {
                 router_data.request.integrity_object = Some(response_integrity_object);
                 router_data
             })
-            .change_context(errors::ConnectorError::ResponseHandlingFailed)
     }
 
     fn get_error_response(
@@ -741,11 +741,11 @@ impl ConnectorIntegration<Execute, RefundsData, RefundsResponseData> for Santand
         });
 
         new_router_data
+            .change_context(errors::ConnectorError::ResponseHandlingFailed)
             .map(|mut router_data| {
                 router_data.request.integrity_object = Some(response_integrity_object);
                 router_data
             })
-            .change_context(errors::ConnectorError::ResponseHandlingFailed)
     }
 
     fn get_error_response(
