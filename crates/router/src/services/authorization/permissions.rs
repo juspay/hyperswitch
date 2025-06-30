@@ -96,7 +96,7 @@ generate_permissions! {
             entities: [Merchant]
         },
         RevenueRecovery: {
-            scopes: [Read],
+            scopes: [Read,Write],
             entities: [Profile]
         },
         InternalConnector: {

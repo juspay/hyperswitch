@@ -37,3 +37,33 @@ pub async fn revenue_recovery_pt_retrieve_api(
     ))
     .await
 }
+
+pub async fn revenue_recovery_pt_stop_api(
+    state: web::Data<AppState>,
+    req: HttpRequest,
+    path: web::Path<common_utils::id_type::GlobalPaymentId>,
+) -> HttpResponse {
+    let flow = Flow::RevenueRecoveryRetrieve;
+    let id = path.into_inner();
+    let payload = revenue_recovery_api::RevenueRecoveryId {
+        revenue_recovery_id: id,
+    };
+
+    Box::pin(api::server_wrap(
+        flow,
+        state,
+        &req,
+        payload,
+        |state, _: (), id, _| {
+            revenue_recovery::retrieve_revenue_recovery_process_tracker(
+                state,
+                id.revenue_recovery_id,
+            )
+        },
+        &auth::JWTAuth {
+            permission: Permission::ProfileRevenueRecoveryWrite,
+        },
+        api_locking::LockAction::NotApplicable,
+    ))
+    .await
+}

@@ -19,3 +19,18 @@ pub struct RevenueRecoveryResponse {
 pub struct RevenueRecoveryId {
     pub revenue_recovery_id: id_type::GlobalPaymentId,
 }
+
+#[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
+pub struct RevenueRecoveryStopResponse {
+    pub id: String,
+    pub name: Option<String>,
+    pub schedule_time_for_payment: Option<PrimitiveDateTime>,
+    pub schedule_time_for_psync: Option<PrimitiveDateTime>,
+    #[schema(value_type = ProcessTrackerStatus, example = "finish")]
+    pub stop_status: StopStatus,
+}
+#[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
+pub enum StopStatus {
+    Stopped,
+    FlowCannotStop,
+}
