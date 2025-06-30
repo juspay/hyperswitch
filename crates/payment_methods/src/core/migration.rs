@@ -24,7 +24,7 @@ pub async fn migrate_payment_methods(
     payment_methods: Vec<pm_api::PaymentMethodRecord>,
     merchant_id: &common_utils::id_type::MerchantId,
     merchant_context: &merchant_context::MerchantContext,
-    mca_id: Option<common_utils::id_type::MerchantConnectorAccountId>,
+    mca_id: Option<String>,
     controller: &dyn pm::PaymentMethodsController,
 ) -> PmMigrationResult<Vec<pm_api::PaymentMethodMigrationResponse>> {
     let mut result = Vec::new();
@@ -68,8 +68,7 @@ pub struct PaymentMethodsMigrateForm {
 
     pub merchant_id: text::Text<common_utils::id_type::MerchantId>,
 
-    pub merchant_connector_id:
-        text::Text<Option<common_utils::id_type::MerchantConnectorAccountId>>,
+    pub merchant_connector_id: text::Text<Option<String>>,
 }
 
 fn parse_csv(data: &[u8]) -> csv::Result<Vec<pm_api::PaymentMethodRecord>> {
@@ -90,7 +89,7 @@ pub fn get_payment_method_records(
     (
         common_utils::id_type::MerchantId,
         Vec<pm_api::PaymentMethodRecord>,
-        Option<common_utils::id_type::MerchantConnectorAccountId>,
+        Option<String>,
     ),
     errors::ApiErrorResponse,
 > {

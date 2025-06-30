@@ -31,6 +31,7 @@
             openssl
             pkg-config
             postgresql # for libpq
+            protobuf
           ];
 
           # Minimal packages for running hyperswitch
@@ -40,6 +41,7 @@
 
           # Development packages
           devPackages = base ++ (with pkgs; [
+            cargo-watch
             nixd
             rust-bin.stable.${rustDevVersion}.default
             swagger-cli
