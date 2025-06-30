@@ -401,7 +401,6 @@ pub fn remove_quotes_for_integer_values(
     for value_to_replace in values_to_replace {
         if let Ok(re) = Regex::new(&format!(
             r#"\\"(?P<field>\{{\{{{value_to_replace}\}}\}})\\""#,
-
         )) {
             contents = re.replace_all(&contents, "$field").to_string();
         } else {

@@ -420,7 +420,6 @@ impl PaymentMethodsController for PmCards<'_> {
                     .change_context(errors::ApiErrorResponse::InternalServerError)
                     .attach_printable(format!(
                         "Failed to fetch payment method for existing pm_id: {pm_id:?} in db",
-
                     ))?;
 
                 db.update_payment_method(
@@ -434,7 +433,6 @@ impl PaymentMethodsController for PmCards<'_> {
                 .change_context(errors::ApiErrorResponse::InternalServerError)
                 .attach_printable(format!(
                     "Failed to update payment method for existing pm_id: {pm_id:?} in db",
-
                 ))?;
 
                 logger::debug!("Network token added to locker and payment method updated");

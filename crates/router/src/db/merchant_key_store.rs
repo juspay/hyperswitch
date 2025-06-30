@@ -269,7 +269,6 @@ impl MerchantKeyStoreInterface for MockDb {
             .position(|mks| mks.merchant_id == *merchant_id)
             .ok_or(errors::StorageError::ValueNotFound(format!(
                 "No merchant key store found for merchant_id = {merchant_id:?}",
-
             )))?;
         merchant_key_stores.remove(index);
         Ok(true)

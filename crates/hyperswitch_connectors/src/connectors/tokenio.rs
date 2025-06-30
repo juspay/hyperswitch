@@ -152,7 +152,6 @@ impl Tokenio {
         // Assemble JWT - for detached JWT, middle part is empty
         Ok(format!(
             "{encoded_header}.{encoded_payload}.{encoded_signature}",
-
         ))
     }
 
@@ -353,7 +352,7 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
         connectors: &Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
         let base_url = self.base_url(connectors);
-        Ok(format!("{base_url}/v2/payments", ))
+        Ok(format!("{base_url}/v2/payments",))
     }
 
     fn get_request_body(
@@ -394,7 +393,7 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
             ),
             (
                 headers::AUTHORIZATION.to_string(),
-                format!("Bearer {jwt}", ).into_masked(),
+                format!("Bearer {jwt}",).into_masked(),
             ),
         ];
 
@@ -468,7 +467,7 @@ impl ConnectorIntegration<PSync, PaymentsSyncData, PaymentsResponseData> for Tok
             ),
             (
                 headers::AUTHORIZATION.to_string(),
-                format!("Bearer {jwt}", ).into_masked(),
+                format!("Bearer {jwt}",).into_masked(),
             ),
         ];
         Ok(headers)

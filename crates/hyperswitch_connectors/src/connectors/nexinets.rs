@@ -157,7 +157,7 @@ impl ConnectorCommon for Nexinets {
                 message.push_str(&msg);
                 static_message.push_str(&msg);
             } else {
-                message.push_str(format!(", {msg}" ).as_str());
+                message.push_str(format!(", {msg}").as_str());
             }
         }
         let connector_reason = format!("reason : {} , message : {}", response.message, message);

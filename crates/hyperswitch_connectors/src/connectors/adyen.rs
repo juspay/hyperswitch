@@ -1969,7 +1969,6 @@ impl ConnectorIntegration<Accept, AcceptDisputeRequestData, AcceptDisputeRespons
         )?;
         Ok(format!(
             "{endpoint}ca/services/DisputeService/v30/acceptDispute",
-
         ))
     }
 
@@ -2047,7 +2046,6 @@ impl ConnectorIntegration<Defend, DefendDisputeRequestData, DefendDisputeRespons
         )?;
         Ok(format!(
             "{endpoint}ca/services/DisputeService/v30/defendDispute",
-
         ))
     }
 
@@ -2128,7 +2126,6 @@ impl ConnectorIntegration<Evidence, SubmitEvidenceRequestData, SubmitEvidenceRes
         )?;
         Ok(format!(
             "{endpoint}ca/services/DisputeService/v30/supplyDefenseDocument",
-
         ))
     }
 

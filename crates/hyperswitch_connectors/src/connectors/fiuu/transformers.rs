@@ -192,7 +192,7 @@ impl TryFrom<BankNames> for BankCode {
             BankNames::UobBank => Ok(Self::UOVBMYKL),
             BankNames::OcbcBank => Ok(Self::OCBCMYKL),
             bank => Err(errors::ConnectorError::NotSupported {
-                message: format!("Invalid BankName for FPX Refund: {bank:?}", ),
+                message: format!("Invalid BankName for FPX Refund: {bank:?}",),
                 connector: "Fiuu",
             })?,
         }

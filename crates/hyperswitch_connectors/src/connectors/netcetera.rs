@@ -260,7 +260,7 @@ impl ConnectorIntegration<PreAuthentication, PreAuthNRequestData, Authentication
         connectors: &Connectors,
     ) -> CustomResult<String, ConnectorError> {
         let base_url = build_endpoint(self.base_url(connectors), &req.connector_meta_data)?;
-        Ok(format!("{base_url}/3ds/versioning", ))
+        Ok(format!("{base_url}/3ds/versioning",))
     }
 
     fn get_request_body(
@@ -352,7 +352,7 @@ impl
         connectors: &Connectors,
     ) -> CustomResult<String, ConnectorError> {
         let base_url = build_endpoint(self.base_url(connectors), &req.connector_meta_data)?;
-        Ok(format!("{base_url}/3ds/authentication", ))
+        Ok(format!("{base_url}/3ds/authentication",))
     }
 
     fn get_request_body(

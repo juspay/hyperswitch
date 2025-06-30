@@ -911,12 +911,12 @@ pub fn handle_test_error(
     match res {
         Ok(Ok(_)) => true,
         Ok(Err(web_driver_error)) => {
-            eprintln!("test future failed to resolve: {web_driver_error:?}", );
+            eprintln!("test future failed to resolve: {web_driver_error:?}",);
             false
         }
         Err(e) => {
             if let Some(web_driver_error) = e.downcast_ref::<WebDriverError>() {
-                eprintln!("test future panicked: {web_driver_error:?}", );
+                eprintln!("test future panicked: {web_driver_error:?}",);
             } else {
                 eprintln!("test future panicked; an assertion probably failed");
             }

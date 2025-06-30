@@ -107,7 +107,7 @@ impl std::fmt::Display for AnalyticsProvider {
             Self::CombinedSqlx(_, _) => "CombinedSqlx",
         };
 
-        write!(f, "{analytics_provider}", )
+        write!(f, "{analytics_provider}",)
     }
 }
 

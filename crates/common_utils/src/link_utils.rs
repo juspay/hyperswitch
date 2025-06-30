@@ -284,7 +284,6 @@ mod domain_tests {
             assert!(
                 validate_strict_domain(domain),
                 "Could not validate strict domain: {domain}",
-
             );
         }
 
@@ -300,7 +299,6 @@ mod domain_tests {
             assert!(
                 !validate_strict_domain(domain),
                 "Could not validate invalid strict domain: {domain}",
-
             );
         }
     }
@@ -329,7 +327,6 @@ mod domain_tests {
             assert!(
                 validate_wildcard_domain(domain),
                 "Could not validate wildcard domain: {domain}",
-
             );
         }
 
@@ -350,7 +347,6 @@ mod domain_tests {
             assert!(
                 !validate_wildcard_domain(domain),
                 "Could not validate invalid wildcard domain: {domain}",
-
             );
         }
     }

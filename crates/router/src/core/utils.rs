@@ -2041,7 +2041,7 @@ pub(crate) fn validate_profile_id_from_auth_layer<T: GetProfileId + std::fmt::De
             }
             .into(),
         )
-        .attach_printable(format!("Couldn't find profile_id in entity {object:?}", )),
+        .attach_printable(format!("Couldn't find profile_id in entity {object:?}",)),
         (None, None) | (None, Some(_)) => Ok(()),
     }
 }
@@ -2163,7 +2163,7 @@ fn validate_iban(iban: &Secret<String>) -> RouterResult<()> {
     rearranged_iban.chars().for_each(|c| {
         if c.is_ascii_uppercase() {
             let digit = (u32::from(c) - u32::from('A')) + 10;
-            result.push_str(&format!("{digit:02}", ));
+            result.push_str(&format!("{digit:02}",));
         } else {
             result.push(c);
         }
