@@ -144,12 +144,7 @@ where
         ctx: prost::encoding::DecodeContext,
     ) -> Result<(), prost::DecodeError> {
         if tag == 1 {
-            let mut value = T::default();
-            T::merge_field(&mut value, tag, wire_type, buf, ctx)?;
-            *self = Self {
-                inner_secret: value,
-                masking_strategy: PhantomData,
-            };
+            self.peek_mut().merge_field(tag, wire_type, buf, ctx)?;
             Ok(())
         } else {
             prost::encoding::skip_field(wire_type, tag, buf, ctx)

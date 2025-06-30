@@ -265,9 +265,7 @@ where
         ctx: prost::encoding::DecodeContext,
     ) -> Result<(), prost::DecodeError> {
         if tag == 1 {
-            let mut value = T::default();
-            prost::Message::merge_field(&mut value, tag, wire_type, buf, ctx)?;
-            *self = Self::new(value);
+            self.peek_mut().merge_field(tag, wire_type, buf, ctx)?;
             Ok(())
         } else {
             prost::encoding::skip_field(wire_type, tag, buf, ctx)
