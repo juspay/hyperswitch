@@ -922,7 +922,6 @@ macro_rules! default_imp_for_complete_authorize {
 }
 
 default_imp_for_complete_authorize!(
-    connectors::Sift,
     connectors::Silverflow,
     connectors::Vgs,
     connectors::Aci,
@@ -992,6 +991,7 @@ default_imp_for_complete_authorize!(
     connectors::Recurly,
     connectors::Riskified,
     connectors::Santander,
+    connectors::Sift,
     connectors::Signifyd,
     connectors::Stax,
     connectors::Square,
@@ -1400,7 +1400,6 @@ macro_rules! default_imp_for_pre_processing_steps{
 }
 
 default_imp_for_pre_processing_steps!(
-    connectors::Sift,
     connectors::Silverflow,
     connectors::Vgs,
     connectors::Aci,
@@ -1479,6 +1478,7 @@ default_imp_for_pre_processing_steps!(
     connectors::Recurly,
     connectors::Riskified,
     connectors::Santander,
+    connectors::Sift,
     connectors::Signifyd,
     connectors::Stax,
     connectors::Square,
