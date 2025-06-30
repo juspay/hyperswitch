@@ -559,7 +559,7 @@ impl RevenueRecoveryAttempt {
                     .as_ref()
                     .map(|account| account.connector_name),
                 common_enums::TriggeredBy::External,
-                common_enums::PaymentmethodChosen::Default,
+                common_enums::PaymentMethodChosen::Default,
             )
             .await?;
         let attempt_response = Box::pin(payments::record_attempt_core(
@@ -609,7 +609,7 @@ impl RevenueRecoveryAttempt {
         payment_merchant_connector_account_id: Option<id_type::MerchantConnectorAccountId>,
         payment_connector: Option<common_enums::connector_enums::Connector>,
         triggered_by: common_enums::TriggeredBy,
-        payment_method_chosen: common_enums::PaymentmethodChosen
+        payment_method_chosen: common_enums::PaymentMethodChosen
     ) -> CustomResult<api_payments::PaymentsAttemptRecordRequest, errors::RevenueRecoveryError>
     {
         let revenue_recovery_attempt_data = &self.0;
@@ -665,7 +665,7 @@ impl RevenueRecoveryAttempt {
                 .processor_payment_method_token
                 .clone(),
             payment_method_units: revenue_recovery_attempt_data
-                .processor_payment_method_token
+                .payment_method_units
                 .clone(),
             connector_customer_id: revenue_recovery_attempt_data.connector_customer_id.clone(),
             retry_count: revenue_recovery_attempt_data.retry_count,

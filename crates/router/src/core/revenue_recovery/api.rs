@@ -11,7 +11,7 @@ use crate::{
     core::{
         errors::{self, RouterResult},
         payments::{self, operations::Operation},
-        webhooks::recovery_incoming,
+        webhooks::{self, recovery_incoming},
     },
     logger,
     routes::SessionState,
@@ -87,7 +87,18 @@ pub async fn call_proxy_api(
     let req = payments_api::ProxyPaymentsRequest {
         return_url: None,
         amount: payments_api::AmountDetails::new(payment_intent.amount_details.clone().into()),
-        recurring_details,
+        recurring_details:  api_models::mandates::ProcessorPaymentToken { 
+            processor_payment_token: api_models::payments::PaymentProcessorTokenUnit{
+            payment_processor_token: revenue_recovery
+                .billing_connector_payment_details.payment_method_units.first()
+                .map(|unit| unit.payment_processor_token.clone()).unwrap_or("FakePaymentMethodId".to_string()),
+            expiry_year: None,
+            expiry_month: None
+        },
+            merchant_connector_id: Some(revenue_recovery
+                .active_attempt_payment_connector_id
+                .clone()),
+        },
         shipping: None,
         browser_info: None,
         connector: revenue_recovery.connector.to_string(),
@@ -188,13 +199,9 @@ pub async fn record_internal_attempt_api(
     })?;
 
  
-    let billing_mca_id = revenue_recovery_payment_data
+    let billing_mca = revenue_recovery_payment_data
         .billing_mca
         .clone();
-
-    let billing_mca = state.store
-        .find_merchant_connector_account_by_id(state, billing_mca_id,revenue_recovery_payment_data.key_store)
-        .await.change_context(errors::ApiErrorResponse::MerchantConnectorAccountNotFound { id: billing_mca_id.to_string() })?;
 
     let switch_payment_method_config = billing_mca.feature_metadata.and_then(|feature_metadata| {
         feature_metadata.revenue_recovery.as_ref().map(|metadata| {
@@ -203,12 +210,12 @@ pub async fn record_internal_attempt_api(
     }).flatten();
 
     let retry_threshold : i32 = switch_payment_method_config
-        .map(|config| config.retry_threshold)
+        .map(|config| config.retry_threshold as i32)
         .unwrap_or(-1)
         .into();
 
     let time_threshold : i64 = switch_payment_method_config
-        .map(|config| config.time_threshold_after_creation)
+        .map(|config| config.time_threshold_after_creation as i64)
         .unwrap_or(-1)
         .into();
 
@@ -220,12 +227,10 @@ pub async fn record_internal_attempt_api(
         false
     };
 
-    let revenue_recovery = payment_intent.get_revenue_recovery_metadata();
-
-    let recurring_details = if should_payment_method_be_switched {
-        revenue_recovery.and_then(|data| data.get_backup_payment_token_for_api_request())
-    } else{
-        revenue_recovery.and_then(|data| data.get_primary_payment_token_for_api_request())
+    let payment_method_chosen = if should_payment_method_be_switched{
+        webhooks::recovery_incoming::PaymentMethod::Backup
+    } else {
+        webhooks::recovery_incoming::PaymentMethod::Default
     };
 
     
@@ -241,6 +246,7 @@ pub async fn record_internal_attempt_api(
             ),
             Some(revenue_recovery_metadata.connector),
             common_enums::TriggeredBy::Internal,
+            payment_method_chosen
         )
         .await
         .change_context(errors::ApiErrorResponse::GenericNotFoundError {

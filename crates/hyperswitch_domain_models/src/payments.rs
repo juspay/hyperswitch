@@ -718,12 +718,12 @@ impl PaymentIntent {
             connector_transaction_id: None, // No connector id
             error_code: None,
             error_message: None,
-            processor_payment_method_token:revenue_recovery_metadata.billing_connector_payment_details.payment_method_units.first().and_then(|details| {
+            processor_payment_method_token:revenue_recovery_metadata.billing_connector_payment_details.payment_method_units.first().map(|details| {
                 details.payment_processor_token.clone()
-            }),
+            }).unwrap_or("NOPaymentMethodToken".to_string()),
             payment_method_units: revenue_recovery_metadata
                 .billing_connector_payment_details
-                .payment_processor_token
+                .payment_method_units
                 .clone(),
             connector_customer_id: revenue_recovery_metadata
                 .billing_connector_payment_details
@@ -1056,7 +1056,7 @@ where
                     .get_attempt_merchant_connector_account_id()?,
                 billing_connector_payment_details:
                     diesel_models::types::BillingConnectorPaymentDetails {
-                        payment_processor_token: vec![payment_processor_token_unit],
+                        payment_method_units: vec![payment_processor_token_unit],
                         connector_customer_id: self
                             .revenue_recovery_data
                             .connector_customer_id

@@ -755,6 +755,7 @@ impl PaymentAttempt {
             .merchant_reference_id
             .as_ref()
             .map(|id| id.get_string_repr().to_owned());
+        
         Ok(Self {
             payment_id: payment_intent.id.clone(),
             merchant_id: payment_intent.merchant_id.clone(),

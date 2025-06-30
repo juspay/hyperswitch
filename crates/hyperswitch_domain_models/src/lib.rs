@@ -369,7 +369,7 @@ impl ApiModelToDieselModelConvertor<ApiBillingConnectorPaymentDetails>
 {
     fn convert_from(from: ApiBillingConnectorPaymentDetails) -> Self {
         Self {
-            payment_processor_token: from.payment_processor_token
+            payment_method_units: from.payment_method_units
                 .into_iter()
                 .map(PaymentProcessorTokenUnit::convert_from)
                 .collect(),
@@ -379,7 +379,7 @@ impl ApiModelToDieselModelConvertor<ApiBillingConnectorPaymentDetails>
 
     fn convert_back(self) -> ApiBillingConnectorPaymentDetails {
         ApiBillingConnectorPaymentDetails {
-            payment_processor_token: self.payment_processor_token.into_iter()
+            payment_method_units: self.payment_method_units.into_iter()
                 .map(PaymentProcessorTokenUnit::convert_back)
                 .collect(),
             connector_customer_id: self.connector_customer_id,
