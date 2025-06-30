@@ -6247,3 +6247,7 @@ placeholder="Enter Currency"
 required=true
 type="Select"
 options=[]
+
+[sift]
+[sift.connector_auth.HeaderKey]
+api_key = "API Key"

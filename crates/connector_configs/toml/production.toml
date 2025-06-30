@@ -4852,3 +4852,7 @@ label="Acquirer Country Code"
 placeholder="Enter Acquirer Country Code"
 required=false
 type="Text"
+
+[sift]
+[sift.connector_auth.HeaderKey]
+api_key = "API Key"
