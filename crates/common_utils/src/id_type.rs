@@ -11,6 +11,7 @@ mod merchant;
 mod merchant_connector_account;
 mod organization;
 mod payment;
+mod payout;
 mod profile;
 mod profile_acquirer;
 mod refunds;
@@ -27,6 +28,7 @@ use diesel::{
     serialize::{Output, ToSql},
     sql_types,
 };
+pub use payout::PayoutId;
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
 

@@ -69,6 +69,7 @@ impl
             payout_id: payout.payout_id,
             merchant_id: payout.merchant_id,
             merchant_connector_id: payout_attempt.merchant_connector_id,
+            merchant_order_reference_id: payout_attempt.merchant_order_reference_id.clone(),
             amount: payout.amount,
             currency: payout.destination_currency,
             connector: payout_attempt.connector,

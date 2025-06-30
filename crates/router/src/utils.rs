@@ -41,7 +41,6 @@ use nanoid::nanoid;
 use serde::de::DeserializeOwned;
 use serde_json::Value;
 use tracing_futures::Instrument;
-use uuid::Uuid;
 
 pub use self::ext_traits::{OptionExt, ValidateCall};
 use crate::{
@@ -118,11 +117,6 @@ pub fn generate_id(length: usize, prefix: &str) -> String {
     format!("{}_{}", prefix, nanoid!(length, &consts::ALPHABETS))
 }
 
-#[inline]
-pub fn generate_uuid() -> String {
-    Uuid::new_v4().to_string()
-}
-
 pub trait ConnectorResponseExt: Sized {
     fn get_response(self) -> RouterResult<types::Response>;
     fn get_error_response(self) -> RouterResult<types::Response>;
@@ -167,7 +161,7 @@ impl<E> ConnectorResponseExt
 }
 
 #[inline]
-pub fn get_payout_attempt_id(payout_id: impl std::fmt::Display, attempt_count: i16) -> String {
+pub fn get_payout_attempt_id(payout_id: &str, attempt_count: i16) -> String {
     format!("{payout_id}_{attempt_count}")
 }
 
