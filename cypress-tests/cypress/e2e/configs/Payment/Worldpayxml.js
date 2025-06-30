@@ -402,6 +402,9 @@ export const connectorDetails = {
       },
     },
     MandateSingleUseNo3DSAutoCapture: {
+      Configs: {
+        TRIGGER_SKIP: true,
+      },
       Request: {
         payment_method: "card",
         payment_method_data: {
@@ -431,6 +434,9 @@ export const connectorDetails = {
       },
     },
     MandateSingleUseNo3DSManualCapture: {
+      Configs: {
+        TRIGGER_SKIP: true,
+      },
       Request: {
         payment_method: "card",
         payment_method_data: {
