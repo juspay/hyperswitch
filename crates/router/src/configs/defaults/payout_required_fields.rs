@@ -438,15 +438,6 @@ fn get_billing_details(connector: PayoutConnectors) -> HashMap<String, RequiredF
                 },
             ),
             (
-                "billing.address.zip".to_string(),
-                RequiredFieldInfo {
-                    required_field: "billing.address.zip".to_string(),
-                    display_name: "billing_address_zip".to_string(),
-                    field_type: FieldType::Text,
-                    value: None,
-                },
-            ),
-            (
                 "billing.address.country".to_string(),
                 RequiredFieldInfo {
                     required_field: "billing.address.country".to_string(),
