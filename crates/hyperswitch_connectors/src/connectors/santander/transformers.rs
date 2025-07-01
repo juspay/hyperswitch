@@ -16,7 +16,7 @@ use hyperswitch_domain_models::{
     types::{PaymentsAuthorizeRouterData, PaymentsCancelRouterData, RefundsRouterData},
 };
 use hyperswitch_interfaces::errors;
-use masking::{ExposeInterface, Secret, WithType};
+use masking::{ExposeInterface, Secret};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use time::OffsetDateTime;
@@ -24,7 +24,7 @@ use url::Url;
 
 use crate::{
     types::{RefundsResponseRouterData, ResponseRouterData},
-    utils::{QrImage, RouterData as _},
+    utils::{self as connector_utils, QrImage, RouterData as _},
 };
 const CRC_16_CCITT_FALSE: Algorithm<u16> = Algorithm {
     width: 16,
@@ -39,8 +39,6 @@ const CRC_16_CCITT_FALSE: Algorithm<u16> = Algorithm {
 
 type Error = error_stack::Report<errors::ConnectorError>;
 
-const DEFAULT_EXPIRATION_TIME: i32 = 3600;
-
 pub struct SantanderRouterData<T> {
     pub amount: StringMajorUnit,
     pub router_data: T,
@@ -52,6 +50,28 @@ impl<T> From<(StringMajorUnit, T)> for SantanderRouterData<T> {
             amount,
             router_data: item,
         }
+    }
+}
+
+#[derive(Debug, Default, Serialize, Deserialize)]
+pub struct SantanderMetadataObject {
+    pub pix_key: Secret<String>,
+    pub expiration_time: i32,
+    pub cpf: Secret<String>,
+    pub merchant_city: enums::Currency,
+    pub merchant_name: String,
+}
+
+impl TryFrom<&Option<common_utils::pii::SecretSerdeValue>> for SantanderMetadataObject {
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(
+        meta_data: &Option<common_utils::pii::SecretSerdeValue>,
+    ) -> Result<Self, Self::Error> {
+        let metadata = connector_utils::to_connector_meta_from_secret::<Self>(meta_data.clone())
+            .change_context(errors::ConnectorError::InvalidConnectorConfig {
+                config: "metadata",
+            })?;
+        Ok(metadata)
     }
 }
 
@@ -191,19 +211,6 @@ impl TryFrom<&SantanderRouterData<&PaymentsAuthorizeRouterData>> for SantanderPa
     }
 }
 
-pub fn extract_field_from_mca_metadata(
-    connector_meta_data: Option<Secret<Value, WithType>>,
-    field_name: &str,
-) -> Option<Secret<String>> {
-    let metadata = connector_meta_data.as_ref()?;
-
-    let exposed = metadata.clone().expose();
-    exposed
-        .get(field_name)
-        .and_then(|v| v.as_str())
-        .map(|s| Secret::new(s.to_string()))
-}
-
 impl
     TryFrom<(
         &SantanderRouterData<&PaymentsAuthorizeRouterData>,
@@ -217,42 +224,24 @@ impl
             &BankTransferData,
         ),
     ) -> Result<Self, Self::Error> {
-        let chave_key = if let Some(key) =
-            extract_field_from_mca_metadata(value.0.router_data.connector_meta_data.clone(), "key")
-        {
-            key
-        } else {
-            return Err(errors::ConnectorError::NoConnectorMetaData)?;
-        };
-
-        let expiration_time = extract_field_from_mca_metadata(
-            value.0.router_data.connector_meta_data.clone(),
-            "expiration_time",
-        )
-        .map(|secret| {
-            secret
-                .expose()
-                .parse::<i32>()
-                .map_err(|_| errors::ConnectorError::ResponseHandlingFailed)
-        })
-        .transpose()?
-        .unwrap_or(DEFAULT_EXPIRATION_TIME);
+        let santander_mca_metadata =
+            SantanderMetadataObject::try_from(&value.0.router_data.connector_meta_data)?;
 
         let debtor = SantanderDebtor {
-            cpf: None,
-            name: Some(value.0.router_data.get_billing_full_name()?),
+            cpf: santander_mca_metadata.cpf.clone(),
+            name: value.0.router_data.get_billing_full_name()?,
         };
 
         Ok(Self {
             calender: SantanderCalendar {
                 creation: Utc::now().to_rfc3339(),
-                expiration: expiration_time,
+                expiration: santander_mca_metadata.expiration_time,
             },
             debtor,
             value: SantanderValue {
                 original: value.0.amount.to_owned(),
             },
-            key: chave_key,
+            key: santander_mca_metadata.pix_key.clone(),
             request_payer: value.0.router_data.request.statement_descriptor.clone(),
             additional_info: None,
         })
@@ -296,9 +285,9 @@ pub struct SantanderPixQRPaymentRequest {
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 #[serde(rename_all = "camelCase")]
 pub struct SantanderDebtor {
-    pub cpf: Option<Secret<String>>,
+    pub cpf: Secret<String>,
     #[serde(rename = "nome")]
-    pub name: Option<Secret<String>>,
+    pub name: Secret<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
@@ -530,6 +519,8 @@ impl TryFrom<&PaymentsCancelRouterData> for SantanderPaymentsCancelRequest {
 fn get_qr_code_data<F, T>(
     item: &ResponseRouterData<F, SantanderPaymentsResponse, T, PaymentsResponseData>,
 ) -> CustomResult<Option<Value>, errors::ConnectorError> {
+    let santander_mca_metadata = SantanderMetadataObject::try_from(&item.data.connector_meta_data)?;
+
     let response = item.response.clone();
     let expiration_time = item.response.calendar.expiration;
 
@@ -547,22 +538,10 @@ fn get_qr_code_data<F, T>(
     .unix_timestamp()
         * 1000;
 
-    let connector_metadata = item.data.connector_meta_data.clone();
+    let merchant_city_string = santander_mca_metadata.merchant_city.to_string();
+    let merchant_city = merchant_city_string.as_str();
 
-    let merchant_city_value =
-        extract_field_from_mca_metadata(connector_metadata.clone(), "merchant_city")
-            .map(|city| city.expose())
-            .ok_or_else(|| errors::ConnectorError::MissingRequiredField {
-                field_name: "merchant_city",
-            })?;
-    let merchant_city = merchant_city_value.as_str();
-
-    let merchant_name_value = extract_field_from_mca_metadata(connector_metadata, "merchant_name")
-        .map(|name| name.expose())
-        .ok_or_else(|| errors::ConnectorError::MissingRequiredField {
-            field_name: "merchant_name",
-        })?;
-    let merchant_name = merchant_name_value.as_str();
+    let merchant_name = santander_mca_metadata.merchant_name.as_str();
 
     let payload_url = if let Some(location) = response.location {
         location

@@ -188,7 +188,6 @@ enum RequiredField {
     BecsBankDebitAccountNumber,
     BecsBankDebitBsbNumber,
     BecsBankDebitSortCode,
-    PixQRCodeExpirationTime,
     PixKey,
     PixCnpj,
     PixCpf,
@@ -204,15 +203,6 @@ enum RequiredField {
 impl RequiredField {
     fn to_tuple(&self) -> (String, RequiredFieldInfo) {
         match self {
-            Self::PixQRCodeExpirationTime => (
-                "expiration_time".to_string(),
-                RequiredFieldInfo {
-                    required_field: "expiration_time".to_string(),
-                    display_name: "expiration_time".to_string(),
-                    field_type: FieldType::Text,
-                    value: None,
-                },
-            ),
             Self::CardNumber => (
                 "payment_method_data.card.card_number".to_string(),
                 RequiredFieldInfo {
@@ -3132,7 +3122,10 @@ fn get_bank_transfer_required_fields() -> HashMap<enums::PaymentMethodType, Conn
                     RequiredFieldFinal {
                         mandate: HashMap::new(),
                         non_mandate: HashMap::new(),
-                        common: HashMap::from([RequiredField::PixQRCodeExpirationTime.to_tuple()]),
+                        common: HashMap::from([
+                            RequiredField::BillingUserFirstName.to_tuple(),
+                            RequiredField::BillingUserLastName.to_tuple(),
+                        ]),
                     },
                 ),
                 (
