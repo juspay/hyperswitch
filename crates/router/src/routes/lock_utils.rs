@@ -303,6 +303,7 @@ impl From<Flow> for ApiIdentifier {
             | Flow::DeleteUserTheme
             | Flow::GetUserThemeUsingThemeId
             | Flow::UploadFileToUserThemeStorage
+            | Flow::GetUserThemeUsingLineage
             | Flow::ListAllThemesInLineage
             | Flow::CloneConnector => Self::User,
 

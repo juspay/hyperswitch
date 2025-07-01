@@ -543,3 +543,41 @@ pub async fn get_user_theme_using_theme_id(
         theme_data: parsed_data,
     }))
 }
+
+pub async fn get_user_theme_using_lineage(
+    state: SessionState,
+    user_from_token: UserFromToken,
+    entity_type: EntityType,
+) -> UserResponse<theme_api::GetThemeResponse> {
+    let lineage =
+        theme_utils::get_theme_lineage_from_user_token(&user_from_token, &state, &entity_type)
+            .await?;
+    let theme = state
+        .store
+        .find_theme_by_lineage(lineage)
+        .await
+        .to_not_found_response(UserErrors::ThemeNotFound)?;
+
+    let file = theme_utils::retrieve_file_from_theme_bucket(
+        &state,
+        &theme_utils::get_theme_file_key(&theme.theme_id),
+    )
+    .await?;
+
+    let parsed_data = file
+        .to_bytes()
+        .parse_struct("ThemeData")
+        .change_context(UserErrors::InternalServerError)?;
+
+    Ok(ApplicationResponse::Json(theme_api::GetThemeResponse {
+        email_config: theme.email_config(),
+        theme_id: theme.theme_id,
+        theme_name: theme.theme_name,
+        entity_type: theme.entity_type,
+        tenant_id: theme.tenant_id,
+        org_id: theme.org_id,
+        merchant_id: theme.merchant_id,
+        profile_id: theme.profile_id,
+        theme_data: parsed_data,
+    }))
+}

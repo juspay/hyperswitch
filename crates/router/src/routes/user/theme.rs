@@ -287,3 +287,27 @@ pub async fn list_all_themes_in_lineage(
     ))
     .await
 }
+
+pub async fn get_user_theme_using_lineage(
+    state: web::Data<AppState>,
+    req: HttpRequest,
+    query: web::Query<theme_api::ThemeListQuery>,
+) -> HttpResponse {
+    let flow = Flow::GetUserThemeUsingLineage;
+    let entity_type = query.into_inner().entity_type;
+
+    Box::pin(api::server_wrap(
+        flow,
+        state,
+        &req,
+        (),
+        |state, user: auth::UserFromToken, _payload, _| {
+            theme_core::get_user_theme_using_lineage(state, user, entity_type)
+        },
+        &auth::JWTAuth {
+            permission: Permission::OrganizationThemeRead,
+        },
+        api_locking::LockAction::NotApplicable,
+    ))
+    .await
+}
