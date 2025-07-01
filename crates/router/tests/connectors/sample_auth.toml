@@ -348,3 +348,7 @@ key1 ="Client Secret"
 [santander]
 api_key="Client ID"
 key1 ="Client Secret"
+
+[dwolla]
+api_key="Client ID"
+key1="Client Secret"

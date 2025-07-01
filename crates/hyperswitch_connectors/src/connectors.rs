@@ -29,6 +29,7 @@ pub mod digitalvirgo;
 pub mod dlocal;
 #[cfg(feature = "dummy_connector")]
 pub mod dummyconnector;
+pub mod dwolla;
 pub mod ebanx;
 pub mod elavon;
 pub mod facilitapay;
@@ -117,7 +118,7 @@ pub use self::{
     cashtocode::Cashtocode, chargebee::Chargebee, checkbook::Checkbook, checkout::Checkout,
     coinbase::Coinbase, coingate::Coingate, cryptopay::Cryptopay, ctp_mastercard::CtpMastercard,
     cybersource::Cybersource, datatrans::Datatrans, deutschebank::Deutschebank,
-    digitalvirgo::Digitalvirgo, dlocal::Dlocal, ebanx::Ebanx, elavon::Elavon,
+    digitalvirgo::Digitalvirgo, dlocal::Dlocal, dwolla::Dwolla, ebanx::Ebanx, elavon::Elavon,
     facilitapay::Facilitapay, fiserv::Fiserv, fiservemea::Fiservemea, fiuu::Fiuu, forte::Forte,
     getnet::Getnet, globalpay::Globalpay, globepay::Globepay, gocardless::Gocardless,
     gpayments::Gpayments, helcim::Helcim, hipay::Hipay, hyperswitch_vault::HyperswitchVault,

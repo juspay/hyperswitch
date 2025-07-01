@@ -30,6 +30,7 @@ import { connectorDetails as iatapayConnectorDetails } from "./Iatapay.js";
 import { connectorDetails as itaubankConnectorDetails } from "./ItauBank.js";
 import { connectorDetails as jpmorganConnectorDetails } from "./Jpmorgan.js";
 import { connectorDetails as monerisConnectorDetails } from "./Moneris.js";
+import { connectorDetails as multisafepayConnectorDetails } from "./Multisafepay.js";
 import { connectorDetails as nexixpayConnectorDetails } from "./Nexixpay.js";
 import { connectorDetails as nmiConnectorDetails } from "./Nmi.js";
 import { connectorDetails as noonConnectorDetails } from "./Noon.js";
@@ -76,6 +77,7 @@ const connectorDetails = {
   itaubank: itaubankConnectorDetails,
   jpmorgan: jpmorganConnectorDetails,
   moneris: monerisConnectorDetails,
+  multisafepay: multisafepayConnectorDetails,
   nexixpay: nexixpayConnectorDetails,
   nmi: nmiConnectorDetails,
   noon: noonConnectorDetails,
