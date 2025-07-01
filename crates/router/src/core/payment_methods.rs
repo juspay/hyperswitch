@@ -3060,20 +3060,30 @@ pub async fn payment_methods_session_confirm(
         None => None,
     };
 
-    let merged_tokenization_data = payment_method_session.tokenization_data.clone()
-    .zip(request.tokenization_data.clone())
-    .and_then(|(session_data, confirm_data)| {
-        match (session_data.peek(), confirm_data.peek()) {
-            (serde_json::Value::Object(session_map), serde_json::Value::Object(confirm_map)) => {
-                let mut merged_map = session_map.clone();
-                merged_map.extend(confirm_map.clone());
-                Some(Secret::new(serde_json::Value::Object(merged_map)))
-            }
-            _ => Some(session_data),
-        }
-    })
-    .or_else(|| payment_method_session.tokenization_data.clone().or(request.tokenization_data.clone()));
-    
+    let merged_tokenization_data = payment_method_session
+        .tokenization_data
+        .clone()
+        .zip(request.tokenization_data.clone())
+        .and_then(
+            |(session_data, confirm_data)| match (session_data.peek(), confirm_data.peek()) {
+                (
+                    serde_json::Value::Object(session_map),
+                    serde_json::Value::Object(confirm_map),
+                ) => {
+                    let mut merged_map = session_map.clone();
+                    merged_map.extend(confirm_map.clone());
+                    Some(Secret::new(serde_json::Value::Object(merged_map)))
+                }
+                _ => Some(session_data),
+            },
+        )
+        .or_else(|| {
+            payment_method_session
+                .tokenization_data
+                .clone()
+                .or(request.tokenization_data.clone())
+        });
+
     let tokenization_response = match merged_tokenization_data {
         Some(ref tokenization_data) => {
             let tokenization_response = tokenization_core::create_vault_token_core(

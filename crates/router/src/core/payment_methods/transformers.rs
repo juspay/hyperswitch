@@ -4,8 +4,7 @@ use api_models::payment_methods::PaymentMethodResponseItem;
 use api_models::{enums as api_enums, payment_methods::Card};
 use common_utils::{
     ext_traits::{Encode, StringExt},
-    id_type,
-    pii,
+    id_type, pii,
     request::RequestContent,
 };
 use error_stack::ResultExt;
