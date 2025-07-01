@@ -438,6 +438,9 @@ impl ConnectorData {
                 enums::Connector::DummyBillingConnector => Ok(ConnectorEnum::Old(Box::new(
                     &connector::DummyConnector::<8>,
                 ))),
+                // enums::Connector::Dwolla => {
+                //     Ok(ConnectorEnum::Old(Box::new(connector::Dwolla::new())))
+                // }
                 enums::Connector::Ebanx => {
                     Ok(ConnectorEnum::Old(Box::new(connector::Ebanx::new())))
                 }
@@ -551,9 +554,9 @@ impl ConnectorData {
                 enums::Connector::Redsys => {
                     Ok(ConnectorEnum::Old(Box::new(connector::Redsys::new())))
                 }
-                // enums::Connector::Santander => {
-                //     Ok(ConnectorEnum::Old(Box::new(connector::Santander)))
-                // }
+                enums::Connector::Santander => {
+                    Ok(ConnectorEnum::Old(Box::new(connector::Santander::new())))
+                }
                 enums::Connector::Shift4 => {
                     Ok(ConnectorEnum::Old(Box::new(connector::Shift4::new())))
                 }

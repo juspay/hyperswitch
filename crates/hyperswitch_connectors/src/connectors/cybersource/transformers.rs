@@ -3958,7 +3958,7 @@ impl TryFrom<&CybersourceRouterData<&PayoutsRouterData<PoFulfill>>>
         match payout_type {
             enums::PayoutType::Card => {
                 let client_reference_information = ClientReferenceInformation {
-                    code: Some(item.router_data.request.payout_id.clone()),
+                    code: Some(item.router_data.connector_request_reference_id.clone()),
                 };
 
                 let order_information = OrderInformation {
@@ -3974,7 +3974,7 @@ impl TryFrom<&CybersourceRouterData<&PayoutsRouterData<PoFulfill>>>
                     CybersourceRecipientInfo::try_from((billing_address, phone_address))?;
 
                 let sender_information = CybersourceSenderInfo {
-                    reference_number: item.router_data.request.payout_id.clone(),
+                    reference_number: item.router_data.connector_request_reference_id.clone(),
                     account: CybersourceAccountInfo {
                         funds_source: CybersourcePayoutFundSourceType::Disbursement,
                     },

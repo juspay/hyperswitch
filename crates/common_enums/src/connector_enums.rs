@@ -84,6 +84,7 @@ pub enum RoutableConnectors {
     Deutschebank,
     Digitalvirgo,
     Dlocal,
+    // Dwolla,
     Ebanx,
     Elavon,
     Facilitapay,
@@ -131,7 +132,7 @@ pub enum RoutableConnectors {
     Recurly,
     Redsys,
     Riskified,
-    // Santander,
+    Santander,
     Shift4,
     Signifyd,
     Square,
@@ -241,6 +242,7 @@ pub enum Connector {
     Deutschebank,
     Digitalvirgo,
     Dlocal,
+    // Dwolla,
     Ebanx,
     Elavon,
     Facilitapay,
@@ -291,7 +293,7 @@ pub enum Connector {
     Razorpay,
     Recurly,
     Redsys,
-    // Santander,
+    Santander,
     Shift4,
     Square,
     Stax,
@@ -418,6 +420,7 @@ impl Connector {
             | Self::Deutschebank
             | Self::Digitalvirgo
             | Self::Dlocal
+            // | Self::Dwolla
             | Self::Ebanx
             | Self::Elavon
             | Self::Facilitapay
@@ -462,7 +465,7 @@ impl Connector {
             | Self::Rapyd
             | Self::Recurly
             | Self::Redsys
-            // | Self::Santander
+            | Self::Santander
             | Self::Shift4
             | Self::Square
             | Self::Stax
@@ -580,6 +583,7 @@ impl From<RoutableConnectors> for Connector {
             RoutableConnectors::Deutschebank => Self::Deutschebank,
             RoutableConnectors::Digitalvirgo => Self::Digitalvirgo,
             RoutableConnectors::Dlocal => Self::Dlocal,
+            // RoutableConnectors::Dwolla => Self::Dwolla,
             RoutableConnectors::Ebanx => Self::Ebanx,
             RoutableConnectors::Elavon => Self::Elavon,
             RoutableConnectors::Facilitapay => Self::Facilitapay,
@@ -623,7 +627,7 @@ impl From<RoutableConnectors> for Connector {
             RoutableConnectors::Recurly => Self::Recurly,
             RoutableConnectors::Redsys => Self::Redsys,
             RoutableConnectors::Riskified => Self::Riskified,
-            // RoutableConnectors::Santander => Self::Santander,
+            RoutableConnectors::Santander => Self::Santander,
             RoutableConnectors::Shift4 => Self::Shift4,
             RoutableConnectors::Signifyd => Self::Signifyd,
             RoutableConnectors::Square => Self::Square,
@@ -699,6 +703,7 @@ impl TryFrom<Connector> for RoutableConnectors {
             Connector::Deutschebank => Ok(Self::Deutschebank),
             Connector::Digitalvirgo => Ok(Self::Digitalvirgo),
             Connector::Dlocal => Ok(Self::Dlocal),
+            // Connector::Dwolla => Ok(Self::Dwolla),
             Connector::Ebanx => Ok(Self::Ebanx),
             Connector::Elavon => Ok(Self::Elavon),
             Connector::Facilitapay => Ok(Self::Facilitapay),
@@ -739,7 +744,7 @@ impl TryFrom<Connector> for RoutableConnectors {
             Connector::Rapyd => Ok(Self::Rapyd),
             Connector::Razorpay => Ok(Self::Razorpay),
             Connector::Riskified => Ok(Self::Riskified),
-            // Connector::Santander => Ok(Self::Santander),
+            Connector::Santander => Ok(Self::Santander),
             Connector::Shift4 => Ok(Self::Shift4),
             Connector::Signifyd => Ok(Self::Signifyd),
             Connector::Square => Ok(Self::Square),

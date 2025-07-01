@@ -43,6 +43,7 @@ pub struct Connectors {
     pub dlocal: ConnectorParams,
     #[cfg(feature = "dummy_connector")]
     pub dummyconnector: ConnectorParams,
+    pub dwolla: ConnectorParams,
     pub ebanx: ConnectorParams,
     pub elavon: ConnectorParams,
     pub facilitapay: ConnectorParams,
@@ -116,7 +117,7 @@ pub struct Connectors {
     pub wise: ConnectorParams,
     pub worldline: ConnectorParams,
     pub worldpay: ConnectorParams,
-    pub worldpayvantiv: ConnectorParams,
+    pub worldpayvantiv: ConnectorParamsWithSecondaryBaseUrl,
     pub worldpayxml: ConnectorParams,
     pub xendit: ConnectorParams,
     pub zen: ConnectorParams,

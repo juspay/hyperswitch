@@ -19,7 +19,7 @@ use utoipa::{schema, ToSchema};
 #[cfg(feature = "payouts")]
 use crate::payouts;
 use crate::{
-    admin, customers, enums as api_enums,
+    admin, enums as api_enums,
     payments::{self, BankCodeResponse},
 };
 
@@ -2515,6 +2515,7 @@ pub struct PaymentMethodRecord {
     pub billing_address_line3: Option<masking::Secret<String>>,
     pub raw_card_number: Option<masking::Secret<String>>,
     pub merchant_connector_id: Option<id_type::MerchantConnectorAccountId>,
+    pub merchant_connector_ids: Option<String>,
     pub original_transaction_amount: Option<i64>,
     pub original_transaction_currency: Option<common_enums::Currency>,
     pub line_number: Option<i64>,
@@ -2522,18 +2523,6 @@ pub struct PaymentMethodRecord {
     pub network_token_expiry_month: Option<masking::Secret<String>>,
     pub network_token_expiry_year: Option<masking::Secret<String>>,
     pub network_token_requestor_ref_id: Option<String>,
-}
-
-#[derive(Debug, Clone, serde::Deserialize, serde::Serialize)]
-pub struct ConnectorCustomerDetails {
-    pub connector_customer_id: String,
-    pub merchant_connector_id: id_type::MerchantConnectorAccountId,
-}
-
-#[derive(Debug, Clone, serde::Deserialize, serde::Serialize)]
-pub struct PaymentMethodCustomerMigrate {
-    pub customer: customers::CustomerRequest,
-    pub connector_customer_details: Option<ConnectorCustomerDetails>,
 }
 
 #[derive(Debug, Default, serde::Serialize)]
@@ -2652,47 +2641,56 @@ impl From<PaymentMethodMigrationResponseType> for PaymentMethodMigrationResponse
 
 impl
     TryFrom<(
-        PaymentMethodRecord,
+        &PaymentMethodRecord,
         id_type::MerchantId,
-        Option<id_type::MerchantConnectorAccountId>,
+        Option<&Vec<id_type::MerchantConnectorAccountId>>,
     )> for PaymentMethodMigrate
 {
     type Error = error_stack::Report<errors::ValidationError>;
+
     fn try_from(
         item: (
-            PaymentMethodRecord,
+            &PaymentMethodRecord,
             id_type::MerchantId,
-            Option<id_type::MerchantConnectorAccountId>,
+            Option<&Vec<id_type::MerchantConnectorAccountId>>,
         ),
     ) -> Result<Self, Self::Error> {
-        let (record, merchant_id, mca_id) = item;
+        let (record, merchant_id, mca_ids) = item;
         let billing = record.create_billing();
-
-        //  if payment instrument id is present then only construct this
-        let connector_mandate_details = if record.payment_instrument_id.is_some() {
-            Some(PaymentsMandateReference(HashMap::from([(
-                mca_id.get_required_value("merchant_connector_id")?,
-                PaymentsMandateReferenceRecord {
-                    connector_mandate_id: record
-                        .payment_instrument_id
-                        .get_required_value("payment_instrument_id")?
-                        .peek()
-                        .to_string(),
-                    payment_method_type: record.payment_method_type,
-                    original_payment_authorized_amount: record.original_transaction_amount,
-                    original_payment_authorized_currency: record.original_transaction_currency,
-                },
-            )])))
+        let connector_mandate_details = if let Some(payment_instrument_id) =
+            &record.payment_instrument_id
+        {
+            let ids = mca_ids.get_required_value("mca_ids")?;
+            let mandate_map: HashMap<_, _> = ids
+                .iter()
+                .map(|mca_id| {
+                    (
+                        mca_id.clone(),
+                        PaymentsMandateReferenceRecord {
+                            connector_mandate_id: payment_instrument_id.peek().to_string(),
+                            payment_method_type: record.payment_method_type,
+                            original_payment_authorized_amount: record.original_transaction_amount,
+                            original_payment_authorized_currency: record
+                                .original_transaction_currency,
+                        },
+                    )
+                })
+                .collect();
+            Some(PaymentsMandateReference(mandate_map))
         } else {
             None
         };
+
         Ok(Self {
             merchant_id,
-            customer_id: Some(record.customer_id),
+            customer_id: Some(record.customer_id.clone()),
             card: Some(MigrateCardDetail {
-                card_number: record.raw_card_number.unwrap_or(record.card_number_masked),
-                card_exp_month: record.card_expiry_month,
-                card_exp_year: record.card_expiry_year,
+                card_number: record
+                    .raw_card_number
+                    .clone()
+                    .unwrap_or_else(|| record.card_number_masked.clone()),
+                card_exp_month: record.card_expiry_month.clone(),
+                card_exp_year: record.card_expiry_year.clone(),
                 card_holder_name: record.name.clone(),
                 card_network: None,
                 card_type: None,
@@ -2702,10 +2700,16 @@ impl
             }),
             network_token: Some(MigrateNetworkTokenDetail {
                 network_token_data: MigrateNetworkTokenData {
-                    network_token_number: record.network_token_number.unwrap_or_default(),
-                    network_token_exp_month: record.network_token_expiry_month.unwrap_or_default(),
-                    network_token_exp_year: record.network_token_expiry_year.unwrap_or_default(),
-                    card_holder_name: record.name,
+                    network_token_number: record.network_token_number.clone().unwrap_or_default(),
+                    network_token_exp_month: record
+                        .network_token_expiry_month
+                        .clone()
+                        .unwrap_or_default(),
+                    network_token_exp_year: record
+                        .network_token_expiry_year
+                        .clone()
+                        .unwrap_or_default(),
+                    card_holder_name: record.name.clone(),
                     nick_name: record.nick_name.clone(),
                     card_issuing_country: None,
                     card_network: None,
@@ -2714,6 +2718,7 @@ impl
                 },
                 network_token_requestor_ref_id: record
                     .network_token_requestor_ref_id
+                    .clone()
                     .unwrap_or_default(),
             }),
             payment_method: record.payment_method,
@@ -2735,45 +2740,6 @@ impl
             payment_method_data: None,
             network_transaction_id: record.original_transaction_id.clone(),
         })
-    }
-}
-
-#[cfg(feature = "v1")]
-impl From<(PaymentMethodRecord, id_type::MerchantId)> for PaymentMethodCustomerMigrate {
-    fn from(value: (PaymentMethodRecord, id_type::MerchantId)) -> Self {
-        let (record, merchant_id) = value;
-        Self {
-            customer: customers::CustomerRequest {
-                customer_id: Some(record.customer_id),
-                merchant_id,
-                name: record.name,
-                email: record.email,
-                phone: record.phone,
-                description: None,
-                phone_country_code: record.phone_country_code,
-                address: Some(payments::AddressDetails {
-                    city: record.billing_address_city,
-                    country: record.billing_address_country,
-                    line1: record.billing_address_line1,
-                    line2: record.billing_address_line2,
-                    state: record.billing_address_state,
-                    line3: record.billing_address_line3,
-                    zip: record.billing_address_zip,
-                    first_name: record.billing_address_first_name,
-                    last_name: record.billing_address_last_name,
-                }),
-                metadata: None,
-            },
-            connector_customer_details: record
-                .connector_customer_id
-                .zip(record.merchant_connector_id)
-                .map(
-                    |(connector_customer_id, merchant_connector_id)| ConnectorCustomerDetails {
-                        connector_customer_id,
-                        merchant_connector_id,
-                    },
-                ),
-        }
     }
 }
 
