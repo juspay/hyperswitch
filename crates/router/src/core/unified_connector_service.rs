@@ -14,7 +14,7 @@ use hyperswitch_domain_models::{
 use masking::{ExposeInterface, PeekInterface};
 use unified_connector_service_client::payments::{
     self as payments_grpc, payment_method::PaymentMethod, CardDetails, CardPaymentMethodType,
-    PaymentServiceAuthorizeResponse, UpiPaymentMethodType
+    PaymentServiceAuthorizeResponse, UpiPaymentMethodType,
 };
 
 use crate::{
