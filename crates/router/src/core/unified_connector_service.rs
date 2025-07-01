@@ -174,7 +174,8 @@ pub fn build_unified_connector_service_auth_metadata(
 
     let merchant_id = merchant_connector_account
         .get_inner_db_merchant_connector_account()
-        .map(|account| account.merchant_id.get_string_repr().to_string()).unwrap_or_default();
+        .map(|account| account.merchant_id.get_string_repr().to_string())
+        .unwrap_or_default();
 
     let tenant_id = consts::DEFAULT_TENANT_ID.to_string();
 

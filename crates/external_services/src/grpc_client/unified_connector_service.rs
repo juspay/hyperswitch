@@ -221,9 +221,15 @@ impl TryFrom<ConnectorAuthMetadata> for MetadataMap {
             );
         }
 
-        metadata.append(consts::UCS_AUTH_HEADER_MERCHANT_ID_KEY, parse("merchant_id", &meta.merchant_id)?);
+        metadata.append(
+            consts::UCS_AUTH_HEADER_MERCHANT_ID_KEY,
+            parse("merchant_id", &meta.merchant_id)?,
+        );
 
-        metadata.append(consts::UCS_AUTH_HEADER_TENANT_ID_KEY, parse("tenant_id", &meta.tenant_id)?);
+        metadata.append(
+            consts::UCS_AUTH_HEADER_TENANT_ID_KEY,
+            parse("tenant_id", &meta.tenant_id)?,
+        );
 
         Ok(metadata)
     }
