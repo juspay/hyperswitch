@@ -507,7 +507,6 @@ impl<F> TryFrom<&PayoutsRouterData<F>> for WisePayoutCreateRequest {
                         field_name: "profile",
                     }
                 })?;
-
                 Ok(Self {
                     target_account,
                     quote_uuid,
