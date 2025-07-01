@@ -854,6 +854,10 @@ lazy_static! {
             enums::CaptureMethod::SequentialAutomatic,
         ];
 
+        let supported_capture_methods2 = vec![
+            enums::CaptureMethod::Automatic,
+        ];
+
         let supported_card_network = vec![
             common_enums::CardNetwork::Visa,
             common_enums::CardNetwork::Mastercard,
@@ -900,7 +904,7 @@ lazy_static! {
             PaymentMethodDetails {
                 mandates: enums::FeatureStatus::Supported,
                 refunds: enums::FeatureStatus::Supported,
-                supported_capture_methods: supported_capture_methods.clone(),
+                supported_capture_methods: supported_capture_methods2.clone(),
                 specific_features: None,
             },
         );
@@ -922,7 +926,7 @@ lazy_static! {
             PaymentMethodDetails{
                 mandates: enums::FeatureStatus::NotSupported,
                 refunds: enums::FeatureStatus::Supported,
-                supported_capture_methods: supported_capture_methods.clone(),
+                supported_capture_methods: supported_capture_methods2.clone(),
                 specific_features: None
             }
         );
@@ -971,7 +975,7 @@ lazy_static! {
             PaymentMethodDetails {
                 mandates: enums::FeatureStatus::NotSupported,
                 refunds: enums::FeatureStatus::Supported,
-                supported_capture_methods: supported_capture_methods.clone(),
+                supported_capture_methods: supported_capture_methods2.clone(),
                 specific_features: None,
             },
         );
@@ -982,7 +986,7 @@ lazy_static! {
             PaymentMethodDetails {
                 mandates: enums::FeatureStatus::NotSupported,
                 refunds: enums::FeatureStatus::Supported,
-                supported_capture_methods: supported_capture_methods.clone(),
+                supported_capture_methods: supported_capture_methods2.clone(),
                 specific_features: None,
             },
         );
