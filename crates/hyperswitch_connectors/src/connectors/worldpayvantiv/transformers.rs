@@ -602,8 +602,8 @@ fn get_processing_info(
                     processing_type: Some(VantivProcessingType::MerchantInitiatedCOF),
                     network_transaction_id: None,
                     token : Some(TokenizationData {
-                        cnp_token: Secret::new("2871855923280002".to_string()),  //mandate_data.get_connector_mandate_id().ok_or(errors::ConnectorError::MissingConnectorMandateID)?,
-                        exp_date: Secret::new("0130".to_string()), //format!("{}{}",token.card_exp_month, token.card_exp_year,).into(),
+                        cnp_token: mandate_data.get_connector_mandate_id().ok_or(errors::ConnectorError::MissingConnectorMandateID)?,
+                        exp_date: format!("{}{}",token.card_exp_month, token.card_exp_year,).into(),
                     }),
                 })
             }
