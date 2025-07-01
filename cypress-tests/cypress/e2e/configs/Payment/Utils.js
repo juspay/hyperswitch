@@ -35,6 +35,7 @@ import { connectorDetails as nmiConnectorDetails } from "./Nmi.js";
 import { connectorDetails as noonConnectorDetails } from "./Noon.js";
 import { connectorDetails as novalnetConnectorDetails } from "./Novalnet.js";
 import { connectorDetails as payboxConnectorDetails } from "./Paybox.js";
+import { connectorDetails as payloadConnectorDetails } from "./Payload.js";
 import { connectorDetails as paypalConnectorDetails } from "./Paypal.js";
 import { connectorDetails as powertranzConnectorDetails } from "./PowerTranz.js";
 import { connectorDetails as redsysConnectorDetails } from "./Redsys.js";
@@ -46,7 +47,6 @@ import { connectorDetails as wellsfargoConnectorDetails } from "./WellsFargo.js"
 import { connectorDetails as worldpayConnectorDetails } from "./WorldPay.js";
 import { connectorDetails as worldpayxmlConnectorDetails } from "./Worldpayxml.js";
 import { connectorDetails as xenditConnectorDetails } from "./Xendit.js";
-import { connectorDetails as payloadConnectorDetails } from "./Payload.js";
 
 const connectorDetails = {
   aci: aciConnectorDetails,

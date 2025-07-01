@@ -12,7 +12,6 @@ use crate::errors::api_error_response;
 #[serde(default)]
 pub struct Connectors {
     pub aci: ConnectorParams,
-    pub payload: ConnectorParams,
     pub adyen: AdyenParamsWithThreeBaseUrls,
     pub adyenplatform: ConnectorParams,
     pub airwallex: ConnectorParams,
@@ -82,6 +81,7 @@ pub struct Connectors {
     pub opennode: ConnectorParams,
     pub paybox: ConnectorParamsWithSecondaryBaseUrl,
     pub payeezy: ConnectorParams,
+    pub payload: ConnectorParams,
     pub payme: ConnectorParams,
     pub payone: ConnectorParams,
     pub paypal: ConnectorParams,

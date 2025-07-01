@@ -3439,13 +3439,7 @@ api_secret="Profile"
 [[payload.credit]]
   payment_method_type = "AmericanExpress"
 [[payload.credit]]
-  payment_method_type = "DinersClub"
-[[payload.credit]]
   payment_method_type = "Discover"
-[[payload.credit]]
-  payment_method_type = "JCB"
-[[payload.credit]]
-  payment_method_type = "Maestro"
 [[payload.credit]]
   payment_method_type = "Mastercard"
 [[payload.credit]]
@@ -3453,13 +3447,7 @@ api_secret="Profile"
 [[payload.debit]]
   payment_method_type = "AmericanExpress"
 [[payload.debit]]
-  payment_method_type = "DinersClub"
-[[payload.debit]]
   payment_method_type = "Discover"
-[[payload.debit]]
-  payment_method_type = "JCB"
-[[payload.debit]]
-  payment_method_type = "Maestro"
 [[payload.debit]]
   payment_method_type = "Mastercard"
 [[payload.debit]]

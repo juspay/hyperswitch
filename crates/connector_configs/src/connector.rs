@@ -171,7 +171,6 @@ pub struct ConnectorTomlConfig {
 #[serde_with::skip_serializing_none]
 #[derive(Debug, Deserialize, serde::Serialize, Clone)]
 pub struct ConnectorConfig {
-    pub payload: Option<ConnectorTomlConfig>,
     pub juspaythreedsserver: Option<ConnectorTomlConfig>,
     pub aci: Option<ConnectorTomlConfig>,
     pub adyen: Option<ConnectorTomlConfig>,
@@ -238,6 +237,7 @@ pub struct ConnectorConfig {
     pub nordea: Option<ConnectorTomlConfig>,
     pub novalnet: Option<ConnectorTomlConfig>,
     pub nuvei: Option<ConnectorTomlConfig>,
+    pub payload: Option<ConnectorTomlConfig>,
     pub paybox: Option<ConnectorTomlConfig>,
     pub payme: Option<ConnectorTomlConfig>,
     #[cfg(feature = "payouts")]
@@ -365,7 +365,6 @@ impl ConnectorConfig {
         let connector_data = Self::new()?;
         match connector {
             Connector::Aci => Ok(connector_data.aci),
-            Connector::Payload => Ok(connector_data.payload),
             Connector::Adyen => Ok(connector_data.adyen),
             Connector::Adyenplatform => Err("Use get_payout_connector_config".to_string()),
             Connector::Airwallex => Ok(connector_data.airwallex),
@@ -429,6 +428,7 @@ impl ConnectorConfig {
             Connector::Noon => Ok(connector_data.noon),
             Connector::Nuvei => Ok(connector_data.nuvei),
             Connector::Paybox => Ok(connector_data.paybox),
+            Connector::Payload => Ok(connector_data.payload),
             Connector::Payme => Ok(connector_data.payme),
             Connector::Payone => Err("Use get_payout_connector_config".to_string()),
             Connector::Paypal => Ok(connector_data.paypal),

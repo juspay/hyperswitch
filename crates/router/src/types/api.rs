@@ -331,9 +331,6 @@ impl ConnectorData {
         match enums::Connector::from_str(connector_name) {
             Ok(name) => match name {
                 enums::Connector::Aci => Ok(ConnectorEnum::Old(Box::new(connector::Aci::new()))),
-                enums::Connector::Payload => {
-                    Ok(ConnectorEnum::Old(Box::new(connector::Payload::new())))
-                }
                 enums::Connector::Adyen => {
                     Ok(ConnectorEnum::Old(Box::new(connector::Adyen::new())))
                 }
@@ -527,6 +524,9 @@ impl ConnectorData {
                 }
                 enums::Connector::Paybox => {
                     Ok(ConnectorEnum::Old(Box::new(connector::Paybox::new())))
+                }
+                enums::Connector::Payload => {
+                    Ok(ConnectorEnum::Old(Box::new(connector::Payload::new())))
                 }
                 // "payeezy" => Ok(ConnectorIntegrationEnum::Old(Box::new(&connector::Payeezy)), As psync and rsync are not supported by this connector, it is added as template code for future usage
                 enums::Connector::Payme => {
