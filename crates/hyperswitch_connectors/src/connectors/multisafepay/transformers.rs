@@ -72,6 +72,8 @@ pub enum Gateway {
     WeChatPay,
     Eps,
     MbWay,
+    #[serde(rename = "DIRECTBANK")]
+    Sofort,
 }
 
 #[serde_with::skip_serializing_none]
@@ -208,7 +210,11 @@ pub enum BankRedirectInfo {
     Ideal(IdealInfo),
     Trustly(TrustlyInfo),
     Eps(EpsInfo),
+    Sofort(SofortInfo),
 }
+
+#[derive(Debug, Clone, Serialize, Eq, PartialEq)]
+pub struct SofortInfo {}
 
 #[derive(Debug, Clone, Serialize, Eq, PartialEq)]
 pub struct EpsInfo {}
@@ -549,6 +555,7 @@ impl TryFrom<&MultisafepayRouterData<&types::PaymentsAuthorizeRouterData>>
                 BankRedirectData::Ideal { .. } => Type::Direct,
                 BankRedirectData::Trustly { .. } => Type::Redirect,
                 BankRedirectData::Eps { .. } => Type::Redirect,
+                BankRedirectData::Sofort { .. } => Type::Redirect,
                 BankRedirectData::BancontactCard { .. }
                 | BankRedirectData::Bizum { .. }
                 | BankRedirectData::Blik { .. }
@@ -560,7 +567,6 @@ impl TryFrom<&MultisafepayRouterData<&types::PaymentsAuthorizeRouterData>>
                 | BankRedirectData::OnlineBankingSlovakia { .. }
                 | BankRedirectData::OpenBankingUk { .. }
                 | BankRedirectData::Przelewy24 { .. }
-                | BankRedirectData::Sofort { .. }
                 | BankRedirectData::OnlineBankingFpx { .. }
                 | BankRedirectData::OnlineBankingThailand { .. }
                 | BankRedirectData::LocalBankRedirect {} => {
@@ -616,6 +622,7 @@ impl TryFrom<&MultisafepayRouterData<&types::PaymentsAuthorizeRouterData>>
                 BankRedirectData::Ideal { .. } => Gateway::Ideal,
                 BankRedirectData::Trustly { .. } => Gateway::Trustly,
                 BankRedirectData::Eps { .. } => Gateway::Eps,
+                BankRedirectData::Sofort { .. } => Gateway::Sofort,
                 BankRedirectData::BancontactCard { .. }
                 | BankRedirectData::Bizum { .. }
                 | BankRedirectData::Blik { .. }
@@ -627,7 +634,6 @@ impl TryFrom<&MultisafepayRouterData<&types::PaymentsAuthorizeRouterData>>
                 | BankRedirectData::OnlineBankingSlovakia { .. }
                 | BankRedirectData::OpenBankingUk { .. }
                 | BankRedirectData::Przelewy24 { .. }
-                | BankRedirectData::Sofort { .. }
                 | BankRedirectData::OnlineBankingFpx { .. }
                 | BankRedirectData::OnlineBankingThailand { .. }
                 | BankRedirectData::LocalBankRedirect {} => {
@@ -815,6 +821,9 @@ impl TryFrom<&MultisafepayRouterData<&types::PaymentsAuthorizeRouterData>>
                 BankRedirectData::Eps { .. } => {
                     Some(GatewayInfo::BankRedirect(BankRedirectInfo::Eps(EpsInfo {})))
                 }
+                BankRedirectData::Sofort { .. } => Some(GatewayInfo::BankRedirect(
+                    BankRedirectInfo::Sofort(SofortInfo {}),
+                )),
                 BankRedirectData::BancontactCard { .. }
                 | BankRedirectData::Bizum { .. }
                 | BankRedirectData::Blik { .. }
@@ -827,7 +836,6 @@ impl TryFrom<&MultisafepayRouterData<&types::PaymentsAuthorizeRouterData>>
                 | BankRedirectData::OnlineBankingSlovakia { .. }
                 | BankRedirectData::OpenBankingUk { .. }
                 | BankRedirectData::Przelewy24 { .. }
-                | BankRedirectData::Sofort { .. }
                 | BankRedirectData::OnlineBankingFpx { .. }
                 | BankRedirectData::OnlineBankingThailand { .. }
                 | BankRedirectData::LocalBankRedirect {} => None,
