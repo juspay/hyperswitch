@@ -225,6 +225,7 @@ wise.base_url = "https://api.sandbox.transferwise.tech/"
 worldline.base_url = "https://eu.sandbox.api-ingenico.com/"
 worldpay.base_url = "https://try.access.worldpay.com/"
 worldpayvantiv.base_url = "https://transact.vantivprelive.com/vap/communicator/online"
+worldpayvantiv.secondary_base_url = "https://onlinessr.vantivprelive.com"
 worldpayxml.base_url = "https://secure-test.worldpay.com/jsp/merchant/xml/paymentService.jsp"
 xendit.base_url = "https://api.xendit.co"
 zen.base_url = "https://api.zen-test.com/"
@@ -866,8 +867,8 @@ wallet.google_pay = { connector_list = "stripe,adyen,bankofamerica,authorizedotn
 wallet.apple_pay = { connector_list = "stripe,adyen,cybersource,noon,bankofamerica,authorizedotnet,novalnet,multisafepay,wellsfargo" }
 wallet.samsung_pay = { connector_list = "cybersource" }
 wallet.paypal = { connector_list = "adyen,novalnet,authorizedotnet" }
-card.credit = { connector_list = "stripe,adyen,authorizedotnet,cybersource,datatrans,globalpay,worldpay,multisafepay,nmi,nexinets,noon,bankofamerica,elavon,xendit,novalnet,bamboraapac,archipel,wellsfargo" }
-card.debit = { connector_list = "stripe,adyen,authorizedotnet,cybersource,datatrans,globalpay,worldpay,multisafepay,nmi,nexinets,noon,bankofamerica,elavon,xendit,novalnet,bamboraapac,archipel,wellsfargo" }
+card.credit = { connector_list = "stripe,adyen,authorizedotnet,cybersource,datatrans,globalpay,worldpay,multisafepay,nmi,nexinets,noon,bankofamerica,elavon,xendit,novalnet,bamboraapac,archipel,wellsfargo,worldpayvantiv" }
+card.debit = { connector_list = "stripe,adyen,authorizedotnet,cybersource,datatrans,globalpay,worldpay,multisafepay,nmi,nexinets,noon,bankofamerica,elavon,xendit,novalnet,bamboraapac,archipel,wellsfargo,worldpayvantiv" }
 bank_debit.ach = { connector_list = "gocardless,adyen" }
 bank_debit.becs = { connector_list = "gocardless" }
 bank_debit.bacs = { connector_list = "adyen" }
