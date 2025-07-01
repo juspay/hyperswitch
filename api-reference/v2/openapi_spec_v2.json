@@ -8123,7 +8123,6 @@
       "Connector": {
         "type": "string",
         "enum": [
-          "payload",
           "adyenplatform",
           "stripe_billing_test",
           "phonypay",
@@ -8195,6 +8194,7 @@
           "nuvei",
           "opennode",
           "paybox",
+          "payload",
           "payme",
           "payone",
           "paypal",
@@ -22628,7 +22628,6 @@
         "type": "string",
         "description": "RoutableConnectors are the subset of Connectors that are eligible for payments routing",
         "enum": [
-          "payload",
           "adyenplatform",
           "stripe_billing_test",
           "phonypay",
@@ -22694,6 +22693,7 @@
           "nuvei",
           "opennode",
           "paybox",
+          "payload",
           "payme",
           "payone",
           "paypal",
