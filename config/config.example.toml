@@ -826,7 +826,7 @@ klarna = { currency = "EUR,GBP,CHF,SEK" }
 blik = { country = "PL", currency = "PLN" }
 crypto_currency = { currency = "USD,GBP,AED" }
 paysera = { country = "EE", currency = "EUR" }
-skrill = { country = "US", currency = "EUR" }
+skrill = { country = "US", currency = "USD" }
 
 [pm_filters.inespay]
 sepa = { country = "ES", currency = "EUR"}

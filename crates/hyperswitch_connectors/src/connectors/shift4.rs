@@ -1008,7 +1008,7 @@ lazy_static! {
             PaymentMethodDetails {
                 mandates: enums::FeatureStatus::NotSupported,
                 refunds: enums::FeatureStatus::Supported,
-                supported_capture_methods: supported_capture_methods.clone(),
+                supported_capture_methods: supported_capture_methods2.clone(),
                 specific_features: None,
             },
         );
@@ -1019,7 +1019,7 @@ lazy_static! {
             PaymentMethodDetails {
                 mandates: enums::FeatureStatus::NotSupported,
                 refunds: enums::FeatureStatus::Supported,
-                supported_capture_methods: supported_capture_methods.clone(),
+                supported_capture_methods: supported_capture_methods2.clone(),
                 specific_features: None,
             },
         );
