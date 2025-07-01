@@ -93,7 +93,9 @@ pub async fn call_proxy_api(
                 .billing_connector_payment_details.payment_method_units.first()
                 .map(|unit| unit.payment_processor_token.clone()).unwrap_or("FakePaymentMethodId".to_string()),
             expiry_year: None,
-            expiry_month: None
+            expiry_month: None,
+            card_issuer: None,
+            last_four_digits: None,
         },
             merchant_connector_id: Some(revenue_recovery
                 .active_attempt_payment_connector_id
@@ -242,15 +244,32 @@ pub async fn record_internal_attempt_api(
         }
     };
 
-    let payment_method_chosen = if should_switch_payment_method {
-        common_enums::PaymentMethodChosen::Backup
+    let payment_method_token = if should_switch_payment_method {
+        // If the payment method should be switched, use the new payment method token
+        revenue_recovery_metadata
+            .billing_connector_payment_details
+            .payment_method_units
+            .get(1)
+            .map(|unit| unit.payment_processor_token.clone())
+            .unwrap_or_else(|| "FakePaymentMethodId".to_string())
     } else {
-        common_enums::PaymentMethodChosen::Default
+        // Otherwise, use the existing payment method token
+        revenue_recovery_metadata
+        .billing_connector_payment_details
+        .payment_method_units
+        .first()
+        .map(|unit| unit.payment_processor_token.clone())
+        .unwrap_or_else(|| "FakePaymentMethodId".to_string())
     };
 
-    
+    let new_revenue_recovery_payment_attempt_data = recovery_incoming::RevenueRecoveryAttempt(
+        hyperswitch_domain_models::revenue_recovery::RevenueRecoveryAttemptData {
+            processor_payment_method_token: payment_method_token,
+            ..revenue_recovery_attempt_data.0
+        }
+    );
 
-    let request_payload = revenue_recovery_attempt_data
+    let request_payload = new_revenue_recovery_payment_attempt_data
         .create_payment_record_request(
             state,
             &revenue_recovery_payment_data.billing_mca.id,
@@ -261,7 +280,6 @@ pub async fn record_internal_attempt_api(
             ),
             Some(revenue_recovery_metadata.connector),
             common_enums::TriggeredBy::Internal,
-            payment_method_chosen
         )
         .await
         .change_context(errors::ApiErrorResponse::GenericNotFoundError {

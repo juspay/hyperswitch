@@ -4891,6 +4891,7 @@ impl ForeignFrom<&hyperswitch_domain_models::payments::payment_attempt::PaymentA
                 .feature_metadata
                 .as_ref()
                 .map(api_models::payments::PaymentAttemptFeatureMetadata::foreign_from),
+            payment_method_data: attempt.payment_method_data.clone().and_then(|data| serde_json::from_value(data.expose().clone()).ok())
         }
     }
 }
@@ -4936,6 +4937,8 @@ impl ForeignFrom<&diesel_models::types::PaymentProcessorTokenUnit>
             payment_processor_token: token_unit.payment_processor_token.clone(),
             expiry_year: token_unit.expiry_year.clone(),
             expiry_month: token_unit.expiry_month.clone(),
+            card_issuer: token_unit.card_issuer.clone(),
+            last_four_digits: token_unit.last_four_digits.clone(),
         }
     }
 }

@@ -1623,6 +1623,9 @@ pub struct PaymentAttemptResponse {
 
     /// Additional data that might be required by hyperswitch, to enable some specific features.
     pub feature_metadata: Option<PaymentAttemptFeatureMetadata>,
+    #[schema(value_type = Option<PaymentMethodDataResponseWithBilling>)]
+    #[serde(serialize_with = "serialize_payment_method_data_response")]
+    pub payment_method_data: Option<PaymentMethodDataResponseWithBilling>
 }
 
 #[cfg(feature = "v2")]
@@ -8794,6 +8797,8 @@ impl PaymentRevenueRecoveryMetadata {
                     payment_processor_token: "FakePaymentProcessorToken".to_string(),
                     expiry_month: None,
                     expiry_year: None,
+                    card_issuer: None,
+                    last_four_digits: None,
                 })
                 .clone(),
             merchant_connector_id: Some(self.active_attempt_payment_connector_id.clone()),
@@ -8809,6 +8814,8 @@ impl PaymentRevenueRecoveryMetadata {
                     payment_processor_token: "FakePaymentProcessorToken".to_string(),
                     expiry_month: None,
                     expiry_year: None,
+                    card_issuer: None,
+                    last_four_digits: None,
                 })
                 .clone(),
             merchant_connector_id: Some(self.active_attempt_payment_connector_id.clone()),
@@ -8834,7 +8841,9 @@ pub struct BillingConnectorPaymentDetails {
 pub struct PaymentProcessorTokenUnit {
     pub payment_processor_token: String,
     pub expiry_month: Option<String>,
-    pub expiry_year: Option<String>
+    pub expiry_year: Option<String>,
+    pub card_issuer: Option<String>,
+    pub last_four_digits: Option<String>,
 }
 
 // Serialize is required because the api event requires Serialize to be implemented
@@ -8931,8 +8940,6 @@ pub struct PaymentsAttemptRecordRequest {
     /// Card Issuer
     pub card_issuer: Option<String>,
 
-    #[schema(value_type = PaymentMethodChosen)]
-    pub payment_method_chosen : common_enums::PaymentMethodChosen
 }
 
 /// Error details for the payment

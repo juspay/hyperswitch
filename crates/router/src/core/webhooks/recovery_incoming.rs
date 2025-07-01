@@ -292,7 +292,7 @@ async fn handle_schedule_failed_payment(
 #[derive(Debug)]
 pub struct RevenueRecoveryInvoice(revenue_recovery::RevenueRecoveryInvoiceData);
 #[derive(Debug)]
-pub struct RevenueRecoveryAttempt(revenue_recovery::RevenueRecoveryAttemptData);
+pub struct RevenueRecoveryAttempt(pub revenue_recovery::RevenueRecoveryAttemptData);
 
 impl RevenueRecoveryInvoice {
     fn get_recovery_invoice_details(
@@ -559,7 +559,6 @@ impl RevenueRecoveryAttempt {
                     .as_ref()
                     .map(|account| account.connector_name),
                 common_enums::TriggeredBy::External,
-                common_enums::PaymentMethodChosen::Default,
             )
             .await?;
         let attempt_response = Box::pin(payments::record_attempt_core(
@@ -609,7 +608,6 @@ impl RevenueRecoveryAttempt {
         payment_merchant_connector_account_id: Option<id_type::MerchantConnectorAccountId>,
         payment_connector: Option<common_enums::connector_enums::Connector>,
         triggered_by: common_enums::TriggeredBy,
-        payment_method_chosen: common_enums::PaymentMethodChosen
     ) -> CustomResult<api_payments::PaymentsAttemptRecordRequest, errors::RevenueRecoveryError>
     {
         let revenue_recovery_attempt_data = &self.0;
@@ -672,8 +670,7 @@ impl RevenueRecoveryAttempt {
             invoice_next_billing_time: revenue_recovery_attempt_data.invoice_next_billing_time,
             triggered_by,
             card_network: revenue_recovery_attempt_data.card_network.clone(),
-            card_issuer,
-            payment_method_chosen
+            card_issuer
         })
     }
 

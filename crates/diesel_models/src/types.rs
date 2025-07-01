@@ -215,5 +215,7 @@ pub struct BillingConnectorAdditionalCardInfo {
 pub struct PaymentProcessorTokenUnit {
     pub payment_processor_token: String,
     pub expiry_month: Option<String>,
-    pub expiry_year: Option<String>
+    pub expiry_year: Option<String>,
+    pub card_issuer: Option<String>,
+    pub last_four_digits: Option<String>,
 }

@@ -710,6 +710,8 @@ impl PaymentAttempt {
         request: &api_models::payments::PaymentsAttemptRecordRequest,
         encrypted_data: DecryptedPaymentAttempt,
     ) -> CustomResult<Self, errors::api_error_response::ApiErrorResponse> {
+        use crate::api;
+
         let id = id_type::GlobalAttemptId::generate(&cell_id);
 
         let amount_details = AttemptAmountDetailsSetter::from(&request.amount_details);
@@ -755,6 +757,41 @@ impl PaymentAttempt {
             .merchant_reference_id
             .as_ref()
             .map(|id| id.get_string_repr().to_owned());
+
+        let payment_method_unit: api_models::payments::PaymentProcessorTokenUnit =
+            request
+                .payment_method_units
+                .clone()
+                .into_iter()
+                .find(|unit| unit.payment_processor_token == request.processor_payment_method_token)
+                .unwrap_or(api_models::payments::PaymentProcessorTokenUnit {
+                    payment_processor_token: request.processor_payment_method_token.clone(),
+                    expiry_month: Some("12".to_string()),
+                    expiry_year: Some("29".to_string()),
+                    card_issuer: Some("JP Morgan".to_string()),
+                    last_four_digits: Some("4242".to_string())
+                });
+       let payment_method_data = api_models::payments::PaymentMethodDataResponseWithBilling {
+            payment_method_data: Some(api_models::payments::PaymentMethodDataResponse::Card(
+                Box::new(api_models::payments::CardResponse {
+                    last4: payment_method_unit.last_four_digits.clone(),
+                    card_network: None,
+                    card_holder_name: None,
+                    card_exp_month: payment_method_unit.expiry_month.map(Secret::new),
+                    card_exp_year:  payment_method_unit.expiry_year.map(Secret::new),
+                    card_issuer: payment_method_unit.card_issuer.clone(),
+                    card_type: None,
+                    card_extended_bin: None,
+                    card_isin: None,
+                    card_issuing_country: None,
+                    payment_checks: None,
+                    authentication_data: None,
+                }),
+            )),
+            billing: None
+        };
+
+        let secret_payment_method_data = serde_json::to_value(payment_method_data).ok().map(pii::SecretSerdeValue::from);
         
         Ok(Self {
             payment_id: payment_intent.id.clone(),
@@ -771,7 +808,7 @@ impl PaymentAttempt {
             payment_token: None,
             connector_metadata: None,
             payment_experience: None,
-            payment_method_data: None,
+            payment_method_data: secret_payment_method_data,
             routing_result: None,
             preprocessing_step_id: None,
             multiple_capture_count: None,
