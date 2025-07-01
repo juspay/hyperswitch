@@ -267,6 +267,20 @@ pub async fn construct_payment_router_data_for_authorize<'a>(
         .browser_info
         .clone()
         .map(types::BrowserInformation::from);
+
+
+        let additional_card_info: Option<api_models::payments::AdditionalCardInfo> =
+        if let Some(secret_value) = &payment_data.payment_attempt.payment_method_data {
+            secret_value.peek().get("card_info")
+                .cloned()
+                .and_then(|v| serde_json::from_value::<api_models::payments::AdditionalCardInfo>(v).ok())
+        } else {
+            None
+        };
+
+        let additional_payment_method_data = additional_card_info
+        .map(|card_info| api_models::payments::AdditionalPaymentData::Card(Box::new(card_info)));
+    // println!("additional_payment_method_data: {:?}", additional_payment_method_data);
     // TODO: few fields are repeated in both routerdata and request
     let request = types::PaymentsAuthorizeData {
         payment_method_data: payment_data
@@ -317,7 +331,7 @@ pub async fn construct_payment_router_data_for_authorize<'a>(
         merchant_order_reference_id: None,
         integrity_object: None,
         shipping_cost: payment_data.payment_intent.amount_details.shipping_cost,
-        additional_payment_method_data: None,
+        additional_payment_method_data,
         merchant_account_id: None,
         merchant_config_currency: None,
         connector_testing_data: None,
