@@ -363,9 +363,9 @@ export const CONNECTOR_LISTS = {
       "fiuu",
       "fiserv",
       "jpmorgan",
+      "nexinets",
       "paypal",
       "stax",
-      "nexinets",
     ],
     // Add more exclusion lists
   },
