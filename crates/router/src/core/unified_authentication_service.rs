@@ -33,7 +33,6 @@ use crate::{
     consts,
     core::{
         errors::utils::StorageErrorExt,
-        payments::PaymentData,
         unified_authentication_service::types::{
             ClickToPay, ExternalAuthentication, UnifiedAuthenticationService,
             UNIFIED_AUTHENTICATION_SERVICE,
@@ -47,32 +46,31 @@ use crate::{
 
 #[cfg(feature = "v1")]
 #[async_trait::async_trait]
-impl<F: Clone + Sync> UnifiedAuthenticationService<F> for ClickToPay {
+impl UnifiedAuthenticationService for ClickToPay {
     fn get_pre_authentication_request_data(
-        payment_data: &PaymentData<F>,
+        _payment_method_data: Option<&domain::PaymentMethodData>,
+        service_details: Option<payments::CtpServiceDetails>,
+        amount: common_utils::types::MinorUnit,
+        currency: Option<common_enums::Currency>,
     ) -> RouterResult<UasPreAuthenticationRequestData> {
-        let service_details = hyperswitch_domain_models::router_request_types::unified_authentication_service::CtpServiceDetails {
+        let domain_service_details = hyperswitch_domain_models::router_request_types::unified_authentication_service::CtpServiceDetails {
             service_session_ids: Some(ServiceSessionIds {
-                merchant_transaction_id: payment_data
-                    .service_details
+                merchant_transaction_id: service_details
                     .as_ref()
                     .and_then(|details| details.merchant_transaction_id.clone()),
-                correlation_id: payment_data
-                    .service_details
+                correlation_id: service_details
                     .as_ref()
                     .and_then(|details| details.correlation_id.clone()),
-                x_src_flow_id: payment_data
-                    .service_details
+                x_src_flow_id: service_details
                     .as_ref()
                     .and_then(|details| details.x_src_flow_id.clone()),
             }),
             payment_details: None,
         };
 
-        let amount = payment_data.payment_attempt.net_amount.get_order_amount();
         let transaction_details = TransactionDetails {
             amount: Some(amount),
-            currency: payment_data.payment_attempt.currency,
+            currency,
             device_channel: None,
             message_category: None,
         };
@@ -84,13 +82,12 @@ impl<F: Clone + Sync> UnifiedAuthenticationService<F> for ClickToPay {
             is_authenticated: false, // This is not relevant in this flow so keeping it as false
             locale: None,
             supported_card_brands: None,
-            encrypted_payload: payment_data
-                .service_details
+            encrypted_payload: service_details
                 .as_ref()
                 .and_then(|details| details.encrypted_payload.clone()),
         });
         Ok(UasPreAuthenticationRequestData {
-            service_details: Some(service_details),
+            service_details: Some(domain_service_details),
             transaction_details: Some(transaction_details),
             payment_details: None,
             authentication_info,
@@ -99,27 +96,35 @@ impl<F: Clone + Sync> UnifiedAuthenticationService<F> for ClickToPay {
 
     async fn pre_authentication(
         state: &SessionState,
-        _key_store: &domain::MerchantKeyStore,
-        _business_profile: &domain::Profile,
-        payment_data: &PaymentData<F>,
+        merchant_id: &common_utils::id_type::MerchantId,
+        payment_id: Option<&common_utils::id_type::PaymentId>,
+        payment_method_data: Option<&domain::PaymentMethodData>,
         merchant_connector_account: &MerchantConnectorAccountType,
         connector_name: &str,
         authentication_id: &common_utils::id_type::AuthenticationId,
         payment_method: common_enums::PaymentMethod,
+        amount: common_utils::types::MinorUnit,
+        currency: Option<common_enums::Currency>,
+        service_details: Option<payments::CtpServiceDetails>,
     ) -> RouterResult<UasPreAuthenticationRouterData> {
-        let pre_authentication_data = Self::get_pre_authentication_request_data(payment_data)?;
+        let pre_authentication_data = Self::get_pre_authentication_request_data(
+            payment_method_data,
+            service_details,
+            amount,
+            currency,
+        )?;
 
         let pre_auth_router_data: UasPreAuthenticationRouterData =
             utils::construct_uas_router_data(
                 state,
                 connector_name.to_string(),
                 payment_method,
-                payment_data.payment_attempt.merchant_id.clone(),
+                merchant_id.clone(),
                 None,
                 pre_authentication_data,
                 merchant_connector_account,
                 Some(authentication_id.to_owned()),
-                payment_data.payment_intent.payment_id.clone(),
+                payment_id.cloned(),
             )?;
 
         utils::do_auth_connector_call(
@@ -132,21 +137,15 @@ impl<F: Clone + Sync> UnifiedAuthenticationService<F> for ClickToPay {
 
     async fn post_authentication(
         state: &SessionState,
-        _key_store: &domain::MerchantKeyStore,
         _business_profile: &domain::Profile,
-        payment_data: &PaymentData<F>,
+        payment_id: Option<&common_utils::id_type::PaymentId>,
         merchant_connector_account: &MerchantConnectorAccountType,
         connector_name: &str,
+        authentication_id: &common_utils::id_type::AuthenticationId,
         payment_method: common_enums::PaymentMethod,
-        _authentication: Option<Authentication>,
+        merchant_id: &common_utils::id_type::MerchantId,
+        _authentication: Option<&Authentication>,
     ) -> RouterResult<UasPostAuthenticationRouterData> {
-        let authentication_id = payment_data
-            .payment_attempt
-            .authentication_id
-            .clone()
-            .ok_or(ApiErrorResponse::InternalServerError)
-            .attach_printable("Missing authentication id in payment attempt")?;
-
         let post_authentication_data = UasPostAuthenticationRequestData {
             threeds_server_transaction_id: None,
         };
@@ -156,12 +155,12 @@ impl<F: Clone + Sync> UnifiedAuthenticationService<F> for ClickToPay {
                 state,
                 connector_name.to_string(),
                 payment_method,
-                payment_data.payment_attempt.merchant_id.clone(),
+                merchant_id.clone(),
                 None,
                 post_authentication_data,
                 merchant_connector_account,
-                Some(authentication_id.clone()),
-                payment_data.payment_intent.payment_id.clone(),
+                Some(authentication_id.to_owned()),
+                payment_id.cloned(),
             )?;
 
         utils::do_auth_connector_call(
@@ -176,39 +175,39 @@ impl<F: Clone + Sync> UnifiedAuthenticationService<F> for ClickToPay {
         state: &SessionState,
         _key_store: &domain::MerchantKeyStore,
         _business_profile: &domain::Profile,
-        payment_data: &PaymentData<F>,
+        authentication_id: Option<&common_utils::id_type::AuthenticationId>,
+        currency: Option<common_enums::Currency>,
+        status: common_enums::AttemptStatus,
+        service_details: Option<payments::CtpServiceDetails>,
         merchant_connector_account: &MerchantConnectorAccountType,
         connector_name: &str,
         payment_method: common_enums::PaymentMethod,
+        net_amount: common_utils::types::MinorUnit,
+        payment_id: Option<&common_utils::id_type::PaymentId>,
+        merchant_id: &common_utils::id_type::MerchantId,
     ) -> RouterResult<()> {
-        let authentication_id = payment_data
-            .payment_attempt
-            .authentication_id
-            .clone()
+        let authentication_id = authentication_id
             .ok_or(ApiErrorResponse::InternalServerError)
-            .attach_printable("Missing authentication id in payment attempt")?;
+            .attach_printable("Missing authentication id in tracker")?;
 
-        let currency = payment_data.payment_attempt.currency.ok_or(
-            ApiErrorResponse::MissingRequiredField {
-                field_name: "currency",
-            },
-        )?;
+        let currency = currency.ok_or(ApiErrorResponse::MissingRequiredField {
+            field_name: "currency",
+        })?;
 
         let current_time = common_utils::date_time::now();
 
-        let payment_attempt_status = payment_data.payment_attempt.status;
+        let payment_attempt_status = status;
 
         let (checkout_event_status, confirmation_reason) =
             utils::get_checkout_event_status_and_reason(payment_attempt_status);
 
-        let click_to_pay_details = payment_data.service_details.clone();
+        let click_to_pay_details = service_details.clone();
 
         let authentication_confirmation_data = UasConfirmationRequestData {
-            x_src_flow_id: payment_data
-                .service_details
+            x_src_flow_id: click_to_pay_details
                 .as_ref()
                 .and_then(|details| details.x_src_flow_id.clone()),
-            transaction_amount: payment_data.payment_attempt.net_amount.get_order_amount(),
+            transaction_amount: net_amount,
             transaction_currency: currency,
             checkout_event_type: Some("01".to_string()), // hardcoded to '01' since only authorise flow is implemented
             checkout_event_status: checkout_event_status.clone(),
@@ -228,12 +227,12 @@ impl<F: Clone + Sync> UnifiedAuthenticationService<F> for ClickToPay {
             state,
             connector_name.to_string(),
             payment_method,
-            payment_data.payment_attempt.merchant_id.clone(),
+            merchant_id.clone(),
             None,
             authentication_confirmation_data,
             merchant_connector_account,
-            Some(authentication_id.clone()),
-            payment_data.payment_intent.payment_id.clone()
+            Some(authentication_id.to_owned()),
+            payment_id.cloned(),
         )?;
 
         utils::do_auth_connector_call(
@@ -250,15 +249,16 @@ impl<F: Clone + Sync> UnifiedAuthenticationService<F> for ClickToPay {
 
 #[cfg(feature = "v1")]
 #[async_trait::async_trait]
-impl<F: Clone + Sync> UnifiedAuthenticationService<F> for ExternalAuthentication {
+impl UnifiedAuthenticationService for ExternalAuthentication {
     fn get_pre_authentication_request_data(
-        payment_data: &PaymentData<F>,
+        payment_method_data: Option<&domain::PaymentMethodData>,
+        _service_details: Option<payments::CtpServiceDetails>,
+        _amount: common_utils::types::MinorUnit,
+        _currency: Option<common_enums::Currency>,
     ) -> RouterResult<UasPreAuthenticationRequestData> {
-        let payment_method_data = payment_data
-            .payment_method_data
-            .as_ref()
+        let payment_method_data = payment_method_data
             .ok_or(ApiErrorResponse::InternalServerError)
-            .attach_printable("payment_data.payment_method_data is missing")?;
+            .attach_printable("payment_method_data is missing")?;
         let payment_details =
             if let payment_method_data::PaymentMethodData::Card(card) = payment_method_data {
                 Some(PaymentDetails {
@@ -285,27 +285,35 @@ impl<F: Clone + Sync> UnifiedAuthenticationService<F> for ExternalAuthentication
     #[allow(clippy::too_many_arguments)]
     async fn pre_authentication(
         state: &SessionState,
-        _key_store: &domain::MerchantKeyStore,
-        _business_profile: &domain::Profile,
-        payment_data: &PaymentData<F>,
+        merchant_id: &common_utils::id_type::MerchantId,
+        payment_id: Option<&common_utils::id_type::PaymentId>,
+        payment_method_data: Option<&domain::PaymentMethodData>,
         merchant_connector_account: &MerchantConnectorAccountType,
         connector_name: &str,
         authentication_id: &common_utils::id_type::AuthenticationId,
         payment_method: common_enums::PaymentMethod,
+        amount: common_utils::types::MinorUnit,
+        currency: Option<common_enums::Currency>,
+        service_details: Option<payments::CtpServiceDetails>,
     ) -> RouterResult<UasPreAuthenticationRouterData> {
-        let pre_authentication_data = Self::get_pre_authentication_request_data(payment_data)?;
+        let pre_authentication_data = Self::get_pre_authentication_request_data(
+            payment_method_data,
+            service_details,
+            amount,
+            currency,
+        )?;
 
         let pre_auth_router_data: UasPreAuthenticationRouterData =
             utils::construct_uas_router_data(
                 state,
                 connector_name.to_string(),
                 payment_method,
-                payment_data.payment_attempt.merchant_id.clone(),
+                merchant_id.clone(),
                 None,
                 pre_authentication_data,
                 merchant_connector_account,
                 Some(authentication_id.to_owned()),
-                payment_data.payment_intent.payment_id.clone(),
+                payment_id.cloned(),
             )?;
 
         utils::do_auth_connector_call(
@@ -391,10 +399,10 @@ impl<F: Clone + Sync> UnifiedAuthenticationService<F> for ExternalAuthentication
         three_ds_requestor_url: String,
         merchant_connector_account: &MerchantConnectorAccountType,
         connector_name: &str,
-        payment_id: common_utils::id_type::PaymentId,
+        payment_id: Option<common_utils::id_type::PaymentId>,
     ) -> RouterResult<UasAuthenticationRouterData> {
         let authentication_data =
-            <Self as UnifiedAuthenticationService<F>>::get_authentication_request_data(
+            <Self as UnifiedAuthenticationService>::get_authentication_request_data(
                 payment_method_data,
                 billing_address,
                 shipping_address,
@@ -448,17 +456,18 @@ impl<F: Clone + Sync> UnifiedAuthenticationService<F> for ExternalAuthentication
 
     async fn post_authentication(
         state: &SessionState,
-        _key_store: &domain::MerchantKeyStore,
         business_profile: &domain::Profile,
-        payment_data: &PaymentData<F>,
+        payment_id: Option<&common_utils::id_type::PaymentId>,
         merchant_connector_account: &MerchantConnectorAccountType,
         connector_name: &str,
+        _authentication_id: &common_utils::id_type::AuthenticationId,
         payment_method: common_enums::PaymentMethod,
-        authentication: Option<Authentication>,
+        _merchant_id: &common_utils::id_type::MerchantId,
+        authentication: Option<&Authentication>,
     ) -> RouterResult<UasPostAuthenticationRouterData> {
         let authentication_data =
-            <Self as UnifiedAuthenticationService<F>>::get_post_authentication_request_data(
-                authentication.clone(),
+            <Self as UnifiedAuthenticationService>::get_post_authentication_request_data(
+                authentication.cloned(),
             )?;
         let auth_router_data: UasPostAuthenticationRouterData = utils::construct_uas_router_data(
             state,
@@ -468,8 +477,8 @@ impl<F: Clone + Sync> UnifiedAuthenticationService<F> for ExternalAuthentication
             None,
             authentication_data,
             merchant_connector_account,
-            authentication.map(|auth| auth.authentication_id),
-            payment_data.payment_intent.payment_id.clone(),
+            authentication.map(|auth| auth.authentication_id.clone()),
+            payment_id.cloned(),
         )?;
 
         utils::do_auth_connector_call(
