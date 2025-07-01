@@ -254,6 +254,8 @@ pub mod business_status {
     ///
     /// This status indicates the completion of a execute task
     pub const EXECUTE_WORKFLOW_COMPLETE: &str = "COMPLETED_EXECUTE_TASK";
+    /// This status indicates the execute task was stopped by an external api
+    pub const EXECUTE_WORKFLOW_STOPPED: &str = "STOPPED_EXECUTE_TASK";
 
     /// This status indicates that the execute task was completed to trigger the psync task
     pub const EXECUTE_WORKFLOW_COMPLETE_FOR_PSYNC: &str = "COMPLETED_EXECUTE_TASK_TO_TRIGGER_PSYNC";
@@ -273,6 +275,9 @@ pub mod business_status {
 
     /// This status indicates that the requeue was triggered for psync task
     pub const PSYNC_WORKFLOW_REQUEUE: &str = "TRIGGER_REQUEUE_FOR_PSYNC_WORKFLOW";
+
+    /// This status indicates the psync task was stopped by an external api
+    pub const PSYNC_WORKFLOW_STOPPED: &str = "STOPPED_PSYNC_TASK";
 
     /// This status indicates the completion of a review task
     pub const REVIEW_WORKFLOW_COMPLETE: &str = "COMPLETED_REVIEW_TASK";

@@ -20,6 +20,7 @@ pub mod checkout;
 pub mod coinbase;
 pub mod coingate;
 pub mod cryptopay;
+pub mod custombilling;
 pub mod ctp_mastercard;
 pub mod cybersource;
 pub mod datatrans;
@@ -115,10 +116,10 @@ pub use self::{
     billwerk::Billwerk, bitpay::Bitpay, bluesnap::Bluesnap, boku::Boku, braintree::Braintree,
     cashtocode::Cashtocode, chargebee::Chargebee, checkout::Checkout, coinbase::Coinbase,
     coingate::Coingate, cryptopay::Cryptopay, ctp_mastercard::CtpMastercard,
-    cybersource::Cybersource, datatrans::Datatrans, deutschebank::Deutschebank,
-    digitalvirgo::Digitalvirgo, dlocal::Dlocal, ebanx::Ebanx, elavon::Elavon,
-    facilitapay::Facilitapay, fiserv::Fiserv, fiservemea::Fiservemea, fiuu::Fiuu, forte::Forte,
-    getnet::Getnet, globalpay::Globalpay, globepay::Globepay, gocardless::Gocardless,
+    custombilling::Custombilling, cybersource::Cybersource, datatrans::Datatrans,
+    deutschebank::Deutschebank, digitalvirgo::Digitalvirgo, dlocal::Dlocal, ebanx::Ebanx,
+    elavon::Elavon, facilitapay::Facilitapay, fiserv::Fiserv, fiservemea::Fiservemea, fiuu::Fiuu,
+    forte::Forte, getnet::Getnet, globalpay::Globalpay, globepay::Globepay, gocardless::Gocardless,
     gpayments::Gpayments, helcim::Helcim, hipay::Hipay, hyperswitch_vault::HyperswitchVault,
     iatapay::Iatapay, inespay::Inespay, itaubank::Itaubank, jpmorgan::Jpmorgan,
     juspaythreedsserver::Juspaythreedsserver, klarna::Klarna, mifinity::Mifinity, mollie::Mollie,

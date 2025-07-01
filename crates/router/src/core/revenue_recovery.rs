@@ -64,6 +64,7 @@ pub async fn perform_execute_payment(
                 payment_intent,
                 revenue_recovery_payment_data,
                 &revenue_recovery_metadata,
+                execute_task_process,
             )
             .await;
 
@@ -336,4 +337,96 @@ pub async fn retrieve_revenue_recovery_process_tracker(
         business_status: process_tracker.business_status,
     };
     Ok(ApplicationResponse::Json(response))
+}
+
+pub async fn stop_revenue_recovery_process_tracker(
+    state: SessionState,
+    id: id_type::GlobalPaymentId,
+) -> RouterResponse<revenue_recovery::RevenueRecoveryStopResponse> {
+    let db = &*state.store;
+    let task = EXECUTE_WORKFLOW;
+    let runner = storage::ProcessTrackerRunner::PassiveRecoveryWorkflow;
+    let process_tracker_id = id.get_execute_revenue_recovery_id(task, runner);
+
+    let process_tracker = db
+        .find_process_by_id(&process_tracker_id)
+        .await
+        .to_not_found_response(errors::ApiErrorResponse::ResourceIdNotFound)
+        .attach_printable("error retrieving the process tracker id")?
+        .get_required_value("Process Tracker")
+        .change_context(errors::ApiErrorResponse::GenericNotFoundError {
+            message: "Entry For the following id doesn't exists".to_owned(),
+        })?;
+
+    let tracking_data = process_tracker
+        .tracking_data
+        .clone()
+        .parse_value::<pcr::RevenueRecoveryWorkflowTrackingData>("PCRWorkflowTrackingData")
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("unable to deserialize  Pcr Workflow Tracking Data")?;
+
+    let psync_task = PSYNC_WORKFLOW;
+
+    let process_tracker_id_for_psync = tracking_data
+        .payment_attempt_id
+        .get_psync_revenue_recovery_id(psync_task, runner);
+
+    let process_tracker_for_psync = db
+        .find_process_by_id(&process_tracker_id_for_psync)
+        .await
+        .map_err(|e| {
+            logger::error!("Error while retrieving psync task : {:?}", e);
+        })
+        .ok()
+        .flatten();
+
+    let schedule_time_for_psync = process_tracker_for_psync
+        .as_ref()
+        .and_then(|pt| pt.schedule_time);
+    let stop_response = match process_tracker.status {
+        enums::ProcessTrackerStatus::New | enums::ProcessTrackerStatus::Pending => {
+            if let Some(process_tracker_for_psync) = process_tracker_for_psync {
+                let business_status = business_status::PSYNC_WORKFLOW_STOPPED;
+                let update_process = db
+                    .finish_process_with_business_status(
+                        process_tracker_for_psync.clone(),
+                        business_status,
+                    )
+                    .await
+                    .change_context(errors::ApiErrorResponse::GenericNotFoundError {
+                        message: "Failed to Update the Process Tracker table to finished"
+                            .to_owned(),
+                    })?;
+            } else {
+                let business_status = business_status::EXECUTE_WORKFLOW_STOPPED;
+                let update_process = db
+                    .finish_process_with_business_status(process_tracker.clone(), business_status)
+                    .await
+                    .change_context(errors::ApiErrorResponse::GenericNotFoundError {
+                        message: "Failed to Update the Process Tracker table to finished"
+                            .to_owned(),
+                    })?;
+            }
+            revenue_recovery::RevenueRecoveryStopResponse {
+                id: process_tracker.id,
+                name: process_tracker.name,
+                schedule_time_for_payment: process_tracker.schedule_time,
+                schedule_time_for_psync,
+                stop_status: revenue_recovery::StopStatus::Stopped,
+            }
+        }
+        enums::ProcessTrackerStatus::Review
+        | enums::ProcessTrackerStatus::Finish
+        | enums::ProcessTrackerStatus::Processing
+        | enums::ProcessTrackerStatus::ProcessStarted => {
+            revenue_recovery::RevenueRecoveryStopResponse {
+                stop_status: revenue_recovery::StopStatus::FlowCannotStop,
+                id: process_tracker.id,
+                name: process_tracker.name,
+                schedule_time_for_payment: process_tracker.schedule_time,
+                schedule_time_for_psync,
+            }
+        }
+    };
+    Ok(ApplicationResponse::Json(stop_response))
 }

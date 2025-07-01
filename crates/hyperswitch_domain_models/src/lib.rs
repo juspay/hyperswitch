@@ -59,6 +59,7 @@ use api_models::payments::{
     BillingConnectorPaymentDetails as ApiBillingConnectorPaymentDetails,
     BillingConnectorPaymentMethodDetails as ApiBillingConnectorPaymentMethodDetails,
     PaymentRevenueRecoveryMetadata as ApiRevenueRecoveryMetadata,
+    PaymentProcessorTokenUnit as ApiPaymentProcessorTokenUnit,
 };
 use diesel_models::types::{
     ApplePayRecurringDetails, ApplePayRegularBillingDetails, FeatureMetadata,
@@ -68,6 +69,7 @@ use diesel_models::types::{
 use diesel_models::types::{
     BillingConnectorAdditionalCardInfo, BillingConnectorPaymentDetails,
     BillingConnectorPaymentMethodDetails, PaymentRevenueRecoveryMetadata,
+    PaymentProcessorTokenUnit
 };
 
 #[derive(Clone, Debug, Eq, PartialEq, serde::Serialize)]
@@ -367,15 +369,44 @@ impl ApiModelToDieselModelConvertor<ApiBillingConnectorPaymentDetails>
 {
     fn convert_from(from: ApiBillingConnectorPaymentDetails) -> Self {
         Self {
-            payment_processor_token: from.payment_processor_token,
+            payment_method_units: from.payment_method_units
+                .into_iter()
+                .map(PaymentProcessorTokenUnit::convert_from)
+                .collect(),
             connector_customer_id: from.connector_customer_id,
         }
     }
 
     fn convert_back(self) -> ApiBillingConnectorPaymentDetails {
         ApiBillingConnectorPaymentDetails {
-            payment_processor_token: self.payment_processor_token,
+            payment_method_units: self.payment_method_units.into_iter()
+                .map(PaymentProcessorTokenUnit::convert_back)
+                .collect(),
             connector_customer_id: self.connector_customer_id,
+        }
+    }
+}
+
+impl ApiModelToDieselModelConvertor<ApiPaymentProcessorTokenUnit>
+    for PaymentProcessorTokenUnit
+{
+    fn convert_from(from: ApiPaymentProcessorTokenUnit) -> Self {
+        Self {
+            payment_processor_token: from.payment_processor_token,
+            expiry_month: from.expiry_month,
+            expiry_year: from.expiry_year,
+            card_issuer: from.card_issuer,
+            last_four_digits: from.last_four_digits,
+        }
+    }
+
+    fn convert_back(self) -> ApiPaymentProcessorTokenUnit {
+        ApiPaymentProcessorTokenUnit {
+            payment_processor_token: self.payment_processor_token,
+            expiry_month: self.expiry_month,
+            expiry_year: self.expiry_year,
+            card_issuer: self.card_issuer,
+            last_four_digits: self.last_four_digits,
         }
     }
 }

@@ -3,7 +3,7 @@ use common_utils::events::{ApiEventMetric, ApiEventsType};
 #[cfg(feature = "v2")]
 use super::{
     PaymentAttemptListRequest, PaymentAttemptListResponse, PaymentStartRedirectionRequest,
-    PaymentsCreateIntentRequest, PaymentsGetIntentRequest, PaymentsIntentResponse, PaymentsRequest,
+    PaymentsCreateIntentRequest, PaymentsGetIntentRequest, PaymentsIntentResponse, PaymentsRequest, RecoveryPaymentsCreate
 };
 #[cfg(feature = "v2")]
 use crate::payment_methods::PaymentMethodListResponseForSession;
@@ -164,6 +164,12 @@ impl ApiEventMetric for payments::PaymentsRequest {
 
 #[cfg(feature = "v2")]
 impl ApiEventMetric for PaymentsCreateIntentRequest {
+    fn get_api_event_type(&self) -> Option<ApiEventsType> {
+        None
+    }
+}
+#[cfg(feature = "v2")]
+impl ApiEventMetric for RecoveryPaymentsCreate {
     fn get_api_event_type(&self) -> Option<ApiEventsType> {
         None
     }

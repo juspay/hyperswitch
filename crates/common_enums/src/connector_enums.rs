@@ -25,6 +25,7 @@ pub use crate::PaymentMethodType;
 #[strum(serialize_all = "snake_case")]
 /// RoutableConnectors are the subset of Connectors that are eligible for payments routing
 pub enum RoutableConnectors {
+	Custombilling,
     Adyenplatform,
     #[cfg(feature = "dummy_connector")]
     #[serde(rename = "stripe_billing_test")]
@@ -233,6 +234,7 @@ pub enum Connector {
     Checkout,
     Coinbase,
     Coingate,
+    Custombilling,
     Cryptopay,
     CtpMastercard,
     CtpVisa,
@@ -415,6 +417,7 @@ impl Connector {
             | Self::Coinbase
             | Self::Coingate
             | Self::Cryptopay
+            | Self::Custombilling
             | Self::Deutschebank
             | Self::Digitalvirgo
             | Self::Dlocal
@@ -539,6 +542,7 @@ impl Connector {
 impl From<RoutableConnectors> for Connector {
     fn from(routable_connector: RoutableConnectors) -> Self {
         match routable_connector {
+            RoutableConnectors::Custombilling => Self::Custombilling,
             RoutableConnectors::Adyenplatform => Self::Adyenplatform,
             #[cfg(feature = "dummy_connector")]
             RoutableConnectors::DummyBillingConnector => Self::DummyBillingConnector,
@@ -694,6 +698,7 @@ impl TryFrom<Connector> for RoutableConnectors {
             Connector::Coinbase => Ok(Self::Coinbase),
             Connector::Coingate => Ok(Self::Coingate),
             Connector::Cryptopay => Ok(Self::Cryptopay),
+            Connector::Custombilling => Ok(Self::Custombilling),
             Connector::Cybersource => Ok(Self::Cybersource),
             Connector::Datatrans => Ok(Self::Datatrans),
             Connector::Deutschebank => Ok(Self::Deutschebank),

@@ -303,6 +303,16 @@ pub struct RevenueRecoveryMetadata {
     pub max_retry_count: u16,
     pub billing_connector_retry_threshold: u16,
     pub mca_reference: AccountReferenceMap,
+    pub switch_payment_method_config : Option<SwitchPaymentMethodConfig>,
+}
+
+#[cfg(feature = "v2")]
+#[derive(Debug, Clone)]
+pub struct SwitchPaymentMethodConfig {
+    /// retry threshould after which payment method to be switched
+    pub retry_threshold: u16,
+    /// time threshold after which payment method to be switched in days after the created at time
+    pub time_threshold_after_creation: u16,
 }
 
 #[cfg(feature = "v2")]
@@ -927,6 +937,14 @@ impl From<MerchantConnectorAccountFeatureMetadata>
                 billing_account_reference: DieselBillingAccountReference(
                     recovery_metadata.mca_reference.recovery_to_billing,
                 ),
+                switch_payment_method_config: recovery_metadata
+                    .switch_payment_method_config
+                    .map(|config| {
+                            diesel_models::SwitchPaymentMethodConfig {
+                            retry_threshold: config.retry_threshold,
+                            time_threshold_after_creation: config.time_threshold_after_creation,
+                        }
+                    }),
             }
         });
         Self { revenue_recovery }
@@ -951,6 +969,12 @@ impl From<DieselMerchantConnectorAccountFeatureMetadata>
                     recovery_to_billing: recovery_metadata.billing_account_reference.0,
                     billing_to_recovery,
                 },
+                switch_payment_method_config: recovery_metadata
+                    .switch_payment_method_config
+                    .map(|config| SwitchPaymentMethodConfig {
+                        retry_threshold: config.retry_threshold,
+                        time_threshold_after_creation: config.time_threshold_after_creation,
+                    }),
             }
         });
         Self { revenue_recovery }

@@ -621,6 +621,7 @@ pub struct Payments;
 #[cfg(all(any(feature = "olap", feature = "oltp"), feature = "v2"))]
 impl Payments {
     pub fn server(state: AppState) -> Scope {
+        use api_models::webhooks as webhook_type;
         let mut route = web::scope("/v2/payments").app_data(web::Data::new(state));
         route = route
             .service(
@@ -639,6 +640,10 @@ impl Payments {
             .service(web::resource("/list").route(web::get().to(payments::payments_list)))
             .service(
                 web::resource("/aggregate").route(web::get().to(payments::get_payments_aggregates)),
+            )
+            .service(
+                web::resource("/recovery")
+                    .route(web::post().to(payments::recovery_payments_create::<webhook_type::OutgoingWebhook>)),
             )
             .service(
                 web::resource("/profile/aggregate")
@@ -2672,8 +2677,16 @@ impl ProcessTracker {
         web::scope("/v2/process_tracker/revenue_recovery_workflow")
             .app_data(web::Data::new(state.clone()))
             .service(
-                web::resource("/{revenue_recovery_id}")
-                    .route(web::get().to(revenue_recovery::revenue_recovery_pt_retrieve_api)),
+                web::scope("/{revenue_recovery_id}")
+                    .service(
+                        web::resource("").route(
+                            web::get().to(revenue_recovery::revenue_recovery_pt_retrieve_api),
+                        ),
+                    )
+                    .service(
+                        web::resource("/stop")
+                            .route(web::post().to(revenue_recovery::revenue_recovery_pt_stop_api)),
+                    ),
             )
     }
 }
