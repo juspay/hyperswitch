@@ -718,9 +718,13 @@ impl PaymentIntent {
             connector_transaction_id: None, // No connector id
             error_code: None,
             error_message: None,
-            processor_payment_method_token: revenue_recovery_metadata
+            processor_payment_method_token:revenue_recovery_metadata.billing_connector_payment_details.payment_method_units.first().map(|details| {
+                details.payment_processor_token.clone()
+            }).unwrap_or("NOPaymentMethodToken".to_string()),
+            payment_method_units: revenue_recovery_metadata
                 .billing_connector_payment_details
-                .payment_processor_token,
+                .payment_method_units
+                .clone(),
             connector_customer_id: revenue_recovery_metadata
                 .billing_connector_payment_details
                 .connector_customer_id,
@@ -966,6 +970,7 @@ pub struct RevenueRecoveryData {
     pub triggered_by: storage_enums::enums::TriggeredBy,
     pub card_network: Option<common_enums::CardNetwork>,
     pub card_issuer: Option<String>,
+    pub payment_method_units: Vec<api_models::payments::PaymentProcessorTokenUnit>,
 }
 
 #[cfg(feature = "v2")]
@@ -1028,6 +1033,8 @@ where
             ),
         );
 
+        let payment_method_units = self.revenue_recovery_data.payment_method_units.clone();
+
         let payment_revenue_recovery_metadata = match payment_attempt_connector {
             Some(connector) => Some(diesel_models::types::PaymentRevenueRecoveryMetadata {
                 // Update retry count by one.
@@ -1046,14 +1053,14 @@ where
                     .get_attempt_merchant_connector_account_id()?,
                 billing_connector_payment_details:
                     diesel_models::types::BillingConnectorPaymentDetails {
-                        payment_processor_token: self
-                            .revenue_recovery_data
-                            .processor_payment_method_token
-                            .clone(),
-                        connector_customer_id: self
-                            .revenue_recovery_data
-                            .connector_customer_id
-                            .clone(),
+                        payment_method_units: payment_method_units.into_iter().map(|data| diesel_models::types::PaymentProcessorTokenUnit {
+                            payment_processor_token: data.payment_processor_token.clone(),
+                            expiry_year: data.expiry_year.clone(),
+                            expiry_month: data.expiry_month.clone(),
+                            card_issuer: data.card_issuer.clone(),
+                            last_four_digits: data.last_four_digits.clone(),
+                        }).collect(),
+                        connector_customer_id: self.revenue_recovery_data.connector_customer_id.clone(),
                     },
                 payment_method_type: self.payment_attempt.payment_method_type,
                 payment_method_subtype: self.payment_attempt.payment_method_subtype,

@@ -201,7 +201,9 @@ impl<F: Send + Clone + Sync>
             triggered_by: request.triggered_by,
             card_network: request.card_network.clone(),
             card_issuer: request.card_issuer.clone(),
+            payment_method_units: request.payment_method_units.clone(),
         };
+        
         let payment_address = hyperswitch_domain_models::payment_address::PaymentAddress::new(
             payment_intent
                 .shipping_address

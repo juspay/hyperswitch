@@ -1241,6 +1241,14 @@ impl ForeignFrom<&domain::MerchantConnectorAccountFeatureMetadata>
                         .mca_reference
                         .recovery_to_billing
                         .clone(),
+                    switch_payment_method_config: revenue_recovery_metadata
+                        .switch_payment_method_config
+                        .as_ref()
+                        .map(|config| api_models::admin::SwitchPaymentMethodConfig {
+                            retry_threshold: config.retry_threshold,
+                            time_threshold_after_creation: config
+                                .time_threshold_after_creation,
+                        }),
                 },
             );
         Self { revenue_recovery }
@@ -1267,6 +1275,14 @@ impl ForeignTryFrom<&api_models::admin::MerchantConnectorAccountFeatureMetadata>
                     billing_connector_retry_threshold: revenue_recovery_metadata
                         .billing_connector_retry_threshold,
                     mca_reference,
+                    switch_payment_method_config: revenue_recovery_metadata
+                        .switch_payment_method_config
+                        .as_ref()
+                        .map(|config| domain::SwitchPaymentMethodConfig {
+                            retry_threshold: config.retry_threshold,
+                            time_threshold_after_creation: config
+                                .time_threshold_after_creation,
+                        }),
                 })
             })
             .transpose()?;
