@@ -24,6 +24,8 @@ pub struct RevenueRecoveryAttemptData {
     pub error_message: Option<String>,
     /// mandate token at payment processor end.
     pub processor_payment_method_token: String,
+    /// payment method token units at payment processor end.
+    pub payment_method_units: Vec<api_models::payments::PaymentProcessorTokenUnit>,
     /// customer id at payment connector for which mandate is attached.
     pub connector_customer_id: String,
     /// Payment gateway identifier id at billing processor.
@@ -263,6 +265,15 @@ impl
             processor_payment_method_token: billing_connector_payment_details
                 .processor_payment_method_token
                 .clone(),
+            payment_method_units: vec![api_models::payments::PaymentProcessorTokenUnit{
+                payment_processor_token: billing_connector_payment_details
+                .processor_payment_method_token
+                .clone(),
+                expiry_year: None,
+                expiry_month: None,
+                card_issuer: None,
+                last_four_digits: None,
+            }],
             connector_customer_id: billing_connector_payment_details
                 .connector_customer_id
                 .clone(),

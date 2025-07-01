@@ -224,7 +224,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentConfirmData<F>, ProxyPaymentsR
             }
         };
 
-        let processor_payment_token = request.recurring_details.processor_payment_token.clone();
+        let processor_payment_token = payment_attempt.connector_token_details.as_ref().and_then(|token| token.connector_mandate_id.clone());
 
         let payment_address = hyperswitch_domain_models::payment_address::PaymentAddress::new(
             payment_intent
@@ -246,7 +246,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentConfirmData<F>, ProxyPaymentsR
             mandate_reference_id: Some(
                 api_models::payments::MandateReferenceId::ConnectorMandateId(
                     api_models::payments::ConnectorMandateReferenceId::new(
-                        Some(processor_payment_token),
+                        processor_payment_token,
                         None,
                         None,
                         None,

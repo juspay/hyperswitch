@@ -5,12 +5,13 @@ use hyperswitch_domain_models::{
     merchant_context::{Context, MerchantContext},
     payments as payments_domain,
 };
+use time::Duration;
 
 use crate::{
     core::{
         errors::{self, RouterResult},
         payments::{self, operations::Operation},
-        webhooks::recovery_incoming,
+        webhooks::{self, recovery_incoming},
     },
     logger,
     routes::SessionState,
@@ -77,14 +78,29 @@ pub async fn call_psync_api(
 pub async fn call_proxy_api(
     state: &SessionState,
     payment_intent: &payments_domain::PaymentIntent,
+    process: &storage::ProcessTracker,
     revenue_recovery_payment_data: &storage::revenue_recovery::RevenueRecoveryPaymentData,
     revenue_recovery: &payments_api::PaymentRevenueRecoveryMetadata,
 ) -> RouterResult<payments_domain::PaymentConfirmData<api_types::Authorize>> {
     let operation = payments::operations::proxy_payments_intent::PaymentProxyIntent;
+
     let req = payments_api::ProxyPaymentsRequest {
         return_url: None,
         amount: payments_api::AmountDetails::new(payment_intent.amount_details.clone().into()),
-        recurring_details: revenue_recovery.get_payment_token_for_api_request(),
+        recurring_details:  api_models::mandates::ProcessorPaymentToken { 
+            processor_payment_token: api_models::payments::PaymentProcessorTokenUnit{
+            payment_processor_token: revenue_recovery
+                .billing_connector_payment_details.payment_method_units.first()
+                .map(|unit| unit.payment_processor_token.clone()).unwrap_or("FakePaymentMethodId".to_string()),
+            expiry_year: None,
+            expiry_month: None,
+            card_issuer: None,
+            last_four_digits: None,
+        },
+            merchant_connector_id: Some(revenue_recovery
+                .active_attempt_payment_connector_id
+                .clone()),
+        },
         shipping: None,
         browser_info: None,
         connector: revenue_recovery.connector.to_string(),
@@ -173,6 +189,7 @@ pub async fn record_internal_attempt_api(
     payment_intent: &payments_domain::PaymentIntent,
     revenue_recovery_payment_data: &storage::revenue_recovery::RevenueRecoveryPaymentData,
     revenue_recovery_metadata: &payments_api::PaymentRevenueRecoveryMetadata,
+    process: &storage::ProcessTracker,
 ) -> RouterResult<payments_api::PaymentAttemptRecordResponse> {
     let revenue_recovery_attempt_data =
         recovery_incoming::RevenueRecoveryAttempt::get_revenue_recovery_attempt(
@@ -182,9 +199,72 @@ pub async fn record_internal_attempt_api(
         )
         .change_context(errors::ApiErrorResponse::GenericNotFoundError {
             message: "get_revenue_recovery_attempt was not constructed".to_string(),
-        })?;
+    })?;
 
-    let request_payload = revenue_recovery_attempt_data
+ 
+    let billing_mca = revenue_recovery_payment_data
+        .billing_mca
+        .clone();
+
+    let switch_payment_method_config = billing_mca.feature_metadata.and_then(|feature_metadata| {
+        feature_metadata.revenue_recovery.as_ref().map(|metadata| {
+            metadata.switch_payment_method_config.clone()
+        })
+    }).flatten();
+    #[allow(clippy::as_conversions)]
+    let retry_threshold : i32 = switch_payment_method_config.clone()
+        .map(|config| config.retry_threshold as i32)
+        .unwrap_or(-1);
+    #[allow(clippy::as_conversions)]
+    let time_threshold : i64 = switch_payment_method_config.clone()
+        .map(|config| config.time_threshold_after_creation as i64)
+        .unwrap_or(-1);
+
+    // Determine if the payment method should be switched based on retry and time thresholds
+    let should_switch_payment_method = {
+        // Helper closure to check if retry threshold is exceeded
+        let retry_exceeded = || {
+            retry_threshold != -1 && process.retry_count >= retry_threshold
+        };
+
+        // Helper closure to check if time threshold is exceeded
+        let time_exceeded = || {
+            time_threshold != -1 && {
+                let created_at = payment_intent.created_at.assume_utc();
+                let threshold_time = created_at + Duration::days(time_threshold);
+                threshold_time <= time::OffsetDateTime::now_utc()
+            }
+        };
+
+        // If both thresholds are -1, do not switch
+        if retry_threshold == -1 && time_threshold == -1 {
+            false
+        } else {
+            retry_exceeded() || time_exceeded()
+        }
+    };
+
+    let payment_method_token = if should_switch_payment_method {
+        // If the payment method should be switched, use the new payment method token
+        revenue_recovery_metadata
+            .billing_connector_payment_details
+            .payment_method_units
+            .get(1)
+            .map(|unit| unit.payment_processor_token.clone())
+            .unwrap_or_else(|| revenue_recovery_attempt_data.0.processor_payment_method_token.clone())
+    } else {
+        // Otherwise, use the existing payment method token
+       revenue_recovery_attempt_data.0.processor_payment_method_token.clone()
+    };
+
+    let new_revenue_recovery_payment_attempt_data = recovery_incoming::RevenueRecoveryAttempt(
+        hyperswitch_domain_models::revenue_recovery::RevenueRecoveryAttemptData {
+            processor_payment_method_token: payment_method_token,
+            ..revenue_recovery_attempt_data.0
+        }
+    );
+
+    let request_payload = new_revenue_recovery_payment_attempt_data
         .create_payment_record_request(
             state,
             &revenue_recovery_payment_data.billing_mca.id,

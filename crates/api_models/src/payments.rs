@@ -275,6 +275,74 @@ pub struct PaymentsCreateIntentRequest {
     #[schema(value_type = Option<MerchantConnectorAuthDetails>)]
     pub merchant_connector_details: Option<common_types::domain::MerchantConnectorAuthDetails>,
 }
+
+// Serialize is required because the api event requires Serialize to be implemented
+#[derive(Debug, serde::Serialize, serde::Deserialize, Clone, ToSchema)]
+#[serde(deny_unknown_fields)]
+#[cfg(feature = "v2")]
+pub struct RecoveryPaymentsCreate {
+    /// The amount details for the payment
+    pub amount_details : AmountDetails,
+
+    /// Unique identifier for the payment. This ensures idempotency for multiple payments
+    /// that have been done by a single merchant.
+    #[schema(
+        value_type = Option<String>,
+        min_length = 30,
+        max_length = 30,
+        example = "pay_mbabizu24mvu3mela5njyhpit4"
+    )]
+    pub merchant_reference_id: id_type::PaymentReferenceId,
+
+    /// Error details for the payment if any
+    pub error: Option<ErrorDetails>,
+
+    /// Billing connector id to update the invoices.
+    #[schema(value_type = String, example = "mca_1234567890")]
+    pub merchant_connector_id: id_type::MerchantConnectorAccountId,
+
+    #[schema(value_type = AttemptStatus, example = "charged")]
+    pub status: enums::AttemptStatus,
+
+     /// The billing details of the payment attempt. This address will be used for invoicing.
+    pub billing: Option<Address>,
+
+    /// Number of attempts made for invoice
+    #[schema(value_type = Option<u16>, example = 1)]
+    pub retry_count: Option<u16>,
+
+    /// The payment method subtype to be used for the payment. This should match with the `payment_method_data` provided
+    #[schema(value_type = PaymentMethodType, example = "apple_pay")]
+    pub payment_method_subtype: api_enums::PaymentMethodType,
+
+     /// The payment instrument data to be used for the payment attempt.
+    pub payment_method_data: Option<PaymentMethodDataRequest>,
+
+    /// The time at which payment attempt was created.
+    #[schema(example = "2022-09-10T10:11:12Z")]
+    #[serde(default, with = "common_utils::custom_serde::iso8601::option")]
+    pub transaction_created_at: Option<PrimitiveDateTime>,
+
+     /// Payment method type for the payment attempt
+    #[schema(value_type = Option<PaymentMethod>, example = "wallet")]
+    pub payment_method_type: common_enums::PaymentMethod,
+
+    /// customer id at payment connector for which mandate is attached.
+    #[schema(value_type = String, example = "cust_12345")]
+    pub connector_customer_id: String,
+
+    /// Next Billing time of the Invoice
+    #[schema(example = "2022-09-10T10:11:12Z")]
+    #[serde(default, with = "common_utils::custom_serde::iso8601::option")]
+    pub next_billing_date: Option<PrimitiveDateTime>,
+
+    /// Transaction if reference at payment connector end.
+    pub connector_transaction_id : Option<String>,
+
+    /// payment method token units at payment processor end.
+    pub payment_method_units: Vec<PaymentProcessorTokenUnit>,
+}
+
 #[cfg(feature = "v2")]
 #[derive(Debug, serde::Serialize, serde::Deserialize, Clone, ToSchema)]
 pub struct PaymentAttemptListRequest {
@@ -1623,6 +1691,9 @@ pub struct PaymentAttemptResponse {
 
     /// Additional data that might be required by hyperswitch, to enable some specific features.
     pub feature_metadata: Option<PaymentAttemptFeatureMetadata>,
+    #[schema(value_type = Option<PaymentMethodDataResponseWithBilling>)]
+    #[serde(serialize_with = "serialize_payment_method_data_response")]
+    pub payment_method_data: Option<PaymentMethodDataResponseWithBilling>
 }
 
 #[cfg(feature = "v2")]
@@ -8785,27 +8856,62 @@ impl PaymentRevenueRecoveryMetadata {
     ) {
         self.payment_connector_transmission = Some(payment_connector_transmission);
     }
-    pub fn get_payment_token_for_api_request(&self) -> mandates::ProcessorPaymentToken {
+    pub fn get_primary_payment_token_for_api_request(&self) -> mandates::ProcessorPaymentToken {
         mandates::ProcessorPaymentToken {
             processor_payment_token: self
                 .billing_connector_payment_details
-                .payment_processor_token
+                .payment_method_units.first()
+                .unwrap_or(&PaymentProcessorTokenUnit {
+                    payment_processor_token: "FakePaymentProcessorToken".to_string(),
+                    expiry_month: None,
+                    expiry_year: None,
+                    card_issuer: None,
+                    last_four_digits: None,
+                })
                 .clone(),
             merchant_connector_id: Some(self.active_attempt_payment_connector_id.clone()),
         }
     }
+
+    pub fn get_backup_payment_token_for_api_request(&self) -> mandates::ProcessorPaymentToken {
+        mandates::ProcessorPaymentToken {
+            processor_payment_token: self
+                .billing_connector_payment_details
+                .payment_method_units.get(1)
+                .unwrap_or(&PaymentProcessorTokenUnit {
+                    payment_processor_token: "FakePaymentProcessorToken".to_string(),
+                    expiry_month: None,
+                    expiry_year: None,
+                    card_issuer: None,
+                    last_four_digits: None,
+                })
+                .clone(),
+            merchant_connector_id: Some(self.active_attempt_payment_connector_id.clone()),
+        }
+    }
+
     pub fn get_merchant_connector_id_for_api_request(&self) -> id_type::MerchantConnectorAccountId {
         self.active_attempt_payment_connector_id.clone()
     }
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
+#[derive(Debug, Clone, Serialize, Deserialize, ToSchema, PartialEq, Eq)]
 #[cfg(feature = "v2")]
 pub struct BillingConnectorPaymentDetails {
     /// Payment Processor Token to process the Revenue Recovery Payment
-    pub payment_processor_token: String,
+    pub payment_method_units: Vec<PaymentProcessorTokenUnit>,
     /// Billing Connector's Customer Id
     pub connector_customer_id: String,
+}
+
+#[cfg(feature="v2")]
+#[derive(Debug, Clone, Serialize, Deserialize, ToSchema, PartialEq, Eq)]
+pub struct PaymentProcessorTokenUnit {
+    pub payment_processor_token: String,
+    pub expiry_month: Option<String>,
+    pub expiry_year: Option<String>,
+    pub card_issuer: Option<String>,
+    pub last_four_digits: Option<String>,
 }
 
 // Serialize is required because the api event requires Serialize to be implemented
@@ -8874,6 +8980,9 @@ pub struct PaymentsAttemptRecordRequest {
     #[schema(value_type = String, example = "1234567890")]
     pub processor_payment_method_token: String,
 
+    #[schema(value_type = PaymentProcessorTokenUnit)]
+    pub payment_method_units: Vec<PaymentProcessorTokenUnit>,
+
     /// customer id at payment connector for which mandate is attached.
     #[schema(value_type = String, example = "cust_12345")]
     pub connector_customer_id: String,
@@ -8898,6 +9007,7 @@ pub struct PaymentsAttemptRecordRequest {
     #[schema(example = "Chase")]
     /// Card Issuer
     pub card_issuer: Option<String>,
+
 }
 
 /// Error details for the payment

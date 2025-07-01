@@ -287,8 +287,9 @@ impl Action {
         let response = revenue_recovery_core::api::call_proxy_api(
             state,
             payment_intent,
+            process,
             revenue_recovery_payment_data,
-            revenue_recovery_metadata,
+            revenue_recovery_metadata, 
         )
         .await;
         // handle proxy api's response

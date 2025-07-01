@@ -171,6 +171,7 @@ pub struct ConnectorTomlConfig {
 #[serde_with::skip_serializing_none]
 #[derive(Debug, Deserialize, serde::Serialize, Clone)]
 pub struct ConnectorConfig {
+    pub custombilling: Option<ConnectorTomlConfig>,
     pub juspaythreedsserver: Option<ConnectorTomlConfig>,
     pub aci: Option<ConnectorTomlConfig>,
     pub adyen: Option<ConnectorTomlConfig>,
@@ -384,6 +385,7 @@ impl ConnectorConfig {
             Connector::Coingate => Ok(connector_data.coingate),
             Connector::Cryptopay => Ok(connector_data.cryptopay),
             Connector::CtpVisa => Ok(connector_data.ctp_visa),
+            Connector::Custombilling => Ok(connector_data.custombilling),
             Connector::Cybersource => Ok(connector_data.cybersource),
             #[cfg(feature = "dummy_connector")]
             Connector::DummyBillingConnector => Ok(connector_data.dummy_connector),

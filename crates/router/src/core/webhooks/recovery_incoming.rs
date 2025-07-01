@@ -167,6 +167,7 @@ pub async fn recovery_incoming_webhook_flow(
                         &state,
                         &business_profile,
                         merchant_context.get_merchant_key_store(),
+                        recovery_intent_from_payment_attempt.clone(),
                     )
                     .await
                 }
@@ -218,6 +219,7 @@ async fn handle_monitoring_threshold(
     state: &SessionState,
     business_profile: &domain::Profile,
     key_store: &domain::MerchantKeyStore,
+    recovery_intent_from_payment_attempt: revenue_recovery::RecoveryPaymentIntent,
 ) -> CustomResult<webhooks::WebhookResponseTracker, errors::RevenueRecoveryError> {
     let db = &*state.store;
     let key_manager_state = &(state).into();
@@ -243,7 +245,7 @@ async fn handle_monitoring_threshold(
             .await
             .change_context(errors::RevenueRecoveryError::RetryAlgorithmUpdationFailed)?;
     }
-    Ok(webhooks::WebhookResponseTracker::NoEffect)
+    Ok(webhooks::WebhookResponseTracker::Recovery { payment_id: recovery_intent_from_payment_attempt.payment_id.clone(), status: recovery_intent_from_payment_attempt.status.clone(), retry_status: "monitering".to_string() })
 }
 #[allow(clippy::too_many_arguments)]
 async fn handle_schedule_failed_payment(
@@ -268,7 +270,11 @@ async fn handle_schedule_failed_payment(
                 intent_retry_count,
                 mca_retry_threshold
             );
-            Ok(webhooks::WebhookResponseTracker::NoEffect)
+            Ok(webhooks::WebhookResponseTracker::Recovery{
+                payment_id: recovery_intent_from_payment_attempt.payment_id.clone() ,
+                status: recovery_intent_from_payment_attempt.status.clone(),
+                retry_status: "monitering".to_string(),
+            })
         })
         .async_unwrap_or_else(|| async {
             RevenueRecoveryAttempt::insert_execute_pcr_task(
@@ -292,7 +298,7 @@ async fn handle_schedule_failed_payment(
 #[derive(Debug)]
 pub struct RevenueRecoveryInvoice(revenue_recovery::RevenueRecoveryInvoiceData);
 #[derive(Debug)]
-pub struct RevenueRecoveryAttempt(revenue_recovery::RevenueRecoveryAttemptData);
+pub struct RevenueRecoveryAttempt(pub revenue_recovery::RevenueRecoveryAttemptData);
 
 impl RevenueRecoveryInvoice {
     fn get_recovery_invoice_details(
@@ -662,12 +668,15 @@ impl RevenueRecoveryAttempt {
             processor_payment_method_token: revenue_recovery_attempt_data
                 .processor_payment_method_token
                 .clone(),
+            payment_method_units: revenue_recovery_attempt_data
+                .payment_method_units
+                .clone(),
             connector_customer_id: revenue_recovery_attempt_data.connector_customer_id.clone(),
             retry_count: revenue_recovery_attempt_data.retry_count,
             invoice_next_billing_time: revenue_recovery_attempt_data.invoice_next_billing_time,
             triggered_by,
             card_network: revenue_recovery_attempt_data.card_network.clone(),
-            card_issuer,
+            card_issuer
         })
     }
 
@@ -840,9 +849,10 @@ impl RevenueRecoveryAttempt {
             .attach_printable("Failed to enter process_tracker_entry in DB")?;
         metrics::TASKS_ADDED_COUNT.add(1, router_env::metric_attributes!(("flow", "ExecutePCR")));
 
-        Ok(webhooks::WebhookResponseTracker::Payment {
+        Ok(webhooks::WebhookResponseTracker::Recovery {
             payment_id,
             status: payment_intent.status,
+            retry_status: "scheduled".to_string()
         })
     }
 }
@@ -1182,3 +1192,4 @@ impl BillingConnectorInvoiceSyncFlowRouterData {
         self.0
     }
 }
+

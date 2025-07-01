@@ -64,6 +64,7 @@ pub async fn perform_execute_payment(
                 payment_intent,
                 revenue_recovery_payment_data,
                 &revenue_recovery_metadata,
+                execute_task_process,
             )
             .await;
 

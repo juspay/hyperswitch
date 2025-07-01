@@ -275,6 +275,8 @@ pub enum Flow {
     IncomingWebhookReceive,
     /// Recovery incoming webhook receive
     RecoveryIncomingWebhookReceive,
+    /// Recovery payments create flow.
+    RecoveryPaymentsCreate,
     /// Validate payment method flow
     ValidatePaymentMethod,
     /// API Key create flow
