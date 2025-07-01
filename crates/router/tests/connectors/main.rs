@@ -33,6 +33,7 @@ mod deutschebank;
 mod dlocal;
 #[cfg(feature = "dummy_connector")]
 mod dummyconnector;
+mod dwolla;
 mod ebanx;
 mod elavon;
 mod facilitapay;
