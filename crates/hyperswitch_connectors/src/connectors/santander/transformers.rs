@@ -58,7 +58,7 @@ pub struct SantanderMetadataObject {
     pub pix_key: Secret<String>,
     pub expiration_time: i32,
     pub cpf: Secret<String>,
-    pub merchant_city: enums::Currency,
+    pub merchant_city: String,
     pub merchant_name: String,
 }
 
@@ -538,8 +538,7 @@ fn get_qr_code_data<F, T>(
     .unix_timestamp()
         * 1000;
 
-    let merchant_city_string = santander_mca_metadata.merchant_city.to_string();
-    let merchant_city = merchant_city_string.as_str();
+    let merchant_city = santander_mca_metadata.merchant_city.as_str();
 
     let merchant_name = santander_mca_metadata.merchant_name.as_str();
 
