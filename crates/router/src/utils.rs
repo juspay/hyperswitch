@@ -1350,7 +1350,7 @@ pub async fn trigger_payouts_webhook(
                         business_profile,
                         event_type,
                         diesel_models::enums::EventClass::Payouts,
-                        cloned_response.payout_id.clone(),
+                        cloned_response.payout_id.get_string_repr().to_owned(),
                         diesel_models::enums::EventObjectType::PayoutDetails,
                         webhooks::OutgoingWebhookContent::PayoutDetails(Box::new(cloned_response)),
                         primary_object_created_at,
