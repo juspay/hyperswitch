@@ -1704,7 +1704,7 @@ impl ConnectorAuthTypeAndMetadataValidation<'_> {
             }
             api_enums::Connector::Santander => {
                 santander::transformers::SantanderAuthType::try_from(self.auth_type)?;
-                worldpayvantiv::transformers::WorldpayvantivMetadataObject::try_from(
+                santander::transformers::SantanderMetadataObject::try_from(
                     self.connector_meta_data,
                 )?;
                 Ok(())
