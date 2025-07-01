@@ -1066,6 +1066,23 @@ pub struct Card {
 }
 
 #[cfg(feature = "v1")]
+impl From<(Card, Option<common_enums::CardNetwork>)> for CardDetail {
+    fn from((card, card_network): (Card, Option<common_enums::CardNetwork>)) -> Self {
+        Self {
+            card_number: card.card_number.clone(),
+            card_exp_month: card.card_exp_month.clone(),
+            card_exp_year: card.card_exp_year.clone(),
+            card_holder_name: card.name_on_card.clone(),
+            nick_name: card.nick_name.map(masking::Secret::new),
+            card_issuing_country: None,
+            card_network,
+            card_issuer: None,
+            card_type: None,
+        }
+    }
+}
+
+#[cfg(feature = "v1")]
 #[derive(Debug, serde::Deserialize, serde::Serialize, Clone, ToSchema)]
 pub struct CardDetailFromLocker {
     pub scheme: Option<String>,
@@ -2481,7 +2498,7 @@ pub struct PaymentMethodRecord {
     pub merchant_id: Option<id_type::MerchantId>,
     pub payment_method: Option<api_enums::PaymentMethod>,
     pub payment_method_type: Option<api_enums::PaymentMethodType>,
-    pub nick_name: masking::Secret<String>,
+    pub nick_name: Option<masking::Secret<String>>,
     pub payment_instrument_id: Option<masking::Secret<String>>,
     pub connector_customer_id: Option<String>,
     pub card_number_masked: masking::Secret<String>,
@@ -2489,13 +2506,13 @@ pub struct PaymentMethodRecord {
     pub card_expiry_year: masking::Secret<String>,
     pub card_scheme: Option<String>,
     pub original_transaction_id: Option<String>,
-    pub billing_address_zip: masking::Secret<String>,
-    pub billing_address_state: masking::Secret<String>,
-    pub billing_address_first_name: masking::Secret<String>,
-    pub billing_address_last_name: masking::Secret<String>,
-    pub billing_address_city: String,
+    pub billing_address_zip: Option<masking::Secret<String>>,
+    pub billing_address_state: Option<masking::Secret<String>>,
+    pub billing_address_first_name: Option<masking::Secret<String>>,
+    pub billing_address_last_name: Option<masking::Secret<String>>,
+    pub billing_address_city: Option<String>,
     pub billing_address_country: Option<api_enums::CountryAlpha2>,
-    pub billing_address_line1: masking::Secret<String>,
+    pub billing_address_line1: Option<masking::Secret<String>>,
     pub billing_address_line2: Option<masking::Secret<String>>,
     pub billing_address_line3: Option<masking::Secret<String>>,
     pub raw_card_number: Option<masking::Secret<String>>,
@@ -2546,6 +2563,57 @@ pub enum MigrationStatus {
     Success,
     #[default]
     Failed,
+}
+
+impl PaymentMethodRecord {
+    fn create_address(&self) -> Option<payments::AddressDetails> {
+        if self.billing_address_first_name.is_some()
+            && self.billing_address_line1.is_some()
+            && self.billing_address_zip.is_some()
+            && self.billing_address_city.is_some()
+            && self.billing_address_country.is_some()
+        {
+            Some(payments::AddressDetails {
+                city: self.billing_address_city.clone(),
+                country: self.billing_address_country,
+                line1: self.billing_address_line1.clone(),
+                line2: self.billing_address_line2.clone(),
+                state: self.billing_address_state.clone(),
+                line3: self.billing_address_line3.clone(),
+                zip: self.billing_address_zip.clone(),
+                first_name: self.billing_address_first_name.clone(),
+                last_name: self.billing_address_last_name.clone(),
+            })
+        } else {
+            None
+        }
+    }
+
+    fn create_phone(&self) -> Option<payments::PhoneDetails> {
+        if self.phone.is_some() || self.phone_country_code.is_some() {
+            Some(payments::PhoneDetails {
+                number: self.phone.clone(),
+                country_code: self.phone_country_code.clone(),
+            })
+        } else {
+            None
+        }
+    }
+
+    fn create_billing(&self) -> Option<payments::Address> {
+        let address = self.create_address();
+        let phone = self.create_phone();
+
+        if address.is_some() || phone.is_some() || self.email.is_some() {
+            Some(payments::Address {
+                address,
+                phone,
+                email: self.email.clone(),
+            })
+        } else {
+            None
+        }
+    }
 }
 
 #[cfg(feature = "v1")]
@@ -2600,6 +2668,7 @@ impl
         ),
     ) -> Result<Self, Self::Error> {
         let (record, merchant_id, mca_id) = item;
+        let billing = record.create_billing();
 
         //  if payment instrument id is present then only construct this
         let connector_mandate_details = if record.payment_instrument_id.is_some() {
@@ -2631,7 +2700,7 @@ impl
                 card_type: None,
                 card_issuer: None,
                 card_issuing_country: None,
-                nick_name: Some(record.nick_name.clone()),
+                nick_name: record.nick_name.clone(),
             }),
             network_token: Some(MigrateNetworkTokenDetail {
                 network_token_data: MigrateNetworkTokenData {
@@ -2639,7 +2708,7 @@ impl
                     network_token_exp_month: record.network_token_expiry_month.unwrap_or_default(),
                     network_token_exp_year: record.network_token_expiry_year.unwrap_or_default(),
                     card_holder_name: record.name,
-                    nick_name: Some(record.nick_name.clone()),
+                    nick_name: record.nick_name.clone(),
                     card_issuing_country: None,
                     card_network: None,
                     card_issuer: None,
@@ -2652,24 +2721,7 @@ impl
             payment_method: record.payment_method,
             payment_method_type: record.payment_method_type,
             payment_method_issuer: None,
-            billing: Some(payments::Address {
-                address: Some(payments::AddressDetails {
-                    city: Some(record.billing_address_city),
-                    country: record.billing_address_country,
-                    line1: Some(record.billing_address_line1),
-                    line2: record.billing_address_line2,
-                    state: Some(record.billing_address_state),
-                    line3: record.billing_address_line3,
-                    zip: Some(record.billing_address_zip),
-                    first_name: Some(record.billing_address_first_name),
-                    last_name: Some(record.billing_address_last_name),
-                }),
-                phone: Some(payments::PhoneDetails {
-                    number: record.phone,
-                    country_code: record.phone_country_code,
-                }),
-                email: record.email,
-            }),
+            billing,
             connector_mandate_details: connector_mandate_details.map(
                 |payments_mandate_reference| {
                     CommonMandateReference::from(payments_mandate_reference)
@@ -2683,7 +2735,7 @@ impl
             #[cfg(feature = "payouts")]
             wallet: None,
             payment_method_data: None,
-            network_transaction_id: record.original_transaction_id,
+            network_transaction_id: record.original_transaction_id.clone(),
         })
     }
 }
@@ -2702,15 +2754,15 @@ impl From<(PaymentMethodRecord, id_type::MerchantId)> for PaymentMethodCustomerM
                 description: None,
                 phone_country_code: record.phone_country_code,
                 address: Some(payments::AddressDetails {
-                    city: Some(record.billing_address_city),
+                    city: record.billing_address_city,
                     country: record.billing_address_country,
-                    line1: Some(record.billing_address_line1),
+                    line1: record.billing_address_line1,
                     line2: record.billing_address_line2,
-                    state: Some(record.billing_address_state),
+                    state: record.billing_address_state,
                     line3: record.billing_address_line3,
-                    zip: Some(record.billing_address_zip),
-                    first_name: Some(record.billing_address_first_name),
-                    last_name: Some(record.billing_address_last_name),
+                    zip: record.billing_address_zip,
+                    first_name: record.billing_address_first_name,
+                    last_name: record.billing_address_last_name,
                 }),
                 metadata: None,
             },

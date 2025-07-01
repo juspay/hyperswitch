@@ -2,6 +2,7 @@
 //! The id type can be used to create specific id types with custom behaviour
 
 mod api_key;
+mod authentication;
 mod client_secret;
 mod customer;
 #[cfg(feature = "v2")]
@@ -42,6 +43,7 @@ pub use self::global_id::{
 };
 pub use self::{
     api_key::ApiKeyId,
+    authentication::AuthenticationId,
     client_secret::ClientSecretId,
     customer::CustomerId,
     merchant::MerchantId,
