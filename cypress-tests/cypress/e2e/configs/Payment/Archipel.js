@@ -217,6 +217,9 @@ export const connectorDetails = {
       },
     },
     ZeroAuthMandate: {
+      Configs: {
+        TRIGGER_SKIP: true,
+      },
       Request: {
         payment_method: "card",
         payment_method_data: {
@@ -246,6 +249,9 @@ export const connectorDetails = {
       },
     },
     ZeroAuthConfirmPayment: {
+      Configs: {
+        TRIGGER_SKIP: true,
+      },
       Request: {
         payment_type: "setup_mandate",
         payment_method: "card",
