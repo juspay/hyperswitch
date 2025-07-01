@@ -95,7 +95,7 @@ use crate::{
     },
 };
 #[cfg(feature = "v2")]
-use crate::{core::admin as core_admin, headers};
+use crate::{core::admin as core_admin, headers, types::ConnectorAuthType};
 #[cfg(feature = "v1")]
 use crate::{
     core::payment_methods::cards::create_encrypted_data, types::storage::CustomerUpdate::Update,
@@ -1597,6 +1597,28 @@ pub async fn get_connector_default(
         api::ConnectorChoice::Decide,
         api::ConnectorChoice::StraightThrough,
     ))
+}
+
+#[cfg(feature = "v2")]
+pub async fn get_connector_data_from_request(
+    state: &SessionState,
+    req: Option<common_types::domain::MerchantConnectorAuthDetails>,
+) -> CustomResult<api::ConnectorData, errors::ApiErrorResponse> {
+    let connector = req
+        .as_ref()
+        .map(|connector_details| connector_details.connector_name.to_string())
+        .ok_or(errors::ApiErrorResponse::MissingRequiredField {
+            field_name: "merchant_connector_details",
+        })?;
+    let connector_data: api::ConnectorData = api::ConnectorData::get_connector_by_name(
+        &state.conf.connectors,
+        &connector,
+        api::GetToken::Connector,
+        None,
+    )
+    .change_context(errors::ApiErrorResponse::InternalServerError)
+    .attach_printable("Invalid connector name received")?;
+    Ok(connector_data)
 }
 
 #[cfg(feature = "v2")]
@@ -3148,7 +3170,6 @@ pub async fn make_client_secret(
             db.find_customer_by_global_id(
                 key_manager_state,
                 global_customer_id,
-                merchant_context.get_merchant_account().get_id(),
                 merchant_context.get_merchant_key_store(),
                 merchant_context.get_merchant_account().storage_scheme,
             )
@@ -3950,15 +3971,6 @@ impl MerchantConnectorAccountType {
             Self::CacheVal(_) => None,
         }
     }
-
-    pub fn get_inner_db_merchant_connector_account(
-        &self,
-    ) -> Option<&domain::MerchantConnectorAccount> {
-        match self {
-            Self::DbVal(db_val) => Some(db_val),
-            Self::CacheVal(_) => None,
-        }
-    }
 }
 
 /// Query for merchant connector account either by business label or profile id
@@ -4386,6 +4398,7 @@ impl AttemptType {
             processor_merchant_id: old_payment_attempt.processor_merchant_id,
             created_by: old_payment_attempt.created_by,
             setup_future_usage_applied: None,
+            routing_approach: old_payment_attempt.routing_approach,
         }
     }
 
@@ -6607,7 +6620,7 @@ pub enum UnifiedAuthenticationServiceFlow {
         token: String,
     },
     ExternalAuthenticationPostAuthenticate {
-        authentication_id: String,
+        authentication_id: id_type::AuthenticationId,
     },
     ClickToPayConfirmation,
 }
@@ -6689,7 +6702,7 @@ pub enum PaymentExternalAuthenticationFlow {
         token: String,
     },
     PostAuthenticationFlow {
-        authentication_id: String,
+        authentication_id: id_type::AuthenticationId,
     },
 }
 
@@ -7004,14 +7017,24 @@ pub fn validate_platform_request_for_marketplace(
             stripe_split_payment,
         )) => match amount {
             api::Amount::Zero => {
-                if stripe_split_payment.application_fees.get_amount_as_i64() != 0 {
+                if stripe_split_payment
+                    .application_fees
+                    .as_ref()
+                    .map_or(MinorUnit::zero(), |amount| *amount)
+                    != MinorUnit::zero()
+                {
                     return Err(errors::ApiErrorResponse::InvalidDataValue {
                         field_name: "split_payments.stripe_split_payment.application_fees",
                     });
                 }
             }
             api::Amount::Value(amount) => {
-                if stripe_split_payment.application_fees.get_amount_as_i64() > amount.into() {
+                if stripe_split_payment
+                    .application_fees
+                    .as_ref()
+                    .map_or(MinorUnit::zero(), |amount| *amount)
+                    > amount.into()
+                {
                     return Err(errors::ApiErrorResponse::InvalidDataValue {
                         field_name: "split_payments.stripe_split_payment.application_fees",
                     });
@@ -7323,114 +7346,24 @@ pub async fn allow_payment_update_enabled_for_client_auth(
     }
 }
 
-/// Query for merchant connector account either by business label
 #[cfg(feature = "v2")]
 #[instrument(skip_all)]
 pub async fn get_merchant_connector_account_v2(
     state: &SessionState,
-    merchant_id: &id_type::MerchantId,
-    creds_identifier: Option<&str>,
     key_store: &domain::MerchantKeyStore,
     merchant_connector_id: Option<&id_type::MerchantConnectorAccountId>,
-) -> RouterResult<MerchantConnectorAccountType> {
+) -> RouterResult<domain::MerchantConnectorAccount> {
     let db = &*state.store;
-    let key_manager_state: &KeyManagerState = &state.into();
-    match creds_identifier {
-        Some(creds_identifier) => {
-            let key = merchant_id.get_creds_identifier_key(creds_identifier);
-            let cloned_key = key.clone();
-            let redis_fetch = || async {
-                db.get_redis_conn()
-                    .change_context(errors::ApiErrorResponse::InternalServerError)
-                    .attach_printable("Failed to get redis connection")
-                    .async_and_then(|redis| async move {
-                        redis
-                            .get_and_deserialize_key(&key.as_str().into(), "String")
-                            .await
-                            .change_context(
-                                errors::ApiErrorResponse::MerchantConnectorAccountNotFound {
-                                    id: key.clone(),
-                                },
-                            )
-                            .attach_printable(key.clone() + ": Not found in Redis")
-                    })
-                    .await
-            };
-
-            let db_fetch = || async {
-                db.find_config_by_key(cloned_key.as_str())
-                    .await
-                    .to_not_found_response(
-                        errors::ApiErrorResponse::MerchantConnectorAccountNotFound {
-                            id: cloned_key.to_owned(),
-                        },
-                    )
-            };
-
-            let mca_config: String = redis_fetch()
-                .await
-                .map_or_else(
-                    |_| {
-                        Either::Left(async {
-                            match db_fetch().await {
-                                Ok(config_entry) => Ok(config_entry.config),
-                                Err(e) => Err(e),
-                            }
-                        })
-                    },
-                    |result| Either::Right(async { Ok(result) }),
-                )
-                .await?;
-
-            let private_key = state
-                .conf
-                .jwekey
-                .get_inner()
-                .tunnel_private_key
-                .peek()
-                .as_bytes();
-
-            let decrypted_mca = services::decrypt_jwe(mca_config.as_str(), services::KeyIdCheck::SkipKeyIdCheck, private_key, jwe::RSA_OAEP_256)
-                                     .await
-                                     .change_context(errors::ApiErrorResponse::UnprocessableEntity{
-                                        message: "decoding merchant_connector_details failed due to invalid data format!".into()})
-                                     .attach_printable(
-                                        "Failed to decrypt merchant_connector_details sent in request and then put in cache",
-                                    )?;
-
-            let res = String::into_bytes(decrypted_mca)
-                        .parse_struct("MerchantConnectorDetails")
-                        .change_context(errors::ApiErrorResponse::InternalServerError)
-                        .attach_printable(
-                            "Failed to parse merchant_connector_details sent in request and then put in cache",
-                        )?;
-
-            Ok(MerchantConnectorAccountType::CacheVal(res))
-        }
-        None => {
-            let mca: RouterResult<domain::MerchantConnectorAccount> = if let Some(
-                merchant_connector_id,
-            ) = merchant_connector_id
-            {
-                db.find_merchant_connector_account_by_id(
-                    &state.into(),
-                    merchant_connector_id,
-                    key_store,
-                )
-                .await
-                .to_not_found_response(
-                    errors::ApiErrorResponse::MerchantConnectorAccountNotFound {
-                        id: merchant_connector_id.get_string_repr().to_string(),
-                    },
-                )
-            } else {
-                Err(errors::ApiErrorResponse::MissingRequiredField {
-                        field_name: "merchant_connector_id",
-                    }).attach_printable(
-                        "merchant_connector_id is required when creds_identifier is not provided for get_merchant_connector_account_v2",
-                    )
-            };
-            mca.map(Box::new).map(MerchantConnectorAccountType::DbVal)
-        }
+    match merchant_connector_id {
+        Some(merchant_connector_id) => db
+            .find_merchant_connector_account_by_id(&state.into(), merchant_connector_id, key_store)
+            .await
+            .to_not_found_response(errors::ApiErrorResponse::MerchantConnectorAccountNotFound {
+                id: merchant_connector_id.get_string_repr().to_string(),
+            }),
+        None => Err(errors::ApiErrorResponse::MissingRequiredField {
+            field_name: "merchant_connector_id",
+        })
+        .attach_printable("merchant_connector_id is not provided"),
     }
 }

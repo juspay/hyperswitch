@@ -20,27 +20,63 @@
       perSystem = { self', pkgs, lib, system, ... }:
         let
           cargoToml = lib.importTOML ./Cargo.toml;
-          rustVersion = cargoToml.workspace.package.rust-version;
-          frameworks = pkgs.darwin.apple_sdk.frameworks;
+          rustDevVersion = "1.87.0";
+          rustMsrv = cargoToml.workspace.package.rust-version;
+
+          # Common packages
+          base = with pkgs; [
+            diesel-cli
+            just
+            jq
+            openssl
+            pkg-config
+            postgresql # for libpq
+            protobuf
+          ];
+
+          # Minimal packages for running hyperswitch
+          runPackages = base ++ (with pkgs; [
+            rust-bin.stable.${rustMsrv}.default
+          ]);
+
+          # Development packages
+          devPackages = base ++ (with pkgs; [
+            cargo-watch
+            nixd
+            rust-bin.stable.${rustDevVersion}.default
+            swagger-cli
+          ]);
+
+          # QA packages
+          qaPackages = devPackages ++ (with pkgs; [
+            cypress
+            nodejs
+            parallel
+          ]);
+
         in
         {
           _module.args.pkgs = import inputs.nixpkgs {
             inherit system;
             overlays = [ inputs.cargo2nix.overlays.default (import inputs.rust-overlay) ];
           };
+
+          # Minimal shell
           devShells.default = pkgs.mkShell {
             name = "hyperswitch-shell";
-            packages = with pkgs; [
-              just
-              nixd
-              openssl
-              pkg-config
-              rust-bin.stable.${rustVersion}.default
-            ] ++ lib.optionals stdenv.isDarwin [
-              # arch might have issue finding these libs.
-              frameworks.CoreServices
-              frameworks.Foundation
-            ];
+            packages = base;
+          };
+
+          # Development shell
+          devShells.dev = pkgs.mkShell {
+            name = "hyperswitch-dev-shell";
+            packages = devPackages;
+          };
+
+          # QA development shell
+          devShells.qa = pkgs.mkShell {
+            name = "hyperswitch-qa-shell";
+            packages = qaPackages;
           };
 
           /* For running external services

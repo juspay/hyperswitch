@@ -43,6 +43,7 @@ CREATE TABLE payment_attempt_queue (
     `organization_id` String,
     `profile_id` String,
     `card_network` Nullable(String),
+    `routing_approach` LowCardinality(Nullable(String)),
     `sign_flag` Int8
 ) ENGINE = Kafka SETTINGS kafka_broker_list = 'kafka0:29092',
 kafka_topic_list = 'hyperswitch-payment-attempt-events',
@@ -96,6 +97,7 @@ CREATE TABLE payment_attempts (
     `organization_id` String,
     `profile_id` String,
     `card_network` Nullable(String),
+    `routing_approach` LowCardinality(Nullable(String)),
     `sign_flag` Int8,
     INDEX connectorIndex connector TYPE bloom_filter GRANULARITY 1,
     INDEX paymentMethodIndex payment_method TYPE bloom_filter GRANULARITY 1,
@@ -152,6 +154,7 @@ CREATE MATERIALIZED VIEW payment_attempt_mv TO payment_attempts (
     `organization_id` String,
     `profile_id` String,
     `card_network` Nullable(String),
+    `routing_approach` LowCardinality(Nullable(String)),
     `sign_flag` Int8
 ) AS
 SELECT
@@ -200,6 +203,7 @@ SELECT
     organization_id,
     profile_id,
     card_network,
+    routing_approach,
     sign_flag
 FROM
     payment_attempt_queue
