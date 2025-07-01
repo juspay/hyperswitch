@@ -178,7 +178,9 @@ pub struct Authorization {
     pub amount: MinorUnit,
     pub order_source: OrderSource,
     pub bill_to_address: Option<BillToAddressData>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub card: Option<WorldpayvantivCardData>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub token: Option<TokenizationData>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub processing_type: Option<VantivProcessingType>,
@@ -199,7 +201,9 @@ pub struct Sale {
     pub amount: MinorUnit,
     pub order_source: OrderSource,
     pub bill_to_address: Option<BillToAddressData>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub card: Option<WorldpayvantivCardData>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub token: Option<TokenizationData>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub processing_type: Option<VantivProcessingType>,
@@ -433,6 +437,8 @@ impl TryFrom<&WorldpayvantivRouterData<&PaymentsAuthorizeRouterData>> for CnpOnl
         let card = get_vantiv_card_data(
             &item.router_data.request.payment_method_data.clone(),
         )?;
+
+        let card = None;
         let report_group = item
             .router_data
             .request
@@ -469,7 +475,7 @@ impl TryFrom<&WorldpayvantivRouterData<&PaymentsAuthorizeRouterData>> for CnpOnl
         let bill_to_address = get_bill_to_address(item.router_data);
 
         let processing_info =
-            get_processing_info(&item.router_data.request);
+            get_processing_info(&item.router_data.request)?;
 
         let (authorization, sale) = if item.router_data.request.is_auto_capture()? {
             (
@@ -529,20 +535,51 @@ struct VantivMandateDetail {
 }
 
 #[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
 pub struct TokenizationData {
     cnp_token: Secret<String>,
     exp_date: Secret<String>,
 }
 
+#[derive(Debug, Serialize)]
+pub struct CardMandateInfo {
+    pub card_exp_month: Secret<String>,
+    pub card_exp_year: Secret<String>,
+}
+
+
+fn extract_card_mandate_info(
+    additional_payment_method_data: Option<api_models::payments::AdditionalPaymentData>,
+) -> Result<CardMandateInfo, error_stack::Report<errors::ConnectorError>> {
+    match additional_payment_method_data {
+        Some(api_models::payments::AdditionalPaymentData::Card(card_data)) => Ok(CardMandateInfo {
+            card_exp_month: card_data.card_exp_month.clone().ok_or_else(|| {
+                errors::ConnectorError::MissingRequiredField {
+                    field_name: "card_exp_month",
+                }
+            })?,
+            card_exp_year: card_data.card_exp_year.clone().ok_or_else(|| {
+                errors::ConnectorError::MissingRequiredField {
+                    field_name: "card_exp_year",
+                }
+            })?,
+        }),
+        _ => Err(errors::ConnectorError::MissingRequiredFields {
+            field_names: vec!["card_exp_month", "card_exp_year"],
+        }
+        .into()),
+    }
+}
+
 fn get_processing_info(
     request: &PaymentsAuthorizeData,
-) -> VantivMandateDetail {
+) -> Result<VantivMandateDetail, error_stack::Report<errors::ConnectorError>> {
     if request.is_customer_initiated_mandate_payment() {
-        VantivMandateDetail {
+        Ok(VantivMandateDetail {
             processing_type: Some(VantivProcessingType::InitialCOF),
             network_transaction_id: None,
             token: None,
-        }
+        })
     } else {
         match request
             .mandate_id
@@ -551,29 +588,32 @@ fn get_processing_info(
         {
             Some(api_models::payments::MandateReferenceId::NetworkMandateId(
                 network_transaction_id,
-            )) => VantivMandateDetail {
+            )) => Ok(VantivMandateDetail {
                 processing_type: Some(VantivProcessingType::MerchantInitiatedCOF),
                 network_transaction_id: Some(network_transaction_id.into()),
                 token: None,
-            },
+            }),
             Some(api_models::payments::MandateReferenceId::ConnectorMandateId(
-                _,
+                mandate_data,
             )) => {
-                let token = Some(TokenizationData {
-                    cnp_token: Secret::new("Some token".to_string()),
-                    exp_date: Secret::new("12/34".to_string()),
-                });
-                VantivMandateDetail {
-                    processing_type: None,
+                let token = extract_card_mandate_info(
+                        request
+                        .additional_payment_method_data
+                        .clone())?;
+                Ok(VantivMandateDetail {
+                    processing_type: Some(VantivProcessingType::MerchantInitiatedCOF),
                     network_transaction_id: None,
-                    token,
-                }
+                    token : Some(TokenizationData {
+                        cnp_token: Secret::new("2871855923280002".to_string()),  //mandate_data.get_connector_mandate_id().ok_or(errors::ConnectorError::MissingConnectorMandateID)?,
+                        exp_date: Secret::new("0130".to_string()), //format!("{}{}",token.card_exp_month, token.card_exp_year,).into(),
+                    }),
+                })
             }
-            _ => VantivMandateDetail {
+            _ => Ok(VantivMandateDetail {
                 processing_type: None,
                 network_transaction_id: None,
                 token: None,
-            },
+            }),
         }
     }
 }
