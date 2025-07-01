@@ -567,6 +567,7 @@ impl
                     resource_id,
                     redirection_data,
                     connector_metadata,
+                    connector_response_reference_id,
                     ..
                 } => {
                     let attempt_status = self.get_attempt_status_for_db_update(payment_data);
@@ -595,6 +596,8 @@ impl
                                             token_details.get_connector_token_request_reference_id()
                                         }),
                                 ),
+                            connector_response_reference_id: connector_response_reference_id
+                                .clone(),
                         },
                     ))
                 }
@@ -1253,6 +1256,7 @@ impl
                     resource_id,
                     redirection_data,
                     connector_metadata,
+                    connector_response_reference_id,
                     ..
                 } => {
                     let attempt_status = self.get_attempt_status_for_db_update(payment_data);
@@ -1281,6 +1285,9 @@ impl
                                             token_details.get_connector_token_request_reference_id()
                                         }),
                                 ),
+
+                            connector_response_reference_id: connector_response_reference_id
+                                .clone(),
                         },
                     ))
                 }

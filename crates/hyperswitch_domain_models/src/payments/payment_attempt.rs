@@ -1760,6 +1760,7 @@ pub struct ConfirmIntentResponseUpdate {
     pub connector_metadata: Option<pii::SecretSerdeValue>,
     pub amount_capturable: Option<MinorUnit>,
     pub connector_token_details: Option<diesel_models::ConnectorTokenDetails>,
+    pub connector_response_reference_id: Option<String>,
 }
 
 #[cfg(feature = "v2")]
@@ -2637,6 +2638,7 @@ impl From<PaymentAttemptUpdate> for diesel_models::PaymentAttemptUpdateInternal 
                     connector_metadata,
                     amount_capturable,
                     connector_token_details,
+                    connector_response_reference_id,
                 } = *confirm_intent_response_update;
                 Self {
                     status: Some(status),
@@ -2664,7 +2666,7 @@ impl From<PaymentAttemptUpdate> for diesel_models::PaymentAttemptUpdateInternal 
                     network_decline_code: None,
                     network_error_message: None,
                     connector_request_reference_id: None,
-                    connector_response_reference_id: None,
+                    connector_response_reference_id,
                 }
             }
             PaymentAttemptUpdate::SyncUpdate {
