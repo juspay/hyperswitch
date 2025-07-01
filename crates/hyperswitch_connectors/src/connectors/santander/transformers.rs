@@ -4,7 +4,6 @@ use common_enums::enums;
 use common_utils::{
     errors::CustomResult,
     ext_traits::Encode,
-    pii::Email,
     types::{AmountConvertor, StringMajorUnit, StringMajorUnitForConnector},
 };
 use crc::{Algorithm, Crc};

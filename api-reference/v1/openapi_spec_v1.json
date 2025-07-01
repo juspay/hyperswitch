@@ -10996,6 +10996,7 @@
           "razorpay",
           "recurly",
           "redsys",
+          "santander",
           "shift4",
           "square",
           "stax",
@@ -11146,14 +11147,6 @@
             "allOf": [
               {
                 "$ref": "#/components/schemas/AdyenConnectorMetadata"
-              }
-            ],
-            "nullable": true
-          },
-          "santander": {
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/SantanderData"
               }
             ],
             "nullable": true
@@ -15474,16 +15467,6 @@
         ],
         "discriminator": {
           "propertyName": "method_key"
-        }
-      },
-      "ImmediateBillingType": {
-        "type": "object",
-        "properties": {
-          "expirationTime": {
-            "type": "integer",
-            "format": "int32",
-            "nullable": true
-          }
         }
       },
       "IncrementalAuthorizationResponse": {
@@ -27981,6 +27964,7 @@
           "recurly",
           "redsys",
           "riskified",
+          "santander",
           "shift4",
           "signifyd",
           "square",
@@ -28448,45 +28432,6 @@
           }
         }
       },
-      "SantanderBillingType": {
-        "oneOf": [
-          {
-            "type": "object",
-            "required": [
-              "immediate"
-            ],
-            "properties": {
-              "immediate": {
-                "$ref": "#/components/schemas/ImmediateBillingType"
-              }
-            }
-          },
-          {
-            "type": "object",
-            "required": [
-              "scheduled"
-            ],
-            "properties": {
-              "scheduled": {
-                "$ref": "#/components/schemas/ScheduledBillingType"
-              }
-            }
-          }
-        ]
-      },
-      "SantanderData": {
-        "type": "object",
-        "properties": {
-          "billingType": {
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/SantanderBillingType"
-              }
-            ],
-            "nullable": true
-          }
-        }
-      },
       "ScaExemptionType": {
         "type": "string",
         "description": "SCA Exemptions types available for authentication",
@@ -28494,20 +28439,6 @@
           "low_value",
           "transaction_risk_analysis"
         ]
-      },
-      "ScheduledBillingType": {
-        "type": "object",
-        "properties": {
-          "dueDate": {
-            "type": "string",
-            "nullable": true
-          },
-          "validityAfterExpiration": {
-            "type": "integer",
-            "format": "int32",
-            "nullable": true
-          }
-        }
       },
       "SdkInformation": {
         "type": "object",
