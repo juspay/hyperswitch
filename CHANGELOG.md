@@ -4,6 +4,16 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2025.07.01.0
+
+### Features
+
+- **core:** Allow setting up status across payments, refunds and payouts for triggering webhooks in core resource flows ([#8433](https://github.com/juspay/hyperswitch/pull/8433)) ([`d305fad`](https://github.com/juspay/hyperswitch/commit/d305fad2e6c403fde11b9eea785fddefbf3477df))
+
+**Full Changelog:** [`2025.06.30.0...2025.07.01.0`](https://github.com/juspay/hyperswitch/compare/2025.06.30.0...2025.07.01.0)
+
+- - -
+
 ## 2025.06.30.0
 
 ### Features
