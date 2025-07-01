@@ -8,3 +8,6 @@ videos/
 
 creds.json
 run_all.sh
+
+# Cypress Dashboard build
+**/dist
