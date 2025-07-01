@@ -1224,7 +1224,9 @@ fn get_avs_response_description(code: &str) -> Option<&'static str> {
     match code {
         "A" => Some("The street address matched, but the postal code did not."),
         "B" => Some("No address information was provided."),
-        "E" => Some("AVS data provided is invalid or AVS is not allowed for the card type that was used."),
+        "E" => Some(
+            "AVS data provided is invalid or AVS is not allowed for the card type that was used.",
+        ),
         "G" => Some("The card was issued by a bank outside the U.S. and does not support AVS."),
         "N" => Some("Neither the street address nor postal code matched."),
         "P" => Some("AVS is not applicable for this transaction."),
