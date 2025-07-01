@@ -1,5 +1,7 @@
 pub mod transformers;
 
+use std::sync::LazyLock;
+
 use base64::Engine;
 use common_utils::{
     crypto::{self, GenerateDigest, SignMessage},
@@ -23,7 +25,10 @@ use hyperswitch_domain_models::{
         PaymentsCancelData, PaymentsCaptureData, PaymentsSessionData, PaymentsSyncData,
         RefundsData, SetupMandateRequestData,
     },
-    router_response_types::{PaymentsResponseData, RefundsResponseData},
+    router_response_types::{
+        ConnectorInfo, PaymentMethodDetails, PaymentsResponseData, RefundsResponseData,
+        SupportedPaymentMethods, SupportedPaymentMethodsExt,
+    },
     types::{PaymentsAuthorizeRouterData, PaymentsSyncRouterData},
 };
 use hyperswitch_interfaces::{
@@ -503,4 +508,49 @@ impl webhooks::IncomingWebhook for Cryptopay {
     }
 }
 
-impl ConnectorSpecifications for Cryptopay {}
+static CRYPTOPAY_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMethods> =
+    LazyLock::new(|| {
+        let supported_capture_methods = vec![
+            common_enums::enums::CaptureMethod::Automatic,
+            common_enums::enums::CaptureMethod::Manual,
+        ];
+
+        let mut cryptopay_supported_payment_methods = SupportedPaymentMethods::new();
+
+        cryptopay_supported_payment_methods.add(
+            common_enums::enums::PaymentMethod::Crypto,
+            common_enums::enums::PaymentMethodType::CryptoCurrency,
+            PaymentMethodDetails {
+                mandates: common_enums::enums::FeatureStatus::NotSupported,
+                refunds: common_enums::enums::FeatureStatus::NotSupported,
+                supported_capture_methods: supported_capture_methods.clone(),
+                specific_features: None,
+            },
+        );
+
+        cryptopay_supported_payment_methods
+    });
+
+static CRYPTOPAY_CONNECTOR_INFO: ConnectorInfo = ConnectorInfo {
+        display_name: "Cryptopay",
+        description:
+            "Simple and secure solution to buy and manage crypto. Make quick international transfers, spend your BTC, ETH and other crypto assets.",
+        connector_type: common_enums::enums::PaymentConnectorCategory::PaymentGateway,
+    };
+
+static CRYPTOPAY_SUPPORTED_WEBHOOK_FLOWS: [common_enums::enums::EventClass; 1] =
+    [common_enums::enums::EventClass::Payments];
+
+impl ConnectorSpecifications for Cryptopay {
+    fn get_connector_about(&self) -> Option<&'static ConnectorInfo> {
+        Some(&CRYPTOPAY_CONNECTOR_INFO)
+    }
+
+    fn get_supported_payment_methods(&self) -> Option<&'static SupportedPaymentMethods> {
+        Some(&*CRYPTOPAY_SUPPORTED_PAYMENT_METHODS)
+    }
+
+    fn get_supported_webhook_flows(&self) -> Option<&'static [common_enums::enums::EventClass]> {
+        Some(&CRYPTOPAY_SUPPORTED_WEBHOOK_FLOWS)
+    }
+}
