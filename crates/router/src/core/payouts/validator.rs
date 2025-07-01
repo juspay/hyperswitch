@@ -118,8 +118,7 @@ pub async fn validate_create_request(
     .await
     .attach_printable_lazy(|| {
         format!(
-            "Unique violation while checking payout_id: {:?} against merchant_id: {:?}",
-            payout_id, merchant_id
+            "Unique violation while checking payout_id: {payout_id:?} against merchant_id: {merchant_id:?}"
         )
     })? {
         Some(_) => Err(report!(errors::ApiErrorResponse::DuplicatePayout {

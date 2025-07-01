@@ -967,8 +967,7 @@ impl TryFrom<(payment_methods::PaymentMethodRecord, id_type::MerchantId)>
                                         .map_err(|_| {
                                             error_stack::report!(ValidationError::InvalidValue {
                                                 message: format!(
-                                                    "Invalid merchant_connector_account_id: {}",
-                                                    merchant_connector_id
+                                                    "Invalid merchant_connector_account_id: {merchant_connector_id}"
                                                 ),
                                             })
                                         })
