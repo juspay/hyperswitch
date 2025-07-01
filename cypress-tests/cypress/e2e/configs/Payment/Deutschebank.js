@@ -216,6 +216,9 @@ export const connectorDetails = {
       },
     },
     ZeroAuthMandate: {
+      Configs: {
+        TRIGGER_SKIP: true,
+      },
       Response: {
         status: 200,
         body: {
@@ -225,7 +228,7 @@ export const connectorDetails = {
       },
     },
     PaymentMethodIdMandate3DSAutoCapture: {
-      configs: {
+      Configs: {
         TRIGGER_SKIP: true,
       },
       Request: {
@@ -247,7 +250,7 @@ export const connectorDetails = {
       },
     },
     PaymentMethodIdMandate3DSManualCapture: {
-      configs: {
+      Configs: {
         TRIGGER_SKIP: true,
       },
       Request: {
