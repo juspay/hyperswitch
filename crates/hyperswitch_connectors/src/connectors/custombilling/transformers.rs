@@ -1,7 +1,17 @@
+#[cfg(all(feature = "revenue_recovery", feature = "v2"))]
+use crate::utils::ForeignTryFrom;
+#[cfg(all(feature = "revenue_recovery", feature = "v2"))]
+use crate::{
+    types::{RefundsResponseRouterData, ResponseRouterData},
+    utils::PaymentsAuthorizeRequestData,
+};
+
+
+#[cfg(all(feature = "v2", feature = "revenue_recovery"))]
+const CUSTOM_BILLING_MCA_IDENTIFIER_FOR_MCA_FEATURE_METADATA: &str = "custombilling";
+
 use common_enums::enums;
-use serde::{Deserialize, Serialize};
-use masking::Secret;
-use common_utils::types::{StringMinorUnit};
+use common_utils::types::StringMinorUnit;
 use hyperswitch_domain_models::{
     payment_method_data::PaymentMethodData,
     router_data::{ConnectorAuthType, RouterData},
@@ -9,12 +19,11 @@ use hyperswitch_domain_models::{
     router_request_types::ResponseId,
     router_response_types::{PaymentsResponseData, RefundsResponseData},
     types::{PaymentsAuthorizeRouterData, RefundsRouterData},
+    revenue_recovery,
 };
 use hyperswitch_interfaces::errors;
-use crate::{
-    types::{RefundsResponseRouterData, ResponseRouterData},
-    utils::PaymentsAuthorizeRequestData,
-};
+use masking::Secret;
+use serde::{Deserialize, Serialize};
 
 //TODO: Fill the struct with respective fields
 pub struct CustombillingRouterData<T> {
@@ -22,19 +31,9 @@ pub struct CustombillingRouterData<T> {
     pub router_data: T,
 }
 
-impl<T>
-    From<(
-        StringMinorUnit,
-        T,
-    )> for CustombillingRouterData<T>
-{
-    fn from(
-        (amount, item): (
-            StringMinorUnit,
-            T,
-        ),
-    ) -> Self {
-         //Todo :  use utils to convert the amount to the type of amount that a connector accepts
+impl<T> From<(StringMinorUnit, T)> for CustombillingRouterData<T> {
+    fn from((amount, item): (StringMinorUnit, T)) -> Self {
+        //Todo :  use utils to convert the amount to the type of amount that a connector accepts
         Self {
             amount,
             router_data: item,
@@ -46,7 +45,7 @@ impl<T>
 #[derive(Default, Debug, Serialize, PartialEq)]
 pub struct CustombillingPaymentsRequest {
     amount: StringMinorUnit,
-    card: CustombillingCard
+    card: CustombillingCard,
 }
 
 #[derive(Default, Debug, Serialize, Eq, PartialEq)]
@@ -58,9 +57,13 @@ pub struct CustombillingCard {
     complete: bool,
 }
 
-impl TryFrom<&CustombillingRouterData<&PaymentsAuthorizeRouterData>> for CustombillingPaymentsRequest  {
+impl TryFrom<&CustombillingRouterData<&PaymentsAuthorizeRouterData>>
+    for CustombillingPaymentsRequest
+{
     type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(item: &CustombillingRouterData<&PaymentsAuthorizeRouterData>) -> Result<Self,Self::Error> {
+    fn try_from(
+        item: &CustombillingRouterData<&PaymentsAuthorizeRouterData>,
+    ) -> Result<Self, Self::Error> {
         match item.router_data.request.payment_method_data.clone() {
             PaymentMethodData::Card(req_card) => {
                 let card = CustombillingCard {
@@ -83,10 +86,10 @@ impl TryFrom<&CustombillingRouterData<&PaymentsAuthorizeRouterData>> for Customb
 //TODO: Fill the struct with respective fields
 // Auth Struct
 pub struct CustombillingAuthType {
-    pub(super) api_key: Secret<String>
+    pub(super) api_key: Secret<String>,
 }
 
-impl TryFrom<&ConnectorAuthType> for CustombillingAuthType  {
+impl TryFrom<&ConnectorAuthType> for CustombillingAuthType {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(auth_type: &ConnectorAuthType) -> Result<Self, Self::Error> {
         match auth_type {
@@ -125,9 +128,13 @@ pub struct CustombillingPaymentsResponse {
     id: String,
 }
 
-impl<F,T> TryFrom<ResponseRouterData<F, CustombillingPaymentsResponse, T, PaymentsResponseData>> for RouterData<F, T, PaymentsResponseData> {
+impl<F, T> TryFrom<ResponseRouterData<F, CustombillingPaymentsResponse, T, PaymentsResponseData>>
+    for RouterData<F, T, PaymentsResponseData>
+{
     type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(item: ResponseRouterData<F, CustombillingPaymentsResponse, T, PaymentsResponseData>) -> Result<Self,Self::Error> {
+    fn try_from(
+        item: ResponseRouterData<F, CustombillingPaymentsResponse, T, PaymentsResponseData>,
+    ) -> Result<Self, Self::Error> {
         Ok(Self {
             status: common_enums::AttemptStatus::from(item.response.status),
             response: Ok(PaymentsResponseData::TransactionResponse {
@@ -150,12 +157,14 @@ impl<F,T> TryFrom<ResponseRouterData<F, CustombillingPaymentsResponse, T, Paymen
 // Type definition for RefundRequest
 #[derive(Default, Debug, Serialize)]
 pub struct CustombillingRefundRequest {
-    pub amount: StringMinorUnit
+    pub amount: StringMinorUnit,
 }
 
 impl<F> TryFrom<&CustombillingRouterData<&RefundsRouterData<F>>> for CustombillingRefundRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(item: &CustombillingRouterData<&RefundsRouterData<F>>) -> Result<Self,Self::Error> {
+    fn try_from(
+        item: &CustombillingRouterData<&RefundsRouterData<F>>,
+    ) -> Result<Self, Self::Error> {
         Ok(Self {
             amount: item.amount.to_owned(),
         })
@@ -188,12 +197,10 @@ impl From<RefundStatus> for enums::RefundStatus {
 #[derive(Default, Debug, Clone, Serialize, Deserialize)]
 pub struct RefundResponse {
     id: String,
-    status: RefundStatus
+    status: RefundStatus,
 }
 
-impl TryFrom<RefundsResponseRouterData<Execute, RefundResponse>>
-    for RefundsRouterData<Execute>
-{
+impl TryFrom<RefundsResponseRouterData<Execute, RefundResponse>> for RefundsRouterData<Execute> {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
         item: RefundsResponseRouterData<Execute, RefundResponse>,
@@ -208,10 +215,11 @@ impl TryFrom<RefundsResponseRouterData<Execute, RefundResponse>>
     }
 }
 
-impl TryFrom<RefundsResponseRouterData<RSync, RefundResponse>> for RefundsRouterData<RSync>
-{
-     type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(item: RefundsResponseRouterData<RSync, RefundResponse>) -> Result<Self,Self::Error> {
+impl TryFrom<RefundsResponseRouterData<RSync, RefundResponse>> for RefundsRouterData<RSync> {
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(
+        item: RefundsResponseRouterData<RSync, RefundResponse>,
+    ) -> Result<Self, Self::Error> {
         Ok(Self {
             response: Ok(RefundsResponseData {
                 connector_refund_id: item.response.id.to_string(),
@@ -219,8 +227,8 @@ impl TryFrom<RefundsResponseRouterData<RSync, RefundResponse>> for RefundsRouter
             }),
             ..item.data
         })
-     }
- }
+    }
+}
 
 //TODO: Fill the struct with respective fields
 #[derive(Default, Debug, Serialize, Deserialize, PartialEq)]
@@ -229,4 +237,96 @@ pub struct CustombillingErrorResponse {
     pub code: String,
     pub message: String,
     pub reason: Option<String>,
+}
+
+#[cfg(all(feature = "revenue_recovery", feature = "v2"))]
+impl ForeignTryFrom<api_models::payments::RecoveryPaymentsCreate>
+    for revenue_recovery::RevenueRecoveryAttemptData
+{
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn foreign_try_from(item: api_models::payments::RecoveryPaymentsCreate) -> Result<Self, Self::Error> {
+        let amount = item.amount_details.order_amount().into();
+        let currency = item.amount_details.currency();
+        let merchant_reference_id = item.merchant_reference_id.clone();
+        let connector_transaction_id = item.connector_transaction_id.clone()
+                .map(common_utils::types::ConnectorTransactionId::TxnId);
+        let error_code = item
+            .error
+            .as_ref()
+            .map(|error_details| error_details.code.clone());
+        let error_message = item
+            .error
+            .as_ref()
+            .map(|error_details| error_details.message.clone());
+        let processor_payment_method_token = item.processor_payment_method_token.clone();
+        let connector_customer_id = item.connector_customer_id.clone();
+        let connector_account_reference_id = CUSTOM_BILLING_MCA_IDENTIFIER_FOR_MCA_FEATURE_METADATA.to_string();
+        let transaction_created_at = item.transaction_created_at.clone();
+        let status = item.status.clone();
+        let payment_method_type = item.payment_method_type.clone();
+        let payment_method_sub_type = item.payment_method_subtype.clone();
+        let network_advice_code = item
+            .error
+            .as_ref()
+            .and_then(|error| (error.network_advice_code.clone()));
+        let network_decline_code = item
+            .error
+            .as_ref()
+            .and_then(|error| (error.network_decline_code.clone()));
+        let network_error_message = item
+            .error
+            .as_ref()
+            .and_then(|error| (error.network_error_message.clone()));
+
+        let retry_count = item.retry_count.clone();
+
+        let invoice_next_billing_time = item.next_billing_date.clone();
+
+        Ok(Self {
+            amount,
+            currency,
+            merchant_reference_id,
+            connector_transaction_id,
+            error_code,
+            error_message,
+            processor_payment_method_token,
+            connector_customer_id,
+            connector_account_reference_id,
+            transaction_created_at,
+            status,
+            payment_method_type,
+            payment_method_sub_type,
+            network_advice_code,
+            network_decline_code,
+            network_error_message,
+            retry_count,
+            invoice_next_billing_time,
+            card_network: None,
+            card_isin: None,
+            // This field is none because it is specific to stripebilling.
+            charge_id: None,
+        })
+    }
+}
+
+
+#[cfg(all(feature = "revenue_recovery", feature = "v2"))]
+impl ForeignTryFrom<api_models::payments::RecoveryPaymentsCreate> for revenue_recovery::RevenueRecoveryInvoiceData {
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn foreign_try_from(item: api_models::payments::RecoveryPaymentsCreate) -> Result<Self, Self::Error> {
+        let amount = item.amount_details.order_amount().into();
+        let currency = item.amount_details.currency();
+        let merchant_reference_id = item.merchant_reference_id.clone();
+        let retry_count = item.retry_count.clone();
+        let invoice_next_billing_time = item.next_billing_date.clone();
+        let billing_address = item.billing.clone();
+        Ok(Self {
+            amount,
+            currency,
+            merchant_reference_id,
+            billing_address,
+            retry_count,
+            next_billing_at: invoice_next_billing_time,
+        })
+    }
 }

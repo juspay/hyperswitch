@@ -115,6 +115,67 @@ pub async fn payments_create(
     .await
 }
 
+use crate::core::webhooks::types::OutgoingWebhookType;
+#[cfg(feature = "v2")]
+pub async fn recovery_payments_create<W: OutgoingWebhookType>(
+    state: web::Data<app::AppState>,
+    req: actix_web::HttpRequest,
+    body: web::Bytes,
+) -> impl Responder {
+    use crate::core::webhooks::incoming_webhooks_wrapper;
+    let flow = Flow::RecoveryPaymentsCreate;
+    let payload: payment_types::RecoveryPaymentsCreate = match serde_json::from_slice(&body) {
+        Ok(data) => data,
+        Err(e) => {
+            logger::error!(
+                message = "Failed to parse RecoveryaymentsCreate",
+                ?e,
+                raw_body = ?body
+            );
+
+            let error_response = serde_json::json!({
+                "error": {
+                    "message": "Failed to parse request body",
+                    "details": e.to_string(),
+                    "code": "invalid_request"
+                }
+            });
+            return actix_web::HttpResponse::BadRequest()
+                .content_type("application/json")
+                .body(error_response.to_string());
+        }
+    };
+    let billing_merchant_connector_id = payload.merchant_connector_id.clone();
+    Box::pin(api::server_wrap(
+        flow.clone(),
+        state,
+        &req.clone(),
+        payload,
+        |state, auth: auth::AuthenticationData, _, req_state| {
+            let merchant_context = domain::MerchantContext::NormalMerchant(Box::new(
+                domain::Context(auth.merchant_account, auth.key_store),
+            ));
+            incoming_webhooks_wrapper::<W>(
+                &flow,
+                state.to_owned(),
+                req_state,
+                &req,
+                merchant_context,
+                auth.profile,
+                &billing_merchant_connector_id,
+                body.clone(),
+                false,
+            )
+        },
+        &auth::V2ApiKeyAuth {
+            is_connected_allowed: false,
+            is_platform_allowed: false,
+        },
+        api_locking::LockAction::NotApplicable,
+    ))
+    .await
+}
+
 #[cfg(feature = "v2")]
 #[instrument(skip_all, fields(flow = ?Flow::PaymentsCreateIntent, payment_id))]
 pub async fn payments_create_intent(

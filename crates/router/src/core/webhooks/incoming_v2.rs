@@ -399,11 +399,18 @@ async fn incoming_webhooks_core<W: types::OutgoingWebhookType>(
         WebhookResponseTracker::NoEffect
     };
 
-    let response = connector
-        .get_webhook_api_response(&request_details, None)
-        .switch()
-        .attach_printable("Could not get incoming webhook api response from connector")?;
+    // let response = connector
+    //     .get_webhook_api_response(&request_details, None)
+    //     .switch()
+    //     .attach_printable("Could not get incoming webhook api response from connector")?;
 
+    let serialized_webhook_effect = serde_json::to_value(&webhook_effect)
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Failed to serialize webhook effect")?;
+
+    let response = services::ApplicationResponse::Json(serialized_webhook_effect.clone());
+    
+    // hardcoding this to webhook response tracker.
     let serialized_request = event_object
         .masked_serialize()
         .change_context(errors::ApiErrorResponse::InternalServerError)

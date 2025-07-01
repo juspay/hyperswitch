@@ -167,6 +167,7 @@ pub async fn recovery_incoming_webhook_flow(
                         &state,
                         &business_profile,
                         merchant_context.get_merchant_key_store(),
+                        recovery_intent_from_payment_attempt.clone(),
                     )
                     .await
                 }
@@ -218,6 +219,7 @@ async fn handle_monitoring_threshold(
     state: &SessionState,
     business_profile: &domain::Profile,
     key_store: &domain::MerchantKeyStore,
+    recovery_intent_from_payment_attempt: revenue_recovery::RecoveryPaymentIntent,
 ) -> CustomResult<webhooks::WebhookResponseTracker, errors::RevenueRecoveryError> {
     let db = &*state.store;
     let key_manager_state = &(state).into();
@@ -243,7 +245,7 @@ async fn handle_monitoring_threshold(
             .await
             .change_context(errors::RevenueRecoveryError::RetryAlgorithmUpdationFailed)?;
     }
-    Ok(webhooks::WebhookResponseTracker::NoEffect)
+    Ok(webhooks::WebhookResponseTracker::Payment { payment_id: recovery_intent_from_payment_attempt.payment_id.clone(), status: recovery_intent_from_payment_attempt.status.clone() })
 }
 #[allow(clippy::too_many_arguments)]
 async fn handle_schedule_failed_payment(
@@ -268,7 +270,10 @@ async fn handle_schedule_failed_payment(
                 intent_retry_count,
                 mca_retry_threshold
             );
-            Ok(webhooks::WebhookResponseTracker::NoEffect)
+            Ok(webhooks::WebhookResponseTracker::Payment{
+                payment_id: recovery_intent_from_payment_attempt.payment_id.clone() ,
+                status: recovery_intent_from_payment_attempt.status.clone(),
+            })
         })
         .async_unwrap_or_else(|| async {
             RevenueRecoveryAttempt::insert_execute_pcr_task(
