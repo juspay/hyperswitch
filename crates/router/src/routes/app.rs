@@ -2677,8 +2677,16 @@ impl ProcessTracker {
         web::scope("/v2/process_tracker/revenue_recovery_workflow")
             .app_data(web::Data::new(state.clone()))
             .service(
-                web::resource("/{revenue_recovery_id}")
-                    .route(web::get().to(revenue_recovery::revenue_recovery_pt_retrieve_api)),
+                web::scope("/{revenue_recovery_id}")
+                    .service(
+                        web::resource("").route(
+                            web::get().to(revenue_recovery::revenue_recovery_pt_retrieve_api),
+                        ),
+                    )
+                    .service(
+                        web::resource("/stop")
+                            .route(web::post().to(revenue_recovery::revenue_recovery_pt_stop_api)),
+                    ),
             )
     }
 }
