@@ -10,8 +10,9 @@ use hyperswitch_domain_models::{
 use masking::PeekInterface;
 use router_env::{instrument, tracing};
 
+#[cfg(feature = "v1")]
+use crate::diesel_error_to_data_error;
 use crate::{
-    diesel_error_to_data_error,
     errors::StorageError,
     kv_router_store,
     redis::kv_store::{decide_storage_scheme, KvStorePartition, Op, PartitionKey},
@@ -21,6 +22,32 @@ use crate::{
 };
 
 impl KvStorePartition for customers::Customer {}
+
+#[cfg(feature = "v2")]
+mod label {
+    use common_utils::id_type;
+
+    pub(super) const MODEL_NAME: &str = "customer_v2";
+    pub(super) const CLUSTER_LABEL: &str = "cust";
+
+    pub(super) fn get_global_id_label(global_customer_id: &id_type::GlobalCustomerId) -> String {
+        format!(
+            "customer_global_id_{}",
+            global_customer_id.get_string_repr()
+        )
+    }
+
+    pub(super) fn get_merchant_scoped_id_label(
+        merchant_id: &id_type::MerchantId,
+        merchant_reference_id: &id_type::CustomerId,
+    ) -> String {
+        format!(
+            "customer_mid_{}_mrefid_{}",
+            merchant_id.get_string_repr(),
+            merchant_reference_id.get_string_repr()
+        )
+    }
+}
 
 #[async_trait::async_trait]
 impl<T: DatabaseStore> domain::CustomerInterface for kv_router_store::KVRouterStore<T> {
@@ -282,22 +309,32 @@ impl<T: DatabaseStore> domain::CustomerInterface for kv_router_store::KVRouterSt
             .construct_new()
             .await
             .change_context(StorageError::EncryptionError)?;
-        let storage_scheme = Box::pin(decide_storage_scheme::<_, customers::Customer>(
+
+        let decided_storage_scheme = Box::pin(decide_storage_scheme::<_, customers::Customer>(
             self,
             storage_scheme,
             Op::Insert,
         ))
         .await;
-        new_customer.update_storage_scheme(storage_scheme);
+        new_customer.update_storage_scheme(decided_storage_scheme);
+
+        let mut reverse_lookups = Vec::new();
+
+        if let Some(ref merchant_ref_id) = new_customer.merchant_reference_id {
+            let reverse_lookup_merchant_scoped_id =
+                label::get_merchant_scoped_id_label(&new_customer.merchant_id, merchant_ref_id);
+            reverse_lookups.push(reverse_lookup_merchant_scoped_id);
+        }
+
         self.insert_resource(
             state,
             key_store,
-            storage_scheme,
+            decided_storage_scheme,
             new_customer.clone().insert(&conn),
             new_customer.clone().into(),
             kv_router_store::InsertResourceParams {
                 insertable: kv::Insertable::Customer(new_customer.clone()),
-                reverse_lookups: vec![],
+                reverse_lookups,
                 identifier,
                 key,
                 resource_type: "customer",
@@ -368,7 +405,6 @@ impl<T: DatabaseStore> domain::CustomerInterface for kv_router_store::KVRouterSt
         &self,
         state: &KeyManagerState,
         id: &id_type::GlobalCustomerId,
-        _merchant_id: &id_type::MerchantId,
         key_store: &MerchantKeyStore,
         storage_scheme: MerchantStorageScheme,
     ) -> CustomResult<domain::Customer, StorageError> {
@@ -402,7 +438,6 @@ impl<T: DatabaseStore> domain::CustomerInterface for kv_router_store::KVRouterSt
         state: &KeyManagerState,
         id: &id_type::GlobalCustomerId,
         customer: domain::Customer,
-        _merchant_id: &id_type::MerchantId,
         customer_update: domain::CustomerUpdate,
         key_store: &MerchantKeyStore,
         storage_scheme: MerchantStorageScheme,
@@ -670,11 +705,10 @@ impl<T: DatabaseStore> domain::CustomerInterface for RouterStore<T> {
         &self,
         state: &KeyManagerState,
         id: &id_type::GlobalCustomerId,
-        customer: domain::Customer,
-        merchant_id: &id_type::MerchantId,
+        _customer: domain::Customer,
         customer_update: domain::CustomerUpdate,
         key_store: &MerchantKeyStore,
-        storage_scheme: MerchantStorageScheme,
+        _storage_scheme: MerchantStorageScheme,
     ) -> CustomResult<domain::Customer, StorageError> {
         let conn = pg_connection_write(self).await?;
         self.call_database(
@@ -691,7 +725,6 @@ impl<T: DatabaseStore> domain::CustomerInterface for RouterStore<T> {
         &self,
         state: &KeyManagerState,
         id: &id_type::GlobalCustomerId,
-        merchant_id: &id_type::MerchantId,
         key_store: &MerchantKeyStore,
         _storage_scheme: MerchantStorageScheme,
     ) -> CustomResult<domain::Customer, StorageError> {
@@ -748,10 +781,10 @@ impl domain::CustomerInterface for MockDb {
     #[cfg(feature = "v2")]
     async fn find_optional_by_merchant_id_merchant_reference_id(
         &self,
-        state: &KeyManagerState,
-        customer_id: &id_type::CustomerId,
-        merchant_id: &id_type::MerchantId,
-        key_store: &MerchantKeyStore,
+        _state: &KeyManagerState,
+        _customer_id: &id_type::CustomerId,
+        _merchant_id: &id_type::MerchantId,
+        _key_store: &MerchantKeyStore,
         _storage_scheme: MerchantStorageScheme,
     ) -> CustomResult<Option<domain::Customer>, StorageError> {
         todo!()
@@ -874,7 +907,6 @@ impl domain::CustomerInterface for MockDb {
         _state: &KeyManagerState,
         _id: &id_type::GlobalCustomerId,
         _customer: domain::Customer,
-        _merchant_id: &id_type::MerchantId,
         _customer_update: domain::CustomerUpdate,
         _key_store: &MerchantKeyStore,
         _storage_scheme: MerchantStorageScheme,
@@ -888,7 +920,6 @@ impl domain::CustomerInterface for MockDb {
         &self,
         _state: &KeyManagerState,
         _id: &id_type::GlobalCustomerId,
-        _merchant_id: &id_type::MerchantId,
         _key_store: &MerchantKeyStore,
         _storage_scheme: MerchantStorageScheme,
     ) -> CustomResult<domain::Customer, StorageError> {

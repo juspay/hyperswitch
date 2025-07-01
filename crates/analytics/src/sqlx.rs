@@ -13,7 +13,7 @@ use common_utils::{
 };
 use diesel_models::enums::{
     AttemptStatus, AuthenticationType, Currency, FraudCheckStatus, IntentStatus, PaymentMethod,
-    RefundStatus,
+    RefundStatus, RoutingApproach,
 };
 use error_stack::ResultExt;
 use sqlx::{
@@ -103,6 +103,7 @@ db_type!(AuthenticationStatus);
 db_type!(TransactionStatus);
 db_type!(AuthenticationConnectors);
 db_type!(DecoupledAuthenticationType);
+db_type!(RoutingApproach);
 
 impl<'q, Type> Encode<'q, Postgres> for DBEnumWrapper<Type>
 where
@@ -730,6 +731,11 @@ impl<'a> FromRow<'a, PgRow> for super::payments::metrics::PaymentMetricRow {
             ColumnNotFound(_) => Ok(Default::default()),
             e => Err(e),
         })?;
+        let routing_approach: Option<DBEnumWrapper<RoutingApproach>> =
+            row.try_get("routing_approach").or_else(|e| match e {
+                ColumnNotFound(_) => Ok(Default::default()),
+                e => Err(e),
+            })?;
         let total: Option<bigdecimal::BigDecimal> = row.try_get("total").or_else(|e| match e {
             ColumnNotFound(_) => Ok(Default::default()),
             e => Err(e),
@@ -761,6 +767,7 @@ impl<'a> FromRow<'a, PgRow> for super::payments::metrics::PaymentMetricRow {
             card_issuer,
             error_reason,
             first_attempt,
+            routing_approach,
             total,
             count,
             start_bucket,
@@ -833,6 +840,11 @@ impl<'a> FromRow<'a, PgRow> for super::payments::distribution::PaymentDistributi
             ColumnNotFound(_) => Ok(Default::default()),
             e => Err(e),
         })?;
+        let routing_approach: Option<DBEnumWrapper<RoutingApproach>> =
+            row.try_get("routing_approach").or_else(|e| match e {
+                ColumnNotFound(_) => Ok(Default::default()),
+                e => Err(e),
+            })?;
         let total: Option<bigdecimal::BigDecimal> = row.try_get("total").or_else(|e| match e {
             ColumnNotFound(_) => Ok(Default::default()),
             e => Err(e),
@@ -875,6 +887,7 @@ impl<'a> FromRow<'a, PgRow> for super::payments::distribution::PaymentDistributi
             total,
             count,
             error_message,
+            routing_approach,
             start_bucket,
             end_bucket,
         })
@@ -949,6 +962,11 @@ impl<'a> FromRow<'a, PgRow> for super::payments::filters::PaymentFilterRow {
             ColumnNotFound(_) => Ok(Default::default()),
             e => Err(e),
         })?;
+        let routing_approach: Option<DBEnumWrapper<RoutingApproach>> =
+            row.try_get("routing_approach").or_else(|e| match e {
+                ColumnNotFound(_) => Ok(Default::default()),
+                e => Err(e),
+            })?;
         Ok(Self {
             currency,
             status,
@@ -965,6 +983,7 @@ impl<'a> FromRow<'a, PgRow> for super::payments::filters::PaymentFilterRow {
             card_issuer,
             error_reason,
             first_attempt,
+            routing_approach,
         })
     }
 }
