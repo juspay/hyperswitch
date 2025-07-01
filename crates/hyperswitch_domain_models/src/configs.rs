@@ -97,6 +97,7 @@ pub struct Connectors {
     pub riskified: ConnectorParams,
     pub santander: ConnectorParams,
     pub shift4: ConnectorParams,
+    pub sift: ConnectorParams,
     pub signifyd: ConnectorParams,
     pub square: ConnectorParams,
     pub stax: ConnectorParams,
