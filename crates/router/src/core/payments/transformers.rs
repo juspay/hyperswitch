@@ -271,7 +271,7 @@ pub async fn construct_payment_router_data_for_authorize<'a>(
 
         let additional_card_info: Option<api_models::payments::AdditionalCardInfo> =
         if let Some(secret_value) = &payment_data.payment_attempt.payment_method_data {
-            secret_value.peek().get("card_info")
+            secret_value.peek().get("Card")
                 .cloned()
                 .and_then(|v| serde_json::from_value::<api_models::payments::AdditionalCardInfo>(v).ok())
         } else {
