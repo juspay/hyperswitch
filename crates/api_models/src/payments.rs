@@ -323,10 +323,6 @@ pub struct RecoveryPaymentsCreate {
     #[serde(default, with = "common_utils::custom_serde::iso8601::option")]
     pub transaction_created_at: Option<PrimitiveDateTime>,
 
-    /// payment method token at payment processor end.
-    #[schema(value_type = String, example = "1234567890")]
-    pub processor_payment_method_token: String,
-
      /// Payment method type for the payment attempt
     #[schema(value_type = Option<PaymentMethod>, example = "wallet")]
     pub payment_method_type: common_enums::PaymentMethod,
@@ -340,16 +336,11 @@ pub struct RecoveryPaymentsCreate {
     #[serde(default, with = "common_utils::custom_serde::iso8601::option")]
     pub next_billing_date: Option<PrimitiveDateTime>,
 
-     #[schema(value_type = CardNetwork, example = "Visa" )]
-    /// card_network
-    pub card_network: Option<common_enums::CardNetwork>,
-
-    #[schema(example = "Chase")]
-    /// Card Issuer
-    pub card_iisn: Option<String>,
-
     /// Transaction if reference at payment connector end.
     pub connector_transaction_id : Option<String>,
+
+    /// payment method token units at payment processor end.
+    pub payment_method_units: Vec<PaymentProcessorTokenUnit>,
 }
 
 #[cfg(feature = "v2")]

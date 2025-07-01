@@ -6,7 +6,6 @@ use crate::{
     utils::PaymentsAuthorizeRequestData,
 };
 
-
 #[cfg(all(feature = "v2", feature = "revenue_recovery"))]
 const CUSTOM_BILLING_MCA_IDENTIFIER_FOR_MCA_FEATURE_METADATA: &str = "custombilling";
 
@@ -14,12 +13,12 @@ use common_enums::enums;
 use common_utils::types::StringMinorUnit;
 use hyperswitch_domain_models::{
     payment_method_data::PaymentMethodData,
+    revenue_recovery,
     router_data::{ConnectorAuthType, RouterData},
     router_flow_types::refunds::{Execute, RSync},
     router_request_types::ResponseId,
     router_response_types::{PaymentsResponseData, RefundsResponseData},
     types::{PaymentsAuthorizeRouterData, RefundsRouterData},
-    revenue_recovery,
 };
 use hyperswitch_interfaces::errors;
 use masking::Secret;
@@ -244,12 +243,16 @@ impl ForeignTryFrom<api_models::payments::RecoveryPaymentsCreate>
     for revenue_recovery::RevenueRecoveryAttemptData
 {
     type Error = error_stack::Report<errors::ConnectorError>;
-    fn foreign_try_from(item: api_models::payments::RecoveryPaymentsCreate) -> Result<Self, Self::Error> {
+    fn foreign_try_from(
+        item: api_models::payments::RecoveryPaymentsCreate,
+    ) -> Result<Self, Self::Error> {
         let amount = item.amount_details.order_amount().into();
         let currency = item.amount_details.currency();
         let merchant_reference_id = item.merchant_reference_id.clone();
-        let connector_transaction_id = item.connector_transaction_id.clone()
-                .map(common_utils::types::ConnectorTransactionId::TxnId);
+        let connector_transaction_id = item
+            .connector_transaction_id
+            .clone()
+            .map(common_utils::types::ConnectorTransactionId::TxnId);
         let error_code = item
             .error
             .as_ref()
@@ -258,9 +261,16 @@ impl ForeignTryFrom<api_models::payments::RecoveryPaymentsCreate>
             .error
             .as_ref()
             .map(|error_details| error_details.message.clone());
-        let processor_payment_method_token = item.processor_payment_method_token.clone();
+        let payment_method_units = item.payment_method_units.clone();
+        let primary_payment_method = item.payment_method_units.first().ok_or(
+            errors::ConnectorError::MissingRequiredField {
+                field_name: "payment_method_units[0]",
+            },
+        )?;
+        let processor_payment_method_token = primary_payment_method.payment_processor_token.clone();
         let connector_customer_id = item.connector_customer_id.clone();
-        let connector_account_reference_id = CUSTOM_BILLING_MCA_IDENTIFIER_FOR_MCA_FEATURE_METADATA.to_string();
+        let connector_account_reference_id =
+            CUSTOM_BILLING_MCA_IDENTIFIER_FOR_MCA_FEATURE_METADATA.to_string();
         let transaction_created_at = item.transaction_created_at.clone();
         let status = item.status.clone();
         let payment_method_type = item.payment_method_type.clone();
@@ -305,15 +315,19 @@ impl ForeignTryFrom<api_models::payments::RecoveryPaymentsCreate>
             card_isin: None,
             // This field is none because it is specific to stripebilling.
             charge_id: None,
+            payment_method_units,
         })
     }
 }
 
-
 #[cfg(all(feature = "revenue_recovery", feature = "v2"))]
-impl ForeignTryFrom<api_models::payments::RecoveryPaymentsCreate> for revenue_recovery::RevenueRecoveryInvoiceData {
+impl ForeignTryFrom<api_models::payments::RecoveryPaymentsCreate>
+    for revenue_recovery::RevenueRecoveryInvoiceData
+{
     type Error = error_stack::Report<errors::ConnectorError>;
-    fn foreign_try_from(item: api_models::payments::RecoveryPaymentsCreate) -> Result<Self, Self::Error> {
+    fn foreign_try_from(
+        item: api_models::payments::RecoveryPaymentsCreate,
+    ) -> Result<Self, Self::Error> {
         let amount = item.amount_details.order_amount().into();
         let currency = item.amount_details.currency();
         let merchant_reference_id = item.merchant_reference_id.clone();

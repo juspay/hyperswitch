@@ -251,15 +251,10 @@ pub async fn record_internal_attempt_api(
             .payment_method_units
             .get(1)
             .map(|unit| unit.payment_processor_token.clone())
-            .unwrap_or_else(|| "FakePaymentMethodId".to_string())
+            .unwrap_or_else(|| revenue_recovery_attempt_data.0.processor_payment_method_token.clone())
     } else {
         // Otherwise, use the existing payment method token
-        revenue_recovery_metadata
-        .billing_connector_payment_details
-        .payment_method_units
-        .first()
-        .map(|unit| unit.payment_processor_token.clone())
-        .unwrap_or_else(|| "FakePaymentMethodId".to_string())
+       revenue_recovery_attempt_data.0.processor_payment_method_token.clone()
     };
 
     let new_revenue_recovery_payment_attempt_data = recovery_incoming::RevenueRecoveryAttempt(
