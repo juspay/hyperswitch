@@ -14,8 +14,8 @@ use hyperswitch_domain_models::{
         RefundsRouterData,
     },
 };
-use masking::PeekInterface;
 use hyperswitch_interfaces::{consts, errors};
+use masking::PeekInterface;
 use masking::{ExposeInterface, Secret};
 use serde::{Deserialize, Serialize};
 
@@ -297,44 +297,44 @@ impl TryFrom<&connector_utils::CardIssuer> for WorldpayvativCardType {
     }
 }
 
-    fn get_vantiv_card_data(payment_method_data: &PaymentMethodData) -> Result<Option<WorldpayvantivCardData>, error_stack::Report<errors::ConnectorError>> {
-        match payment_method_data {
-            PaymentMethodData::Card(card) => {
-                let card_type = match card.card_network.clone() {
-                    Some(card_type) => WorldpayvativCardType::try_from(card_type)?,
-                    None => WorldpayvativCardType::try_from(&card.get_card_issuer()?)?,
-                };
+fn get_vantiv_card_data(
+    payment_method_data: &PaymentMethodData,
+) -> Result<Option<WorldpayvantivCardData>, error_stack::Report<errors::ConnectorError>> {
+    match payment_method_data {
+        PaymentMethodData::Card(card) => {
+            let card_type = match card.card_network.clone() {
+                Some(card_type) => WorldpayvativCardType::try_from(card_type)?,
+                None => WorldpayvativCardType::try_from(&card.get_card_issuer()?)?,
+            };
 
-                let exp_date = card.get_expiry_date_as_mmyy()?;
+            let exp_date = card.get_expiry_date_as_mmyy()?;
 
-                Ok(Some(WorldpayvantivCardData {
-                    card_type,
-                    number: card.card_number.clone(),
-                    exp_date,
-                    card_validation_num: Some(card.card_cvc.clone()),
-                }))
-            }
-            PaymentMethodData::CardDetailsForNetworkTransactionId(card_data) => {
-                let card_type = match card_data.card_network.clone() {
-                    Some(card_type) => WorldpayvativCardType::try_from(card_type)?,
-                    None => WorldpayvativCardType::try_from(&card_data.get_card_issuer()?)?,
-                };
-
-                let exp_date = card_data.get_expiry_date_as_mmyy()?;
-
-                Ok(Some(WorldpayvantivCardData {
-                    card_type,
-                    number: card_data.card_number.clone(),
-                    exp_date,
-                    card_validation_num: None,
-                }))
-            },
-            PaymentMethodData::MandatePayment => {
-               Ok(None)
-            }
-            _ => Err(errors::ConnectorError::NotImplemented("Payment method".to_string()).into()),
+            Ok(Some(WorldpayvantivCardData {
+                card_type,
+                number: card.card_number.clone(),
+                exp_date,
+                card_validation_num: Some(card.card_cvc.clone()),
+            }))
         }
+        PaymentMethodData::CardDetailsForNetworkTransactionId(card_data) => {
+            let card_type = match card_data.card_network.clone() {
+                Some(card_type) => WorldpayvativCardType::try_from(card_type)?,
+                None => WorldpayvativCardType::try_from(&card_data.get_card_issuer()?)?,
+            };
+
+            let exp_date = card_data.get_expiry_date_as_mmyy()?;
+
+            Ok(Some(WorldpayvantivCardData {
+                card_type,
+                number: card_data.card_number.clone(),
+                exp_date,
+                card_validation_num: None,
+            }))
+        }
+        PaymentMethodData::MandatePayment => Ok(None),
+        _ => Err(errors::ConnectorError::NotImplemented("Payment method".to_string()).into()),
     }
+}
 
 impl<F> TryFrom<ResponseRouterData<F, VantivSyncResponse, PaymentsSyncData, PaymentsResponseData>>
     for RouterData<F, PaymentsSyncData, PaymentsResponseData>
@@ -435,9 +435,7 @@ impl TryFrom<&WorldpayvantivRouterData<&PaymentsAuthorizeRouterData>> for CnpOnl
             })?
         };
 
-        let card = get_vantiv_card_data(
-            &item.router_data.request.payment_method_data.clone(),
-        )?;
+        let card = get_vantiv_card_data(&item.router_data.request.payment_method_data.clone())?;
         let report_group = item
             .router_data
             .request
@@ -473,8 +471,7 @@ impl TryFrom<&WorldpayvantivRouterData<&PaymentsAuthorizeRouterData>> for CnpOnl
             .map(|customer_id| customer_id.get_string_repr().to_string());
         let bill_to_address = get_bill_to_address(item.router_data);
 
-        let processing_info =
-            get_processing_info(&item.router_data.request)?;
+        let processing_info = get_processing_info(&item.router_data.request)?;
 
         let (authorization, sale) = if item.router_data.request.is_auto_capture()? {
             (
@@ -546,7 +543,6 @@ pub struct CardMandateInfo {
     pub card_exp_year: Secret<String>,
 }
 
-
 fn extract_card_mandate_info(
     additional_payment_method_data: Option<api_models::payments::AdditionalPaymentData>,
 ) -> Result<CardMandateInfo, error_stack::Report<errors::ConnectorError>> {
@@ -592,19 +588,23 @@ fn get_processing_info(
                 network_transaction_id: Some(network_transaction_id.into()),
                 token: None,
             }),
-            Some(api_models::payments::MandateReferenceId::ConnectorMandateId(
-                mandate_data,
-            )) => {
-                let token = extract_card_mandate_info(
-                        request
-                        .additional_payment_method_data
-                        .clone())?;
+            Some(api_models::payments::MandateReferenceId::ConnectorMandateId(mandate_data)) => {
+                let token =
+                    extract_card_mandate_info(request.additional_payment_method_data.clone())?;
                 Ok(VantivMandateDetail {
                     processing_type: Some(VantivProcessingType::MerchantInitiatedCOF),
                     network_transaction_id: None,
-                    token : Some(TokenizationData {
-                        cnp_token: mandate_data.get_connector_mandate_id().ok_or(errors::ConnectorError::MissingConnectorMandateID)?.into(),
-                        exp_date: format!("{}{}",token.card_exp_month.peek(), token.card_exp_year.peek()).into(),
+                    token: Some(TokenizationData {
+                        cnp_token: mandate_data
+                            .get_connector_mandate_id()
+                            .ok_or(errors::ConnectorError::MissingConnectorMandateID)?
+                            .into(),
+                        exp_date: format!(
+                            "{}{}",
+                            token.card_exp_month.peek(),
+                            token.card_exp_year.peek()
+                        )
+                        .into(),
                     }),
                 })
             }
@@ -1041,6 +1041,24 @@ impl<F>
 
                 let network_txn_id = sale_response.network_transaction_id.map(|network_transaction_id| network_transaction_id.expose());
 
+                if sale_response.response_code == "110".to_string() && sale_response.message=="Insufficient Funds".to_string() {
+                    Ok(Self {
+                        status: common_enums::AttemptStatus::Failure,
+                        response: Err(ErrorResponse {
+                    code: sale_response.response_code.clone(),
+                    message: sale_response.message.clone(),
+                    reason: Some(sale_response.message.clone()),
+                    status_code: item.http_code,
+                    attempt_status: None,
+                    connector_transaction_id: None,
+                    network_advice_code: None,
+                    network_decline_code: None,
+                    network_error_message: None,
+                }),
+                ..item.data
+                    })
+                }else {
+
                     Ok(Self {
                         status: common_enums::AttemptStatus::Pending,
                         response: Ok(PaymentsResponseData::TransactionResponse {
@@ -1055,6 +1073,7 @@ impl<F>
                         }),
                         ..item.data
                     })
+                }
             },
             (None, Some(auth_response)) => {
                     let report_group = WorldpayvantivPaymentMetadata {
