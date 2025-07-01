@@ -14,7 +14,7 @@ use hyperswitch_domain_models::{
 use masking::{ExposeInterface, PeekInterface};
 use unified_connector_service_client::payments::{
     self as payments_grpc, payment_method::PaymentMethod, CardDetails, CardPaymentMethodType,
-    PaymentServiceAuthorizeResponse,
+    PaymentServiceAuthorizeResponse, UpiPaymentMethodType
 };
 
 use crate::{
@@ -105,6 +105,43 @@ pub fn build_unified_connector_service_payment_method(
             Ok(payments_grpc::PaymentMethod {
                 payment_method: Some(PaymentMethod::Card(CardPaymentMethodType {
                     card_type: Some(grpc_card_type),
+                })),
+            })
+        }
+
+        hyperswitch_domain_models::payment_method_data::PaymentMethodData::Upi(upi_data) => {
+            let upi_details = match upi_data {
+                hyperswitch_domain_models::payment_method_data::UpiData::UpiCollect(
+                    upi_collect_data,
+                ) => {
+                    let vpa_id = upi_collect_data.vpa_id.map(|vpa| vpa.expose());
+                    payments_grpc::UpiCollect { vpa_id }
+                }
+                _ => {
+                    return Err(UnifiedConnectorServiceError::NotImplemented(format!(
+                        "Unimplemented card payment method type: {:?}",
+                        payment_method_type
+                    ))
+                    .into());
+                }
+            };
+
+            let upi_type = match payment_method_type {
+                PaymentMethodType::UpiCollect => {
+                    payments_grpc::upi_payment_method_type::UpiType::UpiCollect(upi_details)
+                }
+                _ => {
+                    return Err(UnifiedConnectorServiceError::NotImplemented(format!(
+                        "Unimplemented UPI payment method type: {:?}",
+                        payment_method_type
+                    ))
+                    .into());
+                }
+            };
+
+            Ok(payments_grpc::PaymentMethod {
+                payment_method: Some(PaymentMethod::Upi(UpiPaymentMethodType {
+                    upi_type: Some(upi_type),
                 })),
             })
         }
