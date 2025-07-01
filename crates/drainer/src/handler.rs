@@ -265,12 +265,14 @@ async fn drainer(
 
         match data.typed_sql.execute_query(&store, data.pushed_at).await {
             Ok(_) => {
+                store.delete_from_stream(stream_name, &entry_id).await?;
                 last_processed_id = entry_id;
             }
             Err(err) => match err.current_context() {
                 // In case of Uniqueviolation we can't really do anything to fix it so just clear
                 // it from the stream
                 diesel_models::errors::DatabaseError::UniqueViolation => {
+                    store.delete_from_stream(stream_name, &entry_id).await?;
                     last_processed_id = entry_id;
                 }
                 // break from the loop in case of an error in query
@@ -279,19 +281,18 @@ async fn drainer(
         }
     }
 
-    if !last_processed_id.is_empty() {
-        let entries_trimmed = store
-            .trim_from_stream(stream_name, &last_processed_id)
-            .await?;
-        if read_count != entries_trimmed {
-            logger::error!(
-                read_entries = %read_count,
-                trimmed_entries = %entries_trimmed,
-                ?entries,
-                "Assertion Failed no. of entries read from the stream doesn't match no. of entries trimmed"
-            );
-        }
-    } else {
+    if last_processed_id.is_empty(){
+        // let entries_trimmed = store
+        //     .trim_from_stream(stream_name, &last_processed_id)
+        //     .await?;
+        // if read_count != entries_trimmed {
+        //     logger::error!(
+        //         read_entries = %read_count,
+        //         trimmed_entries = %entries_trimmed,
+        //         ?entries,
+        //         "Assertion Failed no. of entries read from the stream doesn't match no. of entries trimmed"
+        //     );
+        // }
         logger::error!(read_entries = %read_count,?entries,"No streams were processed in this session");
     }
 
