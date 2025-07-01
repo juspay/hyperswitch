@@ -58,6 +58,15 @@ pub mod consts {
 
     /// Header value indicating that header-key-based authentication is used.
     pub const UCS_AUTH_HEADER_KEY: &str = "header-key";
+
+    /// Header value indicating that header-key-based authentication is used.
+    pub const UCS_AUTH_HEADER_MERCHANT_ID_KEY: &str = "x-merchant-id";
+
+    /// Header value indicating that header-key-based authentication is used.
+    pub const UCS_AUTH_HEADER_TENANT_ID_KEY: &str = "x-tenant-id";
+
+    /// Header value indicating that header-key-based authentication is used.
+    pub const DEFAULT_TENANT_ID: &str = "public";
 }
 
 /// Metrics for interactions with external systems.
