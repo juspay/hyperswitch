@@ -4,6 +4,16 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2025.06.18.0-hotfix2
+
+### Bug Fixes
+
+- **connector:** [TRUSTPAY] Consuming Amount in PSync Response ([#8508](https://github.com/juspay/hyperswitch/pull/8508)) ([`dfcba7a`](https://github.com/juspay/hyperswitch/commit/dfcba7abc31279dca23f6e4068ebabe8a9216fed))
+
+**Full Changelog:** [`2025.06.18.0-hotfix1...2025.06.18.0-hotfix2`](https://github.com/juspay/hyperswitch/compare/2025.06.18.0-hotfix1...2025.06.18.0-hotfix2)
+
+- - -
+
 ## 2025.06.18.0-hotfix1
 
 ### Features
