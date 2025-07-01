@@ -437,8 +437,6 @@ impl TryFrom<&WorldpayvantivRouterData<&PaymentsAuthorizeRouterData>> for CnpOnl
         let card = get_vantiv_card_data(
             &item.router_data.request.payment_method_data.clone(),
         )?;
-
-        let card = None;
         let report_group = item
             .router_data
             .request
