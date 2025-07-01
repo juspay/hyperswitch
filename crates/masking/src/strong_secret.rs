@@ -144,8 +144,7 @@ where
         ctx: prost::encoding::DecodeContext,
     ) -> Result<(), prost::DecodeError> {
         if tag == 1 {
-            self.peek_mut().merge_field(tag, wire_type, buf, ctx)?;
-            Ok(())
+            self.peek_mut().merge_field(tag, wire_type, buf, ctx)
         } else {
             prost::encoding::skip_field(wire_type, tag, buf, ctx)
         }
