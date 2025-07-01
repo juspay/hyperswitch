@@ -1039,7 +1039,6 @@ default_imp_for_incremental_authorization!(
     connectors::Payeezy,
     connectors::Payme,
     connectors::Payone,
-    connectors::Paypal,
     connectors::Paystack,
     connectors::Payu,
     connectors::Placetopay,
