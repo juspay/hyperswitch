@@ -23,7 +23,7 @@ payout_connector_list = "nomupay,stripe,wise"
 # base urls based on your need.
 # Note: These are not optional attributes. hyperswitch request can fail due to invalid/empty values.
 [connectors]
-aci.base_url = "https://eu-test.oppwa.com/"
+aci.base_url = "https://eu-prod.oppwa.com/"
 adyen.base_url = "https://{{merchant_endpoint_prefix}}-checkout-live.adyenpayments.com/checkout/"
 adyen.payout_base_url = "https://{{merchant_endpoint_prefix}}-pal-live.adyenpayments.com/"
 adyen.dispute_base_url = "https://{{merchant_endpoint_prefix}}-ca-live.adyen.com/"
