@@ -270,7 +270,7 @@ impl
                 .processor_payment_method_token
                 .clone(),
                 expiry_year: None,
-                exipry_month: None
+                expiry_month: None
 
             }],
             connector_customer_id: billing_connector_payment_details

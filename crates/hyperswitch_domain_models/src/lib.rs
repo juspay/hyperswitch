@@ -393,7 +393,7 @@ impl ApiModelToDieselModelConvertor<ApiPaymentProcessorTokenUnit>
     fn convert_from(from: ApiPaymentProcessorTokenUnit) -> Self {
         Self {
             payment_processor_token: from.payment_processor_token,
-            exipry_month: from.exipry_month,
+            expiry_month: from.expiry_month,
             expiry_year: from.expiry_year,
         }
     }
@@ -401,7 +401,7 @@ impl ApiModelToDieselModelConvertor<ApiPaymentProcessorTokenUnit>
     fn convert_back(self) -> ApiPaymentProcessorTokenUnit {
         ApiPaymentProcessorTokenUnit {
             payment_processor_token: self.payment_processor_token,
-            exipry_month: self.exipry_month,
+            expiry_month: self.expiry_month,
             expiry_year: self.expiry_year,
         }
     }

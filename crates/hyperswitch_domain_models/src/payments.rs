@@ -1035,7 +1035,7 @@ where
         let payment_processor_token_unit = diesel_models::types::PaymentProcessorTokenUnit {
             payment_processor_token: self.revenue_recovery_data.processor_payment_method_token.clone(),
             expiry_year: None,
-            exipry_month: None
+            expiry_month: None
         };
 
         let payment_revenue_recovery_metadata = match payment_attempt_connector {

@@ -499,7 +499,7 @@ impl TryFrom<ChargebeeWebhookBody> for revenue_recovery::RevenueRecoveryAttemptD
             payment_method_units: vec![api_models::payments::PaymentProcessorTokenUnit{
                 payment_processor_token: connector_mandate_details.mandate_id,
                 expiry_year: None,
-                exipry_month: None
+                expiry_month: None
             }],
             connector_customer_id: connector_mandate_details.customer_id,
             connector_account_reference_id,

@@ -8792,7 +8792,7 @@ impl PaymentRevenueRecoveryMetadata {
                 .payment_method_units.first()
                 .unwrap_or(&PaymentProcessorTokenUnit {
                     payment_processor_token: "FakePaymentProcessorToken".to_string(),
-                    exipry_month: None,
+                    expiry_month: None,
                     expiry_year: None,
                 })
                 .clone(),
@@ -8804,10 +8804,10 @@ impl PaymentRevenueRecoveryMetadata {
         mandates::ProcessorPaymentToken {
             processor_payment_token: self
                 .billing_connector_payment_details
-                .payment_method_unitsx.get(1)
+                .payment_method_units.get(1)
                 .unwrap_or(&PaymentProcessorTokenUnit {
                     payment_processor_token: "FakePaymentProcessorToken".to_string(),
-                    exipry_month: None,
+                    expiry_month: None,
                     expiry_year: None,
                 })
                 .clone(),

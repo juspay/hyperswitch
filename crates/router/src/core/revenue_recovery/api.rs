@@ -187,6 +187,7 @@ pub async fn record_internal_attempt_api(
     payment_intent: &payments_domain::PaymentIntent,
     revenue_recovery_payment_data: &storage::revenue_recovery::RevenueRecoveryPaymentData,
     revenue_recovery_metadata: &payments_api::PaymentRevenueRecoveryMetadata,
+    process: &storage::ProcessTracker,
 ) -> RouterResult<payments_api::PaymentAttemptRecordResponse> {
     let revenue_recovery_attempt_data =
         recovery_incoming::RevenueRecoveryAttempt::get_revenue_recovery_attempt(
@@ -205,32 +206,46 @@ pub async fn record_internal_attempt_api(
 
     let switch_payment_method_config = billing_mca.feature_metadata.and_then(|feature_metadata| {
         feature_metadata.revenue_recovery.as_ref().map(|metadata| {
-            metadata.switch_payment_method_config
+            metadata.switch_payment_method_config.clone()
         })
     }).flatten();
-
-    let retry_threshold : i32 = switch_payment_method_config
+    #[allow(clippy::as_conversions)]
+    let retry_threshold : i32 = switch_payment_method_config.clone()
         .map(|config| config.retry_threshold as i32)
-        .unwrap_or(-1)
-        .into();
-
-    let time_threshold : i64 = switch_payment_method_config
+        .unwrap_or(-1);
+    #[allow(clippy::as_conversions)]
+    let time_threshold : i64 = switch_payment_method_config.clone()
         .map(|config| config.time_threshold_after_creation as i64)
-        .unwrap_or(-1)
-        .into();
+        .unwrap_or(-1);
 
-    let should_payment_method_be_switched = if retry_threshold == -1 && time_threshold == -1 {
-        false   
-    } else if process.retry_count>= retry_threshold ||  payment_intent.created_at.assume_utc() + Duration::days(time_threshold) <= time::OffsetDateTime::now_utc() {
-        true
-    } else {
-        false
+    // Determine if the payment method should be switched based on retry and time thresholds
+    let should_switch_payment_method = {
+        // Helper closure to check if retry threshold is exceeded
+        let retry_exceeded = || {
+            retry_threshold != -1 && process.retry_count >= retry_threshold
+        };
+
+        // Helper closure to check if time threshold is exceeded
+        let time_exceeded = || {
+            time_threshold != -1 && {
+                let created_at = payment_intent.created_at.assume_utc();
+                let threshold_time = created_at + Duration::days(time_threshold);
+                threshold_time <= time::OffsetDateTime::now_utc()
+            }
+        };
+
+        // If both thresholds are -1, do not switch
+        if retry_threshold == -1 && time_threshold == -1 {
+            false
+        } else {
+            retry_exceeded() || time_exceeded()
+        }
     };
 
-    let payment_method_chosen = if should_payment_method_be_switched{
-        webhooks::recovery_incoming::PaymentMethod::Backup
+    let payment_method_chosen = if should_switch_payment_method {
+        common_enums::PaymentMethodChosen::Backup
     } else {
-        webhooks::recovery_incoming::PaymentMethod::Default
+        common_enums::PaymentMethodChosen::Default
     };
 
     
