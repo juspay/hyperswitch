@@ -5132,7 +5132,7 @@ macro_rules! default_imp_for_revenue_recovery {
     };
 }
 
-default_imp_for_revenue_recovery! {
+default_imp_for_revenue_recovery!(
     connectors::Vgs,
     connectors::Aci,
     connectors::Adyen,
@@ -5240,7 +5240,7 @@ default_imp_for_revenue_recovery! {
     connectors::Xendit,
     connectors::Zen,
     connectors::Zsl
-}
+);
 
 #[cfg(all(feature = "v2", feature = "revenue_recovery"))]
 macro_rules! default_imp_for_billing_connector_payment_sync {
