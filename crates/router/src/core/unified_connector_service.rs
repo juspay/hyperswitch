@@ -16,7 +16,7 @@ use hyperswitch_domain_models::{
 use masking::{ExposeInterface, PeekInterface};
 use unified_connector_service_client::payments::{
     self as payments_grpc, payment_method::PaymentMethod, CardDetails, CardPaymentMethodType,
-    PaymentServiceAuthorizeResponse, UpiPaymentMethodType,
+    PaymentServiceAuthorizeResponse,
 };
 
 use crate::{
@@ -107,12 +107,13 @@ pub fn build_unified_connector_service_payment_method(
             })
         }
         hyperswitch_domain_models::payment_method_data::PaymentMethodData::Upi(upi_data) => {
-            let upi_details = match upi_data {
+            let upi_type = match upi_data {
                 hyperswitch_domain_models::payment_method_data::UpiData::UpiCollect(
                     upi_collect_data,
                 ) => {
                     let vpa_id = upi_collect_data.vpa_id.map(|vpa| vpa.expose());
-                    payments_grpc::UpiCollect { vpa_id }
+                    let upi_details = payments_grpc::UpiCollect { vpa_id };
+                    PaymentMethod::UpiCollect(upi_details)
                 }
                 _ => {
                     return Err(UnifiedConnectorServiceError::NotImplemented(format!(
@@ -123,23 +124,8 @@ pub fn build_unified_connector_service_payment_method(
                 }
             };
 
-            let upi_type = match payment_method_type {
-                PaymentMethodType::UpiCollect => {
-                    payments_grpc::upi_payment_method_type::UpiType::UpiCollect(upi_details)
-                }
-                _ => {
-                    return Err(UnifiedConnectorServiceError::NotImplemented(format!(
-                        "Unimplemented UPI payment method type: {:?}",
-                        payment_method_type
-                    ))
-                    .into());
-                }
-            };
-
             Ok(payments_grpc::PaymentMethod {
-                payment_method: Some(PaymentMethod::Upi(UpiPaymentMethodType {
-                    upi_type: Some(upi_type),
-                })),
+                payment_method: Some(upi_type),
             })
         }
         _ => Err(UnifiedConnectorServiceError::NotImplemented(format!(
@@ -186,6 +172,12 @@ pub fn build_unified_connector_service_auth_metadata(
         }
     };
 
+    let merchant_id = merchant_connector_account
+        .get_inner_db_merchant_connector_account()
+        .map(|account| account.merchant_id.get_string_repr().to_string()).unwrap_or_default();
+
+    let tenant_id = consts::DEFAULT_TENANT_ID.to_string();
+
     match &auth_type {
         ConnectorAuthType::SignatureKey {
             api_key,
@@ -197,6 +189,8 @@ pub fn build_unified_connector_service_auth_metadata(
             api_key: Some(api_key.peek().to_string()),
             key1: Some(key1.peek().to_string()),
             api_secret: Some(api_secret.peek().to_string()),
+            tenant_id,
+            merchant_id,
         }),
         ConnectorAuthType::BodyKey { api_key, key1 } => Ok(ConnectorAuthMetadata {
             connector_name,
@@ -204,6 +198,8 @@ pub fn build_unified_connector_service_auth_metadata(
             api_key: Some(api_key.peek().to_string()),
             key1: Some(key1.peek().to_string()),
             api_secret: None,
+            tenant_id,
+            merchant_id,
         }),
         ConnectorAuthType::HeaderKey { api_key } => Ok(ConnectorAuthMetadata {
             connector_name,
@@ -211,6 +207,8 @@ pub fn build_unified_connector_service_auth_metadata(
             api_key: Some(api_key.peek().to_string()),
             key1: None,
             api_secret: None,
+            tenant_id,
+            merchant_id,
         }),
         _ => Err(UnifiedConnectorServiceError::FailedToObtainAuthType)
             .attach_printable("Unsupported ConnectorAuthType for header injection"),
@@ -262,6 +260,65 @@ pub fn handle_unified_connector_service_response_for_payment_authorize(
             incremental_authorization_allowed: response.incremental_authorization_allowed,
             charges: None,
         }),
+        _ => Err(ErrorResponse {
+            code: response.error_code().to_owned(),
+            message: response.error_message().to_owned(),
+            reason: Some(response.error_message().to_owned()),
+            status_code: 500,
+            attempt_status: Some(status),
+            connector_transaction_id: connector_response_reference_id,
+            network_decline_code: None,
+            network_advice_code: None,
+            network_error_message: None,
+        })
+    };
+
+    Ok((status, router_data_response))
+}
+
+pub fn handle_unified_connector_service_response_for_payment_get(
+    response: payments_grpc::PaymentServiceGetResponse,
+) -> CustomResult<
+    (AttemptStatus, Result<PaymentsResponseData, ErrorResponse>),
+    UnifiedConnectorServiceError,
+> {
+    let status = AttemptStatus::foreign_try_from(response.status())?;
+
+    let connector_response_reference_id =
+        response.response_ref_id.as_ref().and_then(|identifier| {
+            identifier
+                .id_type
+                .clone()
+                .and_then(|id_type| match id_type {
+                    payments_grpc::identifier::IdType::Id(id) => Some(id),
+                    payments_grpc::identifier::IdType::EncodedData(encoded_data) => {
+                        Some(encoded_data)
+                    }
+                    payments_grpc::identifier::IdType::NoResponseIdMarker(_) => None,
+                })
+        });
+
+    let router_data_response = match status {
+        AttemptStatus::Charged |
+        AttemptStatus::Authorized |
+        AttemptStatus::AuthenticationPending |
+        AttemptStatus::DeviceDataCollectionPending => Ok(
+            PaymentsResponseData::TransactionResponse {
+                resource_id: match connector_response_reference_id.as_ref() {
+                Some(connector_response_reference_id) => hyperswitch_domain_models::router_request_types::ResponseId::ConnectorTransactionId(connector_response_reference_id.clone()),
+                None => hyperswitch_domain_models::router_request_types::ResponseId::NoResponseId,
+            },
+                redirection_data: Box::new(
+                    None
+                ),
+                mandate_reference: Box::new(None),
+                connector_metadata: None,
+                network_txn_id: response.network_txn_id.clone(),
+                connector_response_reference_id,
+                incremental_authorization_allowed: None,
+                charges: None,
+            }
+        ),
         _ => Err(ErrorResponse {
             code: response.error_code().to_owned(),
             message: response.error_message().to_owned(),

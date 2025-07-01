@@ -7,8 +7,8 @@ use error_stack::ResultExt;
 use external_services::grpc_client::unified_connector_service::UnifiedConnectorServiceError;
 use hyperswitch_domain_models::{
     router_data::RouterData,
-    router_flow_types::payments::Authorize,
-    router_request_types::{AuthenticationData, PaymentsAuthorizeData},
+    router_flow_types::payments::{Authorize, PSync},
+    router_request_types::{AuthenticationData, PaymentsAuthorizeData, PaymentsSyncData},
     router_response_types::{PaymentsResponseData, RedirectForm},
 };
 use masking::{ExposeInterface, PeekInterface};
@@ -18,6 +18,37 @@ use crate::{
     core::unified_connector_service::build_unified_connector_service_payment_method,
     types::transformers::ForeignTryFrom,
 };
+impl ForeignTryFrom<&RouterData<PSync, PaymentsSyncData, PaymentsResponseData>>
+    for payments_grpc::PaymentServiceGetRequest
+{
+    type Error = error_stack::Report<UnifiedConnectorServiceError>;
+
+    fn foreign_try_from(
+        router_data: &RouterData<PSync, PaymentsSyncData, PaymentsResponseData>,
+    ) -> Result<Self, Self::Error> {
+        let connector_transaction_id = router_data
+            .request
+            .connector_transaction_id
+            .get_connector_transaction_id()
+            .map(|id| Identifier {
+                id_type: Some(payments_grpc::identifier::IdType::Id(id)),
+            })
+            .ok();
+
+        let connector_ref_id = router_data
+            .request
+            .connector_reference_id
+            .clone()
+            .map(|id| Identifier {
+                id_type: Some(payments_grpc::identifier::IdType::Id(id)),
+            });
+
+        Ok(Self {
+            transaction_id: connector_transaction_id,
+            request_ref_id: connector_ref_id,
+        })
+    }
+}
 
 impl ForeignTryFrom<&RouterData<Authorize, PaymentsAuthorizeData, PaymentsResponseData>>
     for payments_grpc::PaymentServiceAuthorizeRequest
@@ -367,9 +398,12 @@ impl ForeignTryFrom<payments_grpc::RedirectForm> for RedirectForm {
             Some(payments_grpc::redirect_form::FormType::Html(html)) => Ok(Self::Html {
                 html_data: html.html_data,
             }),
-            Some(payments_grpc::redirect_form::FormType::Uri(uri)) => Err(UnifiedConnectorServiceError::NotImplemented(
-                "URI redirect form type is not implemented".to_string(),
-            ).into()),
+            Some(payments_grpc::redirect_form::FormType::Uri(_)) => {
+                Err(UnifiedConnectorServiceError::NotImplemented(
+                    "URI redirect form type is not implemented".to_string(),
+                )
+                .into())
+            }
             None => Err(
                 UnifiedConnectorServiceError::RequestEncodingFailedWithReason(
                     "Missing form type".to_string(),

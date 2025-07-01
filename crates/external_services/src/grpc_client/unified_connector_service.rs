@@ -107,6 +107,12 @@ pub struct ConnectorAuthMetadata {
 
     /// Optional API secret used for signature or secure authentication.
     pub api_secret: Option<String>,
+
+    /// Optional tenant ID for multi-tenant systems.
+    pub tenant_id: String,
+
+    /// Optional merchant ID for the request
+    pub merchant_id: String,
 }
 
 impl UnifiedConnectorServiceClient {
@@ -156,6 +162,28 @@ impl UnifiedConnectorServiceClient {
             ))
             .inspect_err(|error| logger::error!(?error))
     }
+
+    /// Performs Payment Sync/Get
+    pub async fn payment_get(
+        &self,
+        payment_get_request: payments_grpc::PaymentServiceGetRequest,
+        connector_auth_metadata: ConnectorAuthMetadata,
+    ) -> UnifiedConnectorServiceResult<tonic::Response<payments_grpc::PaymentServiceGetResponse>>
+    {
+        let mut request = tonic::Request::new(payment_get_request);
+
+        let metadata = MetadataMap::try_from(connector_auth_metadata)?;
+        *request.metadata_mut() = metadata;
+
+        self.client
+            .clone()
+            .get(request)
+            .await
+            .change_context(UnifiedConnectorServiceError::ConnectionError(
+                "Failed to get payment through Unified Connector Service".to_owned(),
+            ))
+            .inspect_err(|error| logger::error!(?error))
+    }
 }
 
 impl TryFrom<ConnectorAuthMetadata> for MetadataMap {
@@ -192,6 +220,10 @@ impl TryFrom<ConnectorAuthMetadata> for MetadataMap {
                 parse("api_secret", &api_secret)?,
             );
         }
+
+        metadata.append(consts::UCS_AUTH_HEADER_MERCHANT_ID_KEY, parse("merchant_id", &meta.merchant_id)?);
+
+        metadata.append(consts::UCS_AUTH_HEADER_TENANT_ID_KEY, parse("tenant_id", &meta.tenant_id)?);
 
         Ok(metadata)
     }

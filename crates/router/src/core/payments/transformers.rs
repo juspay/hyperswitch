@@ -626,6 +626,7 @@ pub async fn construct_router_data_for_psync<'a>(
         // TODO: Get the charges object from feature metadata
         split_payments: None,
         payment_experience: None,
+        connector_reference_id: attempt.connector_response_reference_id.clone(),
     };
 
     // TODO: evaluate the fields in router data, if they are required or not
@@ -3835,6 +3836,7 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsSyncData
             currency: payment_data.currency,
             split_payments: payment_data.payment_intent.split_payments,
             payment_experience: payment_data.payment_attempt.payment_experience,
+            connector_reference_id: None,
         })
     }
 }
