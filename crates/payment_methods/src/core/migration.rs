@@ -94,9 +94,7 @@ impl MerchantConnectorValidator {
                 let mca_id =
                     common_utils::id_type::MerchantConnectorAccountId::wrap(trimmed_id.to_string())
                         .map_err(|_| errors::ApiErrorResponse::InvalidRequestData {
-                            message: format!(
-                                "Invalid merchant_connector_account_id: {trimmed_id}"
-                            ),
+                            message: format!("Invalid merchant_connector_account_id: {trimmed_id}"),
                         })?;
                 result.push(mca_id);
             }
