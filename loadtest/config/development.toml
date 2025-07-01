@@ -473,9 +473,9 @@ boleto = { country = "BR", currency = "BRL" }
 trustly = { currency = "CZK,DKK,EUR,GBP,NOK,SEK" }
 ali_pay = { country = "CN", currency = "CNY" }
 we_chat_pay = { country = "CN", currency = "CNY" }
-klarna = { country = "AT", currency = "EUR" }
-blik = { country = "PL", currency = "EUR" }
-crypto_currency = { country = "US", currency = "EUR" }
+klarna = { currency = "EUR,GBP,CHF,SEK" }
+blik = { country = "PL", currency = "PLN" }
+crypto_currency = { currency = "USD,GBP,AED" }
 
 [pm_filters.getnet]
 credit = { country = "AR, BR, CL, MX, UY, ES, PT, DE, IT, FR, NL, BE, AT, PL, CH, GB, IE, LU, DK, SE, NO, FI, IN, AE", currency = "ARS, BRL, CLP, MXN, UYU, EUR, PLN, CHF, GBP, DKK, SEK, NOK, INR, AED" }
