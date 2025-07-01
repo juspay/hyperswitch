@@ -31,6 +31,7 @@
             openssl
             pkg-config
             postgresql # for libpq
+            protobuf
           ];
 
           # Minimal packages for running hyperswitch
