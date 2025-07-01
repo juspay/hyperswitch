@@ -345,6 +345,7 @@ export const CONNECTOR_LISTS = {
       "jpmorgan",
       "paypal",
       "bamboraapac",
+      "wellsfargo",
     ],
     // Add more exclusion lists
   },
