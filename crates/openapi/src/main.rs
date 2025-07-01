@@ -29,12 +29,32 @@ fn main() {
     #[allow(clippy::expect_used)]
     #[cfg(any(feature = "v1", feature = "v2"))]
     std::fs::write(
-        file_path,
+        &file_path,
         openapi
             .to_pretty_json()
             .expect("Failed to serialize OpenAPI specification as JSON"),
     )
     .expect("Failed to write OpenAPI specification to file");
+
+    #[allow(clippy::expect_used)]
+    #[cfg(feature = "v1")]
+    {
+        // TODO: Do this using utoipa::extensions after we have upgraded to 5.x
+        let file_content =
+            std::fs::read_to_string(&file_path).expect("Failed to read OpenAPI specification file");
+
+        let mut lines: Vec<&str> = file_content.lines().collect();
+
+        // Insert the new text at line 3 (index 2)
+        if lines.len() > 2 {
+            let new_line = "  \"x-mcp\": {\n    \"enabled\": true\n  },";
+            lines.insert(2, new_line);
+        }
+
+        let modified_content = lines.join("\n");
+        std::fs::write(&file_path, modified_content)
+            .expect("Failed to write modified OpenAPI specification to file");
+    }
 
     #[cfg(any(feature = "v1", feature = "v2"))]
     println!("Successfully saved OpenAPI specification file at '{relative_file_path}'");

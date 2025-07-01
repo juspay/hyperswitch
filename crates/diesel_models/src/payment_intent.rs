@@ -632,6 +632,122 @@ pub struct PaymentIntentUpdateInternal {
     pub is_iframe_redirection_enabled: Option<bool>,
 }
 
+#[cfg(feature = "v2")]
+impl PaymentIntentUpdateInternal {
+    pub fn apply_changeset(self, source: PaymentIntent) -> PaymentIntent {
+        let Self {
+            status,
+            prerouting_algorithm,
+            amount_captured,
+            modified_at: _, // This will be ignored from self
+            active_attempt_id,
+            amount,
+            currency,
+            shipping_cost,
+            tax_details,
+            skip_external_tax_calculation,
+            surcharge_applicable,
+            surcharge_amount,
+            tax_on_surcharge,
+            routing_algorithm_id,
+            capture_method,
+            authentication_type,
+            billing_address,
+            shipping_address,
+            customer_present,
+            description,
+            return_url,
+            setup_future_usage,
+            apply_mit_exemption,
+            statement_descriptor,
+            order_details,
+            allowed_payment_method_types,
+            metadata,
+            connector_metadata,
+            feature_metadata,
+            payment_link_config,
+            request_incremental_authorization,
+            session_expiry,
+            frm_metadata,
+            request_external_three_ds_authentication,
+            updated_by,
+            force_3ds_challenge,
+            is_iframe_redirection_enabled,
+        } = self;
+
+        PaymentIntent {
+            status: status.unwrap_or(source.status),
+            prerouting_algorithm: prerouting_algorithm.or(source.prerouting_algorithm),
+            amount_captured: amount_captured.or(source.amount_captured),
+            modified_at: common_utils::date_time::now(),
+            active_attempt_id: match active_attempt_id {
+                Some(v_option) => v_option,
+                None => source.active_attempt_id,
+            },
+            amount: amount.unwrap_or(source.amount),
+            currency: currency.unwrap_or(source.currency),
+            shipping_cost: shipping_cost.or(source.shipping_cost),
+            tax_details: tax_details.or(source.tax_details),
+            skip_external_tax_calculation: skip_external_tax_calculation
+                .or(source.skip_external_tax_calculation),
+            surcharge_applicable: surcharge_applicable.or(source.surcharge_applicable),
+            surcharge_amount: surcharge_amount.or(source.surcharge_amount),
+            tax_on_surcharge: tax_on_surcharge.or(source.tax_on_surcharge),
+            routing_algorithm_id: routing_algorithm_id.or(source.routing_algorithm_id),
+            capture_method: capture_method.or(source.capture_method),
+            authentication_type: authentication_type.or(source.authentication_type),
+            billing_address: billing_address.or(source.billing_address),
+            shipping_address: shipping_address.or(source.shipping_address),
+            customer_present: customer_present.or(source.customer_present),
+            description: description.or(source.description),
+            return_url: return_url.or(source.return_url),
+            setup_future_usage: setup_future_usage.or(source.setup_future_usage),
+            apply_mit_exemption: apply_mit_exemption.or(source.apply_mit_exemption),
+            statement_descriptor: statement_descriptor.or(source.statement_descriptor),
+            order_details: order_details.or(source.order_details),
+            allowed_payment_method_types: allowed_payment_method_types
+                .or(source.allowed_payment_method_types),
+            metadata: metadata.or(source.metadata),
+            connector_metadata: connector_metadata.or(source.connector_metadata),
+            feature_metadata: feature_metadata.or(source.feature_metadata),
+            payment_link_config: payment_link_config.or(source.payment_link_config),
+            request_incremental_authorization: request_incremental_authorization
+                .or(source.request_incremental_authorization),
+            session_expiry: session_expiry.unwrap_or(source.session_expiry),
+            frm_metadata: frm_metadata.or(source.frm_metadata),
+            request_external_three_ds_authentication: request_external_three_ds_authentication
+                .or(source.request_external_three_ds_authentication),
+            updated_by,
+            force_3ds_challenge: force_3ds_challenge.or(source.force_3ds_challenge),
+            is_iframe_redirection_enabled: is_iframe_redirection_enabled
+                .or(source.is_iframe_redirection_enabled),
+
+            // Fields from source
+            merchant_id: source.merchant_id,
+            customer_id: source.customer_id,
+            created_at: source.created_at,
+            last_synced: source.last_synced,
+            attempt_count: source.attempt_count,
+            profile_id: source.profile_id,
+            payment_link_id: source.payment_link_id,
+            authorization_count: source.authorization_count,
+            customer_details: source.customer_details,
+            organization_id: source.organization_id,
+            request_extended_authorization: source.request_extended_authorization,
+            psd2_sca_exemption_type: source.psd2_sca_exemption_type,
+            split_payments: source.split_payments,
+            platform_merchant_id: source.platform_merchant_id,
+            force_3ds_challenge_trigger: source.force_3ds_challenge_trigger,
+            processor_merchant_id: source.processor_merchant_id,
+            created_by: source.created_by,
+            merchant_reference_id: source.merchant_reference_id,
+            frm_merchant_decision: source.frm_merchant_decision,
+            enable_payment_link: source.enable_payment_link,
+            id: source.id,
+        }
+    }
+}
+
 #[cfg(feature = "v1")]
 #[derive(Clone, Debug, AsChangeset, router_derive::DebugAsDisplay)]
 #[diesel(table_name = payment_intent)]

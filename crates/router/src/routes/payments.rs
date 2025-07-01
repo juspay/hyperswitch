@@ -232,7 +232,7 @@ pub async fn payments_get_intent(
                 header_payload.clone(),
             )
         },
-        auth::api_or_client_auth(
+        auth::api_or_client_or_jwt_auth(
             &auth::V2ApiKeyAuth {
                 is_connected_allowed: false,
                 is_platform_allowed: false,
@@ -240,6 +240,9 @@ pub async fn payments_get_intent(
             &auth::V2ClientAuth(common_utils::types::authentication::ResourceId::Payment(
                 global_payment_id.clone(),
             )),
+            &auth::JWTAuth {
+                permission: Permission::ProfileRevenueRecoveryRead,
+            },
             req.headers(),
         ),
         api_locking::LockAction::NotApplicable,

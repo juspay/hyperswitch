@@ -192,7 +192,8 @@ impl From<Flow> for ApiIdentifier {
             | Flow::WebhookEventInitialDeliveryAttemptList
             | Flow::WebhookEventDeliveryAttemptList
             | Flow::WebhookEventDeliveryRetry
-            | Flow::RecoveryIncomingWebhookReceive => Self::Webhooks,
+            | Flow::RecoveryIncomingWebhookReceive
+            | Flow::IncomingNetworkTokenWebhookReceive => Self::Webhooks,
 
             Flow::ApiKeyCreate
             | Flow::ApiKeyRetrieve

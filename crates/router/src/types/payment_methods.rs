@@ -15,10 +15,11 @@ use hyperswitch_domain_models::payment_method_data::NetworkTokenDetails;
 use masking::Secret;
 use serde::{Deserialize, Serialize};
 
+use crate::types::api;
 #[cfg(feature = "v2")]
 use crate::{
     consts,
-    types::{api, domain, storage},
+    types::{domain, storage},
 };
 
 #[cfg(feature = "v2")]
@@ -356,4 +357,34 @@ pub struct CheckTokenStatusResponsePayload {
 #[derive(Debug, Deserialize)]
 pub struct CheckTokenStatusResponse {
     pub payload: CheckTokenStatusResponsePayload,
+}
+
+#[derive(Debug, Clone, Deserialize, Serialize)]
+pub struct NetworkTokenRequestorData {
+    pub card_reference: String,
+    pub customer_id: String,
+    pub expiry_year: Secret<String>,
+    pub expiry_month: Secret<String>,
+}
+
+impl NetworkTokenRequestorData {
+    pub fn is_update_required(
+        &self,
+        data_stored_in_vault: api::payment_methods::CardDetailFromLocker,
+    ) -> bool {
+        //if the expiry year and month in the vault are not the same as the ones in the requestor data,
+        //then we need to update the vault data with the updated expiry year and month.
+        !((data_stored_in_vault.expiry_year.unwrap_or_default() == self.expiry_year)
+            && (data_stored_in_vault.expiry_month.unwrap_or_default() == self.expiry_month))
+    }
+}
+
+#[derive(Debug, Clone, Deserialize, Serialize)]
+pub struct NetworkTokenMetaDataUpdateBody {
+    pub token: NetworkTokenRequestorData,
+}
+
+#[derive(Debug, Clone, Deserialize, Serialize)]
+pub struct PanMetadataUpdateBody {
+    pub card: NetworkTokenRequestorData,
 }

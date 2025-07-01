@@ -126,12 +126,7 @@ impl DBOperation {
                 )),
                 #[cfg(feature = "v2")]
                 Updateable::PaymentAttemptUpdate(a) => DBResult::PaymentAttempt(Box::new(
-                    a.orig
-                        .update_with_attempt_id(
-                            conn,
-                            PaymentAttemptUpdateInternal::from(a.update_data),
-                        )
-                        .await?,
+                    a.orig.update_with_attempt_id(conn, a.update_data).await?,
                 )),
                 #[cfg(feature = "v1")]
                 Updateable::RefundUpdate(a) => {
@@ -263,10 +258,18 @@ pub struct PaymentIntentUpdateMems {
     pub update_data: PaymentIntentUpdateInternal,
 }
 
+#[cfg(feature = "v1")]
 #[derive(Debug, Serialize, Deserialize)]
 pub struct PaymentAttemptUpdateMems {
     pub orig: PaymentAttempt,
     pub update_data: PaymentAttemptUpdate,
+}
+
+#[cfg(feature = "v2")]
+#[derive(Debug, Serialize, Deserialize)]
+pub struct PaymentAttemptUpdateMems {
+    pub orig: PaymentAttempt,
+    pub update_data: PaymentAttemptUpdateInternal,
 }
 
 #[derive(Debug, Serialize, Deserialize)]

@@ -98,6 +98,8 @@ pub async fn refund_create_core(
 
     tracing::Span::current().record("global_refund_id", global_refund_id.get_string_repr());
 
+    let merchant_connector_details = req.merchant_connector_details.clone();
+
     Box::pin(validate_and_create_refund(
         &state,
         &merchant_context,
@@ -106,6 +108,7 @@ pub async fn refund_create_core(
         amount,
         req,
         global_refund_id,
+        merchant_connector_details,
     ))
     .await
     .map(services::ApplicationResponse::Json)
@@ -152,6 +155,9 @@ pub async fn trigger_refund_to_gateway(
 
     refunds_validator::validate_for_valid_refunds(payment_attempt, connector.connector_name)?;
 
+    let merchant_connector_account =
+        domain::MerchantConnectorAccountTypeDetails::MerchantConnectorAccount(Box::new(mca));
+
     let mut router_data = core_utils::construct_refund_router_data(
         state,
         connector_enum,
@@ -159,7 +165,7 @@ pub async fn trigger_refund_to_gateway(
         payment_intent,
         payment_attempt,
         refund,
-        &mca,
+        &merchant_connector_account,
     )
     .await?;
 
@@ -168,6 +174,101 @@ pub async fn trigger_refund_to_gateway(
             .await?;
 
     logger::debug!(refund_router_data=?router_data);
+
+    access_token::update_router_data_with_access_token_result(
+        &add_access_token_result,
+        &mut router_data,
+        &payments::CallConnectorAction::Trigger,
+    );
+
+    let connector_response =
+        call_connector_service(state, &connector, add_access_token_result, router_data).await;
+
+    let refund_update = get_refund_update_object(
+        state,
+        &connector,
+        &storage_scheme,
+        merchant_context,
+        &connector_response,
+    )
+    .await;
+
+    let response = match refund_update {
+        Some(refund_update) => state
+            .store
+            .update_refund(
+                refund.to_owned(),
+                refund_update,
+                merchant_context.get_merchant_account().storage_scheme,
+            )
+            .await
+            .to_not_found_response(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable_lazy(|| {
+                format!(
+                    "Failed while updating refund: refund_id: {}",
+                    refund.id.get_string_repr()
+                )
+            })?,
+        None => refund.to_owned(),
+    };
+    // Implement outgoing webhooks here
+    connector_response.to_refund_failed_response()?;
+    Ok(response)
+}
+
+#[allow(clippy::too_many_arguments)]
+#[instrument(skip_all)]
+pub async fn internal_trigger_refund_to_gateway(
+    state: &SessionState,
+    refund: &diesel_refund::Refund,
+    merchant_context: &domain::MerchantContext,
+    payment_attempt: &storage::PaymentAttempt,
+    payment_intent: &storage::PaymentIntent,
+    merchant_connector_details: common_types::domain::MerchantConnectorAuthDetails,
+) -> errors::RouterResult<diesel_refund::Refund> {
+    let storage_scheme = merchant_context.get_merchant_account().storage_scheme;
+
+    let routed_through = payment_attempt
+        .connector
+        .clone()
+        .ok_or(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Failed to retrieve connector from payment attempt")?;
+
+    metrics::REFUND_COUNT.add(
+        1,
+        router_env::metric_attributes!(("connector", routed_through.clone())),
+    );
+
+    let connector_enum = merchant_connector_details.connector_name;
+
+    let connector: api::ConnectorData = api::ConnectorData::get_connector_by_name(
+        &state.conf.connectors,
+        &connector_enum.to_string(),
+        api::GetToken::Connector,
+        None,
+    )?;
+
+    refunds_validator::validate_for_valid_refunds(payment_attempt, connector.connector_name)?;
+
+    let merchant_connector_account =
+        domain::MerchantConnectorAccountTypeDetails::MerchantConnectorDetails(
+            merchant_connector_details,
+        );
+
+    let mut router_data = core_utils::construct_refund_router_data(
+        state,
+        connector_enum,
+        merchant_context,
+        payment_intent,
+        payment_attempt,
+        refund,
+        &merchant_connector_account,
+    )
+    .await?;
+
+    let add_access_token_result =
+        access_token::add_access_token(state, &connector, merchant_context, &router_data, None)
+            .await?;
 
     access_token::update_router_data_with_access_token_result(
         &add_access_token_result,
@@ -594,14 +695,34 @@ pub async fn refund_retrieve_core(
     };
 
     let response = if should_call_refund(&refund, request.force_sync.unwrap_or(false)) {
-        Box::pin(sync_refund_with_gateway(
-            &state,
-            &merchant_context,
-            &payment_attempt,
-            &payment_intent,
-            &refund,
-        ))
-        .await
+        if state.conf.merchant_id_auth.merchant_id_auth_enabled {
+            let merchant_connector_details = match request.merchant_connector_details {
+                Some(details) => details,
+                None => {
+                    return Err(report!(errors::ApiErrorResponse::MissingRequiredField {
+                        field_name: "merchant_connector_details"
+                    }));
+                }
+            };
+            Box::pin(internal_sync_refund_with_gateway(
+                &state,
+                &merchant_context,
+                &payment_attempt,
+                &payment_intent,
+                &refund,
+                merchant_connector_details,
+            ))
+            .await
+        } else {
+            Box::pin(sync_refund_with_gateway(
+                &state,
+                &merchant_context,
+                &payment_attempt,
+                &payment_intent,
+                &refund,
+            ))
+            .await
+        }
     } else {
         Ok(refund)
     }?;
@@ -660,6 +781,9 @@ pub async fn sync_refund_with_gateway(
 
     let connector_enum = mca.connector_name;
 
+    let merchant_connector_account =
+        domain::MerchantConnectorAccountTypeDetails::MerchantConnectorAccount(Box::new(mca));
+
     let mut router_data = core_utils::construct_refund_router_data::<api::RSync>(
         state,
         connector_enum,
@@ -667,7 +791,7 @@ pub async fn sync_refund_with_gateway(
         payment_intent,
         payment_attempt,
         refund,
-        &mca,
+        &merchant_connector_account,
     )
     .await?;
 
@@ -676,6 +800,81 @@ pub async fn sync_refund_with_gateway(
             .await?;
 
     logger::debug!(refund_retrieve_router_data=?router_data);
+
+    access_token::update_router_data_with_access_token_result(
+        &add_access_token_result,
+        &mut router_data,
+        &payments::CallConnectorAction::Trigger,
+    );
+
+    let connector_response =
+        call_connector_service(state, &connector, add_access_token_result, router_data)
+            .await
+            .to_refund_failed_response()?;
+
+    let connector_response = perform_integrity_check(connector_response);
+
+    let refund_update =
+        build_refund_update_for_rsync(&connector, merchant_context, connector_response);
+
+    let response = state
+        .store
+        .update_refund(
+            refund.to_owned(),
+            refund_update,
+            merchant_context.get_merchant_account().storage_scheme,
+        )
+        .await
+        .to_not_found_response(errors::ApiErrorResponse::RefundNotFound)
+        .attach_printable_lazy(|| {
+            format!(
+                "Unable to update refund with refund_id: {}",
+                refund.id.get_string_repr()
+            )
+        })?;
+
+    // Implement outgoing webhook here
+    Ok(response)
+}
+
+#[allow(clippy::too_many_arguments)]
+#[instrument(skip_all)]
+pub async fn internal_sync_refund_with_gateway(
+    state: &SessionState,
+    merchant_context: &domain::MerchantContext,
+    payment_attempt: &storage::PaymentAttempt,
+    payment_intent: &storage::PaymentIntent,
+    refund: &diesel_refund::Refund,
+    merchant_connector_details: common_types::domain::MerchantConnectorAuthDetails,
+) -> errors::RouterResult<diesel_refund::Refund> {
+    let connector_enum = merchant_connector_details.connector_name;
+
+    let connector: api::ConnectorData = api::ConnectorData::get_connector_by_name(
+        &state.conf.connectors,
+        &connector_enum.to_string(),
+        api::GetToken::Connector,
+        None,
+    )?;
+
+    let merchant_connector_account =
+        domain::MerchantConnectorAccountTypeDetails::MerchantConnectorDetails(
+            merchant_connector_details,
+        );
+
+    let mut router_data = core_utils::construct_refund_router_data::<api::RSync>(
+        state,
+        connector_enum,
+        merchant_context,
+        payment_intent,
+        payment_attempt,
+        refund,
+        &merchant_connector_account,
+    )
+    .await?;
+
+    let add_access_token_result =
+        access_token::add_access_token(state, &connector, merchant_context, &router_data, None)
+            .await?;
 
     access_token::update_router_data_with_access_token_result(
         &add_access_token_result,
@@ -834,6 +1033,7 @@ pub async fn validate_and_create_refund(
     refund_amount: common_utils_types::MinorUnit,
     req: refunds::RefundsCreateRequest,
     global_refund_id: id_type::GlobalRefundId,
+    merchant_connector_details: Option<common_types::domain::MerchantConnectorAuthDetails>,
 ) -> errors::RouterResult<refunds::RefundResponse> {
     let db = &*state.store;
 
@@ -956,6 +1156,7 @@ pub async fn validate_and_create_refund(
                 merchant_context,
                 payment_attempt,
                 payment_intent,
+                merchant_connector_details,
             ))
             .await?
         }
@@ -1002,12 +1203,6 @@ impl ForeignTryFrom<diesel_refund::Refund> for api::RefundResponse {
             .ok_or(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Profile id not found")?;
 
-        let merchant_connector_id = refund
-            .connector_id
-            .clone()
-            .ok_or(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable("Connector id not found")?;
-
         let connector_name = refund.connector;
         let connector = Connector::from_str(&connector_name)
             .change_context(errors::ConnectorError::InvalidConnectorName)
@@ -1030,7 +1225,7 @@ impl ForeignTryFrom<diesel_refund::Refund> for api::RefundResponse {
             created_at: refund.created_at,
             updated_at: refund.modified_at,
             connector,
-            merchant_connector_id,
+            merchant_connector_id: refund.connector_id,
             merchant_reference_id: Some(refund.merchant_reference_id),
             error_details: Some(RefundErrorDetails {
                 code: refund.refund_error_code.unwrap_or_default(),
@@ -1052,6 +1247,7 @@ pub async fn schedule_refund_execution(
     merchant_context: &domain::MerchantContext,
     payment_attempt: &storage::PaymentAttempt,
     payment_intent: &storage::PaymentIntent,
+    merchant_connector_details: Option<common_types::domain::MerchantConnectorAuthDetails>,
 ) -> errors::RouterResult<diesel_refund::Refund> {
     let db = &*state.store;
     let runner = storage::ProcessTrackerRunner::RefundWorkflowRouter;
@@ -1079,14 +1275,38 @@ pub async fn schedule_refund_execution(
                             Ok(refund)
                         }
                         api_models::refunds::RefundType::Instant => {
-                            let update_refund = Box::pin(trigger_refund_to_gateway(
-                                state,
-                                &refund,
-                                merchant_context,
-                                payment_attempt,
-                                payment_intent,
-                            ))
-                            .await;
+                            let update_refund =
+                                if state.conf.merchant_id_auth.merchant_id_auth_enabled {
+                                    let merchant_connector_details =
+                                        match merchant_connector_details {
+                                            Some(details) => details,
+                                            None => {
+                                                return Err(report!(
+                                            errors::ApiErrorResponse::MissingRequiredField {
+                                                field_name: "merchant_connector_details"
+                                            }
+                                        ));
+                                            }
+                                        };
+                                    Box::pin(internal_trigger_refund_to_gateway(
+                                        state,
+                                        &refund,
+                                        merchant_context,
+                                        payment_attempt,
+                                        payment_intent,
+                                        merchant_connector_details,
+                                    ))
+                                    .await
+                                } else {
+                                    Box::pin(trigger_refund_to_gateway(
+                                        state,
+                                        &refund,
+                                        merchant_context,
+                                        payment_attempt,
+                                        payment_intent,
+                                    ))
+                                    .await
+                                };
 
                             match update_refund {
                                 Ok(updated_refund_data) => {

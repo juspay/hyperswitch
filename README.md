@@ -31,7 +31,7 @@
   <a href="https://x.com/hyperswitchio">
     <img src="https://img.shields.io/badge/follow-%40hyperswitchio-white?logo=x&labelColor=grey"/>
   </a>
-  <a href="https://join.slack.com/t/hyperswitch-io/shared_invite/zt-2jqxmpsbm-WXUENx022HjNEy~Ark7Orw">
+  <a href="https://inviter.co/hyperswitch-slack">
     <img src="https://img.shields.io/badge/chat-on_slack-blue?logo=slack&labelColor=grey&color=%233f0e40"/>
   </a>
 </p>
@@ -196,7 +196,7 @@ We welcome contributors from around the world to help build Hyperswitch. Whether
 
 Please read our [contributing guidelines](https://github.com/juspay/hyperswitch/blob/main/docs/CONTRIBUTING.md) to get started.
 
-Join the conversation on [Slack](https://join.slack.com/t/hyperswitch-io/shared_invite/zt-2jqxmpsbm-WXUENx022HjNEy~Ark7Orw) or explore open issues on [GitHub](https://github.com/juspay/hyperswitch/issues).
+Join the conversation on [Slack](https://inviter.co/hyperswitch-slack) or explore open issues on [GitHub](https://github.com/juspay/hyperswitch/issues).
 
 <a href="#feature-requests">
   <h2 id="feature-requests">Feature requests & Bugs</h2>

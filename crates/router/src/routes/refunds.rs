@@ -103,6 +103,21 @@ pub async fn refunds_create(
             payload,
         };
 
+    let auth_type = if state.conf.merchant_id_auth.merchant_id_auth_enabled {
+        &auth::MerchantIdAuth
+    } else {
+        auth::auth_type(
+            &auth::V2ApiKeyAuth {
+                is_connected_allowed: false,
+                is_platform_allowed: false,
+            },
+            &auth::JWTAuth {
+                permission: Permission::ProfileRefundWrite,
+            },
+            req.headers(),
+        )
+    };
+
     Box::pin(api::server_wrap(
         flow,
         state,
@@ -119,16 +134,7 @@ pub async fn refunds_create(
                 global_refund_id.clone(),
             )
         },
-        auth::auth_type(
-            &auth::V2ApiKeyAuth {
-                is_connected_allowed: false,
-                is_platform_allowed: false,
-            },
-            &auth::JWTAuth {
-                permission: Permission::ProfileRefundWrite,
-            },
-            req.headers(),
-        ),
+        auth_type,
         api_locking::LockAction::NotApplicable,
     ))
     .await
@@ -201,6 +207,7 @@ pub async fn refunds_retrieve(
     let refund_request = refunds::RefundsRetrieveRequest {
         refund_id: path.into_inner(),
         force_sync: query_params.force_sync,
+        merchant_connector_details: None,
     };
     let flow = match query_params.force_sync {
         Some(true) => Flow::RefundsRetrieveForceSync,
@@ -235,6 +242,64 @@ pub async fn refunds_retrieve(
             },
             req.headers(),
         ),
+        api_locking::LockAction::NotApplicable,
+    ))
+    .await
+}
+
+#[cfg(feature = "v2")]
+#[instrument(skip_all, fields(flow))]
+pub async fn refunds_retrieve_with_gateway_creds(
+    state: web::Data<AppState>,
+    req: HttpRequest,
+    path: web::Path<common_utils::id_type::GlobalRefundId>,
+    payload: web::Json<api_models::refunds::RefundsRetrievePayload>,
+) -> HttpResponse {
+    let flow = match payload.force_sync {
+        Some(true) => Flow::RefundsRetrieveForceSync,
+        _ => Flow::RefundsRetrieve,
+    };
+
+    tracing::Span::current().record("flow", flow.to_string());
+
+    let refund_request = refunds::RefundsRetrieveRequest {
+        refund_id: path.into_inner(),
+        force_sync: payload.force_sync,
+        merchant_connector_details: payload.merchant_connector_details.clone(),
+    };
+
+    let auth_type = if state.conf.merchant_id_auth.merchant_id_auth_enabled {
+        &auth::MerchantIdAuth
+    } else {
+        auth::auth_type(
+            &auth::V2ApiKeyAuth {
+                is_connected_allowed: false,
+                is_platform_allowed: false,
+            },
+            &auth::JWTAuth {
+                permission: Permission::ProfileRefundRead,
+            },
+            req.headers(),
+        )
+    };
+
+    Box::pin(api::server_wrap(
+        flow,
+        state,
+        &req,
+        refund_request,
+        |state, auth: auth::AuthenticationData, refund_request, _| {
+            let merchant_context = domain::MerchantContext::NormalMerchant(Box::new(
+                domain::Context(auth.merchant_account, auth.key_store),
+            ));
+            refund_retrieve_core_with_refund_id(
+                state,
+                merchant_context,
+                auth.profile,
+                refund_request,
+            )
+        },
+        auth_type,
         api_locking::LockAction::NotApplicable,
     ))
     .await
