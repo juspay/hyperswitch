@@ -245,7 +245,7 @@ async fn handle_monitoring_threshold(
             .await
             .change_context(errors::RevenueRecoveryError::RetryAlgorithmUpdationFailed)?;
     }
-    Ok(webhooks::WebhookResponseTracker::Payment { payment_id: recovery_intent_from_payment_attempt.payment_id.clone(), status: recovery_intent_from_payment_attempt.status.clone() })
+    Ok(webhooks::WebhookResponseTracker::Recovery { payment_id: recovery_intent_from_payment_attempt.payment_id.clone(), status: recovery_intent_from_payment_attempt.status.clone(), retry_status: "monitering".to_string() })
 }
 #[allow(clippy::too_many_arguments)]
 async fn handle_schedule_failed_payment(
@@ -270,9 +270,10 @@ async fn handle_schedule_failed_payment(
                 intent_retry_count,
                 mca_retry_threshold
             );
-            Ok(webhooks::WebhookResponseTracker::Payment{
+            Ok(webhooks::WebhookResponseTracker::Recovery{
                 payment_id: recovery_intent_from_payment_attempt.payment_id.clone() ,
                 status: recovery_intent_from_payment_attempt.status.clone(),
+                retry_status: "monitering".to_string(),
             })
         })
         .async_unwrap_or_else(|| async {
@@ -845,9 +846,10 @@ impl RevenueRecoveryAttempt {
             .attach_printable("Failed to enter process_tracker_entry in DB")?;
         metrics::TASKS_ADDED_COUNT.add(1, router_env::metric_attributes!(("flow", "ExecutePCR")));
 
-        Ok(webhooks::WebhookResponseTracker::Payment {
+        Ok(webhooks::WebhookResponseTracker::Recovery {
             payment_id,
             status: payment_intent.status,
+            retry_status: "scheduled".to_string()
         })
     }
 }
