@@ -1,9 +1,12 @@
 use api_models::{payment_methods::PaymentMethodId, proxy as proxy_api_models};
-use common_utils::{ext_traits::{OptionExt, Encode}, id_type};
+use common_utils::{
+    ext_traits::{Encode, OptionExt},
+    id_type,
+};
 use error_stack::ResultExt;
 use hyperswitch_domain_models::payment_methods;
-use serde_json::Value;
 use masking::Mask;
+use serde_json::Value;
 use x509_parser::nom::{
     bytes::complete::{tag, take_while1},
     character::complete::{char, multispace0},
@@ -115,17 +118,13 @@ impl ProxyRequestWrapper {
                     entity_id: merchant_context.get_merchant_account().get_id().clone(),
                     vault_id: vault_id.clone(),
                 };
-            
+
                 let vault_data = vault::retrieve_value_from_vault(&state, vault_request)
                     .await
                     .change_context(errors::ApiErrorResponse::InternalServerError)
                     .attach_printable("Failed to retrieve vault data")?;
-            
-                Ok(vault_data
-                    .get("data")
-                    .cloned()
-                    .unwrap_or(Value::Null))
 
+                Ok(vault_data.get("data").cloned().unwrap_or(Value::Null))
             }
         }
     }
