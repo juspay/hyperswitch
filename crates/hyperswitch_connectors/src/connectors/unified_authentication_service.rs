@@ -27,8 +27,8 @@ use hyperswitch_domain_models::{
     },
     router_response_types::{PaymentsResponseData, RefundsResponseData},
     types::{
-        UasAuthenticationConfirmationRouterData, UasPostAuthenticationRouterData,
-        UasPreAuthenticationRouterData, UasAuthenticationRouterData
+        UasAuthenticationConfirmationRouterData, UasAuthenticationRouterData,
+        UasPostAuthenticationRouterData, UasPreAuthenticationRouterData,
     },
 };
 use hyperswitch_interfaces::{
@@ -442,17 +442,17 @@ impl
                 .ok_or(errors::ConnectorError::MissingRequiredField {
                     field_name: "amount",
                 })?,
-            transaction_details.currency.ok_or(
-                errors::ConnectorError::MissingRequiredField {
+            transaction_details
+                .currency
+                .ok_or(errors::ConnectorError::MissingRequiredField {
                     field_name: "currency",
-                },
-            )?,
+                })?,
         )?;
 
         let connector_router_data =
-        unified_authentication_service::UnifiedAuthenticationServiceRouterData::from((
-            amount, req,
-        ));
+            unified_authentication_service::UnifiedAuthenticationServiceRouterData::from((
+                amount, req,
+            ));
 
         let connector_req =
             unified_authentication_service::UnifiedAuthenticationServicePostAuthenticateRequest::try_from(
@@ -597,7 +597,6 @@ impl ConnectorIntegration<Authenticate, UasAuthenticationRequestData, UasAuthent
     ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
         self.build_error_response(res, event_builder)
     }
-
 }
 
 impl ConnectorIntegration<PSync, PaymentsSyncData, PaymentsResponseData>

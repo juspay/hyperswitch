@@ -10,7 +10,10 @@ use api_models::{
     },
     payments,
 };
-use common_utils::types::keymanager::ToEncryptable;
+use common_utils::{
+    ext_traits::{OptionExt, ValueExt},
+    types::keymanager::ToEncryptable,
+};
 use diesel_models::authentication::{Authentication, AuthenticationNew};
 use error_stack::ResultExt;
 use hyperswitch_domain_models::{
@@ -51,9 +54,6 @@ use crate::{
     routes::SessionState,
     types::{domain::types::AsyncLift, transformers::ForeignFrom},
 };
-
-use common_utils::ext_traits::OptionExt;
-use common_utils::ext_traits::ValueExt;
 
 #[cfg(feature = "v1")]
 #[async_trait::async_trait]
@@ -983,7 +983,8 @@ pub async fn authentication_eligibility_core(
     // Tokenise card data if authentication is successful
     if updated_authentication.error_code.is_none() && updated_authentication.error_message.is_none()
     {
-        let card = payment_method_data.get_card()
+        let card = payment_method_data
+            .get_card()
             .ok_or(ApiErrorResponse::InvalidDataValue {
                 field_name: "payment_method_data - expected Card variant",
             })?;
@@ -992,7 +993,9 @@ pub async fn authentication_eligibility_core(
             .get_value1(None)
             .change_context(ApiErrorResponse::InternalServerError)?;
 
-        let extra_card_data = card.get_value2(None).change_context(ApiErrorResponse::InternalServerError)?;
+        let extra_card_data = card
+            .get_value2(None)
+            .change_context(ApiErrorResponse::InternalServerError)?;
 
         create_tokenize(
             &state,
