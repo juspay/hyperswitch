@@ -25,8 +25,6 @@ use external_services::grpc_client::dynamic_routing::{
 use helpers::update_decision_engine_dynamic_routing_setup;
 use hyperswitch_domain_models::{mandates, payment_address};
 use payment_methods::helpers::StorageErrorExt;
-#[cfg(all(feature = "v1", feature = "dynamic_routing"))]
-use router_env::logger;
 use rustc_hash::FxHashSet;
 #[cfg(all(feature = "v1", feature = "dynamic_routing"))]
 use storage_impl::redis::cache;
@@ -167,7 +165,7 @@ pub async fn retrieve_merchant_routing_dictionary(
         routing_metadata,
     );
 
-    let result = routing_metadata
+    let mut result = routing_metadata
         .into_iter()
         .map(ForeignInto::foreign_into)
         .collect::<Vec<_>>();
@@ -175,7 +173,7 @@ pub async fn retrieve_merchant_routing_dictionary(
     if let Some(profile_ids) = profile_id_list {
         let mut de_result: Vec<routing_types::RoutingDictionaryRecord> = vec![];
         // DE_TODO: need to replace this with batch API call to reduce the number of network calls
-        for profile_id in profile_ids {
+        for profile_id in &profile_ids {
             let list_request = ListRountingAlgorithmsRequest {
                 created_by: profile_id.get_string_repr().to_string(),
             };
@@ -186,14 +184,79 @@ pub async fn retrieve_merchant_routing_dictionary(
                 })
                 .ok() // Avoid throwing error if Decision Engine is not available or other errors
                 .map(|mut de_routing| de_result.append(&mut de_routing));
+            // filter de_result based on transaction type
+            de_result.retain(|record| record.algorithm_for == Some(transaction_type));
+            // append dynamic routing algorithms to de_result
+            de_result.append(
+                &mut result
+                    .clone()
+                    .into_iter()
+                    .filter(|record: &routing_types::RoutingDictionaryRecord| {
+                        record.kind == routing_types::RoutingAlgorithmKind::Dynamic
+                    })
+                    .collect::<Vec<_>>(),
+            );
         }
-        compare_and_log_result(de_result, result.clone(), "list_routing".to_string());
+        compare_and_log_result(
+            de_result.clone(),
+            result.clone(),
+            "list_routing".to_string(),
+        );
+        result = build_list_routing_result(
+            &state,
+            merchant_context,
+            &result,
+            &de_result,
+            profile_ids.clone(),
+        )
+        .await?;
     }
 
     metrics::ROUTING_MERCHANT_DICTIONARY_RETRIEVE_SUCCESS_RESPONSE.add(1, &[]);
     Ok(service_api::ApplicationResponse::Json(
         routing_types::RoutingKind::RoutingAlgorithm(result),
     ))
+}
+
+async fn build_list_routing_result(
+    state: &SessionState,
+    merchant_context: domain::MerchantContext,
+    hs_results: &[routing_types::RoutingDictionaryRecord],
+    de_results: &[routing_types::RoutingDictionaryRecord],
+    profile_ids: Vec<common_utils::id_type::ProfileId>,
+) -> RouterResult<Vec<routing_types::RoutingDictionaryRecord>> {
+    let db = state.store.as_ref();
+    let key_manager_state = &state.into();
+    let mut list_result: Vec<routing_types::RoutingDictionaryRecord> = vec![];
+    for profile_id in profile_ids.iter() {
+        let by_profile =
+            |rec: &&routing_types::RoutingDictionaryRecord| &rec.profile_id == profile_id;
+        let de_result_for_profile = de_results.iter().filter(by_profile).cloned().collect();
+        let hs_result_for_profile = hs_results.iter().filter(by_profile).cloned().collect();
+        let business_profile = core_utils::validate_and_get_business_profile(
+            db,
+            key_manager_state,
+            merchant_context.get_merchant_key_store(),
+            Some(profile_id),
+            merchant_context.get_merchant_account().get_id(),
+        )
+        .await?
+        .get_required_value("Profile")
+        .change_context(errors::ApiErrorResponse::ProfileNotFound {
+            id: profile_id.get_string_repr().to_owned(),
+        })?;
+
+        list_result.append(
+            &mut select_routing_result(
+                state,
+                &business_profile,
+                hs_result_for_profile,
+                de_result_for_profile,
+            )
+            .await,
+        );
+    }
+    Ok(list_result)
 }
 
 #[cfg(feature = "v2")]
@@ -280,8 +343,6 @@ pub async fn create_routing_algorithm_under_profile(
 ) -> RouterResponse<routing_types::RoutingDictionaryRecord> {
     use api_models::routing::StaticRoutingAlgorithm as EuclidAlgorithm;
 
-    use crate::services::logger;
-
     metrics::ROUTING_CREATE_REQUEST_RECEIVED.add(1, &[]);
     let db = state.store.as_ref();
     let key_manager_state = &(&state).into();
@@ -344,61 +405,84 @@ pub async fn create_routing_algorithm_under_profile(
 
     let mut decision_engine_routing_id: Option<String> = None;
 
-    if let Some(EuclidAlgorithm::Advanced(program)) = request.algorithm.clone() {
-        match program.try_into() {
-            Ok(internal_program) => {
-                let routing_rule = RoutingRule {
-                    rule_id: None,
-                    name: name.clone(),
-                    description: Some(description.clone()),
-                    created_by: profile_id.get_string_repr().to_string(),
-                    algorithm: internal_program,
-                    metadata: Some(RoutingMetadata {
-                        kind: algorithm.get_kind().foreign_into(),
-                        algorithm_for: transaction_type.to_owned(),
-                    }),
-                };
+    if let Some(euclid_algorithm) = request.algorithm.clone() {
+        let maybe_static_algorithm: Option<StaticRoutingAlgorithm> = match euclid_algorithm {
+            EuclidAlgorithm::Advanced(program) => match program.try_into() {
+                Ok(internal_program) => Some(StaticRoutingAlgorithm::Advanced(internal_program)),
+                Err(e) => {
+                    router_env::logger::error!(decision_engine_error = ?e, "decision_engine_euclid");
+                    None
+                }
+            },
+            EuclidAlgorithm::Single(conn) => {
+                Some(StaticRoutingAlgorithm::Single(Box::new(conn.into())))
+            }
+            EuclidAlgorithm::Priority(connectors) => {
+                let converted: Vec<ConnectorInfo> =
+                    connectors.into_iter().map(Into::into).collect();
+                Some(StaticRoutingAlgorithm::Priority(converted))
+            }
+            EuclidAlgorithm::VolumeSplit(splits) => {
+                let converted: Vec<VolumeSplit<ConnectorInfo>> =
+                    splits.into_iter().map(Into::into).collect();
+                Some(StaticRoutingAlgorithm::VolumeSplit(converted))
+            }
+            EuclidAlgorithm::ThreeDsDecisionRule(_) => {
+                router_env::logger::error!(
+                    "decision_engine_euclid: ThreeDsDecisionRules are not yet implemented"
+                );
+                None
+            }
+        };
 
-                match create_de_euclid_routing_algo(&state, &routing_rule).await {
-                    Ok(id) => {
-                        decision_engine_routing_id = Some(id);
-                    }
-                    Err(e)
-                        if matches!(
-                            e.current_context(),
-                            errors::RoutingError::DecisionEngineValidationError(_)
-                        ) =>
+        if let Some(static_algorithm) = maybe_static_algorithm {
+            let routing_rule = RoutingRule {
+                rule_id: Some(algorithm_id.clone().get_string_repr().to_owned()),
+                name: name.clone(),
+                description: Some(description.clone()),
+                created_by: profile_id.get_string_repr().to_string(),
+                algorithm: static_algorithm,
+                algorithm_for: transaction_type.into(),
+                metadata: Some(RoutingMetadata {
+                    kind: algorithm.get_kind().foreign_into(),
+                }),
+            };
+
+            match create_de_euclid_routing_algo(&state, &routing_rule).await {
+                Ok(id) => {
+                    decision_engine_routing_id = Some(id);
+                }
+                Err(e)
+                    if matches!(
+                        e.current_context(),
+                        errors::RoutingError::DecisionEngineValidationError(_)
+                    ) =>
+                {
+                    if let errors::RoutingError::DecisionEngineValidationError(msg) =
+                        e.current_context()
                     {
-                        if let errors::RoutingError::DecisionEngineValidationError(msg) =
-                            e.current_context()
-                        {
-                            logger::error!(
-                                decision_engine_euclid_error = ?msg,
-                                decision_engine_euclid_request = ?routing_rule,
-                                "failed to create rule in decision_engine with validation error"
-                            );
-                        }
-                    }
-                    Err(e) => {
-                        logger::error!(
-                            decision_engine_euclid_error = ?e,
+                        router_env::logger::error!(
+                            decision_engine_euclid_error = ?msg,
                             decision_engine_euclid_request = ?routing_rule,
-                            "failed to create rule in decision_engine"
+                            "failed to create rule in decision_engine with validation error"
                         );
                     }
                 }
+                Err(e) => {
+                    router_env::logger::error!(
+                        decision_engine_euclid_error = ?e,
+                        decision_engine_euclid_request = ?routing_rule,
+                        "failed to create rule in decision_engine"
+                    );
+                }
             }
-            Err(e) => {
-                // errors are ignored as this is just for diff checking as of now (optional flow).
-                logger::error!(decision_engine_error=?e, "decision_engine_euclid");
-            }
-        };
+        }
     }
 
     if decision_engine_routing_id.is_some() {
-        logger::info!(routing_flow=?"create_euclid_routing_algorithm", is_equal=?"true", "decision_engine_euclid");
+        router_env::logger::info!(routing_flow=?"create_euclid_routing_algorithm", is_equal=?"true", "decision_engine_euclid");
     } else {
-        logger::info!(routing_flow=?"create_euclid_routing_algorithm", is_equal=?"false", "decision_engine_euclid");
+        router_env::logger::info!(routing_flow=?"create_euclid_routing_algorithm", is_equal=?"false", "decision_engine_euclid");
     }
 
     let timestamp = common_utils::date_time::now();
@@ -1276,7 +1360,23 @@ pub async fn retrieve_linked_routing_config(
                 )
                 .await
                 .to_not_found_response(errors::ApiErrorResponse::ResourceIdNotFound)?;
-            active_algorithms.push(record.foreign_into());
+            let hs_records: Vec<routing_types::RoutingDictionaryRecord> =
+                vec![record.foreign_into()];
+            let de_records = retrieve_decision_engine_active_rules(
+                &state,
+                &transaction_type,
+                profile_id.clone(),
+                hs_records.clone(),
+            )
+            .await;
+            compare_and_log_result(
+                de_records.clone(),
+                hs_records.clone(),
+                "list_active_routing".to_string(),
+            );
+            active_algorithms.append(
+                &mut select_routing_result(&state, &business_profile, hs_records, de_records).await,
+            );
         }
 
         // Handle dynamic routing algorithms
@@ -1319,7 +1419,9 @@ pub async fn retrieve_linked_routing_config(
                 )
                 .await
                 .to_not_found_response(errors::ApiErrorResponse::ResourceIdNotFound)?;
-            active_algorithms.push(record.foreign_into());
+            if record.algorithm_for == transaction_type {
+                active_algorithms.push(record.foreign_into());
+            }
         }
     }
 
@@ -1327,6 +1429,32 @@ pub async fn retrieve_linked_routing_config(
     Ok(service_api::ApplicationResponse::Json(
         routing_types::LinkedRoutingConfigRetrieveResponse::ProfileBased(active_algorithms),
     ))
+}
+
+pub async fn retrieve_decision_engine_active_rules(
+    state: &SessionState,
+    transaction_type: &enums::TransactionType,
+    profile_id: common_utils::id_type::ProfileId,
+    hs_records: Vec<routing_types::RoutingDictionaryRecord>,
+) -> Vec<routing_types::RoutingDictionaryRecord> {
+    let mut de_records =
+        list_de_euclid_active_routing_algorithm(state, profile_id.get_string_repr().to_owned())
+            .await
+            .map_err(|e| {
+                router_env::logger::error!(?e, "Failed to list DE Euclid active routing algorithm");
+            })
+            .ok() // Avoid throwing error if Decision Engine is not available or other errors thrown
+            .unwrap_or_default();
+    // Use Hs records to list the dynamic algorithms as DE is not supporting dynamic algorithms in HS standard
+    let mut dynamic_algos = hs_records
+        .into_iter()
+        .filter(|record| record.kind == routing_types::RoutingAlgorithmKind::Dynamic)
+        .collect::<Vec<_>>();
+    de_records.append(&mut dynamic_algos);
+    de_records
+        .into_iter()
+        .filter(|r| r.algorithm_for == Some(*transaction_type))
+        .collect::<Vec<_>>()
 }
 // List all the default fallback algorithms under all the profile under a merchant
 pub async fn retrieve_default_routing_config_for_profiles(
@@ -1707,7 +1835,7 @@ pub async fn success_based_routing_update_configs(
         cache_entries_to_redact,
     )
     .await
-    .map_err(|e| logger::error!("unable to publish into the redact channel for evicting the success based routing config cache {e:?}"));
+    .map_err(|e| router_env::logger::error!("unable to publish into the redact channel for evicting the success based routing config cache {e:?}"));
 
     let new_record = record.foreign_into();
 
@@ -1811,7 +1939,7 @@ pub async fn elimination_routing_update_configs(
         cache_entries_to_redact,
     )
     .await
-    .map_err(|e| logger::error!("unable to publish into the redact channel for evicting the elimination routing config cache {e:?}")).ok();
+    .map_err(|e| router_env::logger::error!("unable to publish into the redact channel for evicting the elimination routing config cache {e:?}")).ok();
 
     let new_record = record.foreign_into();
 
@@ -2148,7 +2276,7 @@ pub async fn contract_based_routing_update_configs(
         cache_entries_to_redact,
     )
     .await
-    .map_err(|e| logger::error!("unable to publish into the redact channel for evicting the contract based routing config cache {e:?}"));
+    .map_err(|e| router_env::logger::error!("unable to publish into the redact channel for evicting the contract based routing config cache {e:?}"));
 
     let new_record = record.foreign_into();
 
@@ -2324,15 +2452,13 @@ pub async fn migrate_rules_for_profile(
 ) -> RouterResult<routing_types::RuleMigrationResult> {
     use api_models::routing::StaticRoutingAlgorithm as EuclidAlgorithm;
 
-    use crate::services::logger;
-
     let profile_id = query_params.profile_id.clone();
     let db = state.store.as_ref();
     let key_manager_state = &(&state).into();
     let merchant_key_store = merchant_context.get_merchant_key_store();
     let merchant_id = merchant_context.get_merchant_account().get_id();
 
-    core_utils::validate_and_get_business_profile(
+    let business_profile = core_utils::validate_and_get_business_profile(
         db,
         key_manager_state,
         merchant_key_store,
@@ -2345,7 +2471,24 @@ pub async fn migrate_rules_for_profile(
         id: profile_id.get_string_repr().to_owned(),
     })?;
 
-    let routing_metadatas: Vec<diesel_models::routing_algorithm::RoutingProfileMetadata> = state
+    #[cfg(feature = "v1")]
+    let active_payment_routing_ids: Vec<Option<common_utils::id_type::RoutingId>> = vec![
+        business_profile
+            .get_payment_routing_algorithm()
+            .attach_printable("Failed to get payment routing algorithm")?
+            .unwrap_or_default()
+            .algorithm_id,
+        business_profile
+            .get_payout_routing_algorithm()
+            .attach_printable("Failed to get payout routing algorithm")?
+            .unwrap_or_default()
+            .algorithm_id,
+    ];
+
+    #[cfg(feature = "v2")]
+    let active_payment_routing_ids = [business_profile.routing_algorithm_id.clone()];
+
+    let routing_metadatas = state
         .store
         .list_routing_algorithm_metadata_by_profile_id(
             &profile_id,
@@ -2358,110 +2501,118 @@ pub async fn migrate_rules_for_profile(
     let mut response_list = Vec::new();
     let mut error_list = Vec::new();
 
-    for routing_metadata in routing_metadatas
-        .into_iter()
-        .filter(|algo| algo.metadata_is_advanced_rule_for_payments())
-    {
-        match db
-            .find_routing_algorithm_by_profile_id_algorithm_id(
-                &profile_id,
-                &routing_metadata.algorithm_id,
-            )
+    let mut push_error = |algorithm_id, msg: String| {
+        error_list.push(RuleMigrationError {
+            profile_id: profile_id.clone(),
+            algorithm_id,
+            error: msg,
+        });
+    };
+
+    for routing_metadata in routing_metadatas {
+        let algorithm_id = routing_metadata.algorithm_id.clone();
+        let algorithm = match db
+            .find_routing_algorithm_by_profile_id_algorithm_id(&profile_id, &algorithm_id)
             .await
         {
-            Ok(algorithm) => {
-                let parsed_result = algorithm
-                    .algorithm_data
-                    .parse_value::<EuclidAlgorithm>("EuclidAlgorithm");
+            Ok(algo) => algo,
+            Err(e) => {
+                router_env::logger::error!(?e, ?algorithm_id, "Failed to fetch routing algorithm");
+                push_error(algorithm_id, format!("Fetch error: {e:?}"));
+                continue;
+            }
+        };
 
-                match parsed_result {
-                    Ok(EuclidAlgorithm::Advanced(program)) => match program.try_into() {
-                        Ok(internal_program) => {
-                            let routing_rule = RoutingRule {
-                                rule_id: Some(
-                                    algorithm.algorithm_id.clone().get_string_repr().to_string(),
-                                ),
-                                name: algorithm.name.clone(),
-                                description: algorithm.description.clone(),
-                                created_by: profile_id.get_string_repr().to_string(),
-                                algorithm: StaticRoutingAlgorithm::Advanced(internal_program),
-                                metadata: None,
-                            };
+        let parsed_result = algorithm
+            .algorithm_data
+            .parse_value::<EuclidAlgorithm>("EuclidAlgorithm");
 
-                            let result = create_de_euclid_routing_algo(&state, &routing_rule).await;
-
-                            match result {
-                                Ok(decision_engine_routing_id) => {
-                                    let response = RuleMigrationResponse {
-                                        profile_id: profile_id.clone(),
-                                        euclid_algorithm_id: algorithm.algorithm_id.clone(),
-                                        decision_engine_algorithm_id: decision_engine_routing_id,
-                                    };
-                                    response_list.push(response);
-                                }
-                                Err(err) => {
-                                    logger::error!(
-                                        decision_engine_rule_migration_error = ?err,
-                                        algorithm_id = ?algorithm.algorithm_id,
-                                        "Failed to insert into decision engine"
-                                    );
-                                    error_list.push(RuleMigrationError {
-                                        profile_id: profile_id.clone(),
-                                        algorithm_id: algorithm.algorithm_id.clone(),
-                                        error: format!("Insertion error: {:?}", err),
-                                    });
-                                }
-                            }
-                        }
-                        Err(e) => {
-                            logger::error!(
-                                decision_engine_rule_migration_error = ?e,
-                                algorithm_id = ?algorithm.algorithm_id,
-                                "Failed to convert program"
-                            );
-                            error_list.push(RuleMigrationError {
-                                profile_id: profile_id.clone(),
-                                algorithm_id: algorithm.algorithm_id.clone(),
-                                error: format!("Program conversion error: {:?}", e),
-                            });
-                        }
-                    },
-                    Err(e) => {
-                        logger::error!(
-                            decision_engine_rule_migration_error = ?e,
-                            algorithm_id = ?algorithm.algorithm_id,
-                            "Failed to parse EuclidAlgorithm"
-                        );
-                        error_list.push(RuleMigrationError {
-                            profile_id: profile_id.clone(),
-                            algorithm_id: algorithm.algorithm_id.clone(),
-                            error: format!("JSON parse error: {:?}", e),
-                        });
-                    }
-                    _ => {
-                        logger::info!(
-                            "decision_engine_rule_migration_error: Skipping non-advanced algorithm {:?}",
-                            algorithm.algorithm_id
-                        );
-                        error_list.push(RuleMigrationError {
-                            profile_id: profile_id.clone(),
-                            algorithm_id: algorithm.algorithm_id.clone(),
-                            error: "Not an advanced algorithm".to_string(),
-                        });
-                    }
+        let maybe_static_algorithm: Option<StaticRoutingAlgorithm> = match parsed_result {
+            Ok(EuclidAlgorithm::Advanced(program)) => match program.try_into() {
+                Ok(ip) => Some(StaticRoutingAlgorithm::Advanced(ip)),
+                Err(e) => {
+                    router_env::logger::error!(
+                        ?e,
+                        ?algorithm_id,
+                        "Failed to convert advanced program"
+                    );
+                    push_error(algorithm_id.clone(), format!("Conversion error: {e:?}"));
+                    None
                 }
+            },
+            Ok(EuclidAlgorithm::Single(conn)) => {
+                Some(StaticRoutingAlgorithm::Single(Box::new(conn.into())))
+            }
+            Ok(EuclidAlgorithm::Priority(connectors)) => Some(StaticRoutingAlgorithm::Priority(
+                connectors.into_iter().map(Into::into).collect(),
+            )),
+            Ok(EuclidAlgorithm::VolumeSplit(splits)) => Some(StaticRoutingAlgorithm::VolumeSplit(
+                splits.into_iter().map(Into::into).collect(),
+            )),
+            Ok(EuclidAlgorithm::ThreeDsDecisionRule(_)) => {
+                router_env::logger::info!(
+                    ?algorithm_id,
+                    "Skipping 3DS rule migration (not supported yet)"
+                );
+                push_error(algorithm_id.clone(), "3DS migration not implemented".into());
+                None
             }
             Err(e) => {
-                logger::error!(
-                    decision_engine_rule_migration_error = ?e,
-                    algorithm_id = ?routing_metadata.algorithm_id,
-                    "Failed to fetch routing algorithm"
-                );
-                error_list.push(RuleMigrationError {
+                router_env::logger::error!(?e, ?algorithm_id, "Failed to parse algorithm");
+                push_error(algorithm_id.clone(), format!("Parse error: {e:?}"));
+                None
+            }
+        };
+
+        let Some(static_algorithm) = maybe_static_algorithm else {
+            continue;
+        };
+
+        let routing_rule = RoutingRule {
+            rule_id: Some(algorithm.algorithm_id.clone().get_string_repr().to_string()),
+            name: algorithm.name.clone(),
+            description: algorithm.description.clone(),
+            created_by: profile_id.get_string_repr().to_string(),
+            algorithm: static_algorithm,
+            algorithm_for: algorithm.algorithm_for.into(),
+            metadata: Some(RoutingMetadata {
+                kind: algorithm.kind,
+            }),
+        };
+
+        match create_de_euclid_routing_algo(&state, &routing_rule).await {
+            Ok(decision_engine_routing_id) => {
+                let mut is_active_rule = false;
+                if active_payment_routing_ids.contains(&Some(algorithm.algorithm_id.clone())) {
+                    link_de_euclid_routing_algorithm(
+                        &state,
+                        ActivateRoutingConfigRequest {
+                            created_by: profile_id.get_string_repr().to_string(),
+                            routing_algorithm_id: decision_engine_routing_id.clone(),
+                        },
+                    )
+                    .await
+                    .change_context(errors::ApiErrorResponse::InternalServerError)
+                    .attach_printable("unable to link active routing algorithm")?;
+                    is_active_rule = true;
+                }
+                response_list.push(RuleMigrationResponse {
                     profile_id: profile_id.clone(),
-                    algorithm_id: routing_metadata.algorithm_id.clone(),
-                    error: format!("Fetch error: {:?}", e),
+                    euclid_algorithm_id: algorithm.algorithm_id.clone(),
+                    decision_engine_algorithm_id: decision_engine_routing_id,
+                    is_active_rule,
                 });
+            }
+            Err(err) => {
+                router_env::logger::error!(
+                    decision_engine_rule_migration_error = ?err,
+                    algorithm_id = ?algorithm.algorithm_id,
+                    "Failed to insert into decision engine"
+                );
+                push_error(
+                    algorithm.algorithm_id.clone(),
+                    format!("Insertion error: {err:?}"),
+                );
             }
         }
     }

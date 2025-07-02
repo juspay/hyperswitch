@@ -149,7 +149,7 @@ pub struct PayoutLinkData {
     /// Identifier for the customer
     pub customer_id: id_type::CustomerId,
     /// Identifier for the payouts resource
-    pub payout_id: String,
+    pub payout_id: id_type::PayoutId,
     /// Link to render the payout link
     pub link: url::Url,
     /// Client secret generated for authenticating frontend APIs
@@ -283,8 +283,7 @@ mod domain_tests {
         for domain in valid_domains {
             assert!(
                 validate_strict_domain(domain),
-                "Could not validate strict domain: {}",
-                domain
+                "Could not validate strict domain: {domain}",
             );
         }
 
@@ -299,8 +298,7 @@ mod domain_tests {
         for domain in invalid_domains {
             assert!(
                 !validate_strict_domain(domain),
-                "Could not validate invalid strict domain: {}",
-                domain
+                "Could not validate invalid strict domain: {domain}",
             );
         }
     }
@@ -328,8 +326,7 @@ mod domain_tests {
         for domain in valid_domains {
             assert!(
                 validate_wildcard_domain(domain),
-                "Could not validate wildcard domain: {}",
-                domain
+                "Could not validate wildcard domain: {domain}",
             );
         }
 
@@ -349,8 +346,7 @@ mod domain_tests {
         for domain in invalid_domains {
             assert!(
                 !validate_wildcard_domain(domain),
-                "Could not validate invalid wildcard domain: {}",
-                domain
+                "Could not validate invalid wildcard domain: {domain}",
             );
         }
     }
