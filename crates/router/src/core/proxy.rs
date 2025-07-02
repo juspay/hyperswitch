@@ -24,11 +24,9 @@ pub async fn proxy_core(
         )
         .await?;
 
-    let vault_data = req_wrapper.get_vault_data(
-        &state,
-        merchant_context,
-        &vault_id,
-    ).await?;
+    let vault_data = req_wrapper
+        .get_vault_data(&state, merchant_context, &vault_id)
+        .await?;
 
     let processed_body =
         interpolate_token_references_with_vault_data(req.request_body.clone(), &vault_data)?;

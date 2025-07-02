@@ -1,8 +1,8 @@
-use error_stack::ResultExt;
 use std::borrow::Cow;
-use crate::{
-    errors::{CustomResult,ValidationError}
-};
+
+use error_stack::ResultExt;
+
+use crate::errors::{CustomResult, ValidationError};
 
 crate::global_id_type!(
     GlobalTokenId,
@@ -24,12 +24,11 @@ impl GlobalTokenId {
     }
 
     ///Get GlobalTokenId from a string
-    pub fn from_str(token_string: &str) -> CustomResult<Self, ValidationError>{
-        let token = super::GlobalId::from_string(Cow::Owned(token_string.to_string())).change_context(
-            ValidationError::IncorrectValueProvided {
+    pub fn from_str(token_string: &str) -> CustomResult<Self, ValidationError> {
+        let token = super::GlobalId::from_string(Cow::Owned(token_string.to_string()))
+            .change_context(ValidationError::IncorrectValueProvided {
                 field_name: "GlobalTokenId",
-            },
-        )?;
+            })?;
         Ok(Self(token))
     }
 
