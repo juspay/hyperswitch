@@ -1,9 +1,19 @@
-import {
-  customerAcceptance,
+import { 
+  customerAcceptance, 
   cardRequiredField,
-  successfulNo3DSCardDetails,
+  // singleUseMandateData,
+  // multiUseMandateData,
 } from "./Commons";
-import { getCustomExchange } from "./Modifiers";
+import { getCurrency } from "./Modifiers";
+
+
+ const successfulNo3DSCardDetails = {
+  card_number: "4111111111111111",
+  card_exp_month: "08",
+  card_exp_year: "30",
+  card_holder_name: "joseph Doe",
+  card_cvc: "999",
+};
 
 // Mandate data for supported mandate flows
 const singleUseMandateData = {
@@ -45,6 +55,7 @@ const successfulThreeDSCardDetails = {
   card_cvc: "123",
 };
 
+
 // Payment method data objects for responses
 const payment_method_data_no3ds = {
   card: {
@@ -85,7 +96,7 @@ const payment_method_data_3ds = {
 export const connectorDetails = {
   card_pm: {
     // Basic payment intent creation
-    PaymentIntent: getCustomExchange({
+    PaymentIntent: {
       Request: {
         currency: "USD",
         amount: 11500,
@@ -101,10 +112,10 @@ export const connectorDetails = {
           amount: 11500,
         },
       },
-    }),
+    },
 
     // Payment intent with shipping cost
-    PaymentIntentWithShippingCost: getCustomExchange({
+    PaymentIntentWithShippingCost: {
       Request: {
         currency: "USD",
         shipping_cost: 50,
@@ -117,10 +128,10 @@ export const connectorDetails = {
           amount: 11500,
         },
       },
-    }),
+    },
 
     // Payment confirmation with shipping cost
-    PaymentConfirmWithShippingCost: getCustomExchange({
+    PaymentConfirmWithShippingCost: {
       Request: {
         payment_method: "card",
         payment_method_data: {
@@ -139,10 +150,10 @@ export const connectorDetails = {
           net_amount: 11550,
         },
       },
-    }),
+    },
 
     // No 3DS automatic capture
-    No3DSAutoCapture: getCustomExchange({
+    No3DSAutoCapture: {
       Request: {
         payment_method: "card",
         payment_method_data: {
@@ -162,10 +173,10 @@ export const connectorDetails = {
           payment_method_data: payment_method_data_no3ds,
         },
       },
-    }),
+    },
 
     // No 3DS manual capture
-    No3DSManualCapture: getCustomExchange({
+    No3DSManualCapture: {
       Request: {
         payment_method: "card",
         payment_method_data: {
@@ -185,10 +196,10 @@ export const connectorDetails = {
           payment_method_data: payment_method_data_no3ds,
         },
       },
-    }),
+    },
 
     // 3DS automatic capture
-    "3DSAutoCapture": getCustomExchange({
+    "3DSAutoCapture": {
       Request: {
         payment_method: "card",
         payment_method_data: {
@@ -207,10 +218,10 @@ export const connectorDetails = {
           payment_method_data: payment_method_data_3ds,
         },
       },
-    }),
+    },
 
     // 3DS manual capture
-    "3DSManualCapture": getCustomExchange({
+    "3DSManualCapture": {
       Request: {
         payment_method: "card",
         payment_method_data: {
@@ -229,10 +240,10 @@ export const connectorDetails = {
           payment_method_data: payment_method_data_3ds,
         },
       },
-    }),
+    },
 
     // Capture payment
-    Capture: getCustomExchange({
+    Capture: {
       Request: {
         amount_to_capture: 11500,
       },
@@ -245,10 +256,10 @@ export const connectorDetails = {
           amount_received: 11500,
         },
       },
-    }),
+    },
 
     // Partial capture
-    PartialCapture: getCustomExchange({
+    PartialCapture: {
       Request: {
         amount_to_capture: 5000,
       },
@@ -261,10 +272,10 @@ export const connectorDetails = {
           amount_received: 5000,
         },
       },
-    }),
+    },
 
     // Void payment
-    Void: getCustomExchange({
+    Void: {
       Request: {},
       Response: {
         status: 200,
@@ -272,10 +283,10 @@ export const connectorDetails = {
           status: "cancelled",
         },
       },
-    }),
+    },
 
     // Refund payment
-    Refund: getCustomExchange({
+    Refund: {
       Request: {
         amount: 11500,
       },
@@ -285,12 +296,12 @@ export const connectorDetails = {
           status: "succeeded",
         },
       },
-    }),
+    },
 
     // Partial refund - Nuvei limitation: only supports single refund per sale
     // Note: Tests that attempt multiple partial refunds will fail after the first one
     // TRIGGER_SKIP is used to skip tests that would fail due to Nuvei's "only one refund per sale" limitation
-    PartialRefund: getCustomExchange({
+    PartialRefund: {
       Configs: {
         TRIGGER_SKIP: true,
       },
@@ -303,10 +314,10 @@ export const connectorDetails = {
           status: "succeeded",
         },
       },
-    }),
+    },
 
     // Manual payment refund
-    manualPaymentRefund: getCustomExchange({
+    manualPaymentRefund: {
       Request: {
         amount: 11500,
       },
@@ -316,12 +327,12 @@ export const connectorDetails = {
           status: "succeeded",
         },
       },
-    }),
+    },
 
     // Manual payment partial refund - Nuvei limitation: only supports single refund per sale
     // Note: Tests that attempt multiple partial refunds will fail after the first one
     // TRIGGER_SKIP is used to skip tests that would fail due to Nuvei's "only one refund per sale" limitation
-    manualPaymentPartialRefund: getCustomExchange({
+    manualPaymentPartialRefund: {
       Configs: {
         TRIGGER_SKIP: true,
       },
@@ -334,20 +345,20 @@ export const connectorDetails = {
           status: "succeeded",
         },
       },
-    }),
+    },
 
     // Sync refund
-    SyncRefund: getCustomExchange({
+    SyncRefund: {
       Response: {
         status: 200,
         body: {
           status: "succeeded",
         },
       },
-    }),
+    },
 
     // Mandate scenarios - Single Use
-    MandateSingleUseNo3DSAutoCapture: getCustomExchange({
+    MandateSingleUseNo3DSAutoCapture: {
       Configs: {
         TRIGGER_SKIP: true,
       },
@@ -366,9 +377,9 @@ export const connectorDetails = {
           status: "succeeded",
         },
       },
-    }),
+    },
 
-    MandateSingleUseNo3DSManualCapture: getCustomExchange({
+    MandateSingleUseNo3DSManualCapture: {
       Configs: {
         TRIGGER_SKIP: true,
       },
@@ -387,9 +398,9 @@ export const connectorDetails = {
           status: "requires_capture",
         },
       },
-    }),
+    },
 
-    MandateSingleUse3DSAutoCapture: getCustomExchange({
+    MandateSingleUse3DSAutoCapture: {
       Configs: {
         TRIGGER_SKIP: true,
       },
@@ -408,9 +419,9 @@ export const connectorDetails = {
           status: "requires_customer_action",
         },
       },
-    }),
+    },
 
-    MandateSingleUse3DSManualCapture: getCustomExchange({
+    MandateSingleUse3DSManualCapture: {
       Configs: {
         TRIGGER_SKIP: true,
       },
@@ -429,10 +440,10 @@ export const connectorDetails = {
           status: "requires_customer_action",
         },
       },
-    }),
+    },
 
     // Mandate scenarios - Multi Use
-    MandateMultiUseNo3DSAutoCapture: getCustomExchange({
+    MandateMultiUseNo3DSAutoCapture: {
       Configs: {
         TRIGGER_SKIP: true,
       },
@@ -451,9 +462,9 @@ export const connectorDetails = {
           status: "succeeded",
         },
       },
-    }),
+    },
 
-    MandateMultiUseNo3DSManualCapture: getCustomExchange({
+    MandateMultiUseNo3DSManualCapture: {
       Configs: {
         TRIGGER_SKIP: true,
       },
@@ -472,9 +483,9 @@ export const connectorDetails = {
           status: "requires_capture",
         },
       },
-    }),
+    },
 
-    MandateMultiUse3DSAutoCapture: getCustomExchange({
+    MandateMultiUse3DSAutoCapture: {
       Configs: {
         TRIGGER_SKIP: true,
       },
@@ -493,9 +504,9 @@ export const connectorDetails = {
           status: "requires_customer_action",
         },
       },
-    }),
+    },
 
-    MandateMultiUse3DSManualCapture: getCustomExchange({
+    MandateMultiUse3DSManualCapture: {
       Configs: {
         TRIGGER_SKIP: true,
       },
@@ -514,10 +525,10 @@ export const connectorDetails = {
           status: "requires_customer_action",
         },
       },
-    }),
+    },
 
     // MIT (Merchant Initiated Transaction) scenarios
-    MITAutoCapture: getCustomExchange({
+    MITAutoCapture: {
       Configs: {
         TRIGGER_SKIP: true,
       },
@@ -536,9 +547,9 @@ export const connectorDetails = {
           payment_method_id: null,
         },
       },
-    }),
+    },
 
-    MITManualCapture: getCustomExchange({
+    MITManualCapture: {
       Configs: {
         TRIGGER_SKIP: true,
       },
@@ -549,7 +560,7 @@ export const connectorDetails = {
           status: "requires_capture",
         },
       },
-    }),
+    },
 
     // Zero auth scenarios
     ZeroAuthMandate: {
@@ -576,7 +587,7 @@ export const connectorDetails = {
       },
     },
 
-    ZeroAuthPaymentIntent: getCustomExchange({
+    ZeroAuthPaymentIntent: {
       Configs: {
         TRIGGER_SKIP: true,
       },
@@ -592,9 +603,9 @@ export const connectorDetails = {
           setup_future_usage: "off_session",
         },
       },
-    }),
+    },
 
-    ZeroAuthConfirmPayment: getCustomExchange({
+    ZeroAuthConfirmPayment: {
       Configs: {
         TRIGGER_SKIP: true,
       },
@@ -613,10 +624,10 @@ export const connectorDetails = {
           setup_future_usage: "off_session",
         },
       },
-    }),
+    },
 
     // Save card scenarios
-    SaveCardUseNo3DSAutoCapture: getCustomExchange({
+    SaveCardUseNo3DSAutoCapture: {
       Request: {
         payment_method: "card",
         payment_method_data: {
@@ -632,9 +643,9 @@ export const connectorDetails = {
           status: "succeeded",
         },
       },
-    }),
+    },
 
-    SaveCardUseNo3DSManualCapture: getCustomExchange({
+    SaveCardUseNo3DSManualCapture: {
       Request: {
         payment_method: "card",
         payment_method_data: {
@@ -650,9 +661,9 @@ export const connectorDetails = {
           status: "requires_capture",
         },
       },
-    }),
+    },
 
-    SaveCardUseNo3DSAutoCaptureOffSession: getCustomExchange({
+    SaveCardUseNo3DSAutoCaptureOffSession: {
       Configs: {
         TRIGGER_SKIP: true,
       },
@@ -671,9 +682,9 @@ export const connectorDetails = {
           status: "succeeded",
         },
       },
-    }),
+    },
 
-    SaveCardUse3DSAutoCaptureOffSession: getCustomExchange({
+    SaveCardUse3DSAutoCaptureOffSession: {
       Configs: {
         TRIGGER_SKIP: true,
       },
@@ -692,9 +703,9 @@ export const connectorDetails = {
           status: "requires_customer_action",
         },
       },
-    }),
+    },
 
-    SaveCardUseNo3DSManualCaptureOffSession: getCustomExchange({
+    SaveCardUseNo3DSManualCaptureOffSession: {
       Configs: {
         TRIGGER_SKIP: true,
       },
@@ -712,9 +723,9 @@ export const connectorDetails = {
           status: "requires_capture",
         },
       },
-    }),
+    },
 
-    SaveCardConfirmAutoCaptureOffSession: getCustomExchange({
+    SaveCardConfirmAutoCaptureOffSession: {
       Configs: {
         TRIGGER_SKIP: true,
       },
@@ -728,9 +739,9 @@ export const connectorDetails = {
           status: "succeeded",
         },
       },
-    }),
+    },
 
-    SaveCardConfirmManualCaptureOffSession: getCustomExchange({
+    SaveCardConfirmManualCaptureOffSession: {
       Configs: {
         TRIGGER_SKIP: true,
       },
@@ -743,105 +754,9 @@ export const connectorDetails = {
           status: "requires_capture",
         },
       },
-    }),
-
-    // Payment scenarios for dynamic fields testing
-    PaymentWithoutBilling: getCustomExchange({
-      Request: {
-        currency: "USD",
-        customer_acceptance: null,
-        setup_future_usage: "on_session",
-        authentication_type: "no_three_ds",
-      },
-      Response: {
-        status: 200,
-        body: {
-          status: "requires_payment_method",
-        },
-      },
-    }),
-
-    PaymentWithBilling: getCustomExchange({
-      Request: {
-        currency: "USD",
-        setup_future_usage: "on_session",
-        billing: {
-          address: {
-            line1: "1467",
-            line2: "CA",
-            line3: "Harrison Street",
-            city: "San Francisco",
-            state: "CA",
-            zip: "94122",
-            country: "US",
-            first_name: "John",
-            last_name: "Doe",
-          },
-          phone: {
-            number: "9111222333",
-            country_code: "+1",
-          },
-        },
-        email: "hyperswitch.example@gmail.com",
-      },
-      Response: {
-        status: 200,
-        body: {
-          status: "requires_payment_method",
-        },
-      },
-    }),
-
-    PaymentWithFullName: getCustomExchange({
-      Request: {
-        currency: "USD",
-        setup_future_usage: "on_session",
-        billing: {
-          address: {
-            first_name: "John",
-            last_name: "Doe",
-          },
-          phone: {
-            number: "9111222333",
-            country_code: "+1",
-          },
-        },
-      },
-      Response: {
-        status: 200,
-        body: {
-          status: "requires_payment_method",
-        },
-      },
-    }),
-
-    PaymentWithBillingEmail: getCustomExchange({
-      Request: {
-        currency: "USD",
-        setup_future_usage: "on_session",
-        email: "hyperswitch_sdk_demo_id1@gmail.com",
-        billing: {
-          address: {
-            first_name: "John",
-            last_name: "Doe",
-          },
-          phone: {
-            number: "9111222333",
-            country_code: "+1",
-          },
-          email: "hyperswitch.example@gmail.com",
-        },
-      },
-      Response: {
-        status: 200,
-        body: {
-          status: "requires_payment_method",
-        },
-      },
-    }),
-
+    },
     // Payment method ID mandate scenarios
-    PaymentMethodIdMandateNo3DSAutoCapture: getCustomExchange({
+    PaymentMethodIdMandateNo3DSAutoCapture: {
       Configs: {
         TRIGGER_SKIP: true,
       },
@@ -860,9 +775,9 @@ export const connectorDetails = {
           status: "succeeded",
         },
       },
-    }),
+    },
 
-    PaymentMethodIdMandateNo3DSManualCapture: getCustomExchange({
+    PaymentMethodIdMandateNo3DSManualCapture: {
       Configs: {
         TRIGGER_SKIP: true,
       },
@@ -881,9 +796,9 @@ export const connectorDetails = {
           status: "requires_capture",
         },
       },
-    }),
+    },
 
-    PaymentMethodIdMandate3DSAutoCapture: getCustomExchange({
+    PaymentMethodIdMandate3DSAutoCapture: {
       Configs: {
         TRIGGER_SKIP: true,
       },
@@ -902,9 +817,9 @@ export const connectorDetails = {
           status: "succeeded",
         },
       },
-    }),
+    },
 
-    PaymentMethodIdMandate3DSManualCapture: getCustomExchange({
+    PaymentMethodIdMandate3DSManualCapture: {
       Configs: {
         TRIGGER_SKIP: true,
       },
@@ -922,15 +837,14 @@ export const connectorDetails = {
           status: "requires_capture",
         },
       },
-    }),
+    },
   },
-
   // Bank redirect payment methods
   bank_redirect_pm: {
-    PaymentIntent: getCustomExchange({
+    PaymentIntent: (paymentMethodType) => ({
       Request: {
         amount: 11500,
-        currency: "EUR",
+        currency: getCurrency(paymentMethodType),
       },
       Response: {
         status: 200,
@@ -940,7 +854,7 @@ export const connectorDetails = {
       },
     }),
 
-    BlikPaymentIntent: getCustomExchange({
+    BlikPaymentIntent: {
       Request: {
         amount: 11500,
         currency: "PLN",
@@ -951,9 +865,9 @@ export const connectorDetails = {
           status: "requires_payment_method",
         },
       },
-    }),
+    },
 
-    Blik: getCustomExchange({
+    Blik: {
       Request: {
         payment_method: "bank_redirect",
         payment_method_type: "blik",
@@ -985,15 +899,14 @@ export const connectorDetails = {
         body: {
           error: {
             type: "invalid_request",
-            message: "Payment method type not supported",
-            code: "IR_19",
-            reason: "bank_redirect blik is not supported by nuvei",
+            message: "No eligible connector was found for the current payment method configuration",
+            code: "IR_39",
           },
         },
       },
-    }),
+    },
 
-    Ideal: getCustomExchange({
+    Ideal: {
       Request: {
         payment_method: "bank_redirect",
         payment_method_type: "ideal",
@@ -1023,18 +936,18 @@ export const connectorDetails = {
         },
       },
       Response: {
-        status: 200,
+        status: 400,
         body: {
-          status: "processing",
-          error_message: "Connector did not respond in specified time",
-          error_code: "TIMEOUT",
-          unified_code: "UE_9000",
-          unified_message: "Something went wrong",
+          error: {
+            type: "invalid_request",
+            message: "No eligible connector was found for the current payment method configuration",
+            code: "IR_39",
+          },
         },
       },
-    }),
+    },
 
-    Giropay: getCustomExchange({
+    Giropay: {
       Request: {
         payment_method: "bank_redirect",
         payment_method_type: "giropay",
@@ -1067,9 +980,9 @@ export const connectorDetails = {
           status: "requires_customer_action",
         },
       },
-    }),
+    },
 
-    Sofort: getCustomExchange({
+    Sofort: {
       Request: {
         payment_method: "bank_redirect",
         payment_method_type: "sofort",
@@ -1099,18 +1012,18 @@ export const connectorDetails = {
         },
       },
       Response: {
-        status: 200,
+        status: 400,
         body: {
-          status: "processing",
-          error_message: "Connector did not respond in specified time",
-          error_code: "TIMEOUT",
-          unified_code: "UE_9000",
-          unified_message: "Something went wrong",
+          error: {
+            type: "invalid_request",
+            message: "No eligible connector was found for the current payment method configuration",
+            code: "IR_39",
+          },
         },
       },
-    }),
+    },
 
-    Eps: getCustomExchange({
+    Eps: {
       Request: {
         payment_method: "bank_redirect",
         payment_method_type: "eps",
@@ -1141,363 +1054,43 @@ export const connectorDetails = {
         },
       },
       Response: {
-        status: 200,
+        status: 400,
         body: {
-          status: "processing",
-          error_message: "Connector did not respond in specified time",
-          error_code: "TIMEOUT",
-          unified_code: "UE_9000",
-          unified_message: "Something went wrong",
+          error: {
+            type: "invalid_request",
+            message: "No eligible connector was found for the current payment method configuration",
+            code: "IR_39",
+          },
         },
       },
-    }),
-  },
+    },
 
-  // Wallet payment methods
-  wallet_pm: {
-    PaymentIntent: getCustomExchange({
+    Przelewy24: {
       Request: {
-        currency: "USD",
-      },
-      Response: {
-        status: 200,
-        body: {
-          status: "requires_payment_method",
-        },
-      },
-    }),
-
-    ApplePay: getCustomExchange({
-      Request: {
-        payment_method: "wallet",
-        payment_method_type: "apple_pay",
+        payment_method: "bank_redirect",
+        payment_method_type: "przelewy24",
         payment_method_data: {
-          wallet: {
-            apple_pay: {
-              payment_data: "test_payment_data",
+          bank_redirect: {
+            przelewy24: {
+              bank_name: "citi",
+              billing_details: {
+                email: "guest@juspay.in",
+              },
             },
           },
         },
       },
       Response: {
-        status: 200,
+        status: 400,
         body: {
-          status: "succeeded",
-        },
-      },
-    }),
-
-    GooglePay: getCustomExchange({
-      Request: {
-        payment_method: "wallet",
-        payment_method_type: "google_pay",
-        payment_method_data: {
-          wallet: {
-            google_pay: {
-              payment_token: "test_payment_token",
-            },
+          error: {
+            type: "invalid_request",
+            message: "No eligible connector was found for the current payment method configuration",
+            code: "IR_39",
           },
         },
-      },
-      Response: {
-        status: 200,
-        body: {
-          status: "succeeded",
-        },
-      },
-    }),
-
-    PayPal: getCustomExchange({
-      Request: {
-        payment_method: "wallet",
-        payment_method_type: "paypal",
-        payment_method_data: {
-          wallet: {
-            paypal: {},
-          },
-        },
-      },
-      Response: {
-        status: 200,
-        body: {
-          status: "requires_customer_action",
-        },
-      },
-    }),
-  },
-
-  // Pay Later payment methods
-  pay_later_pm: {
-    PaymentIntent: getCustomExchange({
-      Request: {
-        currency: "USD",
-      },
-      Response: {
-        status: 200,
-        body: {
-          status: "requires_payment_method",
-        },
-      },
-    }),
-
-    Klarna: getCustomExchange({
-      Request: {
-        payment_method: "pay_later",
-        payment_method_type: "klarna",
-        payment_method_data: {
-          pay_later: {
-            klarna: {},
-          },
-        },
-        billing: {
-          address: {
-            line1: "1467",
-            line2: "Harrison Street",
-            line3: "Harrison Street",
-            city: "San Francisco",
-            state: "California",
-            zip: "94122",
-            country: "US",
-            first_name: "John",
-            last_name: "Doe",
-          },
-          phone: {
-            number: "9123456789",
-            country_code: "+1",
-          },
-          email: "john.doe@example.com",
-        },
-      },
-      Response: {
-        status: 200,
-        body: {
-          status: "requires_customer_action",
-        },
-      },
-    }),
-
-    AfterpayClearpay: getCustomExchange({
-      Request: {
-        payment_method: "pay_later",
-        payment_method_type: "afterpay_clearpay",
-        payment_method_data: {
-          pay_later: {
-            afterpay_clearpay: {},
-          },
-        },
-        billing: {
-          address: {
-            line1: "1467",
-            line2: "Harrison Street",
-            line3: "Harrison Street",
-            city: "San Francisco",
-            state: "California",
-            zip: "94122",
-            country: "US",
-            first_name: "John",
-            last_name: "Doe",
-          },
-          phone: {
-            number: "9123456789",
-            country_code: "+1",
-          },
-          email: "john.doe@example.com",
-        },
-      },
-      Response: {
-        status: 200,
-        body: {
-          status: "requires_customer_action",
-        },
-      },
-    }),
-  },
-
-  // Payment method list configurations
-  pm_list: {
-    PmListResponse: {
-      PmListNull: {
-        payment_methods: [],
-      },
-      pmListDynamicFieldWithoutBilling: {
-        payment_methods: [
-          {
-            payment_method: "card",
-            payment_method_types: [
-              {
-                payment_method_type: "credit",
-                card_networks: [],
-                required_fields: cardRequiredField,
-              },
-            ],
-          },
-        ],
-      },
-      pmListDynamicFieldWithBilling: {
-        payment_methods: [
-          {
-            payment_method: "card",
-            payment_method_types: [
-              {
-                payment_method_type: "credit",
-                card_networks: [],
-                required_fields: cardRequiredField,
-              },
-            ],
-          },
-        ],
-      },
-      pmListDynamicFieldWithNames: {
-        payment_methods: [
-          {
-            payment_method: "card",
-            payment_method_types: [
-              {
-                payment_method_type: "credit",
-                card_networks: [],
-                required_fields: cardRequiredField,
-              },
-            ],
-          },
-        ],
-      },
-      pmListDynamicFieldWithEmail: {
-        payment_methods: [
-          {
-            payment_method: "card",
-            payment_method_types: [
-              {
-                payment_method_type: "credit",
-                card_networks: [],
-                required_fields: cardRequiredField,
-              },
-            ],
-          },
-        ],
       },
     },
   },
 };
-
-// Export payment methods enabled configuration
-export const payment_methods_enabled = [
-  {
-    payment_method: "card",
-    payment_method_types: [
-      {
-        payment_method_type: "credit",
-        card_networks: [
-          "Visa",
-          "Mastercard",
-          "AmericanExpress",
-          "UnionPay",
-          "Interac",
-          "JCB",
-          "DinersClub",
-          "Discover",
-          "CartesBancaires",
-        ],
-        minimum_amount: 0,
-        maximum_amount: 68607706,
-        recurring_enabled: true,
-        installment_payment_enabled: true,
-      },
-      {
-        payment_method_type: "debit",
-        card_networks: [
-          "Visa",
-          "Mastercard",
-          "AmericanExpress",
-          "UnionPay",
-          "Interac",
-          "JCB",
-          "DinersClub",
-          "Discover",
-          "CartesBancaires",
-        ],
-        minimum_amount: 0,
-        maximum_amount: 68607706,
-        recurring_enabled: true,
-        installment_payment_enabled: true,
-      },
-    ],
-  },
-  {
-    payment_method: "pay_later",
-    payment_method_types: [
-      {
-        payment_method_type: "klarna",
-        minimum_amount: 0,
-        maximum_amount: 68607706,
-        recurring_enabled: false,
-        installment_payment_enabled: false,
-      },
-      {
-        payment_method_type: "afterpay_clearpay",
-        minimum_amount: 0,
-        maximum_amount: 68607706,
-        recurring_enabled: false,
-        installment_payment_enabled: false,
-      },
-    ],
-  },
-  {
-    payment_method: "bank_redirect",
-    payment_method_types: [
-      {
-        payment_method_type: "ideal",
-        minimum_amount: 0,
-        maximum_amount: 68607706,
-        recurring_enabled: false,
-        installment_payment_enabled: false,
-      },
-      {
-        payment_method_type: "giropay",
-        minimum_amount: 0,
-        maximum_amount: 68607706,
-        recurring_enabled: false,
-        installment_payment_enabled: false,
-      },
-      {
-        payment_method_type: "sofort",
-        minimum_amount: 0,
-        maximum_amount: 68607706,
-        recurring_enabled: false,
-        installment_payment_enabled: false,
-      },
-      {
-        payment_method_type: "eps",
-        minimum_amount: 0,
-        maximum_amount: 68607706,
-        recurring_enabled: false,
-        installment_payment_enabled: false,
-      },
-    ],
-  },
-  {
-    payment_method: "wallet",
-    payment_method_types: [
-      {
-        payment_method_type: "apple_pay",
-        minimum_amount: 0,
-        maximum_amount: 68607706,
-        recurring_enabled: false,
-        installment_payment_enabled: false,
-      },
-      {
-        payment_method_type: "google_pay",
-        minimum_amount: 0,
-        maximum_amount: 68607706,
-        recurring_enabled: false,
-        installment_payment_enabled: false,
-      },
-      {
-        payment_method_type: "paypal",
-        minimum_amount: 0,
-        maximum_amount: 68607706,
-        recurring_enabled: false,
-        installment_payment_enabled: false,
-      },
-    ],
-  },
-];
+  
