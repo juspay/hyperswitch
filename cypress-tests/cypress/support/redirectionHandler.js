@@ -731,9 +731,7 @@ function threeDsRedirection(redirectionUrl, expectedUrl, connectorId) {
               cy.get('input[id="submit"]').click();
             });
           break;
-
         case "nuvei":
-          cy.log("Handling Nuvei 3DS authentication");
           cy.wait(constants.WAIT_TIME); // Wait for the page to load
 
           // Check if we're on the Nuvei 3DS challenge page
@@ -744,18 +742,15 @@ function threeDsRedirection(redirectionUrl, expectedUrl, connectorId) {
               bodyText.includes("ThreeDS ACS Emulator") ||
               bodyText.includes("Challenge Page")
             ) {
-              cy.log("Found Nuvei 3DS challenge page");
 
               // Look for success buttons (based on UI test patterns)
               cy.get("body").then(() => {
                 // Try to find and click success buttons
                 if ($body.find("#btn1").length > 0) {
-                  cy.log("Clicking btn1 for 3DS success");
                   cy.get("#btn1").click();
                 }
 
                 if ($body.find("#btn5").length > 0) {
-                  cy.log("Clicking btn5 for 3DS completion");
                   cy.get("#btn5").click();
                 }
 
@@ -779,7 +774,6 @@ function threeDsRedirection(redirectionUrl, expectedUrl, connectorId) {
                         buttonText.includes("submit") ||
                         buttonValue.includes("success")
                       ) {
-                        cy.log(`Clicking button: ${buttonText || buttonValue}`);
                         cy.wrap(button).click();
                         return false; // Break the loop
                       }
@@ -821,7 +815,6 @@ function threeDsRedirection(redirectionUrl, expectedUrl, connectorId) {
             }
           });
           break;
-
         case "stripe":
           cy.get("iframe", { timeout: constants.TIMEOUT })
             .its("0.contentDocument.body")
@@ -882,15 +875,6 @@ function threeDsRedirection(redirectionUrl, expectedUrl, connectorId) {
           cy.get("div.autenticada").click();
           cy.get('input[value="Enviar"]').click();
           break;
-        case "dlocal":
-          // Dlocal connector doesn't support 3DS yet, so this is a placeholder
-          // As mentioned in grace/support/dlocal.md, 3DS support varies by acquirer/region
-          // and is not currently implemented in the connector
-          cy.log(
-            "Dlocal 3DS handling - currently not implemented in connector"
-          );
-          cy.wait(constants.WAIT_TIME);
-          break;
         default:
           cy.wait(constants.WAIT_TIME);
       }
@@ -947,130 +931,110 @@ function verifyReturnUrl(redirectionUrl, expectedUrl, forwardFlow) {
     cy.log("Skipping return URL verification as forwardFlow is false.");
     return;
   }
+  cy.log(`Verifying return URL. Expecting host: ${expectedUrl.host}`);
 
-  // Special case for Nuvei - we might still be on the Nuvei domain
-  cy.url().then((currentUrl) => {
-    const currentHost = new URL(currentUrl).host;
+  cy.location("host", { timeout: CONSTANTS.TIMEOUT }).should((currentHost) => {
+    expect(currentHost).to.equal(expectedUrl.host);
+  });
 
-    if (currentHost.includes("safecharge.com")) {
-      cy.log(
-        `Detected Nuvei domain (${currentHost}). Skipping host verification and proceeding with test.`
-      );
-
-      // For Nuvei, we'll just wait and then proceed with the test
-      cy.wait(CONSTANTS.WAIT_TIME);
-
-      // Manually navigate back to the expected URL to complete the test
-      cy.visit(expectedUrl.href);
-      return;
-    }
-
-    // Standard verification for other connectors
-    cy.log(`Verifying return URL. Expecting host: ${expectedUrl.host}`);
-
-    cy.location("host", { timeout: CONSTANTS.TIMEOUT }).should((host) => {
-      expect(host).to.equal(expectedUrl.host);
-    });
-
-    cy.url().then((url) => {
-      cy.log(`Current URL for verification: ${url}`);
-      cy.origin(
-        new URL(url).origin,
-        {
-          args: {
-            redirectionUrl: redirectionUrl.origin,
-            expectedUrl: expectedUrl.origin,
-            constants: CONSTANTS,
-          },
+  cy.url().then((url) => {
+    cy.log(`Current URL for verification: ${url}`);
+    cy.origin(
+      new URL(url).origin,
+      {
+        args: {
+          redirectionUrl: redirectionUrl.origin,
+          expectedUrl: expectedUrl.origin,
+          constants: CONSTANTS,
         },
-        ({ redirectionUrl, expectedUrl, constants }) => {
-          try {
-            const redirectionHost = new URL(redirectionUrl).host;
-            const expectedHost = new URL(expectedUrl).host;
+      },
+      ({ redirectionUrl, expectedUrl, constants }) => {
+        try {
+          const redirectionHost = new URL(redirectionUrl).host;
+          const expectedHost = new URL(expectedUrl).host;
 
-            cy.log(
-              `Running verification checks within origin: ${location.origin}`
-            );
+          cy.log(
+            `Running verification checks within origin: ${location.origin}`
+          );
 
-            cy.window()
-              .its("location")
-              .then((location) => {
-                // Check for payment_id in the URL
-                const urlParams = new URLSearchParams(location.search);
-                const paymentId = urlParams.get("payment_id");
+          cy.window()
+            .its("location")
+            .then((location) => {
+              // Check for payment_id in the URL
+              const urlParams = new URLSearchParams(location.search);
+              const paymentId = urlParams.get("payment_id");
 
-                cy.log(`URL Params: ${location.search}`);
-                cy.log(`Payment ID: ${paymentId}`);
+              cy.log(`URL Params: ${location.search}`);
+              cy.log(`Payment ID: ${paymentId}`);
 
-                if (!paymentId) {
-                  // eslint-disable-next-line cypress/assertion-before-screenshot
-                  cy.screenshot("missing-payment-id-error");
-                  throw new Error("URL does not contain payment_id parameter");
-                }
+              if (!paymentId) {
+                // eslint-disable-next-line cypress/assertion-before-screenshot
+                cy.screenshot("missing-payment-id-error");
+                throw new Error("URL does not contain payment_id parameter");
+              }
 
-                // Proceed with other verifications based on whether redirection host ends with expected host
-                if (redirectionHost.endsWith(expectedHost)) {
-                  cy.wait(constants.WAIT_TIME / 2);
+              // Proceed with other verifications based on whether redirection host ends with expected host
+              if (redirectionHost.endsWith(expectedHost)) {
+                cy.wait(constants.WAIT_TIME / 2);
 
-                  // Check page state before taking screenshots
-                  cy.document().then((doc) => {
-                    const pageText = doc.body.innerText.toLowerCase();
+                // Check page state before taking screenshots
+                cy.document().then((doc) => {
+                  const pageText = doc.body.innerText.toLowerCase();
 
-                    cy.log(
-                      `Page text for error check: ${pageText.substring(0, 200)}...`
-                    );
+                  cy.log(
+                    `Page text for error check: ${pageText.substring(0, 200)}...`
+                  );
 
-                    if (!pageText) {
-                      // eslint-disable-next-line cypress/assertion-before-screenshot
-                      cy.screenshot("blank-page-error");
-                      cy.log("Warning: Page appears blank.");
-                    } else {
-                      // Check if any error pattern exists in the text
-                      const hasError = constants.ERROR_PATTERNS.some(
-                        (pattern) => pattern.test(pageText)
-                      );
-
-                      if (hasError) {
-                        // Only take screenshot if an error pattern was found
-                        // eslint-disable-next-line cypress/assertion-before-screenshot
-                        cy.screenshot(`error-page-${Date.now()}`);
-                        throw new Error(`Page contains error: ${pageText}`);
-                      }
-                    }
-                  });
-
-                  const paymentStatus = urlParams.get("status");
-
-                  if (
-                    !constants.VALID_TERMINAL_STATUSES.includes(paymentStatus)
-                  ) {
+                  if (!pageText) {
                     // eslint-disable-next-line cypress/assertion-before-screenshot
-                    cy.screenshot(`failed-payment-${paymentStatus}`);
-                    throw new Error(
-                      `Redirection failed with payment status: ${paymentStatus}`
+                    cy.screenshot("blank-page-error");
+                    cy.log("Warning: Page appears blank.");
+                  } else {
+                    // Check if any error pattern exists in the text
+                    const hasError = constants.ERROR_PATTERNS.some((pattern) =>
+                      pattern.test(pageText)
                     );
+
+                    if (hasError) {
+                      // Only take screenshot if an error pattern was found
+                      // eslint-disable-next-line cypress/assertion-before-screenshot
+                      cy.screenshot(`error-page-${Date.now()}`);
+                      throw new Error(`Page contains error: ${pageText}`);
+                    }
                   }
-                } else {
-                  cy.window().its("location.origin").should("eq", expectedUrl);
+                });
 
-                  Cypress.on("uncaught:exception", (err, runnable) => {
-                    // Log the error details
-                    // eslint-disable-next-line no-console
-                    console.error(
-                      `Error: ${err.message}\nOccurred in: ${runnable.title}\nStack: ${err.stack}`
-                    );
+                const paymentStatus = urlParams.get("status");
 
-                    // Return false to prevent the error from failing the test
-                    return false;
-                  });
+                if (
+                  !constants.VALID_TERMINAL_STATUSES.includes(paymentStatus)
+                ) {
+                  // eslint-disable-next-line cypress/assertion-before-screenshot
+                  cy.screenshot(`failed-payment-${paymentStatus}`);
+                  throw new Error(
+                    `Redirection failed with payment status: ${paymentStatus}`
+                  );
                 }
-              });
-          } catch (error) {
-            throw new Error(`Redirection verification failed: ${error}`);
-          }
+              } else {
+                cy.window().its("location.origin").should("eq", expectedUrl);
+
+                Cypress.on("uncaught:exception", (err, runnable) => {
+                  // Log the error details
+                  // eslint-disable-next-line no-console
+                  console.error(
+                    `Error: ${err.message}\nOccurred in: ${runnable.title}\nStack: ${err.stack}`
+                  );
+
+                  // Return false to prevent the error from failing the test
+                  return false;
+                });
+              }
+            });
+        } catch (error) {
+          throw new Error(`Redirection verification failed: ${error}`);
         }
-      );
-    });
+      }
+    );
   });
 }
 
@@ -1154,14 +1118,26 @@ async function fetchAndParseImageData(url) {
 }
 
 function waitForRedirect(redirectionUrl) {
-  // Instead of checking for host changes which can cause cross-origin issues,
-  // we'll just wait a fixed amount of time to allow the redirection to complete
-  cy.log(`Waiting for redirection from ${redirectionUrl} to complete...`);
-  cy.wait(CONSTANTS.WAIT_TIME);
+  const originalHost = new URL(redirectionUrl).host;
 
-  // Then check if we have either a different URL or an iframe
-  cy.get("body").then(() => {
-    cy.log("Redirection wait completed");
+  cy.location("host", { timeout: CONSTANTS.TIMEOUT }).should((currentHost) => {
+    const hostChanged = currentHost !== originalHost;
+    const iframeExists = Cypress.$("iframe")
+      .toArray()
+      .some((iframeEl) => {
+        try {
+          const iframeHost = new URL(iframeEl.src).host;
+          return iframeHost && iframeHost !== originalHost;
+        } catch {
+          return false;
+        }
+      });
+
+    // The assertion will pass if either the host changed or an iframe with a foreign host exists.
+    expect(
+      hostChanged || iframeExists,
+      "Host changed or an  iframe with foreign host exist"
+    ).to.be.true;
   });
 }
 
@@ -1172,30 +1148,7 @@ function handleFlow(
   callback,
   options = {}
 ) {
-  // Special case for Nuvei - skip origin checks and just wait
-  if (connectorId === "nuvei") {
-    cy.log("Nuvei connector detected, using simplified flow handling");
-
-    // Wait for page to load
-    cy.wait(CONSTANTS.WAIT_TIME);
-
-    // Execute callback with direct iframe handling
-    const callbackArgs = {
-      connectorId,
-      constants: CONSTANTS,
-      expectedUrl: expectedUrl.origin,
-      ...options,
-    };
-
-    // Try to find and interact with the iframe
-    cy.get("body").then(() => {
-      callback(callbackArgs);
-    });
-
-    return;
-  }
-
-  // Standard flow for other connectors
+  // Extract the host from the redirection URL
   const originalHost = new URL(redirectionUrl.href).host;
 
   cy.location("host", { timeout: CONSTANTS.TIMEOUT }).then((currentHost) => {
