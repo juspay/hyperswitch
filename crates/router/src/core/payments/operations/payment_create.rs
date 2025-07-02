@@ -1364,7 +1364,8 @@ impl PaymentCreate {
                 processor_merchant_id: merchant_id.to_owned(),
                 created_by: None,
                 setup_future_usage_applied: request.setup_future_usage,
-                routing_approach: Some(common_enums::RoutingApproach::default())
+                routing_approach: Some(common_enums::RoutingApproach::default()),
+                connector_request_reference_id: None,
             },
             additional_pm_data,
 

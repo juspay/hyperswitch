@@ -148,8 +148,10 @@ where
         connector_request_reference_id: core_utils::get_connector_request_reference_id(
             &state.conf,
             merchant_context.get_merchant_account().get_id(),
+            &payment_data.payment_intent,
             &payment_data.payment_attempt,
-        ),
+            connector_id,
+        )?,
         preprocessing_id: None,
         #[cfg(feature = "payouts")]
         payout_method_data: None,
@@ -1266,8 +1268,10 @@ where
         connector_request_reference_id: core_utils::get_connector_request_reference_id(
             &state.conf,
             merchant_context.get_merchant_account().get_id(),
+            &payment_data.payment_intent,
             &payment_data.payment_attempt,
-        ),
+            connector_id,
+        )?,
         preprocessing_id: payment_data.payment_attempt.preprocessing_step_id,
         #[cfg(feature = "payouts")]
         payout_method_data: None,
@@ -1457,8 +1461,10 @@ pub async fn construct_payment_router_data_for_update_metadata<'a>(
         connector_request_reference_id: core_utils::get_connector_request_reference_id(
             &state.conf,
             merchant_context.get_merchant_account().get_id(),
+            &payment_data.payment_intent,
             &payment_data.payment_attempt,
-        ),
+            connector_id,
+        )?,
         preprocessing_id: payment_data.payment_attempt.preprocessing_step_id,
         #[cfg(feature = "payouts")]
         payout_method_data: None,

@@ -4403,6 +4403,7 @@ impl AttemptType {
             created_by: old_payment_attempt.created_by,
             setup_future_usage_applied: None,
             routing_approach: old_payment_attempt.routing_approach,
+            connector_request_reference_id: None,
         }
     }
 

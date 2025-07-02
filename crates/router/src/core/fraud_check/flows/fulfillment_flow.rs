@@ -46,6 +46,8 @@ pub async fn construct_fulfillment_router_data<'a>(
         .attach_printable("profile_id is not set in payment_intent")?
         .clone();
 
+    let connector_id = connector.clone();
+
     let merchant_connector_account = helpers::get_merchant_connector_account(
         state,
         merchant_context.get_merchant_account().get_id(),
@@ -107,8 +109,10 @@ pub async fn construct_fulfillment_router_data<'a>(
         connector_request_reference_id: core_utils::get_connector_request_reference_id(
             &state.conf,
             merchant_context.get_merchant_account().get_id(),
+            payment_intent,
             payment_attempt,
-        ),
+            &connector_id,
+        )?,
         #[cfg(feature = "payouts")]
         payout_method_data: None,
         #[cfg(feature = "payouts")]
