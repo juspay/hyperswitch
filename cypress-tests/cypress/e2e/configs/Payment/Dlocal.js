@@ -1,27 +1,26 @@
 import { customerAcceptance } from "./Commons";
 
 
-const mockBillingDetails = { // Updated to match cURL payer info for 3DS test
+const mockBillingDetails = {
   address: {
-    line1: "Servidao B-1", // street from cURL payer.address
-    line2: null, // number from cURL payer.address (Hyperswitch model uses line1, line2, line3)
+    line1: "Servidao B-1",
+    line2: null,
     line3: null,
-    city: "Volta Redonda",   // city from cURL payer.address
-    state: "Rio de Janeiro", // state from cURL payer.address
-    zip: "27275-595",     // zip_code from cURL payer.address
-    country: "BR",          // country from cURL
-    first_name: "Thiago",   // To form "Thiago Gabriel"
+    city: "Volta Redonda",
+    state: "Rio de Janeiro",
+    zip: "27275-595",
+    country: "BR",
+    first_name: "Thiago",
     last_name: "Gabriel",
   },
-  phone: { // phone from cURL payer
+  phone: {
     number: "123456712345",
-    country_code: "+55", // Assuming Brazil country code for the phone
+    country_code: "+55",
   },
-  email: "thiago@example.com", // email from cURL payer
+  email: "thiago@example.com",
 };
 
-// Test card details for Dlocal
-const successfulNo3DSCardDetails = { // Kept original for non-3DS tests
+const successfulNo3DSCardDetails = {
   card_number: "4111111111111111", 
   card_exp_month: "10",
   card_exp_year: "40",
@@ -29,16 +28,8 @@ const successfulNo3DSCardDetails = { // Kept original for non-3DS tests
   card_cvc: "123",
 };
 
-const successfulThreeDSCardDetails = { // Updated to match cURL card info for 3DS test
-  card_number: "4111111111111111",    // number from cURL card
-  card_exp_month: "10",               // expiration_month from cURL card
-  card_exp_year: "40",                // expiration_year from cURL card (e.g., 2040)
-  card_holder_name: "Thiago Gabriel", // holder_name from cURL card
-  card_cvc: "123",                    // cvv from cURL card
-};
-
-const successfulMastercardDetails = {
-  card_number: "5555555555554444", // Mastercard test card for Dlocal
+const successfulThreeDSCardDetails = {
+  card_number: "4111111111111111",
   card_exp_month: "10",
   card_exp_year: "40",
   card_holder_name: "Thiago Gabriel",
@@ -46,7 +37,7 @@ const successfulMastercardDetails = {
 };
 
 const failedCardDetails = {
-  card_number: "4000000000000002", // Decline test card for Dlocal
+  card_number: "4000000000000002",
   card_exp_month: "10",
   card_exp_year: "40",
   card_holder_name: "Thiago Gabriel",
@@ -136,24 +127,6 @@ const requiredFields = {
   ],
 };
 
-const payment_method_data_3ds = {
-  card: {
-    last4: "4242",
-    card_type: "CREDIT",
-    card_network: "Visa",
-    card_issuer: "STRIPE PAYMENTS UK LIMITED",
-    card_issuing_country: "UNITEDKINGDOM",
-    card_isin: "424242",
-    card_extended_bin: null,
-    card_exp_month: "12",
-    card_exp_year: "25",
-    card_holder_name: "Thiago Gabriel",
-    payment_checks: null,
-    authentication_data: null,
-  },
-  billing: null,
-};
-
 const payment_method_data_no3ds = {
   card: {
     last4: "1111",
@@ -229,7 +202,6 @@ const payment_method_data_mastercard = {
 
 export const connectorDetails = {
   card_pm: {
-    // Mastercard specific flow
     MastercardAutoCapture: {
       Request: {
         payment_method: "card",
@@ -250,7 +222,6 @@ export const connectorDetails = {
       },
     },
     
-    // Failed payment scenario
     No3DSFailPayment: {
       Request: {
         payment_method: "card",
@@ -338,20 +309,12 @@ export const connectorDetails = {
           card: successfulThreeDSCardDetails, // Uses updated card details
           billing: mockBillingDetails,       // Uses updated billing details
         },
-        currency: "BRL", // Currency from cURL
-        // customer_acceptance and setup_future_usage removed as not directly used by Dlocal transformer for main request
+        currency: "BRL",
       },
       Response: {
         status: 200,
         body: {
-          status: "requires_customer_action", // Expected status from cURL
-          // Based on cURL, Dlocal returns 'id' (connector_transaction_id) and 'three_dsecure.eci'
-          // Our transformer maps 'id' to resource_id. It expects 'three_dsecure.redirect_url'.
-          // If no redirect, next_action should be null.
-          // The detailed payment_method_data is not directly part of the top-level response body in Hyperswitch model.
-          // We rely on the main status and resource_id.
-          // The `commands.js` will check for next_action based on status.
-          // If status is AUTHORIZED (mapped to AttemptStatus::Authorized), next_action is expected to be null.
+          status: "requires_customer_action",
         },
       },
     },
@@ -382,7 +345,7 @@ export const connectorDetails = {
         payment_method: "card",
         payment_method_data: {
           card: successfulThreeDSCardDetails,
-          billing: mockBillingDetails, // Uses updated billing details
+          billing: mockBillingDetails,
         },
         currency: "USD",
         customer_acceptance: null,
@@ -510,9 +473,7 @@ export const connectorDetails = {
       },
     },
     
-    // Dlocal doesn't support mandates, so we'll skip these tests
     MandateSingleUseNo3DSAutoCapture: {
-      // Ensuring test runs and expects the correct IR_00 error
       Request: {
         payment_method: "card",
         payment_method_data: {
@@ -521,12 +482,12 @@ export const connectorDetails = {
         },
         currency: "USD",
         mandate_data: singleUseMandateData,
-        authentication_type: "no_three_ds", // ensure all relevant fields for the flow
-        capture_method: "automatic",      // ensure all relevant fields for the flow
-        setup_future_usage: "off_session", // ensure all relevant fields for the flow
-        customer_acceptance: customerAcceptance, // ensure all relevant fields for the flow
+        authentication_type: "no_three_ds",
+        capture_method: "automatic",
+        setup_future_usage: "off_session",
+        customer_acceptance: customerAcceptance,
       },
-      Response: { // Now expecting the IR_00 error
+      Response: {
         status: 200,
         body: {
           status: "succeeded",
@@ -535,7 +496,7 @@ export const connectorDetails = {
           connector: "dlocal",
         },
       },
-      Configs: { TRIGGER_SKIP: true } // Explicitly skip this test as mandates are not supported by DLocal
+      Configs: { TRIGGER_SKIP: true }
     },
 
     MandateSingleUseNo3DSManualCapture: {
@@ -555,7 +516,7 @@ export const connectorDetails = {
           status: "requires_capture",
         },
       },
-      Configs: { TRIGGER_SKIP: true } // Explicitly skip this test as mandates are not supported by DLocal
+      Configs: { TRIGGER_SKIP: true }
     },
     MITManualCapture: {
       Request: {
@@ -570,10 +531,9 @@ export const connectorDetails = {
           status: "requires_capture",
         },
       },
-      Configs: { TRIGGER_SKIP: true } // Explicitly skip this test as MIT is not supported by DLocal
+      Configs: { TRIGGER_SKIP: true }
     },
     MandateSingleUse3DSAutoCapture: {
-      
       Request: {
         payment_method: "card",
         payment_method_data: {
@@ -583,7 +543,7 @@ export const connectorDetails = {
         mandate_data: singleUseMandateData,
       },
       Response: {
-        status: 200, // Expecting failure as mandates are not supported
+        status: 200,
         body: {
           status: "requires_customer_action",
           payment_method_data: payment_method_data_3ds_address,
@@ -591,7 +551,7 @@ export const connectorDetails = {
           connector: "dlocal",
         },
       },
-      Configs: { TRIGGER_SKIP: true } // Explicitly skip this test as mandates are not supported by DLocal
+      Configs: { TRIGGER_SKIP: true }
     },
 
     SaveCardUseNo3DSAutoCapture: {
@@ -606,7 +566,7 @@ export const connectorDetails = {
         customer_acceptance: customerAcceptance,
       },
       Response: {
-        status: 200, // Expecting failure as mandates are not supported
+        status: 200,
         body: {
           status: "succeeded",
           payment_method_data: payment_method_data_no3ds_address,
@@ -614,11 +574,10 @@ export const connectorDetails = {
           connector: "dlocal",
         },
       },
-      Configs: { TRIGGER_SKIP: true } // Explicitly skip this test as setup_future_usage is not supported by DLocal
+      Configs: { TRIGGER_SKIP: true }
     },
 
     SaveCardUseNo3DSAutoCaptureOffSession: {
-
       Request: {
         payment_method: "card",
         payment_method_data: {
@@ -626,34 +585,6 @@ export const connectorDetails = {
           billing: mockBillingDetails,
         },
         setup_future_usage: "off_session",
-        customer_acceptance: customerAcceptance,
-      },
-      Response: { // Fixed typo: RResponse -> Response
-        status: 200, // Expecting failure as mandates are not supported
-        body: {
-          status: "succeeded",
-          payment_method_data: payment_method_data_no3ds_address,
-          payment_method: "card",
-          connector: "dlocal",
-        },
-      },
-      Configs: { TRIGGER_SKIP: true } // Explicitly skip this test as setup_future_usage is not supported by DLocal
-    },
-
-    MandateMultiUseNo3DSAutoCapture: {
-      // This test attempts a multi-use mandate flow.
-      // As per dlocal_limitations.md, mandates are not supported.
-      Request: {
-        payment_method: "card",
-        payment_method_data: {
-          card: successfulNo3DSCardDetails,
-          billing: mockBillingDetails, // Assuming billing is needed as per other Dlocal flows
-        },
-        currency: "USD",
-        mandate_data: multiUseMandateData, // Corrected to use multiUseMandateData
-        // authentication_type: "no_three_ds", // Retaining fields from similar tests if applicable
-        // capture_method: "automatic",
-        // setup_future_usage: "off_session", // Dlocal limitation says no mandate support, so setup_future_usage might be irrelevant or lead to an error
         customer_acceptance: customerAcceptance,
       },
       Response: {
@@ -665,7 +596,30 @@ export const connectorDetails = {
           connector: "dlocal",
         },
       },
-      Configs: { TRIGGER_SKIP: true } // Explicitly skip this test as mandates are not supported by DLocal
+      Configs: { TRIGGER_SKIP: true }
+    },
+
+    MandateMultiUseNo3DSAutoCapture: {
+      Request: {
+        payment_method: "card",
+        payment_method_data: {
+          card: successfulNo3DSCardDetails,
+          billing: mockBillingDetails, // Assuming billing is needed as per other Dlocal flows
+        },
+        currency: "USD",
+        mandate_data: multiUseMandateData,
+        customer_acceptance: customerAcceptance,
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "succeeded",
+          payment_method_data: payment_method_data_no3ds_address,
+          payment_method: "card",
+          connector: "dlocal",
+        },
+      },
+      Configs: { TRIGGER_SKIP: true }
     },
     MandateMultiUseNo3DSManualCapture: {
       Request: {
@@ -676,9 +630,9 @@ export const connectorDetails = {
         },
         currency: "USD",
         mandate_data: singleUseMandateData,
-        authentication_type: "no_three_ds", // ensure all relevant fields for the flow
-        capture_method: "automatic",      // ensure all relevant fields for the flow
-        setup_future_usage: "off_session", // ensure all relevant fields for the flow
+        authentication_type: "no_three_ds",
+        capture_method: "automatic",
+        setup_future_usage: "off_session",
         customer_acceptance: customerAcceptance,
       },
       Response: {
@@ -690,9 +644,8 @@ export const connectorDetails = {
           connector: "dlocal",
         },
       },
-      Configs: { TRIGGER_SKIP: true } // Explicitly skip this test as mandates are not supported by DLocal
+      Configs: { TRIGGER_SKIP: true }
     },
-    // MIT (Merchant Initiated Transaction) configurations
     MITAutoCapture: {
       Request: {
         payment_method: "card",
@@ -713,15 +666,14 @@ export const connectorDetails = {
           connector: "dlocal",
         },
       },
-      Configs: { TRIGGER_SKIP: true } // Explicitly skip this test as MIT is not supported by DLocal
+      Configs: { TRIGGER_SKIP: true }
     },
     ZeroAuthMandate: {
       Request: {
         payment_method: "card",
         payment_method_data: {
           card: successfulNo3DSCardDetails,
-        billing: mockBillingDetails,
-
+          billing: mockBillingDetails,
         },
         currency: "USD",
         mandate_data: singleUseMandateData,
@@ -733,9 +685,8 @@ export const connectorDetails = {
           payment_method_data: payment_method_data_no3ds_address,
         },
       },
-      Configs: { TRIGGER_SKIP: true } // Explicitly skip this test as mandates are not supported by DLocal
+      Configs: { TRIGGER_SKIP: true }
     },
-    // Zero auth configurations
     ZeroAuthPaymentIntent: {
       Request: {
         currency: "USD",
@@ -747,7 +698,7 @@ export const connectorDetails = {
           status: "requires_payment_method",
         },
       },
-      Configs: { TRIGGER_SKIP: true } // Explicitly skip this test as zero auth is not supported by DLocal
+      Configs: { TRIGGER_SKIP: true }
     },
     
     ZeroAuthConfirmPayment: {
@@ -767,10 +718,9 @@ export const connectorDetails = {
           payment_method_data: payment_method_data_no3ds_address,
         },
       },
-      Configs: { TRIGGER_SKIP: true } // Explicitly skip this test as setup mandate is not supported by DLocal
+      Configs: { TRIGGER_SKIP: true }
     },
     
-    // Sync payment configuration
     SyncPayment: {
       Response: {
         status: 200,
@@ -783,7 +733,6 @@ export const connectorDetails = {
     },
   },
   
-  // Bank redirect payment method configurations
   bank_redirect_pm: {
     PaymentIntent: {
       Request: {
@@ -798,7 +747,6 @@ export const connectorDetails = {
     },
   },
   
-  // Payment method list configurations
   pm_list: {
     PmListResponse: {
       PmListNull: {
@@ -812,7 +760,6 @@ export const connectorDetails = {
   },
 };
 
-// Define supported payment methods based on Dlocal's capabilities
 export const payment_methods_enabled = [
   {
     payment_method: "card",
