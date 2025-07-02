@@ -31,6 +31,7 @@ pub struct ConnectorAuthentication {
     pub boku: Option<BodyKey>,
     pub cashtocode: Option<BodyKey>,
     pub chargebee: Option<HeaderKey>,
+    pub checkbook: Option<BodyKey>,
     pub checkout: Option<SignatureKey>,
     pub coinbase: Option<HeaderKey>,
     pub coingate: Option<HeaderKey>,

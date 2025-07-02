@@ -346,6 +346,11 @@ api_secret = "Secret key"
 api_key = "MyApiKey"
 api_secret = "MySecretKey"
 
+[checkbook]
+api_key="Client ID"
+key1 ="Client Secret"
+
+
 [santander]
 api_key="Client ID"
 key1 ="Client Secret"
