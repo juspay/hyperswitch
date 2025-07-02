@@ -496,66 +496,6 @@ pub struct AirwallexPayLaterPaymentOptions {
     auto_capture: bool,
 }
 
-// impl TryFrom<&AirwallexRouterData<&types::PaymentsAuthorizeRouterData>>
-//     for AirwallexPaylaterPaymentsRequest
-// {
-//     type Error = error_stack::Report<errors::ConnectorError>;
-//     fn try_from(
-//         item: &AirwallexRouterData<&types::PaymentsAuthorizeRouterData>,
-//     ) -> Result<Self, Self::Error> {
-//         let mut payment_method_options = None;
-//         let request = &item.router_data.request;
-//         let payment_method = match request.payment_method_data.clone() {
-//             PaymentMethodData::PayLater(ref paylater_data) => {
-//                 payment_method_options = Some(AirwallexPaymentOptions::Klarna(
-//                     AirwallexKlarnaPaymentOptions {
-//                         auto_capture: item.router_data.request.is_auto_capture()?,
-//                     },
-//                 ));
-//                 get_paylater_details(paylater_data, item)?
-//             }
-//             _ => Err(errors::ConnectorError::NotImplemented(
-//                 utils::get_unimplemented_payment_method_error_message("airwallex"),
-//             ))?,
-//         };
-
-//         let device_data = get_device_data(item.router_data)?; 
-//         let order = request.order_details.as_ref().map(|order_data| AirwallexOrderData {
-//             products: order_data
-//                 .iter()
-//                 .map(|product| AirwallexProductData {
-//                     name: product.product_name.clone(),
-//                     quantity: product.quantity.clone(),
-//                     unit_price: product.amount
-//                 })
-//                 .collect(),
-//             shipping: Some(AirwallexShippingData {
-//                 first_name: item.router_data.get_optional_shipping_first_name(),
-//                 last_name: item.router_data.get_optional_shipping_last_name(),
-//                 phone_number:  item.router_data.get_optional_shipping_phone_number(),
-//                 address: AirwallexPLShippingAddress {
-//                     country_code: item.router_data.get_optional_shipping_country(),
-//                     city: item.router_data.get_optional_shipping_city(),
-//                     street: item.router_data.get_optional_shipping_line1(),
-//                     postcode: item.router_data.get_optional_shipping_zip(),
-//                 },
-//             }),
-//         });
-
-//         Ok(Self {
-//             request_id: Uuid::new_v4().to_string(),
-//             payment_method,
-//             payment_method_options,
-//             // return_url: return_url,
-//             return_url : request.complete_authorize_url.clone(),
-//             // return_url: request.complete_authorize_url.clone(),
-//             device_data,
-//             order : Some(order.expect("Order details are required for PayLater payment method")),
-//         })
-
-//     }
-// }
-
 impl TryFrom<&AirwallexRouterData<&types::PaymentsAuthorizeRouterData>>
     for AirwallexPaymentsRequest
 {
@@ -563,9 +503,6 @@ impl TryFrom<&AirwallexRouterData<&types::PaymentsAuthorizeRouterData>>
     fn try_from(
         item: &AirwallexRouterData<&types::PaymentsAuthorizeRouterData>,
     ) -> Result<Self, Self::Error> {
-
-        println!("payment method data: {:?}", item.router_data.request.payment_method_data);  
-        println!("router data: {:?}", item.router_data);
 
         let mut payment_method_options = None;
         let request = &item.router_data.request;
@@ -592,11 +529,6 @@ impl TryFrom<&AirwallexRouterData<&types::PaymentsAuthorizeRouterData>>
             }
             PaymentMethodData::Wallet(ref wallet_data) => get_wallet_details(wallet_data, item),
             PaymentMethodData::PayLater(ref paylater_data) => {
-                // payment_method_options = Some(AirwallexPaymentOptions::Klarna(
-                //     AirwallexKlarnaPaymentOptions {
-                //         auto_capture: item.router_data.request.is_auto_capture()?,
-                //     },
-                // ));
                 let paylater_options = AirwallexPayLaterPaymentOptions {
                     auto_capture: item.router_data.request.is_auto_capture()?,
                 };
@@ -610,24 +542,7 @@ impl TryFrom<&AirwallexRouterData<&types::PaymentsAuthorizeRouterData>>
                 get_paylater_details(paylater_data, item)
             },
             PaymentMethodData::BankRedirect(ref bankredirect_data) => get_bankredirect_details(bankredirect_data, item),
-            PaymentMethodData::BankTransfer(ref banktransfer_data) => get_banktransfer_details(banktransfer_data, item),
-            // {
-            //     if let BankRedirectData::IndonesianBankTransfer { .. } = banktransfer_data {
-            //         payment_method_options = Some(AirwallexPaymentOptions::BankTransfer(
-            //             AirwallexBankTransferData::IndonesianBankTransfer(IndonesianBankTransferData {
-            //                 bank_transfer: IndonesianBankTransferDetails {
-            //                     shopper_name: item.router_data.get_optional_billing_full_name(),
-            //                     shopper_email: item.router_data.get_optional_billing_email(),
-            //                     bank_name: item.router_data.get_optional_billing_bank_name(),
-            //                     country_code: item.router_data.get_optional_billing_country(),
-            //                 },
-            //                 payment_method_type: AirwallexPaymentType::BankTransfer,
-            //             }),
-            //         ));
-            //     }
-            //     Err(errors::ConnectorError::NotImplemented(
-            //         utils::get_unimplemented_payment_method_error_message("airwallex"),
-            //     ))
+            // PaymentMethodData::BankTransfer(ref banktransfer_data) => get_banktransfer_details(banktransfer_data, item),
               PaymentMethodData::BankDebit(_)
             | PaymentMethodData::CardRedirect(_)
             | PaymentMethodData::Crypto(_)
@@ -641,6 +556,7 @@ impl TryFrom<&AirwallexRouterData<&types::PaymentsAuthorizeRouterData>>
             | PaymentMethodData::OpenBanking(_)
             | PaymentMethodData::CardToken(_)
             | PaymentMethodData::NetworkToken(_)
+            | PaymentMethodData::BankTransfer(_)
             | PaymentMethodData::CardDetailsForNetworkTransactionId(_) => {
                 Err(errors::ConnectorError::NotImplemented(
                     utils::get_unimplemented_payment_method_error_message("airwallex"),
@@ -648,9 +564,6 @@ impl TryFrom<&AirwallexRouterData<&types::PaymentsAuthorizeRouterData>>
             }
         }?;
         let device_data = get_device_data(item.router_data)?;
-
-        println!("router return url: {:?}", item.router_data.request.router_return_url);    
-        println!("complete authorize url: {:?}", item.router_data.request.complete_authorize_url);
 
         let return_url = match &request.payment_method_data {
             PaymentMethodData::Wallet(wallet_data) => match wallet_data {
@@ -663,7 +576,6 @@ impl TryFrom<&AirwallexRouterData<&types::PaymentsAuthorizeRouterData>>
                 _ => request.complete_authorize_url.clone(),
             },
             PaymentMethodData::BankRedirect(_bankredirect_data) => item.router_data.request.router_return_url.clone(),
-            PaymentMethodData::BankTransfer(_banktransfer_data) => item.router_data.request.router_return_url.clone(),
             PaymentMethodData::PayLater(_paylater_data) => item.router_data.request.router_return_url.clone(),
             _ => request.complete_authorize_url.clone(),
         };
@@ -719,12 +631,11 @@ fn get_device_data(
     })
 }
 
+#[allow(dead_code)]
 fn get_banktransfer_details(
     banktransfer_data: &BankTransferData,
     item: &AirwallexRouterData<&types::PaymentsAuthorizeRouterData>,
 ) -> Result<AirwallexPaymentMethod, errors::ConnectorError> {
-    println!("banktransfer_data: {:?}", banktransfer_data);
-    println!("item.router_data: {:?}", item.router_data);
 
     let bank_transfer_details = match banktransfer_data {
         BankTransferData::IndonesianBankTransfer { bank_name } => {
@@ -744,7 +655,6 @@ fn get_banktransfer_details(
             utils::get_unimplemented_payment_method_error_message("airwallex"),
         ))?,
     };
-    println!("bank_transfer_details: {:?}", bank_transfer_details);
     Ok(bank_transfer_details)
 }
 
@@ -796,9 +706,6 @@ fn get_bankredirect_details(
     bankredirect_data: &BankRedirectData,
     item: &AirwallexRouterData<&types::PaymentsAuthorizeRouterData>,
 ) -> Result<AirwallexPaymentMethod, errors::ConnectorError> {
-
-    println!("bankredirect_data: {:?}", bankredirect_data);
-    println!("item.router_data: {:?}", item.router_data);
 
     let bank_redirect_details = match bankredirect_data {
         BankRedirectData::Trustly { .. } => {
@@ -1060,33 +967,6 @@ fn get_payment_status(
         AirwallexPaymentStatus::Cancelled => enums::AttemptStatus::Voided,
     }
 }
-
-// fn get_payment_status(
-//     status: &AirwallexPaymentStatus,
-//     next_action: &Option<AirwallexPaymentsNextAction>,
-// ) -> enums::AttemptStatus {
-//     println!("status: {:?}", status);
-//     match status.clone() {
-//         AirwallexPaymentStatus::Succeeded => enums::AttemptStatus::Charged,
-//         AirwallexPaymentStatus::Failed => enums::AttemptStatus::Failure,
-//         AirwallexPaymentStatus::Pending => enums::AttemptStatus::Pending,
-//         AirwallexPaymentStatus::RequiresPaymentMethod => enums::AttemptStatus::PaymentMethodAwaited,
-//         AirwallexPaymentStatus::RequiresCustomerAction => next_action.as_ref().map_or(
-//             enums::AttemptStatus::AuthenticationPending,
-//             |next_action| match next_action.stage {
-//                 Some(AirwallexNextActionStage::WaitingDeviceDataCollection) => {
-//                     enums::AttemptStatus::DeviceDataCollectionPending
-//                 }
-//                 Some(AirwallexNextActionStage::WaitingUserInfoInput) => {
-//                     enums::AttemptStatus::AuthenticationPending
-//                 },
-//                 None=>enums::AttemptStatus::AuthenticationPending
-//             },
-//         ),
-//         AirwallexPaymentStatus::RequiresCapture => enums::AttemptStatus::Authorized,
-//         AirwallexPaymentStatus::Cancelled => enums::AttemptStatus::Voided,
-//     }
-// }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
