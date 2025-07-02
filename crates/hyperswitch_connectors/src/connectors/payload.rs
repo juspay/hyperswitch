@@ -594,7 +594,7 @@ impl webhooks::IncomingWebhook for Payload {
 }
 
 static PAYLOAD_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMethods> =
-    LazyLock::new(SupportedPaymentMethods::new);
+    LazyLock::new(|| SupportedPaymentMethods::new());
 
 static PAYLOAD_CONNECTOR_INFO: ConnectorInfo = ConnectorInfo {
     display_name: "Payload",
