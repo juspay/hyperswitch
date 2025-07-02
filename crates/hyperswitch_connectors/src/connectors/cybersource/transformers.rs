@@ -355,6 +355,28 @@ pub struct CybersourcePaymentsRequest {
 }
 
 #[derive(Debug, Serialize)]
+pub enum CybersourceParesStatus {
+    #[serde(rename = "Y")]
+    AuthenticationSuccessful,
+    #[serde(rename = "A")]
+    AuthenticationAttempted,
+    #[serde(rename = "N")]
+    AuthenticationFailed,
+    #[serde(rename = "U")]
+    AuthenticationNotCompleted,
+}
+
+#[derive(Debug, Serialize)]
+pub enum EffectiveAuthenticationType {
+    #[serde(rename = "CH")]
+    Challenge,
+    #[serde(rename = "FD")]
+    DelegatedFrictionless,
+    #[serde(rename = "FR")]
+    Frictionless,
+}
+
+#[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ProcessingInformation {
     action_list: Option<Vec<CybersourceActionsList>>,
@@ -385,6 +407,15 @@ pub struct CybersourceConsumerAuthInformation {
     veres_enrolled: Option<String>,
     /// Raw electronic commerce indicator (ECI)
     eci_raw: Option<String>,
+    /// This field is supported only on Asia, Middle East, and Africa Gateway
+    /// This field is only applicable for Mastercard and Visa Transactions
+    pares_status: Option<CybersourceParesStatus>,
+    /// Passing 04 means Challenge Mandated - Strong Customer Authentication required when order exceeds 30 EUR
+    challenge_code: Option<String>,
+    /// Reason to the ParesStatus
+    signed_pares_status_reason: Option<String>,
+    /// Determines whether it would be Frictionless or Non Frictionless
+    effective_authentication_types: Option<EffectiveAuthenticationType>,
 }
 
 #[derive(Debug, Serialize)]
@@ -1263,6 +1294,13 @@ impl
             None => ccard.get_card_issuer().ok().map(String::from),
         };
 
+        let pares_status =
+            if card_type == Some("001".to_string()) || card_type == Some("002".to_string()) {
+                Some(CybersourceParesStatus::AuthenticationSuccessful)
+            } else {
+                None
+            };
+
         let security_code = if item
             .router_data
             .request
@@ -1324,6 +1362,10 @@ impl
                         (None, Some(authn_data.cavv.clone()), None)
                     };
                 CybersourceConsumerAuthInformation {
+                    effective_authentication_types: Some(EffectiveAuthenticationType::Frictionless),
+                    challenge_code: None,
+                    pares_status,
+                    signed_pares_status_reason: Some("17".to_string()),
                     ucaf_collection_indicator,
                     cavv,
                     ucaf_authentication_data,
@@ -1375,6 +1417,14 @@ impl
             Ok(issuer) => Some(String::from(issuer)),
             Err(_) => None,
         };
+
+        let pares_status =
+            if card_type == Some("001".to_string()) || card_type == Some("002".to_string()) {
+                Some(CybersourceParesStatus::AuthenticationSuccessful)
+            } else {
+                None
+            };
+
         let is_cobadged_card = ccard
             .card_number
             .clone()
@@ -1421,6 +1471,10 @@ impl
                         (None, Some(authn_data.cavv.clone()), None)
                     };
                 CybersourceConsumerAuthInformation {
+                    effective_authentication_types: Some(EffectiveAuthenticationType::Frictionless),
+                    challenge_code: None,
+                    signed_pares_status_reason: Some("17".to_string()),
+                    pares_status,
                     ucaf_collection_indicator,
                     cavv,
                     ucaf_authentication_data,
@@ -1470,6 +1524,13 @@ impl
             Err(_) => None,
         };
 
+        let pares_status =
+            if card_type == Some("001".to_string()) || card_type == Some("002".to_string()) {
+                Some(CybersourceParesStatus::AuthenticationSuccessful)
+            } else {
+                None
+            };
+
         let payment_information =
             PaymentInformation::NetworkToken(Box::new(NetworkTokenPaymentInformation {
                 tokenized_card: NetworkTokenizedCard {
@@ -1503,6 +1564,10 @@ impl
                         (None, Some(authn_data.cavv.clone()), None)
                     };
                 CybersourceConsumerAuthInformation {
+                    effective_authentication_types: Some(EffectiveAuthenticationType::Frictionless),
+                    challenge_code: None,
+                    pares_status,
+                    signed_pares_status_reason: Some("17".to_string()),
                     ucaf_collection_indicator,
                     cavv,
                     ucaf_authentication_data,
@@ -1644,6 +1709,13 @@ impl
             None => ccard.get_card_issuer().ok().map(String::from),
         };
 
+        let pares_status =
+            if card_type == Some("001".to_string()) || card_type == Some("002".to_string()) {
+                Some(CybersourceParesStatus::AuthenticationSuccessful)
+            } else {
+                None
+            };
+
         let is_cobadged_card = ccard
             .card_number
             .clone()
@@ -1686,6 +1758,10 @@ impl
             ProcessingInformation::try_from((item, None, &three_ds_info.three_ds_data))?;
 
         let consumer_authentication_information = Some(CybersourceConsumerAuthInformation {
+            effective_authentication_types: Some(EffectiveAuthenticationType::Challenge),
+            pares_status,
+            challenge_code: Some("04".to_string()),
+            signed_pares_status_reason: Some("17".to_string()),
             ucaf_collection_indicator: three_ds_info.three_ds_data.ucaf_collection_indicator,
             cavv: three_ds_info.three_ds_data.cavv,
             ucaf_authentication_data: three_ds_info.three_ds_data.ucaf_authentication_data,
@@ -1777,6 +1853,10 @@ impl
             order_information,
             client_reference_information,
             consumer_authentication_information: Some(CybersourceConsumerAuthInformation {
+                effective_authentication_types: Some(EffectiveAuthenticationType::Frictionless),
+                challenge_code: None,
+                pares_status: None,
+                signed_pares_status_reason: None,
                 ucaf_collection_indicator,
                 cavv: None,
                 ucaf_authentication_data: None,
@@ -1914,6 +1994,10 @@ impl
             order_information,
             client_reference_information,
             consumer_authentication_information: Some(CybersourceConsumerAuthInformation {
+                effective_authentication_types: Some(EffectiveAuthenticationType::Frictionless),
+                challenge_code: None,
+                pares_status: None,
+                signed_pares_status_reason: None,
                 ucaf_collection_indicator,
                 cavv: None,
                 ucaf_authentication_data: None,
@@ -2107,6 +2191,12 @@ impl TryFrom<&CybersourceRouterData<&PaymentsAuthorizeRouterData>> for Cybersour
                                         merchant_defined_information,
                                         consumer_authentication_information: Some(
                                             CybersourceConsumerAuthInformation {
+                                                effective_authentication_types: Some(
+                                                    EffectiveAuthenticationType::Frictionless,
+                                                ),
+                                                challenge_code: None,
+                                                pares_status: None,
+                                                signed_pares_status_reason: None,
                                                 ucaf_collection_indicator,
                                                 cavv: None,
                                                 ucaf_authentication_data: None,
