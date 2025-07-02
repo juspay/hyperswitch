@@ -742,7 +742,6 @@ function threeDsRedirection(redirectionUrl, expectedUrl, connectorId) {
               bodyText.includes("ThreeDS ACS Emulator") ||
               bodyText.includes("Challenge Page")
             ) {
-
               // Look for success buttons (based on UI test patterns)
               cy.get("body").then(() => {
                 // Try to find and click success buttons
