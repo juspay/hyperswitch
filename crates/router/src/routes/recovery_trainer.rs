@@ -1,7 +1,9 @@
 #![cfg(all(feature = "v2", feature = "revenue_recovery"))]
 use actix_web::{web, Responder};
 use error_stack::ResultExt;
-use external_services::grpc_client::{TrainerClientInterface, TriggerTrainingRequest};
+use external_services::grpc_client::revenue_recovery::recovery_trainer_client::{
+    TrainerClientInterface, TriggerTrainingRequest,
+};
 use router_env::{instrument, logger, tracing, Flow};
 
 use super::app::{ReqState, SessionState};

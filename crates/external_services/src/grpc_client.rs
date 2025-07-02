@@ -35,7 +35,7 @@ use serde;
 use tonic::body::Body;
 
 #[cfg(all(feature = "revenue_recovery", feature = "v2"))]
-pub use self::revenue_recovery::{
+pub use revenue_recovery::recovery_trainer_client::{
     GetTrainingJobStatusRequest, GetTrainingJobStatusResponse, JobStatus, TrainerClientConfig,
     TrainerClientInterface, TrainerError, TrainerResult, TriggerTrainingRequest,
     TriggerTrainingResponse,
