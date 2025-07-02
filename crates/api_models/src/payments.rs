@@ -6870,7 +6870,6 @@ pub struct AirwallexData {
     /// payload required by airwallex
     payload: Option<String>,
 }
-
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema)]
 pub struct NoonData {
     /// Information about the order category that merchant wants to specify at connector level. (e.g. In Noon Payments it can take values like "pay", "food", or any other custom string set by the merchant in Noon's Dashboard)

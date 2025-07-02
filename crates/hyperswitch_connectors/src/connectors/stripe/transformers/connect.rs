@@ -216,7 +216,7 @@ impl<F> TryFrom<&PayoutsRouterData<F>> for StripeConnectPayoutCreateRequest {
             amount: request.amount,
             currency: request.destination_currency,
             destination: connector_customer_id,
-            transfer_group: request.payout_id,
+            transfer_group: item.connector_request_reference_id.clone(),
         })
     }
 }

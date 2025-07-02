@@ -5351,7 +5351,7 @@ impl<F> TryFrom<&AdyenRouterData<&PayoutsRouterData<F>>> for AdyenPayoutCreateRe
                     },
                     merchant_account,
                     payment_data: PayoutPaymentMethodData::PayoutWalletData(payout_wallet),
-                    reference: item.router_data.request.payout_id.to_owned(),
+                    reference: item.router_data.connector_request_reference_id.clone(),
                     shopper_reference: item.router_data.merchant_id.get_string_repr().to_owned(),
                     shopper_email: customer_email,
                     shopper_name: ShopperName {
