@@ -378,7 +378,17 @@ impl UniqueConstraints for diesel_models::PaymentAttempt {
     }
 }
 
-#[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "refunds_v2")))]
+#[cfg(feature = "v2")]
+impl UniqueConstraints for diesel_models::PaymentAttempt {
+    fn unique_constraints(&self) -> Vec<String> {
+        vec![format!("pa_{}", self.id.get_string_repr())]
+    }
+    fn table_name(&self) -> &str {
+        "PaymentAttempt"
+    }
+}
+
+#[cfg(feature = "v1")]
 impl UniqueConstraints for diesel_models::Refund {
     fn unique_constraints(&self) -> Vec<String> {
         vec![format!(
@@ -392,7 +402,7 @@ impl UniqueConstraints for diesel_models::Refund {
     }
 }
 
-#[cfg(all(feature = "v2", feature = "refunds_v2"))]
+#[cfg(feature = "v2")]
 impl UniqueConstraints for diesel_models::Refund {
     fn unique_constraints(&self) -> Vec<String> {
         vec![self.id.get_string_repr().to_owned()]
@@ -417,7 +427,7 @@ impl UniqueConstraints for diesel_models::Payouts {
         vec![format!(
             "po_{}_{}",
             self.merchant_id.get_string_repr(),
-            self.payout_id
+            self.payout_id.get_string_repr()
         )]
     }
     fn table_name(&self) -> &str {

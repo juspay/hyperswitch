@@ -223,7 +223,7 @@ impl
             amount: item.amount,
             currency: item.router_data.request.currency,
             country,
-            locale: format!("en-{}", country),
+            locale: format!("en-{country}"),
             redirect_urls: get_redirect_url(return_url),
             payer_info,
             notification_url: item.router_data.request.get_webhook_url()?,

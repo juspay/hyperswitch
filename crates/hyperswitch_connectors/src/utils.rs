@@ -359,14 +359,13 @@ pub(crate) fn construct_not_implemented_error_report(
     capture_method: enums::CaptureMethod,
     connector_name: &str,
 ) -> error_stack::Report<errors::ConnectorError> {
-    errors::ConnectorError::NotImplemented(format!("{} for {}", capture_method, connector_name))
-        .into()
+    errors::ConnectorError::NotImplemented(format!("{capture_method} for {connector_name}")).into()
 }
 
 pub(crate) const SELECTED_PAYMENT_METHOD: &str = "Selected payment method";
 
 pub(crate) fn get_unimplemented_payment_method_error_message(connector: &str) -> String {
-    format!("{} through {}", SELECTED_PAYMENT_METHOD, connector)
+    format!("{SELECTED_PAYMENT_METHOD} through {connector}")
 }
 
 pub(crate) fn to_connector_meta<T>(connector_meta: Option<Value>) -> Result<T, Error>
@@ -396,8 +395,7 @@ pub(crate) fn validate_currency(
     if request_currency != merchant_config_currency {
         Err(errors::ConnectorError::NotSupported {
             message: format!(
-                "currency {} is not supported for this merchant account",
-                request_currency
+                "currency {request_currency} is not supported for this merchant account",
             ),
             connector: "Braintree",
         })?
@@ -1126,7 +1124,7 @@ impl CardData for Card {
     fn get_expiry_year_4_digit(&self) -> Secret<String> {
         let mut year = self.card_exp_year.peek().clone();
         if year.len() == 2 {
-            year = format!("20{}", year);
+            year = format!("20{year}");
         }
         Secret::new(year)
     }
@@ -1233,7 +1231,7 @@ impl CardData for CardDetailsForNetworkTransactionId {
     fn get_expiry_year_4_digit(&self) -> Secret<String> {
         let mut year = self.card_exp_year.peek().clone();
         if year.len() == 2 {
-            year = format!("20{}", year);
+            year = format!("20{year}");
         }
         Secret::new(year)
     }
@@ -1364,7 +1362,7 @@ impl AddressDetailsData for AddressDetails {
             .cloned()
             .unwrap_or(Secret::new("".to_string()));
         let last_name = last_name.peek();
-        let full_name = format!("{} {}", first_name, last_name).trim().to_string();
+        let full_name = format!("{first_name} {last_name}").trim().to_string();
         Ok(Secret::new(full_name))
     }
 
@@ -5321,7 +5319,7 @@ pub fn is_mandate_supported(
     } else {
         match payment_method_type {
             Some(pm_type) => Err(errors::ConnectorError::NotSupported {
-                message: format!("{} mandate payment", pm_type),
+                message: format!("{pm_type} mandate payment"),
                 connector,
             }
             .into()),
@@ -5916,7 +5914,7 @@ impl CardData for api_models::payouts::CardPayout {
     fn get_expiry_year_4_digit(&self) -> Secret<String> {
         let mut year = self.expiry_year.peek().clone();
         if year.len() == 2 {
-            year = format!("20{}", year);
+            year = format!("20{year}");
         }
         Secret::new(year)
     }
@@ -5970,6 +5968,11 @@ pub trait NetworkTokenData {
     fn get_network_token_expiry_month(&self) -> Secret<String>;
     fn get_network_token_expiry_year(&self) -> Secret<String>;
     fn get_cryptogram(&self) -> Option<Secret<String>>;
+    fn get_token_expiry_year_2_digit(&self) -> Result<Secret<String>, errors::ConnectorError>;
+    fn get_token_expiry_month_year_2_digit_with_delimiter(
+        &self,
+        delimiter: String,
+    ) -> Result<Secret<String>, errors::ConnectorError>;
 }
 
 impl NetworkTokenData for payment_method_data::NetworkTokenData {
@@ -5987,7 +5990,7 @@ impl NetworkTokenData for payment_method_data::NetworkTokenData {
     fn get_expiry_year_4_digit(&self) -> Secret<String> {
         let mut year = self.token_exp_year.peek().clone();
         if year.len() == 2 {
-            year = format!("20{}", year);
+            year = format!("20{year}");
         }
         Secret::new(year)
     }
@@ -5996,7 +5999,7 @@ impl NetworkTokenData for payment_method_data::NetworkTokenData {
     fn get_expiry_year_4_digit(&self) -> Secret<String> {
         let mut year = self.network_token_exp_year.peek().clone();
         if year.len() == 2 {
-            year = format!("20{}", year);
+            year = format!("20{year}");
         }
         Secret::new(year)
     }
@@ -6039,6 +6042,56 @@ impl NetworkTokenData for payment_method_data::NetworkTokenData {
     #[cfg(feature = "v2")]
     fn get_cryptogram(&self) -> Option<Secret<String>> {
         self.cryptogram.clone()
+    }
+
+    #[cfg(feature = "v1")]
+    fn get_token_expiry_year_2_digit(&self) -> Result<Secret<String>, errors::ConnectorError> {
+        let binding = self.token_exp_year.clone();
+        let year = binding.peek();
+        Ok(Secret::new(
+            year.get(year.len() - 2..)
+                .ok_or(errors::ConnectorError::RequestEncodingFailed)?
+                .to_string(),
+        ))
+    }
+
+    #[cfg(feature = "v2")]
+    fn get_token_expiry_year_2_digit(&self) -> Result<Secret<String>, errors::ConnectorError> {
+        let binding = self.network_token_exp_year.clone();
+        let year = binding.peek();
+        Ok(Secret::new(
+            year.get(year.len() - 2..)
+                .ok_or(errors::ConnectorError::RequestEncodingFailed)?
+                .to_string(),
+        ))
+    }
+
+    #[cfg(feature = "v1")]
+    fn get_token_expiry_month_year_2_digit_with_delimiter(
+        &self,
+        delimiter: String,
+    ) -> Result<Secret<String>, errors::ConnectorError> {
+        let year = self.get_token_expiry_year_2_digit()?;
+        Ok(Secret::new(format!(
+            "{}{}{}",
+            self.token_exp_month.peek(),
+            delimiter,
+            year.peek()
+        )))
+    }
+
+    #[cfg(feature = "v2")]
+    fn get_token_expiry_month_year_2_digit_with_delimiter(
+        &self,
+        delimiter: String,
+    ) -> Result<Secret<String>, errors::ConnectorError> {
+        let year = self.get_token_expiry_year_2_digit()?;
+        Ok(Secret::new(format!(
+            "{}{}{}",
+            self.network_token_exp_month.peek(),
+            delimiter,
+            year.peek()
+        )))
     }
 }
 
@@ -6253,7 +6306,7 @@ where
             .clone()
             .parse_enum("Currency")
             .map(Some)
-            .map_err(|_| serde::de::Error::custom(format!("Invalid currency code: {}", value))),
+            .map_err(|_| serde::de::Error::custom(format!("Invalid currency code: {value}"))),
         _ => Ok(None),
     }
 }

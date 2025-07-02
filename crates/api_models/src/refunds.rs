@@ -11,7 +11,7 @@ use super::payments::AmountFilter;
 use crate::admin;
 use crate::{admin::MerchantConnectorInfo, enums};
 
-#[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "refunds_v2")))]
+#[cfg(feature = "v1")]
 #[derive(Default, Debug, ToSchema, Clone, Deserialize, Serialize)]
 #[serde(deny_unknown_fields)]
 pub struct RefundRequest {
@@ -61,7 +61,7 @@ pub struct RefundRequest {
     pub split_refunds: Option<common_types::refunds::SplitRefund>,
 }
 
-#[cfg(all(feature = "v2", feature = "refunds_v2"))]
+#[cfg(feature = "v2")]
 #[derive(Debug, ToSchema, Clone, Deserialize, Serialize)]
 #[serde(deny_unknown_fields)]
 pub struct RefundsCreateRequest {
@@ -102,21 +102,35 @@ pub struct RefundsCreateRequest {
     /// Metadata is useful for storing additional, unstructured information on an object.
     #[schema(value_type  = Option<Object>, example = r#"{ "city": "NY", "unit": "245" }"#)]
     pub metadata: Option<pii::SecretSerdeValue>,
+
+    /// Merchant connector details used to make payments.
+    #[schema(value_type = Option<MerchantConnectorAuthDetails>)]
+    pub merchant_connector_details: Option<common_types::domain::MerchantConnectorAuthDetails>,
 }
 
-#[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "refunds_v2")))]
+#[cfg(feature = "v1")]
 #[derive(Default, Debug, Clone, Deserialize)]
 pub struct RefundsRetrieveBody {
     pub force_sync: Option<bool>,
 }
 
-#[cfg(all(feature = "v2", feature = "refunds_v2"))]
+#[cfg(feature = "v2")]
 #[derive(Default, Debug, Clone, Deserialize)]
 pub struct RefundsRetrieveBody {
     pub force_sync: Option<bool>,
 }
 
-#[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "refunds_v2")))]
+#[cfg(feature = "v2")]
+#[derive(Default, Debug, Clone, Deserialize)]
+pub struct RefundsRetrievePayload {
+    /// `force_sync` with the connector to get refund details
+    pub force_sync: Option<bool>,
+
+    /// Merchant connector details used to make payments.
+    pub merchant_connector_details: Option<common_types::domain::MerchantConnectorAuthDetails>,
+}
+
+#[cfg(feature = "v1")]
 #[derive(Default, Debug, ToSchema, Clone, Deserialize, Serialize)]
 pub struct RefundsRetrieveRequest {
     /// Unique Identifier for the Refund. This is to ensure idempotency for multiple partial refund initiated against the same payment. If the identifiers is not defined by the merchant, this filed shall be auto generated and provide in the API response. It is recommended to generate uuid(v4) as the refund_id.
@@ -135,7 +149,7 @@ pub struct RefundsRetrieveRequest {
     pub merchant_connector_details: Option<admin::MerchantConnectorDetailsWrap>,
 }
 
-#[cfg(all(feature = "v2", feature = "refunds_v2"))]
+#[cfg(feature = "v2")]
 #[derive(Debug, ToSchema, Clone, Deserialize, Serialize)]
 pub struct RefundsRetrieveRequest {
     /// Unique Identifier for the Refund. This is to ensure idempotency for multiple partial refund initiated against the same payment. If the identifiers is not defined by the merchant, this filed shall be auto generated and provide in the API response. It is recommended to generate uuid(v4) as the refund_id.
@@ -149,6 +163,10 @@ pub struct RefundsRetrieveRequest {
     /// `force_sync` with the connector to get refund details
     /// (defaults to false)
     pub force_sync: Option<bool>,
+
+    /// Merchant connector details used to make payments.
+    #[schema(value_type = Option<MerchantConnectorAuthDetails>)]
+    pub merchant_connector_details: Option<common_types::domain::MerchantConnectorAuthDetails>,
 }
 
 #[derive(Default, Debug, ToSchema, Clone, Deserialize, Serialize)]
@@ -165,7 +183,7 @@ pub struct RefundUpdateRequest {
     pub metadata: Option<pii::SecretSerdeValue>,
 }
 
-#[cfg(all(feature = "v2", feature = "refunds_v2"))]
+#[cfg(feature = "v2")]
 #[derive(Default, Debug, ToSchema, Clone, Deserialize, Serialize)]
 #[serde(deny_unknown_fields)]
 pub struct RefundMetadataUpdateRequest {
@@ -323,7 +341,7 @@ pub struct RefundResponse {
     pub profile_id: common_utils::id_type::ProfileId,
     /// The merchant_connector_id of the processor through which this payment went through
     #[schema(value_type = String)]
-    pub merchant_connector_id: common_utils::id_type::MerchantConnectorAccountId,
+    pub merchant_connector_id: Option<common_utils::id_type::MerchantConnectorAccountId>,
     /// The reference id of the connector for the refund
     pub connector_refund_reference_id: Option<String>,
 }

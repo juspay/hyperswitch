@@ -760,6 +760,22 @@ function bankRedirectRedirection(
                 
               default:
                 throw new Error(`Unsupported Mollie payment method type: ${paymentMethodType}`);
+
+          case "nexinets":
+            switch (paymentMethodType) {
+              case "ideal":
+                // Nexinets iDEAL specific selector - click the Success link
+                cy.get("a.btn.btn-primary.btn-block")
+                  .contains("Success")
+                  .click();
+
+                verifyUrl = true;
+                break;
+              default:
+                throw new Error(
+                  `Unsupported Nexinets payment method type: ${paymentMethodType}`
+                );
+
             }
             break;
 
@@ -1078,6 +1094,12 @@ function threeDsRedirection(redirectionUrl, expectedUrl, connectorId) {
             });
           break;
 
+        case "nexinets":
+          cy.wait(constants.TIMEOUT / 10); // Wait for the page to load
+          // Nexinets iDEAL specific selector - click the Success link
+          cy.get("a.btn.btn-primary.btn-block").contains("Success").click();
+
+          break;
         case "nmi":
         case "noon":
         case "xendit":

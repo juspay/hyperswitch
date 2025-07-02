@@ -226,7 +226,9 @@ sequenceDiagram
 
 **Required Fields:**
 - `off_session: true`
-- `recurring_details: { payment_method_id: "<from_setup>" }`
+- `recurring_details: {
+        "type": "payment_method_id",
+        "data": "<from_setup>"}`
 
 **Use Case:** Subscription charges, scheduled billing without customer interaction
 
