@@ -1,7 +1,7 @@
 import { customerAcceptance, cardRequiredField } from "./Commons.js";
 const defaultBillingDetails = {
   address: {
-    line1: "Calle 123",
+    line1: "Caller 123",
     line2: "Apt 1",
     line3: null,
     city: "Bogotá",
