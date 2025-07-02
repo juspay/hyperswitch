@@ -519,6 +519,7 @@ impl ConnectorSpecifications for ConnectorEnum {
         }
     }
 
+    #[cfg(feature = "v1")]
     fn generate_connector_request_reference_id(
         &self,
         payment_intent: &hyperswitch_domain_models::payments::PaymentIntent,
