@@ -1,9 +1,8 @@
 use api_models::{payment_methods::PaymentMethodId, proxy as proxy_api_models};
-use common_utils::{ext_traits::OptionExt, id_type};
-use error_stack::{report, ResultExt};
-use hyperswitch_domain_models::{
-    errors::api_error_response::NotImplementedMessage, payment_methods,
-};
+use common_utils::{ext_traits::{OptionExt, Encode}, id_type};
+use error_stack::ResultExt;
+use hyperswitch_domain_models::payment_methods;
+use serde_json::Value;
 use masking::Mask;
 use x509_parser::nom::{
     bytes::complete::{tag, take_while1},
@@ -13,9 +12,12 @@ use x509_parser::nom::{
 };
 
 use crate::{
-    core::errors::{self, RouterResult},
+    core::{
+        errors::{self, RouterResult},
+        payment_methods::vault,
+    },
     routes::SessionState,
-    types::domain,
+    types::{domain, payment_methods as pm_types},
 };
 
 pub struct ProxyRequestWrapper(pub proxy_api_models::ProxyRequest);
@@ -50,11 +52,20 @@ impl ProxyRequestWrapper {
                     .attach_printable("Locker id not present in Payment Method Entry")
             }
             proxy_api_models::TokenType::TokenizationId => {
-                Err(report!(errors::ApiErrorResponse::NotImplemented {
-                    message: NotImplementedMessage::Reason(
-                        "Proxy flow using tokenization id".to_string(),
-                    ),
-                }))
+                let token_id = token.clone();
+                let token_id = id_type::GlobalTokenId::from_str(token_id.as_str())
+                    .change_context(errors::ApiErrorResponse::InternalServerError)?;
+                let db = state.store.as_ref();
+                let key_manager_state = &(state).into();
+
+                let tokenization_record = db
+                    .get_entity_id_vault_id_by_token_id(&token_id, key_store, key_manager_state)
+                    .await
+                    .change_context(errors::ApiErrorResponse::InternalServerError)?;
+
+                Ok(payment_methods::VaultId::generate(
+                    tokenization_record.locker_id,
+                ))
             }
         }
     }
@@ -74,6 +85,49 @@ impl ProxyRequestWrapper {
 
     pub fn get_method(&self) -> common_utils::request::Method {
         self.0.method
+    }
+
+    pub async fn get_vault_data(
+        &self,
+        state: &SessionState,
+        merchant_context: domain::MerchantContext,
+        vault_id: &payment_methods::VaultId,
+    ) -> RouterResult<Value> {
+        match self.0.token_type {
+            proxy_api_models::TokenType::PaymentMethodId => {
+                let vault_resp = vault::retrieve_payment_method_from_vault_internal(
+                    &state,
+                    &merchant_context,
+                    vault_id,
+                )
+                .await
+                .change_context(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable("Error while fetching data from vault")?;
+
+                Ok(vault_resp
+                    .data
+                    .encode_to_value()
+                    .change_context(errors::ApiErrorResponse::InternalServerError)
+                    .attach_printable("Failed to serialize vault data")?)
+            }
+            proxy_api_models::TokenType::TokenizationId => {
+                let vault_request = pm_types::VaultRetrieveRequest {
+                    entity_id: merchant_context.get_merchant_account().get_id().clone(),
+                    vault_id: vault_id.clone(),
+                };
+            
+                let vault_data = vault::retrieve_value_from_vault(&state, vault_request)
+                    .await
+                    .change_context(errors::ApiErrorResponse::InternalServerError)
+                    .attach_printable("Failed to retrieve vault data")?;
+            
+                Ok(vault_data
+                    .get("data")
+                    .cloned()
+                    .unwrap_or(Value::Null))
+
+            }
+        }
     }
 }
 
