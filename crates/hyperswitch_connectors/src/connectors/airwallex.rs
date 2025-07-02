@@ -422,7 +422,7 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
     ) -> CustomResult<PaymentsAuthorizeRouterData, errors::ConnectorError> {
         let response: AirwallexAuthResponse = res
             .response
-            .parse_struct("AirwallexAuthResponse")
+            .parse_struct("AirwallexPaymentsResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
 
         event_builder.map(|i| i.set_response_body(&response));

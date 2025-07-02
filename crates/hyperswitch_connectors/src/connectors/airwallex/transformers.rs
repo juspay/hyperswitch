@@ -225,16 +225,6 @@ pub struct AirwallexPaymentsRequest {
     device_data: DeviceData,
 }
 
-#[derive(Debug, Serialize)]
-pub struct AirwallexPaylaterPaymentsRequest {
-    request_id: String,
-    payment_method: AirwallexPaymentMethod,
-    payment_method_options: Option<AirwallexPaymentOptions>,
-    return_url: Option<String>,
-    device_data: DeviceData,
-    order: Option<AirwallexOrderData>,
-}
-
 #[derive(Debug, Serialize, Eq, PartialEq, Default)]
 pub struct AirwallexOrderData {
     products: Vec<AirwallexProductData>,
