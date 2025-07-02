@@ -1525,6 +1525,7 @@ where
     Self: Sized,
 {
     #[cfg(feature = "v2")]
+    #[allow(clippy::too_many_arguments)]
     fn generate_response(
         self,
         state: &SessionState,
@@ -1533,6 +1534,7 @@ where
         is_latency_header_enabled: Option<bool>,
         merchant_context: &domain::MerchantContext,
         profile: &domain::Profile,
+        connector_response_data: Option<common_types::domain::ConnectorResponseData>,
     ) -> RouterResponse<Response>;
 }
 
@@ -1550,6 +1552,7 @@ where
         is_latency_header_enabled: Option<bool>,
         merchant_context: &domain::MerchantContext,
         profile: &domain::Profile,
+        _connector_response_data: Option<common_types::domain::ConnectorResponseData>,
     ) -> RouterResponse<api_models::payments::PaymentsCaptureResponse> {
         let payment_intent = &self.payment_intent;
         let payment_attempt = &self.payment_attempt;
@@ -1873,6 +1876,7 @@ where
         is_latency_header_enabled: Option<bool>,
         merchant_context: &domain::MerchantContext,
         profile: &domain::Profile,
+        connector_response_data: Option<common_types::domain::ConnectorResponseData>,
     ) -> RouterResponse<api_models::payments::PaymentsResponse> {
         let payment_intent = self.payment_intent;
         let payment_attempt = self.payment_attempt;
@@ -1898,7 +1902,8 @@ where
 
         let payment_address = self.payment_address;
 
-        let whole_connector_response = self.whole_connector_response;
+        let whole_connector_response =
+            connector_response_data.and_then(|data| data.whole_connector_response);
 
         let payment_method_data =
             Some(api_models::payments::PaymentMethodDataResponseWithBilling {
@@ -1992,6 +1997,7 @@ where
         is_latency_header_enabled: Option<bool>,
         merchant_context: &domain::MerchantContext,
         profile: &domain::Profile,
+        connector_response_data: Option<common_types::domain::ConnectorResponseData>,
     ) -> RouterResponse<api_models::payments::PaymentsResponse> {
         let payment_intent = self.payment_intent;
         let payment_attempt = &self.payment_attempt;
@@ -2026,7 +2032,8 @@ where
                     .map(From::from),
             });
 
-        let whole_connector_response = self.whole_connector_response;
+        let whole_connector_response =
+            connector_response_data.and_then(|data| data.whole_connector_response);
 
         let connector_token_details = self
             .payment_attempt
@@ -2090,6 +2097,7 @@ where
         _is_latency_header_enabled: Option<bool>,
         _merchant_context: &domain::MerchantContext,
         _profile: &domain::Profile,
+        _connector_response_data: Option<common_types::domain::ConnectorResponseData>,
     ) -> RouterResponse<api_models::payments::PaymentAttemptResponse> {
         let payment_attempt = self.payment_attempt;
         let response = api_models::payments::PaymentAttemptResponse::foreign_from(&payment_attempt);
@@ -2114,6 +2122,7 @@ where
         _is_latency_header_enabled: Option<bool>,
         _merchant_context: &domain::MerchantContext,
         _profile: &domain::Profile,
+        _connector_response_data: Option<common_types::domain::ConnectorResponseData>,
     ) -> RouterResponse<api_models::payments::PaymentAttemptRecordResponse> {
         let payment_attempt = self.payment_attempt;
         let payment_intent = self.payment_intent;

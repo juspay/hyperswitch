@@ -2543,8 +2543,6 @@ impl<F: Clone> PostUpdateTracker<F, PaymentConfirmData<F>, types::PaymentsAuthor
         payment_data.payment_intent = updated_payment_intent;
         payment_data.payment_attempt = updated_payment_attempt;
 
-        payment_data.whole_connector_response = response_router_data.whole_connector_response;
-
         if let Some(payment_method) = &payment_data.payment_method {
             match attempt_status {
                 common_enums::AttemptStatus::AuthenticationFailed
@@ -2667,8 +2665,6 @@ impl<F: Clone> PostUpdateTracker<F, PaymentStatusData<F>, types::PaymentsSyncDat
 
         payment_data.payment_intent = updated_payment_intent;
         payment_data.payment_attempt = updated_payment_attempt;
-
-        payment_data.whole_connector_response = response_router_data.whole_connector_response;
 
         Ok(payment_data)
     }

@@ -244,7 +244,6 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentStatusData<F>, PaymentsRetriev
             attempts,
             should_sync_with_connector,
             merchant_connector_details,
-            whole_connector_response: None,
         };
 
         let get_trackers_response = operations::GetTrackerResponse { payment_data };

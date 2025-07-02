@@ -264,7 +264,6 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentConfirmData<F>, ProxyPaymentsR
             mandate_data: Some(mandate_data_input),
             payment_method: None,
             merchant_connector_details: None,
-            whole_connector_response: None,
         };
 
         let get_trackers_response = operations::GetTrackerResponse { payment_data };

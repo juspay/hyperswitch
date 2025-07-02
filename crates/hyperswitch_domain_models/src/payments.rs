@@ -866,7 +866,6 @@ where
     pub mandate_data: Option<api_models::payments::MandateIds>,
     pub payment_method: Option<payment_methods::PaymentMethod>,
     pub merchant_connector_details: Option<common_types::domain::MerchantConnectorAuthDetails>,
-    pub whole_connector_response: Option<String>,
 }
 
 #[cfg(feature = "v2")]
@@ -920,7 +919,6 @@ where
     /// This will depend on the payment status and the force sync flag in the request
     pub should_sync_with_connector: bool,
     pub merchant_connector_details: Option<common_types::domain::MerchantConnectorAuthDetails>,
-    pub whole_connector_response: Option<String>,
 }
 
 #[cfg(feature = "v2")]
