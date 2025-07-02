@@ -263,6 +263,9 @@ pub async fn create_user_theme(
         &request.lineage.entity_type(),
     )
     .await?;
+    if lineage != request.lineage {
+        return Err(UserErrors::InvalidThemeLineage("Mismatch".to_string()).into());
+    }
     let new_theme = ThemeNew::new(
         Uuid::new_v4().to_string(),
         request.theme_name,
@@ -320,16 +323,7 @@ pub async fn delete_user_theme(
         .find_theme_by_theme_id(theme_id.clone())
         .await
         .to_not_found_response(UserErrors::ThemeNotFound)?;
-    let user_lineage = theme_utils::get_theme_lineage_from_user_token(
-        &user_from_token,
-        &state,
-        &db_theme.entity_type,
-    )
-    .await?;
-    let theme_lineage = theme_utils::get_lineage_from_theme(&db_theme);
-    if user_lineage != theme_lineage {
-        return Err(UserErrors::ThemeNotFound.into());
-    }
+    theme_utils::can_user_access_theme(&user_from_token, &db_theme)?;
     state
         .store
         .delete_theme_by_theme_id(theme_id.clone())
@@ -353,16 +347,8 @@ pub async fn update_user_theme(
         .find_theme_by_theme_id(theme_id.clone())
         .await
         .to_not_found_response(UserErrors::ThemeNotFound)?;
-    let user_lineage = theme_utils::get_theme_lineage_from_user_token(
-        &user_from_token,
-        &state,
-        &db_theme.entity_type,
-    )
-    .await?;
-    let theme_lineage = theme_utils::get_lineage_from_theme(&db_theme);
-    if user_lineage != theme_lineage {
-        return Err(UserErrors::ThemeNotFound.into());
-    }
+
+    theme_utils::can_user_access_theme(&user_from_token, &db_theme)?;
 
     let db_theme = match request.email_config {
         Some(email_config) => {
@@ -423,16 +409,7 @@ pub async fn upload_file_to_user_theme_storage(
         .find_theme_by_theme_id(theme_id)
         .await
         .to_not_found_response(UserErrors::ThemeNotFound)?;
-    let user_lineage = theme_utils::get_theme_lineage_from_user_token(
-        &user_from_token,
-        &state,
-        &db_theme.entity_type,
-    )
-    .await?;
-    let theme_lineage = theme_utils::get_lineage_from_theme(&db_theme);
-    if user_lineage != theme_lineage {
-        return Err(UserErrors::ThemeNotFound.into());
-    }
+    theme_utils::can_user_access_theme(&user_from_token, &db_theme)?;
     theme_utils::upload_file_to_theme_bucket(
         &state,
         &theme_utils::get_specific_file_key(&db_theme.theme_id, &request.asset_name),
@@ -485,12 +462,12 @@ pub async fn list_all_themes_in_lineage(
                         });
                     }
                     Err(_) => {
-                        continue; // Skip this theme if S3 file is missing
+                        return Err(UserErrors::ErrorRetrievingFile.into());
                     }
                 }
             }
             Err(_) => {
-                continue;
+                return Err(UserErrors::ErrorRetrievingFile.into());
             }
         }
     }
@@ -505,21 +482,12 @@ pub async fn get_user_theme_using_theme_id(
     user_from_token: UserFromToken,
     theme_id: String,
 ) -> UserResponse<theme_api::GetThemeResponse> {
-    let theme = state
+    let db_theme = state
         .store
         .find_theme_by_theme_id(theme_id.clone())
         .await
         .to_not_found_response(UserErrors::ThemeNotFound)?;
-    let user_lineage = theme_utils::get_theme_lineage_from_user_token(
-        &user_from_token,
-        &state,
-        &theme.entity_type,
-    )
-    .await?;
-    let theme_lineage = theme_utils::get_lineage_from_theme(&theme);
-    if user_lineage != theme_lineage {
-        return Err(UserErrors::ThemeNotFound.into());
-    }
+    theme_utils::can_user_access_theme(&user_from_token, &db_theme)?;
     let file = theme_utils::retrieve_file_from_theme_bucket(
         &state,
         &theme_utils::get_theme_file_key(&theme_id),
@@ -532,14 +500,14 @@ pub async fn get_user_theme_using_theme_id(
         .change_context(UserErrors::InternalServerError)?;
 
     Ok(ApplicationResponse::Json(theme_api::GetThemeResponse {
-        email_config: theme.email_config(),
-        theme_id: theme.theme_id,
-        theme_name: theme.theme_name,
-        entity_type: theme.entity_type,
-        tenant_id: theme.tenant_id,
-        org_id: theme.org_id,
-        merchant_id: theme.merchant_id,
-        profile_id: theme.profile_id,
+        email_config: db_theme.email_config(),
+        theme_id: db_theme.theme_id,
+        theme_name: db_theme.theme_name,
+        entity_type: db_theme.entity_type,
+        tenant_id: db_theme.tenant_id,
+        org_id: db_theme.org_id,
+        merchant_id: db_theme.merchant_id,
+        profile_id: db_theme.profile_id,
         theme_data: parsed_data,
     }))
 }

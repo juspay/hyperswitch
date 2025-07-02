@@ -246,12 +246,51 @@ pub async fn get_theme_lineage_from_user_token(
     ))
 }
 
-pub fn get_lineage_from_theme(theme: &Theme) -> ThemeLineage {
-    ThemeLineage::new(
-        theme.entity_type,
-        theme.tenant_id.clone(),
-        theme.org_id.clone().unwrap_or_default(),
-        theme.merchant_id.clone().unwrap_or_default(),
-        theme.profile_id.clone().unwrap_or_default(),
-    )
+pub fn can_user_access_theme(user: &UserFromToken, theme: &Theme) -> UserResult<()> {
+    match theme.entity_type {
+        EntityType::Tenant => {
+            if user.tenant_id.as_ref() == Some(&theme.tenant_id)
+                && theme.org_id.is_none()
+                && theme.merchant_id.is_none()
+                && theme.profile_id.is_none()
+            {
+                Ok(())
+            } else {
+                Err(UserErrors::ThemeNotFound.into())
+            }
+        }
+        EntityType::Organization => {
+            if user.tenant_id.as_ref() == Some(&theme.tenant_id)
+                && theme.org_id.as_ref() == Some(&user.org_id)
+                && theme.merchant_id.is_none()
+                && theme.profile_id.is_none()
+            {
+                Ok(())
+            } else {
+                Err(UserErrors::ThemeNotFound.into())
+            }
+        }
+        EntityType::Merchant => {
+            if user.tenant_id.as_ref() == Some(&theme.tenant_id)
+                && theme.org_id.as_ref() == Some(&user.org_id)
+                && theme.merchant_id.as_ref() == Some(&user.merchant_id)
+                && theme.profile_id.is_none()
+            {
+                Ok(())
+            } else {
+                Err(UserErrors::ThemeNotFound.into())
+            }
+        }
+        EntityType::Profile => {
+            if user.tenant_id.as_ref() == Some(&theme.tenant_id)
+                && theme.org_id.as_ref() == Some(&user.org_id)
+                && theme.merchant_id.as_ref() == Some(&user.merchant_id)
+                && theme.profile_id.as_ref() == Some(&user.profile_id)
+            {
+                Ok(())
+            } else {
+                Err(UserErrors::ThemeNotFound.into())
+            }
+        }
+    }
 }

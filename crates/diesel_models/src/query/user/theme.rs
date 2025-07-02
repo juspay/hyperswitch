@@ -229,7 +229,7 @@ impl Theme {
         {
             Ok(themes) => Ok(themes),
             Err(err) => match err {
-                DieselError::NotFound => Ok(Vec::new()), // Return empty vec instead of error
+                DieselError::NotFound => Err(report!(err)).change_context(DatabaseError::NotFound),
                 _ => Err(report!(err)).change_context(DatabaseError::Others),
             },
         }
