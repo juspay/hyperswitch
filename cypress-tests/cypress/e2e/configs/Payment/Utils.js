@@ -362,8 +362,8 @@ export const CONNECTOR_LISTS = {
       "fiserv",
       "jpmorgan",
       "paypal",
-      "wellsfargo",
       "stax",
+      "wellsfargo",
     ],
     // Add more exclusion lists
   },

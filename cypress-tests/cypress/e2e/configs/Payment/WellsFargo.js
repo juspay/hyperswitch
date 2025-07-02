@@ -52,12 +52,6 @@ export const connectorDetails = {
       },
     },
     PaymentIntentOffSession: {
-      Configs: {
-        CONNECTOR_CREDENTIAL: {
-          specName: ["connectorAgnosticNTID"],
-          value: "connector_2",
-        },
-      },
       Request: {
         currency: "USD",
         customer_acceptance: null,
