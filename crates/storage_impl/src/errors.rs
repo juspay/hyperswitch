@@ -161,6 +161,13 @@ pub enum ConnectorError {
     },
     #[error("{flow} flow not supported by {connector} connector")]
     FlowNotSupported { flow: String, connector: String },
+    #[error("Connector '{connector}' rejected field '{field_name}': length {received_length} exceeds maximum of {max_length}'")]
+    MaxFieldLengthViolated {
+        connector: String,
+        field_name: String,
+        max_length: usize,
+        received_length: usize,
+    },
     #[error("Capture method not supported")]
     CaptureMethodNotSupported,
     #[error("Missing connector transaction ID")]
