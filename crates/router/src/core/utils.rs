@@ -26,6 +26,7 @@ use hyperswitch_domain_models::{
 use hyperswitch_domain_models::{
     router_data_v2::flow_common_types::VaultConnectorFlowData, types::VaultRouterDataV2,
 };
+use hyperswitch_interfaces::api::ConnectorSpecifications;
 #[cfg(feature = "v2")]
 use masking::ExposeOptionInterface;
 use masking::Secret;
@@ -59,7 +60,6 @@ use crate::{
     },
     utils::{generate_id, generate_uuid, OptionExt, ValueExt},
 };
-use hyperswitch_interfaces::api::ConnectorSpecifications;
 
 pub const IRRELEVANT_CONNECTOR_REQUEST_REFERENCE_ID_IN_DISPUTE_FLOW: &str =
     "irrelevant_connector_request_reference_id_in_dispute_flow";
