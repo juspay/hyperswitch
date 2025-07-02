@@ -3814,7 +3814,11 @@ where
                     .await?;
 
                 router_data
-                    .call_unified_connector_service(state, merchant_connector_account.clone())
+                    .call_unified_connector_service(
+                        state,
+                        merchant_connector_account.clone(),
+                        merchant_context,
+                    )
                     .await?;
 
                 Ok((router_data, merchant_connector_account))

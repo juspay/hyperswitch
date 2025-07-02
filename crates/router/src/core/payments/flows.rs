@@ -196,6 +196,7 @@ pub trait Feature<F, T> {
         &mut self,
         _state: &SessionState,
         _merchant_connector_account: helpers::MerchantConnectorAccountType,
+        _merchant_context: &domain::MerchantContext,
     ) -> RouterResult<()>
     where
         F: Clone,

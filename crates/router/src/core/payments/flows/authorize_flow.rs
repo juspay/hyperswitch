@@ -445,6 +445,7 @@ impl Feature<api::Authorize, types::PaymentsAuthorizeData> for types::PaymentsAu
         &mut self,
         state: &SessionState,
         merchant_connector_account: helpers::MerchantConnectorAccountType,
+        merchant_context: &domain::MerchantContext,
     ) -> RouterResult<()> {
         let client = state
             .grpc_client
@@ -458,13 +459,19 @@ impl Feature<api::Authorize, types::PaymentsAuthorizeData> for types::PaymentsAu
                 .change_context(ApiErrorResponse::InternalServerError)
                 .attach_printable("Failed to construct Payment Authorize Request")?;
 
-        let connector_auth_metadata =
-            build_unified_connector_service_auth_metadata(merchant_connector_account)
-                .change_context(ApiErrorResponse::InternalServerError)
-                .attach_printable("Failed to construct request metadata")?;
+        let connector_auth_metadata = build_unified_connector_service_auth_metadata(
+            merchant_connector_account,
+            merchant_context,
+        )
+        .change_context(ApiErrorResponse::InternalServerError)
+        .attach_printable("Failed to construct request metadata")?;
 
         let response = client
-            .payment_authorize(payment_authorize_request, connector_auth_metadata)
+            .payment_authorize(
+                payment_authorize_request,
+                connector_auth_metadata,
+                state.get_grpc_headers(),
+            )
             .await
             .change_context(ApiErrorResponse::InternalServerError)
             .attach_printable("Failed to authorize payment")?;

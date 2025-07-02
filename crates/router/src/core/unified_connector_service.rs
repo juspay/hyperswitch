@@ -11,10 +11,10 @@ use hyperswitch_domain_models::{
     router_data::{ErrorResponse, RouterData},
     router_response_types::{PaymentsResponseData, RedirectForm},
 };
-use masking::{ExposeInterface, PeekInterface};
+use masking::{ExposeInterface, PeekInterface, Secret};
 use unified_connector_service_client::payments::{
     self as payments_grpc, payment_method::PaymentMethod, CardDetails, CardPaymentMethodType,
-    PaymentServiceAuthorizeResponse, UpiPaymentMethodType,
+    PaymentServiceAuthorizeResponse,
 };
 
 use crate::{
@@ -72,6 +72,12 @@ pub fn build_unified_connector_service_payment_method(
                 .peek()
                 .to_string();
 
+            let card_network = card
+                .card_network
+                .clone()
+                .map(payments_grpc::CardNetwork::foreign_try_from)
+                .transpose()?;
+
             let card_details = CardDetails {
                 card_number: card.card_number.get_card_no(),
                 card_exp_month,
@@ -79,7 +85,7 @@ pub fn build_unified_connector_service_payment_method(
                 card_cvc: card.card_cvc.peek().to_string(),
                 card_holder_name: card.card_holder_name.map(|name| name.expose()),
                 card_issuer: card.card_issuer.clone(),
-                card_network: None,
+                card_network: card_network.map(|card_network| card_network.into()),
                 card_type: card.card_type.clone(),
                 bank_code: card.bank_code.clone(),
                 nick_name: card.nick_name.map(|n| n.expose()),
@@ -109,43 +115,6 @@ pub fn build_unified_connector_service_payment_method(
             })
         }
 
-        hyperswitch_domain_models::payment_method_data::PaymentMethodData::Upi(upi_data) => {
-            let upi_details = match upi_data {
-                hyperswitch_domain_models::payment_method_data::UpiData::UpiCollect(
-                    upi_collect_data,
-                ) => {
-                    let vpa_id = upi_collect_data.vpa_id.map(|vpa| vpa.expose());
-                    payments_grpc::UpiCollect { vpa_id }
-                }
-                _ => {
-                    return Err(UnifiedConnectorServiceError::NotImplemented(format!(
-                        "Unimplemented card payment method type: {:?}",
-                        payment_method_type
-                    ))
-                    .into());
-                }
-            };
-
-            let upi_type = match payment_method_type {
-                PaymentMethodType::UpiCollect => {
-                    payments_grpc::upi_payment_method_type::UpiType::UpiCollect(upi_details)
-                }
-                _ => {
-                    return Err(UnifiedConnectorServiceError::NotImplemented(format!(
-                        "Unimplemented UPI payment method type: {:?}",
-                        payment_method_type
-                    ))
-                    .into());
-                }
-            };
-
-            Ok(payments_grpc::PaymentMethod {
-                payment_method: Some(PaymentMethod::Upi(UpiPaymentMethodType {
-                    upi_type: Some(upi_type),
-                })),
-            })
-        }
-
         _ => Err(UnifiedConnectorServiceError::NotImplemented(format!(
             "Unimplemented payment method: {:?}",
             payment_method_data
@@ -156,6 +125,7 @@ pub fn build_unified_connector_service_payment_method(
 
 pub fn build_unified_connector_service_auth_metadata(
     merchant_connector_account: MerchantConnectorAccountType,
+    merchant_context: &MerchantContext,
 ) -> CustomResult<ConnectorAuthMetadata, UnifiedConnectorServiceError> {
     let auth_type: ConnectorAuthType = merchant_connector_account
         .get_connector_account_details()
@@ -182,6 +152,11 @@ pub fn build_unified_connector_service_auth_metadata(
         }
     };
 
+    let merchant_id = merchant_context
+        .get_merchant_account()
+        .get_id()
+        .get_string_repr();
+
     match &auth_type {
         ConnectorAuthType::SignatureKey {
             api_key,
@@ -193,6 +168,7 @@ pub fn build_unified_connector_service_auth_metadata(
             api_key: Some(api_key.clone()),
             key1: Some(key1.clone()),
             api_secret: Some(api_secret.clone()),
+            merchant_id: Secret::new(merchant_id.to_string()),
         }),
         ConnectorAuthType::BodyKey { api_key, key1 } => Ok(ConnectorAuthMetadata {
             connector_name,
@@ -200,6 +176,7 @@ pub fn build_unified_connector_service_auth_metadata(
             api_key: Some(api_key.clone()),
             key1: Some(key1.clone()),
             api_secret: None,
+            merchant_id: Secret::new(merchant_id.to_string()),
         }),
         ConnectorAuthType::HeaderKey { api_key } => Ok(ConnectorAuthMetadata {
             connector_name,
@@ -207,6 +184,7 @@ pub fn build_unified_connector_service_auth_metadata(
             api_key: Some(api_key.clone()),
             key1: None,
             api_secret: None,
+            merchant_id: Secret::new(merchant_id.to_string()),
         }),
         _ => Err(UnifiedConnectorServiceError::FailedToObtainAuthType)
             .attach_printable("Unsupported ConnectorAuthType for header injection"),

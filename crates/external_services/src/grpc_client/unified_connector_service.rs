@@ -1,4 +1,4 @@
-use common_utils::{errors::CustomResult, types::Url};
+use common_utils::{consts as common_utils_consts, errors::CustomResult, types::Url};
 use error_stack::ResultExt;
 use masking::{PeekInterface, Secret};
 use router_env::logger;
@@ -8,7 +8,10 @@ use unified_connector_service_client::payments::{
     PaymentServiceAuthorizeResponse,
 };
 
-use crate::{consts, grpc_client::GrpcClientSettings};
+use crate::{
+    consts,
+    grpc_client::{GrpcClientSettings, GrpcHeaders},
+};
 
 /// Unified Connector Service error variants
 #[derive(Debug, Clone, thiserror::Error)]
@@ -108,6 +111,9 @@ pub struct ConnectorAuthMetadata {
 
     /// Optional API secret used for signature or secure authentication.
     pub api_secret: Option<Secret<String>>,
+
+    /// Id of the merchant.
+    pub merchant_id: Secret<String>,
 }
 
 impl UnifiedConnectorServiceClient {
@@ -142,10 +148,12 @@ impl UnifiedConnectorServiceClient {
         &self,
         payment_authorize_request: payments_grpc::PaymentServiceAuthorizeRequest,
         connector_auth_metadata: ConnectorAuthMetadata,
+        grpc_headers: GrpcHeaders,
     ) -> UnifiedConnectorServiceResult<tonic::Response<PaymentServiceAuthorizeResponse>> {
         let mut request = tonic::Request::new(payment_authorize_request);
 
-        let metadata = MetadataMap::try_from(connector_auth_metadata)?;
+        let metadata =
+            build_unified_connector_service_grpc_headers(connector_auth_metadata, grpc_headers)?;
         *request.metadata_mut() = metadata;
 
         self.client
@@ -159,44 +167,61 @@ impl UnifiedConnectorServiceClient {
     }
 }
 
-impl TryFrom<ConnectorAuthMetadata> for MetadataMap {
-    type Error = UnifiedConnectorServiceError;
+/// Build the gRPC Headers for Unified Connector Service Request
+pub fn build_unified_connector_service_grpc_headers(
+    meta: ConnectorAuthMetadata,
+    grpc_headers: GrpcHeaders,
+) -> Result<MetadataMap, UnifiedConnectorServiceError> {
+    let mut metadata = MetadataMap::new();
+    let parse =
+        |key: &str, value: &str| -> Result<MetadataValue<_>, UnifiedConnectorServiceError> {
+            value.parse::<MetadataValue<_>>().map_err(|error| {
+                logger::error!(?error);
+                UnifiedConnectorServiceError::HeaderInjectionFailed(key.to_string())
+            })
+        };
 
-    fn try_from(meta: ConnectorAuthMetadata) -> Result<Self, Self::Error> {
-        let mut metadata = Self::new();
-        let parse =
-            |key: &str, value: &str| -> Result<MetadataValue<_>, UnifiedConnectorServiceError> {
-                value.parse::<MetadataValue<_>>().map_err(|error| {
-                    logger::error!(?error);
-                    UnifiedConnectorServiceError::HeaderInjectionFailed(key.to_string())
-                })
-            };
+    metadata.append(
+        consts::UCS_HEADER_CONNECTOR,
+        parse("connector", &meta.connector_name)?,
+    );
+    metadata.append(
+        consts::UCS_HEADER_AUTH_TYPE,
+        parse("auth_type", &meta.auth_type)?,
+    );
 
+    if let Some(api_key) = meta.api_key {
         metadata.append(
-            consts::UCS_HEADER_CONNECTOR,
-            parse("connector", &meta.connector_name)?,
+            consts::UCS_HEADER_API_KEY,
+            parse("api_key", api_key.peek())?,
         );
-        metadata.append(
-            consts::UCS_HEADER_AUTH_TYPE,
-            parse("auth_type", &meta.auth_type)?,
-        );
-
-        if let Some(api_key) = meta.api_key {
-            metadata.append(
-                consts::UCS_HEADER_API_KEY,
-                parse("api_key", api_key.peek())?,
-            );
-        }
-        if let Some(key1) = meta.key1 {
-            metadata.append(consts::UCS_HEADER_KEY1, parse("key1", key1.peek())?);
-        }
-        if let Some(api_secret) = meta.api_secret {
-            metadata.append(
-                consts::UCS_HEADER_API_SECRET,
-                parse("api_secret", api_secret.peek())?,
-            );
-        }
-
-        Ok(metadata)
     }
+    if let Some(key1) = meta.key1 {
+        metadata.append(consts::UCS_HEADER_KEY1, parse("key1", key1.peek())?);
+    }
+    if let Some(api_secret) = meta.api_secret {
+        metadata.append(
+            consts::UCS_HEADER_API_SECRET,
+            parse("api_secret", api_secret.peek())?,
+        );
+    }
+
+    metadata.append(
+        common_utils_consts::X_MERCHANT_ID,
+        parse(common_utils_consts::X_MERCHANT_ID, &meta.merchant_id.peek())?,
+    );
+
+    grpc_headers.tenant_id
+            .parse()
+            .map(|tenant_id| {
+                metadata.append(
+                    common_utils_consts::TENANT_HEADER,
+                    tenant_id)
+            })
+            .inspect_err(
+                |err| logger::warn!(header_parse_error=?err,"invalid {} received",common_utils_consts::TENANT_HEADER),
+            )
+            .ok();
+
+    Ok(metadata)
 }

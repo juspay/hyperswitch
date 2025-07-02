@@ -149,6 +149,30 @@ impl ForeignTryFrom<common_enums::Currency> for payments_grpc::Currency {
     }
 }
 
+impl ForeignTryFrom<common_enums::CardNetwork> for payments_grpc::CardNetwork {
+    type Error = error_stack::Report<UnifiedConnectorServiceError>;
+
+    fn foreign_try_from(card_network: common_enums::CardNetwork) -> Result<Self, Self::Error> {
+        match card_network {
+            common_enums::CardNetwork::Visa => Ok(Self::Visa),
+            common_enums::CardNetwork::Mastercard => Ok(Self::Mastercard),
+            common_enums::CardNetwork::JCB => Ok(Self::Jcb),
+            common_enums::CardNetwork::DinersClub => Ok(Self::Diners),
+            common_enums::CardNetwork::Discover => Ok(Self::Discover),
+            common_enums::CardNetwork::CartesBancaires => Ok(Self::CartesBancaires),
+            common_enums::CardNetwork::UnionPay => Ok(Self::Unionpay),
+            common_enums::CardNetwork::RuPay => Ok(Self::Rupay),
+            common_enums::CardNetwork::Maestro => Ok(Self::Maestro),
+            _ => Err(
+                UnifiedConnectorServiceError::RequestEncodingFailedWithReason(
+                    "Card Network not supported".to_string(),
+                )
+                .into(),
+            ),
+        }
+    }
+}
+
 impl ForeignTryFrom<hyperswitch_domain_models::payment_address::PaymentAddress>
     for payments_grpc::PaymentAddress
 {
@@ -367,12 +391,6 @@ impl ForeignTryFrom<payments_grpc::RedirectForm> for RedirectForm {
             Some(payments_grpc::redirect_form::FormType::Html(html)) => Ok(Self::Html {
                 html_data: html.html_data,
             }),
-            Some(payments_grpc::redirect_form::FormType::Uri(_)) => {
-                Err(UnifiedConnectorServiceError::NotImplemented(
-                    "URI redirect form type is not implemented".to_string(),
-                )
-                .into())
-            }
             None => Err(
                 UnifiedConnectorServiceError::RequestEncodingFailedWithReason(
                     "Missing form type".to_string(),

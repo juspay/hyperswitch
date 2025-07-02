@@ -1652,20 +1652,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "cargo_metadata"
-version = "0.19.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "dd5eb614ed4c27c5d706420e4320fbe3216ab31fa1c33cd8246ac36dae4479ba"
-dependencies = [
- "camino",
- "cargo-platform",
- "semver 1.0.26",
- "serde",
- "serde_json",
- "thiserror 2.0.12",
-]
-
-[[package]]
 name = "cast"
 version = "0.3.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3361,18 +3347,13 @@ dependencies = [
 
 [[package]]
 name = "g2h"
-version = "0.4.0"
+version = "0.2.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "0aece561ff748cdd2a37c8ee938a47bbf9b2c03823b393a332110599b14ee827"
+checksum = "312ad594dd0e3c26f860a52c8b703ab509c546931920f277f1afa9b7127fd755"
 dependencies = [
- "cargo_metadata 0.19.2",
  "heck 0.5.0",
- "proc-macro2",
- "prost",
  "prost-build",
- "prost-types",
  "quote",
- "thiserror 2.0.12",
  "tonic-build",
 ]
 
@@ -3525,10 +3506,9 @@ dependencies = [
 [[package]]
 name = "grpc-api-types"
 version = "0.1.0"
-source = "git+https://github.com/juspay/connector-service?rev=88a495151a861594eea18d319c58473fbaedb177#88a495151a861594eea18d319c58473fbaedb177"
+source = "git+https://github.com/juspay/connector-service?rev=afaef3427f815befe253da152e5f37d3858bbc9f#afaef3427f815befe253da152e5f37d3858bbc9f"
 dependencies = [
  "axum 0.8.4",
- "cargo_metadata 0.19.2",
  "error-stack 0.5.0",
  "g2h",
  "heck 0.5.0",
@@ -6844,7 +6824,7 @@ dependencies = [
 name = "router_env"
 version = "0.1.0"
 dependencies = [
- "cargo_metadata 0.18.1",
+ "cargo_metadata",
  "config",
  "error-stack 0.4.1",
  "gethostname",
@@ -6897,7 +6877,7 @@ dependencies = [
 [[package]]
 name = "rust-grpc-client"
 version = "0.1.0"
-source = "git+https://github.com/juspay/connector-service?rev=88a495151a861594eea18d319c58473fbaedb177#88a495151a861594eea18d319c58473fbaedb177"
+source = "git+https://github.com/juspay/connector-service?rev=afaef3427f815befe253da152e5f37d3858bbc9f#afaef3427f815befe253da152e5f37d3858bbc9f"
 dependencies = [
  "grpc-api-types",
 ]
@@ -9518,7 +9498,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "2990d9ea5967266ea0ccf413a4aa5c42a93dbcfda9cb49a97de6931726b12566"
 dependencies = [
  "anyhow",
- "cargo_metadata 0.18.1",
+ "cargo_metadata",
  "cfg-if 1.0.0",
  "git2",
  "regex",
