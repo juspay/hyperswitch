@@ -1,10 +1,7 @@
-import { 
-  customerAcceptance, 
-} from "./Commons";
+import { customerAcceptance } from "./Commons";
 import { getCurrency } from "./Modifiers";
 
-
- const successfulNo3DSCardDetails = {
+const successfulNo3DSCardDetails = {
   card_number: "4111111111111111",
   card_exp_month: "08",
   card_exp_year: "30",
@@ -51,7 +48,6 @@ const successfulThreeDSCardDetails = {
   card_holder_name: "CL-BRW1",
   card_cvc: "123",
 };
-
 
 // Payment method data objects for responses
 const payment_method_data_no3ds = {
@@ -896,7 +892,8 @@ export const connectorDetails = {
         body: {
           error: {
             type: "invalid_request",
-            message: "No eligible connector was found for the current payment method configuration",
+            message:
+              "No eligible connector was found for the current payment method configuration",
             code: "IR_39",
           },
         },
@@ -937,7 +934,8 @@ export const connectorDetails = {
         body: {
           error: {
             type: "invalid_request",
-            message: "No eligible connector was found for the current payment method configuration",
+            message:
+              "No eligible connector was found for the current payment method configuration",
             code: "IR_39",
           },
         },
@@ -1013,7 +1011,8 @@ export const connectorDetails = {
         body: {
           error: {
             type: "invalid_request",
-            message: "No eligible connector was found for the current payment method configuration",
+            message:
+              "No eligible connector was found for the current payment method configuration",
             code: "IR_39",
           },
         },
@@ -1055,7 +1054,8 @@ export const connectorDetails = {
         body: {
           error: {
             type: "invalid_request",
-            message: "No eligible connector was found for the current payment method configuration",
+            message:
+              "No eligible connector was found for the current payment method configuration",
             code: "IR_39",
           },
         },
@@ -1082,7 +1082,8 @@ export const connectorDetails = {
         body: {
           error: {
             type: "invalid_request",
-            message: "No eligible connector was found for the current payment method configuration",
+            message:
+              "No eligible connector was found for the current payment method configuration",
             code: "IR_39",
           },
         },
@@ -1090,4 +1091,3 @@ export const connectorDetails = {
     },
   },
 };
-  
