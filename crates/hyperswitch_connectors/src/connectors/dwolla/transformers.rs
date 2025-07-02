@@ -6,7 +6,7 @@ use common_enums::enums;
 use common_utils::types::StringMajorUnit;
 use hyperswitch_domain_models::{
     payment_method_data::PaymentMethodData,
-    router_data::{ConnectorAuthType, RouterData},
+    router_data::{ConnectorAuthType, RouterData, AccessToken, ResponseRouterData},
     router_flow_types::refunds::{Execute, RSync},
     router_request_types::ResponseId,
     router_response_types::{PaymentsResponseData, RefundsResponseData},
@@ -15,6 +15,57 @@ use hyperswitch_domain_models::{
 use hyperswitch_interfaces::errors;
 use masking::Secret;
 use serde::{Deserialize, Serialize};
+
+
+pub struct DwollaAuthType {
+    pub(super) client_id: Secret<String>,
+    pub(super) client_secret: Secret<String>,
+}
+
+impl TryFrom<&ConnectorAuthType> for DwollaAuthType {
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(auth_type: &ConnectorAuthType) -> Result<Self, Self::Error> {
+        match auth_type {
+            ConnectorAuthType::BodyKey {
+                api_key,
+                key1,
+            } => Ok(Self {
+                client_id: api_key.to_owned(),
+                client_secret: key1.to_owned(),
+            }),
+            _ => Err(errors::ConnectorError::FailedToObtainAuthType.into()),
+        }
+    }
+}
+
+#[derive(Default, Debug, Serialize, PartialEq)]
+pub struct DwollaAccessTokenRequest {
+    pub grant_type: String,
+}
+
+#[derive(Default, Debug, Clone, Deserialize, PartialEq, Serialize)]
+pub struct DwollaAccessTokenResponse {
+    pub access_token: Secret<String>,
+    pub expires_in: i64,
+    pub token_type: String,
+}
+
+impl<F, T> TryFrom<ResponseRouterData<F, DwollaAccessTokenResponse, T, AccessToken>>
+    for RouterData<F, T, AccessToken>
+{
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(
+        item: ResponseRouterData<F, DwollaAccessTokenResponse, T, AccessToken>,
+    ) -> Result<Self, Self::Error> {
+        Ok(Self {
+            response: Ok(AccessToken {
+                token: item.response.access_token,
+                expires: item.response.expires_in,
+            }),
+            ..item.data
+        })
+    }
+}
 
 //TODO: Fill the struct with respective fields
 pub struct DwollaRouterData<T> {
@@ -72,23 +123,6 @@ impl TryFrom<&DwollaRouterData<&PaymentsAuthorizeRouterData>> for DwollaPayments
     }
 }
 
-//TODO: Fill the struct with respective fields
-// Auth Struct
-pub struct DwollaAuthType {
-    pub(super) api_key: Secret<String>,
-}
-
-impl TryFrom<&ConnectorAuthType> for DwollaAuthType {
-    type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(auth_type: &ConnectorAuthType) -> Result<Self, Self::Error> {
-        match auth_type {
-            ConnectorAuthType::HeaderKey { api_key } => Ok(Self {
-                api_key: api_key.to_owned(),
-            }),
-            _ => Err(errors::ConnectorError::FailedToObtainAuthType.into()),
-        }
-    }
-}
 // PaymentsResponse
 //TODO: Append the remaining status flags
 #[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq)]

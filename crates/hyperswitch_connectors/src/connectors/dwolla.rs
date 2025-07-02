@@ -8,7 +8,9 @@ use common_utils::{
     ext_traits::BytesExt,
     request::{Method, Request, RequestBuilder, RequestContent},
     types::{AmountConvertor, StringMajorUnit, StringMajorUnitForConnector},
+    consts::{BASE64_ENGINE}
 };
+use base64::engine::Engine;
 
 use crate::{constants::headers, types::ResponseRouterData, utils};
 use hyperswitch_domain_models::{
@@ -26,7 +28,7 @@ use hyperswitch_domain_models::{
     router_response_types::{PaymentsResponseData, RefundsResponseData},
     types::{
         PaymentsAuthorizeRouterData, PaymentsCaptureRouterData, PaymentsSyncRouterData,
-        RefundSyncRouterData, RefundsRouterData,
+        RefundSyncRouterData, RefundsRouterData, RefreshTokenRouterData,
     },
 };
 use hyperswitch_interfaces::{
@@ -84,12 +86,28 @@ where
         req: &RouterData<Flow, Request, Response>,
         _connectors: &Connectors,
     ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
-        let mut header = vec![(
-            headers::CONTENT_TYPE.to_string(),
-            self.get_content_type().to_string().into(),
-        )];
-        let mut api_key = self.get_auth_header(&req.connector_auth_type)?;
-        header.append(&mut api_key);
+        let access_token = req
+            .access_token
+            .clone()
+            .ok_or(errors::ConnectorError::FailedToObtainAuthType)?;
+        let mut header = vec![
+            (
+                headers::CONTENT_TYPE.to_string(),
+                self.common_get_content_type().to_string().into(),
+            ),
+            (
+                headers::ACCEPT.to_string(),
+                self.common_get_content_type().to_string().into(),
+            ),
+            (
+                headers::AUTHORIZATION.to_string(),
+                format!("Bearer {}", access_token.token.expose()).into_masked(),
+            ),
+            (
+                headers::IDEMPOTENCY_KEY.to_string(),
+                uuid::Uuid::new_v4().to_string().into(),
+            )
+        ];
         Ok(header)
     }
 }
@@ -104,7 +122,7 @@ impl ConnectorCommon for Dwolla {
     }
 
     fn common_get_content_type(&self) -> &'static str {
-        "application/json"
+        "application/vnd.dwolla.v1.hal+json"
     }
 
     fn base_url<'a>(&self, connectors: &'a Connectors) -> &'a str {
@@ -158,7 +176,91 @@ impl ConnectorIntegration<Session, PaymentsSessionData, PaymentsResponseData> fo
     //TODO: implement sessions flow
 }
 
-impl ConnectorIntegration<AccessTokenAuth, AccessTokenRequestData, AccessToken> for Dwolla {}
+impl ConnectorIntegration<AccessTokenAuth, AccessTokenRequestData, AccessToken> for Dwolla {
+    fn get_url(
+        &self,
+        _req: &RefreshTokenRouterData,
+        connectors: &Connectors,
+    ) -> CustomResult<String, errors::ConnectorError> {
+        Ok(format!("{}/token", self.base_url(connectors)))
+    }
+
+    fn get_content_type(&self) -> &'static str {
+        "application/x-www-form-urlencoded"
+    }
+
+    fn get_headers(
+        &self,
+        req: &RefreshTokenRouterData,
+        connectors: &Connectors,
+    ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
+        let auth = dwolla::DwollaAuthType::try_from(&req.connector_auth_type)?;
+        let mut headers = vec![(
+            headers::CONTENT_TYPE.to_string(),
+            self.get_content_type().to_string().into(),
+        )];
+
+        let auth_str = format!(
+            "{}:{}",
+            auth.client_id.expose(),
+            auth.client_secret.expose()
+        );
+
+        let encoded = BASE64_ENGINE.encode(auth_str);
+        let auth_header_value = format!("Basic {}", encoded);
+
+        headers.push((
+            headers::AUTHORIZATION.to_string(),
+            auth_header_value.into_masked(),
+        ));
+
+        Ok(headers)
+    }
+
+    fn build_request(
+        &self,
+        req: &RefreshTokenRouterData,
+        connectors: &Connectors,
+    ) -> CustomResult<Option<Request>, errors::ConnectorError> {
+        let headers = self.get_headers(req, connectors)?;
+        
+        let connector_req = dwolla::DwollaAccessTokenRequest {
+            grant_type: "client_credentials".to_string(),
+        };
+        let body = RequestContent::FormUrlEncoded(Box::new(connector_req));
+
+        let req = Some(
+            RequestBuilder::new()
+                .method(Method::Post)
+                .headers(headers)
+                .url(&types::RefreshTokenType::get_url(self, req, connectors)?)
+                .set_body(body)
+                .build(),
+        );
+        Ok(req)
+    }
+
+    fn handle_response(
+        &self,
+        data: &RefreshTokenRouterData,
+        event_builder: Option<&mut ConnectorEvent>,
+        res: Response,
+    ) -> CustomResult<RefreshTokenRouterData, errors::ConnectorError> {
+        let response: dwolla::DwollaAccessTokenResponse = res
+            .response
+            .parse_struct("Dwolla DwollaAccessTokenResponse")
+            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+
+        event_builder.map(|i| i.set_response_body(&response));
+        router_env::logger::info!(connector_response=?response);
+
+        RouterData::try_from(ResponseRouterData {
+            response,
+            data: data.clone(),
+            http_code: res.status_code,
+        })
+    }
+}
 
 impl ConnectorIntegration<SetupMandate, SetupMandateRequestData, PaymentsResponseData> for Dwolla {}
 
@@ -178,9 +280,9 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
     fn get_url(
         &self,
         _req: &PaymentsAuthorizeRouterData,
-        _connectors: &Connectors,
+        connectors: &Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        Err(errors::ConnectorError::NotImplemented("get_url method".to_string()).into())
+        Ok(format!("{}/transfers", self.base_url(connectors)))
     }
 
     fn get_request_body(
