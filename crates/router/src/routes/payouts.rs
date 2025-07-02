@@ -2,6 +2,7 @@ use actix_web::{
     body::{BoxBody, MessageBody},
     web, HttpRequest, HttpResponse, Responder,
 };
+use common_utils::id_type;
 use router_env::{instrument, tracing, Flow};
 
 use super::app::AppState;
@@ -50,7 +51,7 @@ pub async fn payouts_create(
 pub async fn payouts_retrieve(
     state: web::Data<AppState>,
     req: HttpRequest,
-    path: web::Path<String>,
+    path: web::Path<id_type::PayoutId>,
     query_params: web::Query<payout_types::PayoutRetrieveBody>,
 ) -> HttpResponse {
     let payout_retrieve_request = payout_types::PayoutRetrieveRequest {
@@ -90,7 +91,7 @@ pub async fn payouts_retrieve(
 pub async fn payouts_update(
     state: web::Data<AppState>,
     req: HttpRequest,
-    path: web::Path<String>,
+    path: web::Path<id_type::PayoutId>,
     json_payload: web::Json<payout_types::PayoutCreateRequest>,
 ) -> HttpResponse {
     let flow = Flow::PayoutsUpdate;
@@ -122,12 +123,12 @@ pub async fn payouts_confirm(
     state: web::Data<AppState>,
     req: HttpRequest,
     json_payload: web::Json<payout_types::PayoutCreateRequest>,
-    path: web::Path<String>,
+    path: web::Path<id_type::PayoutId>,
 ) -> HttpResponse {
     let flow = Flow::PayoutsConfirm;
     let mut payload = json_payload.into_inner();
     let payout_id = path.into_inner();
-    tracing::Span::current().record("payout_id", &payout_id);
+    tracing::Span::current().record("payout_id", payout_id.get_string_repr());
     payload.payout_id = Some(payout_id);
     payload.confirm = Some(true);
     let api_auth = auth::ApiKeyAuth::default();
@@ -160,12 +161,12 @@ pub async fn payouts_confirm(
 pub async fn payouts_cancel(
     state: web::Data<AppState>,
     req: HttpRequest,
-    json_payload: web::Json<payout_types::PayoutActionRequest>,
-    path: web::Path<String>,
+    path: web::Path<id_type::PayoutId>,
 ) -> HttpResponse {
     let flow = Flow::PayoutsCancel;
-    let mut payload = json_payload.into_inner();
-    payload.payout_id = path.into_inner();
+    let payload = payout_types::PayoutActionRequest {
+        payout_id: path.into_inner(),
+    };
 
     Box::pin(api::server_wrap(
         flow,
@@ -191,12 +192,12 @@ pub async fn payouts_cancel(
 pub async fn payouts_fulfill(
     state: web::Data<AppState>,
     req: HttpRequest,
-    json_payload: web::Json<payout_types::PayoutActionRequest>,
-    path: web::Path<String>,
+    path: web::Path<id_type::PayoutId>,
 ) -> HttpResponse {
     let flow = Flow::PayoutsFulfill;
-    let mut payload = json_payload.into_inner();
-    payload.payout_id = path.into_inner();
+    let payload = payout_types::PayoutActionRequest {
+        payout_id: path.into_inner(),
+    };
 
     Box::pin(api::server_wrap(
         flow,

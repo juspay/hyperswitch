@@ -2292,6 +2292,7 @@ pub enum FrmTransactionType {
     serde::Deserialize,
     serde::Serialize,
     strum::Display,
+    strum::EnumIter,
     strum::EnumString,
     ToSchema,
 )]
@@ -6959,6 +6960,7 @@ pub enum BrazilStatesAbbreviation {
     serde::Deserialize,
     serde::Serialize,
     strum::Display,
+    strum::EnumIter,
     strum::EnumString,
 )]
 #[router_derive::diesel_enum(storage_type = "db_enum")]
@@ -8555,5 +8557,5 @@ impl RoutingApproach {
 #[strum(serialize_all = "snake_case")]
 #[router_derive::diesel_enum(storage_type = "text")]
 pub enum CallbackMapperIdType {
-    NetworkTokenRequestorRefernceID,
+    NetworkTokenRequestorReferenceID,
 }

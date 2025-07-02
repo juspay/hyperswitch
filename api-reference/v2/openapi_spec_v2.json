@@ -8206,6 +8206,7 @@
           "razorpay",
           "recurly",
           "redsys",
+          "santander",
           "shift4",
           "square",
           "stax",
@@ -13283,6 +13284,23 @@
           }
         }
       },
+      "MerchantConnectorAuthDetails": {
+        "type": "object",
+        "description": "Merchant connector details",
+        "required": [
+          "connector_name",
+          "merchant_connector_creds"
+        ],
+        "properties": {
+          "connector_name": {
+            "$ref": "#/components/schemas/Connector"
+          },
+          "merchant_connector_creds": {
+            "type": "object",
+            "description": "The merchant connector credentials used for the payment"
+          }
+        }
+      },
       "MerchantConnectorCreate": {
         "type": "object",
         "description": "Create a new Merchant Connector for the merchant account. The connector could be a payment processor / facilitator / acquirer or specialized services like Fraud / Accounting etc.\"",
@@ -13418,17 +13436,16 @@
       },
       "MerchantConnectorDetails": {
         "type": "object",
-        "required": [
-          "connector_name",
-          "merchant_connector_creds"
-        ],
         "properties": {
-          "connector_name": {
-            "$ref": "#/components/schemas/Connector"
-          },
-          "merchant_connector_creds": {
+          "connector_account_details": {
             "type": "object",
-            "description": "The merchant connector credentials used for the payment"
+            "description": "Account details of the Connector. You can specify up to 50 keys, with key names up to 40 characters long and values up to 500 characters long. Useful for storing additional, structured information on an object.",
+            "nullable": true
+          },
+          "metadata": {
+            "type": "object",
+            "description": "Metadata is useful for storing additional, unstructured information on an object.",
+            "nullable": true
           }
         }
       },
@@ -18107,7 +18124,7 @@
           "merchant_connector_details": {
             "allOf": [
               {
-                "$ref": "#/components/schemas/MerchantConnectorDetails"
+                "$ref": "#/components/schemas/MerchantConnectorAuthDetails"
               }
             ],
             "nullable": true
@@ -18312,7 +18329,7 @@
           "merchant_connector_details": {
             "allOf": [
               {
-                "$ref": "#/components/schemas/MerchantConnectorDetails"
+                "$ref": "#/components/schemas/MerchantConnectorAuthDetails"
               }
             ],
             "nullable": true
@@ -19106,7 +19123,7 @@
           "merchant_connector_details": {
             "allOf": [
               {
-                "$ref": "#/components/schemas/MerchantConnectorDetails"
+                "$ref": "#/components/schemas/MerchantConnectorAuthDetails"
               }
             ],
             "nullable": true
@@ -19322,7 +19339,7 @@
           "merchant_connector_details": {
             "allOf": [
               {
-                "$ref": "#/components/schemas/MerchantConnectorDetails"
+                "$ref": "#/components/schemas/MerchantConnectorAuthDetails"
               }
             ],
             "nullable": true
@@ -19563,7 +19580,19 @@
         "additionalProperties": false
       },
       "PayoutActionRequest": {
-        "type": "object"
+        "type": "object",
+        "required": [
+          "payout_id"
+        ],
+        "properties": {
+          "payout_id": {
+            "type": "string",
+            "description": "Unique identifier for the payout. This ensures idempotency for multiple payouts\nthat have been done by a single merchant. This field is auto generated and is returned in the API response.",
+            "example": "187282ab-40ef-47a9-9206-5099ba31e432",
+            "maxLength": 30,
+            "minLength": 30
+          }
+        }
       },
       "PayoutAttemptResponse": {
         "type": "object",
@@ -19727,6 +19756,13 @@
             "type": "string",
             "description": "This is an identifier for the merchant account. This is inferred from the API key provided during the request, **not required to be included in the Payout Create/Update Request.**",
             "example": "merchant_1668273825",
+            "nullable": true,
+            "maxLength": 255
+          },
+          "merchant_order_reference_id": {
+            "type": "string",
+            "description": "Your unique identifier for this payout or order. This ID helps you reconcile payouts on your system. If provided, it is passed to the connector if supported.",
+            "example": "merchant_order_ref_123",
             "nullable": true,
             "maxLength": 255
           },
@@ -19983,6 +20019,13 @@
             "type": "string",
             "description": "This is an identifier for the merchant account. This is inferred from the API key\nprovided during the request",
             "example": "merchant_1668273825",
+            "maxLength": 255
+          },
+          "merchant_order_reference_id": {
+            "type": "string",
+            "description": "Your unique identifier for this payout or order. This ID helps you reconcile payouts on your system. If provided, it is passed to the connector if supported.",
+            "example": "merchant_order_ref_123",
+            "nullable": true,
             "maxLength": 255
           },
           "amount": {
@@ -20263,13 +20306,13 @@
               "starting_after": {
                 "type": "string",
                 "description": "A cursor for use in pagination, fetch the next list after some object",
-                "example": "pay_fafa124123",
+                "example": "payout_fafa124123",
                 "nullable": true
               },
               "ending_before": {
                 "type": "string",
                 "description": "A cursor for use in pagination, fetch the previous list before some object",
-                "example": "pay_fafa124123",
+                "example": "payout_fafa124123",
                 "nullable": true
               },
               "limit": {
@@ -20315,6 +20358,13 @@
                 "nullable": true,
                 "maxLength": 30,
                 "minLength": 30
+              },
+              "merchant_order_reference_id": {
+                "type": "string",
+                "description": "The merchant order reference ID for payout",
+                "example": "merchant_order_ref_123",
+                "nullable": true,
+                "maxLength": 255
               },
               "profile_id": {
                 "type": "string",
@@ -22084,6 +22134,14 @@
             "type": "object",
             "description": "Metadata is useful for storing additional, unstructured information on an object.",
             "nullable": true
+          },
+          "merchant_connector_details": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/MerchantConnectorAuthDetails"
+              }
+            ],
+            "nullable": true
           }
         },
         "additionalProperties": false
@@ -22681,6 +22739,7 @@
           "recurly",
           "redsys",
           "riskified",
+          "santander",
           "shift4",
           "signifyd",
           "square",
@@ -25624,6 +25683,10 @@
       },
       "WebhookDetails": {
         "type": "object",
+        "required": [
+          "payment_statuses_enabled",
+          "refund_statuses_enabled"
+        ],
         "properties": {
           "webhook_version": {
             "type": "string",
@@ -25668,6 +25731,42 @@
             "type": "boolean",
             "description": "If this property is true, a webhook message is posted whenever a payment fails",
             "example": true,
+            "nullable": true
+          },
+          "payment_statuses_enabled": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/IntentStatus"
+            },
+            "description": "List of payment statuses that triggers a webhook for payment intents",
+            "example": [
+              "succeeded",
+              "failed",
+              "partially_captured",
+              "requires_merchant_action"
+            ]
+          },
+          "refund_statuses_enabled": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/IntentStatus"
+            },
+            "description": "List of refund statuses that triggers a webhook for refunds",
+            "example": [
+              "success",
+              "failure"
+            ]
+          },
+          "payout_statuses_enabled": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PayoutStatus"
+            },
+            "description": "List of payout statuses that triggers a webhook for payouts",
+            "example": [
+              "success",
+              "failed"
+            ],
             "nullable": true
           }
         },

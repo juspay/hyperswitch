@@ -3018,11 +3018,17 @@ impl
             .clone()
             .and_then(get_device_fingerprint);
 
-        let billing_address =
+        let mut billing_address =
             get_address_info(item.router_data.get_optional_billing()).and_then(Result::ok);
         let delivery_address =
             get_address_info(item.router_data.get_optional_shipping()).and_then(Result::ok);
         let telephone_number = item.router_data.get_optional_billing_phone_number();
+
+        if let BankDebitData::AchBankDebit { .. } = bank_debit_data {
+            if let Some(addr) = billing_address.as_mut() {
+                addr.state_or_province = Some(item.router_data.get_billing_state_code()?);
+            }
+        }
 
         let request = AdyenPaymentRequest {
             amount,
@@ -5345,7 +5351,7 @@ impl<F> TryFrom<&AdyenRouterData<&PayoutsRouterData<F>>> for AdyenPayoutCreateRe
                     },
                     merchant_account,
                     payment_data: PayoutPaymentMethodData::PayoutWalletData(payout_wallet),
-                    reference: item.router_data.request.payout_id.to_owned(),
+                    reference: item.router_data.connector_request_reference_id.clone(),
                     shopper_reference: item.router_data.merchant_id.get_string_repr().to_owned(),
                     shopper_email: customer_email,
                     shopper_name: ShopperName {

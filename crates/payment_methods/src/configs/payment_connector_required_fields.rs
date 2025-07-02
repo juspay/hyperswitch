@@ -3118,6 +3118,17 @@ fn get_bank_transfer_required_fields() -> HashMap<enums::PaymentMethodType, Conn
                 ),
                 (Connector::Adyen, fields(vec![], vec![], vec![])),
                 (
+                    Connector::Santander,
+                    RequiredFieldFinal {
+                        mandate: HashMap::new(),
+                        non_mandate: HashMap::new(),
+                        common: HashMap::from([
+                            RequiredField::BillingUserFirstName.to_tuple(),
+                            RequiredField::BillingUserLastName.to_tuple(),
+                        ]),
+                    },
+                ),
+                (
                     Connector::Facilitapay,
                     RequiredFieldFinal {
                         mandate: HashMap::new(),
