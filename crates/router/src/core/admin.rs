@@ -1501,6 +1501,10 @@ impl ConnectorAuthTypeAndMetadataValidation<'_> {
                 dlocal::transformers::DlocalAuthType::try_from(self.auth_type)?;
                 Ok(())
             }
+            // api_enums::Connector::Dwolla => {
+            //     dwolla::transformers::DwollaAuthType::try_from(self.auth_type)?;
+            //     Ok(())
+            // }
             api_enums::Connector::Ebanx => {
                 ebanx::transformers::EbanxAuthType::try_from(self.auth_type)?;
                 Ok(())
@@ -1706,10 +1710,13 @@ impl ConnectorAuthTypeAndMetadataValidation<'_> {
                 redsys::transformers::RedsysAuthType::try_from(self.auth_type)?;
                 Ok(())
             }
-            // api_enums::Connector::Santander => {
-            //     santander::transformers::SantanderAuthType::try_from(self.auth_type)?;
-            //     Ok(())
-            // },
+            api_enums::Connector::Santander => {
+                santander::transformers::SantanderAuthType::try_from(self.auth_type)?;
+                santander::transformers::SantanderMetadataObject::try_from(
+                    self.connector_meta_data,
+                )?;
+                Ok(())
+            }
             api_enums::Connector::Shift4 => {
                 shift4::transformers::Shift4AuthType::try_from(self.auth_type)?;
                 Ok(())
