@@ -20,16 +20,16 @@ use api_models::payment_methods;
 #[cfg(feature = "payouts")]
 pub use api_models::{enums::PayoutConnectors, payouts as payout_types};
 #[cfg(feature = "v1")]
-use common_utils::ext_traits::{Encode, OptionExt};
-use common_utils::{consts::DEFAULT_LOCALE, id_type};
+use common_utils::{consts::DEFAULT_LOCALE, ext_traits::OptionExt};
 #[cfg(feature = "v2")]
 use common_utils::{
     crypto::Encryptable,
     errors::CustomResult,
-    ext_traits::{AsyncExt, Encode, ValueExt},
+    ext_traits::{AsyncExt, ValueExt},
     fp_utils::when,
     generate_id, types as util_types,
 };
+use common_utils::{ext_traits::Encode, id_type};
 use diesel_models::{
     enums, GenericLinkNew, PaymentMethodCollectLink, PaymentMethodCollectLinkData,
 };
@@ -231,7 +231,7 @@ pub async fn initiate_pm_collect_link(
         link: url::Url::parse(url)
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable_lazy(|| {
-                format!("Failed to parse the payment method collect link - {}", url)
+                format!("Failed to parse the payment method collect link - {url}")
             })?
             .into(),
         return_url: pm_collect_link.return_url,
@@ -913,7 +913,6 @@ pub async fn create_payment_method_core(
     db.find_customer_by_global_id(
         key_manager_state,
         &customer_id,
-        merchant_context.get_merchant_account().get_id(),
         merchant_context.get_merchant_key_store(),
         merchant_context.get_merchant_account().storage_scheme,
     )
@@ -1257,7 +1256,6 @@ pub async fn payment_method_intent_create(
     db.find_customer_by_global_id(
         key_manager_state,
         &customer_id,
-        merchant_context.get_merchant_account().get_id(),
         merchant_context.get_merchant_key_store(),
         merchant_context.get_merchant_account().storage_scheme,
     )
@@ -2473,7 +2471,6 @@ pub async fn delete_payment_method_core(
         .find_customer_by_global_id(
             key_manager_state,
             &payment_method.customer_id,
-            merchant_context.get_merchant_account().get_id(),
             merchant_context.get_merchant_key_store(),
             merchant_context.get_merchant_account().storage_scheme,
         )
@@ -2630,7 +2627,6 @@ pub async fn payment_methods_session_create(
     db.find_customer_by_global_id(
         key_manager_state,
         &request.customer_id,
-        merchant_context.get_merchant_account().get_id(),
         merchant_context.get_merchant_key_store(),
         merchant_context.get_merchant_account().storage_scheme,
     )

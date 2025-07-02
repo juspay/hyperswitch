@@ -43,6 +43,7 @@ pub enum ApiIdentifier {
     Hypersense,
     PaymentMethodSession,
     ProcessTracker,
+    Authentication,
     Proxy,
     ProfileAcquirer,
     ThreeDsDecisionRule,
@@ -191,7 +192,8 @@ impl From<Flow> for ApiIdentifier {
             | Flow::WebhookEventInitialDeliveryAttemptList
             | Flow::WebhookEventDeliveryAttemptList
             | Flow::WebhookEventDeliveryRetry
-            | Flow::RecoveryIncomingWebhookReceive => Self::Webhooks,
+            | Flow::RecoveryIncomingWebhookReceive
+            | Flow::IncomingNetworkTokenWebhookReceive => Self::Webhooks,
 
             Flow::ApiKeyCreate
             | Flow::ApiKeyRetrieve
@@ -346,6 +348,8 @@ impl From<Flow> for ApiIdentifier {
             | Flow::PaymentMethodSessionUpdate => Self::PaymentMethodSession,
 
             Flow::RevenueRecoveryRetrieve => Self::ProcessTracker,
+
+            Flow::AuthenticationCreate => Self::Authentication,
             Flow::Proxy => Self::Proxy,
 
             Flow::ProfileAcquirerCreate | Flow::ProfileAcquirerUpdate => Self::ProfileAcquirer,

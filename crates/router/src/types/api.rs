@@ -217,7 +217,7 @@ impl ForeignTryFrom<ConnectorData> for RoutableConnectorChoice {
                 merchant_connector_id: from.merchant_connector_id,
             }),
             Err(e) => Err(common_utils::errors::ValidationError::InvalidValue {
-                message: format!("This is not a routable connector: {:?}", e),
+                message: format!("This is not a routable connector: {e:?}"),
             })?,
         }
     }
@@ -311,10 +311,7 @@ impl ConnectorData {
                 .change_context(errors::ConnectorError::InvalidConnectorName)
                 .change_context(errors::ApiErrorResponse::InternalServerError)
                 .attach_printable_lazy(|| {
-                    format!(
-                        "unable to parse external vault connector name {:?}",
-                        connector
-                    )
+                    format!("unable to parse external vault connector name {connector:?}")
                 })?;
         let connector_name = api_enums::Connector::from(external_vault_connector_name);
         Ok(Self {
@@ -445,6 +442,9 @@ impl ConnectorData {
                 enums::Connector::DummyBillingConnector => Ok(ConnectorEnum::Old(Box::new(
                     &connector::DummyConnector::<8>,
                 ))),
+                // enums::Connector::Dwolla => {
+                //     Ok(ConnectorEnum::Old(Box::new(connector::Dwolla::new())))
+                // }
                 enums::Connector::Ebanx => {
                     Ok(ConnectorEnum::Old(Box::new(connector::Ebanx::new())))
                 }
@@ -558,9 +558,9 @@ impl ConnectorData {
                 enums::Connector::Redsys => {
                     Ok(ConnectorEnum::Old(Box::new(connector::Redsys::new())))
                 }
-                // enums::Connector::Santander => {
-                //     Ok(ConnectorEnum::Old(Box::new(connector::Santander)))
-                // }
+                enums::Connector::Santander => {
+                    Ok(ConnectorEnum::Old(Box::new(connector::Santander::new())))
+                }
                 enums::Connector::Shift4 => {
                     Ok(ConnectorEnum::Old(Box::new(connector::Shift4::new())))
                 }

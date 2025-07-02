@@ -6235,3 +6235,42 @@ placeholder="Enter Currency"
 required=true
 type="Select"
 options=[]
+
+[santander.connector_auth.BodyKey]
+api_key="Client ID"
+key1="Client Secret"
+
+[santander.metadata.pix_key]
+name="pix_key"
+label="Chave Key"
+placeholder="Enter your Chave/Pix Key"
+required=true
+type="Text"
+
+[santander.metadata.expiration_time]
+name="expiration_time"
+label="Expiration Time"
+placeholder="Enter your Pix QR Code Expiration Time"
+required=true
+type="Number"
+
+[santander.metadata.cpf]
+name="cpf"
+label="Cpf"
+placeholder="Enter your cpf number"
+required=true
+type="Text"
+
+[santander.metadata.merchant_city]
+name="merchant_city"
+label="Merchant City"
+placeholder="Enter the city the merchant is based in"
+required=true
+type="Text"
+
+[santander.metadata.merchant_name]
+name="merchant_name"
+label="Merchant Name"
+placeholder="Enter the merchant name"
+required=true
+type="Text"

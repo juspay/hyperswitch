@@ -36,6 +36,7 @@ pub mod router_response_types;
 pub mod routing;
 #[cfg(feature = "tokenization_v2")]
 pub mod tokenization;
+pub mod transformers;
 pub mod type_encryption;
 pub mod types;
 pub mod vault;

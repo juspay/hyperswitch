@@ -350,3 +350,6 @@ api_secret = "MySecretKey"
 api_key="Client ID"
 key1 ="Client Secret"
 
+[dwolla]
+api_key="Client ID"
+key1="Client Secret"
