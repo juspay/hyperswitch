@@ -12,6 +12,8 @@ use hyperswitch_interfaces::errors;
 use masking::Secret;
 use serde::{Deserialize, Serialize};
 
+use super::{requests, responses};
+
 use crate::{
     types::{RefundsResponseRouterData, ResponseRouterData},
     utils::PaymentsAuthorizeRequestData,
@@ -33,30 +35,16 @@ impl<T> From<(StringMinorUnit, T)> for PayloadRouterData<T> {
     }
 }
 
-//TODO: Fill the struct with respective fields
-#[derive(Default, Debug, Serialize, PartialEq)]
-pub struct PayloadPaymentsRequest {
-    amount: StringMinorUnit,
-    card: PayloadCard,
-}
-
-#[derive(Default, Debug, Serialize, Eq, PartialEq)]
-pub struct PayloadCard {
-    number: cards::CardNumber,
-    expiry_month: Secret<String>,
-    expiry_year: Secret<String>,
-    cvc: Secret<String>,
-    complete: bool,
-}
-
-impl TryFrom<&PayloadRouterData<&PaymentsAuthorizeRouterData>> for PayloadPaymentsRequest {
+impl TryFrom<&PayloadRouterData<&PaymentsAuthorizeRouterData>>
+    for requests::PayloadPaymentsRequest
+{
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
         item: &PayloadRouterData<&PaymentsAuthorizeRouterData>,
     ) -> Result<Self, Self::Error> {
         match item.router_data.request.payment_method_data.clone() {
             PaymentMethodData::Card(req_card) => {
-                let card = PayloadCard {
+                let card = requests::PayloadCard {
                     number: req_card.card_number,
                     expiry_month: req_card.card_exp_month,
                     expiry_year: req_card.card_exp_year,
@@ -90,40 +78,24 @@ impl TryFrom<&ConnectorAuthType> for PayloadAuthType {
         }
     }
 }
-// PaymentsResponse
-//TODO: Append the remaining status flags
-#[derive(Debug, Clone, Copy, Default, Serialize, Deserialize, PartialEq)]
-#[serde(rename_all = "lowercase")]
-pub enum PayloadPaymentStatus {
-    Succeeded,
-    Failed,
-    #[default]
-    Processing,
-}
 
-impl From<PayloadPaymentStatus> for common_enums::AttemptStatus {
-    fn from(item: PayloadPaymentStatus) -> Self {
+impl From<responses::PayloadPaymentStatus> for common_enums::AttemptStatus {
+    fn from(item: responses::PayloadPaymentStatus) -> Self {
         match item {
-            PayloadPaymentStatus::Succeeded => Self::Charged,
-            PayloadPaymentStatus::Failed => Self::Failure,
-            PayloadPaymentStatus::Processing => Self::Authorizing,
+            responses::PayloadPaymentStatus::Succeeded => Self::Charged,
+            responses::PayloadPaymentStatus::Failed => Self::Failure,
+            responses::PayloadPaymentStatus::Processing => Self::Authorizing,
         }
     }
 }
 
-//TODO: Fill the struct with respective fields
-#[derive(Default, Debug, Clone, Serialize, Deserialize, PartialEq)]
-pub struct PayloadPaymentsResponse {
-    status: PayloadPaymentStatus,
-    id: String,
-}
-
-impl<F, T> TryFrom<ResponseRouterData<F, PayloadPaymentsResponse, T, PaymentsResponseData>>
+impl<F, T>
+    TryFrom<ResponseRouterData<F, responses::PayloadPaymentsResponse, T, PaymentsResponseData>>
     for RouterData<F, T, PaymentsResponseData>
 {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
-        item: ResponseRouterData<F, PayloadPaymentsResponse, T, PaymentsResponseData>,
+        item: ResponseRouterData<F, responses::PayloadPaymentsResponse, T, PaymentsResponseData>,
     ) -> Result<Self, Self::Error> {
         Ok(Self {
             status: common_enums::AttemptStatus::from(item.response.status),
@@ -142,15 +114,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, PayloadPaymentsResponse, T, PaymentsRes
     }
 }
 
-//TODO: Fill the struct with respective fields
-// REFUND :
-// Type definition for RefundRequest
-#[derive(Default, Debug, Serialize)]
-pub struct PayloadRefundRequest {
-    pub amount: StringMinorUnit,
-}
-
-impl<F> TryFrom<&PayloadRouterData<&RefundsRouterData<F>>> for PayloadRefundRequest {
+impl<F> TryFrom<&PayloadRouterData<&RefundsRouterData<F>>> for requests::PayloadRefundRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(item: &PayloadRouterData<&RefundsRouterData<F>>) -> Result<Self, Self::Error> {
         Ok(Self {
@@ -159,39 +123,23 @@ impl<F> TryFrom<&PayloadRouterData<&RefundsRouterData<F>>> for PayloadRefundRequ
     }
 }
 
-// Type definition for Refund Response
-
-#[allow(dead_code)]
-#[derive(Debug, Copy, Serialize, Default, Deserialize, Clone)]
-pub enum RefundStatus {
-    Succeeded,
-    Failed,
-    #[default]
-    Processing,
-}
-
-impl From<RefundStatus> for enums::RefundStatus {
-    fn from(item: RefundStatus) -> Self {
+impl From<responses::RefundStatus> for enums::RefundStatus {
+    fn from(item: responses::RefundStatus) -> Self {
         match item {
-            RefundStatus::Succeeded => Self::Success,
-            RefundStatus::Failed => Self::Failure,
-            RefundStatus::Processing => Self::Pending,
+            responses::RefundStatus::Succeeded => Self::Success,
+            responses::RefundStatus::Failed => Self::Failure,
+            responses::RefundStatus::Processing => Self::Pending,
             //TODO: Review mapping
         }
     }
 }
 
-//TODO: Fill the struct with respective fields
-#[derive(Default, Debug, Clone, Serialize, Deserialize)]
-pub struct RefundResponse {
-    id: String,
-    status: RefundStatus,
-}
-
-impl TryFrom<RefundsResponseRouterData<Execute, RefundResponse>> for RefundsRouterData<Execute> {
+impl TryFrom<RefundsResponseRouterData<Execute, responses::RefundResponse>>
+    for RefundsRouterData<Execute>
+{
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
-        item: RefundsResponseRouterData<Execute, RefundResponse>,
+        item: RefundsResponseRouterData<Execute, responses::RefundResponse>,
     ) -> Result<Self, Self::Error> {
         Ok(Self {
             response: Ok(RefundsResponseData {
@@ -203,10 +151,12 @@ impl TryFrom<RefundsResponseRouterData<Execute, RefundResponse>> for RefundsRout
     }
 }
 
-impl TryFrom<RefundsResponseRouterData<RSync, RefundResponse>> for RefundsRouterData<RSync> {
+impl TryFrom<RefundsResponseRouterData<RSync, responses::RefundResponse>>
+    for RefundsRouterData<RSync>
+{
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
-        item: RefundsResponseRouterData<RSync, RefundResponse>,
+        item: RefundsResponseRouterData<RSync, responses::RefundResponse>,
     ) -> Result<Self, Self::Error> {
         Ok(Self {
             response: Ok(RefundsResponseData {
@@ -216,16 +166,4 @@ impl TryFrom<RefundsResponseRouterData<RSync, RefundResponse>> for RefundsRouter
             ..item.data
         })
     }
-}
-
-//TODO: Fill the struct with respective fields
-#[derive(Default, Debug, Serialize, Deserialize, PartialEq)]
-pub struct PayloadErrorResponse {
-    pub status_code: u16,
-    pub code: String,
-    pub message: String,
-    pub reason: Option<String>,
-    pub network_advice_code: Option<String>,
-    pub network_decline_code: Option<String>,
-    pub network_error_message: Option<String>,
 }

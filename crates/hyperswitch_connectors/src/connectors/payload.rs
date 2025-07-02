@@ -1,3 +1,5 @@
+mod requests;
+mod responses;
 pub mod transformers;
 
 use std::sync::LazyLock;
@@ -132,7 +134,7 @@ impl ConnectorCommon for Payload {
         res: Response,
         event_builder: Option<&mut ConnectorEvent>,
     ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
-        let response: payload::PayloadErrorResponse = res
+        let response: responses::PayloadErrorResponse = res
             .response
             .parse_struct("PayloadErrorResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
@@ -221,7 +223,7 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
         )?;
 
         let connector_router_data = payload::PayloadRouterData::from((amount, req));
-        let connector_req = payload::PayloadPaymentsRequest::try_from(&connector_router_data)?;
+        let connector_req = requests::PayloadPaymentsRequest::try_from(&connector_router_data)?;
         Ok(RequestContent::Json(Box::new(connector_req)))
     }
 
@@ -253,9 +255,9 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
         event_builder: Option<&mut ConnectorEvent>,
         res: Response,
     ) -> CustomResult<PaymentsAuthorizeRouterData, errors::ConnectorError> {
-        let response: payload::PayloadPaymentsResponse = res
+        let response: responses::PayloadPaymentsResponse = res
             .response
-            .parse_struct("Payload PaymentsAuthorizeResponse")
+            .parse_struct("PayloadPaymentsAuthorizeResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
@@ -317,9 +319,9 @@ impl ConnectorIntegration<PSync, PaymentsSyncData, PaymentsResponseData> for Pay
         event_builder: Option<&mut ConnectorEvent>,
         res: Response,
     ) -> CustomResult<PaymentsSyncRouterData, errors::ConnectorError> {
-        let response: payload::PayloadPaymentsResponse = res
+        let response: responses::PayloadPaymentsResponse = res
             .response
-            .parse_struct("payload PaymentsSyncResponse")
+            .parse_struct("PayloadPaymentsSyncResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
@@ -394,7 +396,7 @@ impl ConnectorIntegration<Capture, PaymentsCaptureData, PaymentsResponseData> fo
         event_builder: Option<&mut ConnectorEvent>,
         res: Response,
     ) -> CustomResult<PaymentsCaptureRouterData, errors::ConnectorError> {
-        let response: payload::PayloadPaymentsResponse = res
+        let response: responses::PayloadPaymentsResponse = res
             .response
             .parse_struct("Payload PaymentsCaptureResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
@@ -451,7 +453,7 @@ impl ConnectorIntegration<Execute, RefundsData, RefundsResponseData> for Payload
         )?;
 
         let connector_router_data = payload::PayloadRouterData::from((refund_amount, req));
-        let connector_req = payload::PayloadRefundRequest::try_from(&connector_router_data)?;
+        let connector_req = requests::PayloadRefundRequest::try_from(&connector_router_data)?;
         Ok(RequestContent::Json(Box::new(connector_req)))
     }
 
@@ -480,7 +482,7 @@ impl ConnectorIntegration<Execute, RefundsData, RefundsResponseData> for Payload
         event_builder: Option<&mut ConnectorEvent>,
         res: Response,
     ) -> CustomResult<RefundsRouterData<Execute>, errors::ConnectorError> {
-        let response: payload::RefundResponse = res
+        let response: responses::RefundResponse = res
             .response
             .parse_struct("payload RefundResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
@@ -547,7 +549,7 @@ impl ConnectorIntegration<RSync, RefundsData, RefundsResponseData> for Payload {
         event_builder: Option<&mut ConnectorEvent>,
         res: Response,
     ) -> CustomResult<RefundSyncRouterData, errors::ConnectorError> {
-        let response: payload::RefundResponse = res
+        let response: responses::RefundResponse = res
             .response
             .parse_struct("payload RefundSyncResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
