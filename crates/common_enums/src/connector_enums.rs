@@ -119,6 +119,7 @@ pub enum RoutableConnectors {
     Opennode,
     // Payeezy, As psync and rsync are not supported by this connector, it is added as template code for future usage
     Paybox,
+    Payload,
     Payme,
     Payone,
     Paypal,
@@ -280,6 +281,7 @@ pub enum Connector {
     // Opayo, added as template code for future usage
     Opennode,
     Paybox,
+    Payload,
     // Payeezy, As psync and rsync are not supported by this connector, it is added as template code for future usage
     Payme,
     Payone,
@@ -454,6 +456,7 @@ impl Connector {
             | Self::Nuvei
             | Self::Opennode
             | Self::Paybox
+			| Self::Payload
             | Self::Payme
             | Self::Payone
             | Self::Paypal
@@ -614,6 +617,7 @@ impl From<RoutableConnectors> for Connector {
             RoutableConnectors::Nuvei => Self::Nuvei,
             RoutableConnectors::Opennode => Self::Opennode,
             RoutableConnectors::Paybox => Self::Paybox,
+            RoutableConnectors::Payload => Self::Payload,
             RoutableConnectors::Payme => Self::Payme,
             RoutableConnectors::Payone => Self::Payone,
             RoutableConnectors::Paypal => Self::Paypal,
@@ -733,6 +737,7 @@ impl TryFrom<Connector> for RoutableConnectors {
             Connector::Nuvei => Ok(Self::Nuvei),
             Connector::Opennode => Ok(Self::Opennode),
             Connector::Paybox => Ok(Self::Paybox),
+            Connector::Payload => Ok(Self::Payload),
             Connector::Payme => Ok(Self::Payme),
             Connector::Payone => Ok(Self::Payone),
             Connector::Paypal => Ok(Self::Paypal),
