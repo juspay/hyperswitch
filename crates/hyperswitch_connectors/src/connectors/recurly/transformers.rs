@@ -26,9 +26,7 @@ use serde::{Deserialize, Serialize};
 use time::PrimitiveDateTime;
 
 #[cfg(all(feature = "v2", feature = "revenue_recovery"))]
-use crate::utils;
-#[cfg(all(feature = "v2", feature = "revenue_recovery"))]
-use crate::{types::ResponseRouterDataV2, utils::PaymentsAuthorizeRequestData};
+use crate::{types::ResponseRouterDataV2, utils};
 
 pub struct RecurlyRouterData<T> {
     pub amount: StringMinorUnit, // The type of amount that a connector accepts, for example, String, i64, f64, etc.
@@ -208,6 +206,8 @@ impl
                     ),
                     card_network: Some(item.response.payment_method.card_type),
                     card_isin: Some(item.response.payment_method.first_six),
+                    // This none because this field is specific to stripebilling.
+                    charge_id: None,
                 },
             ),
             ..item.data

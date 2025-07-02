@@ -19,6 +19,10 @@ pub struct AuthenticationCreateRequest {
     #[schema(value_type = Option<String>)]
     pub profile_id: Option<id_type::ProfileId>,
 
+    /// The connector to be used for authentication, if known.
+    #[schema(value_type = Option<AuthenticationConnectors>, example = "netcetera")]
+    pub authentication_connector: Option<AuthenticationConnectors>,
+
     /// Customer details.
     #[schema(value_type = Option<CustomerDetails>)]
     pub customer: Option<CustomerDetails>,
@@ -26,10 +30,6 @@ pub struct AuthenticationCreateRequest {
     /// The amount for the transaction, required.
     #[schema(value_type = MinorUnit, example = 1000)]
     pub amount: common_utils::types::MinorUnit,
-
-    /// The connector to be used for authentication, if known.
-    #[schema(value_type = Option<AuthenticationConnectors>, example = "netcetera")]
-    pub authentication_connector: Option<AuthenticationConnectors>,
 
     /// The currency for the transaction, required.
     #[schema(value_type = Currency)]
@@ -92,12 +92,12 @@ pub struct AuthenticationResponse {
     #[schema(value_type = Currency)]
     pub currency: enums::Currency,
 
-    /// The connector to be used for authentication, if known.
-    #[schema(value_type = Option<AuthenticationConnectors>, example = "netcetera")]
-    pub authentication_connector: Option<String>,
-
     /// Whether 3DS challenge was forced.
     pub force_3ds_challenge: Option<bool>,
+
+    /// The connector to be used for authentication, if specified in request.
+    #[schema(value_type = Option<AuthenticationConnectors>)]
+    pub authentication_connector: Option<String>,
 
     /// The URL to which the user should be redirected after authentication, if provided.
     pub return_url: Option<String>,
@@ -135,7 +135,6 @@ impl ApiEventMetric for AuthenticationCreateRequest {
             })
     }
 }
-
 impl ApiEventMetric for AuthenticationResponse {
     fn get_api_event_type(&self) -> Option<ApiEventsType> {
         Some(ApiEventsType::Authentication {
@@ -146,7 +145,6 @@ impl ApiEventMetric for AuthenticationResponse {
 
 #[derive(Debug, Serialize, Deserialize, ToSchema)]
 pub struct AuthenticationEligibilityRequest {
-    /// Payment method data
     pub payment_method_data: crate::payments::PaymentMethodData,
 
     /// Payment method
@@ -286,3 +284,4 @@ impl ApiEventMetric for AuthenticationAuthenticateResponse {
         None
     }
 }
+

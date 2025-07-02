@@ -2698,7 +2698,27 @@ where
         api_auth
     }
 }
-
+#[cfg(feature = "v2")]
+pub fn api_or_client_or_jwt_auth<'a, T, A>(
+    api_auth: &'a dyn AuthenticateAndFetch<T, A>,
+    client_auth: &'a dyn AuthenticateAndFetch<T, A>,
+    jwt_auth: &'a dyn AuthenticateAndFetch<T, A>,
+    headers: &HeaderMap,
+) -> &'a dyn AuthenticateAndFetch<T, A>
+where
+{
+    if let Ok(val) = HeaderMapStruct::new(headers).get_auth_string_from_header() {
+        if val.trim().starts_with("api-key=") {
+            api_auth
+        } else if is_jwt_auth(headers) {
+            jwt_auth
+        } else {
+            client_auth
+        }
+    } else {
+        api_auth
+    }
+}
 #[derive(Debug)]
 pub struct PublishableKeyAuth;
 

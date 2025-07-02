@@ -69,6 +69,7 @@ pub struct KafkaPaymentAttempt<'a> {
     pub organization_id: &'a id_type::OrganizationId,
     pub card_network: Option<String>,
     pub card_discovery: Option<String>,
+    pub routing_approach: Option<storage_enums::RoutingApproach>,
 }
 
 #[cfg(feature = "v1")]
@@ -130,6 +131,7 @@ impl<'a> KafkaPaymentAttempt<'a> {
             card_discovery: attempt
                 .card_discovery
                 .map(|discovery| discovery.to_string()),
+            routing_approach: attempt.routing_approach,
         }
     }
 }
@@ -189,7 +191,7 @@ pub struct KafkaPaymentAttempt<'a> {
     pub authentication_connector: Option<String>,
     pub authentication_id: Option<String>,
     pub fingerprint_id: Option<String>,
-    pub customer_acceptance: Option<&'a masking::Secret<serde_json::Value>>,
+    pub customer_acceptance: Option<&'a masking::Secret<payments::CustomerAcceptance>>,
     pub shipping_cost: Option<MinorUnit>,
     pub order_tax_amount: Option<MinorUnit>,
     pub charges: Option<payments::ConnectorChargeResponseData>,

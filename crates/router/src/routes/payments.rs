@@ -232,7 +232,7 @@ pub async fn payments_get_intent(
                 header_payload.clone(),
             )
         },
-        auth::api_or_client_auth(
+        auth::api_or_client_or_jwt_auth(
             &auth::V2ApiKeyAuth {
                 is_connected_allowed: false,
                 is_platform_allowed: false,
@@ -240,6 +240,74 @@ pub async fn payments_get_intent(
             &auth::V2ClientAuth(common_utils::types::authentication::ResourceId::Payment(
                 global_payment_id.clone(),
             )),
+            &auth::JWTAuth {
+                permission: Permission::ProfileRevenueRecoveryRead,
+            },
+            req.headers(),
+        ),
+        api_locking::LockAction::NotApplicable,
+    ))
+    .await
+}
+
+#[cfg(feature = "v2")]
+#[instrument(skip_all, fields(flow = ?Flow::PaymentAttemptsList, payment_id,))]
+pub async fn list_payment_attempts(
+    state: web::Data<app::AppState>,
+    req: actix_web::HttpRequest,
+    path: web::Path<common_utils::id_type::GlobalPaymentId>,
+) -> impl Responder {
+    let flow = Flow::PaymentAttemptsList;
+    let payment_intent_id = path.into_inner();
+
+    let payload = api_models::payments::PaymentAttemptListRequest {
+        payment_intent_id: payment_intent_id.clone(),
+    };
+
+    let header_payload = match HeaderPayload::foreign_try_from(req.headers()) {
+        Ok(headers) => headers,
+        Err(err) => {
+            return api::log_and_return_error_response(err);
+        }
+    };
+
+    Box::pin(api::server_wrap(
+        flow,
+        state,
+        &req,
+        payload.clone(),
+        |session_state, auth, req_payload, req_state| {
+            let merchant_context = domain::MerchantContext::NormalMerchant(Box::new(
+                domain::Context(auth.merchant_account, auth.key_store),
+            ));
+
+            payments::payments_list_attempts_using_payment_intent_id::<
+                payments::operations::PaymentGetListAttempts,
+                api_models::payments::PaymentAttemptListResponse,
+                api_models::payments::PaymentAttemptListRequest,
+                payments::operations::payment_attempt_list::PaymentGetListAttempts,
+                hyperswitch_domain_models::payments::PaymentAttemptListData<
+                    payments::operations::PaymentGetListAttempts,
+                >,
+            >(
+                session_state,
+                req_state,
+                merchant_context,
+                auth.profile,
+                payments::operations::PaymentGetListAttempts,
+                payload.clone(),
+                req_payload.payment_intent_id,
+                header_payload.clone(),
+            )
+        },
+        auth::auth_type(
+            &auth::V2ApiKeyAuth {
+                is_connected_allowed: false,
+                is_platform_allowed: false,
+            },
+            &auth::JWTAuth {
+                permission: Permission::ProfilePaymentRead,
+            },
             req.headers(),
         ),
         api_locking::LockAction::NotApplicable,
