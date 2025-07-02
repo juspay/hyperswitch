@@ -272,6 +272,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentConfirmData<F>, PaymentsConfir
             mandate_data: None,
             payment_method: None,
             merchant_connector_details,
+            whole_connector_response: None,
         };
 
         let get_trackers_response = operations::GetTrackerResponse { payment_data };
@@ -587,6 +588,7 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentConfirmData<F>, PaymentsConfirmInt
             .payment_attempt
             .connector_request_reference_id
             .clone();
+        let order_id = payment_data.payment_attempt.order_id.clone();
 
         let payment_attempt_update = match &payment_data.payment_method {
             // In the case of a tokenized payment method, we update the payment attempt with the tokenized payment method details.
@@ -611,6 +613,7 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentConfirmData<F>, PaymentsConfirmInt
                     merchant_connector_id,
                     authentication_type,
                     connector_request_reference_id,
+                    order_id,
                 }
             }
         };
