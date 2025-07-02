@@ -11,7 +11,7 @@ impl utils::Connector for PayloadTest {
     fn get_data(&self) -> api::ConnectorData {
         use router::connector::Payload;
         utils::construct_connector_data_old(
-            Box::new(Nordea::new()),
+            Box::new(Payload::new()),
             types::Connector::DummyConnector1,
             api::GetToken::Connector,
             None,
