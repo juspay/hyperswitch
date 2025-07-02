@@ -1,6 +1,5 @@
 import { customerAcceptance } from "./Commons";
 
-
 const mockBillingDetails = {
   address: {
     line1: "Servidao B-1",
@@ -21,7 +20,7 @@ const mockBillingDetails = {
 };
 
 const successfulNo3DSCardDetails = {
-  card_number: "4111111111111111", 
+  card_number: "4111111111111111",
   card_exp_month: "10",
   card_exp_year: "40",
   card_holder_name: "Thiago Gabriel",
@@ -142,7 +141,7 @@ const payment_method_data_no3ds = {
     payment_checks: null,
     authentication_data: null,
   },
-  billing:null,
+  billing: null,
 };
 const payment_method_data_no3ds_address = {
   card: {
@@ -159,7 +158,7 @@ const payment_method_data_no3ds_address = {
     payment_checks: null,
     authentication_data: null,
   },
-  billing:mockBillingDetails,
+  billing: mockBillingDetails,
 };
 const payment_method_data_3ds_address = {
   card: {
@@ -179,11 +178,8 @@ const payment_method_data_3ds_address = {
   billing: mockBillingDetails,
 };
 
-
 export const connectorDetails = {
   card_pm: {
-    
-    
     No3DSFailPayment: {
       Request: {
         payment_method: "card",
@@ -205,7 +201,6 @@ export const connectorDetails = {
       },
     },
 
-    
     PaymentIntentWithShippingCost: {
       Request: {
         currency: "USD",
@@ -220,7 +215,7 @@ export const connectorDetails = {
         },
       },
     },
-    
+
     PaymentConfirmWithShippingCost: {
       Request: {
         payment_method: "card",
@@ -241,18 +236,17 @@ export const connectorDetails = {
         },
       },
     },
-    
+
     No3DSAutoCapture: {
       Request: {
         payment_method: "card",
         payment_method_data: {
           card: successfulNo3DSCardDetails,
-          billing:mockBillingDetails
+          billing: mockBillingDetails,
         },
         currency: "USD",
         customer_acceptance: null,
         setup_future_usage: "on_session",
-        
       },
       Response: {
         status: 200,
@@ -263,13 +257,13 @@ export const connectorDetails = {
         },
       },
     },
-    
+
     "3DSAutoCapture": {
       Request: {
         payment_method: "card",
         payment_method_data: {
           card: successfulThreeDSCardDetails, // Uses updated card details
-          billing: mockBillingDetails,       // Uses updated billing details
+          billing: mockBillingDetails, // Uses updated billing details
         },
         currency: "BRL",
       },
@@ -280,7 +274,7 @@ export const connectorDetails = {
         },
       },
     },
-    
+
     No3DSManualCapture: {
       Request: {
         payment_method: "card",
@@ -301,7 +295,7 @@ export const connectorDetails = {
         },
       },
     },
-    
+
     "3DSManualCapture": {
       Request: {
         payment_method: "card",
@@ -321,7 +315,7 @@ export const connectorDetails = {
         },
       },
     },
-    
+
     Capture: {
       Request: {
         amount_to_capture: 6000,
@@ -336,7 +330,7 @@ export const connectorDetails = {
         },
       },
     },
-    
+
     PartialCapture: {
       Request: {
         amount_to_capture: 2000,
@@ -351,7 +345,7 @@ export const connectorDetails = {
         },
       },
     },
-    
+
     Void: {
       Request: {
         cancellation_reason: "VOID",
@@ -364,7 +358,7 @@ export const connectorDetails = {
         },
       },
     },
-    
+
     VoidAfterConfirm: {
       Request: {
         cancellation_reason: "VOID",
@@ -377,7 +371,7 @@ export const connectorDetails = {
         },
       },
     },
-    
+
     Refund: {
       Request: {
         amount: 6000,
@@ -389,7 +383,7 @@ export const connectorDetails = {
         },
       },
     },
-    
+
     PartialRefund: {
       Request: {
         amount: 2000,
@@ -401,7 +395,7 @@ export const connectorDetails = {
         },
       },
     },
-    
+
     SyncRefund: {
       Response: {
         status: 200,
@@ -410,7 +404,7 @@ export const connectorDetails = {
         },
       },
     },
-    
+
     manualPaymentRefund: {
       Request: {
         amount: 6000,
@@ -422,7 +416,7 @@ export const connectorDetails = {
         },
       },
     },
-    
+
     manualPaymentPartialRefund: {
       Request: {
         amount: 2000,
@@ -434,7 +428,7 @@ export const connectorDetails = {
         },
       },
     },
-    
+
     MandateSingleUseNo3DSAutoCapture: {
       Request: {
         payment_method: "card",
@@ -458,7 +452,7 @@ export const connectorDetails = {
           connector: "dlocal",
         },
       },
-      Configs: { TRIGGER_SKIP: true }
+      Configs: { TRIGGER_SKIP: true },
     },
 
     MandateSingleUseNo3DSManualCapture: {
@@ -468,7 +462,7 @@ export const connectorDetails = {
           card: successfulNo3DSCardDetails,
           billing: mockBillingDetails,
         },
-        
+
         currency: "USD",
         mandate_data: singleUseMandateData,
       },
@@ -478,7 +472,7 @@ export const connectorDetails = {
           status: "requires_capture",
         },
       },
-      Configs: { TRIGGER_SKIP: true }
+      Configs: { TRIGGER_SKIP: true },
     },
     MITManualCapture: {
       Request: {
@@ -493,7 +487,7 @@ export const connectorDetails = {
           status: "requires_capture",
         },
       },
-      Configs: { TRIGGER_SKIP: true }
+      Configs: { TRIGGER_SKIP: true },
     },
     MandateSingleUse3DSAutoCapture: {
       Request: {
@@ -513,7 +507,7 @@ export const connectorDetails = {
           connector: "dlocal",
         },
       },
-      Configs: { TRIGGER_SKIP: true }
+      Configs: { TRIGGER_SKIP: true },
     },
 
     SaveCardUseNo3DSAutoCapture: {
@@ -536,7 +530,7 @@ export const connectorDetails = {
           connector: "dlocal",
         },
       },
-      Configs: { TRIGGER_SKIP: true }
+      Configs: { TRIGGER_SKIP: true },
     },
 
     SaveCardUseNo3DSAutoCaptureOffSession: {
@@ -558,7 +552,7 @@ export const connectorDetails = {
           connector: "dlocal",
         },
       },
-      Configs: { TRIGGER_SKIP: true }
+      Configs: { TRIGGER_SKIP: true },
     },
 
     MandateMultiUseNo3DSAutoCapture: {
@@ -581,7 +575,7 @@ export const connectorDetails = {
           connector: "dlocal",
         },
       },
-      Configs: { TRIGGER_SKIP: true }
+      Configs: { TRIGGER_SKIP: true },
     },
     MandateMultiUseNo3DSManualCapture: {
       Request: {
@@ -606,7 +600,7 @@ export const connectorDetails = {
           connector: "dlocal",
         },
       },
-      Configs: { TRIGGER_SKIP: true }
+      Configs: { TRIGGER_SKIP: true },
     },
     MITAutoCapture: {
       Request: {
@@ -628,7 +622,7 @@ export const connectorDetails = {
           connector: "dlocal",
         },
       },
-      Configs: { TRIGGER_SKIP: true }
+      Configs: { TRIGGER_SKIP: true },
     },
     ZeroAuthMandate: {
       Request: {
@@ -647,7 +641,7 @@ export const connectorDetails = {
           payment_method_data: payment_method_data_no3ds_address,
         },
       },
-      Configs: { TRIGGER_SKIP: true }
+      Configs: { TRIGGER_SKIP: true },
     },
     ZeroAuthPaymentIntent: {
       Request: {
@@ -660,9 +654,9 @@ export const connectorDetails = {
           status: "requires_payment_method",
         },
       },
-      Configs: { TRIGGER_SKIP: true }
+      Configs: { TRIGGER_SKIP: true },
     },
-    
+
     ZeroAuthConfirmPayment: {
       Request: {
         payment_type: "setup_mandate",
@@ -680,9 +674,9 @@ export const connectorDetails = {
           payment_method_data: payment_method_data_no3ds_address,
         },
       },
-      Configs: { TRIGGER_SKIP: true }
+      Configs: { TRIGGER_SKIP: true },
     },
-    
+
     SyncPayment: {
       Response: {
         status: 200,
@@ -694,7 +688,7 @@ export const connectorDetails = {
       },
     },
   },
-  
+
   bank_redirect_pm: {
     PaymentIntent: {
       Request: {
@@ -708,7 +702,7 @@ export const connectorDetails = {
       },
     },
   },
-  
+
   pm_list: {
     PmListResponse: {
       PmListNull: {
@@ -728,7 +722,17 @@ export const payment_methods_enabled = [
     payment_method_types: [
       {
         payment_method_type: "credit",
-        card_networks: ["Visa", "Mastercard", "AmericanExpress", "Discover", "JCB", "DinersClub", "UnionPay", "Interac", "CartesBancaires"],
+        card_networks: [
+          "Visa",
+          "Mastercard",
+          "AmericanExpress",
+          "Discover",
+          "JCB",
+          "DinersClub",
+          "UnionPay",
+          "Interac",
+          "CartesBancaires",
+        ],
         minimum_amount: 0,
         maximum_amount: 68607706,
         recurring_enabled: false,
@@ -736,12 +740,22 @@ export const payment_methods_enabled = [
       },
       {
         payment_method_type: "debit",
-        card_networks: ["Visa", "Mastercard", "AmericanExpress", "Discover", "JCB", "DinersClub", "UnionPay", "Interac", "CartesBancaires"],
+        card_networks: [
+          "Visa",
+          "Mastercard",
+          "AmericanExpress",
+          "Discover",
+          "JCB",
+          "DinersClub",
+          "UnionPay",
+          "Interac",
+          "CartesBancaires",
+        ],
         minimum_amount: 0,
         maximum_amount: 68607706,
         recurring_enabled: false,
         installment_payment_enabled: true,
-      }
-    ]
-  }
+      },
+    ],
+  },
 ];
