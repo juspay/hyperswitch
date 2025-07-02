@@ -2329,7 +2329,7 @@ pub struct ProfileCreate {
     pub merchant_category_code: Option<api_enums::MerchantCategoryCode>,
 
     /// Merchant country code
-    #[schema(value_type = Option<i32>, example = "840")]
+    #[schema(value_type = Option<i32>, example = 840)]
     pub merchant_country_code: Option<i32>,
 }
 
@@ -2666,7 +2666,7 @@ pub struct ProfileResponse {
     pub merchant_category_code: Option<api_enums::MerchantCategoryCode>,
 
     /// Merchant country code
-    #[schema(value_type = Option<i32>, example = "840")]
+    #[schema(value_type = Option<i32>, example = 840)]
     pub merchant_country_code: Option<i32>,
 }
 
@@ -2970,7 +2970,7 @@ pub struct ProfileUpdate {
     pub merchant_category_code: Option<api_enums::MerchantCategoryCode>,
 
     /// Merchant country code
-    #[schema(value_type = Option<i32>, example = "840")]
+    #[schema(value_type = Option<i32>, example = 840)]
     pub merchant_country_code: Option<i32>,
 }
 
