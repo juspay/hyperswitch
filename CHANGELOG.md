@@ -4,6 +4,16 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2025.06.30.0-hotfix1
+
+### Features
+
+- **connectors:** [Worldpayvantiv] add NTI flow and refactor sync flows ([#8528](https://github.com/juspay/hyperswitch/pull/8528)) ([`699cead`](https://github.com/juspay/hyperswitch/commit/699cead93fcc23a043170379bb7bd99fdfdabaaf))
+
+**Full Changelog:** [`2025.06.30.0...2025.06.30.0-hotfix1`](https://github.com/juspay/hyperswitch/compare/2025.06.30.0...2025.06.30.0-hotfix1)
+
+- - -
+
 ## 2025.06.30.0
 
 ### Features
