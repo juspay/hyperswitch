@@ -1,8 +1,5 @@
 import { 
   customerAcceptance, 
-  cardRequiredField,
-  // singleUseMandateData,
-  // multiUseMandateData,
 } from "./Commons";
 import { getCurrency } from "./Modifiers";
 
