@@ -195,7 +195,7 @@ async fn should_fail_payment_for_invalid_exp_year() {
         .await
         .unwrap();
     let x = response.response.unwrap_err();
-    assert_eq!(x.message, "Decline - Expired card. You might also receive this if the expiration date you provided does not match the date the issuing bank has on file.",);
+    assert_eq!(x.message, "Decline - Expired card. You might also receive this if the expiration date you provided does not match the date the issuing bank has on file.");
 }
 #[actix_web::test]
 async fn should_fail_payment_for_invalid_card_cvc() {

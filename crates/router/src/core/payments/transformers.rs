@@ -3501,6 +3501,7 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsAuthoriz
                 .as_ref()
                 .and_then(|noon| noon.order_category.clone())
         });
+
         let braintree_metadata = connector_metadata
             .as_ref()
             .and_then(|cm| cm.braintree.clone());

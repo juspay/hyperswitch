@@ -41,7 +41,7 @@ pub enum PartitionKey<'a> {
     },
     MerchantIdPayoutId {
         merchant_id: &'a common_utils::id_type::MerchantId,
-        payout_id: &'a str,
+        payout_id: &'a common_utils::id_type::PayoutId,
     },
     MerchantIdPayoutAttemptId {
         merchant_id: &'a common_utils::id_type::MerchantId,
@@ -93,8 +93,9 @@ impl std::fmt::Display for PartitionKey<'_> {
                 merchant_id,
                 payout_id,
             } => f.write_str(&format!(
-                "mid_{}_po_{payout_id}",
-                merchant_id.get_string_repr()
+                "mid_{}_po_{}",
+                merchant_id.get_string_repr(),
+                payout_id.get_string_repr()
             )),
             PartitionKey::MerchantIdPayoutAttemptId {
                 merchant_id,
@@ -112,7 +113,7 @@ impl std::fmt::Display for PartitionKey<'_> {
             )),
 
             #[cfg(feature = "v2")]
-            PartitionKey::GlobalId { id } => f.write_str(&format!("global_cust_{id}",)),
+            PartitionKey::GlobalId { id } => f.write_str(&format!("global_cust_{id}")),
             #[cfg(feature = "v2")]
             PartitionKey::GlobalPaymentId { id } => {
                 f.write_str(&format!("global_payment_{}", id.get_string_repr()))
@@ -176,7 +177,7 @@ where
 {
     let redis_conn = store.get_redis_conn()?;
 
-    let key = format!("{}", partition_key);
+    let key = format!("{partition_key}");
 
     let type_name = std::any::type_name::<T>();
     let operation = op.to_string();
@@ -292,7 +293,7 @@ impl std::fmt::Display for Op<'_> {
             Op::Insert => f.write_str("insert"),
             Op::Find => f.write_str("find"),
             Op::Update(p_key, _, updated_by) => {
-                f.write_str(&format!("update_{} for updated_by_{:?}", p_key, updated_by))
+                f.write_str(&format!("update_{p_key} for updated_by_{updated_by:?}"))
             }
         }
     }
