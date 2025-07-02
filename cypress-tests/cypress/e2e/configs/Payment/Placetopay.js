@@ -1,6 +1,4 @@
 import { customerAcceptance, cardRequiredField } from "./Commons.js";
-import { getCustomExchange } from "./Modifiers.js";
-
 const defaultBillingDetails = {
   address: {
     line1: "Calle 123",
@@ -19,7 +17,24 @@ const defaultBillingDetails = {
   },
   email: "john.doe@example.com",
 };
-
+const singleUseMandateData = {
+  customer_acceptance: customerAcceptance,
+  mandate_type: {
+    single_use: {
+      amount: 8000,
+      currency: "USD",
+    },
+  },
+}
+const multiUseMandateData =  {
+  customer_acceptance: customerAcceptance,
+  mandate_type: {
+    multi_use: {
+      amount: 8000,
+      currency: "USD",
+    },
+  },
+}
 // Test card details for Placetopay - using standard test cards
 const successfulNo3DSCardDetails = {
   card_number: "4111111111111111", // Visa test card
@@ -27,39 +42,6 @@ const successfulNo3DSCardDetails = {
   card_exp_year: "30",
   card_holder_name: "Test User",
   card_cvc: "123",
-};
-
-const successfulMastercardDetails = {
-  card_number: "5555555555554444", // Mastercard test card
-  card_exp_month: "12",
-  card_exp_year: "30",
-  card_holder_name: "Test User",
-  card_cvc: "123",
-};
-
-const successfulAmexDetails = {
-  card_number: "378282246310005", // American Express test card
-  card_exp_month: "12",
-  card_exp_year: "30",
-  card_holder_name: "Test User",
-  card_cvc: "1234",
-};
-
-const payment_method_data_amex = {
-  card: {
-    last4: "0005",
-    card_type: "CREDIT",
-    card_network: "AmericanExpress",
-    card_issuer: "Test Bank",
-    card_issuing_country: "US",
-    card_isin: "378282",
-    card_extended_bin: null,
-    card_exp_month: "12",
-    card_exp_year: "30",
-    card_holder_name: "Test User",
-    payment_checks: null,
-    authentication_data: null,
-  },
 };
 
 const failedCardDetails = {
@@ -89,23 +71,7 @@ const payment_method_data_visa = {
   billing: null,
 };
 
-const payment_method_data_mastercard = {
-  card: {
-    last4: "4444",
-    card_type: "CREDIT",
-    card_network: "Mastercard",
-    card_issuer: "Test Bank",
-    card_issuing_country: "US",
-    card_isin: "555555",
-    card_extended_bin: null,
-    card_exp_month: "12",
-    card_exp_year: "30",
-    card_holder_name: "Test User",
-    payment_checks: null,
-    authentication_data: null,
-  },
-  billing: null,
-};
+
 
 const requiredFields = {
   payment_methods: [
@@ -127,17 +93,8 @@ const requiredFields = {
 };
 
 export const connectorDetails = {
-  authDetails: {
-    placetopay: {
-      connector_account_details: {
-        auth_type: "BodyKey",
-        api_key: "e2ffa4ba4e5538a5ff78bed4b156531e",
-        key1: "B383FT602fEXF49x",
-      },
-    },
-  },
   card_pm: {
-    PaymentIntent: getCustomExchange({
+    PaymentIntent: {
       Request: {
         currency: "USD",
         customer_acceptance: null,
@@ -150,9 +107,9 @@ export const connectorDetails = {
           setup_future_usage: "on_session",
         },
       },
-    }),
+    },
 
-    PaymentIntentWithShippingCost: getCustomExchange({
+    PaymentIntentWithShippingCost: {
       Request: {
         currency: "USD",
         shipping_cost: 50,
@@ -165,9 +122,9 @@ export const connectorDetails = {
           amount: 6000,
         },
       },
-    }),
+    },
 
-    PaymentConfirmWithShippingCost: getCustomExchange({
+    PaymentConfirmWithShippingCost: {
       Request: {
         payment_method: "card",
         payment_method_data: {
@@ -188,10 +145,10 @@ export const connectorDetails = {
           net_amount: 6050,
         },
       },
-    }),
+    },
 
     // No 3DS Auto Capture - Placetopay doesn't support 3DS
-    No3DSAutoCapture: getCustomExchange({
+    No3DSAutoCapture: {
       Request: {
         payment_method: "card",
         payment_method_data: {
@@ -210,7 +167,7 @@ export const connectorDetails = {
           payment_method_data: payment_method_data_visa,
         },
       },
-    }),
+    },
 
     // No 3DS Manual Capture - NOT supported by Placetopay
     No3DSManualCapture: {
@@ -222,23 +179,7 @@ export const connectorDetails = {
         payment_method_data: {
           card: successfulNo3DSCardDetails,
         },
-        billing: {
-          address: {
-            line1: "Calle 123",
-            line2: "Apt 1",
-            city: "Bogotá",
-            state: "Cundinamarca",
-            zip: "110111",
-            country: "CO",
-            first_name: "John",
-            last_name: "Doe",
-          },
-          phone: {
-            number: "3001234567",
-            country_code: "+57",
-          },
-          email: "john.doe@example.com",
-        },
+        billing: defaultBillingDetails,
         currency: "USD",
         customer_acceptance: null,
         setup_future_usage: "on_session",
@@ -253,50 +194,8 @@ export const connectorDetails = {
       },
     },
 
-    // Mastercard test
-    MastercardAutoCapture: getCustomExchange({
-      Request: {
-        payment_method: "card",
-        payment_method_data: {
-          card: successfulMastercardDetails,
-        },
-        currency: "USD",
-        customer_acceptance: null,
-        setup_future_usage: "on_session",
-      },
-      Response: {
-        status: 200,
-        body: {
-          status: "succeeded",
-          payment_method: "card",
-          payment_method_data: payment_method_data_mastercard,
-        },
-      },
-    }),
-
-    // American Express test
-    AmexAutoCapture: getCustomExchange({
-      Request: {
-        payment_method: "card",
-        payment_method_data: {
-          card: successfulAmexDetails,
-        },
-        currency: "USD",
-        customer_acceptance: null,
-        setup_future_usage: "on_session",
-      },
-      Response: {
-        status: 200,
-        body: {
-          status: "succeeded",
-          payment_method: "card",
-          payment_method_data: payment_method_data_amex,
-        },
-      },
-    }),
-
     // Failed payment test
-    No3DSFailPayment: getCustomExchange({
+    No3DSFailPayment: {
       Request: {
         payment_method: "card",
         payment_method_data: {
@@ -312,7 +211,7 @@ export const connectorDetails = {
           status: "failed",
         },
       },
-    }),
+    },
 
     // Capture flow
     Capture: {
@@ -348,7 +247,7 @@ export const connectorDetails = {
     },
 
     // Void payment
-    Void: getCustomExchange({
+    Void: {
       Request: {
         cancellation_reason: "requested_by_customer",
       },
@@ -358,9 +257,9 @@ export const connectorDetails = {
           status: "cancelled",
         },
       },
-    }),
+    },
 
-    VoidAfterConfirm: getCustomExchange({
+    VoidAfterConfirm: {
       Request: {
         cancellation_reason: "requested_by_customer",
       },
@@ -370,10 +269,10 @@ export const connectorDetails = {
           status: "cancelled",
         },
       },
-    }),
+    },
 
     // Refund - Placetopay supports full refunds only
-    Refund: getCustomExchange({
+    Refund: {
       Request: {
         amount: 6000,
       },
@@ -383,7 +282,7 @@ export const connectorDetails = {
           status: "succeeded",
         },
       },
-    }),
+    },
 
     // Partial Refund - NOT supported by Placetopay, should fail
     PartialRefund: {
@@ -406,17 +305,17 @@ export const connectorDetails = {
     },
 
     // Sync Refund
-    SyncRefund: getCustomExchange({
+    SyncRefund: {
       Response: {
         status: 200,
         body: {
           status: "succeeded",
         },
       },
-    }),
+    },
 
     // Manual payment refund
-    manualPaymentRefund: getCustomExchange({
+    manualPaymentRefund: {
       Request: {
         amount: 6000,
       },
@@ -426,7 +325,7 @@ export const connectorDetails = {
           status: "succeeded",
         },
       },
-    }),
+    },
 
     // Manual payment partial refund - NOT supported
     manualPaymentPartialRefund: {
@@ -449,7 +348,7 @@ export const connectorDetails = {
     },
 
     // Sync Payment
-    SyncPayment: getCustomExchange({
+    SyncPayment: {
       Response: {
         status: 200,
         body: {
@@ -458,7 +357,7 @@ export const connectorDetails = {
           payment_method_data: payment_method_data_visa,
         },
       },
-    }),
+    },
 
     // 3DS flows - NOT supported by Placetopay, should be skipped
     "3DSAutoCapture": {
@@ -520,15 +419,7 @@ export const connectorDetails = {
         },
         billing: defaultBillingDetails,
         currency: "USD",
-        mandate_data: {
-          customer_acceptance: customerAcceptance,
-          mandate_type: {
-            single_use: {
-              amount: 8000,
-              currency: "USD",
-            },
-          },
-        },
+        mandate_data: singleUseMandateData
       },
       Response: {
         status: 200,
@@ -578,15 +469,7 @@ export const connectorDetails = {
         },
         billing: defaultBillingDetails,
         currency: "USD",
-        mandate_data: {
-          customer_acceptance: customerAcceptance,
-          mandate_type: {
-            multi_use: {
-              amount: 8000,
-              currency: "USD",
-            },
-          },
-        },
+        mandate_data: multiUseMandateData
       },
       Response: {
         status: 200,
@@ -606,15 +489,7 @@ export const connectorDetails = {
           card: successfulNo3DSCardDetails,
         },
         currency: "USD",
-        mandate_data: {
-          customer_acceptance: customerAcceptance,
-          mandate_type: {
-            multi_use: {
-              amount: 8000,
-              currency: "USD",
-            },
-          },
-        },
+        mandate_data: multiUseMandateData
       },
       Response: {
         status: 400,
@@ -638,15 +513,7 @@ export const connectorDetails = {
           card: successfulNo3DSCardDetails,
         },
         currency: "USD",
-        mandate_data: {
-          customer_acceptance: customerAcceptance,
-          mandate_type: {
-            multi_use: {
-              amount: 8000,
-              currency: "USD",
-            },
-          },
-        },
+        mandate_data: multiUseMandateData
       },
       Response: {
         status: 400,
@@ -670,15 +537,7 @@ export const connectorDetails = {
           card: successfulNo3DSCardDetails,
         },
         currency: "USD",
-        mandate_data: {
-          customer_acceptance: customerAcceptance,
-          mandate_type: {
-            multi_use: {
-              amount: 8000,
-              currency: "USD",
-            },
-          },
-        },
+        mandate_data: multiUseMandateData
       },
       Response: {
         status: 400,
