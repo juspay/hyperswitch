@@ -366,6 +366,7 @@ export const CONNECTOR_LISTS = {
       "nexinets",
       "paypal",
       "stax",
+      "wellsfargo",
     ],
     // Add more exclusion lists
   },
