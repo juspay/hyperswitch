@@ -5173,8 +5173,6 @@ macro_rules! default_imp_for_revenue_recovery {
     };
 }
 
-default_imp_for_revenue_recovery! {
-
 default_imp_for_revenue_recovery!(
     connectors::Vgs,
     connectors::Aci,
@@ -5193,8 +5191,8 @@ default_imp_for_revenue_recovery!(
     connectors::Bitpay,
     connectors::Braintree,
     connectors::Boku,
-connectors::Cashtocode,
-connectors::Celero,
+    connectors::Cashtocode,
+    connectors::Celero,
     connectors::Checkout,
     connectors::Chargebee,
     connectors::Coinbase,
