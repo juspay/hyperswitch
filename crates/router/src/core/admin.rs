@@ -1346,7 +1346,7 @@ impl ConnectorAuthTypeAndMetadataValidation<'_> {
                 }
                 errors::ConnectorError::InvalidConnectorConfig { config: field_name } => err
                     .change_context(errors::ApiErrorResponse::InvalidRequestData {
-                        message: format!("The {} is invalid", field_name),
+                        message: format!("The {field_name} is invalid"),
                     }),
                 errors::ConnectorError::FailedToObtainAuthType => {
                     err.change_context(errors::ApiErrorResponse::InvalidRequestData {
@@ -1823,7 +1823,7 @@ impl ConnectorAuthTypeValidation<'_> {
         let validate_non_empty_field = |field_value: &str, field_name: &str| {
             if field_value.trim().is_empty() {
                 Err(errors::ApiErrorResponse::InvalidDataFormat {
-                    field_name: format!("connector_account_details.{}", field_name),
+                    field_name: format!("connector_account_details.{field_name}"),
                     expected_format: "a non empty String".to_string(),
                 }
                 .into())
@@ -2668,7 +2668,7 @@ trait MerchantConnectorAccountCreateBridge {
     ) -> RouterResult<domain::Profile>;
 }
 
-#[cfg(all(feature = "v2", feature = "olap",))]
+#[cfg(all(feature = "v2", feature = "olap"))]
 #[async_trait::async_trait]
 impl MerchantConnectorAccountCreateBridge for api::MerchantConnectorCreate {
     async fn create_domain_model_from_request(
@@ -3480,8 +3480,8 @@ pub async fn update_connector(
         )
         .attach_printable_lazy(|| {
             format!(
-                "Failed while updating MerchantConnectorAccount: id: {:?}",
-                merchant_connector_id
+                "Failed while updating MerchantConnectorAccount: id: {merchant_connector_id:?}",
+
             )
         })?;
 

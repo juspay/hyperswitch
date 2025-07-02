@@ -4379,7 +4379,7 @@ where
             ))))
         }
         TokenizationAction::ConnectorToken(_) => {
-            logger::info!("Invalid tokenization action found for decryption flow: ConnectorToken",);
+            logger::info!("Invalid tokenization action found for decryption flow: ConnectorToken");
             Ok(None)
         }
         token_action => {

@@ -2171,7 +2171,7 @@ async fn add_connector_txn_id_to_reverse_lookup<T: DatabaseStore>(
     connector_transaction_id: &str,
     storage_scheme: MerchantStorageScheme,
 ) -> CustomResult<ReverseLookup, errors::StorageError> {
-    let field = format!("pa_{}", updated_attempt_attempt_id);
+    let field = format!("pa_{updated_attempt_attempt_id}");
     let reverse_lookup_new = ReverseLookupNew {
         lookup_id: format!(
             "pa_conn_trans_{}_{}",
@@ -2198,7 +2198,7 @@ async fn add_preprocessing_id_to_reverse_lookup<T: DatabaseStore>(
     preprocessing_id: &str,
     storage_scheme: MerchantStorageScheme,
 ) -> CustomResult<ReverseLookup, errors::StorageError> {
-    let field = format!("pa_{}", updated_attempt_attempt_id);
+    let field = format!("pa_{updated_attempt_attempt_id}");
     let reverse_lookup_new = ReverseLookupNew {
         lookup_id: format!(
             "pa_preprocessing_{}_{}",
@@ -2224,10 +2224,7 @@ mod label {
         profile_id: &str,
         connector_transaction_id: &str,
     ) -> String {
-        format!(
-            "profile_{}_conn_txn_{}",
-            profile_id, connector_transaction_id
-        )
+        format!("profile_{profile_id}_conn_txn_{connector_transaction_id}")
     }
 
     pub(super) fn get_global_id_label(
