@@ -30,6 +30,7 @@ pub struct Connectors {
     pub braintree: ConnectorParams,
     pub cashtocode: ConnectorParams,
     pub chargebee: ConnectorParams,
+    pub checkbook: ConnectorParams,
     pub checkout: ConnectorParams,
     pub coinbase: ConnectorParams,
     pub coingate: ConnectorParams,

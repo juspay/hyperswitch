@@ -375,6 +375,9 @@ impl ConnectorData {
                 enums::Connector::Chargebee => {
                     Ok(ConnectorEnum::Old(Box::new(connector::Chargebee::new())))
                 }
+                // enums::Connector::Checkbook => {
+                //     Ok(ConnectorEnum::Old(Box::new(connector::Checkbook)))
+                // }
                 enums::Connector::Checkout => {
                     Ok(ConnectorEnum::Old(Box::new(connector::Checkout::new())))
                 }
