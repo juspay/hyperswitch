@@ -1057,6 +1057,7 @@ pub struct Profile {
     pub is_external_vault_enabled: Option<bool>,
     pub external_vault_connector_details: Option<ExternalVaultConnectorDetails>,
     pub merchant_category_code: Option<api_enums::MerchantCategoryCode>,
+    pub merchant_country_code: Option<i32>,
 }
 
 #[cfg(feature = "v2")]
@@ -1113,6 +1114,7 @@ pub struct ProfileSetter {
     pub is_external_vault_enabled: Option<bool>,
     pub external_vault_connector_details: Option<ExternalVaultConnectorDetails>,
     pub merchant_category_code: Option<api_enums::MerchantCategoryCode>,
+    pub merchant_country_code: Option<i32>,
 }
 
 #[cfg(feature = "v2")]
@@ -1174,6 +1176,7 @@ impl From<ProfileSetter> for Profile {
             is_external_vault_enabled: value.is_external_vault_enabled,
             external_vault_connector_details: value.external_vault_connector_details,
             merchant_category_code: value.merchant_category_code,
+            merchant_country_code: value.merchant_country_code,
         }
     }
 }
@@ -1359,6 +1362,7 @@ pub struct ProfileGeneralUpdate {
     pub is_external_vault_enabled: Option<bool>,
     pub external_vault_connector_details: Option<ExternalVaultConnectorDetails>,
     pub merchant_category_code: Option<api_enums::MerchantCategoryCode>,
+    pub merchant_country_code: Option<i32>,
 }
 
 #[cfg(feature = "v2")]
@@ -1438,6 +1442,7 @@ impl From<ProfileUpdate> for ProfileUpdateInternal {
                     is_external_vault_enabled,
                     external_vault_connector_details,
                     merchant_category_code,
+                    merchant_country_code,
                 } = *update;
                 Self {
                     profile_name,
@@ -1490,6 +1495,7 @@ impl From<ProfileUpdate> for ProfileUpdateInternal {
                     is_external_vault_enabled,
                     external_vault_connector_details,
                     merchant_category_code,
+                    merchant_country_code,
                 }
             }
             ProfileUpdate::RoutingAlgorithmUpdate {
@@ -1545,6 +1551,7 @@ impl From<ProfileUpdate> for ProfileUpdateInternal {
                 is_external_vault_enabled: None,
                 external_vault_connector_details: None,
                 merchant_category_code: None,
+                merchant_country_code: None,
             },
             ProfileUpdate::ExtendedCardInfoUpdate {
                 is_extended_card_info_enabled,
@@ -1598,6 +1605,7 @@ impl From<ProfileUpdate> for ProfileUpdateInternal {
                 is_external_vault_enabled: None,
                 external_vault_connector_details: None,
                 merchant_category_code: None,
+                merchant_country_code: None,
             },
             ProfileUpdate::ConnectorAgnosticMitUpdate {
                 is_connector_agnostic_mit_enabled,
@@ -1651,6 +1659,7 @@ impl From<ProfileUpdate> for ProfileUpdateInternal {
                 is_external_vault_enabled: None,
                 external_vault_connector_details: None,
                 merchant_category_code: None,
+                merchant_country_code: None,
             },
             ProfileUpdate::DefaultRoutingFallbackUpdate {
                 default_fallback_routing,
@@ -1704,6 +1713,7 @@ impl From<ProfileUpdate> for ProfileUpdateInternal {
                 is_external_vault_enabled: None,
                 external_vault_connector_details: None,
                 merchant_category_code: None,
+                merchant_country_code: None,
             },
             ProfileUpdate::NetworkTokenizationUpdate {
                 is_network_tokenization_enabled,
@@ -1757,6 +1767,7 @@ impl From<ProfileUpdate> for ProfileUpdateInternal {
                 is_external_vault_enabled: None,
                 external_vault_connector_details: None,
                 merchant_category_code: None,
+                merchant_country_code: None,
             },
             ProfileUpdate::CollectCvvDuringPaymentUpdate {
                 should_collect_cvv_during_payment,
@@ -1810,6 +1821,7 @@ impl From<ProfileUpdate> for ProfileUpdateInternal {
                 is_external_vault_enabled: None,
                 external_vault_connector_details: None,
                 merchant_category_code: None,
+                merchant_country_code: None,
             },
             ProfileUpdate::DecisionManagerRecordUpdate {
                 three_ds_decision_manager_config,
@@ -1863,6 +1875,7 @@ impl From<ProfileUpdate> for ProfileUpdateInternal {
                 is_external_vault_enabled: None,
                 external_vault_connector_details: None,
                 merchant_category_code: None,
+                merchant_country_code: None,
             },
             ProfileUpdate::CardTestingSecretKeyUpdate {
                 card_testing_secret_key,
@@ -1916,6 +1929,7 @@ impl From<ProfileUpdate> for ProfileUpdateInternal {
                 is_external_vault_enabled: None,
                 external_vault_connector_details: None,
                 merchant_category_code: None,
+                merchant_country_code: None,
             },
             ProfileUpdate::RevenueRecoveryAlgorithmUpdate {
                 revenue_recovery_retry_algorithm_type,
@@ -1970,6 +1984,7 @@ impl From<ProfileUpdate> for ProfileUpdateInternal {
                 is_external_vault_enabled: None,
                 external_vault_connector_details: None,
                 merchant_category_code: None,
+                merchant_country_code: None,
             },
         }
     }
@@ -2047,6 +2062,7 @@ impl super::behaviour::Conversion for Profile {
             three_ds_decision_rule_algorithm: None,
             acquirer_config_map: None,
             merchant_category_code: self.merchant_category_code,
+            merchant_country_code: self.merchant_country_code,
         })
     }
 
@@ -2141,6 +2157,7 @@ impl super::behaviour::Conversion for Profile {
                 is_external_vault_enabled: item.is_external_vault_enabled,
                 external_vault_connector_details: item.external_vault_connector_details,
                 merchant_category_code: item.merchant_category_code,
+                merchant_country_code: item.merchant_country_code,
             })
         }
         .await
@@ -2210,6 +2227,7 @@ impl super::behaviour::Conversion for Profile {
             is_external_vault_enabled: self.is_external_vault_enabled,
             external_vault_connector_details: self.external_vault_connector_details,
             merchant_category_code: self.merchant_category_code,
+            merchant_country_code: self.merchant_country_code,
         })
     }
 }

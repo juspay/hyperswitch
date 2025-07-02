@@ -392,6 +392,7 @@ pub struct Profile {
     pub three_ds_decision_rule_algorithm: Option<serde_json::Value>,
     pub acquirer_config_map: Option<common_types::domain::AcquirerConfigMap>,
     pub merchant_category_code: Option<common_enums::MerchantCategoryCode>,
+    pub merchant_country_code: Option<i32>,
     pub routing_algorithm_id: Option<common_utils::id_type::RoutingId>,
     pub order_fulfillment_time: Option<i64>,
     pub order_fulfillment_time_origin: Option<common_enums::OrderFulfillmentTimeOrigin>,
@@ -464,6 +465,7 @@ pub struct ProfileNew {
     pub is_debit_routing_enabled: bool,
     pub merchant_business_country: Option<common_enums::CountryAlpha2>,
     pub merchant_category_code: Option<common_enums::MerchantCategoryCode>,
+    pub merchant_country_code: Option<i32>,
     pub routing_algorithm_id: Option<common_utils::id_type::RoutingId>,
     pub order_fulfillment_time: Option<i64>,
     pub order_fulfillment_time_origin: Option<common_enums::OrderFulfillmentTimeOrigin>,
@@ -523,6 +525,7 @@ pub struct ProfileUpdateInternal {
     pub is_debit_routing_enabled: Option<bool>,
     pub merchant_business_country: Option<common_enums::CountryAlpha2>,
     pub merchant_category_code: Option<common_enums::MerchantCategoryCode>,
+    pub merchant_country_code: Option<i32>,
     pub routing_algorithm_id: Option<common_utils::id_type::RoutingId>,
     pub order_fulfillment_time: Option<i64>,
     pub order_fulfillment_time_origin: Option<common_enums::OrderFulfillmentTimeOrigin>,
@@ -592,6 +595,7 @@ impl ProfileUpdateInternal {
             is_external_vault_enabled,
             external_vault_connector_details,
             merchant_category_code,
+            merchant_country_code,
         } = self;
         Profile {
             id: source.id,
@@ -686,6 +690,7 @@ impl ProfileUpdateInternal {
             three_ds_decision_rule_algorithm: None,
             acquirer_config_map: None,
             merchant_category_code: merchant_category_code.or(source.merchant_category_code),
+            merchant_country_code: merchant_country_code.or(source.merchant_country_code),
         }
     }
 }

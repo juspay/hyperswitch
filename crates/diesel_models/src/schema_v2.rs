@@ -234,6 +234,7 @@ diesel::table! {
         acquirer_config_map -> Nullable<Jsonb>,
         #[max_length = 16]
         merchant_category_code -> Nullable<Varchar>,
+        merchant_country_code -> Nullable<Int4>,
         #[max_length = 64]
         routing_algorithm_id -> Nullable<Varchar>,
         order_fulfillment_time -> Nullable<Int8>,

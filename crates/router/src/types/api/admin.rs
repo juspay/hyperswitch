@@ -316,6 +316,7 @@ impl ForeignTryFrom<domain::Profile> for ProfileResponse {
                 .external_vault_connector_details
                 .map(ForeignInto::foreign_into),
             merchant_category_code: item.merchant_category_code,
+            merchant_country_code: item.merchant_country_code,
         })
     }
 }
