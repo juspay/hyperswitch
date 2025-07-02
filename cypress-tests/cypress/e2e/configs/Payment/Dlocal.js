@@ -178,49 +178,11 @@ const payment_method_data_3ds_address = {
   },
   billing: mockBillingDetails,
 };
-const payment_method_data_mastercard = {
-  card: {
-    last4: "4444",
-    card_type: "CREDIT",
-    card_network: "Mastercard",
-    card_issuer: "JP Morgan",
-    card_issuing_country: "INDIA",
-    card_isin: "555555",
-    card_extended_bin: null,
-    card_exp_month: "10",
-    card_exp_year: "40",
-    card_holder_name: "Thiago Gabriel",
-    payment_checks: {
-      cvc_check: "pass",
-      address_line1_check: "pass",
-      address_postal_code_check: "pass",
-    },
-    authentication_data: null,
-  },
-  billing: null,
-};
+
 
 export const connectorDetails = {
   card_pm: {
-    MastercardAutoCapture: {
-      Request: {
-        payment_method: "card",
-        payment_method_data: {
-          card: successfulMastercardDetails,
-        },
-        currency: "USD",
-        customer_acceptance: null,
-        setup_future_usage: "on_session",
-      },
-      Response: {
-        status: 200,
-        body: {
-          status: "succeeded",
-          payment_method: "card",
-          payment_method_data: payment_method_data_mastercard,
-        },
-      },
-    },
+    
     
     No3DSFailPayment: {
       Request: {
