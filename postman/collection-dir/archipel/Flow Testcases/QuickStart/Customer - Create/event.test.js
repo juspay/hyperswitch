@@ -17,7 +17,7 @@ pm.test("[POST]::/customers - Response has JSON Body", function () {
 let jsonData = {};
 try {jsonData = pm.response.json();}catch(e){}
 
-// pm.collectionVariables - Set payment_id as variable for jsonData.payment_id
+// pm.collectionVariables - Set payment_id as variable for jsonData.customer_id
 if (jsonData?.customer_id) {
    pm.collectionVariables.set("customer_id", jsonData.customer_id);
    console.log("- use {{customer_id}} as collection variable for value",jsonData.customer_id);

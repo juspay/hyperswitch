@@ -5,6 +5,7 @@ use api_models::{
     payments::GetAddressFromPaymentMethodData,
 };
 use async_trait::async_trait;
+use common_types::payments as common_payments_types;
 use common_utils::{
     ext_traits::{AsyncExt, Encode, ValueExt},
     type_name,
@@ -143,7 +144,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
                 id: profile_id.get_string_repr().to_owned(),
             })?
         };
-        let customer_acceptance = request.customer_acceptance.clone().map(From::from);
+        let customer_acceptance = request.customer_acceptance.clone();
 
         let recurring_details = request.recurring_details.clone();
 
@@ -1116,7 +1117,7 @@ impl PaymentCreate {
         payment_method_info: &Option<domain::PaymentMethod>,
         key_store: &domain::MerchantKeyStore,
         profile_id: common_utils::id_type::ProfileId,
-        customer_acceptance: &Option<payments::CustomerAcceptance>,
+        customer_acceptance: &Option<common_payments_types::CustomerAcceptance>,
         storage_scheme: enums::MerchantStorageScheme,
     ) -> RouterResult<(
         storage::PaymentAttemptNew,

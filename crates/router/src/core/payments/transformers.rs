@@ -2754,24 +2754,8 @@ where
         });
 
         let mandate_data = payment_data.get_setup_mandate().map(|d| api::MandateData {
-            customer_acceptance: d
-                .customer_acceptance
-                .clone()
-                .map(|d| api::CustomerAcceptance {
-                    acceptance_type: match d.acceptance_type {
-                        hyperswitch_domain_models::mandates::AcceptanceType::Online => {
-                            api::AcceptanceType::Online
-                        }
-                        hyperswitch_domain_models::mandates::AcceptanceType::Offline => {
-                            api::AcceptanceType::Offline
-                        }
-                    },
-                    accepted_at: d.accepted_at,
-                    online: d.online.map(|d| api::OnlineMandate {
-                        ip_address: d.ip_address,
-                        user_agent: d.user_agent,
-                    }),
-                }),
+            customer_acceptance: d.customer_acceptance.clone(),
+
             mandate_type: d.mandate_type.clone().map(|d| match d {
                 hyperswitch_domain_models::mandates::MandateDataType::MultiUse(Some(i)) => {
                     api::MandateType::MultiUse(Some(api::MandateAmountData {
@@ -3503,6 +3487,7 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsAuthoriz
                 .as_ref()
                 .and_then(|noon| noon.order_category.clone())
         });
+
         let braintree_metadata = connector_metadata
             .as_ref()
             .and_then(|cm| cm.braintree.clone());

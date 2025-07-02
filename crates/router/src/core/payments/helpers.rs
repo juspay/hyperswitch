@@ -1603,7 +1603,7 @@ pub async fn get_connector_default(
 #[cfg(feature = "v2")]
 pub async fn get_connector_data_from_request(
     state: &SessionState,
-    req: Option<api_models::payments::MerchantConnectorDetails>,
+    req: Option<common_types::domain::MerchantConnectorAuthDetails>,
 ) -> CustomResult<api::ConnectorData, errors::ApiErrorResponse> {
     let connector = req
         .as_ref()
@@ -6700,7 +6700,7 @@ pub enum UnifiedAuthenticationServiceFlow {
         token: String,
     },
     ExternalAuthenticationPostAuthenticate {
-        authentication_id: String,
+        authentication_id: id_type::AuthenticationId,
     },
     ClickToPayConfirmation,
 }
@@ -6782,7 +6782,7 @@ pub enum PaymentExternalAuthenticationFlow {
         token: String,
     },
     PostAuthenticationFlow {
-        authentication_id: String,
+        authentication_id: id_type::AuthenticationId,
     },
 }
 
