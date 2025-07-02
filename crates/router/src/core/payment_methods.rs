@@ -3043,6 +3043,7 @@ pub async fn payment_methods_session_confirm(
         create_payment_method_request.payment_method_data.clone(),
         request.payment_method_type,
         intent_fulfillment_time,
+        merchant_context.get_merchant_key_store().key.get_inner(),
     )
     .await?;
 

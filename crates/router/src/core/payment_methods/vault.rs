@@ -1540,6 +1540,7 @@ pub async fn insert_cvc_using_payment_token(
     payment_method_data: api_models::payment_methods::PaymentMethodCreateData,
     payment_method: common_enums::PaymentMethod,
     fullfillment_time: i64,
+    encryption_key: &masking::Secret<Vec<u8>>,
 ) -> RouterResult<()> {
     let card_cvc = domain::PaymentMethodVaultingData::from(payment_method_data)
         .get_card()
@@ -1557,11 +1558,23 @@ pub async fn insert_cvc_using_payment_token(
             payment_token, payment_method
         );
 
+        let payload_to_be_encrypted = TemporaryVaultCvc { card_cvc };
+
+        let payload = payload_to_be_encrypted
+            .encode_to_string_of_json()
+            .change_context(errors::ApiErrorResponse::InternalServerError)?;
+
+        // Encrypt the CVC and store it in Redis
+        let encrypted_payload = GcmAes256
+            .encode_message(encryption_key.peek().as_ref(), payload.as_bytes())
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Failed to encode TemporaryVaultCvc for vault")?;
+
         redis_conn
-            .serialize_and_set_key_with_expiry(
+            .set_key_if_not_exists_with_expiry(
                 &key.as_str().into(),
-                TemporaryVaultCvc { card_cvc },
-                fullfillment_time,
+                bytes::Bytes::from(encrypted_payload),
+                Some(fullfillment_time),
             )
             .await
             .change_context(errors::StorageError::KVError)
@@ -1574,10 +1587,11 @@ pub async fn insert_cvc_using_payment_token(
 
 #[cfg(feature = "v2")]
 #[instrument(skip_all)]
-pub async fn retrieve_cvc_from_payment_token(
+pub async fn retrieve_and_delete_cvc_from_payment_token(
     state: &routes::SessionState,
     payment_token: &String,
     payment_method: common_enums::PaymentMethod,
+    encryption_key: &masking::Secret<Vec<u8>>,
 ) -> RouterResult<masking::Secret<String>> {
     let redis_conn = state
         .store
@@ -1590,22 +1604,32 @@ pub async fn retrieve_cvc_from_payment_token(
         payment_token, payment_method
     );
 
-    let cvc = redis_conn
-        .get_key::<Option<String>>(&key.into())
+    let data = redis_conn
+        .get_key::<bytes::Bytes>(&key.clone().into())
         .await
         .change_context(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable("Failed to fetch the token from redis")?
-        .ok_or(error_stack::Report::new(
-            errors::ApiErrorResponse::UnprocessableEntity {
-                message: "Token is invalid or expired".to_owned(),
-            },
-        ))?;
+        .attach_printable("Failed to fetch the token from redis")?;
 
-    let data: TemporaryVaultCvc = serde_json::from_str(&cvc)
+    // decrypt the cvc data
+    let decrypted_payload = GcmAes256
+        .decode_message(
+            encryption_key.peek().as_ref(),
+            masking::Secret::new(data.into()),
+        )
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Failed to decode TemporaryVaultCvc from vault")?;
+
+    let cvc_data: TemporaryVaultCvc = bytes::Bytes::from(decrypted_payload)
+        .parse_struct("TemporaryVaultCvc")
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Failed to deserialize TemporaryVaultCvc")?;
 
-    Ok(data.card_cvc)
+    // delete key after retrieving the cvc
+    redis_conn.delete_key(&key.into()).await.map_err(|err| {
+        logger::error!("Failed to delete token from redis: {:?}", err);
+    });
+
+    Ok(cvc_data.card_cvc)
 }
 
 #[cfg(feature = "v2")]

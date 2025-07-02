@@ -415,12 +415,15 @@ impl<F: Clone + Send + Sync> Domain<F, PaymentsConfirmIntentRequest, PaymentConf
                             .ok_or(errors::ApiErrorResponse::InvalidDataValue {
                                 field_name: "card_cvc",
                             })
-                            .or(payment_methods::vault::retrieve_cvc_from_payment_token(
-                                state,
-                                payment_token,
-                                payment_data.payment_attempt.payment_method_type,
+                            .or(
+                                payment_methods::vault::retrieve_and_delete_cvc_from_payment_token(
+                                    state,
+                                    payment_token,
+                                    payment_data.payment_attempt.payment_method_type,
+                                    merchant_context.get_merchant_key_store().key.get_inner(),
+                                )
+                                .await,
                             )
-                            .await)
                             .attach_printable("card_cvc not provided")?,
                         card_token.card_holder_name.clone(),
                     )
