@@ -112,6 +112,7 @@ impl TryFrom<(&types::TokenizationRouterData, WalletData)> for SquareTokenReques
             | WalletData::GoPayRedirect(_)
             | WalletData::GcashRedirect(_)
             | WalletData::ApplePayRedirect(_)
+            | WalletData::ApplePayDecrypt(_)
             | WalletData::ApplePayThirdPartySdk(_)
             | WalletData::DanaRedirect {}
             | WalletData::GooglePayRedirect(_)

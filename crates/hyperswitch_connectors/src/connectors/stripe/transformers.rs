@@ -1125,6 +1125,7 @@ fn get_stripe_payment_method_type_from_wallet_data(
         | WalletData::GoPayRedirect(_)
         | WalletData::GcashRedirect(_)
         | WalletData::ApplePayRedirect(_)
+        | WalletData::ApplePayDecrypt(_)
         | WalletData::ApplePayThirdPartySdk(_)
         | WalletData::DanaRedirect {}
         | WalletData::GooglePayRedirect(_)
@@ -1544,6 +1545,7 @@ impl TryFrom<(&WalletData, Option<PaymentMethodToken>)> for StripePaymentMethodD
             | WalletData::GoPayRedirect(_)
             | WalletData::GcashRedirect(_)
             | WalletData::ApplePayRedirect(_)
+            | WalletData::ApplePayDecrypt(_)
             | WalletData::ApplePayThirdPartySdk(_)
             | WalletData::DanaRedirect {}
             | WalletData::GooglePayRedirect(_)

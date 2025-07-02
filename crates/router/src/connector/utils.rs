@@ -2443,6 +2443,7 @@ pub enum PaymentMethodDataType {
     ApplePay,
     ApplePayRedirect,
     ApplePayThirdPartySdk,
+    ApplePayDecrypt,
     DanaRedirect,
     DuitNow,
     GooglePay,
@@ -2565,6 +2566,7 @@ impl From<domain::payments::PaymentMethodData> for PaymentMethodDataType {
                 domain::payments::WalletData::GcashRedirect(_) => Self::GcashRedirect,
                 domain::payments::WalletData::ApplePay(_) => Self::ApplePay,
                 domain::payments::WalletData::ApplePayRedirect(_) => Self::ApplePayRedirect,
+                domain::payments::WalletData::ApplePayDecrypt(_) => Self::ApplePayDecrypt,
                 domain::payments::WalletData::ApplePayThirdPartySdk(_) => {
                     Self::ApplePayThirdPartySdk
                 }

@@ -496,6 +496,7 @@ impl
             | WalletData::GoPayRedirect(_)
             | WalletData::GcashRedirect(_)
             | WalletData::ApplePayThirdPartySdk(_)
+            | WalletData::ApplePayDecrypt(_)
             | WalletData::DanaRedirect {}
             | WalletData::GooglePayThirdPartySdk(_)
             | WalletData::MbWayRedirect(_)

@@ -449,6 +449,7 @@ impl TryFrom<&SetupMandateRouterData> for CreateCustomerProfileRequest {
                 | WalletData::GoPayRedirect(_)
                 | WalletData::GcashRedirect(_)
                 | WalletData::ApplePayRedirect(_)
+                | WalletData::ApplePayDecrypt(_)
                 | WalletData::ApplePayThirdPartySdk(_)
                 | WalletData::DanaRedirect {}
                 | WalletData::GooglePayRedirect(_)
@@ -1910,6 +1911,7 @@ fn get_wallet_data(
         | WalletData::GoPayRedirect(_)
         | WalletData::GcashRedirect(_)
         | WalletData::ApplePayRedirect(_)
+        | WalletData::ApplePayDecrypt(_)
         | WalletData::ApplePayThirdPartySdk(_)
         | WalletData::DanaRedirect {}
         | WalletData::GooglePayRedirect(_)

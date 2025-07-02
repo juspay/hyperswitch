@@ -296,6 +296,7 @@ impl TryFrom<&WalletData> for Shift4PaymentMethod {
             | WalletData::GoPayRedirect(_)
             | WalletData::GcashRedirect(_)
             | WalletData::ApplePayRedirect(_)
+            | WalletData::ApplePayDecrypt(_)
             | WalletData::ApplePayThirdPartySdk(_)
             | WalletData::DanaRedirect {}
             | WalletData::GooglePay(_)

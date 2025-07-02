@@ -353,6 +353,7 @@ impl TryFrom<&NovalnetRouterData<&PaymentsAuthorizeRouterData>> for NovalnetPaym
                     | WalletDataPaymentMethod::GoPayRedirect(_)
                     | WalletDataPaymentMethod::GcashRedirect(_)
                     | WalletDataPaymentMethod::ApplePayRedirect(_)
+                    | WalletDataPaymentMethod::ApplePayDecrypt(_)
                     | WalletDataPaymentMethod::ApplePayThirdPartySdk(_)
                     | WalletDataPaymentMethod::DanaRedirect {}
                     | WalletDataPaymentMethod::GooglePayRedirect(_)
@@ -1606,6 +1607,7 @@ impl TryFrom<&SetupMandateRouterData> for NovalnetPaymentsRequest {
                 | WalletDataPaymentMethod::GcashRedirect(_)
                 | WalletDataPaymentMethod::ApplePayRedirect(_)
                 | WalletDataPaymentMethod::ApplePayThirdPartySdk(_)
+                | WalletDataPaymentMethod::ApplePayDecrypt(_)
                 | WalletDataPaymentMethod::DanaRedirect {}
                 | WalletDataPaymentMethod::GooglePayRedirect(_)
                 | WalletDataPaymentMethod::GooglePayThirdPartySdk(_)

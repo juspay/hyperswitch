@@ -139,6 +139,7 @@ impl TryFrom<(&WalletData, &PaymentsAuthorizeRouterData)> for PaymentDetails {
             | WalletData::SwishQr(_)
             | WalletData::AliPayQr(_)
             | WalletData::ApplePayRedirect(_)
+            | WalletData::ApplePayDecrypt(_)
             | WalletData::GooglePayRedirect(_)
             | WalletData::Mifinity(_)
             | WalletData::RevolutPay(_) => Err(errors::ConnectorError::NotImplemented(

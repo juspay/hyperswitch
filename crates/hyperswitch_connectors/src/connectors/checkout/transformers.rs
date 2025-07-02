@@ -114,6 +114,7 @@ impl TryFrom<&TokenizationRouterData> for TokenRequest {
                 | WalletData::GoPayRedirect(_)
                 | WalletData::GcashRedirect(_)
                 | WalletData::ApplePayRedirect(_)
+                | WalletData::ApplePayDecrypt(_)
                 | WalletData::ApplePayThirdPartySdk(_)
                 | WalletData::DanaRedirect {}
                 | WalletData::GooglePayRedirect(_)
@@ -369,6 +370,7 @@ impl TryFrom<&CheckoutRouterData<&PaymentsAuthorizeRouterData>> for PaymentsRequ
                 | WalletData::GoPayRedirect(_)
                 | WalletData::GcashRedirect(_)
                 | WalletData::ApplePayRedirect(_)
+                | WalletData::ApplePayDecrypt(_)
                 | WalletData::ApplePayThirdPartySdk(_)
                 | WalletData::DanaRedirect {}
                 | WalletData::GooglePayRedirect(_)

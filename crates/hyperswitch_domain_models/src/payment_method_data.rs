@@ -17,6 +17,7 @@ use common_utils::{
         MaskedBankAccount, MaskedIban, MaskedRoutingNumber, MaskedSortCode, MaskedUpiVpaId,
     },
     pii::{self, Email},
+    types::StringMajorUnit,
 };
 use masking::{PeekInterface, Secret};
 use serde::{Deserialize, Serialize};
@@ -230,6 +231,7 @@ pub enum WalletData {
     ApplePay(ApplePayWalletData),
     ApplePayRedirect(Box<ApplePayRedirectData>),
     ApplePayThirdPartySdk(Box<ApplePayThirdPartySdkData>),
+    ApplePayDecrypt(Box<ApplePayDecryptData>),
     DanaRedirect {},
     GooglePay(GooglePayWalletData),
     GooglePayRedirect(Box<GooglePayRedirectData>),
@@ -948,6 +950,9 @@ impl From<api_models::payments::WalletData> for WalletData {
             api_models::payments::WalletData::ApplePayThirdPartySdk(_) => {
                 Self::ApplePayThirdPartySdk(Box::new(ApplePayThirdPartySdkData {}))
             }
+            api_models::payments::WalletData::ApplePayDecrypt(decrypted_apple_pay_data) => {
+                Self::ApplePayDecrypt(Box::new(ApplePayDecryptData::from(*decrypted_apple_pay_data)))
+            }
             api_models::payments::WalletData::DanaRedirect {} => Self::DanaRedirect {},
             api_models::payments::WalletData::GooglePay(google_pay_data) => {
                 Self::GooglePay(GooglePayWalletData::from(google_pay_data))
@@ -1039,6 +1044,28 @@ impl From<api_models::payments::ApplePayWalletData> for ApplePayWalletData {
                 pm_type: value.payment_method.pm_type,
             },
             transaction_identifier: value.transaction_identifier,
+        }
+    }
+}
+impl From<api_models::payments::ApplePayDecryptData> for ApplePayDecryptData {
+    fn from(value: api_models::payments::ApplePayDecryptData) -> Self {
+        Self {
+            application_primary_account_number: value.application_primary_account_number,
+            application_expiration_date: value.application_expiration_date,
+            currency_code: value.currency_code,
+            transaction_amount: value.transaction_amount,
+            device_manufacturer_identifier: value.device_manufacturer_identifier,
+            payment_data_type: value.payment_data_type,
+            payment_data: value.payment_data.into(),
+        }
+    }
+}
+
+impl From<api_models::payments::ApplePayCryptogramData> for ApplePayCryptogramData {
+    fn from(value: api_models::payments::ApplePayCryptogramData) -> Self {
+        Self {
+            online_payment_cryptogram: value.online_payment_cryptogram,
+            eci_indicator: value.eci_indicator,
         }
     }
 }
@@ -1752,9 +1779,10 @@ impl GetPaymentMethodType for WalletData {
             Self::KakaoPayRedirect(_) => api_enums::PaymentMethodType::KakaoPay,
             Self::GoPayRedirect(_) => api_enums::PaymentMethodType::GoPay,
             Self::GcashRedirect(_) => api_enums::PaymentMethodType::Gcash,
-            Self::ApplePay(_) | Self::ApplePayRedirect(_) | Self::ApplePayThirdPartySdk(_) => {
-                api_enums::PaymentMethodType::ApplePay
-            }
+            Self::ApplePay(_)
+            | Self::ApplePayRedirect(_)
+            | Self::ApplePayThirdPartySdk(_)
+            | Self::ApplePayDecrypt(_) => api_enums::PaymentMethodType::ApplePay,
             Self::DanaRedirect {} => api_enums::PaymentMethodType::Dana,
             Self::GooglePay(_) | Self::GooglePayRedirect(_) | Self::GooglePayThirdPartySdk(_) => {
                 api_enums::PaymentMethodType::GooglePay
@@ -2213,4 +2241,31 @@ impl From<NetworkTokenData> for payment_methods::CardDetail {
             card_type: None,
         }
     }
+}
+
+#[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize)]
+pub struct ApplePayDecryptData {
+    /// The primary account number (PAN) of the payment card, decrypted from Apple Pay token
+    pub application_primary_account_number: Secret<String>,
+    /// The expiration date of the payment card in YYMMDD format
+    pub application_expiration_date: String,
+    /// The three-letter ISO 4217 currency code for the transaction (e.g., "USD", "EUR")
+    pub currency_code: String,
+    /// The transaction amount in major currency units (e.g., "12.34" for $12.34)
+    pub transaction_amount: StringMajorUnit,
+    /// Unique identifier for the device manufacturer, typically Apple's identifier
+    pub device_manufacturer_identifier: Secret<String>,
+    /// Indicates the type of payment data contained in the Apple Pay token
+    pub payment_data_type: Secret<String>,
+    /// Cryptographic data required for transaction authorization and security
+    pub payment_data: ApplePayCryptogramData,
+}
+
+/// Cryptographic security data for Apple Pay transactions
+#[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize)]
+pub struct ApplePayCryptogramData {
+    /// A unique cryptographic value generated for each transaction to verify authenticity
+    pub online_payment_cryptogram: Secret<String>,
+    /// Electronic Commerce Indicator indicating the security level of the transaction
+    pub eci_indicator: Option<String>,
 }

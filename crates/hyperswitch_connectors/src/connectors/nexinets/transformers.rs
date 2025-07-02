@@ -712,6 +712,7 @@ fn get_wallet_details(
         | WalletData::GoPayRedirect(_)
         | WalletData::GcashRedirect(_)
         | WalletData::ApplePayRedirect(_)
+        | WalletData::ApplePayDecrypt(_)
         | WalletData::ApplePayThirdPartySdk(_)
         | WalletData::DanaRedirect { .. }
         | WalletData::GooglePay(_)

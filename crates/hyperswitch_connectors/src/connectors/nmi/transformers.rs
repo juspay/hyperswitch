@@ -551,6 +551,7 @@ impl TryFrom<(&PaymentMethodData, Option<&PaymentsAuthorizeRouterData>)> for Pay
                 | WalletData::GoPayRedirect(_)
                 | WalletData::GcashRedirect(_)
                 | WalletData::ApplePayRedirect(_)
+                | WalletData::ApplePayDecrypt(_)
                 | WalletData::ApplePayThirdPartySdk(_)
                 | WalletData::DanaRedirect {}
                 | WalletData::GooglePayRedirect(_)

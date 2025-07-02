@@ -5530,6 +5530,7 @@ impl From<PaymentMethodData> for PaymentMethodDataType {
                 payment_method_data::WalletData::GoPayRedirect(_) => Self::GoPayRedirect,
                 payment_method_data::WalletData::GcashRedirect(_) => Self::GcashRedirect,
                 payment_method_data::WalletData::ApplePay(_) => Self::ApplePay,
+                payment_method_data::WalletData::ApplePayDecrypt(_) => Self::ApplePay,
                 payment_method_data::WalletData::ApplePayRedirect(_) => Self::ApplePayRedirect,
                 payment_method_data::WalletData::ApplePayThirdPartySdk(_) => {
                     Self::ApplePayThirdPartySdk

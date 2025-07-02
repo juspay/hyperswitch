@@ -183,6 +183,7 @@ fn get_wallet_type(wallet_data: &WalletData) -> Result<String, errors::Connector
         | WalletData::AmazonPayRedirect(_)
         | WalletData::ApplePay(_)
         | WalletData::ApplePayRedirect(_)
+        | WalletData::ApplePayDecrypt(_)
         | WalletData::ApplePayThirdPartySdk(_)
         | WalletData::GooglePay(_)
         | WalletData::GooglePayRedirect(_)

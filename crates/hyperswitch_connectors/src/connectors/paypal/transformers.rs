@@ -1051,6 +1051,7 @@ impl TryFrom<&PaypalRouterData<&PaymentsAuthorizeRouterData>> for PaypalPayments
                 | WalletData::GoPayRedirect(_)
                 | WalletData::GcashRedirect(_)
                 | WalletData::ApplePay(_)
+                | WalletData::ApplePayDecrypt(_)
                 | WalletData::ApplePayRedirect(_)
                 | WalletData::ApplePayThirdPartySdk(_)
                 | WalletData::DanaRedirect {}

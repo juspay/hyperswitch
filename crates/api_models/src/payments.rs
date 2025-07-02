@@ -2660,9 +2660,10 @@ impl GetPaymentMethodType for WalletData {
             Self::KakaoPayRedirect(_) => api_enums::PaymentMethodType::KakaoPay,
             Self::GoPayRedirect(_) => api_enums::PaymentMethodType::GoPay,
             Self::GcashRedirect(_) => api_enums::PaymentMethodType::Gcash,
-            Self::ApplePay(_) | Self::ApplePayRedirect(_) | Self::ApplePayThirdPartySdk(_) => {
-                api_enums::PaymentMethodType::ApplePay
-            }
+            Self::ApplePay(_)
+            | Self::ApplePayRedirect(_)
+            | Self::ApplePayThirdPartySdk(_)
+            | Self::ApplePayDecrypt(_) => api_enums::PaymentMethodType::ApplePay,
             Self::DanaRedirect {} => api_enums::PaymentMethodType::Dana,
             Self::GooglePay(_) | Self::GooglePayRedirect(_) | Self::GooglePayThirdPartySdk(_) => {
                 api_enums::PaymentMethodType::GooglePay
@@ -3658,6 +3659,7 @@ impl GetAddressFromPaymentMethodData for WalletData {
             | Self::ApplePay(_)
             | Self::ApplePayRedirect(_)
             | Self::ApplePayThirdPartySdk(_)
+            | Self::ApplePayDecrypt(_)
             | Self::DanaRedirect {}
             | Self::GooglePay(_)
             | Self::GooglePayRedirect(_)
@@ -8870,4 +8872,34 @@ pub struct RecordAttemptErrorDetails {
     pub network_decline_code: Option<String>,
     /// A string indicating how to proceed with an network error if payment gateway provide one. This is used to understand the network error code better.
     pub network_error_message: Option<String>,
+}
+
+/// Apple Pay decrypted payment data containing sensitive card and transaction information
+#[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
+#[serde(rename_all = "snake_case")]
+pub struct ApplePayDecryptData {
+    /// The primary account number (PAN) of the payment card, decrypted from Apple Pay token
+    pub application_primary_account_number: Secret<String>,
+    /// The expiration date of the payment card in YYMMDD format
+    pub application_expiration_date: String,
+    /// The three-letter ISO 4217 currency code for the transaction (e.g., "USD", "EUR")
+    pub currency_code: String,
+    /// The transaction amount in major currency units (e.g., "12.34" for $12.34)
+    pub transaction_amount: StringMajorUnit,
+    /// Unique identifier for the device manufacturer, typically Apple's identifier
+    pub device_manufacturer_identifier: Secret<String>,
+    /// Indicates the type of payment data contained in the Apple Pay token
+    pub payment_data_type: Secret<String>,
+    /// Cryptographic data required for transaction authorization and security
+    pub payment_data: ApplePayCryptogramData,
+}
+
+/// Cryptographic security data for Apple Pay transactions
+#[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
+#[serde(rename_all = "snake_case")]
+pub struct ApplePayCryptogramData {
+    /// A unique cryptographic value generated for each transaction to verify authenticity
+    pub online_payment_cryptogram: Secret<String>,
+    /// Electronic Commerce Indicator indicating the security level of the transaction
+    pub eci_indicator: Option<String>,
 }

@@ -310,6 +310,7 @@ impl TryFrom<&SetupMandateRouterData> for BankOfAmericaPaymentsRequest {
                 | WalletData::GoPayRedirect(_)
                 | WalletData::GcashRedirect(_)
                 | WalletData::ApplePayRedirect(_)
+                | WalletData::ApplePayDecrypt(_)
                 | WalletData::ApplePayThirdPartySdk(_)
                 | WalletData::DanaRedirect {}
                 | WalletData::GooglePayRedirect(_)
@@ -1094,6 +1095,7 @@ impl TryFrom<&BankOfAmericaRouterData<&PaymentsAuthorizeRouterData>>
                         | WalletData::GoPayRedirect(_)
                         | WalletData::GcashRedirect(_)
                         | WalletData::ApplePayRedirect(_)
+                        | WalletData::ApplePayDecrypt(_)
                         | WalletData::ApplePayThirdPartySdk(_)
                         | WalletData::DanaRedirect {}
                         | WalletData::GooglePayRedirect(_)

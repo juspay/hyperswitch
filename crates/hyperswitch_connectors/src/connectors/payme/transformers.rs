@@ -406,6 +406,7 @@ impl TryFrom<&PaymentMethodData> for SalePaymentMethod {
                 | WalletData::KakaoPayRedirect(_)
                 | WalletData::GoPayRedirect(_)
                 | WalletData::GcashRedirect(_)
+                | WalletData::ApplePayDecrypt(_)
                 | WalletData::ApplePayRedirect(_)
                 | WalletData::DanaRedirect {}
                 | WalletData::GooglePay(_)
