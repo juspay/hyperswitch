@@ -9,6 +9,7 @@ use common_utils::{
     },
 };
 use error_stack::{report, ResultExt};
+use hyperswitch_domain_models::payment_methods as payment_methods_domain;
 use masking::{ExposeInterface, Secret, SwitchStrategy};
 use payment_methods::controller::PaymentMethodsController;
 use router_env::{instrument, tracing};
@@ -27,7 +28,7 @@ use crate::{
     routes::{metrics, SessionState},
     services,
     types::{
-        api::{customers, payment_methods as payment_methods_api},
+        api::customers,
         domain::{self, types},
         storage::{self, enums},
         transformers::ForeignFrom,
@@ -41,7 +42,7 @@ pub async fn create_customer(
     state: SessionState,
     merchant_context: domain::MerchantContext,
     customer_data: customers::CustomerRequest,
-    connector_customer_details: Option<payment_methods_api::ConnectorCustomerDetails>,
+    connector_customer_details: Option<Vec<payment_methods_domain::ConnectorCustomerDetails>>,
 ) -> errors::CustomerResponse<customers::CustomerResponse> {
     let db: &dyn StorageInterface = state.store.as_ref();
     let key_manager_state = &(&state).into();
@@ -96,7 +97,9 @@ pub async fn create_customer(
 trait CustomerCreateBridge {
     async fn create_domain_model_from_request<'a>(
         &'a self,
-        connector_customer_details: &'a Option<payment_methods_api::ConnectorCustomerDetails>,
+        connector_customer_details: &'a Option<
+            Vec<payment_methods_domain::ConnectorCustomerDetails>,
+        >,
         db: &'a dyn StorageInterface,
         merchant_reference_id: &'a Option<id_type::CustomerId>,
         merchant_context: &'a domain::MerchantContext,
@@ -115,7 +118,9 @@ trait CustomerCreateBridge {
 impl CustomerCreateBridge for customers::CustomerRequest {
     async fn create_domain_model_from_request<'a>(
         &'a self,
-        connector_customer_details: &'a Option<payment_methods_api::ConnectorCustomerDetails>,
+        connector_customer_details: &'a Option<
+            Vec<payment_methods_domain::ConnectorCustomerDetails>,
+        >,
         db: &'a dyn StorageInterface,
         merchant_reference_id: &'a Option<id_type::CustomerId>,
         merchant_context: &'a domain::MerchantContext,
@@ -175,13 +180,15 @@ impl CustomerCreateBridge for customers::CustomerRequest {
             domain::FromRequestEncryptableCustomer::from_encryptable(encrypted_data)
                 .change_context(errors::CustomersErrorResponse::InternalServerError)?;
 
-        let connector_customer = connector_customer_details.as_ref().map(|details| {
-            let merchant_connector_id = details.merchant_connector_id.get_string_repr().to_string();
-            let connector_customer_id = details.connector_customer_id.to_string();
-            let object = serde_json::json!({
-                merchant_connector_id: connector_customer_id
-            });
-            pii::SecretSerdeValue::new(object)
+        let connector_customer = connector_customer_details.as_ref().map(|details_vec| {
+            let mut map = serde_json::Map::new();
+            for details in details_vec {
+                let merchant_connector_id =
+                    details.merchant_connector_id.get_string_repr().to_string();
+                let connector_customer_id = details.connector_customer_id.clone();
+                map.insert(merchant_connector_id, connector_customer_id.into());
+            }
+            pii::SecretSerdeValue::new(serde_json::Value::Object(map))
         });
 
         Ok(domain::Customer {
@@ -227,7 +234,9 @@ impl CustomerCreateBridge for customers::CustomerRequest {
 impl CustomerCreateBridge for customers::CustomerRequest {
     async fn create_domain_model_from_request<'a>(
         &'a self,
-        connector_customer_details: &'a Option<payment_methods_api::ConnectorCustomerDetails>,
+        connector_customer_details: &'a Option<
+            Vec<payment_methods_domain::ConnectorCustomerDetails>,
+        >,
         _db: &'a dyn StorageInterface,
         merchant_reference_id: &'a Option<id_type::CustomerId>,
         merchant_context: &'a domain::MerchantContext,
@@ -297,12 +306,16 @@ impl CustomerCreateBridge for customers::CustomerRequest {
             domain::FromRequestEncryptableCustomer::from_encryptable(encrypted_data)
                 .change_context(errors::CustomersErrorResponse::InternalServerError)?;
 
-        let connector_customer = connector_customer_details.as_ref().map(|details| {
-            let mut map = std::collections::HashMap::new();
-            map.insert(
-                details.merchant_connector_id.clone(),
-                details.connector_customer_id.to_string(),
-            );
+        let connector_customer = connector_customer_details.as_ref().map(|details_vec| {
+            let map: std::collections::HashMap<_, _> = details_vec
+                .iter()
+                .map(|details| {
+                    (
+                        details.merchant_connector_id.clone(),
+                        details.connector_customer_id.to_string(),
+                    )
+                })
+                .collect();
             common_types::customers::ConnectorCustomerMap::new(map)
         });
 
@@ -547,7 +560,6 @@ pub async fn retrieve_customer(
         .find_customer_by_global_id(
             key_manager_state,
             &id,
-            merchant_context.get_merchant_account().get_id(),
             merchant_context.get_merchant_key_store(),
             merchant_context.get_merchant_account().storage_scheme,
         )
@@ -633,7 +645,6 @@ impl CustomerDeleteBridge for id_type::GlobalCustomerId {
             .find_customer_by_global_id(
                 key_manager_state,
                 self,
-                merchant_context.get_merchant_account().get_id(),
                 merchant_context.get_merchant_key_store(),
                 merchant_context.get_merchant_account().storage_scheme,
             )
@@ -745,7 +756,6 @@ impl CustomerDeleteBridge for id_type::GlobalCustomerId {
             key_manager_state,
             self,
             customer_orig,
-            merchant_context.get_merchant_account().get_id(),
             updated_customer,
             merchant_context.get_merchant_key_store(),
             merchant_context.get_merchant_account().storage_scheme,
@@ -1063,7 +1073,9 @@ pub async fn update_customer(
 trait CustomerUpdateBridge {
     async fn create_domain_model_from_request<'a>(
         &'a self,
-        connector_customer_details: &'a Option<payment_methods_api::ConnectorCustomerDetails>,
+        connector_customer_details: &'a Option<
+            Vec<payment_methods_domain::ConnectorCustomerDetails>,
+        >,
         db: &'a dyn StorageInterface,
         merchant_context: &'a domain::MerchantContext,
         key_manager_state: &'a KeyManagerState,
@@ -1220,7 +1232,6 @@ impl VerifyIdForUpdateCustomer<'_> {
             .find_customer_by_global_id(
                 self.key_manager_state,
                 self.id,
-                self.merchant_account.get_id(),
                 self.key_store,
                 self.merchant_account.storage_scheme,
             )
@@ -1236,7 +1247,9 @@ impl VerifyIdForUpdateCustomer<'_> {
 impl CustomerUpdateBridge for customers::CustomerUpdateRequest {
     async fn create_domain_model_from_request<'a>(
         &'a self,
-        _connector_customer_details: &'a Option<payment_methods_api::ConnectorCustomerDetails>,
+        _connector_customer_details: &'a Option<
+            Vec<payment_methods_domain::ConnectorCustomerDetails>,
+        >,
         db: &'a dyn StorageInterface,
         merchant_context: &'a domain::MerchantContext,
         key_manager_state: &'a KeyManagerState,
@@ -1341,7 +1354,9 @@ impl CustomerUpdateBridge for customers::CustomerUpdateRequest {
 impl CustomerUpdateBridge for customers::CustomerUpdateRequest {
     async fn create_domain_model_from_request<'a>(
         &'a self,
-        connector_customer_details: &'a Option<payment_methods_api::ConnectorCustomerDetails>,
+        connector_customer_details: &'a Option<
+            Vec<payment_methods_domain::ConnectorCustomerDetails>,
+        >,
         db: &'a dyn StorageInterface,
         merchant_context: &'a domain::MerchantContext,
         key_manager_state: &'a KeyManagerState,
@@ -1418,7 +1433,6 @@ impl CustomerUpdateBridge for customers::CustomerUpdateRequest {
                 key_manager_state,
                 &domain_customer.id,
                 domain_customer.to_owned(),
-                merchant_context.get_merchant_account().get_id(),
                 storage::CustomerUpdate::Update(Box::new(storage::CustomerGeneralUpdate {
                     name: encryptable_customer.name,
                     email: Box::new(encryptable_customer.email.map(|email| {
@@ -1459,7 +1473,7 @@ impl CustomerUpdateBridge for customers::CustomerUpdateRequest {
 
 pub async fn migrate_customers(
     state: SessionState,
-    customers_migration: Vec<payment_methods_api::PaymentMethodCustomerMigrate>,
+    customers_migration: Vec<payment_methods_domain::PaymentMethodCustomerMigrate>,
     merchant_context: domain::MerchantContext,
 ) -> errors::CustomerResponse<()> {
     for customer_migration in customers_migration {

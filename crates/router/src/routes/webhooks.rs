@@ -179,3 +179,32 @@ pub async fn receive_incoming_webhook<W: types::OutgoingWebhookType>(
     ))
     .await
 }
+
+#[cfg(feature = "v1")]
+#[instrument(skip_all, fields(flow = ?Flow::IncomingNetworkTokenWebhookReceive))]
+pub async fn receive_network_token_requestor_incoming_webhook<W: types::OutgoingWebhookType>(
+    state: web::Data<AppState>,
+    req: HttpRequest,
+    body: web::Bytes,
+    _path: web::Path<String>,
+) -> impl Responder {
+    let flow = Flow::IncomingNetworkTokenWebhookReceive;
+
+    Box::pin(api::server_wrap(
+        flow.clone(),
+        state,
+        &req,
+        (),
+        |state, _: (), _, _| {
+            webhooks::network_token_incoming_webhooks_wrapper::<W>(
+                &flow,
+                state.to_owned(),
+                &req,
+                body.clone(),
+            )
+        },
+        &auth::NoAuth,
+        api_locking::LockAction::NotApplicable,
+    ))
+    .await
+}

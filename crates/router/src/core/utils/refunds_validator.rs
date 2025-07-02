@@ -1,3 +1,4 @@
+use diesel_models::refund as diesel_refund;
 use error_stack::report;
 use router_env::{instrument, tracing};
 use time::PrimitiveDateTime;
@@ -45,7 +46,7 @@ pub fn validate_success_transaction(
 #[instrument(skip_all)]
 pub fn validate_refund_amount(
     amount_captured: i64,
-    all_refunds: &[storage::Refund],
+    all_refunds: &[diesel_refund::Refund],
     refund_amount: i64,
 ) -> CustomResult<(), RefundValidationError> {
     let total_refunded_amount: i64 = all_refunds
@@ -86,7 +87,7 @@ pub fn validate_payment_order_age(
 
 #[instrument(skip_all)]
 pub fn validate_maximum_refund_against_payment_attempt(
-    all_refunds: &[storage::Refund],
+    all_refunds: &[diesel_refund::Refund],
     refund_max_attempts: usize,
 ) -> CustomResult<(), RefundValidationError> {
     utils::when(all_refunds.len() > refund_max_attempts, || {

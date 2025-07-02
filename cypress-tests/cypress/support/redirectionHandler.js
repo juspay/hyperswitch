@@ -241,6 +241,30 @@ function bankRedirectRedirection(
     // and it does not redirect to the expected url
     // so, we need cannot verify the return url for adyen ideal bank redirect
     verifyUrl = false;
+  }
+  // Handle Shift4 separately similar to Adyen iDEAL to avoid constants scope issues
+  else if (
+    connectorId === "shift4" &&
+    (paymentMethodType === "eps" || paymentMethodType === "ideal")
+  ) {
+    cy.log(`Special handling for Shift4 ${paymentMethodType} payment`);
+
+    cy.url().then((currentUrl) => {
+      cy.origin(
+        new URL(currentUrl).origin,
+        { args: { constants: CONSTANTS } },
+        ({ constants }) => {
+          // Try to click the succeed payment button
+          cy.contains("button", "Succeed payment", {
+            timeout: constants.TIMEOUT,
+          })
+            .should("be.visible")
+            .click();
+        }
+      );
+    });
+
+    verifyUrl = true;
   } else {
     handleFlow(
       redirectionUrl,
@@ -362,7 +386,6 @@ function bankRedirectRedirection(
             }
             verifyUrl = false;
             break;
-
           default:
             throw new Error(
               `Unsupported connector in handleFlow: ${connectorId}`

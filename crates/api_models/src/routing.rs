@@ -1409,6 +1409,7 @@ pub struct RuleMigrationResponse {
     pub profile_id: common_utils::id_type::ProfileId,
     pub euclid_algorithm_id: common_utils::id_type::RoutingId,
     pub decision_engine_algorithm_id: String,
+    pub is_active_rule: bool,
 }
 
 #[derive(Debug, serde::Serialize)]
@@ -1423,11 +1424,23 @@ impl RuleMigrationResponse {
         profile_id: common_utils::id_type::ProfileId,
         euclid_algorithm_id: common_utils::id_type::RoutingId,
         decision_engine_algorithm_id: String,
+        is_active_rule: bool,
     ) -> Self {
         Self {
             profile_id,
             euclid_algorithm_id,
             decision_engine_algorithm_id,
+            is_active_rule,
         }
     }
+}
+
+#[derive(Clone, Debug, serde::Deserialize, serde::Serialize, strum::Display, strum::EnumString)]
+#[serde(rename_all = "snake_case")]
+#[strum(serialize_all = "snake_case")]
+pub enum RoutingResultSource {
+    /// External Decision Engine
+    DecisionEngine,
+    /// Inbuilt Hyperswitch Routing Engine
+    HyperswitchRouting,
 }

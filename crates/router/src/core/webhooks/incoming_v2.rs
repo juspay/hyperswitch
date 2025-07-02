@@ -535,7 +535,7 @@ async fn payments_incoming_webhook_flow(
 
             let status = payments_response.status;
 
-            let event_type: Option<enums::EventType> = payments_response.status.foreign_into();
+            let event_type: Option<enums::EventType> = payments_response.status.into();
 
             // If event is NOT an UnsupportedEvent, trigger Outgoing Webhook
             if let Some(outgoing_event_type) = event_type {

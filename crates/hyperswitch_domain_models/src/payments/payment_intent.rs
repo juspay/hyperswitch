@@ -1,11 +1,11 @@
-#[cfg(feature = "v2")]
-use common_enums::RequestIncrementalAuthorization;
+#[cfg(feature = "v1")]
+use common_utils::consts::PAYMENTS_LIST_MAX_LIMIT_V2;
 #[cfg(feature = "v2")]
 use common_utils::errors::ParsingError;
 #[cfg(feature = "v2")]
 use common_utils::ext_traits::{Encode, ValueExt};
 use common_utils::{
-    consts::{PAYMENTS_LIST_MAX_LIMIT_V1, PAYMENTS_LIST_MAX_LIMIT_V2},
+    consts::PAYMENTS_LIST_MAX_LIMIT_V1,
     crypto::Encryptable,
     encryption::Encryption,
     errors::{CustomResult, ValidationError},
@@ -17,8 +17,6 @@ use common_utils::{
         CreatedBy, MinorUnit,
     },
 };
-#[cfg(feature = "v2")]
-use diesel_models::PaymentLinkConfigRequestForPayments;
 use diesel_models::{
     PaymentIntent as DieselPaymentIntent, PaymentIntentNew as DieselPaymentIntentNew,
 };
@@ -37,13 +35,12 @@ use crate::address::Address;
 #[cfg(feature = "v2")]
 use crate::routing;
 use crate::{
-    behaviour, errors,
+    behaviour,
     merchant_key_store::MerchantKeyStore,
     type_encryption::{crypto_operation, CryptoOperation},
-    RemoteStorageObject,
 };
-#[cfg(feature = "v2")]
-use crate::{FeatureMetadata, OrderDetailsWithAmount};
+#[cfg(feature = "v1")]
+use crate::{errors, RemoteStorageObject};
 
 #[async_trait::async_trait]
 pub trait PaymentIntentInterface {
@@ -244,6 +241,7 @@ pub struct PaymentIntentUpdateFields {
     pub tax_details: Option<diesel_models::TaxDetails>,
     pub force_3ds_challenge: Option<bool>,
     pub is_iframe_redirection_enabled: Option<bool>,
+    pub is_confirm_operation: bool,
 }
 
 #[cfg(feature = "v1")]
@@ -327,6 +325,16 @@ pub enum PaymentIntentUpdate {
     },
 }
 
+#[cfg(feature = "v1")]
+impl PaymentIntentUpdate {
+    pub fn is_confirm_operation(&self) -> bool {
+        match self {
+            Self::Update(value) => value.is_confirm_operation,
+            _ => false,
+        }
+    }
+}
+
 #[cfg(feature = "v2")]
 #[derive(Debug, Clone, Serialize)]
 pub enum PaymentIntentUpdate {
@@ -367,6 +375,13 @@ pub enum PaymentIntentUpdate {
     },
     /// UpdateIntent
     UpdateIntent(Box<PaymentIntentUpdateFields>),
+}
+
+#[cfg(feature = "v2")]
+impl PaymentIntentUpdate {
+    pub fn is_confirm_operation(&self) -> bool {
+        matches!(self, Self::ConfirmIntent { .. })
+    }
 }
 
 #[cfg(feature = "v1")]
@@ -721,7 +736,7 @@ impl TryFrom<PaymentIntentUpdate> for diesel_models::PaymentIntentUpdateInternal
 
                     updated_by,
                     force_3ds_challenge,
-                    is_iframe_redirection_enabled: None,
+                    is_iframe_redirection_enabled,
                 })
             }
             PaymentIntentUpdate::RecordUpdate {

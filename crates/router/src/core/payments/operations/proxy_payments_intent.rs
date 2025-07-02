@@ -6,6 +6,7 @@ use error_stack::ResultExt;
 use hyperswitch_domain_models::{
     payment_method_data::PaymentMethodData, payments::PaymentConfirmData,
 };
+use hyperswitch_interfaces::api::ConnectorSpecifications;
 use masking::PeekInterface;
 use router_env::{instrument, tracing};
 
@@ -15,7 +16,7 @@ use crate::{
         errors::{self, CustomResult, RouterResult, StorageErrorExt},
         payments::{
             operations::{self, ValidateStatusForOperation},
-            OperationSessionGetters,
+            OperationSessionGetters, OperationSessionSetters,
         },
     },
     routes::{app::ReqState, SessionState},
@@ -302,6 +303,24 @@ impl<F: Clone + Send + Sync> Domain<F, ProxyPaymentsRequest, PaymentConfirmData<
         Option<String>,
     )> {
         Ok((Box::new(self), None, None))
+    }
+    #[instrument(skip_all)]
+    async fn populate_payment_data<'a>(
+        &'a self,
+        _state: &SessionState,
+        payment_data: &mut PaymentConfirmData<F>,
+        _merchant_context: &domain::MerchantContext,
+        _business_profile: &domain::Profile,
+        connector_data: &api::ConnectorData,
+    ) -> CustomResult<(), errors::ApiErrorResponse> {
+        let connector_request_reference_id = connector_data
+            .connector
+            .generate_connector_request_reference_id(
+                &payment_data.payment_intent,
+                &payment_data.payment_attempt,
+            );
+        payment_data.set_connector_request_reference_id(Some(connector_request_reference_id));
+        Ok(())
     }
 
     async fn perform_routing<'a>(

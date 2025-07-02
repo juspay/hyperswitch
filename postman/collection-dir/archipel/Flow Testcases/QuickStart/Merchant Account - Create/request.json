@@ -38,7 +38,7 @@
       }
     },
     "raw_json_formatted": {
-      "merchant_id": "flowbird",
+      "merchant_id": "postman_merchant_GHAction_{{$guid}}",
       "organization_id": "{{organization_id}}",
       "merchant_name": "Flowbird",
       "merchant_details": {

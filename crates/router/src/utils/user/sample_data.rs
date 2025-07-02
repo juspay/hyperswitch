@@ -381,6 +381,7 @@ pub async fn generate_sample_data(
             processor_merchant_id: Some(merchant_id.clone()),
             created_by: None,
             setup_future_usage_applied: None,
+            routing_approach: None,
         };
 
         let refund = if refunds_count < number_of_refunds && !is_failed_payment {

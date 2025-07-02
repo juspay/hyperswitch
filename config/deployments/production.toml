@@ -15,7 +15,7 @@ open_banking_uk.adyen.banks = "aib,bank_of_scotland,danske_bank,first_direct,fir
 przelewy24.stripe.banks = "alior_bank,bank_millennium,bank_nowy_bfg_sa,bank_pekao_sa,banki_spbdzielcze,blik,bnp_paribas,boz,citi,credit_agricole,e_transfer_pocztowy24,getin_bank,idea_bank,inteligo,mbank_mtransfer,nest_przelew,noble_pay,pbac_z_ipko,plus_bank,santander_przelew24,toyota_bank,volkswagen_bank"
 
 [connector_customer]
-connector_list = "stax,stripe,gocardless,facilitapay,hyperswitch_vault"
+connector_list = "adyen,facilitapay,gocardless,hyperswitch_vault,stax,stripe"
 payout_connector_list = "nomupay,stripe,wise"
 
 # Connector configuration, provided attributes will be used to fulfill API requests.
@@ -23,7 +23,7 @@ payout_connector_list = "nomupay,stripe,wise"
 # base urls based on your need.
 # Note: These are not optional attributes. hyperswitch request can fail due to invalid/empty values.
 [connectors]
-aci.base_url = "https://eu-test.oppwa.com/"
+aci.base_url = "https://eu-prod.oppwa.com/"
 adyen.base_url = "https://{{merchant_endpoint_prefix}}-checkout-live.adyenpayments.com/checkout/"
 adyen.payout_base_url = "https://{{merchant_endpoint_prefix}}-pal-live.adyenpayments.com/"
 adyen.dispute_base_url = "https://{{merchant_endpoint_prefix}}-ca-live.adyen.com/"
@@ -57,6 +57,7 @@ deutschebank.base_url = "https://merch.directpos.de/rest-api"
 digitalvirgo.base_url = "https://dcb-integration-service-sandbox-external.staging.digitalvirgo.pl"
 dlocal.base_url = "https://api.dlocal.com/"
 dummyconnector.base_url = "http://localhost:8080/dummy-connector"
+dwolla.base_url = "https://api.dwolla.com"
 ebanx.base_url = "https://api.ebanxpay.com/"
 elavon.base_url = "https://api.convergepay.com/VirtualMerchant/"
 facilitapay.base_url = "https://api.facilitapay.com/api/v1"
@@ -115,6 +116,7 @@ razorpay.base_url = "https://api.razorpay.com/"
 recurly.base_url = "https://v3.recurly.com"
 redsys.base_url = "https://sis.redsys.es"
 riskified.base_url = "https://wh.riskified.com/api/"
+santander.base_url = "https://trust-pix.santander.com.br/"
 shift4.base_url = "https://api.shift4.com/"
 signifyd.base_url = "https://api.signifyd.com/"
 square.base_url = "https://connect.squareup.com/"
@@ -137,6 +139,7 @@ wise.base_url = "https://api.wise.com/"
 worldline.base_url = "https://eu.api-ingenico.com/"
 worldpay.base_url = "https://access.worldpay.com/"
 worldpayvantiv.base_url = "https://transact.vantivcnp.com/vap/communicator/online"
+worldpayvantiv.secondary_base_url = "https://onlinessr.vantivcnp.com"
 worldpayxml.base_url = "https://secure.worldpay.com/jsp/merchant/xml/paymentService.jsp"
 xendit.base_url = "https://api.xendit.co"
 zen.base_url = "https://api.zen.com/"
@@ -208,8 +211,8 @@ bank_debit.ach = { connector_list = "gocardless,adyen,stripe" }
 bank_debit.becs = { connector_list = "gocardless,stripe,adyen" }                      
 bank_debit.bacs = { connector_list = "stripe,gocardless" }                           
 bank_debit.sepa = { connector_list = "gocardless,adyen,stripe,deutschebank" }                
-card.credit.connector_list = "stripe,adyen,authorizedotnet,cybersource,datatrans,globalpay,worldpay,multisafepay,nmi,nexinets,noon,bankofamerica,braintree,nuvei,payme,wellsfargo,bamboraapac,elavon,fiuu,nexixpay,novalnet,paybox,paypal,xendit,moneris,archipel"
-card.debit.connector_list = "stripe,adyen,authorizedotnet,cybersource,datatrans,globalpay,worldpay,multisafepay,nmi,nexinets,noon,bankofamerica,braintree,nuvei,payme,wellsfargo,bamboraapac,elavon,fiuu,nexixpay,novalnet,paybox,paypal,xendit,moneris,archipel"
+card.credit.connector_list = "stripe,adyen,authorizedotnet,cybersource,datatrans,globalpay,worldpay,multisafepay,nmi,nexinets,noon,bankofamerica,braintree,nuvei,payme,wellsfargo,bamboraapac,elavon,fiuu,nexixpay,novalnet,paybox,paypal,xendit,moneris,archipel,worldpayvantiv"
+card.debit.connector_list = "stripe,adyen,authorizedotnet,cybersource,datatrans,globalpay,worldpay,multisafepay,nmi,nexinets,noon,bankofamerica,braintree,nuvei,payme,wellsfargo,bamboraapac,elavon,fiuu,nexixpay,novalnet,paybox,paypal,xendit,moneris,archipel,worldpayvantiv"
 pay_later.klarna.connector_list = "adyen,aci"                       
 wallet.apple_pay.connector_list = "stripe,adyen,cybersource,noon,bankofamerica,nexinets,novalnet,authorizedotnet,wellsfargo"        
 wallet.samsung_pay.connector_list = "cybersource"
@@ -236,7 +239,7 @@ card.credit = { connector_list = "cybersource" }            # Update Mandate sup
 card.debit = { connector_list = "cybersource" }             # Update Mandate supported payment method type and connector for card 
 
 [network_transaction_id_supported_connectors]
-connector_list = "adyen,archipel,stripe"
+connector_list = "adyen,archipel,stripe,worldpayvantiv"
 
 [payouts]
 payout_eligibility = true            # Defaults the eligibility of a payout method to true in case connector does not provide checks for payout eligibility
@@ -689,6 +692,9 @@ crypto_currency = { country = "AL, AD, AT, BE, BA, BG, HR, CZ, DK, EE, FI, FR, D
 
 [pm_filters.paystack]
 eft = { country = "NG, ZA, GH, KE, CI", currency = "NGN, GHS, ZAR, KES, USD" }
+
+[pm_filters.santander]
+pix = { country = "BR", currency = "BRL" }
 
 [payout_method_filters.adyenplatform]
 sepa = { country = "ES,SK,AT,NL,DE,BE,FR,FI,PT,IE,EE,LT,LV,IT,CZ,DE,HU,NO,PL,SE,GB,CH" , currency = "EUR,CZK,DKK,HUF,NOK,PLN,SEK,GBP,CHF" }

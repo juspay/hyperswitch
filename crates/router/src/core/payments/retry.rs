@@ -702,6 +702,7 @@ pub fn make_new_payment_attempt(
         processor_merchant_id: old_payment_attempt.processor_merchant_id,
         created_by: old_payment_attempt.created_by,
         setup_future_usage_applied: setup_future_usage_intent, // setup future usage is picked from intent for new payment attempt
+        routing_approach: old_payment_attempt.routing_approach,
     }
 }
 

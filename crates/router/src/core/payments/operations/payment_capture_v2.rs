@@ -226,7 +226,6 @@ impl<F: Clone + Send> Domain<F, PaymentsCaptureRequest, PaymentCaptureData<F>> f
                     .find_customer_by_global_id(
                         &state.into(),
                         &id,
-                        &payment_data.payment_intent.merchant_id,
                         merchant_key_store,
                         storage_scheme,
                     )

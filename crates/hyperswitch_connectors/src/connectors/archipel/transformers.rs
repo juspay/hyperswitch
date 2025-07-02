@@ -453,7 +453,7 @@ impl From<&str> for ArchipelCardScheme {
             "Visa" => Self::Visa,
             "Amex" => Self::Amex,
             "Diners" => Self::Diners,
-            "Mastercard" => Self::Mastercard,
+            "MasterCard" => Self::Mastercard,
             "Discover" => Self::Discover,
             _ => Self::Unknown,
         }

@@ -42,7 +42,7 @@
       "connector_name": "archipel",
       "connector_account_details": {
         "auth_type": "HeaderKey",
-        "api_key": "connector_api_key"
+        "api_key": "{{connector_api_key}}"
       },
       "metadata": {
         "tenant_id": "{{archipel_tenant_id}}",
@@ -77,7 +77,7 @@
         }
       },
       "profile_id": "{{profile_id}}",
-      "test_mode": false,
+      "test_mode": true,
       "disabled": false,
       "payment_methods_enabled": [
         {

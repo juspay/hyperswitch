@@ -149,7 +149,7 @@ pub struct PayoutLinkData {
     /// Identifier for the customer
     pub customer_id: id_type::CustomerId,
     /// Identifier for the payouts resource
-    pub payout_id: String,
+    pub payout_id: id_type::PayoutId,
     /// Link to render the payout link
     pub link: url::Url,
     /// Client secret generated for authenticating frontend APIs

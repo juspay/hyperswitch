@@ -299,7 +299,6 @@ impl<F: Clone + Send + Sync> Domain<F, PaymentsConfirmIntentRequest, PaymentConf
                     .find_customer_by_global_id(
                         &state.into(),
                         &id,
-                        &payment_data.payment_intent.merchant_id,
                         merchant_key_store,
                         storage_scheme,
                     )
@@ -653,7 +652,6 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentConfirmData<F>, PaymentsConfirmInt
                     key_manager_state,
                     &customer_id,
                     customer,
-                    &customer_merchant_id,
                     updated_customer,
                     key_store,
                     storage_scheme,

@@ -54,7 +54,10 @@ use crate::{
 };
 #[cfg(feature = "v1")]
 use crate::{
-    core::payments::routing::utils::{self as routing_utils, DecisionEngineApiHandler},
+    core::payments::{
+        routing::utils::{self as routing_utils, DecisionEngineApiHandler},
+        OperationSessionGetters, OperationSessionSetters,
+    },
     services,
 };
 #[cfg(all(feature = "dynamic_routing", feature = "v1"))]
@@ -72,6 +75,7 @@ pub const CONTRACT_BASED_DYNAMIC_ROUTING_ALGORITHM: &str =
 
 pub const DECISION_ENGINE_RULE_CREATE_ENDPOINT: &str = "rule/create";
 pub const DECISION_ENGINE_RULE_UPDATE_ENDPOINT: &str = "rule/update";
+pub const DECISION_ENGINE_RULE_GET_ENDPOINT: &str = "rule/get";
 pub const DECISION_ENGINE_RULE_DELETE_ENDPOINT: &str = "rule/delete";
 pub const DECISION_ENGINE_MERCHANT_BASE_ENDPOINT: &str = "merchant-account";
 pub const DECISION_ENGINE_MERCHANT_CREATE_ENDPOINT: &str = "merchant-account/create";
@@ -337,11 +341,7 @@ impl RoutingDecisionData {
     pub fn apply_routing_decision<F, D>(&self, payment_data: &mut D)
     where
         F: Send + Clone,
-        D: crate::core::payments::OperationSessionGetters<F>
-            + crate::core::payments::OperationSessionSetters<F>
-            + Send
-            + Sync
-            + Clone,
+        D: OperationSessionGetters<F> + OperationSessionSetters<F> + Send + Sync + Clone,
     {
         match self {
             Self::DebitRouting(data) => data.apply_debit_routing_decision(payment_data),
@@ -363,11 +363,7 @@ impl DebitRoutingDecisionData {
     pub fn apply_debit_routing_decision<F, D>(&self, payment_data: &mut D)
     where
         F: Send + Clone,
-        D: crate::core::payments::OperationSessionGetters<F>
-            + crate::core::payments::OperationSessionSetters<F>
-            + Send
-            + Sync
-            + Clone,
+        D: OperationSessionGetters<F> + OperationSessionSetters<F> + Send + Sync + Clone,
     {
         payment_data.set_card_network(self.card_network.clone());
         self.debit_routing_result
@@ -1539,7 +1535,7 @@ pub async fn push_metrics_with_update_window_for_contract_based_routing(
                 routing_events::RoutingEngine::IntelligentRouter,
                 routing_events::ApiMethod::Grpc)
                 .change_context(errors::ApiErrorResponse::InternalServerError)
-                .attach_printable("ContractRouting-Intelligent-Router: Failed to contruct RoutingEventsBuilder")?
+                .attach_printable("ContractRouting-Intelligent-Router: Failed to construct RoutingEventsBuilder")?
                 .trigger_event(state, closure)
                 .await
                 .change_context(errors::ApiErrorResponse::InternalServerError)
@@ -2433,6 +2429,37 @@ pub async fn update_decision_engine_dynamic_routing_setup(
     Ok(())
 }
 
+#[cfg(all(feature = "v1", feature = "dynamic_routing"))]
+pub async fn get_decision_engine_active_dynamic_routing_algorithm(
+    state: &SessionState,
+    profile_id: &id_type::ProfileId,
+    dynamic_routing_type: open_router::DecisionEngineDynamicAlgorithmType,
+) -> RouterResult<Option<open_router::DecisionEngineConfigSetupRequest>> {
+    logger::debug!(
+        "decision_engine_euclid: GET api call for decision active {:?} routing algorithm",
+        dynamic_routing_type
+    );
+    let request = open_router::GetDecisionEngineConfigRequest {
+        merchant_id: profile_id.get_string_repr().to_owned(),
+        config: dynamic_routing_type,
+    };
+    let response: Option<open_router::DecisionEngineConfigSetupRequest> =
+        routing_utils::ConfigApiClient::send_decision_engine_request(
+            state,
+            services::Method::Post,
+            DECISION_ENGINE_RULE_GET_ENDPOINT,
+            Some(request),
+            None,
+            None,
+        )
+        .await
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Failed to get active dynamic algorithm from decision engine")?
+        .response;
+
+    Ok(response)
+}
+
 #[cfg(all(feature = "dynamic_routing", feature = "v1"))]
 #[instrument(skip_all)]
 pub async fn disable_decision_engine_dynamic_routing_setup(
@@ -2545,11 +2572,11 @@ pub async fn delete_decision_engine_merchant(
         DECISION_ENGINE_MERCHANT_BASE_ENDPOINT,
         profile_id.get_string_repr()
     );
-    routing_utils::ConfigApiClient::send_decision_engine_request_without_response_parsing::<()>(
+    routing_utils::ConfigApiClient::send_decision_engine_request::<_, String>(
         state,
         services::Method::Delete,
         &path,
-        None,
+        None::<id_type::ProfileId>,
         None,
         None,
     )

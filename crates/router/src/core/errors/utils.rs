@@ -156,6 +156,7 @@ impl<T> ConnectorErrorExt<T> for error_stack::Result<T, errors::ConnectorError> 
             | errors::ConnectorError::NoConnectorMetaData
             | errors::ConnectorError::NoConnectorWalletDetails
             | errors::ConnectorError::FailedToObtainCertificateKey
+            | errors::ConnectorError::MaxFieldLengthViolated { .. }
             | errors::ConnectorError::FlowNotSupported { .. }
             | errors::ConnectorError::MissingConnectorMandateID
             | errors::ConnectorError::MissingConnectorMandateMetadata
@@ -241,6 +242,9 @@ impl<T> ConnectorErrorExt<T> for error_stack::Result<T, errors::ConnectorError> 
                 },
                 errors::ConnectorError::FlowNotSupported{ flow, connector } => {
                     errors::ApiErrorResponse::FlowNotSupported { flow: flow.to_owned(), connector: connector.to_owned() }
+                },
+                errors::ConnectorError::MaxFieldLengthViolated{ connector, field_name,  max_length, received_length} => {
+                    errors::ApiErrorResponse::MaxFieldLengthViolated { connector: connector.to_string(), field_name: field_name.to_string(), max_length: *max_length, received_length: *received_length }
                 },
                 errors::ConnectorError::InvalidDataFormat { field_name } => {
                     errors::ApiErrorResponse::InvalidDataValue { field_name }
@@ -362,6 +366,7 @@ impl<T> ConnectorErrorExt<T> for error_stack::Result<T, errors::ConnectorError> 
                 | errors::ConnectorError::FailedToObtainCertificateKey
                 | errors::ConnectorError::NotImplemented(_)
                 | errors::ConnectorError::NotSupported { .. }
+                | errors::ConnectorError::MaxFieldLengthViolated { .. }
                 | errors::ConnectorError::FlowNotSupported { .. }
                 | errors::ConnectorError::MissingConnectorMandateID
                 | errors::ConnectorError::MissingConnectorMandateMetadata
