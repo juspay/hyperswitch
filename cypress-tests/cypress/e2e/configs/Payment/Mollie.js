@@ -301,7 +301,8 @@ export const connectorDetails = {
         body: {
           error: {
             type: "invalid_request",
-            message: "No eligible connector was found for the current payment method configuration",
+            message:
+              "No eligible connector was found for the current payment method configuration",
           },
         },
       },
@@ -325,7 +326,8 @@ export const connectorDetails = {
         body: {
           error: {
             type: "invalid_request",
-            message: "No eligible connector was found for the current payment method configuration",
+            message:
+              "No eligible connector was found for the current payment method configuration",
           },
         },
       },
@@ -376,9 +378,7 @@ export const connectorDetails = {
       Request: {},
       Response: {
         status: 400,
-        body: {
-          
-        },
+        body: {},
       },
     }),
 
@@ -480,7 +480,7 @@ export const connectorDetails = {
       Response: {
         status: 200,
         body: {
-          status:"requires_customer_action", // Mollie auto-captures by default
+          status: "requires_customer_action", // Mollie auto-captures by default
         },
       },
     }),
@@ -510,7 +510,8 @@ export const connectorDetails = {
         body: {
           error: {
             type: "invalid_request",
-            message: "No eligible connector was found for the current payment method configuration",
+            message:
+              "No eligible connector was found for the current payment method configuration",
           },
         },
       },
@@ -569,9 +570,7 @@ export const connectorDetails = {
       },
       Response: {
         status: 400,
-        body: {
-          
-        },
+        body: {},
       },
     }),
 
@@ -600,7 +599,8 @@ export const connectorDetails = {
         body: {
           error: {
             type: "invalid_request",
-            message: "No eligible connector was found for the current payment method configuration",
+            message:
+              "No eligible connector was found for the current payment method configuration",
           },
         },
       },
@@ -785,9 +785,7 @@ export const connectorDetails = {
       },
       Response: {
         status: 400,
-        body: {
-          
-        },
+        body: {},
       },
     }),
 
@@ -806,9 +804,7 @@ export const connectorDetails = {
       },
       Response: {
         status: 400,
-        body: {
-          
-        },
+        body: {},
       },
     }),
 
@@ -827,9 +823,7 @@ export const connectorDetails = {
       },
       Response: {
         status: 400,
-        body: {
-          
-        },
+        body: {},
       },
     }),
 
@@ -848,9 +842,7 @@ export const connectorDetails = {
       },
       Response: {
         status: 400,
-        body: {
-          
-        },
+        body: {},
       },
     }),
 
@@ -865,7 +857,8 @@ export const connectorDetails = {
         body: {
           error: {
             type: "invalid_request",
-            message: "A payment token or payment method data or ctp service details is required",
+            message:
+              "A payment token or payment method data or ctp service details is required",
           },
         },
       },
@@ -918,7 +911,8 @@ export const connectorDetails = {
         body: {
           error: {
             type: "invalid_request",
-            message: "This Payment could not be captured because it has a payment.status of requires_customer_action. The expected state is requires_capture, partially_captured_and_capturable, processing",
+            message:
+              "This Payment could not be captured because it has a payment.status of requires_customer_action. The expected state is requires_capture, partially_captured_and_capturable, processing",
           },
         },
       },
@@ -956,7 +950,8 @@ export const connectorDetails = {
         body: {
           error: {
             type: "invalid_request",
-            message: "You cannot confirm this payment because it has status requires_customer_action",
+            message:
+              "You cannot confirm this payment because it has status requires_customer_action",
             code: "IR_16",
           },
         },
@@ -994,7 +989,8 @@ export const connectorDetails = {
         body: {
           error: {
             type: "invalid_request",
-            message: "The payment with the specified payment_id already exists in our records",
+            message:
+              "The payment with the specified payment_id already exists in our records",
             code: "HE_01",
           },
         },
@@ -1010,7 +1006,8 @@ export const connectorDetails = {
         body: {
           error: {
             type: "invalid_request",
-            message: "Duplicate refund request. Refund already attempted with the refund ID",
+            message:
+              "Duplicate refund request. Refund already attempted with the refund ID",
             code: "HE_01",
           },
         },
@@ -1151,7 +1148,8 @@ export const connectorDetails = {
         body: {
           error: {
             error_type: "invalid_request",
-            message: "Json deserialize error: unknown variant `United`, expected one of `AED`, `AFN`, `ALL`, `AMD`, `ANG`, `AOA`, `ARS`, `AUD`, `AWG`, `AZN`, `BAM`, `BBD`, `BDT`, `BGN`, `BHD`, `BIF`, `BMD`, `BND`, `BOB`, `BRL`, `BSD`, `BTN`, `BWP`, `BYN`, `BZD`, `CAD`, `CDF`, `CHF`, `CLF`, `CLP`, `CNY`, `COP`, `CRC`, `CUC`, `CUP`, `CVE`, `CZK`, `DJF`, `DKK`, `DOP`, `DZD`, `EGP`, `ERN`, `ETB`, `USD`, `FJD`, `FKP`, `GBP`, `GEL`, `GHS`, `GIP`, `GMD`, `GNF`, `GTQ`, `GYD`, `HKD`, `HNL`, `HRK`, `HTG`, `HUF`, `IDR`, `ILS`, `INR`, `IQD`, `IRR`, `ISK`, `JMD`, `JOD`, `JPY`, `KES`, `KGS`, `KHR`, `KMF`, `KPW`, `KRW`, `KWD`, `KYD`, `KZT`, `LAK`, `LBP`, `LKR`, `LRD`, `LSL`, `LYD`, `MAD`, `MDL`, `MGA`, `MKD`, `MMK`, `MNT`, `MOP`, `MRU`, `MUR`, `MVR`, `MWK`, `MXN`, `MYR`, `MZN`, `NAD`, `NGN`, `NIO`, `NOK`, `NPR`, `NZD`, `OMR`, `PAB`, `PEN`, `PGK`, `PHP`, `PKR`, `PLN`, `PYG`, `QAR`, `RON`, `RSD`, `RUB`, `RWF`, `SAR`, `SBD`, `SCR`, `SDG`, `SEK`, `SGD`, `SHP`, `SLE`, `SLL`, `SOS`, `SRD`, `SSP`, `STD`, `STN`, `SVC`, `SYP`, `SZL`, `THB`, `TJS`, `TMT`, `TND`, `TOP`, `TRY`, `TTD`, `TWD`, `TZS`, `UAH`, `UGX`, `USD`, `UYU`, `UZS`, `VES`, `VND`, `VUV`, `WST`, `XAF`, `XCD`, `XOF`, `XPF`, `YER`, `ZAR`, `ZMW`, `ZWL`",
+            message:
+              "Json deserialize error: unknown variant `United`, expected one of `AED`, `AFN`, `ALL`, `AMD`, `ANG`, `AOA`, `ARS`, `AUD`, `AWG`, `AZN`, `BAM`, `BBD`, `BDT`, `BGN`, `BHD`, `BIF`, `BMD`, `BND`, `BOB`, `BRL`, `BSD`, `BTN`, `BWP`, `BYN`, `BZD`, `CAD`, `CDF`, `CHF`, `CLF`, `CLP`, `CNY`, `COP`, `CRC`, `CUC`, `CUP`, `CVE`, `CZK`, `DJF`, `DKK`, `DOP`, `DZD`, `EGP`, `ERN`, `ETB`, `USD`, `FJD`, `FKP`, `GBP`, `GEL`, `GHS`, `GIP`, `GMD`, `GNF`, `GTQ`, `GYD`, `HKD`, `HNL`, `HRK`, `HTG`, `HUF`, `IDR`, `ILS`, `INR`, `IQD`, `IRR`, `ISK`, `JMD`, `JOD`, `JPY`, `KES`, `KGS`, `KHR`, `KMF`, `KPW`, `KRW`, `KWD`, `KYD`, `KZT`, `LAK`, `LBP`, `LKR`, `LRD`, `LSL`, `LYD`, `MAD`, `MDL`, `MGA`, `MKD`, `MMK`, `MNT`, `MOP`, `MRU`, `MUR`, `MVR`, `MWK`, `MXN`, `MYR`, `MZN`, `NAD`, `NGN`, `NIO`, `NOK`, `NPR`, `NZD`, `OMR`, `PAB`, `PEN`, `PGK`, `PHP`, `PKR`, `PLN`, `PYG`, `QAR`, `RON`, `RSD`, `RUB`, `RWF`, `SAR`, `SBD`, `SCR`, `SDG`, `SEK`, `SGD`, `SHP`, `SLE`, `SLL`, `SOS`, `SRD`, `SSP`, `STD`, `STN`, `SVC`, `SYP`, `SZL`, `THB`, `TJS`, `TMT`, `TND`, `TOP`, `TRY`, `TTD`, `TWD`, `TZS`, `UAH`, `UGX`, `USD`, `UYU`, `UZS`, `VES`, `VND`, `VUV`, `WST`, `XAF`, `XCD`, `XOF`, `XPF`, `YER`, `ZAR`, `ZMW`, `ZWL`",
             code: "IR_06",
           },
         },
@@ -1180,7 +1178,8 @@ export const connectorDetails = {
         body: {
           error: {
             error_type: "invalid_request",
-            message: "Json deserialize error: unknown variant `auto`, expected one of `automatic`, `manual`, `manual_multiple`, `scheduled`",
+            message:
+              "Json deserialize error: unknown variant `auto`, expected one of `automatic`, `manual`, `manual_multiple`, `scheduled`",
             code: "IR_06",
           },
         },
@@ -1208,7 +1207,8 @@ export const connectorDetails = {
         body: {
           error: {
             error_type: "invalid_request",
-            message: "Json deserialize error: unknown variant `this_supposed_to_be_a_card`, expected one of `card`, `card_redirect`, `pay_later`, `wallet`, `bank_redirect`, `bank_transfer`, `crypto`, `bank_debit`, `reward`, `real_time_payment`, `upi`, `voucher`, `gift_card`, `open_banking`, `mobile_payment`",
+            message:
+              "Json deserialize error: unknown variant `this_supposed_to_be_a_card`, expected one of `card`, `card_redirect`, `pay_later`, `wallet`, `bank_redirect`, `bank_transfer`, `crypto`, `bank_debit`, `reward`, `real_time_payment`, `upi`, `voucher`, `gift_card`, `open_banking`, `mobile_payment`",
             code: "IR_06",
           },
         },
@@ -1237,7 +1237,8 @@ export const connectorDetails = {
         body: {
           error: {
             type: "invalid_request",
-            message: "amount_to_capture contains invalid data. Expected format is amount_to_capture lesser than amount",
+            message:
+              "amount_to_capture contains invalid data. Expected format is amount_to_capture lesser than amount",
             code: "IR_05",
           },
         },
@@ -1280,7 +1281,8 @@ export const connectorDetails = {
         body: {
           error: {
             type: "invalid_request",
-            message: "A payment token or payment method data or ctp service details is required",
+            message:
+              "A payment token or payment method data or ctp service details is required",
             code: "IR_06",
           },
         },
@@ -1303,9 +1305,7 @@ export const connectorDetails = {
       },
       Response: {
         status: 200,
-        body: {
-          
-        },
+        body: {},
       },
     }),
 
@@ -1347,9 +1347,7 @@ export const connectorDetails = {
       },
       Response: {
         status: 400,
-        body: {
-          
-        },
+        body: {},
       },
     }),
 
@@ -1372,12 +1370,12 @@ export const connectorDetails = {
         body: {
           error: {
             type: "invalid_request",
-            message: "No eligible connector was found for the current payment method configuration",
+            message:
+              "No eligible connector was found for the current payment method configuration",
           },
         },
       },
     }),
-
   },
 
   bank_redirect_pm: {
@@ -1399,7 +1397,7 @@ export const connectorDetails = {
           },
         });
       }
-      
+
       // For other payment methods, return the standard PaymentIntent configuration
       return getCustomExchange({
         Request: {
@@ -1638,7 +1636,8 @@ export const connectorDetails = {
         body: {
           error: {
             type: "invalid_request",
-            message: "You cannot confirm this payment because it has status failed, you can pass `retry_action` as `manual_retry` in request to try this payment again",
+            message:
+              "You cannot confirm this payment because it has status failed, you can pass `retry_action` as `manual_retry` in request to try this payment again",
           },
         },
       },
@@ -1762,113 +1761,125 @@ export const connectorDetails = {
       });
     },
 
-    Pix: getCustomExchange({
-      Request: {
-        payment_method: "bank_transfer",
-        payment_method_type: "pix",
-        payment_method_data: {
-          bank_transfer: {
-            pix: {},
+    Pix: getCustomExchange(
+      {
+        Request: {
+          payment_method: "bank_transfer",
+          payment_method_type: "pix",
+          payment_method_data: {
+            bank_transfer: {
+              pix: {},
+            },
+          },
+          billing: {
+            address: {
+              line1: "1467",
+              line2: "Harrison Street",
+              line3: "Harrison Street",
+              city: "San Fransico",
+              state: "California",
+              zip: "94122",
+              country: "BR",
+              first_name: "john",
+              last_name: "doe",
+            },
+          },
+          currency: "BRL",
+        },
+        ResponseCustom: {
+          status: 400,
+          body: {
+            error: {
+              type: "invalid_request",
+              message:
+                "Selected payment method through mollie is not implemented",
+              code: "IR_39",
+            },
           },
         },
-        billing: {
-          address: {
-            line1: "1467",
-            line2: "Harrison Street",
-            line3: "Harrison Street",
-            city: "San Fransico",
-            state: "California",
-            zip: "94122",
-            country: "BR",
-            first_name: "john",
-            last_name: "doe",
-          },
-        },
-        currency: "BRL",
       },
-      ResponseCustom: {
-        status: 400,
-        body: {
-          error: {
-            type: "invalid_request",
-            message: "Selected payment method through mollie is not implemented",
-            code: "IR_39",
-          },
-        },
-      },
-    }, commonConnectorDetails.bank_transfer_pm.Pix),
+      commonConnectorDetails.bank_transfer_pm.Pix
+    ),
 
-    InstantBankTransferFinland: getCustomExchange({
-      Request: {
-        payment_method: "bank_transfer",
-        payment_method_type: "instant_bank_transfer_finland",
-        payment_method_data: {
-          bank_transfer: {
-            instant_bank_transfer_finland: {},
+    InstantBankTransferFinland: getCustomExchange(
+      {
+        Request: {
+          payment_method: "bank_transfer",
+          payment_method_type: "instant_bank_transfer_finland",
+          payment_method_data: {
+            bank_transfer: {
+              instant_bank_transfer_finland: {},
+            },
+          },
+          billing: {
+            address: {
+              line1: "1467",
+              line2: "Harrison Street",
+              line3: "Harrison Street",
+              city: "San Fransico",
+              state: "California",
+              zip: "94122",
+              country: "FI",
+              first_name: "john",
+              last_name: "doe",
+            },
+          },
+          currency: "EUR",
+        },
+        ResponseCustom: {
+          status: 400,
+          body: {
+            error: {
+              type: "invalid_request",
+              message:
+                "Selected payment method through mollie is not implemented",
+              code: "IR_39",
+            },
           },
         },
-        billing: {
-          address: {
-            line1: "1467",
-            line2: "Harrison Street",
-            line3: "Harrison Street",
-            city: "San Fransico",
-            state: "California",
-            zip: "94122",
-            country: "FI",
-            first_name: "john",
-            last_name: "doe",
-          },
-        },
-        currency: "EUR",
       },
-      ResponseCustom: {
-        status: 400,
-        body: {
-          error: {
-            type: "invalid_request",
-            message: "Selected payment method through mollie is not implemented",
-            code: "IR_39",
-          },
-        },
-      },
-    }, commonConnectorDetails.bank_transfer_pm.InstantBankTransferFinland),
+      commonConnectorDetails.bank_transfer_pm.InstantBankTransferFinland
+    ),
 
-    InstantBankTransferPoland: getCustomExchange({
-      Request: {
-        payment_method: "bank_transfer",
-        payment_method_type: "instant_bank_transfer_poland",
-        payment_method_data: {
-          bank_transfer: {
-            instant_bank_transfer_poland: {},
+    InstantBankTransferPoland: getCustomExchange(
+      {
+        Request: {
+          payment_method: "bank_transfer",
+          payment_method_type: "instant_bank_transfer_poland",
+          payment_method_data: {
+            bank_transfer: {
+              instant_bank_transfer_poland: {},
+            },
+          },
+          billing: {
+            address: {
+              line1: "1467",
+              line2: "Harrison Street",
+              line3: "Harrison Street",
+              city: "San Fransico",
+              state: "California",
+              zip: "94122",
+              country: "PL",
+              first_name: "john",
+              last_name: "doe",
+            },
+          },
+          currency: "PLN",
+        },
+        ResponseCustom: {
+          status: 400,
+          body: {
+            error: {
+              type: "invalid_request",
+              message:
+                "Selected payment method through mollie is not implemented",
+              code: "IR_39",
+            },
           },
         },
-        billing: {
-          address: {
-            line1: "1467",
-            line2: "Harrison Street",
-            line3: "Harrison Street",
-            city: "San Fransico",
-            state: "California",
-            zip: "94122",
-            country: "PL",
-            first_name: "john",
-            last_name: "doe",
-          },
-        },
-        currency: "PLN",
       },
-      ResponseCustom: {
-        status: 400,
-        body: {
-          error: {
-            type: "invalid_request",
-            message: "Selected payment method through mollie is not implemented",
-            code: "IR_39",
-          },
-        },
-      },
-    }, commonConnectorDetails.bank_transfer_pm.InstantBankTransferPoland),
+      commonConnectorDetails.bank_transfer_pm.InstantBankTransferPoland
+    ),
   },
 
   pm_list: {
@@ -1894,7 +1905,8 @@ export const connectorDetails = {
         status: 400,
         body: {
           error: {
-            message: "return_url must be at most 2048 characters long. Received 2050 characters",
+            message:
+              "return_url must be at most 2048 characters long. Received 2050 characters",
             code: "IR_06",
             type: "invalid_request",
           },
@@ -1910,7 +1922,8 @@ export const connectorDetails = {
         status: 400,
         body: {
           error: {
-            message: 'Json deserialize error: relative URL without a base: "not_a_valid_url" at line 1 column 357',
+            message:
+              'Json deserialize error: relative URL without a base: "not_a_valid_url" at line 1 column 357',
             code: "IR_06",
             error_type: "invalid_request",
           },
@@ -1929,7 +1942,8 @@ export const connectorDetails = {
       status: 400,
       body: {
         error: {
-          message: "mandate_id must be at most 64 characters long. Received 67 characters",
+          message:
+            "mandate_id must be at most 64 characters long. Received 67 characters",
           code: "IR_06",
           type: "invalid_request",
         },
