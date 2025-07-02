@@ -25,8 +25,8 @@ const singleUseMandateData = {
       currency: "USD",
     },
   },
-}
-const multiUseMandateData =  {
+};
+const multiUseMandateData = {
   customer_acceptance: customerAcceptance,
   mandate_type: {
     multi_use: {
@@ -34,7 +34,7 @@ const multiUseMandateData =  {
       currency: "USD",
     },
   },
-}
+};
 // Test card details for Placetopay - using standard test cards
 const successfulNo3DSCardDetails = {
   card_number: "4111111111111111", // Visa test card
@@ -70,8 +70,6 @@ const payment_method_data_visa = {
   },
   billing: null,
 };
-
-
 
 const requiredFields = {
   payment_methods: [
@@ -419,7 +417,7 @@ export const connectorDetails = {
         },
         billing: defaultBillingDetails,
         currency: "USD",
-        mandate_data: singleUseMandateData
+        mandate_data: singleUseMandateData,
       },
       Response: {
         status: 200,
@@ -469,7 +467,7 @@ export const connectorDetails = {
         },
         billing: defaultBillingDetails,
         currency: "USD",
-        mandate_data: multiUseMandateData
+        mandate_data: multiUseMandateData,
       },
       Response: {
         status: 200,
@@ -489,7 +487,7 @@ export const connectorDetails = {
           card: successfulNo3DSCardDetails,
         },
         currency: "USD",
-        mandate_data: multiUseMandateData
+        mandate_data: multiUseMandateData,
       },
       Response: {
         status: 400,
@@ -513,7 +511,7 @@ export const connectorDetails = {
           card: successfulNo3DSCardDetails,
         },
         currency: "USD",
-        mandate_data: multiUseMandateData
+        mandate_data: multiUseMandateData,
       },
       Response: {
         status: 400,
@@ -537,7 +535,7 @@ export const connectorDetails = {
           card: successfulNo3DSCardDetails,
         },
         currency: "USD",
-        mandate_data: multiUseMandateData
+        mandate_data: multiUseMandateData,
       },
       Response: {
         status: 400,
