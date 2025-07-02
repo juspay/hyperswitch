@@ -215,7 +215,7 @@ impl TryFrom<&SetupMandateRouterData> for CybersourceZeroMandateRequest {
                                             cryptogram: Some(
                                                 decrypt_data.payment_data.online_payment_cryptogram,
                                             ),
-                                            transaction_type: TransactionType::ApplePay,
+                                            transaction_type: TransactionType::InApp,
                                             expiration_year,
                                             expiration_month,
                                         },
@@ -244,7 +244,7 @@ impl TryFrom<&SetupMandateRouterData> for CybersourceZeroMandateRequest {
                                     descriptor: Some(FLUID_DATA_DESCRIPTOR.to_string()),
                                 },
                                 tokenized_card: ApplePayTokenizedCard {
-                                    transaction_type: TransactionType::ApplePay,
+                                    transaction_type: TransactionType::InApp,
                                 },
                             },
                         )),
@@ -456,7 +456,7 @@ pub struct NetworkTokenizedCard {
     expiration_month: Secret<String>,
     expiration_year: Secret<String>,
     cryptogram: Option<Secret<String>>,
-    transaction_type: String,
+    transaction_type: TransactionType,
 }
 
 #[derive(Debug, Serialize)]
@@ -622,11 +622,11 @@ pub enum PaymentSolution {
 #[derive(Debug, Serialize)]
 pub enum TransactionType {
     #[serde(rename = "1")]
-    ApplePay,
-    #[serde(rename = "1")]
-    SamsungPay,
-    #[serde(rename = "1")]
-    GooglePay,
+    InApp,
+    #[serde(rename = "2")]
+    ContactlessNFC,
+    #[serde(rename = "3")]
+    StoredCredentials,
 }
 
 impl From<PaymentSolution> for String {
@@ -1460,6 +1460,12 @@ impl
             NetworkTokenData,
         ),
     ) -> Result<Self, Self::Error> {
+        let transaction_type = if item.router_data.request.off_session == Some(true) {
+            TransactionType::StoredCredentials
+        } else {
+            TransactionType::InApp
+        };
+
         let email = item.router_data.request.get_email()?;
         let bill_to = build_bill_to(item.router_data.get_optional_billing(), email)?;
         let order_information = OrderInformationWithBill::from((item, Some(bill_to)));
@@ -1477,7 +1483,7 @@ impl
                     expiration_month: token_data.get_network_token_expiry_month(),
                     expiration_year: token_data.get_network_token_expiry_year(),
                     cryptogram: token_data.get_cryptogram().clone(),
-                    transaction_type: "1".to_string(),
+                    transaction_type,
                 },
             }));
 
@@ -1542,6 +1548,12 @@ impl
             Box<hyperswitch_domain_models::router_data::PazeDecryptedData>,
         ),
     ) -> Result<Self, Self::Error> {
+        let transaction_type = if item.router_data.request.off_session == Some(true) {
+            TransactionType::StoredCredentials
+        } else {
+            TransactionType::InApp
+        };
+
         let email = item.router_data.request.get_email()?;
         let (first_name, last_name) = match paze_data.billing_address.name {
             Some(name) => {
@@ -1591,7 +1603,7 @@ impl
                     expiration_month: paze_data.token.token_expiration_month,
                     expiration_year: paze_data.token.token_expiration_year,
                     cryptogram: Some(paze_data.token.payment_account_reference),
-                    transaction_type: "1".to_string(),
+                    transaction_type,
                 },
             }));
 
@@ -1732,6 +1744,12 @@ impl
             ApplePayWalletData,
         ),
     ) -> Result<Self, Self::Error> {
+        let transaction_type = if item.router_data.request.off_session == Some(true) {
+            TransactionType::StoredCredentials
+        } else {
+            TransactionType::InApp
+        };
+
         let email = item
             .router_data
             .get_billing_email()
@@ -1751,7 +1769,7 @@ impl
                 tokenized_card: TokenizedCard {
                     number: apple_pay_data.application_primary_account_number,
                     cryptogram: Some(apple_pay_data.payment_data.online_payment_cryptogram),
-                    transaction_type: TransactionType::ApplePay,
+                    transaction_type,
                     expiration_year,
                     expiration_month,
                 },
@@ -1857,6 +1875,11 @@ impl
             GooglePayWalletData,
         ),
     ) -> Result<Self, Self::Error> {
+        let transaction_type = if item.router_data.request.off_session == Some(true) {
+            TransactionType::StoredCredentials
+        } else {
+            TransactionType::InApp
+        };
         let email = item
             .router_data
             .get_billing_email()
@@ -1874,7 +1897,7 @@ impl
                             .get_card_no(),
                     ),
                     cryptogram: google_pay_decrypted_data.payment_method_details.cryptogram,
-                    transaction_type: TransactionType::GooglePay,
+                    transaction_type,
                     expiration_year: Secret::new(
                         google_pay_decrypted_data
                             .payment_method_details
@@ -1995,7 +2018,7 @@ fn get_samsung_pay_payment_information(
                 ),
             },
             tokenized_card: SamsungPayTokenizedCard {
-                transaction_type: TransactionType::SamsungPay,
+                transaction_type: TransactionType::InApp,
             },
         }));
 
@@ -2057,6 +2080,12 @@ impl TryFrom<&CybersourceRouterData<&PaymentsAuthorizeRouterData>> for Cybersour
                                     )?,
                                 },
                                 None => {
+                                    let transaction_type =
+                                        if item.router_data.request.off_session == Some(true) {
+                                            TransactionType::StoredCredentials
+                                        } else {
+                                            TransactionType::InApp
+                                        };
                                     let email = item
                                         .router_data
                                         .get_billing_email()
@@ -2082,7 +2111,7 @@ impl TryFrom<&CybersourceRouterData<&PaymentsAuthorizeRouterData>> for Cybersour
                                                 descriptor: Some(FLUID_DATA_DESCRIPTOR.to_string()),
                                             },
                                             tokenized_card: ApplePayTokenizedCard {
-                                                transaction_type: TransactionType::ApplePay,
+                                                transaction_type,
                                             },
                                         }),
                                     );
