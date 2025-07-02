@@ -208,7 +208,7 @@ pub fn build_unified_connector_service_grpc_headers(
 
     metadata.append(
         common_utils_consts::X_MERCHANT_ID,
-        parse(common_utils_consts::X_MERCHANT_ID, &meta.merchant_id.peek())?,
+        parse(common_utils_consts::X_MERCHANT_ID, meta.merchant_id.peek())?,
     );
 
     grpc_headers.tenant_id
