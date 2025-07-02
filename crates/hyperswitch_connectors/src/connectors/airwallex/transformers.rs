@@ -7,7 +7,11 @@ use common_utils::{
 };
 use error_stack::ResultExt;
 use hyperswitch_domain_models::{
-    payment_method_data::{PayLaterData, PaymentMethodData, WalletData, BankRedirectData, BankTransferData }, router_data::{AccessToken, ConnectorAuthType, RouterData}, router_flow_types::{
+    payment_method_data::{
+        BankRedirectData, BankTransferData, PayLaterData, PaymentMethodData, WalletData,
+    },
+    router_data::{AccessToken, ConnectorAuthType, RouterData},
+    router_flow_types::{
         refunds::{Execute, RSync},
         PSync,
     },
@@ -345,7 +349,7 @@ pub struct PaypalDetails {
 }
 
 #[derive(Debug, Serialize)]
-pub struct SkrillDetails{
+pub struct SkrillDetails {
     shopper_name: Option<Secret<String>>,
     shopper_email: Option<Email>,
     country_code: Option<enums::CountryAlpha2>,
@@ -404,7 +408,7 @@ pub struct AtomeDetails {
 
 #[derive(Debug, Serialize)]
 #[serde(untagged)]
-pub enum AirwallexBankTransferData{
+pub enum AirwallexBankTransferData {
     IndonesianBankTransfer(IndonesianBankTransferData),
 }
 
@@ -416,7 +420,7 @@ pub struct IndonesianBankTransferData {
 }
 
 #[derive(Debug, Serialize)]
-pub struct IndonesianBankTransferDetails{
+pub struct IndonesianBankTransferDetails {
     shopper_name: Option<Secret<String>>,
     shopper_email: Option<Email>,
     bank_name: Option<common_enums::BankNames>,
@@ -425,9 +429,10 @@ pub struct IndonesianBankTransferDetails{
 
 #[derive(Debug, Serialize)]
 #[serde(untagged)]
-pub enum AirwallexBankRedirectData{
+pub enum AirwallexBankRedirectData {
     Trustly(TrustlyData),
     Blik(BlikData),
+    Ideal(IdealData),
 }
 
 #[derive(Debug, Serialize)]
@@ -453,6 +458,18 @@ pub struct BlikData {
 #[derive(Debug, Serialize)]
 pub struct BlikDetails {
     shopper_name: Option<Secret<String>>,
+}
+
+#[derive(Debug, Serialize)]
+pub struct IdealData {
+    ideal: IdealDetails,
+    #[serde(rename = "type")]
+    payment_method_type: AirwallexPaymentType,
+}
+
+#[derive(Debug, Serialize)]
+pub struct IdealDetails {
+    bank_name: Option<common_enums::BankNames>,
 }
 
 #[derive(Debug, Serialize)]
@@ -501,7 +518,6 @@ impl TryFrom<&AirwallexRouterData<&types::PaymentsAuthorizeRouterData>>
     fn try_from(
         item: &AirwallexRouterData<&types::PaymentsAuthorizeRouterData>,
     ) -> Result<Self, Self::Error> {
-
         let mut payment_method_options = None;
         let request = &item.router_data.request;
         let payment_method = match request.payment_method_data.clone() {
@@ -542,10 +558,14 @@ impl TryFrom<&AirwallexRouterData<&types::PaymentsAuthorizeRouterData>>
                 };
 
                 get_paylater_details(paylater_data, item)
-            },
-            PaymentMethodData::BankRedirect(ref bankredirect_data) => get_bankredirect_details(bankredirect_data, item),
-            // PaymentMethodData::BankTransfer(ref banktransfer_data) => get_banktransfer_details(banktransfer_data, item),
-              PaymentMethodData::BankDebit(_)
+            }
+            PaymentMethodData::BankTransfer(ref banktransfer_data) => {
+                get_banktransfer_details(banktransfer_data, item)
+            }
+            PaymentMethodData::BankRedirect(ref bankredirect_data) => {
+                get_bankredirect_details(bankredirect_data, item)
+            }
+            PaymentMethodData::BankDebit(_)
             | PaymentMethodData::CardRedirect(_)
             | PaymentMethodData::Crypto(_)
             | PaymentMethodData::MandatePayment
@@ -558,7 +578,6 @@ impl TryFrom<&AirwallexRouterData<&types::PaymentsAuthorizeRouterData>>
             | PaymentMethodData::OpenBanking(_)
             | PaymentMethodData::CardToken(_)
             | PaymentMethodData::NetworkToken(_)
-            | PaymentMethodData::BankTransfer(_)
             | PaymentMethodData::CardDetailsForNetworkTransactionId(_) => {
                 Err(errors::ConnectorError::NotImplemented(
                     utils::get_unimplemented_payment_method_error_message("airwallex"),
@@ -577,8 +596,12 @@ impl TryFrom<&AirwallexRouterData<&types::PaymentsAuthorizeRouterData>>
                 }
                 _ => request.complete_authorize_url.clone(),
             },
-            PaymentMethodData::BankRedirect(_bankredirect_data) => item.router_data.request.router_return_url.clone(),
-            PaymentMethodData::PayLater(_paylater_data) => item.router_data.request.router_return_url.clone(),
+            PaymentMethodData::BankRedirect(_bankredirect_data) => {
+                item.router_data.request.router_return_url.clone()
+            }
+            PaymentMethodData::PayLater(_paylater_data) => {
+                item.router_data.request.router_return_url.clone()
+            }
             _ => request.complete_authorize_url.clone(),
         };
 
@@ -629,20 +652,18 @@ fn get_device_data(
     })
 }
 
-#[allow(dead_code)]
 fn get_banktransfer_details(
     banktransfer_data: &BankTransferData,
     item: &AirwallexRouterData<&types::PaymentsAuthorizeRouterData>,
 ) -> Result<AirwallexPaymentMethod, errors::ConnectorError> {
-
-    let bank_transfer_details = match banktransfer_data {
+    let _bank_transfer_details = match banktransfer_data {
         BankTransferData::IndonesianBankTransfer { bank_name } => {
             AirwallexPaymentMethod::BankTransfer(AirwallexBankTransferData::IndonesianBankTransfer(
                 IndonesianBankTransferData {
                     bank_transfer: IndonesianBankTransferDetails {
                         shopper_name: item.router_data.get_optional_billing_full_name(),
                         shopper_email: item.router_data.get_optional_billing_email(),
-                        bank_name: bank_name.clone(),
+                        bank_name: *bank_name,
                         country_code: item.router_data.get_optional_billing_country(),
                     },
                     payment_method_type: AirwallexPaymentType::BankTransfer,
@@ -653,7 +674,10 @@ fn get_banktransfer_details(
             utils::get_unimplemented_payment_method_error_message("airwallex"),
         ))?,
     };
-    Ok(bank_transfer_details)
+    let not_implemented = Err(errors::ConnectorError::NotImplemented(
+        utils::get_unimplemented_payment_method_error_message("airwallex"),
+    ))?;
+    Ok(not_implemented)
 }
 
 fn get_paylater_details(
@@ -709,7 +733,6 @@ fn get_bankredirect_details(
     bankredirect_data: &BankRedirectData,
     item: &AirwallexRouterData<&types::PaymentsAuthorizeRouterData>,
 ) -> Result<AirwallexPaymentMethod, errors::ConnectorError> {
-
     let bank_redirect_details = match bankredirect_data {
         BankRedirectData::Trustly { .. } => {
             AirwallexPaymentMethod::BankRedirect(AirwallexBankRedirectData::Trustly(TrustlyData {
@@ -728,6 +751,14 @@ fn get_bankredirect_details(
                 payment_method_type: AirwallexPaymentType::Blik,
             }))
         }
+        BankRedirectData::Ideal { bank_name } => {
+            AirwallexPaymentMethod::BankRedirect(AirwallexBankRedirectData::Ideal(IdealData {
+                ideal: IdealDetails {
+                    bank_name: *bank_name,
+                },
+                payment_method_type: AirwallexPaymentType::Ideal,
+            }))
+        }
         _ => Err(errors::ConnectorError::NotImplemented(
             utils::get_unimplemented_payment_method_error_message("airwallex"),
         ))?,
@@ -739,7 +770,6 @@ fn get_wallet_details(
     wallet_data: &WalletData,
     item: &AirwallexRouterData<&types::PaymentsAuthorizeRouterData>,
 ) -> Result<AirwallexPaymentMethod, errors::ConnectorError> {
-    println!("wallet_data: {:?}", wallet_data);
     let wallet_details: AirwallexPaymentMethod = match wallet_data {
         WalletData::GooglePay(gpay_details) => {
             AirwallexPaymentMethod::Wallets(AirwallexWalletData::GooglePay(GooglePayData {

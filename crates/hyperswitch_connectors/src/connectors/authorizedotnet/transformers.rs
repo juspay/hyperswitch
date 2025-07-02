@@ -1,6 +1,6 @@
 use std::collections::BTreeMap;
 
-use api_models::{webhooks::IncomingWebhookEvent};
+use api_models::webhooks::IncomingWebhookEvent;
 use common_enums::enums;
 use common_utils::{
     errors::CustomResult,

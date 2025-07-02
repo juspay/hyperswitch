@@ -1574,10 +1574,8 @@ impl From<api_models::payments::BankTransferData> for BankTransferData {
             api_models::payments::BankTransferData::InstantBankTransferPoland {} => {
                 Self::InstantBankTransferPoland {}
             }
-            api_models::payments::BankTransferData::IndonesianBankTransfer {bank_name} => {
-                Self::IndonesianBankTransfer {
-                    bank_name,
-                }
+            api_models::payments::BankTransferData::IndonesianBankTransfer { bank_name } => {
+                Self::IndonesianBankTransfer { bank_name }
             }
         }
     }
@@ -1623,7 +1621,7 @@ impl From<BankTransferData> for api_models::payments::additional_info::BankTrans
             BankTransferData::InstantBankTransferPoland {} => Self::InstantBankTransferPoland {},
             BankTransferData::IndonesianBankTransfer { bank_name } => {
                 Self::IndonesianBankTransfer { bank_name }
-            },
+            }
         }
     }
 }
@@ -1883,7 +1881,9 @@ impl GetPaymentMethodType for BankTransferData {
             Self::InstantBankTransferPoland {} => {
                 api_enums::PaymentMethodType::InstantBankTransferPoland
             }
-            Self::IndonesianBankTransfer { .. } => api_enums::PaymentMethodType::IndonesianBankTransfer,
+            Self::IndonesianBankTransfer { .. } => {
+                api_enums::PaymentMethodType::IndonesianBankTransfer
+            }
         }
     }
 }
