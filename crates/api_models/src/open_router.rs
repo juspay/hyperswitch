@@ -80,22 +80,36 @@ pub struct CoBadgedCardNetworksInfo {
     pub saving_percentage: f64,
 }
 
-impl DebitRoutingOutput {
-    pub fn get_co_badged_card_networks(&self) -> Vec<common_enums::CardNetwork> {
-        self.co_badged_card_networks_info
-            .iter()
-            .map(|data| data.network.clone())
-            .collect()
+#[derive(Debug, Serialize, Deserialize, PartialEq, Clone)]
+pub struct CoBadgedCardNetworks(pub Vec<CoBadgedCardNetworksInfo>);
+
+impl CoBadgedCardNetworks {
+    pub fn get_card_networks(&self) -> Vec<common_enums::CardNetwork> {
+        self.0.iter().map(|info| info.network.clone()).collect()
     }
 }
 
 impl From<&DebitRoutingOutput> for payment_methods::CoBadgedCardData {
     fn from(output: &DebitRoutingOutput) -> Self {
+        let co_badged_card_networks_info = output
+            .co_badged_card_networks_info
+            .iter()
+            .map(|data| data.into())
+            .collect();
         Self {
-            co_badged_card_networks: output.get_co_badged_card_networks(),
+            co_badged_card_networks_info,
             issuer_country_code: output.issuer_country,
             is_regulated: output.is_regulated,
             regulated_name: output.regulated_name.clone(),
+        }
+    }
+}
+
+impl From<&CoBadgedCardNetworksInfo> for payment_methods::CoBadgedCardNetworksInfo {
+    fn from(network_info: &CoBadgedCardNetworksInfo) -> Self {
+        Self {
+            network: network_info.network.clone(),
+            saving_percentage: network_info.saving_percentage,
         }
     }
 }
@@ -111,7 +125,11 @@ impl TryFrom<(payment_methods::CoBadgedCardData, String)> for DebitRoutingReques
         })?;
 
         Ok(Self {
-            co_badged_card_networks_info: output.co_badged_card_networks,
+            co_badged_card_networks_info: output
+                .co_badged_card_networks_info
+                .iter()
+                .map(|data| data.network.clone())
+                .collect(),
             issuer_country: output.issuer_country_code,
             is_regulated: output.is_regulated,
             regulated_name: output.regulated_name,

@@ -865,12 +865,14 @@ fn get_card_network_with_us_local_debit_network_override(
         .map(|network| network.is_us_local_network())
     {
         services::logger::debug!("Card network is a US local network, checking for global network in co-badged card data");
-        co_badged_card_data.and_then(|data| {
-            data.co_badged_card_networks
-                .iter()
-                .find(|network| network.is_global_network())
-                .cloned()
-        })
+        let info: Option<payment_methods::CoBadgedCardNetworksInfo> =
+            co_badged_card_data.and_then(|data| {
+                data.co_badged_card_networks_info
+                    .iter()
+                    .find(|info| info.network.is_global_network())
+                    .cloned()
+            });
+        info.map(|data| data.network)
     } else {
         card_network
     }

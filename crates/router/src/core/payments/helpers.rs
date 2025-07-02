@@ -1,5 +1,3 @@
-use std::{borrow::Cow, collections::HashSet, net::IpAddr, str::FromStr};
-
 pub use ::payment_methods::helpers::{
     populate_bin_details_for_payment_method_create,
     validate_payment_method_type_against_payment_method,
@@ -27,6 +25,9 @@ use common_utils::{
     },
 };
 use diesel_models::enums;
+use num_traits::{FromPrimitive, ToPrimitive};
+use rust_decimal::Decimal;
+use std::{borrow::Cow, collections::HashSet, net::IpAddr, str::FromStr};
 // TODO : Evaluate all the helper functions ()
 use error_stack::{report, ResultExt};
 use futures::future::Either;
@@ -5207,6 +5208,85 @@ pub fn get_applepay_metadata(
             field_name: "connector_metadata".to_string(),
             expected_format: "applepay_metadata_format".to_string(),
         })
+}
+
+pub fn extract_saving_percentage(
+    payment_method_data: &domain::PaymentMethodData,
+    network: &common_enums::CardNetwork,
+) -> Option<f64> {
+    match &payment_method_data {
+        domain::PaymentMethodData::Card(card) => card
+            .co_badged_card_data
+            .as_ref()?
+            .co_badged_card_networks_info
+            .iter()
+            .find(|info| &info.network == network)
+            .map(|info| info.saving_percentage),
+        _ => None,
+    }
+}
+
+pub fn extract_card_network(payment_attempt: &PaymentAttempt) -> Option<common_enums::CardNetwork> {
+    payment_attempt
+        .payment_method_data
+        .as_ref()
+        .and_then(|value| {
+            value
+                .clone()
+                .parse_value::<api_models::payments::AdditionalPaymentData>("AdditionalPaymentData")
+                .inspect_err(|err| {
+                    logger::warn!(
+                        ?err,
+                        "Failed to parse AdditionalPaymentData while extracting card network"
+                    );
+                })
+                .ok()
+        })
+        .and_then(|data| data.get_additional_card_info())
+        .and_then(|card_info| card_info.card_network)
+}
+
+pub fn calculate_debit_routing_savings(net_amount: f64, saving_percentage: f64) -> MinorUnit {
+    logger::debug!(
+        ?net_amount,
+        ?saving_percentage,
+        "Calculating debit routing saving amount"
+    );
+
+    let savings_float = (net_amount * (saving_percentage / 100.0)).round();
+
+    let amount_decimal = Decimal::from_f64(savings_float);
+
+    let savings_int = amount_decimal
+        .and_then(|amount| amount.to_i64())
+        .unwrap_or_else(|| {
+            logger::warn!(
+            ?savings_float,
+            "Debit routing savings calculation overflowed or was invalid when converting to i64"
+        );
+            0
+        });
+
+    MinorUnit::new(savings_int)
+}
+
+pub fn get_debit_routing_savings_amount(
+    payment_method_data: &domain::PaymentMethodData,
+    payment_attempt: &PaymentAttempt,
+) -> Option<MinorUnit> {
+    let card_network = extract_card_network(payment_attempt)?;
+
+    let saving_percentage = extract_saving_percentage(payment_method_data, &card_network)?;
+
+    let net_amount = payment_attempt
+        .get_total_amount()
+        .get_amount_as_i64()
+        .to_f64()?;
+
+    Some(calculate_debit_routing_savings(
+        net_amount,
+        saving_percentage,
+    ))
 }
 
 #[cfg(all(feature = "retry", feature = "v1"))]

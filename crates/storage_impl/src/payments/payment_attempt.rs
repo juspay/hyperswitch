@@ -686,6 +686,7 @@ impl<T: DatabaseStore> PaymentAttemptInterface for KVRouterStore<T> {
                     created_by: payment_attempt.created_by.clone(),
                     setup_future_usage_applied: payment_attempt.setup_future_usage_applied,
                     routing_approach: payment_attempt.routing_approach,
+                    debit_routing_savings: None,
                 };
 
                 let field = format!("pa_{}", created_attempt.attempt_id);
@@ -1806,6 +1807,7 @@ impl DataModelExt for PaymentAttempt {
                 .and_then(|created_by| created_by.parse::<CreatedBy>().ok()),
             setup_future_usage_applied: storage_model.setup_future_usage_applied,
             routing_approach: storage_model.routing_approach,
+            debit_routing_savings: None,
         }
     }
 }

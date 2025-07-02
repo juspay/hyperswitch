@@ -111,6 +111,7 @@ pub enum PaymentMetrics {
     AvgTicketSize,
     RetriesCount,
     ConnectorSuccessRate,
+    DebitRouting,
     SessionizedPaymentSuccessRate,
     SessionizedPaymentCount,
     SessionizedPaymentSuccessCount,
@@ -128,6 +129,7 @@ impl ForexMetric for PaymentMetrics {
             self,
             Self::PaymentProcessedAmount
                 | Self::AvgTicketSize
+                // add here New Metric
                 | Self::SessionizedPaymentProcessedAmount
                 | Self::SessionizedAvgTicketSize
         )
@@ -309,6 +311,9 @@ pub struct PaymentMetricsBucketValue {
     pub payments_failure_rate_distribution_with_only_retries: Option<f64>,
     pub failure_reason_count: Option<u64>,
     pub failure_reason_count_without_smart_retries: Option<u64>,
+    pub debit_routed_transaction_count: Option<u64>,
+    pub debit_routing_savings: Option<u64>,
+    pub debit_routing_savings_in_usd: Option<u64>,
 }
 
 #[derive(Debug, serde::Serialize)]

@@ -1767,6 +1767,14 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
                             let payment_method_id =
                                 payment_data.payment_attempt.payment_method_id.clone();
 
+                            let debit_routing_savings =
+                                payment_data.payment_method_data.as_ref().and_then(|data| {
+                                    payments_helpers::get_debit_routing_savings_amount(
+                                        data,
+                                        &payment_data.payment_attempt,
+                                    )
+                                });
+
                             utils::add_apple_pay_payment_status_metrics(
                                 router_data.status,
                                 router_data.apple_pay_flow.clone(),
@@ -1857,6 +1865,7 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
                                         setup_future_usage_applied: payment_data
                                             .payment_attempt
                                             .setup_future_usage_applied,
+                                        debit_routing_savings,
                                     }),
                                 ),
                             };

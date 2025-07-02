@@ -281,7 +281,10 @@ where
             &profile_id,
             &key_store,
             vec![connector_data.clone()],
-            debit_routing_output.get_co_badged_card_networks(),
+            open_router::CoBadgedCardNetworks(
+                debit_routing_output.co_badged_card_networks_info.clone(),
+            )
+            .get_card_networks(),
         )
         .await
         .map_err(|error| {
@@ -454,7 +457,10 @@ where
             &profile_id,
             &key_store,
             connector_data_list.clone(),
-            debit_routing_output.get_co_badged_card_networks(),
+            open_router::CoBadgedCardNetworks(
+                debit_routing_output.co_badged_card_networks_info.clone(),
+            )
+            .get_card_networks(),
         )
         .await
         .map_err(|error| {

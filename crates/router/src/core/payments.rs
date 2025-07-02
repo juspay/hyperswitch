@@ -429,7 +429,7 @@ where
 
     // To perform router related operation for PaymentResponse
     PaymentResponse: Operation<F, FData, Data = D>,
-    FData: Send + Sync + Clone,
+    FData: Send + Sync + Clone + router_types::Capturable,
 {
     let operation: BoxedOperation<'_, F, Req, D> = Box::new(operation);
 
@@ -1802,7 +1802,7 @@ pub async fn payments_core<F, Res, Req, Op, FData, D>(
 ) -> RouterResponse<Res>
 where
     F: Send + Clone + Sync,
-    FData: Send + Sync + Clone,
+    FData: Send + Sync + Clone + router_types::Capturable,
     Op: Operation<F, Req, Data = D> + Send + Sync + Clone,
     Req: Debug + Authenticate + Clone,
     D: OperationSessionGetters<F> + OperationSessionSetters<F> + Send + Sync + Clone,

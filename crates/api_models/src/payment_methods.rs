@@ -939,14 +939,14 @@ pub struct PaymentMethodResponse {
     pub network_token: Option<NetworkTokenResponse>,
 }
 
-#[derive(Clone, Debug, Eq, PartialEq, serde::Deserialize, serde::Serialize)]
+#[derive(Clone, Debug, PartialEq, serde::Deserialize, serde::Serialize)]
 pub enum PaymentMethodsData {
     Card(CardDetailsPaymentMethod),
     BankDetails(PaymentMethodDataBankCreds),
     WalletDetails(PaymentMethodDataWalletInfo),
 }
 
-#[derive(Clone, Debug, Eq, PartialEq, serde::Deserialize, serde::Serialize)]
+#[derive(Clone, Debug, PartialEq, serde::Deserialize, serde::Serialize)]
 pub struct CardDetailsPaymentMethod {
     pub last4_digits: Option<String>,
     pub issuer_country: Option<String>,
@@ -960,15 +960,45 @@ pub struct CardDetailsPaymentMethod {
     pub card_type: Option<String>,
     #[serde(default = "saved_in_locker_default")]
     pub saved_to_locker: bool,
-    pub co_badged_card_data: Option<CoBadgedCardData>,
+    pub co_badged_card_data: Option<CoBadgedCardDataToBeSaved>,
 }
 
-#[derive(Clone, Debug, Eq, PartialEq, serde::Deserialize, serde::Serialize)]
+impl From<&CoBadgedCardData> for CoBadgedCardDataToBeSaved {
+    fn from(co_badged_card_data: &CoBadgedCardData) -> Self {
+        Self {
+            co_badged_card_networks: co_badged_card_data
+                .co_badged_card_networks_info
+                .clone()
+                .into_iter()
+                .map(|network_info| network_info.network)
+                .collect(),
+            issuer_country_code: co_badged_card_data.issuer_country_code,
+            is_regulated: co_badged_card_data.is_regulated,
+            regulated_name: co_badged_card_data.regulated_name.clone(),
+        }
+    }
+}
+
+#[derive(Clone, Debug, PartialEq, serde::Deserialize, serde::Serialize)]
 pub struct CoBadgedCardData {
-    pub co_badged_card_networks: Vec<api_enums::CardNetwork>,
+    pub co_badged_card_networks_info: Vec<CoBadgedCardNetworksInfo>,
     pub issuer_country_code: common_enums::CountryAlpha2,
     pub is_regulated: bool,
     pub regulated_name: Option<common_enums::RegulatedName>,
+}
+
+#[derive(Clone, Debug, PartialEq, serde::Deserialize, serde::Serialize)]
+pub struct CoBadgedCardDataToBeSaved {
+    pub co_badged_card_networks: Vec<common_enums::CardNetwork>,
+    pub issuer_country_code: common_enums::CountryAlpha2,
+    pub is_regulated: bool,
+    pub regulated_name: Option<common_enums::RegulatedName>,
+}
+
+#[derive(Debug, serde::Serialize, serde::Deserialize, PartialEq, Clone)]
+pub struct CoBadgedCardNetworksInfo {
+    pub network: common_enums::CardNetwork,
+    pub saving_percentage: f64,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq, serde::Deserialize, serde::Serialize, ToSchema)]
@@ -1310,7 +1340,7 @@ impl From<(CardDetailFromLocker, Option<&CoBadgedCardData>)> for CardDetailsPaym
             card_network: item.card_network,
             card_type: item.card_type,
             saved_to_locker: item.saved_to_locker,
-            co_badged_card_data: co_badged_card_data.cloned(),
+            co_badged_card_data: co_badged_card_data.map(CoBadgedCardDataToBeSaved::from),
         }
     }
 }
