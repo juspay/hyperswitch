@@ -44,11 +44,11 @@ where
             query_builder.add_select_column(dim).switch()?;
         }
         query_builder
-        .add_select_column(Aggregate::Count {
-            field: None,
-            alias: Some("count"),
-        })
-        .switch()?;
+            .add_select_column(Aggregate::Count {
+                field: None,
+                alias: Some("count"),
+            })
+            .switch()?;
         query_builder
             .add_select_column(Aggregate::Sum {
                 field: "debit_routing_savings",

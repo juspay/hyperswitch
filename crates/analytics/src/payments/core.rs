@@ -302,7 +302,12 @@ pub async fn get_metrics(
                     id.currency
                         .and_then(|currency| {
                             i64::try_from(savings)
-                                .inspect_err(|e| logger::error!("Debit Routing savings conversion error: {:?}", e))
+                                .inspect_err(|e| {
+                                    logger::error!(
+                                        "Debit Routing savings conversion error: {:?}",
+                                        e
+                                    )
+                                })
                                 .ok()
                                 .and_then(|savings_i64| {
                                     convert(ex_rates, currency, Currency::USD, savings_i64)
