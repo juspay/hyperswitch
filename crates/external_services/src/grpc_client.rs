@@ -25,6 +25,12 @@ use health_check_client::HealthCheckClient;
     all(feature = "revenue_recovery", feature = "v2")
 ))]
 use hyper_util::client::legacy::connect::HttpConnector;
+#[cfg(all(feature = "revenue_recovery", feature = "v2"))]
+pub use revenue_recovery::recovery_trainer_client::{
+    GetTrainingJobStatusRequest, GetTrainingJobStatusResponse, JobStatus, TrainerClientConfig,
+    TrainerClientInterface, TrainerError, TrainerResult, TriggerTrainingRequest,
+    TriggerTrainingResponse,
+};
 #[cfg(feature = "dynamic_routing")]
 use router_env::logger;
 use serde;
@@ -33,13 +39,6 @@ use serde;
     all(feature = "revenue_recovery", feature = "v2")
 ))]
 use tonic::body::Body;
-
-#[cfg(all(feature = "revenue_recovery", feature = "v2"))]
-pub use revenue_recovery::recovery_trainer_client::{
-    GetTrainingJobStatusRequest, GetTrainingJobStatusResponse, JobStatus, TrainerClientConfig,
-    TrainerClientInterface, TrainerError, TrainerResult, TriggerTrainingRequest,
-    TriggerTrainingResponse,
-};
 
 #[cfg(any(
     feature = "dynamic_routing",
