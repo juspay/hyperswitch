@@ -5,6 +5,7 @@ use api_models::{
     payments::GetAddressFromPaymentMethodData,
 };
 use async_trait::async_trait;
+use common_types::payments as common_payments_types;
 use common_utils::{
     ext_traits::{AsyncExt, Encode, ValueExt},
     type_name,
@@ -143,7 +144,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
                 id: profile_id.get_string_repr().to_owned(),
             })?
         };
-        let customer_acceptance = request.customer_acceptance.clone().map(From::from);
+        let customer_acceptance = request.customer_acceptance.clone();
 
         let recurring_details = request.recurring_details.clone();
 
@@ -879,6 +880,8 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for
             .as_ref()
             .map(|surcharge_details| surcharge_details.tax_on_surcharge_amount);
 
+        let routing_approach = payment_data.payment_attempt.routing_approach;
+
         payment_data.payment_attempt = state
             .store
             .update_payment_attempt_with_attempt_id(
@@ -895,6 +898,7 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for
                     tax_amount,
                     updated_by: storage_scheme.to_string(),
                     merchant_connector_id,
+                    routing_approach,
                 },
                 storage_scheme,
             )
@@ -1116,7 +1120,7 @@ impl PaymentCreate {
         payment_method_info: &Option<domain::PaymentMethod>,
         key_store: &domain::MerchantKeyStore,
         profile_id: common_utils::id_type::ProfileId,
-        customer_acceptance: &Option<payments::CustomerAcceptance>,
+        customer_acceptance: &Option<common_payments_types::CustomerAcceptance>,
         storage_scheme: enums::MerchantStorageScheme,
     ) -> RouterResult<(
         storage::PaymentAttemptNew,
@@ -1362,6 +1366,7 @@ impl PaymentCreate {
                 processor_merchant_id: merchant_id.to_owned(),
                 created_by: None,
                 setup_future_usage_applied: request.setup_future_usage,
+                routing_approach: Some(common_enums::RoutingApproach::default())
             },
             additional_pm_data,
 

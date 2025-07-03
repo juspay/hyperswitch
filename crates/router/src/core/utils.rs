@@ -14,6 +14,7 @@ use common_utils::{
     ext_traits::AsyncExt,
     types::{keymanager::KeyManagerState, ConnectorTransactionIdTrait, MinorUnit},
 };
+use diesel_models::refund as diesel_refund;
 use error_stack::{report, ResultExt};
 #[cfg(feature = "v2")]
 use hyperswitch_domain_models::types::VaultRouterData;
@@ -25,7 +26,7 @@ use hyperswitch_domain_models::{
 use hyperswitch_domain_models::{
     router_data_v2::flow_common_types::VaultConnectorFlowData, types::VaultRouterDataV2,
 };
-#[cfg(all(feature = "v2", feature = "refunds_v2"))]
+#[cfg(feature = "v2")]
 use masking::ExposeOptionInterface;
 use masking::Secret;
 #[cfg(feature = "payouts")]
@@ -33,7 +34,6 @@ use masking::{ExposeInterface, PeekInterface};
 use maud::{html, PreEscaped};
 use regex::Regex;
 use router_env::{instrument, tracing};
-use uuid::Uuid;
 
 use super::payments::helpers;
 #[cfg(feature = "payouts")]
@@ -56,7 +56,7 @@ use crate::{
         storage::{self, enums},
         PollConfig,
     },
-    utils::{generate_id, generate_uuid, OptionExt, ValueExt},
+    utils::{generate_id, OptionExt, ValueExt},
 };
 
 pub const IRRELEVANT_CONNECTOR_REQUEST_REFERENCE_ID_IN_DISPUTE_FLOW: &str =
@@ -187,7 +187,7 @@ pub async fn construct_payout_router_data<'a, F>(
         minor_amount_captured: None,
         payment_method_status: None,
         request: types::PayoutsData {
-            payout_id: payouts.payout_id.to_owned(),
+            payout_id: payouts.payout_id.clone(),
             amount: payouts.amount.get_amount_as_i64(),
             minor_amount: payouts.amount,
             connector_payout_id: payout_attempt.connector_payout_id.clone(),
@@ -249,8 +249,8 @@ pub async fn construct_refund_router_data<'a, F>(
     merchant_context: &domain::MerchantContext,
     payment_intent: &'a storage::PaymentIntent,
     payment_attempt: &storage::PaymentAttempt,
-    refund: &'a storage::Refund,
-    merchant_connector_account: &MerchantConnectorAccount,
+    refund: &'a diesel_refund::Refund,
+    merchant_connector_account: &domain::MerchantConnectorAccountTypeDetails,
 ) -> RouterResult<types::RefundsRouterData<F>> {
     let auth_type = merchant_connector_account
         .get_connector_account_details()
@@ -263,13 +263,17 @@ pub async fn construct_refund_router_data<'a, F>(
 
     let payment_method_type = payment_attempt.payment_method_type;
 
-    let merchant_connector_account_id = &merchant_connector_account.id;
-
-    let webhook_url = Some(helpers::create_webhook_url(
-        &state.base_url.clone(),
-        merchant_context.get_merchant_account().get_id(),
-        merchant_connector_account_id.get_string_repr(),
-    ));
+    let webhook_url = match merchant_connector_account {
+        domain::MerchantConnectorAccountTypeDetails::MerchantConnectorAccount(
+            merchant_connector_account,
+        ) => Some(helpers::create_webhook_url(
+            &state.base_url.clone(),
+            merchant_context.get_merchant_account().get_id(),
+            merchant_connector_account.get_id().get_string_repr(),
+        )),
+        // TODO: Implement for connectors that require a webhook URL to be included in the request payload.
+        domain::MerchantConnectorAccountTypeDetails::MerchantConnectorDetails(_) => None,
+    };
 
     let supported_connector = &state
         .conf
@@ -313,6 +317,13 @@ pub async fn construct_refund_router_data<'a, F>(
     let merchant_config_currency =
         braintree_metadata.and_then(|braintree| braintree.merchant_config_currency);
 
+    let connector_wallets_details = match merchant_connector_account {
+        domain::MerchantConnectorAccountTypeDetails::MerchantConnectorAccount(
+            merchant_connector_account,
+        ) => merchant_connector_account.get_connector_wallets_details(),
+        domain::MerchantConnectorAccountTypeDetails::MerchantConnectorDetails(_) => None,
+    };
+
     let router_data = types::RouterData {
         flow: PhantomData,
         merchant_id: merchant_context.get_merchant_account().get_id().clone(),
@@ -329,7 +340,7 @@ pub async fn construct_refund_router_data<'a, F>(
         address: PaymentAddress::default(),
         auth_type: payment_attempt.authentication_type,
         connector_meta_data: merchant_connector_account.get_metadata(),
-        connector_wallets_details: merchant_connector_account.get_connector_wallets_details(),
+        connector_wallets_details,
         amount_captured: payment_intent
             .amount_captured
             .map(|amt| amt.get_amount_as_i64()),
@@ -406,7 +417,7 @@ pub async fn construct_refund_router_data<'a, F>(
     money: (MinorUnit, enums::Currency),
     payment_intent: &'a storage::PaymentIntent,
     payment_attempt: &storage::PaymentAttempt,
-    refund: &'a storage::Refund,
+    refund: &'a diesel_refund::Refund,
     creds_identifier: Option<String>,
     split_refunds: Option<router_request_types::SplitRefundsRequest>,
 ) -> RouterResult<types::RefundsRouterData<F>> {
@@ -610,16 +621,6 @@ pub fn get_or_generate_id(
         .map_or(Ok(generate_id(consts::ID_LENGTH, prefix)), validate_id)
 }
 
-pub fn get_or_generate_uuid(
-    key: &str,
-    provided_id: Option<&String>,
-) -> Result<String, errors::ApiErrorResponse> {
-    let validate_id = |id: String| validate_uuid(id, key);
-    provided_id
-        .cloned()
-        .map_or(Ok(generate_uuid()), validate_id)
-}
-
 fn invalid_id_format_error(key: &str) -> errors::ApiErrorResponse {
     errors::ApiErrorResponse::InvalidDataFormat {
         field_name: key.to_string(),
@@ -635,13 +636,6 @@ pub fn validate_id(id: String, key: &str) -> Result<String, errors::ApiErrorResp
         Err(invalid_id_format_error(key))
     } else {
         Ok(id)
-    }
-}
-
-pub fn validate_uuid(uuid: String, key: &str) -> Result<String, errors::ApiErrorResponse> {
-    match (Uuid::parse_str(&uuid), uuid.len() > consts::MAX_ID_LENGTH) {
-        (Ok(_), false) => Ok(uuid),
-        (_, _) => Err(invalid_id_format_error(key)),
     }
 }
 
@@ -2029,7 +2023,7 @@ pub(crate) fn validate_profile_id_from_auth_layer<T: GetProfileId + std::fmt::De
             }
             .into(),
         )
-        .attach_printable(format!("Couldn't find profile_id in entity {:?}", object)),
+        .attach_printable(format!("Couldn't find profile_id in entity {object:?}")),
         (None, None) | (None, Some(_)) => Ok(()),
     }
 }
@@ -2038,7 +2032,7 @@ pub(crate) fn validate_profile_id_from_auth_layer<T: GetProfileId + std::fmt::De
 pub async fn construct_vault_router_data<F>(
     state: &SessionState,
     merchant_account: &domain::MerchantAccount,
-    merchant_connector_account: &payment_helpers::MerchantConnectorAccountType,
+    merchant_connector_account: &domain::MerchantConnectorAccountTypeDetails,
     payment_method_vaulting_data: Option<domain::PaymentMethodVaultingData>,
     connector_vault_id: Option<String>,
     connector_customer_id: Option<String>,
@@ -2047,9 +2041,8 @@ pub async fn construct_vault_router_data<F>(
         .get_connector_name()
         .ok_or(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Connector name not present for external vault")?; // always get the connector name from the merchant_connector_account
-    let connector_auth_type: types::ConnectorAuthType = merchant_connector_account
+    let connector_auth_type = merchant_connector_account
         .get_connector_account_details()
-        .parse_value("ConnectorAuthType")
         .change_context(errors::ApiErrorResponse::InternalServerError)?;
 
     let resource_common_data = VaultConnectorFlowData {
@@ -2152,7 +2145,7 @@ fn validate_iban(iban: &Secret<String>) -> RouterResult<()> {
     rearranged_iban.chars().for_each(|c| {
         if c.is_ascii_uppercase() {
             let digit = (u32::from(c) - u32::from('A')) + 10;
-            result.push_str(&format!("{:02}", digit));
+            result.push_str(&format!("{digit:02}"));
         } else {
             result.push(c);
         }
