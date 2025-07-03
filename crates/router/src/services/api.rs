@@ -845,16 +845,14 @@ where
                             .into_iter()
                             .collect::<Vec<String>>()
                             .join(" ");
-                        let csp_header = format!("frame-ancestors 'self' {};", domains_str);
+                        let csp_header = format!("frame-ancestors 'self' {domains_str};");
                         Some(HashSet::from([("content-security-policy", csp_header)]))
                     } else {
                         None
                     };
                     http_response_html_data(rendered_html, headers)
                 }
-                Err(_) => {
-                    http_response_err(format!("Error while rendering {} HTML page", link_type))
-                }
+                Err(_) => http_response_err(format!("Error while rendering {link_type} HTML page")),
             }
         }
 
@@ -1236,10 +1234,9 @@ pub fn build_redirection_form(
             }
         }
         },
-        RedirectForm::Html { html_data } => PreEscaped(format!(
-            "{} <script>{}</script>",
-            html_data, logging_template
-        )),
+        RedirectForm::Html { html_data } => {
+            PreEscaped(format!("{html_data} <script>{logging_template}</script>"))
+        }
         RedirectForm::BlueSnap {
             payment_fields_token,
         } => {
@@ -2003,7 +2000,6 @@ fn get_preload_link_html_template(sdk_url: &url::Url) -> String {
     format!(
         r#"<link rel="preload" href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800" as="style">
             <link rel="preload" href="{sdk_url}" as="script">"#,
-        sdk_url = sdk_url
     )
 }
 

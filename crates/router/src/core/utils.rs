@@ -34,7 +34,6 @@ use masking::{ExposeInterface, PeekInterface};
 use maud::{html, PreEscaped};
 use regex::Regex;
 use router_env::{instrument, tracing};
-use uuid::Uuid;
 
 use super::payments::helpers;
 #[cfg(feature = "payouts")]
@@ -57,7 +56,7 @@ use crate::{
         storage::{self, enums},
         PollConfig,
     },
-    utils::{generate_id, generate_uuid, OptionExt, ValueExt},
+    utils::{generate_id, OptionExt, ValueExt},
 };
 
 pub const IRRELEVANT_CONNECTOR_REQUEST_REFERENCE_ID_IN_DISPUTE_FLOW: &str =
@@ -188,7 +187,7 @@ pub async fn construct_payout_router_data<'a, F>(
         minor_amount_captured: None,
         payment_method_status: None,
         request: types::PayoutsData {
-            payout_id: payouts.payout_id.to_owned(),
+            payout_id: payouts.payout_id.clone(),
             amount: payouts.amount.get_amount_as_i64(),
             minor_amount: payouts.amount,
             connector_payout_id: payout_attempt.connector_payout_id.clone(),
@@ -622,16 +621,6 @@ pub fn get_or_generate_id(
         .map_or(Ok(generate_id(consts::ID_LENGTH, prefix)), validate_id)
 }
 
-pub fn get_or_generate_uuid(
-    key: &str,
-    provided_id: Option<&String>,
-) -> Result<String, errors::ApiErrorResponse> {
-    let validate_id = |id: String| validate_uuid(id, key);
-    provided_id
-        .cloned()
-        .map_or(Ok(generate_uuid()), validate_id)
-}
-
 fn invalid_id_format_error(key: &str) -> errors::ApiErrorResponse {
     errors::ApiErrorResponse::InvalidDataFormat {
         field_name: key.to_string(),
@@ -647,13 +636,6 @@ pub fn validate_id(id: String, key: &str) -> Result<String, errors::ApiErrorResp
         Err(invalid_id_format_error(key))
     } else {
         Ok(id)
-    }
-}
-
-pub fn validate_uuid(uuid: String, key: &str) -> Result<String, errors::ApiErrorResponse> {
-    match (Uuid::parse_str(&uuid), uuid.len() > consts::MAX_ID_LENGTH) {
-        (Ok(_), false) => Ok(uuid),
-        (_, _) => Err(invalid_id_format_error(key)),
     }
 }
 
@@ -2041,7 +2023,7 @@ pub(crate) fn validate_profile_id_from_auth_layer<T: GetProfileId + std::fmt::De
             }
             .into(),
         )
-        .attach_printable(format!("Couldn't find profile_id in entity {:?}", object)),
+        .attach_printable(format!("Couldn't find profile_id in entity {object:?}")),
         (None, None) | (None, Some(_)) => Ok(()),
     }
 }
@@ -2163,7 +2145,7 @@ fn validate_iban(iban: &Secret<String>) -> RouterResult<()> {
     rearranged_iban.chars().for_each(|c| {
         if c.is_ascii_uppercase() {
             let digit = (u32::from(c) - u32::from('A')) + 10;
-            result.push_str(&format!("{:02}", digit));
+            result.push_str(&format!("{digit:02}"));
         } else {
             result.push(c);
         }
