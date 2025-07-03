@@ -77,24 +77,28 @@ impl
         merchant_connector_account: &helpers::MerchantConnectorAccountType,
         connector: &api::ConnectorData,
     ) -> RouterResult<Option<types::MerchantRecipientData>> {
-        let payment_method = &self
-            .payment_attempt
-            .get_payment_method()
-            .get_required_value("PaymentMethod")?;
+        match &self.payment_intent.is_payment_processor_token_flow {
+            Some(true) => Ok(None),
+            Some(false) | None => {
+                let is_open_banking = &self
+                    .payment_attempt
+                    .get_payment_method()
+                    .get_required_value("PaymentMethod")?
+                    .eq(&enums::PaymentMethod::OpenBanking);
 
-        let data = if *payment_method == enums::PaymentMethod::OpenBanking {
-            payments::get_merchant_bank_data_for_open_banking_connectors(
-                merchant_connector_account,
-                merchant_context,
-                connector,
-                state,
-            )
-            .await?
-        } else {
-            None
-        };
-
-        Ok(data)
+                Ok(if *is_open_banking {
+                    payments::get_merchant_bank_data_for_open_banking_connectors(
+                        merchant_connector_account,
+                        merchant_context,
+                        connector,
+                        state,
+                    )
+                    .await?
+                } else {
+                    None
+                })
+            }
+        }
     }
 }
 
@@ -146,24 +150,28 @@ impl
         merchant_connector_account: &helpers::MerchantConnectorAccountType,
         connector: &api::ConnectorData,
     ) -> RouterResult<Option<types::MerchantRecipientData>> {
-        let payment_method = &self
-            .payment_attempt
-            .get_payment_method()
-            .get_required_value("PaymentMethod")?;
+        match &self.payment_intent.is_payment_processor_token_flow {
+            Some(true) => Ok(None),
+            Some(false) | None => {
+                let is_open_banking = &self
+                    .payment_attempt
+                    .get_payment_method()
+                    .get_required_value("PaymentMethod")?
+                    .eq(&enums::PaymentMethod::OpenBanking);
 
-        let data = if *payment_method == enums::PaymentMethod::OpenBanking {
-            payments::get_merchant_bank_data_for_open_banking_connectors(
-                merchant_connector_account,
-                merchant_context,
-                connector,
-                state,
-            )
-            .await?
-        } else {
-            None
-        };
-
-        Ok(data)
+                Ok(if *is_open_banking {
+                    payments::get_merchant_bank_data_for_open_banking_connectors(
+                        merchant_connector_account,
+                        merchant_context,
+                        connector,
+                        state,
+                    )
+                    .await?
+                } else {
+                    None
+                })
+            }
+        }
     }
 }
 

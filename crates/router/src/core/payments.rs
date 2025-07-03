@@ -3705,26 +3705,14 @@ where
     // Validating the blocklist guard and generate the fingerprint
     blocklist_guard(state, merchant_context, operation, payment_data).await?;
 
-    #[cfg(feature = "v1")]
-    let merchant_recipient_data = if let Some(true) = payment_data
-        .get_payment_intent()
-        .is_payment_processor_token_flow
-    {
-        None
-    } else {
-        payment_data
-            .get_merchant_recipient_data(
-                state,
-                merchant_context,
-                &merchant_connector_account,
-                &connector,
-            )
-            .await?
-    };
-
-    // TODO: handle how we read `is_processor_token_flow` in v2 and then call `get_merchant_recipient_data`
-    #[cfg(feature = "v2")]
-    let merchant_recipient_data = None;
+    payment_data
+        .get_merchant_recipient_data(
+            state,
+            merchant_context,
+            &merchant_connector_account,
+            &connector,
+        )
+        .await?;
 
     let router_data = payment_data
         .construct_router_data(

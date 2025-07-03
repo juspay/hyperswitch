@@ -64,7 +64,9 @@ pub trait ConstructFlowSpecificData<F, Req, Res> {
         merchant_context: &domain::MerchantContext,
         merchant_connector_account: &helpers::MerchantConnectorAccountType,
         connector: &api::ConnectorData,
-    ) -> RouterResult<Option<types::MerchantRecipientData>>;
+    ) -> RouterResult<Option<types::MerchantRecipientData>> {
+        Ok(None)
+    }
 }
 
 #[allow(clippy::too_many_arguments)]
