@@ -9,8 +9,8 @@ use common_utils::{
 use error_stack::ResultExt;
 use hyperswitch_domain_models::{
     payment_method_data::{
-        BankRedirectData, BankTransferData, Card as CardData, GiftCardData, PaymentMethodData,
-        VoucherData, WalletData,
+        BankRedirectData, BankTransferData, Card as CardData, CryptoData, GiftCardData,
+        PayLaterData, PaymentMethodData, VoucherData, WalletData,
     },
     router_data::{ConnectorAuthType, RouterData},
     router_flow_types::refunds::{Execute, RSync},
@@ -135,11 +135,27 @@ pub enum Shift4PaymentMethod {
     Cards3DSRequest(Box<Cards3DSRequest>),
     VoucherRequest(Box<VoucherRequest>),
     WalletRequest(Box<WalletRequest>),
+    PayLaterRequest(Box<PayLaterRequest>),
+    CryptoRequest(Box<CryptoRequest>),
 }
 
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct WalletRequest {
+    flow: Flow,
+    payment_method: PaymentMethod,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct PayLaterRequest {
+    flow: Flow,
+    payment_method: PaymentMethod,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct CryptoRequest {
     flow: Flow,
     payment_method: PaymentMethod,
 }
@@ -185,7 +201,7 @@ pub struct Flow {
 }
 
 #[derive(Debug, Serialize)]
-#[serde(rename_all = "lowercase")]
+#[serde(rename_all = "snake_case")]
 pub enum PaymentMethodType {
     Eps,
     Giropay,
@@ -195,6 +211,9 @@ pub enum PaymentMethodType {
     Trustly,
     Alipay,
     Wechatpay,
+    Blik,
+    KlarnaDebitRisk,
+    Bitpay,
 }
 
 #[derive(Debug, Serialize)]
@@ -264,6 +283,48 @@ where
     }
 }
 
+impl TryFrom<&PayLaterData> for PaymentMethodType {
+    type Error = Error;
+    fn try_from(value: &PayLaterData) -> Result<Self, Self::Error> {
+        match value {
+            PayLaterData::KlarnaRedirect { .. } => Ok(Self::KlarnaDebitRisk),
+            PayLaterData::AffirmRedirect { .. }
+            | PayLaterData::AfterpayClearpayRedirect { .. }
+            | PayLaterData::PayBrightRedirect { .. }
+            | PayLaterData::WalleyRedirect { .. }
+            | PayLaterData::AlmaRedirect { .. }
+            | PayLaterData::AtomeRedirect { .. }
+            | PayLaterData::KlarnaSdk { .. } => Err(errors::ConnectorError::NotImplemented(
+                utils::get_unimplemented_payment_method_error_message("Shift4"),
+            )
+            .into()),
+        }
+    }
+}
+
+impl<T, Req> TryFrom<(&RouterData<T, Req, PaymentsResponseData>, &PayLaterData)>
+    for Shift4PaymentMethod
+where
+    Req: Shift4AuthorizePreprocessingCommon,
+{
+    type Error = Error;
+    fn try_from(
+        (item, pay_later_data): (&RouterData<T, Req, PaymentsResponseData>, &PayLaterData),
+    ) -> Result<Self, Self::Error> {
+        let flow = Flow::try_from(item.request.get_router_return_url())?;
+        let method_type = PaymentMethodType::try_from(pay_later_data)?;
+        let billing = Billing::try_from(item)?;
+        let payment_method = PaymentMethod {
+            method_type,
+            billing,
+        };
+        Ok(Self::BankRedirectRequest(Box::new(BankRedirectRequest {
+            payment_method,
+            flow,
+        })))
+    }
+}
+
 impl<T, Req> TryFrom<&RouterData<T, Req, PaymentsResponseData>> for Shift4PaymentMethod
 where
     Req: Shift4AuthorizePreprocessingCommon,
@@ -281,10 +342,12 @@ where
             PaymentMethodData::GiftCard(ref giftcard_data) => {
                 Self::try_from(giftcard_data.as_ref())
             }
+            PaymentMethodData::PayLater(ref pay_later_data) => {
+                Self::try_from((item, pay_later_data))
+            }
+            PaymentMethodData::Crypto(ref crypto_data) => Self::try_from((item, crypto_data)),
             PaymentMethodData::CardRedirect(_)
-            | PaymentMethodData::PayLater(_)
             | PaymentMethodData::BankDebit(_)
-            | PaymentMethodData::Crypto(_)
             | PaymentMethodData::MandatePayment
             | PaymentMethodData::Reward
             | PaymentMethodData::RealTimePayment(_)
@@ -527,6 +590,37 @@ where
     }
 }
 
+impl TryFrom<&CryptoData> for PaymentMethodType {
+    type Error = Error;
+
+    fn try_from(_value: &CryptoData) -> Result<Self, Self::Error> {
+        Ok(Self::Bitpay)
+    }
+}
+
+impl<T, Req> TryFrom<(&RouterData<T, Req, PaymentsResponseData>, &CryptoData)>
+    for Shift4PaymentMethod
+where
+    Req: Shift4AuthorizePreprocessingCommon,
+{
+    type Error = Error;
+    fn try_from(
+        (item, redirect_data): (&RouterData<T, Req, PaymentsResponseData>, &CryptoData),
+    ) -> Result<Self, Self::Error> {
+        let flow = Flow::try_from(item.request.get_router_return_url())?;
+        let method_type = PaymentMethodType::try_from(redirect_data)?;
+        let billing = Billing::try_from(item)?;
+        let payment_method = PaymentMethod {
+            method_type,
+            billing,
+        };
+        Ok(Self::CryptoRequest(Box::new(CryptoRequest {
+            payment_method,
+            flow,
+        })))
+    }
+}
+
 impl<T> TryFrom<&Shift4RouterData<&RouterData<T, CompleteAuthorizeData, PaymentsResponseData>>>
     for Shift4PaymentsRequest
 {
@@ -585,8 +679,8 @@ impl TryFrom<&BankRedirectData> for PaymentMethodType {
             BankRedirectData::Ideal { .. } => Ok(Self::Ideal),
             BankRedirectData::Sofort { .. } => Ok(Self::Sofort),
             BankRedirectData::Trustly { .. } => Ok(Self::Trustly),
+            BankRedirectData::Blik { .. } => Ok(Self::Blik),
             BankRedirectData::BancontactCard { .. }
-            | BankRedirectData::Blik { .. }
             | BankRedirectData::Eft { .. }
             | BankRedirectData::Przelewy24 { .. }
             | BankRedirectData::Bizum {}

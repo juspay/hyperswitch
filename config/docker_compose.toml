@@ -784,6 +784,9 @@ boleto = { country = "BR", currency = "BRL" }
 trustly = { currency = "CZK,DKK,EUR,GBP,NOK,SEK" }
 ali_pay = { country = "CN", currency = "CNY" }
 we_chat_pay = { country = "CN", currency = "CNY" }
+klarna = { currency = "EUR,GBP,CHF,SEK" }
+blik = { country = "PL", currency = "PLN" }
+crypto_currency = { currency = "USD,GBP,AED" }
 
 [pm_filters.inespay]
 sepa = { country = "ES", currency = "EUR"}
