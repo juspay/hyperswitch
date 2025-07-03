@@ -378,4 +378,6 @@ merchant_ids = "merchant_ids"           # Comma-separated list of allowed mercha
 connector_names = "connector_names"     # Comma-separated list of allowed connector names
 
 [grpc_client.unified_connector_service]
-base_url = "http://localhost:8000/"     # Unified Connector Service URL
+host = "localhost"                      # Unified Connector Service Client Host
+port = 8000                             # Unified Connector Service Client Port
+connection_timeout = 10                 # Connection Timeout Duration in Seconds
