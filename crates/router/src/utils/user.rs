@@ -214,7 +214,7 @@ where
 {
     serde_json::from_value::<T>(value)
         .change_context(UserErrors::InternalServerError)
-        .attach_printable(format!("Unable to parse {}", type_name))
+        .attach_printable(format!("Unable to parse {type_name}"))
 }
 
 pub async fn decrypt_oidc_private_config(
@@ -285,7 +285,7 @@ pub async fn get_sso_id_from_redis(
 }
 
 fn get_oidc_key(oidc_state: &str) -> String {
-    format!("{}{oidc_state}", REDIS_SSO_PREFIX)
+    format!("{REDIS_SSO_PREFIX}{oidc_state}")
 }
 
 pub fn get_oidc_sso_redirect_url(state: &SessionState, provider: &str) -> String {

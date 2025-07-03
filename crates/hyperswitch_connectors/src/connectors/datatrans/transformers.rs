@@ -582,8 +582,8 @@ impl<F>
             }
             DatatransResponse::ThreeDSResponse(response) => {
                 let redirection_link = match item.data.test_mode {
-                    Some(true) => format!("{}/v1/start", REDIRECTION_SBX_URL),
-                    Some(false) | None => format!("{}/v1/start", REDIRECTION_PROD_URL),
+                    Some(true) => format!("{REDIRECTION_SBX_URL}/v1/start"),
+                    Some(false) | None => format!("{REDIRECTION_PROD_URL}/v1/start"),
                 };
                 Ok(PaymentsResponseData::TransactionResponse {
                     resource_id: ResponseId::ConnectorTransactionId(
@@ -654,8 +654,8 @@ impl<F>
             }
             DatatransResponse::ThreeDSResponse(response) => {
                 let redirection_link = match item.data.test_mode {
-                    Some(true) => format!("{}/v1/start", REDIRECTION_SBX_URL),
-                    Some(false) | None => format!("{}/v1/start", REDIRECTION_PROD_URL),
+                    Some(true) => format!("{REDIRECTION_SBX_URL}/v1/start"),
+                    Some(false) | None => format!("{REDIRECTION_PROD_URL}/v1/start"),
                 };
                 Ok(PaymentsResponseData::TransactionResponse {
                     resource_id: ResponseId::ConnectorTransactionId(

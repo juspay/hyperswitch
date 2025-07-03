@@ -775,7 +775,7 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
                     (
                         common_enums::PaymentExperience::RedirectToUrl,
                         common_enums::PaymentMethodType::Klarna,
-                    ) => Ok(format!("{endpoint}checkout/v3/orders",)),
+                    ) => Ok(format!("{endpoint}checkout/v3/orders")),
                     #[cfg(feature = "v1")]
                     (
                         common_enums::PaymentExperience::DisplayQrCode

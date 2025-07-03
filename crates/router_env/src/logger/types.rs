@@ -606,6 +606,8 @@ pub enum Flow {
     ProfileAcquirerUpdate,
     /// ThreeDs Decision Rule Execute flow
     ThreeDsDecisionRuleExecute,
+    /// Incoming Network Token Webhook Receive
+    IncomingNetworkTokenWebhookReceive,
 }
 
 /// Trait for providing generic behaviour to flow metric
