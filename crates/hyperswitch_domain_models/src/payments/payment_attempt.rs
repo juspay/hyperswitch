@@ -9,14 +9,12 @@ use common_types::primitive_wrappers::{
 };
 #[cfg(feature = "v2")]
 use common_utils::{
-    crypto::Encryptable,
-    encryption::Encryption,
-    ext_traits::{Encode, ValueExt},
+    crypto::Encryptable, encryption::Encryption, ext_traits::Encode,
     types::keymanager::ToEncryptable,
 };
 use common_utils::{
     errors::{CustomResult, ValidationError},
-    ext_traits::OptionExt,
+    ext_traits::{OptionExt, ValueExt},
     id_type, pii,
     types::{
         keymanager::{self, KeyManagerState},
@@ -1063,6 +1061,10 @@ impl PaymentAttempt {
     pub fn get_total_surcharge_amount(&self) -> Option<MinorUnit> {
         self.amount_details.surcharge_amount
     }
+
+    pub fn extract_card_network(&self) -> Option<common_enums::CardNetwork> {
+        todo!()
+    }
 }
 
 #[cfg(feature = "v1")]
@@ -1077,6 +1079,21 @@ impl PaymentAttempt {
 
     pub fn set_debit_routing_savings(&mut self, debit_routing_savings: Option<&MinorUnit>) {
         self.debit_routing_savings = debit_routing_savings.copied();
+    }
+
+    pub fn extract_card_network(&self) -> Option<common_enums::CardNetwork> {
+        self.payment_method_data
+            .as_ref()
+            .and_then(|value| {
+                value
+                    .clone()
+                    .parse_value::<api_models::payments::AdditionalPaymentData>(
+                        "AdditionalPaymentData",
+                    )
+                    .ok()
+            })
+            .and_then(|data| data.get_additional_card_info())
+            .and_then(|card_info| card_info.card_network)
     }
 }
 

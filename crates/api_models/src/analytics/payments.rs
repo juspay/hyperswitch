@@ -129,7 +129,7 @@ impl ForexMetric for PaymentMetrics {
             self,
             Self::PaymentProcessedAmount
                 | Self::AvgTicketSize
-                // add here New Metric
+                | Self::DebitRouting
                 | Self::SessionizedPaymentProcessedAmount
                 | Self::SessionizedAvgTicketSize
         )

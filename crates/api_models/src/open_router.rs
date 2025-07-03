@@ -67,7 +67,7 @@ pub struct DecidedGateway {
 
 #[derive(Debug, Serialize, Deserialize, PartialEq, Clone)]
 pub struct DebitRoutingOutput {
-    pub co_badged_card_networks_info: Vec<CoBadgedCardNetworksInfo>,
+    pub co_badged_card_networks_info: CoBadgedCardNetworks,
     pub issuer_country: common_enums::CountryAlpha2,
     pub is_regulated: bool,
     pub regulated_name: Option<common_enums::RegulatedName>,
@@ -91,25 +91,11 @@ impl CoBadgedCardNetworks {
 
 impl From<&DebitRoutingOutput> for payment_methods::CoBadgedCardData {
     fn from(output: &DebitRoutingOutput) -> Self {
-        let co_badged_card_networks_info = output
-            .co_badged_card_networks_info
-            .iter()
-            .map(|data| data.into())
-            .collect();
         Self {
-            co_badged_card_networks_info,
+            co_badged_card_networks_info: output.co_badged_card_networks_info.clone(),
             issuer_country_code: output.issuer_country,
             is_regulated: output.is_regulated,
             regulated_name: output.regulated_name.clone(),
-        }
-    }
-}
-
-impl From<&CoBadgedCardNetworksInfo> for payment_methods::CoBadgedCardNetworksInfo {
-    fn from(network_info: &CoBadgedCardNetworksInfo) -> Self {
-        Self {
-            network: network_info.network.clone(),
-            saving_percentage: network_info.saving_percentage,
         }
     }
 }
@@ -125,11 +111,7 @@ impl TryFrom<(payment_methods::CoBadgedCardData, String)> for DebitRoutingReques
         })?;
 
         Ok(Self {
-            co_badged_card_networks_info: output
-                .co_badged_card_networks_info
-                .iter()
-                .map(|data| data.network.clone())
-                .collect(),
+            co_badged_card_networks_info: output.co_badged_card_networks_info.get_card_networks(),
             issuer_country: output.issuer_country_code,
             is_regulated: output.is_regulated,
             regulated_name: output.regulated_name,

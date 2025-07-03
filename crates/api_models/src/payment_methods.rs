@@ -19,7 +19,7 @@ use utoipa::{schema, ToSchema};
 #[cfg(feature = "payouts")]
 use crate::payouts;
 use crate::{
-    admin, enums as api_enums,
+    admin, enums as api_enums, open_router,
     payments::{self, BankCodeResponse},
 };
 
@@ -968,10 +968,7 @@ impl From<&CoBadgedCardData> for CoBadgedCardDataToBeSaved {
         Self {
             co_badged_card_networks: co_badged_card_data
                 .co_badged_card_networks_info
-                .clone()
-                .into_iter()
-                .map(|network_info| network_info.network)
-                .collect(),
+                .get_card_networks(),
             issuer_country_code: co_badged_card_data.issuer_country_code,
             is_regulated: co_badged_card_data.is_regulated,
             regulated_name: co_badged_card_data.regulated_name.clone(),
@@ -981,7 +978,7 @@ impl From<&CoBadgedCardData> for CoBadgedCardDataToBeSaved {
 
 #[derive(Clone, Debug, PartialEq, serde::Deserialize, serde::Serialize)]
 pub struct CoBadgedCardData {
-    pub co_badged_card_networks_info: Vec<CoBadgedCardNetworksInfo>,
+    pub co_badged_card_networks_info: open_router::CoBadgedCardNetworks,
     pub issuer_country_code: common_enums::CountryAlpha2,
     pub is_regulated: bool,
     pub regulated_name: Option<common_enums::RegulatedName>,
@@ -993,12 +990,6 @@ pub struct CoBadgedCardDataToBeSaved {
     pub issuer_country_code: common_enums::CountryAlpha2,
     pub is_regulated: bool,
     pub regulated_name: Option<common_enums::RegulatedName>,
-}
-
-#[derive(Debug, serde::Serialize, serde::Deserialize, PartialEq, Clone)]
-pub struct CoBadgedCardNetworksInfo {
-    pub network: common_enums::CardNetwork,
-    pub saving_percentage: f64,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq, serde::Deserialize, serde::Serialize, ToSchema)]

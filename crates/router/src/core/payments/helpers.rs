@@ -5211,42 +5211,6 @@ pub fn get_applepay_metadata(
         })
 }
 
-pub fn extract_saving_percentage(
-    payment_method_data: &domain::PaymentMethodData,
-    network: &common_enums::CardNetwork,
-) -> Option<f64> {
-    match &payment_method_data {
-        domain::PaymentMethodData::Card(card) => card
-            .co_badged_card_data
-            .as_ref()?
-            .co_badged_card_networks_info
-            .iter()
-            .find(|info| &info.network == network)
-            .map(|info| info.saving_percentage),
-        _ => None,
-    }
-}
-
-pub fn extract_card_network(payment_attempt: &PaymentAttempt) -> Option<common_enums::CardNetwork> {
-    payment_attempt
-        .payment_method_data
-        .as_ref()
-        .and_then(|value| {
-            value
-                .clone()
-                .parse_value::<api_models::payments::AdditionalPaymentData>("AdditionalPaymentData")
-                .inspect_err(|err| {
-                    logger::warn!(
-                        ?err,
-                        "Failed to parse AdditionalPaymentData while extracting card network"
-                    );
-                })
-                .ok()
-        })
-        .and_then(|data| data.get_additional_card_info())
-        .and_then(|card_info| card_info.card_network)
-}
-
 pub fn calculate_debit_routing_savings(net_amount: f64, saving_percentage: f64) -> MinorUnit {
     logger::debug!(
         ?net_amount,
@@ -5275,9 +5239,9 @@ pub fn get_debit_routing_savings_amount(
     payment_method_data: &domain::PaymentMethodData,
     payment_attempt: &PaymentAttempt,
 ) -> Option<MinorUnit> {
-    let card_network = extract_card_network(payment_attempt)?;
+    let card_network = payment_attempt.extract_card_network()?;
 
-    let saving_percentage = extract_saving_percentage(payment_method_data, &card_network)?;
+    let saving_percentage = payment_method_data.extract_debit_routing_saving_percentage(&card_network)?;
 
     let net_amount = payment_attempt
         .get_total_amount()
