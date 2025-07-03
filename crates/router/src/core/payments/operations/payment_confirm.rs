@@ -1145,6 +1145,32 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
                     .clone()
                     .and_then(|network| business_profile.get_acquirer_details_from_network(network))
             });
+
+            let country = business_profile
+                .merchant_country_code
+                .map(|country_code| match u32::try_from(country_code) {
+                    Ok(code) => match common_enums::Country::from_numeric(code) {
+                        Ok(country) => Ok(country),
+                        Err(err) => {
+                            logger::error!("Invalid country code {}: {:?}", code, err);
+                            Err(errors::ApiErrorResponse::InvalidDataValue {
+                                field_name: "merchant_country_code",
+                            })
+                        }
+                    },
+                    Err(err) => {
+                        logger::error!(
+                            "Country code {} is negative or too large: {:?}",
+                            country_code,
+                            err
+                        );
+                        Err(errors::ApiErrorResponse::InvalidDataValue {
+                            field_name: "merchant_country_code",
+                        })
+                    }
+                })
+                .transpose()?;
+
             // get three_ds_decision_rule_output using algorithm_id and payment data
             let decision = three_ds_decision_rule::get_three_ds_decision_rule_output(
                 state,
@@ -1182,9 +1208,7 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
                     customer_device: None,
                     acquirer: acquirer_config.as_ref().map(|acquirer| {
                         api_models::three_ds_decision_rule::AcquirerData {
-                            country: Some(common_enums::Country::from_alpha2(
-                                acquirer.merchant_country_code,
-                            )),
+                            country,
                             fraud_rate: Some(acquirer.acquirer_fraud_rate),
                         }
                     }),
@@ -1280,6 +1304,10 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
                             payment_data.payment_intent.amount,
                             payment_data.payment_intent.currency,
                             payment_data.service_details.clone(),
+                            None,
+                            None,
+                            None,
+                            None
                         )
                         .await?;
 
@@ -1348,6 +1376,7 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
                             payment_data.payment_attempt.organization_id.clone(),
                             payment_data.payment_intent.force_3ds_challenge,
                             payment_data.payment_intent.psd2_sca_exemption_type,
+                            None,
                             None,
                             None,
                             None,
@@ -1422,7 +1451,7 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
                     ..
                 } => {
                     let (authentication_connector, three_ds_connector_account) =
-                    authentication::utils::get_authentication_connector_data(state, key_store, business_profile).await?;
+                    authentication::utils::get_authentication_connector_data(state, key_store, business_profile, None).await?;
                 let authentication_connector_name = authentication_connector.to_string();
                 let authentication = authentication::utils::create_new_authentication(
                     state,
@@ -1454,14 +1483,22 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
                     ).attach_printable("payment_method not found in payment_attempt")?,
                     payment_data.payment_intent.amount,
                     payment_data.payment_intent.currency,
-                    payment_data.service_details.clone()
+                    payment_data.service_details.clone(),
+                    None,
+                    None,
+                    None,
+                    None
                 ).await?;
                 let updated_authentication = uas_utils::utils::external_authentication_update_trackers(
                     state,
                     pre_auth_response,
                     authentication.clone(),
                     acquirer_details,
-                    key_store
+                    key_store,
+                    None,
+                    None,
+                    None,
+                    None,
                 ).await?;
                 let authentication_store = hyperswitch_domain_models::router_request_types::authentication::AuthenticationStore {
                     cavv: None, // since in case of pre_authentication cavv is not present
@@ -1505,7 +1542,7 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
                 },
                 helpers::UnifiedAuthenticationServiceFlow::ExternalAuthenticationPostAuthenticate {authentication_id} => {
                     let (authentication_connector, three_ds_connector_account) =
-                    authentication::utils::get_authentication_connector_data(state, key_store, business_profile).await?;
+                    authentication::utils::get_authentication_connector_data(state, key_store, business_profile, None).await?;
                 let is_pull_mechanism_enabled =
                     utils::check_if_pull_mechanism_for_external_3ds_enabled_from_connector_metadata(
                         three_ds_connector_account
@@ -1540,7 +1577,11 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
                         post_auth_response,
                         authentication,
                         None,
-                        key_store
+                        key_store,
+                        None,
+                        None,
+                        None,
+                        None,
                     ).await?
                 } else {
                     authentication

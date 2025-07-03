@@ -65,9 +65,6 @@ pub struct AcquirerConfig {
     /// merchant name
     #[schema(value_type= String,example = "NewAge Retailer")]
     pub merchant_name: String,
-    /// Merchant country code assigned by acquirer
-    #[schema(value_type= String,example = "US")]
-    pub merchant_country_code: common_enums::CountryAlpha2,
     /// Network provider
     #[schema(value_type= String,example = "VISA")]
     pub network: common_enums::CardNetwork,

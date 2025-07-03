@@ -2686,6 +2686,14 @@ impl Authentication {
         web::scope("/authentication")
             .app_data(web::Data::new(state))
             .service(web::resource("").route(web::post().to(authentication::authentication_create)))
+            .service(
+                web::resource("/{authentication_id}/eligibility")
+                    .route(web::post().to(authentication::authentication_eligibility)),
+            )
+            .service(
+                web::resource("/{authentication_id}/authenticate")
+                    .route(web::post().to(authentication::authentication_authenticate)),
+            )
     }
 }
 

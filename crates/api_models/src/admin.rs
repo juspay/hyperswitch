@@ -2176,6 +2176,10 @@ pub struct ProfileCreate {
     /// Four-digit code assigned based on business type to determine processing fees and risk level
     #[schema(value_type = Option<MerchantCategoryCode>, example = "5411")]
     pub merchant_category_code: Option<api_enums::MerchantCategoryCode>,
+
+    /// Merchant country code
+    #[schema(value_type = Option<i32>, example = 840)]
+    pub merchant_country_code: Option<i32>,
 }
 
 #[nutype::nutype(
@@ -2322,6 +2326,10 @@ pub struct ProfileCreate {
     /// Four-digit code assigned based on business type to determine processing fees and risk level
     #[schema(value_type = Option<MerchantCategoryCode>, example = "5411")]
     pub merchant_category_code: Option<api_enums::MerchantCategoryCode>,
+
+    /// Merchant country code
+    #[schema(value_type = Option<i32>, example = 840)]
+    pub merchant_country_code: Option<i32>,
 }
 
 #[cfg(feature = "v1")]
@@ -2497,6 +2505,10 @@ pub struct ProfileResponse {
     /// Four-digit code assigned based on business type to determine processing fees and risk level
     #[schema(value_type = Option<MerchantCategoryCode>, example = "5411")]
     pub merchant_category_code: Option<api_enums::MerchantCategoryCode>,
+
+    /// Merchant country code
+    #[schema(value_type = Option<i32>, example = 840)]
+    pub merchant_country_code: Option<i32>,
 }
 
 #[cfg(feature = "v2")]
@@ -2651,6 +2663,10 @@ pub struct ProfileResponse {
     /// Four-digit code assigned based on business type to determine processing fees and risk level
     #[schema(value_type = Option<MerchantCategoryCode>, example = "5411")]
     pub merchant_category_code: Option<api_enums::MerchantCategoryCode>,
+
+    /// Merchant country code
+    #[schema(value_type = Option<i32>, example = 840)]
+    pub merchant_country_code: Option<i32>,
 }
 
 #[cfg(feature = "v1")]
@@ -2811,6 +2827,10 @@ pub struct ProfileUpdate {
     /// Four-digit code assigned based on business type to determine processing fees and risk level
     #[schema(value_type = Option<MerchantCategoryCode>, example = "5411")]
     pub merchant_category_code: Option<api_enums::MerchantCategoryCode>,
+
+    /// Merchant country code
+    #[schema(value_type = Option<i32>, example = 840)]
+    pub merchant_country_code: Option<i32>,
 }
 
 #[cfg(feature = "v2")]
@@ -2947,6 +2967,10 @@ pub struct ProfileUpdate {
     /// Four-digit code assigned based on business type to determine processing fees and risk level
     #[schema(value_type = Option<MerchantCategoryCode>, example = "5411")]
     pub merchant_category_code: Option<api_enums::MerchantCategoryCode>,
+
+    /// Merchant country code
+    #[schema(value_type = Option<i32>, example = 840)]
+    pub merchant_country_code: Option<i32>,
 }
 
 #[derive(Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]

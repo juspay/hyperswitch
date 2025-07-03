@@ -6708,7 +6708,6 @@
         "required": [
           "acquirer_assigned_merchant_id",
           "merchant_name",
-          "merchant_country_code",
           "network",
           "acquirer_bin",
           "acquirer_fraud_rate"
@@ -6723,11 +6722,6 @@
             "type": "string",
             "description": "merchant name",
             "example": "NewAge Retailer"
-          },
-          "merchant_country_code": {
-            "type": "string",
-            "description": "Merchant country code assigned by acquirer",
-            "example": "US"
           },
           "network": {
             "type": "string",
@@ -7582,7 +7576,8 @@
         "type": "object",
         "required": [
           "amount",
-          "currency"
+          "currency",
+          "profile_acquirer_id"
         ],
         "properties": {
           "authentication_id": {
@@ -7596,14 +7591,6 @@
             "description": "The business profile that is associated with this authentication",
             "nullable": true
           },
-          "authentication_connector": {
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/AuthenticationConnectors"
-              }
-            ],
-            "nullable": true
-          },
           "customer": {
             "allOf": [
               {
@@ -7614,6 +7601,14 @@
           },
           "amount": {
             "$ref": "#/components/schemas/MinorUnit"
+          },
+          "authentication_connector": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/AuthenticationConnectors"
+              }
+            ],
+            "nullable": true
           },
           "currency": {
             "$ref": "#/components/schemas/Currency"
@@ -7644,6 +7639,9 @@
               }
             ],
             "nullable": true
+          },
+          "profile_acquirer_id": {
+            "$ref": "#/components/schemas/id_type.ProfileAcquirerId"
           }
         }
       },
@@ -7654,7 +7652,8 @@
           "merchant_id",
           "status",
           "amount",
-          "currency"
+          "currency",
+          "profile_acquirer_id"
         ],
         "properties": {
           "authentication_id": {
@@ -7682,17 +7681,17 @@
           "currency": {
             "$ref": "#/components/schemas/Currency"
           },
-          "force_3ds_challenge": {
-            "type": "boolean",
-            "description": "Whether 3DS challenge was forced.",
-            "nullable": true
-          },
           "authentication_connector": {
             "allOf": [
               {
                 "$ref": "#/components/schemas/AuthenticationConnectors"
               }
             ],
+            "nullable": true
+          },
+          "force_3ds_challenge": {
+            "type": "boolean",
+            "description": "Whether 3DS challenge was forced.",
             "nullable": true
           },
           "return_url": {
@@ -7737,6 +7736,9 @@
               }
             ],
             "nullable": true
+          },
+          "profile_acquirer_id": {
+            "$ref": "#/components/schemas/id_type.ProfileAcquirerId"
           }
         }
       },
@@ -26064,7 +26066,6 @@
         "required": [
           "acquirer_assigned_merchant_id",
           "merchant_name",
-          "merchant_country_code",
           "network",
           "acquirer_bin",
           "acquirer_fraud_rate",
@@ -26080,11 +26081,6 @@
             "type": "string",
             "description": "merchant name",
             "example": "NewAge Retailer"
-          },
-          "merchant_country_code": {
-            "type": "string",
-            "description": "Merchant country code assigned by acquirer",
-            "example": "US"
           },
           "network": {
             "type": "string",
@@ -26121,7 +26117,6 @@
           "profile_acquirer_id",
           "acquirer_assigned_merchant_id",
           "merchant_name",
-          "merchant_country_code",
           "network",
           "acquirer_bin",
           "acquirer_fraud_rate",
@@ -26142,11 +26137,6 @@
             "type": "string",
             "description": "Merchant name",
             "example": "NewAge Retailer"
-          },
-          "merchant_country_code": {
-            "type": "string",
-            "description": "Merchant country code assigned by acquirer",
-            "example": "US"
           },
           "network": {
             "type": "string",
@@ -26188,11 +26178,6 @@
           "merchant_name": {
             "type": "string",
             "example": "Updated Retailer Name",
-            "nullable": true
-          },
-          "merchant_country_code": {
-            "type": "string",
-            "example": "CA",
             "nullable": true
           },
           "network": {
@@ -26463,6 +26448,13 @@
                 "$ref": "#/components/schemas/MerchantCategoryCode"
               }
             ],
+            "nullable": true
+          },
+          "merchant_country_code": {
+            "type": "integer",
+            "format": "int32",
+            "description": "Merchant country code",
+            "example": 840,
             "nullable": true
           }
         },
@@ -26769,6 +26761,13 @@
                 "$ref": "#/components/schemas/MerchantCategoryCode"
               }
             ],
+            "nullable": true
+          },
+          "merchant_country_code": {
+            "type": "integer",
+            "format": "int32",
+            "description": "Merchant country code",
+            "example": 840,
             "nullable": true
           }
         }
