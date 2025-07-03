@@ -4,6 +4,16 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2025.06.25.0-hotfix2
+
+### Bug Fixes
+
+- **connector:** [CYBERSOURCE] Passing pares_status for MasterCard & Visa and transaction_type field ([#8541](https://github.com/juspay/hyperswitch/pull/8541)) ([`a3b7600`](https://github.com/juspay/hyperswitch/commit/a3b760037d811b8c2bbec682c096b9171d74e143))
+
+**Full Changelog:** [`2025.06.25.0-hotfix1...2025.06.25.0-hotfix2`](https://github.com/juspay/hyperswitch/compare/2025.06.25.0-hotfix1...2025.06.25.0-hotfix2)
+
+- - -
+
 ## 2025.06.25.0-hotfix1
 
 ### Bug Fixes
