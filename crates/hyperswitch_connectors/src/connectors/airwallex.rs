@@ -9,7 +9,10 @@ use common_utils::{
     errors::CustomResult,
     ext_traits::{ByteSliceExt, BytesExt, ValueExt},
     request::{Method, Request, RequestBuilder, RequestContent},
-    types::{AmountConvertor, StringMinorUnit, StringMinorUnitForConnector},
+    types::{
+        AmountConvertor, MinorUnit, StringMajorUnit, StringMajorUnitForConnector, StringMinorUnit,
+        StringMinorUnitForConnector,
+    },
 };
 use error_stack::{report, ResultExt};
 use hyperswitch_domain_models::{
@@ -60,13 +63,16 @@ use crate::{
 
 #[derive(Clone)]
 pub struct Airwallex {
-    amount_converter: &'static (dyn AmountConvertor<Output = StringMinorUnit> + Sync),
+    amount_converter: &'static (dyn AmountConvertor<Output = StringMajorUnit> + Sync),
+    amount_converter_to_string_minor:
+        &'static (dyn AmountConvertor<Output = StringMinorUnit> + Sync),
 }
 
 impl Airwallex {
     pub const fn new() -> &'static Self {
         &Self {
-            amount_converter: &StringMinorUnitForConnector,
+            amount_converter: &StringMajorUnitForConnector,
+            amount_converter_to_string_minor: &StringMinorUnitForConnector,
         }
     }
 }
@@ -382,12 +388,13 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
         req: &PaymentsAuthorizeRouterData,
         _connectors: &Connectors,
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
-        let connector_router_data = airwallex::AirwallexRouterData::try_from((
-            &self.get_currency_unit(),
+        let amount_in_minor_unit = MinorUnit::new(req.request.amount);
+        let amount = convert_amount(
+            self.amount_converter,
+            amount_in_minor_unit,
             req.request.currency,
-            req.request.amount,
-            req,
-        ))?;
+        )?;
+        let connector_router_data = airwallex::AirwallexRouterData::try_from((amount, req))?;
         let connector_req = airwallex::AirwallexPaymentsRequest::try_from(&connector_router_data)?;
         Ok(RequestContent::Json(Box::new(connector_req)))
     }
@@ -820,12 +827,13 @@ impl ConnectorIntegration<Execute, RefundsData, RefundsResponseData> for Airwall
         req: &RefundsRouterData<Execute>,
         _connectors: &Connectors,
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
-        let connector_router_data = airwallex::AirwallexRouterData::try_from((
-            &self.get_currency_unit(),
+        let amount_in_minor_unit = MinorUnit::new(req.request.refund_amount);
+        let amount = convert_amount(
+            self.amount_converter,
+            amount_in_minor_unit,
             req.request.currency,
-            req.request.refund_amount,
-            req,
-        ))?;
+        )?;
+        let connector_router_data = airwallex::AirwallexRouterData::try_from((amount, req))?;
         let connector_req = airwallex::AirwallexRefundRequest::try_from(&connector_router_data)?;
         Ok(RequestContent::Json(Box::new(connector_req)))
     }
@@ -1078,7 +1086,7 @@ impl IncomingWebhook for Airwallex {
             .parse_value("AirwallexDisputeObject")
             .change_context(errors::ConnectorError::WebhookBodyDecodingFailed)?;
         let amount = convert_amount(
-            self.amount_converter,
+            self.amount_converter_to_string_minor,
             dispute_details.dispute_amount,
             dispute_details.dispute_currency,
         )?;
