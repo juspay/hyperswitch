@@ -51,7 +51,6 @@ const failedCardDetails = {
   card_holder_name: "Test User",
   card_cvc: "123",
 };
-
 // Payment method data for responses
 const payment_method_data_visa = {
   card: {
@@ -70,7 +69,6 @@ const payment_method_data_visa = {
   },
   billing: null,
 };
-
 const requiredFields = {
   payment_methods: [
     {
@@ -89,7 +87,6 @@ const requiredFields = {
     },
   ],
 };
-
 export const connectorDetails = {
   card_pm: {
     PaymentIntent: {
@@ -106,7 +103,6 @@ export const connectorDetails = {
         },
       },
     },
-
     PaymentIntentWithShippingCost: {
       Request: {
         currency: "USD",
@@ -121,7 +117,6 @@ export const connectorDetails = {
         },
       },
     },
-
     PaymentConfirmWithShippingCost: {
       Request: {
         payment_method: "card",
@@ -144,7 +139,6 @@ export const connectorDetails = {
         },
       },
     },
-
     // No 3DS Auto Capture - Placetopay doesn't support 3DS
     No3DSAutoCapture: {
       Request: {
@@ -166,7 +160,6 @@ export const connectorDetails = {
         },
       },
     },
-
     // No 3DS Manual Capture - NOT supported by Placetopay
     No3DSManualCapture: {
       Configs: {
@@ -191,7 +184,6 @@ export const connectorDetails = {
         },
       },
     },
-
     // Failed payment test
     No3DSFailPayment: {
       Request: {
@@ -210,7 +202,6 @@ export const connectorDetails = {
         },
       },
     },
-
     // Capture flow
     Capture: {
       Request: {
@@ -227,7 +218,6 @@ export const connectorDetails = {
         },
       },
     },
-
     // Partial Capture - Placetopay supports this
     PartialCapture: {
       Request: {
@@ -243,7 +233,6 @@ export const connectorDetails = {
         },
       },
     },
-
     // Void payment
     Void: {
       Request: {
@@ -256,7 +245,6 @@ export const connectorDetails = {
         },
       },
     },
-
     VoidAfterConfirm: {
       Request: {
         cancellation_reason: "requested_by_customer",
@@ -268,7 +256,6 @@ export const connectorDetails = {
         },
       },
     },
-
     // Refund - Placetopay supports full refunds only
     Refund: {
       Request: {
@@ -281,7 +268,6 @@ export const connectorDetails = {
         },
       },
     },
-
     // Partial Refund - NOT supported by Placetopay, should fail
     PartialRefund: {
       Configs: {
@@ -301,7 +287,6 @@ export const connectorDetails = {
         },
       },
     },
-
     // Sync Refund
     SyncRefund: {
       Response: {
@@ -311,7 +296,6 @@ export const connectorDetails = {
         },
       },
     },
-
     // Manual payment refund
     manualPaymentRefund: {
       Request: {
@@ -324,7 +308,6 @@ export const connectorDetails = {
         },
       },
     },
-
     // Manual payment partial refund - NOT supported
     manualPaymentPartialRefund: {
       Configs: {
@@ -344,7 +327,6 @@ export const connectorDetails = {
         },
       },
     },
-
     // Sync Payment
     SyncPayment: {
       Response: {
@@ -356,7 +338,6 @@ export const connectorDetails = {
         },
       },
     },
-
     // 3DS flows - NOT supported by Placetopay, should be skipped
     "3DSAutoCapture": {
       Configs: {
@@ -374,11 +355,12 @@ export const connectorDetails = {
       Response: {
         status: 400,
         body: {
+          error: {
           status: "NotSupported",
+          },
         },
       },
     },
-
     "3DSManualCapture": {
       Configs: {
         TRIGGER_SKIP: true, // Skip 3DS tests as Placetopay doesn't support 3DS
@@ -404,7 +386,6 @@ export const connectorDetails = {
         },
       },
     },
-
     // Mandate flows - NOT supported by Placetopay, should be skipped
     MandateSingleUseNo3DSAutoCapture: {
       Configs: {
@@ -426,7 +407,6 @@ export const connectorDetails = {
         },
       },
     },
-
     MandateSingleUseNo3DSManualCapture: {
       Configs: {
         TRIGGER_SKIP: true, // Skip mandate tests
@@ -455,7 +435,6 @@ export const connectorDetails = {
         },
       },
     },
-
     MandateMultiUseNo3DSAutoCapture: {
       Configs: {
         TRIGGER_SKIP: true, // Skip mandate tests
@@ -476,7 +455,6 @@ export const connectorDetails = {
         },
       },
     },
-
     MandateMultiUseNo3DSManualCapture: {
       Configs: {
         TRIGGER_SKIP: true, // Skip mandate tests
@@ -500,31 +478,6 @@ export const connectorDetails = {
         },
       },
     },
-
-    MandateMultiUse3DSAutoCapture: {
-      Configs: {
-        TRIGGER_SKIP: true, // Skip mandate tests
-      },
-      Request: {
-        payment_method: "card",
-        payment_method_data: {
-          card: successfulNo3DSCardDetails,
-        },
-        currency: "USD",
-        mandate_data: multiUseMandateData,
-      },
-      Response: {
-        status: 400,
-        body: {
-          error: {
-            type: "invalid_request",
-            message: "Setup Mandate flow for Placetopay is not implemented",
-            code: "IR_00",
-          },
-        },
-      },
-    },
-
     MandateMultiUse3DSManualCapture: {
       Configs: {
         TRIGGER_SKIP: true, // Skip mandate tests
@@ -548,7 +501,6 @@ export const connectorDetails = {
         },
       },
     },
-
     // Save card flows - NOT supported by Placetopay
     SaveCardUseNo3DSAutoCapture: {
       // Configs: {
@@ -572,7 +524,6 @@ export const connectorDetails = {
         },
       },
     },
-
     SaveCardUseNo3DSManualCapture: {
       Configs: {
         TRIGGER_SKIP: true, // Skip save card tests
@@ -595,7 +546,6 @@ export const connectorDetails = {
         },
       },
     },
-
     SaveCardUseNo3DSAutoCaptureOffSession: {
       Configs: {
         TRIGGER_SKIP: true, // Skip save card tests
@@ -617,7 +567,6 @@ export const connectorDetails = {
         },
       },
     },
-
     SaveCardUse3DSAutoCaptureOffSession: {
       Configs: {
         TRIGGER_SKIP: true, // Skip save card tests
@@ -641,7 +590,6 @@ export const connectorDetails = {
         },
       },
     },
-
     SaveCardUseNo3DSManualCaptureOffSession: {
       Configs: {
         TRIGGER_SKIP: true, // Skip save card tests
@@ -665,7 +613,6 @@ export const connectorDetails = {
         },
       },
     },
-
     SaveCardConfirmAutoCaptureOffSession: {
       Configs: {
         TRIGGER_SKIP: true, // Skip save card tests
@@ -685,7 +632,6 @@ export const connectorDetails = {
         },
       },
     },
-
     SaveCardConfirmManualCaptureOffSession: {
       Configs: {
         TRIGGER_SKIP: true, // Skip save card tests
@@ -704,7 +650,6 @@ export const connectorDetails = {
         },
       },
     },
-
     SaveCardConfirmAutoCaptureOffSessionWithoutBilling: {
       Configs: {
         TRIGGER_SKIP: true, // Skip save card tests
@@ -724,7 +669,6 @@ export const connectorDetails = {
         },
       },
     },
-
     // Zero Auth flows - NOT supported by Placetopay
     ZeroAuthMandate: {
       Configs: {
@@ -758,7 +702,6 @@ export const connectorDetails = {
         },
       },
     },
-
     ZeroAuthPaymentIntent: {
       Configs: {
         TRIGGER_SKIP: true, // Skip zero auth tests
@@ -774,7 +717,6 @@ export const connectorDetails = {
         },
       },
     },
-
     ZeroAuthConfirmPayment: {
       Configs: {
         TRIGGER_SKIP: true, // Skip zero auth tests
@@ -797,7 +739,6 @@ export const connectorDetails = {
         },
       },
     },
-
     // MIT flows - NOT supported by Placetopay
     MITAutoCapture: {
       Configs: {
@@ -815,7 +756,6 @@ export const connectorDetails = {
         },
       },
     },
-
     MITManualCapture: {
       Configs: {
         TRIGGER_SKIP: true, // Skip MIT tests
@@ -832,7 +772,6 @@ export const connectorDetails = {
         },
       },
     },
-
     MITWithoutBillingAddress: {
       Configs: {
         TRIGGER_SKIP: true, // Skip MIT tests
@@ -851,7 +790,6 @@ export const connectorDetails = {
         },
       },
     },
-
     // Payment Method ID flows - NOT supported by Placetopay
     PaymentMethodIdMandateNo3DSAutoCapture: {
       Configs: {
@@ -874,7 +812,6 @@ export const connectorDetails = {
         },
       },
     },
-
     PaymentMethodIdMandateNo3DSManualCapture: {
       Configs: {
         TRIGGER_SKIP: true, // Skip payment method ID tests
@@ -899,7 +836,6 @@ export const connectorDetails = {
         },
       },
     },
-
     PaymentMethodIdMandate3DSAutoCapture: {
       Configs: {
         TRIGGER_SKIP: true, // Skip payment method ID tests
@@ -926,7 +862,6 @@ export const connectorDetails = {
         },
       },
     },
-
     PaymentMethodIdMandate3DSManualCapture: {
       Configs: {
         TRIGGER_SKIP: true, // Skip payment method ID tests
@@ -952,7 +887,6 @@ export const connectorDetails = {
       },
     },
   },
-
   pm_list: {
     PmListResponse: {
       PmListNull: {
