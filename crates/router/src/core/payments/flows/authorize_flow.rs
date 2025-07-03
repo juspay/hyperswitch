@@ -171,7 +171,7 @@ impl Feature<api::Authorize, types::PaymentsAuthorizeData> for types::PaymentsAu
         connector_request: Option<services::Request>,
         business_profile: &domain::Profile,
         header_payload: hyperswitch_domain_models::payments::HeaderPayload,
-        all_keys_required: Option<bool>,
+        return_raw_connector_response: Option<bool>,
     ) -> RouterResult<Self> {
         let connector_integration: services::BoxedPaymentConnectorIntegrationInterface<
             api::Authorize,
@@ -188,7 +188,7 @@ impl Feature<api::Authorize, types::PaymentsAuthorizeData> for types::PaymentsAu
                 &self,
                 call_connector_action.clone(),
                 connector_request,
-                all_keys_required,
+                return_raw_connector_response,
             )
             .await
             .to_payment_failed_response()?;
