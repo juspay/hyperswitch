@@ -9290,7 +9290,7 @@
                   "bank_name": {
                     "allOf": [
                       {
-                        "$ref": "#/components/schemas/common_enums.BankNames"
+                        "$ref": "#/components/schemas/BankNames"
                       }
                     ],
                     "nullable": true
