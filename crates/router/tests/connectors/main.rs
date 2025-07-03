@@ -58,6 +58,7 @@ mod juspaythreedsserver;
 mod mifinity;
 mod mollie;
 mod moneris;
+mod mpgs;
 mod multisafepay;
 mod netcetera;
 mod nexinets;
