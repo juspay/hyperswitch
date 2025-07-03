@@ -959,6 +959,8 @@ diesel::table! {
         created_by -> Nullable<Varchar>,
         setup_future_usage_applied -> Nullable<FutureUsage>,
         routing_approach -> Nullable<RoutingApproach>,
+        #[max_length = 255]
+        connector_request_reference_id -> Nullable<Varchar>,
     }
 }
 
@@ -1053,6 +1055,7 @@ diesel::table! {
         is_iframe_redirection_enabled -> Nullable<Bool>,
         #[max_length = 2048]
         extended_return_url -> Nullable<Varchar>,
+        is_payment_id_from_merchant -> Nullable<Bool>,
     }
 }
 
