@@ -244,12 +244,10 @@ pub async fn external_authentication_update_trackers<F: Clone, Req>(
                     .ok_or(ApiErrorResponse::InternalServerError)
                     .attach_printable("missing trans_status in PostAuthentication Details")?;
 
-                let authentication_value = authentication_details
+                authentication_details
                     .dynamic_data_details
                     .and_then(|details| details.dynamic_data_value)
-                    .map(ExposeInterface::expose);
-
-                authentication_value
+                    .map(ExposeInterface::expose)
                     .async_map(|auth_val| {
                         crate::core::payment_methods::vault::create_tokenize(
                             state,

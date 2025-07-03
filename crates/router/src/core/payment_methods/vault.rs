@@ -114,8 +114,6 @@ impl Vaultable for domain::Card {
         value1: String,
         value2: String,
     ) -> CustomResult<(Self, SupplementaryVaultData), errors::VaultError> {
-        println!("value1: {}", value1);
-
         let value1: domain::TokenizedCardValue1 = value1
             .parse_struct("TokenizedCardValue1")
             .change_context(errors::VaultError::ResponseDeserializationFailed)

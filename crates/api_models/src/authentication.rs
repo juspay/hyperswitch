@@ -287,7 +287,7 @@ impl ApiEventMetric for AuthenticationEligibilityResponse {
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
 pub struct AuthenticationAuthenticateRequest {
     #[schema(value_type = String)]
-    pub client_secret: masking::Secret<String>,
+    pub client_secret: Option<masking::Secret<String>>,
     /// SDK Information if request is from SDK
     pub sdk_information: Option<crate::payments::SdkInformation>,
     /// Device Channel indicating whether request is coming from App or Browser
@@ -306,8 +306,8 @@ impl ApiEventMetric for AuthenticationAuthenticateRequest {
 pub struct AuthenticationAuthenticateResponse {
     /// Indicates the transaction status
     #[serde(rename = "trans_status")]
-    #[schema(value_type = TransactionStatus)]
-    pub transaction_status: common_enums::TransactionStatus,
+    #[schema(value_type = Option<TransactionStatus>)]
+    pub transaction_status: Option<common_enums::TransactionStatus>,
     /// Access Server URL to be used for challenge submission
     pub acs_url: Option<String>,
     /// Challenge request which should be sent to acs_url
@@ -324,6 +324,11 @@ pub struct AuthenticationAuthenticateResponse {
     pub three_ds_requestor_url: String,
     /// Merchant app declaring their URL within the CReq message so that the Authentication app can call the Merchant app after OOB authentication has occurred
     pub three_ds_requestor_app_url: Option<String>,
+
+    pub error_code: Option<String>,
+    pub error_message: Option<String>,
+
+    pub authentication_value: Option<masking::Secret<String>>,
 }
 
 impl ApiEventMetric for AuthenticationAuthenticateResponse {

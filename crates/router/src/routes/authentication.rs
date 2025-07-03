@@ -1,7 +1,7 @@
 use actix_web::{web, HttpRequest, Responder};
-use api_models::authentication::AuthenticationCreateRequest;
 #[cfg(feature = "v1")]
 use api_models::authentication::AuthenticationEligibilityRequest;
+use api_models::authentication::{AuthenticationAuthenticateRequest, AuthenticationCreateRequest};
 use router_env::{instrument, tracing, Flow};
 
 use crate::{
@@ -95,11 +95,11 @@ pub async fn authentication_authenticate(
     let api_auth = auth::ApiKeyAuth::default();
     let payload = json_payload.into_inner();
 
-    // let (auth, _) = match auth::check_client_secret_and_get_auth(req.headers(), &payload, api_auth)
-    // {
-    //     Ok((auth, _auth_flow)) => (auth, _auth_flow),
-    //     Err(e) => return api::log_and_return_error_response(e),
-    // };
+    let (auth, auth_flow) =
+        match auth::check_client_secret_and_get_auth(req.headers(), &payload, api_auth) {
+            Ok((auth, auth_flow)) => (auth, auth_flow),
+            Err(e) => return api::log_and_return_error_response(e),
+        };
 
     let authentication_id = path.into_inner();
     Box::pin(api::server_wrap(
@@ -116,12 +116,10 @@ pub async fn authentication_authenticate(
                 merchant_context,
                 req,
                 authentication_id.clone(),
+                auth_flow,
             )
         },
-        &auth::HeaderAuth(auth::ApiKeyAuth {
-            is_connected_allowed: false,
-            is_platform_allowed: false,
-        }),
+        &*auth,
         api_locking::LockAction::NotApplicable,
     ))
     .await

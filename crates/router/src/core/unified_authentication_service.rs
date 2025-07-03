@@ -6,7 +6,10 @@ use api_models::authentication::{
     AuthenticationEligibilityRequest, AuthenticationEligibilityResponse,
 };
 use api_models::{
-    authentication::{AcquirerDetails, AuthenticationCreateRequest, AuthenticationResponse},
+    authentication::{
+        AcquirerDetails, AuthenticationAuthenticateRequest, AuthenticationAuthenticateResponse,
+        AuthenticationCreateRequest, AuthenticationResponse,
+    },
     payments,
 };
 use common_utils::{ext_traits::ValueExt, types::keymanager::ToEncryptable};
@@ -371,9 +374,6 @@ impl UnifiedAuthenticationService for ExternalAuthentication {
     }
 
     fn get_authentication_request_data(
-        payment_method_data: domain::PaymentMethodData,
-        billing_address: hyperswitch_domain_models::address::Address,
-        shipping_address: Option<hyperswitch_domain_models::address::Address>,
         browser_details: Option<BrowserInformation>,
         amount: Option<common_utils::types::MinorUnit>,
         currency: Option<common_enums::Currency>,
@@ -385,12 +385,8 @@ impl UnifiedAuthenticationService for ExternalAuthentication {
         threeds_method_comp_ind: payments::ThreeDsCompletionIndicator,
         email: Option<common_utils::pii::Email>,
         webhook_url: String,
-        three_ds_requestor_url: String,
     ) -> RouterResult<UasAuthenticationRequestData> {
         Ok(UasAuthenticationRequestData {
-            payment_method_data,
-            billing_address,
-            shipping_address,
             browser_details,
             transaction_details: TransactionDetails {
                 amount,
@@ -418,7 +414,6 @@ impl UnifiedAuthenticationService for ExternalAuthentication {
             sdk_information,
             email,
             threeds_method_comp_ind,
-            three_ds_requestor_url,
             webhook_url,
         })
     }
@@ -427,10 +422,7 @@ impl UnifiedAuthenticationService for ExternalAuthentication {
     async fn authentication(
         state: &SessionState,
         business_profile: &domain::Profile,
-        payment_method: common_enums::PaymentMethod,
-        payment_method_data: domain::PaymentMethodData,
-        billing_address: hyperswitch_domain_models::address::Address,
-        shipping_address: Option<hyperswitch_domain_models::address::Address>,
+        payment_method: &common_enums::PaymentMethod,
         browser_details: Option<BrowserInformation>,
         amount: Option<common_utils::types::MinorUnit>,
         currency: Option<common_enums::Currency>,
@@ -442,16 +434,12 @@ impl UnifiedAuthenticationService for ExternalAuthentication {
         threeds_method_comp_ind: payments::ThreeDsCompletionIndicator,
         email: Option<common_utils::pii::Email>,
         webhook_url: String,
-        three_ds_requestor_url: String,
         merchant_connector_account: &MerchantConnectorAccountType,
         connector_name: &str,
         payment_id: Option<common_utils::id_type::PaymentId>,
     ) -> RouterResult<UasAuthenticationRouterData> {
         let authentication_data =
             <Self as UnifiedAuthenticationService>::get_authentication_request_data(
-                payment_method_data,
-                billing_address,
-                shipping_address,
                 browser_details,
                 amount,
                 currency,
@@ -463,12 +451,11 @@ impl UnifiedAuthenticationService for ExternalAuthentication {
                 threeds_method_comp_ind,
                 email,
                 webhook_url,
-                three_ds_requestor_url,
             )?;
         let auth_router_data: UasAuthenticationRouterData = utils::construct_uas_router_data(
             state,
             connector_name.to_string(),
-            payment_method,
+            payment_method.to_owned(),
             business_profile.merchant_id.clone(),
             None,
             authentication_data,
@@ -1089,13 +1076,14 @@ pub async fn authentication_eligibility_core(
     ))
 }
 
+#[cfg(feature = "v1")]
 pub async fn authentication_authenticate_core(
     state: SessionState,
     merchant_context: domain::MerchantContext,
     req: AuthenticationAuthenticateRequest,
     authentication_id: common_utils::id_type::AuthenticationId,
+    auth_flow: crate::services::AuthFlow,
 ) -> RouterResponse<AuthenticationAuthenticateResponse> {
-    // use hyperswitch_domain_models::address::Address;x
     let merchant_account = merchant_context.get_merchant_account();
     let merchant_id = merchant_account.get_id();
     let db = &*state.store;
@@ -1106,17 +1094,17 @@ pub async fn authentication_authenticate_core(
             id: authentication_id.get_string_repr().to_owned(),
         })?;
 
-    // if let Some(cs) = &req.client_secret {
-    //     let is_client_secret_expired =
-    //         utils::authenticate_authentication_client_secret_and_check_expiry(
-    //             cs.peek(),
-    //             &authentication,
-    //         )?;
+    if let Some(cs) = &req.client_secret {
+        let is_client_secret_expired =
+            utils::authenticate_authentication_client_secret_and_check_expiry(
+                cs.peek(),
+                &authentication,
+            )?;
 
-    //     if is_client_secret_expired {
-    //         return Err(ApiErrorResponse::ClientSecretExpired.into());
-    //     };
-    // };
+        if is_client_secret_expired {
+            return Err(ApiErrorResponse::ClientSecretExpired.into());
+        };
+    };
     let key_manager_state = (&state).into();
 
     let profile_id = crate::core::utils::get_profile_id_from_business_details(
@@ -1140,84 +1128,6 @@ pub async fn authentication_authenticate_core(
         .to_not_found_response(ApiErrorResponse::ProfileNotFound {
             id: profile_id.get_string_repr().to_owned(),
         })?;
-
-    let connector = authentication
-        .authentication_connector
-        .clone()
-        .ok_or(ApiErrorResponse::InternalServerError)?;
-
-    let tokenized_data = crate::core::payment_methods::vault::get_tokenized_data(
-        &state,
-        authentication_id.get_string_repr(),
-        false,
-        merchant_context.get_merchant_key_store().key.get_inner(),
-    )
-    .await
-    .inspect_err(|err| router_env::logger::error!(tokenized_data_result=?err))
-    .attach_printable("cavv not present after authentication flow")?;
-
-    let (card, _supplementary_data) =
-        domain::Card::from_values(tokenized_data.value1, tokenized_data.value2)
-            .change_context(ApiErrorResponse::InternalServerError)?;
-
-    let payment_method_data = domain::PaymentMethodData::Card(card);
-
-    // let billing_address = authentication.billing_address;
-
-    let decrypted_data = domain::types::crypto_operation(
-        &key_manager_state,
-        common_utils::type_name!(hyperswitch_domain_models::authentication::Authentication),
-        domain::types::CryptoOperation::BatchDecrypt(
-            hyperswitch_domain_models::authentication::EncryptedAuthentication::to_encryptable(
-                hyperswitch_domain_models::authentication::EncryptedAuthentication {
-                    billing_address: authentication.billing_address.clone(),
-                    shipping_address: authentication.shipping_address.clone(),
-                },
-            ),
-        ),
-        common_utils::types::keymanager::Identifier::Merchant(
-            merchant_context
-                .get_merchant_key_store()
-                .merchant_id
-                .clone(),
-        ),
-        merchant_context.get_merchant_key_store().key.peek(),
-    )
-    .await
-    .and_then(|val| val.try_into_batchoperation())
-    .change_context(ApiErrorResponse::InternalServerError)
-    .attach_printable("Unable to decrypt authentication data".to_string())?;
-
-    let decrypted_data =
-        hyperswitch_domain_models::authentication::EncryptedAuthentication::from_encryptable(
-            decrypted_data,
-        )
-        .change_context(ApiErrorResponse::InternalServerError)
-        .attach_printable("Invalid batch operation data")?;
-
-    let billing_address = decrypted_data
-        .billing_address
-        .map(|billing| {
-            billing.deserialize_inner_value(|value| {
-                value.parse_value::<hyperswitch_domain_models::address::Address>("Address")
-            })
-        })
-        .transpose()
-        .change_context(ApiErrorResponse::InternalServerError)
-        .attach_printable("Error while deserializing Address")?
-        .map(|addr| addr.into_inner());
-
-    let shipping_address = decrypted_data
-        .shipping_address
-        .map(|shipping| {
-            shipping.deserialize_inner_value(|value| {
-                value.parse_value::<hyperswitch_domain_models::address::Address>("Address")
-            })
-        })
-        .transpose()
-        .change_context(ApiErrorResponse::InternalServerError)
-        .attach_printable("Error while deserializing Address")?
-        .map(|addr| addr.into_inner());
 
     let email_encrypted = authentication
         .email
@@ -1273,21 +1183,13 @@ pub async fn authentication_authenticate_core(
     let webhook_url = crate::core::payments::helpers::create_webhook_url(
         &state.base_url,
         merchant_id,
-        merchant_connector_account_id_or_connector_name.clone(),
+        merchant_connector_account_id_or_connector_name,
     );
 
     let auth_response = <ExternalAuthentication as UnifiedAuthenticationService>::authentication(
         &state,
         &business_profile,
-        common_enums::PaymentMethod::Card,
-        payment_method_data,
-        billing_address
-            .as_ref()
-            .ok_or(ApiErrorResponse::MissingRequiredField {
-                field_name: "billing_address",
-            })?
-            .clone(),
-        shipping_address,
+        &common_enums::PaymentMethod::Card,
         browser_info,
         authentication.amount,
         authentication.currency,
@@ -1299,27 +1201,60 @@ pub async fn authentication_authenticate_core(
         req.threeds_method_comp_ind,
         email_encrypted.map(common_utils::pii::Email::from),
         webhook_url,
-        authentication_details.three_ds_requestor_url.clone(),
         &three_ds_connector_account,
         &authentication_connector.to_string(),
         None,
     )
     .await?;
 
-    println!("auth_response: {:#?}", auth_response);
-    println!("auth_response success");
+    let authentication = utils::external_authentication_update_trackers(
+        &state,
+        auth_response,
+        authentication.clone(),
+        None,
+        merchant_context.get_merchant_key_store(),
+        None,
+        None,
+        None,
+        None,
+    )
+    .await?;
+
+    let authentication_value = match auth_flow {
+        crate::services::AuthFlow::Client => None,
+        crate::services::AuthFlow::Merchant => {
+            if let Some(common_enums::TransactionStatus::Success) = authentication.trans_status {
+                let tokenised_data = crate::core::payment_methods::vault::get_tokenized_data(
+                    &state,
+                    authentication_id.get_string_repr(),
+                    false,
+                    merchant_context.get_merchant_key_store().key.get_inner(),
+                )
+                .await
+                .inspect_err(|err| router_env::logger::error!(tokenized_data_result=?err))
+                .attach_printable("cavv not present after authentication status is success")?;
+                Some(masking::Secret::new(tokenised_data.value1))
+            } else {
+                None
+            }
+        }
+    };
 
     let response = AuthenticationAuthenticateResponse {
-        transaction_status: todo!(),
-        acs_url: todo!(),
-        challenge_request: todo!(),
-        acs_reference_number: todo!(),
-        acs_trans_id: todo!(),
-        three_dsserver_trans_id: todo!(),
-        acs_signed_content: todo!(),
-        three_ds_requestor_url: todo!(),
-        three_ds_requestor_app_url: todo!(),
+        transaction_status: authentication.trans_status,
+        acs_url: authentication.acs_url,
+        challenge_request: authentication.challenge_request,
+        acs_reference_number: authentication.acs_reference_number,
+        acs_trans_id: authentication.acs_trans_id,
+        three_dsserver_trans_id: authentication.threeds_server_transaction_id,
+        acs_signed_content: authentication.acs_signed_content,
+        three_ds_requestor_url: authentication_details.three_ds_requestor_url,
+        three_ds_requestor_app_url: authentication_details.three_ds_requestor_app_url,
+        error_code: None,
+        error_message: authentication.error_message,
+        authentication_value,
     };
+
     Ok(hyperswitch_domain_models::api::ApplicationResponse::Json(
         response,
     ))

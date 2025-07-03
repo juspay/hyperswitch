@@ -244,7 +244,6 @@ where
                     let response =
                         call_connector_api(state, request, "execute_connector_processing_step")
                             .await;
-                    println!("response: {:#?}", response);
                     let external_latency = current_time.elapsed().as_millis();
                     logger::info!(raw_connector_request=?masked_request_body);
                     let status_code = response
