@@ -639,6 +639,28 @@ impl behaviour::Conversion for MerchantConnectorAccount {
         )
     }
 
+    fn validate(
+        item: Self::DstType,
+        key_manager_identifier: Identifier,
+    ) -> CustomResult<(), ValidationError>
+    where
+        Self: Sized,
+    {
+        match key_manager_identifier {
+            Identifier::Merchant(merchant_id) => {
+                if item.merchant_id != merchant_id {
+                    return Err(ValidationError::IncorrectValueProvided {
+                        field_name: "Merchant Connector Account ID",
+                    }
+                    .into());
+                }
+
+                Ok(())
+            }
+            _ => Ok(()),
+        }
+    }
+
     async fn convert_back(
         state: &KeyManagerState,
         other: Self::DstType,
@@ -662,13 +684,13 @@ impl behaviour::Conversion for MerchantConnectorAccount {
         )
         .await
         .and_then(|val| val.try_into_batchoperation())
-        .change_context(ValidationError::InvalidValue {
-            message: "Failed while decrypting connector account details".to_string(),
+        .change_context(ValidationError::DecryptionError {
+            message: "connector account details".to_string(),
         })?;
 
         let decrypted_data = EncryptedMerchantConnectorAccount::from_encryptable(decrypted_data)
-            .change_context(ValidationError::InvalidValue {
-                message: "Failed while decrypting connector account details".to_string(),
+            .change_context(ValidationError::DecryptionError {
+                message: "connector account details".to_string(),
             })?;
 
         Ok(Self {
