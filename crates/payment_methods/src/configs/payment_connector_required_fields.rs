@@ -6,10 +6,11 @@ use api_models::{
 };
 
 use crate::configs::settings::{
-    ConnectorFields, Mandates, PaymentMethodType, RequiredFieldFinal, RequiredFields,
-    SupportedConnectorsForMandate, SupportedPaymentMethodTypesForMandate,
-    SupportedPaymentMethodsForMandate, ZeroMandates,
+    ConnectorFields, Mandates, RequiredFieldFinal, SupportedConnectorsForMandate,
+    SupportedPaymentMethodTypesForMandate, SupportedPaymentMethodsForMandate, ZeroMandates,
 };
+#[cfg(feature = "v1")]
+use crate::configs::settings::{PaymentMethodType, RequiredFields};
 
 impl Default for ZeroMandates {
     fn default() -> Self {
@@ -125,6 +126,7 @@ impl Default for Mandates {
 }
 
 #[derive(Clone, serde::Serialize)]
+#[cfg_attr(feature = "v2", allow(dead_code))] // multiple variants are never constructed for v2
 enum RequiredField {
     CardNumber,
     CardExpMonth,
@@ -859,6 +861,7 @@ impl RequiredField {
 }
 
 // Define helper functions for common field groups
+#[cfg_attr(feature = "v2", allow(dead_code))] // This function is not used in v2
 fn card_basic() -> Vec<RequiredField> {
     vec![
         RequiredField::CardNumber,
@@ -868,6 +871,7 @@ fn card_basic() -> Vec<RequiredField> {
     ]
 }
 
+#[cfg_attr(feature = "v2", allow(dead_code))] // This function is not used in v2
 fn full_name() -> Vec<RequiredField> {
     vec![
         RequiredField::BillingUserFirstName,
@@ -875,6 +879,7 @@ fn full_name() -> Vec<RequiredField> {
     ]
 }
 
+#[cfg_attr(feature = "v2", allow(dead_code))] // This function is not used in v2
 fn billing_name() -> Vec<RequiredField> {
     vec![
         RequiredField::BillingFirstName("billing_first_name", FieldType::UserBillingName),
@@ -882,18 +887,22 @@ fn billing_name() -> Vec<RequiredField> {
     ]
 }
 
+#[cfg_attr(feature = "v2", allow(dead_code))] // This function is not used in v2
 fn email() -> Vec<RequiredField> {
     [RequiredField::Email].to_vec()
 }
 
+#[cfg_attr(feature = "v2", allow(dead_code))] // This function is not used in v2
 fn billing_email() -> Vec<RequiredField> {
     [RequiredField::BillingEmail].to_vec()
 }
 
+#[cfg_attr(feature = "v2", allow(dead_code))] // This function is not used in v2
 fn card_with_name() -> Vec<RequiredField> {
     [card_basic(), full_name()].concat()
 }
 
+#[cfg_attr(feature = "v2", allow(dead_code))] // This function is not used in v2
 fn billing_email_name() -> Vec<RequiredField> {
     vec![
         RequiredField::BillingEmail,
@@ -902,6 +911,7 @@ fn billing_email_name() -> Vec<RequiredField> {
     ]
 }
 
+#[cfg_attr(feature = "v2", allow(dead_code))] // This function is not used in v2
 fn billing_email_name_phone() -> Vec<RequiredField> {
     vec![
         RequiredField::BillingUserFirstName,
@@ -912,6 +922,7 @@ fn billing_email_name_phone() -> Vec<RequiredField> {
     ]
 }
 
+#[cfg_attr(feature = "v2", allow(dead_code))] // This function is not used in v2
 fn billing_address() -> Vec<RequiredField> {
     vec![
         RequiredField::BillingAddressCity,
@@ -940,6 +951,7 @@ fn fields(
     }
 }
 
+#[cfg_attr(feature = "v2", allow(dead_code))] // This function is not used in v2
 fn connectors(connectors: Vec<(Connector, RequiredFieldFinal)>) -> ConnectorFields {
     ConnectorFields {
         fields: connectors.into_iter().collect(),
@@ -3106,6 +3118,17 @@ fn get_bank_transfer_required_fields() -> HashMap<enums::PaymentMethodType, Conn
                 ),
                 (Connector::Adyen, fields(vec![], vec![], vec![])),
                 (
+                    Connector::Santander,
+                    RequiredFieldFinal {
+                        mandate: HashMap::new(),
+                        non_mandate: HashMap::new(),
+                        common: HashMap::from([
+                            RequiredField::BillingUserFirstName.to_tuple(),
+                            RequiredField::BillingUserLastName.to_tuple(),
+                        ]),
+                    },
+                ),
+                (
                     Connector::Facilitapay,
                     RequiredFieldFinal {
                         mandate: HashMap::new(),
@@ -3234,6 +3257,56 @@ fn get_bank_transfer_required_fields() -> HashMap<enums::PaymentMethodType, Conn
                         RequiredField::BillingAddressCity,
                         RequiredField::BillingAddressZip,
                         RequiredField::BillingAddressCountries(vec!["ALL"]),
+                    ],
+                ),
+            )]),
+        ),
+        (
+            enums::PaymentMethodType::InstantBankTransferFinland,
+            connectors(vec![(
+                Connector::Trustpay,
+                fields(
+                    vec![],
+                    vec![],
+                    vec![
+                        RequiredField::Email,
+                        RequiredField::BillingFirstName(
+                            "billing_first_name",
+                            FieldType::UserBillingName,
+                        ),
+                        RequiredField::BillingLastName(
+                            "billing_last_name",
+                            FieldType::UserBillingName,
+                        ),
+                        RequiredField::BillingAddressLine1,
+                        RequiredField::BillingAddressCity,
+                        RequiredField::BillingAddressZip,
+                        RequiredField::BillingAddressCountries(vec!["FI"]),
+                    ],
+                ),
+            )]),
+        ),
+        (
+            enums::PaymentMethodType::InstantBankTransferPoland,
+            connectors(vec![(
+                Connector::Trustpay,
+                fields(
+                    vec![],
+                    vec![],
+                    vec![
+                        RequiredField::Email,
+                        RequiredField::BillingFirstName(
+                            "billing_first_name",
+                            FieldType::UserBillingName,
+                        ),
+                        RequiredField::BillingLastName(
+                            "billing_last_name",
+                            FieldType::UserBillingName,
+                        ),
+                        RequiredField::BillingAddressLine1,
+                        RequiredField::BillingAddressCity,
+                        RequiredField::BillingAddressZip,
+                        RequiredField::BillingAddressCountries(vec!["PL"]),
                     ],
                 ),
             )]),

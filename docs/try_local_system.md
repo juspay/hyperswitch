@@ -127,17 +127,34 @@ This will start the following services using `process-compose`
    - Creates database and an user to be used by the application
 - Redis
 
-### Develop in a Nix environment (coming soon)
+### Develop in a Nix environment
 
-Nix development environment ensures all the required project dependencies, including both the tools and services are readily available, eliminating the need for manual setup.
+The Nix development environment, defined in `flake.nix`, provides a consistent and reproducible setup with all necessary dependencies for building and testing Hyperswitch.
 
-Run below command in hyperswitch directory
+**Available Development Shells:**
 
+Hyperswitch offers three distinct Nix shells tailored for different activities:
+
+1. **Default Shell (`hyperswitch-shell`):**
    ```shell
-   nix develop
+      nix develop
    ```
+   * **Purpose:** Minimal shell for compiling and running the server.
+   * **Usage:** Within this shell, you can run DB migrations, compile and run different components. It uses MSRV of `rust` defined for the project.
 
-**NOTE:** This is a work in progress, and only a selected commands are available at the moment. Look in `flake.nix` (hyperswitch-shell) for a full list of packages.
+2. **Development Shell (`hyperswitch-dev-shell`):**
+    ```shell
+      nix develop .#dev
+    ```
+   * **Purpose:** Extends the default shell with packages required during active development of the project.
+   * **Usage:** Within this shell, you can run clippy checks and validate OpenAPI specs. This shell uses the latest version of `rust` at the time of commit.
+
+3. **QA Shell (`hyperswitch-qa-shell`):**
+   ```shell
+      nix develop .#qa
+   ```
+   * **Purpose:** Extends the default shell with tools specifically required for executing Cypress tests.
+   * **Usage:** Within this shell, you can execute cypress tests. This also uses MSRV of `rust` defined in the project.
 
 ## Set up a Rust environment and other dependencies
 

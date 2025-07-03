@@ -3,15 +3,7 @@ use common_enums;
 #[cfg(feature = "v2")]
 use common_utils::id_type;
 #[cfg(feature = "v2")]
-use diesel::{
-    associations::HasTable,
-    deserialize::FromSqlRow,
-    expression::AsExpression,
-    pg::Pg,
-    serialize::{Output, ToSql},
-    sql_types::{Jsonb, Text},
-    AsChangeset, Identifiable, Insertable, Queryable, Selectable,
-};
+use diesel::{AsChangeset, Identifiable, Insertable, Queryable};
 #[cfg(feature = "v2")]
 use serde::{Deserialize, Serialize};
 #[cfg(feature = "v2")]

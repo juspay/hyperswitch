@@ -13,6 +13,7 @@ use std::{
     borrow::Cow,
     fmt::Display,
     iter::Sum,
+    num::NonZeroI64,
     ops::{Add, Mul, Sub},
     primitive::i64,
     str::FromStr,
@@ -62,8 +63,8 @@ pub struct Percentage<const PRECISION: u8> {
 
 fn get_invalid_percentage_error_message(precision: u8) -> String {
     format!(
-        "value should be a float between 0 to 100 and precise to only upto {} decimal digits",
-        precision
+        "value should be a float between 0 to 100 and precise to only upto {precision} decimal digits",
+
     )
 }
 
@@ -101,8 +102,7 @@ impl<const PRECISION: u8> Percentage<PRECISION> {
                 amount: MinorUnit::new(amount),
             }))
             .attach_printable(format!(
-                "Cannot calculate percentage for amount greater than {}",
-                max_amount
+                "Cannot calculate percentage for amount greater than {max_amount}",
             ))
         } else {
             let percentage_f64 = f64::from(self.percentage);
@@ -168,7 +168,7 @@ impl<'de, const PRECISION: u8> Visitor<'de> for PercentageVisitor<PRECISION> {
             let string_value = value.to_string();
             Ok(Percentage::from_string(string_value.clone()).map_err(|_| {
                 serde::de::Error::invalid_value(
-                    serde::de::Unexpected::Other(&format!("percentage value {}", string_value)),
+                    serde::de::Unexpected::Other(&format!("percentage value {string_value}")),
                     &&*get_invalid_percentage_error_message(PRECISION),
                 )
             })?)
@@ -449,6 +449,12 @@ impl MinorUnit {
     ///Convert minor unit to string minor unit
     fn to_minor_unit_as_string(self) -> Result<StringMinorUnit, error_stack::Report<ParsingError>> {
         Ok(StringMinorUnit::new(self.0.to_string()))
+    }
+}
+
+impl From<NonZeroI64> for MinorUnit {
+    fn from(val: NonZeroI64) -> Self {
+        Self::new(val.get())
     }
 }
 
@@ -1282,8 +1288,7 @@ impl ConnectorTransactionId {
                 message: "processor_transaction_data is empty for HashedData variant".to_string(),
             })
             .attach_printable(format!(
-                "processor_transaction_data is empty for connector_transaction_id {}",
-                id
+                "processor_transaction_data is empty for connector_transaction_id {id}",
             ))),
         }
     }
@@ -1301,7 +1306,7 @@ impl From<String> for ConnectorTransactionId {
             hasher.update(src.as_bytes());
             hasher.finalize_xof().fill(&mut output);
             let hash = hex::encode(output);
-            Self::HashedData(format!("hs_hash_{}", hash))
+            Self::HashedData(format!("hs_hash_{hash}"))
         // Default
         } else {
             Self::TxnId(src)

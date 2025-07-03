@@ -72,6 +72,8 @@ function bankTransferRedirection(
   paymentMethodType,
   nextActionType
 ) {
+  let verifyUrl = true; // Default to true, can be set to false based on conditions
+
   switch (nextActionType) {
     case "qr_code_url":
       cy.request(redirectionUrl.href).then((response) => {
@@ -85,12 +87,12 @@ function bankTransferRedirection(
                 });
                 break;
               default:
-                verifyReturnUrl(redirectionUrl, expectedUrl, true);
+                verifyReturnUrl(redirectionUrl, expectedUrl, verifyUrl);
               // expected_redirection can be used here to handle other payment methods
             }
             break;
           default:
-            verifyReturnUrl(redirectionUrl, expectedUrl, true);
+            verifyReturnUrl(redirectionUrl, expectedUrl, verifyUrl);
         }
       });
       break;
@@ -104,7 +106,7 @@ function bankTransferRedirection(
               });
               break;
             default:
-              verifyReturnUrl(redirectionUrl, expectedUrl, true);
+              verifyReturnUrl(redirectionUrl, expectedUrl, verifyUrl);
           }
           break;
         case "itaubank":
@@ -115,13 +117,61 @@ function bankTransferRedirection(
               });
               break;
             default:
-              verifyReturnUrl(redirectionUrl, expectedUrl, true);
+              verifyReturnUrl(redirectionUrl, expectedUrl, verifyUrl);
           }
           break;
         default:
-          verifyReturnUrl(redirectionUrl, expectedUrl, true);
+          verifyReturnUrl(redirectionUrl, expectedUrl, verifyUrl);
       }
       break;
+    case "redirect_to_url":
+      cy.visit(redirectionUrl.href);
+      waitForRedirect(redirectionUrl.href); // Wait for the first redirect
+
+      handleFlow(
+        redirectionUrl,
+        expectedUrl,
+        connectorId,
+        ({ connectorId, paymentMethodType }) => {
+          switch (connectorId) {
+            case "trustpay":
+              // Suppress cross-origin JavaScript errors from TrustPay's website
+              cy.on("uncaught:exception", (err) => {
+                // Trustpay javascript devs have skill issues
+                if (
+                  err.message.includes("$ is not defined") ||
+                  err.message.includes("mainController is not defined") ||
+                  err.message.includes("jQuery") ||
+                  err.message.includes("aapi.trustpay.eu")
+                ) {
+                  return false; // Prevent test failure
+                }
+                return true;
+              });
+
+              // Trustpay bank redirects never reach the terminal state
+              switch (paymentMethodType) {
+                case "instant_bank_transfer_finland":
+                  cy.log("Trustpay Instant Bank Transfer through Finland");
+                  break;
+                case "instant_bank_transfer_poland":
+                  cy.log("Trustpay Instant Bank Transfer through Finland");
+                  break;
+                default:
+                  throw new Error(
+                    `Unsupported Trustpay payment method type: ${paymentMethodType}`
+                  );
+              }
+              verifyUrl = false;
+              break;
+            default:
+              verifyReturnUrl(redirectionUrl, expectedUrl, verifyUrl);
+          }
+        },
+        { paymentMethodType }
+      );
+      break;
+
     default:
       verifyReturnUrl(redirectionUrl, expectedUrl, true);
   }
@@ -191,6 +241,30 @@ function bankRedirectRedirection(
     // and it does not redirect to the expected url
     // so, we need cannot verify the return url for adyen ideal bank redirect
     verifyUrl = false;
+  }
+  // Handle Shift4 separately similar to Adyen iDEAL to avoid constants scope issues
+  else if (
+    connectorId === "shift4" &&
+    (paymentMethodType === "eps" || paymentMethodType === "ideal")
+  ) {
+    cy.log(`Special handling for Shift4 ${paymentMethodType} payment`);
+
+    cy.url().then((currentUrl) => {
+      cy.origin(
+        new URL(currentUrl).origin,
+        { args: { constants: CONSTANTS } },
+        ({ constants }) => {
+          // Try to click the succeed payment button
+          cy.contains("button", "Succeed payment", {
+            timeout: constants.TIMEOUT,
+          })
+            .should("be.visible")
+            .click();
+        }
+      );
+    });
+
+    verifyUrl = true;
   } else {
     handleFlow(
       redirectionUrl,
@@ -211,6 +285,20 @@ function bankRedirectRedirection(
               default:
                 throw new Error(
                   `Unsupported Adyen payment method type in handleFlow: ${paymentMethodType}`
+                );
+            }
+            break;
+
+          case "aci":
+            switch (paymentMethodType) {
+              case "ideal":
+                cy.get('input[type="submit"][value="Confirm Transaction"]')
+                  .should("be.visible")
+                  .click();
+                break;
+              default:
+                throw new Error(
+                  `Unsupported ACI payment method type in handleFlow: ${paymentMethodType}`
                 );
             }
             break;
@@ -297,6 +385,23 @@ function bankRedirectRedirection(
                 );
             }
             verifyUrl = false;
+            break;
+
+          case "nexinets":
+            switch (paymentMethodType) {
+              case "ideal":
+                // Nexinets iDEAL specific selector - click the Success link
+                cy.get("a.btn.btn-primary.btn-block")
+                  .contains("Success")
+                  .click();
+
+                verifyUrl = true;
+                break;
+              default:
+                throw new Error(
+                  `Unsupported Nexinets payment method type: ${paymentMethodType}`
+                );
+            }
             break;
 
           default:
@@ -614,6 +719,12 @@ function threeDsRedirection(redirectionUrl, expectedUrl, connectorId) {
             });
           break;
 
+        case "nexinets":
+          cy.wait(constants.TIMEOUT / 10); // Wait for the page to load
+          // Nexinets iDEAL specific selector - click the Success link
+          cy.get("a.btn.btn-primary.btn-block").contains("Success").click();
+
+          break;
         case "nmi":
         case "noon":
         case "xendit":

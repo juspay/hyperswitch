@@ -30,6 +30,7 @@ pub struct ConnectorAuthentication {
     pub boku: Option<BodyKey>,
     pub cashtocode: Option<BodyKey>,
     pub chargebee: Option<HeaderKey>,
+    pub checkbook: Option<BodyKey>,
     pub checkout: Option<SignatureKey>,
     pub coinbase: Option<HeaderKey>,
     pub coingate: Option<HeaderKey>,
@@ -41,6 +42,7 @@ pub struct ConnectorAuthentication {
     pub dlocal: Option<SignatureKey>,
     #[cfg(feature = "dummy_connector")]
     pub dummyconnector: Option<HeaderKey>,
+    pub dwolla: Option<HeaderKey>,
     pub ebanx: Option<HeaderKey>,
     pub elavon: Option<HeaderKey>,
     pub facilitapay: Option<BodyKey>,
@@ -91,6 +93,7 @@ pub struct ConnectorAuthentication {
     pub razorpay: Option<BodyKey>,
     pub recurly: Option<HeaderKey>,
     pub redsys: Option<HeaderKey>,
+    pub santander: Option<BodyKey>,
     pub shift4: Option<HeaderKey>,
     pub square: Option<BodyKey>,
     pub stax: Option<HeaderKey>,

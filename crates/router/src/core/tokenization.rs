@@ -12,6 +12,7 @@ use common_utils::{
     fp_utils::when,
     id_type,
 };
+#[cfg(all(feature = "v2", feature = "tokenization_v2"))]
 use diesel_models::tokenization::TokenizationUpdate;
 #[cfg(all(feature = "v2", feature = "tokenization_v2"))]
 use error_stack::ResultExt;

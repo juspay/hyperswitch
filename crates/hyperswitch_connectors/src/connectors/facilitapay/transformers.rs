@@ -110,6 +110,8 @@ impl TryFrom<&FacilitapayRouterData<&types::PaymentsAuthorizeRouterData>>
                 | BankTransferData::MandiriVaBankTransfer {}
                 | BankTransferData::Pse {}
                 | BankTransferData::InstantBankTransfer {}
+                | BankTransferData::InstantBankTransferFinland {}
+                | BankTransferData::InstantBankTransferPoland {}
                 | BankTransferData::LocalBankTransfer { .. } => {
                     Err(errors::ConnectorError::NotImplemented(
                         "Selected payment method through Facilitapay".to_string(),
@@ -228,9 +230,8 @@ pub fn parse_facilitapay_error_response(
                 Err(_) => (
                     "Invalid response format received".to_string(),
                     format!(
-                        "Unable to parse response as JSON or UTF-8 string. Status code: {}",
-                        status_code
-                    ),
+                    "Unable to parse response as JSON or UTF-8 string. Status code: {status_code}",
+                ),
                 ),
             },
         };
@@ -263,7 +264,7 @@ fn extract_message_from_json(json: &serde_json::Value) -> String {
             return obj
                 .iter()
                 .next()
-                .map(|(k, v)| format!("{}: {}", k, v))
+                .map(|(k, v)| format!("{k}: {v}"))
                 .unwrap_or_else(|| "Unknown error".to_string());
         }
     } else if let Some(s) = json.as_str() {

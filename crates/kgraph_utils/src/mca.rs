@@ -1,9 +1,9 @@
+#[cfg(feature = "v1")]
 use std::str::FromStr;
 
-use api_models::{
-    admin as admin_api, enums as api_enums, payment_methods::RequestPaymentMethodTypes,
-    refunds::MinorUnit,
-};
+#[cfg(feature = "v1")]
+use api_models::payment_methods::RequestPaymentMethodTypes;
+use api_models::{admin as admin_api, enums as api_enums, refunds::MinorUnit};
 use euclid::{
     dirval,
     frontend::{ast, dir},
@@ -123,6 +123,12 @@ fn get_dir_value_payment_method(
         }
         api_enums::PaymentMethodType::InstantBankTransfer => {
             Ok(dirval!(BankTransferType = InstantBankTransfer))
+        }
+        api_enums::PaymentMethodType::InstantBankTransferFinland => {
+            Ok(dirval!(BankTransferType = InstantBankTransferFinland))
+        }
+        api_enums::PaymentMethodType::InstantBankTransferPoland => {
+            Ok(dirval!(BankTransferType = InstantBankTransferPoland))
         }
         api_enums::PaymentMethodType::SepaBankTransfer => {
             Ok(dirval!(BankTransferType = SepaBankTransfer))

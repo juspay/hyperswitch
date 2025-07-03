@@ -474,6 +474,7 @@ async fn payments_incoming_webhook_flow(
                         expand_attempts: false,
                         param: None,
                         all_keys_required: None,
+                        merchant_connector_details: None,
                     },
                     get_trackers_response,
                     consume_or_trigger_flow,
@@ -534,7 +535,7 @@ async fn payments_incoming_webhook_flow(
 
             let status = payments_response.status;
 
-            let event_type: Option<enums::EventType> = payments_response.status.foreign_into();
+            let event_type: Option<enums::EventType> = payments_response.status.into();
 
             // If event is NOT an UnsupportedEvent, trigger Outgoing Webhook
             if let Some(outgoing_event_type) = event_type {
@@ -678,6 +679,7 @@ where
             attempts: None,
             should_sync_with_connector: true,
             payment_address,
+            merchant_connector_details: None,
         },
     })
 }
