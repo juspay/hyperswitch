@@ -16,78 +16,17 @@ pub struct GlobalpayCancelRouterData<T> {
 
 #[derive(Debug, Serialize)]
 pub struct GlobalpayPaymentsRequest {
-    /// A meaningful label for the merchant account set by Global Payments.
     pub account_name: Secret<String>,
-    /// The amount to transfer between Payer and Merchant for a SALE or a REFUND. It is always
-    /// represented in the lowest denomiation of the related currency.
     pub amount: Option<StringMinorUnit>,
-    /// Indicates if the merchant would accept an authorization for an amount less than the
-    /// requested amount. This is available for CP channel
-    /// only where the balance not authorized can be processed again using a different card.
-    pub authorization_mode: Option<AuthorizationMode>,
-    /// Indicates whether the transaction is to be captured automatically, later or later using
-    /// more than 1 partial capture.
-    pub capture_mode: Option<CaptureMode>,
-    /// The amount of the transaction that relates to cashback.It is always represented in the
-    /// lowest denomiation of the related currency.
-    pub cashback_amount: Option<StringMinorUnit>,
-    /// Describes whether the transaction was processed in a face to face(CP) scenario or a
-    /// Customer Not Present (CNP) scenario.
-    pub channel: Channel,
-    /// The amount that reflects the charge the merchant applied to the transaction for availing
-    /// of a more convenient purchase.It is always represented in the lowest denomiation of the
-    /// related currency.
-    pub convenience_amount: Option<StringMinorUnit>,
-    /// The country in ISO-3166-1(alpha-2 code) format.
-    pub country: api_models::enums::CountryAlpha2,
-    /// The currency of the amount in ISO-4217(alpha-3)
     pub currency: String,
-
-    pub currency_conversion: Option<CurrencyConversion>,
-    /// Merchant defined field to describe the transaction.
-    pub description: Option<String>,
-
-    pub device: Option<Device>,
-    /// The amount of the gratuity for a transaction.It is always represented in the lowest
-    /// denomiation of the related currency.
-    pub gratuity_amount: Option<StringMinorUnit>,
-    /// Indicates whether the Merchant or the Payer initiated the creation of a transaction.
-    pub initiator: Option<Initiator>,
-    /// Indicates the source IP Address of the system used to create the transaction.
-    pub ip_address: Option<Secret<String, common_utils::pii::IpAddress>>,
-    /// Indicates the language the transaction was executed in. In the format ISO-639-1 (alpha-2)
-    /// or ISO-639-1 (alpha-2)_ISO-3166(alpha-2)
-    pub language: Option<Language>,
-
-    pub lodging: Option<Lodging>,
-    /// Indicates to Global Payments where the merchant wants to receive notifications of certain
-    /// events that occur on the Global Payments system.
-    pub notifications: Option<Notifications>,
-
-    pub order: Option<Order>,
-    /// The merchant's payer reference for the transaction
-    pub payer_reference: Option<String>,
-    pub payment_method: PaymentMethod,
-    /// Merchant defined field to reference the transaction.
     pub reference: String,
-    /// A merchant defined reference for the location that created the transaction.
-    pub site_reference: Option<String>,
-    /// Stored data information used to create a transaction.
+    pub country: api_models::enums::CountryAlpha2,
+    pub capture_mode: Option<CaptureMode>,
+    pub notifications: Option<Notifications>,
+    pub payment_method: GlobalPayPaymentMethodData,
+    pub channel: Channel,
+    pub initiator: Option<Initiator>,
     pub stored_credential: Option<StoredCredential>,
-    /// The amount that reflects the additional charge the merchant applied to the transaction
-    /// for using a specific payment method.It is always represented in the lowest denomiation of
-    /// the related currency.
-    pub surcharge_amount: Option<StringMinorUnit>,
-    /// Indicates the total or expected total of captures that will executed against a
-    /// transaction flagged as being captured multiple times.
-    pub total_capture_count: Option<i64>,
-    /// Describes whether the transaction is a SALE, that moves funds from Payer to Merchant, or
-    /// a REFUND where funds move from Merchant to Payer.
-    #[serde(rename = "type")]
-    pub globalpay_payments_request_type: Option<GlobalpayPaymentsRequestType>,
-    /// The merchant's user reference for the transaction. This represents the person who
-    /// processed the transaction on the merchant's behalf like a clerk or cashier reference.
-    pub user_reference: Option<String>,
 }
 
 #[derive(Debug, Serialize)]
@@ -173,22 +112,8 @@ pub struct LodgingChargeItem {
 /// events that occur on the Global Payments system.
 #[derive(Debug, Serialize, Deserialize, Default)]
 pub struct Notifications {
-    /// The merchant URL that will receive the notification when the customer has completed the
-    /// authentication.
-    pub challenge_return_url: Option<String>,
-    /// The merchant URL that will receive the notification when the customer has completed the
-    /// authentication when the authentication is decoupled and separate to the purchase.
-    pub decoupled_challenge_return_url: Option<String>,
-    /// The merchant URL to return the payer to, once the payer has completed payment using the
-    /// payment method. This returns control of the payer's payment experience to the merchant.
     pub return_url: Option<String>,
-    /// The merchant URL to notify the merchant of the latest status of the transaction.
     pub status_url: Option<String>,
-    /// The merchant URL that will receive the notification when the 3DS ACS successfully gathers
-    /// de ice informatiSon and tonotification_configurations.cordingly.
-    pub three_ds_method_return_url: Option<String>,
-    /// The URL on merchant's website to which the customer should be redirected in the event of
-    /// the customer canceling the transaction.
     pub cancel_url: Option<String>,
 }
 
@@ -205,6 +130,30 @@ pub enum PaymentMethodData {
     Apm(Apm),
     BankTransfer(BankTransfer),
     DigitalWallet(DigitalWallet),
+    Token(TokenizationData),
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct CommonPaymentMethodData {
+    #[serde(flatten)]
+    pub payment_method_data: PaymentMethodData,
+    pub entry_mode: PaymentMethodEntryMode,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct MandatePaymentMethodData {
+    #[serde(flatten)]
+    pub payment_method_data: PaymentMethodData,
+    pub entry_mode: PaymentMethodEntryMode,
+    pub id: Option<String>,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(untagged)]
+
+pub enum GlobalPayPaymentMethodData {
+    Common(CommonPaymentMethodData),
+    Mandate(MandatePaymentMethodData),
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -223,7 +172,7 @@ pub struct PaymentMethod {
     /// Unique Global Payments generated id used to reference a stored payment method on the
     /// Global Payments system. Often referred to as the payment method token. This value can be
     /// used instead of payment method details such as a card number and expiry date.
-    pub id: Option<Secret<String>>,
+    pub id: Option<String>,
     /// Specify the surname of the owner of the payment method.
     pub last_name: Option<Secret<String>>,
     /// The full name of the owner of the payment method.
@@ -319,35 +268,16 @@ pub struct Address {
 
 #[derive(Debug, Default, Serialize, Deserialize)]
 pub struct Card {
-    /// The card providers description of their card product.
-    pub account_type: Option<String>,
-    /// Code generated when the card is successfully authorized.
-    pub authcode: Option<Secret<String>>,
-    /// First line of the address associated with the card.
-    pub avs_address: Option<String>,
-    /// Postal code of the address associated with the card.
-    pub avs_postal_code: Option<String>,
-    /// The unique reference created by the brands/schemes to uniquely identify the transaction.
-    pub brand_reference: Option<String>,
-    /// Indicates if a fallback mechanism was used to obtain the card information when EMV/chip
-    /// did not work as expected.
-    pub chip_condition: Option<ChipCondition>,
-    /// The numeric value printed on the physical card.
     pub cvv: Secret<String>,
-    /// The 2 digit expiry date month of the card.
     pub expiry_month: Secret<String>,
-    /// The 2 digit expiry date year of the card.
     pub expiry_year: Secret<String>,
-    /// Indicates whether the card is a debit or credit card.
-    pub funding: Option<Funding>,
-    /// The card account number used to authorize the transaction. Also known as PAN.
     pub number: cards::CardNumber,
-    /// Contains the pin block info, relating to the pin code the Payer entered.
-    pub pin_block: Option<Secret<String>>,
-    /// The full card tag data for an EMV/chip card transaction.
-    pub tag: Option<Secret<String>>,
-    /// Data from magnetic stripe of a card
-    pub track: Option<Secret<String>>,
+    pub brand_reference: Option<String>,
+}
+
+#[derive(Debug, Default, Serialize, Deserialize)]
+pub struct TokenizationData {
+    pub brand_reference: Option<String>,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -811,4 +741,48 @@ pub struct GlobalpayCaptureRequest {
 #[derive(Default, Debug, Serialize)]
 pub struct GlobalpayCancelRequest {
     pub amount: Option<StringMinorUnit>,
+}
+
+#[derive(Default, Debug, Serialize, Deserialize)]
+#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
+pub enum UsageMode {
+    /// This value must be used if using the Hosted Fields or the Drop-in UI integration types.
+    /// When creating the payment method token, this option ensures the payment method token is temporary and will be removed once a transaction is executed or after a short period of time.
+    #[default]
+    Single,
+    /// When creating the payment method token, this indicates it is permanent and can be used to create many transactions.
+    Multiple,
+    /// When using the payment method token to transaction process, this indicates to use the card number also known as the PAN or FPAN when bothe the card number and the network token are available.
+    UseCardNumber,
+    /// When using the payment method token to transaction process, this indicates to use the network token instead of the card number if both are available.
+    UseNetworkToken,
+}
+
+#[derive(Default, Debug, Serialize, Deserialize)]
+pub struct GlobalPayPayer {
+    /// Unique identifier for the Payer on the Global Payments system.
+    #[serde(rename = "id", skip_serializing_if = "Option::is_none")]
+    pub payer_id: Option<String>,
+}
+
+#[derive(Default, Debug, Serialize)]
+pub struct GlobalPayPaymentMethodsRequest {
+    /// A meaningful label for the merchant account set by Global Payments.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub account_name: Option<String>,
+    /// Merchant defined field to uniquely reference the stored payment method.
+    pub reference: String,
+    /// Indicates the behaviour of the payment method token.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub usage_mode: Option<UsageMode>,
+    /// Indicates whether to execute the fingerprint signature functionality.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub fingerprint_mode: Option<FingerprintMode>,
+    /// The name of the owner of the payment method. For example the cardholder's name.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub name: Option<Secret<String>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub payer: Option<GlobalPayPayer>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub card: Option<Card>,
 }
