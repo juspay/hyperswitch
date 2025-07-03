@@ -2958,7 +2958,7 @@ pub async fn payment_status(
         force_sync: payload.force_sync,
         expand_attempts: payload.expand_attempts,
         param: payload.param.clone(),
-        all_keys_required: payload.all_keys_required,
+        return_raw_connector_response: payload.return_raw_connector_response,
         merchant_connector_details: None,
     };
 
