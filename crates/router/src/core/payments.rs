@@ -7331,6 +7331,10 @@ where
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Failed execution of straight through routing")?;
 
+        payment_data.set_routing_approach_in_attempt(Some(
+            common_enums::RoutingApproach::StraightThroughRouting,
+        ));
+
         if check_eligibility {
             let transaction_data = core_routing::PaymentsDslInput::new(
                 payment_data.get_setup_mandate(),
@@ -7911,12 +7915,12 @@ pub async fn perform_session_token_routing<F, D>(
     state: SessionState,
     merchant_context: &domain::MerchantContext,
     business_profile: &domain::Profile,
-    payment_data: &D,
+    payment_data: &mut D,
     connectors: api::SessionConnectorDatas,
 ) -> RouterResult<api::SessionConnectorDatas>
 where
     F: Clone,
-    D: OperationSessionGetters<F>,
+    D: OperationSessionGetters<F> + OperationSessionSetters<F>,
 {
     let chosen = connectors.apply_filter_for_session_routing();
     let sfr = SessionFlowRoutingInput {
@@ -7932,7 +7936,7 @@ where
         payment_intent: payment_data.get_payment_intent(),
         chosen,
     };
-    let result = self_routing::perform_session_flow_routing(
+    let (result, routing_approach) = self_routing::perform_session_flow_routing(
         sfr,
         business_profile,
         &enums::TransactionType::Payment,
@@ -7940,6 +7944,8 @@ where
     .await
     .change_context(errors::ApiErrorResponse::InternalServerError)
     .attach_printable("error performing session flow routing")?;
+
+    payment_data.set_routing_approach_in_attempt(routing_approach);
 
     let final_list = connectors.filter_and_validate_for_session_flow(&result)?;
 
