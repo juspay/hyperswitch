@@ -182,6 +182,22 @@ pub trait Feature<F, T> {
         &mut self,
         _state: &SessionState,
         _connector: &api::ConnectorData,
+        _should_continue_payment: bool,
+    ) -> RouterResult<types::CreateOrderResult>
+    where
+        F: Clone,
+        Self: Sized,
+        dyn api::Connector: services::ConnectorIntegration<F, T, types::PaymentsResponseData>,
+    {
+        Ok(types::CreateOrderResult {
+            create_order_result: Ok(None),
+            is_create_order_performed: false,
+        })
+    }
+
+    async fn update_router_data_with_create_order_result(
+        &mut self,
+        _create_order_result: types::CreateOrderResult,
         should_continue_payment: bool,
     ) -> RouterResult<bool>
     where
@@ -190,6 +206,21 @@ pub trait Feature<F, T> {
         dyn api::Connector: services::ConnectorIntegration<F, T, types::PaymentsResponseData>,
     {
         Ok(should_continue_payment)
+    }
+
+    async fn call_unified_connector_service<'a>(
+        &mut self,
+        _state: &SessionState,
+        #[cfg(feature = "v1")] _merchant_connector_account: helpers::MerchantConnectorAccountType,
+        #[cfg(feature = "v2")]
+        _merchant_connector_account: domain::MerchantConnectorAccountTypeDetails,
+    ) -> RouterResult<()>
+    where
+        F: Clone,
+        Self: Sized,
+        dyn api::Connector: services::ConnectorIntegration<F, T, types::PaymentsResponseData>,
+    {
+        Ok(())
     }
 }
 

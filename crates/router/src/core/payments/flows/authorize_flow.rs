@@ -1,10 +1,12 @@
 use async_trait::async_trait;
 use common_enums as enums;
 use common_types::payments as common_payments_types;
+use error_stack::ResultExt;
 use hyperswitch_domain_models::errors::api_error_response::ApiErrorResponse;
 #[cfg(feature = "v2")]
 use hyperswitch_domain_models::payments::PaymentConfirmData;
 use masking::ExposeInterface;
+use unified_connector_service_client::payments as payments_grpc;
 
 // use router_env::tracing::Instrument;
 use super::{ConstructFlowSpecificData, Feature};
@@ -14,6 +16,10 @@ use crate::{
         mandate,
         payments::{
             self, access_token, customers, helpers, tokenization, transformers, PaymentData,
+        },
+        unified_connector_service::{
+            build_unified_connector_service_auth_metadata,
+            handle_unified_connector_service_response_for_payment_authorize,
         },
     },
     logger,
@@ -422,17 +428,80 @@ impl Feature<api::Authorize, types::PaymentsAuthorizeData> for types::PaymentsAu
         state: &SessionState,
         connector: &api::ConnectorData,
         should_continue_payment: bool,
-    ) -> RouterResult<bool> {
+    ) -> RouterResult<types::CreateOrderResult> {
         let create_order_result =
             create_order_at_connector(self, state, connector, should_continue_payment).await?;
+        Ok(create_order_result)
+    }
 
-        let should_continue_payment = update_router_data_with_create_order_result(
-            create_order_result,
-            self,
-            should_continue_payment,
-        )?;
+    async fn update_router_data_with_create_order_result(
+        &mut self,
+        create_order_result: types::CreateOrderResult,
+        should_continue_further: bool,
+    ) -> RouterResult<bool> {
+        if create_order_result.is_create_order_performed {
+            match create_order_result.create_order_result {
+                Ok(Some(order_id)) => {
+                    self.request.order_id = Some(order_id.clone());
+                    self.response =
+                        Ok(types::PaymentsResponseData::PaymentsCreateOrderResponse { order_id });
+                    Ok(true)
+                }
+                Ok(None) => Err(error_stack::report!(ApiErrorResponse::InternalServerError)
+                    .attach_printable("Order Id not found."))?,
+                Err(err) => {
+                    self.response = Err(err.clone());
+                    Ok(false)
+                }
+            }
+        } else {
+            Ok(should_continue_further)
+        }
+    }
 
-        Ok(should_continue_payment)
+    async fn call_unified_connector_service<'a>(
+        &mut self,
+        state: &SessionState,
+        #[cfg(feature = "v1")] merchant_connector_account: helpers::MerchantConnectorAccountType,
+        #[cfg(feature = "v2")]
+        merchant_connector_account: domain::MerchantConnectorAccountTypeDetails,
+    ) -> RouterResult<()> {
+        let client = state
+            .grpc_client
+            .unified_connector_service_client
+            .clone()
+            .ok_or(ApiErrorResponse::InternalServerError)
+            .attach_printable("Failed to fetch Unified Connector Service client")?;
+
+        let payment_authorize_request =
+            payments_grpc::PaymentServiceAuthorizeRequest::foreign_try_from(self)
+                .change_context(ApiErrorResponse::InternalServerError)
+                .attach_printable("Failed to construct Payment Authorize Request")?;
+
+        let connector_auth_metadata =
+            build_unified_connector_service_auth_metadata(merchant_connector_account)
+                .change_context(ApiErrorResponse::InternalServerError)
+                .attach_printable("Failed to construct request metadata")?;
+
+        let response = client
+            .payment_authorize(payment_authorize_request, connector_auth_metadata)
+            .await
+            .change_context(ApiErrorResponse::InternalServerError)
+            .attach_printable("Failed to authorize payment")?;
+
+        let payment_authorize_response = response.into_inner();
+
+        let (status, router_data_response) =
+            handle_unified_connector_service_response_for_payment_authorize(
+                payment_authorize_response,
+            )
+            .change_context(ApiErrorResponse::InternalServerError)
+            .attach_printable("Failed to deserialize UCS response")?;
+
+        self.status = status;
+        self.response = router_data_response;
+
+        Ok(())
     }
 }
 
@@ -787,34 +856,5 @@ async fn create_order_at_connector<F: Clone>(
             create_order_result: Ok(None),
             is_create_order_performed: false,
         })
-    }
-}
-
-fn update_router_data_with_create_order_result<F>(
-    create_order_result: types::CreateOrderResult,
-    router_data: &mut types::RouterData<
-        F,
-        types::PaymentsAuthorizeData,
-        types::PaymentsResponseData,
-    >,
-    should_continue_further: bool,
-) -> RouterResult<bool> {
-    if create_order_result.is_create_order_performed {
-        match create_order_result.create_order_result {
-            Ok(Some(order_id)) => {
-                router_data.request.order_id = Some(order_id.clone());
-                router_data.response =
-                    Ok(types::PaymentsResponseData::PaymentsCreateOrderResponse { order_id });
-                Ok(true)
-            }
-            Ok(None) => Err(error_stack::report!(ApiErrorResponse::InternalServerError)
-                .attach_printable("Order Id not found."))?,
-            Err(err) => {
-                router_data.response = Err(err.clone());
-                Ok(false)
-            }
-        }
-    } else {
-        Ok(should_continue_further)
     }
 }

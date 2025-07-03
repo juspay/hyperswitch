@@ -18128,6 +18128,11 @@
               }
             ],
             "nullable": true
+          },
+          "all_keys_required": {
+            "type": "boolean",
+            "description": "If enabled, provides whole connector response",
+            "nullable": true
           }
         },
         "additionalProperties": false
@@ -19127,6 +19132,11 @@
               }
             ],
             "nullable": true
+          },
+          "all_keys_required": {
+            "type": "boolean",
+            "description": "If enabled, provides whole connector response",
+            "nullable": true
           }
         },
         "additionalProperties": false
@@ -19311,6 +19321,11 @@
             "nullable": true,
             "maxLength": 30,
             "minLength": 30
+          },
+          "whole_connector_response": {
+            "type": "string",
+            "description": "Contains whole connector response",
+            "nullable": true
           }
         }
       },
