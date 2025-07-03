@@ -361,7 +361,7 @@ impl TryFrom<&Option<PaymentMethodData>> for RedsysCardData {
             Some(PaymentMethodData::Card(card)) => {
                 let year = card.get_card_expiry_year_2_digit()?.expose();
                 let month = card.get_card_expiry_month_2_digit()?.expose();
-                let expiry_date = Secret::new(format!("{}{}", year, month));
+                let expiry_date = Secret::new(format!("{year}{month}"));
                 Ok(Self {
                     card_number: card.card_number.clone(),
                     expiry_date,
@@ -886,7 +886,7 @@ fn get_redsys_attempt_status(
             | "0912" | "9064" | "9078" | "9093" | "9094" | "9104" | "9218" | "9253" | "9261"
             | "9915" | "9997" | "9999" => Ok(enums::AttemptStatus::Failure),
             error => Err(errors::ConnectorError::ResponseHandlingFailed)
-                .attach_printable(format!("Received Unknown Status:{}", error))?,
+                .attach_printable(format!("Received Unknown Status:{error}"))?,
         }
     }
 }
@@ -1407,7 +1407,7 @@ impl TryFrom<DsResponse> for enums::RefundStatus {
             "9999" => Ok(Self::Pending),
             "0950" | "0172" | "174" => Ok(Self::Failure),
             unknown_status => Err(errors::ConnectorError::ResponseHandlingFailed)
-                .attach_printable(format!("Received unknown status:{}", unknown_status))?,
+                .attach_printable(format!("Received unknown status:{unknown_status}"))?,
         }
     }
 }
@@ -1601,10 +1601,7 @@ fn get_transaction_type(
             }),
         },
         other_attempt_status => Err(errors::ConnectorError::NotSupported {
-            message: format!(
-                "Payment sync after terminal status: {} payment",
-                other_attempt_status
-            ),
+            message: format!("Payment sync after terminal status: {other_attempt_status} payment"),
             connector: "redsys",
         }),
     }

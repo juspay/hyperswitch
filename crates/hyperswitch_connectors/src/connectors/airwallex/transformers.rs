@@ -3,7 +3,7 @@ use common_utils::{
     errors::ParsingError,
     pii::{Email, IpAddress},
     request::Method,
-    types::MinorUnit,
+    types::{MinorUnit, StringMajorUnit, StringMajorUnitForConnector},
 };
 use error_stack::ResultExt;
 use hyperswitch_domain_models::{
@@ -19,7 +19,7 @@ use hyperswitch_domain_models::{
     router_response_types::{PaymentsResponseData, RedirectForm, RefundsResponseData},
     types,
 };
-use hyperswitch_interfaces::{api, errors};
+use hyperswitch_interfaces::errors;
 use masking::{ExposeInterface, PeekInterface, Secret};
 use serde::{Deserialize, Serialize};
 use time::PrimitiveDateTime;
@@ -72,7 +72,7 @@ pub enum AirwallexPreProcessingRequest {
 pub struct AirwallexIntentRequest {
     // Unique ID to be sent for each transaction/operation request to the connector
     request_id: String,
-    amount: String,
+    amount: StringMajorUnit,
     currency: enums::Currency,
     //ID created in merchant's order system that corresponds to this PaymentIntent.
     merchant_order_id: String,
@@ -83,7 +83,7 @@ pub struct AirwallexIntentRequest {
 #[derive(Default, Debug, Serialize, Eq, PartialEq)]
 pub struct AirwallexPayLaterIntentRequest {
     request_id: String,
-    amount: String,
+    amount: StringMajorUnit,
     currency: enums::Currency,
     merchant_order_id: String,
     referrer_data: ReferrerData,
@@ -148,9 +148,12 @@ impl TryFrom<&types::PaymentsPreProcessingRouterData> for AirwallexPayLaterInten
                 }),
             });
 
+        let amount_in_minor_unit = MinorUnit::new(amount);
+        let amount_in_string_major =
+            utils::convert_amount(&StringMajorUnitForConnector, amount_in_minor_unit, currency)?;
         Ok(Self {
             request_id: Uuid::new_v4().to_string(),
-            amount: utils::to_currency_base_unit(amount, currency)?,
+            amount: amount_in_string_major,
             currency,
             merchant_order_id: item.connector_request_reference_id.clone(),
             referrer_data,
@@ -181,10 +184,12 @@ impl TryFrom<&types::PaymentsPreProcessingRouterData> for AirwallexIntentRequest
                 .ok_or(errors::ConnectorError::MissingRequiredField {
                     field_name: "currency",
                 })?;
-
+        let amount_in_minor_unit = MinorUnit::new(amount);
+        let amount_in_string_major =
+            utils::convert_amount(&StringMajorUnitForConnector, amount_in_minor_unit, currency)?;
         Ok(Self {
             request_id: Uuid::new_v4().to_string(),
-            amount: utils::to_currency_base_unit(amount, currency)?,
+            amount: amount_in_string_major,
             currency,
             merchant_order_id: item.connector_request_reference_id.clone(),
             referrer_data,
@@ -194,22 +199,13 @@ impl TryFrom<&types::PaymentsPreProcessingRouterData> for AirwallexIntentRequest
 
 #[derive(Debug, Serialize)]
 pub struct AirwallexRouterData<T> {
-    pub amount: String,
+    pub amount: StringMajorUnit,
     pub router_data: T,
 }
 
-impl<T> TryFrom<(&api::CurrencyUnit, enums::Currency, i64, T)> for AirwallexRouterData<T> {
+impl<T> TryFrom<(StringMajorUnit, T)> for AirwallexRouterData<T> {
     type Error = error_stack::Report<errors::ConnectorError>;
-
-    fn try_from(
-        (currency_unit, currency, amount, router_data): (
-            &api::CurrencyUnit,
-            enums::Currency,
-            i64,
-            T,
-        ),
-    ) -> Result<Self, Self::Error> {
-        let amount = utils::get_amount_as_string(currency_unit, amount, currency)?;
+    fn try_from((amount, router_data): (StringMajorUnit, T)) -> Result<Self, Self::Error> {
         Ok(Self {
             amount,
             router_data,
@@ -1057,7 +1053,7 @@ pub struct AirwallexPaymentsSyncResponse {
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
 #[serde(untagged)]
-pub enum AirwallexAuthResponse {
+pub enum AirwallexAuthorizeResponse {
     AirwallexPaymentsResponse(AirwallexPaymentsResponse),
     AirwallexRedirectResponse(AirwallexRedirectResponse),
 }
@@ -1104,12 +1100,13 @@ fn get_redirection_form(response_url_data: AirwallexPaymentsNextAction) -> Optio
     })
 }
 
-impl<F, T> ForeignTryFrom<ResponseRouterData<F, AirwallexAuthResponse, T, PaymentsResponseData>>
+impl<F, T>
+    ForeignTryFrom<ResponseRouterData<F, AirwallexAuthorizeResponse, T, PaymentsResponseData>>
     for RouterData<F, T, PaymentsResponseData>
 {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn foreign_try_from(
-        item: ResponseRouterData<F, AirwallexAuthResponse, T, PaymentsResponseData>,
+        item: ResponseRouterData<F, AirwallexAuthorizeResponse, T, PaymentsResponseData>,
     ) -> Result<Self, Self::Error> {
         let ResponseRouterData {
             response,
@@ -1118,7 +1115,7 @@ impl<F, T> ForeignTryFrom<ResponseRouterData<F, AirwallexAuthResponse, T, Paymen
         } = item;
 
         match response {
-            AirwallexAuthResponse::AirwallexPaymentsResponse(res) => {
+            AirwallexAuthorizeResponse::AirwallexPaymentsResponse(res) => {
                 Self::try_from(ResponseRouterData::<
                     F,
                     AirwallexPaymentsResponse,
@@ -1130,7 +1127,7 @@ impl<F, T> ForeignTryFrom<ResponseRouterData<F, AirwallexAuthResponse, T, Paymen
                     http_code,
                 })
             }
-            AirwallexAuthResponse::AirwallexRedirectResponse(res) => {
+            AirwallexAuthorizeResponse::AirwallexRedirectResponse(res) => {
                 Self::try_from(ResponseRouterData::<
                     F,
                     AirwallexRedirectResponse,
@@ -1340,7 +1337,7 @@ impl
 pub struct AirwallexRefundRequest {
     // Unique ID to be sent for each transaction/operation request to the connector
     request_id: String,
-    amount: Option<String>,
+    amount: Option<StringMajorUnit>,
     reason: Option<String>,
     //Identifier for the PaymentIntent for which Refund is requested
     payment_intent_id: String,

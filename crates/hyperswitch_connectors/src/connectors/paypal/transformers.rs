@@ -864,8 +864,8 @@ impl TryFrom<&PaypalRouterData<&SdkSessionUpdateRouterData>> for PaypalUpdateOrd
         // Create separate paths for amount and items
         let reference_id = &item.router_data.connector_request_reference_id;
 
-        let amount_path = format!("/purchase_units/@reference_id=='{}'/amount", reference_id);
-        let items_path = format!("/purchase_units/@reference_id=='{}'/items", reference_id);
+        let amount_path = format!("/purchase_units/@reference_id=='{reference_id}'/amount");
+        let items_path = format!("/purchase_units/@reference_id=='{reference_id}'/items");
 
         let amount_value = Value::Amount(OrderRequestAmount::try_from(item)?);
 
@@ -2313,7 +2313,7 @@ impl TryFrom<&PaypalRouterData<&PayoutsRouterData<PoFulfill>>> for PaypalFulfill
         let item_data = PaypalPayoutItem::try_from(item)?;
         Ok(Self {
             sender_batch_header: PayoutBatchHeader {
-                sender_batch_id: item.router_data.request.payout_id.to_owned(),
+                sender_batch_id: item.router_data.connector_request_reference_id.to_owned(),
             },
             items: vec![item_data],
         })
