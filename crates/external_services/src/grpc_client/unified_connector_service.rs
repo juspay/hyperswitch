@@ -80,6 +80,10 @@ pub enum UnifiedConnectorServiceError {
     /// Failed to inject metadata into request headers
     #[error("Failed to inject metadata into request headers: {0}")]
     HeaderInjectionFailed(String),
+
+    /// Failed to perform Payment Authorize from gRPC Server
+    #[error("Failed to perform Payment Authorize from gRPC Server")]
+    PaymentAuthorizeFailure,
 }
 
 /// Result type for Dynamic Routing
@@ -157,8 +161,8 @@ impl UnifiedConnectorServiceClient {
                         logger::error!(error = ?err, "Failed to connect to Unified Connector Service");
                         None
                     }
-                    Err(_) => {
-                        logger::error!("Connection to Unified Connector Service timed out");
+                    Err(err) => {
+                        logger::error!(error = ?err, "Connection to Unified Connector Service timed out");
                         None
                     }
                 }
@@ -184,9 +188,7 @@ impl UnifiedConnectorServiceClient {
             .clone()
             .authorize(request)
             .await
-            .change_context(UnifiedConnectorServiceError::ConnectionError(
-                "Failed to authorize payment through Unified Connector Service".to_owned(),
-            ))
+            .change_context(UnifiedConnectorServiceError::PaymentAuthorizeFailure)
             .inspect_err(|error| logger::error!(?error))
     }
 }

@@ -115,10 +115,7 @@ pub fn build_unified_connector_service_payment_method(
             })
         }
 
-        _ => Err(UnifiedConnectorServiceError::NotImplemented(format!(
-            "Unimplemented payment method: {:?}",
-            payment_method_data
-        ))
+        _ => Err(UnifiedConnectorServiceError::NotImplemented("Unimplemented Payment Method".to_string())
         .into()),
     }
 }
