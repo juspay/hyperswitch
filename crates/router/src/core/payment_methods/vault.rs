@@ -14,7 +14,7 @@ use hyperswitch_domain_models::{
     router_flow_types::{ExternalVaultDeleteFlow, ExternalVaultRetrieveFlow},
     types::VaultRouterData,
 };
-use masking::{ExposeOptionInterface, PeekInterface};
+use masking::PeekInterface;
 use router_env::{instrument, tracing};
 use scheduler::{types::process_data, utils as process_tracker_utils};
 
