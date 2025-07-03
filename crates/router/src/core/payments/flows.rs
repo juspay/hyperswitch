@@ -80,7 +80,7 @@ pub trait Feature<F, T> {
         connector_request: Option<services::Request>,
         business_profile: &domain::Profile,
         header_payload: hyperswitch_domain_models::payments::HeaderPayload,
-        all_keys_required: Option<bool>,
+        return_raw_connector_response: Option<bool>,
     ) -> RouterResult<Self>
     where
         Self: Sized,
@@ -184,6 +184,22 @@ pub trait Feature<F, T> {
         &mut self,
         _state: &SessionState,
         _connector: &api::ConnectorData,
+        _should_continue_payment: bool,
+    ) -> RouterResult<types::CreateOrderResult>
+    where
+        F: Clone,
+        Self: Sized,
+        dyn api::Connector: services::ConnectorIntegration<F, T, types::PaymentsResponseData>,
+    {
+        Ok(types::CreateOrderResult {
+            create_order_result: Ok(None),
+            is_create_order_performed: false,
+        })
+    }
+
+    async fn update_router_data_with_create_order_result(
+        &mut self,
+        _create_order_result: types::CreateOrderResult,
         should_continue_payment: bool,
     ) -> RouterResult<bool>
     where

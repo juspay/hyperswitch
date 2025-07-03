@@ -151,7 +151,14 @@ pub async fn payments_operation_core<F, Req, Op, FData, D>(
     get_tracker_response: operations::GetTrackerResponse<D>,
     call_connector_action: CallConnectorAction,
     header_payload: HeaderPayload,
-) -> RouterResult<(D, Req, Option<domain::Customer>, Option<u16>, Option<u128>)>
+) -> RouterResult<(
+    D,
+    Req,
+    Option<domain::Customer>,
+    Option<u16>,
+    Option<u128>,
+    common_types::domain::ConnectorResponseData,
+)>
 where
     F: Send + Clone + Sync,
     Req: Send + Sync + Authenticate,
@@ -207,7 +214,7 @@ where
         .perform_routing(&merchant_context, profile, state, &mut payment_data)
         .await?;
 
-    let payment_data = match connector {
+    let (payment_data, connector_response_data) = match connector {
         ConnectorCallType::PreDetermined(connector_data) => {
             let router_data = call_connector_service(
                 state,
@@ -227,9 +234,13 @@ where
                 profile,
                 false,
                 false, //should_retry_with_pan is set to false in case of PreDetermined ConnectorCallType
-                req.get_all_keys_required(),
+                req.should_return_raw_response(),
             )
             .await?;
+
+            let connector_response_data = common_types::domain::ConnectorResponseData {
+                raw_connector_response: router_data.raw_connector_response.clone(),
+            };
 
             let payments_response_operation = Box::new(PaymentResponse);
 
@@ -244,7 +255,7 @@ where
                 )
                 .await?;
 
-            payments_response_operation
+            let payment_data = payments_response_operation
                 .to_post_update_tracker()?
                 .update_tracker(
                     state,
@@ -253,7 +264,9 @@ where
                     merchant_context.get_merchant_key_store(),
                     merchant_context.get_merchant_account().storage_scheme,
                 )
-                .await?
+                .await?;
+
+            (payment_data, connector_response_data)
         }
         ConnectorCallType::Retryable(connectors) => {
             let mut connectors = connectors.clone().into_iter();
@@ -276,9 +289,13 @@ where
                 profile,
                 false,
                 false, //should_retry_with_pan is set to false in case of PreDetermined ConnectorCallType
-                req.get_all_keys_required(),
+                req.should_return_raw_response(),
             )
             .await?;
+
+            let connector_response_data = common_types::domain::ConnectorResponseData {
+                raw_connector_response: router_data.raw_connector_response.clone(),
+            };
 
             let payments_response_operation = Box::new(PaymentResponse);
 
@@ -293,7 +310,7 @@ where
                 )
                 .await?;
 
-            payments_response_operation
+            let payment_data = payments_response_operation
                 .to_post_update_tracker()?
                 .update_tracker(
                     state,
@@ -302,10 +319,17 @@ where
                     merchant_context.get_merchant_key_store(),
                     merchant_context.get_merchant_account().storage_scheme,
                 )
-                .await?
+                .await?;
+
+            (payment_data, connector_response_data)
         }
         ConnectorCallType::SessionMultiple(vec) => todo!(),
-        ConnectorCallType::Skip => payment_data,
+        ConnectorCallType::Skip => (
+            payment_data,
+            common_types::domain::ConnectorResponseData {
+                raw_connector_response: None,
+            },
+        ),
     };
 
     let payment_intent_status = payment_data.get_payment_intent().status;
@@ -324,7 +348,14 @@ where
         })
         .await;
 
-    Ok((payment_data, req, customer, None, None))
+    Ok((
+        payment_data,
+        req,
+        customer,
+        None,
+        None,
+        connector_response_data,
+    ))
 }
 
 #[cfg(feature = "v2")]
@@ -340,7 +371,13 @@ pub async fn internal_payments_operation_core<F, Req, Op, FData, D>(
     get_tracker_response: operations::GetTrackerResponse<D>,
     call_connector_action: CallConnectorAction,
     header_payload: HeaderPayload,
-) -> RouterResult<(D, Req, Option<u16>, Option<u128>)>
+) -> RouterResult<(
+    D,
+    Req,
+    Option<u16>,
+    Option<u128>,
+    common_types::domain::ConnectorResponseData,
+)>
 where
     F: Send + Clone + Sync,
     Req: Send + Sync + Authenticate,
@@ -382,9 +419,13 @@ where
         call_connector_action.clone(),
         header_payload.clone(),
         profile,
-        req.get_all_keys_required(),
+        req.should_return_raw_response(),
     )
     .await?;
+
+    let connector_response_data = common_types::domain::ConnectorResponseData {
+        raw_connector_response: router_data.raw_connector_response.clone(),
+    };
 
     let payments_response_operation = Box::new(PaymentResponse);
 
@@ -399,7 +440,7 @@ where
         )
         .await?;
 
-    Ok((payment_data, req, None, None))
+    Ok((payment_data, req, None, None, connector_response_data))
 }
 
 #[cfg(feature = "v1")]
@@ -702,7 +743,7 @@ where
                         None,
                         &business_profile,
                         false,
-                        <Req as Authenticate>::get_all_keys_required(&req),
+                        <Req as Authenticate>::should_return_raw_response(&req),
                         merchant_connector_account,
                         router_data,
                         tokenization_action,
@@ -843,7 +884,7 @@ where
                         None,
                         &business_profile,
                         false,
-                        <Req as Authenticate>::get_all_keys_required(&req),
+                        <Req as Authenticate>::should_return_raw_response(&req),
                         merchant_connector_account,
                         router_data,
                         tokenization_action,
@@ -977,7 +1018,7 @@ where
                         session_surcharge_details,
                         &business_profile,
                         header_payload.clone(),
-                        <Req as Authenticate>::get_all_keys_required(&req),
+                        <Req as Authenticate>::should_return_raw_response(&req),
                     ))
                     .await?
                 }
@@ -1106,7 +1147,7 @@ pub async fn proxy_for_payments_operation_core<F, Req, Op, FData, D>(
     call_connector_action: CallConnectorAction,
     auth_flow: services::AuthFlow,
     header_payload: HeaderPayload,
-    all_keys_required: Option<bool>,
+    return_raw_connector_response: Option<bool>,
 ) -> RouterResult<(D, Req, Option<domain::Customer>, Option<u16>, Option<u128>)>
 where
     F: Send + Clone + Sync,
@@ -1220,7 +1261,7 @@ where
         schedule_time,
         header_payload.clone(),
         &business_profile,
-        all_keys_required,
+        return_raw_connector_response,
     )
     .await?;
 
@@ -1306,7 +1347,7 @@ pub async fn proxy_for_payments_operation_core<F, Req, Op, FData, D>(
     get_tracker_response: operations::GetTrackerResponse<D>,
     call_connector_action: CallConnectorAction,
     header_payload: HeaderPayload,
-    all_keys_required: Option<bool>,
+    return_raw_connector_response: Option<bool>,
 ) -> RouterResult<(D, Req, Option<u16>, Option<u128>)>
 where
     F: Send + Clone + Sync,
@@ -1351,7 +1392,7 @@ where
                 call_connector_action.clone(),
                 header_payload.clone(),
                 &profile,
-                all_keys_required,
+                return_raw_connector_response,
             )
             .await?;
 
@@ -1901,7 +1942,7 @@ pub async fn proxy_for_payments_core<F, Res, Req, Op, FData, D>(
     auth_flow: services::AuthFlow,
     call_connector_action: CallConnectorAction,
     header_payload: HeaderPayload,
-    all_keys_required: Option<bool>,
+    return_raw_connector_response: Option<bool>,
 ) -> RouterResponse<Res>
 where
     F: Send + Clone + Sync,
@@ -1932,7 +1973,7 @@ where
             call_connector_action,
             auth_flow,
             header_payload.clone(),
-            all_keys_required,
+            return_raw_connector_response,
         )
         .await?;
 
@@ -1961,7 +2002,7 @@ pub async fn proxy_for_payments_core<F, Res, Req, Op, FData, D>(
     payment_id: id_type::GlobalPaymentId,
     call_connector_action: CallConnectorAction,
     header_payload: HeaderPayload,
-    all_keys_required: Option<bool>,
+    return_raw_connector_response: Option<bool>,
 ) -> RouterResponse<Res>
 where
     F: Send + Clone + Sync,
@@ -2013,7 +2054,7 @@ where
             get_tracker_response,
             call_connector_action,
             header_payload.clone(),
-            all_keys_required,
+            return_raw_connector_response,
         )
         .await?;
 
@@ -2024,6 +2065,7 @@ where
         header_payload.x_hs_latency,
         &merchant_context,
         &profile,
+        None,
     )
 }
 
@@ -2101,7 +2143,7 @@ pub async fn record_attempt_core(
                 force_sync: true,
                 expand_attempts: false,
                 param: None,
-                all_keys_required: None,
+                return_raw_connector_response: None,
                 merchant_connector_details: None,
             },
             operations::GetTrackerResponse {
@@ -2161,6 +2203,7 @@ pub async fn record_attempt_core(
         header_payload.x_hs_latency,
         &merchant_context,
         &profile,
+        None,
     )
 }
 
@@ -2370,37 +2413,58 @@ where
         )
         .await?;
 
-    let (payment_data, connector_http_status_code, external_latency) =
+    let (payment_data, connector_http_status_code, external_latency, connector_response_data) =
         if state.conf.merchant_id_auth.merchant_id_auth_enabled {
-            let (payment_data, _req, connector_http_status_code, external_latency) =
-                internal_payments_operation_core::<_, _, _, _, _>(
-                    &state,
-                    req_state,
-                    merchant_context.clone(),
-                    &profile,
-                    operation.clone(),
-                    req,
-                    get_tracker_response,
-                    call_connector_action,
-                    header_payload.clone(),
-                )
-                .await?;
-            (payment_data, connector_http_status_code, external_latency)
+            let (
+                payment_data,
+                _req,
+                connector_http_status_code,
+                external_latency,
+                connector_response_data,
+            ) = internal_payments_operation_core::<_, _, _, _, _>(
+                &state,
+                req_state,
+                merchant_context.clone(),
+                &profile,
+                operation.clone(),
+                req,
+                get_tracker_response,
+                call_connector_action,
+                header_payload.clone(),
+            )
+            .await?;
+            (
+                payment_data,
+                connector_http_status_code,
+                external_latency,
+                connector_response_data,
+            )
         } else {
-            let (payment_data, _req, _customer, connector_http_status_code, external_latency) =
-                payments_operation_core::<_, _, _, _, _>(
-                    &state,
-                    req_state,
-                    merchant_context.clone(),
-                    &profile,
-                    operation.clone(),
-                    req,
-                    get_tracker_response,
-                    call_connector_action,
-                    header_payload.clone(),
-                )
-                .await?;
-            (payment_data, connector_http_status_code, external_latency)
+            let (
+                payment_data,
+                _req,
+                _customer,
+                connector_http_status_code,
+                external_latency,
+                connector_response_data,
+            ) = payments_operation_core::<_, _, _, _, _>(
+                &state,
+                req_state,
+                merchant_context.clone(),
+                &profile,
+                operation.clone(),
+                req,
+                get_tracker_response,
+                call_connector_action,
+                header_payload.clone(),
+            )
+            .await?;
+            (
+                payment_data,
+                connector_http_status_code,
+                external_latency,
+                connector_response_data,
+            )
         };
 
     payment_data.generate_response(
@@ -2410,6 +2474,7 @@ where
         header_payload.x_hs_latency,
         &merchant_context,
         &profile,
+        Some(connector_response_data),
     )
 }
 
@@ -3036,7 +3101,7 @@ impl PaymentRedirectFlow for PaymentRedirectSync {
             param: Some(req.query_params.clone()),
             force_sync: true,
             expand_attempts: false,
-            all_keys_required: None,
+            return_raw_connector_response: None,
             merchant_connector_details: None, // TODO: Implement for connectors requiring 3DS or redirection-based authentication flows.
         };
 
@@ -3092,7 +3157,7 @@ impl PaymentRedirectFlow for PaymentRedirectSync {
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Failed to decide the response flow")?;
 
-        let (payment_data, _, _, _, _) =
+        let (payment_data, _, _, _, _, _) =
             Box::pin(payments_operation_core::<api::PSync, _, _, _, _>(
                 state,
                 req_state,
@@ -3412,7 +3477,7 @@ pub async fn call_connector_service<F, RouterDReq, ApiRequest, D>(
     frm_suggestion: Option<storage_enums::FrmSuggestion>,
     business_profile: &domain::Profile,
     is_retry_payment: bool,
-    all_keys_required: Option<bool>,
+    return_raw_connector_response: Option<bool>,
     merchant_connector_account: helpers::MerchantConnectorAccountType,
     mut router_data: RouterData<F, RouterDReq, router_types::PaymentsResponseData>,
     tokenization_action: TokenizationAction,
@@ -3443,15 +3508,27 @@ where
 
     router_data = router_data.add_session_token(state, &connector).await?;
 
-    let should_continue_further = access_token::update_router_data_with_access_token_result(
+    let mut should_continue_further = access_token::update_router_data_with_access_token_result(
         &add_access_token_result,
         &mut router_data,
         &call_connector_action,
     );
 
-    let should_continue_further = router_data
+    let add_create_order_result = router_data
         .create_order_at_connector(state, &connector, should_continue_further)
         .await?;
+
+    if add_create_order_result.is_create_order_performed {
+        if let Ok(order_id_opt) = &add_create_order_result.create_order_result {
+            payment_data.set_connector_response_reference_id(order_id_opt.clone());
+        }
+        should_continue_further = router_data
+            .update_router_data_with_create_order_result(
+                add_create_order_result,
+                should_continue_further,
+            )
+            .await?;
+    }
 
     let updated_customer = call_create_connector_customer_if_required(
         state,
@@ -3568,7 +3645,7 @@ where
                 connector_request,
                 business_profile,
                 header_payload.clone(),
-                all_keys_required,
+                return_raw_connector_response,
             )
             .await
     } else {
@@ -3866,7 +3943,7 @@ pub async fn call_connector_service<F, RouterDReq, ApiRequest, D>(
     business_profile: &domain::Profile,
     is_retry_payment: bool,
     should_retry_with_pan: bool,
-    all_keys_required: Option<bool>,
+    return_raw_connector_response: Option<bool>,
 ) -> RouterResult<RouterData<F, RouterDReq, router_types::PaymentsResponseData>>
 where
     F: Send + Clone + Sync,
@@ -3935,15 +4012,27 @@ where
 
     router_data = router_data.add_session_token(state, &connector).await?;
 
-    let should_continue_further = access_token::update_router_data_with_access_token_result(
+    let mut should_continue_further = access_token::update_router_data_with_access_token_result(
         &add_access_token_result,
         &mut router_data,
         &call_connector_action,
     );
 
-    let should_continue_further = router_data
+    let add_create_order_result = router_data
         .create_order_at_connector(state, &connector, should_continue_further)
         .await?;
+
+    if add_create_order_result.is_create_order_performed {
+        if let Ok(order_id_opt) = &add_create_order_result.create_order_result {
+            payment_data.set_connector_response_reference_id(order_id_opt.clone());
+        }
+        should_continue_further = router_data
+            .update_router_data_with_create_order_result(
+                add_create_order_result,
+                should_continue_further,
+            )
+            .await?;
+    }
 
     // In case of authorize flow, pre-task and post-tasks are being called in build request
     // if we do not want to proceed further, then the function will return Ok(None, false)
@@ -3989,7 +4078,7 @@ where
                 connector_request,
                 business_profile,
                 header_payload.clone(),
-                all_keys_required,
+                return_raw_connector_response,
             )
             .await
     } else {
@@ -4021,7 +4110,7 @@ pub async fn proxy_for_call_connector_service<F, RouterDReq, ApiRequest, D>(
     header_payload: HeaderPayload,
 
     business_profile: &domain::Profile,
-    all_keys_required: Option<bool>,
+    return_raw_connector_response: Option<bool>,
 ) -> RouterResult<(
     RouterData<F, RouterDReq, router_types::PaymentsResponseData>,
     helpers::MerchantConnectorAccountType,
@@ -4162,7 +4251,7 @@ where
                 connector_request,
                 business_profile,
                 header_payload.clone(),
-                all_keys_required,
+                return_raw_connector_response,
             )
             .await
     } else {
@@ -4189,7 +4278,7 @@ pub async fn proxy_for_call_connector_service<F, RouterDReq, ApiRequest, D>(
     call_connector_action: CallConnectorAction,
     header_payload: HeaderPayload,
     business_profile: &domain::Profile,
-    all_keys_required: Option<bool>,
+    return_raw_connector_response: Option<bool>,
 ) -> RouterResult<RouterData<F, RouterDReq, router_types::PaymentsResponseData>>
 where
     F: Send + Clone + Sync,
@@ -4286,7 +4375,7 @@ where
                 connector_request,
                 business_profile,
                 header_payload.clone(),
-                all_keys_required,
+                return_raw_connector_response,
             )
             .await
     } else {
@@ -4313,7 +4402,7 @@ pub async fn internal_call_connector_service<F, RouterDReq, ApiRequest, D>(
     call_connector_action: CallConnectorAction,
     header_payload: HeaderPayload,
     business_profile: &domain::Profile,
-    all_keys_required: Option<bool>,
+    return_raw_connector_response: Option<bool>,
 ) -> RouterResult<RouterData<F, RouterDReq, router_types::PaymentsResponseData>>
 where
     F: Send + Clone + Sync,
@@ -4381,9 +4470,21 @@ where
         &call_connector_action,
     );
 
-    let should_continue_further = router_data
+    let add_create_order_result = router_data
         .create_order_at_connector(state, &connector, should_continue_further)
         .await?;
+
+    if add_create_order_result.is_create_order_performed {
+        if let Ok(order_id_opt) = &add_create_order_result.create_order_result {
+            payment_data.set_connector_response_reference_id(order_id_opt.clone());
+        }
+        should_continue_further = router_data
+            .update_router_data_with_create_order_result(
+                add_create_order_result,
+                should_continue_further,
+            )
+            .await?;
+    }
 
     let (connector_request, should_continue_further) = if should_continue_further {
         router_data
@@ -4417,7 +4518,7 @@ where
                 connector_request,
                 business_profile,
                 header_payload.clone(),
-                all_keys_required,
+                return_raw_connector_response,
             )
             .await
     } else {
@@ -4679,7 +4780,7 @@ pub async fn call_multiple_connectors_service<F, Op, Req, D>(
     _session_surcharge_details: Option<api::SessionSurchargeDetails>,
     business_profile: &domain::Profile,
     header_payload: HeaderPayload,
-    all_keys_required: Option<bool>,
+    return_raw_connector_response: Option<bool>,
 ) -> RouterResult<D>
 where
     Op: Debug,
@@ -4730,7 +4831,7 @@ where
             None,
             business_profile,
             header_payload.clone(),
-            all_keys_required,
+            return_raw_connector_response,
         );
 
         join_handlers.push(res);
@@ -4790,7 +4891,7 @@ pub async fn call_multiple_connectors_service<F, Op, Req, D>(
     session_surcharge_details: Option<api::SessionSurchargeDetails>,
     business_profile: &domain::Profile,
     header_payload: HeaderPayload,
-    all_keys_required: Option<bool>,
+    return_raw_connector_response: Option<bool>,
 ) -> RouterResult<D>
 where
     Op: Debug,
@@ -4852,7 +4953,7 @@ where
             None,
             business_profile,
             header_payload.clone(),
-            all_keys_required,
+            return_raw_connector_response,
         );
 
         join_handlers.push(res);
@@ -9063,6 +9164,7 @@ pub trait OperationSessionGetters<F> {
     fn get_token_data(&self) -> Option<&storage::PaymentTokenData>;
     fn get_mandate_connector(&self) -> Option<&MandateConnectorDetails>;
     fn get_force_sync(&self) -> Option<bool>;
+    #[cfg(feature = "v1")]
     fn get_all_keys_required(&self) -> Option<bool>;
     fn get_capture_method(&self) -> Option<enums::CaptureMethod>;
     fn get_merchant_connector_id_in_attempt(&self) -> Option<id_type::MerchantConnectorAccountId>;
@@ -9072,6 +9174,8 @@ pub trait OperationSessionGetters<F> {
     ) -> Option<common_types::domain::MerchantConnectorAuthDetails>;
 
     fn get_connector_customer_id(&self) -> Option<String>;
+
+    #[cfg(feature = "v1")]
     fn get_whole_connector_response(&self) -> Option<String>;
 
     #[cfg(feature = "v1")]
@@ -9149,6 +9253,8 @@ pub trait OperationSessionSetters<F> {
 
     #[cfg(feature = "v2")]
     fn set_connector_request_reference_id(&mut self, reference_id: Option<String>);
+
+    fn set_connector_response_reference_id(&mut self, reference_id: Option<String>);
 
     #[cfg(feature = "v2")]
     fn set_vault_session_details(
@@ -9462,6 +9568,10 @@ impl<F: Clone> OperationSessionSetters<F> for PaymentData<F> {
     ) {
         self.payment_attempt.routing_approach = routing_approach;
     }
+
+    fn set_connector_response_reference_id(&mut self, reference_id: Option<String>) {
+        self.payment_attempt.connector_response_reference_id = reference_id;
+    }
 }
 
 #[cfg(feature = "v2")]
@@ -9616,14 +9726,6 @@ impl<F: Clone> OperationSessionGetters<F> for PaymentIntentData<F> {
         todo!();
     }
 
-    fn get_all_keys_required(&self) -> Option<bool> {
-        todo!();
-    }
-
-    fn get_whole_connector_response(&self) -> Option<String> {
-        todo!();
-    }
-
     fn get_pre_routing_result(
         &self,
     ) -> Option<HashMap<enums::PaymentMethodType, domain::PreRoutingConnectorChoice>> {
@@ -9739,6 +9841,10 @@ impl<F: Clone> OperationSessionSetters<F> for PaymentIntentData<F> {
     }
 
     fn set_connector_request_reference_id(&mut self, reference_id: Option<String>) {
+        todo!()
+    }
+
+    fn set_connector_response_reference_id(&mut self, reference_id: Option<String>) {
         todo!()
     }
 
@@ -9907,14 +10013,6 @@ impl<F: Clone> OperationSessionGetters<F> for PaymentConfirmData<F> {
         Some(&self.payment_attempt)
     }
 
-    fn get_all_keys_required(&self) -> Option<bool> {
-        todo!()
-    }
-
-    fn get_whole_connector_response(&self) -> Option<String> {
-        todo!()
-    }
-
     fn get_pre_routing_result(
         &self,
     ) -> Option<HashMap<enums::PaymentMethodType, domain::PreRoutingConnectorChoice>> {
@@ -10036,6 +10134,10 @@ impl<F: Clone> OperationSessionSetters<F> for PaymentConfirmData<F> {
 
     fn set_connector_request_reference_id(&mut self, reference_id: Option<String>) {
         self.payment_attempt.connector_request_reference_id = reference_id;
+    }
+
+    fn set_connector_response_reference_id(&mut self, reference_id: Option<String>) {
+        self.payment_attempt.connector_response_reference_id = reference_id;
     }
 
     fn set_vault_session_details(
@@ -10203,14 +10305,6 @@ impl<F: Clone> OperationSessionGetters<F> for PaymentStatusData<F> {
         Some(&self.payment_attempt)
     }
 
-    fn get_all_keys_required(&self) -> Option<bool> {
-        todo!()
-    }
-
-    fn get_whole_connector_response(&self) -> Option<String> {
-        todo!()
-    }
-
     fn get_pre_routing_result(
         &self,
     ) -> Option<HashMap<enums::PaymentMethodType, domain::PreRoutingConnectorChoice>> {
@@ -10327,6 +10421,10 @@ impl<F: Clone> OperationSessionSetters<F> for PaymentStatusData<F> {
     }
 
     fn set_connector_request_reference_id(&mut self, reference_id: Option<String>) {
+        todo!()
+    }
+
+    fn set_connector_response_reference_id(&mut self, reference_id: Option<String>) {
         todo!()
     }
 
@@ -10496,13 +10594,6 @@ impl<F: Clone> OperationSessionGetters<F> for PaymentCaptureData<F> {
         Some(&self.payment_attempt)
     }
 
-    fn get_all_keys_required(&self) -> Option<bool> {
-        todo!();
-    }
-
-    fn get_whole_connector_response(&self) -> Option<String> {
-        todo!();
-    }
     fn get_pre_routing_result(
         &self,
     ) -> Option<HashMap<enums::PaymentMethodType, domain::PreRoutingConnectorChoice>> {
@@ -10619,6 +10710,10 @@ impl<F: Clone> OperationSessionSetters<F> for PaymentCaptureData<F> {
     }
 
     fn set_connector_request_reference_id(&mut self, reference_id: Option<String>) {
+        todo!()
+    }
+
+    fn set_connector_response_reference_id(&mut self, reference_id: Option<String>) {
         todo!()
     }
 
@@ -10783,13 +10878,6 @@ impl<F: Clone> OperationSessionGetters<F> for PaymentAttemptListData<F> {
         todo!()
     }
 
-    fn get_all_keys_required(&self) -> Option<bool> {
-        todo!();
-    }
-
-    fn get_whole_connector_response(&self) -> Option<String> {
-        todo!();
-    }
     fn get_pre_routing_result(
         &self,
     ) -> Option<HashMap<enums::PaymentMethodType, domain::PreRoutingConnectorChoice>> {

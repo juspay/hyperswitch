@@ -852,7 +852,7 @@ pub struct PaymentAttemptUpdateInternal {
     // payment_experience: Option<storage_enums::PaymentExperience>,
     // preprocessing_step_id: Option<String>,
     pub error_reason: Option<String>,
-    // connector_response_reference_id: Option<String>,
+    pub connector_response_reference_id: Option<String>,
     // multiple_capture_count: Option<i16>,
     // pub surcharge_amount: Option<MinorUnit>,
     // tax_on_surcharge: Option<MinorUnit>,
@@ -910,6 +910,7 @@ impl PaymentAttemptUpdateInternal {
             network_error_message,
             payment_method_id,
             connector_request_reference_id,
+            connector_response_reference_id,
         } = self;
 
         PaymentAttempt {
@@ -939,7 +940,8 @@ impl PaymentAttemptUpdateInternal {
             preprocessing_step_id: source.preprocessing_step_id,
             error_reason: error_reason.or(source.error_reason),
             multiple_capture_count: source.multiple_capture_count,
-            connector_response_reference_id: source.connector_response_reference_id,
+            connector_response_reference_id: connector_response_reference_id
+                .or(source.connector_response_reference_id),
             amount_capturable: amount_capturable.unwrap_or(source.amount_capturable),
             updated_by,
             merchant_connector_id: merchant_connector_id.or(source.merchant_connector_id),
