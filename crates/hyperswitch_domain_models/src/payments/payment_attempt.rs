@@ -905,6 +905,7 @@ pub struct PaymentAttempt {
     pub created_by: Option<CreatedBy>,
     pub setup_future_usage_applied: Option<storage_enums::FutureUsage>,
     pub routing_approach: Option<storage_enums::RoutingApproach>,
+    pub connector_request_reference_id: Option<String>,
 }
 
 #[cfg(feature = "v1")]
@@ -1160,6 +1161,7 @@ pub struct PaymentAttemptNew {
     pub created_by: Option<CreatedBy>,
     pub setup_future_usage_applied: Option<storage_enums::FutureUsage>,
     pub routing_approach: Option<storage_enums::RoutingApproach>,
+    pub connector_request_reference_id: Option<String>,
 }
 
 #[cfg(feature = "v1")]
@@ -1229,6 +1231,7 @@ pub enum PaymentAttemptUpdate {
         connector_mandate_detail: Option<ConnectorMandateReferenceId>,
         card_discovery: Option<common_enums::CardDiscovery>,
         routing_approach: Option<storage_enums::RoutingApproach>,
+        connector_request_reference_id: Option<String>,
     },
     RejectUpdate {
         status: storage_enums::AttemptStatus,
@@ -1490,6 +1493,7 @@ impl PaymentAttemptUpdate {
                 connector_mandate_detail,
                 card_discovery,
                 routing_approach,
+                connector_request_reference_id,
             } => DieselPaymentAttemptUpdate::ConfirmUpdate {
                 amount: net_amount.get_order_amount(),
                 currency,
@@ -1526,6 +1530,7 @@ impl PaymentAttemptUpdate {
                 connector_mandate_detail,
                 card_discovery,
                 routing_approach,
+                connector_request_reference_id,
             },
             Self::VoidUpdate {
                 status,
@@ -1930,6 +1935,7 @@ impl behaviour::Conversion for PaymentAttempt {
             processor_merchant_id: Some(self.processor_merchant_id),
             created_by: self.created_by.map(|cb| cb.to_string()),
             routing_approach: self.routing_approach,
+            connector_request_reference_id: self.connector_request_reference_id,
         })
     }
 
@@ -2026,6 +2032,7 @@ impl behaviour::Conversion for PaymentAttempt {
                     .and_then(|created_by| created_by.parse::<CreatedBy>().ok()),
                 setup_future_usage_applied: storage_model.setup_future_usage_applied,
                 routing_approach: storage_model.routing_approach,
+                connector_request_reference_id: storage_model.connector_request_reference_id,
             })
         }
         .await
@@ -2115,6 +2122,7 @@ impl behaviour::Conversion for PaymentAttempt {
             created_by: self.created_by.map(|cb| cb.to_string()),
             setup_future_usage_applied: self.setup_future_usage_applied,
             routing_approach: self.routing_approach,
+            connector_request_reference_id: self.connector_request_reference_id,
         })
     }
 }

@@ -134,6 +134,7 @@ fn construct_payment_router_data() -> types::PaymentsAuthorizeRouterData {
         authentication_id: None,
         psd2_sca_exemption_type: None,
         raw_connector_response: None,
+        is_payment_id_from_merchant: None,
     }
 }
 
@@ -207,6 +208,7 @@ fn construct_refund_router_data<F>() -> types::RefundsRouterData<F> {
         authentication_id: None,
         psd2_sca_exemption_type: None,
         raw_connector_response: None,
+        is_payment_id_from_merchant: None,
     }
 }
 
