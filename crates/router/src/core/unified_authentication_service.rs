@@ -1,15 +1,15 @@
 pub mod types;
 
 pub mod utils;
-
+#[cfg(feature = "v1")]
+use api_models::authentication::{
+    AuthenticationEligibilityRequest, AuthenticationEligibilityResponse,
+};
 use api_models::{
-    authentication::{
-        AcquirerDetails, AuthenticationCreateRequest, AuthenticationEligibilityRequest,
-        AuthenticationEligibilityResponse, AuthenticationResponse,
-    },
+    authentication::{AcquirerDetails, AuthenticationCreateRequest, AuthenticationResponse},
     payments,
 };
-use common_utils::types::keymanager::ToEncryptable;
+use common_utils::{ext_traits::ValueExt, types::keymanager::ToEncryptable};
 use diesel_models::authentication::{Authentication, AuthenticationNew};
 use error_stack::ResultExt;
 use hyperswitch_domain_models::{
@@ -38,8 +38,8 @@ use super::{
 use crate::{
     consts,
     core::{
+        authentication::utils as auth_utils,
         errors::utils::StorageErrorExt,
-        payment_methods::vault::{create_tokenize, Vaultable},
         unified_authentication_service::types::{
             ClickToPay, ExternalAuthentication, UnifiedAuthenticationService,
             UNIFIED_AUTHENTICATION_SERVICE,
@@ -59,6 +59,10 @@ impl UnifiedAuthenticationService for ClickToPay {
         service_details: Option<payments::CtpServiceDetails>,
         amount: common_utils::types::MinorUnit,
         currency: Option<common_enums::Currency>,
+        merchant_details: Option<&hyperswitch_domain_models::router_request_types::unified_authentication_service::MerchantDetails>,
+        billing_address: Option<&hyperswitch_domain_models::address::Address>,
+        acquirer_bin: Option<String>,
+        acquirer_merchant_id: Option<String>,
     ) -> RouterResult<UasPreAuthenticationRequestData> {
         let domain_service_details = hyperswitch_domain_models::router_request_types::unified_authentication_service::CtpServiceDetails {
             service_session_ids: Some(ServiceSessionIds {
@@ -98,6 +102,10 @@ impl UnifiedAuthenticationService for ClickToPay {
             transaction_details: Some(transaction_details),
             payment_details: None,
             authentication_info,
+            merchant_details: merchant_details.cloned(),
+            billing_address: billing_address.cloned(),
+            acquirer_bin,
+            acquirer_merchant_id,
         })
     }
 
@@ -113,12 +121,20 @@ impl UnifiedAuthenticationService for ClickToPay {
         amount: common_utils::types::MinorUnit,
         currency: Option<common_enums::Currency>,
         service_details: Option<payments::CtpServiceDetails>,
+        merchant_details: Option<&hyperswitch_domain_models::router_request_types::unified_authentication_service::MerchantDetails>,
+        billing_address: Option<&hyperswitch_domain_models::address::Address>,
+        acquirer_bin: Option<String>,
+        acquirer_merchant_id: Option<String>,
     ) -> RouterResult<UasPreAuthenticationRouterData> {
         let pre_authentication_data = Self::get_pre_authentication_request_data(
             payment_method_data,
             service_details,
             amount,
             currency,
+            merchant_details,
+            billing_address,
+            acquirer_bin,
+            acquirer_merchant_id,
         )?;
 
         let pre_auth_router_data: UasPreAuthenticationRouterData =
@@ -134,11 +150,11 @@ impl UnifiedAuthenticationService for ClickToPay {
                 payment_id.cloned(),
             )?;
 
-        utils::do_auth_connector_call(
+        Box::pin(utils::do_auth_connector_call(
             state,
             UNIFIED_AUTHENTICATION_SERVICE.to_string(),
             pre_auth_router_data,
-        )
+        ))
         .await
     }
 
@@ -262,6 +278,10 @@ impl UnifiedAuthenticationService for ExternalAuthentication {
         _service_details: Option<payments::CtpServiceDetails>,
         amount: common_utils::types::MinorUnit,
         currency: Option<common_enums::Currency>,
+        merchant_details: Option<&hyperswitch_domain_models::router_request_types::unified_authentication_service::MerchantDetails>,
+        billing_address: Option<&hyperswitch_domain_models::address::Address>,
+        acquirer_bin: Option<String>,
+        acquirer_merchant_id: Option<String>,
     ) -> RouterResult<UasPreAuthenticationRequestData> {
         let payment_method_data = payment_method_data
             .ok_or(ApiErrorResponse::InternalServerError)
@@ -273,7 +293,8 @@ impl UnifiedAuthenticationService for ExternalAuthentication {
                     digital_card_id: None,
                     payment_data_type: None,
                     encrypted_src_card_details: None,
-                    card_expiry_date: card.card_exp_year.clone(),
+                    card_expiry_month: card.card_exp_month.clone(),
+                    card_expiry_year: card.card_exp_year.clone(),
                     cardholder_name: card.card_holder_name.clone(),
                     card_token_number: card.card_cvc.clone(),
                     account_type: None,
@@ -292,6 +313,10 @@ impl UnifiedAuthenticationService for ExternalAuthentication {
             transaction_details: Some(transaction_details),
             payment_details,
             authentication_info: None,
+            merchant_details: merchant_details.cloned(),
+            billing_address: billing_address.cloned(),
+            acquirer_bin,
+            acquirer_merchant_id,
         })
     }
 
@@ -308,12 +333,20 @@ impl UnifiedAuthenticationService for ExternalAuthentication {
         amount: common_utils::types::MinorUnit,
         currency: Option<common_enums::Currency>,
         service_details: Option<payments::CtpServiceDetails>,
+        merchant_details: Option<&hyperswitch_domain_models::router_request_types::unified_authentication_service::MerchantDetails>,
+        billing_address: Option<&hyperswitch_domain_models::address::Address>,
+        acquirer_bin: Option<String>,
+        acquirer_merchant_id: Option<String>,
     ) -> RouterResult<UasPreAuthenticationRouterData> {
         let pre_authentication_data = Self::get_pre_authentication_request_data(
             payment_method_data,
             service_details,
             amount,
             currency,
+            merchant_details,
+            billing_address,
+            acquirer_bin,
+            acquirer_merchant_id,
         )?;
 
         let pre_auth_router_data: UasPreAuthenticationRouterData =
@@ -329,11 +362,11 @@ impl UnifiedAuthenticationService for ExternalAuthentication {
                 payment_id.cloned(),
             )?;
 
-        utils::do_auth_connector_call(
+        Box::pin(utils::do_auth_connector_call(
             state,
             UNIFIED_AUTHENTICATION_SERVICE.to_string(),
             pre_auth_router_data,
-        )
+        ))
         .await
     }
 
@@ -524,6 +557,7 @@ pub async fn create_new_authentication(
     amount: Option<common_utils::types::MinorUnit>,
     currency: Option<common_enums::Currency>,
     return_url: Option<String>,
+    profile_acquirer_id: Option<common_utils::id_type::ProfileAcquirerId>,
 ) -> RouterResult<Authentication> {
     let service_details_value = service_details
         .map(serde_json::to_value)
@@ -582,6 +616,7 @@ pub async fn create_new_authentication(
         shipping_address: None,
         browser_info: None,
         email: None,
+        profile_acquirer_id,
     };
     state
         .store
@@ -664,6 +699,7 @@ pub async fn authentication_create_core(
         Some(req.amount),
         Some(req.currency),
         req.return_url,
+        Some(req.profile_acquirer_id),
     )
     .await?;
 
@@ -682,12 +718,19 @@ pub async fn authentication_create_core(
         .ok_or(ApiErrorResponse::InternalServerError)
         .attach_printable("currency failed to get currency from authentication table")?;
 
+    let profile_acquirer_id = new_authentication
+        .profile_acquirer_id
+        .clone()
+        .ok_or(ApiErrorResponse::InternalServerError)
+        .attach_printable("failed to get profile_acquirer_id from authentication table")?;
+
     let response = AuthenticationResponse::foreign_from((
         new_authentication,
         amount,
         currency,
         profile_id,
         acquirer_details,
+        profile_acquirer_id,
     ));
 
     Ok(hyperswitch_domain_models::api::ApplicationResponse::Json(
@@ -702,15 +745,17 @@ impl
         common_enums::Currency,
         common_utils::id_type::ProfileId,
         Option<AcquirerDetails>,
+        common_utils::id_type::ProfileAcquirerId,
     )> for AuthenticationResponse
 {
     fn foreign_from(
-        (authentication, amount, currency, profile_id, acquirer_details): (
+        (authentication, amount, currency, profile_id, acquirer_details, profile_acquirer_id): (
             Authentication,
             common_utils::types::MinorUnit,
             common_enums::Currency,
             common_utils::id_type::ProfileId,
             Option<AcquirerDetails>,
+            common_utils::id_type::ProfileAcquirerId,
         ),
     ) -> Self {
         Self {
@@ -731,10 +776,12 @@ impl
             profile_id: Some(profile_id),
             psd2_sca_exemption_type: authentication.psd2_sca_exemption_type,
             acquirer_details,
+            profile_acquirer_id,
         }
     }
 }
 
+#[cfg(feature = "v1")]
 impl
     ForeignFrom<(
         Authentication,
@@ -796,6 +843,8 @@ pub async fn authentication_eligibility_core(
     req: AuthenticationEligibilityRequest,
     authentication_id: common_utils::id_type::AuthenticationId,
 ) -> RouterResponse<AuthenticationEligibilityResponse> {
+    use hyperswitch_domain_models::router_request_types::unified_authentication_service::ThreeDsMetaData;
+
     let merchant_account = merchant_context.get_merchant_account();
     let merchant_id = merchant_account.get_id();
     let db = &*state.store;
@@ -842,7 +891,7 @@ pub async fn authentication_eligibility_core(
         })?;
 
     let (authentication_connector, three_ds_connector_account) =
-        crate::core::authentication::utils::get_authentication_connector_data(
+        auth_utils::get_authentication_connector_data(
             &state,
             merchant_context.get_merchant_key_store(),
             &business_profile,
@@ -859,6 +908,48 @@ pub async fn authentication_eligibility_core(
         .ok_or(ApiErrorResponse::InternalServerError)
         .attach_printable("no amount found in authentication table")?;
 
+    let acquirer_details = authentication
+        .profile_acquirer_id
+        .clone()
+        .and_then(|acquirer_id| {
+            business_profile
+                .acquirer_config_map
+                .and_then(|acquirer_config_map| acquirer_config_map.0.get(&acquirer_id).cloned())
+        });
+
+    let metadata: Option<ThreeDsMetaData> = three_ds_connector_account
+        .get_metadata()
+        .map(|metadata| {
+            metadata.expose().parse_value("ThreeDsMetaData").inspect_err(|err| {
+            router_env::logger::warn!(parsing_error=?err,"Error while parsing ThreeDsMetaData");
+        })
+        })
+        .transpose()
+        .change_context(ApiErrorResponse::InternalServerError)?;
+
+    let merchant_country_code = business_profile
+        .merchant_country_code
+        .map(|code| code.to_string())
+        .or(metadata
+            .clone()
+            .and_then(|metadata| metadata.merchant_country_code));
+
+    let merchant_details = Some(hyperswitch_domain_models::router_request_types::unified_authentication_service::MerchantDetails {
+        merchant_id: Some(authentication.merchant_id.get_string_repr().to_string()),
+        merchant_name: acquirer_details.clone().map(|detail| detail.merchant_name.clone()).or(metadata.clone().and_then(|metadata| metadata.merchant_name)),
+        merchant_category_code: business_profile.merchant_category_code.or(metadata.clone().and_then(|metadata| metadata.mcc)),
+        endpoint_prefix: metadata.clone().map(|metadata| metadata.endpoint_prefix),
+        three_ds_requestor_url: business_profile.authentication_connector_details.map(|details| details.three_ds_requestor_url),
+        three_ds_requestor_id: metadata.clone().and_then(|metadata| metadata.three_ds_requestor_id),
+        three_ds_requestor_name: metadata.clone().and_then(|metadata| metadata.three_ds_requestor_name),
+        merchant_country_code,
+    });
+
+    let domain_address = req
+        .billing
+        .clone()
+        .map(hyperswitch_domain_models::address::Address::from);
+
     let pre_auth_response =
         <ExternalAuthentication as UnifiedAuthenticationService>::pre_authentication(
             &state,
@@ -872,6 +963,10 @@ pub async fn authentication_eligibility_core(
             amount,
             authentication.currency,
             None,
+            merchant_details.as_ref(),
+            domain_address.as_ref(),
+            acquirer_details.clone().map(|detail| detail.acquirer_bin),
+            acquirer_details.map(|detail| detail.acquirer_assigned_merchant_id),
         )
         .await?;
 
@@ -975,23 +1070,6 @@ pub async fn authentication_eligibility_core(
         browser_info,
     )
     .await?;
-
-    // Tokenise card data if authentication is successful
-    if updated_authentication.error_code.is_none() && updated_authentication.error_message.is_none()
-    {
-        let stringyfied_card_data = payment_method_data
-            .get_value1(None)
-            .change_context(ApiErrorResponse::InternalServerError)?;
-
-        create_tokenize(
-            &state,
-            stringyfied_card_data,
-            None,
-            authentication_id.get_string_repr().to_string(),
-            merchant_context.get_merchant_key_store().key.get_inner(),
-        )
-        .await?;
-    }
 
     let response = AuthenticationEligibilityResponse::foreign_from((
         updated_authentication,

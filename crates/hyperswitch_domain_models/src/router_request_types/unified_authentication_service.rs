@@ -1,4 +1,5 @@
 use api_models::payments::DeviceChannel;
+use common_enums::MerchantCategoryCode;
 use common_utils::types::MinorUnit;
 use masking::Secret;
 use time::PrimitiveDateTime;
@@ -11,6 +12,22 @@ pub struct UasPreAuthenticationRequestData {
     pub transaction_details: Option<TransactionDetails>,
     pub payment_details: Option<PaymentDetails>,
     pub authentication_info: Option<AuthenticationInfo>,
+    pub merchant_details: Option<MerchantDetails>,
+    pub billing_address: Option<Address>,
+    pub acquirer_bin: Option<String>,
+    pub acquirer_merchant_id: Option<String>,
+}
+
+#[derive(Debug, Clone)]
+pub struct MerchantDetails {
+    pub merchant_id: Option<String>,
+    pub merchant_name: Option<String>,
+    pub merchant_category_code: Option<MerchantCategoryCode>,
+    pub merchant_country_code: Option<String>,
+    pub endpoint_prefix: Option<String>,
+    pub three_ds_requestor_url: Option<String>,
+    pub three_ds_requestor_id: Option<String>,
+    pub three_ds_requestor_name: Option<String>,
 }
 
 #[derive(Clone, Debug, PartialEq, serde::Serialize)]
@@ -51,7 +68,8 @@ pub struct PaymentDetails {
     pub digital_card_id: Option<String>,
     pub payment_data_type: Option<String>,
     pub encrypted_src_card_details: Option<String>,
-    pub card_expiry_date: Secret<String>,
+    pub card_expiry_month: Secret<String>,
+    pub card_expiry_year: Secret<String>,
     pub cardholder_name: Option<Secret<String>>,
     pub card_token_number: Secret<String>,
     pub account_type: Option<common_enums::PaymentMethodType>,
@@ -153,4 +171,15 @@ pub struct UasConfirmationRequestData {
     pub network_transaction_identifier: Option<String>,
     pub correlation_id: Option<String>,
     pub merchant_transaction_id: Option<String>,
+}
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct ThreeDsMetaData {
+    pub mcc: Option<MerchantCategoryCode>,
+    pub merchant_country_code: Option<String>,
+    pub merchant_name: Option<String>,
+    pub endpoint_prefix: String,
+    pub three_ds_requestor_name: Option<String>,
+    pub three_ds_requestor_id: Option<String>,
+    pub merchant_configuration_id: Option<String>,
 }

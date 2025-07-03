@@ -60,6 +60,7 @@ pub struct Authentication {
     pub shipping_address: Option<Encryption>,
     pub browser_info: Option<serde_json::Value>,
     pub email: Option<Encryption>,
+    pub profile_acquirer_id: Option<common_utils::id_type::ProfileAcquirerId>,
 }
 
 impl Authentication {
@@ -119,6 +120,7 @@ pub struct AuthenticationNew {
     pub shipping_address: Option<Encryption>,
     pub browser_info: Option<serde_json::Value>,
     pub email: Option<Encryption>,
+    pub profile_acquirer_id: Option<common_utils::id_type::ProfileAcquirerId>,
 }
 
 #[derive(Debug)]
@@ -224,6 +226,7 @@ pub struct AuthenticationUpdateInternal {
     pub shipping_address: Option<Encryption>,
     pub browser_info: Option<serde_json::Value>,
     pub email: Option<Encryption>,
+    pub profile_acquirer_id: Option<common_utils::id_type::ProfileAcquirerId>,
 }
 
 impl Default for AuthenticationUpdateInternal {
@@ -263,6 +266,7 @@ impl Default for AuthenticationUpdateInternal {
             shipping_address: Default::default(),
             browser_info: Default::default(),
             email: Default::default(),
+            profile_acquirer_id: Default::default(),
         }
     }
 }
@@ -304,6 +308,7 @@ impl AuthenticationUpdateInternal {
             shipping_address,
             browser_info,
             email,
+            profile_acquirer_id,
         } = self;
         Authentication {
             connector_authentication_id: connector_authentication_id
@@ -344,6 +349,7 @@ impl AuthenticationUpdateInternal {
             shipping_address: shipping_address.or(source.shipping_address),
             browser_info: browser_info.or(source.browser_info),
             email: email.or(source.email),
+            profile_acquirer_id: profile_acquirer_id.or(source.profile_acquirer_id),
             ..source
         }
     }

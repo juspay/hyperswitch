@@ -7576,7 +7576,8 @@
         "type": "object",
         "required": [
           "amount",
-          "currency"
+          "currency",
+          "profile_acquirer_id"
         ],
         "properties": {
           "authentication_id": {
@@ -7588,14 +7589,6 @@
           "profile_id": {
             "type": "string",
             "description": "The business profile that is associated with this authentication",
-            "nullable": true
-          },
-          "authentication_connector": {
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/AuthenticationConnectors"
-              }
-            ],
             "nullable": true
           },
           "customer": {
@@ -7646,6 +7639,9 @@
               }
             ],
             "nullable": true
+          },
+          "profile_acquirer_id": {
+            "$ref": "#/components/schemas/id_type.ProfileAcquirerId"
           }
         }
       },
@@ -7656,7 +7652,8 @@
           "merchant_id",
           "status",
           "amount",
-          "currency"
+          "currency",
+          "profile_acquirer_id"
         ],
         "properties": {
           "authentication_id": {
@@ -7739,6 +7736,9 @@
               }
             ],
             "nullable": true
+          },
+          "profile_acquirer_id": {
+            "$ref": "#/components/schemas/id_type.ProfileAcquirerId"
           }
         }
       },

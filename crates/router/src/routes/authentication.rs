@@ -1,5 +1,7 @@
 use actix_web::{web, HttpRequest, Responder};
-use api_models::authentication::{AuthenticationCreateRequest, AuthenticationEligibilityRequest};
+use api_models::authentication::AuthenticationCreateRequest;
+#[cfg(feature = "v1")]
+use api_models::authentication::AuthenticationEligibilityRequest;
 use router_env::{instrument, tracing, Flow};
 
 use crate::{
