@@ -188,7 +188,7 @@ impl ForeignTryFrom<hyperswitch_domain_models::payment_address::PaymentAddress>
     fn foreign_try_from(
         payment_address: hyperswitch_domain_models::payment_address::PaymentAddress,
     ) -> Result<Self, Self::Error> {
-        let shipping = payment_address.get_shipping().and_then(|address| {
+        let shipping = payment_address.get_shipping().map(|address| {
             let details = address.address.as_ref();
 
             let get_str =
@@ -204,7 +204,7 @@ impl ForeignTryFrom<hyperswitch_domain_models::payment_address::PaymentAddress>
                     .map(|country| country.into())
             });
 
-            Some(payments_grpc::Address {
+            payments_grpc::Address {
                 first_name: get_str(&details.and_then(|d| d.first_name.clone())),
                 last_name: get_str(&details.and_then(|d| d.last_name.clone())),
                 line1: get_str(&details.and_then(|d| d.line1.clone())),
@@ -220,10 +220,10 @@ impl ForeignTryFrom<hyperswitch_domain_models::payment_address::PaymentAddress>
                     .as_ref()
                     .and_then(|phone| phone.number.as_ref().map(|n| n.peek().to_string())),
                 phone_country_code: address.phone.as_ref().and_then(|p| p.country_code.clone()),
-            })
+            }
         });
 
-        let billing = payment_address.get_payment_billing().and_then(|address| {
+        let billing = payment_address.get_payment_billing().map(|address| {
             let details = address.address.as_ref();
 
             let get_str =
@@ -239,7 +239,7 @@ impl ForeignTryFrom<hyperswitch_domain_models::payment_address::PaymentAddress>
                     .map(|country| country.into())
             });
 
-            Some(payments_grpc::Address {
+            payments_grpc::Address {
                 first_name: get_str(&details.and_then(|d| d.first_name.clone())),
                 last_name: get_str(&details.and_then(|d| d.last_name.clone())),
                 line1: get_str(&details.and_then(|d| d.line1.clone())),
@@ -255,10 +255,10 @@ impl ForeignTryFrom<hyperswitch_domain_models::payment_address::PaymentAddress>
                     .as_ref()
                     .and_then(|phone| phone.number.as_ref().map(|n| n.peek().to_string())),
                 phone_country_code: address.phone.as_ref().and_then(|p| p.country_code.clone()),
-            })
+            }
         });
 
-        let unified_payment_method_billing = payment_address.get_payment_method_billing().and_then(|address| {
+        let unified_payment_method_billing = payment_address.get_payment_method_billing().map(|address| {
             let details = address.address.as_ref();
 
             let get_str =
@@ -274,7 +274,7 @@ impl ForeignTryFrom<hyperswitch_domain_models::payment_address::PaymentAddress>
                     .map(|country| country.into())
             });
 
-            Some(payments_grpc::Address {
+            payments_grpc::Address {
                 first_name: get_str(&details.and_then(|d| d.first_name.clone())),
                 last_name: get_str(&details.and_then(|d| d.last_name.clone())),
                 line1: get_str(&details.and_then(|d| d.line1.clone())),
@@ -290,7 +290,7 @@ impl ForeignTryFrom<hyperswitch_domain_models::payment_address::PaymentAddress>
                     .as_ref()
                     .and_then(|phone| phone.number.as_ref().map(|n| n.peek().to_string())),
                 phone_country_code: address.phone.as_ref().and_then(|p| p.country_code.clone()),
-            })
+            }
         });
         Ok(Self {
             shipping_address: shipping.or(unified_payment_method_billing.clone()),
