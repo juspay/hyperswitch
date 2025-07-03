@@ -1,4 +1,9 @@
-import { customerAcceptance,singleUseMandateData,multiUseMandateData,requiredFields } from "./Commons";
+import {
+  customerAcceptance,
+  singleUseMandateData,
+  multiUseMandateData,
+  requiredFields,
+} from "./Commons";
 
 const mockBillingDetails = {
   address: {
@@ -468,7 +473,7 @@ export const connectorDetails = {
         payment_method: "card",
         payment_method_data: {
           card: successfulCardDetails,
-          billing: mockBillingDetails, 
+          billing: mockBillingDetails,
         },
         currency: "USD",
         mandate_data: multiUseMandateData,
@@ -508,7 +513,7 @@ export const connectorDetails = {
       },
       Configs: { TRIGGER_SKIP: true },
     },
-    
+
     ZeroAuthMandate: {
       Request: {
         payment_method: "card",
