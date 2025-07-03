@@ -1,9 +1,7 @@
 import {
   customerAcceptance,
   cardRequiredField,
-  connectorDetails as commonConnectorDetails,
 } from "./Commons.js";
-import { getCurrency } from "./Modifiers.js";
 
 // Mollie test card details based on their test environment
 const successfulNo3DSCardDetails = {
