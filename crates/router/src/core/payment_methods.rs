@@ -3268,6 +3268,7 @@ async fn create_single_use_tokenization_flow(
             authentication_id: None,
             psd2_sca_exemption_type: None,
             whole_connector_response: None,
+            is_payment_id_from_merchant: None,
         };
 
     let payment_method_token_response = tokenization::add_token_for_payment_method(

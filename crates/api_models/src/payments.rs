@@ -1184,6 +1184,12 @@ pub struct PaymentsRequest {
 
     /// If enabled, provides whole connector response
     pub all_keys_required: Option<bool>,
+
+    /// Indicates whether the `payment_id` was provided by the merchant
+    /// This value is inferred internally based on the request
+    #[serde(skip_deserializing)]
+    #[remove_in(PaymentsUpdateRequest, PaymentsCreateRequest, PaymentsConfirmRequest)]
+    pub is_payment_id_from_merchant: bool,
 }
 
 #[derive(Clone, Debug, PartialEq, serde::Serialize, serde::Deserialize, ToSchema)]

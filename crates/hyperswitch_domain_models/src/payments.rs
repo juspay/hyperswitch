@@ -121,6 +121,7 @@ pub struct PaymentIntent {
     pub force_3ds_challenge: Option<bool>,
     pub force_3ds_challenge_trigger: Option<bool>,
     pub is_iframe_redirection_enabled: Option<bool>,
+    pub is_payment_id_from_merchant: Option<bool>,
 }
 
 impl PaymentIntent {
@@ -508,6 +509,10 @@ pub struct PaymentIntent {
 
     /// Indicates if the redirection has to open in the iframe
     pub is_iframe_redirection_enabled: Option<bool>,
+
+    /// Indicates whether the payment_id was provided by the merchant (true),
+    /// or generated internally by Hyperswitch (false)
+    pub is_payment_id_from_merchant: Option<bool>,
 }
 
 #[cfg(feature = "v2")]
@@ -674,6 +679,7 @@ impl PaymentIntent {
             processor_merchant_id: merchant_context.get_merchant_account().get_id().clone(),
             created_by: None,
             is_iframe_redirection_enabled: None,
+            is_payment_id_from_merchant: None,
         })
     }
 
