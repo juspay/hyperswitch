@@ -356,7 +356,7 @@ export const connectorDetails = {
         status: 400,
         body: {
           error: {
-          status: "NotSupported",
+            status: "NotSupported",
           },
         },
       },
