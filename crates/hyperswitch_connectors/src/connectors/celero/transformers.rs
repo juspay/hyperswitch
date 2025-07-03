@@ -1,8 +1,7 @@
-use api_models::payments::Address;
 use common_enums::{enums, Currency};
-use common_utils::ext_traits::OptionExt;
-use common_utils::types::MinorUnit;
+use common_utils::{pii::Email, types::MinorUnit};
 use hyperswitch_domain_models::{
+    address::Address as DomainAddress,
     payment_method_data::PaymentMethodData,
     router_data::{
         AdditionalPaymentMethodConnectorResponse, ConnectorAuthType, ConnectorResponseData,
@@ -20,7 +19,7 @@ use hyperswitch_domain_models::{
     },
 };
 use hyperswitch_interfaces::{consts, errors};
-use masking::{PeekInterface, Secret};
+use masking::{ExposeInterface as _, PeekInterface, Secret};
 use serde::{Deserialize, Serialize};
 
 use crate::{
@@ -91,49 +90,36 @@ pub struct CeleroPaymentsRequest {
 
 #[derive(Debug, Serialize, PartialEq)]
 pub struct CeleroAddress {
-    first_name: Secret<String>,
-    last_name: Secret<String>,
-    address_line_1: Secret<String>,
+    first_name: Option<Secret<String>>,
+    last_name: Option<Secret<String>>,
+    address_line_1: Option<Secret<String>>,
     address_line_2: Option<Secret<String>>,
-    city: String,
-    state: Secret<String>,
-    postal_code: Secret<String>,
-    country: common_enums::CountryAlpha2,
+    city: Option<String>,
+    state: Option<Secret<String>>,
+    postal_code: Option<Secret<String>>,
+    country: Option<common_enums::CountryAlpha2>,
     phone: Option<Secret<String>>,
-    email: Option<Secret<String>>,
+    email: Option<Email>,
 }
 
-impl TryFrom<&Address> for CeleroAddress {
-    type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(address: &Address) -> Result<Self, Self::Error> {
-        let address_details = address.address.as_ref().get_required_value("address")?;
-        Ok(Self {
-            first_name: address_details
-                .first_name
-                .clone()
-                .get_required_value("first_name")?,
-            last_name: address_details
-                .last_name
-                .clone()
-                .get_required_value("last_name")?,
-            address_line_1: address_details
-                .line1
-                .clone()
-                .get_required_value("address.line1")?,
-            address_line_2: address_details.line2.clone(),
-            city: address_details.city.clone().get_required_value("city")?,
-            state: address_details.state.clone().get_required_value("state")?,
-            postal_code: address_details.zip.clone().get_required_value("zip")?,
-            country: address_details
-                .country
-                .clone()
-                .get_required_value("country")?,
+impl From<&DomainAddress> for CeleroAddress {
+    fn from(address: &DomainAddress) -> Self {
+        let address_details = address.address.as_ref();
+        Self {
+            first_name: address_details.and_then(|f| f.first_name.clone()),
+            last_name: address_details.and_then(|l| l.last_name.clone()),
+            address_line_1: address_details.and_then(|a| a.line1.clone()),
+            address_line_2: address_details.and_then(|a| a.line2.clone()),
+            city: address_details.and_then(|a| a.city.clone()),
+            state: address_details.and_then(|a| a.state.clone()),
+            postal_code: address_details.and_then(|a| a.zip.clone()),
+            country: address_details.and_then(|a| a.country.clone()),
             phone: address
                 .phone
                 .as_ref()
                 .and_then(|phone| phone.number.clone()),
-            email: address.email.as_ref().map(|email| email.clone().into()),
-        })
+            email: address.email.clone(),
+        }
     }
 }
 
@@ -204,21 +190,11 @@ impl TryFrom<&CeleroRouterData<&PaymentsAuthorizeRouterData>> for CeleroPayments
             TransactionType::Authorize
         };
 
-        let billing_address = item
-            .router_data
-            .get_billing_address()?
-            .address
-            .as_ref()
-            .map(CeleroAddress::try_from)
-            .transpose()?;
+        let billing_address: Option<CeleroAddress> =
+            item.router_data.get_optional_shipping().map(|e| e.into());
 
-        let shipping_address = item
-            .router_data
-            .get_shipping_address()?
-            .address
-            .as_ref()
-            .map(CeleroAddress::try_from)
-            .transpose()?;
+        let shipping_address: Option<CeleroAddress> =
+            item.router_data.get_optional_shipping().map(|e| e.into());
 
         let request: CeleroPaymentsRequest = Self {
             idempotency_key: item.router_data.connector_request_reference_id.clone(),
@@ -653,10 +629,6 @@ impl
         }
     }
 }
-
-//TODO: Fill the struct with respective fields
-// REFUND :
-// Type definition for RefundRequest
 #[derive(Default, Debug, Serialize)]
 pub struct CeleroRefundRequest {
     pub amount: MinorUnit,
