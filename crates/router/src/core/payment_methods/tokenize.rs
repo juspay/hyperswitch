@@ -278,7 +278,6 @@ where
                 .map(|data| data.into()),
         });
 
-        logger::info!("Encrypting card details for card: {:?}", pm_data.clone());
         create_encrypted_data(&self.state.into(), self.key_store, pm_data)
             .await
             .inspect_err(|err| logger::info!("Error encrypting payment method data: {:?}", err))
