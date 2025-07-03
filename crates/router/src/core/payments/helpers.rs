@@ -3725,6 +3725,7 @@ mod tests {
             force_3ds_challenge: None,
             force_3ds_challenge_trigger: None,
             is_iframe_redirection_enabled: None,
+            is_payment_id_from_merchant: None,
         };
         let req_cs = Some("1".to_string());
         assert!(authenticate_client_secret(req_cs.as_ref(), &payment_intent).is_ok());
@@ -3801,6 +3802,7 @@ mod tests {
             force_3ds_challenge: None,
             force_3ds_challenge_trigger: None,
             is_iframe_redirection_enabled: None,
+            is_payment_id_from_merchant: None,
         };
         let req_cs = Some("1".to_string());
         assert!(authenticate_client_secret(req_cs.as_ref(), &payment_intent,).is_err())
@@ -3875,6 +3877,7 @@ mod tests {
             force_3ds_challenge: None,
             force_3ds_challenge_trigger: None,
             is_iframe_redirection_enabled: None,
+            is_payment_id_from_merchant: None,
         };
         let req_cs = Some("1".to_string());
         assert!(authenticate_client_secret(req_cs.as_ref(), &payment_intent).is_err())
@@ -4209,6 +4212,7 @@ pub fn router_data_type_conversion<F1, F2, Req1, Req2, Res1, Res2>(
         authentication_id: router_data.authentication_id,
         psd2_sca_exemption_type: router_data.psd2_sca_exemption_type,
         raw_connector_response: router_data.raw_connector_response,
+        is_payment_id_from_merchant: router_data.is_payment_id_from_merchant,
     }
 }
 
@@ -4426,6 +4430,7 @@ impl AttemptType {
             created_by: old_payment_attempt.created_by,
             setup_future_usage_applied: None,
             routing_approach: old_payment_attempt.routing_approach,
+            connector_request_reference_id: None,
         }
     }
 
