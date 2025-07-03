@@ -489,6 +489,7 @@ Never share your secret api keys. Keep them guarded and secure.
         api_models::payments::GooglePayWalletData,
         api_models::payments::PayPalWalletData,
         api_models::payments::PaypalRedirection,
+        api_models::payments::SkrillRedirection,
         api_models::payments::GpayMerchantInfo,
         api_models::payments::GpayAllowedPaymentMethods,
         api_models::payments::GpayAllowedMethodsParameters,

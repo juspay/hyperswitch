@@ -8911,6 +8911,27 @@
                 "type": "object"
               }
             }
+          },
+          {
+            "type": "object",
+            "required": [
+              "indonesian_bank_transfer"
+            ],
+            "properties": {
+              "indonesian_bank_transfer": {
+                "type": "object",
+                "properties": {
+                  "bank_name": {
+                    "allOf": [
+                      {
+                        "$ref": "#/components/schemas/BankNames"
+                      }
+                    ],
+                    "nullable": true
+                  }
+                }
+              }
+            }
           }
         ]
       },
@@ -9254,6 +9275,27 @@
             "properties": {
               "instant_bank_transfer_poland": {
                 "type": "object"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "indonesian_bank_transfer"
+            ],
+            "properties": {
+              "indonesian_bank_transfer": {
+                "type": "object",
+                "properties": {
+                  "bank_name": {
+                    "allOf": [
+                      {
+                        "$ref": "#/components/schemas/common_enums.BankNames"
+                      }
+                    ],
+                    "nullable": true
+                  }
+                }
               }
             }
           }
@@ -20398,6 +20440,7 @@
           "samsung_pay",
           "sepa",
           "sepa_bank_transfer",
+          "skrill",
           "sofort",
           "swish",
           "touch_n_go",
@@ -20423,7 +20466,8 @@
           "instant_bank_transfer",
           "instant_bank_transfer_finland",
           "instant_bank_transfer_poland",
-          "revolut_pay"
+          "revolut_pay",
+          "indonesian_bank_transfer"
         ]
       },
       "PaymentMethodUpdate": {
@@ -30492,17 +30536,6 @@
           {
             "type": "object",
             "required": [
-              "skrill_redirect"
-            ],
-            "properties": {
-              "skrill_redirect": {
-                "$ref": "#/components/schemas/SkrillRedirection"
-              }
-            }
-          },
-          {
-            "type": "object",
-            "required": [
               "twint_redirect"
             ],
             "properties": {
@@ -30598,6 +30631,17 @@
             "properties": {
               "revolut_pay": {
                 "$ref": "#/components/schemas/RevolutPayData"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "skrill_redirect"
+            ],
+            "properties": {
+              "skrill_redirect": {
+                "$ref": "#/components/schemas/SkrillRedirection"
               }
             }
           }
