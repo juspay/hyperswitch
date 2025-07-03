@@ -52,7 +52,7 @@ use router_env::logger;
 use transformers as airwallex;
 
 use crate::{
-    connectors::airwallex::transformers::AirwallexAuthResponse,
+    connectors::airwallex::transformers::AirwallexAuthorizeResponse,
     constants::headers,
     types::{RefreshTokenRouterData, ResponseRouterData},
     utils::{convert_amount, AccessTokenRequestInfo, ForeignTryFrom, RefundsRequestData},
@@ -420,9 +420,9 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
         event_builder: Option<&mut ConnectorEvent>,
         res: Response,
     ) -> CustomResult<PaymentsAuthorizeRouterData, errors::ConnectorError> {
-        let response: AirwallexAuthResponse = res
+        let response: AirwallexAuthorizeResponse = res
             .response
-            .parse_struct("AirwallexPaymentsResponse")
+            .parse_struct("AirwallexAuthorizeResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
 
         event_builder.map(|i| i.set_response_body(&response));

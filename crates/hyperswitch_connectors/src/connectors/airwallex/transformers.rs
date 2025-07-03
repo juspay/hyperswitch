@@ -948,7 +948,7 @@ pub struct AirwallexPaymentsSyncResponse {
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
 #[serde(untagged)]
-pub enum AirwallexAuthResponse {
+pub enum AirwallexAuthorizeResponse {
     AirwallexPaymentsResponse(AirwallexPaymentsResponse),
     AirwallexRedirectResponse(AirwallexRedirectResponse),
 }
@@ -995,12 +995,12 @@ fn get_redirection_form(response_url_data: AirwallexPaymentsNextAction) -> Optio
     })
 }
 
-impl<F, T> ForeignTryFrom<ResponseRouterData<F, AirwallexAuthResponse, T, PaymentsResponseData>>
+impl<F, T> ForeignTryFrom<ResponseRouterData<F, AirwallexAuthorizeResponse, T, PaymentsResponseData>>
     for RouterData<F, T, PaymentsResponseData>
 {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn foreign_try_from(
-        item: ResponseRouterData<F, AirwallexAuthResponse, T, PaymentsResponseData>,
+        item: ResponseRouterData<F, AirwallexAuthorizeResponse, T, PaymentsResponseData>,
     ) -> Result<Self, Self::Error> {
         let ResponseRouterData {
             response,
@@ -1009,7 +1009,7 @@ impl<F, T> ForeignTryFrom<ResponseRouterData<F, AirwallexAuthResponse, T, Paymen
         } = item;
 
         match response {
-            AirwallexAuthResponse::AirwallexPaymentsResponse(res) => {
+            AirwallexAuthorizeResponse::AirwallexPaymentsResponse(res) => {
                 Self::try_from(ResponseRouterData::<
                     F,
                     AirwallexPaymentsResponse,
@@ -1021,7 +1021,7 @@ impl<F, T> ForeignTryFrom<ResponseRouterData<F, AirwallexAuthResponse, T, Paymen
                     http_code,
                 })
             }
-            AirwallexAuthResponse::AirwallexRedirectResponse(res) => {
+            AirwallexAuthorizeResponse::AirwallexRedirectResponse(res) => {
                 Self::try_from(ResponseRouterData::<
                     F,
                     AirwallexRedirectResponse,
