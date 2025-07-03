@@ -182,6 +182,11 @@ where
                     .load_metrics(dimensions, auth, filters, granularity, time_range, pool)
                     .await
             }
+            Self::SessionizedDebitRouting => {
+                sessionized_metrics::DebitRouting
+                    .load_metrics(dimensions, auth, filters, granularity, time_range, pool)
+                    .await
+            }
         }
     }
 }

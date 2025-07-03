@@ -5211,26 +5211,33 @@ pub fn get_applepay_metadata(
         })
 }
 
-pub fn calculate_debit_routing_savings(net_amount: f64, saving_percentage: f64) -> MinorUnit {
+pub fn calculate_debit_routing_savings(net_amount: i64, saving_percentage: f64) -> MinorUnit {
     logger::debug!(
         ?net_amount,
         ?saving_percentage,
         "Calculating debit routing saving amount"
     );
 
-    let savings_float = (net_amount * (saving_percentage / 100.0)).round();
+    let net_decimal = Decimal::from_i64(net_amount).unwrap_or_else(|| {
+        logger::warn!(?net_amount, "Invalid net_amount, using 0");
+        Decimal::ZERO
+    });
 
-    let amount_decimal = Decimal::from_f64(savings_float);
+    let percentage_decimal = Decimal::from_f64(saving_percentage).unwrap_or_else(|| {
+        logger::warn!(?saving_percentage, "Invalid saving_percentage, using 0");
+        Decimal::ZERO
+    });
 
-    let savings_int = amount_decimal
-        .and_then(|amount| amount.to_i64())
-        .unwrap_or_else(|| {
-            logger::warn!(
-            ?savings_float,
-            "Debit routing savings calculation overflowed or was invalid when converting to i64"
+    let savings_decimal = net_decimal * percentage_decimal / Decimal::from(100);
+    let rounded_savings = savings_decimal.round();
+
+    let savings_int = rounded_savings.to_i64().unwrap_or_else(|| {
+        logger::warn!(
+            ?rounded_savings,
+            "Debit routing savings calculation overflowed when converting to i64"
         );
-            0
-        });
+        0
+    });
 
     MinorUnit::new(savings_int)
 }
@@ -5241,12 +5248,10 @@ pub fn get_debit_routing_savings_amount(
 ) -> Option<MinorUnit> {
     let card_network = payment_attempt.extract_card_network()?;
 
-    let saving_percentage = payment_method_data.extract_debit_routing_saving_percentage(&card_network)?;
+    let saving_percentage =
+        payment_method_data.extract_debit_routing_saving_percentage(&card_network)?;
 
-    let net_amount = payment_attempt
-        .get_total_amount()
-        .get_amount_as_i64()
-        .to_f64()?;
+    let net_amount = payment_attempt.get_total_amount().get_amount_as_i64();
 
     Some(calculate_debit_routing_savings(
         net_amount,

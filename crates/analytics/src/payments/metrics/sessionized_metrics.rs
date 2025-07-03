@@ -1,5 +1,6 @@
 mod avg_ticket_size;
 mod connector_success_rate;
+mod debit_routing;
 mod failure_reasons;
 mod payment_count;
 mod payment_processed_amount;
@@ -16,5 +17,6 @@ pub(super) use payment_success_count::PaymentSuccessCount;
 pub(super) use payments_distribution::PaymentsDistribution;
 pub(super) use retries_count::RetriesCount;
 pub(super) use success_rate::PaymentSuccessRate;
+pub(super) use debit_routing::DebitRouting;
 
 pub use super::{PaymentMetric, PaymentMetricAnalytics, PaymentMetricRow};

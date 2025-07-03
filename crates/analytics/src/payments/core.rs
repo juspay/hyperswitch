@@ -171,7 +171,7 @@ pub async fn get_metrics(
                                 .connector_success_rate
                                 .add_metrics_bucket(&value);
                         }
-                        PaymentMetrics::DebitRouting => {
+                        PaymentMetrics::DebitRouting | PaymentMetrics::SessionizedDebitRouting => {
                             metrics_builder.debit_routing.add_metrics_bucket(&value);
                         }
                         PaymentMetrics::PaymentsDistribution => {
