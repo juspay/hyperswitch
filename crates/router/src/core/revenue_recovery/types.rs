@@ -167,8 +167,7 @@ impl RevenueRecoveryPaymentsAttemptStatus {
                 )
                 .await{
                     router_env::logger::error!(
-                        "Failed to publish revenue recovery event to kafka: {}",
-                        e
+                        message: "Failed to publish revenue recovery event to kafka", error?=e
                     );
                 };
 
