@@ -72,3 +72,42 @@ pub async fn create_token_vault_api(
     ))
     .await
 }
+
+#[instrument(skip_all, fields(flow = ?Flow::TokenizationDelete))]
+#[cfg(all(feature = "v2", feature = "tokenization_v2"))]
+pub async fn delete_tokenized_data_api(
+    state: web::Data<AppState>,
+    req: HttpRequest,
+    path: web::Path<id_type::GlobalTokenId>,
+    json_payload: web::Json<api_models::tokenization::DeleteTokenDataRequest>,
+) -> HttpResponse {
+    let flow = Flow::TokenizationDelete;
+    let payload = json_payload.into_inner();
+    let session_id = payload.session_id.clone();
+    let token_id = path.into_inner();
+
+    Box::pin(api_service::server_wrap(
+        flow,
+        state,
+        &req,
+        payload,
+        |state, auth: auth::AuthenticationData, req, _| {
+            let merchant_context = domain::MerchantContext::NormalMerchant(Box::new(
+                domain::Context(auth.merchant_account, auth.key_store),
+            ));
+            tokenization::delete_tokenized_data_core(state, merchant_context, &token_id, req)
+        },
+        auth::api_or_client_auth(
+            &auth::V2ApiKeyAuth {
+                is_connected_allowed: false,
+                is_platform_allowed: false,
+            },
+            &auth::V2ClientAuth(
+                common_utils::types::authentication::ResourceId::PaymentMethodSession(session_id),
+            ),
+            req.headers(),
+        ),
+        api_locking::LockAction::NotApplicable,
+    ))
+    .await
+}
