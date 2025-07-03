@@ -135,7 +135,6 @@ impl ApiEventMetric for AuthenticationCreateRequest {
             })
     }
 }
-
 impl ApiEventMetric for AuthenticationResponse {
     fn get_api_event_type(&self) -> Option<ApiEventsType> {
         Some(ApiEventsType::Authentication {

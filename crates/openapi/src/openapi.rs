@@ -234,6 +234,9 @@ Never share your secret api keys. Keep them guarded and secure.
         common_types::payments::StripeSplitPaymentRequest,
         common_types::domain::AdyenSplitData,
         common_types::domain::AdyenSplitItem,
+        common_types::payments::AcceptanceType,
+        common_types::payments::CustomerAcceptance,
+        common_types::payments::OnlineMandate,
         common_types::payments::XenditSplitRequest,
         common_types::payments::XenditSplitRoute,
         common_types::payments::XenditChargeResponseData,
@@ -450,13 +453,10 @@ Never share your secret api keys. Keep them guarded and secure.
         api_models::payments::PaymentMethodData,
         api_models::payments::PaymentMethodDataRequest,
         api_models::payments::MandateType,
-        api_models::payments::AcceptanceType,
         api_models::payments::MandateAmountData,
-        api_models::payments::OnlineMandate,
         api_models::payments::Card,
         api_models::payments::CardRedirectData,
         api_models::payments::CardToken,
-        api_models::payments::CustomerAcceptance,
         api_models::payments::PaymentsRequest,
         api_models::payments::PaymentsCreateRequest,
         api_models::payments::PaymentsUpdateRequest,
@@ -471,6 +471,7 @@ Never share your secret api keys. Keep them guarded and secure.
         api_models::payments::PazeWalletData,
         api_models::payments::SessionToken,
         api_models::payments::ApplePaySessionResponse,
+        api_models::payments::NullObject,
         api_models::payments::ThirdPartySdkSessionResponse,
         api_models::payments::NoThirdPartySdkSessionResponse,
         api_models::payments::SecretInfoToInitiateSdk,
@@ -805,7 +806,9 @@ struct SecurityAddon;
 
 impl utoipa::Modify for SecurityAddon {
     fn modify(&self, openapi: &mut utoipa::openapi::OpenApi) {
-        use utoipa::openapi::security::{ApiKey, ApiKeyValue, SecurityScheme};
+        use utoipa::openapi::security::{
+            ApiKey, ApiKeyValue, HttpAuthScheme, HttpBuilder, SecurityScheme,
+        };
 
         if let Some(components) = openapi.components.as_mut() {
             components.add_security_schemes_from_iter([
@@ -840,6 +843,10 @@ impl utoipa::Modify for SecurityAddon {
                         to a single customer object for a short period of time."
                     ))),
                 ),
+                (
+                    "jwt_key",
+                    SecurityScheme::Http(HttpBuilder::new().scheme(HttpAuthScheme::Bearer).bearer_format("JWT").build())
+                )
             ]);
         }
     }
