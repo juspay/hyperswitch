@@ -7,15 +7,14 @@ use hyperswitch_domain_models::{
         TokenDetails, UasAuthenticationResponseData,
     },
     types::{
-        UasAuthenticationConfirmationRouterData, UasPostAuthenticationRouterData,
-        UasPreAuthenticationRouterData,UasAuthenticationRouterData
+        UasAuthenticationConfirmationRouterData, UasAuthenticationRouterData,
+        UasPostAuthenticationRouterData, UasPreAuthenticationRouterData,
     },
 };
 use hyperswitch_interfaces::errors;
 use masking::Secret;
 use serde::{Deserialize, Serialize};
 use time::PrimitiveDateTime;
-use common_utils::ext_traits::OptionExt;
 
 use crate::types::ResponseRouterData;
 //TODO: Fill the struct with respective fields
@@ -192,7 +191,7 @@ pub struct MerchantDetails {
     pub merchant_country_code: Option<String>,
 }
 
-#[derive(Default,Clone, Debug, Serialize, PartialEq, Deserialize)]
+#[derive(Default, Clone, Debug, Serialize, PartialEq, Deserialize)]
 pub struct Address {
     pub city: Option<String>,
     pub country: Option<common_enums::CountryAlpha2>,
@@ -790,7 +789,7 @@ pub struct UnifiedAuthenticationServiceAuthenticateRequest {
 pub struct DeviceDetails {
     pub device_channel: api_models::payments::DeviceChannel,
     pub browser_info: api_models::payments::BrowserInformation,
-}   
+}
 
 impl TryFrom<UnifiedAuthenticationServiceRouterData<&UasAuthenticationRouterData>>
     for UnifiedAuthenticationServiceAuthenticateRequest
@@ -811,10 +810,13 @@ impl TryFrom<UnifiedAuthenticationServiceRouterData<&UasAuthenticationRouterData
         // };
 
         let three_ds_data = ThreeDSData {
-            preferred_protocol_version: item.router_data.request.pre_authentication_data.message_version,
+            preferred_protocol_version: item
+                .router_data
+                .request
+                .pre_authentication_data
+                .message_version,
             browser: item.router_data.request.browser_details.clone(),
             acquirer,
-            
         };
 
         let device_details = DeviceDetails {
@@ -822,7 +824,7 @@ impl TryFrom<UnifiedAuthenticationServiceRouterData<&UasAuthenticationRouterData
             browser_info: item.router_data.request.browser_details,
         };
         let transaction_details = TransactionDetails {
-            amount:item.amount,
+            amount: item.amount,
             currency: item
                 .router_data
                 .request
@@ -838,8 +840,7 @@ impl TryFrom<UnifiedAuthenticationServiceRouterData<&UasAuthenticationRouterData
             three_ds_data: Some(three_ds_data),
             message_category: item.request.transaction_details.message_category,
         };
-        let auth_type =
-            UnifiedAuthenticationServiceAuthType::try_from(&item.connector_auth_type)?;
+        let auth_type = UnifiedAuthenticationServiceAuthType::try_from(&item.connector_auth_type)?;
 
         Ok(Self {
             authenticate_by: item.connector.clone(),
@@ -851,7 +852,7 @@ impl TryFrom<UnifiedAuthenticationServiceRouterData<&UasAuthenticationRouterData
             connector_metadata: None,
             billing_address: item.request.billing_address.clone(),
             acquirer_bin: item.request.pre_authentication_data.acquirer_bin,
-            acquirer_merchant_id:  item.request.pre_authentication_data.acquirer_merchant_id
+            acquirer_merchant_id: item.request.pre_authentication_data.acquirer_merchant_id,
         })
     }
 }

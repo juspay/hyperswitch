@@ -51,9 +51,6 @@ use crate::{
     types::{domain::types::AsyncLift, transformers::ForeignFrom},
 };
 
-use common_utils::ext_traits::OptionExt;
-use common_utils::ext_traits::ValueExt;
-
 #[cfg(feature = "v1")]
 #[async_trait::async_trait]
 impl UnifiedAuthenticationService for ClickToPay {

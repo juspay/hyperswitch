@@ -331,4 +331,3 @@ impl ApiEventMetric for AuthenticationAuthenticateResponse {
         None
     }
 }
-
