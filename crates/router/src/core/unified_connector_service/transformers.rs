@@ -258,40 +258,42 @@ impl ForeignTryFrom<hyperswitch_domain_models::payment_address::PaymentAddress>
             }
         });
 
-        let unified_payment_method_billing = payment_address.get_payment_method_billing().map(|address| {
-            let details = address.address.as_ref();
+        let unified_payment_method_billing =
+            payment_address.get_payment_method_billing().map(|address| {
+                let details = address.address.as_ref();
 
-            let get_str =
-                |opt: &Option<masking::Secret<String>>| opt.as_ref().map(|s| s.peek().to_owned());
+                let get_str = |opt: &Option<masking::Secret<String>>| {
+                    opt.as_ref().map(|s| s.peek().to_owned())
+                };
 
-            let get_plain = |opt: &Option<String>| opt.clone();
+                let get_plain = |opt: &Option<String>| opt.clone();
 
-            let country = details.and_then(|details| {
-                details
-                    .country
-                    .as_ref()
-                    .and_then(|c| payments_grpc::CountryAlpha2::from_str_name(&c.to_string()))
-                    .map(|country| country.into())
+                let country = details.and_then(|details| {
+                    details
+                        .country
+                        .as_ref()
+                        .and_then(|c| payments_grpc::CountryAlpha2::from_str_name(&c.to_string()))
+                        .map(|country| country.into())
+                });
+
+                payments_grpc::Address {
+                    first_name: get_str(&details.and_then(|d| d.first_name.clone())),
+                    last_name: get_str(&details.and_then(|d| d.last_name.clone())),
+                    line1: get_str(&details.and_then(|d| d.line1.clone())),
+                    line2: get_str(&details.and_then(|d| d.line2.clone())),
+                    line3: get_str(&details.and_then(|d| d.line3.clone())),
+                    city: get_plain(&details.and_then(|d| d.city.clone())),
+                    state: get_str(&details.and_then(|d| d.state.clone())),
+                    zip_code: get_str(&details.and_then(|d| d.zip.clone())),
+                    country_alpha2_code: country,
+                    email: address.email.as_ref().map(|e| e.peek().to_string()),
+                    phone_number: address
+                        .phone
+                        .as_ref()
+                        .and_then(|phone| phone.number.as_ref().map(|n| n.peek().to_string())),
+                    phone_country_code: address.phone.as_ref().and_then(|p| p.country_code.clone()),
+                }
             });
-
-            payments_grpc::Address {
-                first_name: get_str(&details.and_then(|d| d.first_name.clone())),
-                last_name: get_str(&details.and_then(|d| d.last_name.clone())),
-                line1: get_str(&details.and_then(|d| d.line1.clone())),
-                line2: get_str(&details.and_then(|d| d.line2.clone())),
-                line3: get_str(&details.and_then(|d| d.line3.clone())),
-                city: get_plain(&details.and_then(|d| d.city.clone())),
-                state: get_str(&details.and_then(|d| d.state.clone())),
-                zip_code: get_str(&details.and_then(|d| d.zip.clone())),
-                country_alpha2_code: country,
-                email: address.email.as_ref().map(|e| e.peek().to_string()),
-                phone_number: address
-                    .phone
-                    .as_ref()
-                    .and_then(|phone| phone.number.as_ref().map(|n| n.peek().to_string())),
-                phone_country_code: address.phone.as_ref().and_then(|p| p.country_code.clone()),
-            }
-        });
         Ok(Self {
             shipping_address: shipping.or(unified_payment_method_billing.clone()),
             billing_address: billing.or(unified_payment_method_billing),
