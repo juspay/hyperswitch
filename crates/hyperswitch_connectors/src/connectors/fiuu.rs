@@ -420,7 +420,7 @@ impl ConnectorIntegration<PSync, PaymentsSyncData, PaymentsResponseData> for Fiu
         connectors: &Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
         let base_url = connectors.fiuu.secondary_base_url.clone();
-        Ok(format!("{}RMS/API/gate-query/index.php", base_url))
+        Ok(format!("{base_url}RMS/API/gate-query/index.php"))
     }
     fn get_request_body(
         &self,
@@ -512,7 +512,7 @@ impl ConnectorIntegration<Capture, PaymentsCaptureData, PaymentsResponseData> fo
         connectors: &Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
         let base_url = connectors.fiuu.secondary_base_url.clone();
-        Ok(format!("{}RMS/API/capstxn/index.php", base_url))
+        Ok(format!("{base_url}RMS/API/capstxn/index.php"))
     }
 
     fn get_request_body(
@@ -586,7 +586,7 @@ impl ConnectorIntegration<Void, PaymentsCancelData, PaymentsResponseData> for Fi
         connectors: &Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
         let base_url = connectors.fiuu.secondary_base_url.clone();
-        Ok(format!("{}RMS/API/refundAPI/refund.php", base_url))
+        Ok(format!("{base_url}RMS/API/refundAPI/refund.php"))
     }
 
     fn get_request_body(
@@ -651,7 +651,7 @@ impl ConnectorIntegration<Execute, RefundsData, RefundsResponseData> for Fiuu {
         connectors: &Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
         let base_url = connectors.fiuu.secondary_base_url.clone();
-        Ok(format!("{}RMS/API/refundAPI/index.php", base_url))
+        Ok(format!("{base_url}RMS/API/refundAPI/index.php"))
     }
 
     fn get_request_body(
@@ -723,7 +723,7 @@ impl ConnectorIntegration<RSync, RefundsData, RefundsResponseData> for Fiuu {
         connectors: &Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
         let base_url = connectors.fiuu.secondary_base_url.clone();
-        Ok(format!("{}RMS/API/refundAPI/q_by_txn.php", base_url))
+        Ok(format!("{base_url}RMS/API/refundAPI/q_by_txn.php"))
     }
 
     fn get_request_body(

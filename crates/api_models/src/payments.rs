@@ -10,6 +10,7 @@ use cards::CardNumber;
 #[cfg(feature = "v2")]
 use common_enums::enums::PaymentConnectorTransmission;
 use common_enums::ProductType;
+use common_types::payments as common_payments_types;
 #[cfg(feature = "v1")]
 use common_types::primitive_wrappers::{
     ExtendedAuthorizationAppliedBool, RequestExtendedAuthorizationBool,
@@ -269,8 +270,23 @@ pub struct PaymentsCreateIntentRequest {
 
     /// Indicates if 3ds challenge is forced
     pub force_3ds_challenge: Option<bool>,
+
+    /// Merchant connector details used to make payments.
+    #[schema(value_type = Option<MerchantConnectorAuthDetails>)]
+    pub merchant_connector_details: Option<common_types::domain::MerchantConnectorAuthDetails>,
+}
+#[cfg(feature = "v2")]
+#[derive(Debug, serde::Serialize, serde::Deserialize, Clone, ToSchema)]
+pub struct PaymentAttemptListRequest {
+    #[schema(value_type = String)]
+    pub payment_intent_id: id_type::GlobalPaymentId,
 }
 
+#[cfg(feature = "v2")]
+#[derive(Debug, serde::Serialize, Clone, ToSchema)]
+pub struct PaymentAttemptListResponse {
+    pub payment_attempt_list: Vec<PaymentAttemptResponse>,
+}
 #[cfg(feature = "v2")]
 impl PaymentsCreateIntentRequest {
     pub fn get_feature_metadata_as_value(
@@ -1014,7 +1030,7 @@ pub struct PaymentsRequest {
 
     /// This "CustomerAcceptance" object is passed during Payments-Confirm request, it enlists the type, time, and mode of acceptance properties related to an acceptance done by the customer. The customer_acceptance sub object is usually passed by the SDK or client.
     #[schema(value_type = Option<CustomerAcceptance>)]
-    pub customer_acceptance: Option<CustomerAcceptance>,
+    pub customer_acceptance: Option<common_payments_types::CustomerAcceptance>,
 
     /// A unique identifier to link the payment to a mandate. To do Recurring payments after a mandate has been created, pass the mandate_id instead of payment_method_data
     #[schema(max_length = 64, example = "mandate_iwer89rnjef349dni3")]
@@ -1637,6 +1653,9 @@ pub struct PaymentAttemptRevenueRecoveryData {
     /// Flag to find out whether an attempt was created by external or internal system.
     #[schema(value_type = Option<TriggeredBy>, example = "internal")]
     pub attempt_triggered_by: common_enums::TriggeredBy,
+    // stripe specific field used to identify duplicate attempts.
+    #[schema(value_type = Option<String>, example = "ch_123abc456def789ghi012klmn")]
+    pub charge_id: Option<String>,
 }
 
 #[derive(
@@ -1842,7 +1861,8 @@ pub struct MandateData {
     /// A way to update the mandate's payment method details
     pub update_mandate_id: Option<String>,
     /// A consent from the customer to store the payment method
-    pub customer_acceptance: Option<CustomerAcceptance>,
+    #[schema(value_type = Option<CustomerAcceptance>)]
+    pub customer_acceptance: Option<common_payments_types::CustomerAcceptance>,
     /// A way to select the type of mandate used
     pub mandate_type: Option<MandateType>,
 }
@@ -1889,40 +1909,6 @@ impl Default for MandateType {
     fn default() -> Self {
         Self::MultiUse(None)
     }
-}
-
-/// This "CustomerAcceptance" object is passed during Payments-Confirm request, it enlists the type, time, and mode of acceptance properties related to an acceptance done by the customer. The customer_acceptance sub object is usually passed by the SDK or client.
-#[derive(Default, Eq, PartialEq, Debug, serde::Deserialize, serde::Serialize, Clone, ToSchema)]
-#[serde(deny_unknown_fields)]
-pub struct CustomerAcceptance {
-    /// Type of acceptance provided by the
-    #[schema(example = "online")]
-    pub acceptance_type: AcceptanceType,
-    /// Specifying when the customer acceptance was provided
-    #[schema(example = "2022-09-10T10:11:12Z")]
-    #[serde(default, with = "common_utils::custom_serde::iso8601::option")]
-    pub accepted_at: Option<PrimitiveDateTime>,
-    /// Information required for online mandate generation
-    pub online: Option<OnlineMandate>,
-}
-
-#[derive(Default, Debug, serde::Deserialize, serde::Serialize, PartialEq, Eq, Clone, ToSchema)]
-#[serde(rename_all = "lowercase")]
-/// This is used to indicate if the mandate was accepted online or offline
-pub enum AcceptanceType {
-    Online,
-    #[default]
-    Offline,
-}
-
-#[derive(Default, Eq, PartialEq, Debug, serde::Deserialize, serde::Serialize, Clone, ToSchema)]
-#[serde(deny_unknown_fields)]
-pub struct OnlineMandate {
-    /// Ip address of the customer machine from which the mandate was created
-    #[schema(value_type = String, example = "123.32.25.123")]
-    pub ip_address: Option<Secret<String, pii::IpAddress>>,
-    /// The user-agent of the customer's browser
-    pub user_agent: String,
 }
 
 #[derive(Default, Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
@@ -2954,6 +2940,15 @@ pub enum AdditionalPaymentData {
         #[serde(flatten)]
         details: Option<MobilePaymentData>,
     },
+}
+
+impl AdditionalPaymentData {
+    pub fn get_additional_card_info(&self) -> Option<AdditionalCardInfo> {
+        match self {
+            Self::Card(additional_card_info) => Some(*additional_card_info.clone()),
+            _ => None,
+        }
+    }
 }
 
 #[derive(Debug, Clone, Eq, PartialEq, serde::Deserialize, serde::Serialize)]
@@ -5336,7 +5331,7 @@ pub struct PaymentsConfirmIntentRequest {
 
     /// This "CustomerAcceptance" object is passed during Payments-Confirm request, it enlists the type, time, and mode of acceptance properties related to an acceptance done by the customer. The customer_acceptance sub object is usually passed by the SDK or client.
     #[schema(value_type = Option<CustomerAcceptance>)]
-    pub customer_acceptance: Option<CustomerAcceptance>,
+    pub customer_acceptance: Option<common_payments_types::CustomerAcceptance>,
 
     /// Additional details required by 3DS 2.0
     #[schema(value_type = Option<BrowserInformation>)]
@@ -5348,6 +5343,10 @@ pub struct PaymentsConfirmIntentRequest {
 
     #[schema(example = "187282ab-40ef-47a9-9206-5099ba31e432")]
     pub payment_token: Option<String>,
+
+    /// Merchant connector details used to make payments.
+    #[schema(value_type = Option<MerchantConnectorAuthDetails>)]
+    pub merchant_connector_details: Option<common_types::domain::MerchantConnectorAuthDetails>,
 }
 
 #[cfg(feature = "v2")]
@@ -5505,7 +5504,7 @@ pub struct PaymentsRequest {
 
     /// This "CustomerAcceptance" object is passed during Payments-Confirm request, it enlists the type, time, and mode of acceptance properties related to an acceptance done by the customer. The customer_acceptance sub object is usually passed by the SDK or client.
     #[schema(value_type = Option<CustomerAcceptance>)]
-    pub customer_acceptance: Option<CustomerAcceptance>,
+    pub customer_acceptance: Option<common_payments_types::CustomerAcceptance>,
 
     /// Additional details required by 3DS 2.0
     #[schema(value_type = Option<BrowserInformation>)]
@@ -5520,6 +5519,10 @@ pub struct PaymentsRequest {
 
     /// Indicates if the redirection has to open in the iframe
     pub is_iframe_redirection_enabled: Option<bool>,
+
+    /// Merchant connector details used to make payments.
+    #[schema(value_type = Option<MerchantConnectorAuthDetails>)]
+    pub merchant_connector_details: Option<common_types::domain::MerchantConnectorAuthDetails>,
 }
 
 #[cfg(feature = "v2")]
@@ -5534,26 +5537,26 @@ impl From<&PaymentsRequest> for PaymentsCreateIntentRequest {
             billing: request.billing.clone(),
             shipping: request.shipping.clone(),
             customer_id: request.customer_id.clone(),
-            customer_present: request.customer_present.clone(),
+            customer_present: request.customer_present,
             description: request.description.clone(),
             return_url: request.return_url.clone(),
             setup_future_usage: request.setup_future_usage,
-            apply_mit_exemption: request.apply_mit_exemption.clone(),
+            apply_mit_exemption: request.apply_mit_exemption,
             statement_descriptor: request.statement_descriptor.clone(),
             order_details: request.order_details.clone(),
             allowed_payment_method_types: request.allowed_payment_method_types.clone(),
             metadata: request.metadata.clone(),
             connector_metadata: request.connector_metadata.clone(),
             feature_metadata: request.feature_metadata.clone(),
-            payment_link_enabled: request.payment_link_enabled.clone(),
+            payment_link_enabled: request.payment_link_enabled,
             payment_link_config: request.payment_link_config.clone(),
             request_incremental_authorization: request.request_incremental_authorization,
             session_expiry: request.session_expiry,
             frm_metadata: request.frm_metadata.clone(),
             request_external_three_ds_authentication: request
-                .request_external_three_ds_authentication
-                .clone(),
+                .request_external_three_ds_authentication,
             force_3ds_challenge: request.force_3ds_challenge,
+            merchant_connector_details: request.merchant_connector_details.clone(),
         }
     }
 }
@@ -5571,6 +5574,7 @@ impl From<&PaymentsRequest> for PaymentsConfirmIntentRequest {
             browser_info: request.browser_info.clone(),
             payment_method_id: request.payment_method_id.clone(),
             payment_token: None,
+            merchant_connector_details: request.merchant_connector_details.clone(),
         }
     }
 }
@@ -5578,10 +5582,32 @@ impl From<&PaymentsRequest> for PaymentsConfirmIntentRequest {
 // Serialize is implemented because, this will be serialized in the api events.
 // Usually request types should not have serialize implemented.
 //
-/// Request for Payment Status
+/// Request body for Payment Status
 #[cfg(feature = "v2")]
 #[derive(Debug, serde::Deserialize, serde::Serialize, ToSchema)]
 pub struct PaymentsRetrieveRequest {
+    /// A boolean used to indicate if the payment status should be fetched from the connector
+    /// If this is set to true, the status will be fetched from the connector
+    #[serde(default)]
+    pub force_sync: bool,
+    /// A boolean used to indicate if all the attempts needs to be fetched for the intent.
+    /// If this is set to true, attempts list will be available in the response.
+    #[serde(default)]
+    pub expand_attempts: bool,
+    /// These are the query params that are sent in case of redirect response.
+    /// These can be ingested by the connector to take necessary actions.
+    pub param: Option<String>,
+    /// If enabled, provides whole connector response
+    pub all_keys_required: Option<bool>,
+    /// Merchant connector details used to make payments.
+    #[schema(value_type = Option<MerchantConnectorAuthDetails>)]
+    pub merchant_connector_details: Option<common_types::domain::MerchantConnectorAuthDetails>,
+}
+
+#[cfg(feature = "v2")]
+#[derive(Debug, serde::Deserialize, serde::Serialize, ToSchema)]
+/// Request for Payment Status
+pub struct PaymentsStatusRequest {
     /// A boolean used to indicate if the payment status should be fetched from the connector
     /// If this is set to true, the status will be fetched from the connector
     #[serde(default)]
@@ -5740,25 +5766,47 @@ pub struct PaymentsResponse {
 
     /// Indicates if the redirection has to open in the iframe
     pub is_iframe_redirection_enabled: Option<bool>,
+
+    /// Unique identifier for the payment. This ensures idempotency for multiple payments
+    /// that have been done by a single merchant.
+    #[schema(
+        value_type = Option<String>,
+        min_length = 30,
+        max_length = 30,
+        example = "pay_mbabizu24mvu3mela5njyhpit4"
+    )]
+    pub merchant_reference_id: Option<id_type::PaymentReferenceId>,
 }
 
 #[cfg(feature = "v2")]
-impl PaymentsResponse {
+impl PaymentAttemptListResponse {
     pub fn find_attempt_in_attempts_list_using_connector_transaction_id(
-        self,
+        &self,
         connector_transaction_id: &common_utils::types::ConnectorTransactionId,
     ) -> Option<PaymentAttemptResponse> {
-        self.attempts
-            .as_ref()
-            .and_then(|attempts| {
-                attempts.iter().find(|attempt| {
-                    attempt
-                        .connector_payment_id
+        self.payment_attempt_list.iter().find_map(|attempt| {
+            attempt
+                .connector_payment_id
+                .as_ref()
+                .filter(|txn_id| *txn_id == connector_transaction_id)
+                .map(|_| attempt.clone())
+        })
+    }
+    pub fn find_attempt_in_attempts_list_using_charge_id(
+        &self,
+        charge_id: String,
+    ) -> Option<PaymentAttemptResponse> {
+        self.payment_attempt_list.iter().find_map(|attempt| {
+            attempt.feature_metadata.as_ref().and_then(|metadata| {
+                metadata.revenue_recovery.as_ref().and_then(|recovery| {
+                    recovery
+                        .charge_id
                         .as_ref()
-                        .is_some_and(|txn_id| txn_id == connector_transaction_id)
+                        .filter(|id| **id == charge_id)
+                        .map(|_| attempt.clone())
                 })
             })
-            .cloned()
+        })
     }
 }
 
@@ -6822,7 +6870,6 @@ pub struct AirwallexData {
     /// payload required by airwallex
     payload: Option<String>,
 }
-
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema)]
 pub struct NoonData {
     /// Information about the order category that merchant wants to specify at connector level. (e.g. In Noon Payments it can take values like "pay", "food", or any other custom string set by the merchant in Noon's Dashboard)
@@ -7273,7 +7320,7 @@ pub enum ApplePaySessionResponse {
     /// This is the common response most of the times
     NoThirdPartySdk(NoThirdPartySdkSessionResponse),
     /// This is for the empty session response
-    NoSessionResponse,
+    NoSessionResponse(NullObject),
 }
 
 #[derive(Debug, Clone, Eq, PartialEq, serde::Serialize, ToSchema, serde::Deserialize)]
@@ -8694,9 +8741,41 @@ pub struct PaymentRevenueRecoveryMetadata {
     /// The name of the payment connector through which the payment attempt was made.
     #[schema(value_type = Connector, example = "stripe")]
     pub connector: common_enums::connector_enums::Connector,
+    #[schema(value_type = BillingConnectorPaymentMethodDetails)]
+    /// Extra Payment Method Details that are needed to be stored
+    pub billing_connector_payment_method_details: Option<BillingConnectorPaymentMethodDetails>,
     /// Invoice Next billing time
+    #[serde(default, with = "common_utils::custom_serde::iso8601::option")]
     pub invoice_next_billing_time: Option<PrimitiveDateTime>,
+    /// First Payment Attempt Payment Gateway Error Code
+    #[schema(value_type = Option<String>, example = "card_declined")]
+    pub first_payment_attempt_pg_error_code: Option<String>,
+    /// First Payment Attempt Network Error Code
+    #[schema(value_type = Option<String>, example = "05")]
+    pub first_payment_attempt_network_decline_code: Option<String>,
+    /// First Payment Attempt Network Advice Code
+    #[schema(value_type = Option<String>, example = "02")]
+    pub first_payment_attempt_network_advice_code: Option<String>,
 }
+
+#[cfg(feature = "v2")]
+#[derive(Debug, Clone, PartialEq, Deserialize, Serialize, ToSchema)]
+#[serde(rename_all = "snake_case", tag = "type", content = "value")]
+pub enum BillingConnectorPaymentMethodDetails {
+    Card(BillingConnectorAdditionalCardInfo),
+}
+
+#[cfg(feature = "v2")]
+#[derive(Debug, Clone, PartialEq, Deserialize, Serialize, ToSchema)]
+pub struct BillingConnectorAdditionalCardInfo {
+    #[schema(value_type = CardNetwork, example = "Visa")]
+    /// Card Network
+    pub card_network: Option<common_enums::enums::CardNetwork>,
+    #[schema(value_type = Option<String>, example = "JP MORGAN CHASE")]
+    /// Card Issuer
+    pub card_issuer: Option<String>,
+}
+
 #[cfg(feature = "v2")]
 impl PaymentRevenueRecoveryMetadata {
     pub fn set_payment_transmission_field_for_api_request(
@@ -8810,6 +8889,14 @@ pub struct PaymentsAttemptRecordRequest {
     /// source where the payment was triggered by
     #[schema(value_type = TriggeredBy, example = "internal" )]
     pub triggered_by: common_enums::TriggeredBy,
+
+    #[schema(value_type = CardNetwork, example = "Visa" )]
+    /// card_network
+    pub card_network: Option<common_enums::CardNetwork>,
+
+    #[schema(example = "Chase")]
+    /// Card Issuer
+    pub card_issuer: Option<String>,
 }
 
 /// Error details for the payment
@@ -8828,4 +8915,31 @@ pub struct RecordAttemptErrorDetails {
     pub network_decline_code: Option<String>,
     /// A string indicating how to proceed with an network error if payment gateway provide one. This is used to understand the network error code better.
     pub network_error_message: Option<String>,
+}
+
+#[derive(Debug, Clone, Eq, PartialEq, ToSchema)]
+pub struct NullObject;
+
+impl Serialize for NullObject {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        serializer.serialize_none()
+    }
+}
+
+#[cfg(test)]
+mod null_object_test {
+    use serde_json;
+
+    use super::*;
+
+    #[allow(clippy::unwrap_used)]
+    #[test]
+    fn test_null_object_serialization() {
+        let null_object = NullObject;
+        let serialized = serde_json::to_string(&null_object).unwrap();
+        assert_eq!(serialized, "null");
+    }
 }

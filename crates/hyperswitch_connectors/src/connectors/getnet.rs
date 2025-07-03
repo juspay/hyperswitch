@@ -325,8 +325,7 @@ impl ConnectorIntegration<PSync, PaymentsSyncData, PaymentsResponseData> for Get
             .change_context(errors::ConnectorError::MissingConnectorTransactionID)?;
 
         Ok(format!(
-            "{}/merchants/{}/payments/{}",
-            endpoint, merchant_id, transaction_id
+            "{endpoint}/merchants/{merchant_id}/payments/{transaction_id}",
         ))
     }
 
@@ -649,8 +648,7 @@ impl ConnectorIntegration<RSync, RefundsData, RefundsResponseData> for Getnet {
         let transaction_id = req.request.connector_transaction_id.clone();
 
         Ok(format!(
-            "{}/merchants/{}/payments/{}",
-            endpoint, merchant_id, transaction_id
+            "{endpoint}/merchants/{merchant_id}/payments/{transaction_id}",
         ))
     }
 

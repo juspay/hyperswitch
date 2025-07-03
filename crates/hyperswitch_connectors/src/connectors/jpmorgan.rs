@@ -216,7 +216,7 @@ impl ConnectorIntegration<AccessTokenAuth, AccessTokenRequestData, AccessToken> 
         );
         let encoded_creds = common_utils::consts::BASE64_ENGINE.encode(creds);
 
-        let auth_string = format!("Basic {}", encoded_creds);
+        let auth_string = format!("Basic {encoded_creds}");
         Ok(vec![
             (
                 headers::CONTENT_TYPE.to_string(),
@@ -665,9 +665,9 @@ impl ConnectorIntegration<Execute, RefundsData, RefundsResponseData> for Jpmorga
     fn get_url(
         &self,
         _req: &RefundsRouterData<Execute>,
-        _connectors: &Connectors,
+        connectors: &Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        Err(errors::ConnectorError::NotImplemented("Refunds".to_string()).into())
+        Ok(format!("{}/refunds", self.base_url(connectors)))
     }
 
     fn get_request_body(

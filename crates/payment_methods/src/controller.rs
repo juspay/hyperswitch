@@ -3,6 +3,7 @@ use std::fmt::Debug;
 #[cfg(feature = "payouts")]
 use api_models::payouts;
 use api_models::{enums as api_enums, payment_methods as api};
+#[cfg(feature = "v1")]
 use common_enums::enums as common_enums;
 #[cfg(feature = "v2")]
 use common_utils::encryption;
@@ -10,6 +11,7 @@ use common_utils::{crypto, ext_traits, id_type, type_name, types::keymanager};
 use error_stack::ResultExt;
 use hyperswitch_domain_models::{merchant_key_store, payment_methods, type_encryption};
 use masking::{PeekInterface, Secret};
+#[cfg(feature = "v1")]
 use scheduler::errors as sch_errors;
 use serde::{Deserialize, Serialize};
 use storage_impl::{errors as storage_errors, payment_method};
@@ -148,10 +150,10 @@ pub trait PaymentMethodsController {
     #[cfg(feature = "v2")]
     async fn get_or_insert_payment_method(
         &self,
-        req: api::PaymentMethodCreate,
-        resp: &mut api::PaymentMethodResponse,
-        customer_id: &id_type::CustomerId,
-        key_store: &merchant_key_store::MerchantKeyStore,
+        _req: api::PaymentMethodCreate,
+        _resp: &mut api::PaymentMethodResponse,
+        _customer_id: &id_type::CustomerId,
+        _key_store: &merchant_key_store::MerchantKeyStore,
     ) -> errors::PmResult<payment_methods::PaymentMethod> {
         todo!()
     }

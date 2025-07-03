@@ -1,8 +1,6 @@
 pub mod transformers;
 
 use base64::Engine;
-#[cfg(all(feature = "revenue_recovery", feature = "v2"))]
-use common_utils::types::{StringMinorUnit, StringMinorUnitForConnector};
 use common_utils::{
     consts::BASE64_ENGINE,
     errors::CustomResult,
@@ -10,7 +8,9 @@ use common_utils::{
     request::{Method, Request, RequestBuilder, RequestContent},
     types::{AmountConvertor, MinorUnit, MinorUnitForConnector},
 };
-use error_stack::{report, ResultExt};
+#[cfg(feature = "v1")]
+use error_stack::report;
+use error_stack::ResultExt;
 #[cfg(all(feature = "v2", feature = "revenue_recovery"))]
 use hyperswitch_domain_models::{
     revenue_recovery, router_flow_types::revenue_recovery::RecoveryRecordBack,
@@ -47,8 +47,6 @@ use hyperswitch_interfaces::{
     types::{self, Response},
     webhooks,
 };
-#[cfg(all(feature = "revenue_recovery", feature = "v2"))]
-use masking::ExposeInterface;
 use masking::{Mask, PeekInterface, Secret};
 use transformers as chargebee;
 
