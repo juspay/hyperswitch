@@ -865,8 +865,8 @@ fn get_card_network_with_us_local_debit_network_override(
         .map(|network| network.is_us_local_network())
     {
         services::logger::debug!("Card network is a US local network, checking for global network in co-badged card data");
-        let info: Option<api_models::open_router::CoBadgedCardNetworksInfo> =
-            co_badged_card_data.and_then(|data| {
+        let info: Option<api_models::open_router::CoBadgedCardNetworksInfo> = co_badged_card_data
+            .and_then(|data| {
                 data.co_badged_card_networks_info
                     .0
                     .iter()

@@ -10,6 +10,7 @@ mod retries_count;
 mod success_rate;
 pub(super) use avg_ticket_size::AvgTicketSize;
 pub(super) use connector_success_rate::ConnectorSuccessRate;
+pub(super) use debit_routing::DebitRouting;
 pub(super) use failure_reasons::FailureReasons;
 pub(super) use payment_count::PaymentCount;
 pub(super) use payment_processed_amount::PaymentProcessedAmount;
@@ -17,6 +18,5 @@ pub(super) use payment_success_count::PaymentSuccessCount;
 pub(super) use payments_distribution::PaymentsDistribution;
 pub(super) use retries_count::RetriesCount;
 pub(super) use success_rate::PaymentSuccessRate;
-pub(super) use debit_routing::DebitRouting;
 
 pub use super::{PaymentMetric, PaymentMetricAnalytics, PaymentMetricRow};
