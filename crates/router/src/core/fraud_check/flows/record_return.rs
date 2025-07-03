@@ -11,7 +11,7 @@ use crate::{
     },
     errors, services,
     types::{
-        api::{self, RecordReturn},
+        api::RecordReturn,
         domain,
         fraud_check::{
             FraudCheckRecordReturnData, FraudCheckResponseData, FrmRecordReturnRouterData,

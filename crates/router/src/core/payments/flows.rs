@@ -60,10 +60,10 @@ pub trait ConstructFlowSpecificData<F, Req, Res> {
 
     async fn get_merchant_recipient_data<'a>(
         &self,
-        state: &SessionState,
-        merchant_context: &domain::MerchantContext,
-        merchant_connector_account: &helpers::MerchantConnectorAccountType,
-        connector: &api::ConnectorData,
+        _state: &SessionState,
+        _merchant_context: &domain::MerchantContext,
+        _merchant_connector_account: &helpers::MerchantConnectorAccountType,
+        _connector: &api::ConnectorData,
     ) -> RouterResult<Option<types::MerchantRecipientData>> {
         Ok(None)
     }

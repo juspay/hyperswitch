@@ -12,10 +12,7 @@ use crate::{
     },
     errors, services,
     types::{
-        api::{
-            self,
-            fraud_check::{self as frm_api, FraudCheckConnectorData},
-        },
+        api::fraud_check::{self as frm_api, FraudCheckConnectorData},
         domain,
         fraud_check::{FraudCheckCheckoutData, FraudCheckResponseData, FrmCheckoutRouterData},
         storage::enums as storage_enums,

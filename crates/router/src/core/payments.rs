@@ -77,6 +77,8 @@ pub use session_operation::payments_session_core;
 use strum::IntoEnumIterator;
 use time;
 
+use std::future;
+
 #[cfg(feature = "v1")]
 pub use self::operations::{
     PaymentApprove, PaymentCancel, PaymentCapture, PaymentConfirm, PaymentCreate,
@@ -3664,7 +3666,6 @@ where
         }
     }
 
-    #[cfg(feature = "v1")]
     if payment_data
         .get_payment_attempt()
         .merchant_connector_id
@@ -3705,7 +3706,7 @@ where
     // Validating the blocklist guard and generate the fingerprint
     blocklist_guard(state, merchant_context, operation, payment_data).await?;
 
-    payment_data
+    let merchant_recipient_data = payment_data
         .get_merchant_recipient_data(
             state,
             merchant_context,
@@ -3767,79 +3768,83 @@ where
     dyn api::Connector:
         services::api::ConnectorIntegration<F, RouterDReq, router_types::PaymentsResponseData>,
 {
-    let stime_connector = Instant::now();
-
-    let result =
-        match should_call_unified_connector_service(state, merchant_context, &router_data).await? {
-            true => {
-                if should_add_task_to_process_tracker(payment_data) {
-                    operation
-                        .to_domain()?
-                        .add_task_to_process_tracker(
-                            state,
-                            payment_data.get_payment_attempt(),
-                            validate_result.requeue,
-                            schedule_time,
-                        )
-                        .await
-                        .map_err(|error| logger::error!(process_tracker_error=?error))
-                        .ok();
-                }
-
-                (_, *payment_data) = operation
-                    .to_update_tracker()?
-                    .update_trackers(
+    record_time_taken_with(|| async {
+        if should_call_unified_connector_service(state, merchant_context, &router_data).await? {
+            if should_add_task_to_process_tracker(payment_data) {
+                operation
+                    .to_domain()?
+                    .add_task_to_process_tracker(
                         state,
-                        req_state,
-                        payment_data.clone(),
-                        customer.clone(),
-                        merchant_context.get_merchant_account().storage_scheme,
-                        None,
-                        merchant_context.get_merchant_key_store(),
-                        frm_suggestion,
-                        header_payload.clone(),
+                        payment_data.get_payment_attempt(),
+                        validate_result.requeue,
+                        schedule_time,
                     )
-                    .await?;
-
-                router_data
-                    .call_unified_connector_service(
-                        state,
-                        merchant_connector_account.clone(),
-                        merchant_context,
-                    )
-                    .await?;
-
-                Ok((router_data, merchant_connector_account))
+                    .await
+                    .map_err(|error| logger::error!(process_tracker_error=?error))
+                    .ok();
             }
-            false => {
-                call_connector_service(
+
+            (_, *payment_data) = operation
+                .to_update_tracker()?
+                .update_trackers(
                     state,
                     req_state,
-                    merchant_context,
-                    connector,
-                    operation,
-                    payment_data,
-                    customer,
-                    call_connector_action,
-                    validate_result,
-                    schedule_time,
-                    header_payload,
+                    payment_data.clone(),
+                    customer.clone(),
+                    merchant_context.get_merchant_account().storage_scheme,
+                    None,
+                    merchant_context.get_merchant_key_store(),
                     frm_suggestion,
-                    business_profile,
-                    is_retry_payment,
-                    all_keys_required,
-                    merchant_connector_account,
-                    router_data,
-                    tokenization_action,
+                    header_payload.clone(),
                 )
-                .await
-            }
-        };
+                .await?;
 
-    let etime_connector = Instant::now();
-    let duration_connector = etime_connector.saturating_duration_since(stime_connector);
-    tracing::info!(duration = format!("Duration taken: {}", duration_connector.as_millis()));
+            router_data
+                .call_unified_connector_service(
+                    state,
+                    merchant_connector_account.clone(),
+                    merchant_context,
+                )
+                .await?;
 
+            Ok((router_data, merchant_connector_account))
+        } else {
+            call_connector_service(
+                state,
+                req_state,
+                merchant_context,
+                connector,
+                operation,
+                payment_data,
+                customer,
+                call_connector_action,
+                validate_result,
+                schedule_time,
+                header_payload,
+                frm_suggestion,
+                business_profile,
+                is_retry_payment,
+                all_keys_required,
+                merchant_connector_account,
+                router_data,
+                tokenization_action,
+            )
+            .await
+        }
+    })
+    .await
+}
+
+async fn record_time_taken_with<F, Fut, R>(f: F) -> RouterResult<R>
+where
+    F: FnOnce() -> Fut,
+    Fut: future::Future<Output = RouterResult<R>>,
+{
+    let stime = Instant::now();
+    let result = f().await;
+    let etime = Instant::now();
+    let duration = etime.saturating_duration_since(stime);
+    tracing::info!(duration = format!("Duration taken: {}", duration.as_millis()));
     result
 }
 
