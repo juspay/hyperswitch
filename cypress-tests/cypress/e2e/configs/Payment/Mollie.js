@@ -28,26 +28,6 @@ const failedCardDetails = {
   card_cvc: "123",
 };
 
-// Payment method list configuration for dynamic fields
-const requiredFields = {
-  payment_methods: [
-    {
-      payment_method: "card",
-      payment_method_types: [
-        {
-          payment_method_type: "credit",
-          card_networks: [
-            {
-              eligible_connectors: ["mollie"],
-            },
-          ],
-          required_fields: cardRequiredField,
-        },
-      ],
-    },
-  ],
-};
-
 export const payment_methods_enabled = [
   {
     payment_method: "card",
