@@ -3023,7 +3023,7 @@ pub async fn payment_methods_session_confirm(
 
     let intent_fulfillment_time = common_utils::consts::DEFAULT_INTENT_FULFILLMENT_TIME;
 
-    // insert the parent payment method token into the database
+    // insert the token data into redis
     if let Some(token_data) = token_data {
         pm_routes::ParentPaymentMethodToken::create_key_for_token((
             &parent_payment_method_token,
