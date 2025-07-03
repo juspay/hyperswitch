@@ -142,7 +142,7 @@ pub async fn execute_connector_processing_step<
     req: &'b types::RouterData<T, Req, Resp>,
     call_connector_action: payments::CallConnectorAction,
     connector_request: Option<Request>,
-    all_keys_required: Option<bool>,
+    return_raw_connector_response: Option<bool>,
 ) -> CustomResult<types::RouterData<T, Req, Resp>, errors::ConnectorError>
 where
     T: Clone + Debug + 'static,
@@ -302,7 +302,7 @@ where
                                                         val + external_latency
                                                     }),
                                             );
-                                            if all_keys_required == Some(true) {
+                                            if return_raw_connector_response == Some(true) {
                                                 let mut decoded = String::from_utf8(body.response.as_ref().to_vec())
                                                     .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
                                                 if decoded.starts_with('\u{feff}') {
@@ -310,7 +310,7 @@ where
                                                         .trim_start_matches('\u{feff}')
                                                         .to_string();
                                                 }
-                                                data.whole_connector_response = Some(decoded);
+                                                data.raw_connector_response = Some(decoded);
                                             }
                                             Ok(data)
                                         }
@@ -1078,15 +1078,15 @@ pub trait Authenticate {
         None
     }
 
-    fn get_all_keys_required(&self) -> Option<bool> {
+    fn should_return_raw_response(&self) -> Option<bool> {
         None
     }
 }
 
 #[cfg(feature = "v2")]
 impl Authenticate for api_models::payments::PaymentsConfirmIntentRequest {
-    fn get_all_keys_required(&self) -> Option<bool> {
-        self.all_keys_required
+    fn should_return_raw_response(&self) -> Option<bool> {
+        self.return_raw_connector_response
     }
 }
 #[cfg(feature = "v2")]
@@ -1098,7 +1098,9 @@ impl Authenticate for api_models::payments::PaymentsRequest {
         self.client_secret.as_ref()
     }
 
-    fn get_all_keys_required(&self) -> Option<bool> {
+    fn should_return_raw_response(&self) -> Option<bool> {
+        // In v1, this maps to `all_keys_required` to retain backward compatibility.
+        // The equivalent field in v2 is `return_raw_connector_response`.
         self.all_keys_required
     }
 }
@@ -1129,7 +1131,15 @@ impl Authenticate for api_models::payments::PaymentsPostSessionTokensRequest {
 
 impl Authenticate for api_models::payments::PaymentsUpdateMetadataRequest {}
 impl Authenticate for api_models::payments::PaymentsRetrieveRequest {
-    fn get_all_keys_required(&self) -> Option<bool> {
+    #[cfg(feature = "v2")]
+    fn should_return_raw_response(&self) -> Option<bool> {
+        self.return_raw_connector_response
+    }
+
+    #[cfg(feature = "v1")]
+    fn should_return_raw_response(&self) -> Option<bool> {
+        // In v1, this maps to `all_keys_required` to retain backward compatibility.
+        // The equivalent field in v2 is `return_raw_connector_response`.
         self.all_keys_required
     }
 }

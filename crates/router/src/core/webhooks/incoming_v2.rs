@@ -479,7 +479,7 @@ async fn payments_incoming_webhook_flow(
                     force_sync: true,
                     expand_attempts: false,
                     param: None,
-                    all_keys_required: None,
+                    return_raw_connector_response: None,
                     merchant_connector_details: None,
                 },
                 get_trackers_response,

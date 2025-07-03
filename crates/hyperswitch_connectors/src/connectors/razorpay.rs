@@ -406,7 +406,7 @@ impl ConnectorIntegration<PSync, PaymentsSyncData, PaymentsResponseData> for Raz
     ) -> CustomResult<String, errors::ConnectorError> {
         let order_id = req
             .request
-            .connector_response_reference_id
+            .connector_reference_id
             .clone()
             .ok_or(errors::ConnectorError::RequestEncodingFailed)?;
         Ok(format!(

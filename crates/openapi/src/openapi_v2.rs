@@ -424,7 +424,6 @@ Never share your secret api keys. Keep them guarded and secure.
         api_models::payments::PaymentsRequest,
         api_models::payments::PaymentsResponse,
         api_models::payments::PaymentsListResponseItem,
-        api_models::payments::PaymentRetrieveBody,
         api_models::payments::PaymentsRetrieveRequest,
         api_models::payments::PaymentsStatusRequest,
         api_models::payments::PaymentsCaptureRequest,

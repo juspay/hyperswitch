@@ -171,7 +171,7 @@ where
         connector_mandate_request_reference_id,
         authentication_id: None,
         psd2_sca_exemption_type: None,
-        whole_connector_response: None,
+        raw_connector_response: None,
     };
     Ok(router_data)
 }
@@ -399,7 +399,7 @@ pub async fn construct_payment_router_data_for_authorize<'a>(
         connector_mandate_request_reference_id,
         authentication_id: None,
         psd2_sca_exemption_type: None,
-        whole_connector_response: None,
+        raw_connector_response: None,
     };
 
     Ok(router_data)
@@ -563,7 +563,7 @@ pub async fn construct_payment_router_data_for_capture<'a>(
         connector_mandate_request_reference_id,
         psd2_sca_exemption_type: None,
         authentication_id: None,
-        whole_connector_response: None,
+        raw_connector_response: None,
     };
 
     Ok(router_data)
@@ -626,7 +626,7 @@ pub async fn construct_router_data_for_psync<'a>(
         // TODO: Get the charges object from feature metadata
         split_payments: None,
         payment_experience: None,
-        connector_response_reference_id: attempt.connector_response_reference_id.clone(),
+        connector_reference_id: attempt.connector_response_reference_id.clone(),
     };
 
     // TODO: evaluate the fields in router data, if they are required or not
@@ -690,7 +690,7 @@ pub async fn construct_router_data_for_psync<'a>(
         connector_mandate_request_reference_id: None,
         authentication_id: None,
         psd2_sca_exemption_type: None,
-        whole_connector_response: None,
+        raw_connector_response: None,
     };
 
     Ok(router_data)
@@ -872,7 +872,7 @@ pub async fn construct_payment_router_data_for_sdk_session<'a>(
         connector_mandate_request_reference_id: None,
         psd2_sca_exemption_type: None,
         authentication_id: None,
-        whole_connector_response: None,
+        raw_connector_response: None,
     };
 
     Ok(router_data)
@@ -1089,7 +1089,7 @@ pub async fn construct_payment_router_data_for_setup_mandate<'a>(
         connector_mandate_request_reference_id,
         authentication_id: None,
         psd2_sca_exemption_type: None,
-        whole_connector_response: None,
+        raw_connector_response: None,
     };
 
     Ok(router_data)
@@ -1288,7 +1288,7 @@ where
         connector_mandate_request_reference_id,
         authentication_id: None,
         psd2_sca_exemption_type: payment_data.payment_intent.psd2_sca_exemption_type,
-        whole_connector_response: None,
+        raw_connector_response: None,
     };
 
     Ok(router_data)
@@ -1478,7 +1478,7 @@ pub async fn construct_payment_router_data_for_update_metadata<'a>(
         connector_mandate_request_reference_id,
         authentication_id: None,
         psd2_sca_exemption_type: payment_data.payment_intent.psd2_sca_exemption_type,
-        whole_connector_response: None,
+        raw_connector_response: None,
     };
 
     Ok(router_data)
@@ -1902,8 +1902,8 @@ where
 
         let payment_address = self.payment_address;
 
-        let whole_connector_response =
-            connector_response_data.and_then(|data| data.whole_connector_response);
+        let raw_connector_response =
+            connector_response_data.and_then(|data| data.raw_connector_response);
 
         let payment_method_data =
             Some(api_models::payments::PaymentMethodDataResponseWithBilling {
@@ -1973,7 +1973,7 @@ where
             shipping: None, //TODO: add this
             is_iframe_redirection_enabled: None,
             merchant_reference_id: payment_intent.merchant_reference_id.clone(),
-            whole_connector_response,
+            raw_connector_response,
         };
 
         Ok(services::ApplicationResponse::JsonWithHeaders((
@@ -2032,8 +2032,8 @@ where
                     .map(From::from),
             });
 
-        let whole_connector_response =
-            connector_response_data.and_then(|data| data.whole_connector_response);
+        let raw_connector_response =
+            connector_response_data.and_then(|data| data.raw_connector_response);
 
         let connector_token_details = self
             .payment_attempt
@@ -2073,7 +2073,7 @@ where
             return_url,
             is_iframe_redirection_enabled: payment_intent.is_iframe_redirection_enabled,
             merchant_reference_id: payment_intent.merchant_reference_id.clone(),
-            whole_connector_response,
+            raw_connector_response,
         };
 
         Ok(services::ApplicationResponse::JsonWithHeaders((
@@ -3733,7 +3733,7 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsSyncData
             currency: payment_data.currency,
             split_payments: payment_data.payment_intent.split_payments,
             payment_experience: payment_data.payment_attempt.payment_experience,
-            connector_response_reference_id: payment_data
+            connector_reference_id: payment_data
                 .payment_attempt
                 .connector_response_reference_id
                 .clone(),

@@ -31,7 +31,7 @@ pub async fn call_psync_api(
         force_sync: false,
         param: None,
         expand_attempts: true,
-        all_keys_required: None,
+        return_raw_connector_response: None,
         merchant_connector_details: None,
     };
     let merchant_context_from_revenue_recovery_data =
