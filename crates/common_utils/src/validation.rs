@@ -71,8 +71,8 @@ pub fn validate_domain_against_allowed_domains(
             .map(|glob| glob.compile_matcher().is_match(domain))
             .map_err(|err| {
                 let err_msg = format!(
-                    "Invalid glob pattern for configured allowed_domain [{:?}]! - {:?}",
-                    allowed_domain, err
+                    "Invalid glob pattern for configured allowed_domain [{allowed_domain:?}]! - {err:?}",
+
                 );
                 #[cfg(feature = "logs")]
                 logger::error!(err_msg);

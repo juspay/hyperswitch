@@ -429,7 +429,7 @@ impl ConnectorIntegration<PreAuthentication, PreAuthNRequestData, Authentication
         connectors: &Connectors,
     ) -> CustomResult<String, ConnectorError> {
         let base_url = build_endpoint(self.base_url(connectors), &req.connector_meta_data)?;
-        Ok(format!("{}/api/v2/auth/brw/init?mode=custom", base_url,))
+        Ok(format!("{base_url}/api/v2/auth/brw/init?mode=custom"))
     }
 
     fn get_request_body(
@@ -520,7 +520,7 @@ impl
         connectors: &Connectors,
     ) -> CustomResult<String, ConnectorError> {
         let base_url = build_endpoint(self.base_url(connectors), &req.connector_meta_data)?;
-        Ok(format!("{}/api/v2/auth/enrol", base_url,))
+        Ok(format!("{base_url}/api/v2/auth/enrol"))
     }
 
     fn get_request_body(

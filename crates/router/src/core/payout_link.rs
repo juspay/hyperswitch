@@ -151,7 +151,7 @@ pub async fn initiate_payout_link(
                         customer_id, payout_link.link_id
                     ),
                 })
-                .attach_printable_lazy(|| format!("customer [{:?}] not found", customer_id))?;
+                .attach_printable_lazy(|| format!("customer [{customer_id:?}] not found"))?;
             let address = payout
                 .address_id
                 .as_ref()

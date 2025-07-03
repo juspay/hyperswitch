@@ -502,8 +502,7 @@ pub fn get_min_entity(
 
     if user_entity < filter_entity {
         return Err(report!(UserErrors::InvalidRoleOperation)).attach_printable(format!(
-            "{} level user requesting data for {:?} level",
-            user_entity, filter_entity
+            "{user_entity} level user requesting data for {filter_entity:?} level",
         ));
     }
 

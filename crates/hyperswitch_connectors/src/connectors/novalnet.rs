@@ -238,7 +238,7 @@ impl ConnectorIntegration<SetupMandate, SetupMandateRequestData, PaymentsRespons
         connectors: &Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
         let endpoint = self.base_url(connectors);
-        Ok(format!("{}/payment", endpoint))
+        Ok(format!("{endpoint}/payment"))
     }
 
     fn get_request_body(
@@ -315,8 +315,8 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
     ) -> CustomResult<String, errors::ConnectorError> {
         let endpoint = self.base_url(connectors);
         match req.request.is_auto_capture()? {
-            true => Ok(format!("{}/payment", endpoint)),
-            false => Ok(format!("{}/authorize", endpoint)),
+            true => Ok(format!("{endpoint}/payment")),
+            false => Ok(format!("{endpoint}/authorize")),
         }
     }
 
@@ -405,7 +405,7 @@ impl ConnectorIntegration<PSync, PaymentsSyncData, PaymentsResponseData> for Nov
         connectors: &Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
         let endpoint = self.base_url(connectors);
-        Ok(format!("{}/transaction/details", endpoint))
+        Ok(format!("{endpoint}/transaction/details"))
     }
 
     fn get_request_body(
@@ -482,7 +482,7 @@ impl ConnectorIntegration<Capture, PaymentsCaptureData, PaymentsResponseData> fo
         connectors: &Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
         let endpoint = self.base_url(connectors);
-        Ok(format!("{}/transaction/capture", endpoint))
+        Ok(format!("{endpoint}/transaction/capture"))
     }
 
     fn get_request_body(
@@ -568,7 +568,7 @@ impl ConnectorIntegration<Execute, RefundsData, RefundsResponseData> for Novalne
         connectors: &Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
         let endpoint = self.base_url(connectors);
-        Ok(format!("{}/transaction/refund", endpoint))
+        Ok(format!("{endpoint}/transaction/refund"))
     }
 
     fn get_request_body(
@@ -653,7 +653,7 @@ impl ConnectorIntegration<RSync, RefundsData, RefundsResponseData> for Novalnet 
         connectors: &Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
         let endpoint = self.base_url(connectors);
-        Ok(format!("{}/transaction/details", endpoint))
+        Ok(format!("{endpoint}/transaction/details"))
     }
 
     fn get_request_body(
@@ -730,7 +730,7 @@ impl ConnectorIntegration<Void, PaymentsCancelData, PaymentsResponseData> for No
         connectors: &Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
         let endpoint = self.base_url(connectors);
-        Ok(format!("{}/transaction/cancel", endpoint))
+        Ok(format!("{endpoint}/transaction/cancel"))
     }
 
     fn get_request_body(

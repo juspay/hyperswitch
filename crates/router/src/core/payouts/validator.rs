@@ -118,8 +118,7 @@ pub async fn validate_create_request(
     .await
     .attach_printable_lazy(|| {
         format!(
-            "Unique violation while checking payout_id: {:?} against merchant_id: {:?}",
-            payout_id, merchant_id
+            "Unique violation while checking payout_id: {payout_id:?} against merchant_id: {merchant_id:?}"
         )
     })? {
         Some(_) => Err(report!(errors::ApiErrorResponse::DuplicatePayout {
@@ -293,10 +292,7 @@ pub(super) fn validate_payout_list_request(
         req.limit > PAYOUTS_LIST_MAX_LIMIT_GET || req.limit < 1,
         || {
             Err(errors::ApiErrorResponse::InvalidRequestData {
-                message: format!(
-                    "limit should be in between 1 and {}",
-                    PAYOUTS_LIST_MAX_LIMIT_GET
-                ),
+                message: format!("limit should be in between 1 and {PAYOUTS_LIST_MAX_LIMIT_GET}"),
             })
         },
     )?;
@@ -311,10 +307,7 @@ pub(super) fn validate_payout_list_request_for_joins(
 
     utils::when(!(1..=PAYOUTS_LIST_MAX_LIMIT_POST).contains(&limit), || {
         Err(errors::ApiErrorResponse::InvalidRequestData {
-            message: format!(
-                "limit should be in between 1 and {}",
-                PAYOUTS_LIST_MAX_LIMIT_POST
-            ),
+            message: format!("limit should be in between 1 and {PAYOUTS_LIST_MAX_LIMIT_POST}"),
         })
     })?;
     Ok(())
@@ -347,8 +340,8 @@ pub fn validate_payout_link_render_request_and_get_allowed_domains(
                 }))
                 .attach_printable_lazy(|| {
                     format!(
-                        "Access to payout_link [{}] is forbidden when requested through {}",
-                        link_id, requestor
+                        "Access to payout_link [{link_id}] is forbidden when requested through {requestor}",
+
                     )
                 }),
                 None => Err(report!(errors::ApiErrorResponse::AccessForbidden {
@@ -356,8 +349,8 @@ pub fn validate_payout_link_render_request_and_get_allowed_domains(
                 }))
                 .attach_printable_lazy(|| {
                     format!(
-                        "Access to payout_link [{}] is forbidden when sec-fetch-dest is not present in request headers",
-                        link_id
+                        "Access to payout_link [{link_id}] is forbidden when sec-fetch-dest is not present in request headers",
+
                     )
                 }),
             }?;
@@ -375,8 +368,8 @@ pub fn validate_payout_link_render_request_and_get_allowed_domains(
                     })
                     .attach_printable_lazy(|| {
                         format!(
-                            "Access to payout_link [{}] is forbidden when origin or referer is not present in request headers",
-                            link_id
+                            "Access to payout_link [{link_id}] is forbidden when origin or referer is not present in request headers",
+
                         )
                     })?;
 
@@ -387,11 +380,11 @@ pub fn validate_payout_link_render_request_and_get_allowed_domains(
                         })
                     })
                     .attach_printable_lazy(|| {
-                        format!("Invalid URL found in request headers {}", origin_or_referer)
+                        format!("Invalid URL found in request headers {origin_or_referer}")
                     })?;
 
                 url.host_str()
-                    .and_then(|host| url.port().map(|port| format!("{}:{}", host, port)))
+                    .and_then(|host| url.port().map(|port| format!("{host}:{port}")))
                     .or_else(|| url.host_str().map(String::from))
                     .ok_or_else(|| {
                         report!(errors::ApiErrorResponse::AccessForbidden {
@@ -399,7 +392,7 @@ pub fn validate_payout_link_render_request_and_get_allowed_domains(
                         })
                     })
                     .attach_printable_lazy(|| {
-                        format!("host or port not found in request headers {:?}", url)
+                        format!("host or port not found in request headers {url:?}")
                     })?
             };
 
@@ -414,8 +407,8 @@ pub fn validate_payout_link_render_request_and_get_allowed_domains(
                 }))
                 .attach_printable_lazy(|| {
                     format!(
-                        "Access to payout_link [{}] is forbidden from requestor - {}",
-                        link_id, domain_in_req
+                        "Access to payout_link [{link_id}] is forbidden from requestor - {domain_in_req}",
+
                     )
                 })
             }

@@ -991,10 +991,7 @@ impl ParentPaymentMethodToken {
         (parent_pm_token, payment_method): (&String, api_models::enums::PaymentMethod),
     ) -> Self {
         Self {
-            key_for_token: format!(
-                "pm_token_{}_{}_hyperswitch",
-                parent_pm_token, payment_method
-            ),
+            key_for_token: format!("pm_token_{parent_pm_token}_{payment_method}_hyperswitch"),
         }
     }
 
@@ -1002,10 +999,7 @@ impl ParentPaymentMethodToken {
     pub fn return_key_for_token(
         (parent_pm_token, payment_method): (&String, api_models::enums::PaymentMethod),
     ) -> String {
-        format!(
-            "pm_token_{}_{}_hyperswitch",
-            parent_pm_token, payment_method
-        )
+        format!("pm_token_{parent_pm_token}_{payment_method}_hyperswitch")
     }
 
     pub async fn insert(

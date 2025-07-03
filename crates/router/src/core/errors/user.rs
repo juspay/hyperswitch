@@ -362,17 +362,17 @@ impl UserErrors {
             Self::ThemeNotFound => "Theme not found".to_string(),
             Self::ThemeAlreadyExists => "Theme with lineage already exists".to_string(),
             Self::InvalidThemeLineage(field_name) => {
-                format!("Invalid field: {} in lineage", field_name)
+                format!("Invalid field: {field_name} in lineage")
             }
             Self::MissingEmailConfig => "Missing required field: email_config".to_string(),
             Self::InvalidAuthMethodOperationWithMessage(operation) => {
-                format!("Invalid Auth Method Operation: {}", operation)
+                format!("Invalid Auth Method Operation: {operation}")
             }
             Self::InvalidCloneConnectorOperation(operation) => {
-                format!("Invalid Clone Connector Operation: {}", operation)
+                format!("Invalid Clone Connector Operation: {operation}")
             }
             Self::ErrorCloningConnector(error_message) => {
-                format!("Error cloning connector: {}", error_message)
+                format!("Error cloning connector: {error_message}")
             }
         }
     }

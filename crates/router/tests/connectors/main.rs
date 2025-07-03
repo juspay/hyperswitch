@@ -24,6 +24,7 @@ mod bluesnap;
 mod boku;
 mod cashtocode;
 mod chargebee;
+mod checkbook;
 mod checkout;
 mod coinbase;
 mod cryptopay;

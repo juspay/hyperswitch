@@ -416,7 +416,7 @@ impl WorldpayErrorResponse {
     pub fn default(status_code: u16) -> Self {
         match status_code {
             code @ 404 => Self {
-                error_name: format!("{} Not found", code),
+                error_name: format!("{code} Not found"),
                 message: "Resource not found".to_string(),
                 validation_errors: None,
             },

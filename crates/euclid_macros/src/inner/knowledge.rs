@@ -37,7 +37,7 @@ impl Display for Comparison {
             Self::LessThanEqual => "<= ",
             Self::GreaterThan => "> ",
         };
-        write!(f, "{}", symbol)
+        write!(f, "{symbol}")
     }
 }
 
@@ -74,7 +74,7 @@ impl ValueType {
             Self::Any => format!("{key}(any)"),
             Self::EnumVariant(s) => format!("{key}({s})"),
             Self::Number { number, comparison } => {
-                format!("{}({}{})", key, comparison, number)
+                format!("{key}({comparison}{number})")
             }
         }
     }

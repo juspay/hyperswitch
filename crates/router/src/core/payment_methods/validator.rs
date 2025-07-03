@@ -113,7 +113,7 @@ pub async fn validate_request_and_initiate_payment_method_collect_link(
     let domain = merchant_config
         .clone()
         .and_then(|c| c.config.domain_name)
-        .map(|domain| format!("https://{}", domain))
+        .map(|domain| format!("https://{domain}"))
         .unwrap_or(state.base_url.clone());
     let session_expiry = match req.session_expiry {
         Some(expiry) => expiry,

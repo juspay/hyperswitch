@@ -1191,6 +1191,7 @@ pub enum PaymentAttemptUpdate {
         tax_amount: Option<MinorUnit>,
         updated_by: String,
         merchant_connector_id: Option<id_type::MerchantConnectorAccountId>,
+        routing_approach: Option<storage_enums::RoutingApproach>,
     },
     AuthenticationTypeUpdate {
         authentication_type: storage_enums::AuthenticationType,
@@ -1227,7 +1228,7 @@ pub enum PaymentAttemptUpdate {
         customer_acceptance: Option<pii::SecretSerdeValue>,
         connector_mandate_detail: Option<ConnectorMandateReferenceId>,
         card_discovery: Option<common_enums::CardDiscovery>,
-        routing_approach: Option<storage_enums::RoutingApproach>, // where all to add this one
+        routing_approach: Option<storage_enums::RoutingApproach>,
     },
     RejectUpdate {
         status: storage_enums::AttemptStatus,
@@ -1413,6 +1414,7 @@ impl PaymentAttemptUpdate {
                 surcharge_amount,
                 tax_amount,
                 merchant_connector_id,
+                routing_approach,
             } => DieselPaymentAttemptUpdate::UpdateTrackers {
                 payment_token,
                 connector,
@@ -1422,6 +1424,7 @@ impl PaymentAttemptUpdate {
                 tax_amount,
                 updated_by,
                 merchant_connector_id,
+                routing_approach,
             },
             Self::AuthenticationTypeUpdate {
                 authentication_type,

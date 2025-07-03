@@ -317,7 +317,7 @@ impl ConnectorCommon for Paypal {
                     .iter()
                     .try_fold(String::new(), |mut acc, error| {
                         if let Some(description) = &error.description {
-                            write!(acc, "description - {} ;", description)
+                            write!(acc, "description - {description} ;")
                                 .change_context(
                                     errors::ConnectorError::ResponseDeserializationFailed,
                                 )
@@ -1403,7 +1403,7 @@ impl ConnectorIntegration<PSync, PaymentsSyncData, PaymentsResponseData> for Pay
                                 "Missing Authorize id".to_string(),
                             ),
                         )?;
-                        format!("v2/payments/authorizations/{authorize_id}",)
+                        format!("v2/payments/authorizations/{authorize_id}")
                     }
                     transformers::PaypalPaymentIntent::Capture => {
                         let capture_id = paypal_meta.capture_id.ok_or(

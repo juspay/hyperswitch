@@ -983,8 +983,7 @@ impl BillingConnectorPaymentsSyncFlowRouterData {
             )
             .change_context(errors::RevenueRecoveryError::BillingConnectorPaymentsSyncFailed)
             .attach_printable(format!(
-                "cannot find connector params for this connector {} in this flow",
-                connector
+                "cannot find connector params for this connector {connector} in this flow",
             ))?;
 
         let router_data = types::RouterDataV2 {
@@ -1150,8 +1149,7 @@ impl BillingConnectorInvoiceSyncFlowRouterData {
             )
             .change_context(errors::RevenueRecoveryError::BillingConnectorPaymentsSyncFailed)
             .attach_printable(format!(
-                "cannot find connector params for this connector {} in this flow",
-                connector
+                "cannot find connector params for this connector {connector} in this flow",
             ))?;
 
         let router_data = types::RouterDataV2 {

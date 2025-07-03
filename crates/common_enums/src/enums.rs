@@ -8523,6 +8523,7 @@ pub enum RoutingApproach {
     DebitRouting,
     RuleBasedRouting,
     VolumeBasedRouting,
+    StraightThroughRouting,
     #[default]
     DefaultFallback,
 }
@@ -8533,6 +8534,7 @@ impl RoutingApproach {
             "SR_SELECTION_V3_ROUTING" => Self::SuccessRateExploitation,
             "SR_V3_HEDGING" => Self::SuccessRateExploration,
             "NTW_BASED_ROUTING" => Self::DebitRouting,
+            "DEFAULT" => Self::StraightThroughRouting,
             _ => Self::DefaultFallback,
         }
     }

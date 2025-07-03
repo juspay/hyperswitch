@@ -179,7 +179,7 @@ impl<T: DatabaseStore> KVRouterStore<T> {
     where
         R: KvStorePartition,
     {
-        let global_id = format!("{}", partition_key);
+        let global_id = format!("{partition_key}");
         let request_id = self.request_id.clone().unwrap_or_default();
 
         let shard_key = R::shard_key(partition_key, self.drainer_num_partitions);

@@ -143,7 +143,7 @@ impl ErrorSwitch<ApiErrorResponse> for OpenSearchError {
             Self::ResponseNotOK(response) => ApiErrorResponse::InternalServerError(ApiError::new(
                 "IR",
                 1,
-                format!("Something went wrong {}", response),
+                format!("Something went wrong {response}"),
                 None,
             )),
             Self::ResponseError => ApiErrorResponse::InternalServerError(ApiError::new(

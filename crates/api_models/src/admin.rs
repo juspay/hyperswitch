@@ -728,8 +728,7 @@ impl WebhookDetails {
         for status in statuses {
             if !valid_statuses.contains(status) {
                 return Err(format!(
-                    "Invalid {} webhook status provided: {:?}",
-                    status_type_name, status
+                    "Invalid {status_type_name} webhook status provided: {status:?}"
                 ));
             }
         }

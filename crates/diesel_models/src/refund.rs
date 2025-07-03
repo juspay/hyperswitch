@@ -730,8 +730,7 @@ impl RefundUpdate {
         Self::ErrorUpdate {
             refund_status: Some(storage_enums::RefundStatus::ManualReview),
             refund_error_message: Some(format!(
-                "Integrity Check Failed! as data mismatched for fields {}",
-                integrity_check_failed_fields
+                "Integrity Check Failed! as data mismatched for fields {integrity_check_failed_fields}"
             )),
             refund_error_code: Some("IE".to_string()),
             updated_by: storage_scheme.to_string(),

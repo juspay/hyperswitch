@@ -449,7 +449,7 @@ impl<F> TryFrom<&PayoutsRouterData<F>> for OnboardTransferMethodRequest {
                     })
                 }
                 other_bank => Err(errors::ConnectorError::NotSupported {
-                    message: format!("{:?} is not supported", other_bank),
+                    message: format!("{other_bank:?} is not supported"),
                     connector: "nomupay",
                 }
                 .into()),

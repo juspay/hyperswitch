@@ -80,7 +80,7 @@ impl DynamicRoutingClientConfig {
     ) -> Result<RoutingStrategy, Box<dyn std::error::Error>> {
         let (success_rate_client, contract_based_client, elimination_based_client) = match self {
             Self::Enabled { host, port, .. } => {
-                let uri = format!("http://{}:{}", host, port).parse::<tonic::transport::Uri>()?;
+                let uri = format!("http://{host}:{port}").parse::<tonic::transport::Uri>()?;
                 logger::info!("Connection established with dynamic routing gRPC Server");
                 (
                     Some(SuccessRateCalculatorClient::with_origin(

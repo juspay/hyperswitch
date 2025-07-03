@@ -50,7 +50,7 @@ impl<T: DatabaseStore> PaymentMethodInterface for KVRouterStore<T> {
             key_store,
             storage_scheme,
             PaymentMethod::find_by_payment_method_id(&conn, payment_method_id),
-            FindResourceBy::LookupId(format!("payment_method_{}", payment_method_id)),
+            FindResourceBy::LookupId(format!("payment_method_{payment_method_id}")),
         )
         .await
     }
@@ -93,7 +93,7 @@ impl<T: DatabaseStore> PaymentMethodInterface for KVRouterStore<T> {
             key_store,
             storage_scheme,
             PaymentMethod::find_by_locker_id(&conn, locker_id),
-            FindResourceBy::LookupId(format!("payment_method_locker_{}", locker_id)),
+            FindResourceBy::LookupId(format!("payment_method_locker_{locker_id}")),
         )
         .await
     }
@@ -165,7 +165,7 @@ impl<T: DatabaseStore> PaymentMethodInterface for KVRouterStore<T> {
         let lookup_id1 = format!("payment_method_{}", payment_method_new.get_id());
         let mut reverse_lookups = vec![lookup_id1];
         if let Some(locker_id) = &payment_method_new.locker_id {
-            reverse_lookups.push(format!("payment_method_locker_{}", locker_id))
+            reverse_lookups.push(format!("payment_method_locker_{locker_id}"))
         }
         let payment_method = (&payment_method_new.clone()).into();
         self.insert_resource(

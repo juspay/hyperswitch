@@ -71,7 +71,7 @@ where
     ErrRes: serde::de::DeserializeOwned + std::fmt::Debug + Clone + DecisionEngineErrorsInterface,
 {
     let decision_engine_base_url = &state.conf.open_router.url;
-    let url = format!("{}/{}", decision_engine_base_url, path);
+    let url = format!("{decision_engine_base_url}/{path}");
     logger::debug!(decision_engine_api_call_url = %url, decision_engine_request_path = %path, http_method = ?http_method, "decision_engine: Initiating decision_engine API call ({})", context_message);
 
     let mut request_builder = services::RequestBuilder::new()

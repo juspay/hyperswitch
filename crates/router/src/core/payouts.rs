@@ -450,10 +450,7 @@ pub async fn payouts_update_core(
     // Verify update feasibility
     if helpers::is_payout_terminal_state(status) || helpers::is_payout_initiated(status) {
         return Err(report!(errors::ApiErrorResponse::InvalidRequestData {
-            message: format!(
-                "Payout {:?} cannot be updated for status {}",
-                payout_id, status
-            ),
+            message: format!("Payout {payout_id:?} cannot be updated for status {status}"),
         }));
     }
     helpers::update_payouts_and_payout_attempt(&mut payout_data, &merchant_context, &req, &state)
@@ -788,8 +785,7 @@ pub async fn payouts_list_core(
                         .await
                         .map_err(|err| {
                             let err_msg = format!(
-                                "failed while fetching customer for customer_id - {:?}",
-                                customer_id
+                                "failed while fetching customer for customer_id - {customer_id:?}",
                             );
                             logger::warn!(?err, err_msg);
                         })
@@ -961,8 +957,8 @@ pub async fn payouts_filtered_list_core(
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable_lazy(|| {
             format!(
-                "Failed to fetch total count of filtered payouts for the given constraints - {:?}",
-                filters
+                "Failed to fetch total count of filtered payouts for the given constraints - {filters:?}",
+
             )
         })?;
 
@@ -2915,8 +2911,7 @@ pub async fn make_payout_data(
             .map_err(|err| err.change_context(errors::ApiErrorResponse::InternalServerError))
             .attach_printable_lazy(|| {
                 format!(
-                    "Failed while fetching optional customer [id - {:?}] for payout [id - {:?}]",
-                    customer_id, payout_id
+                    "Failed while fetching optional customer [id - {customer_id:?}] for payout [id - {payout_id:?}]"
                 )
             })
         })
@@ -3177,7 +3172,7 @@ pub async fn create_payout_link(
     let base_url = profile_config
         .as_ref()
         .and_then(|c| c.config.domain_name.as_ref())
-        .map(|domain| format!("https://{}", domain))
+        .map(|domain| format!("https://{domain}"))
         .unwrap_or(state.base_url.clone());
     let session_expiry = req
         .session_expiry
@@ -3190,7 +3185,7 @@ pub async fn create_payout_link(
     );
     let link = url::Url::parse(&url)
         .change_context(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable_lazy(|| format!("Failed to form payout link URL - {}", url))?;
+        .attach_printable_lazy(|| format!("Failed to form payout link URL - {url}"))?;
     let req_enabled_payment_methods = payout_link_config_req
         .as_ref()
         .and_then(|req| req.enabled_payment_methods.to_owned());

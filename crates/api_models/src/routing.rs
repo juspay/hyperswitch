@@ -224,7 +224,7 @@ impl std::fmt::Display for RoutableConnectorChoice {
         if let Some(mca_id) = &self.merchant_connector_id {
             return write!(f, "{}:{}", base, mca_id.get_string_repr());
         }
-        write!(f, "{}", base)
+        write!(f, "{base}")
     }
 }
 

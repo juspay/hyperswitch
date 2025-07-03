@@ -263,7 +263,7 @@ impl ConnectorIntegration<AccessTokenAuth, AccessTokenRequestData, AccessToken> 
                 format!(
                     "Basic {}",
                     common_utils::consts::BASE64_ENGINE
-                        .encode(format!("{}:{}", project_id, secret_key))
+                        .encode(format!("{project_id}:{secret_key}"))
                 )
             });
         Ok(vec![

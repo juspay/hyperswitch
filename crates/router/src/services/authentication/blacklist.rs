@@ -24,7 +24,7 @@ use crate::{
 
 #[cfg(feature = "olap")]
 pub async fn insert_user_in_blacklist(state: &SessionState, user_id: &str) -> UserResult<()> {
-    let user_blacklist_key = format!("{}{}", USER_BLACKLIST_PREFIX, user_id);
+    let user_blacklist_key = format!("{USER_BLACKLIST_PREFIX}{user_id}");
     let expiry =
         expiry_to_i64(JWT_TOKEN_TIME_IN_SECS).change_context(UserErrors::InternalServerError)?;
     let redis_conn = get_redis_connection_for_global_tenant(state)
@@ -41,7 +41,7 @@ pub async fn insert_user_in_blacklist(state: &SessionState, user_id: &str) -> Us
 
 #[cfg(feature = "olap")]
 pub async fn insert_role_in_blacklist(state: &SessionState, role_id: &str) -> UserResult<()> {
-    let role_blacklist_key = format!("{}{}", ROLE_BLACKLIST_PREFIX, role_id);
+    let role_blacklist_key = format!("{ROLE_BLACKLIST_PREFIX}{role_id}");
     let expiry =
         expiry_to_i64(JWT_TOKEN_TIME_IN_SECS).change_context(UserErrors::InternalServerError)?;
     let redis_conn = get_redis_connection_for_global_tenant(state)
@@ -74,7 +74,7 @@ pub async fn check_user_in_blacklist<A: SessionStateInfo>(
     user_id: &str,
     token_expiry: u64,
 ) -> RouterResult<bool> {
-    let token = format!("{}{}", USER_BLACKLIST_PREFIX, user_id);
+    let token = format!("{USER_BLACKLIST_PREFIX}{user_id}");
     let token_issued_at = expiry_to_i64(token_expiry - JWT_TOKEN_TIME_IN_SECS)?;
     let redis_conn = get_redis_connection_for_global_tenant(state)?;
     redis_conn
@@ -89,7 +89,7 @@ pub async fn check_role_in_blacklist<A: SessionStateInfo>(
     role_id: &str,
     token_expiry: u64,
 ) -> RouterResult<bool> {
-    let token = format!("{}{}", ROLE_BLACKLIST_PREFIX, role_id);
+    let token = format!("{ROLE_BLACKLIST_PREFIX}{role_id}");
     let token_issued_at = expiry_to_i64(token_expiry - JWT_TOKEN_TIME_IN_SECS)?;
     let redis_conn = get_redis_connection_for_global_tenant(state)?;
     redis_conn
@@ -103,7 +103,7 @@ pub async fn check_role_in_blacklist<A: SessionStateInfo>(
 pub async fn insert_email_token_in_blacklist(state: &SessionState, token: &str) -> UserResult<()> {
     let redis_conn = get_redis_connection_for_global_tenant(state)
         .change_context(UserErrors::InternalServerError)?;
-    let blacklist_key = format!("{}{token}", EMAIL_TOKEN_BLACKLIST_PREFIX);
+    let blacklist_key = format!("{EMAIL_TOKEN_BLACKLIST_PREFIX}{token}");
     let expiry =
         expiry_to_i64(EMAIL_TOKEN_TIME_IN_SECS).change_context(UserErrors::InternalServerError)?;
     redis_conn
@@ -116,7 +116,7 @@ pub async fn insert_email_token_in_blacklist(state: &SessionState, token: &str) 
 pub async fn check_email_token_in_blacklist(state: &SessionState, token: &str) -> UserResult<()> {
     let redis_conn = get_redis_connection_for_global_tenant(state)
         .change_context(UserErrors::InternalServerError)?;
-    let blacklist_key = format!("{}{token}", EMAIL_TOKEN_BLACKLIST_PREFIX);
+    let blacklist_key = format!("{EMAIL_TOKEN_BLACKLIST_PREFIX}{token}");
     let key_exists = redis_conn
         .exists::<()>(&blacklist_key.as_str().into())
         .await

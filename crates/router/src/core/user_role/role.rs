@@ -82,16 +82,16 @@ pub async fn create_role(
 
     if requestor_entity_from_role_scope < role_entity_type {
         return Err(report!(UserErrors::InvalidRoleOperation)).attach_printable(format!(
-            "User is trying to create role of type {} and scope {}",
-            role_entity_type, requestor_entity_from_role_scope
+            "User is trying to create role of type {role_entity_type} and scope {requestor_entity_from_role_scope}",
+
         ));
     }
     let max_from_scope_and_entity = cmp::max(requestor_entity_from_role_scope, role_entity_type);
 
     if user_entity_type < max_from_scope_and_entity {
         return Err(report!(UserErrors::InvalidRoleOperation)).attach_printable(format!(
-            "{} is trying to create of scope {} and of type {}",
-            user_entity_type, requestor_entity_from_role_scope, role_entity_type
+            "{user_entity_type} is trying to create of scope {requestor_entity_from_role_scope} and of type {role_entity_type}",
+
         ));
     }
 
@@ -345,10 +345,7 @@ pub async fn list_roles_with_info(
         .into());
     }
 
-    let mut role_info_vec = PREDEFINED_ROLES
-        .iter()
-        .map(|(_, role_info)| role_info.clone())
-        .collect::<Vec<_>>();
+    let mut role_info_vec = PREDEFINED_ROLES.values().cloned().collect::<Vec<_>>();
 
     let user_role_entity = user_role_info.get_entity_type();
     let is_lineage_data_required = request.entity_type.is_none();
@@ -439,10 +436,7 @@ pub async fn list_roles_at_entity_level(
         )
         .into());
     }
-    let mut role_info_vec = PREDEFINED_ROLES
-        .iter()
-        .map(|(_, role_info)| role_info.clone())
-        .collect::<Vec<_>>();
+    let mut role_info_vec = PREDEFINED_ROLES.values().cloned().collect::<Vec<_>>();
 
     let tenant_id = user_from_token
         .tenant_id

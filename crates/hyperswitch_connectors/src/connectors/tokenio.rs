@@ -124,12 +124,12 @@ impl Tokenio {
                         .change_context(errors::ConnectorError::RequestEncodingFailed)?
                         .as_bytes(),
                 )?;
-                let signing_input = format!("{}.{}", encoded_header, encoded_payload);
+                let signing_input = format!("{encoded_header}.{encoded_payload}");
                 (encoded_payload, signing_input)
             }
             None => {
                 // Detached JWT (GET requests) - sign only the header with a dot
-                let signing_input = format!("{}.", encoded_header);
+                let signing_input = format!("{encoded_header}.");
                 (String::new(), signing_input) // Empty payload for detached JWT
             }
         };
@@ -151,8 +151,7 @@ impl Tokenio {
 
         // Assemble JWT - for detached JWT, middle part is empty
         Ok(format!(
-            "{}.{}.{}",
-            encoded_header, encoded_payload, encoded_signature
+            "{encoded_header}.{encoded_payload}.{encoded_signature}",
         ))
     }
 
@@ -353,7 +352,7 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
         connectors: &Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
         let base_url = self.base_url(connectors);
-        Ok(format!("{}/v2/payments", base_url))
+        Ok(format!("{base_url}/v2/payments"))
     }
 
     fn get_request_body(
@@ -394,7 +393,7 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
             ),
             (
                 headers::AUTHORIZATION.to_string(),
-                format!("Bearer {}", jwt).into_masked(),
+                format!("Bearer {jwt}").into_masked(),
             ),
         ];
 
@@ -468,7 +467,7 @@ impl ConnectorIntegration<PSync, PaymentsSyncData, PaymentsResponseData> for Tok
             ),
             (
                 headers::AUTHORIZATION.to_string(),
-                format!("Bearer {}", jwt).into_masked(),
+                format!("Bearer {jwt}").into_masked(),
             ),
         ];
         Ok(headers)
@@ -489,7 +488,7 @@ impl ConnectorIntegration<PSync, PaymentsSyncData, PaymentsResponseData> for Tok
             .get_connector_transaction_id()
             .change_context(errors::ConnectorError::MissingConnectorTransactionID)?;
         let base_url = self.base_url(connectors);
-        Ok(format!("{}/v2/payments/{}", base_url, connector_payment_id))
+        Ok(format!("{base_url}/v2/payments/{connector_payment_id}"))
     }
 
     fn build_request(

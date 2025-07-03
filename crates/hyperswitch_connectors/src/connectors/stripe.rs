@@ -379,7 +379,7 @@ impl ConnectorIntegration<CreateConnectorCustomer, ConnectorCustomerData, Paymen
                     .decline_code
                     .clone()
                     .map(|decline_code| {
-                        format!("message - {}, decline_code - {}", message, decline_code)
+                        format!("message - {message}, decline_code - {decline_code}")
                     })
                     .unwrap_or(message)
             }),
@@ -530,7 +530,7 @@ impl ConnectorIntegration<PaymentMethodToken, PaymentMethodTokenizationData, Pay
                     .decline_code
                     .clone()
                     .map(|decline_code| {
-                        format!("message - {}, decline_code - {}", message, decline_code)
+                        format!("message - {message}, decline_code - {decline_code}")
                     })
                     .unwrap_or(message)
             }),
@@ -677,7 +677,7 @@ impl ConnectorIntegration<Capture, PaymentsCaptureData, PaymentsResponseData> fo
                     .decline_code
                     .clone()
                     .map(|decline_code| {
-                        format!("message - {}, decline_code - {}", message, decline_code)
+                        format!("message - {message}, decline_code - {decline_code}")
                     })
                     .unwrap_or(message)
             }),
@@ -844,7 +844,7 @@ impl ConnectorIntegration<PSync, PaymentsSyncData, PaymentsResponseData> for Str
                     .decline_code
                     .clone()
                     .map(|decline_code| {
-                        format!("message - {}, decline_code - {}", message, decline_code)
+                        format!("message - {message}, decline_code - {decline_code}")
                     })
                     .unwrap_or(message)
             }),
@@ -1017,7 +1017,7 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
                     .decline_code
                     .clone()
                     .map(|decline_code| {
-                        format!("message - {}, decline_code - {}", message, decline_code)
+                        format!("message - {message}, decline_code - {decline_code}")
                     })
                     .unwrap_or(message)
             }),
@@ -1222,7 +1222,7 @@ impl ConnectorIntegration<Void, PaymentsCancelData, PaymentsResponseData> for St
                     .decline_code
                     .clone()
                     .map(|decline_code| {
-                        format!("message - {}, decline_code - {}", message, decline_code)
+                        format!("message - {message}, decline_code - {decline_code}")
                     })
                     .unwrap_or(message)
             }),
@@ -1352,7 +1352,7 @@ impl ConnectorIntegration<SetupMandate, SetupMandateRequestData, PaymentsRespons
                     .decline_code
                     .clone()
                     .map(|decline_code| {
-                        format!("message - {}, decline_code - {}", message, decline_code)
+                        format!("message - {message}, decline_code - {decline_code}")
                     })
                     .unwrap_or(message)
             }),
@@ -1517,7 +1517,7 @@ impl ConnectorIntegration<Execute, RefundsData, RefundsResponseData> for Stripe 
                     .decline_code
                     .clone()
                     .map(|decline_code| {
-                        format!("message - {}, decline_code - {}", message, decline_code)
+                        format!("message - {message}, decline_code - {decline_code}")
                     })
                     .unwrap_or(message)
             }),
@@ -1648,7 +1648,7 @@ impl ConnectorIntegration<RSync, RefundsData, RefundsResponseData> for Stripe {
                     .decline_code
                     .clone()
                     .map(|decline_code| {
-                        format!("message - {}, decline_code - {}", message, decline_code)
+                        format!("message - {message}, decline_code - {decline_code}")
                     })
                     .unwrap_or(message)
             }),
@@ -1792,7 +1792,7 @@ impl ConnectorIntegration<Upload, UploadFileRequestData, UploadFileResponse> for
                     .decline_code
                     .clone()
                     .map(|decline_code| {
-                        format!("message - {}, decline_code - {}", message, decline_code)
+                        format!("message - {message}, decline_code - {decline_code}")
                     })
                     .unwrap_or(message)
             }),
@@ -1892,7 +1892,7 @@ impl ConnectorIntegration<Retrieve, RetrieveFileRequestData, RetrieveFileRespons
                     .decline_code
                     .clone()
                     .map(|decline_code| {
-                        format!("message - {}, decline_code - {}", message, decline_code)
+                        format!("message - {message}, decline_code - {decline_code}")
                     })
                     .unwrap_or(message)
             }),
@@ -2017,7 +2017,7 @@ impl ConnectorIntegration<Evidence, SubmitEvidenceRequestData, SubmitEvidenceRes
                     .decline_code
                     .clone()
                     .map(|decline_code| {
-                        format!("message - {}, decline_code - {}", message, decline_code)
+                        format!("message - {message}, decline_code - {decline_code}")
                     })
                     .unwrap_or(message)
             }),
