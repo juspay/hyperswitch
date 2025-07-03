@@ -189,36 +189,31 @@ impl ForeignTryFrom<hyperswitch_domain_models::payment_address::PaymentAddress>
         payment_address: hyperswitch_domain_models::payment_address::PaymentAddress,
     ) -> Result<Self, Self::Error> {
         let shipping = payment_address.get_shipping().and_then(|address| {
-            let details = address.address.as_ref()?;
+            let details = address.address.as_ref();
 
             let get_str =
                 |opt: &Option<masking::Secret<String>>| opt.as_ref().map(|s| s.peek().to_owned());
 
             let get_plain = |opt: &Option<String>| opt.clone();
 
-            let country = details
-                .country
-                .as_ref()
-                .and_then(|c| payments_grpc::CountryAlpha2::from_str_name(&c.to_string()))
-                .ok_or_else(|| {
-                    UnifiedConnectorServiceError::RequestEncodingFailedWithReason(
-                        "Invalid country code".to_string(),
-                    )
-                })
-                .attach_printable("Invalid country code")
-                .ok()? // Return None if invalid
-                .into();
+            let country = details.and_then(|details| {
+                details
+                    .country
+                    .as_ref()
+                    .and_then(|c| payments_grpc::CountryAlpha2::from_str_name(&c.to_string()))
+                    .map(|country| country.into())
+            });
 
             Some(payments_grpc::Address {
-                first_name: get_str(&details.first_name),
-                last_name: get_str(&details.last_name),
-                line1: get_str(&details.line1),
-                line2: get_str(&details.line2),
-                line3: get_str(&details.line3),
-                city: get_plain(&details.city),
-                state: get_str(&details.state),
-                zip_code: get_str(&details.zip),
-                country_alpha2_code: Some(country),
+                first_name: get_str(&details.and_then(|d| d.first_name.clone())),
+                last_name: get_str(&details.and_then(|d| d.last_name.clone())),
+                line1: get_str(&details.and_then(|d| d.line1.clone())),
+                line2: get_str(&details.and_then(|d| d.line2.clone())),
+                line3: get_str(&details.and_then(|d| d.line3.clone())),
+                city: get_plain(&details.and_then(|d| d.city.clone())),
+                state: get_str(&details.and_then(|d| d.state.clone())),
+                zip_code: get_str(&details.and_then(|d| d.zip.clone())),
+                country_alpha2_code: country,
                 email: address.email.as_ref().map(|e| e.peek().to_string()),
                 phone_number: address
                     .phone
@@ -229,36 +224,31 @@ impl ForeignTryFrom<hyperswitch_domain_models::payment_address::PaymentAddress>
         });
 
         let billing = payment_address.get_payment_billing().and_then(|address| {
-            let details = address.address.as_ref()?;
+            let details = address.address.as_ref();
 
             let get_str =
                 |opt: &Option<masking::Secret<String>>| opt.as_ref().map(|s| s.peek().to_owned());
 
             let get_plain = |opt: &Option<String>| opt.clone();
 
-            let country = details
-                .country
-                .as_ref()
-                .and_then(|c| payments_grpc::CountryAlpha2::from_str_name(&c.to_string()))
-                .ok_or_else(|| {
-                    UnifiedConnectorServiceError::RequestEncodingFailedWithReason(
-                        "Invalid country code".to_string(),
-                    )
-                })
-                .attach_printable("Invalid country code")
-                .ok()? // Return None if invalid
-                .into();
+            let country = details.and_then(|details| {
+                details
+                    .country
+                    .as_ref()
+                    .and_then(|c| payments_grpc::CountryAlpha2::from_str_name(&c.to_string()))
+                    .map(|country| country.into())
+            });
 
             Some(payments_grpc::Address {
-                first_name: get_str(&details.first_name),
-                last_name: get_str(&details.last_name),
-                line1: get_str(&details.line1),
-                line2: get_str(&details.line2),
-                line3: get_str(&details.line3),
-                city: get_plain(&details.city),
-                state: get_str(&details.state),
-                zip_code: get_str(&details.zip),
-                country_alpha2_code: Some(country),
+                first_name: get_str(&details.and_then(|d| d.first_name.clone())),
+                last_name: get_str(&details.and_then(|d| d.last_name.clone())),
+                line1: get_str(&details.and_then(|d| d.line1.clone())),
+                line2: get_str(&details.and_then(|d| d.line2.clone())),
+                line3: get_str(&details.and_then(|d| d.line3.clone())),
+                city: get_plain(&details.and_then(|d| d.city.clone())),
+                state: get_str(&details.and_then(|d| d.state.clone())),
+                zip_code: get_str(&details.and_then(|d| d.zip.clone())),
+                country_alpha2_code: country,
                 email: address.email.as_ref().map(|e| e.peek().to_string()),
                 phone_number: address
                     .phone
@@ -268,9 +258,43 @@ impl ForeignTryFrom<hyperswitch_domain_models::payment_address::PaymentAddress>
             })
         });
 
+        let unified_payment_method_billing = payment_address.get_payment_method_billing().and_then(|address| {
+            let details = address.address.as_ref();
+
+            let get_str =
+                |opt: &Option<masking::Secret<String>>| opt.as_ref().map(|s| s.peek().to_owned());
+
+            let get_plain = |opt: &Option<String>| opt.clone();
+
+            let country = details.and_then(|details| {
+                details
+                    .country
+                    .as_ref()
+                    .and_then(|c| payments_grpc::CountryAlpha2::from_str_name(&c.to_string()))
+                    .map(|country| country.into())
+            });
+
+            Some(payments_grpc::Address {
+                first_name: get_str(&details.and_then(|d| d.first_name.clone())),
+                last_name: get_str(&details.and_then(|d| d.last_name.clone())),
+                line1: get_str(&details.and_then(|d| d.line1.clone())),
+                line2: get_str(&details.and_then(|d| d.line2.clone())),
+                line3: get_str(&details.and_then(|d| d.line3.clone())),
+                city: get_plain(&details.and_then(|d| d.city.clone())),
+                state: get_str(&details.and_then(|d| d.state.clone())),
+                zip_code: get_str(&details.and_then(|d| d.zip.clone())),
+                country_alpha2_code: country,
+                email: address.email.as_ref().map(|e| e.peek().to_string()),
+                phone_number: address
+                    .phone
+                    .as_ref()
+                    .and_then(|phone| phone.number.as_ref().map(|n| n.peek().to_string())),
+                phone_country_code: address.phone.as_ref().and_then(|p| p.country_code.clone()),
+            })
+        });
         Ok(Self {
-            shipping_address: shipping,
-            billing_address: billing,
+            shipping_address: shipping.or(unified_payment_method_billing.clone()),
+            billing_address: billing.or(unified_payment_method_billing),
         })
     }
 }
