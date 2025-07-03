@@ -1412,7 +1412,7 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
             .as_mut()
             .map(|info| info.status = status)
     });
-    payment_data.whole_connector_response = router_data.whole_connector_response.clone();
+    payment_data.whole_connector_response = router_data.raw_connector_response.clone();
 
     // TODO: refactor of gsm_error_category with respective feature flag
     #[allow(unused_variables)]

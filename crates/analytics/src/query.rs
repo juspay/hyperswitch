@@ -737,7 +737,7 @@ where
             .change_context(QueryBuildingError::SqlSerializeError)
             .attach_printable("Error serializing order direction")?;
 
-        self.order_by.push(format!("{} {}", column_sql, order_sql));
+        self.order_by.push(format!("{column_sql} {order_sql}"));
         Ok(())
     }
 
@@ -892,7 +892,7 @@ where
         }
 
         if let Some(limit_by) = &self.limit_by {
-            query.push_str(&format!(" {}", limit_by));
+            query.push_str(&format!(" {limit_by}"));
         }
 
         if !self.outer_select.is_empty() {

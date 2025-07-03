@@ -4729,6 +4729,7 @@ dependencies = [
  "bytes 1.10.1",
  "diesel",
  "erased-serde 0.4.6",
+ "prost",
  "scylla",
  "serde",
  "serde_json",

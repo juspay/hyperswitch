@@ -217,7 +217,7 @@ impl ForeignTryFrom<ConnectorData> for RoutableConnectorChoice {
                 merchant_connector_id: from.merchant_connector_id,
             }),
             Err(e) => Err(common_utils::errors::ValidationError::InvalidValue {
-                message: format!("This is not a routable connector: {:?}", e),
+                message: format!("This is not a routable connector: {e:?}"),
             })?,
         }
     }
@@ -311,10 +311,7 @@ impl ConnectorData {
                 .change_context(errors::ConnectorError::InvalidConnectorName)
                 .change_context(errors::ApiErrorResponse::InternalServerError)
                 .attach_printable_lazy(|| {
-                    format!(
-                        "unable to parse external vault connector name {:?}",
-                        connector
-                    )
+                    format!("unable to parse external vault connector name {connector:?}")
                 })?;
         let connector_name = api_enums::Connector::from(external_vault_connector_name);
         Ok(Self {
@@ -378,6 +375,9 @@ impl ConnectorData {
                 enums::Connector::Chargebee => {
                     Ok(ConnectorEnum::Old(Box::new(connector::Chargebee::new())))
                 }
+                // enums::Connector::Checkbook => {
+                //     Ok(ConnectorEnum::Old(Box::new(connector::Checkbook)))
+                // }
                 enums::Connector::Checkout => {
                     Ok(ConnectorEnum::Old(Box::new(connector::Checkout::new())))
                 }
@@ -529,6 +529,9 @@ impl ConnectorData {
                     Ok(ConnectorEnum::Old(Box::new(connector::Paybox::new())))
                 }
                 // "payeezy" => Ok(ConnectorIntegrationEnum::Old(Box::new(&connector::Payeezy)), As psync and rsync are not supported by this connector, it is added as template code for future usage
+                // enums::Connector::Payload => {
+                //     Ok(ConnectorEnum::Old(Box::new(connector::Paybload::new())))
+                // }
                 enums::Connector::Payme => {
                     Ok(ConnectorEnum::Old(Box::new(connector::Payme::new())))
                 }

@@ -11,7 +11,10 @@ use common_utils::{
 use error_stack::ResultExt;
 use hyperswitch_domain_models::{
     payment_method_data::{Card, PaymentMethodData, WalletData},
-    router_data::{ConnectorAuthType, ErrorResponse, RouterData},
+    router_data::{
+        AdditionalPaymentMethodConnectorResponse, ConnectorAuthType, ConnectorResponseData,
+        ErrorResponse, RouterData,
+    },
     router_flow_types::RSync,
     router_request_types::ResponseId,
     router_response_types::{
@@ -1138,6 +1141,7 @@ pub struct AuthorizedotnetTransactionResponse {
     pub(super) account_number: Option<Secret<String>>,
     pub(super) errors: Option<Vec<ErrorMessage>>,
     secure_acceptance: Option<SecureAcceptance>,
+    avs_result_code: Option<String>,
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
@@ -1216,6 +1220,48 @@ impl From<AuthorizedotnetVoidStatus> for enums::AttemptStatus {
     }
 }
 
+fn get_avs_response_description(code: &str) -> Option<&'static str> {
+    match code {
+        "A" => Some("The street address matched, but the postal code did not."),
+        "B" => Some("No address information was provided."),
+        "E" => Some(
+            "AVS data provided is invalid or AVS is not allowed for the card type that was used.",
+        ),
+        "G" => Some("The card was issued by a bank outside the U.S. and does not support AVS."),
+        "N" => Some("Neither the street address nor postal code matched."),
+        "P" => Some("AVS is not applicable for this transaction."),
+        "R" => Some("Retry — AVS was unavailable or timed out."),
+        "S" => Some("AVS is not supported by card issuer."),
+        "U" => Some("Address information is unavailable."),
+        "W" => Some("The US ZIP+4 code matches, but the street address does not."),
+        "X" => Some("Both the street address and the US ZIP+4 code matched."),
+        "Y" => Some("The street address and postal code matched."),
+        "Z" => Some("The postal code matched, but the street address did not."),
+        _ => None,
+    }
+}
+
+fn convert_to_additional_payment_method_connector_response(
+    transaction_response: &AuthorizedotnetTransactionResponse,
+) -> Option<AdditionalPaymentMethodConnectorResponse> {
+    match transaction_response.avs_result_code.as_deref() {
+        Some("P") | None => None,
+        Some(code) => {
+            let description = get_avs_response_description(code);
+            let payment_checks = serde_json::json!({
+                "avs_result_code": code,
+                "description": description
+            });
+            Some(AdditionalPaymentMethodConnectorResponse::Card {
+                authentication_data: None,
+                payment_checks: Some(payment_checks),
+                card_network: None,
+                domestic_network: None,
+            })
+        }
+    }
+}
+
 impl<F, T>
     ForeignTryFrom<(
         ResponseRouterData<F, AuthorizedotnetPaymentsResponse, T, PaymentsResponseData>,
@@ -1258,6 +1304,11 @@ impl<F, T>
                     .change_context(errors::ConnectorError::MissingRequiredField {
                         field_name: "connector_metadata",
                     })?;
+
+                let connector_response_data =
+                    convert_to_additional_payment_method_connector_response(transaction_response)
+                        .map(ConnectorResponseData::with_additional_payment_method_data);
+
                 let url = transaction_response
                     .secure_acceptance
                     .as_ref()
@@ -1305,6 +1356,7 @@ impl<F, T>
                             charges: None,
                         }),
                     },
+                    connector_response: connector_response_data,
                     ..item.data
                 })
             }

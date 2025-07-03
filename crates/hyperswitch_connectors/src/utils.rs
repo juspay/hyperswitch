@@ -359,14 +359,13 @@ pub(crate) fn construct_not_implemented_error_report(
     capture_method: enums::CaptureMethod,
     connector_name: &str,
 ) -> error_stack::Report<errors::ConnectorError> {
-    errors::ConnectorError::NotImplemented(format!("{} for {}", capture_method, connector_name))
-        .into()
+    errors::ConnectorError::NotImplemented(format!("{capture_method} for {connector_name}")).into()
 }
 
 pub(crate) const SELECTED_PAYMENT_METHOD: &str = "Selected payment method";
 
 pub(crate) fn get_unimplemented_payment_method_error_message(connector: &str) -> String {
-    format!("{} through {}", SELECTED_PAYMENT_METHOD, connector)
+    format!("{SELECTED_PAYMENT_METHOD} through {connector}")
 }
 
 pub(crate) fn to_connector_meta<T>(connector_meta: Option<Value>) -> Result<T, Error>
@@ -396,8 +395,7 @@ pub(crate) fn validate_currency(
     if request_currency != merchant_config_currency {
         Err(errors::ConnectorError::NotSupported {
             message: format!(
-                "currency {} is not supported for this merchant account",
-                request_currency
+                "currency {request_currency} is not supported for this merchant account",
             ),
             connector: "Braintree",
         })?
@@ -1126,7 +1124,7 @@ impl CardData for Card {
     fn get_expiry_year_4_digit(&self) -> Secret<String> {
         let mut year = self.card_exp_year.peek().clone();
         if year.len() == 2 {
-            year = format!("20{}", year);
+            year = format!("20{year}");
         }
         Secret::new(year)
     }
@@ -1233,7 +1231,7 @@ impl CardData for CardDetailsForNetworkTransactionId {
     fn get_expiry_year_4_digit(&self) -> Secret<String> {
         let mut year = self.card_exp_year.peek().clone();
         if year.len() == 2 {
-            year = format!("20{}", year);
+            year = format!("20{year}");
         }
         Secret::new(year)
     }
@@ -1364,7 +1362,7 @@ impl AddressDetailsData for AddressDetails {
             .cloned()
             .unwrap_or(Secret::new("".to_string()));
         let last_name = last_name.peek();
-        let full_name = format!("{} {}", first_name, last_name).trim().to_string();
+        let full_name = format!("{first_name} {last_name}").trim().to_string();
         Ok(Secret::new(full_name))
     }
 
@@ -5321,7 +5319,7 @@ pub fn is_mandate_supported(
     } else {
         match payment_method_type {
             Some(pm_type) => Err(errors::ConnectorError::NotSupported {
-                message: format!("{} mandate payment", pm_type),
+                message: format!("{pm_type} mandate payment"),
                 connector,
             }
             .into()),
@@ -5916,7 +5914,7 @@ impl CardData for api_models::payouts::CardPayout {
     fn get_expiry_year_4_digit(&self) -> Secret<String> {
         let mut year = self.expiry_year.peek().clone();
         if year.len() == 2 {
-            year = format!("20{}", year);
+            year = format!("20{year}");
         }
         Secret::new(year)
     }
@@ -5992,7 +5990,7 @@ impl NetworkTokenData for payment_method_data::NetworkTokenData {
     fn get_expiry_year_4_digit(&self) -> Secret<String> {
         let mut year = self.token_exp_year.peek().clone();
         if year.len() == 2 {
-            year = format!("20{}", year);
+            year = format!("20{year}");
         }
         Secret::new(year)
     }
@@ -6001,7 +5999,7 @@ impl NetworkTokenData for payment_method_data::NetworkTokenData {
     fn get_expiry_year_4_digit(&self) -> Secret<String> {
         let mut year = self.network_token_exp_year.peek().clone();
         if year.len() == 2 {
-            year = format!("20{}", year);
+            year = format!("20{year}");
         }
         Secret::new(year)
     }
@@ -6211,7 +6209,8 @@ pub(crate) fn convert_payment_authorize_router_response<F1, F2, T1, T2>(
         connector_mandate_request_reference_id: data.connector_mandate_request_reference_id.clone(),
         authentication_id: data.authentication_id.clone(),
         psd2_sca_exemption_type: data.psd2_sca_exemption_type,
-        whole_connector_response: data.whole_connector_response.clone(),
+        raw_connector_response: data.raw_connector_response.clone(),
+        is_payment_id_from_merchant: data.is_payment_id_from_merchant,
     }
 }
 
@@ -6308,7 +6307,7 @@ where
             .clone()
             .parse_enum("Currency")
             .map(Some)
-            .map_err(|_| serde::de::Error::custom(format!("Invalid currency code: {}", value))),
+            .map_err(|_| serde::de::Error::custom(format!("Invalid currency code: {value}"))),
         _ => Ok(None),
     }
 }
