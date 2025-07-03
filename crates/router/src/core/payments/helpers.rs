@@ -4175,7 +4175,7 @@ pub fn router_data_type_conversion<F1, F2, Req1, Req2, Res1, Res2>(
         connector_mandate_request_reference_id: router_data.connector_mandate_request_reference_id,
         authentication_id: router_data.authentication_id,
         psd2_sca_exemption_type: router_data.psd2_sca_exemption_type,
-        whole_connector_response: router_data.whole_connector_response,
+        raw_connector_response: router_data.raw_connector_response,
     }
 }
 
