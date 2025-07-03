@@ -83,6 +83,7 @@ pub struct Connectors {
     pub opennode: ConnectorParams,
     pub paybox: ConnectorParamsWithSecondaryBaseUrl,
     pub payeezy: ConnectorParams,
+    pub payload: ConnectorParams,
     pub payme: ConnectorParams,
     pub payone: ConnectorParams,
     pub paypal: ConnectorParams,
