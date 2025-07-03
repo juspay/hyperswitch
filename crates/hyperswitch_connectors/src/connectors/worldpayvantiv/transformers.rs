@@ -776,44 +776,44 @@ where
         match item.response.capture_response {
             Some(capture_response) => {
                 let status = get_attempt_status(
-                WorldpayvantivPaymentFlow::Capture,
-                capture_response.response,
-            )?;
-            if connector_utils::is_payment_failure(status) {
-                Ok(Self {
-                    status,
-                    response: Err(ErrorResponse {
-                        code: capture_response.response.to_string(),
-                        message: capture_response.message.clone(),
-                        reason: Some(capture_response.message.clone()),
-                        status_code: item.http_code,
-                        attempt_status: None,
-                        connector_transaction_id: Some(capture_response.cnp_txn_id),
-                        network_advice_code: None,
-                        network_decline_code: None,
-                        network_error_message: None,
-                    }),
-                    ..item.data
-                })
-            } else {
-                Ok(Self {
-                    status,
-                    response: Ok(PaymentsResponseData::TransactionResponse {
-                        resource_id: ResponseId::ConnectorTransactionId(
-                            capture_response.cnp_txn_id,
-                        ),
-                        redirection_data: Box::new(None),
-                        mandate_reference: Box::new(None),
-                        connector_metadata: None,
-                        network_txn_id: None,
-                        connector_response_reference_id: None,
-                        incremental_authorization_allowed: None,
-                        charges: None,
-                    }),
-                    ..item.data
-                })
+                    WorldpayvantivPaymentFlow::Capture,
+                    capture_response.response,
+                )?;
+                if connector_utils::is_payment_failure(status) {
+                    Ok(Self {
+                        status,
+                        response: Err(ErrorResponse {
+                            code: capture_response.response.to_string(),
+                            message: capture_response.message.clone(),
+                            reason: Some(capture_response.message.clone()),
+                            status_code: item.http_code,
+                            attempt_status: None,
+                            connector_transaction_id: Some(capture_response.cnp_txn_id),
+                            network_advice_code: None,
+                            network_decline_code: None,
+                            network_error_message: None,
+                        }),
+                        ..item.data
+                    })
+                } else {
+                    Ok(Self {
+                        status,
+                        response: Ok(PaymentsResponseData::TransactionResponse {
+                            resource_id: ResponseId::ConnectorTransactionId(
+                                capture_response.cnp_txn_id,
+                            ),
+                            redirection_data: Box::new(None),
+                            mandate_reference: Box::new(None),
+                            connector_metadata: None,
+                            network_txn_id: None,
+                            connector_response_reference_id: None,
+                            incremental_authorization_allowed: None,
+                            charges: None,
+                        }),
+                        ..item.data
+                    })
+                }
             }
-        },
             None => Ok(Self {
                 status: common_enums::AttemptStatus::CaptureFailed,
                 response: Err(ErrorResponse {
@@ -842,8 +842,10 @@ impl<F> TryFrom<ResponseRouterData<F, CnpOnlineResponse, PaymentsCancelData, Pay
     ) -> Result<Self, Self::Error> {
         match item.response.auth_reversal_response {
             Some(auth_reversal_response) => {
-                let status =
-                    get_attempt_status(WorldpayvantivPaymentFlow::Void, auth_reversal_response.response)?;
+                let status = get_attempt_status(
+                    WorldpayvantivPaymentFlow::Void,
+                    auth_reversal_response.response,
+                )?;
                 if connector_utils::is_payment_failure(status) {
                     Ok(Self {
                         status,
@@ -878,7 +880,7 @@ impl<F> TryFrom<ResponseRouterData<F, CnpOnlineResponse, PaymentsCancelData, Pay
                         ..item.data
                     })
                 }
-            },
+            }
             None => Ok(Self {
                 // Incase of API failure
                 status: common_enums::AttemptStatus::VoidFailed,
@@ -931,7 +933,7 @@ impl TryFrom<RefundsResponseRouterData<Execute, CnpOnlineResponse>> for RefundsR
                         ..item.data
                     })
                 }
-            },
+            }
             None => Ok(Self {
                 response: Err(ErrorResponse {
                     code: item.response.response_code,
@@ -986,7 +988,6 @@ impl TryFrom<&PaymentsCancelRouterData> for CnpOnlineRequest {
         })
     }
 }
-
 
 impl<F>
     TryFrom<ResponseRouterData<F, CnpOnlineResponse, PaymentsAuthorizeData, PaymentsResponseData>>
@@ -1095,7 +1096,7 @@ impl<F>
                 ..item.data
             })},
             (_, _) => {  Err(errors::ConnectorError::UnexpectedResponseError(
-                bytes::Bytes::from("Only one of 'sale_response' or 'authorisation_response' is expected, but both were recieved".to_string()),           
+                bytes::Bytes::from("Only one of 'sale_response' or 'authorisation_response' is expected, but both were received".to_string()),           
              ))?
             },
     }
@@ -1188,7 +1189,6 @@ fn get_refund_status_for_rsync(
         }
     }
 }
-
 
 #[derive(Debug, strum::Display, Serialize, Deserialize, PartialEq, Clone, Copy)]
 pub enum WorldpayvantivResponseCode {
@@ -1941,7 +1941,7 @@ pub enum WorldpayvantivResponseCode {
     BlockedAgreement,
     #[serde(rename = "707")]
     #[strum(serialize = "707")]
-    InsufficientBuyingPower, 
+    InsufficientBuyingPower,
     #[serde(rename = "708")]
     #[strum(serialize = "708")]
     InvalidData,
@@ -2276,7 +2276,6 @@ pub enum WorldpayvantivPaymentFlow {
     Void,
 }
 
-
 fn get_attempt_status(
     flow: WorldpayvantivPaymentFlow,
     response: WorldpayvantivResponseCode,
@@ -2291,9 +2290,9 @@ fn get_attempt_status(
             | WorldpayvantivResponseCode::ScheduledRecurringPaymentProcessed
             | WorldpayvantivResponseCode::ApprovedRecurringSubscriptionCreated
             | WorldpayvantivResponseCode::PendingShopperCheckoutCompletion
-            | WorldpayvantivResponseCode::TransactionReceived 
-            | WorldpayvantivResponseCode::AccountNumberWasSuccessfullyRegistered 
-            | WorldpayvantivResponseCode::AccountNumberWasPreviouslyRegistered 
+            | WorldpayvantivResponseCode::TransactionReceived
+            | WorldpayvantivResponseCode::AccountNumberWasSuccessfullyRegistered
+            | WorldpayvantivResponseCode::AccountNumberWasPreviouslyRegistered
             | WorldpayvantivResponseCode::ValidToken
              => match flow {
                 WorldpayvantivPaymentFlow::Sale => Ok(common_enums::AttemptStatus::Pending),
@@ -2654,7 +2653,6 @@ fn get_attempt_status(
             }
     }
 }
-
 
 fn get_refund_status(
     response: WorldpayvantivResponseCode,
