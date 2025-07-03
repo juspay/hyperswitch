@@ -52,7 +52,7 @@ pub async fn create_vault_token_core(
     let customer_id = req.customer_id.clone();
     // Create vault request
     let payload = pm_types::AddVaultRequest {
-        entity_id: merchant_account.get_id().to_owned(),
+        entity_id: req.customer_id.to_owned(),
         vault_id: vault_id.clone(),
         data: req.token_request.clone(),
         ttl: state.conf.locker.ttl_for_storage_in_secs,
@@ -135,7 +135,7 @@ pub async fn get_token_vault_core(
     }
 
     let vault_request = pm_types::VaultRetrieveRequest {
-        entity_id: tokenization_record.merchant_id.clone(),
+        entity_id: tokenization_record.customer_id.clone(),
         vault_id: hyperswitch_domain_models::payment_methods::VaultId::generate(
             tokenization_record.locker_id.clone(),
         ),

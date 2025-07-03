@@ -45,7 +45,7 @@ pub struct VaultFingerprintResponse {
 #[cfg(any(feature = "v2", feature = "tokenization_v2"))]
 #[derive(Debug, serde::Deserialize, serde::Serialize)]
 pub struct AddVaultRequest<D> {
-    pub entity_id: id_type::MerchantId,
+    pub entity_id: id_type::GlobalCustomerId,
     pub vault_id: domain::VaultId,
     pub data: D,
     pub ttl: i64,
@@ -54,7 +54,7 @@ pub struct AddVaultRequest<D> {
 #[cfg(feature = "v2")]
 #[derive(Debug, serde::Deserialize, serde::Serialize)]
 pub struct AddVaultResponse {
-    pub entity_id: Option<id_type::MerchantId>,
+    pub entity_id: Option<id_type::GlobalCustomerId>,
     pub vault_id: domain::VaultId,
     pub fingerprint_id: Option<String>,
 }
@@ -131,7 +131,7 @@ pub struct SavedPMLPaymentsInfo {
 #[cfg(feature = "v2")]
 #[derive(Debug, serde::Deserialize, serde::Serialize)]
 pub struct VaultRetrieveRequest {
-    pub entity_id: id_type::MerchantId,
+    pub entity_id: id_type::GlobalCustomerId,
     pub vault_id: domain::VaultId,
 }
 
@@ -144,14 +144,14 @@ pub struct VaultRetrieveResponse {
 #[cfg(feature = "v2")]
 #[derive(Debug, serde::Deserialize, serde::Serialize)]
 pub struct VaultDeleteRequest {
-    pub entity_id: id_type::MerchantId,
+    pub entity_id: id_type::GlobalCustomerId,
     pub vault_id: domain::VaultId,
 }
 
 #[cfg(feature = "v2")]
 #[derive(Debug, serde::Deserialize, serde::Serialize)]
 pub struct VaultDeleteResponse {
-    pub entity_id: id_type::MerchantId,
+    pub entity_id: id_type::GlobalCustomerId,
     pub vault_id: domain::VaultId,
 }
 
