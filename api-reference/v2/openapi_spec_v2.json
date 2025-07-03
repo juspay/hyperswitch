@@ -21213,6 +21213,13 @@
               }
             ],
             "nullable": true
+          },
+          "merchant_country_code": {
+            "type": "integer",
+            "format": "int32",
+            "description": "Merchant country code",
+            "example": 840,
+            "nullable": true
           }
         },
         "additionalProperties": false
@@ -21489,6 +21496,13 @@
                 "$ref": "#/components/schemas/MerchantCategoryCode"
               }
             ],
+            "nullable": true
+          },
+          "merchant_country_code": {
+            "type": "integer",
+            "format": "int32",
+            "description": "Merchant country code",
+            "example": 840,
             "nullable": true
           }
         }
