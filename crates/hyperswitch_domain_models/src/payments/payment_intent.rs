@@ -2134,8 +2134,8 @@ impl behaviour::Conversion for PaymentIntent {
             })
         }
         .await
-        .change_context(ValidationError::InvalidValue {
-            message: "Failed while decrypting payment intent".to_string(),
+        .change_context(ValidationError::DecryptionError {
+            message: "payment intent".to_string(),
         })
     }
 

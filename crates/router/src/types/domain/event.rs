@@ -176,12 +176,12 @@ impl super::behaviour::Conversion for Event {
         )
         .await
         .and_then(|val| val.try_into_batchoperation())
-        .change_context(ValidationError::InvalidValue {
-            message: "Failed while decrypting event data".to_string(),
+        .change_context(ValidationError::DecryptionError {
+            message: "event data".to_string(),
         })?;
         let encryptable_event = EncryptedEvent::from_encryptable(decrypted).change_context(
-            ValidationError::InvalidValue {
-                message: "Failed while decrypting event data".to_string(),
+            ValidationError::DecryptionError {
+                message: "event data".to_string(),
             },
         )?;
         Ok(Self {

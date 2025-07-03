@@ -81,6 +81,7 @@ impl From<error_stack::Report<ValidationError>> for StorageError {
             ValidationError::IncorrectValueProvided { field_name } => {
                 Self::ValueNotFound(format!("Incorrect Value for field: {field_name}"))
             }
+            ValidationError::DecryptionError { .. } => Self::DecryptionError,
         }
     }
 }

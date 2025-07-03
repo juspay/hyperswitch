@@ -406,8 +406,8 @@ impl super::behaviour::Conversion for PaymentMethod {
             })
         }
         .await
-        .change_context(ValidationError::InvalidValue {
-            message: "Failed while decrypting payment method data".to_string(),
+        .change_context(ValidationError::DecryptionError {
+            message: "payment method data".to_string(),
         })
     }
 

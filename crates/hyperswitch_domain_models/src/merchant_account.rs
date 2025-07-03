@@ -827,8 +827,8 @@ impl super::behaviour::Conversion for MerchantAccount {
             })
         }
         .await
-        .change_context(ValidationError::InvalidValue {
-            message: "Failed while decrypting merchant data".to_string(),
+        .change_context(ValidationError::DecryptionError {
+            message: "merchant data".to_string(),
         })
     }
 

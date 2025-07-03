@@ -276,8 +276,8 @@ impl super::behaviour::Conversion for Relay {
                 .request_data
                 .map(|data| {
                     serde_json::from_value(data.expose()).change_context(
-                        ValidationError::InvalidValue {
-                            message: "Failed while decrypting business profile data".to_string(),
+                        ValidationError::DecryptionError {
+                            message: "business profile data".to_string(),
                         },
                     )
                 })

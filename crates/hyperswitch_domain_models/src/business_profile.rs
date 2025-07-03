@@ -940,8 +940,8 @@ impl super::behaviour::Conversion for Profile {
             })
         }
         .await
-        .change_context(ValidationError::InvalidValue {
-            message: "Failed while decrypting business profile data".to_string(),
+        .change_context(ValidationError::DecryptionError {
+            message: "business profile data".to_string(),
         })
     }
 

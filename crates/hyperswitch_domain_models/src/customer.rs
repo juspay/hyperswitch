@@ -189,12 +189,12 @@ impl behaviour::Conversion for Customer {
         )
         .await
         .and_then(|val| val.try_into_batchoperation())
-        .change_context(ValidationError::InvalidValue {
-            message: "Failed while decrypting customer data".to_string(),
+        .change_context(ValidationError::DecryptionError {
+            message: "customer data".to_string(),
         })?;
         let encryptable_customer = EncryptedCustomer::from_encryptable(decrypted).change_context(
-            ValidationError::InvalidValue {
-                message: "Failed while decrypting customer data".to_string(),
+            ValidationError::DecryptionError {
+                message: "customer data".to_string(),
             },
         )?;
 

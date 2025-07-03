@@ -2050,8 +2050,8 @@ impl behaviour::Conversion for PaymentAttempt {
             })
         }
         .await
-        .change_context(ValidationError::InvalidValue {
-            message: "Failed while decrypting payment attempt".to_string(),
+        .change_context(ValidationError::DecryptionError {
+            message: "payment attempt".to_string(),
         })
     }
 

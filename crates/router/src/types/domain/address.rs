@@ -260,12 +260,12 @@ impl behaviour::Conversion for Address {
         )
         .await
         .and_then(|val| val.try_into_batchoperation())
-        .change_context(ValidationError::InvalidValue {
-            message: "Failed while decrypting".to_string(),
+        .change_context(ValidationError::DecryptionError {
+            message: "address".to_string(),
         })?;
         let encryptable_address = EncryptedAddress::from_encryptable(decrypted).change_context(
-            ValidationError::InvalidValue {
-                message: "Failed while decrypting".to_string(),
+            ValidationError::DecryptionError {
+                message: "address".to_string(),
             },
         )?;
         Ok(Self {

@@ -530,13 +530,13 @@ impl behaviour::Conversion for MerchantConnectorAccount {
         )
         .await
         .and_then(|val| val.try_into_batchoperation())
-        .change_context(ValidationError::InvalidValue {
-            message: "Failed while decrypting connector account details".to_string(),
+        .change_context(ValidationError::DecryptionError {
+            message: "connector account details".to_string(),
         })?;
 
         let decrypted_data = EncryptedMerchantConnectorAccount::from_encryptable(decrypted_data)
-            .change_context(ValidationError::InvalidValue {
-                message: "Failed while decrypting connector account details".to_string(),
+            .change_context(ValidationError::DecryptionError {
+                message: "connector account details".to_string(),
             })?;
 
         Ok(Self {

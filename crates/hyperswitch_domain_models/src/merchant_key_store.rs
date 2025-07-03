@@ -74,8 +74,8 @@ impl super::behaviour::Conversion for MerchantKeyStore {
             )
             .await
             .and_then(|val| val.try_into_operation())
-            .change_context(ValidationError::InvalidValue {
-                message: "Failed while decrypting customer data".to_string(),
+            .change_context(ValidationError::DecryptionError {
+                message: "customer data".to_string(),
             })?,
             merchant_id: item.merchant_id,
             created_at: item.created_at,
