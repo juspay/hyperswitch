@@ -398,6 +398,16 @@ pub trait Domain<F: Clone, R, D>: Send + Sync {
         Ok(())
     }
 
+    /// This function is used to apply the 3DS authentication strategy
+    async fn apply_three_ds_authentication_strategy<'a>(
+        &'a self,
+        _state: &SessionState,
+        _payment_data: &mut D,
+        _business_profile: &domain::Profile,
+    ) -> CustomResult<(), errors::ApiErrorResponse> {
+        Ok(())
+    }
+
     // #[cfg(feature = "v2")]
     // async fn call_connector<'a, RouterDataReq>(
     //     &'a self,

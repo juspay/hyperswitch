@@ -1,6 +1,7 @@
 {
   "childrenOrder": [
     "Health check",
-    "Flow Testcases"
+    "Flow Testcases",
+    "Netcetera Testcases"
   ]
 }

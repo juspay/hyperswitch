@@ -601,6 +601,7 @@ pub struct NetworkTokenizationService {
     pub key_id: String,
     pub delete_token_url: url::Url,
     pub check_token_status_url: url::Url,
+    pub webhook_source_verification_key: Secret<String>,
 }
 
 #[derive(Debug, Deserialize, Clone, Default)]
@@ -1319,10 +1320,7 @@ fn deserialize_merchant_ids_inner(
         .map(|s| {
             let trimmed = s.trim();
             id_type::MerchantId::wrap(trimmed.to_owned()).map_err(|error| {
-                format!(
-                    "Unable to deserialize `{}` as `MerchantId`: {error}",
-                    trimmed
-                )
+                format!("Unable to deserialize `{trimmed}` as `MerchantId`: {error}")
             })
         })
         .fold(

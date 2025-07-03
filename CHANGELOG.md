@@ -4,6 +4,163 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2025.07.03.0
+
+### Features
+
+- **connector:**
+  - `multisafepay` added payment methods | TRUSTLY | WeChatpay | Alipay ([#8465](https://github.com/juspay/hyperswitch/pull/8465)) ([`01bd831`](https://github.com/juspay/hyperswitch/commit/01bd831665829bd318da5afe7410893ed5afc51e))
+  - [CHECKBOOK] Add Template Code ([#8494](https://github.com/juspay/hyperswitch/pull/8494)) ([`95077c6`](https://github.com/juspay/hyperswitch/commit/95077c64e27d6df35c15465f844c6ad7e1945571))
+- **masking:** Implement `prost::Message` trait for `Secret` and `StrongSecret` types ([#8458](https://github.com/juspay/hyperswitch/pull/8458)) ([`ad29631`](https://github.com/juspay/hyperswitch/commit/ad29631c537c92fb11f1827fb3f6737cdc741f0f))
+
+### Miscellaneous Tasks
+
+- Address Rust 1.88.0 clippy lints ([#8498](https://github.com/juspay/hyperswitch/pull/8498)) ([`20b52f1`](https://github.com/juspay/hyperswitch/commit/20b52f11c3c010113a37a0b893c39ab0e8b5bfd1))
+
+**Full Changelog:** [`2025.07.02.0...2025.07.03.0`](https://github.com/juspay/hyperswitch/compare/2025.07.02.0...2025.07.03.0)
+
+- - -
+
+## 2025.07.02.0
+
+### Features
+
+- **connector:**
+  - Implement capture and webhook flow, fix some issues in ACI ([#8349](https://github.com/juspay/hyperswitch/pull/8349)) ([`1ae3024`](https://github.com/juspay/hyperswitch/commit/1ae30247ca1fe94bf72752906462521b58513ca7))
+  - [ADYENPLATFORM] add card payouts ([#8504](https://github.com/juspay/hyperswitch/pull/8504)) ([`0c64915`](https://github.com/juspay/hyperswitch/commit/0c649158a8ee491e2ff6ff37e922266d5b64b22d))
+  - [DWOLLA] - Add template code ([#8496](https://github.com/juspay/hyperswitch/pull/8496)) ([`ad52251`](https://github.com/juspay/hyperswitch/commit/ad522513b9c7cd978f79dc1f00e25f9dcabb58dc))
+  - [SANTANDER] Added Authorize, PSync, Void, Refund & RSync Flows for Pix QR Code Bank Transfer ([#8463](https://github.com/juspay/hyperswitch/pull/8463)) ([`28d6357`](https://github.com/juspay/hyperswitch/commit/28d63575e63d87b1cba7c6215faee803f2fff7d8))
+- **connectors:** [Worldpayvantiv] add NTI flow and refactor sync flows ([#8495](https://github.com/juspay/hyperswitch/pull/8495)) ([`f8dc3ec`](https://github.com/juspay/hyperswitch/commit/f8dc3ecfe6a9cb1441228dce474b92c4a6fe2985))
+- **data-migration:** Add connector customer and mandate details support for multiple profiles ([#8473](https://github.com/juspay/hyperswitch/pull/8473)) ([`ce2b90b`](https://github.com/juspay/hyperswitch/commit/ce2b90b3d37d9214ef4ad46d5748aa0c864d508d))
+- **dummy_connector:** Allow a dummy connector to succeed a failed card ([#8469](https://github.com/juspay/hyperswitch/pull/8469)) ([`69ab255`](https://github.com/juspay/hyperswitch/commit/69ab255394fc537dbc40e01c72f27f3c8dbfb5f1))
+- **payouts:** Add domain type for PayoutId ([#8395](https://github.com/juspay/hyperswitch/pull/8395)) ([`a6e3d2c`](https://github.com/juspay/hyperswitch/commit/a6e3d2c71eed53ab400628a482cc61aae3720340))
+
+### Refactors
+
+- **authentication:** Flattened paymentData in authentication trait functions ([#8365](https://github.com/juspay/hyperswitch/pull/8365)) ([`18a779f`](https://github.com/juspay/hyperswitch/commit/18a779f94d418587c10c8ac8766d22ff41d25f6a))
+- **connector:** Update add connector script with new connector features ([#8213](https://github.com/juspay/hyperswitch/pull/8213)) ([`2ff93ff`](https://github.com/juspay/hyperswitch/commit/2ff93ff972453ce30ffeff667cb406d35286f60a))
+- Exposed auth analytics at merchant,org and profile levels ([#8335](https://github.com/juspay/hyperswitch/pull/8335)) ([`e638f23`](https://github.com/juspay/hyperswitch/commit/e638f239d3f3a0e7a63a5e71a1df6f516ddf9c4a))
+
+**Full Changelog:** [`2025.07.01.0...2025.07.02.0`](https://github.com/juspay/hyperswitch/compare/2025.07.01.0...2025.07.02.0)
+
+- - -
+
+## 2025.07.01.0
+
+### Features
+
+- **core:** Allow setting up status across payments, refunds and payouts for triggering webhooks in core resource flows ([#8433](https://github.com/juspay/hyperswitch/pull/8433)) ([`d305fad`](https://github.com/juspay/hyperswitch/commit/d305fad2e6c403fde11b9eea785fddefbf3477df))
+
+**Full Changelog:** [`2025.06.30.0...2025.07.01.0`](https://github.com/juspay/hyperswitch/compare/2025.06.30.0...2025.07.01.0)
+
+- - -
+
+## 2025.06.30.0
+
+### Features
+
+- **openapi:** Add x-mcp extension to v1 spec ([#8443](https://github.com/juspay/hyperswitch/pull/8443)) ([`a685f6b`](https://github.com/juspay/hyperswitch/commit/a685f6b59cb95b4b8eda33e6951faa31091099a5))
+
+### Bug Fixes
+
+- **connector:** 2 digit state code for ach fixed ([#8466](https://github.com/juspay/hyperswitch/pull/8466)) ([`68db51a`](https://github.com/juspay/hyperswitch/commit/68db51a37a1bd4b4a69cb7d018217ae4fd8babac))
+- **env:** Update env for network tokenization service ([#8472](https://github.com/juspay/hyperswitch/pull/8472)) ([`6c66c36`](https://github.com/juspay/hyperswitch/commit/6c66c36a66b6644c43761b7ac9c1326945a6a820))
+
+**Full Changelog:** [`2025.06.27.0...2025.06.30.0`](https://github.com/juspay/hyperswitch/compare/2025.06.27.0...2025.06.30.0)
+
+- - -
+
+## 2025.06.27.0
+
+### Features
+
+- **core:** Accept merchant_connector_details in Refunds create and retrieve flow ([#8441](https://github.com/juspay/hyperswitch/pull/8441)) ([`b185d85`](https://github.com/juspay/hyperswitch/commit/b185d85f6b55a8a99d4942a7a0966f5f731a920c))
+- Kv changes for V2 feature ([#8198](https://github.com/juspay/hyperswitch/pull/8198)) ([`d2740f0`](https://github.com/juspay/hyperswitch/commit/d2740f0322a0ec1327515c0159b64c930307f451))
+
+### Bug Fixes
+
+- **connector:** [TRUSTPAY] Consuming Amount in PSync Response ([#8455](https://github.com/juspay/hyperswitch/pull/8455)) ([`537d175`](https://github.com/juspay/hyperswitch/commit/537d1755329c372f318df24aeda984d22f0b7a19))
+
+**Full Changelog:** [`2025.06.26.1...2025.06.27.0`](https://github.com/juspay/hyperswitch/compare/2025.06.26.1...2025.06.27.0)
+
+- - -
+
+## 2025.06.26.1
+
+### Features
+
+- **router:** Add webhooks for network tokenization ([#6695](https://github.com/juspay/hyperswitch/pull/6695)) ([`ec6d0e4`](https://github.com/juspay/hyperswitch/commit/ec6d0e4d62a530163ae1c806dcf40ccfd264b246))
+
+### Bug Fixes
+
+- **recovery:** Populate connector request reference id in revenue recovery record attempt flow. ([#8434](https://github.com/juspay/hyperswitch/pull/8434)) ([`f1c5336`](https://github.com/juspay/hyperswitch/commit/f1c53366b28a89c82db0416ffe3e56b8a704afdf))
+
+### Build System / Dependencies
+
+- **deps:** Bump tonic version from 0.12 to 0.13 ([#8461](https://github.com/juspay/hyperswitch/pull/8461)) ([`9e43592`](https://github.com/juspay/hyperswitch/commit/9e435929f0ef45a6324c8d260c74ae3268470e72))
+
+**Full Changelog:** [`2025.06.26.0...2025.06.26.1`](https://github.com/juspay/hyperswitch/compare/2025.06.26.0...2025.06.26.1)
+
+- - -
+
+## 2025.06.26.0
+
+### Features
+
+- **connector:**
+  - Add click to pay feature for trustpay ([#8304](https://github.com/juspay/hyperswitch/pull/8304)) ([`46709ae`](https://github.com/juspay/hyperswitch/commit/46709ae3695eb1a6601c356397545f86de9f0f64))
+  - [jpmorgan] implement refund flow ([#8436](https://github.com/juspay/hyperswitch/pull/8436)) ([`cf92e1a`](https://github.com/juspay/hyperswitch/commit/cf92e1a5e10fe5e1a2f939038bf0a94bcaf01e92))
+
+### Refactors
+
+- **router:** Remove `refunds_v2` feature flag ([#8310](https://github.com/juspay/hyperswitch/pull/8310)) ([`c5c0e67`](https://github.com/juspay/hyperswitch/commit/c5c0e677f2a2d43170a66330c98e0ebc4d771717))
+- Move CustomerAcceptance to common_types ([#8299](https://github.com/juspay/hyperswitch/pull/8299)) ([`44d93e5`](https://github.com/juspay/hyperswitch/commit/44d93e572f45c0ff46936c6f352c767f5cd7daf4))
+
+### Miscellaneous Tasks
+
+- **postman:** Update Postman collection files ([`6419ad8`](https://github.com/juspay/hyperswitch/commit/6419ad85fbc08246a207e2601a36e4661bf805ff))
+
+**Full Changelog:** [`2025.06.25.0...2025.06.26.0`](https://github.com/juspay/hyperswitch/compare/2025.06.25.0...2025.06.26.0)
+
+- - -
+
+## 2025.06.25.0
+
+### Features
+
+- **authentication:** Initial commit to modular authentication create ([#8085](https://github.com/juspay/hyperswitch/pull/8085)) ([`2ea5d81`](https://github.com/juspay/hyperswitch/commit/2ea5d81d534840d8ff900b9d768c0c264c4ddf53))
+- **connector:** [ARCHIPEL] fix Mastercard scheme string for Applepay payments ([#8450](https://github.com/juspay/hyperswitch/pull/8450)) ([`2a06f77`](https://github.com/juspay/hyperswitch/commit/2a06f776f69cb39e217056a1464bacfaac76d556))
+- **router:** Add confirm flag in kafka payment intent events ([#8432](https://github.com/juspay/hyperswitch/pull/8432)) ([`bc767b9`](https://github.com/juspay/hyperswitch/commit/bc767b9131e2637ce90997da9018085d2dadb80b))
+
+### Bug Fixes
+
+- **connector:** Adyen connector creates connector's customer reference on the fly fixed ([#8447](https://github.com/juspay/hyperswitch/pull/8447)) ([`7ad2932`](https://github.com/juspay/hyperswitch/commit/7ad2932660607bf169853ebe45de98cef44ef91a))
+- **routing:** Remove frm rule migration support as it is not supported in DE ([#8448](https://github.com/juspay/hyperswitch/pull/8448)) ([`fdacec4`](https://github.com/juspay/hyperswitch/commit/fdacec4b38ea1cbd427d5c15595db8e00ac80b22))
+
+### Refactors
+
+- Make billing details optional during data migration ([#8438](https://github.com/juspay/hyperswitch/pull/8438)) ([`dee5d0c`](https://github.com/juspay/hyperswitch/commit/dee5d0c552b382ba7c2db9cf672cc050c17ee3b9))
+
+**Full Changelog:** [`2025.06.24.0...2025.06.25.0`](https://github.com/juspay/hyperswitch/compare/2025.06.24.0...2025.06.25.0)
+
+- - -
+
+## 2025.06.24.0
+
+### Features
+
+- **analytics:** Add RoutingApproach filter in payment analytics ([#8408](https://github.com/juspay/hyperswitch/pull/8408)) ([`a3cc44c`](https://github.com/juspay/hyperswitch/commit/a3cc44c6e15ce69f39104b2ce205bed632e3971e))
+- **router:** Add `apply_three_ds_strategy` in payments confirm flow ([#8357](https://github.com/juspay/hyperswitch/pull/8357)) ([`786fe69`](https://github.com/juspay/hyperswitch/commit/786fe699c2abd1a3eb752121a1915acd2012d94a))
+
+### Bug Fixes
+
+- **connector:** [NEXIXPAY] Add Validation Checks for Request Fields ([#8345](https://github.com/juspay/hyperswitch/pull/8345)) ([`6fd7626`](https://github.com/juspay/hyperswitch/commit/6fd7626c99e006bb7dcac864c30299bb8ef1d742))
+- Payments redirects for v2 ([#8405](https://github.com/juspay/hyperswitch/pull/8405)) ([`7338a8d`](https://github.com/juspay/hyperswitch/commit/7338a8db8562bae749e32437fa36d8f036655fcd))
+
+**Full Changelog:** [`2025.06.23.0...2025.06.24.0`](https://github.com/juspay/hyperswitch/compare/2025.06.23.0...2025.06.24.0)
+
+- - -
+
 ## 2025.06.23.0
 
 ### Features

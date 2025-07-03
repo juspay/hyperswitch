@@ -24,6 +24,7 @@ mod bluesnap;
 mod boku;
 mod cashtocode;
 mod chargebee;
+mod checkbook;
 mod checkout;
 mod coinbase;
 mod cryptopay;
@@ -33,6 +34,7 @@ mod deutschebank;
 mod dlocal;
 #[cfg(feature = "dummy_connector")]
 mod dummyconnector;
+mod dwolla;
 mod ebanx;
 mod elavon;
 mod facilitapay;
