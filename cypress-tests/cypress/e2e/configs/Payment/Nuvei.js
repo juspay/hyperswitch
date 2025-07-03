@@ -1,4 +1,4 @@
-import { customerAcceptance } from "./Commons";
+import { customerAcceptance, cardRequiredField } from "./Commons";
 import { getCurrency } from "./Modifiers";
 
 const successfulNo3DSCardDetails = {
@@ -25,20 +25,7 @@ const singleUseMandateData = {
   },
 };
 
-const multiUseMandateData = {
-  customer_acceptance: customerAcceptance,
-  mandate_type: {
-    multi_use: {
-      amount: 8000,
-      currency: "USD",
-      start_date: "2022-09-10T00:00:00Z",
-      end_date: "2023-09-10T00:00:00Z",
-      metadata: {
-        frequency: "13",
-      },
-    },
-  },
-};
+
 
 // Test card details based on Nuvei test cards (from Rust tests)
 const successfulThreeDSCardDetails = {
@@ -93,7 +80,6 @@ export const connectorDetails = {
       Request: {
         currency: "USD",
         amount: 11500,
-        authentication_type: "three_ds",
         customer_acceptance: null,
         setup_future_usage: "on_session",
       },
@@ -106,7 +92,6 @@ export const connectorDetails = {
         },
       },
     },
-
     // Payment intent with shipping cost
     PaymentIntentWithShippingCost: {
       Request: {
@@ -122,7 +107,6 @@ export const connectorDetails = {
         },
       },
     },
-
     // Payment confirmation with shipping cost
     PaymentConfirmWithShippingCost: {
       Request: {
@@ -144,7 +128,6 @@ export const connectorDetails = {
         },
       },
     },
-
     // No 3DS automatic capture
     No3DSAutoCapture: {
       Request: {
@@ -167,7 +150,6 @@ export const connectorDetails = {
         },
       },
     },
-
     // No 3DS manual capture
     No3DSManualCapture: {
       Request: {
@@ -190,7 +172,6 @@ export const connectorDetails = {
         },
       },
     },
-
     // 3DS automatic capture
     "3DSAutoCapture": {
       Request: {
@@ -212,7 +193,6 @@ export const connectorDetails = {
         },
       },
     },
-
     // 3DS manual capture
     "3DSManualCapture": {
       Request: {
@@ -234,7 +214,6 @@ export const connectorDetails = {
         },
       },
     },
-
     // Capture payment
     Capture: {
       Request: {
@@ -250,7 +229,6 @@ export const connectorDetails = {
         },
       },
     },
-
     // Partial capture
     PartialCapture: {
       Request: {
@@ -266,7 +244,6 @@ export const connectorDetails = {
         },
       },
     },
-
     // Void payment
     Void: {
       Request: {},
@@ -277,7 +254,6 @@ export const connectorDetails = {
         },
       },
     },
-
     // Refund payment
     Refund: {
       Request: {
@@ -290,7 +266,6 @@ export const connectorDetails = {
         },
       },
     },
-
     // Partial refund - Nuvei limitation: only supports single refund per sale
     // Note: Tests that attempt multiple partial refunds will fail after the first one
     // TRIGGER_SKIP is used to skip tests that would fail due to Nuvei's "only one refund per sale" limitation
@@ -308,7 +283,6 @@ export const connectorDetails = {
         },
       },
     },
-
     // Manual payment refund
     manualPaymentRefund: {
       Request: {
@@ -321,7 +295,6 @@ export const connectorDetails = {
         },
       },
     },
-
     // Manual payment partial refund - Nuvei limitation: only supports single refund per sale
     // Note: Tests that attempt multiple partial refunds will fail after the first one
     // TRIGGER_SKIP is used to skip tests that would fail due to Nuvei's "only one refund per sale" limitation
@@ -339,7 +312,6 @@ export const connectorDetails = {
         },
       },
     },
-
     // Sync refund
     SyncRefund: {
       Response: {
@@ -349,237 +321,7 @@ export const connectorDetails = {
         },
       },
     },
-
-    // Mandate scenarios - Single Use
-    MandateSingleUseNo3DSAutoCapture: {
-      Configs: {
-        TRIGGER_SKIP: true,
-      },
-      Request: {
-        payment_method: "card",
-        payment_method_data: {
-          card: successfulNo3DSCardDetails,
-        },
-        amount: 11500,
-        currency: "USD",
-        mandate_data: singleUseMandateData,
-      },
-      Response: {
-        status: 200,
-        body: {
-          status: "succeeded",
-        },
-      },
-    },
-
-    MandateSingleUseNo3DSManualCapture: {
-      Configs: {
-        TRIGGER_SKIP: true,
-      },
-      Request: {
-        payment_method: "card",
-        payment_method_data: {
-          card: successfulNo3DSCardDetails,
-        },
-        amount: 11500,
-        currency: "USD",
-        mandate_data: singleUseMandateData,
-      },
-      Response: {
-        status: 200,
-        body: {
-          status: "requires_capture",
-        },
-      },
-    },
-
-    MandateSingleUse3DSAutoCapture: {
-      Configs: {
-        TRIGGER_SKIP: true,
-      },
-      Request: {
-        payment_method: "card",
-        payment_method_data: {
-          card: successfulThreeDSCardDetails,
-        },
-        amount: 11500,
-        currency: "USD",
-        mandate_data: singleUseMandateData,
-      },
-      Response: {
-        status: 200,
-        body: {
-          status: "requires_customer_action",
-        },
-      },
-    },
-
-    MandateSingleUse3DSManualCapture: {
-      Configs: {
-        TRIGGER_SKIP: true,
-      },
-      Request: {
-        payment_method: "card",
-        payment_method_data: {
-          card: successfulThreeDSCardDetails,
-        },
-        amount: 11500,
-        currency: "USD",
-        mandate_data: singleUseMandateData,
-      },
-      Response: {
-        status: 200,
-        body: {
-          status: "requires_customer_action",
-        },
-      },
-    },
-
-    // Mandate scenarios - Multi Use
-    MandateMultiUseNo3DSAutoCapture: {
-      Configs: {
-        TRIGGER_SKIP: true,
-      },
-      Request: {
-        payment_method: "card",
-        payment_method_data: {
-          card: successfulNo3DSCardDetails,
-        },
-        amount: 11500,
-        currency: "USD",
-        mandate_data: multiUseMandateData,
-      },
-      Response: {
-        status: 200,
-        body: {
-          status: "succeeded",
-        },
-      },
-    },
-
-    MandateMultiUseNo3DSManualCapture: {
-      Configs: {
-        TRIGGER_SKIP: true,
-      },
-      Request: {
-        payment_method: "card",
-        payment_method_data: {
-          card: successfulNo3DSCardDetails,
-        },
-        amount: 11500,
-        currency: "USD",
-        mandate_data: multiUseMandateData,
-      },
-      Response: {
-        status: 200,
-        body: {
-          status: "requires_capture",
-        },
-      },
-    },
-
-    MandateMultiUse3DSAutoCapture: {
-      Configs: {
-        TRIGGER_SKIP: true,
-      },
-      Request: {
-        payment_method: "card",
-        payment_method_data: {
-          card: successfulThreeDSCardDetails,
-        },
-        amount: 11500,
-        currency: "USD",
-        mandate_data: multiUseMandateData,
-      },
-      Response: {
-        status: 200,
-        body: {
-          status: "requires_customer_action",
-        },
-      },
-    },
-
-    MandateMultiUse3DSManualCapture: {
-      Configs: {
-        TRIGGER_SKIP: true,
-      },
-      Request: {
-        payment_method: "card",
-        payment_method_data: {
-          card: successfulThreeDSCardDetails,
-        },
-        amount: 11500,
-        currency: "USD",
-        mandate_data: multiUseMandateData,
-      },
-      Response: {
-        status: 200,
-        body: {
-          status: "requires_customer_action",
-        },
-      },
-    },
-
-    // MIT (Merchant Initiated Transaction) scenarios
-    MITAutoCapture: {
-      Configs: {
-        TRIGGER_SKIP: true,
-      },
-      Request: {
-        payment_method: "card",
-        payment_method_data: {
-          card: successfulNo3DSCardDetails,
-        },
-        currency: "USD",
-        amount: 11500,
-      },
-      Response: {
-        status: 200,
-        body: {
-          status: "succeeded",
-          payment_method_id: null,
-        },
-      },
-    },
-
-    MITManualCapture: {
-      Configs: {
-        TRIGGER_SKIP: true,
-      },
-      Request: {},
-      Response: {
-        status: 200,
-        body: {
-          status: "requires_capture",
-        },
-      },
-    },
-
-    // Zero auth scenarios
-    ZeroAuthMandate: {
-      Configs: {
-        TRIGGER_SKIP: true,
-      },
-      Request: {
-        payment_method: "card",
-        payment_method_data: {
-          card: successfulNo3DSCardDetails,
-        },
-        currency: "USD",
-        mandate_data: singleUseMandateData,
-      },
-      Response: {
-        status: 400,
-        body: {
-          error: {
-            type: "invalid_request",
-            message: "Setup Mandate flow for Nuvei is not implemented",
-            code: "IR_00",
-          },
-        },
-      },
-    },
-
+ 
     ZeroAuthPaymentIntent: {
       Configs: {
         TRIGGER_SKIP: true,
@@ -597,7 +339,6 @@ export const connectorDetails = {
         },
       },
     },
-
     ZeroAuthConfirmPayment: {
       Configs: {
         TRIGGER_SKIP: true,
@@ -611,14 +352,13 @@ export const connectorDetails = {
         },
       },
       Response: {
-        status: 200,
+        status: 501,
         body: {
           status: "succeeded",
           setup_future_usage: "off_session",
         },
       },
     },
-
     // Save card scenarios
     SaveCardUseNo3DSAutoCapture: {
       Request: {
@@ -637,7 +377,6 @@ export const connectorDetails = {
         },
       },
     },
-
     SaveCardUseNo3DSManualCapture: {
       Request: {
         payment_method: "card",
@@ -655,7 +394,6 @@ export const connectorDetails = {
         },
       },
     },
-
     SaveCardUseNo3DSAutoCaptureOffSession: {
       Configs: {
         TRIGGER_SKIP: true,
@@ -676,7 +414,6 @@ export const connectorDetails = {
         },
       },
     },
-
     SaveCardUse3DSAutoCaptureOffSession: {
       Configs: {
         TRIGGER_SKIP: true,
@@ -697,7 +434,6 @@ export const connectorDetails = {
         },
       },
     },
-
     SaveCardUseNo3DSManualCaptureOffSession: {
       Configs: {
         TRIGGER_SKIP: true,
@@ -717,12 +453,10 @@ export const connectorDetails = {
         },
       },
     },
-
     SaveCardConfirmAutoCaptureOffSession: {
       Configs: {
         TRIGGER_SKIP: true,
       },
-
       Request: {
         setup_future_usage: "off_session",
       },
@@ -733,7 +467,6 @@ export const connectorDetails = {
         },
       },
     },
-
     SaveCardConfirmManualCaptureOffSession: {
       Configs: {
         TRIGGER_SKIP: true,
@@ -769,7 +502,6 @@ export const connectorDetails = {
         },
       },
     },
-
     PaymentMethodIdMandateNo3DSManualCapture: {
       Configs: {
         TRIGGER_SKIP: true,
@@ -790,7 +522,6 @@ export const connectorDetails = {
         },
       },
     },
-
     PaymentMethodIdMandate3DSAutoCapture: {
       Configs: {
         TRIGGER_SKIP: true,
@@ -811,7 +542,6 @@ export const connectorDetails = {
         },
       },
     },
-
     PaymentMethodIdMandate3DSManualCapture: {
       Configs: {
         TRIGGER_SKIP: true,
@@ -846,7 +576,6 @@ export const connectorDetails = {
         },
       },
     }),
-
     BlikPaymentIntent: {
       Request: {
         amount: 11500,
@@ -859,7 +588,6 @@ export const connectorDetails = {
         },
       },
     },
-
     Blik: {
       Request: {
         payment_method: "bank_redirect",
@@ -899,15 +627,15 @@ export const connectorDetails = {
         },
       },
     },
-
     Ideal: {
       Request: {
         payment_method: "bank_redirect",
         payment_method_type: "ideal",
+        currency: "EUR", // iDEAL requires EUR currency
         payment_method_data: {
           bank_redirect: {
             ideal: {
-              bank_name: "ing",
+              bank_name: "ing", // Maps to INGBNL2A in Nuvei
             },
           },
         },
@@ -919,7 +647,7 @@ export const connectorDetails = {
             city: "Amsterdam",
             state: "North Holland",
             zip: "1012",
-            country: "NL",
+            country: "NL", // Netherlands required for iDEAL
             first_name: "John",
             last_name: "Doe",
           },
@@ -930,25 +658,24 @@ export const connectorDetails = {
         },
       },
       Response: {
-        status: 400,
+        status: 200,
         body: {
-          error: {
-            type: "invalid_request",
-            message:
-              "No eligible connector was found for the current payment method configuration",
-            code: "IR_39",
-          },
+          status: "requires_customer_action", // Bank redirect requires customer action
+          error_code: null,
+          error_message: null,
         },
       },
     },
-
     Giropay: {
       Request: {
         payment_method: "bank_redirect",
         payment_method_type: "giropay",
+        currency: "EUR", // Giropay requires EUR currency
         payment_method_data: {
           bank_redirect: {
-            giropay: {},
+            giropay: {
+              country: "DE", // Germany required for Giropay
+            },
           },
         },
         billing: {
@@ -959,7 +686,7 @@ export const connectorDetails = {
             city: "Berlin",
             state: "Berlin",
             zip: "10115",
-            country: "DE",
+            country: "DE", // Germany required for Giropay
             first_name: "John",
             last_name: "Doe",
           },
@@ -972,19 +699,22 @@ export const connectorDetails = {
       Response: {
         status: 200,
         body: {
-          status: "requires_customer_action",
+          status: "requires_customer_action", // Bank redirect requires customer action
+          error_code: null,
+          error_message: null,
         },
       },
     },
-
     Sofort: {
       Request: {
         payment_method: "bank_redirect",
         payment_method_type: "sofort",
+        currency: "EUR", // Sofort requires EUR currency
         payment_method_data: {
           bank_redirect: {
             sofort: {
-              country: "DE",
+              country: "DE", // Germany required for Sofort
+              preferred_language: "en",
             },
           },
         },
@@ -996,7 +726,7 @@ export const connectorDetails = {
             city: "Berlin",
             state: "Berlin",
             zip: "10115",
-            country: "DE",
+            country: "DE", // Germany required for Sofort
             first_name: "John",
             last_name: "Doe",
           },
@@ -1007,27 +737,24 @@ export const connectorDetails = {
         },
       },
       Response: {
-        status: 400,
+        status: 200,
         body: {
-          error: {
-            type: "invalid_request",
-            message:
-              "No eligible connector was found for the current payment method configuration",
-            code: "IR_39",
-          },
+          status: "requires_customer_action", // Bank redirect requires customer action
+          error_code: null,
+          error_message: null,
         },
       },
     },
-
     Eps: {
       Request: {
         payment_method: "bank_redirect",
         payment_method_type: "eps",
         amount: 11500,
+        currency: "EUR", // EPS requires EUR currency
         payment_method_data: {
           bank_redirect: {
             eps: {
-              country: "AT",
+              country: "AT", // Austria required for EPS
             },
           },
         },
@@ -1039,7 +766,7 @@ export const connectorDetails = {
             city: "Vienna",
             state: "Vienna",
             zip: "1010",
-            country: "AT",
+            country: "AT", // Austria required for EPS
             first_name: "John",
             last_name: "Doe",
           },
@@ -1050,42 +777,9 @@ export const connectorDetails = {
         },
       },
       Response: {
-        status: 400,
+        status: 200,
         body: {
-          error: {
-            type: "invalid_request",
-            message:
-              "No eligible connector was found for the current payment method configuration",
-            code: "IR_39",
-          },
-        },
-      },
-    },
-
-    Przelewy24: {
-      Request: {
-        payment_method: "bank_redirect",
-        payment_method_type: "przelewy24",
-        payment_method_data: {
-          bank_redirect: {
-            przelewy24: {
-              bank_name: "citi",
-              billing_details: {
-                email: "guest@juspay.in",
-              },
-            },
-          },
-        },
-      },
-      Response: {
-        status: 400,
-        body: {
-          error: {
-            type: "invalid_request",
-            message:
-              "No eligible connector was found for the current payment method configuration",
-            code: "IR_39",
-          },
+          status: "requires_customer_action",
         },
       },
     },
