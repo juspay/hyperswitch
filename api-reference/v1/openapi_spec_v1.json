@@ -7576,7 +7576,8 @@
         "type": "object",
         "required": [
           "amount",
-          "currency"
+          "currency",
+          "profile_acquirer_id"
         ],
         "properties": {
           "authentication_id": {
@@ -7590,14 +7591,6 @@
             "description": "The business profile that is associated with this authentication",
             "nullable": true
           },
-          "authentication_connector": {
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/AuthenticationConnectors"
-              }
-            ],
-            "nullable": true
-          },
           "customer": {
             "allOf": [
               {
@@ -7608,6 +7601,14 @@
           },
           "amount": {
             "$ref": "#/components/schemas/MinorUnit"
+          },
+          "authentication_connector": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/AuthenticationConnectors"
+              }
+            ],
+            "nullable": true
           },
           "currency": {
             "$ref": "#/components/schemas/Currency"
@@ -7638,6 +7639,9 @@
               }
             ],
             "nullable": true
+          },
+          "profile_acquirer_id": {
+            "$ref": "#/components/schemas/id_type.ProfileAcquirerId"
           }
         }
       },
@@ -7648,7 +7652,8 @@
           "merchant_id",
           "status",
           "amount",
-          "currency"
+          "currency",
+          "profile_acquirer_id"
         ],
         "properties": {
           "authentication_id": {
@@ -7676,17 +7681,17 @@
           "currency": {
             "$ref": "#/components/schemas/Currency"
           },
-          "force_3ds_challenge": {
-            "type": "boolean",
-            "description": "Whether 3DS challenge was forced.",
-            "nullable": true
-          },
           "authentication_connector": {
             "allOf": [
               {
                 "$ref": "#/components/schemas/AuthenticationConnectors"
               }
             ],
+            "nullable": true
+          },
+          "force_3ds_challenge": {
+            "type": "boolean",
+            "description": "Whether 3DS challenge was forced.",
             "nullable": true
           },
           "return_url": {
@@ -7731,6 +7736,9 @@
               }
             ],
             "nullable": true
+          },
+          "profile_acquirer_id": {
+            "$ref": "#/components/schemas/id_type.ProfileAcquirerId"
           }
         }
       },

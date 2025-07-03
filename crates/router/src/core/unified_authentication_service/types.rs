@@ -33,11 +33,16 @@ pub struct ExternalAuthentication;
 
 #[async_trait::async_trait]
 pub trait UnifiedAuthenticationService {
+    #[allow(clippy::too_many_arguments)]
     fn get_pre_authentication_request_data(
         _payment_method_data: Option<&domain::PaymentMethodData>,
         _service_details: Option<payments::CtpServiceDetails>,
         _amount: common_utils::types::MinorUnit,
         _currency: Option<common_enums::Currency>,
+        _merchant_details: Option<&hyperswitch_domain_models::router_request_types::unified_authentication_service::MerchantDetails>,
+        _billing_address: Option<&hyperswitch_domain_models::address::Address>,
+        _acquirer_bin: Option<String>,
+        _acquirer_merchant_id: Option<String>,
     ) -> RouterResult<UasPreAuthenticationRequestData> {
         Err(errors::ApiErrorResponse::NotImplemented {
             message: NotImplementedMessage::Reason(
@@ -60,6 +65,10 @@ pub trait UnifiedAuthenticationService {
         _amount: common_utils::types::MinorUnit,
         _currency: Option<common_enums::Currency>,
         _service_details: Option<payments::CtpServiceDetails>,
+        _merchant_details: Option<&hyperswitch_domain_models::router_request_types::unified_authentication_service::MerchantDetails>,
+        _billing_address: Option<&hyperswitch_domain_models::address::Address>,
+        _acquirer_bin: Option<String>,
+        _acquirer_merchant_id: Option<String>,
     ) -> RouterResult<hyperswitch_domain_models::types::UasPreAuthenticationRouterData> {
         Err(errors::ApiErrorResponse::NotImplemented {
             message: NotImplementedMessage::Reason("pre_authentication".to_string()),
