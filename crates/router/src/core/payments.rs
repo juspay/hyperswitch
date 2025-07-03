@@ -8048,8 +8048,7 @@ pub async fn route_connector_v2_for_payments(
                 conn.merchant_connector_id.clone(),
             )
         })
-        .ok_or(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable("Invalid connector name received")?
+        .ok_or(errors::ApiErrorResponse::IncorrectPaymentMethodConfiguration)?
         .map(|connector_data| ConnectorCallType::PreDetermined(connector_data.into()))
 }
 
