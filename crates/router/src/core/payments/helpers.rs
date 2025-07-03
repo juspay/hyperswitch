@@ -1017,7 +1017,7 @@ pub fn validate_card_expiry(
 
     let mut year_str = card_exp_year.peek().to_string();
     if year_str.len() == 2 {
-        year_str = format!("20{}", year_str);
+        year_str = format!("20{year_str}");
     }
     let exp_year =
         year_str
@@ -1197,7 +1197,7 @@ pub fn create_redirect_url(
     connector_name: impl std::fmt::Display,
     creds_identifier: Option<&str>,
 ) -> String {
-    let creds_identifier_path = creds_identifier.map_or_else(String::new, |cd| format!("/{}", cd));
+    let creds_identifier_path = creds_identifier.map_or_else(String::new, |cd| format!("/{cd}"));
     format!(
         "{}/payments/{}/{}/redirect/response/{}",
         router_base_url,
@@ -1251,7 +1251,7 @@ pub fn create_complete_authorize_url(
     creds_identifier: Option<&str>,
 ) -> String {
     let creds_identifier = creds_identifier.map_or_else(String::new, |creds_identifier| {
-        format!("/{}", creds_identifier)
+        format!("/{creds_identifier}")
     });
     format!(
         "{}/payments/{}/{}/redirect/complete/{}{}",
@@ -1602,7 +1602,7 @@ pub async fn get_connector_default(
 #[cfg(feature = "v2")]
 pub async fn get_connector_data_from_request(
     state: &SessionState,
-    req: Option<api_models::payments::MerchantConnectorDetails>,
+    req: Option<common_types::domain::MerchantConnectorAuthDetails>,
 ) -> CustomResult<api::ConnectorData, errors::ApiErrorResponse> {
     let connector = req
         .as_ref()
@@ -3020,10 +3020,7 @@ pub(super) fn validate_payment_list_request(
         req.limit > PAYMENTS_LIST_MAX_LIMIT_V1 || req.limit < 1,
         || {
             Err(errors::ApiErrorResponse::InvalidRequestData {
-                message: format!(
-                    "limit should be in between 1 and {}",
-                    PAYMENTS_LIST_MAX_LIMIT_V1
-                ),
+                message: format!("limit should be in between 1 and {PAYMENTS_LIST_MAX_LIMIT_V1}"),
             })
         },
     )?;
@@ -3037,10 +3034,7 @@ pub(super) fn validate_payment_list_request_for_joins(
 
     utils::when(!(1..=PAYMENTS_LIST_MAX_LIMIT_V2).contains(&limit), || {
         Err(errors::ApiErrorResponse::InvalidRequestData {
-            message: format!(
-                "limit should be in between 1 and {}",
-                PAYMENTS_LIST_MAX_LIMIT_V2
-            ),
+            message: format!("limit should be in between 1 and {PAYMENTS_LIST_MAX_LIMIT_V2}"),
         })
     })?;
     Ok(())
@@ -4398,6 +4392,7 @@ impl AttemptType {
             processor_merchant_id: old_payment_attempt.processor_merchant_id,
             created_by: old_payment_attempt.created_by,
             setup_future_usage_applied: None,
+            routing_approach: old_payment_attempt.routing_approach,
         }
     }
 
@@ -6619,7 +6614,7 @@ pub enum UnifiedAuthenticationServiceFlow {
         token: String,
     },
     ExternalAuthenticationPostAuthenticate {
-        authentication_id: String,
+        authentication_id: id_type::AuthenticationId,
     },
     ClickToPayConfirmation,
 }
@@ -6701,7 +6696,7 @@ pub enum PaymentExternalAuthenticationFlow {
         token: String,
     },
     PostAuthenticationFlow {
-        authentication_id: String,
+        authentication_id: id_type::AuthenticationId,
     },
 }
 
@@ -6984,8 +6979,8 @@ pub async fn validate_merchant_connector_ids_in_connector_mandate_details(
                             ],
                         })
                         .attach_printable(format!(
-                            "Invalid connector_mandate_details provided for connector {:?}",
-                            migrating_merchant_connector_id
+                            "Invalid connector_mandate_details provided for connector {migrating_merchant_connector_id:?}",
+
                         ))?
                     }
                 }
@@ -6995,8 +6990,8 @@ pub async fn validate_merchant_connector_ids_in_connector_mandate_details(
                 })
                 .attach_printable_lazy(|| {
                     format!(
-                        "{:?} invalid merchant connector id in connector_mandate_details",
-                        migrating_merchant_connector_id
+                        "{migrating_merchant_connector_id:?} invalid merchant connector id in connector_mandate_details",
+
                     )
                 })?,
             }
@@ -7300,8 +7295,8 @@ pub async fn validate_allowed_payment_method_types_request(
             || {
                 Err(errors::ApiErrorResponse::IncorrectPaymentMethodConfiguration)
                     .attach_printable(format!(
-                        "None of the allowed payment method types {:?} are configured for this merchant connector account.",
-                        allowed_payment_method_types
+                        "None of the allowed payment method types {allowed_payment_method_types:?} are configured for this merchant connector account.",
+
                     ))
             },
         )?;

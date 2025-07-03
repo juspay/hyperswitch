@@ -54,7 +54,10 @@ use crate::{
 };
 #[cfg(feature = "v1")]
 use crate::{
-    core::payments::routing::utils::{self as routing_utils, DecisionEngineApiHandler},
+    core::payments::{
+        routing::utils::{self as routing_utils, DecisionEngineApiHandler},
+        OperationSessionGetters, OperationSessionSetters,
+    },
     services,
 };
 #[cfg(all(feature = "dynamic_routing", feature = "v1"))]
@@ -338,11 +341,7 @@ impl RoutingDecisionData {
     pub fn apply_routing_decision<F, D>(&self, payment_data: &mut D)
     where
         F: Send + Clone,
-        D: crate::core::payments::OperationSessionGetters<F>
-            + crate::core::payments::OperationSessionSetters<F>
-            + Send
-            + Sync
-            + Clone,
+        D: OperationSessionGetters<F> + OperationSessionSetters<F> + Send + Sync + Clone,
     {
         match self {
             Self::DebitRouting(data) => data.apply_debit_routing_decision(payment_data),
@@ -364,11 +363,7 @@ impl DebitRoutingDecisionData {
     pub fn apply_debit_routing_decision<F, D>(&self, payment_data: &mut D)
     where
         F: Send + Clone,
-        D: crate::core::payments::OperationSessionGetters<F>
-            + crate::core::payments::OperationSessionSetters<F>
-            + Send
-            + Sync
-            + Clone,
+        D: OperationSessionGetters<F> + OperationSessionSetters<F> + Send + Sync + Clone,
     {
         payment_data.set_card_network(self.card_network.clone());
         self.debit_routing_result
@@ -398,9 +393,7 @@ impl RoutingAlgorithmHelpers<'_> {
                 self.name_mca_id_set.0.contains(&(&connector_choice, mca_id.clone())),
                 errors::ApiErrorResponse::InvalidRequestData {
                     message: format!(
-                        "connector with name '{}' and merchant connector account id '{:?}' not found for the given profile",
-                        connector_choice,
-                        mca_id,
+                        "connector with name '{connector_choice}' and merchant connector account id '{mca_id:?}' not found for the given profile",
                     )
                 }
             );
@@ -410,8 +403,7 @@ impl RoutingAlgorithmHelpers<'_> {
                 self.name_set.0.contains(&connector_choice),
                 errors::ApiErrorResponse::InvalidRequestData {
                     message: format!(
-                        "connector with name '{}' not found for the given profile",
-                        connector_choice,
+                        "connector with name '{connector_choice}' not found for the given profile",
                     )
                 }
             );
@@ -1610,8 +1602,8 @@ pub async fn push_metrics_with_update_window_for_contract_based_routing(
                 .split_once(':')
                 .ok_or(errors::ApiErrorResponse::InternalServerError)
                 .attach_printable(format!(
-                    "unable to split connector_name and mca_id from the first connector {:?} obtained from dynamic routing service",
-                    first_contract_based_connector
+                    "unable to split connector_name and mca_id from the first connector {first_contract_based_connector:?} obtained from dynamic routing service",
+
                 ))?
                 .0, first_contract_based_connector.score, first_contract_based_connector.current_count );
 

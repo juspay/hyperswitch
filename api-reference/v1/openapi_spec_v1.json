@@ -1,5 +1,8 @@
 {
   "openapi": "3.0.3",
+  "x-mcp": {
+    "enabled": true
+  },
   "info": {
     "title": "Hyperswitch - API Documentation",
     "description": "\n## Get started\n\nHyperswitch provides a collection of APIs that enable you to process and manage payments.\nOur APIs accept and return JSON in the HTTP body, and return standard HTTP response codes.\n\nYou can consume the APIs directly using your favorite HTTP/REST library.\n\nWe have a testing environment referred to \"sandbox\", which you can setup to test API calls without\naffecting production data.\nCurrently, our sandbox environment is live while our production environment is under development\nand will be available soon.\nYou can sign up on our Dashboard to get API keys to access Hyperswitch API.\n\n### Environment\n\nUse the following base URLs when making requests to the APIs:\n\n| Environment   |  Base URL                          |\n|---------------|------------------------------------|\n| Sandbox       | <https://sandbox.hyperswitch.io>   |\n| Production    | <https://api.hyperswitch.io>       |\n\n## Authentication\n\nWhen you sign up on our [dashboard](https://app.hyperswitch.io) and create a merchant\naccount, you are given a secret key (also referred as api-key) and a publishable key.\nYou may authenticate all API requests with Hyperswitch server by providing the appropriate key in\nthe request Authorization header.\n\n| Key             |  Description                                                                                  |\n|-----------------|-----------------------------------------------------------------------------------------------|\n| api-key         | Private key. Used to authenticate all API requests from your merchant server                  |\n| publishable key | Unique identifier for your account. Used to authenticate API requests from your app's client  |\n\nNever share your secret api keys. Keep them guarded and secure.\n",
@@ -6347,6 +6350,46 @@
           }
         ]
       }
+    },
+    "/authentication": {
+      "post": {
+        "tags": [
+          "Authentication"
+        ],
+        "summary": "Authentication - Create",
+        "description": "Create a new authentication for accessing our APIs from your servers.\n",
+        "operationId": "Create an Authentication",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AuthenticationCreateRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Authentication created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AuthenticationResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid data"
+          }
+        },
+        "security": [
+          {
+            "api_key": []
+          }
+        ]
+      }
     }
   },
   "components": {
@@ -6730,6 +6773,29 @@
             "type": "number",
             "format": "double",
             "description": "The fraud rate associated with the acquirer.",
+            "nullable": true
+          }
+        }
+      },
+      "AcquirerDetails": {
+        "type": "object",
+        "properties": {
+          "bin": {
+            "type": "string",
+            "description": "The bin of the card.",
+            "example": "123456",
+            "nullable": true
+          },
+          "merchant_id": {
+            "type": "string",
+            "description": "The merchant id of the card.",
+            "example": "merchant_abc",
+            "nullable": true
+          },
+          "country_code": {
+            "type": "string",
+            "description": "The country code of the card.",
+            "example": "US/34456",
             "nullable": true
           }
         }
@@ -7511,6 +7577,168 @@
           "juspaythreedsserver",
           "ctp_visa"
         ]
+      },
+      "AuthenticationCreateRequest": {
+        "type": "object",
+        "required": [
+          "amount",
+          "currency"
+        ],
+        "properties": {
+          "authentication_id": {
+            "type": "string",
+            "description": "The unique identifier for this authentication.",
+            "example": "auth_mbabizu24mvu3mela5njyhpit4",
+            "nullable": true
+          },
+          "profile_id": {
+            "type": "string",
+            "description": "The business profile that is associated with this authentication",
+            "nullable": true
+          },
+          "authentication_connector": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/AuthenticationConnectors"
+              }
+            ],
+            "nullable": true
+          },
+          "customer": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/CustomerDetails"
+              }
+            ],
+            "nullable": true
+          },
+          "amount": {
+            "$ref": "#/components/schemas/MinorUnit"
+          },
+          "currency": {
+            "$ref": "#/components/schemas/Currency"
+          },
+          "return_url": {
+            "type": "string",
+            "description": "The URL to which the user should be redirected after authentication.",
+            "example": "https://example.com/redirect",
+            "nullable": true
+          },
+          "acquirer_details": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/AcquirerDetails"
+              }
+            ],
+            "nullable": true
+          },
+          "force_3ds_challenge": {
+            "type": "boolean",
+            "description": "Force 3DS challenge.",
+            "nullable": true
+          },
+          "psd2_sca_exemption_type": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/ScaExemptionType"
+              }
+            ],
+            "nullable": true
+          }
+        }
+      },
+      "AuthenticationResponse": {
+        "type": "object",
+        "required": [
+          "authentication_id",
+          "merchant_id",
+          "status",
+          "amount",
+          "currency"
+        ],
+        "properties": {
+          "authentication_id": {
+            "type": "string",
+            "description": "The unique identifier for this authentication.",
+            "example": "auth_mbabizu24mvu3mela5njyhpit4"
+          },
+          "merchant_id": {
+            "type": "string",
+            "description": "This is an identifier for the merchant account. This is inferred from the API key\nprovided during the request",
+            "example": "merchant_abc"
+          },
+          "status": {
+            "$ref": "#/components/schemas/AuthenticationStatus"
+          },
+          "client_secret": {
+            "type": "string",
+            "description": "The client secret for this authentication, to be used for client-side operations.",
+            "example": "auth_mbabizu24mvu3mela5njyhpit4_secret_el9ksDkiB8hi6j9N78yo",
+            "nullable": true
+          },
+          "amount": {
+            "$ref": "#/components/schemas/MinorUnit"
+          },
+          "currency": {
+            "$ref": "#/components/schemas/Currency"
+          },
+          "force_3ds_challenge": {
+            "type": "boolean",
+            "description": "Whether 3DS challenge was forced.",
+            "nullable": true
+          },
+          "authentication_connector": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/AuthenticationConnectors"
+              }
+            ],
+            "nullable": true
+          },
+          "return_url": {
+            "type": "string",
+            "description": "The URL to which the user should be redirected after authentication, if provided.",
+            "nullable": true
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "example": "2022-09-10T10:11:12Z",
+            "nullable": true
+          },
+          "error_code": {
+            "type": "string",
+            "example": "E0001",
+            "nullable": true
+          },
+          "error_message": {
+            "type": "string",
+            "description": "If there was an error while calling the connector the error message is received here",
+            "example": "Failed while verifying the card",
+            "nullable": true
+          },
+          "profile_id": {
+            "type": "string",
+            "description": "The business profile that is associated with this payment",
+            "nullable": true
+          },
+          "psd2_sca_exemption_type": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/ScaExemptionType"
+              }
+            ],
+            "nullable": true
+          },
+          "acquirer_details": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/AcquirerDetails"
+              }
+            ],
+            "nullable": true
+          }
+        }
       },
       "AuthenticationStatus": {
         "type": "string",
@@ -10771,6 +10999,7 @@
           "razorpay",
           "recurly",
           "redsys",
+          "santander",
           "shift4",
           "square",
           "stax",
@@ -17969,6 +18198,7 @@
       },
       "OnlineMandate": {
         "type": "object",
+        "description": "Details of online mandate",
         "required": [
           "ip_address",
           "user_agent"
@@ -24074,6 +24304,13 @@
           "client_secret"
         ],
         "properties": {
+          "merchant_order_reference_id": {
+            "type": "string",
+            "description": "Your unique identifier for this payout or order. This ID helps you reconcile payouts on your system. If provided, it is passed to the connector if supported.",
+            "example": "merchant_order_ref_123",
+            "nullable": true,
+            "maxLength": 255
+          },
           "amount": {
             "type": "integer",
             "format": "int64",
@@ -24380,6 +24617,13 @@
             "example": "merchant_1668273825",
             "maxLength": 255
           },
+          "merchant_order_reference_id": {
+            "type": "string",
+            "description": "Your unique identifier for this payout or order. This ID helps you reconcile payouts on your system. If provided, it is passed to the connector if supported.",
+            "example": "merchant_order_ref_123",
+            "nullable": true,
+            "maxLength": 255
+          },
           "amount": {
             "type": "integer",
             "format": "int64",
@@ -24673,13 +24917,13 @@
               "starting_after": {
                 "type": "string",
                 "description": "A cursor for use in pagination, fetch the next list after some object",
-                "example": "pay_fafa124123",
+                "example": "payout_fafa124123",
                 "nullable": true
               },
               "ending_before": {
                 "type": "string",
                 "description": "A cursor for use in pagination, fetch the previous list before some object",
-                "example": "pay_fafa124123",
+                "example": "payout_fafa124123",
                 "nullable": true
               },
               "limit": {
@@ -24725,6 +24969,13 @@
                 "nullable": true,
                 "maxLength": 30,
                 "minLength": 30
+              },
+              "merchant_order_reference_id": {
+                "type": "string",
+                "description": "The merchant order reference ID for payout",
+                "example": "merchant_order_ref_123",
+                "nullable": true,
+                "maxLength": 255
               },
               "profile_id": {
                 "type": "string",
@@ -25020,6 +25271,13 @@
       "PayoutUpdateRequest": {
         "type": "object",
         "properties": {
+          "merchant_order_reference_id": {
+            "type": "string",
+            "description": "Your unique identifier for this payout or order. This ID helps you reconcile payouts on your system. If provided, it is passed to the connector if supported.",
+            "example": "merchant_order_ref_123",
+            "nullable": true,
+            "maxLength": 255
+          },
           "amount": {
             "type": "integer",
             "format": "int64",
@@ -25250,6 +25508,13 @@
           "currency"
         ],
         "properties": {
+          "merchant_order_reference_id": {
+            "type": "string",
+            "description": "Your unique identifier for this payout or order. This ID helps you reconcile payouts on your system. If provided, it is passed to the connector if supported.",
+            "example": "merchant_order_ref_123",
+            "nullable": true,
+            "maxLength": 255
+          },
           "amount": {
             "type": "integer",
             "format": "int64",
@@ -27737,6 +28002,7 @@
           "recurly",
           "redsys",
           "riskified",
+          "santander",
           "shift4",
           "signifyd",
           "square",
@@ -30652,6 +30918,10 @@
       },
       "WebhookDetails": {
         "type": "object",
+        "required": [
+          "payment_statuses_enabled",
+          "refund_statuses_enabled"
+        ],
         "properties": {
           "webhook_version": {
             "type": "string",
@@ -30696,6 +30966,42 @@
             "type": "boolean",
             "description": "If this property is true, a webhook message is posted whenever a payment fails",
             "example": true,
+            "nullable": true
+          },
+          "payment_statuses_enabled": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/IntentStatus"
+            },
+            "description": "List of payment statuses that triggers a webhook for payment intents",
+            "example": [
+              "succeeded",
+              "failed",
+              "partially_captured",
+              "requires_merchant_action"
+            ]
+          },
+          "refund_statuses_enabled": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/IntentStatus"
+            },
+            "description": "List of refund statuses that triggers a webhook for refunds",
+            "example": [
+              "success",
+              "failure"
+            ]
+          },
+          "payout_statuses_enabled": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PayoutStatus"
+            },
+            "description": "List of payout statuses that triggers a webhook for payouts",
+            "example": [
+              "success",
+              "failed"
+            ],
             "nullable": true
           }
         },
@@ -30964,6 +31270,10 @@
     {
       "name": "Event",
       "description": "Manage events"
+    },
+    {
+      "name": "Authentication",
+      "description": "Create and manage authentication"
     }
   ]
 }

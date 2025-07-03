@@ -11,10 +11,7 @@ use hyperswitch_domain_models::{
     types::{PaymentsAuthorizeRouterData, RefundsRouterData},
 };
 use hyperswitch_interfaces::errors;
-use crate::{
-    types::{RefundsResponseRouterData, ResponseRouterData},
-    utils::PaymentsAuthorizeRequestData,
-};
+use crate::types::{RefundsResponseRouterData, ResponseRouterData};
 
 //TODO: Fill the struct with respective fields
 pub struct {{project-name | downcase | pascal_case}}RouterData<T> {
@@ -62,21 +59,12 @@ impl TryFrom<&{{project-name | downcase | pascal_case}}RouterData<&PaymentsAutho
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(item: &{{project-name | downcase | pascal_case}}RouterData<&PaymentsAuthorizeRouterData>) -> Result<Self,Self::Error> {
         match item.router_data.request.payment_method_data.clone() {
-            PaymentMethodData::Card(req_card) => {
-                let card = {{project-name | downcase | pascal_case}}Card {
-                    number: req_card.card_number,
-                    expiry_month: req_card.card_exp_month,
-                    expiry_year: req_card.card_exp_year,
-                    cvc: req_card.card_cvc,
-                    complete: item.router_data.request.is_auto_capture()?,
-                };
-                Ok(Self {
-                    amount: item.amount.clone(),
-                    card,
-                })
-            }
+            PaymentMethodData::Card(_) => {
+                Err(errors::ConnectorError::NotImplemented("Card payment method not implemented".to_string()).into())
+            },
             _ => Err(errors::ConnectorError::NotImplemented("Payment method".to_string()).into()),
         }
+        
     }
 }
 
@@ -99,7 +87,7 @@ impl TryFrom<&ConnectorAuthType> for {{project-name | downcase | pascal_case}}Au
 }
 // PaymentsResponse
 //TODO: Append the remaining status flags
-#[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Clone, Copy, Default, Serialize, Deserialize, PartialEq)]
 #[serde(rename_all = "lowercase")]
 pub enum {{project-name | downcase | pascal_case}}PaymentStatus {
     Succeeded,
@@ -165,7 +153,7 @@ impl<F> TryFrom<&{{project-name | downcase | pascal_case}}RouterData<&RefundsRou
 // Type definition for Refund Response
 
 #[allow(dead_code)]
-#[derive(Debug, Serialize, Default, Deserialize, Clone)]
+#[derive(Debug, Copy, Serialize, Default, Deserialize, Clone)]
 pub enum RefundStatus {
     Succeeded,
     Failed,
@@ -229,4 +217,7 @@ pub struct {{project-name | downcase | pascal_case}}ErrorResponse {
     pub code: String,
     pub message: String,
     pub reason: Option<String>,
+    pub network_advice_code: Option<String>,
+    pub network_decline_code: Option<String>,
+    pub network_error_message: Option<String>,
 }

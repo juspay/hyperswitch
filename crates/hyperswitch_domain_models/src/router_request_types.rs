@@ -3,6 +3,7 @@ pub mod fraud_check;
 pub mod revenue_recovery;
 pub mod unified_authentication_service;
 use api_models::payments::{AdditionalPaymentData, RequestSurchargeDetails};
+use common_types::payments as common_payments_types;
 use common_utils::{consts, errors, ext_traits::OptionExt, id_type, pii, types::MinorUnit};
 use diesel_models::{enums as storage_enums, types::OrderDetailsWithAmount};
 use error_stack::ResultExt;
@@ -46,7 +47,7 @@ pub struct PaymentsAuthorizeData {
     pub setup_future_usage: Option<storage_enums::FutureUsage>,
     pub mandate_id: Option<api_models::payments::MandateIds>,
     pub off_session: Option<bool>,
-    pub customer_acceptance: Option<mandates::CustomerAcceptance>,
+    pub customer_acceptance: Option<common_payments_types::CustomerAcceptance>,
     pub setup_mandate_details: Option<mandates::MandateData>,
     pub browser_info: Option<BrowserInformation>,
     pub order_details: Option<Vec<OrderDetailsWithAmount>>,
@@ -478,7 +479,7 @@ pub struct CompleteAuthorizeData {
     pub connector_meta: Option<serde_json::Value>,
     pub complete_authorize_url: Option<String>,
     pub metadata: Option<serde_json::Value>,
-    pub customer_acceptance: Option<mandates::CustomerAcceptance>,
+    pub customer_acceptance: Option<common_payments_types::CustomerAcceptance>,
     // New amount for amount frame work
     pub minor_amount: MinorUnit,
     pub merchant_account_id: Option<Secret<String>>,
@@ -889,7 +890,7 @@ pub struct UploadFileRequestData {
 #[cfg(feature = "payouts")]
 #[derive(Debug, Clone)]
 pub struct PayoutsData {
-    pub payout_id: String,
+    pub payout_id: id_type::PayoutId,
     pub amount: i64,
     pub connector_payout_id: Option<String>,
     pub destination_currency: storage_enums::Currency,
@@ -969,7 +970,7 @@ pub struct SetupMandateRequestData {
     pub amount: Option<i64>,
     pub confirm: bool,
     pub statement_descriptor_suffix: Option<String>,
-    pub customer_acceptance: Option<mandates::CustomerAcceptance>,
+    pub customer_acceptance: Option<common_payments_types::CustomerAcceptance>,
     pub mandate_id: Option<api_models::payments::MandateIds>,
     pub setup_future_usage: Option<storage_enums::FutureUsage>,
     pub off_session: Option<bool>,
