@@ -133,6 +133,7 @@ impl ForexMetric for PaymentMetrics {
                 | Self::DebitRouting
                 | Self::SessionizedPaymentProcessedAmount
                 | Self::SessionizedAvgTicketSize
+                | Self::SessionizedDebitRouting,
         )
     }
 }
