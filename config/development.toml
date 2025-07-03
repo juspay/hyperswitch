@@ -1182,7 +1182,9 @@ enabled = false
 url = "http://localhost:8080"
 
 [grpc_client.unified_connector_service]
-base_url = "http://localhost:8000/"
+host = "localhost"
+port = 8000
+connection_timeout = 10
 
 [revenue_recovery]
 monitoring_threshold_in_seconds = 2592000

@@ -1,8 +1,12 @@
-use common_utils::{consts as common_utils_consts, errors::CustomResult, types::Url};
+use common_utils::{consts as common_utils_consts, errors::CustomResult};
 use error_stack::ResultExt;
 use masking::{PeekInterface, Secret};
 use router_env::logger;
-use tonic::metadata::{MetadataMap, MetadataValue};
+use tokio::time::{timeout, Duration};
+use tonic::{
+    metadata::{MetadataMap, MetadataValue},
+    transport::Uri,
+};
 use unified_connector_service_client::payments::{
     self as payments_grpc, payment_service_client::PaymentServiceClient,
     PaymentServiceAuthorizeResponse,
@@ -90,8 +94,14 @@ pub struct UnifiedConnectorServiceClient {
 /// Contains the Unified Connector Service Client config
 #[derive(Debug, Clone, serde::Deserialize, serde::Serialize)]
 pub struct UnifiedConnectorServiceClientConfig {
-    /// Contains the Base URL for the gRPC server
-    pub base_url: Url,
+    /// Host for the gRPC Client
+    pub host: String,
+
+    /// Port of the gRPC Client
+    pub port: u16,
+
+    /// Contains the connection timeout duration in seconds
+    pub connection_timeout: u64,
 }
 
 /// Contains the Connector Auth Type and related authentication data.
@@ -121,20 +131,34 @@ impl UnifiedConnectorServiceClient {
     pub async fn build_connections(config: &GrpcClientSettings) -> Option<Self> {
         match &config.unified_connector_service {
             Some(unified_connector_service_client_config) => {
-                match PaymentServiceClient::connect(
-                    unified_connector_service_client_config
-                        .base_url
-                        .clone()
-                        .get_string_repr()
-                        .to_owned(),
-                )
-                .await
-                {
-                    Ok(unified_connector_service_client) => Some(Self {
-                        client: unified_connector_service_client,
-                    }),
+                let uri_str = format!(
+                    "https://{}:{}",
+                    unified_connector_service_client_config.host,
+                    unified_connector_service_client_config.port
+                );
+
+                let uri: Uri = match uri_str.parse() {
+                    Ok(parsed_uri) => parsed_uri,
                     Err(err) => {
+                        logger::error!(error = ?err, "Failed to parse URI for Unified Connector Service");
+                        return None;
+                    }
+                };
+
+                let connect_result = timeout(
+                    Duration::from_secs(unified_connector_service_client_config.connection_timeout),
+                    PaymentServiceClient::connect(uri),
+                )
+                .await;
+
+                match connect_result {
+                    Ok(Ok(client)) => Some(Self { client }),
+                    Ok(Err(err)) => {
                         logger::error!(error = ?err, "Failed to connect to Unified Connector Service");
+                        None
+                    }
+                    Err(_) => {
+                        logger::error!("Connection to Unified Connector Service timed out");
                         None
                     }
                 }
