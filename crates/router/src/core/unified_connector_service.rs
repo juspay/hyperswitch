@@ -223,7 +223,7 @@ pub fn handle_unified_connector_service_response_for_payment_authorize(
     UnifiedConnectorServiceError,
 > {
     let status = AttemptStatus::foreign_try_from(response.status())?;
-    
+
     let connector_response_reference_id =
         response.response_ref_id.as_ref().and_then(|identifier| {
             identifier
@@ -239,13 +239,11 @@ pub fn handle_unified_connector_service_response_for_payment_authorize(
         });
 
     let transaction_id = response.transaction_id.as_ref().and_then(|id| {
-        id.id_type
-            .clone()
-            .and_then(|id_type| match id_type {
-                payments_grpc::identifier::IdType::Id(id) => Some(id),
-                payments_grpc::identifier::IdType::EncodedData(encoded_data) => Some(encoded_data),
-                payments_grpc::identifier::IdType::NoResponseIdMarker(_) => None,
-            })
+        id.id_type.clone().and_then(|id_type| match id_type {
+            payments_grpc::identifier::IdType::Id(id) => Some(id),
+            payments_grpc::identifier::IdType::EncodedData(encoded_data) => Some(encoded_data),
+            payments_grpc::identifier::IdType::NoResponseIdMarker(_) => None,
+        })
     });
 
     let router_data_response = match status {
@@ -293,7 +291,7 @@ pub fn handle_unified_connector_service_response_for_payment_authorize(
                     AttemptStatus::CodInitiated |
                     AttemptStatus::Voided |
                     AttemptStatus::VoidInitiated |
-                    AttemptStatus::CaptureInitiated | 
+                    AttemptStatus::CaptureInitiated |
                     AttemptStatus::VoidFailed |
                     AttemptStatus::AutoRefunded |
                     AttemptStatus::PartialCharged |
@@ -375,7 +373,7 @@ pub fn handle_unified_connector_service_response_for_payment_get(
                     AttemptStatus::CodInitiated |
                     AttemptStatus::Voided |
                     AttemptStatus::VoidInitiated |
-                    AttemptStatus::CaptureInitiated | 
+                    AttemptStatus::CaptureInitiated |
                     AttemptStatus::VoidFailed |
                     AttemptStatus::AutoRefunded |
                     AttemptStatus::PartialCharged |
