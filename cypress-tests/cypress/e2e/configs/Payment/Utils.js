@@ -33,8 +33,10 @@ import { connectorDetails as novalnetConnectorDetails } from "./Novalnet.js";
 import { connectorDetails as payboxConnectorDetails } from "./Paybox.js";
 import { connectorDetails as paypalConnectorDetails } from "./Paypal.js";
 import { connectorDetails as redsysConnectorDetails } from "./Redsys.js";
+import { connectorDetails as squareConnectorDetails } from "./Square.js";
 import { connectorDetails as stripeConnectorDetails } from "./Stripe.js";
 import { connectorDetails as trustpayConnectorDetails } from "./Trustpay.js";
+import { connectorDetails as tsysConnectorDetails } from "./Tsys.js";
 import { connectorDetails as wellsfargoConnectorDetails } from "./WellsFargo.js";
 import { connectorDetails as worldpayConnectorDetails } from "./WorldPay.js";
 import { connectorDetails as worldpayxmlConnectorDetails } from "./Worldpayxml.js";
@@ -72,7 +74,9 @@ const connectorDetails = {
   paypal: paypalConnectorDetails,
   redsys: redsysConnectorDetails,
   stripe: stripeConnectorDetails,
+  square: squareConnectorDetails,
   trustpay: trustpayConnectorDetails,
+  tsys: tsysConnectorDetails,
   wellsfargo: wellsfargoConnectorDetails,
   worldpay: worldpayConnectorDetails,
   worldpayxml: worldpayxmlConnectorDetails,
