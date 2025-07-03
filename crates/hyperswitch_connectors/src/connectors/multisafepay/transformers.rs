@@ -750,9 +750,6 @@ impl TryFrom<&MultisafepayRouterData<&types::PaymentsAuthorizeRouterData>>
                 WalletData::AliPayRedirect(_) => {
                     Some(GatewayInfo::Wallet(WalletInfo::Alipay(AlipayInfo {})))
                 }
-                WalletData::AliPayRedirect(_) => {
-                    Some(GatewayInfo::Wallet(WalletInfo::Alipay(AlipayInfo {})))
-                }
                 WalletData::PaypalRedirect(_) => None,
                 WalletData::WeChatPayRedirect(_) => {
                     Some(GatewayInfo::Wallet(WalletInfo::WeChatPay(WeChatPayInfo {})))
