@@ -25,6 +25,8 @@ use std::{
 #[cfg(feature = "v2")]
 pub mod payment_methods;
 
+use std::future;
+
 #[cfg(feature = "olap")]
 use api_models::admin::MerchantConnectorInfo;
 use api_models::{
@@ -76,8 +78,6 @@ pub use session_operation::payments_session_core;
 #[cfg(feature = "olap")]
 use strum::IntoEnumIterator;
 use time;
-
-use std::future;
 
 #[cfg(feature = "v1")]
 pub use self::operations::{
