@@ -3529,9 +3529,8 @@ where
         .await?;
 
     let connector_request_reference_id = router_data.connector_request_reference_id.clone();
-    payment_data.set_connector_request_reference_id_in_payment_attempt(Some(
-        connector_request_reference_id,
-    ));
+    payment_data
+        .set_connector_request_reference_id_in_payment_attempt(connector_request_reference_id);
 
     let add_access_token_result = router_data
         .add_access_token(
@@ -8989,7 +8988,7 @@ pub trait OperationSessionSetters<F> {
 
     fn set_connector_request_reference_id_in_payment_attempt(
         &mut self,
-        connector_request_reference_id: Option<String>,
+        connector_request_reference_id: String,
     );
 }
 
@@ -9300,9 +9299,9 @@ impl<F: Clone> OperationSessionSetters<F> for PaymentData<F> {
 
     fn set_connector_request_reference_id_in_payment_attempt(
         &mut self,
-        connector_request_reference_id: Option<String>,
+        connector_request_reference_id: String,
     ) {
-        self.payment_attempt.connector_request_reference_id = connector_request_reference_id;
+        self.payment_attempt.connector_request_reference_id = Some(connector_request_reference_id);
     }
 }
 
@@ -9600,7 +9599,7 @@ impl<F: Clone> OperationSessionSetters<F> for PaymentIntentData<F> {
 
     fn set_connector_request_reference_id_in_payment_attempt(
         &mut self,
-        connector_request_reference_id: Option<String>,
+        connector_request_reference_id: String,
     ) {
         todo!()
     }
@@ -9903,7 +9902,7 @@ impl<F: Clone> OperationSessionSetters<F> for PaymentConfirmData<F> {
 
     fn set_connector_request_reference_id_in_payment_attempt(
         &mut self,
-        connector_request_reference_id: Option<String>,
+        connector_request_reference_id: String,
     ) {
         todo!()
     }
@@ -10201,7 +10200,7 @@ impl<F: Clone> OperationSessionSetters<F> for PaymentStatusData<F> {
 
     fn set_connector_request_reference_id_in_payment_attempt(
         &mut self,
-        connector_request_reference_id: Option<String>,
+        connector_request_reference_id: String,
     ) {
         todo!()
     }
@@ -10501,7 +10500,7 @@ impl<F: Clone> OperationSessionSetters<F> for PaymentCaptureData<F> {
 
     fn set_connector_request_reference_id_in_payment_attempt(
         &mut self,
-        connector_request_reference_id: Option<String>,
+        connector_request_reference_id: String,
     ) {
         todo!()
     }

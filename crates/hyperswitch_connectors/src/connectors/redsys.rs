@@ -909,9 +909,9 @@ impl ConnectorSpecifications for Redsys {
         &self,
         payment_intent: &hyperswitch_domain_models::payments::PaymentIntent,
         payment_attempt: &hyperswitch_domain_models::payments::payment_attempt::PaymentAttempt,
-        is_config_enabled_for_merchant: bool,
+        is_config_enabled_to_send_payment_id_as_connector_request_id: bool,
     ) -> String {
-        if is_config_enabled_for_merchant
+        if is_config_enabled_to_send_payment_id_as_connector_request_id
             && payment_intent.is_payment_id_from_merchant.unwrap_or(false)
         {
             payment_attempt.payment_id.get_string_repr().to_owned()

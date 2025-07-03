@@ -1592,7 +1592,7 @@ pub fn get_connector_request_reference_id(
     payment_attempt: &hyperswitch_domain_models::payments::payment_attempt::PaymentAttempt,
     connector_name: &str,
 ) -> CustomResult<String, errors::ApiErrorResponse> {
-    let is_config_enabled_for_merchant =
+    let is_config_enabled_to_send_payment_id_as_connector_request_id =
         is_merchant_enabled_for_payment_id_as_connector_request_id(conf, merchant_id);
 
     let connector_data = api::ConnectorData::get_connector_by_name(
@@ -1600,14 +1600,16 @@ pub fn get_connector_request_reference_id(
         connector_name,
         api::GetToken::Connector,
         payment_attempt.merchant_connector_id.clone(),
-    )?;
+    )
+    .change_context(errors::ApiErrorResponse::InternalServerError)
+    .attach_printable_lazy(|| "Failed to construct connector data")?;
 
     let connector_request_reference_id = connector_data
         .connector
         .generate_connector_request_reference_id(
             payment_intent,
             payment_attempt,
-            is_config_enabled_for_merchant,
+            is_config_enabled_to_send_payment_id_as_connector_request_id,
         );
     Ok(connector_request_reference_id)
 }
