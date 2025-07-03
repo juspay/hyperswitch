@@ -711,6 +711,14 @@ async fn record_back_to_billing_connector(
     billing_mca: &merchant_connector_account::MerchantConnectorAccount,
 ) -> RecoveryResult<()> {
     let connector_name = billing_mca.connector_name.to_string();
+    if state.conf.record_back_control.skip_record_back_on_failed_invoice_connectors.contains(&connector_name)
+        && payment_intent.status == enums::IntentStatus::Failed
+    {
+        // If the payment intent has failed, we don't need to record back to the billing connector
+        return Ok(());
+    }
+    
+    
     let connector_data = api_types::ConnectorData::get_connector_by_name(
         &state.conf.connectors,
         &connector_name,

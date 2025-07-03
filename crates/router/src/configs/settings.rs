@@ -157,6 +157,8 @@ pub struct Settings<S: SecretState> {
     pub open_router: OpenRouter,
     #[cfg(feature = "v2")]
     pub revenue_recovery: revenue_recovery::RevenueRecoverySettings,
+    #[cfg(feature = "v2")]
+    pub record_back_control: RecordBackControl,
     pub clone_connector_allowlist: Option<CloneConnectorAllowlistConfig>,
     pub merchant_id_auth: MerchantIdAuthSettings,
     #[serde(default)]
@@ -920,6 +922,11 @@ pub struct ConnectorRequestReferenceIdConfig {
 #[derive(Debug, Deserialize, Clone, Default)]
 pub struct UserAuthMethodSettings {
     pub encryption_key: Secret<String>,
+}
+
+#[derive(Debug, Deserialize, Clone, Default)]
+pub struct RecordBackControl {
+    pub skip_record_back_on_failed_invoice_connectors: Vec<String>,
 }
 
 #[derive(Debug, Deserialize, Clone, Default)]

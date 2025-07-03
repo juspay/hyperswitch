@@ -1187,8 +1187,11 @@ click_to_pay = {connector_list = "adyen, cybersource"}
 enabled = false
 url = "http://localhost:8080"
 
+[record_back_control]
+skip_record_back_on_failed_invoice_connectors = ["stripebilling", "recurly"]
+
 [revenue_recovery]
-monitoring_threshold_in_seconds = 2592000
+monitoring_threshold_in_seconds = 2
 retry_algorithm_type = "cascading"
 
 [clone_connector_allowlist]
