@@ -827,8 +827,7 @@ async fn create_order_at_connector<F: Clone>(
                 } else {
                     Err(error_stack::report!(ApiErrorResponse::InternalServerError)
                         .attach_printable(format!(
-                            "Unexpected response format from connector: {:?}",
-                            res
+                            "Unexpected response format from connector: {res:?}",
                         )))?
                 }
             }

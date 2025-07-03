@@ -459,6 +459,7 @@ pub enum PaymentAttemptUpdate {
         tax_amount: Option<MinorUnit>,
         updated_by: String,
         merchant_connector_id: Option<id_type::MerchantConnectorAccountId>,
+        routing_approach: Option<storage_enums::RoutingApproach>,
     },
     AuthenticationTypeUpdate {
         authentication_type: storage_enums::AuthenticationType,
@@ -3088,6 +3089,7 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 tax_amount,
                 updated_by,
                 merchant_connector_id,
+                routing_approach,
             } => Self {
                 payment_token,
                 modified_at: common_utils::date_time::now(),
@@ -3146,7 +3148,7 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 issuer_error_code: None,
                 issuer_error_message: None,
                 setup_future_usage_applied: None,
-                routing_approach: None,
+                routing_approach,
             },
             PaymentAttemptUpdate::UnresolvedResponseUpdate {
                 status,

@@ -4,6 +4,47 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2025.07.03.0
+
+### Features
+
+- **connector:**
+  - `multisafepay` added payment methods | TRUSTLY | WeChatpay | Alipay ([#8465](https://github.com/juspay/hyperswitch/pull/8465)) ([`01bd831`](https://github.com/juspay/hyperswitch/commit/01bd831665829bd318da5afe7410893ed5afc51e))
+  - [CHECKBOOK] Add Template Code ([#8494](https://github.com/juspay/hyperswitch/pull/8494)) ([`95077c6`](https://github.com/juspay/hyperswitch/commit/95077c64e27d6df35c15465f844c6ad7e1945571))
+- **masking:** Implement `prost::Message` trait for `Secret` and `StrongSecret` types ([#8458](https://github.com/juspay/hyperswitch/pull/8458)) ([`ad29631`](https://github.com/juspay/hyperswitch/commit/ad29631c537c92fb11f1827fb3f6737cdc741f0f))
+
+### Miscellaneous Tasks
+
+- Address Rust 1.88.0 clippy lints ([#8498](https://github.com/juspay/hyperswitch/pull/8498)) ([`20b52f1`](https://github.com/juspay/hyperswitch/commit/20b52f11c3c010113a37a0b893c39ab0e8b5bfd1))
+
+**Full Changelog:** [`2025.07.02.0...2025.07.03.0`](https://github.com/juspay/hyperswitch/compare/2025.07.02.0...2025.07.03.0)
+
+- - -
+
+## 2025.07.02.0
+
+### Features
+
+- **connector:**
+  - Implement capture and webhook flow, fix some issues in ACI ([#8349](https://github.com/juspay/hyperswitch/pull/8349)) ([`1ae3024`](https://github.com/juspay/hyperswitch/commit/1ae30247ca1fe94bf72752906462521b58513ca7))
+  - [ADYENPLATFORM] add card payouts ([#8504](https://github.com/juspay/hyperswitch/pull/8504)) ([`0c64915`](https://github.com/juspay/hyperswitch/commit/0c649158a8ee491e2ff6ff37e922266d5b64b22d))
+  - [DWOLLA] - Add template code ([#8496](https://github.com/juspay/hyperswitch/pull/8496)) ([`ad52251`](https://github.com/juspay/hyperswitch/commit/ad522513b9c7cd978f79dc1f00e25f9dcabb58dc))
+  - [SANTANDER] Added Authorize, PSync, Void, Refund & RSync Flows for Pix QR Code Bank Transfer ([#8463](https://github.com/juspay/hyperswitch/pull/8463)) ([`28d6357`](https://github.com/juspay/hyperswitch/commit/28d63575e63d87b1cba7c6215faee803f2fff7d8))
+- **connectors:** [Worldpayvantiv] add NTI flow and refactor sync flows ([#8495](https://github.com/juspay/hyperswitch/pull/8495)) ([`f8dc3ec`](https://github.com/juspay/hyperswitch/commit/f8dc3ecfe6a9cb1441228dce474b92c4a6fe2985))
+- **data-migration:** Add connector customer and mandate details support for multiple profiles ([#8473](https://github.com/juspay/hyperswitch/pull/8473)) ([`ce2b90b`](https://github.com/juspay/hyperswitch/commit/ce2b90b3d37d9214ef4ad46d5748aa0c864d508d))
+- **dummy_connector:** Allow a dummy connector to succeed a failed card ([#8469](https://github.com/juspay/hyperswitch/pull/8469)) ([`69ab255`](https://github.com/juspay/hyperswitch/commit/69ab255394fc537dbc40e01c72f27f3c8dbfb5f1))
+- **payouts:** Add domain type for PayoutId ([#8395](https://github.com/juspay/hyperswitch/pull/8395)) ([`a6e3d2c`](https://github.com/juspay/hyperswitch/commit/a6e3d2c71eed53ab400628a482cc61aae3720340))
+
+### Refactors
+
+- **authentication:** Flattened paymentData in authentication trait functions ([#8365](https://github.com/juspay/hyperswitch/pull/8365)) ([`18a779f`](https://github.com/juspay/hyperswitch/commit/18a779f94d418587c10c8ac8766d22ff41d25f6a))
+- **connector:** Update add connector script with new connector features ([#8213](https://github.com/juspay/hyperswitch/pull/8213)) ([`2ff93ff`](https://github.com/juspay/hyperswitch/commit/2ff93ff972453ce30ffeff667cb406d35286f60a))
+- Exposed auth analytics at merchant,org and profile levels ([#8335](https://github.com/juspay/hyperswitch/pull/8335)) ([`e638f23`](https://github.com/juspay/hyperswitch/commit/e638f239d3f3a0e7a63a5e71a1df6f516ddf9c4a))
+
+**Full Changelog:** [`2025.07.01.0...2025.07.02.0`](https://github.com/juspay/hyperswitch/compare/2025.07.01.0...2025.07.02.0)
+
+- - -
+
 ## 2025.07.01.0
 
 ### Features

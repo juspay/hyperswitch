@@ -880,6 +880,8 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for
             .as_ref()
             .map(|surcharge_details| surcharge_details.tax_on_surcharge_amount);
 
+        let routing_approach = payment_data.payment_attempt.routing_approach;
+
         payment_data.payment_attempt = state
             .store
             .update_payment_attempt_with_attempt_id(
@@ -896,6 +898,7 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for
                     tax_amount,
                     updated_by: storage_scheme.to_string(),
                     merchant_connector_id,
+                    routing_approach,
                 },
                 storage_scheme,
             )
