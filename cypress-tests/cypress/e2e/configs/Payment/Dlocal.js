@@ -1,4 +1,4 @@
-import { customerAcceptance } from "./Commons";
+import { customerAcceptance,singleUseMandateData,multiUseMandateData,requiredFields } from "./Commons";
 
 const mockBillingDetails = {
   address: {
@@ -19,15 +19,7 @@ const mockBillingDetails = {
   email: "thiago@example.com",
 };
 
-const successfulNo3DSCardDetails = {
-  card_number: "4111111111111111",
-  card_exp_month: "10",
-  card_exp_year: "40",
-  card_holder_name: "Thiago Gabriel",
-  card_cvc: "123",
-};
-
-const successfulThreeDSCardDetails = {
+const successfulCardDetails = {
   card_number: "4111111111111111",
   card_exp_month: "10",
   card_exp_year: "40",
@@ -41,89 +33,6 @@ const failedCardDetails = {
   card_exp_year: "40",
   card_holder_name: "Thiago Gabriel",
   card_cvc: "123",
-};
-
-const singleUseMandateData = {
-  customer_acceptance: customerAcceptance,
-  mandate_type: {
-    single_use: {
-      amount: 8000,
-      currency: "USD",
-    },
-  },
-};
-
-const multiUseMandateData = {
-  customer_acceptance: customerAcceptance,
-  mandate_type: {
-    multi_use: {
-      amount: 8000,
-      currency: "USD",
-    },
-  },
-};
-
-export const cardRequiredField = {
-  "payment_method_data.card.card_number": {
-    required_field: "payment_method_data.card.card_number",
-    display_name: "card_number",
-    field_type: "user_card_number",
-    value: null,
-  },
-  "payment_method_data.card.card_exp_year": {
-    required_field: "payment_method_data.card.card_exp_year",
-    display_name: "card_exp_year",
-    field_type: "user_card_expiry_year",
-    value: null,
-  },
-  "payment_method_data.card.card_cvc": {
-    required_field: "payment_method_data.card.card_cvc",
-    display_name: "card_cvc",
-    field_type: "user_card_cvc",
-    value: null,
-  },
-  "payment_method_data.card.card_exp_month": {
-    required_field: "payment_method_data.card.card_exp_month",
-    display_name: "card_exp_month",
-    field_type: "user_card_expiry_month",
-    value: null,
-  },
-};
-
-export const fullNameRequiredField = {
-  "billing.address.last_name": {
-    required_field: "payment_method_data.billing.address.last_name",
-    display_name: "card_holder_name",
-    field_type: "user_full_name",
-    value: "Doe",
-  },
-  "billing.address.first_name": {
-    required_field: "payment_method_data.billing.address.first_name",
-    display_name: "card_holder_name",
-    field_type: "user_full_name",
-    value: "joseph",
-  },
-};
-
-export const billingRequiredField = {};
-
-const requiredFields = {
-  payment_methods: [
-    {
-      payment_method: "card",
-      payment_method_types: [
-        {
-          payment_method_type: "credit",
-          card_networks: [
-            {
-              eligible_connectors: ["dlocal"],
-            },
-          ],
-          required_fields: cardRequiredField,
-        },
-      ],
-    },
-  ],
 };
 
 const payment_method_data_no3ds = {
@@ -220,7 +129,7 @@ export const connectorDetails = {
       Request: {
         payment_method: "card",
         payment_method_data: {
-          card: successfulNo3DSCardDetails,
+          card: successfulCardDetails,
           billing: mockBillingDetails,
         },
         customer_acceptance: null,
@@ -241,12 +150,11 @@ export const connectorDetails = {
       Request: {
         payment_method: "card",
         payment_method_data: {
-          card: successfulNo3DSCardDetails,
+          card: successfulCardDetails,
           billing: mockBillingDetails,
         },
         currency: "USD",
-        customer_acceptance: null,
-        setup_future_usage: "on_session",
+        mandate_data: singleUseMandateData,
       },
       Response: {
         status: 200,
@@ -262,7 +170,7 @@ export const connectorDetails = {
       Request: {
         payment_method: "card",
         payment_method_data: {
-          card: successfulThreeDSCardDetails, // Uses updated card details
+          card: successfulCardDetails, // Uses updated card details
           billing: mockBillingDetails, // Uses updated billing details
         },
         currency: "BRL",
@@ -279,7 +187,7 @@ export const connectorDetails = {
       Request: {
         payment_method: "card",
         payment_method_data: {
-          card: successfulNo3DSCardDetails,
+          card: successfulCardDetails,
         },
         currency: "USD",
         customer_acceptance: null,
@@ -300,7 +208,7 @@ export const connectorDetails = {
       Request: {
         payment_method: "card",
         payment_method_data: {
-          card: successfulThreeDSCardDetails,
+          card: successfulCardDetails,
           billing: mockBillingDetails,
         },
         currency: "USD",
@@ -433,7 +341,7 @@ export const connectorDetails = {
       Request: {
         payment_method: "card",
         payment_method_data: {
-          card: successfulNo3DSCardDetails,
+          card: successfulCardDetails,
           billing: mockBillingDetails,
         },
         currency: "USD",
@@ -459,7 +367,7 @@ export const connectorDetails = {
       Request: {
         payment_method: "card",
         payment_method_data: {
-          card: successfulNo3DSCardDetails,
+          card: successfulCardDetails,
           billing: mockBillingDetails,
         },
 
@@ -477,7 +385,7 @@ export const connectorDetails = {
     MITManualCapture: {
       Request: {
         payment_method_data: {
-          card: successfulNo3DSCardDetails,
+          card: successfulCardDetails,
           billing: mockBillingDetails,
         },
       },
@@ -493,7 +401,7 @@ export const connectorDetails = {
       Request: {
         payment_method: "card",
         payment_method_data: {
-          card: successfulThreeDSCardDetails,
+          card: successfulCardDetails,
         },
         currency: "USD",
         mandate_data: singleUseMandateData,
@@ -514,7 +422,7 @@ export const connectorDetails = {
       Request: {
         payment_method: "card",
         payment_method_data: {
-          card: successfulNo3DSCardDetails,
+          card: successfulCardDetails,
           billing: mockBillingDetails,
         },
         currency: "USD",
@@ -537,7 +445,7 @@ export const connectorDetails = {
       Request: {
         payment_method: "card",
         payment_method_data: {
-          card: successfulNo3DSCardDetails,
+          card: successfulCardDetails,
           billing: mockBillingDetails,
         },
         setup_future_usage: "off_session",
@@ -559,8 +467,8 @@ export const connectorDetails = {
       Request: {
         payment_method: "card",
         payment_method_data: {
-          card: successfulNo3DSCardDetails,
-          billing: mockBillingDetails, // Assuming billing is needed as per other Dlocal flows
+          card: successfulCardDetails,
+          billing: mockBillingDetails, 
         },
         currency: "USD",
         mandate_data: multiUseMandateData,
@@ -581,13 +489,11 @@ export const connectorDetails = {
       Request: {
         payment_method: "card",
         payment_method_data: {
-          card: successfulNo3DSCardDetails,
+          card: successfulCardDetails,
           billing: mockBillingDetails,
         },
         currency: "USD",
         mandate_data: singleUseMandateData,
-        authentication_type: "no_three_ds",
-        capture_method: "automatic",
         setup_future_usage: "off_session",
         customer_acceptance: customerAcceptance,
       },
@@ -602,40 +508,19 @@ export const connectorDetails = {
       },
       Configs: { TRIGGER_SKIP: true },
     },
-    MITAutoCapture: {
-      Request: {
-        payment_method: "card",
-        payment_method_data: {
-          card: successfulNo3DSCardDetails,
-        },
-        currency: "USD",
-        customer_acceptance: null,
-        setup_future_usage: "on_session",
-      },
-      Response: {
-        status: 200,
-        body: {
-          status: "succeeded",
-          mandate_id: null,
-          payment_method: "card",
-          payment_method_data: payment_method_data_no3ds_address,
-          connector: "dlocal",
-        },
-      },
-      Configs: { TRIGGER_SKIP: true },
-    },
+    
     ZeroAuthMandate: {
       Request: {
         payment_method: "card",
         payment_method_data: {
-          card: successfulNo3DSCardDetails,
+          card: successfulCardDetails,
           billing: mockBillingDetails,
         },
         currency: "USD",
         mandate_data: singleUseMandateData,
       },
       Response: {
-        status: 200,
+        status: 501,
         body: {
           status: "succeeded",
           payment_method_data: payment_method_data_no3ds_address,
@@ -662,12 +547,12 @@ export const connectorDetails = {
         payment_type: "setup_mandate",
         payment_method: "card",
         payment_method_data: {
-          card: successfulNo3DSCardDetails,
+          card: successfulCardDetails,
           billing: mockBillingDetails,
         },
       },
       Response: {
-        status: 200,
+        status: 501,
         body: {
           status: "succeeded",
           payment_method: "card",
@@ -688,21 +573,6 @@ export const connectorDetails = {
       },
     },
   },
-
-  bank_redirect_pm: {
-    PaymentIntent: {
-      Request: {
-        currency: "EUR",
-      },
-      Response: {
-        status: 200,
-        body: {
-          status: "requires_payment_method",
-        },
-      },
-    },
-  },
-
   pm_list: {
     PmListResponse: {
       PmListNull: {
@@ -715,47 +585,3 @@ export const connectorDetails = {
     },
   },
 };
-
-export const payment_methods_enabled = [
-  {
-    payment_method: "card",
-    payment_method_types: [
-      {
-        payment_method_type: "credit",
-        card_networks: [
-          "Visa",
-          "Mastercard",
-          "AmericanExpress",
-          "Discover",
-          "JCB",
-          "DinersClub",
-          "UnionPay",
-          "Interac",
-          "CartesBancaires",
-        ],
-        minimum_amount: 0,
-        maximum_amount: 68607706,
-        recurring_enabled: false,
-        installment_payment_enabled: true,
-      },
-      {
-        payment_method_type: "debit",
-        card_networks: [
-          "Visa",
-          "Mastercard",
-          "AmericanExpress",
-          "Discover",
-          "JCB",
-          "DinersClub",
-          "UnionPay",
-          "Interac",
-          "CartesBancaires",
-        ],
-        minimum_amount: 0,
-        maximum_amount: 68607706,
-        recurring_enabled: false,
-        installment_payment_enabled: true,
-      },
-    ],
-  },
-];
