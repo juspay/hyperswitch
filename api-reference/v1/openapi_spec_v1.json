@@ -7576,7 +7576,8 @@
         "type": "object",
         "required": [
           "amount",
-          "currency"
+          "currency",
+          "profile_acquirer_id"
         ],
         "properties": {
           "authentication_id": {
@@ -7638,6 +7639,9 @@
               }
             ],
             "nullable": true
+          },
+          "profile_acquirer_id": {
+            "$ref": "#/components/schemas/id_type.ProfileAcquirerId"
           }
         }
       },
@@ -7648,7 +7652,8 @@
           "merchant_id",
           "status",
           "amount",
-          "currency"
+          "currency",
+          "profile_acquirer_id"
         ],
         "properties": {
           "authentication_id": {
@@ -7731,6 +7736,9 @@
               }
             ],
             "nullable": true
+          },
+          "profile_acquirer_id": {
+            "$ref": "#/components/schemas/id_type.ProfileAcquirerId"
           }
         }
       },

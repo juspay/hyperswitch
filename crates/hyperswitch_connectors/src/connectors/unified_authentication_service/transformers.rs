@@ -1,5 +1,5 @@
-use common_enums::enums;
-use common_utils::types::{FloatMajorUnit, MinorUnit};
+use common_enums::{enums, MerchantCategoryCode};
+use common_utils::types::FloatMajorUnit;
 use hyperswitch_domain_models::{
     router_data::{ConnectorAuthType, RouterData},
     router_request_types::unified_authentication_service::{
@@ -45,6 +45,8 @@ pub struct UnifiedAuthenticationServicePreAuthenticateRequest {
     pub pmt_details: Option<PaymentDetails>,
     pub auth_creds: UnifiedAuthenticationServiceAuthType,
     pub transaction_details: Option<TransactionDetails>,
+    pub acquirer_details: Option<Acquirer>,
+    pub billing_address: Option<Address>,
 }
 
 #[derive(Debug, Serialize)]
@@ -103,7 +105,8 @@ pub struct PaymentDetails {
     pub digital_card_id: Option<String>,
     pub payment_data_type: Option<String>,
     pub encrypted_src_card_details: Option<String>,
-    pub card_expiry_date: Secret<String>,
+    pub card_expiry_month: Secret<String>,
+    pub card_expiry_year: Secret<String>,
     pub cardholder_name: Option<Secret<String>>,
     pub card_token_number: Secret<String>,
     pub account_type: Option<common_enums::PaymentMethodType>,
@@ -120,36 +123,44 @@ pub struct TransactionDetails {
     pub transaction_type: Option<String>,
     pub otp_value: Option<String>,
     pub three_ds_data: Option<ThreeDSData>,
-    pub message_category: Option<hyperswitch_domain_models::router_request_types::authentication::MessageCategory>,
+    pub message_category: Option<MessageCategory>,
 }
 
-#[derive(Debug, Clone, Serialize)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum MessageCategory {
+    Payment,
+    NonPayment,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ThreeDSData {
-    pub preferred_protocol_version: common_utils::types::SemanticVersion,
-    pub browser: hyperswitch_domain_models::router_request_types::BrowserInformation,
-    pub acquirer: Acquirer,
+    pub preferred_protocol_version: Option<common_utils::types::SemanticVersion>,
 }
 
-#[derive(Default, Debug, Serialize, PartialEq)]
+#[derive(Default, Clone, Debug, Serialize, Deserialize, PartialEq)]
 pub struct Acquirer {
-    pub merchant_id: String,
-    pub bin: u32,
+    pub acquirer_merchant_id: Option<String>,
+    pub acquirer_bin: Option<String>,
+    pub acquirer_country_code: Option<String>,
 }
 
-#[derive(Default, Debug, Serialize, PartialEq)]
+#[derive(Default, Debug, Serialize, PartialEq, Clone, Deserialize)]
 pub struct BrowserInfo {
-    pub accept_header: String,
-    pub screen_width: u32,
-    pub screen_height: u32,
-    pub java_enabled: bool,
-    pub javascript_enabled: bool,
-    pub language: String,
-    pub user_agent: String,
-    pub color_depth: u32,
-    pub ip: String,
-    pub tz: i32,
-    pub time_zone: i8,
-    pub challenge_window_size: String,
+    pub color_depth: Option<u8>,
+    pub java_enabled: Option<bool>,
+    pub java_script_enabled: Option<bool>,
+    pub language: Option<String>,
+    pub screen_height: Option<u32>,
+    pub screen_width: Option<u32>,
+    pub time_zone: Option<i32>,
+    pub ip_address: Option<std::net::IpAddr>,
+    pub accept_header: Option<String>,
+    pub user_agent: Option<String>,
+    pub os_type: Option<String>,
+    pub os_version: Option<String>,
+    pub device_model: Option<String>,
+    pub accept_language: Option<String>,
 }
 
 #[derive(Default, Debug, Serialize, PartialEq)]
@@ -170,30 +181,29 @@ pub struct ServiceSessionIds {
 
 #[derive(Default, Debug, Serialize, PartialEq)]
 pub struct MerchantDetails {
-    pub merchant_id: String,
-    pub merchant_name: String,
-    pub mcc: String,
-    pub country_code: String,
-    pub name: String,
-    pub requestor_id: String,
-    pub requestor_name: String,
-    pub configuration_id: String,
-    pub merchant_country: String,
-    pub merchant_category_code: u32,
+    pub merchant_id: Option<String>,
+    pub merchant_name: Option<String>,
+    pub merchant_category_code: Option<MerchantCategoryCode>,
+    pub configuration_id: Option<String>,
+    pub endpoint_prefix: Option<String>,
+    pub three_ds_requestor_url: Option<String>,
+    pub three_ds_requestor_id: Option<String>,
+    pub three_ds_requestor_name: Option<String>,
+    pub merchant_country_code: Option<String>,
 }
 
 #[derive(Default,Clone, Debug, Serialize, PartialEq, Deserialize)]
 pub struct Address {
-    pub city: String,
-    pub country: String,
-    pub line1: Secret<String>,
-    pub line2: Secret<String>,
+    pub city: Option<String>,
+    pub country: Option<common_enums::CountryAlpha2>,
+    pub line1: Option<Secret<String>>,
+    pub line2: Option<Secret<String>>,
     pub line3: Option<Secret<String>>,
-    pub post_code: Secret<String>,
-    pub state: Secret<String>,
+    pub post_code: Option<Secret<String>>,
+    pub state: Option<Secret<String>>,
 }
 
-#[derive(Default,Clone, Debug, Serialize, PartialEq, Deserialize)]
+#[derive(Default, Clone, Debug, Serialize, PartialEq, Deserialize)]
 pub struct CustomerDetails {
     pub name: Secret<String>,
     pub email: Option<Secret<String>>,
@@ -265,6 +275,8 @@ impl TryFrom<&UnifiedAuthenticationServiceRouterData<&UasPreAuthenticationRouter
             customer_details: None,
             pmt_details: None,
             auth_creds: auth_type,
+            acquirer_details: None,
+            billing_address: None,
             transaction_details: Some(TransactionDetails {
                 amount: item.amount,
                 currency: item
@@ -286,7 +298,7 @@ impl TryFrom<&UnifiedAuthenticationServiceRouterData<&UasPreAuthenticationRouter
                 transaction_type: None,
                 otp_value: None,
                 three_ds_data: None,
-                message_category: None
+                message_category: None,
             }),
         })
     }
@@ -486,7 +498,7 @@ impl<F, T>
 }
 
 //TODO: Fill the struct with respective fields
-#[derive(Default, Debug, Serialize, Deserialize, PartialEq)]
+#[derive(Default, Debug, Serialize, Deserialize, PartialEq, Clone)]
 pub struct UnifiedAuthenticationServiceErrorResponse {
     pub error: String,
 }
@@ -542,12 +554,71 @@ impl TryFrom<&UasPreAuthenticationRouterData>
                 .ok_or(errors::ConnectorError::MissingRequiredField {
                     field_name: "authentication_id",
                 })?;
+
+        let merchant_data = item.request.merchant_details.clone().ok_or(
+            errors::ConnectorError::MissingRequiredField {
+                field_name: "merchant_details",
+            },
+        )?;
+
+        let merchant_details = MerchantDetails {
+            merchant_id: merchant_data.merchant_id,
+            merchant_name: merchant_data.merchant_name,
+            merchant_category_code: merchant_data.merchant_category_code,
+            merchant_country_code: merchant_data.merchant_country_code.clone(),
+            endpoint_prefix: merchant_data.endpoint_prefix,
+            three_ds_requestor_url: merchant_data.three_ds_requestor_url,
+            three_ds_requestor_id: merchant_data.three_ds_requestor_id,
+            three_ds_requestor_name: merchant_data.three_ds_requestor_name,
+            configuration_id: None,
+        };
+
+        let acquirer = Acquirer {
+            acquirer_bin: item.request.acquirer_bin.clone(),
+            acquirer_merchant_id: item.request.acquirer_merchant_id.clone(),
+            acquirer_country_code: merchant_data.merchant_country_code.clone(),
+        };
+
+        let service_details = Some(CtpServiceDetails {
+            service_session_ids: None,
+            merchant_details: Some(merchant_details),
+        });
+
+        let billing_address = item
+            .request
+            .billing_address
+            .clone()
+            .map(|address_wrap| Address {
+                city: address_wrap
+                    .address
+                    .clone()
+                    .and_then(|address| address.city),
+                country: address_wrap
+                    .address
+                    .clone()
+                    .and_then(|address| address.country),
+                line1: address_wrap
+                    .address
+                    .clone()
+                    .and_then(|address| address.line1),
+                line2: address_wrap
+                    .address
+                    .clone()
+                    .and_then(|address| address.line2),
+                line3: address_wrap
+                    .address
+                    .clone()
+                    .and_then(|address| address.line3),
+                post_code: address_wrap.address.clone().and_then(|address| address.zip),
+                state: address_wrap.address.and_then(|address| address.state),
+            });
+
         Ok(Self {
             authenticate_by: item.connector.clone(),
             session_id: authentication_id.clone(),
             source_authentication_id: authentication_id,
             authentication_info: None,
-            service_details: None,
+            service_details,
             customer_details: None,
             pmt_details: item
                 .request
@@ -558,13 +629,16 @@ impl TryFrom<&UasPreAuthenticationRouterData>
                     digital_card_id: details.digital_card_id,
                     payment_data_type: details.payment_data_type,
                     encrypted_src_card_details: details.encrypted_src_card_details,
-                    card_expiry_date: details.card_expiry_date,
                     cardholder_name: details.cardholder_name,
                     card_token_number: details.card_token_number,
                     account_type: details.account_type,
+                    card_expiry_month: details.card_expiry_month,
+                    card_expiry_year: details.card_expiry_year,
                 }),
             auth_creds: auth_type,
             transaction_details: None,
+            acquirer_details: Some(acquirer),
+            billing_address,
         })
     }
 }

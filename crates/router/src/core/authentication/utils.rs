@@ -283,6 +283,7 @@ pub async fn create_new_authentication(
         shipping_address: None,
         browser_info: None,
         email: None,
+        profile_acquirer_id: None,
     };
     state
         .store

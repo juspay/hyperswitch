@@ -167,6 +167,7 @@ impl AuthenticationInterface for MockDb {
             shipping_address: authentication.shipping_address,
             browser_info: authentication.browser_info,
             email: authentication.email,
+            profile_acquirer_id: authentication.profile_acquirer_id,
         };
         authentications.push(authentication.clone());
         Ok(authentication)

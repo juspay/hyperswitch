@@ -4220,6 +4220,7 @@ impl ClientSecretFetch for api_models::payment_methods::PaymentMethodUpdate {
     }
 }
 
+#[cfg(feature = "v1")]
 impl ClientSecretFetch for api_models::authentication::AuthenticationEligibilityRequest {
     fn get_client_secret(&self) -> Option<&String> {
         self.client_secret
