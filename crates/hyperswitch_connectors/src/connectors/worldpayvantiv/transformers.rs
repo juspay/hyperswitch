@@ -113,7 +113,7 @@ pub struct CnpOnlineRequest {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub capture: Option<Capture>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub void: Option<Void>,
+    pub auth_reversal: Option<AuthReversal>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub credit: Option<RefundRequest>,
 }
@@ -126,7 +126,7 @@ pub struct Authentication {
 
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
-pub struct Void {
+pub struct AuthReversal {
     #[serde(rename = "@id")]
     pub id: String,
     #[serde(rename = "@reportGroup")]
@@ -511,7 +511,7 @@ impl TryFrom<&WorldpayvantivRouterData<&PaymentsAuthorizeRouterData>> for CnpOnl
             authorization,
             sale,
             capture: None,
-            void: None,
+            auth_reversal: None,
             credit: None,
         })
     }
@@ -568,7 +568,7 @@ impl TryFrom<&WorldpayvantivRouterData<&PaymentsCaptureRouterData>> for CnpOnlin
             authorization: None,
             sale: None,
             capture,
-            void: None,
+            auth_reversal: None,
             credit: None,
         })
     }
@@ -620,7 +620,7 @@ impl<F> TryFrom<&WorldpayvantivRouterData<&RefundsRouterData<F>>> for CnpOnlineR
             authorization: None,
             sale: None,
             capture: None,
-            void: None,
+            auth_reversal: None,
             credit,
         })
     }
@@ -644,7 +644,7 @@ pub struct CnpOnlineResponse {
     pub authorization_response: Option<AuthorizationResponse>,
     pub sale_response: Option<SaleResponse>,
     pub capture_response: Option<CaptureResponse>,
-    pub void_response: Option<VoidResponse>,
+    pub auth_reversal_response: Option<AuthReversalResponse>,
     pub credit_response: Option<CreditResponse>,
 }
 
@@ -754,7 +754,7 @@ pub struct SaleResponse {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
-pub struct VoidResponse {
+pub struct AuthReversalResponse {
     #[serde(rename = "@id")]
     pub id: String,
     #[serde(rename = "@reportGroup")]
@@ -764,7 +764,7 @@ pub struct VoidResponse {
     pub cnp_txn_id: String,
     pub response: String,
     pub response_time: String,
-    pub post_date: String,
+    pub post_date: Option<String>,
     pub message: String,
     pub location: Option<String>,
 }
@@ -835,11 +835,11 @@ impl<F> TryFrom<ResponseRouterData<F, CnpOnlineResponse, PaymentsCancelData, Pay
     fn try_from(
         item: ResponseRouterData<F, CnpOnlineResponse, PaymentsCancelData, PaymentsResponseData>,
     ) -> Result<Self, Self::Error> {
-        match item.response.void_response {
-            Some(void_response) => Ok(Self {
+        match item.response.auth_reversal_response {
+            Some(auth_reversal_response) => Ok(Self {
                 status: common_enums::AttemptStatus::VoidInitiated,
                 response: Ok(PaymentsResponseData::TransactionResponse {
-                    resource_id: ResponseId::ConnectorTransactionId(void_response.cnp_txn_id),
+                    resource_id: ResponseId::ConnectorTransactionId(auth_reversal_response.cnp_txn_id),
                     redirection_data: Box::new(None),
                     mandate_reference: Box::new(None),
                     connector_metadata: None,
@@ -913,7 +913,7 @@ impl TryFrom<&PaymentsCancelRouterData> for CnpOnlineRequest {
             ),
         )?;
         let api_call_id = format!("void_{:?}", connector_utils::generate_12_digit_number());
-        let void = Some(Void {
+        let auth_reversal = Some(AuthReversal {
             id: api_call_id,
             report_group,
             cnp_txn_id: item.request.connector_transaction_id.clone(),
@@ -933,7 +933,7 @@ impl TryFrom<&PaymentsCancelRouterData> for CnpOnlineRequest {
             authorization: None,
             sale: None,
             capture: None,
-            void,
+            auth_reversal,
             credit: None,
         })
     }
