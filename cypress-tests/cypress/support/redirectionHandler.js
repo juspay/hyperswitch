@@ -390,14 +390,20 @@ function bankRedirectRedirection(
           case "nuvei":
             // Enhanced Nuvei bank redirect handling with timeout awareness
             cy.log(`Handling Nuvei ${paymentMethodType} bank redirect`);
-            
+
             // Add timeout handling for Nuvei bank redirects
             cy.window().then((win) => {
               // Check if we're on a timeout or error page
               const pageText = win.document.body.innerText.toLowerCase();
-              if (pageText.includes('timeout') || pageText.includes('error') || 
-                  pageText.includes('not responding') || pageText.includes('connection failed')) {
-                cy.log(`⚠ Nuvei ${paymentMethodType} timeout detected on redirect page`);
+              if (
+                pageText.includes("timeout") ||
+                pageText.includes("error") ||
+                pageText.includes("not responding") ||
+                pageText.includes("connection failed")
+              ) {
+                cy.log(
+                  `⚠ Nuvei ${paymentMethodType} timeout detected on redirect page`
+                );
                 verifyUrl = false; // Skip URL verification for timeout scenarios
                 return;
               }
@@ -408,100 +414,139 @@ function bankRedirectRedirection(
                 // Handle iDEAL bank selection and confirmation with timeout awareness
                 cy.get("body", { timeout: 15000 }).then(($body) => {
                   const bodyText = $body.text().toLowerCase();
-                  
+
                   // Check for timeout indicators
-                  if (bodyText.includes('timeout') || bodyText.includes('error')) {
-                    cy.log(`Nuvei iDEAL timeout detected - skipping interaction`);
+                  if (
+                    bodyText.includes("timeout") ||
+                    bodyText.includes("error")
+                  ) {
+                    cy.log(
+                      `Nuvei iDEAL timeout detected - skipping interaction`
+                    );
                     verifyUrl = false;
                     return;
                   }
-                  
+
                   // Look for bank selection dropdown or buttons
                   if ($body.find('select[name="bank"]').length > 0) {
-                    cy.get('select[name="bank"]').select('INGBNL2A'); // ING Bank
-                    cy.get('button[type="submit"], input[type="submit"]').click();
-                  } else if ($body.find('button[data-bank="INGBNL2A"]').length > 0) {
+                    cy.get('select[name="bank"]').select("INGBNL2A"); // ING Bank
+                    cy.get(
+                      'button[type="submit"], input[type="submit"]'
+                    ).click();
+                  } else if (
+                    $body.find('button[data-bank="INGBNL2A"]').length > 0
+                  ) {
                     cy.get('button[data-bank="INGBNL2A"]').click();
                   } else {
                     // Generic approach - look for ING or any bank button
-                    cy.contains('button, a', /ING|Bank/i).first().click();
+                    cy.contains("button, a", /ING|Bank/i)
+                      .first()
+                      .click();
                   }
                 });
                 verifyUrl = true;
                 break;
-                
+
               case "giropay":
                 // Handle Giropay flow with timeout awareness
                 cy.get("body", { timeout: 15000 }).then(($body) => {
                   const bodyText = $body.text().toLowerCase();
-                  
-                  if (bodyText.includes('timeout') || bodyText.includes('error')) {
-                    cy.log(`Nuvei Giropay timeout detected - skipping interaction`);
+
+                  if (
+                    bodyText.includes("timeout") ||
+                    bodyText.includes("error")
+                  ) {
+                    cy.log(
+                      `Nuvei Giropay timeout detected - skipping interaction`
+                    );
                     verifyUrl = false;
                     return;
                   }
-                  
+
                   if ($body.find('input[name="bank_code"]').length > 0) {
-                    cy.get('input[name="bank_code"]').type('12345678');
-                    cy.get('button[name="continue"], button[type="submit"]').click();
+                    cy.get('input[name="bank_code"]').type("12345678");
+                    cy.get(
+                      'button[name="continue"], button[type="submit"]'
+                    ).click();
                   } else {
-                    cy.contains('button, input', /continue|submit|proceed/i).click();
+                    cy.contains(
+                      "button, input",
+                      /continue|submit|proceed/i
+                    ).click();
                   }
                 });
                 verifyUrl = true;
                 break;
-                
+
               case "sofort":
                 // Handle Sofort flow with timeout awareness
                 cy.get("body", { timeout: 15000 }).then(($body) => {
                   const bodyText = $body.text().toLowerCase();
-                  
-                  if (bodyText.includes('timeout') || bodyText.includes('error')) {
-                    cy.log(`Nuvei Sofort timeout detected - skipping interaction`);
+
+                  if (
+                    bodyText.includes("timeout") ||
+                    bodyText.includes("error")
+                  ) {
+                    cy.log(
+                      `Nuvei Sofort timeout detected - skipping interaction`
+                    );
                     verifyUrl = false;
                     return;
                   }
-                  
+
                   // Sofort typically requires bank selection and login simulation
                   if ($body.find('select[name="bank"]').length > 0) {
                     cy.get('select[name="bank"]').select(0); // Select first bank
                     cy.get('button[type="submit"]').click();
                   } else if ($body.find('input[name="login"]').length > 0) {
                     // If login form is present
-                    cy.get('input[name="login"]').type('testuser');
-                    cy.get('input[name="password"]').type('testpass');
+                    cy.get('input[name="login"]').type("testuser");
+                    cy.get('input[name="password"]').type("testpass");
                     cy.get('button[type="submit"]').click();
                   } else {
                     // Generic continue button
-                    cy.contains('button, input', /continue|weiter|submit/i).click();
+                    cy.contains(
+                      "button, input",
+                      /continue|weiter|submit/i
+                    ).click();
                   }
                 });
                 verifyUrl = true;
                 break;
-                
+
               case "eps":
                 // Handle EPS flow with timeout awareness
                 cy.get("body", { timeout: 15000 }).then(($body) => {
                   const bodyText = $body.text().toLowerCase();
-                  
-                  if (bodyText.includes('timeout') || bodyText.includes('error')) {
+
+                  if (
+                    bodyText.includes("timeout") ||
+                    bodyText.includes("error")
+                  ) {
                     cy.log(`Nuvei EPS timeout detected - skipping interaction`);
                     verifyUrl = false;
                     return;
                   }
-                  
+
                   if ($body.find('select[name="bank"]').length > 0) {
                     cy.get('select[name="bank"]').select(0); // Select first Austrian bank
                     cy.get('button[type="submit"]').click();
                   } else {
-                    cy.contains('button, input', /continue|submit|weiter/i).click();
+                    cy.contains(
+                      "button, input",
+                      /continue|submit|weiter/i
+                    ).click();
                   }
                 });
                 verifyUrl = true;
                 break;
-                
+
               default:
-                throw new Error(`Unsupported Nuvei payment method type: ${paymentMethodType}`);
+                throw new Error(
+                  `Unsupported Nuvei payment method type: ${paymentMethodType}`
+                );
+            }
+            break;
 
           case "nexinets":
             switch (paymentMethodType) {
@@ -517,7 +562,6 @@ function bankRedirectRedirection(
                 throw new Error(
                   `Unsupported Nexinets payment method type: ${paymentMethodType}`
                 );
-
             }
             break;
 
@@ -526,7 +570,7 @@ function bankRedirectRedirection(
               `Unsupported connector in handleFlow: ${connectorId}`
             );
         }
-      }
+      },
       { paymentMethodType } // Pass options to handleFlow
     );
   }
