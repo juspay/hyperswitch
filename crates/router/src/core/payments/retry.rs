@@ -48,7 +48,7 @@ pub async fn do_gsm_actions<F, ApiRequest, FData, D>(
 ) -> RouterResult<types::RouterData<F, FData, types::PaymentsResponseData>>
 where
     F: Clone + Send + Sync,
-    FData: Send + Sync,
+    FData: Send + Sync + types::Capturable,
     payments::PaymentResponse: operations::Operation<F, FData>,
     D: payments::OperationSessionGetters<F>
         + payments::OperationSessionSetters<F>
@@ -345,7 +345,7 @@ pub async fn do_retry<F, ApiRequest, FData, D>(
 ) -> RouterResult<types::RouterData<F, FData, types::PaymentsResponseData>>
 where
     F: Clone + Send + Sync,
-    FData: Send + Sync,
+    FData: Send + Sync + types::Capturable,
     payments::PaymentResponse: operations::Operation<F, FData>,
     D: payments::OperationSessionGetters<F>
         + payments::OperationSessionSetters<F>
@@ -425,7 +425,7 @@ pub async fn modify_trackers<F, FData, D>(
 ) -> RouterResult<()>
 where
     F: Clone + Send,
-    FData: Send,
+    FData: Send + types::Capturable,
     D: payments::OperationSessionGetters<F> + payments::OperationSessionSetters<F> + Send + Sync,
 {
     let new_attempt_count = payment_data.get_payment_intent().attempt_count + 1;
@@ -450,6 +450,13 @@ where
                 .clone()
                 .and_then(|connector_response| connector_response.additional_payment_method_data),
         )?;
+
+    let debit_routing_savings = payment_data.get_payment_method_data().and_then(|data| {
+        payments::helpers::get_debit_routing_savings_amount(
+            data,
+            payment_data.get_payment_attempt(),
+        )
+    });
 
     match router_data.response {
         Ok(types::PaymentsResponseData::TransactionResponse {
@@ -506,6 +513,7 @@ where
                 connector_mandate_detail: None,
                 charges,
                 setup_future_usage_applied: None,
+                debit_routing_savings,
             };
 
             #[cfg(feature = "v1")]
