@@ -25809,6 +25809,9 @@
           }
         }
       },
+      "PayseraData": {
+        "type": "object"
+      },
       "PazeSessionTokenResponse": {
         "type": "object",
         "required": [
@@ -28975,6 +28978,9 @@
           "cover",
           "contain"
         ]
+      },
+      "SkrillData": {
+        "type": "object"
       },
       "SplitPaymentsRequest": {
         "oneOf": [
