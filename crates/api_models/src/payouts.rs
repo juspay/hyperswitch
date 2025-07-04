@@ -16,7 +16,7 @@ use utoipa::ToSchema;
 
 use crate::{enums as api_enums, payment_methods::RequiredFieldInfo, payments};
 
-#[derive(Debug, Deserialize, Serialize, Clone, ToSchema)]
+#[derive(Debug, Serialize, Clone, ToSchema)]
 pub enum PayoutRequest {
     PayoutActionRequest(PayoutActionRequest),
     PayoutCreateRequest(Box<PayoutCreateRequest>),
@@ -37,12 +37,16 @@ pub struct PayoutCreateRequest {
         example = "187282ab-40ef-47a9-9206-5099ba31e432"
     )]
     #[remove_in(PayoutsCreateRequest, PayoutUpdateRequest, PayoutConfirmRequest)]
-    pub payout_id: Option<String>, // TODO: #1321 https://github.com/juspay/hyperswitch/issues/1321
+    pub payout_id: Option<id_type::PayoutId>,
 
     /// This is an identifier for the merchant account. This is inferred from the API key provided during the request, **not required to be included in the Payout Create/Update Request.**
     #[schema(max_length = 255, value_type = Option<String>, example = "merchant_1668273825")]
     #[remove_in(PayoutsCreateRequest, PayoutUpdateRequest, PayoutConfirmRequest)]
     pub merchant_id: Option<id_type::MerchantId>,
+
+    /// Your unique identifier for this payout or order. This ID helps you reconcile payouts on your system. If provided, it is passed to the connector if supported.
+    #[schema(value_type = Option<String>, max_length = 255, example = "merchant_order_ref_123")]
+    pub merchant_order_reference_id: Option<String>,
 
     /// The payout amount. Amount for the payout in lowest denomination of the currency. (i.e) in cents for USD denomination, in paisa for INR denomination etc.,
     #[schema(value_type = Option<u64>, example = 1000)]
@@ -399,12 +403,16 @@ pub struct PayoutCreateResponse {
         max_length = 30,
         example = "187282ab-40ef-47a9-9206-5099ba31e432"
     )]
-    pub payout_id: String, // TODO: Update this to PayoutIdType similar to PaymentIdType
+    pub payout_id: id_type::PayoutId,
 
     /// This is an identifier for the merchant account. This is inferred from the API key
     /// provided during the request
     #[schema(max_length = 255, value_type = String, example = "merchant_1668273825")]
     pub merchant_id: id_type::MerchantId,
+
+    /// Your unique identifier for this payout or order. This ID helps you reconcile payouts on your system. If provided, it is passed to the connector if supported.
+    #[schema(value_type = Option<String>, max_length = 255, example = "merchant_order_ref_123")]
+    pub merchant_order_reference_id: Option<String>,
 
     /// The payout amount. Amount for the payout in lowest denomination of the currency. (i.e) in cents for USD denomination, in paisa for INR denomination etc.,
     #[schema(value_type = i64, example = 1000)]
@@ -638,7 +646,7 @@ pub struct PayoutRetrieveBody {
     pub merchant_id: Option<id_type::MerchantId>,
 }
 
-#[derive(Default, Debug, Serialize, ToSchema, Clone, Deserialize)]
+#[derive(Debug, Serialize, ToSchema, Clone, Deserialize)]
 pub struct PayoutRetrieveRequest {
     /// Unique identifier for the payout. This ensures idempotency for multiple payouts
     /// that have been done by a single merchant. This field is auto generated and is returned in the API response.
@@ -648,7 +656,7 @@ pub struct PayoutRetrieveRequest {
         max_length = 30,
         example = "187282ab-40ef-47a9-9206-5099ba31e432"
     )]
-    pub payout_id: String,
+    pub payout_id: id_type::PayoutId,
 
     /// `force_sync` with the connector to get payout details
     /// (defaults to false)
@@ -660,9 +668,7 @@ pub struct PayoutRetrieveRequest {
     pub merchant_id: Option<id_type::MerchantId>,
 }
 
-#[derive(
-    Default, Debug, Deserialize, Serialize, Clone, ToSchema, router_derive::PolymorphicSchema,
-)]
+#[derive(Debug, Serialize, Clone, ToSchema, router_derive::PolymorphicSchema)]
 #[generate_schemas(PayoutCancelRequest, PayoutFulfillRequest)]
 pub struct PayoutActionRequest {
     /// Unique identifier for the payout. This ensures idempotency for multiple payouts
@@ -673,8 +679,7 @@ pub struct PayoutActionRequest {
         max_length = 30,
         example = "187282ab-40ef-47a9-9206-5099ba31e432"
     )]
-    #[serde(skip_deserializing)]
-    pub payout_id: String,
+    pub payout_id: id_type::PayoutId,
 }
 
 #[derive(Default, Debug, ToSchema, Clone, Deserialize)]
@@ -722,12 +727,12 @@ pub struct PayoutListConstraints {
     pub customer_id: Option<id_type::CustomerId>,
 
     /// A cursor for use in pagination, fetch the next list after some object
-    #[schema(example = "pay_fafa124123")]
-    pub starting_after: Option<String>,
+    #[schema(example = "payout_fafa124123", value_type = Option<String>,)]
+    pub starting_after: Option<id_type::PayoutId>,
 
     /// A cursor for use in pagination, fetch the previous list before some object
-    #[schema(example = "pay_fafa124123")]
-    pub ending_before: Option<String>,
+    #[schema(example = "payout_fafa124123", value_type = Option<String>,)]
+    pub ending_before: Option<id_type::PayoutId>,
 
     /// limit on the number of objects to return
     #[schema(default = 10, maximum = 100)]
@@ -755,7 +760,10 @@ pub struct PayoutListFilterConstraints {
     max_length = 30,
     example = "187282ab-40ef-47a9-9206-5099ba31e432"
 )]
-    pub payout_id: Option<String>,
+    pub payout_id: Option<id_type::PayoutId>,
+    /// The merchant order reference ID for payout
+    #[schema(value_type = Option<String>, max_length = 255, example = "merchant_order_ref_123")]
+    pub merchant_order_reference_id: Option<String>,
     /// The identifier for business profile
     #[schema(value_type = Option<String>)]
     pub profile_id: Option<id_type::ProfileId>,
@@ -826,7 +834,8 @@ pub struct PayoutLinkResponse {
 pub struct PayoutLinkInitiateRequest {
     #[schema(value_type = String)]
     pub merchant_id: id_type::MerchantId,
-    pub payout_id: String,
+    #[schema(value_type = String)]
+    pub payout_id: id_type::PayoutId,
 }
 
 #[derive(Clone, Debug, serde::Serialize)]
@@ -834,7 +843,7 @@ pub struct PayoutLinkDetails {
     pub publishable_key: Secret<String>,
     pub client_secret: Secret<String>,
     pub payout_link_id: String,
-    pub payout_id: String,
+    pub payout_id: id_type::PayoutId,
     pub customer_id: id_type::CustomerId,
     #[serde(with = "common_utils::custom_serde::iso8601")]
     pub session_expiry: PrimitiveDateTime,
@@ -870,7 +879,7 @@ pub struct RequiredFieldsOverrideRequest {
 #[derive(Clone, Debug, serde::Serialize)]
 pub struct PayoutLinkStatusDetails {
     pub payout_link_id: String,
-    pub payout_id: String,
+    pub payout_id: id_type::PayoutId,
     pub customer_id: id_type::CustomerId,
     #[serde(with = "common_utils::custom_serde::iso8601")]
     pub session_expiry: PrimitiveDateTime,

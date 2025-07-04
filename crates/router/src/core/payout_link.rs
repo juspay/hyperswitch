@@ -22,6 +22,7 @@ use crate::{
     routes::{app::StorageInterface, SessionState},
     services,
     types::{api, domain, transformers::ForeignFrom},
+    utils::get_payout_attempt_id,
 };
 
 #[cfg(feature = "v2")]
@@ -56,7 +57,7 @@ pub async fn initiate_payout_link(
     let payout_attempt = db
         .find_payout_attempt_by_merchant_id_payout_attempt_id(
             merchant_id,
-            &format!("{}_{}", payout.payout_id, payout.attempt_count),
+            &get_payout_attempt_id(payout.payout_id.get_string_repr(), payout.attempt_count),
             merchant_context.get_merchant_account().storage_scheme,
         )
         .await
@@ -146,13 +147,11 @@ pub async fn initiate_payout_link(
                 .await
                 .change_context(errors::ApiErrorResponse::InvalidRequestData {
                     message: format!(
-                        "Customer [{}] not found for link_id - {}",
-                        payout_link.primary_reference, payout_link.link_id
+                        "Customer [{:?}] not found for link_id - {}",
+                        customer_id, payout_link.link_id
                     ),
                 })
-                .attach_printable_lazy(|| {
-                    format!("customer [{}] not found", payout_link.primary_reference)
-                })?;
+                .attach_printable_lazy(|| format!("customer [{customer_id:?}] not found"))?;
             let address = payout
                 .address_id
                 .as_ref()
@@ -169,7 +168,7 @@ pub async fn initiate_payout_link(
                 .change_context(errors::ApiErrorResponse::InternalServerError)
                 .attach_printable_lazy(|| {
                     format!(
-                        "Failed while fetching address [id - {:?}] for payout [id - {}]",
+                        "Failed while fetching address [id - {:?}] for payout [id - {:?}]",
                         payout.address_id, payout.payout_id
                     )
                 })?;
@@ -227,7 +226,7 @@ pub async fn initiate_payout_link(
                 ),
                 client_secret: link_data.client_secret.clone(),
                 payout_link_id: payout_link.link_id,
-                payout_id: payout_link.primary_reference,
+                payout_id: payout_link.primary_reference.clone(),
                 customer_id: customer.customer_id,
                 session_expiry: payout_link.expiry,
                 return_url: payout_link
@@ -284,7 +283,7 @@ pub async fn initiate_payout_link(
                 .await?;
             let js_data = payouts::PayoutLinkStatusDetails {
                 payout_link_id: payout_link.link_id,
-                payout_id: payout_link.primary_reference,
+                payout_id: payout_link.primary_reference.clone(),
                 customer_id: link_data.customer_id,
                 session_expiry: payout_link.expiry,
                 return_url: payout_link

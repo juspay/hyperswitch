@@ -311,6 +311,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
             profile_id.clone(),
             session_expiry,
             &business_profile,
+            request.is_payment_id_from_merchant,
         )
         .await?;
 
@@ -880,6 +881,8 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for
             .as_ref()
             .map(|surcharge_details| surcharge_details.tax_on_surcharge_amount);
 
+        let routing_approach = payment_data.payment_attempt.routing_approach;
+
         payment_data.payment_attempt = state
             .store
             .update_payment_attempt_with_attempt_id(
@@ -896,6 +899,7 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for
                     tax_amount,
                     updated_by: storage_scheme.to_string(),
                     merchant_connector_id,
+                    routing_approach,
                 },
                 storage_scheme,
             )
@@ -1363,7 +1367,8 @@ impl PaymentCreate {
                 processor_merchant_id: merchant_id.to_owned(),
                 created_by: None,
                 setup_future_usage_applied: request.setup_future_usage,
-                routing_approach: Some(common_enums::RoutingApproach::default())
+                routing_approach: Some(common_enums::RoutingApproach::default()),
+                connector_request_reference_id: None,
             },
             additional_pm_data,
 
@@ -1385,6 +1390,7 @@ impl PaymentCreate {
         profile_id: common_utils::id_type::ProfileId,
         session_expiry: PrimitiveDateTime,
         business_profile: &domain::Profile,
+        is_payment_id_from_merchant: bool,
     ) -> RouterResult<storage::PaymentIntent> {
         let created_at @ modified_at @ last_synced = common_utils::date_time::now();
 
@@ -1597,6 +1603,7 @@ impl PaymentCreate {
             is_iframe_redirection_enabled: request
                 .is_iframe_redirection_enabled
                 .or(business_profile.is_iframe_redirection_enabled),
+            is_payment_id_from_merchant: Some(is_payment_id_from_merchant),
         })
     }
 

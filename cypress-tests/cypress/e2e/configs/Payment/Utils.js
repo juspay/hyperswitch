@@ -30,6 +30,8 @@ import { connectorDetails as iatapayConnectorDetails } from "./Iatapay.js";
 import { connectorDetails as itaubankConnectorDetails } from "./ItauBank.js";
 import { connectorDetails as jpmorganConnectorDetails } from "./Jpmorgan.js";
 import { connectorDetails as monerisConnectorDetails } from "./Moneris.js";
+import { connectorDetails as multisafepayConnectorDetails } from "./Multisafepay.js";
+import { connectorDetails as nexinetsConnectorDetails } from "./Nexinets.js";
 import { connectorDetails as nexixpayConnectorDetails } from "./Nexixpay.js";
 import { connectorDetails as nmiConnectorDetails } from "./Nmi.js";
 import { connectorDetails as noonConnectorDetails } from "./Noon.js";
@@ -38,8 +40,8 @@ import { connectorDetails as payboxConnectorDetails } from "./Paybox.js";
 import { connectorDetails as paypalConnectorDetails } from "./Paypal.js";
 import { connectorDetails as powertranzConnectorDetails } from "./PowerTranz.js";
 import { connectorDetails as redsysConnectorDetails } from "./Redsys.js";
-import { connectorDetails as staxConnectorDetails } from "./Stax.js";
 import { connectorDetails as shift4ConnectorDetails } from "./Shift4.js";
+import { connectorDetails as staxConnectorDetails } from "./Stax.js";
 import { connectorDetails as stripeConnectorDetails } from "./Stripe.js";
 import { connectorDetails as trustpayConnectorDetails } from "./Trustpay.js";
 import { connectorDetails as wellsfargoConnectorDetails } from "./WellsFargo.js";
@@ -76,6 +78,8 @@ const connectorDetails = {
   itaubank: itaubankConnectorDetails,
   jpmorgan: jpmorganConnectorDetails,
   moneris: monerisConnectorDetails,
+  multisafepay: multisafepayConnectorDetails,
+  nexinets: nexinetsConnectorDetails,
   nexixpay: nexixpayConnectorDetails,
   nmi: nmiConnectorDetails,
   noon: noonConnectorDetails,
@@ -356,11 +360,13 @@ export const CONNECTOR_LISTS = {
       "billwerk",
       "braintree",
       "facilitapay",
-      "fiuu",
       "fiserv",
+      "fiuu",
       "jpmorgan",
+      "nexinets",
       "paypal",
       "stax",
+      "wellsfargo",
       "worldpayxml",
     ],
     // Add more exclusion lists

@@ -53,7 +53,7 @@ where
         .attach_default_headers()
         .header(
             header::AUTHORIZATION.to_string().as_str(),
-            format!("Bearer {}", access_token).as_str(),
+            format!("Bearer {access_token}").as_str(),
         )
         .header(
             header::CONTENT_TYPE.to_string().as_str(),
@@ -70,7 +70,7 @@ pub fn build_paypal_get_request(url: String, access_token: String) -> RouterResu
         .attach_default_headers()
         .header(
             header::AUTHORIZATION.to_string().as_str(),
-            format!("Bearer {}", access_token).as_str(),
+            format!("Bearer {access_token}").as_str(),
         )
         .build())
 }

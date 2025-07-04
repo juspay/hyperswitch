@@ -1017,7 +1017,7 @@ pub fn validate_card_expiry(
 
     let mut year_str = card_exp_year.peek().to_string();
     if year_str.len() == 2 {
-        year_str = format!("20{}", year_str);
+        year_str = format!("20{year_str}");
     }
     let exp_year =
         year_str
@@ -1197,7 +1197,7 @@ pub fn create_redirect_url(
     connector_name: impl std::fmt::Display,
     creds_identifier: Option<&str>,
 ) -> String {
-    let creds_identifier_path = creds_identifier.map_or_else(String::new, |cd| format!("/{}", cd));
+    let creds_identifier_path = creds_identifier.map_or_else(String::new, |cd| format!("/{cd}"));
     format!(
         "{}/payments/{}/{}/redirect/response/{}",
         router_base_url,
@@ -1251,7 +1251,7 @@ pub fn create_complete_authorize_url(
     creds_identifier: Option<&str>,
 ) -> String {
     let creds_identifier = creds_identifier.map_or_else(String::new, |creds_identifier| {
-        format!("/{}", creds_identifier)
+        format!("/{creds_identifier}")
     });
     format!(
         "{}/payments/{}/{}/redirect/complete/{}{}",
@@ -3020,10 +3020,7 @@ pub(super) fn validate_payment_list_request(
         req.limit > PAYMENTS_LIST_MAX_LIMIT_V1 || req.limit < 1,
         || {
             Err(errors::ApiErrorResponse::InvalidRequestData {
-                message: format!(
-                    "limit should be in between 1 and {}",
-                    PAYMENTS_LIST_MAX_LIMIT_V1
-                ),
+                message: format!("limit should be in between 1 and {PAYMENTS_LIST_MAX_LIMIT_V1}"),
             })
         },
     )?;
@@ -3037,10 +3034,7 @@ pub(super) fn validate_payment_list_request_for_joins(
 
     utils::when(!(1..=PAYMENTS_LIST_MAX_LIMIT_V2).contains(&limit), || {
         Err(errors::ApiErrorResponse::InvalidRequestData {
-            message: format!(
-                "limit should be in between 1 and {}",
-                PAYMENTS_LIST_MAX_LIMIT_V2
-            ),
+            message: format!("limit should be in between 1 and {PAYMENTS_LIST_MAX_LIMIT_V2}"),
         })
     })?;
     Ok(())
@@ -3698,6 +3692,7 @@ mod tests {
             force_3ds_challenge: None,
             force_3ds_challenge_trigger: None,
             is_iframe_redirection_enabled: None,
+            is_payment_id_from_merchant: None,
         };
         let req_cs = Some("1".to_string());
         assert!(authenticate_client_secret(req_cs.as_ref(), &payment_intent).is_ok());
@@ -3774,6 +3769,7 @@ mod tests {
             force_3ds_challenge: None,
             force_3ds_challenge_trigger: None,
             is_iframe_redirection_enabled: None,
+            is_payment_id_from_merchant: None,
         };
         let req_cs = Some("1".to_string());
         assert!(authenticate_client_secret(req_cs.as_ref(), &payment_intent,).is_err())
@@ -3848,6 +3844,7 @@ mod tests {
             force_3ds_challenge: None,
             force_3ds_challenge_trigger: None,
             is_iframe_redirection_enabled: None,
+            is_payment_id_from_merchant: None,
         };
         let req_cs = Some("1".to_string());
         assert!(authenticate_client_secret(req_cs.as_ref(), &payment_intent).is_err())
@@ -4181,7 +4178,8 @@ pub fn router_data_type_conversion<F1, F2, Req1, Req2, Res1, Res2>(
         connector_mandate_request_reference_id: router_data.connector_mandate_request_reference_id,
         authentication_id: router_data.authentication_id,
         psd2_sca_exemption_type: router_data.psd2_sca_exemption_type,
-        whole_connector_response: router_data.whole_connector_response,
+        raw_connector_response: router_data.raw_connector_response,
+        is_payment_id_from_merchant: router_data.is_payment_id_from_merchant,
     }
 }
 
@@ -4399,6 +4397,7 @@ impl AttemptType {
             created_by: old_payment_attempt.created_by,
             setup_future_usage_applied: None,
             routing_approach: old_payment_attempt.routing_approach,
+            connector_request_reference_id: None,
         }
     }
 
@@ -6985,8 +6984,8 @@ pub async fn validate_merchant_connector_ids_in_connector_mandate_details(
                             ],
                         })
                         .attach_printable(format!(
-                            "Invalid connector_mandate_details provided for connector {:?}",
-                            migrating_merchant_connector_id
+                            "Invalid connector_mandate_details provided for connector {migrating_merchant_connector_id:?}",
+
                         ))?
                     }
                 }
@@ -6996,8 +6995,8 @@ pub async fn validate_merchant_connector_ids_in_connector_mandate_details(
                 })
                 .attach_printable_lazy(|| {
                     format!(
-                        "{:?} invalid merchant connector id in connector_mandate_details",
-                        migrating_merchant_connector_id
+                        "{migrating_merchant_connector_id:?} invalid merchant connector id in connector_mandate_details",
+
                     )
                 })?,
             }
@@ -7301,8 +7300,8 @@ pub async fn validate_allowed_payment_method_types_request(
             || {
                 Err(errors::ApiErrorResponse::IncorrectPaymentMethodConfiguration)
                     .attach_printable(format!(
-                        "None of the allowed payment method types {:?} are configured for this merchant connector account.",
-                        allowed_payment_method_types
+                        "None of the allowed payment method types {allowed_payment_method_types:?} are configured for this merchant connector account.",
+
                     ))
             },
         )?;

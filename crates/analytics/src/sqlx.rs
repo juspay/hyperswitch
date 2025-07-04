@@ -1434,7 +1434,7 @@ where
             Self::Count { field: _, alias } => {
                 format!(
                     "count(*){}",
-                    alias.map_or_else(|| "".to_owned(), |alias| format!(" as {}", alias))
+                    alias.map_or_else(|| "".to_owned(), |alias| format!(" as {alias}"))
                 )
             }
             Self::Sum { field, alias } => {
@@ -1443,7 +1443,7 @@ where
                     field
                         .to_sql(table_engine)
                         .attach_printable("Failed to sum aggregate")?,
-                    alias.map_or_else(|| "".to_owned(), |alias| format!(" as {}", alias))
+                    alias.map_or_else(|| "".to_owned(), |alias| format!(" as {alias}"))
                 )
             }
             Self::Min { field, alias } => {
@@ -1452,7 +1452,7 @@ where
                     field
                         .to_sql(table_engine)
                         .attach_printable("Failed to min aggregate")?,
-                    alias.map_or_else(|| "".to_owned(), |alias| format!(" as {}", alias))
+                    alias.map_or_else(|| "".to_owned(), |alias| format!(" as {alias}"))
                 )
             }
             Self::Max { field, alias } => {
@@ -1461,7 +1461,7 @@ where
                     field
                         .to_sql(table_engine)
                         .attach_printable("Failed to max aggregate")?,
-                    alias.map_or_else(|| "".to_owned(), |alias| format!(" as {}", alias))
+                    alias.map_or_else(|| "".to_owned(), |alias| format!(" as {alias}"))
                 )
             }
             Self::Percentile {
@@ -1475,7 +1475,7 @@ where
                     field
                         .to_sql(table_engine)
                         .attach_printable("Failed to percentile aggregate")?,
-                    alias.map_or_else(|| "".to_owned(), |alias| format!(" as {}", alias))
+                    alias.map_or_else(|| "".to_owned(), |alias| format!(" as {alias}"))
                 )
             }
             Self::DistinctCount { field, alias } => {
@@ -1484,7 +1484,7 @@ where
                     field
                         .to_sql(table_engine)
                         .attach_printable("Failed to distinct count aggregate")?,
-                    alias.map_or_else(|| "".to_owned(), |alias| format!(" as {}", alias))
+                    alias.map_or_else(|| "".to_owned(), |alias| format!(" as {alias}"))
                 )
             }
         })
@@ -1520,7 +1520,7 @@ where
                             order
                         )
                     ),
-                    alias.map_or_else(|| "".to_owned(), |alias| format!(" as {}", alias))
+                    alias.map_or_else(|| "".to_owned(), |alias| format!(" as {alias}"))
                 )
             }
             Self::RowNumber {
@@ -1543,7 +1543,7 @@ where
                             order
                         )
                     ),
-                    alias.map_or_else(|| "".to_owned(), |alias| format!(" as {}", alias))
+                    alias.map_or_else(|| "".to_owned(), |alias| format!(" as {alias}"))
                 )
             }
         })
