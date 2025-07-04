@@ -38,6 +38,7 @@ import { connectorDetails as noonConnectorDetails } from "./Noon.js";
 import { connectorDetails as novalnetConnectorDetails } from "./Novalnet.js";
 import { connectorDetails as payboxConnectorDetails } from "./Paybox.js";
 import { connectorDetails as paypalConnectorDetails } from "./Paypal.js";
+import { connectorDetails as placetopayConnectorDetails } from "./Placetopay.js";
 import { connectorDetails as powertranzConnectorDetails } from "./PowerTranz.js";
 import { connectorDetails as redsysConnectorDetails } from "./Redsys.js";
 import { connectorDetails as shift4ConnectorDetails } from "./Shift4.js";
@@ -86,6 +87,7 @@ const connectorDetails = {
   novalnet: novalnetConnectorDetails,
   paybox: payboxConnectorDetails,
   paypal: paypalConnectorDetails,
+  placetopay: placetopayConnectorDetails,
   powertranz: powertranzConnectorDetails,
   redsys: redsysConnectorDetails,
   stax: staxConnectorDetails,
