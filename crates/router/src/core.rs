@@ -13,6 +13,7 @@ pub mod conditional_config;
 pub mod configs;
 #[cfg(feature = "olap")]
 pub mod connector_onboarding;
+pub mod connector_validation;
 #[cfg(any(feature = "olap", feature = "oltp"))]
 pub mod currency;
 pub mod customers;
