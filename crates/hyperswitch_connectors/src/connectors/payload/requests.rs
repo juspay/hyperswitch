@@ -2,6 +2,8 @@ use common_utils::types::StringMajorUnit;
 use masking::Secret;
 use serde::{Deserialize, Serialize};
 
+use crate::connectors::payload::responses;
+
 #[derive(Debug, Serialize, PartialEq)]
 #[serde(untagged)]
 pub enum PayloadPaymentsRequest {
@@ -11,13 +13,13 @@ pub enum PayloadPaymentsRequest {
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 #[serde(rename_all = "snake_case")]
 pub enum TransactionTypes {
-    Payment,
-    Deposit,
-    Reversal,
-    Refund,
     Credit,
     Chargeback,
     ChargebackReversal,
+    Deposit,
+    Payment,
+    Refund,
+    Reversal,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
@@ -58,10 +60,17 @@ pub struct PayloadCard {
     pub cvc: Secret<String>,
 }
 
-//TODO: Fill the struct with respective fields
-// REFUND :
+#[derive(Clone, Debug, Serialize, PartialEq)]
+pub struct PayloadCancelRequest {
+    pub status: responses::PayloadPaymentStatus,
+}
+
 // Type definition for RefundRequest
-#[derive(Default, Debug, Serialize)]
+#[derive(Debug, Serialize)]
 pub struct PayloadRefundRequest {
+    #[serde(rename = "type")]
+    pub transaction_type: TransactionTypes,
     pub amount: StringMajorUnit,
+    #[serde(rename = "ledger[0][assoc_transaction_id]")]
+    pub ledger_assoc_transaction_id: String,
 }

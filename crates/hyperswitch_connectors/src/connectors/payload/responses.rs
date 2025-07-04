@@ -1,5 +1,3 @@
-use common_utils::types::StringMajorUnit;
-use masking::Secret;
 use serde::{Deserialize, Serialize};
 
 // PaymentsResponse
@@ -58,23 +56,40 @@ pub struct PayloadCardResponse {
 }
 
 // Type definition for Refund Response
-#[allow(dead_code)]
+// Added based on assumptions since this is not provided in the documentation
 #[derive(Debug, Copy, Serialize, Default, Deserialize, Clone)]
+#[serde(rename_all = "snake_case")]
 pub enum RefundStatus {
-    Succeeded,
-    Failed,
+    Declined,
+    Processed,
     #[default]
     Processing,
+    Rejected,
 }
 
-//TODO: Fill the struct with respective fields
 #[derive(Default, Debug, Clone, Serialize, Deserialize)]
-pub struct RefundResponse {
-    pub id: String,
-    pub status: RefundStatus,
+pub struct RefundsLedger {
+    pub amount: f64,
+    #[serde(rename = "assoc_transaction_id")]
+    pub associated_transaction_id: String, // Connector transaction id
+    #[serde(rename = "id")]
+    pub ledger_id: String,
 }
 
-//TODO: Fill the struct with respective fields
+#[derive(Default, Debug, Clone, Serialize, Deserialize)]
+pub struct PayloadRefundResponse {
+    pub amount: f64,
+    #[serde(rename = "id")]
+    pub transaction_id: String,
+    pub ledger: Vec<RefundsLedger>,
+    pub payment_method_id: Option<String>,
+    pub processing_id: Option<String>,
+    pub ref_number: Option<String>,
+    pub status: RefundStatus,
+    pub status_code: Option<String>,
+    pub status_message: Option<String>,
+}
+
 #[derive(Default, Debug, Serialize, Deserialize, PartialEq)]
 pub struct PayloadErrorResponse {
     pub error_type: String,

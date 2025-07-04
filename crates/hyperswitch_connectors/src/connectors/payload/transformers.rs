@@ -135,11 +135,24 @@ impl<F, T>
     }
 }
 
+impl<T> TryFrom<&PayloadRouterData<T>> for requests::PayloadCancelRequest {
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(_item: &PayloadRouterData<T>) -> Result<Self, Self::Error> {
+        Ok(Self {
+            status: responses::PayloadPaymentStatus::Voided,
+        })
+    }
+}
+
 impl<F> TryFrom<&PayloadRouterData<&RefundsRouterData<F>>> for requests::PayloadRefundRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(item: &PayloadRouterData<&RefundsRouterData<F>>) -> Result<Self, Self::Error> {
+        let connector_transaction_id = item.router_data.request.connector_transaction_id.clone();
+
         Ok(Self {
+            transaction_type: requests::TransactionTypes::Refund,
             amount: item.amount.to_owned(),
+            ledger_assoc_transaction_id: connector_transaction_id,
         })
     }
 }
@@ -147,24 +160,23 @@ impl<F> TryFrom<&PayloadRouterData<&RefundsRouterData<F>>> for requests::Payload
 impl From<responses::RefundStatus> for enums::RefundStatus {
     fn from(item: responses::RefundStatus) -> Self {
         match item {
-            responses::RefundStatus::Succeeded => Self::Success,
-            responses::RefundStatus::Failed => Self::Failure,
+            responses::RefundStatus::Processed => Self::Success,
             responses::RefundStatus::Processing => Self::Pending,
-            //TODO: Review mapping
+            responses::RefundStatus::Declined | responses::RefundStatus::Rejected => Self::Failure,
         }
     }
 }
 
-impl TryFrom<RefundsResponseRouterData<Execute, responses::RefundResponse>>
+impl TryFrom<RefundsResponseRouterData<Execute, responses::PayloadRefundResponse>>
     for RefundsRouterData<Execute>
 {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
-        item: RefundsResponseRouterData<Execute, responses::RefundResponse>,
+        item: RefundsResponseRouterData<Execute, responses::PayloadRefundResponse>,
     ) -> Result<Self, Self::Error> {
         Ok(Self {
             response: Ok(RefundsResponseData {
-                connector_refund_id: item.response.id.to_string(),
+                connector_refund_id: item.response.transaction_id.to_string(),
                 refund_status: enums::RefundStatus::from(item.response.status),
             }),
             ..item.data
@@ -172,16 +184,16 @@ impl TryFrom<RefundsResponseRouterData<Execute, responses::RefundResponse>>
     }
 }
 
-impl TryFrom<RefundsResponseRouterData<RSync, responses::RefundResponse>>
+impl TryFrom<RefundsResponseRouterData<RSync, responses::PayloadRefundResponse>>
     for RefundsRouterData<RSync>
 {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
-        item: RefundsResponseRouterData<RSync, responses::RefundResponse>,
+        item: RefundsResponseRouterData<RSync, responses::PayloadRefundResponse>,
     ) -> Result<Self, Self::Error> {
         Ok(Self {
             response: Ok(RefundsResponseData {
-                connector_refund_id: item.response.id.to_string(),
+                connector_refund_id: item.response.transaction_id.to_string(),
                 refund_status: enums::RefundStatus::from(item.response.status),
             }),
             ..item.data

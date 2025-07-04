@@ -32,8 +32,8 @@ use hyperswitch_domain_models::{
         SupportedPaymentMethods, SupportedPaymentMethodsExt,
     },
     types::{
-        PaymentsAuthorizeRouterData, PaymentsCaptureRouterData, PaymentsSyncRouterData,
-        RefundSyncRouterData, RefundsRouterData,
+        PaymentsAuthorizeRouterData, PaymentsCancelRouterData, PaymentsCaptureRouterData,
+        PaymentsSyncRouterData, RefundSyncRouterData, RefundsRouterData,
     },
 };
 use hyperswitch_interfaces::{
@@ -44,7 +44,7 @@ use hyperswitch_interfaces::{
     configs::Connectors,
     errors,
     events::connector_api_logs::ConnectorEvent,
-    types::{self, Response},
+    types::{self, PaymentsVoidType, Response},
     webhooks,
 };
 use masking::{ExposeInterface, Mask};
@@ -302,10 +302,20 @@ impl ConnectorIntegration<PSync, PaymentsSyncData, PaymentsResponseData> for Pay
 
     fn get_url(
         &self,
-        _req: &PaymentsSyncRouterData,
-        _connectors: &Connectors,
+        req: &PaymentsSyncRouterData,
+        connectors: &Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        Err(errors::ConnectorError::NotImplemented("get_url method".to_string()).into())
+        let payment_id = req
+            .request
+            .connector_transaction_id
+            .get_connector_transaction_id()
+            .change_context(errors::ConnectorError::MissingConnectorTransactionID)?;
+
+        Ok(format!(
+            "{}/transactions/{}",
+            self.base_url(connectors),
+            payment_id
+        ))
     }
 
     fn build_request(
@@ -428,7 +438,90 @@ impl ConnectorIntegration<Capture, PaymentsCaptureData, PaymentsResponseData> fo
     }
 }
 
-impl ConnectorIntegration<Void, PaymentsCancelData, PaymentsResponseData> for Payload {}
+impl ConnectorIntegration<Void, PaymentsCancelData, PaymentsResponseData> for Payload {
+    fn get_headers(
+        &self,
+        req: &PaymentsCancelRouterData,
+        connectors: &Connectors,
+    ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
+        self.build_headers(req, connectors)
+    }
+
+    fn get_content_type(&self) -> &'static str {
+        self.common_get_content_type()
+    }
+
+    fn get_url(
+        &self,
+        req: &PaymentsCancelRouterData,
+        connectors: &Connectors,
+    ) -> CustomResult<String, errors::ConnectorError> {
+        let payment_id = &req.request.connector_transaction_id;
+        Ok(format!(
+            "{}/transactions/{}",
+            self.base_url(connectors),
+            payment_id
+        ))
+    }
+
+    fn get_request_body(
+        &self,
+        req: &PaymentsCancelRouterData,
+        _connectors: &Connectors,
+    ) -> CustomResult<RequestContent, errors::ConnectorError> {
+        let connector_router_data = payload::PayloadRouterData::from((Default::default(), req));
+        let connector_req = requests::PayloadCancelRequest::try_from(&connector_router_data)?;
+        Ok(RequestContent::FormUrlEncoded(Box::new(connector_req)))
+    }
+
+    fn build_request(
+        &self,
+        req: &PaymentsCancelRouterData,
+        connectors: &Connectors,
+    ) -> CustomResult<Option<Request>, errors::ConnectorError> {
+        Ok(Some(
+            RequestBuilder::new()
+                .method(Method::Put)
+                .url(&PaymentsVoidType::get_url(self, req, connectors)?)
+                .attach_default_headers()
+                .headers(PaymentsVoidType::get_headers(self, req, connectors)?)
+                .set_body(PaymentsVoidType::get_request_body(self, req, connectors)?)
+                .build(),
+        ))
+    }
+
+    fn handle_response(
+        &self,
+        data: &RouterData<Void, PaymentsCancelData, PaymentsResponseData>,
+        event_builder: Option<&mut ConnectorEvent>,
+        res: Response,
+    ) -> CustomResult<
+        RouterData<Void, PaymentsCancelData, PaymentsResponseData>,
+        errors::ConnectorError,
+    > {
+        let response: responses::PayloadPaymentsResponse = res
+            .response
+            .parse_struct("PayloadPaymentsCancelResponse")
+            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+
+        event_builder.map(|i| i.set_response_body(&response));
+        router_env::logger::info!(connector_response=?response);
+
+        RouterData::try_from(ResponseRouterData {
+            response,
+            data: data.clone(),
+            http_code: res.status_code,
+        })
+    }
+
+    fn get_error_response(
+        &self,
+        res: Response,
+        event_builder: Option<&mut ConnectorEvent>,
+    ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
+        self.build_error_response(res, event_builder)
+    }
+}
 
 impl ConnectorIntegration<Execute, RefundsData, RefundsResponseData> for Payload {
     fn get_headers(
@@ -446,9 +539,9 @@ impl ConnectorIntegration<Execute, RefundsData, RefundsResponseData> for Payload
     fn get_url(
         &self,
         _req: &RefundsRouterData<Execute>,
-        _connectors: &Connectors,
+        connectors: &Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        Err(errors::ConnectorError::NotImplemented("get_url method".to_string()).into())
+        Ok(format!("{}/transactions", self.base_url(connectors)))
     }
 
     fn get_request_body(
@@ -464,7 +557,7 @@ impl ConnectorIntegration<Execute, RefundsData, RefundsResponseData> for Payload
 
         let connector_router_data = payload::PayloadRouterData::from((refund_amount, req));
         let connector_req = requests::PayloadRefundRequest::try_from(&connector_router_data)?;
-        Ok(RequestContent::Json(Box::new(connector_req)))
+        Ok(RequestContent::FormUrlEncoded(Box::new(connector_req)))
     }
 
     fn build_request(
@@ -492,12 +585,14 @@ impl ConnectorIntegration<Execute, RefundsData, RefundsResponseData> for Payload
         event_builder: Option<&mut ConnectorEvent>,
         res: Response,
     ) -> CustomResult<RefundsRouterData<Execute>, errors::ConnectorError> {
-        let response: responses::RefundResponse = res
+        let response: responses::PayloadRefundResponse = res
             .response
             .parse_struct("PayloadRefundResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
+
         RouterData::try_from(ResponseRouterData {
             response,
             data: data.clone(),
@@ -529,10 +624,19 @@ impl ConnectorIntegration<RSync, RefundsData, RefundsResponseData> for Payload {
 
     fn get_url(
         &self,
-        _req: &RefundSyncRouterData,
-        _connectors: &Connectors,
+        req: &RefundSyncRouterData,
+        connectors: &Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        Err(errors::ConnectorError::NotImplemented("get_url method".to_string()).into())
+        let connector_refund_id = req
+            .request
+            .connector_refund_id
+            .as_ref()
+            .ok_or_else(|| errors::ConnectorError::MissingConnectorRefundID)?;
+        Ok(format!(
+            "{}/transactions/{}",
+            self.base_url(connectors),
+            connector_refund_id
+        ))
     }
 
     fn build_request(
@@ -559,7 +663,7 @@ impl ConnectorIntegration<RSync, RefundsData, RefundsResponseData> for Payload {
         event_builder: Option<&mut ConnectorEvent>,
         res: Response,
     ) -> CustomResult<RefundSyncRouterData, errors::ConnectorError> {
-        let response: responses::RefundResponse = res
+        let response: responses::PayloadRefundResponse = res
             .response
             .parse_struct("PayloadRefundSyncResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
