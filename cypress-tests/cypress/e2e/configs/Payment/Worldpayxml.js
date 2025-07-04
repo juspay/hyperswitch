@@ -439,19 +439,6 @@ export const connectorDetails = {
         },
       },
     },
-    MITManualCapture: {
-      Response: {
-        status: 422,
-        body: {
-          error: {
-            type: "invalid_request",
-            message:
-              "A payment token or payment method data or ctp service details is required",
-            code: "IR_06",
-          },
-        },
-      },
-    },
     MandateMultiUseNo3DSManualCapture: {
       Request: {
         payment_method: "card",
