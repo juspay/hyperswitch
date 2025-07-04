@@ -390,6 +390,7 @@ export const connectorDetails = {
           STATUS: true,
           TIMEOUT: 15000,
         },
+        TRIGGER_SKIP: true,
       },
       Request: {
         payment_method: "card",
@@ -533,6 +534,7 @@ export const connectorDetails = {
           STATUS: true,
           TIMEOUT: 15000,
         },
+        TRIGGER_SKIP: true,
       },
       Request: {
         payment_method: "card",
@@ -547,53 +549,6 @@ export const connectorDetails = {
         status: 200,
         body: {
           status: "requires_capture",
-        },
-      },
-    },
-    PaymentMethodIdMandate3DSAutoCapture: {
-      Configs: {
-        DELAY: {
-          STATUS: true,
-          TIMEOUT: 15000,
-        },
-      },
-      Request: {
-        payment_method: "card",
-        payment_method_data: {
-          card: successfulThreeDSTestCardDetails,
-        },
-        currency: "USD",
-        mandate_data: null,
-        authentication_type: "three_ds",
-        customer_acceptance: customerAcceptance,
-      },
-      Response: {
-        status: 200,
-        body: {
-          status: "requires_customer_action",
-        },
-      },
-    },
-    PaymentMethodIdMandate3DSManualCapture: {
-      Configs: {
-        DELAY: {
-          STATUS: true,
-          TIMEOUT: 15000,
-        },
-      },
-      Request: {
-        payment_method: "card",
-        payment_method_data: {
-          card: successfulThreeDSTestCardDetails,
-        },
-        mandate_data: null,
-        authentication_type: "three_ds",
-        customer_acceptance: customerAcceptance,
-      },
-      Response: {
-        status: 200,
-        body: {
-          status: "requires_customer_action",
         },
       },
     },
@@ -700,6 +655,71 @@ export const connectorDetails = {
           payment_method_data: payment_method_data_no3ds,
           payment_method: "card",
           connector: "payload",
+        },
+      },
+    },
+    ZeroAuthPaymentIntent: {
+      Configs: {
+        DELAY: {
+          STATUS: true,
+          TIMEOUT: 15000,
+        },
+        TRIGGER_SKIP: true,
+      },
+      Request: {
+        currency: "BRL",
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_payment_method",
+        },
+      },
+    },
+    ZeroAuthMandate: {
+      Configs: {
+        DELAY: {
+          STATUS: true,
+          TIMEOUT: 15000,
+        },
+        TRIGGER_SKIP: true,
+      },
+      Request: {
+        payment_method: "card",
+        payment_method_data: {
+          card: successfulNo3DSCardDetails,
+        },
+        currency: "USD",
+        mandate_data: singleUseMandateData,
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "succeeded",
+        },
+      },
+    },
+    ZeroAuthConfirmPayment: {
+      Configs: {
+        DELAY: {
+          STATUS: true,
+          TIMEOUT: 15000,
+        },
+        TRIGGER_SKIP: true,
+      },
+      Request: {
+        payment_type: "setup_mandate",
+        payment_method: "card",
+        payment_method_type: "credit",
+        payment_method_data: {
+          card: successfulNo3DSCardDetails,
+        },
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "succeeded",
+          setup_future_usage: "off_session",
         },
       },
     },

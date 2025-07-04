@@ -366,6 +366,7 @@ export const CONNECTOR_LISTS = {
       "fiserv",
       "jpmorgan",
       "nexinets",
+      "payload",
       "paypal",
       "stax",
       "wellsfargo",
