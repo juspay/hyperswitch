@@ -746,6 +746,23 @@ impl EventInterface for KafkaStore {
             .await
     }
 
+    async fn find_event_by_merchant_id_idempotent_event_id(
+        &self,
+        state: &KeyManagerState,
+        merchant_id: &id_type::MerchantId,
+        idempotent_event_id: &str,
+        merchant_key_store: &domain::MerchantKeyStore,
+    ) -> CustomResult<domain::Event, errors::StorageError> {
+        self.diesel_store
+            .find_event_by_merchant_id_idempotent_event_id(
+                state,
+                merchant_id,
+                idempotent_event_id,
+                merchant_key_store,
+            )
+            .await
+    }
+
     async fn list_initial_events_by_merchant_id_primary_object_id(
         &self,
         state: &KeyManagerState,
