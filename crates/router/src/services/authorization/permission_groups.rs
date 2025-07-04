@@ -107,7 +107,7 @@ impl PermissionGroupExt for PermissionGroup {
             Self::AccountManage => vec![Self::AccountView, Self::AccountManage],
 
             Self::InternalManage => vec![Self::InternalManage],
-            Self::ThemeView => vec![Self::ThemeView],
+            Self::ThemeView => vec![Self::ThemeView, Self::AccountView],
             Self::ThemeManage => vec![Self::ThemeManage, Self::AccountView],
         }
     }

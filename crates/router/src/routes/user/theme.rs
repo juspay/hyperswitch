@@ -267,7 +267,7 @@ pub async fn upload_file_to_user_theme_storage(
 pub async fn list_all_themes_in_lineage(
     state: web::Data<AppState>,
     req: HttpRequest,
-    query: web::Query<theme_api::ListThemesQueryParam>,
+    query: web::Query<theme_api::EntityTypeQueryParam>,
 ) -> HttpResponse {
     let flow = Flow::ListAllThemesInLineage;
     let entity_type = query.into_inner().entity_type;
@@ -281,7 +281,7 @@ pub async fn list_all_themes_in_lineage(
             theme_core::list_all_themes_in_lineage(state, user, entity_type)
         },
         &auth::JWTAuth {
-            permission: Permission::OrganizationThemeWrite,
+            permission: Permission::OrganizationThemeRead,
         },
         api_locking::LockAction::NotApplicable,
     ))
@@ -291,7 +291,7 @@ pub async fn list_all_themes_in_lineage(
 pub async fn get_user_theme_using_lineage(
     state: web::Data<AppState>,
     req: HttpRequest,
-    query: web::Query<theme_api::ListThemesQueryParam>,
+    query: web::Query<theme_api::EntityTypeQueryParam>,
 ) -> HttpResponse {
     let flow = Flow::GetUserThemeUsingLineage;
     let entity_type = query.into_inner().entity_type;

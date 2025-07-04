@@ -357,7 +357,7 @@ pub async fn update_user_theme(
                 .store
                 .update_theme_by_theme_id(theme_id.clone(), theme_update)
                 .await
-                .to_not_found_response(UserErrors::ThemeNotFound)?
+                .change_context(UserErrors::InternalServerError)?
         }
         None => db_theme,
     };
@@ -423,7 +423,7 @@ pub async fn upload_file_to_user_theme_storage(
 pub async fn list_all_themes_in_lineage(
     state: SessionState,
     user: UserFromToken,
-    entity_type: EntityType, // level to list themes for (tenant/org/merchant/profile)
+    entity_type: EntityType,
 ) -> UserResponse<theme_api::ListThemesResponse> {
     let lineage =
         theme_utils::get_theme_lineage_from_user_token(&user, &state, &entity_type).await?;

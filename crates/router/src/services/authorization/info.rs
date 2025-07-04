@@ -48,8 +48,8 @@ fn get_group_description(group: PermissionGroup) -> Option<&'static str> {
         PermissionGroup::ReconReportsManage => Some("Manage reconciliation reports"),
         PermissionGroup::ReconOpsView => Some("View and access all reconciliation operations including reports and analytics"),
         PermissionGroup::ReconOpsManage => Some("Manage all reconciliation operations including reports and analytics"),
-        PermissionGroup::ThemeView => Some("View themes for the organization"),
-        PermissionGroup::ThemeManage => Some("Manage themes for the organization"),
+        PermissionGroup::ThemeView => Some("View Themes"),
+        PermissionGroup::ThemeManage => Some("Manage Themes"),
         PermissionGroup::InternalManage => None, // Internal group, no user-facing description
     }
 }
