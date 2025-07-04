@@ -1,3 +1,4 @@
+use masking::Secret;
 use serde::{Deserialize, Serialize};
 
 // PaymentsResponse

@@ -25,6 +25,44 @@ const failedNo3DSCardDetails = {
   card_cvc: "123",
 };
 
+const singleUseMandateData = {
+  customer_acceptance: customerAcceptance,
+  mandate_type: {
+    single_use: {
+      amount: 8000,
+      currency: "USD",
+    },
+  },
+};
+
+const multiUseMandateData = {
+  customer_acceptance: customerAcceptance,
+  mandate_type: {
+    multi_use: {
+      amount: 8000,
+      currency: "USD",
+    },
+  },
+};
+
+const payment_method_data_no3ds = {
+  card: {
+    last4: "4242",
+    card_type: "CREDIT",
+    card_network: "Visa",
+    card_issuer: "STRIPE PAYMENTS UK LIMITED",
+    card_issuing_country: "UNITEDKINGDOM",
+    card_isin: "424242",
+    card_extended_bin: null,
+    card_exp_month: "12",
+    card_exp_year: "25",
+    card_holder_name: "John Doe",
+    payment_checks: null,
+    authentication_data: null,
+  },
+  billing: null,
+};
+
 export const connectorDetails = {
   card_pm: {
     PaymentIntent: {
@@ -556,6 +594,112 @@ export const connectorDetails = {
         status: 200,
         body: {
           status: "requires_customer_action",
+        },
+      },
+    },
+    MandateSingleUseNo3DSAutoCapture: {
+      Configs: {
+        DELAY: {
+          STATUS: true,
+          TIMEOUT: 15000,
+        },
+        TRIGGER_SKIP: true,
+      },
+      Request: {
+        payment_method: "card",
+        payment_method_data: {
+          card: successfulNo3DSCardDetails,
+        },
+        currency: "USD",
+        mandate_data: singleUseMandateData,
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "succeeded",
+          mandate_id: null,
+          payment_method_data: payment_method_data_no3ds,
+          payment_method: "card",
+          connector: "payload",
+        },
+      },
+    },
+    MandateSingleUseNo3DSManualCapture: {
+      Configs: {
+        DELAY: {
+          STATUS: true,
+          TIMEOUT: 15000,
+        },
+        TRIGGER_SKIP: true,
+      },
+      Request: {
+        payment_method: "card",
+        payment_method_data: {
+          card: successfulNo3DSCardDetails,
+        },
+        currency: "USD",
+        mandate_data: singleUseMandateData,
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_capture",
+          mandate_id: null,
+          payment_method_data: payment_method_data_no3ds,
+          payment_method: "card",
+          connector: "payload",
+        },
+      },
+    },
+    MandateMultiUseNo3DSAutoCapture: {
+      Configs: {
+        DELAY: {
+          STATUS: true,
+          TIMEOUT: 15000,
+        },
+        TRIGGER_SKIP: true,
+      },
+      Request: {
+        payment_method: "card",
+        payment_method_data: {
+          card: successfulNo3DSCardDetails,
+        },
+        currency: "USD",
+        mandate_data: multiUseMandateData,
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "succeeded",
+          payment_method_data: payment_method_data_no3ds,
+          payment_method: "card",
+          connector: "payload",
+        },
+      },
+    },
+    MandateMultiUseNo3DSManualCapture: {
+      Configs: {
+        DELAY: {
+          STATUS: true,
+          TIMEOUT: 15000,
+        },
+        TRIGGER_SKIP: true,
+      },
+      Request: {
+        payment_method: "card",
+        payment_method_data: {
+          card: successfulNo3DSCardDetails,
+        },
+        currency: "USD",
+        mandate_data: multiUseMandateData,
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_capture",
+          payment_method_data: payment_method_data_no3ds,
+          payment_method: "card",
+          connector: "payload",
         },
       },
     },
