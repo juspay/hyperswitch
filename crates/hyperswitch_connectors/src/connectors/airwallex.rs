@@ -293,8 +293,22 @@ impl ConnectorIntegration<PreProcessing, PaymentsPreProcessingData, PaymentsResp
         req: &PaymentsPreProcessingRouterData,
         _connectors: &Connectors,
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
-        let connector_req: airwallex::AirwallexPreProcessingRequest =
-            airwallex::AirwallexPreProcessingRequest::try_from(req)?;
+        let amount_in_minor_unit = MinorUnit::new(req.request.amount.ok_or(
+            errors::ConnectorError::MissingRequiredField {
+                field_name: "amount",
+            },
+        )?);
+        let amount = convert_amount(
+            self.amount_converter,
+            amount_in_minor_unit,
+            req.request
+                .currency
+                .ok_or(errors::ConnectorError::MissingRequiredField {
+                    field_name: "currency",
+                })?,
+        )?;
+        let connector_router_data = airwallex::AirwallexRouterData::try_from((amount, req))?;
+        let connector_req = airwallex::AirwallexIntentRequest::try_from(&connector_router_data)?;
         Ok(RequestContent::Json(Box::new(connector_req)))
     }
 
