@@ -790,7 +790,7 @@ pub struct PaymentResponse {
 #[serde(rename_all = "camelCase")]
 pub struct TokenResponse {
     pub cnp_token: Secret<String>,
-    pub token_response_code: WorldpayvantivResponseCode,
+    pub token_response_code: String,
     pub token_message: String,
     #[serde(rename = "type")]
     pub card_type: Option<String>,
