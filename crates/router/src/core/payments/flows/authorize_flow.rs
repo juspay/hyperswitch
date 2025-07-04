@@ -457,13 +457,14 @@ impl Feature<api::Authorize, types::PaymentsAuthorizeData> for types::PaymentsAu
 
         let (status, router_data_response) =
             handle_unified_connector_service_response_for_payment_authorize(
-                payment_authorize_response,
+                payment_authorize_response.clone(),
             )
             .change_context(ApiErrorResponse::InternalServerError)
             .attach_printable("Failed to deserialize UCS response")?;
 
         self.status = status;
         self.response = router_data_response;
+        self.whole_connector_response = payment_authorize_response.raw_connector_response;
 
         Ok(())
     }
