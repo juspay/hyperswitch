@@ -526,15 +526,9 @@ function bankRedirectRedirection(
               `Unsupported connector in handleFlow: ${connectorId}`
             );
         }
-      },
+      }
       { paymentMethodType } // Pass options to handleFlow
     );
-
-    // extract the verifyUrl decision from within the handleFlow callback
-    // since the callback runs asynchronously within cy.origin or directly,
-    // we need a way to signal back if verification is needed.
-    // we use a closure variable `verifyUrl` which is modified inside the callback.
-    // this relies on cypress command queue ensuring the callback completes before cy.then runs.
   }
   cy.then(() => {
     // The value of verifyUrl determined by the specific flow (Adyen iDEAL or handleFlow callback)
