@@ -43,6 +43,9 @@ pub struct PayloadCardsRequestData {
     pub card: PayloadCard,
     #[serde(rename = "type")]
     pub transaction_types: TransactionTypes,
+    // For manual capture, set status to "authorized", otherwise omit
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub status: Option<responses::PayloadPaymentStatus>,
     #[serde(rename = "payment_method[type]")]
     pub payment_method_type: String,
     // Billing address fields are for AVS validation
@@ -62,6 +65,12 @@ pub struct PayloadCard {
 
 #[derive(Clone, Debug, Serialize, PartialEq)]
 pub struct PayloadCancelRequest {
+    pub status: responses::PayloadPaymentStatus,
+}
+
+// Type definition for CaptureRequest
+#[derive(Clone, Debug, Serialize, PartialEq)]
+pub struct PayloadCaptureRequest {
     pub status: responses::PayloadPaymentStatus,
 }
 

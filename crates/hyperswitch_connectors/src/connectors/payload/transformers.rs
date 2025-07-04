@@ -6,16 +6,15 @@ use hyperswitch_domain_models::{
     router_flow_types::refunds::{Execute, RSync},
     router_request_types::ResponseId,
     router_response_types::{PaymentsResponseData, RefundsResponseData},
-    types::{PaymentsAuthorizeRouterData, RefundsRouterData},
+    types::{PaymentsAuthorizeRouterData, PaymentsCaptureRouterData, RefundsRouterData},
 };
 use hyperswitch_interfaces::errors;
 use masking::Secret;
 
 use super::{requests, responses};
-
 use crate::{
     types::{RefundsResponseRouterData, ResponseRouterData},
-    utils::{CardData, RouterData as OtherRouterData},
+    utils::{is_manual_capture, CardData, RouterData as OtherRouterData},
 };
 
 //TODO: Fill the struct with respective fields
@@ -52,10 +51,17 @@ impl TryFrom<&PayloadRouterData<&PaymentsAuthorizeRouterData>>
                 let address = item.router_data.get_billing_address()?;
                 let billing_address = requests::BillingAddress {
                     city: address.city.clone().unwrap_or_default(),
-                    country: address.country.clone().unwrap_or_default(),
+                    country: address.country.unwrap_or_default(),
                     postal_code: address.zip.clone().unwrap_or_default(),
                     state_province: address.state.clone().unwrap_or_default(),
                     street_address: address.line1.clone().unwrap_or_default(),
+                };
+
+                // For manual capture, set status to "authorized"
+                let status = if is_manual_capture(item.router_data.request.capture_method) {
+                    Some(responses::PayloadPaymentStatus::Authorized)
+                } else {
+                    None
                 };
 
                 Ok(Self::PayloadCardsRequest(
@@ -64,6 +70,7 @@ impl TryFrom<&PayloadRouterData<&PaymentsAuthorizeRouterData>>
                         card,
                         transaction_types: requests::TransactionTypes::Payment,
                         payment_method_type: "card".to_string(),
+                        status,
                         billing_address,
                     },
                 ))
@@ -93,11 +100,11 @@ impl TryFrom<&ConnectorAuthType> for PayloadAuthType {
 impl From<responses::PayloadPaymentStatus> for common_enums::AttemptStatus {
     fn from(item: responses::PayloadPaymentStatus) -> Self {
         match item {
+            responses::PayloadPaymentStatus::Authorized => Self::Authorized,
             responses::PayloadPaymentStatus::Processed => Self::Charged,
             responses::PayloadPaymentStatus::Processing => Self::Pending,
             responses::PayloadPaymentStatus::Rejected
             | responses::PayloadPaymentStatus::Declined => Self::Failure,
-            responses::PayloadPaymentStatus::Authorized => Self::Authorized,
             responses::PayloadPaymentStatus::Voided => Self::Voided,
         }
     }
@@ -140,6 +147,17 @@ impl<T> TryFrom<&PayloadRouterData<T>> for requests::PayloadCancelRequest {
     fn try_from(_item: &PayloadRouterData<T>) -> Result<Self, Self::Error> {
         Ok(Self {
             status: responses::PayloadPaymentStatus::Voided,
+        })
+    }
+}
+
+impl TryFrom<&PayloadRouterData<&PaymentsCaptureRouterData>> for requests::PayloadCaptureRequest {
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(
+        _item: &PayloadRouterData<&PaymentsCaptureRouterData>,
+    ) -> Result<Self, Self::Error> {
+        Ok(Self {
+            status: responses::PayloadPaymentStatus::Processed,
         })
     }
 }
