@@ -192,6 +192,7 @@ pub struct Sale {
     pub id: String,
     #[serde(rename = "@reportGroup")]
     pub report_group: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
     #[serde(rename = "@customerId")]
     pub customer_id: Option<String>,
     pub order_id: String,
@@ -212,6 +213,7 @@ pub struct RefundRequest {
     pub report_group: String,
     #[serde(rename = "@id")]
     pub id: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
     #[serde(rename = "@customerId")]
     pub customer_id: Option<String>,
     pub cnp_txn_id: String,
@@ -695,6 +697,7 @@ pub struct CaptureResponse {
     pub id: String,
     #[serde(rename = "@reportGroup")]
     pub report_group: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
     #[serde(rename = "@customerId")]
     pub customer_id: Option<String>,
     #[serde(rename = "cnpTxnId")]
@@ -719,6 +722,7 @@ pub struct PaymentResponse {
     pub id: String,
     #[serde(rename = "@reportGroup")]
     pub report_group: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
     #[serde(rename = "@customerId")]
     pub customer_id: Option<String>,
     pub cnp_txn_id: String,
@@ -738,6 +742,7 @@ pub struct AuthReversalResponse {
     pub id: String,
     #[serde(rename = "@reportGroup")]
     pub report_group: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
     #[serde(rename = "@customerId")]
     pub customer_id: Option<String>,
     pub cnp_txn_id: String,
