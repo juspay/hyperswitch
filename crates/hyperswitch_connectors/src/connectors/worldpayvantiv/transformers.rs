@@ -1089,7 +1089,7 @@ impl<F>
                     let connector_metadata =   Some(report_group.encode_to_value()
                     .change_context(errors::ConnectorError::ResponseHandlingFailed)?);
 
-                let mandate_reference_data = sale_response.token_response.map(|token_data|  MandateReference::from(token_data));
+                let mandate_reference_data = sale_response.token_response.map(MandateReference::from);
 
                     Ok(Self {
                         status,
@@ -1132,7 +1132,7 @@ impl<F>
                     let connector_metadata =   Some(report_group.encode_to_value()
                     .change_context(errors::ConnectorError::ResponseHandlingFailed)?);
 
-                    let mandate_reference_data = auth_response.token_response.map(|token_data|  MandateReference::from(token_data));
+                    let mandate_reference_data = auth_response.token_response.map(MandateReference::from);
 
                     Ok(Self {
                         status,
@@ -1175,7 +1175,7 @@ impl<F>
 
 impl From<TokenResponse> for MandateReference {
     fn from(token_data: TokenResponse) -> Self {
-        MandateReference {
+        Self {
             connector_mandate_id: Some(token_data.cnp_token.expose()),
             payment_method_id: None,
             mandate_metadata: None,
