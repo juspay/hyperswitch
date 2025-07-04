@@ -1666,6 +1666,10 @@ impl ConnectorAuthTypeAndMetadataValidation<'_> {
                 paybox::transformers::PayboxAuthType::try_from(self.auth_type)?;
                 Ok(())
             }
+            // api_enums::Connector::Payload => {
+            //     paybox::transformers::PayloadAuthType::try_from(self.auth_type)?;
+            //     Ok(())
+            // }
             api_enums::Connector::Payme => {
                 payme::transformers::PaymeAuthType::try_from(self.auth_type)?;
                 Ok(())
