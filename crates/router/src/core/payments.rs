@@ -3527,6 +3527,10 @@ where
         )
         .await?;
 
+    let connector_request_reference_id = router_data.connector_request_reference_id.clone();
+    payment_data
+        .set_connector_request_reference_id_in_payment_attempt(connector_request_reference_id);
+
     let add_access_token_result = router_data
         .add_access_token(
             state,
@@ -8970,6 +8974,11 @@ pub trait OperationSessionSetters<F> {
         external_vault_session_details: Option<api::VaultSessionDetails>,
     );
     fn set_routing_approach_in_attempt(&mut self, routing_approach: Option<enums::RoutingApproach>);
+
+    fn set_connector_request_reference_id_in_payment_attempt(
+        &mut self,
+        connector_request_reference_id: String,
+    );
 }
 
 #[cfg(feature = "v1")]
@@ -9276,6 +9285,13 @@ impl<F: Clone> OperationSessionSetters<F> for PaymentData<F> {
     ) {
         self.payment_attempt.routing_approach = routing_approach;
     }
+
+    fn set_connector_request_reference_id_in_payment_attempt(
+        &mut self,
+        connector_request_reference_id: String,
+    ) {
+        self.payment_attempt.connector_request_reference_id = Some(connector_request_reference_id);
+    }
 }
 
 #[cfg(feature = "v2")]
@@ -9566,6 +9582,13 @@ impl<F: Clone> OperationSessionSetters<F> for PaymentIntentData<F> {
     fn set_routing_approach_in_attempt(
         &mut self,
         routing_approach: Option<enums::RoutingApproach>,
+    ) {
+        todo!()
+    }
+
+    fn set_connector_request_reference_id_in_payment_attempt(
+        &mut self,
+        connector_request_reference_id: String,
     ) {
         todo!()
     }
@@ -9865,6 +9888,13 @@ impl<F: Clone> OperationSessionSetters<F> for PaymentConfirmData<F> {
     ) {
         todo!()
     }
+
+    fn set_connector_request_reference_id_in_payment_attempt(
+        &mut self,
+        connector_request_reference_id: String,
+    ) {
+        todo!()
+    }
 }
 
 #[cfg(feature = "v2")]
@@ -10153,6 +10183,13 @@ impl<F: Clone> OperationSessionSetters<F> for PaymentStatusData<F> {
     fn set_routing_approach_in_attempt(
         &mut self,
         routing_approach: Option<enums::RoutingApproach>,
+    ) {
+        todo!()
+    }
+
+    fn set_connector_request_reference_id_in_payment_attempt(
+        &mut self,
+        connector_request_reference_id: String,
     ) {
         todo!()
     }
@@ -10446,6 +10483,13 @@ impl<F: Clone> OperationSessionSetters<F> for PaymentCaptureData<F> {
     fn set_routing_approach_in_attempt(
         &mut self,
         routing_approach: Option<enums::RoutingApproach>,
+    ) {
+        todo!()
+    }
+
+    fn set_connector_request_reference_id_in_payment_attempt(
+        &mut self,
+        connector_request_reference_id: String,
     ) {
         todo!()
     }

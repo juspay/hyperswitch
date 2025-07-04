@@ -217,6 +217,7 @@ pub struct PaymentAttemptBatchNew {
     pub created_by: Option<String>,
     pub setup_future_usage_applied: Option<common_enums::FutureUsage>,
     pub routing_approach: Option<common_enums::RoutingApproach>,
+    pub connector_request_reference_id: Option<String>,
 }
 
 #[cfg(feature = "v1")]
@@ -303,6 +304,7 @@ impl PaymentAttemptBatchNew {
             created_by: self.created_by,
             setup_future_usage_applied: self.setup_future_usage_applied,
             routing_approach: self.routing_approach,
+            connector_request_reference_id: self.connector_request_reference_id,
         }
     }
 }
