@@ -144,7 +144,7 @@ impl ForeignTryFrom<&RouterData<Authorize, PaymentsAuthorizeData, PaymentsRespon
                 .map(|shipping_cost| shipping_cost.get_amount_as_i64()),
             request_ref_id: Some(Identifier {
                 id_type: Some(payments_grpc::identifier::IdType::Id(
-                    router_data.payment_id.clone(),
+                    router_data.connector_request_reference_id.clone(),
                 )),
             }),
             connector_customer_id: router_data

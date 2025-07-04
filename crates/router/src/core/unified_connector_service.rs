@@ -276,6 +276,7 @@ pub fn handle_unified_connector_service_response_for_payment_authorize(
                 }),
         AttemptStatus::AuthenticationFailed
                 | AttemptStatus::AuthorizationFailed
+                | AttemptStatus::Unresolved
                 | AttemptStatus::Failure => Err(ErrorResponse {
                     code: response.error_code().to_owned(),
                     message: response.error_message().to_owned(),
@@ -296,7 +297,6 @@ pub fn handle_unified_connector_service_response_for_payment_authorize(
                     AttemptStatus::AutoRefunded |
                     AttemptStatus::PartialCharged |
                     AttemptStatus::PartialChargedAndChargeable |
-                    AttemptStatus::Unresolved |
                     AttemptStatus::PaymentMethodAwaited |
                     AttemptStatus::CaptureFailed |
                     AttemptStatus::IntegrityFailure => return Err(UnifiedConnectorServiceError::NotImplemented(format!(
