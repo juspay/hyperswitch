@@ -50,6 +50,7 @@ use openssl::{
     pkey::PKey,
     symm::{decrypt_aead, Cipher},
 };
+use rand::Rng;
 #[cfg(feature = "v2")]
 use redis_interface::errors::RedisError;
 use router_env::{instrument, logger, tracing};
@@ -2033,6 +2034,38 @@ pub fn decide_payment_method_retrieval_action(
         VaultFetchAction::FetchCardDetailsFromLocker
     } else {
         standard_flow()
+    }
+}
+
+pub async fn should_execute_based_on_rollout(
+    state: &SessionState,
+    config_key: &str,
+) -> RouterResult<bool> {
+    let db = state.store.as_ref();
+
+    match db.find_config_by_key(config_key).await {
+        Ok(rollout_config) => match rollout_config.config.parse::<f64>() {
+            Ok(rollout_percent) => {
+                if !(0.0..=1.0).contains(&rollout_percent) {
+                    logger::warn!(
+                        rollout_percent,
+                        "Rollout percent out of bounds. Must be between 0.0 and 1.0"
+                    );
+                    return Ok(false);
+                }
+
+                let sampled_value: f64 = rand::thread_rng().gen_range(0.0..1.0);
+                Ok(sampled_value < rollout_percent)
+            }
+            Err(err) => {
+                logger::error!(error = ?err, "Failed to parse rollout percent");
+                Ok(false)
+            }
+        },
+        Err(err) => {
+            logger::error!(error = ?err, "Failed to fetch rollout config from DB");
+            Ok(false)
+        }
     }
 }
 

@@ -60,11 +60,13 @@ pub trait ConstructFlowSpecificData<F, Req, Res> {
 
     async fn get_merchant_recipient_data<'a>(
         &self,
-        state: &SessionState,
-        merchant_context: &domain::MerchantContext,
-        merchant_connector_account: &helpers::MerchantConnectorAccountType,
-        connector: &api::ConnectorData,
-    ) -> RouterResult<Option<types::MerchantRecipientData>>;
+        _state: &SessionState,
+        _merchant_context: &domain::MerchantContext,
+        _merchant_connector_account: &helpers::MerchantConnectorAccountType,
+        _connector: &api::ConnectorData,
+    ) -> RouterResult<Option<types::MerchantRecipientData>> {
+        Ok(None)
+    }
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -206,6 +208,20 @@ pub trait Feature<F, T> {
         dyn api::Connector: services::ConnectorIntegration<F, T, types::PaymentsResponseData>,
     {
         Ok(should_continue_payment)
+    }
+
+    async fn call_unified_connector_service<'a>(
+        &mut self,
+        _state: &SessionState,
+        _merchant_connector_account: helpers::MerchantConnectorAccountType,
+        _merchant_context: &domain::MerchantContext,
+    ) -> RouterResult<()>
+    where
+        F: Clone,
+        Self: Sized,
+        dyn api::Connector: services::ConnectorIntegration<F, T, types::PaymentsResponseData>,
+    {
+        Ok(())
     }
 }
 

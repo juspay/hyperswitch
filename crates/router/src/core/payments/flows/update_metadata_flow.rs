@@ -58,16 +58,6 @@ impl
     ) -> RouterResult<types::PaymentsUpdateMetadataRouterData> {
         todo!()
     }
-
-    async fn get_merchant_recipient_data<'a>(
-        &self,
-        _state: &SessionState,
-        _merchant_context: &domain::MerchantContext,
-        _merchant_connector_account: &helpers::MerchantConnectorAccountType,
-        _connector: &api::ConnectorData,
-    ) -> RouterResult<Option<types::MerchantRecipientData>> {
-        Ok(None)
-    }
 }
 
 #[async_trait]

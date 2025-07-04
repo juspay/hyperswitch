@@ -369,7 +369,22 @@ where
     )
     .await?;
 
-    let (router_data, _mca) = payments::call_connector_service(
+    let (merchant_connector_account, router_data, tokenization_action) =
+        payments::call_connector_service_prerequisites(
+            state,
+            merchant_context,
+            connector.clone(),
+            operation,
+            payment_data,
+            customer,
+            validate_result,
+            business_profile,
+            should_retry_with_pan,
+            routing_decision,
+        )
+        .await?;
+
+    let (router_data, _mca) = payments::decide_unified_connector_service_call(
         state,
         req_state,
         merchant_context,
@@ -384,9 +399,10 @@ where
         frm_suggestion,
         business_profile,
         true,
-        should_retry_with_pan,
-        routing_decision,
         None,
+        merchant_connector_account,
+        router_data,
+        tokenization_action,
     )
     .await?;
 
