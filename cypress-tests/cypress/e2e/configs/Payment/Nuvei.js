@@ -9,7 +9,6 @@ const successfulNo3DSCardDetails = {
   card_cvc: "999",
 };
 
-
 // Test card details based on Nuvei test cards (from Rust tests)
 const successfulThreeDSCardDetails = {
   card_number: "4000027891380961",
@@ -304,7 +303,7 @@ export const connectorDetails = {
         },
       },
     },
- 
+
     ZeroAuthPaymentIntent: {
       Configs: {
         TRIGGER_SKIP: true,
