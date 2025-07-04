@@ -3,7 +3,7 @@ use common_utils::{
     errors::ParsingError,
     pii::{Email, IpAddress},
     request::Method,
-    types::{MinorUnit, StringMajorUnit, StringMajorUnitForConnector},
+    types::{MinorUnit, StringMajorUnit},
 };
 use error_stack::ResultExt;
 use hyperswitch_domain_models::{
@@ -59,13 +59,6 @@ pub struct ReferrerData {
     version: String,
 }
 
-#[derive(Debug, Serialize, Eq, PartialEq)]
-#[serde(untagged)]
-pub enum AirwallexPreProcessingRequest {
-    Intent(AirwallexIntentRequest),
-    PayLaterIntent(AirwallexPayLaterIntentRequest),
-}
-
 #[derive(Default, Debug, Serialize, Eq, PartialEq)]
 pub struct AirwallexIntentRequest {
     // Unique ID to be sent for each transaction/operation request to the connector
@@ -76,121 +69,68 @@ pub struct AirwallexIntentRequest {
     merchant_order_id: String,
     // This data is required to whitelist Hyperswitch at Airwallex.
     referrer_data: ReferrerData,
+    order: Option<AirwallexOrderData>,
 }
 
-#[derive(Default, Debug, Serialize, Eq, PartialEq)]
-pub struct AirwallexPayLaterIntentRequest {
-    request_id: String,
-    amount: StringMajorUnit,
-    currency: enums::Currency,
-    merchant_order_id: String,
-    referrer_data: ReferrerData,
-    order: AirwallexOrderData,
-}
-
-impl TryFrom<&types::PaymentsPreProcessingRouterData> for AirwallexPreProcessingRequest {
+impl TryFrom<&AirwallexRouterData<&types::PaymentsPreProcessingRouterData>>
+    for AirwallexIntentRequest
+{
     type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(item: &types::PaymentsPreProcessingRouterData) -> Result<Self, Self::Error> {
-        match item.request.payment_method_data {
-            Some(PaymentMethodData::PayLater(_)) => Ok(Self::PayLaterIntent(
-                AirwallexPayLaterIntentRequest::try_from(item)?,
-            )),
-            _ => Ok(Self::Intent(AirwallexIntentRequest::try_from(item)?)),
-        }
-    }
-}
-
-impl TryFrom<&types::PaymentsPreProcessingRouterData> for AirwallexPayLaterIntentRequest {
-    type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(item: &types::PaymentsPreProcessingRouterData) -> Result<Self, Self::Error> {
+    fn try_from(
+        item: &AirwallexRouterData<&types::PaymentsPreProcessingRouterData>,
+    ) -> Result<Self, Self::Error> {
         let referrer_data = ReferrerData {
             r_type: "hyperswitch".to_string(),
             version: "1.0.0".to_string(),
         };
-        let amount = item
-            .request
-            .amount
-            .ok_or(errors::ConnectorError::MissingRequiredField {
-                field_name: "amount",
-            })?;
-        let currency =
-            item.request
-                .currency
-                .ok_or(errors::ConnectorError::MissingRequiredField {
-                    field_name: "currency",
-                })?;
+        let amount = item.amount.clone();
+        let currency = item.router_data.request.currency.ok_or(
+            errors::ConnectorError::MissingRequiredField {
+                field_name: "currency",
+            },
+        )?;
 
-        let order = item
-            .request
-            .order_details
-            .as_ref()
-            .map(|order_data| AirwallexOrderData {
-                products: order_data
-                    .iter()
-                    .map(|product| AirwallexProductData {
-                        name: product.product_name.clone(),
-                        quantity: product.quantity,
-                        unit_price: product.amount,
+        let order = match item.router_data.request.payment_method_data {
+            Some(PaymentMethodData::PayLater(_)) => Some(
+                item.router_data
+                    .request
+                    .order_details
+                    .as_ref()
+                    .map(|order_data| AirwallexOrderData {
+                        products: order_data
+                            .iter()
+                            .map(|product| AirwallexProductData {
+                                name: product.product_name.clone(),
+                                quantity: product.quantity,
+                                unit_price: product.amount,
+                            })
+                            .collect(),
+                        shipping: Some(AirwallexShippingData {
+                            first_name: item.router_data.get_optional_shipping_first_name(),
+                            last_name: item.router_data.get_optional_shipping_last_name(),
+                            phone_number: item.router_data.get_optional_shipping_phone_number(),
+                            address: AirwallexPLShippingAddress {
+                                country_code: item.router_data.get_optional_shipping_country(),
+                                city: item.router_data.get_optional_shipping_city(),
+                                street: item.router_data.get_optional_shipping_line1(),
+                                postcode: item.router_data.get_optional_shipping_zip(),
+                            },
+                        }),
                     })
-                    .collect(),
-                shipping: Some(AirwallexShippingData {
-                    first_name: item.get_optional_shipping_first_name(),
-                    last_name: item.get_optional_shipping_last_name(),
-                    phone_number: item.get_optional_shipping_phone_number(),
-                    address: AirwallexPLShippingAddress {
-                        country_code: item.get_optional_shipping_country(),
-                        city: item.get_optional_shipping_city(),
-                        street: item.get_optional_shipping_line1(),
-                        postcode: item.get_optional_shipping_zip(),
-                    },
-                }),
-            });
-
-        let amount_in_minor_unit = MinorUnit::new(amount);
-        let amount_in_string_major =
-            utils::convert_amount(&StringMajorUnitForConnector, amount_in_minor_unit, currency)?;
-        Ok(Self {
-            request_id: Uuid::new_v4().to_string(),
-            amount: amount_in_string_major,
-            currency,
-            merchant_order_id: item.connector_request_reference_id.clone(),
-            referrer_data,
-            order: order.ok_or(errors::ConnectorError::MissingRequiredField {
-                field_name: "order_details",
-            })?,
-        })
-    }
-}
-
-impl TryFrom<&types::PaymentsPreProcessingRouterData> for AirwallexIntentRequest {
-    type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(item: &types::PaymentsPreProcessingRouterData) -> Result<Self, Self::Error> {
-        let referrer_data = ReferrerData {
-            r_type: "hyperswitch".to_string(),
-            version: "1.0.0".to_string(),
+                    .ok_or(errors::ConnectorError::MissingRequiredField {
+                        field_name: "order_details",
+                    })?,
+            ),
+            _ => None,
         };
-        // amount and currency will always be Some since PaymentsPreProcessingData is constructed using PaymentsAuthorizeData
-        let amount = item
-            .request
-            .amount
-            .ok_or(errors::ConnectorError::MissingRequiredField {
-                field_name: "amount",
-            })?;
-        let currency =
-            item.request
-                .currency
-                .ok_or(errors::ConnectorError::MissingRequiredField {
-                    field_name: "currency",
-                })?;
-        let amount_in_minor_unit = MinorUnit::new(amount);
-        let amount_in_string_major =
-            utils::convert_amount(&StringMajorUnitForConnector, amount_in_minor_unit, currency)?;
+
         Ok(Self {
             request_id: Uuid::new_v4().to_string(),
-            amount: amount_in_string_major,
+            amount,
             currency,
-            merchant_order_id: item.connector_request_reference_id.clone(),
+            merchant_order_id: item.router_data.connector_request_reference_id.clone(),
             referrer_data,
+            order,
         })
     }
 }
