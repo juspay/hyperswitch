@@ -1613,6 +1613,10 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for
 
         let connector = payment_data.payment_attempt.connector.clone();
         let merchant_connector_id = payment_data.payment_attempt.merchant_connector_id.clone();
+        let connector_request_reference_id = payment_data
+            .payment_attempt
+            .connector_request_reference_id
+            .clone();
 
         let straight_through_algorithm = payment_data
             .payment_attempt
@@ -1794,6 +1798,7 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for
                             .payment_attempt
                             .connector_mandate_detail,
                         card_discovery,
+                        connector_request_reference_id,
                     },
                     storage_scheme,
                 )

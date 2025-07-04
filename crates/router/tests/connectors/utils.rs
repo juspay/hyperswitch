@@ -557,6 +557,7 @@ pub trait ConnectorActions: Connector {
             psd2_sca_exemption_type: None,
             authentication_id: None,
             whole_connector_response: None,
+            is_payment_id_from_merchant: None,
         }
     }
 
