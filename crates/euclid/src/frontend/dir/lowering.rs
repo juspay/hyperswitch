@@ -63,6 +63,7 @@ impl From<enums::WalletType> for global_enums::PaymentMethodType {
             enums::WalletType::Mifinity => Self::Mifinity,
             enums::WalletType::Paze => Self::Paze,
             enums::WalletType::RevolutPay => Self::RevolutPay,
+            enums::WalletType::Skrill => Self::Skrill,
         }
     }
 }
@@ -127,6 +128,7 @@ impl From<enums::BankTransferType> for global_enums::PaymentMethodType {
             enums::BankTransferType::InstantBankTransfer => Self::InstantBankTransfer,
             enums::BankTransferType::InstantBankTransferFinland => Self::InstantBankTransferFinland,
             enums::BankTransferType::InstantBankTransferPoland => Self::InstantBankTransferPoland,
+            enums::BankTransferType::IndonesianBankTransfer => Self::IndonesianBankTransfer,
         }
     }
 }

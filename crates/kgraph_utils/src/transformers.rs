@@ -152,6 +152,7 @@ impl IntoDirValue for (api_enums::PaymentMethodType, api_enums::PaymentMethod) {
                 Ok(dirval!(CryptoType = CryptoCurrency))
             }
             api_enums::PaymentMethodType::RevolutPay => Ok(dirval!(WalletType = RevolutPay)),
+            api_enums::PaymentMethodType::Skrill => Ok(dirval!(WalletType = Skrill)),
             api_enums::PaymentMethodType::Ach => match self.1 {
                 api_enums::PaymentMethod::BankDebit => Ok(dirval!(BankDebitType = Ach)),
                 api_enums::PaymentMethod::BankTransfer => Ok(dirval!(BankTransferType = Ach)),
@@ -313,6 +314,9 @@ impl IntoDirValue for (api_enums::PaymentMethodType, api_enums::PaymentMethod) {
             api_enums::PaymentMethodType::Paze => Ok(dirval!(WalletType = Paze)),
             api_enums::PaymentMethodType::DirectCarrierBilling => {
                 Ok(dirval!(MobilePaymentType = DirectCarrierBilling))
+            }
+            api_enums::PaymentMethodType::IndonesianBankTransfer => {
+                Ok(dirval!(BankTransferType = IndonesianBankTransfer))
             }
         }
     }
