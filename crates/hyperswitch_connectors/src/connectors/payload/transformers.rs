@@ -56,12 +56,44 @@ impl TryFrom<&PayloadRouterData<&PaymentsAuthorizeRouterData>>
                     cvc: req_card.card_cvc,
                 };
                 let address = item.router_data.get_billing_address()?;
+
+                // Check for required fields and fail if they're missing
+                let city = address.city.clone().ok_or_else(|| {
+                    errors::ConnectorError::MissingRequiredField {
+                        field_name: "billing.address.city",
+                    }
+                })?;
+
+                let country = address.country.ok_or_else(|| {
+                    errors::ConnectorError::MissingRequiredField {
+                        field_name: "billing.address.country",
+                    }
+                })?;
+
+                let postal_code = address.zip.clone().ok_or_else(|| {
+                    errors::ConnectorError::MissingRequiredField {
+                        field_name: "billing.address.postal_code",
+                    }
+                })?;
+
+                let state_province = address.state.clone().ok_or_else(|| {
+                    errors::ConnectorError::MissingRequiredField {
+                        field_name: "billing.address.state",
+                    }
+                })?;
+
+                let street_address = address.line1.clone().ok_or_else(|| {
+                    errors::ConnectorError::MissingRequiredField {
+                        field_name: "billing.address.line1",
+                    }
+                })?;
+
                 let billing_address = requests::BillingAddress {
-                    city: address.city.clone().unwrap_or_default(),
-                    country: address.country.unwrap_or_default(),
-                    postal_code: address.zip.clone().unwrap_or_default(),
-                    state_province: address.state.clone().unwrap_or_default(),
-                    street_address: address.line1.clone().unwrap_or_default(),
+                    city,
+                    country,
+                    postal_code,
+                    state_province,
+                    street_address,
                 };
 
                 // For manual capture, set status to "authorized"
