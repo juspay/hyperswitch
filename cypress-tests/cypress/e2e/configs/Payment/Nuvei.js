@@ -1,4 +1,4 @@
-import { customerAcceptance, cardRequiredField } from "./Commons";
+import { customerAcceptance } from "./Commons";
 import { getCurrency } from "./Modifiers";
 
 const successfulNo3DSCardDetails = {
@@ -8,23 +8,6 @@ const successfulNo3DSCardDetails = {
   card_holder_name: "joseph Doe",
   card_cvc: "999",
 };
-
-// Mandate data for supported mandate flows
-const singleUseMandateData = {
-  customer_acceptance: customerAcceptance,
-  mandate_type: {
-    single_use: {
-      amount: 8000,
-      currency: "USD",
-      start_date: "2022-09-10T00:00:00Z",
-      end_date: "2023-09-10T00:00:00Z",
-      metadata: {
-        frequency: "1",
-      },
-    },
-  },
-};
-
 
 
 // Test card details based on Nuvei test cards (from Rust tests)
