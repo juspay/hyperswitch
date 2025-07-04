@@ -270,25 +270,10 @@ export const connectorDetails = {
         },
       },
     },
-    MITAutoCapture: getCustomExchange({
-      Response: {
-        status: 400,
-        body: {
-          error: {
-            type: "invalid_request",
-            message: "Non-ThreeDs is not supported by deutschebank",
-            code: "IR_39",
-          },
-        },
-      },
-      ResponseCustom: {
-        status: 200,
-        body: {
-          status: "processing",
-        },
-      },
-    }),
     ZeroAuthPaymentIntent: {
+      Configs: {
+        TRIGGER_SKIP: true,
+      },
       Request: {
         amount: 0,
         setup_future_usage: "off_session",
@@ -299,19 +284,6 @@ export const connectorDetails = {
         body: {
           status: "requires_payment_method",
           setup_future_usage: "off_session",
-        },
-      },
-    },
-    ZeroAuthConfirmPayment: {
-      Response: {
-        status: 422,
-        body: {
-          error: {
-            type: "invalid_request",
-            message:
-              "A payment token or payment method data or ctp service details is required",
-            code: "IR_06",
-          },
         },
       },
     },

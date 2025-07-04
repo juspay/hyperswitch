@@ -420,19 +420,6 @@ export const connectorDetails = {
         },
       },
     },
-    MITAutoCapture: {
-      Response: {
-        status: 400,
-        body: {
-          error: {
-            type: "invalid_request",
-            message:
-              "A payment token or payment method data or ctp service details is required",
-            code: "IR_06",
-          },
-        },
-      },
-    },
     MandateSingleUseNo3DSManualCapture: {
       Configs: {
         TRIGGER_SKIP: true,
