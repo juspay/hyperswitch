@@ -24,6 +24,7 @@ mod bluesnap;
 mod boku;
 mod cashtocode;
 mod chargebee;
+mod checkbook;
 mod checkout;
 mod coinbase;
 mod cryptopay;
@@ -73,6 +74,7 @@ mod opennode;
 mod paybox;
 #[cfg(feature = "dummy_connector")]
 mod payeezy;
+mod payload;
 mod payme;
 mod payone;
 mod paypal;

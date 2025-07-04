@@ -75,6 +75,7 @@ pub enum RoutableConnectors {
     Braintree,
     Cashtocode,
     Chargebee,
+    // Checkbook,
     Checkout,
     Coinbase,
     Coingate,
@@ -120,6 +121,7 @@ pub enum RoutableConnectors {
     // Payeezy, As psync and rsync are not supported by this connector, it is added as template code for future usage
     Paybox,
     Payme,
+    // Payload,
     Payone,
     Paypal,
     Paystack,
@@ -231,6 +233,7 @@ pub enum Connector {
     Braintree,
     Cashtocode,
     Chargebee,
+    // Checkbook,
     Checkout,
     Coinbase,
     Coingate,
@@ -281,6 +284,7 @@ pub enum Connector {
     Opennode,
     Paybox,
     // Payeezy, As psync and rsync are not supported by this connector, it is added as template code for future usage
+    // Payload,
     Payme,
     Payone,
     Paypal,
@@ -414,6 +418,7 @@ impl Connector {
             | Self::Braintree
             | Self::Cashtocode
             | Self::Chargebee
+            // | Self::Checkbook
             | Self::Coinbase
             | Self::Coingate
             | Self::Cryptopay
@@ -454,6 +459,7 @@ impl Connector {
             | Self::Nuvei
             | Self::Opennode
             | Self::Paybox
+            // | Self::Payload
             | Self::Payme
             | Self::Payone
             | Self::Paypal
@@ -575,6 +581,7 @@ impl From<RoutableConnectors> for Connector {
             RoutableConnectors::Braintree => Self::Braintree,
             RoutableConnectors::Cashtocode => Self::Cashtocode,
             RoutableConnectors::Chargebee => Self::Chargebee,
+            // RoutableConnectors::Checkbook => Self::Checkbook,
             RoutableConnectors::Checkout => Self::Checkout,
             RoutableConnectors::Coinbase => Self::Coinbase,
             RoutableConnectors::Cryptopay => Self::Cryptopay,
@@ -614,6 +621,7 @@ impl From<RoutableConnectors> for Connector {
             RoutableConnectors::Nuvei => Self::Nuvei,
             RoutableConnectors::Opennode => Self::Opennode,
             RoutableConnectors::Paybox => Self::Paybox,
+            // RoutableConnectors::Paybox => Self::Payload,
             RoutableConnectors::Payme => Self::Payme,
             RoutableConnectors::Payone => Self::Payone,
             RoutableConnectors::Paypal => Self::Paypal,
@@ -694,6 +702,7 @@ impl TryFrom<Connector> for RoutableConnectors {
             Connector::Braintree => Ok(Self::Braintree),
             Connector::Cashtocode => Ok(Self::Cashtocode),
             Connector::Chargebee => Ok(Self::Chargebee),
+            // Connector::Checkbook => Ok(Self::Checkbook),
             Connector::Checkout => Ok(Self::Checkout),
             Connector::Coinbase => Ok(Self::Coinbase),
             Connector::Coingate => Ok(Self::Coingate),
@@ -733,6 +742,7 @@ impl TryFrom<Connector> for RoutableConnectors {
             Connector::Nuvei => Ok(Self::Nuvei),
             Connector::Opennode => Ok(Self::Opennode),
             Connector::Paybox => Ok(Self::Paybox),
+            // Connector::Paybox => Ok(Self::Payload),
             Connector::Payme => Ok(Self::Payme),
             Connector::Payone => Ok(Self::Payone),
             Connector::Paypal => Ok(Self::Paypal),
