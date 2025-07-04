@@ -8,14 +8,14 @@ use hyperswitch_domain_models::{
         PaymentsAuthorizeData, PaymentsCancelData, PaymentsCaptureData, PaymentsSyncData,
         ResponseId,
     },
-    router_response_types::{PaymentsResponseData, RefundsResponseData},
+    router_response_types::{PaymentsResponseData, RefundsResponseData, MandateReference},
     types::{
         PaymentsAuthorizeRouterData, PaymentsCancelRouterData, PaymentsCaptureRouterData,
         RefundsRouterData,
     },
 };
 use hyperswitch_interfaces::{consts, errors};
-use masking::Secret;
+use masking::{Secret, PeekInterface, ExposeInterface};
 use serde::{Deserialize, Serialize};
 
 use crate::{
@@ -172,13 +172,17 @@ pub struct Authorization {
     pub id: String,
     #[serde(rename = "@reportGroup")]
     pub report_group: String,
-    #[serde(rename = "@customerId")]
+    #[serde(rename = "@customerId", skip_serializing_if = "Option::is_none")]
     pub customer_id: Option<String>,
     pub order_id: String,
     pub amount: MinorUnit,
     pub order_source: OrderSource,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub bill_to_address: Option<BillToAddressData>,
-    pub card: WorldpayvantivCardData,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub card: Option<WorldpayvantivCardData>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub token: Option<TokenizationData>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub processing_type: Option<VantivProcessingType>,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -192,14 +196,17 @@ pub struct Sale {
     pub id: String,
     #[serde(rename = "@reportGroup")]
     pub report_group: String,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    #[serde(rename = "@customerId")]
+    #[serde(rename = "@customerId", skip_serializing_if = "Option::is_none")]
     pub customer_id: Option<String>,
     pub order_id: String,
     pub amount: MinorUnit,
     pub order_source: OrderSource,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub bill_to_address: Option<BillToAddressData>,
-    pub card: WorldpayvantivCardData,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub card: Option<WorldpayvantivCardData>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub token: Option<TokenizationData>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub processing_type: Option<VantivProcessingType>,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -213,8 +220,7 @@ pub struct RefundRequest {
     pub report_group: String,
     #[serde(rename = "@id")]
     pub id: String,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    #[serde(rename = "@customerId")]
+    #[serde(rename = "@customerId", skip_serializing_if = "Option::is_none")]
     pub customer_id: Option<String>,
     pub cnp_txn_id: String,
     pub amount: MinorUnit,
@@ -224,6 +230,20 @@ pub struct RefundRequest {
 #[serde(rename_all = "lowercase")]
 pub enum OrderSource {
     Ecommerce,
+}
+
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct TokenizationData {
+    cnp_token: Secret<String>,
+    exp_date: Secret<String>,
+}
+
+#[derive(Debug)]
+struct VantivMandateDetail {
+    processing_type: Option<VantivProcessingType>,
+    network_transaction_id: Option<Secret<String>>,
+    token: Option<TokenizationData>,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -430,9 +450,8 @@ impl TryFrom<&WorldpayvantivRouterData<&PaymentsAuthorizeRouterData>> for CnpOnl
             })?
         };
 
-        let card = WorldpayvantivCardData::try_from(
-            &item.router_data.request.payment_method_data.clone(),
-        )?;
+        let card = get_vantiv_card_data(&item.router_data.request.payment_method_data.clone())?;
+
         let report_group = item
             .router_data
             .request
@@ -453,7 +472,6 @@ impl TryFrom<&WorldpayvantivRouterData<&PaymentsAuthorizeRouterData>> for CnpOnl
             user: worldpayvantiv_auth_type.user,
             password: worldpayvantiv_auth_type.password,
         };
-
         let api_call_id =
             if item.router_data.attempt_id.len() < worldpayvantiv_constants::MAX_ID_LENGTH {
                 item.router_data.attempt_id.clone()
@@ -467,9 +485,7 @@ impl TryFrom<&WorldpayvantivRouterData<&PaymentsAuthorizeRouterData>> for CnpOnl
             .clone()
             .map(|customer_id| customer_id.get_string_repr().to_string());
         let bill_to_address = get_bill_to_address(item.router_data);
-
-        let (processing_type, original_network_transaction_id) =
-            get_processing_info(&item.router_data.request);
+        let processing_info = get_processing_info(&item.router_data.request)?;
 
         let (authorization, sale) = if item.router_data.request.is_auto_capture()? {
             (
@@ -483,8 +499,9 @@ impl TryFrom<&WorldpayvantivRouterData<&PaymentsAuthorizeRouterData>> for CnpOnl
                     order_source: OrderSource::Ecommerce,
                     bill_to_address,
                     card: card.clone(),
-                    processing_type,
-                    original_network_transaction_id,
+                    token: processing_info.token,
+                    processing_type: processing_info.processing_type,
+                    original_network_transaction_id: processing_info.network_transaction_id,
                 }),
             )
         } else {
@@ -498,8 +515,9 @@ impl TryFrom<&WorldpayvantivRouterData<&PaymentsAuthorizeRouterData>> for CnpOnl
                     order_source: OrderSource::Ecommerce,
                     bill_to_address,
                     card: card.clone(),
-                    processing_type,
-                    original_network_transaction_id,
+                    token: processing_info.token,
+                    processing_type: processing_info.processing_type,
+                    original_network_transaction_id: processing_info.network_transaction_id,
                 }),
                 None,
             )
@@ -521,17 +539,51 @@ impl TryFrom<&WorldpayvantivRouterData<&PaymentsAuthorizeRouterData>> for CnpOnl
 
 fn get_processing_info(
     request: &PaymentsAuthorizeData,
-) -> (Option<VantivProcessingType>, Option<Secret<String>>) {
-    match (
-        request.is_customer_initiated_mandate_payment(),
-        request.get_optional_network_transaction_id(),
-    ) {
-        (true, _) => (Some(VantivProcessingType::InitialCOF), None),
-        (false, Some(network_transaction_id)) => (
-            Some(VantivProcessingType::MerchantInitiatedCOF),
-            Some(Secret::new(network_transaction_id.to_string())),
-        ),
-        _ => (None, None),
+) -> Result<VantivMandateDetail, error_stack::Report<errors::ConnectorError>> {
+    if request.is_customer_initiated_mandate_payment() {
+        Ok(VantivMandateDetail {
+            processing_type: Some(VantivProcessingType::InitialCOF),
+            network_transaction_id: None,
+            token: None,
+        })
+    } else {
+        match request
+            .mandate_id
+            .as_ref()
+            .and_then(|mandate| mandate.mandate_reference_id.clone())
+        {
+            Some(api_models::payments::MandateReferenceId::NetworkMandateId(
+                network_transaction_id,
+            )) => Ok(VantivMandateDetail {
+                processing_type: Some(VantivProcessingType::MerchantInitiatedCOF),
+                network_transaction_id: Some(network_transaction_id.into()),
+                token: None,
+            }),
+            Some(api_models::payments::MandateReferenceId::ConnectorMandateId(mandate_data)) => {
+                let card_mandate_data = request.get_card_mandate_info()?;
+                Ok(VantivMandateDetail {
+                    processing_type: None,
+                    network_transaction_id: None,
+                    token: Some(TokenizationData {
+                        cnp_token: mandate_data
+                            .get_connector_mandate_id()
+                            .ok_or(errors::ConnectorError::MissingConnectorMandateID)?
+                            .into(),
+                        exp_date: format!(
+                            "{}{}",
+                            card_mandate_data.card_exp_month.peek(),
+                            card_mandate_data.card_exp_year.peek()
+                        )
+                        .into(),
+                    }),
+                })
+            }
+            _ => Ok(VantivMandateDetail {
+                processing_type: None,
+                network_transaction_id: None,
+                token: None,
+            }),
+        }
     }
 }
 
@@ -697,8 +749,7 @@ pub struct CaptureResponse {
     pub id: String,
     #[serde(rename = "@reportGroup")]
     pub report_group: String,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    #[serde(rename = "@customerId")]
+    #[serde(rename = "@customerId", skip_serializing_if = "Option::is_none")]
     pub customer_id: Option<String>,
     #[serde(rename = "cnpTxnId")]
     pub cnp_txn_id: String,
@@ -722,8 +773,7 @@ pub struct PaymentResponse {
     pub id: String,
     #[serde(rename = "@reportGroup")]
     pub report_group: String,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    #[serde(rename = "@customerId")]
+    #[serde(rename = "@customerId", skip_serializing_if = "Option::is_none")]
     pub customer_id: Option<String>,
     pub cnp_txn_id: String,
     pub order_id: String,
@@ -732,7 +782,19 @@ pub struct PaymentResponse {
     pub response_time: String,
     pub auth_code: Option<Secret<String>>,
     pub fraud_result: Option<FraudResult>,
+    pub token_response: Option<TokenResponse>,
     pub network_transaction_id: Option<Secret<String>>,
+}
+
+#[derive(Debug, Clone,Serialize, Deserialize, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub struct TokenResponse {
+    pub cnp_token: Secret<String>,
+    pub token_response_code: WorldpayvantivResponseCode,
+    pub token_message: String,
+    #[serde(rename = "type")]
+    pub card_type: Option<String>,
+    pub bin: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -742,8 +804,7 @@ pub struct AuthReversalResponse {
     pub id: String,
     #[serde(rename = "@reportGroup")]
     pub report_group: String,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    #[serde(rename = "@customerId")]
+    #[serde(rename = "@customerId", skip_serializing_if = "Option::is_none")]
     pub customer_id: Option<String>,
     pub cnp_txn_id: String,
     pub response: WorldpayvantivResponseCode,
@@ -760,7 +821,7 @@ pub struct CreditResponse {
     pub id: String,
     #[serde(rename = "@reportGroup")]
     pub report_group: String,
-    #[serde(rename = "@customerId")]
+    #[serde(rename = "@customerId", skip_serializing_if = "Option::is_none")]
     pub customer_id: Option<String>,
     pub cnp_txn_id: String,
     pub response: WorldpayvantivResponseCode,
@@ -1028,12 +1089,14 @@ impl<F>
                     let connector_metadata =   Some(report_group.encode_to_value()
                     .change_context(errors::ConnectorError::ResponseHandlingFailed)?);
 
+                let mandate_reference_data = sale_response.token_response.map(|token_data|  MandateReference::from(token_data));
+
                     Ok(Self {
                         status,
                         response: Ok(PaymentsResponseData::TransactionResponse {
                             resource_id: ResponseId::ConnectorTransactionId(sale_response.cnp_txn_id),
                             redirection_data: Box::new(None),
-                            mandate_reference: Box::new(None),
+                            mandate_reference: Box::new(mandate_reference_data),
                             connector_metadata,
                             network_txn_id: None,
                             connector_response_reference_id: Some(sale_response.order_id),
@@ -1069,12 +1132,14 @@ impl<F>
                     let connector_metadata =   Some(report_group.encode_to_value()
                     .change_context(errors::ConnectorError::ResponseHandlingFailed)?);
 
+                    let mandate_reference_data = auth_response.token_response.map(|token_data|  MandateReference::from(token_data));
+
                     Ok(Self {
                         status,
                         response: Ok(PaymentsResponseData::TransactionResponse {
                             resource_id: ResponseId::ConnectorTransactionId(auth_response.cnp_txn_id),
                             redirection_data: Box::new(None),
-                            mandate_reference: Box::new(None),
+                            mandate_reference: Box::new(mandate_reference_data),
                             connector_metadata,
                             network_txn_id: None,
                             connector_response_reference_id: Some(auth_response.order_id),
@@ -1105,6 +1170,20 @@ impl<F>
              ))?
             },
     }
+    }
+}
+
+
+impl From<TokenResponse> for MandateReference {
+    fn from(
+        token_data: TokenResponse
+    ) -> Self {
+        MandateReference {
+            connector_mandate_id: Some(token_data.cnp_token.expose()),
+            payment_method_id: None,
+            mandate_metadata: None,
+            connector_mandate_request_reference_id: None,
+        }
     }
 }
 
@@ -2802,4 +2881,43 @@ fn get_refund_status(
             ))
         }
             }
+}
+
+fn get_vantiv_card_data(
+    payment_method_data: &PaymentMethodData,
+) -> Result<Option<WorldpayvantivCardData>, error_stack::Report<errors::ConnectorError>> {
+    match payment_method_data {
+        PaymentMethodData::Card(card) => {
+            let card_type = match card.card_network.clone() {
+                Some(card_type) => WorldpayvativCardType::try_from(card_type)?,
+                None => WorldpayvativCardType::try_from(&card.get_card_issuer()?)?,
+            };
+
+            let exp_date = card.get_expiry_date_as_mmyy()?;
+
+            Ok(Some(WorldpayvantivCardData {
+                card_type,
+                number: card.card_number.clone(),
+                exp_date,
+                card_validation_num: Some(card.card_cvc.clone()),
+            }))
+        }
+        PaymentMethodData::CardDetailsForNetworkTransactionId(card_data) => {
+            let card_type = match card_data.card_network.clone() {
+                Some(card_type) => WorldpayvativCardType::try_from(card_type)?,
+                None => WorldpayvativCardType::try_from(&card_data.get_card_issuer()?)?,
+            };
+
+            let exp_date = card_data.get_expiry_date_as_mmyy()?;
+
+            Ok(Some(WorldpayvantivCardData {
+                card_type,
+                number: card_data.card_number.clone(),
+                exp_date,
+                card_validation_num: None,
+            }))
+        }
+        PaymentMethodData::MandatePayment => Ok(None),
+        _ => Err(errors::ConnectorError::NotImplemented("Payment method".to_string()).into()),
+    }
 }
