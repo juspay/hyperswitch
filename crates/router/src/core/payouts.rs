@@ -450,7 +450,7 @@ pub async fn payouts_update_core(
     // Verify update feasibility
     if helpers::is_payout_terminal_state(status) || helpers::is_payout_initiated(status) {
         return Err(report!(errors::ApiErrorResponse::InvalidRequestData {
-            message: format!("Payout {payout_id:?} cannot be updated for status {status}"),
+            message: format!("Payout {} cannot be updated for status {status}", payout_id.get_string_repr()),
         }));
     }
     helpers::update_payouts_and_payout_attempt(&mut payout_data, &merchant_context, &req, &state)
@@ -2697,7 +2697,7 @@ pub async fn payout_create_db_entries(
 
     let client_secret = utils::generate_id(
         consts::ID_LENGTH,
-        format!("payout_{payout_id:?}_secret").as_str(),
+        format!("payout_{}_secret", payout_id.get_string_repr()).as_str(),
     );
     let amount = MinorUnit::from(req.amount.unwrap_or(api::Amount::Zero));
     let status = if req.payout_method_data.is_some()
@@ -2911,7 +2911,7 @@ pub async fn make_payout_data(
             .map_err(|err| err.change_context(errors::ApiErrorResponse::InternalServerError))
             .attach_printable_lazy(|| {
                 format!(
-                    "Failed while fetching optional customer [id - {customer_id:?}] for payout [id - {payout_id:?}]"
+                    "Failed while fetching optional customer [id - {customer_id:?}] for payout [id - {}]", payout_id.get_string_repr()
                 )
             })
         })
@@ -3179,8 +3179,9 @@ pub async fn create_payout_link(
         .as_ref()
         .map_or(default_config.expiry, |expiry| *expiry);
     let url = format!(
-        "{base_url}/payout_link/{}/{payout_id:?}?locale={}",
+        "{base_url}/payout_link/{}/{}?locale={}",
         merchant_id.get_string_repr(),
+        payout_id.get_string_repr(),
         locale
     );
     let link = url::Url::parse(&url)
