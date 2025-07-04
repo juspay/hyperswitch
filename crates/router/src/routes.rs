@@ -47,6 +47,8 @@ pub mod profile_acquirer;
 pub mod profiles;
 #[cfg(feature = "recon")]
 pub mod recon;
+#[cfg(feature = "v2")]
+pub mod recovery_trainer;
 pub mod refunds;
 #[cfg(feature = "olap")]
 pub mod routing;
@@ -85,6 +87,8 @@ pub use self::app::Proxy;
 pub use self::app::Recon;
 #[cfg(feature = "v2")]
 pub use self::app::Tokenization;
+#[cfg(feature = "v2")]
+pub use self::app::Trainer;
 pub use self::app::{
     ApiKeys, AppState, ApplePayCertificatesMigration, Authentication, Cache, Cards, Configs,
     ConnectorOnboarding, Customers, Disputes, EphemeralKey, FeatureMatrix, Files, Forex, Gsm,

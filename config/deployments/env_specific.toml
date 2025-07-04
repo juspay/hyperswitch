@@ -353,6 +353,10 @@ host = "localhost" # Client Host
 port = 7000        # Client Port
 service = "dynamo" # Service name
 
+[grpc_client.trainer_client] # Revenue-recovery Client Configuration
+host = "127.0.0.1" # Client Host
+port = 50051       # Client Port
+
 [theme.storage]
 file_storage_backend = "aws_s3" # Theme storage backend to be used
 

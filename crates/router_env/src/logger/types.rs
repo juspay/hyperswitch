@@ -606,6 +606,10 @@ pub enum Flow {
     ProfileAcquirerUpdate,
     /// ThreeDs Decision Rule Execute flow
     ThreeDsDecisionRuleExecute,
+    //Recovery Trainer flow
+    TriggerTrainingJob,
+    //Recovery Trainer Job status flow
+    GetTrainingJobStatus,
     /// Incoming Network Token Webhook Receive
     IncomingNetworkTokenWebhookReceive,
 }

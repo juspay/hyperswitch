@@ -1958,6 +1958,13 @@ impl<'a> HeaderMapStruct<'a> {
             })
     }
 
+    #[cfg(all(feature = "v2", feature = "revenue_recovery"))]
+    pub fn get_merchant_id_from_header(
+        &self,
+    ) -> Result<&str, error_stack::Report<errors::ApiErrorResponse>> {
+        self.get_mandatory_header_value_by_key(headers::X_MERCHANT_ID)
+    }
+
     pub fn get_auth_string_from_header(&self) -> RouterResult<&str> {
         self.headers
             .get(headers::AUTHORIZATION)

@@ -46,6 +46,8 @@ use super::pm_auth;
 use super::poll;
 #[cfg(feature = "v2")]
 use super::proxy;
+#[cfg(feature = "v2")]
+use super::recovery_trainer;
 #[cfg(all(feature = "v2", feature = "revenue_recovery", feature = "oltp"))]
 use super::recovery_webhooks::*;
 #[cfg(all(feature = "oltp", feature = "v2"))]
@@ -724,6 +726,24 @@ impl Proxy {
         web::scope("/proxy")
             .app_data(web::Data::new(state))
             .service(web::resource("").route(web::post().to(proxy::proxy)))
+    }
+}
+
+#[cfg(feature = "v2")]
+pub struct Trainer;
+
+#[cfg(all(feature = "v2", feature = "revenue_recovery"))]
+impl Trainer {
+    pub fn server(state: AppState) -> Scope {
+        web::scope("/trainer")
+            .app_data(web::Data::new(state))
+            .service(
+                web::resource("").route(web::post().to(recovery_trainer::trigger_training_job)),
+            )
+            .service(
+                web::resource("/{job_id}")
+                    .route(web::get().to(recovery_trainer::get_the_training_job_status)),
+            )
     }
 }
 
