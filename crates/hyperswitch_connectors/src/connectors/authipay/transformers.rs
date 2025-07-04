@@ -16,7 +16,10 @@ use hyperswitch_interfaces::errors;
 use masking::Secret;
 use serde::{Deserialize, Serialize};
 
-use crate::types::{RefundsResponseRouterData, ResponseRouterData};
+use crate::{
+    types::{RefundsResponseRouterData, ResponseRouterData},
+    utils,
+};
 
 // Type definition for router data with amount
 pub struct AuthipayRouterData<T> {
@@ -93,6 +96,13 @@ impl TryFrom<&AuthipayRouterData<&PaymentsAuthorizeRouterData>> for AuthipayPaym
     fn try_from(
         item: &AuthipayRouterData<&PaymentsAuthorizeRouterData>,
     ) -> Result<Self, Self::Error> {
+        // Check if 3DS is being requested - Authipay doesn't support 3DS
+        if matches!(item.router_data.auth_type, enums::AuthenticationType::ThreeDs) {
+            return Err(errors::ConnectorError::NotImplemented(
+                utils::get_unimplemented_payment_method_error_message("authipay")
+            ).into());
+        }
+
         match item.router_data.request.payment_method_data.clone() {
             PaymentMethodData::Card(req_card) => {
                 let expiry_date = ExpiryDate {
@@ -138,7 +148,9 @@ impl TryFrom<&AuthipayRouterData<&PaymentsAuthorizeRouterData>> for AuthipayPaym
 
                 Ok(request)
             }
-            _ => Err(errors::ConnectorError::NotImplemented("Payment method".to_string()).into()),
+            _ => Err(errors::ConnectorError::NotImplemented(
+                utils::get_unimplemented_payment_method_error_message("authipay")
+            ).into()),
         }
     }
 }
@@ -279,11 +291,19 @@ impl AuthipayPaymentsResponse {
                 }
             }
             "VOID" => {
-                // Void transaction - use transaction_result
+                // Void transaction - use transaction_result, fallback to transaction_state
                 match self.transaction_result.as_deref() {
                     Some("APPROVED") => AuthipayTransactionStatus::Voided,
                     Some("DECLINED") | Some("FAILED") => AuthipayTransactionStatus::Failed,
-                    _ => AuthipayTransactionStatus::Processing,
+                    Some("PENDING") | Some("PROCESSING") => AuthipayTransactionStatus::Processing,
+                    _ => {
+                        // Fallback to transaction_state for void operations
+                        match self.transaction_state.as_deref() {
+                            Some("VOIDED") => AuthipayTransactionStatus::Voided,
+                            Some("FAILED") | Some("DECLINED") => AuthipayTransactionStatus::Failed,
+                            _ => AuthipayTransactionStatus::Voided, // Default assumption for void requests
+                        }
+                    }
                 }
             }
             _ => {
