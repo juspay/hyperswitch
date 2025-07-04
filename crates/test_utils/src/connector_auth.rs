@@ -29,6 +29,7 @@ pub struct ConnectorAuthentication {
     pub bluesnap: Option<BodyKey>,
     pub boku: Option<BodyKey>,
     pub cashtocode: Option<BodyKey>,
+    pub celero: Option<HeaderKey>,
     pub chargebee: Option<HeaderKey>,
     pub checkbook: Option<BodyKey>,
     pub checkout: Option<SignatureKey>,
