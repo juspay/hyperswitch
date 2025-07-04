@@ -86,7 +86,7 @@ impl Feature<api::UpdateMetadata, types::PaymentsUpdateMetadataData>
         connector_request: Option<services::Request>,
         _business_profile: &domain::Profile,
         _header_payload: hyperswitch_domain_models::payments::HeaderPayload,
-        all_keys_required: Option<bool>,
+        return_raw_connector_response: Option<bool>,
     ) -> RouterResult<Self> {
         let connector_integration: services::BoxedPaymentConnectorIntegrationInterface<
             api::UpdateMetadata,
@@ -100,7 +100,7 @@ impl Feature<api::UpdateMetadata, types::PaymentsUpdateMetadataData>
             &self,
             call_connector_action,
             connector_request,
-            all_keys_required,
+            return_raw_connector_response,
         )
         .await
         .to_payment_failed_response()?;

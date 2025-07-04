@@ -6260,3 +6260,25 @@ label="Merchant Name"
 placeholder="Enter the merchant name"
 required=true
 type="Text"
+
+[payload]
+[[payload.credit]]
+  payment_method_type = "AmericanExpress"
+[[payload.credit]]
+  payment_method_type = "Discover"
+[[payload.credit]]
+  payment_method_type = "Mastercard"
+[[payload.credit]]
+  payment_method_type = "Visa"
+[[payload.debit]]
+  payment_method_type = "AmericanExpress"
+[[payload.debit]]
+  payment_method_type = "Discover"
+[[payload.debit]]
+  payment_method_type = "Mastercard"
+[[payload.debit]]
+  payment_method_type = "Visa"
+[payload.connector_auth.HeaderKey]
+api_key="API Key"
+[payload.connector_webhook_details]
+merchant_secret="Source verification key"

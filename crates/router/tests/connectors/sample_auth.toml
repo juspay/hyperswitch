@@ -341,6 +341,10 @@ api_key = "MyApiKey"
 key1 = "Merchant id"
 api_secret = "Secret key"
 
+[checkbook]
+api_key="Client ID"
+key1 ="Client Secret"
+
 [santander]
 api_key="Client ID"
 key1 ="Client Secret"
@@ -348,3 +352,6 @@ key1 ="Client Secret"
 [dwolla]
 api_key="Client ID"
 key1="Client Secret"
+
+[payload]
+api_key="API Key"

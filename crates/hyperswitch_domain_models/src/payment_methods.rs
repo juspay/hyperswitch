@@ -967,8 +967,7 @@ impl TryFrom<(payment_methods::PaymentMethodRecord, id_type::MerchantId)>
                                         .map_err(|_| {
                                             error_stack::report!(ValidationError::InvalidValue {
                                                 message: format!(
-                                                    "Invalid merchant_connector_account_id: {}",
-                                                    merchant_connector_id
+                                                    "Invalid merchant_connector_account_id: {merchant_connector_id}"
                                                 ),
                                             })
                                         })
@@ -1124,8 +1123,7 @@ mod tests {
         let result_mca = MerchantConnectorAccountId::wrap("mca_kGz30G8B95MxRwmeQqy6".to_string());
         assert!(
             result_mca.is_ok(),
-            "Expected Ok, but got Err: {:?}",
-            result_mca
+            "Expected Ok, but got Err: {result_mca:?}",
         );
         let mca = result_mca.unwrap();
         assert!(payments.0.contains_key(&mca));
@@ -1167,8 +1165,7 @@ mod tests {
         let result_mca = MerchantConnectorAccountId::wrap("mca_DAHVXbXpbYSjnL7fQWEs".to_string());
         assert!(
             result_mca.is_ok(),
-            "Expected Ok, but got Err: {:?}",
-            result_mca
+            "Expected Ok, but got Err: {result_mca:?}",
         );
         let mca = result_mca.unwrap();
         assert!(payouts.0.contains_key(&mca));
