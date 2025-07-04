@@ -1945,7 +1945,6 @@ impl PaymentsAuthorizeRequestData for PaymentsAuthorizeData {
             .ok_or(errors::ConnectorError::RequestEncodingFailed)
     }
 
-
     fn get_card_mandate_info(&self) -> Result<CardMandateInfo, Error> {
         match &self.additional_payment_method_data {
             Some(payments::AdditionalPaymentData::Card(card_data)) => Ok(CardMandateInfo {

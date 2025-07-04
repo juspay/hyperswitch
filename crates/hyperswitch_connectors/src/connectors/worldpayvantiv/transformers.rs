@@ -8,14 +8,14 @@ use hyperswitch_domain_models::{
         PaymentsAuthorizeData, PaymentsCancelData, PaymentsCaptureData, PaymentsSyncData,
         ResponseId,
     },
-    router_response_types::{PaymentsResponseData, RefundsResponseData, MandateReference},
+    router_response_types::{MandateReference, PaymentsResponseData, RefundsResponseData},
     types::{
         PaymentsAuthorizeRouterData, PaymentsCancelRouterData, PaymentsCaptureRouterData,
         RefundsRouterData,
     },
 };
 use hyperswitch_interfaces::{consts, errors};
-use masking::{Secret, PeekInterface, ExposeInterface};
+use masking::{ExposeInterface, PeekInterface, Secret};
 use serde::{Deserialize, Serialize};
 
 use crate::{
@@ -786,7 +786,7 @@ pub struct PaymentResponse {
     pub network_transaction_id: Option<Secret<String>>,
 }
 
-#[derive(Debug, Clone,Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 #[serde(rename_all = "camelCase")]
 pub struct TokenResponse {
     pub cnp_token: Secret<String>,
@@ -1173,11 +1173,8 @@ impl<F>
     }
 }
 
-
 impl From<TokenResponse> for MandateReference {
-    fn from(
-        token_data: TokenResponse
-    ) -> Self {
+    fn from(token_data: TokenResponse) -> Self {
         MandateReference {
             connector_mandate_id: Some(token_data.cnp_token.expose()),
             payment_method_id: None,

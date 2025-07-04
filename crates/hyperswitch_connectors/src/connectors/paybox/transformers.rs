@@ -23,8 +23,8 @@ use serde::{de::DeserializeOwned, Deserialize, Serialize};
 
 use crate::{
     types::{RefundsResponseRouterData, ResponseRouterData},
-    utils::{CardMandateInfo,
-        self, AddressDetailsData, CardData as _, PaymentsAuthorizeRequestData,
+    utils::{
+        self, AddressDetailsData, CardData as _, CardMandateInfo, PaymentsAuthorizeRequestData,
         PaymentsCompleteAuthorizeRequestData, RouterData as _,
     },
 };
@@ -461,9 +461,7 @@ impl TryFrom<&PayboxRouterData<&types::PaymentsAuthorizeRouterData>> for PayboxP
                 }
             }
             PaymentMethodData::MandatePayment => {
-                let mandate_data = item.router_data
-                        .request
-                        .get_card_mandate_info()?;
+                let mandate_data = item.router_data.request.get_card_mandate_info()?;
                 Ok(Self::Mandate(MandatePaymentRequest::try_from((
                     item,
                     mandate_data,
