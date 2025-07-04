@@ -805,9 +805,7 @@ impl webhooks::IncomingWebhook for Stripebilling {
             stripebilling::StripebillingWebhookBody::get_webhook_object_from_body(request.body)
                 .change_context(errors::ConnectorError::WebhookReferenceIdNotFound)?;
         Ok(api_models::webhooks::ObjectReferenceId::PaymentId(
-            api_models::payments::PaymentIdType::ConnectorTransactionId(
-                webhook.data.object.charge,
-            ),
+            api_models::payments::PaymentIdType::ConnectorTransactionId(webhook.data.object.charge),
         ))
     }
 
