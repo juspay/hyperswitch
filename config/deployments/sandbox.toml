@@ -780,8 +780,8 @@ billing_connectors_which_requires_invoice_sync_call = "recurly"
 click_to_pay = {connector_list = "adyen, cybersource"}
 
 [record_back_control]
-skip_record_back_on_failed_invoice_connectors = ["stripebilling", "recurly"]
+billing_connectors_to_skip_record_back_on_failed_invoice = ["stripebilling", "recurly"]
 
 [revenue_recovery]
-monitoring_threshold_in_seconds = 2 
+monitoring_threshold_in_seconds = 2592000
 retry_algorithm_type = "cascading" 

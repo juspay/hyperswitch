@@ -926,7 +926,7 @@ pub struct UserAuthMethodSettings {
 
 #[derive(Debug, Deserialize, Clone, Default)]
 pub struct RecordBackControl {
-    pub skip_record_back_on_failed_invoice_connectors: Vec<String>,
+    pub billing_connectors_to_skip_record_back_on_failed_invoice: Vec<String>,
 }
 
 #[derive(Debug, Deserialize, Clone, Default)]
