@@ -8,7 +8,6 @@ const successfulNo3DSCardDetails = {
   card_holder_name: "joseph Doe",
   card_cvc: "999",
 };
-
 // Test card details based on Nuvei test cards (from Rust tests)
 const successfulThreeDSCardDetails = {
   card_number: "4000027891380961",
@@ -17,7 +16,6 @@ const successfulThreeDSCardDetails = {
   card_holder_name: "CL-BRW1",
   card_cvc: "123",
 };
-
 // Payment method data objects for responses
 const payment_method_data_no3ds = {
   card: {
