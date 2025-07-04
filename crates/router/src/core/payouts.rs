@@ -450,7 +450,10 @@ pub async fn payouts_update_core(
     // Verify update feasibility
     if helpers::is_payout_terminal_state(status) || helpers::is_payout_initiated(status) {
         return Err(report!(errors::ApiErrorResponse::InvalidRequestData {
-            message: format!("Payout {} cannot be updated for status {status}", payout_id.get_string_repr()),
+            message: format!(
+                "Payout {} cannot be updated for status {status}",
+                payout_id.get_string_repr()
+            ),
         }));
     }
     helpers::update_payouts_and_payout_attempt(&mut payout_data, &merchant_context, &req, &state)
