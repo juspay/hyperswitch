@@ -1,5 +1,4 @@
 import { customerAcceptance } from "./Commons";
-import { getCustomExchange } from "./Modifiers";
 
 const successful3DSCardDetails = {
   card_number: "4761739090000088",
