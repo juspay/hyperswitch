@@ -97,10 +97,14 @@ impl TryFrom<&AuthipayRouterData<&PaymentsAuthorizeRouterData>> for AuthipayPaym
         item: &AuthipayRouterData<&PaymentsAuthorizeRouterData>,
     ) -> Result<Self, Self::Error> {
         // Check if 3DS is being requested - Authipay doesn't support 3DS
-        if matches!(item.router_data.auth_type, enums::AuthenticationType::ThreeDs) {
+        if matches!(
+            item.router_data.auth_type,
+            enums::AuthenticationType::ThreeDs
+        ) {
             return Err(errors::ConnectorError::NotImplemented(
-                utils::get_unimplemented_payment_method_error_message("authipay")
-            ).into());
+                utils::get_unimplemented_payment_method_error_message("authipay"),
+            )
+            .into());
         }
 
         match item.router_data.request.payment_method_data.clone() {
@@ -149,8 +153,9 @@ impl TryFrom<&AuthipayRouterData<&PaymentsAuthorizeRouterData>> for AuthipayPaym
                 Ok(request)
             }
             _ => Err(errors::ConnectorError::NotImplemented(
-                utils::get_unimplemented_payment_method_error_message("authipay")
-            ).into()),
+                utils::get_unimplemented_payment_method_error_message("authipay"),
+            )
+            .into()),
         }
     }
 }
