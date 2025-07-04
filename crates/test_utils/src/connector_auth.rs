@@ -96,6 +96,7 @@ pub struct ConnectorAuthentication {
     pub redsys: Option<HeaderKey>,
     pub santander: Option<BodyKey>,
     pub shift4: Option<HeaderKey>,
+    pub silverflow: Option<BodyKey>,
     pub square: Option<BodyKey>,
     pub stax: Option<HeaderKey>,
     pub stripe: Option<HeaderKey>,
