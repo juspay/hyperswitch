@@ -69,6 +69,7 @@ pub struct Connectors {
     pub mifinity: ConnectorParams,
     pub mollie: ConnectorParams,
     pub moneris: ConnectorParams,
+    pub mpgs: ConnectorParams,
     pub multisafepay: ConnectorParams,
     pub netcetera: ConnectorParams,
     pub nexinets: ConnectorParams,

@@ -4913,3 +4913,7 @@ type="Text"
 api_key="API Key"
 [payload.connector_webhook_details]
 merchant_secret="Source verification key"
+
+[mpgs]
+[mpgs.connector_auth.HeaderKey]
+api_key = "API Key"
