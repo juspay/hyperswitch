@@ -36,7 +36,7 @@ pub struct PayloadCardsResponseData {
     pub customer_id: Option<String>,
     #[serde(rename = "id")]
     pub transaction_id: String,
-    pub payment_method_id: Option<String>,
+    pub payment_method_id: Option<Secret<String>>,
     pub processing_id: Option<String>,
     pub processing_method_id: Option<String>,
     pub ref_number: Option<String>,
@@ -52,7 +52,7 @@ pub struct PayloadCardResponse {
     pub card_brand: String,
     pub card_number: String, // Masked card number like "xxxxxxxxxxxx4242"
     pub card_type: String,
-    pub expiry: String,
+    pub expiry: Secret<String>,
 }
 
 // Type definition for Refund Response
@@ -73,7 +73,7 @@ pub struct RefundsLedger {
     #[serde(rename = "assoc_transaction_id")]
     pub associated_transaction_id: String, // Connector transaction id
     #[serde(rename = "id")]
-    pub ledger_id: String,
+    pub ledger_id: Secret<String>,
 }
 
 #[derive(Default, Debug, Clone, Serialize, Deserialize)]
@@ -82,7 +82,7 @@ pub struct PayloadRefundResponse {
     #[serde(rename = "id")]
     pub transaction_id: String,
     pub ledger: Vec<RefundsLedger>,
-    pub payment_method_id: Option<String>,
+    pub payment_method_id: Option<Secret<String>>,
     pub processing_id: Option<String>,
     pub ref_number: Option<String>,
     pub status: RefundStatus,
