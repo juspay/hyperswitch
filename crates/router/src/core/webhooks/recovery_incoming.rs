@@ -147,7 +147,8 @@ pub async fn recovery_incoming_webhook_flow(
         .await
         {
             router_env::logger::error!(
-                "Failed to publish revenue recovery event to kafka : {:?}", e
+                "Failed to publish revenue recovery event to kafka : {:?}",
+                e
             );
         };
     }
