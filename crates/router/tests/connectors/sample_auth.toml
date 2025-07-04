@@ -355,3 +355,6 @@ key1="Client Secret"
 
 [payload]
 api_key="API Key"
+
+[mpgs]
+api_key = "merchant.TESTMERCHANT:password:asia_pacific"

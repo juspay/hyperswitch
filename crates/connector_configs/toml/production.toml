@@ -4915,5 +4915,43 @@ api_key="API Key"
 merchant_secret="Source verification key"
 
 [mpgs]
+[[mpgs.credit]]
+  payment_method_type = "Mastercard"
+[[mpgs.credit]]
+  payment_method_type = "Visa"
+[[mpgs.credit]]
+  payment_method_type = "AmericanExpress"
+[[mpgs.credit]]
+  payment_method_type = "JCB"
+[[mpgs.credit]]
+  payment_method_type = "DinersClub"
+[[mpgs.credit]]
+  payment_method_type = "Discover"
+[[mpgs.credit]]
+  payment_method_type = "UnionPay"
+[[mpgs.debit]]
+  payment_method_type = "Mastercard"
+[[mpgs.debit]]
+  payment_method_type = "Visa"
+[[mpgs.debit]]
+  payment_method_type = "AmericanExpress"
+[[mpgs.debit]]
+  payment_method_type = "JCB"
+[[mpgs.debit]]
+  payment_method_type = "DinersClub"
+[[mpgs.debit]]
+  payment_method_type = "Discover"
+[[mpgs.debit]]
+  payment_method_type = "UnionPay"
 [mpgs.connector_auth.HeaderKey]
-api_key = "API Key"
+api_key = "API Password"
+key1 = "Merchant ID"
+[mpgs.connector_webhook_details]
+merchant_secret="Webhook notification secret"
+[mpgs.metadata.region]
+name="region"
+label="Region"
+placeholder="Enter your region"
+required=true
+type="Select"
+options=["asia_pacific"]

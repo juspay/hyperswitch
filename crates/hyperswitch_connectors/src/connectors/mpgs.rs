@@ -4,8 +4,9 @@ use std::sync::LazyLock;
 
 use common_enums::enums;
 use common_utils::{
+    consts,
     errors::CustomResult,
-    ext_traits::BytesExt,
+    ext_traits::{BytesExt, ByteSliceExt},
     request::{Method, Request, RequestBuilder, RequestContent},
     types::{AmountConvertor, StringMinorUnit, StringMinorUnitForConnector},
 };
@@ -42,7 +43,8 @@ use hyperswitch_interfaces::{
     types::{self, Response},
     webhooks,
 };
-use masking::{ExposeInterface, Mask};
+use base64::Engine;
+use masking::{ExposeInterface, Mask, Secret};
 use transformers as mpgs;
 
 use crate::{constants::headers, types::ResponseRouterData, utils};
@@ -104,10 +106,7 @@ impl ConnectorCommon for Mpgs {
     }
 
     fn get_currency_unit(&self) -> api::CurrencyUnit {
-        todo!()
-        //    TODO! Check connector documentation, on which unit they are processing the currency.
-        //    If the connector accepts amount in lower unit ( i.e cents for USD) then return api::CurrencyUnit::Minor,
-        //    if connector accepts amount in base unit (i.e dollars for USD) then return api::CurrencyUnit::Base
+        api::CurrencyUnit::Minor
     }
 
     fn common_get_content_type(&self) -> &'static str {
@@ -124,9 +123,11 @@ impl ConnectorCommon for Mpgs {
     ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
         let auth = mpgs::MpgsAuthType::try_from(auth_type)
             .change_context(errors::ConnectorError::FailedToObtainAuthType)?;
+        let auth_key = format!("merchant.{}:{}", auth.merchant_id.expose(), auth.api_key.expose());
+        let encoded_api_key = consts::BASE64_ENGINE.encode(auth_key);
         Ok(vec![(
             headers::AUTHORIZATION.to_string(),
-            auth.api_key.expose().into_masked(),
+            format!("Basic {}", encoded_api_key).into_masked(),
         )])
     }
 
@@ -145,14 +146,14 @@ impl ConnectorCommon for Mpgs {
 
         Ok(ErrorResponse {
             status_code: res.status_code,
-            code: response.code,
-            message: response.message,
-            reason: response.reason,
+            code: response.error.cause.clone(),
+            message: response.error.explanation.clone(),
+            reason: response.error.field.clone(),
             attempt_status: None,
             connector_transaction_id: None,
             network_advice_code: None,
             network_decline_code: None,
-            network_error_message: None,
+            network_error_message: response.error.validation_type,
         })
     }
 }
@@ -206,10 +207,18 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
 
     fn get_url(
         &self,
-        _req: &PaymentsAuthorizeRouterData,
-        _connectors: &Connectors,
+        req: &PaymentsAuthorizeRouterData,
+        connectors: &Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        Err(errors::ConnectorError::NotImplemented("get_url method".to_string()).into())
+        let auth = mpgs::MpgsAuthType::try_from(&req.connector_auth_type)?;
+        let base_url = self.base_url(connectors);
+        Ok(format!(
+            "{}/api/rest/version/73/merchant/{}/order/{}/transaction/{}",
+            base_url,
+            auth.merchant_id.expose(),
+            req.payment_id,
+            req.payment_id
+        ))
     }
 
     fn get_request_body(
@@ -293,10 +302,17 @@ impl ConnectorIntegration<PSync, PaymentsSyncData, PaymentsResponseData> for Mpg
 
     fn get_url(
         &self,
-        _req: &PaymentsSyncRouterData,
-        _connectors: &Connectors,
+        req: &PaymentsSyncRouterData,
+        connectors: &Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        Err(errors::ConnectorError::NotImplemented("get_url method".to_string()).into())
+        let auth = mpgs::MpgsAuthType::try_from(&req.connector_auth_type)?;
+        let base_url = self.base_url(connectors);
+        Ok(format!(
+            "{}/api/rest/version/73/merchant/{}/order/{}",
+            base_url,
+            auth.merchant_id.expose(),
+            req.payment_id
+        ))
     }
 
     fn build_request(
@@ -357,18 +373,35 @@ impl ConnectorIntegration<Capture, PaymentsCaptureData, PaymentsResponseData> fo
 
     fn get_url(
         &self,
-        _req: &PaymentsCaptureRouterData,
-        _connectors: &Connectors,
+        req: &PaymentsCaptureRouterData,
+        connectors: &Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        Err(errors::ConnectorError::NotImplemented("get_url method".to_string()).into())
+        let auth = mpgs::MpgsAuthType::try_from(&req.connector_auth_type)?;
+        let base_url = self.base_url(connectors);
+        let transaction_id = req.request.connector_transaction_id.clone();
+        Ok(format!(
+            "{}/api/rest/version/73/merchant/{}/order/{}/transaction/{}",
+            base_url,
+            auth.merchant_id.expose(),
+            req.payment_id,
+            transaction_id
+        ))
     }
 
     fn get_request_body(
         &self,
-        _req: &PaymentsCaptureRouterData,
+        req: &PaymentsCaptureRouterData,
         _connectors: &Connectors,
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
-        Err(errors::ConnectorError::NotImplemented("get_request_body method".to_string()).into())
+        let amount = utils::convert_amount(
+            self.amount_converter,
+            req.request.minor_amount_to_capture,
+            req.request.currency,
+        )?;
+
+        let connector_router_data = mpgs::MpgsRouterData::from((amount, req));
+        let connector_req = mpgs::MpgsCaptureRequest::try_from(&connector_router_data)?;
+        Ok(RequestContent::Json(Box::new(connector_req)))
     }
 
     fn build_request(
@@ -419,7 +452,115 @@ impl ConnectorIntegration<Capture, PaymentsCaptureData, PaymentsResponseData> fo
     }
 }
 
-impl ConnectorIntegration<Void, PaymentsCancelData, PaymentsResponseData> for Mpgs {}
+impl ConnectorIntegration<Void, PaymentsCancelData, PaymentsResponseData> for Mpgs {
+    fn get_headers(
+        &self,
+        req: &RouterData<Void, PaymentsCancelData, PaymentsResponseData>,
+        connectors: &Connectors,
+    ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
+        self.build_headers(req, connectors)
+    }
+
+    fn get_content_type(&self) -> &'static str {
+        self.common_get_content_type()
+    }
+
+    fn get_url(
+        &self,
+        req: &RouterData<Void, PaymentsCancelData, PaymentsResponseData>,
+        connectors: &Connectors,
+    ) -> CustomResult<String, errors::ConnectorError> {
+        let auth = mpgs::MpgsAuthType::try_from(&req.connector_auth_type)?;
+        let base_url = self.base_url(connectors);
+        let transaction_id = req.request.connector_transaction_id.clone();
+        Ok(format!(
+            "{}/api/rest/version/73/merchant/{}/order/{}/transaction/{}",
+            base_url,
+            auth.merchant_id.expose(),
+            req.payment_id,
+            transaction_id
+        ))
+    }
+
+    fn get_request_body(
+        &self,
+        req: &RouterData<Void, PaymentsCancelData, PaymentsResponseData>,
+        _connectors: &Connectors,
+    ) -> CustomResult<RequestContent, errors::ConnectorError> {
+        let connector_req = mpgs::MpgsPaymentsRequest {
+            api_operation: mpgs::MpgsApiOperation::Void,
+            order: mpgs::MpgsOrder {
+                amount: "0.00".to_string(),
+                currency: req.request.currency.unwrap_or_default().to_string(),
+            },
+            source_of_funds: mpgs::MpgsSourceOfFunds {
+                source_type: "CARD".to_string(),
+                provided: mpgs::MpgsProvidedData {
+                    card: mpgs::MpgsCard {
+                        number: cards::CardNumber::default(),
+                        expiry: mpgs::MpgsExpiry {
+                            month: Secret::new("".to_string()),
+                            year: Secret::new("".to_string()),
+                        },
+                        security_code: Secret::new("".to_string()),
+                    },
+                },
+            },
+            transaction: mpgs::MpgsTransaction {
+                source: "INTERNET".to_string(),
+                target_transaction_id: Some(req.request.connector_transaction_id.clone()),
+            },
+            customer: None,
+            disbursement_type: None,
+        };
+        Ok(RequestContent::Json(Box::new(connector_req)))
+    }
+
+    fn build_request(
+        &self,
+        req: &RouterData<Void, PaymentsCancelData, PaymentsResponseData>,
+        connectors: &Connectors,
+    ) -> CustomResult<Option<Request>, errors::ConnectorError> {
+        Ok(Some(
+            RequestBuilder::new()
+                .method(Method::Put)
+                .url(&types::PaymentsVoidType::get_url(self, req, connectors)?)
+                .attach_default_headers()
+                .headers(types::PaymentsVoidType::get_headers(self, req, connectors)?)
+                .set_body(types::PaymentsVoidType::get_request_body(
+                    self, req, connectors,
+                )?)
+                .build(),
+        ))
+    }
+
+    fn handle_response(
+        &self,
+        data: &RouterData<Void, PaymentsCancelData, PaymentsResponseData>,
+        event_builder: Option<&mut ConnectorEvent>,
+        res: Response,
+    ) -> CustomResult<RouterData<Void, PaymentsCancelData, PaymentsResponseData>, errors::ConnectorError> {
+        let response: mpgs::MpgsPaymentsResponse = res
+            .response
+            .parse_struct("Mpgs PaymentsVoidResponse")
+            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+        event_builder.map(|i| i.set_response_body(&response));
+        router_env::logger::info!(connector_response=?response);
+        RouterData::try_from(ResponseRouterData {
+            response,
+            data: data.clone(),
+            http_code: res.status_code,
+        })
+    }
+
+    fn get_error_response(
+        &self,
+        res: Response,
+        event_builder: Option<&mut ConnectorEvent>,
+    ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
+        self.build_error_response(res, event_builder)
+    }
+}
 
 impl ConnectorIntegration<Execute, RefundsData, RefundsResponseData> for Mpgs {
     fn get_headers(
@@ -436,10 +577,18 @@ impl ConnectorIntegration<Execute, RefundsData, RefundsResponseData> for Mpgs {
 
     fn get_url(
         &self,
-        _req: &RefundsRouterData<Execute>,
-        _connectors: &Connectors,
+        req: &RefundsRouterData<Execute>,
+        connectors: &Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        Err(errors::ConnectorError::NotImplemented("get_url method".to_string()).into())
+        let auth = mpgs::MpgsAuthType::try_from(&req.connector_auth_type)?;
+        let base_url = self.base_url(connectors);
+        Ok(format!(
+            "{}/api/rest/version/73/merchant/{}/order/{}/transaction/{}",
+            base_url,
+            auth.merchant_id.expose(),
+            req.attempt_id,
+            req.request.refund_id
+        ))
     }
 
     fn get_request_body(
@@ -483,7 +632,7 @@ impl ConnectorIntegration<Execute, RefundsData, RefundsResponseData> for Mpgs {
         event_builder: Option<&mut ConnectorEvent>,
         res: Response,
     ) -> CustomResult<RefundsRouterData<Execute>, errors::ConnectorError> {
-        let response: mpgs::RefundResponse = res
+        let response: mpgs::MpgsRefundResponse = res
             .response
             .parse_struct("mpgs RefundResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
@@ -520,10 +669,21 @@ impl ConnectorIntegration<RSync, RefundsData, RefundsResponseData> for Mpgs {
 
     fn get_url(
         &self,
-        _req: &RefundSyncRouterData,
-        _connectors: &Connectors,
+        req: &RefundSyncRouterData,
+        connectors: &Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        Err(errors::ConnectorError::NotImplemented("get_url method".to_string()).into())
+        let auth = mpgs::MpgsAuthType::try_from(&req.connector_auth_type)?;
+        let base_url = self.base_url(connectors);
+        Ok(format!(
+            "{}/api/rest/version/73/merchant/{}/order/{}/transaction/{}",
+            base_url,
+            auth.merchant_id.expose(),
+            req.attempt_id,
+            req.request
+                .connector_refund_id
+                .clone()
+                .unwrap_or_default()
+        ))
     }
 
     fn build_request(
@@ -550,7 +710,7 @@ impl ConnectorIntegration<RSync, RefundsData, RefundsResponseData> for Mpgs {
         event_builder: Option<&mut ConnectorEvent>,
         res: Response,
     ) -> CustomResult<RefundSyncRouterData, errors::ConnectorError> {
-        let response: mpgs::RefundResponse =
+        let response: mpgs::MpgsRefundResponse =
             res.response
                 .parse_struct("mpgs RefundSyncResponse")
                 .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
@@ -572,27 +732,46 @@ impl ConnectorIntegration<RSync, RefundsData, RefundsResponseData> for Mpgs {
     }
 }
 
+
+
 #[async_trait::async_trait]
 impl webhooks::IncomingWebhook for Mpgs {
     fn get_webhook_object_reference_id(
         &self,
-        _request: &webhooks::IncomingWebhookRequestDetails<'_>,
+        request: &webhooks::IncomingWebhookRequestDetails<'_>,
     ) -> CustomResult<api_models::webhooks::ObjectReferenceId, errors::ConnectorError> {
-        Err(report!(errors::ConnectorError::WebhooksNotImplemented))
+        let body: mpgs::MpgsWebhookBody = request
+            .body
+            .parse_struct("MpgsWebhookBody")
+            .change_context(errors::ConnectorError::WebhookReferenceIdNotFound)?;
+        Ok(api_models::webhooks::ObjectReferenceId::PaymentId(
+            api_models::payments::PaymentIdType::PaymentAttemptId(body.order.id),
+        ))
     }
 
     fn get_webhook_event_type(
         &self,
-        _request: &webhooks::IncomingWebhookRequestDetails<'_>,
+        request: &webhooks::IncomingWebhookRequestDetails<'_>,
     ) -> CustomResult<api_models::webhooks::IncomingWebhookEvent, errors::ConnectorError> {
-        Err(report!(errors::ConnectorError::WebhooksNotImplemented))
+        let event: mpgs::MpgsWebhookEvent = request
+            .body
+            .parse_struct("MpgsWebhookEvent")
+            .change_context(errors::ConnectorError::WebhookEventTypeNotFound)?;
+        match event.event_type.as_str() {
+            "order.status.updated" => Ok(api_models::webhooks::IncomingWebhookEvent::PaymentIntentSuccess),
+            _ => Err(report!(errors::ConnectorError::WebhookEventTypeNotFound)),
+        }
     }
 
     fn get_webhook_resource_object(
         &self,
-        _request: &webhooks::IncomingWebhookRequestDetails<'_>,
+        request: &webhooks::IncomingWebhookRequestDetails<'_>,
     ) -> CustomResult<Box<dyn masking::ErasedMaskSerialize>, errors::ConnectorError> {
-        Err(report!(errors::ConnectorError::WebhooksNotImplemented))
+        let body: mpgs::MpgsWebhookBody = request
+            .body
+            .parse_struct("MpgsWebhookBody")
+            .change_context(errors::ConnectorError::WebhookResourceObjectNotFound)?;
+        Ok(Box::new(body))
     }
 }
 

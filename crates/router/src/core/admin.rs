@@ -1598,6 +1598,10 @@ impl ConnectorAuthTypeAndMetadataValidation<'_> {
                 )?;
                 Ok(())
             }
+            api_enums::Connector::Mpgs => {
+                mpgs::transformers::MpgsAuthType::try_from(self.auth_type)?;
+                Ok(())
+            }
             api_enums::Connector::Mifinity => {
                 mifinity::transformers::MifinityAuthType::try_from(self.auth_type)?;
                 mifinity::transformers::MifinityConnectorMetadataObject::try_from(
