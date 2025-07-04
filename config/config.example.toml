@@ -1095,6 +1095,11 @@ billing_connectors_which_require_payment_sync = "stripebilling, recurly" # List 
 enabled = true                          # Enable or disable Open Router
 url = "http://localhost:8080"           # Open Router URL
 
+[grpc_client.unified_connector_service]
+host = "localhost"                      # Unified Connector Service Client Host
+port = 8000                             # Unified Connector Service Client Port
+connection_timeout = 10                 # Connection Timeout Duration in Seconds
+
 [billing_connectors_invoice_sync]
 billing_connectors_which_requires_invoice_sync_call = "recurly" # List of billing connectors which has invoice sync api call
 

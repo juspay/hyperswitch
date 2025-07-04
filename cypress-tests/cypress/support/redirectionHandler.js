@@ -874,12 +874,20 @@ function threeDsRedirection(redirectionUrl, expectedUrl, connectorId) {
             });
           break;
 
+        case "deutschebank":
+          cy.get('button[id="submit"]', { timeout: constants.TIMEOUT })
+            .should("exist")
+            .should("be.visible")
+            .click();
+          break;
+
         case "nexinets":
           cy.wait(constants.TIMEOUT / 10); // Wait for the page to load
           // Nexinets iDEAL specific selector - click the Success link
           cy.get("a.btn.btn-primary.btn-block").contains("Success").click();
 
           break;
+
         case "nmi":
         case "noon":
         case "xendit":
