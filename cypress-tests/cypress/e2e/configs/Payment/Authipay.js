@@ -28,7 +28,6 @@ const failedCardDetails = {
   card_cvc: "123",
 };
 
-
 // ===== MANDATE DATA =====
 
 const singleUseMandateData = {
@@ -40,7 +39,6 @@ const singleUseMandateData = {
     },
   },
 };
-
 
 const multiUseMandateData = {
   customer_acceptance: customerAcceptance,
@@ -209,7 +207,7 @@ export const connectorDetails = {
         customer_acceptance: null,
         setup_future_usage: null,
       },
-      //Response as successful payment due to Authipay's failed payment cards not getting declined on connector side 
+      //Response as successful payment due to Authipay's failed payment cards not getting declined on connector side
       Response: {
         status: 200,
         body: {
@@ -315,7 +313,6 @@ export const connectorDetails = {
       },
     },
 
-
     // Void payment failure (trying to void already captured payment)
     VoidPaymentFailure: {
       Request: {
@@ -380,7 +377,6 @@ export const connectorDetails = {
         },
       },
     },
-   
 
     // Payment sync
     SyncPayment: {
@@ -430,7 +426,6 @@ export const connectorDetails = {
         },
       },
     },
-
 
     // ===== DYNAMIC FIELDS PAYMENT INTENT SCENARIOS =====
 
@@ -545,9 +540,7 @@ export const connectorDetails = {
       },
       Response: {
         status: 400,
-        body: {
-         
-        },
+        body: {},
       },
     }),
 
@@ -726,7 +719,6 @@ export const connectorDetails = {
         },
       },
     }),
-
 
     MandateSingleUse3DSAutoCapture: getCustomExchange({
       Configs: {
