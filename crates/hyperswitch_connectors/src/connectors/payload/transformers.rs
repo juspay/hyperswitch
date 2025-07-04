@@ -1,5 +1,5 @@
 use common_enums::enums;
-use common_utils::types::StringMinorUnit;
+use common_utils::types::StringMajorUnit;
 use hyperswitch_domain_models::{
     payment_method_data::PaymentMethodData,
     router_data::{ConnectorAuthType, RouterData},
@@ -10,24 +10,22 @@ use hyperswitch_domain_models::{
 };
 use hyperswitch_interfaces::errors;
 use masking::Secret;
-use serde::{Deserialize, Serialize};
 
 use super::{requests, responses};
 
 use crate::{
     types::{RefundsResponseRouterData, ResponseRouterData},
-    utils::PaymentsAuthorizeRequestData,
+    utils::{CardData, RouterData as OtherRouterData},
 };
 
 //TODO: Fill the struct with respective fields
 pub struct PayloadRouterData<T> {
-    pub amount: StringMinorUnit, // The type of amount that a connector accepts, for example, String, i64, f64, etc.
+    pub amount: StringMajorUnit, // The type of amount that a connector accepts, for example, String, i64, f64, etc.
     pub router_data: T,
 }
 
-impl<T> From<(StringMinorUnit, T)> for PayloadRouterData<T> {
-    fn from((amount, item): (StringMinorUnit, T)) -> Self {
-        //Todo :  use utils to convert the amount to the type of amount that a connector accepts
+impl<T> From<(StringMajorUnit, T)> for PayloadRouterData<T> {
+    fn from((amount, item): (StringMajorUnit, T)) -> Self {
         Self {
             amount,
             router_data: item,
@@ -45,23 +43,36 @@ impl TryFrom<&PayloadRouterData<&PaymentsAuthorizeRouterData>>
         match item.router_data.request.payment_method_data.clone() {
             PaymentMethodData::Card(req_card) => {
                 let card = requests::PayloadCard {
-                    number: req_card.card_number,
-                    expiry_month: req_card.card_exp_month,
-                    expiry_year: req_card.card_exp_year,
+                    number: req_card.clone().card_number,
+                    expiry: req_card
+                        .clone()
+                        .get_card_expiry_month_year_2_digit_with_delimiter("/".to_owned())?,
                     cvc: req_card.card_cvc,
-                    complete: item.router_data.request.is_auto_capture()?,
                 };
-                Ok(Self {
-                    amount: item.amount.clone(),
-                    card,
-                })
+                let address = item.router_data.get_billing_address()?;
+                let billing_address = requests::BillingAddress {
+                    city: address.city.clone().unwrap_or_default(),
+                    country: address.country.clone().unwrap_or_default(),
+                    postal_code: address.zip.clone().unwrap_or_default(),
+                    state_province: address.state.clone().unwrap_or_default(),
+                    street_address: address.line1.clone().unwrap_or_default(),
+                };
+
+                Ok(Self::PayloadCardsRequest(
+                    requests::PayloadCardsRequestData {
+                        amount: item.amount.clone(),
+                        card,
+                        transaction_types: requests::TransactionTypes::Payment,
+                        payment_method_type: "card".to_string(),
+                        billing_address,
+                    },
+                ))
             }
             _ => Err(errors::ConnectorError::NotImplemented("Payment method".to_string()).into()),
         }
     }
 }
 
-//TODO: Fill the struct with respective fields
 // Auth Struct
 pub struct PayloadAuthType {
     pub(super) api_key: Secret<String>,
@@ -82,9 +93,12 @@ impl TryFrom<&ConnectorAuthType> for PayloadAuthType {
 impl From<responses::PayloadPaymentStatus> for common_enums::AttemptStatus {
     fn from(item: responses::PayloadPaymentStatus) -> Self {
         match item {
-            responses::PayloadPaymentStatus::Succeeded => Self::Charged,
-            responses::PayloadPaymentStatus::Failed => Self::Failure,
-            responses::PayloadPaymentStatus::Processing => Self::Authorizing,
+            responses::PayloadPaymentStatus::Processed => Self::Charged,
+            responses::PayloadPaymentStatus::Processing => Self::Pending,
+            responses::PayloadPaymentStatus::Rejected
+            | responses::PayloadPaymentStatus::Declined => Self::Failure,
+            responses::PayloadPaymentStatus::Authorized => Self::Authorized,
+            responses::PayloadPaymentStatus::Voided => Self::Voided,
         }
     }
 }
@@ -97,20 +111,27 @@ impl<F, T>
     fn try_from(
         item: ResponseRouterData<F, responses::PayloadPaymentsResponse, T, PaymentsResponseData>,
     ) -> Result<Self, Self::Error> {
-        Ok(Self {
-            status: common_enums::AttemptStatus::from(item.response.status),
-            response: Ok(PaymentsResponseData::TransactionResponse {
-                resource_id: ResponseId::ConnectorTransactionId(item.response.id),
-                redirection_data: Box::new(None),
-                mandate_reference: Box::new(None),
-                connector_metadata: None,
-                network_txn_id: None,
-                connector_response_reference_id: None,
-                incremental_authorization_allowed: None,
-                charges: None,
-            }),
-            ..item.data
-        })
+        match item.response.clone() {
+            responses::PayloadPaymentsResponse::PayloadCardsResponse(response) => {
+                let payment_status = response.status;
+                let transaction_id = response.transaction_id;
+
+                Ok(Self {
+                    status: common_enums::AttemptStatus::from(payment_status),
+                    response: Ok(PaymentsResponseData::TransactionResponse {
+                        resource_id: ResponseId::ConnectorTransactionId(transaction_id),
+                        redirection_data: Box::new(None),
+                        mandate_reference: Box::new(None),
+                        connector_metadata: None,
+                        network_txn_id: None,
+                        connector_response_reference_id: response.ref_number,
+                        incremental_authorization_allowed: None,
+                        charges: None,
+                    }),
+                    ..item.data
+                })
+            }
+        }
     }
 }
 

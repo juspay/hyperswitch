@@ -1,27 +1,63 @@
-use serde::{Deserialize, Serialize};
+use common_utils::types::StringMajorUnit;
 use masking::Secret;
-use common_utils::types::StringMinorUnit;
+use serde::{Deserialize, Serialize};
 
 // PaymentsResponse
-//TODO: Append the remaining status flags
-#[derive(Debug, Clone, Copy, Default, Serialize, Deserialize, PartialEq)]
+#[derive(Default, Debug, Clone, Copy, Serialize, Deserialize, PartialEq)]
 #[serde(rename_all = "lowercase")]
 pub enum PayloadPaymentStatus {
-    Succeeded,
-    Failed,
+    Authorized,
+    Declined,
+    Processed,
     #[default]
     Processing,
+    Rejected,
+    Voided,
 }
 
-//TODO: Fill the struct with respective fields
-#[derive(Default, Debug, Clone, Serialize, Deserialize, PartialEq)]
-pub struct PayloadPaymentsResponse {
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(untagged)]
+pub enum PayloadPaymentsResponse {
+    PayloadCardsResponse(PayloadCardsResponseData),
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[serde(rename_all = "snake_case")]
+pub enum AvsResponse {
+    Unknown,
+    NoMatch,
+    Zip,
+    Street,
+    StreetAndZip,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct PayloadCardsResponseData {
+    pub amount: f64,
+    pub avs: Option<AvsResponse>,
+    pub customer_id: Option<String>,
+    #[serde(rename = "id")]
+    pub transaction_id: String,
+    pub payment_method_id: Option<String>,
+    pub processing_id: Option<String>,
+    pub processing_method_id: Option<String>,
+    pub ref_number: Option<String>,
     pub status: PayloadPaymentStatus,
-    pub id: String,
+    pub status_code: Option<String>,
+    pub status_message: Option<String>,
+    #[serde(rename = "type")]
+    pub response_type: Option<String>,
+}
+
+#[derive(Default, Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct PayloadCardResponse {
+    pub card_brand: String,
+    pub card_number: String, // Masked card number like "xxxxxxxxxxxx4242"
+    pub card_type: String,
+    pub expiry: String,
 }
 
 // Type definition for Refund Response
-
 #[allow(dead_code)]
 #[derive(Debug, Copy, Serialize, Default, Deserialize, Clone)]
 pub enum RefundStatus {
@@ -41,11 +77,9 @@ pub struct RefundResponse {
 //TODO: Fill the struct with respective fields
 #[derive(Default, Debug, Serialize, Deserialize, PartialEq)]
 pub struct PayloadErrorResponse {
-    pub status_code: u16,
-    pub code: String,
-    pub message: String,
-    pub reason: Option<String>,
-    pub network_advice_code: Option<String>,
-    pub network_decline_code: Option<String>,
-    pub network_error_message: Option<String>,
+    pub error_type: String,
+    pub error_description: String,
+    pub object: String,
+    /// Payload returns arbitrary details in JSON format
+    pub details: Option<serde_json::Value>,
 }
