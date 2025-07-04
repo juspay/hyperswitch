@@ -1,8 +1,4 @@
-import {
-  customerAcceptance,
-  connectorDetails as commonConnectorDetails,
-} from "./Commons";
-import { getCustomExchange } from "./Modifiers";
+import { customerAcceptance } from "./Commons";
 
 const successfulNo3DSCardDetails = {
   card_number: "4242424242424242",
@@ -27,26 +23,6 @@ const failedNo3DSCardDetails = {
   card_exp_year: "25",
   card_holder_name: "John Doe",
   card_cvc: "123",
-};
-
-const singleUseMandateData = {
-  customer_acceptance: customerAcceptance,
-  mandate_type: {
-    single_use: {
-      amount: 8000,
-      currency: "USD",
-    },
-  },
-};
-
-const multiUseMandateData = {
-  customer_acceptance: customerAcceptance,
-  mandate_type: {
-    multi_use: {
-      amount: 8000,
-      currency: "USD",
-    },
-  },
 };
 
 export const connectorDetails = {
