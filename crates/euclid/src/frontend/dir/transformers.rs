@@ -8,6 +8,7 @@ impl IntoDirValue for (global_enums::PaymentMethodType, global_enums::PaymentMet
         match self.0 {
             global_enums::PaymentMethodType::Credit => Ok(dirval!(CardType = Credit)),
             global_enums::PaymentMethodType::Debit => Ok(dirval!(CardType = Debit)),
+            global_enums::PaymentMethodType::ProxyCard => Ok(dirval!(CardType = Proxy)),
             #[cfg(feature = "v2")]
             global_enums::PaymentMethodType::Card => Ok(dirval!(CardType = Card)),
             global_enums::PaymentMethodType::Giropay => Ok(dirval!(BankRedirectType = Giropay)),
@@ -44,6 +45,7 @@ impl IntoDirValue for (global_enums::PaymentMethodType, global_enums::PaymentMet
                 | global_enums::PaymentMethod::Voucher
                 | global_enums::PaymentMethod::OpenBanking
                 | global_enums::PaymentMethod::MobilePayment
+                | global_enums::PaymentMethod::ExternalProxyCardData
                 | global_enums::PaymentMethod::GiftCard => Err(AnalysisErrorType::NotSupported),
             },
             global_enums::PaymentMethodType::Bacs => match self.1 {
@@ -61,6 +63,7 @@ impl IntoDirValue for (global_enums::PaymentMethodType, global_enums::PaymentMet
                 | global_enums::PaymentMethod::Voucher
                 | global_enums::PaymentMethod::OpenBanking
                 | global_enums::PaymentMethod::MobilePayment
+                | global_enums::PaymentMethod::ExternalProxyCardData
                 | global_enums::PaymentMethod::GiftCard => Err(AnalysisErrorType::NotSupported),
             },
             global_enums::PaymentMethodType::Becs => Ok(dirval!(BankDebitType = Becs)),

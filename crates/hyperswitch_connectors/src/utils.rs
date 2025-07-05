@@ -5699,6 +5699,7 @@ impl From<PaymentMethodData> for PaymentMethodDataType {
                     Self::DirectCarrierBilling
                 }
             },
+            PaymentMethodData::ExternalProxyCardData(_) => Self::Card,
         }
     }
 }

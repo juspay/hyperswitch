@@ -14,7 +14,7 @@ use hyperswitch_domain_models::{
     router_flow_types::{ExternalVaultDeleteFlow, ExternalVaultRetrieveFlow},
     types::VaultRouterData,
 };
-use masking::PeekInterface;
+use masking::{ExposeOptionInterface, PeekInterface};
 use router_env::{instrument, tracing};
 use scheduler::{types::process_data, utils as process_tracker_utils};
 
@@ -1525,6 +1525,87 @@ pub async fn retrieve_payment_method_from_vault_using_payment_token(
             .data;
 
     Ok((payment_method, vault_data))
+}
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct TemporaryVaultCvc {
+    card_cvc: masking::Secret<String>,
+}
+
+#[cfg(feature = "v2")]
+#[instrument(skip_all)]
+pub async fn insert_cvc_using_payment_token(
+    state: &routes::SessionState,
+    payment_token: &String,
+    payment_method_data: api_models::payment_methods::PaymentMethodCreateData,
+    payment_method: common_enums::PaymentMethod,
+    fullfillment_time: i64,
+) -> RouterResult<()> {
+    let card_cvc = domain::PaymentMethodVaultingData::from(payment_method_data)
+        .get_card()
+        .and_then(|card| card.card_cvc.clone());
+
+    if let Some(card_cvc) = card_cvc {
+        let redis_conn = state
+            .store
+            .get_redis_conn()
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Failed to get redis connection")?;
+
+        let key = format!(
+            "pm_token_{}_{}_hyperswitch_cvc",
+            payment_token, payment_method
+        );
+
+        redis_conn
+            .serialize_and_set_key_with_expiry(
+                &key.as_str().into(),
+                TemporaryVaultCvc { card_cvc },
+                fullfillment_time,
+            )
+            .await
+            .change_context(errors::StorageError::KVError)
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Failed to add token in redis")?;
+    };
+
+    Ok(())
+}
+
+#[cfg(feature = "v2")]
+#[instrument(skip_all)]
+pub async fn retrieve_cvc_from_payment_token(
+    state: &routes::SessionState,
+    payment_token: &String,
+    payment_method: common_enums::PaymentMethod,
+) -> RouterResult<masking::Secret<String>> {
+    let redis_conn = state
+        .store
+        .get_redis_conn()
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Failed to get redis connection")?;
+
+    let key = format!(
+        "pm_token_{}_{}_hyperswitch_cvc",
+        payment_token, payment_method
+    );
+
+    let cvc = redis_conn
+        .get_key::<Option<String>>(&key.into())
+        .await
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Failed to fetch the token from redis")?
+        .ok_or(error_stack::Report::new(
+            errors::ApiErrorResponse::UnprocessableEntity {
+                message: "Token is invalid or expired".to_owned(),
+            },
+        ))?;
+
+    let data: TemporaryVaultCvc = serde_json::from_str(&cvc)
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Failed to deserialize TemporaryVaultCvc")?;
+
+    Ok(data.card_cvc)
 }
 
 #[cfg(feature = "v2")]
