@@ -1,6 +1,4 @@
-import {
-  customerAcceptance
-} from "./Commons.js";
+import { customerAcceptance } from "./Commons.js";
 
 // Mollie test card details based on their test environment
 const successfulNo3DSCardDetails = {
@@ -278,7 +276,8 @@ export const connectorDetails = {
         body: {
           error: {
             type: "invalid_request",
-            message: "No eligible connector was found for the current payment method configuration",
+            message:
+              "No eligible connector was found for the current payment method configuration",
           },
         },
       },
@@ -302,7 +301,8 @@ export const connectorDetails = {
         body: {
           error: {
             type: "invalid_request",
-            message: "No eligible connector was found for the current payment method configuration",
+            message:
+              "No eligible connector was found for the current payment method configuration",
           },
         },
       },
@@ -460,7 +460,7 @@ export const connectorDetails = {
       Response: {
         status: 200,
         body: {
-          status:"requires_customer_action", // Mollie auto-captures by default
+          status: "requires_customer_action", // Mollie auto-captures by default
         },
       },
     },
@@ -490,7 +490,8 @@ export const connectorDetails = {
         body: {
           error: {
             type: "invalid_request",
-            message: "No eligible connector was found for the current payment method configuration",
+            message:
+              "No eligible connector was found for the current payment method configuration",
           },
         },
       },
@@ -583,7 +584,8 @@ export const connectorDetails = {
         body: {
           error: {
             type: "invalid_request",
-            message: "No eligible connector was found for the current payment method configuration",
+            message:
+              "No eligible connector was found for the current payment method configuration",
           },
         },
       },
@@ -860,7 +862,8 @@ export const connectorDetails = {
         body: {
           error: {
             type: "invalid_request",
-            message: "A payment token or payment method data or ctp service details is required",
+            message:
+              "A payment token or payment method data or ctp service details is required",
           },
         },
       },
@@ -970,12 +973,12 @@ export const connectorDetails = {
         body: {
           error: {
             type: "invalid_request",
-            message: "No eligible connector was found for the current payment method configuration",
+            message:
+              "No eligible connector was found for the current payment method configuration",
           },
         },
       },
     },
-
   },
 
   bank_redirect_pm: {
@@ -997,7 +1000,7 @@ export const connectorDetails = {
           },
         };
       }
-      
+
       // For other payment methods, return the standard PaymentIntent configuration
       return {
         Request: {
@@ -1182,5 +1185,5 @@ export const connectorDetails = {
         },
       },
     },
-  }
+  },
 };
