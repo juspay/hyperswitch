@@ -20,6 +20,11 @@ pub struct GetThemeResponse {
     pub theme_data: ThemeData,
 }
 
+#[derive(Debug, Serialize)]
+pub struct ListThemesResponse {
+    pub themes: Vec<GetThemeResponse>,
+}
+
 #[derive(Debug, MultipartForm)]
 pub struct UploadFileAssetData {
     pub asset_name: Text<String>,
@@ -136,4 +141,10 @@ struct Spacing {
 struct Urls {
     favicon_url: Option<String>,
     logo_url: Option<String>,
+}
+
+#[derive(Serialize, Deserialize, Debug)]
+#[serde(rename_all = "snake_case")]
+pub struct EntityTypeQueryParam {
+    pub entity_type: EntityType,
 }
