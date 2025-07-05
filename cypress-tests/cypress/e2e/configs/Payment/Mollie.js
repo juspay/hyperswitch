@@ -1,6 +1,5 @@
 import {
-  customerAcceptance,
-  cardRequiredField,
+  customerAcceptance
 } from "./Commons.js";
 
 // Mollie test card details based on their test environment
