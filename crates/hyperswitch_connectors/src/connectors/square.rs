@@ -923,6 +923,7 @@ lazy_static! {
         description:
             "Square is the largest business technology platform serving all kinds of businesses.",
         connector_type: enums::PaymentConnectorCategory::PaymentGateway,
+        integration_status: enums::ConnectorIntegrationStatus::Alpha,
     };
     static ref SQUARE_SUPPORTED_PAYMENT_METHODS: SupportedPaymentMethods = {
         let supported_capture_methods = vec![
