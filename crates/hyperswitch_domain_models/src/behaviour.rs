@@ -11,6 +11,11 @@ pub trait Conversion {
     type NewDstType;
     async fn convert(self) -> CustomResult<Self::DstType, ValidationError>;
 
+    fn validate(
+        item: Self::DstType,
+        key_manager_identifier: Identifier,
+    ) -> CustomResult<(), ValidationError>;
+
     async fn convert_back(
         state: &KeyManagerState,
         item: Self::DstType,
@@ -34,13 +39,14 @@ pub trait ReverseConversion<SrcType: Conversion> {
 }
 
 #[async_trait::async_trait]
-impl<T: Send, U: Conversion<DstType = T>> ReverseConversion<U> for T {
+impl<T: Send + Clone, U: Conversion<DstType = T>> ReverseConversion<U> for T {
     async fn convert(
         self,
         state: &KeyManagerState,
         key: &Secret<Vec<u8>>,
         key_manager_identifier: Identifier,
     ) -> CustomResult<U, ValidationError> {
+        U::validate(self.clone(), key_manager_identifier.clone())?;
         U::convert_back(state, self, key, key_manager_identifier).await
     }
 }

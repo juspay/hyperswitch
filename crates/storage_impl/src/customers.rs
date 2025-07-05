@@ -814,7 +814,7 @@ impl domain::CustomerInterface for MockDb {
                             key_store.merchant_id.clone().into(),
                         )
                         .await
-                        .change_context(StorageError::DecryptionError)
+                        .map_err(|error| error_stack::report!(StorageError::from(error)))
                 }),
         )
         .await?;
@@ -887,7 +887,7 @@ impl domain::CustomerInterface for MockDb {
                 key_store.merchant_id.clone().into(),
             )
             .await
-            .change_context(StorageError::DecryptionError)
+            .map_err(|error| error_stack::report!(StorageError::from(error)))
     }
 
     #[cfg(feature = "v1")]
