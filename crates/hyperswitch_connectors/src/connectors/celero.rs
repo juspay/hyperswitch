@@ -98,7 +98,6 @@ impl ConnectorCommon for Celero {
     }
 
     fn get_currency_unit(&self) -> api::CurrencyUnit {
-        // CeleroCommerce accepts amounts in minor units (cents)
         api::CurrencyUnit::Minor
     }
 
@@ -116,7 +115,6 @@ impl ConnectorCommon for Celero {
     ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
         let auth = celero::CeleroAuthType::try_from(auth_type)
             .change_context(errors::ConnectorError::FailedToObtainAuthType)?;
-        // CeleroCommerce uses "api_" prefix format for authorization
         Ok(vec![(
             headers::AUTHORIZATION.to_string(),
             format!("{}", auth.api_key.expose()).into_masked(),

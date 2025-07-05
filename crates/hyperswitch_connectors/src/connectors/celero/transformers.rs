@@ -19,7 +19,7 @@ use hyperswitch_domain_models::{
     },
 };
 use hyperswitch_interfaces::{consts, errors};
-use masking::{ExposeInterface as _, PeekInterface, Secret};
+use masking::{PeekInterface, Secret};
 use serde::{Deserialize, Serialize};
 
 use crate::{
