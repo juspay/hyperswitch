@@ -1271,8 +1271,6 @@ fn get_refund_status_for_rsync(
     }
 }
 
-
-
 #[derive(Debug, strum::Display, Serialize, Deserialize, PartialEq, Clone, Copy)]
 pub enum WorldpayvantivResponseCode {
     #[serde(rename = "001")]
