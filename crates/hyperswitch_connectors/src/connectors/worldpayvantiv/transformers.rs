@@ -808,9 +808,7 @@ pub struct AuthReversalResponse {
     pub customer_id: Option<String>,
     pub cnp_txn_id: String,
     pub response: WorldpayvantivResponseCode,
-    pub response: WorldpayvantivResponseCode,
     pub response_time: String,
-    pub post_date: Option<String>,
     pub post_date: Option<String>,
     pub message: String,
     pub location: Option<String>,
@@ -1095,7 +1093,6 @@ impl<F>
 
                     Ok(Self {
                         status,
-                        status,
                         response: Ok(PaymentsResponseData::TransactionResponse {
                             resource_id: ResponseId::ConnectorTransactionId(sale_response.cnp_txn_id),
                             redirection_data: Box::new(None),
@@ -1139,13 +1136,11 @@ impl<F>
 
                     Ok(Self {
                         status,
-                        status,
                         response: Ok(PaymentsResponseData::TransactionResponse {
                             resource_id: ResponseId::ConnectorTransactionId(auth_response.cnp_txn_id),
                             redirection_data: Box::new(None),
                             mandate_reference: Box::new(mandate_reference_data),
                             connector_metadata,
-                            network_txn_id: None,
                             network_txn_id: None,
                             connector_response_reference_id: Some(auth_response.order_id),
                             incremental_authorization_allowed: None,
