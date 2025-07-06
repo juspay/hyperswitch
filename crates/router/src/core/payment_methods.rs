@@ -865,12 +865,15 @@ fn get_card_network_with_us_local_debit_network_override(
         .map(|network| network.is_us_local_network())
     {
         services::logger::debug!("Card network is a US local network, checking for global network in co-badged card data");
-        co_badged_card_data.and_then(|data| {
-            data.co_badged_card_networks
-                .iter()
-                .find(|network| network.is_global_network())
-                .cloned()
-        })
+        let info: Option<api_models::open_router::CoBadgedCardNetworksInfo> = co_badged_card_data
+            .and_then(|data| {
+                data.co_badged_card_networks_info
+                    .0
+                    .iter()
+                    .find(|info| info.network.is_global_network())
+                    .cloned()
+            });
+        info.map(|data| data.network)
     } else {
         card_network
     }
@@ -2922,6 +2925,7 @@ fn construct_zero_auth_payments_request(
         force_3ds_challenge: None,
         is_iframe_redirection_enabled: None,
         merchant_connector_details: None,
+        return_raw_connector_response: None,
     })
 }
 
@@ -3263,7 +3267,8 @@ async fn create_single_use_tokenization_flow(
             connector_mandate_request_reference_id: None,
             authentication_id: None,
             psd2_sca_exemption_type: None,
-            whole_connector_response: None,
+            raw_connector_response: None,
+            is_payment_id_from_merchant: None,
         };
 
     let payment_method_token_response = tokenization::add_token_for_payment_method(

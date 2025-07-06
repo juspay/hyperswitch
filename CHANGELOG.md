@@ -4,6 +4,28 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2025.07.04.0
+
+### Features
+
+- **connector:**
+  - [shift4] Boleto, Trustly, Alipay, Wechatpay PMs added ([#8476](https://github.com/juspay/hyperswitch/pull/8476)) ([`ac3b2d4`](https://github.com/juspay/hyperswitch/commit/ac3b2d4055cee0ae71a12fcb9119f4ba288417d4))
+  - [payload] template code ([#8526](https://github.com/juspay/hyperswitch/pull/8526)) ([`7f5ec74`](https://github.com/juspay/hyperswitch/commit/7f5ec7439b3469df7d77b8151ae3f4218847641a))
+  - [AUTHORIZEDOTNET] Add AVS checks ([#8511](https://github.com/juspay/hyperswitch/pull/8511)) ([`417039d`](https://github.com/juspay/hyperswitch/commit/417039d175c429c687f70cbb18625ef0c98c19ed))
+  - [shift4] Blik, Klarna, Bitpay PMs added ([#8478](https://github.com/juspay/hyperswitch/pull/8478)) ([`37a95e3`](https://github.com/juspay/hyperswitch/commit/37a95e3733676b24d6fa6924dcd84736eeca9bb4))
+  - [Redsys] Use merchant payment_id for ds_merchant_order with length check ([#8485](https://github.com/juspay/hyperswitch/pull/8485)) ([`6678ee3`](https://github.com/juspay/hyperswitch/commit/6678ee351748e5629a22e84677d58297cbac62a5))
+- **core:** Populate connector raw response and connector_response_reference_id for razorpay ([#8499](https://github.com/juspay/hyperswitch/pull/8499)) ([`2253d98`](https://github.com/juspay/hyperswitch/commit/2253d981c89899e6e838f2072f46388eaa0bd8a0))
+
+### Bug Fixes
+
+- **connector:** [CYBERSOURCE] Passing pares_status for MasterCard & Visa and transaction_type field ([#8518](https://github.com/juspay/hyperswitch/pull/8518)) ([`721f780`](https://github.com/juspay/hyperswitch/commit/721f780c6baf5da5589d2a3242488b0d4383a1d8))
+- **core:** Update error for routing instead of Internal Server Error ([#8512](https://github.com/juspay/hyperswitch/pull/8512)) ([`e4b1d45`](https://github.com/juspay/hyperswitch/commit/e4b1d45be76fb6183474177a1eaee26340b2e7d8))
+- Update routing_approach for session_token flow ([#8490](https://github.com/juspay/hyperswitch/pull/8490)) ([`c275e13`](https://github.com/juspay/hyperswitch/commit/c275e13caf22362173e77d2260b440159abcabb3))
+
+**Full Changelog:** [`2025.07.03.0...2025.07.04.0`](https://github.com/juspay/hyperswitch/compare/2025.07.03.0...2025.07.04.0)
+
+- - -
+
 ## 2025.07.03.0
 
 ### Features

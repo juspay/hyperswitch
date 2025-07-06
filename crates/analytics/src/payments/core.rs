@@ -171,6 +171,9 @@ pub async fn get_metrics(
                                 .connector_success_rate
                                 .add_metrics_bucket(&value);
                         }
+                        PaymentMetrics::DebitRouting | PaymentMetrics::SessionizedDebitRouting => {
+                            metrics_builder.debit_routing.add_metrics_bucket(&value);
+                        }
                         PaymentMetrics::PaymentsDistribution => {
                             metrics_builder
                                 .payments_distribution
@@ -293,6 +296,33 @@ pub async fn get_metrics(
             }
             if let Some(count) = collected_values.failure_reason_count_without_smart_retries {
                 total_failure_reasons_count_without_smart_retries += count;
+            }
+            if let Some(savings) = collected_values.debit_routing_savings {
+                let savings_in_usd = if let Some(ex_rates) = ex_rates {
+                    id.currency
+                        .and_then(|currency| {
+                            i64::try_from(savings)
+                                .inspect_err(|e| {
+                                    logger::error!(
+                                        "Debit Routing savings conversion error: {:?}",
+                                        e
+                                    )
+                                })
+                                .ok()
+                                .and_then(|savings_i64| {
+                                    convert(ex_rates, currency, Currency::USD, savings_i64)
+                                        .inspect_err(|e| {
+                                            logger::error!("Currency conversion error: {:?}", e)
+                                        })
+                                        .ok()
+                                })
+                        })
+                        .map(|savings| (savings * rust_decimal::Decimal::new(100, 0)).to_u64())
+                        .unwrap_or_default()
+                } else {
+                    None
+                };
+                collected_values.debit_routing_savings_in_usd = savings_in_usd;
             }
             MetricsBucketResponse {
                 values: collected_values,
