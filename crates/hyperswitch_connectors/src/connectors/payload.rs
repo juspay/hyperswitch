@@ -838,10 +838,8 @@ static PAYLOAD_CONNECTOR_INFO: ConnectorInfo = ConnectorInfo {
     connector_type: enums::PaymentConnectorCategory::PaymentGateway,
 };
 
-static PAYLOAD_SUPPORTED_WEBHOOK_FLOWS: [enums::EventClass; 2] = [
-    enums::EventClass::Payments,
-    enums::EventClass::Refunds,
-];
+static PAYLOAD_SUPPORTED_WEBHOOK_FLOWS: [enums::EventClass; 2] =
+    [enums::EventClass::Payments, enums::EventClass::Refunds];
 
 impl ConnectorSpecifications for Payload {
     fn get_connector_about(&self) -> Option<&'static ConnectorInfo> {
