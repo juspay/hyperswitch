@@ -490,29 +490,34 @@ pub async fn perform_static_routing_v1(
             .to_string(),
     };
 
-    let routing_events_wrapper = utils::RoutingEventsWrapper::new(
-        state.tenant.tenant_id.clone(),
-        state.request_id,
-        payment_id,
-        business_profile.get_id().to_owned(),
-        business_profile.merchant_id.to_owned(),
-        "DecisionEngine: Euclid Static Routing".to_string(),
-        None,
-        true,
-        false,
-    );
+    // check this condition
+    let de_euclid_connectors = if !state.conf.open_router.url.is_empty() {
+        let routing_events_wrapper = utils::RoutingEventsWrapper::new(
+            state.tenant.tenant_id.clone(),
+            state.request_id,
+            payment_id,
+            business_profile.get_id().to_owned(),
+            business_profile.merchant_id.to_owned(),
+            "DecisionEngine: Euclid Static Routing".to_string(),
+            None,
+            true,
+            false,
+        );
 
-    let de_euclid_connectors = perform_decision_euclid_routing(
-        state,
-        backend_input.clone(),
-        business_profile.get_id().get_string_repr().to_string(),
-        routing_events_wrapper
-    )
-    .await
-    .map_err(|e|
-        // errors are ignored as this is just for diff checking as of now (optional flow).
-        logger::error!(decision_engine_euclid_evaluate_error=?e, "decision_engine_euclid: error in evaluation of rule")
-    ).unwrap_or_default();
+        perform_decision_euclid_routing(
+            state,
+            backend_input.clone(),
+            business_profile.get_id().get_string_repr().to_string(),
+            routing_events_wrapper
+        )
+        .await
+        .map_err(|e|
+            // errors are ignored as this is just for diff checking as of now (optional flow).
+            logger::error!(decision_engine_euclid_evaluate_error=?e, "decision_engine_euclid: error in evaluation of rule")
+        ).unwrap_or_default()
+    } else {
+        Vec::default()
+    };
 
     let (routable_connectors, routing_approach) = match cached_algorithm.as_ref() {
         CachedAlgorithm::Single(conn) => (
