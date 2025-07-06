@@ -246,6 +246,7 @@ macro_rules! default_imp_for_new_connector_integration_payment {
 }
 
 default_imp_for_new_connector_integration_payment!(
+    connectors::Trustpayments,
     connectors::Vgs,
     connectors::Airwallex,
     connectors::Amazonpay,
@@ -367,6 +368,7 @@ macro_rules! default_imp_for_new_connector_integration_refund {
 }
 
 default_imp_for_new_connector_integration_refund!(
+    connectors::Trustpayments,
     connectors::Vgs,
     connectors::Aci,
     connectors::Adyen,
@@ -485,6 +487,7 @@ macro_rules! default_imp_for_new_connector_integration_connector_access_token {
 }
 
 default_imp_for_new_connector_integration_connector_access_token!(
+    connectors::Trustpayments,
     connectors::Vgs,
     connectors::Aci,
     connectors::Adyen,
@@ -609,6 +612,7 @@ macro_rules! default_imp_for_new_connector_integration_accept_dispute {
 }
 
 default_imp_for_new_connector_integration_accept_dispute!(
+    connectors::Trustpayments,
     connectors::Vgs,
     connectors::Aci,
     connectors::Adyen,
@@ -731,6 +735,7 @@ macro_rules! default_imp_for_new_connector_integration_submit_evidence {
 }
 
 default_imp_for_new_connector_integration_submit_evidence!(
+    connectors::Trustpayments,
     connectors::Vgs,
     connectors::Aci,
     connectors::Adyen,
@@ -853,6 +858,7 @@ macro_rules! default_imp_for_new_connector_integration_defend_dispute {
 }
 
 default_imp_for_new_connector_integration_defend_dispute!(
+    connectors::Trustpayments,
     connectors::Vgs,
     connectors::Aci,
     connectors::Adyen,
@@ -986,6 +992,7 @@ macro_rules! default_imp_for_new_connector_integration_file_upload {
 }
 
 default_imp_for_new_connector_integration_file_upload!(
+    connectors::Trustpayments,
     connectors::Vgs,
     connectors::Aci,
     connectors::Adyen,
@@ -1111,6 +1118,7 @@ macro_rules! default_imp_for_new_connector_integration_payouts_create {
 
 #[cfg(feature = "payouts")]
 default_imp_for_new_connector_integration_payouts_create!(
+    connectors::Trustpayments,
     connectors::Vgs,
     connectors::Aci,
     connectors::Adyen,
@@ -1236,6 +1244,7 @@ macro_rules! default_imp_for_new_connector_integration_payouts_eligibility {
 
 #[cfg(feature = "payouts")]
 default_imp_for_new_connector_integration_payouts_eligibility!(
+    connectors::Trustpayments,
     connectors::Vgs,
     connectors::Aci,
     connectors::Adyen,
@@ -1361,6 +1370,7 @@ macro_rules! default_imp_for_new_connector_integration_payouts_fulfill {
 
 #[cfg(feature = "payouts")]
 default_imp_for_new_connector_integration_payouts_fulfill!(
+    connectors::Trustpayments,
     connectors::Vgs,
     connectors::Aci,
     connectors::Adyen,
@@ -1486,6 +1496,7 @@ macro_rules! default_imp_for_new_connector_integration_payouts_cancel {
 
 #[cfg(feature = "payouts")]
 default_imp_for_new_connector_integration_payouts_cancel!(
+    connectors::Trustpayments,
     connectors::Vgs,
     connectors::Aci,
     connectors::Adyen,
@@ -1611,6 +1622,7 @@ macro_rules! default_imp_for_new_connector_integration_payouts_quote {
 
 #[cfg(feature = "payouts")]
 default_imp_for_new_connector_integration_payouts_quote!(
+    connectors::Trustpayments,
     connectors::Vgs,
     connectors::Aci,
     connectors::Adyen,
@@ -1736,6 +1748,7 @@ macro_rules! default_imp_for_new_connector_integration_payouts_recipient {
 
 #[cfg(feature = "payouts")]
 default_imp_for_new_connector_integration_payouts_recipient!(
+    connectors::Trustpayments,
     connectors::Vgs,
     connectors::Aci,
     connectors::Adyen,
@@ -1861,6 +1874,7 @@ macro_rules! default_imp_for_new_connector_integration_payouts_sync {
 
 #[cfg(feature = "payouts")]
 default_imp_for_new_connector_integration_payouts_sync!(
+    connectors::Trustpayments,
     connectors::Vgs,
     connectors::Aci,
     connectors::Adyen,
@@ -1986,6 +2000,7 @@ macro_rules! default_imp_for_new_connector_integration_payouts_recipient_account
 
 #[cfg(feature = "payouts")]
 default_imp_for_new_connector_integration_payouts_recipient_account!(
+    connectors::Trustpayments,
     connectors::Vgs,
     connectors::Aci,
     connectors::Adyen,
@@ -2109,6 +2124,7 @@ macro_rules! default_imp_for_new_connector_integration_webhook_source_verificati
 }
 
 default_imp_for_new_connector_integration_webhook_source_verification!(
+    connectors::Trustpayments,
     connectors::Vgs,
     connectors::Aci,
     connectors::Adyen,
@@ -2234,6 +2250,7 @@ macro_rules! default_imp_for_new_connector_integration_frm_sale {
 
 #[cfg(feature = "frm")]
 default_imp_for_new_connector_integration_frm_sale!(
+    connectors::Trustpayments,
     connectors::Vgs,
     connectors::Aci,
     connectors::Adyen,
@@ -2359,6 +2376,7 @@ macro_rules! default_imp_for_new_connector_integration_frm_checkout {
 
 #[cfg(feature = "frm")]
 default_imp_for_new_connector_integration_frm_checkout!(
+    connectors::Trustpayments,
     connectors::Vgs,
     connectors::Aci,
     connectors::Adyen,
@@ -2484,6 +2502,7 @@ macro_rules! default_imp_for_new_connector_integration_frm_transaction {
 
 #[cfg(feature = "frm")]
 default_imp_for_new_connector_integration_frm_transaction!(
+    connectors::Trustpayments,
     connectors::Vgs,
     connectors::Aci,
     connectors::Adyen,
@@ -2609,6 +2628,7 @@ macro_rules! default_imp_for_new_connector_integration_frm_fulfillment {
 
 #[cfg(feature = "frm")]
 default_imp_for_new_connector_integration_frm_fulfillment!(
+    connectors::Trustpayments,
     connectors::Vgs,
     connectors::Aci,
     connectors::Adyen,
@@ -2734,6 +2754,7 @@ macro_rules! default_imp_for_new_connector_integration_frm_record_return {
 
 #[cfg(feature = "frm")]
 default_imp_for_new_connector_integration_frm_record_return!(
+    connectors::Trustpayments,
     connectors::Vgs,
     connectors::Aci,
     connectors::Adyen,
@@ -2856,6 +2877,7 @@ macro_rules! default_imp_for_new_connector_integration_revoking_mandates {
 }
 
 default_imp_for_new_connector_integration_revoking_mandates!(
+    connectors::Trustpayments,
     connectors::Vgs,
     connectors::Aci,
     connectors::Adyen,
@@ -2972,6 +2994,7 @@ macro_rules! default_imp_for_new_connector_integration_frm {
 
 #[cfg(feature = "frm")]
 default_imp_for_new_connector_integration_frm!(
+    connectors::Trustpayments,
     connectors::Vgs,
     connectors::Airwallex,
     connectors::Amazonpay,
@@ -3094,6 +3117,7 @@ macro_rules! default_imp_for_new_connector_integration_connector_authentication 
 }
 
 default_imp_for_new_connector_integration_connector_authentication!(
+    connectors::Trustpayments,
     connectors::Vgs,
     connectors::Airwallex,
     connectors::Amazonpay,
@@ -3205,6 +3229,7 @@ macro_rules! default_imp_for_new_connector_integration_revenue_recovery {
 }
 
 default_imp_for_new_connector_integration_revenue_recovery!(
+    connectors::Trustpayments,
     connectors::Vgs,
     connectors::Airwallex,
     connectors::Amazonpay,
@@ -3326,6 +3351,7 @@ macro_rules! default_imp_for_new_connector_integration_external_vault {
 }
 
 default_imp_for_new_connector_integration_external_vault!(
+    connectors::Trustpayments,
     connectors::Aci,
     connectors::Adyen,
     connectors::Adyenplatform,

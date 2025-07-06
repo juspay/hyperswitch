@@ -103,6 +103,7 @@ pub struct ConnectorAuthentication {
     pub stripe_au: Option<HeaderKey>,
     pub stripe_uk: Option<HeaderKey>,
     pub trustpay: Option<SignatureKey>,
+    pub trustpayments: Option<HeaderKey>,
     pub tsys: Option<SignatureKey>,
     pub unified_authentication_service: Option<HeaderKey>,
     pub vgs: Option<SignatureKey>,

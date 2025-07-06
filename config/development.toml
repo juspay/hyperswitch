@@ -175,6 +175,7 @@ cards = [
     "thunes",
     "tokenio",
     "trustpay",
+    "trustpayments",
     "tsys",
     "unified_authentication_service",
     "vgs",
@@ -325,6 +326,7 @@ worldpayvantiv.base_url = "https://payments.vantivprelive.com/vap/communicator/o
 worldpayxml.base_url = "https://secure-test.worldpay.com/jsp/merchant/xml/paymentService.jsp"
 xendit.base_url = "https://api.xendit.co"
 trustpay.base_url = "https://test-tpgw.trustpay.eu/"
+trustpayments.base_url = "https://webservices.securetrading.net"
 tsys.base_url = "https://stagegw.transnox.com/"
 unified_authentication_service.base_url = "http://localhost:8080/"
 vgs.base_url = "https://sandbox.vault-api.verygoodvault.com"

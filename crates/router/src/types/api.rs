@@ -606,6 +606,9 @@ impl ConnectorData {
                 enums::Connector::Tokenio => {
                     Ok(ConnectorEnum::Old(Box::new(connector::Tokenio::new())))
                 }
+                enums::Connector::Trustpayments => Ok(ConnectorEnum::Old(Box::new(
+                    connector::Trustpayments::new(),
+                ))),
                 enums::Connector::Trustpay => {
                     Ok(ConnectorEnum::Old(Box::new(connector::Trustpay::new())))
                 }
