@@ -1834,6 +1834,8 @@ where
                     .clone()
                     .map(ForeignFrom::foreign_from),
                 request_incremental_authorization: payment_intent.request_incremental_authorization,
+                created_at: payment_intent.created_at,
+                merchant_id: payment_intent.merchant_id.clone(),
                 expires_on: payment_intent.session_expiry,
                 frm_metadata: payment_intent.frm_metadata.clone(),
                 request_external_three_ds_authentication: payment_intent
@@ -2141,8 +2143,9 @@ where
         let payment_attempt = self.payment_attempt;
         let payment_intent = self.payment_intent;
         let response = api_models::payments::PaymentAttemptRecordResponse {
-            id: payment_attempt.get_id().to_owned(),
+            id: payment_attempt.id.clone(),
             status: payment_attempt.status,
+            amount: payment_attempt.amount_details.get_net_amount(),
             payment_intent_feature_metadata: payment_intent
                 .feature_metadata
                 .as_ref()
@@ -2151,6 +2154,10 @@ where
                 .feature_metadata
                 .as_ref()
                 .map(api_models::payments::PaymentAttemptFeatureMetadata::foreign_from),
+            card_network: None,
+            error_details: payment_attempt
+                .error
+                .map(api_models::payments::RecordAttemptErrorDetails::from),
         };
         Ok(services::ApplicationResponse::JsonWithHeaders((
             response,
