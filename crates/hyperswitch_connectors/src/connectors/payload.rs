@@ -8,12 +8,12 @@ use base64::Engine;
 use common_enums::enums;
 use common_utils::{
     consts::BASE64_ENGINE,
-    errors::CustomResult,
-    ext_traits::BytesExt,
+    errors::{CustomResult, ReportSwitchExt},
+    ext_traits::{ByteSliceExt, BytesExt},
     request::{Method, Request, RequestBuilder, RequestContent},
     types::{AmountConvertor, StringMajorUnit, StringMajorUnitForConnector},
 };
-use error_stack::{report, ResultExt};
+use error_stack::ResultExt;
 use hyperswitch_domain_models::{
     payment_method_data::PaymentMethodData,
     router_data::{AccessToken, ConnectorAuthType, ErrorResponse, RouterData},
@@ -703,23 +703,68 @@ impl ConnectorIntegration<RSync, RefundsData, RefundsResponseData> for Payload {
 impl webhooks::IncomingWebhook for Payload {
     fn get_webhook_object_reference_id(
         &self,
-        _request: &webhooks::IncomingWebhookRequestDetails<'_>,
+        request: &webhooks::IncomingWebhookRequestDetails<'_>,
     ) -> CustomResult<api_models::webhooks::ObjectReferenceId, errors::ConnectorError> {
-        Err(report!(errors::ConnectorError::WebhooksNotImplemented))
+        let webhook_body: responses::PayloadWebhookEvent = request
+            .body
+            .parse_struct("PayloadWebhookEvent")
+            .change_context(errors::ConnectorError::WebhookBodyDecodingFailed)?;
+
+        let reference_id = match webhook_body.trigger {
+            responses::PayloadWebhooksTrigger::Payment
+            | responses::PayloadWebhooksTrigger::Processed
+            | responses::PayloadWebhooksTrigger::Authorized
+            | responses::PayloadWebhooksTrigger::Credit
+            | responses::PayloadWebhooksTrigger::Refund
+            | responses::PayloadWebhooksTrigger::Reversal
+            | responses::PayloadWebhooksTrigger::Void
+            | responses::PayloadWebhooksTrigger::AutomaticPayment
+            | responses::PayloadWebhooksTrigger::Decline
+            | responses::PayloadWebhooksTrigger::Deposit
+            | responses::PayloadWebhooksTrigger::Reject
+            | responses::PayloadWebhooksTrigger::PaymentActivationStatus
+            | responses::PayloadWebhooksTrigger::PaymentLinkStatus
+            | responses::PayloadWebhooksTrigger::ProcessingStatus
+            | responses::PayloadWebhooksTrigger::BankAccountReject
+            | responses::PayloadWebhooksTrigger::Chargeback
+            | responses::PayloadWebhooksTrigger::ChargebackReversal
+            | responses::PayloadWebhooksTrigger::TransactionOperation
+            | responses::PayloadWebhooksTrigger::TransactionOperationClear => {
+                api_models::webhooks::ObjectReferenceId::PaymentId(
+                    api_models::payments::PaymentIdType::ConnectorTransactionId(
+                        webhook_body
+                            .triggered_on
+                            .transaction_id
+                            .ok_or(errors::ConnectorError::WebhookReferenceIdNotFound)?,
+                    ),
+                )
+            }
+        };
+
+        Ok(reference_id)
     }
 
     fn get_webhook_event_type(
         &self,
-        _request: &webhooks::IncomingWebhookRequestDetails<'_>,
+        request: &webhooks::IncomingWebhookRequestDetails<'_>,
     ) -> CustomResult<api_models::webhooks::IncomingWebhookEvent, errors::ConnectorError> {
-        Err(report!(errors::ConnectorError::WebhooksNotImplemented))
+        let webhook_body: responses::PayloadWebhookEvent =
+            request.body.parse_struct("PayloadWebhookEvent").switch()?;
+
+        Ok(api_models::webhooks::IncomingWebhookEvent::from(
+            webhook_body.trigger,
+        ))
     }
 
     fn get_webhook_resource_object(
         &self,
-        _request: &webhooks::IncomingWebhookRequestDetails<'_>,
+        request: &webhooks::IncomingWebhookRequestDetails<'_>,
     ) -> CustomResult<Box<dyn masking::ErasedMaskSerialize>, errors::ConnectorError> {
-        Err(report!(errors::ConnectorError::WebhooksNotImplemented))
+        let webhook_body: responses::PayloadWebhookEvent = request
+            .body
+            .parse_struct("PayloadWebhookEvent")
+            .change_context(errors::ConnectorError::WebhookReferenceIdNotFound)?;
+        Ok(Box::new(webhook_body))
     }
 }
 
@@ -782,7 +827,10 @@ static PAYLOAD_CONNECTOR_INFO: ConnectorInfo = ConnectorInfo {
     connector_type: enums::PaymentConnectorCategory::PaymentGateway,
 };
 
-static PAYLOAD_SUPPORTED_WEBHOOK_FLOWS: [enums::EventClass; 0] = [];
+static PAYLOAD_SUPPORTED_WEBHOOK_FLOWS: [enums::EventClass; 2] = [
+    enums::EventClass::Payments,
+    enums::EventClass::Refunds,
+];
 
 impl ConnectorSpecifications for Payload {
     fn get_connector_about(&self) -> Option<&'static ConnectorInfo> {

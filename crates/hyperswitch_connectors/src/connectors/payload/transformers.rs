@@ -1,14 +1,18 @@
+use api_models::webhooks::IncomingWebhookEvent;
 use common_enums::enums;
 use common_utils::types::StringMajorUnit;
 use hyperswitch_domain_models::{
     payment_method_data::PaymentMethodData,
-    router_data::{ConnectorAuthType, RouterData},
+    router_data::{ConnectorAuthType, ErrorResponse, RouterData},
     router_flow_types::refunds::{Execute, RSync},
     router_request_types::ResponseId,
     router_response_types::{PaymentsResponseData, RefundsResponseData},
     types::{PaymentsAuthorizeRouterData, PaymentsCaptureRouterData, RefundsRouterData},
 };
-use hyperswitch_interfaces::errors;
+use hyperswitch_interfaces::{
+    consts::{NO_ERROR_CODE, NO_ERROR_MESSAGE},
+    errors,
+};
 use masking::Secret;
 
 use super::{requests, responses};
@@ -159,13 +163,29 @@ impl<F, T>
     ) -> Result<Self, Self::Error> {
         match item.response.clone() {
             responses::PayloadPaymentsResponse::PayloadCardsResponse(response) => {
-                let payment_status = response.status;
-                let transaction_id = response.transaction_id;
+                let status = enums::AttemptStatus::from(response.status);
 
-                Ok(Self {
-                    status: common_enums::AttemptStatus::from(payment_status),
-                    response: Ok(PaymentsResponseData::TransactionResponse {
-                        resource_id: ResponseId::ConnectorTransactionId(transaction_id),
+                let response_result = if status == enums::AttemptStatus::Failure {
+                    Err(ErrorResponse {
+                        attempt_status: None,
+                        code: response
+                            .status_code
+                            .clone()
+                            .unwrap_or_else(|| NO_ERROR_CODE.to_string()),
+                        message: response
+                            .status_message
+                            .clone()
+                            .unwrap_or_else(|| NO_ERROR_MESSAGE.to_string()),
+                        reason: response.status_message,
+                        status_code: item.http_code,
+                        connector_transaction_id: Some(response.transaction_id.clone()),
+                        network_decline_code: None,
+                        network_advice_code: None,
+                        network_error_message: None,
+                    })
+                } else {
+                    Ok(PaymentsResponseData::TransactionResponse {
+                        resource_id: ResponseId::ConnectorTransactionId(response.transaction_id),
                         redirection_data: Box::new(None),
                         mandate_reference: Box::new(None),
                         connector_metadata: None,
@@ -173,7 +193,39 @@ impl<F, T>
                         connector_response_reference_id: response.ref_number,
                         incremental_authorization_allowed: None,
                         charges: None,
-                    }),
+                    })
+                };
+                Ok(Self {
+                    status,
+                    response: response_result,
+                    ..item.data
+                })
+            }
+            responses::PayloadPaymentsResponse::PayloadWebhookResponse(webhook_event) => {
+                let status = match webhook_event.trigger {
+                    responses::PayloadWebhooksTrigger::Processed => enums::AttemptStatus::Charged,
+                    responses::PayloadWebhooksTrigger::Authorized => {
+                        enums::AttemptStatus::Authorized
+                    }
+                    responses::PayloadWebhooksTrigger::Payment
+                    | responses::PayloadWebhooksTrigger::Credit
+                    | responses::PayloadWebhooksTrigger::AutomaticPayment
+                    | responses::PayloadWebhooksTrigger::Deposit => enums::AttemptStatus::Pending,
+                    responses::PayloadWebhooksTrigger::Decline
+                    | responses::PayloadWebhooksTrigger::Reject
+                    | responses::PayloadWebhooksTrigger::BankAccountReject => {
+                        enums::AttemptStatus::Failure
+                    }
+                    responses::PayloadWebhooksTrigger::Void => enums::AttemptStatus::Voided,
+                    responses::PayloadWebhooksTrigger::Refund
+                    | responses::PayloadWebhooksTrigger::Reversal => {
+                        enums::AttemptStatus::AutoRefunded
+                    }
+                    _ => item.data.status,
+                };
+
+                Ok(Self {
+                    status,
                     ..item.data
                 })
             }
@@ -255,5 +307,43 @@ impl TryFrom<RefundsResponseRouterData<RSync, responses::PayloadRefundResponse>>
             }),
             ..item.data
         })
+    }
+}
+
+// Webhook transformations
+impl From<responses::PayloadWebhooksTrigger> for IncomingWebhookEvent {
+    fn from(trigger: responses::PayloadWebhooksTrigger) -> Self {
+        match trigger {
+            // Payment Success Events
+            responses::PayloadWebhooksTrigger::Processed => Self::PaymentIntentSuccess,
+            responses::PayloadWebhooksTrigger::Authorized => {
+                Self::PaymentIntentAuthorizationSuccess
+            }
+            // Payment Processing Events
+            responses::PayloadWebhooksTrigger::Payment
+            | responses::PayloadWebhooksTrigger::Credit
+            | responses::PayloadWebhooksTrigger::AutomaticPayment => Self::PaymentIntentProcessing,
+            // Payment Failure Events
+            responses::PayloadWebhooksTrigger::Decline
+            | responses::PayloadWebhooksTrigger::Reject
+            | responses::PayloadWebhooksTrigger::BankAccountReject => Self::PaymentIntentFailure,
+            responses::PayloadWebhooksTrigger::Void => Self::PaymentIntentCancelled,
+            // Refund Events
+            responses::PayloadWebhooksTrigger::Refund
+            | responses::PayloadWebhooksTrigger::Reversal => Self::RefundSuccess,
+            // Dispute Events
+            responses::PayloadWebhooksTrigger::Chargeback => Self::DisputeOpened,
+            responses::PayloadWebhooksTrigger::ChargebackReversal => Self::DisputeWon,
+            // Other payment-related events
+            responses::PayloadWebhooksTrigger::Deposit => Self::SourceTransactionCreated,
+            // Events not supported by our standard flows
+            responses::PayloadWebhooksTrigger::PaymentActivationStatus
+            | responses::PayloadWebhooksTrigger::PaymentLinkStatus
+            | responses::PayloadWebhooksTrigger::ProcessingStatus
+            | responses::PayloadWebhooksTrigger::TransactionOperation
+            | responses::PayloadWebhooksTrigger::TransactionOperationClear => {
+                Self::EventNotSupported
+            }
+        }
     }
 }
