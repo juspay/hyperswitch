@@ -1,4 +1,4 @@
-import { customerAcceptance, cardRequiredField } from "./Commons.js";
+import { customerAcceptance,requiredFields,singleUseMandateData,multiUseMandateData } from "./Commons.js";
 const defaultBillingDetails = {
   address: {
     line1: "Caller 123",
@@ -17,24 +17,6 @@ const defaultBillingDetails = {
   },
   email: "john.doe@example.com",
 };
-const singleUseMandateData = {
-  customer_acceptance: customerAcceptance,
-  mandate_type: {
-    single_use: {
-      amount: 8000,
-      currency: "USD",
-    },
-  },
-};
-const multiUseMandateData = {
-  customer_acceptance: customerAcceptance,
-  mandate_type: {
-    multi_use: {
-      amount: 8000,
-      currency: "USD",
-    },
-  },
-};
 // Test card details for Placetopay - using standard test cards
 const successfulNo3DSCardDetails = {
   card_number: "4111111111111111", // Visa test card
@@ -43,7 +25,6 @@ const successfulNo3DSCardDetails = {
   card_holder_name: "Test User",
   card_cvc: "123",
 };
-
 const failedCardDetails = {
   card_number: "4000000000000002", // Standard decline test card
   card_exp_month: "12",
@@ -68,24 +49,6 @@ const payment_method_data_visa = {
     authentication_data: null,
   },
   billing: null,
-};
-const requiredFields = {
-  payment_methods: [
-    {
-      payment_method: "card",
-      payment_method_types: [
-        {
-          payment_method_type: "credit",
-          card_networks: [
-            {
-              eligible_connectors: ["placetopay"],
-            },
-          ],
-          required_fields: cardRequiredField,
-        },
-      ],
-    },
-  ],
 };
 export const connectorDetails = {
   card_pm: {
@@ -355,9 +318,7 @@ export const connectorDetails = {
       Response: {
         status: 400,
         body: {
-          error: {
-            status: "NotSupported",
-          },
+          status: "NotSupported",
         },
       },
     },
@@ -418,15 +379,7 @@ export const connectorDetails = {
         },
         billing: defaultBillingDetails,
         currency: "USD",
-        mandate_data: {
-          customer_acceptance: customerAcceptance,
-          mandate_type: {
-            single_use: {
-              amount: 8000,
-              currency: "USD",
-            },
-          },
-        },
+        mandate_data: singleUseMandateData
       },
       Response: {
         status: 200,
@@ -456,6 +409,29 @@ export const connectorDetails = {
       },
     },
     MandateMultiUseNo3DSManualCapture: {
+      Configs: {
+        TRIGGER_SKIP: true, // Skip mandate tests
+      },
+      Request: {
+        payment_method: "card",
+        payment_method_data: {
+          card: successfulNo3DSCardDetails,
+        },
+        currency: "USD",
+        mandate_data: multiUseMandateData,
+      },
+      Response: {
+        status: 501,
+        body: {
+          error: {
+            type: "invalid_request",
+            message: "Setup Mandate flow for Placetopay is not implemented",
+            code: "IR_00",
+          },
+        },
+      },
+    },
+    MandateMultiUse3DSAutoCapture: {
       Configs: {
         TRIGGER_SKIP: true, // Skip mandate tests
       },
@@ -681,15 +657,7 @@ export const connectorDetails = {
         },
         billing: defaultBillingDetails,
         currency: "USD",
-        mandate_data: {
-          customer_acceptance: customerAcceptance,
-          mandate_type: {
-            single_use: {
-              amount: 8000,
-              currency: "USD",
-            },
-          },
-        },
+        mandate_data:singleUseMandateData
       },
       Response: {
         status: 400,
