@@ -775,5 +775,5 @@ click_to_pay = {connector_list = "adyen, cybersource"}
 
 
 [revenue_recovery]
-monitoring_threshold_in_seconds = 2592000
+monitoring_threshold_in_seconds = 2592000 
 retry_algorithm_type = "cascading" 
