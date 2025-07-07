@@ -1191,7 +1191,7 @@ url = "http://localhost:8080"
 billing_connectors_to_skip_record_back_on_failed_invoice = ["stripebilling", "recurly"]
 
 [revenue_recovery]
-monitoring_threshold_in_seconds = 2
+monitoring_threshold_in_seconds = 2592000
 retry_algorithm_type = "cascading"
 
 [clone_connector_allowlist]
