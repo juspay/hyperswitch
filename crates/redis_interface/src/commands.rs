@@ -1068,7 +1068,7 @@ mod tests {
                 "#;
                 let mut keys_and_values = HashMap::new();
                 for i in 0..10 {
-                    keys_and_values.insert(format!("key{}", i), i);
+                    keys_and_values.insert(format!("key{i}"), i);
                 }
 
                 let key = keys_and_values.keys().cloned().collect::<Vec<_>>();
@@ -1108,7 +1108,7 @@ mod tests {
                 "#;
                 let mut keys_and_values = HashMap::new();
                 for i in 0..10 {
-                    keys_and_values.insert(format!("key{}", i), i);
+                    keys_and_values.insert(format!("key{i}"), i);
                 }
 
                 let key = keys_and_values.keys().cloned().collect::<Vec<_>>();

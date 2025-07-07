@@ -3050,8 +3050,8 @@ dependencies = [
  "serde",
  "thiserror 1.0.69",
  "tokio 1.45.1",
- "tonic 0.12.3",
- "tonic-build 0.12.2",
+ "tonic 0.13.1",
+ "tonic-build",
  "tonic-reflection",
  "tonic-types",
  "url",
@@ -3537,7 +3537,7 @@ dependencies = [
  "prost-types",
  "serde",
  "tonic 0.13.1",
- "tonic-build 0.13.1",
+ "tonic-build",
 ]
 
 [[package]]
@@ -4014,9 +4014,11 @@ dependencies = [
  "base64 0.22.1",
  "bytes 1.10.1",
  "cards",
+ "chrono",
  "common_enums",
  "common_types",
  "common_utils",
+ "crc",
  "encoding_rs",
  "error-stack 0.4.1",
  "hex",
@@ -4796,6 +4798,7 @@ dependencies = [
  "bytes 1.10.1",
  "diesel",
  "erased-serde 0.4.6",
+ "prost",
  "scylla",
  "serde",
  "serde_json",
@@ -8979,19 +8982,6 @@ dependencies = [
 
 [[package]]
 name = "tonic-build"
-version = "0.12.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "fe4ee8877250136bd7e3d2331632810a4df4ea5e004656990d8d66d2f5ee8a67"
-dependencies = [
- "prettyplease",
- "proc-macro2",
- "prost-build",
- "quote",
- "syn 2.0.101",
-]
-
-[[package]]
-name = "tonic-build"
 version = "0.13.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "eac6f67be712d12f0b41328db3137e0d0757645d8904b4cb7d51cd9c2279e847"
@@ -9006,26 +8996,26 @@ dependencies = [
 
 [[package]]
 name = "tonic-reflection"
-version = "0.12.3"
+version = "0.13.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "878d81f52e7fcfd80026b7fdb6a9b578b3c3653ba987f87f0dce4b64043cba27"
+checksum = "f9687bd5bfeafebdded2356950f278bba8226f0b32109537c4253406e09aafe1"
 dependencies = [
  "prost",
  "prost-types",
  "tokio 1.45.1",
  "tokio-stream",
- "tonic 0.12.3",
+ "tonic 0.13.1",
 ]
 
 [[package]]
 name = "tonic-types"
-version = "0.12.3"
+version = "0.13.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "0081d8ee0847d01271392a5aebe960a4600f5d4da6c67648a6382a0940f8b367"
+checksum = "07439468da24d5f211d3f3bd7b63665d8f45072804457e838a87414a478e2db8"
 dependencies = [
  "prost",
  "prost-types",
- "tonic 0.12.3",
+ "tonic 0.13.1",
 ]
 
 [[package]]

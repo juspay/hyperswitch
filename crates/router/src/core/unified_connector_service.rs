@@ -20,7 +20,7 @@ use unified_connector_service_client::payments::{
 };
 
 use crate::{
-    consts::UCS_ROLLOUT_PERCENT_CONFIG_PREFIX,
+    consts,
     core::{
         errors::RouterResult,
         payments::helpers::{should_execute_based_on_rollout, MerchantConnectorAccountType},
@@ -48,7 +48,11 @@ pub async fn should_call_unified_connector_service<F: Clone, T>(
 
     let config_key = format!(
         "{}_{}_{}_{}_{}",
-        UCS_ROLLOUT_PERCENT_CONFIG_PREFIX, merchant_id, connector_name, payment_method, flow_name
+        consts::UCS_ROLLOUT_PERCENT_CONFIG_PREFIX,
+        merchant_id,
+        connector_name,
+        payment_method,
+        flow_name
     );
 
     let should_execute = should_execute_based_on_rollout(state, &config_key).await?;
@@ -70,6 +74,12 @@ pub fn build_unified_connector_service_payment_method(
                 .peek()
                 .to_string();
 
+            let card_network = card
+                .card_network
+                .clone()
+                .map(payments_grpc::CardNetwork::foreign_try_from)
+                .transpose()?;
+
             let card_details = CardDetails {
                 card_number: card.card_number.get_card_no(),
                 card_exp_month,
@@ -77,7 +87,7 @@ pub fn build_unified_connector_service_payment_method(
                 card_cvc: card.card_cvc.peek().to_string(),
                 card_holder_name: card.card_holder_name.map(|name| name.expose()),
                 card_issuer: card.card_issuer.clone(),
-                card_network: None,
+                card_network: card_network.map(|card_network| card_network.into()),
                 card_type: card.card_type.clone(),
                 bank_code: card.bank_code.clone(),
                 nick_name: card.nick_name.map(|n| n.expose()),
@@ -187,29 +197,26 @@ pub fn build_unified_connector_service_auth_metadata(
         } => Ok(ConnectorAuthMetadata {
             connector_name,
             auth_type: consts::UCS_AUTH_SIGNATURE_KEY.to_string(),
-            api_key: Some(api_key.peek().to_string()),
-            key1: Some(key1.peek().to_string()),
-            api_secret: Some(api_secret.peek().to_string()),
-            tenant_id,
-            merchant_id,
+            api_key: Some(api_key.clone()),
+            key1: Some(key1.clone()),
+            api_secret: Some(api_secret.clone()),
+            merchant_id: Secret::new(merchant_id.to_string()),
         }),
         ConnectorAuthType::BodyKey { api_key, key1 } => Ok(ConnectorAuthMetadata {
             connector_name,
             auth_type: consts::UCS_AUTH_BODY_KEY.to_string(),
-            api_key: Some(api_key.peek().to_string()),
-            key1: Some(key1.peek().to_string()),
+            api_key: Some(api_key.clone()),
+            key1: Some(key1.clone()),
             api_secret: None,
-            tenant_id,
-            merchant_id,
+            merchant_id: Secret::new(merchant_id.to_string()),
         }),
         ConnectorAuthType::HeaderKey { api_key } => Ok(ConnectorAuthMetadata {
             connector_name,
             auth_type: consts::UCS_AUTH_HEADER_KEY.to_string(),
-            api_key: Some(api_key.peek().to_string()),
+            api_key: Some(api_key.clone()),
             key1: None,
             api_secret: None,
-            tenant_id,
-            merchant_id,
+            merchant_id: Secret::new(merchant_id.to_string()),
         }),
         _ => Err(UnifiedConnectorServiceError::FailedToObtainAuthType)
             .attach_printable("Unsupported ConnectorAuthType for header injection"),

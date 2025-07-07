@@ -365,6 +365,14 @@ required=true
 type="Text"
 
 [adyenplatform_payout]
+[[adyenplatform_payout.credit]]
+  payment_method_type = "Mastercard"
+[[adyenplatform_payout.credit]]
+  payment_method_type = "Visa"
+[[adyenplatform_payout.debit]]
+  payment_method_type = "Mastercard"
+[[adyenplatform_payout.debit]]
+  payment_method_type = "Visa"
 [[adyenplatform_payout.bank_transfer]]
   payment_method_type = "sepa"
 [adyenplatform_payout.connector_auth.HeaderKey]
@@ -6221,3 +6229,64 @@ placeholder="Enter Currency"
 required=true
 type="Select"
 options=[]
+
+[santander.connector_auth.BodyKey]
+api_key="Client ID"
+key1="Client Secret"
+
+[santander.metadata.pix_key]
+name="pix_key"
+label="Chave Key"
+placeholder="Enter your Chave/Pix Key"
+required=true
+type="Text"
+
+[santander.metadata.expiration_time]
+name="expiration_time"
+label="Expiration Time"
+placeholder="Enter your Pix QR Code Expiration Time"
+required=true
+type="Number"
+
+[santander.metadata.cpf]
+name="cpf"
+label="Cpf"
+placeholder="Enter your cpf number"
+required=true
+type="Text"
+
+[santander.metadata.merchant_city]
+name="merchant_city"
+label="Merchant City"
+placeholder="Enter the city the merchant is based in"
+required=true
+type="Text"
+
+[santander.metadata.merchant_name]
+name="merchant_name"
+label="Merchant Name"
+placeholder="Enter the merchant name"
+required=true
+type="Text"
+
+[payload]
+[[payload.credit]]
+  payment_method_type = "AmericanExpress"
+[[payload.credit]]
+  payment_method_type = "Discover"
+[[payload.credit]]
+  payment_method_type = "Mastercard"
+[[payload.credit]]
+  payment_method_type = "Visa"
+[[payload.debit]]
+  payment_method_type = "AmericanExpress"
+[[payload.debit]]
+  payment_method_type = "Discover"
+[[payload.debit]]
+  payment_method_type = "Mastercard"
+[[payload.debit]]
+  payment_method_type = "Visa"
+[payload.connector_auth.HeaderKey]
+api_key="API Key"
+[payload.connector_webhook_details]
+merchant_secret="Source verification key"

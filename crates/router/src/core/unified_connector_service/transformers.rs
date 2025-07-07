@@ -180,6 +180,30 @@ impl ForeignTryFrom<common_enums::Currency> for payments_grpc::Currency {
     }
 }
 
+impl ForeignTryFrom<common_enums::CardNetwork> for payments_grpc::CardNetwork {
+    type Error = error_stack::Report<UnifiedConnectorServiceError>;
+
+    fn foreign_try_from(card_network: common_enums::CardNetwork) -> Result<Self, Self::Error> {
+        match card_network {
+            common_enums::CardNetwork::Visa => Ok(Self::Visa),
+            common_enums::CardNetwork::Mastercard => Ok(Self::Mastercard),
+            common_enums::CardNetwork::JCB => Ok(Self::Jcb),
+            common_enums::CardNetwork::DinersClub => Ok(Self::Diners),
+            common_enums::CardNetwork::Discover => Ok(Self::Discover),
+            common_enums::CardNetwork::CartesBancaires => Ok(Self::CartesBancaires),
+            common_enums::CardNetwork::UnionPay => Ok(Self::Unionpay),
+            common_enums::CardNetwork::RuPay => Ok(Self::Rupay),
+            common_enums::CardNetwork::Maestro => Ok(Self::Maestro),
+            _ => Err(
+                UnifiedConnectorServiceError::RequestEncodingFailedWithReason(
+                    "Card Network not supported".to_string(),
+                )
+                .into(),
+            ),
+        }
+    }
+}
+
 impl ForeignTryFrom<hyperswitch_domain_models::payment_address::PaymentAddress>
     for payments_grpc::PaymentAddress
 {

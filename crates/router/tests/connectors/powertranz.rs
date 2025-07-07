@@ -411,7 +411,7 @@ async fn should_fail_for_refund_amount_higher_than_payment_amount() {
         )
         .await
         .unwrap();
-    assert_eq!(response.response.unwrap_err().message, "Invalid amount",);
+    assert_eq!(response.response.unwrap_err().message, "Invalid amount");
 }
 
 // Connector dependent test cases goes here

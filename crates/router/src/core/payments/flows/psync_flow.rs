@@ -52,16 +52,6 @@ impl ConstructFlowSpecificData<api::PSync, types::PaymentsSyncData, types::Payme
         ))
         .await
     }
-
-    async fn get_merchant_recipient_data<'a>(
-        &self,
-        _state: &SessionState,
-        _merchant_context: &domain::MerchantContext,
-        _merchant_connector_account: &helpers::MerchantConnectorAccountType,
-        _connector: &api::ConnectorData,
-    ) -> RouterResult<Option<types::MerchantRecipientData>> {
-        Ok(None)
-    }
 }
 
 #[cfg(feature = "v2")]
@@ -93,16 +83,6 @@ impl ConstructFlowSpecificData<api::PSync, types::PaymentsSyncData, types::Payme
         ))
         .await
     }
-
-    async fn get_merchant_recipient_data<'a>(
-        &self,
-        _state: &SessionState,
-        _merchant_context: &domain::MerchantContext,
-        _merchant_connector_account: &helpers::MerchantConnectorAccountType,
-        _connector: &api::ConnectorData,
-    ) -> RouterResult<Option<types::MerchantRecipientData>> {
-        Ok(None)
-    }
 }
 
 #[async_trait]
@@ -117,7 +97,7 @@ impl Feature<api::PSync, types::PaymentsSyncData>
         connector_request: Option<services::Request>,
         _business_profile: &domain::Profile,
         _header_payload: hyperswitch_domain_models::payments::HeaderPayload,
-        all_keys_required: Option<bool>,
+        return_raw_connector_response: Option<bool>,
     ) -> RouterResult<Self> {
         let connector_integration: services::BoxedPaymentConnectorIntegrationInterface<
             api::PSync,
@@ -140,7 +120,7 @@ impl Feature<api::PSync, types::PaymentsSyncData>
                         pending_connector_capture_id_list,
                         call_connector_action,
                         connector_integration,
-                        all_keys_required,
+                        return_raw_connector_response,
                     )
                     .await?;
                 // Initiating Integrity checks
@@ -162,7 +142,7 @@ impl Feature<api::PSync, types::PaymentsSyncData>
                     &self,
                     call_connector_action,
                     connector_request,
-                    all_keys_required,
+                    return_raw_connector_response,
                 )
                 .await
                 .to_payment_failed_response()?;
@@ -290,7 +270,7 @@ where
             types::PaymentsSyncData,
             types::PaymentsResponseData,
         >,
-        _all_keys_required: Option<bool>,
+        _return_raw_connector_response: Option<bool>,
     ) -> RouterResult<Self>;
 }
 
@@ -308,7 +288,7 @@ impl RouterDataPSync
             types::PaymentsSyncData,
             types::PaymentsResponseData,
         >,
-        all_keys_required: Option<bool>,
+        return_raw_connector_response: Option<bool>,
     ) -> RouterResult<Self> {
         let mut capture_sync_response_map = HashMap::new();
         if let payments::CallConnectorAction::HandleResponse(_) = call_connector_action {
@@ -319,7 +299,7 @@ impl RouterDataPSync
                 self,
                 call_connector_action.clone(),
                 None,
-                all_keys_required,
+                return_raw_connector_response,
             )
             .await
             .to_payment_failed_response()?;
@@ -338,7 +318,7 @@ impl RouterDataPSync
                     &cloned_router_data,
                     call_connector_action.clone(),
                     None,
-                    all_keys_required,
+                    return_raw_connector_response,
                 )
                 .await
                 .to_payment_failed_response()?;
