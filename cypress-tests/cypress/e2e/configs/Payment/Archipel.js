@@ -385,7 +385,7 @@ export const connectorDetails = {
           payment_method_data: paymentMethodDataNo3DSResponse,
         },
       },
-    },    
+    },
     MandateMultiUseNo3DSManualCapture: {
       Response: {
         status: 200,
@@ -417,6 +417,42 @@ export const connectorDetails = {
         status: 200,
         body: {
           status: "requires_capture",
+        },
+      },
+    },
+    PaymentMethodIdMandateNo3DSAutoCapture: {
+      Configs: {
+        TRIGGER_SKIP: true,
+      },
+      Request: {
+        payment_method: "card",
+        payment_method_data: {
+          card: successfulNo3DSCardDetails,
+        },
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "succeeded",
+          payment_method_data: paymentMethodDataNo3DSResponse,
+        },
+      },
+    },
+    PaymentMethodIdMandateNo3DSManualCapture: {
+      Configs: {
+        TRIGGER_SKIP: true,
+      },
+      Request: {
+        payment_method: "card",
+        payment_method_data: {
+          card: successfulNo3DSCardDetails,
+        },
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_capture",
+          payment_method_data: paymentMethodDataNo3DSResponse,
         },
       },
     },
