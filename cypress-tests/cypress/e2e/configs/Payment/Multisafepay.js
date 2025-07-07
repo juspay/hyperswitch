@@ -861,4 +861,109 @@ export const connectorDetails = {
       },
     },
   },
+  bank_redirect_pm: {
+    Eps: {
+      Request: {
+        amount: 333,
+        currency: "EUR",
+        confirm: true,
+        capture_method: "automatic",
+        payment_method: "bank_redirect",
+        payment_method_type: "eps",
+        authentication_type: "no_three_ds",
+        description: "hellow world",
+        billing: {
+            address: {
+                zip: "560095",
+                first_name: "Sakil",
+                last_name: "Mostak",
+                line1: "Fasdf",
+                country: "AT",
+                line2: "Fasdf",
+                city: "Fasdf"
+            }
+        },
+        payment_method_data: {
+            bank_redirect: {
+                eps: {}
+            }
+        }
+    },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_customer_action",
+        },
+      },
+    },
+    Sofort: {
+      Request: {
+        amount: 333,
+        currency: "EUR",
+        confirm: true,
+        capture_method: "automatic",
+        payment_method: "bank_redirect",
+        payment_method_type: "sofort",
+        authentication_type: "no_three_ds",
+        description: "hellow world",
+        billing: {
+            address: {
+                zip: "560095",
+                first_name: "Sakil",
+                last_name: "Mostak",
+                line1: "Fasdf",
+                country: "AT",
+                line2: "Fasdf",
+                city: "Fasdf"
+            }
+        },
+        payment_method_data: {
+    
+            bank_redirect: {
+                sofort: {}
+            }
+        }
+    },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_customer_action",
+        },
+      },
+    },
+    Mbway: {
+      Request: {
+        amount: 333,
+        currency: "EUR",
+        confirm: true,
+        capture_method: "automatic",
+        payment_method: "wallet",
+        payment_method_type: "mb_way",
+        authentication_type: "no_three_ds",
+        description: "hellow world",
+        billing: {
+            address: {
+                zip: "560095",
+                first_name: "John",
+                last_name: "Doe",
+                line1: "Main street",
+                country: "PT",
+                line2: "sub street",
+                city: "city"
+            }
+        },
+        payment_method_data: {
+            wallet: {
+                mb_way_redirect: {}
+            }
+        }
+    },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_customer_action",
+        },
+      },
+    },
+  },
 };
