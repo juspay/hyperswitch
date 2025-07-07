@@ -56,16 +56,6 @@ impl
         ))
         .await
     }
-
-    async fn get_merchant_recipient_data<'a>(
-        &self,
-        _state: &routes::SessionState,
-        _merchant_context: &domain::MerchantContext,
-        _merchant_connector_account: &helpers::MerchantConnectorAccountType,
-        _connector: &api::ConnectorData,
-    ) -> RouterResult<Option<types::MerchantRecipientData>> {
-        Ok(None)
-    }
 }
 
 #[cfg(feature = "v1")]
@@ -99,16 +89,6 @@ impl
         ))
         .await
     }
-
-    async fn get_merchant_recipient_data<'a>(
-        &self,
-        _state: &routes::SessionState,
-        _merchant_context: &domain::MerchantContext,
-        _merchant_connector_account: &helpers::MerchantConnectorAccountType,
-        _connector: &api::ConnectorData,
-    ) -> RouterResult<Option<types::MerchantRecipientData>> {
-        Ok(None)
-    }
 }
 
 #[async_trait]
@@ -121,7 +101,7 @@ impl Feature<api::Session, types::PaymentsSessionData> for types::PaymentsSessio
         _connector_request: Option<services::Request>,
         business_profile: &domain::Profile,
         header_payload: hyperswitch_domain_models::payments::HeaderPayload,
-        _all_keys_required: Option<bool>,
+        _return_raw_connector_response: Option<bool>,
     ) -> RouterResult<Self> {
         metrics::SESSION_TOKEN_CREATED.add(
             1,

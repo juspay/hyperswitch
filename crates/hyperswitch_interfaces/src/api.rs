@@ -383,6 +383,22 @@ pub trait ConnectorSpecifications {
         None
     }
 
+    #[cfg(not(feature = "v2"))]
+    /// Generate connector request reference ID
+    fn generate_connector_request_reference_id(
+        &self,
+        _payment_intent: &hyperswitch_domain_models::payments::PaymentIntent,
+        payment_attempt: &hyperswitch_domain_models::payments::payment_attempt::PaymentAttempt,
+        is_config_enabled_to_send_payment_id_as_connector_request_id: bool,
+    ) -> String {
+        // Send payment_id if config is enabled for a merchant, else send attempt_id
+        if is_config_enabled_to_send_payment_id_as_connector_request_id {
+            payment_attempt.payment_id.get_string_repr().to_owned()
+        } else {
+            payment_attempt.attempt_id.to_owned()
+        }
+    }
+
     #[cfg(feature = "v2")]
     /// Generate connector request reference ID
     fn generate_connector_request_reference_id(

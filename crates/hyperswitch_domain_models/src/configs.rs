@@ -29,6 +29,7 @@ pub struct Connectors {
     pub boku: ConnectorParams,
     pub braintree: ConnectorParams,
     pub cashtocode: ConnectorParams,
+    pub celero: ConnectorParams,
     pub chargebee: ConnectorParams,
     pub checkbook: ConnectorParams,
     pub checkout: ConnectorParams,

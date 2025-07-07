@@ -60,11 +60,13 @@ pub trait ConstructFlowSpecificData<F, Req, Res> {
 
     async fn get_merchant_recipient_data<'a>(
         &self,
-        state: &SessionState,
-        merchant_context: &domain::MerchantContext,
-        merchant_connector_account: &helpers::MerchantConnectorAccountType,
-        connector: &api::ConnectorData,
-    ) -> RouterResult<Option<types::MerchantRecipientData>>;
+        _state: &SessionState,
+        _merchant_context: &domain::MerchantContext,
+        _merchant_connector_account: &helpers::MerchantConnectorAccountType,
+        _connector: &api::ConnectorData,
+    ) -> RouterResult<Option<types::MerchantRecipientData>> {
+        Ok(None)
+    }
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -78,7 +80,7 @@ pub trait Feature<F, T> {
         connector_request: Option<services::Request>,
         business_profile: &domain::Profile,
         header_payload: hyperswitch_domain_models::payments::HeaderPayload,
-        all_keys_required: Option<bool>,
+        return_raw_connector_response: Option<bool>,
     ) -> RouterResult<Self>
     where
         Self: Sized,
@@ -182,6 +184,22 @@ pub trait Feature<F, T> {
         &mut self,
         _state: &SessionState,
         _connector: &api::ConnectorData,
+        _should_continue_payment: bool,
+    ) -> RouterResult<types::CreateOrderResult>
+    where
+        F: Clone,
+        Self: Sized,
+        dyn api::Connector: services::ConnectorIntegration<F, T, types::PaymentsResponseData>,
+    {
+        Ok(types::CreateOrderResult {
+            create_order_result: Ok(None),
+            is_create_order_performed: false,
+        })
+    }
+
+    async fn update_router_data_with_create_order_result(
+        &mut self,
+        _create_order_result: types::CreateOrderResult,
         should_continue_payment: bool,
     ) -> RouterResult<bool>
     where
@@ -190,6 +208,20 @@ pub trait Feature<F, T> {
         dyn api::Connector: services::ConnectorIntegration<F, T, types::PaymentsResponseData>,
     {
         Ok(should_continue_payment)
+    }
+
+    async fn call_unified_connector_service<'a>(
+        &mut self,
+        _state: &SessionState,
+        _merchant_connector_account: helpers::MerchantConnectorAccountType,
+        _merchant_context: &domain::MerchantContext,
+    ) -> RouterResult<()>
+    where
+        F: Clone,
+        Self: Sized,
+        dyn api::Connector: services::ConnectorIntegration<F, T, types::PaymentsResponseData>,
+    {
+        Ok(())
     }
 }
 

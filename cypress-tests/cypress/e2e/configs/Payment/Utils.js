@@ -37,13 +37,16 @@ import { connectorDetails as nmiConnectorDetails } from "./Nmi.js";
 import { connectorDetails as noonConnectorDetails } from "./Noon.js";
 import { connectorDetails as novalnetConnectorDetails } from "./Novalnet.js";
 import { connectorDetails as payboxConnectorDetails } from "./Paybox.js";
+import { connectorDetails as payloadConnectorDetails } from "./Payload.js";
 import { connectorDetails as paypalConnectorDetails } from "./Paypal.js";
 import { connectorDetails as powertranzConnectorDetails } from "./PowerTranz.js";
 import { connectorDetails as redsysConnectorDetails } from "./Redsys.js";
 import { connectorDetails as shift4ConnectorDetails } from "./Shift4.js";
+import { connectorDetails as squareConnectorDetails } from "./Square.js";
 import { connectorDetails as staxConnectorDetails } from "./Stax.js";
 import { connectorDetails as stripeConnectorDetails } from "./Stripe.js";
 import { connectorDetails as trustpayConnectorDetails } from "./Trustpay.js";
+import { connectorDetails as tsysConnectorDetails } from "./Tsys.js";
 import { connectorDetails as wellsfargoConnectorDetails } from "./WellsFargo.js";
 import { connectorDetails as worldpayConnectorDetails } from "./WorldPay.js";
 import { connectorDetails as worldpayxmlConnectorDetails } from "./Worldpayxml.js";
@@ -85,13 +88,16 @@ const connectorDetails = {
   noon: noonConnectorDetails,
   novalnet: novalnetConnectorDetails,
   paybox: payboxConnectorDetails,
+  payload: payloadConnectorDetails,
   paypal: paypalConnectorDetails,
   powertranz: powertranzConnectorDetails,
   redsys: redsysConnectorDetails,
+  shift4: shift4ConnectorDetails,
+  square: squareConnectorDetails,
   stax: staxConnectorDetails,
   stripe: stripeConnectorDetails,
-  shift4: shift4ConnectorDetails,
   trustpay: trustpayConnectorDetails,
+  tsys: tsysConnectorDetails,
   wellsfargo: wellsfargoConnectorDetails,
   worldpay: worldpayConnectorDetails,
   worldpayxml: worldpayxmlConnectorDetails,
@@ -360,13 +366,15 @@ export const CONNECTOR_LISTS = {
       "billwerk",
       "braintree",
       "facilitapay",
-      "fiuu",
       "fiserv",
+      "fiuu",
       "jpmorgan",
       "nexinets",
+      "payload",
       "paypal",
       "stax",
       "wellsfargo",
+      "worldpayxml",
     ],
     // Add more exclusion lists
   },
