@@ -1080,6 +1080,8 @@ impl Settings<SecuredSecret> {
 
         self.platform.validate()?;
 
+        self.open_router.validate()?;
+
         Ok(())
     }
 }
