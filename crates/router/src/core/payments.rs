@@ -6283,7 +6283,7 @@ where
         Option<hyperswitch_domain_models::card_testing_guard_data::CardTestingGuardData>,
     pub vault_operation: Option<domain_payments::VaultOperation>,
     pub threeds_method_comp_ind: Option<api_models::payments::ThreeDsCompletionIndicator>,
-    pub whole_connector_response: Option<String>,
+    pub whole_connector_response: Option<Secret<String>>,
 }
 
 #[derive(Clone, serde::Serialize, Debug)]
@@ -9180,7 +9180,7 @@ pub trait OperationSessionGetters<F> {
     fn get_connector_customer_id(&self) -> Option<String>;
 
     #[cfg(feature = "v1")]
-    fn get_whole_connector_response(&self) -> Option<String>;
+    fn get_whole_connector_response(&self) -> Option<Secret<String>>;
 
     #[cfg(feature = "v1")]
     fn get_vault_operation(&self) -> Option<&domain_payments::VaultOperation>;
@@ -9407,7 +9407,7 @@ impl<F: Clone> OperationSessionGetters<F> for PaymentData<F> {
         self.all_keys_required
     }
 
-    fn get_whole_connector_response(&self) -> Option<String> {
+    fn get_whole_connector_response(&self) -> Option<Secret<String>> {
         self.whole_connector_response.clone()
     }
 

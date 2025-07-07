@@ -5,6 +5,8 @@ use std::collections::HashMap;
 use common_enums::enums;
 use common_utils::{impl_to_sql_from_sql_json, types::MinorUnit};
 use diesel::{sql_types::Jsonb, AsExpression, FromSqlRow};
+#[cfg(feature = "v2")]
+use masking::Secret;
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
 
@@ -111,6 +113,6 @@ pub struct MerchantConnectorAuthDetails {
 #[cfg(feature = "v2")]
 #[derive(Clone, Debug)]
 pub struct ConnectorResponseData {
-    /// Stringified connector raw response body
-    pub raw_connector_response: Option<String>,
+    /// Stringified connector raw response body, but not persisted in DB.
+    pub raw_connector_response: Option<Secret<String>>,
 }

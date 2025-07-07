@@ -5172,7 +5172,8 @@ pub struct PaymentsResponse {
     pub is_iframe_redirection_enabled: Option<bool>,
 
     /// Contains whole connector response
-    pub whole_connector_response: Option<String>,
+    #[schema(value_type = Option<String>)]
+    pub whole_connector_response: Option<Secret<String>>,
 }
 
 #[cfg(feature = "v2")]
@@ -5791,7 +5792,8 @@ pub struct PaymentsResponse {
     pub merchant_reference_id: Option<id_type::PaymentReferenceId>,
 
     /// Stringified connector raw response body. Only returned if `return_raw_connector_response` is true
-    pub raw_connector_response: Option<String>,
+    #[schema(value_type = Option<String>)]
+    pub raw_connector_response: Option<Secret<String>>,
 }
 
 #[cfg(feature = "v2")]
