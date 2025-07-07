@@ -76,7 +76,7 @@ pub struct Profile {
     pub three_ds_decision_rule_algorithm: Option<serde_json::Value>,
     pub acquirer_config_map: Option<common_types::domain::AcquirerConfigMap>,
     pub merchant_category_code: Option<common_enums::MerchantCategoryCode>,
-    pub merchant_country_code: Option<i32>,
+    pub merchant_country_code: Option<String>,
 }
 
 #[cfg(feature = "v1")]
@@ -133,7 +133,7 @@ pub struct ProfileNew {
     pub is_iframe_redirection_enabled: Option<bool>,
     pub is_pre_network_tokenization_enabled: Option<bool>,
     pub merchant_category_code: Option<common_enums::MerchantCategoryCode>,
-    pub merchant_country_code: Option<i32>,
+    pub merchant_country_code: Option<String>,
 }
 
 #[cfg(feature = "v1")]
@@ -190,7 +190,7 @@ pub struct ProfileUpdateInternal {
     pub three_ds_decision_rule_algorithm: Option<serde_json::Value>,
     pub acquirer_config_map: Option<common_types::domain::AcquirerConfigMap>,
     pub merchant_category_code: Option<common_enums::MerchantCategoryCode>,
-    pub merchant_country_code: Option<i32>,
+    pub merchant_country_code: Option<String>,
 }
 
 #[cfg(feature = "v1")]
@@ -392,7 +392,7 @@ pub struct Profile {
     pub three_ds_decision_rule_algorithm: Option<serde_json::Value>,
     pub acquirer_config_map: Option<common_types::domain::AcquirerConfigMap>,
     pub merchant_category_code: Option<common_enums::MerchantCategoryCode>,
-    pub merchant_country_code: Option<i32>,
+    pub merchant_country_code: Option<String>,
     pub routing_algorithm_id: Option<common_utils::id_type::RoutingId>,
     pub order_fulfillment_time: Option<i64>,
     pub order_fulfillment_time_origin: Option<common_enums::OrderFulfillmentTimeOrigin>,
@@ -465,7 +465,7 @@ pub struct ProfileNew {
     pub is_debit_routing_enabled: bool,
     pub merchant_business_country: Option<common_enums::CountryAlpha2>,
     pub merchant_category_code: Option<common_enums::MerchantCategoryCode>,
-    pub merchant_country_code: Option<i32>,
+    pub merchant_country_code: Option<String>,
     pub routing_algorithm_id: Option<common_utils::id_type::RoutingId>,
     pub order_fulfillment_time: Option<i64>,
     pub order_fulfillment_time_origin: Option<common_enums::OrderFulfillmentTimeOrigin>,
@@ -525,7 +525,7 @@ pub struct ProfileUpdateInternal {
     pub is_debit_routing_enabled: Option<bool>,
     pub merchant_business_country: Option<common_enums::CountryAlpha2>,
     pub merchant_category_code: Option<common_enums::MerchantCategoryCode>,
-    pub merchant_country_code: Option<i32>,
+    pub merchant_country_code: Option<String>,
     pub routing_algorithm_id: Option<common_utils::id_type::RoutingId>,
     pub order_fulfillment_time: Option<i64>,
     pub order_fulfillment_time_origin: Option<common_enums::OrderFulfillmentTimeOrigin>,
