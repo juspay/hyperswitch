@@ -49,7 +49,6 @@ impl ProxyRequestWrapper {
                     .await
                     .change_context(errors::ApiErrorResponse::PaymentMethodNotFound)?;
                 Ok(ProxyRecord::PaymentMethodRecord(payment_method_record))
-
             }
             proxy_api_models::TokenType::TokenizationId => {
                 Err(report!(errors::ApiErrorResponse::NotImplemented {
@@ -114,43 +113,31 @@ impl ProxyRequestWrapper {
     }
 }
 
-impl ProxyRecord{
-    pub fn get_vault_id(
-        &self,
-    ) -> RouterResult<payment_methods::VaultId>{
-
+impl ProxyRecord {
+    pub fn get_vault_id(&self) -> RouterResult<payment_methods::VaultId> {
         match self {
-            Self::PaymentMethodRecord(payment_method) => {
-                payment_method.locker_id.clone()
+            Self::PaymentMethodRecord(payment_method) => payment_method
+                .locker_id
+                .clone()
                 .get_required_value("vault_id")
                 .change_context(errors::ApiErrorResponse::InternalServerError)
-                .attach_printable("Locker id not present in Payment Method Entry")
-
-            }
-            Self::TokenizationRecord(_) => {
-                Err(report!(errors::ApiErrorResponse::NotImplemented {
-                    message: NotImplementedMessage::Reason(
-                        "Proxy flow using tokenization id".to_string(),
-                    ),
-                }))
-            }
+                .attach_printable("Locker id not present in Payment Method Entry"),
+            Self::TokenizationRecord(_) => Err(report!(errors::ApiErrorResponse::NotImplemented {
+                message: NotImplementedMessage::Reason(
+                    "Proxy flow using tokenization id".to_string(),
+                ),
+            })),
         }
     }
 
-    pub fn get_customer_id(
-        &self,
-    ) -> RouterResult<id_type::GlobalCustomerId> {
+    pub fn get_customer_id(&self) -> RouterResult<id_type::GlobalCustomerId> {
         match self {
-            Self::PaymentMethodRecord(payment_method) => {
-                Ok(payment_method.customer_id.clone())
-            }
-            Self::TokenizationRecord(_) => {
-                Err(report!(errors::ApiErrorResponse::NotImplemented {
-                    message: NotImplementedMessage::Reason(
-                        "Proxy flow using tokenization id".to_string(),
-                    ),
-                }))
-            }
+            Self::PaymentMethodRecord(payment_method) => Ok(payment_method.customer_id.clone()),
+            Self::TokenizationRecord(_) => Err(report!(errors::ApiErrorResponse::NotImplemented {
+                message: NotImplementedMessage::Reason(
+                    "Proxy flow using tokenization id".to_string(),
+                ),
+            })),
         }
     }
 }

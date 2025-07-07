@@ -61,7 +61,6 @@ pub mod tokenization {
     pub use hyperswitch_domain_models::tokenization::*;
 }
 
-
 mod routing {
     pub use hyperswitch_domain_models::routing::*;
 }
@@ -84,11 +83,10 @@ pub use network_tokenization::*;
 pub use payment_method_data::*;
 pub use payment_methods::*;
 pub use routing::*;
+#[cfg(feature = "v2")]
+pub use tokenization::*;
 #[cfg(feature = "olap")]
 pub use user::*;
 pub use user_key_store::*;
 #[cfg(feature = "v2")]
 pub use vault::*;
-
-#[cfg(feature = "v2")]
-pub use tokenization::*;
