@@ -359,7 +359,7 @@ export const connectorDetails = {
         },
       },
     },
-    
+
     // Payment sync
     SyncPayment: {
       Response: {
@@ -408,7 +408,6 @@ export const connectorDetails = {
         },
       },
     },
-
 
     // ===== MANDATE SCENARIOS =====
     // Note: Authipay may not implement mandates, marked as TRIGGER_SKIP
