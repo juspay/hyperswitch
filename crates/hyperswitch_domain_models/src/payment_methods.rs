@@ -1,5 +1,6 @@
 #[cfg(feature = "v2")]
 use api_models::payment_methods::PaymentMethodsData;
+use api_models::{customers, payment_methods, payments};
 // specific imports because of using the macro
 use common_enums::enums::MerchantStorageScheme;
 #[cfg(feature = "v1")]
@@ -27,11 +28,12 @@ use time::PrimitiveDateTime;
 #[cfg(feature = "v2")]
 use crate::address::Address;
 #[cfg(feature = "v1")]
-use crate::{mandates, type_encryption::AsyncLift};
+use crate::type_encryption::AsyncLift;
 use crate::{
-    mandates::CommonMandateReference,
+    mandates::{self, CommonMandateReference},
     merchant_key_store::MerchantKeyStore,
     payment_method_data as domain_payment_method_data,
+    transformers::ForeignTryFrom,
     type_encryption::{crypto_operation, CryptoOperation},
 };
 
@@ -87,7 +89,6 @@ pub struct PaymentMethod {
     pub network_token_locker_id: Option<String>,
     pub network_token_payment_method_data: OptionalEncryptableValue,
 }
-
 #[cfg(feature = "v2")]
 #[derive(Clone, Debug, router_derive::ToEncryption)]
 pub struct PaymentMethod {
@@ -445,7 +446,7 @@ pub struct PaymentMethodSession {
     pub network_tokenization: Option<common_types::payment_methods::NetworkTokenization>,
     pub tokenization_data: Option<pii::SecretSerdeValue>,
     pub expires_at: PrimitiveDateTime,
-    pub associated_payment_methods: Option<Vec<id_type::GlobalPaymentMethodId>>,
+    pub associated_payment_methods: Option<Vec<String>>,
     pub associated_payment: Option<id_type::GlobalPaymentId>,
     pub associated_token_id: Option<id_type::GlobalTokenId>,
 }
@@ -586,10 +587,13 @@ pub trait PaymentMethodInterface {
 #[cfg(feature = "v2")]
 pub enum PaymentMethodsSessionUpdateEnum {
     GeneralUpdate {
-        billing: Option<Encryptable<Address>>,
+        billing: Box<Option<Encryptable<Address>>>,
         psp_tokenization: Option<common_types::payment_methods::PspTokenization>,
         network_tokenization: Option<common_types::payment_methods::NetworkTokenization>,
         tokenization_data: Option<pii::SecretSerdeValue>,
+    },
+    UpdateAssociatedPaymentMethods {
+        associated_payment_methods: Option<Vec<String>>,
     },
 }
 
@@ -603,10 +607,20 @@ impl From<PaymentMethodsSessionUpdateEnum> for PaymentMethodsSessionUpdateIntern
                 network_tokenization,
                 tokenization_data,
             } => Self {
-                billing,
+                billing: *billing,
                 psp_tokenization,
                 network_tokenization,
                 tokenization_data,
+                associated_payment_methods: None,
+            },
+            PaymentMethodsSessionUpdateEnum::UpdateAssociatedPaymentMethods {
+                associated_payment_methods,
+            } => Self {
+                billing: None,
+                psp_tokenization: None,
+                network_tokenization: None,
+                tokenization_data: None,
+                associated_payment_methods,
             },
         }
     }
@@ -637,7 +651,9 @@ impl PaymentMethodSession {
             tokenization_data: update_session.tokenization_data.or(tokenization_data),
             expires_at,
             return_url,
-            associated_payment_methods,
+            associated_payment_methods: update_session
+                .associated_payment_methods
+                .or(associated_payment_methods),
             associated_payment,
             associated_token_id,
         }
@@ -650,6 +666,136 @@ pub struct PaymentMethodsSessionUpdateInternal {
     pub psp_tokenization: Option<common_types::payment_methods::PspTokenization>,
     pub network_tokenization: Option<common_types::payment_methods::NetworkTokenization>,
     pub tokenization_data: Option<pii::SecretSerdeValue>,
+    pub associated_payment_methods: Option<Vec<String>>,
+}
+
+#[derive(Debug, Clone, serde::Deserialize, serde::Serialize)]
+pub struct ConnectorCustomerDetails {
+    pub connector_customer_id: String,
+    pub merchant_connector_id: id_type::MerchantConnectorAccountId,
+}
+
+#[derive(Debug, Clone, serde::Deserialize, serde::Serialize)]
+pub struct PaymentMethodCustomerMigrate {
+    pub customer: customers::CustomerRequest,
+    pub connector_customer_details: Option<Vec<ConnectorCustomerDetails>>,
+}
+
+#[cfg(feature = "v1")]
+impl TryFrom<(payment_methods::PaymentMethodRecord, id_type::MerchantId)>
+    for PaymentMethodCustomerMigrate
+{
+    type Error = error_stack::Report<ValidationError>;
+    fn try_from(
+        value: (payment_methods::PaymentMethodRecord, id_type::MerchantId),
+    ) -> Result<Self, Self::Error> {
+        let (record, merchant_id) = value;
+        let connector_customer_details = record
+            .connector_customer_id
+            .and_then(|connector_customer_id| {
+                // Handle single merchant_connector_id
+                record
+                    .merchant_connector_id
+                    .as_ref()
+                    .map(|merchant_connector_id| {
+                        Ok(vec![ConnectorCustomerDetails {
+                            connector_customer_id: connector_customer_id.clone(),
+                            merchant_connector_id: merchant_connector_id.clone(),
+                        }])
+                    })
+                    // Handle comma-separated merchant_connector_ids
+                    .or_else(|| {
+                        record
+                            .merchant_connector_ids
+                            .as_ref()
+                            .map(|merchant_connector_ids_str| {
+                                merchant_connector_ids_str
+                                    .split(',')
+                                    .map(|id| id.trim())
+                                    .filter(|id| !id.is_empty())
+                                    .map(|merchant_connector_id| {
+                                        id_type::MerchantConnectorAccountId::wrap(
+                                            merchant_connector_id.to_string(),
+                                        )
+                                        .map_err(|_| {
+                                            error_stack::report!(ValidationError::InvalidValue {
+                                                message: format!(
+                                                    "Invalid merchant_connector_account_id: {merchant_connector_id}"
+                                                ),
+                                            })
+                                        })
+                                        .map(
+                                            |merchant_connector_id| ConnectorCustomerDetails {
+                                                connector_customer_id: connector_customer_id
+                                                    .clone(),
+                                                merchant_connector_id,
+                                            },
+                                        )
+                                    })
+                                    .collect::<Result<Vec<_>, _>>()
+                            })
+                    })
+            })
+            .transpose()?;
+
+        Ok(Self {
+            customer: customers::CustomerRequest {
+                customer_id: Some(record.customer_id),
+                merchant_id,
+                name: record.name,
+                email: record.email,
+                phone: record.phone,
+                description: None,
+                phone_country_code: record.phone_country_code,
+                address: Some(payments::AddressDetails {
+                    city: record.billing_address_city,
+                    country: record.billing_address_country,
+                    line1: record.billing_address_line1,
+                    line2: record.billing_address_line2,
+                    state: record.billing_address_state,
+                    line3: record.billing_address_line3,
+                    zip: record.billing_address_zip,
+                    first_name: record.billing_address_first_name,
+                    last_name: record.billing_address_last_name,
+                }),
+                metadata: None,
+            },
+            connector_customer_details,
+        })
+    }
+}
+
+#[cfg(feature = "v1")]
+impl ForeignTryFrom<(&[payment_methods::PaymentMethodRecord], id_type::MerchantId)>
+    for Vec<PaymentMethodCustomerMigrate>
+{
+    type Error = error_stack::Report<ValidationError>;
+
+    fn foreign_try_from(
+        (records, merchant_id): (&[payment_methods::PaymentMethodRecord], id_type::MerchantId),
+    ) -> Result<Self, Self::Error> {
+        let (customers_migration, migration_errors): (Self, Vec<_>) = records
+            .iter()
+            .map(|record| {
+                PaymentMethodCustomerMigrate::try_from((record.clone(), merchant_id.clone()))
+            })
+            .fold((Self::new(), Vec::new()), |mut acc, result| {
+                match result {
+                    Ok(customer) => acc.0.push(customer),
+                    Err(e) => acc.1.push(e.to_string()),
+                }
+                acc
+            });
+
+        migration_errors
+            .is_empty()
+            .then_some(customers_migration)
+            .ok_or_else(|| {
+                error_stack::report!(ValidationError::InvalidValue {
+                    message: migration_errors.join(", "),
+                })
+            })
+    }
 }
 
 #[cfg(feature = "v1")]
@@ -730,8 +876,7 @@ mod tests {
         let result_mca = MerchantConnectorAccountId::wrap("mca_kGz30G8B95MxRwmeQqy6".to_string());
         assert!(
             result_mca.is_ok(),
-            "Expected Ok, but got Err: {:?}",
-            result_mca
+            "Expected Ok, but got Err: {result_mca:?}",
         );
         let mca = result_mca.unwrap();
         assert!(payments.0.contains_key(&mca));
@@ -773,8 +918,7 @@ mod tests {
         let result_mca = MerchantConnectorAccountId::wrap("mca_DAHVXbXpbYSjnL7fQWEs".to_string());
         assert!(
             result_mca.is_ok(),
-            "Expected Ok, but got Err: {:?}",
-            result_mca
+            "Expected Ok, but got Err: {result_mca:?}",
         );
         let mca = result_mca.unwrap();
         assert!(payouts.0.contains_key(&mca));

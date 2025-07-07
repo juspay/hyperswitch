@@ -112,8 +112,8 @@ pub async fn check_existence_and_add_domain_to_db(
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable_lazy(|| {
             format!(
-                "Failed while updating MerchantConnectorAccount: id: {:?}",
-                merchant_connector_id
+                "Failed while updating MerchantConnectorAccount: id: {merchant_connector_id:?}",
+
             )
         })?;
 

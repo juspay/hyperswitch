@@ -508,6 +508,7 @@ pub struct PaymentsSyncData {
     pub split_payments: Option<common_types::payments::SplitPaymentsRequest>,
     pub amount: MinorUnit,
     pub integrity_object: Option<SyncIntegrityObject>,
+    pub connector_reference_id: Option<String>,
 }
 
 #[derive(Debug, Default, Clone)]
@@ -890,7 +891,7 @@ pub struct UploadFileRequestData {
 #[cfg(feature = "payouts")]
 #[derive(Debug, Clone)]
 pub struct PayoutsData {
-    pub payout_id: String,
+    pub payout_id: id_type::PayoutId,
     pub amount: i64,
     pub connector_payout_id: Option<String>,
     pub destination_currency: common_enums::Currency,

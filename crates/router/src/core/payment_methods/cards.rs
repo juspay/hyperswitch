@@ -419,8 +419,7 @@ impl PaymentMethodsController for PmCards<'_> {
                     .await
                     .change_context(errors::ApiErrorResponse::InternalServerError)
                     .attach_printable(format!(
-                        "Failed to fetch payment method for existing pm_id: {:?} in db",
-                        pm_id
+                        "Failed to fetch payment method for existing pm_id: {pm_id:?} in db",
                     ))?;
 
                 db.update_payment_method(
@@ -433,8 +432,7 @@ impl PaymentMethodsController for PmCards<'_> {
                 .await
                 .change_context(errors::ApiErrorResponse::InternalServerError)
                 .attach_printable(format!(
-                    "Failed to update payment method for existing pm_id: {:?} in db",
-                    pm_id
+                    "Failed to update payment method for existing pm_id: {pm_id:?} in db",
                 ))?;
 
                 logger::debug!("Network token added to locker and payment method updated");
@@ -2847,7 +2845,7 @@ pub async fn list_payment_methods(
             payment_intent,
             chosen,
         };
-        let result = routing::perform_session_flow_routing(
+        let (result, routing_approach) = routing::perform_session_flow_routing(
             sfr,
             &business_profile,
             &enums::TransactionType::Payment,
@@ -3029,6 +3027,7 @@ pub async fn list_payment_methods(
             merchant_connector_id: None,
             surcharge_amount: None,
             tax_amount: None,
+            routing_approach,
         };
 
         state

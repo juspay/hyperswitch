@@ -1,7 +1,7 @@
 use std::str::FromStr;
 
+use common_types::payments::OrderDetailsWithAmount;
 use common_utils::{pii::Email, types::MinorUnit};
-use diesel_models::types::OrderDetailsWithAmount;
 use hyperswitch_domain_models::address::{Address, AddressDetails};
 use masking::Secret;
 use router::types::{self, domain, storage::enums, PaymentAddress};

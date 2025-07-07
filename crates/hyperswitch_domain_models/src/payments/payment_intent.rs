@@ -1212,8 +1212,8 @@ where
                         return Err(error_stack::Report::new(
                             errors::api_error_response::ApiErrorResponse::PreconditionFailed {
                                 message: format!(
-                                    "Access not available for the given profile_id {:?}",
-                                    inaccessible_profile_ids
+                                    "Access not available for the given profile_id {inaccessible_profile_ids:?}",
+
                                 ),
                             },
                         ));
@@ -1298,6 +1298,7 @@ impl behaviour::Conversion for PaymentIntent {
             force_3ds_challenge_trigger: self.force_3ds_challenge_trigger,
             is_iframe_redirection_enabled: self.is_iframe_redirection_enabled,
             extended_return_url: self.return_url,
+            is_payment_id_from_merchant: self.is_payment_id_from_merchant,
         })
     }
 
@@ -1398,6 +1399,7 @@ impl behaviour::Conversion for PaymentIntent {
                 force_3ds_challenge: storage_model.force_3ds_challenge,
                 force_3ds_challenge_trigger: storage_model.force_3ds_challenge_trigger,
                 is_iframe_redirection_enabled: storage_model.is_iframe_redirection_enabled,
+                is_payment_id_from_merchant: storage_model.is_payment_id_from_merchant,
             })
         }
         .await
@@ -1470,6 +1472,7 @@ impl behaviour::Conversion for PaymentIntent {
             force_3ds_challenge_trigger: self.force_3ds_challenge_trigger,
             is_iframe_redirection_enabled: self.is_iframe_redirection_enabled,
             extended_return_url: self.return_url,
+            is_payment_id_from_merchant: self.is_payment_id_from_merchant,
         })
     }
 }

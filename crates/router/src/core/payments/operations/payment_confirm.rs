@@ -1270,26 +1270,30 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
                         )?;
                         ClickToPay::pre_authentication(
                             state,
-                            key_store,
-                            business_profile,
-                            payment_data,
+                            &payment_data.payment_attempt.merchant_id,
+                            Some(&payment_data.payment_intent.payment_id),
+                            payment_data.payment_method_data.as_ref(),
                             &helpers::MerchantConnectorAccountType::DbVal(Box::new(connector_mca.clone())),
                             &connector_mca.connector_name,
                             &authentication_id,
                             payment_method,
+                            payment_data.payment_intent.amount,
+                            payment_data.payment_intent.currency,
+                            payment_data.service_details.clone(),
                         )
                         .await?;
 
                         payment_data.payment_attempt.authentication_id = Some(authentication_id.clone());
                         let response = ClickToPay::post_authentication(
                             state,
-                            key_store,
                             business_profile,
-                            payment_data,
+                            Some(&payment_data.payment_intent.payment_id),
                             &helpers::MerchantConnectorAccountType::DbVal(Box::new(connector_mca.clone())),
                             &connector_mca.connector_name,
+                            &authentication_id,
                             payment_method,
-                            None,
+                            &payment_data.payment_intent.merchant_id,
+                            None
                         )
                         .await?;
                         let (network_token, authentication_status) = match response.response.clone() {
@@ -1399,10 +1403,16 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
                                             state,
                                             key_store,
                                             business_profile,
-                                            payment_data,
+                                            payment_data.payment_attempt.authentication_id.as_ref(),
+                                            payment_data.payment_intent.currency,
+                                            payment_data.payment_attempt.status,
+                                            payment_data.service_details.clone(),
                                             &helpers::MerchantConnectorAccountType::DbVal(Box::new(connector_mca.clone())),
                                             &connector_mca.connector_name,
                                             payment_method,
+                                            payment_data.payment_attempt.net_amount.get_order_amount(),
+                                            Some(&payment_data.payment_intent.payment_id),
+                                            merchant_id,
                                         )
                                         .await?
                 },
@@ -1433,15 +1443,18 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
 
                 let pre_auth_response = uas_utils::types::ExternalAuthentication::pre_authentication(
                     state,
-                    key_store,
-                    business_profile,
-                    payment_data,
+                    &payment_data.payment_attempt.merchant_id,
+                    Some(&payment_data.payment_intent.payment_id),
+                    payment_data.payment_method_data.as_ref(),
                     &three_ds_connector_account,
                     &authentication_connector_name,
                     &authentication.authentication_id,
                     payment_data.payment_attempt.payment_method.ok_or(
                         errors::ApiErrorResponse::InternalServerError
                     ).attach_printable("payment_method not found in payment_attempt")?,
+                    payment_data.payment_intent.amount,
+                    payment_data.payment_intent.currency,
+                    payment_data.service_details.clone()
                 ).await?;
                 let updated_authentication = uas_utils::utils::external_authentication_update_trackers(
                     state,
@@ -1511,15 +1524,16 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
                 let updated_authentication = if !authentication.authentication_status.is_terminal_status() && is_pull_mechanism_enabled {
                     let post_auth_response = uas_utils::types::ExternalAuthentication::post_authentication(
                         state,
-                        key_store,
                         business_profile,
-                        payment_data,
+                        Some(&payment_data.payment_intent.payment_id),
                         &three_ds_connector_account,
                         &authentication_connector.to_string(),
+                        &authentication.authentication_id,
                         payment_data.payment_attempt.payment_method.ok_or(
                             errors::ApiErrorResponse::InternalServerError
                         ).attach_printable("payment_method not found in payment_attempt")?,
-                        Some(authentication.clone()),
+                        &payment_data.payment_intent.merchant_id,
+                        Some(&authentication),
                     ).await?;
                     uas_utils::utils::external_authentication_update_trackers(
                         state,
@@ -1742,6 +1756,10 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for
 
         let connector = payment_data.payment_attempt.connector.clone();
         let merchant_connector_id = payment_data.payment_attempt.merchant_connector_id.clone();
+        let connector_request_reference_id = payment_data
+            .payment_attempt
+            .connector_request_reference_id
+            .clone();
 
         let straight_through_algorithm = payment_data
             .payment_attempt
@@ -1922,6 +1940,7 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for
                             .connector_mandate_detail,
                         card_discovery,
                         routing_approach: payment_data.payment_attempt.routing_approach,
+                        connector_request_reference_id,
                     },
                     storage_scheme,
                 )

@@ -187,7 +187,7 @@ where
 pub const SELECTED_PAYMENT_METHOD: &str = "Selected payment method";
 
 pub fn get_unimplemented_payment_method_error_message(connector: &str) -> String {
-    format!("{} through {}", SELECTED_PAYMENT_METHOD, connector)
+    format!("{SELECTED_PAYMENT_METHOD} through {connector}")
 }
 
 impl<Flow, Request, Response> RouterData for types::RouterData<Flow, Request, Response> {
@@ -1447,7 +1447,7 @@ impl CardData for payouts::CardPayout {
     fn get_expiry_year_4_digit(&self) -> Secret<String> {
         let mut year = self.expiry_year.peek().clone();
         if year.len() == 2 {
-            year = format!("20{}", year);
+            year = format!("20{year}");
         }
         Secret::new(year)
     }
@@ -1522,7 +1522,7 @@ impl CardData
     fn get_expiry_year_4_digit(&self) -> Secret<String> {
         let mut year = self.card_exp_year.peek().clone();
         if year.len() == 2 {
-            year = format!("20{}", year);
+            year = format!("20{year}");
         }
         Secret::new(year)
     }
@@ -1595,7 +1595,7 @@ impl CardData for domain::Card {
     fn get_expiry_year_4_digit(&self) -> Secret<String> {
         let mut year = self.card_exp_year.peek().clone();
         if year.len() == 2 {
-            year = format!("20{}", year);
+            year = format!("20{year}");
         }
         Secret::new(year)
     }
@@ -1816,7 +1816,7 @@ impl AddressDetailsData for hyperswitch_domain_models::address::AddressDetails {
             .cloned()
             .unwrap_or(Secret::new("".to_string()));
         let last_name = last_name.peek();
-        let full_name = format!("{} {}", first_name, last_name).trim().to_string();
+        let full_name = format!("{first_name} {last_name}").trim().to_string();
         Ok(Secret::new(full_name))
     }
 
@@ -2402,7 +2402,7 @@ pub fn is_mandate_supported(
     } else {
         match payment_method_type {
             Some(pm_type) => Err(errors::ConnectorError::NotSupported {
-                message: format!("{} mandate payment", pm_type),
+                message: format!("{pm_type} mandate payment"),
                 connector,
             }
             .into()),
@@ -2776,7 +2776,7 @@ impl NetworkTokenData for domain::NetworkTokenData {
     fn get_expiry_year_4_digit(&self) -> Secret<String> {
         let mut year = self.token_exp_year.peek().clone();
         if year.len() == 2 {
-            year = format!("20{}", year);
+            year = format!("20{year}");
         }
         Secret::new(year)
     }
@@ -2785,7 +2785,7 @@ impl NetworkTokenData for domain::NetworkTokenData {
     fn get_expiry_year_4_digit(&self) -> Secret<String> {
         let mut year = self.network_token_exp_year.peek().clone();
         if year.len() == 2 {
-            year = format!("20{}", year);
+            year = format!("20{year}");
         }
         Secret::new(year)
     }

@@ -713,6 +713,10 @@ impl<T: DatabaseStore> PaymentAttemptInterface for KVRouterStore<T> {
                     created_by: payment_attempt.created_by.clone(),
                     setup_future_usage_applied: payment_attempt.setup_future_usage_applied,
                     routing_approach: payment_attempt.routing_approach,
+                    connector_request_reference_id: payment_attempt
+                        .connector_request_reference_id
+                        .clone(),
+                    debit_routing_savings: None,
                 };
 
                 let field = format!("pa_{}", created_attempt.attempt_id);
@@ -1920,6 +1924,7 @@ impl DataModelExt for PaymentAttempt {
             connector_transaction_data: None,
             processor_merchant_id: Some(self.processor_merchant_id),
             created_by: self.created_by.map(|created_by| created_by.to_string()),
+            connector_request_reference_id: self.connector_request_reference_id,
         }
     }
 
@@ -2011,6 +2016,8 @@ impl DataModelExt for PaymentAttempt {
                 .and_then(|created_by| created_by.parse::<CreatedBy>().ok()),
             setup_future_usage_applied: storage_model.setup_future_usage_applied,
             routing_approach: storage_model.routing_approach,
+            connector_request_reference_id: storage_model.connector_request_reference_id,
+            debit_routing_savings: None,
         }
     }
 }
@@ -2101,6 +2108,7 @@ impl DataModelExt for PaymentAttemptNew {
             created_by: self.created_by.map(|created_by| created_by.to_string()),
             setup_future_usage_applied: self.setup_future_usage_applied,
             routing_approach: self.routing_approach,
+            connector_request_reference_id: self.connector_request_reference_id,
         }
     }
 
@@ -2184,6 +2192,7 @@ impl DataModelExt for PaymentAttemptNew {
                 .and_then(|created_by| created_by.parse::<CreatedBy>().ok()),
             setup_future_usage_applied: storage_model.setup_future_usage_applied,
             routing_approach: storage_model.routing_approach,
+            connector_request_reference_id: storage_model.connector_request_reference_id,
         }
     }
 }
@@ -2198,7 +2207,7 @@ async fn add_connector_txn_id_to_reverse_lookup<T: DatabaseStore>(
     connector_transaction_id: &str,
     storage_scheme: MerchantStorageScheme,
 ) -> CustomResult<ReverseLookup, errors::StorageError> {
-    let field = format!("pa_{}", updated_attempt_attempt_id);
+    let field = format!("pa_{updated_attempt_attempt_id}");
     let reverse_lookup_new = ReverseLookupNew {
         lookup_id: format!(
             "pa_conn_trans_{}_{}",
@@ -2225,7 +2234,7 @@ async fn add_preprocessing_id_to_reverse_lookup<T: DatabaseStore>(
     preprocessing_id: &str,
     storage_scheme: MerchantStorageScheme,
 ) -> CustomResult<ReverseLookup, errors::StorageError> {
-    let field = format!("pa_{}", updated_attempt_attempt_id);
+    let field = format!("pa_{updated_attempt_attempt_id}");
     let reverse_lookup_new = ReverseLookupNew {
         lookup_id: format!(
             "pa_preprocessing_{}_{}",
@@ -2251,10 +2260,7 @@ mod label {
         profile_id: &str,
         connector_transaction_id: &str,
     ) -> String {
-        format!(
-            "profile_{}_conn_txn_{}",
-            profile_id, connector_transaction_id
-        )
+        format!("profile_{profile_id}_conn_txn_{connector_transaction_id}")
     }
 
     pub(super) fn get_global_id_label(
@@ -2717,6 +2723,7 @@ impl ForeignFrom<PaymentAttemptUpdate> for diesel_models::PaymentAttemptUpdateIn
                 merchant_connector_id,
                 authentication_type,
                 connector_request_reference_id,
+                connector_response_reference_id,
             } => Self {
                 status: Some(status),
                 payment_method_id: None,
@@ -2742,6 +2749,7 @@ impl ForeignFrom<PaymentAttemptUpdate> for diesel_models::PaymentAttemptUpdateIn
                 network_decline_code: None,
                 network_error_message: None,
                 connector_request_reference_id,
+                connector_response_reference_id,
             },
             PaymentAttemptUpdate::ErrorUpdate {
                 status,
@@ -2774,6 +2782,7 @@ impl ForeignFrom<PaymentAttemptUpdate> for diesel_models::PaymentAttemptUpdateIn
                 network_decline_code: error.network_decline_code,
                 network_error_message: error.network_error_message,
                 connector_request_reference_id: None,
+                connector_response_reference_id: None
             },
             PaymentAttemptUpdate::ConfirmIntentResponse(confirm_intent_response_update) => {
 
@@ -2785,6 +2794,7 @@ impl ForeignFrom<PaymentAttemptUpdate> for diesel_models::PaymentAttemptUpdateIn
                     connector_metadata,
                     amount_capturable,
                     connector_token_details,
+                    connector_response_reference_id,
                 } = *confirm_intent_response_update;
                 Self {
                     status: Some(status),
@@ -2812,6 +2822,7 @@ impl ForeignFrom<PaymentAttemptUpdate> for diesel_models::PaymentAttemptUpdateIn
                     network_decline_code: None,
                     network_error_message: None,
                     connector_request_reference_id: None,
+                    connector_response_reference_id,
                 }
             }
             PaymentAttemptUpdate::SyncUpdate {
@@ -2843,6 +2854,7 @@ impl ForeignFrom<PaymentAttemptUpdate> for diesel_models::PaymentAttemptUpdateIn
                 network_decline_code: None,
                 network_error_message: None,
                 connector_request_reference_id: None,
+                connector_response_reference_id: None,
             },
             PaymentAttemptUpdate::CaptureUpdate {
                 status,
@@ -2873,6 +2885,7 @@ impl ForeignFrom<PaymentAttemptUpdate> for diesel_models::PaymentAttemptUpdateIn
                 network_decline_code: None,
                 network_error_message: None,
                 connector_request_reference_id: None,
+                connector_response_reference_id: None,
             },
             PaymentAttemptUpdate::PreCaptureUpdate {
                 amount_to_capture,
@@ -2902,6 +2915,7 @@ impl ForeignFrom<PaymentAttemptUpdate> for diesel_models::PaymentAttemptUpdateIn
                 network_decline_code: None,
                 network_error_message: None,
                 connector_request_reference_id: None,
+                connector_response_reference_id: None,
             },
             PaymentAttemptUpdate::ConfirmIntentTokenized {
                 status,
@@ -2935,6 +2949,7 @@ impl ForeignFrom<PaymentAttemptUpdate> for diesel_models::PaymentAttemptUpdateIn
                 network_decline_code: None,
                 network_error_message: None,
                 connector_request_reference_id: None,
+                connector_response_reference_id: None,
             },
         }
     }
