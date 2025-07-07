@@ -567,7 +567,7 @@ export const connectorDetails = {
       },
       Request: {
         currency: "EUR",
-        billing: billing_info
+        billing: billing_info,
       },
       Response: {
         status: 200,
