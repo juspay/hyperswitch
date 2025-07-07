@@ -4,7 +4,6 @@ import {
   multiUseMandateData,
   requiredFields,
 } from "./Commons";
-
 const mockBillingDetails = {
   address: {
     line1: "Servidao B-1",
@@ -23,7 +22,6 @@ const mockBillingDetails = {
   },
   email: "thiago@example.com",
 };
-
 const successfulCardDetails = {
   card_number: "4111111111111111",
   card_exp_month: "10",
@@ -31,7 +29,6 @@ const successfulCardDetails = {
   card_holder_name: "Thiago Gabriel",
   card_cvc: "123",
 };
-
 const failedCardDetails = {
   card_number: "4000000000000002",
   card_exp_month: "10",
@@ -39,7 +36,6 @@ const failedCardDetails = {
   card_holder_name: "Thiago Gabriel",
   card_cvc: "123",
 };
-
 const payment_method_data_no3ds = {
   card: {
     last4: "1111",
@@ -91,7 +87,6 @@ const payment_method_data_3ds_address = {
   },
   billing: mockBillingDetails,
 };
-
 export const connectorDetails = {
   card_pm: {
     No3DSFailPayment: {
@@ -114,7 +109,6 @@ export const connectorDetails = {
         },
       },
     },
-
     PaymentIntentWithShippingCost: {
       Request: {
         currency: "USD",
@@ -129,7 +123,6 @@ export const connectorDetails = {
         },
       },
     },
-
     PaymentConfirmWithShippingCost: {
       Request: {
         payment_method: "card",
@@ -150,7 +143,6 @@ export const connectorDetails = {
         },
       },
     },
-
     No3DSAutoCapture: {
       Request: {
         payment_method: "card",
@@ -170,7 +162,6 @@ export const connectorDetails = {
         },
       },
     },
-
     "3DSAutoCapture": {
       Request: {
         payment_method: "card",
@@ -187,7 +178,6 @@ export const connectorDetails = {
         },
       },
     },
-
     No3DSManualCapture: {
       Request: {
         payment_method: "card",
@@ -208,7 +198,6 @@ export const connectorDetails = {
         },
       },
     },
-
     "3DSManualCapture": {
       Request: {
         payment_method: "card",
@@ -228,7 +217,6 @@ export const connectorDetails = {
         },
       },
     },
-
     Capture: {
       Request: {
         amount_to_capture: 6000,
@@ -243,7 +231,6 @@ export const connectorDetails = {
         },
       },
     },
-
     PartialCapture: {
       Request: {
         amount_to_capture: 2000,
@@ -258,7 +245,6 @@ export const connectorDetails = {
         },
       },
     },
-
     Void: {
       Request: {
         cancellation_reason: "VOID",
@@ -271,7 +257,6 @@ export const connectorDetails = {
         },
       },
     },
-
     VoidAfterConfirm: {
       Request: {
         cancellation_reason: "VOID",
@@ -284,7 +269,6 @@ export const connectorDetails = {
         },
       },
     },
-
     Refund: {
       Request: {
         amount: 6000,
@@ -296,7 +280,6 @@ export const connectorDetails = {
         },
       },
     },
-
     PartialRefund: {
       Request: {
         amount: 2000,
@@ -308,7 +291,6 @@ export const connectorDetails = {
         },
       },
     },
-
     SyncRefund: {
       Response: {
         status: 200,
@@ -317,7 +299,6 @@ export const connectorDetails = {
         },
       },
     },
-
     manualPaymentRefund: {
       Request: {
         amount: 6000,
@@ -329,7 +310,6 @@ export const connectorDetails = {
         },
       },
     },
-
     manualPaymentPartialRefund: {
       Request: {
         amount: 2000,
@@ -341,7 +321,6 @@ export const connectorDetails = {
         },
       },
     },
-
     MandateSingleUseNo3DSAutoCapture: {
       Request: {
         payment_method: "card",
@@ -367,7 +346,6 @@ export const connectorDetails = {
       },
       Configs: { TRIGGER_SKIP: true },
     },
-
     MandateSingleUseNo3DSManualCapture: {
       Request: {
         payment_method: "card",
@@ -375,7 +353,6 @@ export const connectorDetails = {
           card: successfulCardDetails,
           billing: mockBillingDetails,
         },
-
         currency: "USD",
         mandate_data: singleUseMandateData,
       },
@@ -422,7 +399,6 @@ export const connectorDetails = {
       },
       Configs: { TRIGGER_SKIP: true },
     },
-
     SaveCardUseNo3DSAutoCapture: {
       Request: {
         payment_method: "card",
@@ -445,7 +421,6 @@ export const connectorDetails = {
       },
       Configs: { TRIGGER_SKIP: true },
     },
-
     SaveCardUseNo3DSAutoCaptureOffSession: {
       Request: {
         payment_method: "card",
@@ -467,7 +442,6 @@ export const connectorDetails = {
       },
       Configs: { TRIGGER_SKIP: true },
     },
-
     MandateMultiUseNo3DSAutoCapture: {
       Request: {
         payment_method: "card",
@@ -513,7 +487,6 @@ export const connectorDetails = {
       },
       Configs: { TRIGGER_SKIP: true },
     },
-
     ZeroAuthMandate: {
       Request: {
         payment_method: "card",
@@ -527,9 +500,12 @@ export const connectorDetails = {
       Response: {
         status: 501,
         body: {
-          status: "succeeded",
-          payment_method_data: payment_method_data_no3ds_address,
-        },
+          error: {
+            type: "invalid_request",
+            message: "Setup Mandate flow for Dlocal is not implemented",
+            code: "IR_00" 
+          }
+        }
       },
       Configs: { TRIGGER_SKIP: true },
     },
@@ -546,7 +522,6 @@ export const connectorDetails = {
       },
       Configs: { TRIGGER_SKIP: true },
     },
-
     ZeroAuthConfirmPayment: {
       Request: {
         payment_type: "setup_mandate",
@@ -559,14 +534,15 @@ export const connectorDetails = {
       Response: {
         status: 501,
         body: {
-          status: "succeeded",
-          payment_method: "card",
-          payment_method_data: payment_method_data_no3ds_address,
-        },
+          error: {
+            type: "invalid_request",
+            message: "Setup Mandate flow for Dlocal is not implemented",
+            code: "IR_00" 
+          }
+        }
       },
       Configs: { TRIGGER_SKIP: true },
     },
-
     SyncPayment: {
       Response: {
         status: 200,
@@ -576,17 +552,6 @@ export const connectorDetails = {
           payment_method_data: payment_method_data_no3ds_address,
         },
       },
-    },
-  },
-  pm_list: {
-    PmListResponse: {
-      PmListNull: {
-        payment_methods: [],
-      },
-      pmListDynamicFieldWithoutBilling: requiredFields,
-      pmListDynamicFieldWithBilling: requiredFields,
-      pmListDynamicFieldWithNames: requiredFields,
-      pmListDynamicFieldWithEmail: requiredFields,
     },
   },
 };
