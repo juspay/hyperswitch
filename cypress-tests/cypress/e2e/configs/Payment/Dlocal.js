@@ -502,9 +502,9 @@ export const connectorDetails = {
           error: {
             type: "invalid_request",
             message: "Setup Mandate flow for Dlocal is not implemented",
-            code: "IR_00" 
-          }
-        }
+            code: "IR_00",
+          },
+        },
       },
       Configs: { TRIGGER_SKIP: true },
     },
@@ -536,9 +536,9 @@ export const connectorDetails = {
           error: {
             type: "invalid_request",
             message: "Setup Mandate flow for Dlocal is not implemented",
-            code: "IR_00" 
-          }
-        }
+            code: "IR_00",
+          },
+        },
       },
       Configs: { TRIGGER_SKIP: true },
     },
