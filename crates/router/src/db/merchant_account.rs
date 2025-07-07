@@ -18,7 +18,8 @@ use crate::{
             self,
             behaviour::{Conversion, ReverseConversion},
         },
-        storage, transformers::{ForeignInto, ForeignFrom},
+        storage,
+        transformers::{ForeignFrom, ForeignInto},
     },
 };
 
@@ -654,8 +655,9 @@ impl MerchantAccountInterface for MockDb {
     ) -> CustomResult<usize, errors::StorageError> {
         let mut accounts = self.merchant_accounts.lock().await;
         Ok(accounts.iter_mut().fold(0, |acc, account| {
-            let update = MerchantAccountUpdateInternal::foreign_from(merchant_account_update.clone())
-                .apply_changeset(account.clone());
+            let update =
+                MerchantAccountUpdateInternal::foreign_from(merchant_account_update.clone())
+                    .apply_changeset(account.clone());
             *account = update;
             acc + 1
         }))

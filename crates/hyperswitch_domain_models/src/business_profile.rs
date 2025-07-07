@@ -2,7 +2,11 @@ use std::borrow::Cow;
 
 use common_enums::enums as api_enums;
 #[cfg(feature = "v2")]
-use common_types::business_profile::{AuthenticationConnectorDetails, BusinessPaymentLinkConfig, BusinessPayoutLinkConfig, CardTestingGuardConfig, ExternalVaultConnectorDetails, RevenueRecoveryAlgorithmData, WebhookDetails};
+use common_types::business_profile::{
+    AuthenticationConnectorDetails, BusinessPaymentLinkConfig, BusinessPayoutLinkConfig,
+    CardTestingGuardConfig, ExternalVaultConnectorDetails, RevenueRecoveryAlgorithmData,
+    WebhookDetails,
+};
 use common_types::{domain::AcquirerConfig, primitive_wrappers};
 use common_utils::{
     crypto::{OptionalEncryptableName, OptionalEncryptableValue},
@@ -1381,4 +1385,3 @@ pub enum ProfileUpdate {
         revenue_recovery_retry_algorithm_data: Option<RevenueRecoveryAlgorithmData>,
     },
 }
-

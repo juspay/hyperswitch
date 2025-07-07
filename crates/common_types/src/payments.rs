@@ -344,8 +344,6 @@ pub struct XenditMultipleSplitResponse {
 }
 impl_to_sql_from_sql_json!(XenditMultipleSplitResponse);
 
-
-
 #[allow(missing_docs)]
 #[derive(Clone, Default, Debug, PartialEq, Serialize, Deserialize, diesel::AsExpression)]
 #[diesel(sql_type = Jsonb)]
@@ -363,7 +361,10 @@ impl TaxDetails {
     /// Get the tax amount
     /// If default tax is present, return the default tax amount
     /// If default tax is not present, return the tax amount based on the payment method if it matches the provided payment method type
-    pub fn get_tax_amount(&self, payment_method: Option<enums::PaymentMethodType>) -> Option<MinorUnit> {
+    pub fn get_tax_amount(
+        &self,
+        payment_method: Option<enums::PaymentMethodType>,
+    ) -> Option<MinorUnit> {
         self.payment_method_type
             .as_ref()
             .zip(payment_method)
@@ -392,14 +393,10 @@ pub struct PaymentMethodTypeTax {
 }
 
 #[allow(missing_docs)]
-
 #[derive(Clone, Default, Debug, PartialEq, Serialize, Deserialize)]
 pub struct DefaultTax {
     pub order_tax_amount: MinorUnit,
 }
-
-
-
 
 #[allow(missing_docs)]
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize, FromSqlRow, AsExpression)]
@@ -436,7 +433,6 @@ pub struct OrderDetailsWithAmount {
 impl masking::SerializableSecret for OrderDetailsWithAmount {}
 
 common_utils::impl_to_sql_from_sql_json!(OrderDetailsWithAmount);
-
 
 #[allow(missing_docs)]
 #[cfg(feature = "v2")]
@@ -540,7 +536,6 @@ common_utils::impl_to_sql_from_sql_json!(ApplePayRecurringDetails);
 common_utils::impl_to_sql_from_sql_json!(ApplePayRegularBillingDetails);
 common_utils::impl_to_sql_from_sql_json!(RecurringPaymentIntervalUnit);
 
-
 #[allow(missing_docs)]
 #[cfg(feature = "v2")]
 #[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]
@@ -600,7 +595,6 @@ pub struct BillingConnectorAdditionalCardInfo {
     pub card_issuer: Option<String>,
 }
 
-
 #[allow(missing_docs)]
 #[derive(Clone, Debug, serde::Deserialize, serde::Serialize, diesel::AsExpression, PartialEq)]
 #[diesel(sql_type = Jsonb)]
@@ -640,11 +634,9 @@ pub struct PaymentLinkConfigRequestForPayments {
     /// Custom background colour for the payment link
     pub background_colour: Option<String>,
     /// SDK configuration rules
-    pub sdk_ui_rules:
-        Option<HashMap<String, HashMap<String, String>>>,
+    pub sdk_ui_rules: Option<HashMap<String, HashMap<String, String>>>,
     /// Payment link configuration rules
-    pub payment_link_ui_rules:
-        Option<HashMap<String, HashMap<String, String>>>,
+    pub payment_link_ui_rules: Option<HashMap<String, HashMap<String, String>>>,
     /// Flag to enable the button only when the payment form is ready for submission
     pub enable_button_only_on_form_ready: Option<bool>,
     /// Optional header for the SDK's payment form
@@ -687,7 +679,6 @@ pub struct TransactionDetailsUiConfiguration {
 
 common_utils::impl_to_sql_from_sql_json!(TransactionDetailsUiConfiguration);
 
-
 #[allow(missing_docs)]
 #[derive(Clone, Debug, serde::Deserialize, serde::Serialize, PartialEq)]
 pub struct PaymentLinkBackgroundImageConfig {
@@ -695,8 +686,6 @@ pub struct PaymentLinkBackgroundImageConfig {
     pub position: Option<common_enums::ElementPosition>,
     pub size: Option<common_enums::ElementSize>,
 }
-
-
 
 #[allow(missing_docs)]
 #[cfg(feature = "v2")]

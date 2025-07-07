@@ -1,6 +1,7 @@
 // use diesel_models::{CardInfo, UpdateCardInfo};
 use error_stack::report;
 use hyperswitch_domain_models::cards_info::CardsInfoInterface;
+pub use hyperswitch_domain_models::cards_info::{CardInfo, UpdateCardInfo};
 use router_env::{instrument, tracing};
 
 use crate::{
@@ -10,8 +11,6 @@ use crate::{
     utils::{pg_connection_read, pg_connection_write, ForeignFrom, ForeignInto},
     CustomResult, DatabaseStore, MockDb, RouterStore,
 };
-
-pub use hyperswitch_domain_models::cards_info::{CardInfo, UpdateCardInfo};
 
 impl KvStorePartition for CardInfo {}
 
@@ -25,12 +24,12 @@ impl<T: DatabaseStore> CardsInfoInterface for RouterStore<T> {
             .await
             .map_err(|error| report!(StorageError::from(error)))
             .map(|val: Option<diesel_models::CardInfo>| val.map(ForeignInto::foreign_into))
-
     }
     #[instrument(skip_all)]
     async fn add_card_info(&self, data: CardInfo) -> CustomResult<CardInfo, StorageError> {
         let conn = pg_connection_write(self).await?;
-        diesel_models::CardInfo::foreign_from(data).insert(&conn)
+        diesel_models::CardInfo::foreign_from(data)
+            .insert(&conn)
             .await
             .map_err(|error| report!(StorageError::from(error)))
             .map(ForeignInto::foreign_into)
@@ -63,7 +62,8 @@ impl<T: DatabaseStore> CardsInfoInterface for KVRouterStore<T> {
     #[instrument(skip_all)]
     async fn add_card_info(&self, data: CardInfo) -> CustomResult<CardInfo, StorageError> {
         let conn = pg_connection_write(self).await?;
-        diesel_models::CardInfo::foreign_from(data).insert(&conn)
+        diesel_models::CardInfo::foreign_from(data)
+            .insert(&conn)
             .await
             .map_err(|error| report!(StorageError::from(error)))
             .map(ForeignInto::foreign_into)
@@ -93,7 +93,8 @@ impl CardsInfoInterface for MockDb {
             .await
             .iter()
             .find(|ci| ci.card_iin == card_iin)
-            .cloned().map(ForeignInto::foreign_into))
+            .cloned()
+            .map(ForeignInto::foreign_into))
     }
 
     async fn add_card_info(&self, _data: CardInfo) -> CustomResult<CardInfo, StorageError> {
@@ -108,7 +109,6 @@ impl CardsInfoInterface for MockDb {
         Err(StorageError::MockDbError)?
     }
 }
-
 
 impl ForeignFrom<diesel_models::CardInfo> for CardInfo {
     fn foreign_from(from: diesel_models::CardInfo) -> Self {

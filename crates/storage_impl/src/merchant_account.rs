@@ -1,24 +1,22 @@
+use common_utils::{
+    date_time,
+    encryption::Encryption,
+    errors::{CustomResult, ValidationError},
+    type_name,
+    types::keymanager,
+};
+use error_stack::ResultExt;
 #[cfg(feature = "v2")]
 use hyperswitch_domain_models::merchant_account::MerchantAccountUpdate;
-use common_utils::{date_time, encryption::Encryption};
-use hyperswitch_domain_models::merchant_context::MerchantAccount;
-use common_utils::errors::CustomResult;
-use common_utils::errors::ValidationError;
-use common_utils::types::keymanager;
-use masking::Secret;
-use hyperswitch_domain_models::type_encryption::crypto_operation;
-use common_utils::type_name;
-use hyperswitch_domain_models::type_encryption::CryptoOperation;
-use hyperswitch_domain_models::merchant_account::MerchantAccountSetter;
-
-use hyperswitch_domain_models::type_encryption::AsyncLift;
-use error_stack::ResultExt;
-use masking::PeekInterface;
+use hyperswitch_domain_models::{
+    merchant_account::MerchantAccountSetter,
+    merchant_context::MerchantAccount,
+    type_encryption::{crypto_operation, AsyncLift, CryptoOperation},
+};
+use masking::{PeekInterface, Secret};
 
 #[cfg(feature = "v2")]
 use crate::utils::ForeignFrom;
-
-
 
 #[cfg(feature = "v2")]
 #[async_trait::async_trait]
@@ -65,49 +63,51 @@ impl super::behaviour::Conversion for MerchantAccount {
                 })?;
 
         async {
-
-            Ok::<Self, error_stack::Report<common_utils::errors::CryptoError>>(MerchantAccountSetter {
-                id,
-                merchant_name: item
-                    .merchant_name
-                    .async_lift(|inner| async {
-                        crypto_operation(
-                            state,
-                            type_name!(Self::DstType),
-                            CryptoOperation::DecryptOptional(inner),
-                            key_manager_identifier.clone(),
-                            key.peek(),
-                        )
-                        .await
-                        .and_then(|val| val.try_into_optionaloperation())
-                    })
-                    .await?,
-                merchant_details: item
-                    .merchant_details
-                    .async_lift(|inner| async {
-                        crypto_operation(
-                            state,
-                            type_name!(Self::DstType),
-                            CryptoOperation::DecryptOptional(inner),
-                            key_manager_identifier.clone(),
-                            key.peek(),
-                        )
-                        .await
-                        .and_then(|val| val.try_into_optionaloperation())
-                    })
-                    .await?,
-                publishable_key,
-                storage_scheme: item.storage_scheme,
-                metadata: item.metadata,
-                created_at: item.created_at,
-                modified_at: item.modified_at,
-                organization_id: item.organization_id,
-                recon_status: item.recon_status,
-                is_platform_account: item.is_platform_account,
-                version: item.version,
-                product_type: item.product_type,
-                merchant_account_type: item.merchant_account_type.unwrap_or_default(),
-            }.into())
+            Ok::<Self, error_stack::Report<common_utils::errors::CryptoError>>(
+                MerchantAccountSetter {
+                    id,
+                    merchant_name: item
+                        .merchant_name
+                        .async_lift(|inner| async {
+                            crypto_operation(
+                                state,
+                                type_name!(Self::DstType),
+                                CryptoOperation::DecryptOptional(inner),
+                                key_manager_identifier.clone(),
+                                key.peek(),
+                            )
+                            .await
+                            .and_then(|val| val.try_into_optionaloperation())
+                        })
+                        .await?,
+                    merchant_details: item
+                        .merchant_details
+                        .async_lift(|inner| async {
+                            crypto_operation(
+                                state,
+                                type_name!(Self::DstType),
+                                CryptoOperation::DecryptOptional(inner),
+                                key_manager_identifier.clone(),
+                                key.peek(),
+                            )
+                            .await
+                            .and_then(|val| val.try_into_optionaloperation())
+                        })
+                        .await?,
+                    publishable_key,
+                    storage_scheme: item.storage_scheme,
+                    metadata: item.metadata,
+                    created_at: item.created_at,
+                    modified_at: item.modified_at,
+                    organization_id: item.organization_id,
+                    recon_status: item.recon_status,
+                    is_platform_account: item.is_platform_account,
+                    version: item.version,
+                    product_type: item.product_type,
+                    merchant_account_type: item.merchant_account_type.unwrap_or_default(),
+                }
+                .into(),
+            )
         }
         .await
         .change_context(ValidationError::InvalidValue {

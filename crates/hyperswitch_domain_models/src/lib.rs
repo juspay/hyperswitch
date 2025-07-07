@@ -139,7 +139,9 @@ impl ApiModelToDieselModelConvertor<ApiFeatureMetadata> for FeatureMetadata {
 }
 
 #[cfg(feature = "v2")]
-impl ApiModelToDieselModelConvertor<ApiFeatureMetadata> for common_types::payments::FeatureMetadata {
+impl ApiModelToDieselModelConvertor<ApiFeatureMetadata>
+    for common_types::payments::FeatureMetadata
+{
     fn convert_from(from: ApiFeatureMetadata) -> Self {
         let ApiFeatureMetadata {
             redirect_response,
@@ -149,7 +151,8 @@ impl ApiModelToDieselModelConvertor<ApiFeatureMetadata> for common_types::paymen
         } = from;
 
         Self {
-            redirect_response: redirect_response.map(common_types::payments::RedirectResponse::convert_from),
+            redirect_response: redirect_response
+                .map(common_types::payments::RedirectResponse::convert_from),
             search_tags,
             apple_pay_recurring_details: apple_pay_recurring_details
                 .map(common_types::payments::ApplePayRecurringDetails::convert_from),
@@ -178,7 +181,9 @@ impl ApiModelToDieselModelConvertor<ApiFeatureMetadata> for common_types::paymen
     }
 }
 
-impl ApiModelToDieselModelConvertor<ApiRedirectResponse> for common_types::payments::RedirectResponse {
+impl ApiModelToDieselModelConvertor<ApiRedirectResponse>
+    for common_types::payments::RedirectResponse
+{
     fn convert_from(from: ApiRedirectResponse) -> Self {
         let ApiRedirectResponse {
             param,
@@ -253,11 +258,15 @@ impl ApiModelToDieselModelConvertor<ApiApplePayRegularBillingDetails>
     }
 }
 
-impl ApiModelToDieselModelConvertor<ApiApplePayRecurringDetails> for common_types::payments::ApplePayRecurringDetails {
+impl ApiModelToDieselModelConvertor<ApiApplePayRecurringDetails>
+    for common_types::payments::ApplePayRecurringDetails
+{
     fn convert_from(from: ApiApplePayRecurringDetails) -> Self {
         Self {
             payment_description: from.payment_description,
-            regular_billing: common_types::payments::ApplePayRegularBillingDetails::convert_from(from.regular_billing),
+            regular_billing: common_types::payments::ApplePayRegularBillingDetails::convert_from(
+                from.regular_billing,
+            ),
             billing_agreement: from.billing_agreement,
             management_url: from.management_url,
         }
@@ -298,9 +307,9 @@ impl ApiModelToDieselModelConvertor<ApiBillingConnectorPaymentMethodDetails>
 {
     fn convert_from(from: ApiBillingConnectorPaymentMethodDetails) -> Self {
         match from {
-            ApiBillingConnectorPaymentMethodDetails::Card(data) => {
-                Self::Card(common_types::payments::BillingConnectorAdditionalCardInfo::convert_from(data))
-            }
+            ApiBillingConnectorPaymentMethodDetails::Card(data) => Self::Card(
+                common_types::payments::BillingConnectorAdditionalCardInfo::convert_from(data),
+            ),
         }
     }
 
@@ -312,16 +321,19 @@ impl ApiModelToDieselModelConvertor<ApiBillingConnectorPaymentMethodDetails>
 }
 
 #[cfg(feature = "v2")]
-impl ApiModelToDieselModelConvertor<ApiRevenueRecoveryMetadata> for common_types::payments::PaymentRevenueRecoveryMetadata {
+impl ApiModelToDieselModelConvertor<ApiRevenueRecoveryMetadata>
+    for common_types::payments::PaymentRevenueRecoveryMetadata
+{
     fn convert_from(from: ApiRevenueRecoveryMetadata) -> Self {
         Self {
             total_retry_count: from.total_retry_count,
             payment_connector_transmission: from.payment_connector_transmission.unwrap_or_default(),
             billing_connector_id: from.billing_connector_id,
             active_attempt_payment_connector_id: from.active_attempt_payment_connector_id,
-            billing_connector_payment_details: common_types::payments::BillingConnectorPaymentDetails::convert_from(
-                from.billing_connector_payment_details,
-            ),
+            billing_connector_payment_details:
+                common_types::payments::BillingConnectorPaymentDetails::convert_from(
+                    from.billing_connector_payment_details,
+                ),
             payment_method_type: from.payment_method_type,
             payment_method_subtype: from.payment_method_subtype,
             connector: from.connector,

@@ -4965,7 +4965,9 @@ impl ForeignFrom<&common_types::payments::BillingConnectorPaymentDetails>
 impl ForeignFrom<&common_types::payments::BillingConnectorPaymentMethodDetails>
     for api_models::payments::BillingConnectorPaymentMethodDetails
 {
-    fn foreign_from(metadata: &common_types::payments::BillingConnectorPaymentMethodDetails) -> Self {
+    fn foreign_from(
+        metadata: &common_types::payments::BillingConnectorPaymentMethodDetails,
+    ) -> Self {
         match metadata {
             common_types::payments::BillingConnectorPaymentMethodDetails::Card(card_details) => {
                 Self::Card(api_models::payments::BillingConnectorAdditionalCardInfo {
@@ -5016,7 +5018,9 @@ impl
 }
 
 #[cfg(feature = "v2")]
-impl ForeignFrom<&common_types::payments::FeatureMetadata> for api_models::payments::FeatureMetadata {
+impl ForeignFrom<&common_types::payments::FeatureMetadata>
+    for api_models::payments::FeatureMetadata
+{
     fn foreign_from(feature_metadata: &common_types::payments::FeatureMetadata) -> Self {
         let revenue_recovery = feature_metadata
             .payment_revenue_recovery_metadata
@@ -5112,7 +5116,9 @@ impl ForeignFrom<api_models::admin::PaymentLinkConfigRequest>
                 transaction_details
                     .iter()
                     .map(|details| {
-                        common_types::payments::PaymentLinkTransactionDetails::foreign_from(details.clone())
+                        common_types::payments::PaymentLinkTransactionDetails::foreign_from(
+                            details.clone(),
+                        )
                     })
                     .collect()
             }),

@@ -10,7 +10,11 @@ use hyperswitch_domain_models::{
 };
 use redis_interface::RedisSettings;
 
-use crate::{behaviour::{Conversion, ReverseConversion}, errors::StorageError, redis::RedisStore};
+use crate::{
+    behaviour::{Conversion, ReverseConversion},
+    errors::StorageError,
+    redis::RedisStore,
+};
 
 pub mod payment_attempt;
 pub mod payment_intent;

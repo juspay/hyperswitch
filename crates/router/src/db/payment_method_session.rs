@@ -45,9 +45,11 @@ impl PaymentMethodsSessionInterface for crate::services::Store {}
 #[cfg(feature = "v2")]
 mod storage {
     use error_stack::ResultExt;
-    use storage_impl::behaviour::{Conversion, ReverseConversion};
     use router_env::{instrument, tracing};
-    use storage_impl::redis::kv_store::RedisConnInterface;
+    use storage_impl::{
+        behaviour::{Conversion, ReverseConversion},
+        redis::kv_store::RedisConnInterface,
+    };
 
     use super::PaymentMethodsSessionInterface;
     use crate::{

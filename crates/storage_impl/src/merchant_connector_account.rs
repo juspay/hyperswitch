@@ -1,35 +1,33 @@
-use crate::utils::ForeignFrom;
-use common_utils::date_time;
-use common_utils::encryption::Encryption;
-use common_utils::errors::CustomResult;
-use common_utils::errors::ValidationError;
-use common_utils::type_name;
-use common_utils::types::keymanager;
-use common_utils::types::keymanager::ToEncryptable;
-use error_stack::ResultExt;
-use hyperswitch_domain_models::merchant_connector_account::EncryptedMerchantConnectorAccount;
-use hyperswitch_domain_models::merchant_connector_account::MerchantConnectorAccount;
-#[cfg(feature = "v2")]
-use hyperswitch_domain_models::merchant_connector_account::MerchantConnectorAccountFeatureMetadata;
-#[cfg(feature = "v2")]
-use hyperswitch_domain_models::merchant_connector_account::MerchantConnectorAccountUpdate;
-use hyperswitch_domain_models::type_encryption::crypto_operation;
-use hyperswitch_domain_models::type_encryption::CryptoOperation;
-use hyperswitch_domain_models::{business_profile::ProfileSetter, type_encryption::AsyncLift};
-use masking::PeekInterface;
-use masking::Secret;
-
 use std::collections::HashMap;
 
-use hyperswitch_domain_models::merchant_connector_account::{
-    AccountReferenceMap, RevenueRecoveryMetadata,
+use common_utils::{
+    date_time,
+    encryption::Encryption,
+    errors::{CustomResult, ValidationError},
+    type_name,
+    types::{keymanager, keymanager::ToEncryptable},
 };
-
 use diesel_models::merchant_connector_account::{
     BillingAccountReference as DieselBillingAccountReference,
     MerchantConnectorAccountFeatureMetadata as DieselMerchantConnectorAccountFeatureMetadata,
     RevenueRecoveryMetadata as DieselRevenueRecoveryMetadata,
 };
+use error_stack::ResultExt;
+#[cfg(feature = "v2")]
+use hyperswitch_domain_models::merchant_connector_account::MerchantConnectorAccountFeatureMetadata;
+#[cfg(feature = "v2")]
+use hyperswitch_domain_models::merchant_connector_account::MerchantConnectorAccountUpdate;
+use hyperswitch_domain_models::{
+    business_profile::ProfileSetter,
+    merchant_connector_account::{
+        AccountReferenceMap, EncryptedMerchantConnectorAccount, MerchantConnectorAccount,
+        RevenueRecoveryMetadata,
+    },
+    type_encryption::{crypto_operation, AsyncLift, CryptoOperation},
+};
+use masking::{PeekInterface, Secret};
+
+use crate::utils::ForeignFrom;
 
 #[cfg(feature = "v2")]
 #[async_trait::async_trait]
@@ -150,7 +148,6 @@ impl crate::behaviour::Conversion for MerchantConnectorAccount {
         })
     }
 }
-
 
 #[cfg(feature = "v2")]
 impl ForeignFrom<MerchantConnectorAccountFeatureMetadata>

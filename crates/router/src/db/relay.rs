@@ -2,18 +2,19 @@ use common_utils::types::keymanager::KeyManagerState;
 use diesel_models;
 use error_stack::{report, ResultExt};
 use hyperswitch_domain_models::relay::RelayUpdate;
-use storage_impl::behaviour::{Conversion, ReverseConversion};
-use storage_impl::MockDb;
+use storage_impl::{
+    behaviour::{Conversion, ReverseConversion},
+    MockDb,
+};
 
 use super::domain;
-use crate::types::transformers::ForeignFrom;
 use crate::{
     connection,
     core::errors::{self, CustomResult},
     db::kafka_store::KafkaStore,
     services::Store,
+    types::transformers::ForeignFrom,
 };
-
 
 impl ForeignFrom<RelayUpdate> for diesel_models::relay::RelayUpdateInternal {
     fn foreign_from(value: RelayUpdate) -> Self {

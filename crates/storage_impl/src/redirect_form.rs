@@ -2,7 +2,6 @@ use hyperswitch_domain_models::router_response_types::RedirectForm;
 
 use crate::utils::ForeignFrom;
 
-
 impl ForeignFrom<RedirectForm> for diesel_models::payment_attempt::RedirectForm {
     fn foreign_from(redirect_form: RedirectForm) -> Self {
         match redirect_form {

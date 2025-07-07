@@ -1,15 +1,11 @@
 #[cfg(all(feature = "v2", feature = "tokenization_v2"))]
 use common_utils::{errors::CustomResult, types::keymanager::KeyManagerState};
+use common_utils::{errors::ValidationError, types::keymanager};
 #[cfg(all(feature = "v2", feature = "tokenization_v2"))]
 use error_stack::{report, ResultExt};
-use hyperswitch_domain_models::tokenization::Tokenization;
 #[cfg(all(feature = "v2", feature = "tokenization_v2"))]
-use hyperswitch_domain_models::{
-    merchant_key_store::MerchantKeyStore,
-};
-
-use common_utils::errors::ValidationError;
-use common_utils::types::keymanager;
+use hyperswitch_domain_models::merchant_key_store::MerchantKeyStore;
+use hyperswitch_domain_models::tokenization::Tokenization;
 use masking::Secret;
 
 use super::MockDb;
@@ -46,8 +42,7 @@ impl<T: DatabaseStore> TokenizationInterface for RouterStore<T> {
         tokenization: Tokenization,
         merchant_key_store: &MerchantKeyStore,
         key_manager_state: &KeyManagerState,
-    ) -> CustomResult<Tokenization, errors::StorageError>
-    {
+    ) -> CustomResult<Tokenization, errors::StorageError> {
         use crate::behaviour::{Conversion, ReverseConversion};
 
         let conn = connection::pg_connection_write(self).await?;
@@ -73,8 +68,7 @@ impl<T: DatabaseStore> TokenizationInterface for RouterStore<T> {
         token: &common_utils::id_type::GlobalTokenId,
         merchant_key_store: &MerchantKeyStore,
         key_manager_state: &KeyManagerState,
-    ) -> CustomResult<Tokenization, errors::StorageError>
-    {
+    ) -> CustomResult<Tokenization, errors::StorageError> {
         use crate::behaviour::ReverseConversion;
 
         let conn = connection::pg_connection_read(self).await?;
@@ -104,8 +98,7 @@ impl<T: DatabaseStore> TokenizationInterface for KVRouterStore<T> {
         tokenization: Tokenization,
         merchant_key_store: &MerchantKeyStore,
         key_manager_state: &KeyManagerState,
-    ) -> CustomResult<Tokenization, errors::StorageError>
-    {
+    ) -> CustomResult<Tokenization, errors::StorageError> {
         self.router_store
             .insert_tokenization(tokenization, merchant_key_store, key_manager_state)
             .await
@@ -116,8 +109,7 @@ impl<T: DatabaseStore> TokenizationInterface for KVRouterStore<T> {
         token: &common_utils::id_type::GlobalTokenId,
         merchant_key_store: &MerchantKeyStore,
         key_manager_state: &KeyManagerState,
-    ) -> CustomResult<Tokenization, errors::StorageError>
-    {
+    ) -> CustomResult<Tokenization, errors::StorageError> {
         self.router_store
             .get_entity_id_vault_id_by_token_id(token, merchant_key_store, key_manager_state)
             .await
@@ -132,8 +124,7 @@ impl TokenizationInterface for MockDb {
         _tokenization: Tokenization,
         _merchant_key_store: &MerchantKeyStore,
         _key_manager_state: &KeyManagerState,
-    ) -> CustomResult<Tokenization, errors::StorageError>
-    {
+    ) -> CustomResult<Tokenization, errors::StorageError> {
         Err(errors::StorageError::MockDbError)?
     }
     async fn get_entity_id_vault_id_by_token_id(
@@ -141,8 +132,7 @@ impl TokenizationInterface for MockDb {
         _token: &common_utils::id_type::GlobalTokenId,
         _merchant_key_store: &MerchantKeyStore,
         _key_manager_state: &KeyManagerState,
-    ) -> CustomResult<Tokenization, errors::StorageError>
-    {
+    ) -> CustomResult<Tokenization, errors::StorageError> {
         Err(errors::StorageError::MockDbError)?
     }
 }
@@ -155,7 +145,6 @@ impl<T: DatabaseStore> TokenizationInterface for KVRouterStore<T> {}
 
 #[cfg(not(all(feature = "v2", feature = "tokenization_v2")))]
 impl<T: DatabaseStore> TokenizationInterface for RouterStore<T> {}
-
 
 #[async_trait::async_trait]
 impl super::behaviour::Conversion for Tokenization {

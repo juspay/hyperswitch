@@ -31,9 +31,9 @@ pub mod payment_attempt;
 pub mod payment_intent;
 
 use common_enums as storage_enums;
+
 // #[cfg(feature = "v2")]
 // use diesel_models::types::{FeatureMetadata, OrderDetailsWithAmount};
-
 use self::payment_attempt::PaymentAttempt;
 #[cfg(feature = "v2")]
 use crate::{
@@ -1053,7 +1053,7 @@ where
                     .payment_attempt
                     .get_attempt_merchant_connector_account_id()?,
                 billing_connector_payment_details:
-                common_types::payments::BillingConnectorPaymentDetails {
+                    common_types::payments::BillingConnectorPaymentDetails {
                         payment_processor_token: self
                             .revenue_recovery_data
                             .processor_payment_method_token

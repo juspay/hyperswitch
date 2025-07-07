@@ -7,7 +7,6 @@ use common_enums::{AuthenticationConnectors, UIWidgetFormLayout, VaultSdk};
 use masking::Secret;
 use time::Duration;
 
-
 #[derive(Clone, Debug, serde::Deserialize, serde::Serialize, diesel::AsExpression)]
 #[diesel(sql_type = diesel::sql_types::Jsonb)]
 pub struct AuthenticationConnectorDetails {
@@ -59,7 +58,6 @@ impl Default for CardTestingGuardConfig {
         }
     }
 }
-
 
 #[derive(Clone, Debug, serde::Deserialize, serde::Serialize, diesel::AsExpression)]
 #[diesel(sql_type = diesel::sql_types::Json)]
@@ -116,8 +114,6 @@ pub struct PaymentLinkConfigRequest {
     pub is_setup_mandate_flow: Option<bool>,
     pub color_icon_card_cvc_error: Option<String>,
 }
-
-
 
 common_utils::impl_to_sql_from_sql_json!(BusinessPaymentLinkConfig);
 

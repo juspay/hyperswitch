@@ -140,7 +140,6 @@ where
     }
 }
 
-
 /// Trait for converting from one foreign type to another
 pub(crate) trait ForeignFrom<F> {
     /// Convert from a foreign type to the current type
@@ -154,7 +153,6 @@ pub(crate) trait ForeignTryFrom<F>: Sized {
     /// Convert from a foreign type to the current type and return an error if the conversion fails
     fn foreign_try_from(from: F) -> Result<Self, Self::Error>;
 }
-
 
 pub(crate) trait ForeignInto<T> {
     fn foreign_into(self) -> T;

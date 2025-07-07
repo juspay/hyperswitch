@@ -1,5 +1,9 @@
+use ::common_types::payments::OrderDetailsWithAmount;
 #[cfg(feature = "v2")]
-use ::common_types::{payments::{self, TaxDetails}, primitive_wrappers::RequestExtendedAuthorizationBool};
+use ::common_types::{
+    payments::{self, TaxDetails},
+    primitive_wrappers::RequestExtendedAuthorizationBool,
+};
 #[cfg(feature = "v2")]
 use common_enums;
 #[cfg(feature = "v2")]
@@ -8,9 +12,6 @@ use common_utils::{
     crypto::Encryptable, hashing::HashedString, id_type, pii, types as common_types,
 };
 use diesel_models::enums as storage_enums;
-
-use ::common_types::payments::OrderDetailsWithAmount;
-
 use hyperswitch_domain_models::payments::PaymentIntent;
 #[cfg(feature = "v2")]
 use hyperswitch_domain_models::{address, routing};

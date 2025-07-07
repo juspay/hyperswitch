@@ -1,15 +1,8 @@
 use common_utils::errors;
 // use diesel_models::cards_info;
-
 use time::PrimitiveDateTime;
 
-
-#[derive(
-    Clone,
-    Debug,
-    serde::Deserialize,
-    serde::Serialize,
-)]
+#[derive(Clone, Debug, serde::Deserialize, serde::Serialize)]
 pub struct CardInfo {
     pub card_iin: String,
     pub card_issuer: Option<String>,
@@ -25,9 +18,7 @@ pub struct CardInfo {
     pub last_updated_provider: Option<String>,
 }
 
-#[derive(
-    Clone, Debug, PartialEq, Eq, router_derive::DebugAsDisplay, serde::Deserialize,
-)]
+#[derive(Clone, Debug, PartialEq, Eq, router_derive::DebugAsDisplay, serde::Deserialize)]
 pub struct UpdateCardInfo {
     pub card_issuer: Option<String>,
     pub card_network: Option<common_enums::CardNetwork>,
@@ -48,10 +39,7 @@ pub trait CardsInfoInterface {
         &self,
         _card_iin: &str,
     ) -> errors::CustomResult<Option<CardInfo>, Self::Error>;
-    async fn add_card_info(
-        &self,
-        data: CardInfo,
-    ) -> errors::CustomResult<CardInfo, Self::Error>;
+    async fn add_card_info(&self, data: CardInfo) -> errors::CustomResult<CardInfo, Self::Error>;
     async fn update_card_info(
         &self,
         card_iin: String,

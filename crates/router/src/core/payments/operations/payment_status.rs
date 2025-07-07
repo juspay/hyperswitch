@@ -474,12 +474,10 @@ async fn get_tracker_for_sync<
                 )
             })?;
 
-        Some(
-            AuthenticationStore {
-                authentication,
-                cavv: None, // marking this as None since we don't need authentication value in payment status flow
-            },
-        )
+        Some(AuthenticationStore {
+            authentication,
+            cavv: None, // marking this as None since we don't need authentication value in payment status flow
+        })
     } else {
         None
     };

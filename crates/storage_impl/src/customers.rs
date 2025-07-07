@@ -1,9 +1,20 @@
-use common_utils::{id_type, pii};
+use common_utils::{
+    crypto::Encryptable,
+    date_time,
+    encryption::Encryption,
+    errors::ValidationError,
+    id_type, pii,
+    types::{keymanager, keymanager::ToEncryptable},
+};
 use diesel_models::{customers as storage, kv};
 use error_stack::ResultExt;
 use futures::future::try_join_all;
-use hyperswitch_domain_models::{customer as domain, merchant_key_store::MerchantKeyStore};
-use masking::PeekInterface;
+use hyperswitch_domain_models::{
+    customer as domain,
+    merchant_key_store::MerchantKeyStore,
+    type_encryption::{crypto_operation, CryptoOperation},
+};
+use masking::{PeekInterface, Secret, SwitchStrategy};
 use router_env::{instrument, tracing};
 
 #[cfg(feature = "v1")]
@@ -14,23 +25,9 @@ use crate::{
     kv_router_store,
     redis::kv_store::{decide_storage_scheme, KvStorePartition, Op, PartitionKey},
     store::enums::MerchantStorageScheme,
-    utils::{pg_connection_read, pg_connection_write, ForeignFrom},
+    utils::{pg_connection_read, pg_connection_write, ForeignFrom, ForeignInto},
     CustomResult, DatabaseStore, KeyManagerState, MockDb, RouterStore,
 };
-use crate::utils::ForeignInto;
-use common_utils::encryption::Encryption;
-use common_utils::errors::ValidationError;
-use common_utils::types::keymanager;
-use hyperswitch_domain_models::type_encryption::crypto_operation;
-use hyperswitch_domain_models::type_encryption::CryptoOperation;
-use masking::Secret;
-use common_utils::types::keymanager::ToEncryptable;
-use masking::SwitchStrategy;
-
-
-
-use common_utils::crypto::Encryptable;
-use common_utils::date_time;
 
 impl KvStorePartition for storage::Customer {}
 
@@ -267,11 +264,7 @@ impl<T: DatabaseStore> domain::CustomerInterface for kv_router_store::KVRouterSt
                 state,
                 key_store,
                 storage_scheme,
-                storage::Customer::find_by_customer_id_merchant_id(
-                    &conn,
-                    customer_id,
-                    merchant_id,
-                ),
+                storage::Customer::find_by_customer_id_merchant_id(&conn, customer_id, merchant_id),
                 kv_router_store::FindResourceBy::Id(
                     format!("cust_{}", customer_id.get_string_repr()),
                     PartitionKey::MerchantIdCustomerId {
@@ -453,13 +446,15 @@ impl<T: DatabaseStore> domain::CustomerInterface for kv_router_store::KVRouterSt
         key_store: &MerchantKeyStore,
         storage_scheme: MerchantStorageScheme,
     ) -> CustomResult<domain::Customer, StorageError> {
-
         let conn = pg_connection_write(self).await?;
         let customer = Conversion::convert(customer)
             .await
             .change_context(StorageError::EncryptionError)?;
-        let database_call =
-            storage::Customer::update_by_id(&conn, id.clone(), customer_update.clone().foreign_into());
+        let database_call = storage::Customer::update_by_id(
+            &conn,
+            id.clone(),
+            customer_update.clone().foreign_into(),
+        );
         let key = PartitionKey::GlobalId {
             id: id.get_string_repr(),
         };
@@ -618,11 +613,7 @@ impl<T: DatabaseStore> domain::CustomerInterface for RouterStore<T> {
             .call_database(
                 state,
                 key_store,
-                storage::Customer::find_by_customer_id_merchant_id(
-                    &conn,
-                    customer_id,
-                    merchant_id,
-                ),
+                storage::Customer::find_by_customer_id_merchant_id(&conn, customer_id, merchant_id),
             )
             .await?;
         match customer.name {
@@ -1006,7 +997,6 @@ impl Conversion for domain::Customer {
             merchant_id: item.merchant_id,
             name: encryptable_customer.name,
             email: encryptable_customer.email.map(|email| {
-
                 let encryptable: Encryptable<Secret<String, pii::EmailStrategy>> = Encryptable::new(
                     email.clone().into_inner().switch_strategy(),
                     email.into_encrypted(),

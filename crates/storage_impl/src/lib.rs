@@ -2,9 +2,7 @@ use std::{fmt::Debug, sync::Arc};
 
 use diesel_models as store;
 use error_stack::ResultExt;
-use hyperswitch_domain_models::{
-    merchant_key_store::MerchantKeyStore,
-};
+use hyperswitch_domain_models::merchant_key_store::MerchantKeyStore;
 use masking::StrongSecret;
 use redis::{kv_store::RedisConnInterface, pub_sub::PubSubInterface, RedisStore};
 mod address;
@@ -20,8 +18,8 @@ pub mod errors;
 pub mod kv_router_store;
 pub mod lookup;
 pub mod mandate;
-pub mod merchant_connector_account;
 pub mod merchant_account;
+pub mod merchant_connector_account;
 pub mod merchant_key_store;
 pub mod metrics;
 pub mod mock_db;
@@ -29,10 +27,10 @@ pub mod payment_method;
 pub mod payments;
 #[cfg(feature = "payouts")]
 pub mod payouts;
-pub mod redis;
 pub mod redirect_form;
-pub mod relay;
+pub mod redis;
 pub mod refund;
+pub mod relay;
 mod reverse_lookup;
 pub mod utils;
 

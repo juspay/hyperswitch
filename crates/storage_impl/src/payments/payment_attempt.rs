@@ -1,6 +1,14 @@
-use common_utils::errors::CustomResult;
 #[cfg(feature = "v2")]
 use common_utils::types::keymanager::KeyManagerState;
+use common_utils::{
+    encryption::Encryption,
+    errors::{CustomResult, ValidationError},
+    ext_traits::ValueExt,
+    types::{
+        keymanager, keymanager::ToEncryptable, ConnectorTransactionId, ConnectorTransactionIdTrait,
+        CreatedBy,
+    },
+};
 #[cfg(feature = "v1")]
 use common_utils::{
     fallback_reverse_lookup_not_found,
@@ -12,17 +20,16 @@ use diesel_models::{
         MandateDetails as DieselMandateDetails, MerchantStorageScheme,
     },
     kv,
-    payment_attempt::PaymentAttempt as DieselPaymentAttempt,
-    payment_attempt::PaymentAttemptNew as DieselPaymentAttemptNew,
+    payment_attempt::{
+        PaymentAttempt as DieselPaymentAttempt, PaymentAttemptNew as DieselPaymentAttemptNew,
+    },
     reverse_lookup::{ReverseLookup, ReverseLookupNew},
 };
-
 #[cfg(feature = "v2")]
 use diesel_models::{
     PaymentAttemptFeatureMetadata as DieselPaymentAttemptFeatureMetadata,
     PaymentAttemptRecoveryData as DieselPassiveChurnRecoveryData,
 };
-
 use error_stack::ResultExt;
 #[cfg(feature = "v2")]
 use hyperswitch_domain_models::merchant_key_store::MerchantKeyStore;
@@ -31,40 +38,24 @@ use hyperswitch_domain_models::payments::payment_attempt::PaymentAttemptNew;
 use hyperswitch_domain_models::{
     mandates::{MandateAmountData, MandateDataType, MandateDetails},
     payments::payment_attempt::{
-        PaymentAttempt, PaymentAttemptFeatureMetadata, PaymentAttemptInterface,
+        AttemptAmountDetailsSetter, ConfirmIntentResponseUpdate, EncryptedPaymentAttempt,
+        ErrorDetails, PaymentAttempt, PaymentAttemptFeatureMetadata, PaymentAttemptInterface,
         PaymentAttemptRevenueRecoveryData, PaymentAttemptUpdate,
     },
+    type_encryption::{crypto_operation, CryptoOperation},
 };
-
-use masking::Secret;
-use common_utils::errors::ValidationError;
-use hyperswitch_domain_models::payments::payment_attempt::AttemptAmountDetailsSetter;
-use common_utils::{encryption::Encryption, types::ConnectorTransactionId};
-use common_utils::types::keymanager;
-use hyperswitch_domain_models::type_encryption::crypto_operation;
-use hyperswitch_domain_models::type_encryption::CryptoOperation;
-use hyperswitch_domain_models::payments::payment_attempt::EncryptedPaymentAttempt;
-use hyperswitch_domain_models::payments::payment_attempt::ErrorDetails;
-use common_utils::types::CreatedBy;
-use hyperswitch_domain_models::payments::payment_attempt::ConfirmIntentResponseUpdate;
-use crate::behaviour::ReverseConversion;
-use masking::PeekInterface;
-use common_utils::types::keymanager::ToEncryptable;
-use common_utils::ext_traits::ValueExt;
-use common_utils::types::ConnectorTransactionIdTrait;
-
 #[cfg(all(feature = "v1", feature = "olap"))]
 use hyperswitch_domain_models::{
     payments::payment_attempt::PaymentListFilters, payments::PaymentIntent,
 };
 #[cfg(feature = "v2")]
 use label::*;
+use masking::{PeekInterface, Secret};
 use redis_interface::HsetnxReply;
 use router_env::{instrument, tracing};
 
-#[cfg(feature = "v2")]
-use crate::{kv_router_store::{FilterResourceParams, FindResourceBy, UpdateResourceParams}, utils::ForeignFrom};
 use crate::{
+    behaviour::{Conversion, ReverseConversion},
     diesel_error_to_data_error, errors,
     errors::RedisErrorExt,
     kv_router_store::KVRouterStore,
@@ -73,8 +64,11 @@ use crate::{
     utils::{pg_connection_read, pg_connection_write, try_redis_get_else_try_database_get},
     DataModelExt, DatabaseStore, RouterStore,
 };
-
-use crate::behaviour::Conversion;
+#[cfg(feature = "v2")]
+use crate::{
+    kv_router_store::{FilterResourceParams, FindResourceBy, UpdateResourceParams},
+    utils::ForeignFrom,
+};
 
 #[async_trait::async_trait]
 impl<T: DatabaseStore> PaymentAttemptInterface for RouterStore<T> {
@@ -107,7 +101,6 @@ impl<T: DatabaseStore> PaymentAttemptInterface for RouterStore<T> {
         payment_attempt: PaymentAttempt,
         _storage_scheme: MerchantStorageScheme,
     ) -> CustomResult<PaymentAttempt, errors::StorageError> {
-
         let conn = pg_connection_write(self).await?;
         payment_attempt
             .construct_new()
@@ -2277,7 +2270,6 @@ impl Conversion for PaymentAttempt {
     type NewDstType = DieselPaymentAttemptNew;
 
     async fn convert(self) -> CustomResult<Self::DstType, ValidationError> {
-
         let card_network = self
             .payment_method_data
             .as_ref()
@@ -2445,8 +2437,6 @@ impl Conversion for PaymentAttempt {
         Self: Sized,
     {
         async {
-
-
             let connector_payment_id = storage_model
                 .get_optional_connector_transaction_id()
                 .cloned();
@@ -2487,7 +2477,8 @@ impl Conversion for PaymentAttempt {
                 shipping_cost: storage_model.shipping_cost,
                 amount_capturable: storage_model.amount_capturable,
                 amount_to_capture: storage_model.amount_to_capture,
-            }.into();
+            }
+            .into();
 
             let error = storage_model
                 .error_code
@@ -2528,7 +2519,9 @@ impl Conversion for PaymentAttempt {
                 multiple_capture_count: storage_model.multiple_capture_count,
                 connector_response_reference_id: storage_model.connector_response_reference_id,
                 updated_by: storage_model.updated_by,
-                redirection_data: storage_model.redirection_data.map(ForeignFrom::foreign_from),
+                redirection_data: storage_model
+                    .redirection_data
+                    .map(ForeignFrom::foreign_from),
                 encoded_data: storage_model.encoded_data,
                 merchant_connector_id: storage_model.merchant_connector_id,
                 external_three_ds_authentication_attempted: storage_model
@@ -2549,7 +2542,9 @@ impl Conversion for PaymentAttempt {
                 payment_method_billing_address,
                 connector_token_details: storage_model.connector_token_details,
                 card_discovery: storage_model.card_discovery,
-                feature_metadata: storage_model.feature_metadata.map(ForeignFrom::foreign_from),
+                feature_metadata: storage_model
+                    .feature_metadata
+                    .map(ForeignFrom::foreign_from),
                 processor_merchant_id: storage_model
                     .processor_merchant_id
                     .unwrap_or(storage_model.merchant_id),
@@ -2782,10 +2777,9 @@ impl ForeignFrom<PaymentAttemptUpdate> for diesel_models::PaymentAttemptUpdateIn
                 network_decline_code: error.network_decline_code,
                 network_error_message: error.network_error_message,
                 connector_request_reference_id: None,
-                connector_response_reference_id: None
+                connector_response_reference_id: None,
             },
             PaymentAttemptUpdate::ConfirmIntentResponse(confirm_intent_response_update) => {
-
                 let ConfirmIntentResponseUpdate {
                     status,
                     connector_payment_id,

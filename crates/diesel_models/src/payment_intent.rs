@@ -7,11 +7,11 @@ use diesel::{AsChangeset, Identifiable, Insertable, Queryable, Selectable};
 use serde::{Deserialize, Serialize};
 use time::PrimitiveDateTime;
 
+use crate::enums as storage_enums;
 #[cfg(feature = "v1")]
 use crate::schema::payment_intent;
 #[cfg(feature = "v2")]
 use crate::schema_v2::payment_intent;
-use crate::{enums as storage_enums};
 
 #[cfg(feature = "v2")]
 #[derive(Clone, Debug, PartialEq, Identifiable, Queryable, Serialize, Deserialize, Selectable)]
@@ -158,8 +158,6 @@ pub struct PaymentIntent {
     pub extended_return_url: Option<String>,
     pub is_payment_id_from_merchant: Option<bool>,
 }
-
-
 
 #[cfg(feature = "v2")]
 #[derive(

@@ -2,12 +2,19 @@
 use api_models::payments::{AmountFilter, Order, SortBy, SortOn};
 #[cfg(feature = "olap")]
 use async_bb8_diesel::{AsyncConnection, AsyncRunQueryDsl};
+use common_utils::{
+    encryption::Encryption,
+    errors::{CustomResult, ValidationError},
+    ext_traits::{AsyncExt, Encode, ValueExt},
+    type_name,
+    types::{
+        keymanager,
+        keymanager::{KeyManagerState, ToEncryptable},
+        CreatedBy,
+    },
+};
 #[cfg(feature = "v2")]
 use common_utils::{errors::ParsingError, fallback_reverse_lookup_not_found};
-use common_utils::{
-    ext_traits::{AsyncExt, Encode},
-    types::keymanager::KeyManagerState,
-};
 #[cfg(feature = "olap")]
 use diesel::{associations::HasTable, ExpressionMethods, JoinOnDsl, QueryDsl};
 #[cfg(feature = "v1")]
@@ -38,10 +45,12 @@ use hyperswitch_domain_models::payments::{
 use hyperswitch_domain_models::{
     merchant_key_store::MerchantKeyStore,
     payments::{
-        payment_intent::{PaymentIntentInterface, PaymentIntentUpdate},
-        PaymentIntent,
+        payment_intent::{PaymentIntentInterface, PaymentIntentUpdate, PaymentIntentUpdateFields},
+        AmountDetails, EncryptedPaymentIntent, PaymentIntent,
     },
+    type_encryption::{crypto_operation, CryptoOperation},
 };
+use masking::{ExposeInterface, PeekInterface, Secret};
 use redis_interface::HsetnxReply;
 #[cfg(feature = "olap")]
 use router_env::logger;
@@ -50,6 +59,7 @@ use router_env::{instrument, tracing};
 #[cfg(feature = "olap")]
 use crate::connection;
 use crate::{
+    behaviour::Conversion,
     diesel_error_to_data_error,
     errors::{RedisErrorExt, StorageError},
     kv_router_store::KVRouterStore,
@@ -59,25 +69,6 @@ use crate::{
 };
 #[cfg(feature = "v2")]
 use crate::{errors, lookup::ReverseLookupInterface, utils::ForeignTryFrom};
-use common_utils::encryption::Encryption;
-use common_utils::errors::CustomResult;
-use common_utils::errors::ValidationError;
-use common_utils::type_name;
-use common_utils::types::keymanager;
-use hyperswitch_domain_models::payments::payment_intent::PaymentIntentUpdateFields;
-use hyperswitch_domain_models::payments::AmountDetails;
-use hyperswitch_domain_models::payments::EncryptedPaymentIntent;
-use hyperswitch_domain_models::type_encryption::crypto_operation;
-use hyperswitch_domain_models::type_encryption::CryptoOperation;
-use masking::Secret;
-use common_utils::types::CreatedBy;
-
-use masking::PeekInterface;
-use masking::ExposeInterface;
-use common_utils::types::keymanager::ToEncryptable;
-use common_utils::ext_traits::ValueExt;
-
-use crate::behaviour::Conversion;
 
 #[async_trait::async_trait]
 impl<T: DatabaseStore> PaymentIntentInterface for KVRouterStore<T> {
@@ -388,8 +379,10 @@ impl<T: DatabaseStore> PaymentIntentInterface for KVRouterStore<T> {
                 let key_str = key.to_string();
 
                 let diesel_intent_update =
-                    diesel_models::PaymentIntentUpdateInternal::foreign_try_from(payment_intent_update)
-                        .change_context(StorageError::DeserializationFailed)?;
+                    diesel_models::PaymentIntentUpdateInternal::foreign_try_from(
+                        payment_intent_update,
+                    )
+                    .change_context(StorageError::DeserializationFailed)?;
                 let origin_diesel_intent = this
                     .convert()
                     .await
@@ -833,8 +826,9 @@ impl<T: DatabaseStore> PaymentIntentInterface for crate::RouterStore<T> {
         _storage_scheme: MerchantStorageScheme,
     ) -> error_stack::Result<PaymentIntent, StorageError> {
         let conn = pg_connection_write(self).await?;
-        let diesel_payment_intent_update = diesel_models::PaymentIntentUpdateInternal::foreign_try_from(payment_intent)
-            .change_context(StorageError::DeserializationFailed)?;
+        let diesel_payment_intent_update =
+            diesel_models::PaymentIntentUpdateInternal::foreign_try_from(payment_intent)
+                .change_context(StorageError::DeserializationFailed)?;
         let diesel_payment_intent = this
             .convert()
             .await
@@ -2248,7 +2242,6 @@ impl Conversion for PaymentIntent {
         Self: Sized,
     {
         async {
-
             let decrypted_data = crypto_operation(
                 state,
                 type_name!(Self::DstType),

@@ -109,7 +109,12 @@ use crate::{
     configs::settings::{ApplePayPreDecryptFlow, PaymentMethodTypeTokenFilter},
     consts,
     core::{
-        authentication::AuthenticationStore, errors::{self, CustomResult, RouterResponse, RouterResult}, payment_methods::{cards, network_tokenization}, payouts, routing::{self as core_routing}, utils::{self as core_utils}
+        authentication::AuthenticationStore,
+        errors::{self, CustomResult, RouterResponse, RouterResult},
+        payment_methods::{cards, network_tokenization},
+        payouts,
+        routing::{self as core_routing},
+        utils::{self as core_utils},
     },
     db::StorageInterface,
     logger,
@@ -9144,9 +9149,7 @@ pub trait OperationSessionGetters<F> {
     fn get_ephemeral_key(&self) -> Option<ephemeral_key::EphemeralKey>;
     fn get_setup_mandate(&self) -> Option<&MandateData>;
     fn get_poll_config(&self) -> Option<router_types::PollConfig>;
-    fn get_authentication(
-        &self,
-    ) -> Option<&AuthenticationStore>;
+    fn get_authentication(&self) -> Option<&AuthenticationStore>;
     fn get_frm_message(&self) -> Option<FraudCheck>;
     fn get_refunds(&self) -> Vec<diesel_refund::Refund>;
     fn get_disputes(&self) -> Vec<storage::Dispute>;
@@ -9322,10 +9325,7 @@ impl<F: Clone> OperationSessionGetters<F> for PaymentData<F> {
         self.poll_config.clone()
     }
 
-    fn get_authentication(
-        &self,
-    ) -> Option<&AuthenticationStore>
-    {
+    fn get_authentication(&self) -> Option<&AuthenticationStore> {
         self.authentication.as_ref()
     }
 
@@ -9645,10 +9645,7 @@ impl<F: Clone> OperationSessionGetters<F> for PaymentIntentData<F> {
         todo!()
     }
 
-    fn get_authentication(
-        &self,
-    ) -> Option<&AuthenticationStore>
-    {
+    fn get_authentication(&self) -> Option<&AuthenticationStore> {
         todo!()
     }
 
@@ -9945,10 +9942,7 @@ impl<F: Clone> OperationSessionGetters<F> for PaymentConfirmData<F> {
         todo!()
     }
 
-    fn get_authentication(
-        &self,
-    ) -> Option<&AuthenticationStore>
-    {
+    fn get_authentication(&self) -> Option<&AuthenticationStore> {
         todo!()
     }
 
@@ -10244,10 +10238,7 @@ impl<F: Clone> OperationSessionGetters<F> for PaymentStatusData<F> {
         todo!()
     }
 
-    fn get_authentication(
-        &self,
-    ) -> Option<&AuthenticationStore>
-    {
+    fn get_authentication(&self) -> Option<&AuthenticationStore> {
         todo!()
     }
 
@@ -10539,10 +10530,7 @@ impl<F: Clone> OperationSessionGetters<F> for PaymentCaptureData<F> {
         todo!()
     }
 
-    fn get_authentication(
-        &self,
-    ) -> Option<&AuthenticationStore>
-    {
+    fn get_authentication(&self) -> Option<&AuthenticationStore> {
         todo!()
     }
 
@@ -10830,10 +10818,7 @@ impl<F: Clone> OperationSessionGetters<F> for PaymentAttemptListData<F> {
         todo!()
     }
 
-    fn get_authentication(
-        &self,
-    ) -> Option<&AuthenticationStore>
-    {
+    fn get_authentication(&self) -> Option<&AuthenticationStore> {
         todo!()
     }
 

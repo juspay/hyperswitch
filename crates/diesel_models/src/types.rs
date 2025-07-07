@@ -10,7 +10,6 @@ use diesel::{
 use masking::{Secret, WithType};
 use serde::{self, Deserialize, Serialize};
 
-
 #[cfg(feature = "v1")]
 #[derive(Debug, Clone, PartialEq, Deserialize, Serialize, FromSqlRow, AsExpression)]
 #[diesel(sql_type = Json)]

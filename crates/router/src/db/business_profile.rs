@@ -1,5 +1,8 @@
-use common_utils::{ext_traits::AsyncExt, types::keymanager::KeyManagerState};
+use common_utils::{
+    encryption::Encryption, ext_traits::AsyncExt, types::keymanager::KeyManagerState,
+};
 use error_stack::{report, ResultExt};
+use hyperswitch_domain_models::business_profile::ProfileGeneralUpdate;
 use router_env::{instrument, tracing};
 
 use super::Store;
@@ -17,9 +20,6 @@ use crate::{
         storage,
     },
 };
-
-use common_utils::encryption::Encryption;
-use hyperswitch_domain_models::business_profile::ProfileGeneralUpdate;
 
 #[async_trait::async_trait]
 pub trait ProfileInterface

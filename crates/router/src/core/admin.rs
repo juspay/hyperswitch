@@ -12,7 +12,7 @@ use common_utils::{
     types::keymanager::{self as km_types, KeyManagerState, ToEncryptable},
 };
 #[cfg(all(any(feature = "v1", feature = "v2"), feature = "olap"))]
-use diesel_models::{organization::OrganizationBridge};
+use diesel_models::organization::OrganizationBridge;
 use diesel_models::{configs, payment_method};
 use error_stack::{report, FutureExt, ResultExt};
 use external_services::http_client::client;

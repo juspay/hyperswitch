@@ -5,7 +5,14 @@ use crate::redis::kv_store::KvStorePartition;
 impl KvStorePartition for PaymentMethod {}
 
 use common_enums::enums::MerchantStorageScheme;
-use common_utils::{errors::CustomResult, id_type, types::keymanager::KeyManagerState};
+use common_utils::{
+    errors::{CustomResult, ValidationError},
+    id_type, type_name,
+    types::{
+        keymanager,
+        keymanager::{KeyManagerState, ToEncryptable as _},
+    },
+};
 #[cfg(feature = "v1")]
 use diesel_models::kv;
 use diesel_models::payment_method::{PaymentMethodUpdate, PaymentMethodUpdateInternal};
@@ -14,15 +21,22 @@ use error_stack::ResultExt;
 use hyperswitch_domain_models::behaviour::ReverseConversion;
 use hyperswitch_domain_models::{
     merchant_key_store::MerchantKeyStore,
-    payment_methods::{PaymentMethod as DomainPaymentMethod, PaymentMethodInterface},
+    payment_methods::{
+        EncryptedPaymentMethod, EncryptedPaymentMethodSession,
+        PaymentMethod as DomainPaymentMethod, PaymentMethodInterface, PaymentMethodSession,
+        VaultId,
+    },
+    type_encryption::{crypto_operation, CryptoOperation},
 };
+use masking::{PeekInterface as _, Secret};
 use router_env::{instrument, tracing};
 
 use super::MockDb;
 use crate::{
+    behaviour::Conversion,
     diesel_error_to_data_error, errors,
     kv_router_store::{FindResourceBy, KVRouterStore},
-    utils::{pg_connection_read, pg_connection_write},
+    utils::{pg_connection_read, pg_connection_write, ForeignFrom, ForeignInto},
     DatabaseStore, RouterStore,
 };
 #[cfg(feature = "v1")]
@@ -30,27 +44,6 @@ use crate::{
     kv_router_store::{FilterResourceParams, InsertResourceParams, UpdateResourceParams},
     redis::kv_store::{Op, PartitionKey},
 };
-
-use common_utils::types::keymanager::ToEncryptable as _;
-use masking::PeekInterface as _;
-use crate::utils::ForeignFrom;
-use crate::utils::ForeignInto;
-
-
-use crate::behaviour::Conversion;
-use common_utils::errors::ValidationError;
-use common_utils::types::keymanager;
-use masking::Secret;
-use hyperswitch_domain_models::type_encryption::crypto_operation;
-use common_utils::type_name;
-use hyperswitch_domain_models::type_encryption::CryptoOperation;
-use hyperswitch_domain_models::payment_methods::EncryptedPaymentMethod;
-use hyperswitch_domain_models::payment_methods::VaultId;
-
-use hyperswitch_domain_models::payment_methods::PaymentMethodSession;
-use hyperswitch_domain_models::payment_methods::EncryptedPaymentMethodSession;
-
-
 
 #[async_trait::async_trait]
 impl<T: DatabaseStore> PaymentMethodInterface for KVRouterStore<T> {
@@ -215,7 +208,6 @@ impl<T: DatabaseStore> PaymentMethodInterface for KVRouterStore<T> {
         payment_method_update: PaymentMethodUpdate,
         storage_scheme: MerchantStorageScheme,
     ) -> CustomResult<DomainPaymentMethod, errors::StorageError> {
-
         let payment_method = Conversion::convert(payment_method)
             .await
             .change_context(errors::StorageError::DecryptionError)?;
@@ -1016,14 +1008,12 @@ impl PaymentMethodInterface for MockDb {
     }
 }
 
-
 #[cfg(feature = "v2")]
 #[async_trait::async_trait]
 impl Conversion for DomainPaymentMethod {
     type DstType = PaymentMethod;
     type NewDstType = diesel_models::payment_method::PaymentMethodNew;
     async fn convert(self) -> CustomResult<Self::DstType, ValidationError> {
-
         Ok(Self::DstType {
             customer_id: self.customer_id,
             merchant_id: self.merchant_id,
@@ -1130,7 +1120,9 @@ impl Conversion for DomainPaymentMethod {
                 payment_method_data,
                 locker_id: storage_model.locker_id.map(VaultId::generate),
                 last_used_at: storage_model.last_used_at,
-                connector_mandate_details: storage_model.connector_mandate_details.map(ForeignFrom::foreign_from),
+                connector_mandate_details: storage_model
+                    .connector_mandate_details
+                    .map(ForeignFrom::foreign_from),
                 customer_acceptance: storage_model.customer_acceptance,
                 status: storage_model.status,
                 network_transaction_id: storage_model.network_transaction_id,
@@ -1184,9 +1176,6 @@ impl Conversion for DomainPaymentMethod {
     }
 }
 
-
-
-
 #[cfg(feature = "v2")]
 #[async_trait::async_trait]
 impl Conversion for PaymentMethodSession {
@@ -1220,7 +1209,6 @@ impl Conversion for PaymentMethodSession {
         use common_utils::ext_traits::ValueExt;
 
         async {
-
             let decrypted_data = crypto_operation(
                 state,
                 type_name!(Self::DstType),

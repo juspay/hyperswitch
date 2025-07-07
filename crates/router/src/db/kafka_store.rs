@@ -296,10 +296,7 @@ impl CardsInfoInterface for KafkaStore {
         self.diesel_store.get_card_info(card_iin).await
     }
 
-    async fn add_card_info(
-        &self,
-        data: CardInfo,
-    ) -> CustomResult<CardInfo, errors::StorageError> {
+    async fn add_card_info(&self, data: CardInfo) -> CustomResult<CardInfo, errors::StorageError> {
         self.diesel_store.add_card_info(data).await
     }
 

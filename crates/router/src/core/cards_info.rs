@@ -90,7 +90,8 @@ pub async fn update_card_info(
             country_code: card_info_request.country_code,
             last_updated: Some(common_utils::date_time::now()),
             last_updated_provider: card_info_request.last_updated_provider,
-        }.foreign_into(),
+        }
+        .foreign_into(),
     )
     .await
     .to_not_found_response(errors::ApiErrorResponse::GenericNotFoundError {
@@ -191,7 +192,7 @@ impl<'a> CardInfoMigrateExecutor<'a> {
             .get_card_info(&self.record.card_iin)
             .await
             .change_context(errors::ApiErrorResponse::InvalidCardIin)?;
-        Ok(maybe_card_info.map(|val|val.foreign_into()))
+        Ok(maybe_card_info.map(|val| val.foreign_into()))
     }
 
     async fn add_card_info(&self) -> RouterResult<card_info_models::CardInfo> {
@@ -221,7 +222,8 @@ impl<'a> CardInfoMigrateExecutor<'a> {
                 country_code: self.record.country_code.clone(),
                 last_updated: Some(common_utils::date_time::now()),
                 last_updated_provider: self.record.last_updated_provider.clone(),
-            }.foreign_into(),
+            }
+            .foreign_into(),
         )
         .await
         .to_not_found_response(errors::ApiErrorResponse::GenericNotFoundError {

@@ -1,8 +1,8 @@
+use ::common_types::payments::{OrderDetailsWithAmount, TaxDetails};
 #[cfg(feature = "v2")]
 use ::common_types::{payments, primitive_wrappers::RequestExtendedAuthorizationBool};
 #[cfg(feature = "v2")]
 use common_enums::{self, RequestIncrementalAuthorization};
-use ::common_types::payments::OrderDetailsWithAmount;
 use common_utils::{
     crypto::Encryptable, hashing::HashedString, id_type, pii, types as common_types,
 };
@@ -13,8 +13,6 @@ use hyperswitch_domain_models::{address, routing};
 use masking::{PeekInterface, Secret};
 use serde_json::Value;
 use time::OffsetDateTime;
-
-use ::common_types::payments::TaxDetails;
 
 #[cfg(feature = "v1")]
 #[serde_with::skip_serializing_none]

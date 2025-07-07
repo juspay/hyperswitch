@@ -1,9 +1,15 @@
 use diesel_models::Mandate;
+use hyperswitch_domain_models::mandates::{
+    CommonMandateReference, MandateAmountData, MandateDataType, MandateDetails,
+    PayoutsMandateReference, PayoutsMandateReferenceRecord,
+};
 #[cfg(feature = "v2")]
 use hyperswitch_domain_models::mandates::{ConnectorTokenReferenceRecord, PaymentsTokenReference};
-use hyperswitch_domain_models::mandates::{CommonMandateReference, MandateAmountData, MandateDataType, MandateDetails, PayoutsMandateReference, PayoutsMandateReferenceRecord};
 
-use crate::{redis::kv_store::KvStorePartition, utils::{ForeignFrom, ForeignInto}};
+use crate::{
+    redis::kv_store::KvStorePartition,
+    utils::{ForeignFrom, ForeignInto},
+};
 
 impl KvStorePartition for Mandate {}
 
@@ -29,7 +35,6 @@ impl ForeignFrom<MandateDataType> for diesel_models::enums::MandateDataType {
             MandateDataType::SingleUse(data) => Self::SingleUse(data.foreign_into()),
             MandateDataType::MultiUse(None) => Self::MultiUse(None),
             MandateDataType::MultiUse(Some(data)) => Self::MultiUse(Some(data.foreign_into())),
-
         }
     }
 }
@@ -41,7 +46,9 @@ impl ForeignFrom<diesel_models::enums::MandateDataType> for MandateDataType {
         match value {
             DieselMandateDataType::SingleUse(data) => Self::SingleUse(data.foreign_into()),
             DieselMandateDataType::MultiUse(None) => Self::MultiUse(None),
-            DieselMandateDataType::MultiUse(Some(data)) => Self::MultiUse(Some(data.foreign_into())),
+            DieselMandateDataType::MultiUse(Some(data)) => {
+                Self::MultiUse(Some(data.foreign_into()))
+            }
         }
     }
 }
@@ -69,7 +76,6 @@ impl ForeignFrom<diesel_models::enums::MandateAmountData> for MandateAmountData 
         }
     }
 }
-
 
 impl ForeignFrom<diesel_models::CommonMandateReference> for CommonMandateReference {
     fn foreign_from(value: diesel_models::CommonMandateReference) -> Self {
@@ -112,7 +118,6 @@ impl ForeignFrom<PayoutsMandateReference> for diesel_models::PayoutsMandateRefer
         )
     }
 }
-
 
 #[cfg(feature = "v2")]
 impl ForeignFrom<diesel_models::PaymentsTokenReference> for PaymentsTokenReference {
@@ -179,7 +184,6 @@ impl ForeignFrom<diesel_models::ConnectorTokenReferenceRecord> for ConnectorToke
         }
     }
 }
-
 
 #[cfg(feature = "v2")]
 impl ForeignFrom<ConnectorTokenReferenceRecord> for diesel_models::ConnectorTokenReferenceRecord {

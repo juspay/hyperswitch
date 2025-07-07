@@ -16,7 +16,10 @@ use router_env::{instrument, logger, tracing};
 
 use crate::{
     consts as router_consts,
-    core::{authentication::AuthenticationStore, errors::{self, RouterResult}},
+    core::{
+        authentication::AuthenticationStore,
+        errors::{self, RouterResult},
+    },
     routes::SessionState,
     types::{
         domain::Profile,
@@ -363,15 +366,9 @@ impl SurchargeMetadata {
     }
 }
 
-impl
-    ForeignTryFrom<
-        &AuthenticationStore,
-    > for AuthenticationData
-{
+impl ForeignTryFrom<&AuthenticationStore> for AuthenticationData {
     type Error = error_stack::Report<errors::ApiErrorResponse>;
-    fn foreign_try_from(
-        authentication_store: &AuthenticationStore,
-    ) -> Result<Self, Self::Error> {
+    fn foreign_try_from(authentication_store: &AuthenticationStore) -> Result<Self, Self::Error> {
         let authentication = &authentication_store.authentication;
         if authentication.authentication_status == common_enums::AuthenticationStatus::Success {
             let threeds_server_transaction_id =

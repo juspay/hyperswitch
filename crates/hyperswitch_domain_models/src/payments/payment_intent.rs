@@ -34,12 +34,12 @@ use super::PaymentIntent;
 use crate::address::Address;
 #[cfg(feature = "v2")]
 use crate::routing;
+#[cfg(feature = "v1")]
+use crate::{errors, RemoteStorageObject};
 use crate::{
     merchant_key_store::MerchantKeyStore,
     type_encryption::{crypto_operation, CryptoOperation},
 };
-#[cfg(feature = "v1")]
-use crate::{errors, RemoteStorageObject};
 
 #[async_trait::async_trait]
 pub trait PaymentIntentInterface {
@@ -428,7 +428,6 @@ pub struct PaymentIntentUpdateInternal {
     pub force_3ds_challenge: Option<bool>,
     pub is_iframe_redirection_enabled: Option<bool>,
 }
-
 
 #[cfg(feature = "v1")]
 impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
@@ -1226,7 +1225,6 @@ where
         }
     }
 }
-
 
 #[cfg(feature = "v1")]
 #[async_trait::async_trait]

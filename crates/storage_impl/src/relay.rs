@@ -1,15 +1,13 @@
 use common_enums::RelayType;
+use common_utils::{
+    errors::{CustomResult, ValidationError},
+    types::keymanager,
+};
 use error_stack::ResultExt;
 use hyperswitch_domain_models::relay::{Relay, RelayUpdate};
-use common_utils::errors::CustomResult;
-use common_utils::errors::ValidationError;
-use masking::ExposeInterface;
-use masking::Secret;
-use common_utils::types::keymanager;
+use masking::{ExposeInterface, Secret};
 
 use crate::utils::ForeignFrom;
-
-
 
 #[async_trait::async_trait]
 impl super::behaviour::Conversion for Relay {

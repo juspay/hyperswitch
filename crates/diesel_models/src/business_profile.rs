@@ -2,7 +2,11 @@ use std::collections::{HashMap, HashSet};
 
 use common_enums::{AuthenticationConnectors, UIWidgetFormLayout, VaultSdk};
 #[cfg(feature = "v2")]
-use common_types::business_profile::{AuthenticationConnectorDetails, BusinessPaymentLinkConfig, BusinessPayoutLinkConfig, CardTestingGuardConfig, ExternalVaultConnectorDetails, RevenueRecoveryAlgorithmData, WebhookDetails};
+use common_types::business_profile::{
+    AuthenticationConnectorDetails, BusinessPaymentLinkConfig, BusinessPayoutLinkConfig,
+    CardTestingGuardConfig, ExternalVaultConnectorDetails, RevenueRecoveryAlgorithmData,
+    WebhookDetails,
+};
 use common_types::primitive_wrappers;
 use common_utils::{encryption::Encryption, pii};
 use diesel::{AsChangeset, Identifiable, Insertable, Queryable, Selectable};

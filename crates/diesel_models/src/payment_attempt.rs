@@ -249,8 +249,6 @@ impl ConnectorTransactionIdTrait for PaymentAttempt {
     }
 }
 
-
-
 #[derive(Clone, Debug, Eq, PartialEq, Queryable, Serialize, Deserialize)]
 pub struct PaymentListFilters {
     pub connector: Vec<String>,

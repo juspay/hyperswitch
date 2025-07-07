@@ -2194,5 +2194,3 @@ pub struct PaymentAttemptRevenueRecoveryData {
     // stripe specific field used to identify duplicate attempts.
     pub charge_id: Option<String>,
 }
-
-

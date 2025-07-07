@@ -18,4 +18,3 @@ pub struct MerchantKeyStore {
     #[serde(with = "custom_serde::iso8601")]
     pub created_at: PrimitiveDateTime,
 }
-

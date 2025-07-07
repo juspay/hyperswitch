@@ -1,6 +1,5 @@
 use std::{borrow::Cow, collections::HashSet, net::IpAddr, str::FromStr};
 
-use common_types::business_profile::CardTestingGuardConfig;
 pub use ::payment_methods::helpers::{
     populate_bin_details_for_payment_method_create,
     validate_payment_method_type_against_payment_method,
@@ -13,6 +12,7 @@ use api_models::{
 };
 use base64::Engine;
 use common_enums::ConnectorType;
+use common_types::business_profile::CardTestingGuardConfig;
 #[cfg(feature = "v2")]
 use common_utils::id_type::GenerateId;
 use common_utils::{

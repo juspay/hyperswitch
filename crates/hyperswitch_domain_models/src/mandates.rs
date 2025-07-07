@@ -20,8 +20,6 @@ pub struct MandateDetails {
     pub update_mandate_id: Option<String>,
 }
 
-
-
 #[derive(serde::Serialize, serde::Deserialize, Debug, Clone, PartialEq, Eq)]
 #[serde(rename_all = "snake_case")]
 pub enum MandateDataType {
@@ -63,8 +61,6 @@ impl From<MandateType> for MandateDataType {
     }
 }
 
-
-
 impl From<ApiMandateAmountData> for MandateAmountData {
     fn from(value: ApiMandateAmountData) -> Self {
         Self {
@@ -76,8 +72,6 @@ impl From<ApiMandateAmountData> for MandateAmountData {
         }
     }
 }
-
-
 
 impl From<ApiMandateData> for MandateData {
     fn from(value: ApiMandateData) -> Self {
@@ -258,7 +252,6 @@ impl CommonMandateReference {
     }
 }
 
-
 #[cfg(feature = "v1")]
 impl From<diesel_models::PaymentsMandateReference> for PaymentsMandateReference {
     fn from(value: diesel_models::PaymentsMandateReference) -> Self {
@@ -299,7 +292,6 @@ impl From<diesel_models::PaymentsMandateReferenceRecord> for PaymentsMandateRefe
         }
     }
 }
-
 
 #[cfg(feature = "v1")]
 impl From<PaymentsMandateReferenceRecord> for diesel_models::PaymentsMandateReferenceRecord {

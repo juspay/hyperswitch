@@ -412,30 +412,24 @@ impl ForeignFrom<payments::MandateData> for hyperswitch_domain_models::mandates:
             customer_acceptance: d.customer_acceptance,
             mandate_type: d.mandate_type.map(|d| match d {
                 payments::MandateType::MultiUse(Some(i)) => {
-                    MandateDataType::MultiUse(Some(
-                       MandateAmountData {
-                            amount: i.amount,
-                            currency: i.currency,
-                            start_date: i.start_date,
-                            end_date: i.end_date,
-                            metadata: i.metadata,
-                        },
-                    ))
+                    MandateDataType::MultiUse(Some(MandateAmountData {
+                        amount: i.amount,
+                        currency: i.currency,
+                        start_date: i.start_date,
+                        end_date: i.end_date,
+                        metadata: i.metadata,
+                    }))
                 }
                 payments::MandateType::SingleUse(i) => {
-                    MandateDataType::SingleUse(
-                        MandateAmountData {
-                            amount: i.amount,
-                            currency: i.currency,
-                            start_date: i.start_date,
-                            end_date: i.end_date,
-                            metadata: i.metadata,
-                        },
-                    )
+                    MandateDataType::SingleUse(MandateAmountData {
+                        amount: i.amount,
+                        currency: i.currency,
+                        start_date: i.start_date,
+                        end_date: i.end_date,
+                        metadata: i.metadata,
+                    })
                 }
-                payments::MandateType::MultiUse(None) => {
-                    MandateDataType::MultiUse(None)
-                }
+                payments::MandateType::MultiUse(None) => MandateDataType::MultiUse(None),
             }),
             update_mandate_id: d.update_mandate_id,
         }
@@ -953,7 +947,9 @@ impl ForeignFrom<storage::FileMetadata> for api_models::files::FileMetadataRespo
     }
 }
 
-impl ForeignFrom<hyperswitch_domain_models::cards_info::CardInfo> for api_models::cards_info::CardInfoResponse {
+impl ForeignFrom<hyperswitch_domain_models::cards_info::CardInfo>
+    for api_models::cards_info::CardInfoResponse
+{
     fn foreign_from(item: hyperswitch_domain_models::cards_info::CardInfo) -> Self {
         Self {
             card_iin: item.card_iin,
@@ -2262,7 +2258,9 @@ impl ForeignFrom<common_types::business_profile::BusinessGenericLinkConfig>
     }
 }
 
-impl ForeignFrom<card_info_types::CardInfoCreateRequest> for hyperswitch_domain_models::cards_info::CardInfo {
+impl ForeignFrom<card_info_types::CardInfoCreateRequest>
+    for hyperswitch_domain_models::cards_info::CardInfo
+{
     fn foreign_from(value: card_info_types::CardInfoCreateRequest) -> Self {
         Self {
             card_iin: value.card_iin,
@@ -2281,7 +2279,9 @@ impl ForeignFrom<card_info_types::CardInfoCreateRequest> for hyperswitch_domain_
     }
 }
 
-impl ForeignFrom<card_info_types::CardInfoUpdateRequest> for hyperswitch_domain_models::cards_info::CardInfo {
+impl ForeignFrom<card_info_types::CardInfoUpdateRequest>
+    for hyperswitch_domain_models::cards_info::CardInfo
+{
     fn foreign_from(value: card_info_types::CardInfoUpdateRequest) -> Self {
         Self {
             card_iin: value.card_iin,
@@ -2338,7 +2338,9 @@ impl ForeignFrom<hyperswitch_domain_models::cards_info::CardInfo> for diesel_mod
     }
 }
 
-impl ForeignFrom<diesel_models::UpdateCardInfo> for hyperswitch_domain_models::cards_info::UpdateCardInfo {
+impl ForeignFrom<diesel_models::UpdateCardInfo>
+    for hyperswitch_domain_models::cards_info::UpdateCardInfo
+{
     fn foreign_from(from: diesel_models::UpdateCardInfo) -> Self {
         Self {
             card_issuer: from.card_issuer,
@@ -2355,7 +2357,9 @@ impl ForeignFrom<diesel_models::UpdateCardInfo> for hyperswitch_domain_models::c
     }
 }
 
-impl ForeignFrom<hyperswitch_domain_models::cards_info::UpdateCardInfo> for diesel_models::UpdateCardInfo {
+impl ForeignFrom<hyperswitch_domain_models::cards_info::UpdateCardInfo>
+    for diesel_models::UpdateCardInfo
+{
     fn foreign_from(from: hyperswitch_domain_models::cards_info::UpdateCardInfo) -> Self {
         Self {
             card_issuer: from.card_issuer,
@@ -2566,9 +2570,10 @@ impl ForeignFrom<DieselMerchantConnectorAccountFeatureMetadata>
     }
 }
 
-use hyperswitch_domain_models::mandates::{ConnectorTokenReferenceRecord, PaymentsTokenReference};
-use hyperswitch_domain_models::mandates::{CommonMandateReference, MandateAmountData, MandateDataType, MandateDetails, PayoutsMandateReference, PayoutsMandateReferenceRecord};
-
+use hyperswitch_domain_models::mandates::{
+    CommonMandateReference, ConnectorTokenReferenceRecord, MandateAmountData, MandateDataType,
+    MandateDetails, PaymentsTokenReference, PayoutsMandateReference, PayoutsMandateReferenceRecord,
+};
 
 impl ForeignFrom<MandateDetails> for diesel_models::enums::MandateDetails {
     fn foreign_from(value: MandateDetails) -> Self {
@@ -2592,7 +2597,6 @@ impl ForeignFrom<MandateDataType> for diesel_models::enums::MandateDataType {
             MandateDataType::SingleUse(data) => Self::SingleUse(data.foreign_into()),
             MandateDataType::MultiUse(None) => Self::MultiUse(None),
             MandateDataType::MultiUse(Some(data)) => Self::MultiUse(Some(data.foreign_into())),
-
         }
     }
 }
@@ -2604,7 +2608,9 @@ impl ForeignFrom<diesel_models::enums::MandateDataType> for MandateDataType {
         match value {
             DieselMandateDataType::SingleUse(data) => Self::SingleUse(data.foreign_into()),
             DieselMandateDataType::MultiUse(None) => Self::MultiUse(None),
-            DieselMandateDataType::MultiUse(Some(data)) => Self::MultiUse(Some(data.foreign_into())),
+            DieselMandateDataType::MultiUse(Some(data)) => {
+                Self::MultiUse(Some(data.foreign_into()))
+            }
         }
     }
 }
@@ -2632,7 +2638,6 @@ impl ForeignFrom<diesel_models::enums::MandateAmountData> for MandateAmountData 
         }
     }
 }
-
 
 impl ForeignFrom<diesel_models::CommonMandateReference> for CommonMandateReference {
     fn foreign_from(value: diesel_models::CommonMandateReference) -> Self {
@@ -2675,7 +2680,6 @@ impl ForeignFrom<PayoutsMandateReference> for diesel_models::PayoutsMandateRefer
         )
     }
 }
-
 
 #[cfg(feature = "v2")]
 impl ForeignFrom<diesel_models::PaymentsTokenReference> for PaymentsTokenReference {
@@ -2742,7 +2746,6 @@ impl ForeignFrom<diesel_models::ConnectorTokenReferenceRecord> for ConnectorToke
         }
     }
 }
-
 
 #[cfg(feature = "v2")]
 impl ForeignFrom<ConnectorTokenReferenceRecord> for diesel_models::ConnectorTokenReferenceRecord {

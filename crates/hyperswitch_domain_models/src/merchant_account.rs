@@ -495,7 +495,6 @@ impl From<MerchantAccountUpdate> for MerchantAccountUpdateInternal {
     }
 }
 
-
 #[cfg(feature = "v1")]
 #[async_trait::async_trait]
 impl super::behaviour::Conversion for MerchantAccount {

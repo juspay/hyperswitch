@@ -334,8 +334,6 @@ pub struct CustomerListConstraints {
     pub offset: Option<u32>,
 }
 
-
-
 #[async_trait::async_trait]
 pub trait CustomerInterface
 // where
