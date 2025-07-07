@@ -66,6 +66,10 @@ export const connectorDetails = {
       },
     },
     PaymentIntentOffSession: {
+      // Need to Skip this because on confirming Off Session Payments, even though it succeeds, it does not yield a `connector_mandate_id`
+      Configs: {
+        TRIGGER_SKIP: true,
+      },
       Request: {
         setup_future_usage: "off_session",
         currency: "USD",
@@ -235,6 +239,10 @@ export const connectorDetails = {
       },
     },
     ZeroAuthPaymentIntent: {
+      // Need to Skip this because on confirming Off Session Payments, even though it succeeds, it does not yield a `connector_mandate_id`
+      Configs: {
+        TRIGGER_SKIP: true,
+      },
       Request: {
         amount: 0,
         setup_future_usage: "off_session",
@@ -244,26 +252,6 @@ export const connectorDetails = {
         status: 200,
         body: {
           status: "requires_payment_method",
-          setup_future_usage: "off_session",
-        },
-      },
-    },
-    ZeroAuthConfirmPayment: {
-      Configs: {
-        TRIGGER_SKIP: true,
-      },
-      Request: {
-        payment_type: "setup_mandate",
-        payment_method: "card",
-        payment_method_type: "credit",
-        payment_method_data: {
-          card: successfulNo3DSCardDetails,
-        },
-      },
-      Response: {
-        status: 200,
-        body: {
-          status: "succeeded",
           setup_future_usage: "off_session",
         },
       },
@@ -279,15 +267,6 @@ export const connectorDetails = {
         setup_future_usage: "on_session",
         customer_acceptance: customerAcceptance,
       },
-      Response: {
-        status: 200,
-        body: {
-          status: "succeeded",
-        },
-      },
-    },
-    SaveCardConfirmAutoCaptureOffSession: {
-      Request: {},
       Response: {
         status: 200,
         body: {
@@ -314,6 +293,9 @@ export const connectorDetails = {
       },
     },
     SaveCardUseNo3DSManualCaptureOffSession: {
+      Configs: {
+        TRIGGER_SKIP: true,
+      },
       Request: {
         setup_future_usage: "off_session",
         payment_method: "card",
@@ -328,22 +310,6 @@ export const connectorDetails = {
         body: {
           status: "requires_capture",
           payment_method_data: paymentMethodDataNo3DSResponse,
-        },
-      },
-    },
-    SaveCardConfirmAutoCaptureOffSessionWithoutBilling: {
-      Request: {
-        setup_future_usage: "off_session",
-      },
-      Response: {
-        status: 400,
-        body: {
-          error: {
-            type: "invalid_request",
-            message:
-              "No eligible connector was found for the current payment method configuration",
-            code: "IR_39",
-          },
         },
       },
     },
@@ -447,20 +413,6 @@ export const connectorDetails = {
       },
     },
     MandateSingleUseNo3DSManualCapture: {
-      Response: {
-        status: 200,
-        body: {
-          status: "requires_capture",
-        },
-      },
-    },
-    SaveCardConfirmManualCaptureOffSession: {
-      Configs: {
-        TRIGGER_SKIP: true,
-      },
-      Request: {
-        setup_future_usage: "off_session",
-      },
       Response: {
         status: 200,
         body: {
