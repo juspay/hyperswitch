@@ -43,8 +43,5 @@ pub struct DeleteTokenDataRequest {
 pub struct DeleteTokenDataResponse {
     /// Unique identifier returned by the tokenization service
     #[schema(value_type = String, example = "12345_tok_01926c58bc6e77c09e809964e72af8c8")]
-    pub id: id_type::GlobalTokenId,
-    ///Whether the token data was deleted successfully
-    #[schema(example = false)]
-    pub token_data_deleted: bool,
+    pub id: id_type::GlobalTokenId
 }

@@ -146,7 +146,6 @@ pub async fn delete_tokenized_data_core(
     .attach_printable("Failed to delete payment method from vault")?;
 
     //update the status with Disabled
-
     let tokenization_update = TokenizationUpdate {
         updated_at: Some(common_utils::date_time::now()),
         flag: Some(enums::TokenizationFlag::Disabled),
@@ -170,8 +169,7 @@ pub async fn delete_tokenized_data_core(
 
     Ok(hyperswitch_domain_models::api::ApplicationResponse::Json(
         api_models::tokenization::DeleteTokenDataResponse {
-            id: token_id.clone(),
-            token_data_deleted: false,
+            id: token_id.clone()
         },
     ))
 }
