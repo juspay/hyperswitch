@@ -1,6 +1,6 @@
 use common_utils::{id_type, types::MinorUnit};
-use time::OffsetDateTime;
 use masking::Secret;
+use time::OffsetDateTime;
 #[derive(serde::Serialize, Debug)]
 pub struct RevenueRecovery<'a> {
     pub merchant_id: &'a id_type::MerchantId,

@@ -1,5 +1,5 @@
 use std::{marker::PhantomData, str::FromStr};
-use masking::Secret;
+
 use api_models::{enums as api_enums, payments as api_payments, webhooks};
 use common_utils::{
     ext_traits::{AsyncExt, ValueExt},
@@ -13,7 +13,7 @@ use hyperswitch_domain_models::{
     router_response_types::revenue_recovery as revenue_recovery_response, types as router_types,
 };
 use hyperswitch_interfaces::webhooks as interface_webhooks;
-use masking::PeekInterface;
+use masking::{PeekInterface, Secret};
 use router_env::{instrument, tracing};
 use services::kafka;
 
