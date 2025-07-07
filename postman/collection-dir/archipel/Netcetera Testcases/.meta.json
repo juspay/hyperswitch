@@ -1,0 +1,9 @@
+{
+  "childrenOrder": [
+    "Scenario1-Create 3DS payment with confirm true",
+    "Scenario2-Create 3DS payment with confirm false",
+    "Scenario3-Create 3DS Frictionless payment with Visa",
+    "Scenario4-Create 3DS Frictionless payment with Mastercard",
+    "Scenario5-Create 3DS Challenge payment with Mastercard"
+  ]
+}

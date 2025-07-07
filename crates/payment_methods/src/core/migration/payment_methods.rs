@@ -2,30 +2,39 @@ use std::str::FromStr;
 
 #[cfg(feature = "v2")]
 use api_models::enums as api_enums;
-use api_models::{enums, payment_methods as pm_api};
+#[cfg(feature = "v1")]
+use api_models::enums;
+use api_models::payment_methods as pm_api;
+#[cfg(feature = "v1")]
 use common_utils::{
     consts,
     crypto::Encryptable,
-    errors::CustomResult,
     ext_traits::{AsyncExt, ConfigExt},
-    generate_id, id_type,
+    generate_id,
 };
+use common_utils::{errors::CustomResult, id_type};
 use error_stack::ResultExt;
 use hyperswitch_domain_models::{
-    api::ApplicationResponse, errors::api_error_response as errors, ext_traits::OptionExt,
-    merchant_context, payment_methods as domain_pm,
+    api::ApplicationResponse, errors::api_error_response as errors, merchant_context,
 };
-use masking::{PeekInterface, Secret};
+#[cfg(feature = "v1")]
+use hyperswitch_domain_models::{ext_traits::OptionExt, payment_methods as domain_pm};
+use masking::PeekInterface;
+#[cfg(feature = "v1")]
+use masking::Secret;
+#[cfg(feature = "v1")]
 use router_env::{instrument, logger, tracing};
+#[cfg(feature = "v1")]
 use serde_json::json;
 use storage_impl::cards_info;
 
+#[cfg(feature = "v1")]
 use crate::{
-    controller::{create_encrypted_data, PaymentMethodsController},
+    controller::create_encrypted_data,
     core::migration,
-    helpers::{ForeignFrom, ForeignTryFrom, StorageErrorExt},
-    state,
+    helpers::{ForeignFrom, StorageErrorExt},
 };
+use crate::{controller::PaymentMethodsController, helpers::ForeignTryFrom, state};
 
 #[cfg(feature = "v1")]
 pub async fn migrate_payment_method(
@@ -156,8 +165,8 @@ pub async fn migrate_payment_method(
     _state: &state::PaymentMethodsState,
     _req: pm_api::PaymentMethodMigrate,
     _merchant_id: &id_type::MerchantId,
-    merchant_context: &merchant_context::MerchantContext,
-    controller: &dyn PaymentMethodsController,
+    _merchant_context: &merchant_context::MerchantContext,
+    _controller: &dyn PaymentMethodsController,
 ) -> CustomResult<ApplicationResponse<pm_api::PaymentMethodMigrateResponse>, errors::ApiErrorResponse>
 {
     todo!()
@@ -175,7 +184,7 @@ pub async fn populate_bin_details_for_masked_card(
         card_number.peek(),
     )
     .change_context(errors::ApiErrorResponse::InvalidRequestData {
-        message: "Invalid card number".to_string(),
+        message: "Invalid masked card number".to_string(),
     })?;
 
     let card_bin_details = if card_details.card_issuer.is_some()
@@ -214,7 +223,7 @@ impl
         let (card_isin, last4_digits) =
             get_card_bin_and_last4_digits_for_masked_card(card_details.card_number.peek())
                 .change_context(errors::ApiErrorResponse::InvalidRequestData {
-                    message: "Invalid card number".to_string(),
+                    message: "Invalid masked card number".to_string(),
                 })?;
         if let Some(card_bin_info) = card_info {
             Ok(Self {
@@ -289,7 +298,7 @@ impl
         let (card_isin, last4_digits) =
             get_card_bin_and_last4_digits_for_masked_card(card_details.card_number.peek())
                 .change_context(errors::ApiErrorResponse::InvalidRequestData {
-                    message: "Invalid card number".to_string(),
+                    message: "Invalid masked card number".to_string(),
                 })?;
         if let Some(card_bin_info) = card_info {
             Ok(Self {
