@@ -45,6 +45,7 @@ bluesnap.secondary_base_url = "https://pay.bluesnap.com/"
 boku.base_url = "https://country-api4-stage.boku.com"
 braintree.base_url = "https://payments.braintree-api.com/graphql"
 cashtocode.base_url = "https://cluster14.api.cashtocode.com"
+celero.base_url = "https://app.gotnpgateway.com"
 chargebee.base_url = "https://{{merchant_endpoint_prefix}}.chargebee.com/api/"
 checkbook.base_url = "https://api.checkbook.io"
 checkout.base_url = "https://api.checkout.com/"
@@ -709,7 +710,9 @@ eft = { country = "NG, ZA, GH, KE, CI", currency = "NGN, GHS, ZAR, KES, USD" }
 pix = { country = "BR", currency = "BRL" }
 
 [payout_method_filters.adyenplatform]
-sepa = { country = "ES,SK,AT,NL,DE,BE,FR,FI,PT,IE,EE,LT,LV,IT,CZ,DE,HU,NO,PL,SE,GB,CH" , currency = "EUR,CZK,DKK,HUF,NOK,PLN,SEK,GBP,CHF" }
+sepa = { country = "AT,BE,CH,CZ,DE,EE,ES,FI,FR,GB,HU,IE,IT,LT,LV,NL,NO,PL,PT,SE,SK", currency = "EUR,CZK,DKK,HUF,NOK,PLN,SEK,GBP,CHF" }
+credit = { country = "AT,BE,BG,CY,CZ,DE,DK,EE,ES,FI,FR,GB,GR,HR,HU,IE,IS,IT,LI,LT,LU,LV,MT,NL,NO,PL,PT,RO,SE,SI,SK,US", currency = "EUR,USD,GBP" }
+debit = { country = "AT,BE,BG,CY,CZ,DE,DK,EE,ES,FI,FR,GB,GR,HR,HU,IE,IS,IT,LI,LT,LU,LV,MT,NL,NO,PL,PT,RO,SE,SI,SK,US", currency = "EUR,USD,GBP" }
 
 [payout_method_filters.stripe]
 ach = { country = "US", currency = "USD" }
