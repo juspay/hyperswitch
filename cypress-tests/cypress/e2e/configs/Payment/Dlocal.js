@@ -2,7 +2,6 @@ import {
   customerAcceptance,
   singleUseMandateData,
   multiUseMandateData,
-  requiredFields,
 } from "./Commons";
 const mockBillingDetails = {
   address: {
