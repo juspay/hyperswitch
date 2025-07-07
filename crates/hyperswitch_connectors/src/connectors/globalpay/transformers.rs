@@ -95,7 +95,6 @@ impl TryFrom<&GlobalPayRouterData<&PaymentsAuthorizeRouterData>> for GlobalpayPa
         let (initiator, stored_credential, connector_mandate_id, brand_reference) =
             get_mandate_details(item.router_data)?;
 
-        // Handle payment method data directly here
         let payment_method = match &item.router_data.request.payment_method_data {
             payment_method_data::PaymentMethodData::Card(ccard) => {
                 requests::GlobalPayPaymentMethodData::Common(CommonPaymentMethodData {

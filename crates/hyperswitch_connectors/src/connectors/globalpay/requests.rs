@@ -49,7 +49,6 @@ pub struct Notifications {
 pub enum PaymentMethodData {
     Card(Card),
     Apm(Apm),
-    // BankTransfer(BankTransfer),
     DigitalWallet(DigitalWallet),
     Token(TokenizationData),
 }

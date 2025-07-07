@@ -2,12 +2,7 @@ use common_enums::Currency;
 use common_utils::types::StringMinorUnit;
 use masking::Secret;
 use serde::{Deserialize, Serialize};
-
-// use super::requests;
-use crate::{
-    // connectors::globalpay::requests::{GlobalPayPayer, UsageMode},
-    utils::deserialize_optional_currency,
-};
+use crate::utils::deserialize_optional_currency;
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct GlobalpayPaymentsResponse {
