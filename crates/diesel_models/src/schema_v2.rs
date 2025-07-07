@@ -135,6 +135,8 @@ diesel::table! {
         shipping_address -> Nullable<Bytea>,
         browser_info -> Nullable<Jsonb>,
         email -> Nullable<Bytea>,
+        #[max_length = 128]
+        profile_acquirer_id -> Nullable<Varchar>,
     }
 }
 
