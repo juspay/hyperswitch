@@ -17,7 +17,7 @@ pub async fn proxy_core(
 ) -> RouterResponse<proxy_api_models::ProxyResponse> {
     let req_wrapper = utils::ProxyRequestWrapper(req.clone());
     let proxy_record = req_wrapper
-        .get_payment_method_or_tokenization_record(
+        .get_proxy_record(
             &state,
             merchant_context.get_merchant_key_store(),
             merchant_context.get_merchant_account().storage_scheme,

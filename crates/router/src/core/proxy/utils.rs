@@ -25,7 +25,7 @@ pub enum ProxyRecord {
 }
 
 impl ProxyRequestWrapper {
-    pub async fn get_payment_method_or_tokenization_record(
+    pub async fn get_proxy_record(
         &self,
         state: &SessionState,
         key_store: &domain::MerchantKeyStore,
