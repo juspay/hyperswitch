@@ -162,6 +162,7 @@ impl ConstructFlowSpecificData<frm_api::Checkout, FraudCheckCheckoutData, FraudC
             authentication_id: None,
             psd2_sca_exemption_type: None,
             whole_connector_response: None,
+            is_payment_id_from_merchant: None,
         };
 
         Ok(router_data)

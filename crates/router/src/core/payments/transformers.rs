@@ -148,8 +148,10 @@ where
         connector_request_reference_id: core_utils::get_connector_request_reference_id(
             &state.conf,
             merchant_context.get_merchant_account().get_id(),
+            &payment_data.payment_intent,
             &payment_data.payment_attempt,
-        ),
+            connector_id,
+        )?,
         preprocessing_id: None,
         #[cfg(feature = "payouts")]
         payout_method_data: None,
@@ -172,6 +174,7 @@ where
         authentication_id: None,
         psd2_sca_exemption_type: None,
         whole_connector_response: None,
+        is_payment_id_from_merchant: payment_data.payment_intent.is_payment_id_from_merchant,
     };
     Ok(router_data)
 }
@@ -400,6 +403,7 @@ pub async fn construct_payment_router_data_for_authorize<'a>(
         authentication_id: None,
         psd2_sca_exemption_type: None,
         whole_connector_response: None,
+        is_payment_id_from_merchant: payment_data.payment_intent.is_payment_id_from_merchant,
     };
 
     Ok(router_data)
@@ -564,6 +568,7 @@ pub async fn construct_payment_router_data_for_capture<'a>(
         psd2_sca_exemption_type: None,
         authentication_id: None,
         whole_connector_response: None,
+        is_payment_id_from_merchant: None,
     };
 
     Ok(router_data)
@@ -690,6 +695,7 @@ pub async fn construct_router_data_for_psync<'a>(
         authentication_id: None,
         psd2_sca_exemption_type: None,
         whole_connector_response: None,
+        is_payment_id_from_merchant: None,
     };
 
     Ok(router_data)
@@ -872,6 +878,7 @@ pub async fn construct_payment_router_data_for_sdk_session<'a>(
         psd2_sca_exemption_type: None,
         authentication_id: None,
         whole_connector_response: None,
+        is_payment_id_from_merchant: None,
     };
 
     Ok(router_data)
@@ -1089,6 +1096,7 @@ pub async fn construct_payment_router_data_for_setup_mandate<'a>(
         authentication_id: None,
         psd2_sca_exemption_type: None,
         whole_connector_response: None,
+        is_payment_id_from_merchant: None,
     };
 
     Ok(router_data)
@@ -1260,8 +1268,10 @@ where
         connector_request_reference_id: core_utils::get_connector_request_reference_id(
             &state.conf,
             merchant_context.get_merchant_account().get_id(),
+            &payment_data.payment_intent,
             &payment_data.payment_attempt,
-        ),
+            connector_id,
+        )?,
         preprocessing_id: payment_data.payment_attempt.preprocessing_step_id,
         #[cfg(feature = "payouts")]
         payout_method_data: None,
@@ -1288,6 +1298,7 @@ where
         authentication_id: None,
         psd2_sca_exemption_type: payment_data.payment_intent.psd2_sca_exemption_type,
         whole_connector_response: None,
+        is_payment_id_from_merchant: payment_data.payment_intent.is_payment_id_from_merchant,
     };
 
     Ok(router_data)
@@ -1450,8 +1461,10 @@ pub async fn construct_payment_router_data_for_update_metadata<'a>(
         connector_request_reference_id: core_utils::get_connector_request_reference_id(
             &state.conf,
             merchant_context.get_merchant_account().get_id(),
+            &payment_data.payment_intent,
             &payment_data.payment_attempt,
-        ),
+            connector_id,
+        )?,
         preprocessing_id: payment_data.payment_attempt.preprocessing_step_id,
         #[cfg(feature = "payouts")]
         payout_method_data: None,
@@ -1478,6 +1491,7 @@ pub async fn construct_payment_router_data_for_update_metadata<'a>(
         authentication_id: None,
         psd2_sca_exemption_type: payment_data.payment_intent.psd2_sca_exemption_type,
         whole_connector_response: None,
+        is_payment_id_from_merchant: payment_data.payment_intent.is_payment_id_from_merchant,
     };
 
     Ok(router_data)
