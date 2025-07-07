@@ -873,22 +873,22 @@ export const connectorDetails = {
         authentication_type: "no_three_ds",
         description: "hellow world",
         billing: {
-            address: {
-                zip: "560095",
-                first_name: "Sakil",
-                last_name: "Mostak",
-                line1: "Fasdf",
-                country: "AT",
-                line2: "Fasdf",
-                city: "Fasdf"
-            }
+          address: {
+            zip: "560095",
+            first_name: "Sakil",
+            last_name: "Mostak",
+            line1: "Fasdf",
+            country: "AT",
+            line2: "Fasdf",
+            city: "Fasdf",
+          },
         },
         payment_method_data: {
-            bank_redirect: {
-                eps: {}
-            }
-        }
-    },
+          bank_redirect: {
+            eps: {},
+          },
+        },
+      },
       Response: {
         status: 200,
         body: {
@@ -907,23 +907,22 @@ export const connectorDetails = {
         authentication_type: "no_three_ds",
         description: "hellow world",
         billing: {
-            address: {
-                zip: "560095",
-                first_name: "Sakil",
-                last_name: "Mostak",
-                line1: "Fasdf",
-                country: "AT",
-                line2: "Fasdf",
-                city: "Fasdf"
-            }
+          address: {
+            zip: "560095",
+            first_name: "Sakil",
+            last_name: "Mostak",
+            line1: "Fasdf",
+            country: "AT",
+            line2: "Fasdf",
+            city: "Fasdf",
+          },
         },
         payment_method_data: {
-    
-            bank_redirect: {
-                sofort: {}
-            }
-        }
-    },
+          bank_redirect: {
+            sofort: {},
+          },
+        },
+      },
       Response: {
         status: 200,
         body: {
@@ -942,22 +941,22 @@ export const connectorDetails = {
         authentication_type: "no_three_ds",
         description: "hellow world",
         billing: {
-            address: {
-                zip: "560095",
-                first_name: "John",
-                last_name: "Doe",
-                line1: "Main street",
-                country: "PT",
-                line2: "sub street",
-                city: "city"
-            }
+          address: {
+            zip: "560095",
+            first_name: "John",
+            last_name: "Doe",
+            line1: "Main street",
+            country: "PT",
+            line2: "sub street",
+            city: "city",
+          },
         },
         payment_method_data: {
-            wallet: {
-                mb_way_redirect: {}
-            }
-        }
-    },
+          wallet: {
+            mb_way_redirect: {},
+          },
+        },
+      },
       Response: {
         status: 200,
         body: {
