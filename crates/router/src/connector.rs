@@ -32,9 +32,9 @@ pub use hyperswitch_connectors::connectors::{
     placetopay, placetopay::Placetopay, plaid, plaid::Plaid, powertranz, powertranz::Powertranz,
     prophetpay, prophetpay::Prophetpay, rapyd, rapyd::Rapyd, razorpay, razorpay::Razorpay, recurly,
     recurly::Recurly, redsys, redsys::Redsys, riskified, riskified::Riskified, santander,
-    santander::Santander, shift4, shift4::Shift4, signifyd, signifyd::Signifyd, silverflow, silverflow::Silverflow, square,
-    square::Square, stax, stax::Stax, stripe, stripe::Stripe, stripebilling,
-    stripebilling::Stripebilling, taxjar, taxjar::Taxjar, threedsecureio,
+    santander::Santander, shift4, shift4::Shift4, signifyd, signifyd::Signifyd, silverflow,
+    silverflow::Silverflow, square, square::Square, stax, stax::Stax, stripe, stripe::Stripe,
+    stripebilling, stripebilling::Stripebilling, taxjar, taxjar::Taxjar, threedsecureio,
     threedsecureio::Threedsecureio, thunes, thunes::Thunes, tokenio, tokenio::Tokenio, trustpay,
     trustpay::Trustpay, tsys, tsys::Tsys, unified_authentication_service,
     unified_authentication_service::UnifiedAuthenticationService, vgs, vgs::Vgs, volt, volt::Volt,
@@ -42,5 +42,4 @@ pub use hyperswitch_connectors::connectors::{
     wise::Wise, worldline, worldline::Worldline, worldpay, worldpay::Worldpay, worldpayvantiv,
     worldpayvantiv::Worldpayvantiv, worldpayxml, worldpayxml::Worldpayxml, xendit, xendit::Xendit,
     zen, zen::Zen, zsl, zsl::Zsl,
-
 };
