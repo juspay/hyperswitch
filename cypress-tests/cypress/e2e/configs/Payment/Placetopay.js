@@ -1,4 +1,9 @@
-import { customerAcceptance,requiredFields,singleUseMandateData,multiUseMandateData } from "./Commons.js";
+import {
+  customerAcceptance,
+  requiredFields,
+  singleUseMandateData,
+  multiUseMandateData,
+} from "./Commons.js";
 const defaultBillingDetails = {
   address: {
     line1: "Caller 123",
@@ -379,7 +384,7 @@ export const connectorDetails = {
         },
         billing: defaultBillingDetails,
         currency: "USD",
-        mandate_data: singleUseMandateData
+        mandate_data: singleUseMandateData,
       },
       Response: {
         status: 200,
@@ -657,7 +662,7 @@ export const connectorDetails = {
         },
         billing: defaultBillingDetails,
         currency: "USD",
-        mandate_data:singleUseMandateData
+        mandate_data: singleUseMandateData,
       },
       Response: {
         status: 400,
