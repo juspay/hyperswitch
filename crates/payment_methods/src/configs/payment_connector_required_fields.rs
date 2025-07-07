@@ -1433,6 +1433,25 @@ fn get_cards_required_fields() -> HashMap<Connector, RequiredFieldFinal> {
             ),
         ),
         (
+            Connector::Payload,
+            fields(
+                vec![],
+                vec![],
+                [
+                    email(),
+                    card_with_name(),
+                    vec![
+                        RequiredField::BillingAddressLine1,
+                        RequiredField::BillingAddressCity,
+                        RequiredField::BillingAddressZip,
+                        RequiredField::BillingAddressState,
+                        RequiredField::BillingAddressCountries(vec!["ALL"]),
+                    ],
+                ]
+                .concat(),
+            ),
+        ),
+        (
             Connector::Payme,
             fields(vec![], vec![], [email(), card_with_name()].concat()),
         ),
