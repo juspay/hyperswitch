@@ -1089,9 +1089,6 @@ background_color = "#FFFFFF"                                                    
 billing_connectors_which_require_payment_sync = "stripebilling, recurly" # List of billing connectors which has payment sync api call
 
 
-[record_back_control]
-billing_connectors_to_skip_record_back_on_failed_invoice = ["stripebilling", "recurly"] # List of connectors for which record back on failed invoice should be skipped
-
 [open_router]
 enabled = true                          # Enable or disable Open Router
 url = "http://localhost:8080"           # Open Router URL

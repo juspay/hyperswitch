@@ -150,18 +150,6 @@ impl RevenueRecoveryPaymentsAttemptStatus {
                     db.as_scheduler()
                         .retry_process(process_tracker.clone(), schedule_time)
                         .await?;
-                } else {
-                    // Record a failure transaction back to Billing Connector
-                    // TODO: Add support for retrying failed outgoing recordback webhooks
-                    record_back_to_billing_connector(
-                        state,
-                        &payment_attempt,
-                        payment_intent,
-                        &revenue_recovery_payment_data.billing_mca,
-                    )
-                    .await
-                    .change_context(errors::RecoveryError::RecordBackToBillingConnectorFailed)
-                    .attach_printable("Failed to record back the billing connector")?;
                 }
             }
             Self::Processing => {
@@ -711,17 +699,6 @@ async fn record_back_to_billing_connector(
     billing_mca: &merchant_connector_account::MerchantConnectorAccount,
 ) -> RecoveryResult<()> {
     let connector_name = billing_mca.connector_name.to_string();
-    if state
-        .conf
-        .record_back_control
-        .billing_connectors_to_skip_record_back_on_failed_invoice
-        .contains(&connector_name)
-        && payment_intent.status == enums::IntentStatus::Failed
-    {
-        // If the payment intent has failed, we don't need to record back to the billing connector
-        return Ok(());
-    }
-
     let connector_data = api_types::ConnectorData::get_connector_by_name(
         &state.conf.connectors,
         &connector_name,

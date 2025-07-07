@@ -770,9 +770,6 @@ billing_connectors_which_require_payment_sync = "stripebilling, recurly"
 [billing_connectors_invoice_sync]
 billing_connectors_which_requires_invoice_sync_call = "recurly"
 
-[record_back_control]
-billing_connectors_to_skip_record_back_on_failed_invoice = ["stripebilling", "recurly"]
-
 [authentication_providers]
 click_to_pay = {connector_list = "adyen, cybersource"}
 
