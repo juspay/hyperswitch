@@ -4,7 +4,7 @@ const successfulNo3DSCardDetails = {
   card_number: "4111111111111111",
   card_exp_month: "06",
   card_exp_year: "50",
-  card_holder_name: "joseph Doe",
+  card_holder_name: "Joseph Doe",
   card_cvc: "123",
 };
 
@@ -26,13 +26,12 @@ const billing_info = {
     country_code: "+91",
   },
 };
+
 const successful3DSCardDetails = {
+  ...successfulNo3DSCardDetails,
   card_number: "4000000000000002",
-  card_exp_month: "06",
-  card_exp_year: "50",
-  card_holder_name: "joseph Doe",
-  card_cvc: "123",
 };
+
 const singleUseMandateData = {
   customer_acceptance: customerAcceptance,
   mandate_type: {
@@ -52,6 +51,47 @@ const multiUseMandateData = {
     },
   },
 };
+
+const paymentMethodDataNo3DSResponse = {
+  card: {
+    authentication_data: null,
+    card_exp_month: "06",
+    card_exp_year: "50",
+    card_extended_bin: null,
+    card_holder_name: "Joseph Doe",
+    card_isin: "411111",
+    card_issuer: "JP Morgan",
+    card_issuing_country: "INDIA",
+    card_network: "Visa",
+    card_type: "CREDIT",
+    last4: "1111",
+    payment_checks: null,
+  },
+  billing: {
+    address: null,
+    email: billing_info.email,
+    phone: null,
+  },
+};
+
+const paymentMethodData3DSResponse = {
+  card: {
+    authentication_data: null,
+    card_exp_month: "06",
+    card_exp_year: "50",
+    card_extended_bin: null,
+    card_holder_name: "Joseph Doe",
+    card_isin: "400000",
+    card_issuer: "INTL HDQTRS-CENTER OWNED",
+    card_issuing_country: "UNITEDSTATES",
+    card_network: "Visa",
+    card_type: "CREDIT",
+    last4: "0002",
+    payment_checks: null,
+  },
+  billing: null,
+};
+
 export const connectorDetails = {
   card_pm: {
     PaymentIntent: {
@@ -88,6 +128,7 @@ export const connectorDetails = {
         status: 200,
         body: {
           status: "requires_capture",
+          payment_method_data: paymentMethodDataNo3DSResponse,
         },
       },
     },
@@ -112,6 +153,7 @@ export const connectorDetails = {
         status: 200,
         body: {
           status: "succeeded",
+          payment_method_data: paymentMethodDataNo3DSResponse,
         },
       },
     },
@@ -155,6 +197,7 @@ export const connectorDetails = {
         status: 200,
         body: {
           status: "succeeded",
+          payment_method_data: paymentMethodDataNo3DSResponse,
         },
       },
     },
@@ -175,6 +218,7 @@ export const connectorDetails = {
         status: 200,
         body: {
           status: "requires_capture",
+          payment_method_data: paymentMethodDataNo3DSResponse,
         },
       },
     },
@@ -198,6 +242,7 @@ export const connectorDetails = {
         status: 200,
         body: {
           status: "succeeded",
+          payment_method_data: paymentMethodDataNo3DSResponse,
         },
       },
     },
@@ -220,6 +265,7 @@ export const connectorDetails = {
         status: 200,
         body: {
           status: "succeeded",
+          payment_method_data: paymentMethodDataNo3DSResponse,
         },
       },
     },
@@ -240,6 +286,7 @@ export const connectorDetails = {
         status: 200,
         body: {
           status: "requires_capture",
+          payment_method_data: paymentMethodDataNo3DSResponse,
         },
       },
     },
@@ -289,6 +336,7 @@ export const connectorDetails = {
         status: 200,
         body: {
           status: "requires_capture",
+          payment_method_data: paymentMethodDataNo3DSResponse,
         },
       },
     },
@@ -311,6 +359,7 @@ export const connectorDetails = {
         status: 200,
         body: {
           status: "succeeded",
+          payment_method_data: paymentMethodDataNo3DSResponse,
         },
       },
     },
@@ -333,6 +382,7 @@ export const connectorDetails = {
         status: 200,
         body: {
           status: "requires_capture",
+          payment_method_data: paymentMethodDataNo3DSResponse,
         },
       },
     },
@@ -425,6 +475,7 @@ export const connectorDetails = {
         status: 200,
         body: {
           status: "succeeded",
+          payment_method_data: paymentMethodDataNo3DSResponse,
         },
       },
     },
@@ -448,6 +499,7 @@ export const connectorDetails = {
         status: 200,
         body: {
           status: "requires_capture",
+          payment_method_data: paymentMethodDataNo3DSResponse,
         },
       },
     },
@@ -482,6 +534,7 @@ export const connectorDetails = {
           amount_received: 6050,
           amount: 6000,
           net_amount: 6050,
+          payment_method_data: paymentMethodDataNo3DSResponse,
         },
       },
     },
@@ -503,6 +556,7 @@ export const connectorDetails = {
         status: 200,
         body: {
           status: "requires_customer_action",
+          payment_method_data: paymentMethodData3DSResponse,
         },
       },
     },
@@ -524,6 +578,7 @@ export const connectorDetails = {
         status: 200,
         body: {
           status: "requires_customer_action",
+          payment_method_data: paymentMethodData3DSResponse,
         },
       },
     },
@@ -558,6 +613,7 @@ export const connectorDetails = {
         body: {
           status: "processing",
           setup_future_usage: "off_session",
+          payment_method_data: paymentMethodDataNo3DSResponse,
         },
       },
     },
@@ -609,6 +665,7 @@ export const connectorDetails = {
         status: 200,
         body: {
           status: "requires_customer_action",
+          payment_method_data: paymentMethodData3DSResponse,
         },
       },
     },
@@ -630,6 +687,7 @@ export const connectorDetails = {
         status: 200,
         body: {
           status: "requires_customer_action",
+          payment_method_data: paymentMethodData3DSResponse,
         },
       },
     },
