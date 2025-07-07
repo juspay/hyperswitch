@@ -1,5 +1,4 @@
 import {
-  cardRequiredField,
   customerAcceptance,
   multiUseMandateData,
   singleUseMandateData,
@@ -25,43 +24,6 @@ const failedCardDetails = {
 };
 
 export const billingRequiredField = {};
-
-const requiredFields = {
-  payment_methods: [
-    {
-      payment_method: "card",
-      payment_method_types: [
-        {
-          payment_method_type: "credit",
-          card_networks: [
-            {
-              eligible_connectors: ["square"],
-            },
-          ],
-          required_fields: cardRequiredField,
-        },
-      ],
-    },
-  ],
-};
-
-const payment_method_data_3ds = {
-  card: {
-    last4: "3220",
-    card_type: "CREDIT",
-    card_network: "Visa",
-    card_issuer: "JP Morgan",
-    card_issuing_country: "INDIA",
-    card_isin: "400000",
-    card_extended_bin: null,
-    card_exp_month: "12",
-    card_exp_year: "30",
-    card_holder_name: "Joseph Doe",
-    payment_checks: null,
-    authentication_data: null,
-  },
-  billing: null,
-};
 
 const payment_method_data_no3ds = {
   card: {
