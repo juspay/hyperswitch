@@ -910,7 +910,9 @@ card = "credit,debit"
 
 #Payout Method Filters Based on Country and Currency
 [payout_method_filters.adyenplatform]
-sepa = { country = "ES,SK,AT,NL,DE,BE,FR,FI,PT,IE,EE,LT,LV,IT,CZ,DE,HU,NO,PL,SE,GB,CH", currency = "EUR,CZK,DKK,HUF,NOK,PLN,SEK,GBP,CHF" }
+sepa = { country = "AT,BE,CH,CZ,DE,EE,ES,FI,FR,GB,HU,IE,IT,LT,LV,NL,NO,PL,PT,SE,SK", currency = "EUR,CZK,DKK,HUF,NOK,PLN,SEK,GBP,CHF" }
+credit = { country = "AT,BE,BG,CY,CZ,DE,DK,EE,ES,FI,FR,GB,GR,HR,HU,IE,IS,IT,LI,LT,LU,LV,MT,NL,NO,PL,PT,RO,SE,SI,SK,US", currency = "EUR,USD,GBP" }
+debit = { country = "AT,BE,BG,CY,CZ,DE,DK,EE,ES,FI,FR,GB,GR,HR,HU,IE,IS,IT,LI,LT,LU,LV,MT,NL,NO,PL,PT,RO,SE,SI,SK,US", currency = "EUR,USD,GBP" }
 
 [payout_method_filters.stripe]
 ach = { country = "US", currency = "USD" }
@@ -1096,6 +1098,11 @@ billing_connectors_which_require_payment_sync = "stripebilling, recurly" # List 
 [open_router]
 enabled = true                          # Enable or disable Open Router
 url = "http://localhost:8080"           # Open Router URL
+
+[grpc_client.unified_connector_service]
+host = "localhost"                      # Unified Connector Service Client Host
+port = 8000                             # Unified Connector Service Client Port
+connection_timeout = 10                 # Connection Timeout Duration in Seconds
 
 [billing_connectors_invoice_sync]
 billing_connectors_which_requires_invoice_sync_call = "recurly" # List of billing connectors which has invoice sync api call
