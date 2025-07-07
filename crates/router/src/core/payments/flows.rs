@@ -13,6 +13,7 @@ pub mod setup_mandate_flow;
 pub mod update_metadata_flow;
 
 use async_trait::async_trait;
+use common_types::payments::CustomerAcceptance;
 #[cfg(all(feature = "v2", feature = "revenue_recovery"))]
 use hyperswitch_domain_models::router_flow_types::{
     BillingConnectorInvoiceSync, BillingConnectorPaymentsSync, RecoveryRecordBack,
@@ -23,7 +24,6 @@ use hyperswitch_domain_models::router_flow_types::{
     ExternalVaultRetrieveFlow,
 };
 use hyperswitch_domain_models::{
-    mandates::CustomerAcceptance,
     router_flow_types::{
         Authenticate, AuthenticationConfirmation, PostAuthenticate, PreAuthenticate,
     },
@@ -198,20 +198,6 @@ pub trait Feature<F, T> {
     ) -> RouterResult<(Option<services::Request>, bool)> {
         Ok((None, true))
     }
-
-    async fn call_unified_connector_service<'a>(
-        &mut self,
-        _state: &SessionState,
-        _merchant_connector_account: helpers::MerchantConnectorAccountType,
-    ) -> RouterResult<()>
-    where
-        F: Clone,
-        Self: Sized,
-        dyn api::Connector: services::ConnectorIntegration<F, T, types::PaymentsResponseData>,
-    {
-        Ok(())
-    }
-}
 
     async fn create_order_at_connector(
         &mut self,

@@ -192,9 +192,6 @@ impl UnifiedConnectorServiceClient {
             .clone()
             .authorize(request)
             .await
-            .change_context(UnifiedConnectorServiceError::ConnectionError(
-                "Failed to authorize payment through Unified Connector Service".to_owned(),
-            ))
             .change_context(UnifiedConnectorServiceError::PaymentAuthorizeFailure)
             .inspect_err(|error| logger::error!(?error))
     }
@@ -204,6 +201,7 @@ impl UnifiedConnectorServiceClient {
         &self,
         payment_get_request: payments_grpc::PaymentServiceGetRequest,
         connector_auth_metadata: ConnectorAuthMetadata,
+        grpc_headers: GrpcHeaders,
     ) -> UnifiedConnectorServiceResult<tonic::Response<payments_grpc::PaymentServiceGetResponse>>
     {
         let mut request = tonic::Request::new(payment_get_request);
@@ -216,61 +214,10 @@ impl UnifiedConnectorServiceClient {
             .clone()
             .get(request)
             .await
-            .change_context(UnifiedConnectorServiceError::ConnectionError(
-                "Failed to get payment through Unified Connector Service".to_owned(),
-            ))
-            .change_context(UnifiedConnectorServiceError::PaymentAuthorizeFailure)
+            .change_context(UnifiedConnectorServiceError::PaymentGetFailure)
             .inspect_err(|error| logger::error!(?error))
     }
 }
-
-// impl TryFrom<ConnectorAuthMetadata> for MetadataMap {
-//     type Error = UnifiedConnectorServiceError;
-//
-//     fn try_from(meta: ConnectorAuthMetadata) -> Result<Self, Self::Error> {
-//         let mut metadata = Self::new();
-//         let parse =
-//             |key: &str, value: &str| -> Result<MetadataValue<_>, UnifiedConnectorServiceError> {
-//                 value.parse::<MetadataValue<_>>().map_err(|error| {
-//                     logger::error!(?error);
-//                     UnifiedConnectorServiceError::HeaderInjectionFailed(key.to_string())
-//                 })
-//             };
-//
-//         metadata.append(
-//             consts::UCS_HEADER_CONNECTOR,
-//             parse("connector", &meta.connector_name)?,
-//         );
-//         metadata.append(
-//             consts::UCS_HEADER_AUTH_TYPE,
-//             parse("auth_type", &meta.auth_type)?,
-//         );
-//
-//         if let Some(api_key) = meta.api_key {
-//             metadata.append(consts::UCS_HEADER_API_KEY, parse("api_key", &api_key)?);
-//         }
-//         if let Some(key1) = meta.key1 {
-//             metadata.append(consts::UCS_HEADER_KEY1, parse("key1", &key1)?);
-//         }
-//         if let Some(api_secret) = meta.api_secret {
-//             metadata.append(
-//                 consts::UCS_HEADER_API_SECRET,
-//                 parse("api_secret", &api_secret)?,
-//             );
-//         }
-//
-//         metadata.append(
-//             consts::UCS_AUTH_HEADER_MERCHANT_ID_KEY,
-//             parse("merchant_id", &meta.merchant_id)?,
-//         );
-//
-//         metadata.append(
-//             consts::UCS_AUTH_HEADER_TENANT_ID_KEY,
-//             parse("tenant_id", &meta.tenant_id)?,
-//         );
-//
-//         Ok(metadata)
-//     }
 
 /// Build the gRPC Headers for Unified Connector Service Request
 pub fn build_unified_connector_service_grpc_headers(

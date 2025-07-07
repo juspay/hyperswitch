@@ -1,9 +1,8 @@
 use common_enums::{AttemptStatus, PaymentMethodType};
 use common_utils::{errors::CustomResult, ext_traits::ValueExt};
 use error_stack::ResultExt;
-use external_services::{
-    consts,
-    grpc_client::unified_connector_service::{ConnectorAuthMetadata, UnifiedConnectorServiceError},
+use external_services::grpc_client::unified_connector_service::{
+    ConnectorAuthMetadata, UnifiedConnectorServiceError,
 };
 use hyperswitch_connectors::utils::CardData;
 #[cfg(feature = "v2")]
@@ -13,7 +12,7 @@ use hyperswitch_domain_models::{
     router_data::{ConnectorAuthType, ErrorResponse, RouterData},
     router_response_types::{PaymentsResponseData, RedirectForm},
 };
-use masking::{ExposeInterface, PeekInterface};
+use masking::{ExposeInterface, PeekInterface, Secret};
 use unified_connector_service_client::payments::{
     self as payments_grpc, payment_method::PaymentMethod, CardDetails, CardPaymentMethodType,
     PaymentServiceAuthorizeResponse,
@@ -149,6 +148,7 @@ pub fn build_unified_connector_service_payment_method(
 pub fn build_unified_connector_service_auth_metadata(
     #[cfg(feature = "v1")] merchant_connector_account: MerchantConnectorAccountType,
     #[cfg(feature = "v2")] merchant_connector_account: MerchantConnectorAccountTypeDetails,
+    merchant_context: &MerchantContext,
 ) -> CustomResult<ConnectorAuthMetadata, UnifiedConnectorServiceError> {
     #[cfg(feature = "v1")]
     let auth_type: ConnectorAuthType = merchant_connector_account
@@ -182,12 +182,10 @@ pub fn build_unified_connector_service_auth_metadata(
         }
     };
 
-    let merchant_id = merchant_connector_account
-        .get_inner_db_merchant_connector_account()
-        .map(|account| account.merchant_id.get_string_repr().to_string())
-        .unwrap_or_default();
-
-    let tenant_id = consts::DEFAULT_TENANT_ID.to_string();
+    let merchant_id = merchant_context
+        .get_merchant_account()
+        .get_id()
+        .get_string_repr();
 
     match &auth_type {
         ConnectorAuthType::SignatureKey {

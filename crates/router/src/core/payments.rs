@@ -235,7 +235,7 @@ where
                     profile,
                     false,
                     false, //should_retry_with_pan is set to false in case of PreDetermined ConnectorCallType
-                    req.get_all_keys_required(),
+                    req.should_return_raw_response(),
                 )
                 .await?;
 
@@ -253,7 +253,6 @@ where
                 #[cfg(feature = "frm")]
                 None,
                 profile,
-                false,
                 false,
                 false, //should_retry_with_pan is set to false in case of PreDetermined ConnectorCallType
                 req.should_return_raw_response(),
@@ -316,7 +315,7 @@ where
                     profile,
                     false,
                     false, //should_retry_with_pan is set to false in case of Retryable ConnectorCallType
-                    req.get_all_keys_required(),
+                    req.should_return_raw_response(),
                 )
                 .await?;
 
@@ -335,7 +334,6 @@ where
                 None,
                 profile,
                 true,
-                false,
                 false, //should_retry_with_pan is set to false in case of PreDetermined ConnectorCallType
                 req.should_return_raw_response(),
                 mca_type_details,
@@ -4342,6 +4340,7 @@ where
                     .call_unified_connector_service(
                         state,
                         merchant_connector_account_type_details.clone(),
+                        merchant_context,
                     )
                     .await?;
 

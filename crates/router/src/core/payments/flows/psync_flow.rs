@@ -217,6 +217,7 @@ impl Feature<api::PSync, types::PaymentsSyncData>
         #[cfg(feature = "v1")] merchant_connector_account: helpers::MerchantConnectorAccountType,
         #[cfg(feature = "v2")]
         merchant_connector_account: domain::MerchantConnectorAccountTypeDetails,
+        merchant_context: &domain::MerchantContext,
     ) -> RouterResult<()> {
         let client = state
             .grpc_client
@@ -229,13 +230,19 @@ impl Feature<api::PSync, types::PaymentsSyncData>
             .change_context(ApiErrorResponse::InternalServerError)
             .attach_printable("Failed to construct Payment Get Request")?;
 
-        let connector_auth_metadata =
-            build_unified_connector_service_auth_metadata(merchant_connector_account)
-                .change_context(ApiErrorResponse::InternalServerError)
-                .attach_printable("Failed to construct request metadata")?;
+        let connector_auth_metadata = build_unified_connector_service_auth_metadata(
+            merchant_connector_account,
+            merchant_context,
+        )
+        .change_context(ApiErrorResponse::InternalServerError)
+        .attach_printable("Failed to construct request metadata")?;
 
         let response = client
-            .payment_get(payment_get_request, connector_auth_metadata)
+            .payment_get(
+                payment_get_request,
+                connector_auth_metadata,
+                state.get_grpc_headers(),
+            )
             .await
             .change_context(ApiErrorResponse::InternalServerError)
             .attach_printable("Failed to get payment")?;
@@ -249,7 +256,7 @@ impl Feature<api::PSync, types::PaymentsSyncData>
 
         self.status = status;
         self.response = router_data_response;
-        self.whole_connector_response = payment_get_response.raw_connector_response;
+        self.raw_connector_response = payment_get_response.raw_connector_response;
 
         Ok(())
     }
