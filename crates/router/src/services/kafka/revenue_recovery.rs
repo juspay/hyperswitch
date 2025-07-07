@@ -6,7 +6,9 @@ pub struct RevenueRecovery<'a> {
     pub merchant_id: &'a id_type::MerchantId,
     pub invoice_amount: MinorUnit,
     pub invoice_currency: &'a common_enums::Currency,
+    #[serde(default, with = "time::serde::timestamp::nanoseconds::option")]
     pub invoice_due_date: Option<OffsetDateTime>,
+    #[serde(with = "time::serde::timestamp::nanoseconds")]
     pub invoice_date: OffsetDateTime,
     pub billing_country: Option<&'a common_enums::CountryAlpha2>,
     pub billing_state: Option<String>,
@@ -20,6 +22,7 @@ pub struct RevenueRecovery<'a> {
     pub first_pg_error_code: Option<String>,
     pub first_network_advice_code: Option<String>,
     pub first_network_error_code: Option<String>,
+    #[serde(default, with = "time::serde::timestamp::nanoseconds::option")]
     pub attempt_created_at: OffsetDateTime,
     pub payment_method_type: Option<&'a common_enums::PaymentMethod>,
     pub payment_method_subtype: Option<&'a common_enums::PaymentMethodType>,
