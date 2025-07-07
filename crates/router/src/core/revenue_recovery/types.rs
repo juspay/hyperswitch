@@ -398,7 +398,7 @@ impl Action {
                     .change_context(errors::RecoveryError::ProcessTrackerFailure)
                     .attach_printable("Failed to update the process tracker")?;
                 // TODO: Add support for retrying failed outgoing recordback webhooks
-        
+
                 Ok(())
             }
             Self::SuccessfulPayment(payment_attempt) => {
