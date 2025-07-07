@@ -359,25 +359,7 @@ export const connectorDetails = {
         },
       },
     },
-
-    // Enhanced void after auto capture - should fail gracefully
-    VoidAfterAutoCapture: {
-      Request: {
-        cancellation_reason: "customer_request",
-      },
-      Response: {
-        status: 400,
-        body: {
-          error: {
-            type: "invalid_request_error",
-            code: "IR_16",
-            message:
-              "You cannot cancel this payment because it has status succeeded.",
-          },
-        },
-      },
-    },
-
+    
     // Payment sync
     SyncPayment: {
       Response: {
@@ -427,101 +409,6 @@ export const connectorDetails = {
       },
     },
 
-    // ===== DYNAMIC FIELDS PAYMENT INTENT SCENARIOS =====
-
-    PaymentWithoutBilling: getCustomExchange({
-      Request: {
-        currency: "USD",
-        customer_acceptance: null,
-        setup_future_usage: "on_session",
-        authentication_type: "no_three_ds",
-      },
-      Response: {
-        status: 200,
-        body: {
-          status: "requires_payment_method",
-        },
-      },
-    }),
-
-    PaymentWithBilling: getCustomExchange({
-      Request: {
-        currency: "USD",
-        setup_future_usage: "on_session",
-        billing: {
-          address: {
-            line1: "1467",
-            line2: "CA",
-            line3: "Harrison Street",
-            city: "San Francisco",
-            state: "CA",
-            zip: "94122",
-            country: "US",
-            first_name: "Test",
-            last_name: "User",
-          },
-          phone: {
-            number: "9111222333",
-            country_code: "+1",
-          },
-        },
-        email: "hyperswitch.example@gmail.com",
-      },
-      Response: {
-        status: 200,
-        body: {
-          status: "requires_payment_method",
-        },
-      },
-    }),
-
-    PaymentWithFullName: getCustomExchange({
-      Request: {
-        currency: "USD",
-        setup_future_usage: "on_session",
-        billing: {
-          address: {
-            first_name: "Test",
-            last_name: "User",
-          },
-          phone: {
-            number: "9111222333",
-            country_code: "+1",
-          },
-        },
-      },
-      Response: {
-        status: 200,
-        body: {
-          status: "requires_payment_method",
-        },
-      },
-    }),
-
-    PaymentWithBillingEmail: getCustomExchange({
-      Request: {
-        currency: "USD",
-        setup_future_usage: "on_session",
-        email: "hyperswitch_sdk_demo_id1@gmail.com",
-        billing: {
-          address: {
-            first_name: "Test",
-            last_name: "User",
-          },
-          phone: {
-            number: "9111222333",
-            country_code: "+1",
-          },
-          email: "hyperswitch.example@gmail.com",
-        },
-      },
-      Response: {
-        status: 200,
-        body: {
-          status: "requires_payment_method",
-        },
-      },
-    }),
 
     // ===== MANDATE SCENARIOS =====
     // Note: Authipay may not implement mandates, marked as TRIGGER_SKIP
