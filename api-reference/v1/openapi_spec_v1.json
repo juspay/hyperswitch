@@ -26443,10 +26443,9 @@
             "nullable": true
           },
           "merchant_country_code": {
-            "type": "integer",
-            "format": "int32",
-            "description": "Merchant country code",
-            "example": 840,
+            "type": "string",
+            "description": "Merchant country code.\nThis is a 3-digit ISO 3166-1 numeric country code that represents the country in which the merchant is registered or operates.\nMerchants typically receive this value based on their business registration information or during onboarding via payment processors or acquiring banks.\nIt is used in payment processing, fraud detection, and regulatory compliance to determine regional rules and routing behavior.",
+            "example": "840",
             "nullable": true
           }
         },
@@ -26756,10 +26755,9 @@
             "nullable": true
           },
           "merchant_country_code": {
-            "type": "integer",
-            "format": "int32",
-            "description": "Merchant country code",
-            "example": 840,
+            "type": "string",
+            "description": "Merchant country code.\nThis is a 3-digit ISO 3166-1 numeric country code that represents the country in which the merchant is registered or operates.\nMerchants typically receive this value based on their business registration information or during onboarding via payment processors or acquiring banks.\nIt is used in payment processing, fraud detection, and regulatory compliance to determine regional rules and routing behavior.",
+            "example": "840",
             "nullable": true
           }
         }
