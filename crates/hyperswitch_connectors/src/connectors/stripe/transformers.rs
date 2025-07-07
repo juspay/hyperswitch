@@ -24,7 +24,8 @@ use hyperswitch_domain_models::{
     router_flow_types::{Execute, RSync},
     router_request_types::{
         BrowserInformation, ChargeRefundsOptions, DestinationChargeRefund, DirectChargeRefund,
-        ResponseId, SplitRefundsRequest,
+        PaymentsAuthorizeData, PaymentsCancelData, PaymentsCaptureData,
+        PaymentsIncrementalAuthorizationData, ResponseId, SplitRefundsRequest,
     },
     router_response_types::{
         MandateReference, PaymentsResponseData, PreprocessingResponseId, RedirectForm,
@@ -32,8 +33,8 @@ use hyperswitch_domain_models::{
     },
     types::{
         ConnectorCustomerRouterData, PaymentsAuthorizeRouterData, PaymentsCancelRouterData,
-        PaymentsUpdateMetadataRouterData, RefundsRouterData, SetupMandateRouterData,
-        TokenizationRouterData,
+        PaymentsIncrementalAuthorizationRouterData, PaymentsUpdateMetadataRouterData,
+        RefundsRouterData, SetupMandateRouterData, TokenizationRouterData,
     },
 };
 use hyperswitch_interfaces::{consts, errors::ConnectorError};
@@ -64,6 +65,34 @@ use crate::{
 pub mod auth_headers {
     pub const STRIPE_API_VERSION: &str = "stripe-version";
     pub const STRIPE_VERSION: &str = "2022-11-15";
+}
+
+trait GetRequestIncrementalAuthorization {
+    fn get_request_incremental_authorization(&self) -> Option<bool>;
+}
+
+impl GetRequestIncrementalAuthorization for PaymentsAuthorizeData {
+    fn get_request_incremental_authorization(&self) -> Option<bool> {
+        Some(self.request_incremental_authorization)
+    }
+}
+
+impl GetRequestIncrementalAuthorization for PaymentsIncrementalAuthorizationData {
+    fn get_request_incremental_authorization(&self) -> Option<bool> {
+        None
+    }
+}
+
+impl GetRequestIncrementalAuthorization for PaymentsCaptureData {
+    fn get_request_incremental_authorization(&self) -> Option<bool> {
+        None
+    }
+}
+
+impl GetRequestIncrementalAuthorization for PaymentsCancelData {
+    fn get_request_incremental_authorization(&self) -> Option<bool> {
+        None
+    }
 }
 
 pub struct StripeAuthType {
@@ -257,7 +286,17 @@ pub struct StripeCardData {
     pub payment_method_auth_type: Option<Auth3ds>,
     #[serde(rename = "payment_method_options[card][network]")]
     pub payment_method_data_card_preferred_network: Option<StripeCardNetwork>,
+    #[serde(rename = "payment_method_options[card][request_incremental_authorization]")]
+    pub request_incremental_authorization: Option<StripeRequestIncrementalAuthorization>,
 }
+
+#[derive(Debug, Eq, PartialEq, Serialize)]
+#[serde(rename_all = "snake_case")]
+pub enum StripeRequestIncrementalAuthorization {
+    IfAvailable,
+    Never,
+}
+
 #[derive(Debug, Eq, PartialEq, Serialize)]
 pub struct StripePayLaterData {
     #[serde(rename = "payment_method_data[type]")]
@@ -1208,6 +1247,7 @@ fn create_stripe_payment_method(
     payment_method_token: Option<PaymentMethodToken>,
     is_customer_initiated_mandate_payment: Option<bool>,
     billing_address: StripeBillingAddress,
+    request_incremental_authorization: bool,
 ) -> Result<
     (
         StripePaymentMethodData,
@@ -1223,7 +1263,11 @@ fn create_stripe_payment_method(
                 enums::AuthenticationType::NoThreeDs => Auth3ds::Automatic,
             };
             Ok((
-                StripePaymentMethodData::try_from((card_details, payment_method_auth_type))?,
+                StripePaymentMethodData::try_from((
+                    card_details,
+                    payment_method_auth_type,
+                    request_incremental_authorization,
+                ))?,
                 Some(StripePaymentMethodType::Card),
                 billing_address,
             ))
@@ -1440,9 +1484,11 @@ fn get_stripe_card_network(card_network: common_enums::CardNetwork) -> Option<St
     }
 }
 
-impl TryFrom<(&Card, Auth3ds)> for StripePaymentMethodData {
+impl TryFrom<(&Card, Auth3ds, bool)> for StripePaymentMethodData {
     type Error = ConnectorError;
-    fn try_from((card, payment_method_auth_type): (&Card, Auth3ds)) -> Result<Self, Self::Error> {
+    fn try_from(
+        (card, payment_method_auth_type, request_incremental_authorization): (&Card, Auth3ds, bool),
+    ) -> Result<Self, Self::Error> {
         Ok(Self::Card(StripeCardData {
             payment_method_data_type: StripePaymentMethodType::Card,
             payment_method_data_card_number: card.card_number.clone(),
@@ -1454,6 +1500,11 @@ impl TryFrom<(&Card, Auth3ds)> for StripePaymentMethodData {
                 .card_network
                 .clone()
                 .and_then(get_stripe_card_network),
+            request_incremental_authorization: if request_incremental_authorization {
+                Some(StripeRequestIncrementalAuthorization::IfAvailable)
+            } else {
+                Some(StripeRequestIncrementalAuthorization::Never)
+            },
         }))
     }
 }
@@ -1798,6 +1849,7 @@ impl TryFrom<(&PaymentsAuthorizeRouterData, MinorUnit)> for PaymentIntentRequest
                                     .card_network
                                     .clone()
                                     .and_then(get_stripe_card_network),
+                            request_incremental_authorization: None,
                         }),
                         PaymentMethodData::CardRedirect(_)
                         | PaymentMethodData::Wallet(_)
@@ -1846,6 +1898,7 @@ impl TryFrom<(&PaymentsAuthorizeRouterData, MinorUnit)> for PaymentIntentRequest
                                     field_name: "billing_address",
                                 }
                             })?,
+                            item.request.request_incremental_authorization,
                         )?;
 
                     validate_shipping_address_against_payment_method(
@@ -2171,6 +2224,7 @@ impl TryFrom<&TokenizationRouterData> for TokenRequest {
                     item.payment_method_token.clone(),
                     None,
                     StripeBillingAddress::default(),
+                    false,
                 )?
                 .0
             }
@@ -2281,6 +2335,23 @@ impl TryFrom<&PaymentsAuthorizeRouterData> for StripeSplitPaymentRequest {
             transfer_account_id,
             application_fees,
         })
+    }
+}
+
+#[derive(Debug, Serialize)]
+pub struct StripeIncrementalAuthRequest {
+    amount: MinorUnit,
+}
+
+impl TryFrom<(&PaymentsIncrementalAuthorizationRouterData, MinorUnit)>
+    for StripeIncrementalAuthRequest
+{
+    type Error = error_stack::Report<ConnectorError>;
+
+    fn try_from(
+        data: (&PaymentsIncrementalAuthorizationRouterData, MinorUnit),
+    ) -> Result<Self, Self::Error> {
+        Ok(Self { amount: data.1 })
     }
 }
 
@@ -2645,7 +2716,7 @@ fn extract_payment_method_connector_response_from_latest_attempt(
 impl<F, T> TryFrom<ResponseRouterData<F, PaymentIntentResponse, T, PaymentsResponseData>>
     for RouterData<F, T, PaymentsResponseData>
 where
-    T: SplitPaymentData,
+    T: SplitPaymentData + GetRequestIncrementalAuthorization,
 {
     type Error = error_stack::Report<ConnectorError>;
     fn try_from(
@@ -2727,7 +2798,10 @@ where
                 connector_metadata,
                 network_txn_id,
                 connector_response_reference_id: Some(item.response.id),
-                incremental_authorization_allowed: None,
+                incremental_authorization_allowed: item
+                    .data
+                    .request
+                    .get_request_incremental_authorization(),
                 charges,
             })
         };
@@ -4025,7 +4099,11 @@ impl
                     enums::AuthenticationType::ThreeDs => Auth3ds::Any,
                     enums::AuthenticationType::NoThreeDs => Auth3ds::Automatic,
                 };
-                Ok(Self::try_from((ccard, payment_method_auth_type))?)
+                Ok(Self::try_from((
+                    ccard,
+                    payment_method_auth_type,
+                    item.request.request_incremental_authorization,
+                ))?)
             }
             PaymentMethodData::PayLater(_) => Ok(Self::PayLater(StripePayLaterData {
                 payment_method_data_type: pm_type,
