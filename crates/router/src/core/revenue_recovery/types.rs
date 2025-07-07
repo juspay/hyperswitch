@@ -397,17 +397,8 @@ impl Action {
                     .await
                     .change_context(errors::RecoveryError::ProcessTrackerFailure)
                     .attach_printable("Failed to update the process tracker")?;
-                // Record back to billing connector for terminal status
                 // TODO: Add support for retrying failed outgoing recordback webhooks
-                record_back_to_billing_connector(
-                    state,
-                    payment_attempt,
-                    payment_intent,
-                    &revenue_recovery_payment_data.billing_mca,
-                )
-                .await
-                .change_context(errors::RecoveryError::RecordBackToBillingConnectorFailed)
-                .attach_printable("Failed to record back the billing connector")?;
+        
                 Ok(())
             }
             Self::SuccessfulPayment(payment_attempt) => {
@@ -595,18 +586,7 @@ impl Action {
             }
 
             Self::TerminalFailure(payment_attempt) => {
-                // Record a failure transaction back to Billing Connector
                 // TODO: Add support for retrying failed outgoing recordback webhooks
-                record_back_to_billing_connector(
-                    state,
-                    payment_attempt,
-                    payment_intent,
-                    &revenue_recovery_payment_data.billing_mca,
-                )
-                .await
-                .change_context(errors::RecoveryError::RecordBackToBillingConnectorFailed)
-                .attach_printable("Failed to record back the billing connector")?;
-
                 // finish the current psync task
                 db.as_scheduler()
                     .finish_process_with_business_status(
