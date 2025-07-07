@@ -18,7 +18,7 @@ use masking::Secret;
 use super::{requests, responses};
 use crate::{
     types::{RefundsResponseRouterData, ResponseRouterData},
-    utils::{is_manual_capture, CardData, RouterData as OtherRouterData},
+    utils::{is_manual_capture, AddressDetailsData, CardData, RouterData as OtherRouterData},
 };
 
 //TODO: Fill the struct with respective fields
@@ -62,35 +62,11 @@ impl TryFrom<&PayloadRouterData<&PaymentsAuthorizeRouterData>>
                 let address = item.router_data.get_billing_address()?;
 
                 // Check for required fields and fail if they're missing
-                let city = address.city.clone().ok_or_else(|| {
-                    errors::ConnectorError::MissingRequiredField {
-                        field_name: "billing.address.city",
-                    }
-                })?;
-
-                let country = address.country.ok_or_else(|| {
-                    errors::ConnectorError::MissingRequiredField {
-                        field_name: "billing.address.country",
-                    }
-                })?;
-
-                let postal_code = address.zip.clone().ok_or_else(|| {
-                    errors::ConnectorError::MissingRequiredField {
-                        field_name: "billing.address.postal_code",
-                    }
-                })?;
-
-                let state_province = address.state.clone().ok_or_else(|| {
-                    errors::ConnectorError::MissingRequiredField {
-                        field_name: "billing.address.state",
-                    }
-                })?;
-
-                let street_address = address.line1.clone().ok_or_else(|| {
-                    errors::ConnectorError::MissingRequiredField {
-                        field_name: "billing.address.line1",
-                    }
-                })?;
+                let city = address.get_city()?.to_owned();
+                let country = address.get_country()?.to_owned();
+                let postal_code = address.get_zip()?.to_owned();
+                let state_province = address.get_state()?.to_owned();
+                let street_address = address.get_line1()?.to_owned();
 
                 let billing_address = requests::BillingAddress {
                     city,
@@ -164,7 +140,7 @@ impl<F, T>
         match item.response.clone() {
             responses::PayloadPaymentsResponse::PayloadCardsResponse(response) => {
                 let status = enums::AttemptStatus::from(response.status);
-
+                let connector_customer = response.processing_id.clone();
                 let response_result = if status == enums::AttemptStatus::Failure {
                     Err(ErrorResponse {
                         attempt_status: None,
@@ -198,34 +174,7 @@ impl<F, T>
                 Ok(Self {
                     status,
                     response: response_result,
-                    ..item.data
-                })
-            }
-            responses::PayloadPaymentsResponse::PayloadWebhookResponse(webhook_event) => {
-                let status = match webhook_event.trigger {
-                    responses::PayloadWebhooksTrigger::Processed => enums::AttemptStatus::Charged,
-                    responses::PayloadWebhooksTrigger::Authorized => {
-                        enums::AttemptStatus::Authorized
-                    }
-                    responses::PayloadWebhooksTrigger::Payment
-                    | responses::PayloadWebhooksTrigger::Credit
-                    | responses::PayloadWebhooksTrigger::AutomaticPayment
-                    | responses::PayloadWebhooksTrigger::Deposit => enums::AttemptStatus::Pending,
-                    responses::PayloadWebhooksTrigger::Decline
-                    | responses::PayloadWebhooksTrigger::Reject
-                    | responses::PayloadWebhooksTrigger::BankAccountReject => {
-                        enums::AttemptStatus::Failure
-                    }
-                    responses::PayloadWebhooksTrigger::Void => enums::AttemptStatus::Voided,
-                    responses::PayloadWebhooksTrigger::Refund
-                    | responses::PayloadWebhooksTrigger::Reversal => {
-                        enums::AttemptStatus::AutoRefunded
-                    }
-                    _ => item.data.status,
-                };
-
-                Ok(Self {
-                    status,
+                    connector_customer,
                     ..item.data
                 })
             }
@@ -321,23 +270,23 @@ impl From<responses::PayloadWebhooksTrigger> for IncomingWebhookEvent {
             }
             // Payment Processing Events
             responses::PayloadWebhooksTrigger::Payment
-            | responses::PayloadWebhooksTrigger::Credit
             | responses::PayloadWebhooksTrigger::AutomaticPayment => Self::PaymentIntentProcessing,
             // Payment Failure Events
             responses::PayloadWebhooksTrigger::Decline
             | responses::PayloadWebhooksTrigger::Reject
             | responses::PayloadWebhooksTrigger::BankAccountReject => Self::PaymentIntentFailure,
-            responses::PayloadWebhooksTrigger::Void => Self::PaymentIntentCancelled,
+            responses::PayloadWebhooksTrigger::Void
+            | responses::PayloadWebhooksTrigger::Reversal => Self::PaymentIntentCancelled,
             // Refund Events
-            responses::PayloadWebhooksTrigger::Refund
-            | responses::PayloadWebhooksTrigger::Reversal => Self::RefundSuccess,
+            responses::PayloadWebhooksTrigger::Refund => Self::RefundSuccess,
             // Dispute Events
             responses::PayloadWebhooksTrigger::Chargeback => Self::DisputeOpened,
             responses::PayloadWebhooksTrigger::ChargebackReversal => Self::DisputeWon,
             // Other payment-related events
-            responses::PayloadWebhooksTrigger::Deposit => Self::SourceTransactionCreated,
             // Events not supported by our standard flows
             responses::PayloadWebhooksTrigger::PaymentActivationStatus
+            | responses::PayloadWebhooksTrigger::Credit
+            | responses::PayloadWebhooksTrigger::Deposit
             | responses::PayloadWebhooksTrigger::PaymentLinkStatus
             | responses::PayloadWebhooksTrigger::ProcessingStatus
             | responses::PayloadWebhooksTrigger::TransactionOperation

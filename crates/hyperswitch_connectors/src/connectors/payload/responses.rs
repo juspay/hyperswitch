@@ -18,7 +18,6 @@ pub enum PayloadPaymentStatus {
 #[serde(untagged)]
 pub enum PayloadPaymentsResponse {
     PayloadCardsResponse(PayloadCardsResponseData),
-    PayloadWebhookResponse(PayloadWebhookEvent),
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
@@ -39,6 +38,7 @@ pub struct PayloadCardsResponseData {
     #[serde(rename = "id")]
     pub transaction_id: String,
     pub payment_method_id: Option<Secret<String>>,
+    // Connector customer id
     pub processing_id: Option<String>,
     pub processing_method_id: Option<String>,
     pub ref_number: Option<String>,
@@ -85,6 +85,7 @@ pub struct PayloadRefundResponse {
     pub transaction_id: String,
     pub ledger: Vec<RefundsLedger>,
     pub payment_method_id: Option<Secret<String>>,
+    // Connector customer id
     pub processing_id: Option<String>,
     pub ref_number: Option<String>,
     pub status: RefundStatus,
