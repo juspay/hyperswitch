@@ -593,9 +593,7 @@ impl webhooks::IncomingWebhook for {{project-name | downcase | pascal_case}} {
 }
 
 static {{project-name | upcase}}_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMethods> =
-    LazyLock::new(|| {
-        SupportedPaymentMethods::new()
-    });
+    LazyLock::new(SupportedPaymentMethods::new);
 
 static {{project-name | upcase}}_CONNECTOR_INFO: ConnectorInfo = ConnectorInfo {
     display_name: "{{project-name | downcase | pascal_case}}",

@@ -1151,7 +1151,8 @@ impl<F1, F2, T1, T2> ForeignFrom<(&RouterData<F1, T1, PaymentsResponseData>, T2)
                 .clone(),
             authentication_id: data.authentication_id.clone(),
             psd2_sca_exemption_type: data.psd2_sca_exemption_type,
-            whole_connector_response: data.whole_connector_response.clone(),
+            raw_connector_response: data.raw_connector_response.clone(),
+            is_payment_id_from_merchant: data.is_payment_id_from_merchant,
         }
     }
 }
@@ -1219,7 +1220,8 @@ impl<F1, F2>
             psd2_sca_exemption_type: None,
             additional_merchant_data: data.additional_merchant_data.clone(),
             connector_mandate_request_reference_id: None,
-            whole_connector_response: None,
+            raw_connector_response: None,
+            is_payment_id_from_merchant: data.is_payment_id_from_merchant,
         }
     }
 }
