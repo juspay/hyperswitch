@@ -519,6 +519,27 @@ impl ConnectorSpecifications for ConnectorEnum {
         }
     }
 
+    #[cfg(feature = "v1")]
+    fn generate_connector_request_reference_id(
+        &self,
+        payment_intent: &hyperswitch_domain_models::payments::PaymentIntent,
+        payment_attempt: &hyperswitch_domain_models::payments::payment_attempt::PaymentAttempt,
+        is_config_enabled_to_send_payment_id_as_connector_request_id: bool,
+    ) -> String {
+        match self {
+            Self::Old(connector) => connector.generate_connector_request_reference_id(
+                payment_intent,
+                payment_attempt,
+                is_config_enabled_to_send_payment_id_as_connector_request_id,
+            ),
+            Self::New(connector) => connector.generate_connector_request_reference_id(
+                payment_intent,
+                payment_attempt,
+                is_config_enabled_to_send_payment_id_as_connector_request_id,
+            ),
+        }
+    }
+
     #[cfg(feature = "v2")]
     /// Generate connector request reference ID
     fn generate_connector_request_reference_id(
