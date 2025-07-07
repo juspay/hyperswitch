@@ -103,7 +103,7 @@ use crate::core::routing::helpers as routing_helpers;
 #[cfg(all(feature = "v1", feature = "dynamic_routing"))]
 use crate::types::api::convert_connector_data_to_routable_connectors;
 use crate::{
-    configs::settings::{ApplePayPreDecryptFlow, PaymentMethodTypeTokenFilter},
+    configs::settings::{ApplePayPreDecryptFlow, PaymentFlow, PaymentMethodTypeTokenFilter},
     consts,
     core::{
         errors::{self, CustomResult, RouterResponse, RouterResult},
@@ -5386,6 +5386,7 @@ fn is_payment_method_tokenization_enabled_for_connector(
     payment_method: storage::enums::PaymentMethod,
     payment_method_type: Option<storage::enums::PaymentMethodType>,
     apple_pay_flow: &Option<domain::ApplePayFlow>,
+    mandate_flow_enabled: Option<storage_enums::FutureUsage>,
 ) -> RouterResult<bool> {
     let connector_tokenization_filter = state.conf.tokenization.0.get(connector_name);
 
@@ -5404,8 +5405,23 @@ fn is_payment_method_tokenization_enabled_for_connector(
                     apple_pay_flow,
                     connector_filter.apple_pay_pre_decrypt_flow.clone(),
                 )
+                && is_payment_flow_allowed_for_connector(
+                    mandate_flow_enabled,
+                    connector_filter.flow.clone(),
+                )
         })
         .unwrap_or(false))
+}
+
+fn is_payment_flow_allowed_for_connector(
+    mandate_flow_enabled: Option<storage_enums::FutureUsage>,
+    payment_flow: Option<PaymentFlow>,
+) -> bool {
+    matches!(payment_flow, Some(PaymentFlow::Mandates))
+        && matches!(
+            mandate_flow_enabled,
+            Some(storage_enums::FutureUsage::OffSession)
+        )
 }
 
 fn is_apple_pay_pre_decrypt_type_connector_tokenization(
@@ -5789,6 +5805,10 @@ where
             let apple_pay_flow =
                 decide_apple_pay_flow(state, payment_method_type, Some(merchant_connector_account));
 
+            let mandate_flow_enabled = payment_data
+                .get_payment_attempt()
+                .setup_future_usage_applied;
+
             let is_connector_tokenization_enabled =
                 is_payment_method_tokenization_enabled_for_connector(
                     state,
@@ -5796,6 +5816,7 @@ where
                     payment_method,
                     payment_method_type,
                     &apple_pay_flow,
+                    mandate_flow_enabled,
                 )?;
 
             add_apple_pay_flow_metrics(
@@ -7655,7 +7676,7 @@ where
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Failed to get the common mandate reference")?;
 
-    let connector_mandate_details = connector_common_mandate_details.payments;
+    let connector_mandate_details = connector_common_mandate_details.payments.clone();
 
     let mut connector_choice = None;
 
