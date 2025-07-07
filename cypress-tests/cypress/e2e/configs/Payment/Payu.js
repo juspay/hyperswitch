@@ -289,6 +289,10 @@ export const connectorDetails = {
       },
     },
     Refund: {
+      //This connector doesn't support multiple refunds
+      Configs:{
+        TRIGGER_SKIP: true,
+      },
       Request: {
         amount: 6000,
       },
@@ -300,6 +304,10 @@ export const connectorDetails = {
       },
     },
     PartialRefund: {
+       //This connector doesn't support multiple refunds
+      Configs:{
+        TRIGGER_SKIP: true,
+      },
       Request: {
         amount: 2000,
       },
@@ -311,6 +319,10 @@ export const connectorDetails = {
       },
     },
     manualPaymentRefund: {
+       //This connector doesn't support multiple refunds
+      Configs:{
+        TRIGGER_SKIP: true,
+      },
       Request: {
         amount: 6000,
       },
@@ -322,6 +334,10 @@ export const connectorDetails = {
       },
     },
     manualPaymentPartialRefund: {
+       //This connector doesn't support multiple refunds
+      Configs:{
+        TRIGGER_SKIP: true,
+      },
       Request: {
         amount: 2000,
       },
