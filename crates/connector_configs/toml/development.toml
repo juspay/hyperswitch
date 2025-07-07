@@ -367,6 +367,14 @@ required=true
 type="Text"
 
 [adyenplatform_payout]
+[[adyenplatform_payout.credit]]
+  payment_method_type = "Mastercard"
+[[adyenplatform_payout.credit]]
+  payment_method_type = "Visa"
+[[adyenplatform_payout.debit]]
+  payment_method_type = "Mastercard"
+[[adyenplatform_payout.debit]]
+  payment_method_type = "Visa"
 [[adyenplatform_payout.bank_transfer]]
   payment_method_type = "sepa"
 [adyenplatform_payout.connector_auth.HeaderKey]

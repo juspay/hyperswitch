@@ -37,6 +37,7 @@ import { connectorDetails as nmiConnectorDetails } from "./Nmi.js";
 import { connectorDetails as noonConnectorDetails } from "./Noon.js";
 import { connectorDetails as novalnetConnectorDetails } from "./Novalnet.js";
 import { connectorDetails as payboxConnectorDetails } from "./Paybox.js";
+import { connectorDetails as payloadConnectorDetails } from "./Payload.js";
 import { connectorDetails as paypalConnectorDetails } from "./Paypal.js";
 import { connectorDetails as powertranzConnectorDetails } from "./PowerTranz.js";
 import { connectorDetails as redsysConnectorDetails } from "./Redsys.js";
@@ -87,6 +88,7 @@ const connectorDetails = {
   noon: noonConnectorDetails,
   novalnet: novalnetConnectorDetails,
   paybox: payboxConnectorDetails,
+  payload: payloadConnectorDetails,
   paypal: paypalConnectorDetails,
   powertranz: powertranzConnectorDetails,
   redsys: redsysConnectorDetails,
@@ -364,13 +366,15 @@ export const CONNECTOR_LISTS = {
       "billwerk",
       "braintree",
       "facilitapay",
-      "fiuu",
       "fiserv",
+      "fiuu",
       "jpmorgan",
       "nexinets",
+      "payload",
       "paypal",
       "stax",
       "wellsfargo",
+      "worldpayxml",
     ],
     // Add more exclusion lists
   },
