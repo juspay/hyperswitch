@@ -1,5 +1,5 @@
 use std::{marker::PhantomData, str::FromStr};
-
+use masking::Secret;
 use api_models::{enums as api_enums, payments as api_payments, webhooks};
 use common_utils::{
     ext_traits::{AsyncExt, ValueExt},
@@ -1269,14 +1269,14 @@ impl RecoveryPaymentTuple {
             .billing_address
             .as_ref()
             .and_then(|billing_address| billing_address.address.as_ref())
-            .and_then(|address| address.city.clone());
+            .and_then(|address| address.city.clone())
+            .map(Secret::new);
 
         let billing_state = payment_intent
             .billing_address
             .as_ref()
             .and_then(|billing_address| billing_address.address.as_ref())
-            .and_then(|address| address.state.clone())
-            .map(|state| state.peek().clone());
+            .and_then(|address| address.state.clone());
 
         let billing_country = payment_intent
             .billing_address

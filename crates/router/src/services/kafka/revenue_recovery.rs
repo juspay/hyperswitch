@@ -1,6 +1,6 @@
 use common_utils::{id_type, types::MinorUnit};
 use time::OffsetDateTime;
-
+use masking::Secret;
 #[derive(serde::Serialize, Debug)]
 pub struct RevenueRecovery<'a> {
     pub merchant_id: &'a id_type::MerchantId,
@@ -11,8 +11,8 @@ pub struct RevenueRecovery<'a> {
     #[serde(with = "time::serde::timestamp::nanoseconds")]
     pub invoice_date: OffsetDateTime,
     pub billing_country: Option<&'a common_enums::CountryAlpha2>,
-    pub billing_state: Option<String>,
-    pub billing_city: Option<String>,
+    pub billing_state: Option<Secret<String>>,
+    pub billing_city: Option<Secret<String>>,
     pub attempt_amount: MinorUnit,
     pub attempt_currency: &'a common_enums::Currency,
     pub attempt_status: &'a common_enums::AttemptStatus,
@@ -22,7 +22,7 @@ pub struct RevenueRecovery<'a> {
     pub first_pg_error_code: Option<String>,
     pub first_network_advice_code: Option<String>,
     pub first_network_error_code: Option<String>,
-    #[serde(default, with = "time::serde::timestamp::nanoseconds::option")]
+    #[serde(default, with = "time::serde::timestamp::nanoseconds")]
     pub attempt_created_at: OffsetDateTime,
     pub payment_method_type: Option<&'a common_enums::PaymentMethod>,
     pub payment_method_subtype: Option<&'a common_enums::PaymentMethodType>,
