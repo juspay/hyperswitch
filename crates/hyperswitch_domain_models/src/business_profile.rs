@@ -82,7 +82,7 @@ pub struct Profile {
     pub three_ds_decision_rule_algorithm: Option<serde_json::Value>,
     pub acquirer_config_map: Option<common_types::domain::AcquirerConfigMap>,
     pub merchant_category_code: Option<api_enums::MerchantCategoryCode>,
-    pub merchant_country_code: Option<i32>,
+    pub merchant_country_code: Option<String>,
 }
 
 #[cfg(feature = "v1")]
@@ -137,7 +137,7 @@ pub struct ProfileSetter {
     pub is_iframe_redirection_enabled: Option<bool>,
     pub is_pre_network_tokenization_enabled: bool,
     pub merchant_category_code: Option<api_enums::MerchantCategoryCode>,
-    pub merchant_country_code: Option<i32>,
+    pub merchant_country_code: Option<String>,
 }
 
 #[cfg(feature = "v1")]
@@ -210,6 +210,38 @@ impl Profile {
         &self.profile_id
     }
 
+    pub fn get_country_from_merchant_country_code(
+        &self,
+    ) -> CustomResult<Option<common_enums::Country>, api_error_response::ApiErrorResponse> {
+        self.merchant_country_code
+            .as_ref()
+            .map(|country_code| match country_code.parse::<u32>() {
+                Ok(code) => match common_enums::Country::from_numeric(code) {
+                    Ok(country) => Ok(country),
+                    Err(err) => {
+                        router_env::logger::error!("Invalid country code {}: {:?}", code, err);
+                        Err(error_stack::Report::new(
+                            api_error_response::ApiErrorResponse::InvalidDataValue {
+                                field_name: "merchant_country_code",
+                            },
+                        ))
+                    }
+                },
+                Err(err) => {
+                    router_env::logger::error!(
+                        "Country code {} is negative or too large: {:?}",
+                        country_code,
+                        err
+                    );
+                    Err(error_stack::Report::new(
+                        api_error_response::ApiErrorResponse::InvalidDataValue {
+                            field_name: "merchant_country_code",
+                        },
+                    ))
+                }
+            })
+            .transpose()
+    }
     #[cfg(feature = "v2")]
     pub fn get_id(&self) -> &common_utils::id_type::ProfileId {
         &self.id
@@ -261,7 +293,7 @@ pub struct ProfileGeneralUpdate {
     pub is_iframe_redirection_enabled: Option<bool>,
     pub is_pre_network_tokenization_enabled: Option<bool>,
     pub merchant_category_code: Option<api_enums::MerchantCategoryCode>,
-    pub merchant_country_code: Option<i32>,
+    pub merchant_country_code: Option<String>,
 }
 
 #[cfg(feature = "v1")]
@@ -1057,7 +1089,7 @@ pub struct Profile {
     pub is_external_vault_enabled: Option<bool>,
     pub external_vault_connector_details: Option<ExternalVaultConnectorDetails>,
     pub merchant_category_code: Option<api_enums::MerchantCategoryCode>,
-    pub merchant_country_code: Option<i32>,
+    pub merchant_country_code: Option<String>,
 }
 
 #[cfg(feature = "v2")]
@@ -1114,7 +1146,7 @@ pub struct ProfileSetter {
     pub is_external_vault_enabled: Option<bool>,
     pub external_vault_connector_details: Option<ExternalVaultConnectorDetails>,
     pub merchant_category_code: Option<api_enums::MerchantCategoryCode>,
-    pub merchant_country_code: Option<i32>,
+    pub merchant_country_code: Option<String>,
 }
 
 #[cfg(feature = "v2")]
@@ -1362,7 +1394,7 @@ pub struct ProfileGeneralUpdate {
     pub is_external_vault_enabled: Option<bool>,
     pub external_vault_connector_details: Option<ExternalVaultConnectorDetails>,
     pub merchant_category_code: Option<api_enums::MerchantCategoryCode>,
-    pub merchant_country_code: Option<i32>,
+    pub merchant_country_code: Option<String>,
 }
 
 #[cfg(feature = "v2")]
