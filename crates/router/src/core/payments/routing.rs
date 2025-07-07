@@ -490,7 +490,6 @@ pub async fn perform_static_routing_v1(
             .to_string(),
     };
 
-    // check this condition
     let de_euclid_connectors = if !state.conf.open_router.url.is_empty() {
         let routing_events_wrapper = utils::RoutingEventsWrapper::new(
             state.tenant.tenant_id.clone(),
