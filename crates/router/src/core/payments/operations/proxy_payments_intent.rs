@@ -6,6 +6,7 @@ use error_stack::ResultExt;
 use hyperswitch_domain_models::{
     payment_method_data::PaymentMethodData, payments::PaymentConfirmData,
 };
+use hyperswitch_interfaces::api::ConnectorSpecifications;
 use masking::PeekInterface;
 use router_env::{instrument, tracing};
 
@@ -15,7 +16,7 @@ use crate::{
         errors::{self, CustomResult, RouterResult, StorageErrorExt},
         payments::{
             operations::{self, ValidateStatusForOperation},
-            OperationSessionGetters,
+            OperationSessionGetters, OperationSessionSetters,
         },
     },
     routes::{app::ReqState, SessionState},
@@ -262,6 +263,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentConfirmData<F>, ProxyPaymentsR
             payment_address,
             mandate_data: Some(mandate_data_input),
             payment_method: None,
+            merchant_connector_details: None,
         };
 
         let get_trackers_response = operations::GetTrackerResponse { payment_data };
@@ -301,6 +303,24 @@ impl<F: Clone + Send + Sync> Domain<F, ProxyPaymentsRequest, PaymentConfirmData<
         Option<String>,
     )> {
         Ok((Box::new(self), None, None))
+    }
+    #[instrument(skip_all)]
+    async fn populate_payment_data<'a>(
+        &'a self,
+        _state: &SessionState,
+        payment_data: &mut PaymentConfirmData<F>,
+        _merchant_context: &domain::MerchantContext,
+        _business_profile: &domain::Profile,
+        connector_data: &api::ConnectorData,
+    ) -> CustomResult<(), errors::ApiErrorResponse> {
+        let connector_request_reference_id = connector_data
+            .connector
+            .generate_connector_request_reference_id(
+                &payment_data.payment_intent,
+                &payment_data.payment_attempt,
+            );
+        payment_data.set_connector_request_reference_id(Some(connector_request_reference_id));
+        Ok(())
     }
 
     async fn perform_routing<'a>(
@@ -362,13 +382,15 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentConfirmData<F>, ProxyPaymentsReque
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Connector is none when constructing response")?;
 
-        let merchant_connector_id = payment_data
-            .payment_attempt
-            .merchant_connector_id
-            .clone()
-            .get_required_value("merchant_connector_id")
-            .change_context(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable("Merchant connector id is none when constructing response")?;
+        let merchant_connector_id = Some(
+            payment_data
+                .payment_attempt
+                .merchant_connector_id
+                .clone()
+                .get_required_value("merchant_connector_id")
+                .change_context(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable("Merchant connector id is none when constructing response")?,
+        );
 
         let payment_intent_update =
             hyperswitch_domain_models::payments::payment_intent::PaymentIntentUpdate::ConfirmIntent {
@@ -387,6 +409,11 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentConfirmData<F>, ProxyPaymentsReque
             .connector_request_reference_id
             .clone();
 
+        let connector_response_reference_id = payment_data
+            .payment_attempt
+            .connector_response_reference_id
+            .clone();
+
         let payment_attempt_update = hyperswitch_domain_models::payments::payment_attempt::PaymentAttemptUpdate::ConfirmIntent {
             status: attempt_status,
             updated_by: storage_scheme.to_string(),
@@ -394,6 +421,7 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentConfirmData<F>, ProxyPaymentsReque
             merchant_connector_id,
             authentication_type,
             connector_request_reference_id,
+            connector_response_reference_id,
         };
 
         let updated_payment_intent = db

@@ -220,9 +220,6 @@ fn mk_merchant_account(merchant_id: Option<String>) -> Value {
         "webhook_version": "1.0.1",
         "webhook_username": "ekart_retail",
         "webhook_password": "password_ekart@123",
-        "payment_created_enabled": true,
-        "payment_succeeded_enabled": true,
-        "payment_failed_enabled": true
       },
       "routing_algorithm": {
         "type": "single",

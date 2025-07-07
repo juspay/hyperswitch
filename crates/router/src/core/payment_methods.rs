@@ -20,16 +20,16 @@ use api_models::payment_methods;
 #[cfg(feature = "payouts")]
 pub use api_models::{enums::PayoutConnectors, payouts as payout_types};
 #[cfg(feature = "v1")]
-use common_utils::ext_traits::{Encode, OptionExt};
-use common_utils::{consts::DEFAULT_LOCALE, id_type};
+use common_utils::{consts::DEFAULT_LOCALE, ext_traits::OptionExt};
 #[cfg(feature = "v2")]
 use common_utils::{
     crypto::Encryptable,
     errors::CustomResult,
-    ext_traits::{AsyncExt, Encode, ValueExt},
+    ext_traits::{AsyncExt, ValueExt},
     fp_utils::when,
     generate_id, types as util_types,
 };
+use common_utils::{ext_traits::Encode, id_type};
 use diesel_models::{
     enums, GenericLinkNew, PaymentMethodCollectLink, PaymentMethodCollectLinkData,
 };
@@ -231,7 +231,7 @@ pub async fn initiate_pm_collect_link(
         link: url::Url::parse(url)
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable_lazy(|| {
-                format!("Failed to parse the payment method collect link - {}", url)
+                format!("Failed to parse the payment method collect link - {url}")
             })?
             .into(),
         return_url: pm_collect_link.return_url,
@@ -865,12 +865,15 @@ fn get_card_network_with_us_local_debit_network_override(
         .map(|network| network.is_us_local_network())
     {
         services::logger::debug!("Card network is a US local network, checking for global network in co-badged card data");
-        co_badged_card_data.and_then(|data| {
-            data.co_badged_card_networks
-                .iter()
-                .find(|network| network.is_global_network())
-                .cloned()
-        })
+        let info: Option<api_models::open_router::CoBadgedCardNetworksInfo> = co_badged_card_data
+            .and_then(|data| {
+                data.co_badged_card_networks_info
+                    .0
+                    .iter()
+                    .find(|info| info.network.is_global_network())
+                    .cloned()
+            });
+        info.map(|data| data.network)
     } else {
         card_network
     }
@@ -913,7 +916,6 @@ pub async fn create_payment_method_core(
     db.find_customer_by_global_id(
         key_manager_state,
         &customer_id,
-        merchant_context.get_merchant_account().get_id(),
         merchant_context.get_merchant_key_store(),
         merchant_context.get_merchant_account().storage_scheme,
     )
@@ -1257,7 +1259,6 @@ pub async fn payment_method_intent_create(
     db.find_customer_by_global_id(
         key_manager_state,
         &customer_id,
-        merchant_context.get_merchant_account().get_id(),
         merchant_context.get_merchant_key_store(),
         merchant_context.get_merchant_account().storage_scheme,
     )
@@ -1859,7 +1860,7 @@ pub async fn vault_payment_method_external(
     state: &SessionState,
     pmd: &domain::PaymentMethodVaultingData,
     merchant_account: &domain::MerchantAccount,
-    merchant_connector_account: payment_helpers::MerchantConnectorAccountType,
+    merchant_connector_account: domain::MerchantConnectorAccountTypeDetails,
 ) -> RouterResult<pm_types::AddVaultResponse> {
     let router_data = core_utils::construct_vault_router_data(
         state,
@@ -1962,19 +1963,17 @@ pub async fn vault_payment_method(
                 .attach_printable("mca_id not present for external vault")?;
 
             let merchant_connector_account =
-                payments_core::helpers::get_merchant_connector_account(
-                    state,
-                    merchant_context.get_merchant_account().get_id(),
-                    None,
-                    merchant_context.get_merchant_key_store(),
-                    profile.get_id(),
-                    "",
-                    Some(&external_vault_source),
-                )
-                .await
-                .attach_printable(
-                    "failed to fetch merchant connector account for external vault insert",
-                )?;
+                domain::MerchantConnectorAccountTypeDetails::MerchantConnectorAccount(Box::new(
+                    payments_core::helpers::get_merchant_connector_account_v2(
+                        state,
+                        merchant_context.get_merchant_key_store(),
+                        Some(&external_vault_source),
+                    )
+                    .await
+                    .attach_printable(
+                        "failed to fetch merchant connector account for external vault insert",
+                    )?,
+                ));
 
             vault_payment_method_external(
                 state,
@@ -2475,7 +2474,6 @@ pub async fn delete_payment_method_core(
         .find_customer_by_global_id(
             key_manager_state,
             &payment_method.customer_id,
-            merchant_context.get_merchant_account().get_id(),
             merchant_context.get_merchant_key_store(),
             merchant_context.get_merchant_account().storage_scheme,
         )
@@ -2632,7 +2630,6 @@ pub async fn payment_methods_session_create(
     db.find_customer_by_global_id(
         key_manager_state,
         &request.customer_id,
-        merchant_context.get_merchant_account().get_id(),
         merchant_context.get_merchant_key_store(),
         merchant_context.get_merchant_account().storage_scheme,
     )
@@ -2927,6 +2924,8 @@ fn construct_zero_auth_payments_request(
         browser_info: None,
         force_3ds_challenge: None,
         is_iframe_redirection_enabled: None,
+        merchant_connector_details: None,
+        return_raw_connector_response: None,
     })
 }
 
@@ -3268,7 +3267,8 @@ async fn create_single_use_tokenization_flow(
             connector_mandate_request_reference_id: None,
             authentication_id: None,
             psd2_sca_exemption_type: None,
-            whole_connector_response: None,
+            raw_connector_response: None,
+            is_payment_id_from_merchant: None,
         };
 
     let payment_method_token_response = tokenization::add_token_for_payment_method(

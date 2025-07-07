@@ -316,7 +316,7 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
         connectors: &Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
         Ok(format!(
-            "{}v1/payments/create/json",
+            "{}v1/payments/create/upi",
             self.base_url(connectors)
         ))
     }
@@ -404,15 +404,15 @@ impl ConnectorIntegration<PSync, PaymentsSyncData, PaymentsResponseData> for Raz
         req: &PaymentsSyncRouterData,
         connectors: &Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        let connector_payment_id = req
+        let order_id = req
             .request
-            .connector_transaction_id
-            .get_connector_transaction_id()
-            .change_context(errors::ConnectorError::MissingConnectorTransactionID)?;
+            .connector_reference_id
+            .clone()
+            .ok_or(errors::ConnectorError::RequestEncodingFailed)?;
         Ok(format!(
-            "{}v1/payments/{}",
+            "{}v1/orders/{}/payments",
             self.base_url(connectors),
-            connector_payment_id,
+            order_id,
         ))
     }
 
@@ -512,21 +512,11 @@ impl ConnectorIntegration<Capture, PaymentsCaptureData, PaymentsResponseData> fo
 
     fn handle_response(
         &self,
-        data: &PaymentsCaptureRouterData,
-        event_builder: Option<&mut ConnectorEvent>,
-        res: Response,
+        _data: &PaymentsCaptureRouterData,
+        _event_builder: Option<&mut ConnectorEvent>,
+        _res: Response,
     ) -> CustomResult<PaymentsCaptureRouterData, errors::ConnectorError> {
-        let response: razorpay::RazorpayPaymentsResponse = res
-            .response
-            .parse_struct("Razorpay PaymentsCaptureResponse")
-            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
-        event_builder.map(|i| i.set_response_body(&response));
-        router_env::logger::info!(connector_response=?response);
-        RouterData::try_from(ResponseRouterData {
-            response,
-            data: data.clone(),
-            http_code: res.status_code,
-        })
+        Err(errors::ConnectorError::NotImplemented("get_request_body method".to_string()).into())
     }
 
     fn get_error_response(
@@ -835,8 +825,8 @@ impl ConnectorSpecifications for Razorpay {
     #[cfg(feature = "v2")]
     fn generate_connector_request_reference_id(
         &self,
-        payment_intent: &hyperswitch_domain_models::payments::PaymentIntent,
-        payment_attempt: &hyperswitch_domain_models::payments::payment_attempt::PaymentAttempt,
+        _payment_intent: &hyperswitch_domain_models::payments::PaymentIntent,
+        _payment_attempt: &hyperswitch_domain_models::payments::payment_attempt::PaymentAttempt,
     ) -> String {
         // The length of receipt for Razorpay order request should not exceed 40 characters.
         uuid::Uuid::now_v7().to_string()

@@ -1562,6 +1562,10 @@ Cypress.Commands.add("setDefaultPaymentMethodTest", (globalState) => {
           payment_method_id
         );
         expect(response.body).to.have.property("customer_id", customer_id);
+      } else if (response.status === 400) {
+        expect(response.body.error.message).to.equal(
+          "Payment Method is already set as default"
+        );
       } else {
         defaultErrorHandler(response);
       }
@@ -2437,6 +2441,9 @@ Cypress.Commands.add(
               response.body.payment_method_id,
               "payment_method_id"
             ).to.include("pm_").and.to.not.be.null;
+
+            // Whenever, CIT Confirmations gets a payment status of `processing`, it does not yield the `payment_method_id` and hence the `paymentMethodId` in the `globalState` gets the value of `null`. And hence while confirming MIT, it yields an `error.message` of `"Json deserialize error: invalid type: null, expected a string at line 1 column 182"` which is basically because of the `null` value in `recurring_details.data` with `recurring_details.type` as `payment_method_id`. However, we get the `payment_method_id` while PSync, so we can assign it to the `globalState` here.
+            globalState.set("paymentMethodId", response.body.payment_method_id);
 
             const allowedActiveStatuses = [
               "succeeded",
