@@ -37,7 +37,6 @@ pub struct CardAdditionalData {
     pub card_issuer: Option<String>,
 
     /// Card network of the card
-    #[schema(value_type = Option<CardNetwork>)]
     pub card_network: Option<common_enums::CardNetwork>,
 
     /// Card type, can be either `credit` or `debit`
@@ -103,11 +102,11 @@ pub struct AchBankTransferAdditionalData {
     pub bank_routing_number: MaskedRoutingNumber,
 
     /// Name of the bank
-    #[schema(value_type = Option<BankNames>, example = "Deutsche Bank")]
+    #[schema(value_type = Option<common_enums::BankNames>, example = "Deutsche Bank")]
     pub bank_name: Option<String>,
 
     /// Bank country code
-    #[schema(value_type = Option<CountryAlpha2>, example = "US")]
+    #[schema(example = "US")]
     pub bank_country_code: Option<common_enums::CountryAlpha2>,
 
     /// Bank city
@@ -134,7 +133,7 @@ pub struct BacsBankTransferAdditionalData {
     pub bank_name: Option<String>,
 
     /// Bank country code
-    #[schema(value_type = Option<CountryAlpha2>, example = "US")]
+    #[schema(example = "US")]
     pub bank_country_code: Option<common_enums::CountryAlpha2>,
 
     /// Bank city
@@ -157,7 +156,7 @@ pub struct SepaBankTransferAdditionalData {
     pub bank_name: Option<String>,
 
     /// Bank country code
-    #[schema(value_type = Option<CountryAlpha2>, example = "US")]
+    #[schema(example = "US")]
     pub bank_country_code: Option<common_enums::CountryAlpha2>,
 
     /// Bank city
