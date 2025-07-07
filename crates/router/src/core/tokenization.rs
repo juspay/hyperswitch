@@ -169,7 +169,7 @@ pub async fn delete_tokenized_data_core(
 
     Ok(hyperswitch_domain_models::api::ApplicationResponse::Json(
         api_models::tokenization::DeleteTokenDataResponse {
-            id: token_id.clone()
+            id: token_id.clone(),
         },
     ))
 }
