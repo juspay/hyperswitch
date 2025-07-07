@@ -56,6 +56,12 @@ pub mod vault {
     pub use hyperswitch_domain_models::vault::*;
 }
 
+#[cfg(feature = "v2")]
+pub mod tokenization {
+    pub use hyperswitch_domain_models::tokenization::*;
+}
+
+
 mod routing {
     pub use hyperswitch_domain_models::routing::*;
 }
@@ -83,3 +89,6 @@ pub use user::*;
 pub use user_key_store::*;
 #[cfg(feature = "v2")]
 pub use vault::*;
+
+#[cfg(feature = "v2")]
+pub use tokenization::*;

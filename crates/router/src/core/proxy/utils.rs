@@ -19,14 +19,18 @@ use crate::{
 };
 
 pub struct ProxyRequestWrapper(pub proxy_api_models::ProxyRequest);
+pub enum ProxyRecord {
+    PaymentMethodRecord(domain::PaymentMethod),
+    TokenizationRecord(domain::Tokenization),
+}
 
 impl ProxyRequestWrapper {
-    pub async fn get_vault_id(
+    pub async fn get_payment_method_or_tokenization_record(
         &self,
         state: &SessionState,
         key_store: &domain::MerchantKeyStore,
         storage_scheme: common_enums::enums::MerchantStorageScheme,
-    ) -> RouterResult<payment_methods::VaultId> {
+    ) -> RouterResult<ProxyRecord> {
         let token = &self.0.token;
 
         match self.0.token_type {
@@ -39,15 +43,13 @@ impl ProxyRequestWrapper {
                         .change_context(errors::ApiErrorResponse::InternalServerError)
                         .attach_printable("Unable to generate GlobalPaymentMethodId")?;
 
-                state
+                let payment_method_record = state
                     .store
                     .find_payment_method(&((state).into()), key_store, &pm_id, storage_scheme)
                     .await
-                    .change_context(errors::ApiErrorResponse::PaymentMethodNotFound)?
-                    .locker_id
-                    .get_required_value("vault_id")
-                    .change_context(errors::ApiErrorResponse::InternalServerError)
-                    .attach_printable("Locker id not present in Payment Method Entry")
+                    .change_context(errors::ApiErrorResponse::PaymentMethodNotFound)?;
+                Ok(ProxyRecord::PaymentMethodRecord(payment_method_record))
+
             }
             proxy_api_models::TokenType::TokenizationId => {
                 Err(report!(errors::ApiErrorResponse::NotImplemented {
@@ -109,6 +111,47 @@ impl ProxyRequestWrapper {
 
     pub fn get_method(&self) -> common_utils::request::Method {
         self.0.method
+    }
+}
+
+impl ProxyRecord{
+    pub fn get_vault_id(
+        &self,
+    ) -> RouterResult<payment_methods::VaultId>{
+
+        match self {
+            Self::PaymentMethodRecord(payment_method) => {
+                payment_method.locker_id.clone()
+                .get_required_value("vault_id")
+                .change_context(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable("Locker id not present in Payment Method Entry")
+
+            }
+            Self::TokenizationRecord(_) => {
+                Err(report!(errors::ApiErrorResponse::NotImplemented {
+                    message: NotImplementedMessage::Reason(
+                        "Proxy flow using tokenization id".to_string(),
+                    ),
+                }))
+            }
+        }
+    }
+
+    pub fn get_customer_id(
+        &self,
+    ) -> RouterResult<id_type::GlobalCustomerId> {
+        match self {
+            Self::PaymentMethodRecord(payment_method) => {
+                Ok(payment_method.customer_id.clone())
+            }
+            Self::TokenizationRecord(_) => {
+                Err(report!(errors::ApiErrorResponse::NotImplemented {
+                    message: NotImplementedMessage::Reason(
+                        "Proxy flow using tokenization id".to_string(),
+                    ),
+                }))
+            }
+        }
     }
 }
 
