@@ -1,7 +1,5 @@
 use common_utils::{ext_traits::AsyncExt, types::keymanager::KeyManagerState};
 use error_stack::{report, ResultExt};
-#[cfg(feature = "v2")]
-use hyperswitch_domain_models::business_profile::ProfileUpdate;
 use router_env::{instrument, tracing};
 
 use super::Store;
@@ -179,7 +177,10 @@ impl ProfileInterface for Store {
         Conversion::convert(current_state)
             .await
             .change_context(errors::StorageError::EncryptionError)?
-            .update_by_profile_id(&conn, storage::ProfileUpdateInternal::foreign_from(profile_update))
+            .update_by_profile_id(
+                &conn,
+                storage::ProfileUpdateInternal::foreign_from(profile_update),
+            )
             .await
             .map_err(|error| report!(errors::StorageError::from(error)))?
             .convert(
@@ -459,18 +460,15 @@ impl ProfileInterface for MockDb {
     }
 }
 
-
 #[cfg(feature = "v2")]
-impl ForeignFrom<ProfileUpdate> for diesel_models::business_profile::ProfileUpdateInternal {
-    fn foreign_from(profile_update: ProfileUpdate) -> Self {
+impl ForeignFrom<domain::ProfileUpdate> for diesel_models::business_profile::ProfileUpdateInternal {
+    fn foreign_from(profile_update: domain::ProfileUpdate) -> Self {
         use common_utils::date_time;
 
         let now = date_time::now();
 
         match profile_update {
-            ProfileUpdate::Update(update) => {
-
-
+            domain::ProfileUpdate::Update(update) => {
                 let ProfileGeneralUpdate {
                     profile_name,
                     return_url,
@@ -560,7 +558,7 @@ impl ForeignFrom<ProfileUpdate> for diesel_models::business_profile::ProfileUpda
                     merchant_category_code,
                 }
             }
-            ProfileUpdate::RoutingAlgorithmUpdate {
+            domain::ProfileUpdate::RoutingAlgorithmUpdate {
                 routing_algorithm_id,
                 payout_routing_algorithm_id,
             } => Self {
@@ -614,7 +612,7 @@ impl ForeignFrom<ProfileUpdate> for diesel_models::business_profile::ProfileUpda
                 external_vault_connector_details: None,
                 merchant_category_code: None,
             },
-            ProfileUpdate::ExtendedCardInfoUpdate {
+            domain::ProfileUpdate::ExtendedCardInfoUpdate {
                 is_extended_card_info_enabled,
             } => Self {
                 profile_name: None,
@@ -667,7 +665,7 @@ impl ForeignFrom<ProfileUpdate> for diesel_models::business_profile::ProfileUpda
                 external_vault_connector_details: None,
                 merchant_category_code: None,
             },
-            ProfileUpdate::ConnectorAgnosticMitUpdate {
+            domain::ProfileUpdate::ConnectorAgnosticMitUpdate {
                 is_connector_agnostic_mit_enabled,
             } => Self {
                 profile_name: None,
@@ -720,7 +718,7 @@ impl ForeignFrom<ProfileUpdate> for diesel_models::business_profile::ProfileUpda
                 external_vault_connector_details: None,
                 merchant_category_code: None,
             },
-            ProfileUpdate::DefaultRoutingFallbackUpdate {
+            domain::ProfileUpdate::DefaultRoutingFallbackUpdate {
                 default_fallback_routing,
             } => Self {
                 profile_name: None,
@@ -773,7 +771,7 @@ impl ForeignFrom<ProfileUpdate> for diesel_models::business_profile::ProfileUpda
                 external_vault_connector_details: None,
                 merchant_category_code: None,
             },
-            ProfileUpdate::NetworkTokenizationUpdate {
+            domain::ProfileUpdate::NetworkTokenizationUpdate {
                 is_network_tokenization_enabled,
             } => Self {
                 profile_name: None,
@@ -826,7 +824,7 @@ impl ForeignFrom<ProfileUpdate> for diesel_models::business_profile::ProfileUpda
                 external_vault_connector_details: None,
                 merchant_category_code: None,
             },
-            ProfileUpdate::CollectCvvDuringPaymentUpdate {
+            domain::ProfileUpdate::CollectCvvDuringPaymentUpdate {
                 should_collect_cvv_during_payment,
             } => Self {
                 profile_name: None,
@@ -879,7 +877,7 @@ impl ForeignFrom<ProfileUpdate> for diesel_models::business_profile::ProfileUpda
                 external_vault_connector_details: None,
                 merchant_category_code: None,
             },
-            ProfileUpdate::DecisionManagerRecordUpdate {
+            domain::ProfileUpdate::DecisionManagerRecordUpdate {
                 three_ds_decision_manager_config,
             } => Self {
                 profile_name: None,
@@ -932,7 +930,7 @@ impl ForeignFrom<ProfileUpdate> for diesel_models::business_profile::ProfileUpda
                 external_vault_connector_details: None,
                 merchant_category_code: None,
             },
-            ProfileUpdate::CardTestingSecretKeyUpdate {
+            domain::ProfileUpdate::CardTestingSecretKeyUpdate {
                 card_testing_secret_key,
             } => Self {
                 profile_name: None,
@@ -985,7 +983,7 @@ impl ForeignFrom<ProfileUpdate> for diesel_models::business_profile::ProfileUpda
                 external_vault_connector_details: None,
                 merchant_category_code: None,
             },
-            ProfileUpdate::RevenueRecoveryAlgorithmUpdate {
+            domain::ProfileUpdate::RevenueRecoveryAlgorithmUpdate {
                 revenue_recovery_retry_algorithm_type,
                 revenue_recovery_retry_algorithm_data,
             } => Self {
@@ -1042,4 +1040,3 @@ impl ForeignFrom<ProfileUpdate> for diesel_models::business_profile::ProfileUpda
         }
     }
 }
-

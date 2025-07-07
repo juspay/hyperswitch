@@ -1,7 +1,5 @@
 use common_utils::{id_type, pii};
-#[cfg(feature = "v2")]
-use diesel_models::CustomerUpdateInternal;
-use diesel_models::{customers, kv};
+use diesel_models::{customers as storage, kv};
 use error_stack::ResultExt;
 use futures::future::try_join_all;
 use hyperswitch_domain_models::{customer as domain, merchant_key_store::MerchantKeyStore};
@@ -34,7 +32,7 @@ use masking::SwitchStrategy;
 use common_utils::crypto::Encryptable;
 use common_utils::date_time;
 
-impl KvStorePartition for customers::Customer {}
+impl KvStorePartition for storage::Customer {}
 
 #[cfg(feature = "v2")]
 mod label {
@@ -82,7 +80,7 @@ impl<T: DatabaseStore> domain::CustomerInterface for kv_router_store::KVRouterSt
                 state,
                 key_store,
                 storage_scheme,
-                customers::Customer::find_optional_by_customer_id_merchant_id(
+                storage::Customer::find_optional_by_customer_id_merchant_id(
                     &conn,
                     customer_id,
                     merchant_id,
@@ -119,7 +117,7 @@ impl<T: DatabaseStore> domain::CustomerInterface for kv_router_store::KVRouterSt
             state,
             key_store,
             storage_scheme,
-            customers::Customer::find_optional_by_customer_id_merchant_id(
+            storage::Customer::find_optional_by_customer_id_merchant_id(
                 &conn,
                 customer_id,
                 merchant_id,
@@ -150,7 +148,7 @@ impl<T: DatabaseStore> domain::CustomerInterface for kv_router_store::KVRouterSt
                 state,
                 key_store,
                 storage_scheme,
-                customers::Customer::find_optional_by_merchant_id_merchant_reference_id(
+                storage::Customer::find_optional_by_merchant_id_merchant_reference_id(
                     &conn,
                     merchant_reference_id,
                     merchant_id,
@@ -198,7 +196,7 @@ impl<T: DatabaseStore> domain::CustomerInterface for kv_router_store::KVRouterSt
             state,
             key_store,
             storage_scheme,
-            customers::Customer::update_by_customer_id_merchant_id(
+            storage::Customer::update_by_customer_id_merchant_id(
                 &conn,
                 customer_id.clone(),
                 merchant_id.clone(),
@@ -232,7 +230,7 @@ impl<T: DatabaseStore> domain::CustomerInterface for kv_router_store::KVRouterSt
                 state,
                 key_store,
                 storage_scheme,
-                customers::Customer::find_by_merchant_reference_id_merchant_id(
+                storage::Customer::find_by_merchant_reference_id_merchant_id(
                     &conn,
                     merchant_reference_id,
                     merchant_id,
@@ -269,7 +267,7 @@ impl<T: DatabaseStore> domain::CustomerInterface for kv_router_store::KVRouterSt
                 state,
                 key_store,
                 storage_scheme,
-                customers::Customer::find_by_customer_id_merchant_id(
+                storage::Customer::find_by_customer_id_merchant_id(
                     &conn,
                     customer_id,
                     merchant_id,
@@ -323,7 +321,7 @@ impl<T: DatabaseStore> domain::CustomerInterface for kv_router_store::KVRouterSt
             .await
             .change_context(StorageError::EncryptionError)?;
 
-        let decided_storage_scheme = Box::pin(decide_storage_scheme::<_, customers::Customer>(
+        let decided_storage_scheme = Box::pin(decide_storage_scheme::<_, storage::Customer>(
             self,
             storage_scheme,
             Op::Insert,
@@ -375,7 +373,7 @@ impl<T: DatabaseStore> domain::CustomerInterface for kv_router_store::KVRouterSt
             .construct_new()
             .await
             .change_context(StorageError::EncryptionError)?;
-        let storage_scheme = Box::pin(decide_storage_scheme::<_, customers::Customer>(
+        let storage_scheme = Box::pin(decide_storage_scheme::<_, storage::Customer>(
             self,
             storage_scheme,
             Op::Insert,
@@ -427,7 +425,7 @@ impl<T: DatabaseStore> domain::CustomerInterface for kv_router_store::KVRouterSt
                 state,
                 key_store,
                 storage_scheme,
-                customers::Customer::find_by_global_id(&conn, id),
+                storage::Customer::find_by_global_id(&conn, id),
                 kv_router_store::FindResourceBy::Id(
                     format!("cust_{}", id.get_string_repr()),
                     PartitionKey::GlobalId {
@@ -461,7 +459,7 @@ impl<T: DatabaseStore> domain::CustomerInterface for kv_router_store::KVRouterSt
             .await
             .change_context(StorageError::EncryptionError)?;
         let database_call =
-            customers::Customer::update_by_id(&conn, id.clone(), customer_update.clone().foreign_into());
+            storage::Customer::update_by_id(&conn, id.clone(), customer_update.clone().foreign_into());
         let key = PartitionKey::GlobalId {
             id: id.get_string_repr(),
         };
@@ -503,7 +501,7 @@ impl<T: DatabaseStore> domain::CustomerInterface for RouterStore<T> {
             .find_optional_resource(
                 state,
                 key_store,
-                customers::Customer::find_optional_by_customer_id_merchant_id(
+                storage::Customer::find_optional_by_customer_id_merchant_id(
                     &conn,
                     customer_id,
                     merchant_id,
@@ -536,7 +534,7 @@ impl<T: DatabaseStore> domain::CustomerInterface for RouterStore<T> {
         self.find_optional_resource(
             state,
             key_store,
-            customers::Customer::find_optional_by_customer_id_merchant_id(
+            storage::Customer::find_optional_by_customer_id_merchant_id(
                 &conn,
                 customer_id,
                 merchant_id,
@@ -560,7 +558,7 @@ impl<T: DatabaseStore> domain::CustomerInterface for RouterStore<T> {
             .find_optional_resource(
                 state,
                 key_store,
-                customers::Customer::find_optional_by_merchant_id_merchant_reference_id(
+                storage::Customer::find_optional_by_merchant_id_merchant_reference_id(
                     &conn,
                     customer_id,
                     merchant_id,
@@ -595,7 +593,7 @@ impl<T: DatabaseStore> domain::CustomerInterface for RouterStore<T> {
         self.call_database(
             state,
             key_store,
-            customers::Customer::update_by_customer_id_merchant_id(
+            storage::Customer::update_by_customer_id_merchant_id(
                 &conn,
                 customer_id,
                 merchant_id.clone(),
@@ -620,7 +618,7 @@ impl<T: DatabaseStore> domain::CustomerInterface for RouterStore<T> {
             .call_database(
                 state,
                 key_store,
-                customers::Customer::find_by_customer_id_merchant_id(
+                storage::Customer::find_by_customer_id_merchant_id(
                     &conn,
                     customer_id,
                     merchant_id,
@@ -648,7 +646,7 @@ impl<T: DatabaseStore> domain::CustomerInterface for RouterStore<T> {
             .call_database(
                 state,
                 key_store,
-                customers::Customer::find_by_merchant_reference_id_merchant_id(
+                storage::Customer::find_by_merchant_reference_id_merchant_id(
                     &conn,
                     merchant_reference_id,
                     merchant_id,
@@ -675,7 +673,7 @@ impl<T: DatabaseStore> domain::CustomerInterface for RouterStore<T> {
         self.find_resources(
             state,
             key_store,
-            customers::Customer::list_by_merchant_id(&conn, merchant_id, customer_list_constraints),
+            storage::Customer::list_by_merchant_id(&conn, merchant_id, customer_list_constraints),
         )
         .await
     }
@@ -728,7 +726,7 @@ impl<T: DatabaseStore> domain::CustomerInterface for RouterStore<T> {
         self.call_database(
             state,
             key_store,
-            customers::Customer::update_by_id(&conn, id.clone(), customer_update.foreign_into()),
+            storage::Customer::update_by_id(&conn, id.clone(), customer_update.foreign_into()),
         )
         .await
     }
@@ -747,7 +745,7 @@ impl<T: DatabaseStore> domain::CustomerInterface for RouterStore<T> {
             .call_database(
                 state,
                 key_store,
-                customers::Customer::find_by_global_id(&conn, id),
+                storage::Customer::find_by_global_id(&conn, id),
             )
             .await?;
         match customer.name {
@@ -945,10 +943,10 @@ impl domain::CustomerInterface for MockDb {
 #[cfg(feature = "v2")]
 #[async_trait::async_trait]
 impl Conversion for domain::Customer {
-    type DstType = diesel_models::customers::Customer;
-    type NewDstType = diesel_models::customers::CustomerNew;
+    type DstType = storage::Customer;
+    type NewDstType = storage::CustomerNew;
     async fn convert(self) -> CustomResult<Self::DstType, ValidationError> {
-        Ok(diesel_models::customers::Customer {
+        Ok(storage::Customer {
             id: self.id,
             merchant_reference_id: self.merchant_reference_id,
             merchant_id: self.merchant_id,
@@ -1033,7 +1031,7 @@ impl Conversion for domain::Customer {
 
     async fn construct_new(self) -> CustomResult<Self::NewDstType, ValidationError> {
         let now = date_time::now();
-        Ok(diesel_models::customers::CustomerNew {
+        Ok(storage::CustomerNew {
             id: self.id,
             merchant_reference_id: self.merchant_reference_id,
             merchant_id: self.merchant_id,
@@ -1057,7 +1055,7 @@ impl Conversion for domain::Customer {
 }
 
 #[cfg(feature = "v2")]
-impl ForeignFrom<domain::CustomerUpdate> for CustomerUpdateInternal {
+impl ForeignFrom<domain::CustomerUpdate> for storage::CustomerUpdateInternal {
     fn foreign_from(customer_update: domain::CustomerUpdate) -> Self {
         match customer_update {
             domain::CustomerUpdate::Update(update) => {

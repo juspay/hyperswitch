@@ -3038,7 +3038,7 @@ pub async fn add_external_account_addition_task(
         tracking_data,
         None,
         schedule_time,
-        common_utils::consts::API_VERSION,
+        consts::API_VERSION,
     )
     .map_err(errors::StorageError::from)?;
 

@@ -1019,8 +1019,8 @@ impl PaymentMethodInterface for MockDb {
 
 #[cfg(feature = "v2")]
 #[async_trait::async_trait]
-impl super::behaviour::Conversion for hyperswitch_domain_models::payment_methods::PaymentMethod {
-    type DstType = diesel_models::payment_method::PaymentMethod;
+impl Conversion for DomainPaymentMethod {
+    type DstType = PaymentMethod;
     type NewDstType = diesel_models::payment_method::PaymentMethodNew;
     async fn convert(self) -> CustomResult<Self::DstType, ValidationError> {
 
@@ -1056,7 +1056,7 @@ impl super::behaviour::Conversion for hyperswitch_domain_models::payment_methods
     }
 
     async fn convert_back(
-        state: &keymanager::KeyManagerState,
+        state: &KeyManagerState,
         storage_model: Self::DstType,
         key: &Secret<Vec<u8>>,
         key_manager_identifier: keymanager::Identifier,
@@ -1189,7 +1189,7 @@ impl super::behaviour::Conversion for hyperswitch_domain_models::payment_methods
 
 #[cfg(feature = "v2")]
 #[async_trait::async_trait]
-impl super::behaviour::Conversion for PaymentMethodSession {
+impl Conversion for PaymentMethodSession {
     type DstType = diesel_models::payment_methods_session::PaymentMethodSession;
     type NewDstType = diesel_models::payment_methods_session::PaymentMethodSession;
     async fn convert(self) -> CustomResult<Self::DstType, ValidationError> {
@@ -1209,7 +1209,7 @@ impl super::behaviour::Conversion for PaymentMethodSession {
     }
 
     async fn convert_back(
-        state: &keymanager::KeyManagerState,
+        state: &KeyManagerState,
         storage_model: Self::DstType,
         key: &Secret<Vec<u8>>,
         key_manager_identifier: keymanager::Identifier,

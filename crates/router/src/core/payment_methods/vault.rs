@@ -1554,9 +1554,7 @@ pub async fn insert_cvc_using_payment_token(
             .attach_printable("Failed to get redis connection")?;
 
         let key = format!(
-            "pm_token_{}_{}_hyperswitch_cvc",
-            payment_token, payment_method
-        );
+            "pm_token_{payment_token}_{payment_method}_hyperswitch_cvc");
 
         let payload_to_be_encrypted = TemporaryVaultCvc { card_cvc };
 
@@ -1600,8 +1598,7 @@ pub async fn retrieve_and_delete_cvc_from_payment_token(
         .attach_printable("Failed to get redis connection")?;
 
     let key = format!(
-        "pm_token_{}_{}_hyperswitch_cvc",
-        payment_token, payment_method
+        "pm_token_{payment_token}_{payment_method}_hyperswitch_cvc"
     );
 
     let data = redis_conn

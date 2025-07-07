@@ -346,6 +346,7 @@ impl_to_sql_from_sql_json!(XenditMultipleSplitResponse);
 
 
 
+#[allow(missing_docs)]
 #[derive(Clone, Default, Debug, PartialEq, Serialize, Deserialize, diesel::AsExpression)]
 #[diesel(sql_type = Jsonb)]
 pub struct TaxDetails {
@@ -383,11 +384,14 @@ impl TaxDetails {
 
 common_utils::impl_to_sql_from_sql_json!(TaxDetails);
 
+#[allow(missing_docs)]
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct PaymentMethodTypeTax {
     pub order_tax_amount: MinorUnit,
     pub pmt: enums::PaymentMethodType,
 }
+
+#[allow(missing_docs)]
 
 #[derive(Clone, Default, Debug, PartialEq, Serialize, Deserialize)]
 pub struct DefaultTax {
@@ -397,7 +401,7 @@ pub struct DefaultTax {
 
 
 
-
+#[allow(missing_docs)]
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize, FromSqlRow, AsExpression)]
 #[diesel(sql_type = Jsonb)]
 pub struct OrderDetailsWithAmount {
@@ -434,7 +438,7 @@ impl masking::SerializableSecret for OrderDetailsWithAmount {}
 common_utils::impl_to_sql_from_sql_json!(OrderDetailsWithAmount);
 
 
-
+#[allow(missing_docs)]
 #[cfg(feature = "v2")]
 #[derive(Debug, Default, Clone, PartialEq, Deserialize, Serialize, FromSqlRow, AsExpression)]
 #[diesel(sql_type = diesel::sql_types::Json)]
@@ -451,6 +455,7 @@ pub struct FeatureMetadata {
 
 common_utils::impl_to_sql_from_sql_json!(FeatureMetadata);
 
+#[allow(missing_docs)]
 #[cfg(feature = "v2")]
 impl FeatureMetadata {
     pub fn get_payment_method_sub_type(&self) -> Option<common_enums::PaymentMethodType> {
@@ -478,6 +483,7 @@ impl FeatureMetadata {
     // TODO: Check apple_pay_recurring_details metadata if applicable
 }
 
+#[allow(missing_docs)]
 #[derive(Default, Debug, Eq, PartialEq, Deserialize, Serialize, Clone)]
 pub struct RedirectResponse {
     pub param: Option<Secret<String>>,
@@ -486,6 +492,7 @@ pub struct RedirectResponse {
 impl masking::SerializableSecret for RedirectResponse {}
 common_utils::impl_to_sql_from_sql_json!(RedirectResponse);
 
+#[allow(missing_docs)]
 #[derive(Debug, Clone, PartialEq, Deserialize, Serialize, FromSqlRow, AsExpression)]
 #[diesel(sql_type = diesel::sql_types::Json)]
 pub struct ApplePayRecurringDetails {
@@ -499,6 +506,7 @@ pub struct ApplePayRecurringDetails {
     pub management_url: common_utils::types::Url,
 }
 
+#[allow(missing_docs)]
 #[derive(Debug, Clone, PartialEq, Deserialize, Serialize, FromSqlRow, AsExpression)]
 #[diesel(sql_type = diesel::sql_types::Json)]
 pub struct ApplePayRegularBillingDetails {
@@ -506,16 +514,17 @@ pub struct ApplePayRegularBillingDetails {
     pub label: String,
     /// The date of the first payment
     #[serde(with = "common_utils::custom_serde::iso8601::option")]
-    pub recurring_payment_start_date: Option<time::PrimitiveDateTime>,
+    pub recurring_payment_start_date: Option<PrimitiveDateTime>,
     /// The date of the final payment
     #[serde(with = "common_utils::custom_serde::iso8601::option")]
-    pub recurring_payment_end_date: Option<time::PrimitiveDateTime>,
+    pub recurring_payment_end_date: Option<PrimitiveDateTime>,
     /// The amount of time — in calendar units, such as day, month, or year — that represents a fraction of the total payment interval
     pub recurring_payment_interval_unit: Option<RecurringPaymentIntervalUnit>,
     /// The number of interval units that make up the total payment interval
     pub recurring_payment_interval_count: Option<i32>,
 }
 
+#[allow(missing_docs)]
 #[derive(Debug, Clone, PartialEq, Deserialize, Serialize, FromSqlRow, AsExpression)]
 #[diesel(sql_type = diesel::sql_types::Json)]
 #[serde(rename_all = "snake_case")]
@@ -532,6 +541,7 @@ common_utils::impl_to_sql_from_sql_json!(ApplePayRegularBillingDetails);
 common_utils::impl_to_sql_from_sql_json!(RecurringPaymentIntervalUnit);
 
 
+#[allow(missing_docs)]
 #[cfg(feature = "v2")]
 #[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]
 pub struct PaymentRevenueRecoveryMetadata {
@@ -546,13 +556,13 @@ pub struct PaymentRevenueRecoveryMetadata {
     /// Billing Connector Payment Details
     pub billing_connector_payment_details: BillingConnectorPaymentDetails,
     ///Payment Method Type
-    pub payment_method_type: common_enums::enums::PaymentMethod,
+    pub payment_method_type: enums::PaymentMethod,
     /// PaymentMethod Subtype
-    pub payment_method_subtype: common_enums::enums::PaymentMethodType,
+    pub payment_method_subtype: enums::PaymentMethodType,
     /// The name of the payment connector through which the payment attempt was made.
     pub connector: common_enums::connector_enums::Connector,
     /// Time at which next invoice will be created
-    pub invoice_next_billing_time: Option<time::PrimitiveDateTime>,
+    pub invoice_next_billing_time: Option<PrimitiveDateTime>,
     /// Extra Payment Method Details that are needed to be stored
     pub billing_connector_payment_method_details: Option<BillingConnectorPaymentMethodDetails>,
     /// First Payment Attempt Payment Gateway Error Code
@@ -562,7 +572,7 @@ pub struct PaymentRevenueRecoveryMetadata {
     /// First Payment Attempt Network Advice Code
     pub first_payment_attempt_network_advice_code: Option<String>,
 }
-
+#[allow(missing_docs)]
 #[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]
 #[cfg(feature = "v2")]
 pub struct BillingConnectorPaymentDetails {
@@ -572,6 +582,7 @@ pub struct BillingConnectorPaymentDetails {
     pub connector_customer_id: String,
 }
 
+#[allow(missing_docs)]
 #[cfg(feature = "v2")]
 #[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]
 #[serde(rename_all = "snake_case", tag = "type", content = "value")]
@@ -579,17 +590,18 @@ pub enum BillingConnectorPaymentMethodDetails {
     Card(BillingConnectorAdditionalCardInfo),
 }
 
+#[allow(missing_docs)]
 #[cfg(feature = "v2")]
 #[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]
 pub struct BillingConnectorAdditionalCardInfo {
     /// Card Network
-    pub card_network: Option<common_enums::enums::CardNetwork>,
+    pub card_network: Option<enums::CardNetwork>,
     /// Card Issuer
     pub card_issuer: Option<String>,
 }
 
 
-
+#[allow(missing_docs)]
 #[derive(Clone, Debug, serde::Deserialize, serde::Serialize, diesel::AsExpression, PartialEq)]
 #[diesel(sql_type = Jsonb)]
 pub struct PaymentLinkConfigRequestForPayments {
@@ -629,10 +641,10 @@ pub struct PaymentLinkConfigRequestForPayments {
     pub background_colour: Option<String>,
     /// SDK configuration rules
     pub sdk_ui_rules:
-        Option<std::collections::HashMap<String, std::collections::HashMap<String, String>>>,
+        Option<HashMap<String, HashMap<String, String>>>,
     /// Payment link configuration rules
     pub payment_link_ui_rules:
-        Option<std::collections::HashMap<String, std::collections::HashMap<String, String>>>,
+        Option<HashMap<String, HashMap<String, String>>>,
     /// Flag to enable the button only when the payment form is ready for submission
     pub enable_button_only_on_form_ready: Option<bool>,
     /// Optional header for the SDK's payment form
@@ -649,6 +661,7 @@ pub struct PaymentLinkConfigRequestForPayments {
 
 common_utils::impl_to_sql_from_sql_json!(PaymentLinkConfigRequestForPayments);
 
+#[allow(missing_docs)]
 #[derive(Clone, Debug, serde::Deserialize, serde::Serialize, PartialEq)]
 pub struct PaymentLinkTransactionDetails {
     /// Key for the transaction details
@@ -661,6 +674,7 @@ pub struct PaymentLinkTransactionDetails {
 
 common_utils::impl_to_sql_from_sql_json!(PaymentLinkTransactionDetails);
 
+#[allow(missing_docs)]
 #[derive(Clone, Debug, serde::Deserialize, serde::Serialize, PartialEq)]
 pub struct TransactionDetailsUiConfiguration {
     /// Position of the key-value pair in the UI
@@ -674,6 +688,7 @@ pub struct TransactionDetailsUiConfiguration {
 common_utils::impl_to_sql_from_sql_json!(TransactionDetailsUiConfiguration);
 
 
+#[allow(missing_docs)]
 #[derive(Clone, Debug, serde::Deserialize, serde::Serialize, PartialEq)]
 pub struct PaymentLinkBackgroundImageConfig {
     pub url: common_utils::types::Url,
@@ -683,11 +698,12 @@ pub struct PaymentLinkBackgroundImageConfig {
 
 
 
+#[allow(missing_docs)]
 #[cfg(feature = "v2")]
 #[derive(
     Clone, Debug, PartialEq, Eq, serde::Deserialize, serde::Serialize, diesel::AsExpression,
 )]
-#[diesel(sql_type = diesel::sql_types::Jsonb)]
+#[diesel(sql_type = Jsonb)]
 pub struct ConnectorTokenDetails {
     pub connector_mandate_id: Option<String>,
     pub connector_token_request_reference_id: Option<String>,
@@ -696,6 +712,7 @@ pub struct ConnectorTokenDetails {
 #[cfg(feature = "v2")]
 common_utils::impl_to_sql_from_sql_json!(ConnectorTokenDetails);
 
+#[allow(missing_docs)]
 #[cfg(feature = "v2")]
 impl ConnectorTokenDetails {
     pub fn get_connector_token_request_reference_id(&self) -> Option<String> {

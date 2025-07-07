@@ -25,17 +25,17 @@ pub trait TokenizationInterface {}
 pub trait TokenizationInterface {
     async fn insert_tokenization(
         &self,
-        tokenization: hyperswitch_domain_models::tokenization::Tokenization,
+        tokenization: Tokenization,
         merchant_key_store: &MerchantKeyStore,
         key_manager_state: &KeyManagerState,
-    ) -> CustomResult<hyperswitch_domain_models::tokenization::Tokenization, errors::StorageError>;
+    ) -> CustomResult<Tokenization, errors::StorageError>;
 
     async fn get_entity_id_vault_id_by_token_id(
         &self,
         token: &common_utils::id_type::GlobalTokenId,
         merchant_key_store: &MerchantKeyStore,
         key_manager_state: &KeyManagerState,
-    ) -> CustomResult<hyperswitch_domain_models::tokenization::Tokenization, errors::StorageError>;
+    ) -> CustomResult<Tokenization, errors::StorageError>;
 }
 
 #[async_trait::async_trait]
@@ -43,10 +43,10 @@ pub trait TokenizationInterface {
 impl<T: DatabaseStore> TokenizationInterface for RouterStore<T> {
     async fn insert_tokenization(
         &self,
-        tokenization: hyperswitch_domain_models::tokenization::Tokenization,
+        tokenization: Tokenization,
         merchant_key_store: &MerchantKeyStore,
         key_manager_state: &KeyManagerState,
-    ) -> CustomResult<hyperswitch_domain_models::tokenization::Tokenization, errors::StorageError>
+    ) -> CustomResult<Tokenization, errors::StorageError>
     {
         use crate::behaviour::{Conversion, ReverseConversion};
 
@@ -73,7 +73,7 @@ impl<T: DatabaseStore> TokenizationInterface for RouterStore<T> {
         token: &common_utils::id_type::GlobalTokenId,
         merchant_key_store: &MerchantKeyStore,
         key_manager_state: &KeyManagerState,
-    ) -> CustomResult<hyperswitch_domain_models::tokenization::Tokenization, errors::StorageError>
+    ) -> CustomResult<Tokenization, errors::StorageError>
     {
         use crate::behaviour::ReverseConversion;
 
@@ -101,10 +101,10 @@ impl<T: DatabaseStore> TokenizationInterface for RouterStore<T> {
 impl<T: DatabaseStore> TokenizationInterface for KVRouterStore<T> {
     async fn insert_tokenization(
         &self,
-        tokenization: hyperswitch_domain_models::tokenization::Tokenization,
+        tokenization: Tokenization,
         merchant_key_store: &MerchantKeyStore,
         key_manager_state: &KeyManagerState,
-    ) -> CustomResult<hyperswitch_domain_models::tokenization::Tokenization, errors::StorageError>
+    ) -> CustomResult<Tokenization, errors::StorageError>
     {
         self.router_store
             .insert_tokenization(tokenization, merchant_key_store, key_manager_state)
@@ -116,7 +116,7 @@ impl<T: DatabaseStore> TokenizationInterface for KVRouterStore<T> {
         token: &common_utils::id_type::GlobalTokenId,
         merchant_key_store: &MerchantKeyStore,
         key_manager_state: &KeyManagerState,
-    ) -> CustomResult<hyperswitch_domain_models::tokenization::Tokenization, errors::StorageError>
+    ) -> CustomResult<Tokenization, errors::StorageError>
     {
         self.router_store
             .get_entity_id_vault_id_by_token_id(token, merchant_key_store, key_manager_state)
@@ -129,10 +129,10 @@ impl<T: DatabaseStore> TokenizationInterface for KVRouterStore<T> {
 impl TokenizationInterface for MockDb {
     async fn insert_tokenization(
         &self,
-        _tokenization: hyperswitch_domain_models::tokenization::Tokenization,
+        _tokenization: Tokenization,
         _merchant_key_store: &MerchantKeyStore,
         _key_manager_state: &KeyManagerState,
-    ) -> CustomResult<hyperswitch_domain_models::tokenization::Tokenization, errors::StorageError>
+    ) -> CustomResult<Tokenization, errors::StorageError>
     {
         Err(errors::StorageError::MockDbError)?
     }
@@ -141,7 +141,7 @@ impl TokenizationInterface for MockDb {
         _token: &common_utils::id_type::GlobalTokenId,
         _merchant_key_store: &MerchantKeyStore,
         _key_manager_state: &KeyManagerState,
-    ) -> CustomResult<hyperswitch_domain_models::tokenization::Tokenization, errors::StorageError>
+    ) -> CustomResult<Tokenization, errors::StorageError>
     {
         Err(errors::StorageError::MockDbError)?
     }
@@ -176,7 +176,7 @@ impl super::behaviour::Conversion for Tokenization {
     }
 
     async fn convert_back(
-        _state: &keymanager::KeyManagerState,
+        _state: &KeyManagerState,
         item: Self::DstType,
         _key: &Secret<Vec<u8>>,
         _key_manager_identifier: keymanager::Identifier,

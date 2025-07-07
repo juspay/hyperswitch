@@ -57,7 +57,7 @@ pub trait RelayInterface {
         key_manager_state: &KeyManagerState,
         merchant_key_store: &domain::MerchantKeyStore,
         current_state: hyperswitch_domain_models::relay::Relay,
-        relay_update: hyperswitch_domain_models::relay::RelayUpdate,
+        relay_update: RelayUpdate,
     ) -> CustomResult<hyperswitch_domain_models::relay::Relay, errors::StorageError>;
 
     async fn find_relay_by_id(
@@ -105,7 +105,7 @@ impl RelayInterface for Store {
         key_manager_state: &KeyManagerState,
         merchant_key_store: &domain::MerchantKeyStore,
         current_state: hyperswitch_domain_models::relay::Relay,
-        relay_update: hyperswitch_domain_models::relay::RelayUpdate,
+        relay_update: RelayUpdate,
     ) -> CustomResult<hyperswitch_domain_models::relay::Relay, errors::StorageError> {
         let conn = connection::pg_connection_write(self).await?;
         Conversion::convert(current_state)
@@ -186,7 +186,7 @@ impl RelayInterface for MockDb {
         _key_manager_state: &KeyManagerState,
         _merchant_key_store: &domain::MerchantKeyStore,
         _current_state: hyperswitch_domain_models::relay::Relay,
-        _relay_update: hyperswitch_domain_models::relay::RelayUpdate,
+        _relay_update: RelayUpdate,
     ) -> CustomResult<hyperswitch_domain_models::relay::Relay, errors::StorageError> {
         Err(errors::StorageError::MockDbError)?
     }
@@ -229,7 +229,7 @@ impl RelayInterface for KafkaStore {
         key_manager_state: &KeyManagerState,
         merchant_key_store: &domain::MerchantKeyStore,
         current_state: hyperswitch_domain_models::relay::Relay,
-        relay_update: hyperswitch_domain_models::relay::RelayUpdate,
+        relay_update: RelayUpdate,
     ) -> CustomResult<hyperswitch_domain_models::relay::Relay, errors::StorageError> {
         self.diesel_store
             .update_relay(

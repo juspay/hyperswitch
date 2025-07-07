@@ -1,3 +1,6 @@
+//! business profile related structs
+
+#![allow(missing_docs)]
 use std::collections::{HashMap, HashSet};
 
 use common_enums::{AuthenticationConnectors, UIWidgetFormLayout, VaultSdk};

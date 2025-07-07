@@ -412,8 +412,8 @@ impl ForeignFrom<payments::MandateData> for hyperswitch_domain_models::mandates:
             customer_acceptance: d.customer_acceptance,
             mandate_type: d.mandate_type.map(|d| match d {
                 payments::MandateType::MultiUse(Some(i)) => {
-                    hyperswitch_domain_models::mandates::MandateDataType::MultiUse(Some(
-                        hyperswitch_domain_models::mandates::MandateAmountData {
+                    MandateDataType::MultiUse(Some(
+                       MandateAmountData {
                             amount: i.amount,
                             currency: i.currency,
                             start_date: i.start_date,
@@ -423,8 +423,8 @@ impl ForeignFrom<payments::MandateData> for hyperswitch_domain_models::mandates:
                     ))
                 }
                 payments::MandateType::SingleUse(i) => {
-                    hyperswitch_domain_models::mandates::MandateDataType::SingleUse(
-                        hyperswitch_domain_models::mandates::MandateAmountData {
+                    MandateDataType::SingleUse(
+                        MandateAmountData {
                             amount: i.amount,
                             currency: i.currency,
                             start_date: i.start_date,
@@ -434,7 +434,7 @@ impl ForeignFrom<payments::MandateData> for hyperswitch_domain_models::mandates:
                     )
                 }
                 payments::MandateType::MultiUse(None) => {
-                    hyperswitch_domain_models::mandates::MandateDataType::MultiUse(None)
+                    MandateDataType::MultiUse(None)
                 }
             }),
             update_mandate_id: d.update_mandate_id,

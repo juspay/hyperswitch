@@ -12,8 +12,6 @@ use common_utils::{
 use diesel::{associations::HasTable, ExpressionMethods, JoinOnDsl, QueryDsl};
 #[cfg(feature = "v1")]
 use diesel_models::payment_intent::PaymentIntentUpdate as DieselPaymentIntentUpdate;
-#[cfg(feature = "v2")]
-use diesel_models::payment_intent::PaymentIntentUpdateInternal;
 #[cfg(feature = "olap")]
 use diesel_models::query::generics::db_metrics;
 #[cfg(feature = "v2")]
@@ -390,7 +388,7 @@ impl<T: DatabaseStore> PaymentIntentInterface for KVRouterStore<T> {
                 let key_str = key.to_string();
 
                 let diesel_intent_update =
-                    PaymentIntentUpdateInternal::foreign_try_from(payment_intent_update)
+                    diesel_models::PaymentIntentUpdateInternal::foreign_try_from(payment_intent_update)
                         .change_context(StorageError::DeserializationFailed)?;
                 let origin_diesel_intent = this
                     .convert()
@@ -835,7 +833,7 @@ impl<T: DatabaseStore> PaymentIntentInterface for crate::RouterStore<T> {
         _storage_scheme: MerchantStorageScheme,
     ) -> error_stack::Result<PaymentIntent, StorageError> {
         let conn = pg_connection_write(self).await?;
-        let diesel_payment_intent_update = PaymentIntentUpdateInternal::foreign_try_from(payment_intent)
+        let diesel_payment_intent_update = diesel_models::PaymentIntentUpdateInternal::foreign_try_from(payment_intent)
             .change_context(StorageError::DeserializationFailed)?;
         let diesel_payment_intent = this
             .convert()
