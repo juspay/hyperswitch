@@ -54,6 +54,24 @@ const polishBillingAddress = {
   },
 };
 
+const paymentMethodData = {
+  card: {
+    last4: "1112",
+    card_type: "DEBIT",
+    card_network: "Visa",
+    card_issuer: "VISA PRODUCTION SUPPORT CLIENT BID 1",
+    card_issuing_country: "UNITEDSTATES",
+    card_isin: "401200",
+    card_extended_bin: null,
+    card_exp_month: "03",
+    card_exp_year: "30",
+    card_holder_name: "John Doe",
+    payment_checks: null,
+    authentication_data: null,
+  },
+  billing: null,
+};
+
 export const connectorDetails = {
   card_pm: {
     PaymentIntent: {
@@ -145,6 +163,7 @@ export const connectorDetails = {
         status: 200,
         body: {
           status: "processing",
+          payment_method_data: paymentMethodData,
         },
       },
     },
@@ -169,6 +188,7 @@ export const connectorDetails = {
         status: 200,
         body: {
           status: "processing",
+          payment_method_data: paymentMethodData,
         },
       },
     },
@@ -193,6 +213,7 @@ export const connectorDetails = {
         status: 200,
         body: {
           status: "processing",
+          payment_method_data: paymentMethodData,
         },
       },
     },
@@ -217,6 +238,7 @@ export const connectorDetails = {
         status: 200,
         body: {
           status: "processing",
+          payment_method_data: paymentMethodData,
         },
       },
     },
@@ -254,6 +276,7 @@ export const connectorDetails = {
           amount: 6000,
           amount_capturable: 6000,
           amount_received: 0,
+          payment_method_data: paymentMethodData,
         },
       },
     },
@@ -290,7 +313,7 @@ export const connectorDetails = {
     },
     Refund: {
       //This connector doesn't support multiple refunds
-      Configs:{
+      Configs: {
         TRIGGER_SKIP: true,
       },
       Request: {
@@ -304,8 +327,8 @@ export const connectorDetails = {
       },
     },
     PartialRefund: {
-       //This connector doesn't support multiple refunds
-      Configs:{
+      //This connector doesn't support multiple refunds
+      Configs: {
         TRIGGER_SKIP: true,
       },
       Request: {
@@ -319,8 +342,8 @@ export const connectorDetails = {
       },
     },
     manualPaymentRefund: {
-       //This connector doesn't support multiple refunds
-      Configs:{
+      //This connector doesn't support multiple refunds
+      Configs: {
         TRIGGER_SKIP: true,
       },
       Request: {
@@ -334,8 +357,8 @@ export const connectorDetails = {
       },
     },
     manualPaymentPartialRefund: {
-       //This connector doesn't support multiple refunds
-      Configs:{
+      //This connector doesn't support multiple refunds
+      Configs: {
         TRIGGER_SKIP: true,
       },
       Request: {
@@ -601,7 +624,7 @@ export const connectorDetails = {
         TRIGGER_SKIP: true,
       },
       Request: {
-        currency:"PLN",
+        currency: "PLN",
         payment_method: "card",
         payment_method_type: "debit",
         payment_method_data: {
