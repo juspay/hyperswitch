@@ -98,7 +98,7 @@ impl ProxyRequestWrapper {
         match self.0.token_type {
             proxy_api_models::TokenType::PaymentMethodId => {
                 let vault_resp = vault::retrieve_payment_method_from_vault_internal(
-                    &state,
+                    state,
                     &merchant_context,
                     vault_id,
                 )
@@ -118,7 +118,7 @@ impl ProxyRequestWrapper {
                     vault_id: vault_id.clone(),
                 };
 
-                let vault_data = vault::retrieve_value_from_vault(&state, vault_request)
+                let vault_data = vault::retrieve_value_from_vault(state, vault_request)
                     .await
                     .change_context(errors::ApiErrorResponse::InternalServerError)
                     .attach_printable("Failed to retrieve vault data")?;
