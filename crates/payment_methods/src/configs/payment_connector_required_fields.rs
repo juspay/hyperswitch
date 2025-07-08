@@ -2016,7 +2016,7 @@ fn get_bank_redirect_required_fields() -> HashMap<enums::PaymentMethodType, Conn
                             ),
                             RequiredField::BillingLastName("billing_name", FieldType::UserFullName),
                         ],
-                        vec![],
+                        vec![RequiredField::EpsBankName],
                     ),
                 ),
                 (
