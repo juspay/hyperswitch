@@ -77,12 +77,6 @@ impl GetRequestIncrementalAuthorization for PaymentsAuthorizeData {
     }
 }
 
-impl GetRequestIncrementalAuthorization for PaymentsIncrementalAuthorizationData {
-    fn get_request_incremental_authorization(&self) -> Option<bool> {
-        None
-    }
-}
-
 impl GetRequestIncrementalAuthorization for PaymentsCaptureData {
     fn get_request_incremental_authorization(&self) -> Option<bool> {
         None
@@ -2825,6 +2819,56 @@ where
                 .map(|amount| amount.get_amount_as_i64()),
             minor_amount_captured: item.response.amount_received,
             connector_response: connector_response_data,
+            ..item.data
+        })
+    }
+}
+
+impl From<StripePaymentStatus> for common_enums::AuthorizationStatus {
+    fn from(item: StripePaymentStatus) -> Self {
+        match item {
+            StripePaymentStatus::Succeeded
+            | StripePaymentStatus::RequiresCapture
+            | StripePaymentStatus::Chargeable
+            | StripePaymentStatus::RequiresCustomerAction
+            | StripePaymentStatus::RequiresConfirmation
+            | StripePaymentStatus::Consumed => Self::Success,
+            StripePaymentStatus::Processing
+            | StripePaymentStatus::Pending => Self::Processing,
+            StripePaymentStatus::Failed
+            | StripePaymentStatus::Canceled
+            | StripePaymentStatus::RequiresPaymentMethod => Self::Failure,
+        }
+    }
+}
+
+impl<F>
+    TryFrom<
+        ResponseRouterData<
+            F,
+            PaymentIntentResponse,
+            PaymentsIncrementalAuthorizationData,
+            PaymentsResponseData,
+        >,
+    > for RouterData<F, PaymentsIncrementalAuthorizationData, PaymentsResponseData>
+{
+    type Error = error_stack::Report<ConnectorError>;
+    fn try_from(
+        item: ResponseRouterData<
+            F,
+            PaymentIntentResponse,
+            PaymentsIncrementalAuthorizationData,
+            PaymentsResponseData,
+        >,
+    ) -> Result<Self, Self::Error> {
+        let status = common_enums::AuthorizationStatus::from(item.response.status);
+        Ok(Self {
+            response: Ok(PaymentsResponseData::IncrementalAuthorizationResponse {
+                status,
+                error_code: None,
+                error_message: None,
+                connector_authorization_id: Some(item.response.id),
+            }),
             ..item.data
         })
     }

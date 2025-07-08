@@ -51,7 +51,7 @@ use hyperswitch_domain_models::{
 };
 #[cfg(feature = "payouts")]
 use hyperswitch_interfaces::types::{
-    IncrementalAuthorizationType, PayoutCancelType, PayoutCreateType, PayoutFulfillType,
+    PayoutCancelType, PayoutCreateType, PayoutFulfillType,
     PayoutRecipientAccountType, PayoutRecipientType,
 };
 use hyperswitch_interfaces::{
@@ -70,7 +70,7 @@ use hyperswitch_interfaces::{
     types::{
         ConnectorCustomerType, PaymentsAuthorizeType, PaymentsCaptureType, PaymentsSyncType,
         PaymentsUpdateMetadataType, PaymentsVoidType, RefundExecuteType, RefundSyncType, Response,
-        RetrieveFileType, SubmitEvidenceType, TokenizationType, UploadFileType,
+        RetrieveFileType, SubmitEvidenceType, TokenizationType, UploadFileType, IncrementalAuthorizationType
     },
     webhooks::{IncomingWebhook, IncomingWebhookRequestDetails},
 };
