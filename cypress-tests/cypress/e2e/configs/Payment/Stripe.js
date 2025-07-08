@@ -390,20 +390,6 @@ export const connectorDetails = {
         },
       },
     },
-    IncrementalAuth: {
-      Request: {
-        amount: 6000,
-      },
-      Response: {
-        status: 200,
-        body: {
-          status: "requires_capture",
-          amount: 6000,
-          amount_capturable: 6000,
-          amount_received: null,
-        },
-      },
-    },
     MandateSingleUse3DSAutoCapture: {
       Request: {
         payment_method: "card",
