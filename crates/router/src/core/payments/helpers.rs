@@ -4003,15 +4003,6 @@ impl MerchantConnectorAccountType {
             Self::CacheVal(_) => None,
         }
     }
-
-    pub fn get_inner_db_merchant_connector_account(
-        &self,
-    ) -> Option<&domain::MerchantConnectorAccount> {
-        match self {
-            Self::DbVal(db_val) => Some(db_val),
-            Self::CacheVal(_) => None,
-        }
-    }
 }
 
 /// Query for merchant connector account either by business label or profile id

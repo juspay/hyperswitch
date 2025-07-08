@@ -449,10 +449,7 @@ impl ForeignTryFrom<payments_grpc::RedirectForm> for RedirectForm {
                 html_data: html.html_data,
             }),
             Some(payments_grpc::redirect_form::FormType::Uri(_)) => {
-                Err(UnifiedConnectorServiceError::NotImplemented(
-                    "URI redirect form type is not implemented".to_string(),
-                )
-                .into())
+                todo!("Handle URI redirect form type")
             }
             None => Err(
                 UnifiedConnectorServiceError::RequestEncodingFailedWithReason(

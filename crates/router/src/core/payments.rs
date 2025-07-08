@@ -4303,96 +4303,88 @@ where
     dyn api::Connector:
         services::api::ConnectorIntegration<F, RouterDReq, router_types::PaymentsResponseData>,
 {
-    let stime_connector = Instant::now();
-    let result =
-        match should_call_unified_connector_service(state, merchant_context, &router_data).await? {
-            true => {
-                if should_add_task_to_process_tracker(payment_data) {
-                    operation
-                        .to_domain()?
-                        .add_task_to_process_tracker(
-                            state,
-                            payment_data.get_payment_attempt(),
-                            false,
-                            schedule_time,
-                        )
-                        .await
-                        .map_err(|error| logger::error!(process_tracker_error=?error))
-                        .ok();
-                }
-
-                (_, *payment_data) = operation
-                    .to_update_tracker()?
-                    .update_trackers(
+    record_time_taken_with(|| async {
+        if should_call_unified_connector_service(state, merchant_context, &router_data).await? {
+            if should_add_task_to_process_tracker(payment_data) {
+                operation
+                    .to_domain()?
+                    .add_task_to_process_tracker(
                         state,
-                        req_state,
-                        payment_data.clone(),
-                        customer.clone(),
-                        merchant_context.get_merchant_account().storage_scheme,
-                        None,
-                        merchant_context.get_merchant_key_store(),
-                        frm_suggestion,
-                        header_payload.clone(),
-                    )
-                    .await?;
-
-                router_data
-                    .call_unified_connector_service(
-                        state,
-                        merchant_connector_account_type_details.clone(),
-                        merchant_context,
-                    )
-                    .await?;
-
-                Ok(router_data)
-            }
-            false => {
-                if state.conf.merchant_id_auth.merchant_id_auth_enabled {
-                    internal_call_connector_service(
-                        state,
-                        req_state.clone(),
-                        merchant_context,
-                        connector,
-                        operation,
-                        payment_data,
-                        call_connector_action.clone(),
-                        header_payload.clone(),
-                        business_profile,
-                        all_keys_required,
-                        router_data,
-                    )
-                    .await
-                } else {
-                    call_connector_service(
-                        state,
-                        req_state,
-                        merchant_context,
-                        connector,
-                        operation,
-                        payment_data,
-                        customer,
-                        call_connector_action,
+                        payment_data.get_payment_attempt(),
+                        false,
                         schedule_time,
-                        header_payload,
-                        frm_suggestion,
-                        business_profile,
-                        is_retry_payment,
-                        should_retry_with_pan,
-                        all_keys_required,
-                        merchant_connector_account_type_details,
-                        router_data,
-                        updated_customer,
                     )
                     .await
-                }
+                    .map_err(|error| logger::error!(process_tracker_error=?error))
+                    .ok();
             }
-        };
 
-    let etime_connector = Instant::now();
-    let duration_connector = etime_connector.saturating_duration_since(stime_connector);
-    tracing::info!(duration = format!("Duration taken: {}", duration_connector.as_millis()));
+            (_, *payment_data) = operation
+                .to_update_tracker()?
+                .update_trackers(
+                    state,
+                    req_state,
+                    payment_data.clone(),
+                    customer.clone(),
+                    merchant_context.get_merchant_account().storage_scheme,
+                    None,
+                    merchant_context.get_merchant_key_store(),
+                    frm_suggestion,
+                    header_payload.clone(),
+                )
+                .await?;
 
-    result
+            router_data
+                .call_unified_connector_service(
+                    state,
+                    merchant_connector_account_type_details.clone(),
+                    merchant_context,
+                )
+                .await?;
+
+            Ok(router_data)
+        } else {
+            if state.conf.merchant_id_auth.merchant_id_auth_enabled {
+                internal_call_connector_service(
+                    state,
+                    req_state.clone(),
+                    merchant_context,
+                    connector,
+                    operation,
+                    payment_data,
+                    call_connector_action.clone(),
+                    header_payload.clone(),
+                    business_profile,
+                    all_keys_required,
+                    router_data,
+                )
+                .await
+            } else {
+                call_connector_service(
+                    state,
+                    req_state,
+                    merchant_context,
+                    connector,
+                    operation,
+                    payment_data,
+                    customer,
+                    call_connector_action,
+                    schedule_time,
+                    header_payload,
+                    frm_suggestion,
+                    business_profile,
+                    is_retry_payment,
+                    should_retry_with_pan,
+                    all_keys_required,
+                    merchant_connector_account_type_details,
+                    router_data,
+                    updated_customer,
+                )
+                .await
+            }
+        }
+    })
+    .await?;
 }
 #[cfg(feature = "v1")]
 // This function does not perform the tokenization action, as the payment method is not saved in this flow.

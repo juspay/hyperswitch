@@ -18,26 +18,7 @@ use common_types::payments::CustomerAcceptance;
 use hyperswitch_domain_models::router_flow_types::{
     BillingConnectorInvoiceSync, BillingConnectorPaymentsSync, RecoveryRecordBack,
 };
-#[cfg(feature = "dummy_connector")]
-use hyperswitch_domain_models::router_flow_types::{
-    ExternalVaultCreateFlow, ExternalVaultDeleteFlow, ExternalVaultInsertFlow,
-    ExternalVaultRetrieveFlow,
-};
-use hyperswitch_domain_models::{
-    router_flow_types::{
-        Authenticate, AuthenticationConfirmation, PostAuthenticate, PreAuthenticate,
-    },
-    router_request_types::PaymentsCaptureData,
-};
-#[cfg(feature = "dummy_connector")]
-use hyperswitch_interfaces::api::vault::{
-    ExternalVault, ExternalVaultCreate, ExternalVaultDelete, ExternalVaultInsert,
-    ExternalVaultRetrieve,
-};
-use hyperswitch_interfaces::api::{
-    payouts::Payouts, UasAuthentication, UasAuthenticationConfirmation, UasPostAuthentication,
-    UasPreAuthentication, UnifiedAuthenticationService,
-};
+use hyperswitch_domain_models::router_request_types::PaymentsCaptureData;
 
 use crate::{
     core::{
