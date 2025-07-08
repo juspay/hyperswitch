@@ -254,6 +254,20 @@ export const connectorDetails = {
         },
       },
     },
+    IncrementalAuth: {
+      Request: {
+        amount: 6000,
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_capture",
+          amount: 6000,
+          amount_capturable: 6000,
+          amount_received: null,
+        },
+      },
+    },
     ZeroAuthMandate: {
       Request: {
         payment_method: "card",
@@ -313,6 +327,12 @@ export const connectorDetails = {
       },
     },
     PaymentIntentOffSession: {
+      Configs: {
+        CONNECTOR_CREDENTIAL: {
+          specName: ["incrementalAuth"],
+          value: "connector_2",
+        },
+      },
       Request: {
         currency: "USD",
         amount: 6000,
@@ -395,6 +415,12 @@ export const connectorDetails = {
       },
     },
     SaveCardUseNo3DSManualCaptureOffSession: {
+      Configs: {
+        CONNECTOR_CREDENTIAL: {
+          specName: ["incrementalAuth"],
+          value: "connector_2",
+        },
+      },
       Request: {
         payment_method: "card",
         payment_method_data: {
