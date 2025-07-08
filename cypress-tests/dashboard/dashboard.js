@@ -31,6 +31,9 @@ function setupEventListeners() {
   document
     .getElementById("refreshBtn")
     .addEventListener("click", loadDashboardData);
+  document
+    .getElementById("loadLatestBtn")
+    .addEventListener("click", loadLatestReport);
   document.getElementById("themeToggle").addEventListener("click", toggleTheme);
   document
     .getElementById("connectorFilter")
@@ -90,6 +93,59 @@ async function loadDashboardData() {
     console.error("Error loading dashboard data:", error);
     showError(
       "Failed to load dashboard data. Make sure to run the report generator first."
+    );
+  }
+}
+
+// Load latest report from the hosted environment
+async function loadLatestReport() {
+  try {
+    let response;
+    
+    // Check if we're running on the hosted environment or can access the remote URL
+    if (window.location.hostname === "integ.hyperswitch.io" || window.location.protocol === "https:") {
+      // Try to load from the remote URL first
+      try {
+        response = await fetch(
+          "https://integ.hyperswitch.io/cypress-test/reports/report_latest.json"
+        );
+        if (!response.ok) {
+          throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+        }
+      } catch (remoteError) {
+        console.warn("Failed to load from remote URL, trying local fallback:", remoteError);
+        // Fall back to local path if remote fails
+        response = await fetch("../cypress/reports/dashboard-data.json");
+      }
+    } else {
+      // For local development, try local path first, then remote as fallback
+      try {
+        response = await fetch("../cypress/reports/dashboard-data.json");
+        if (!response.ok) {
+          throw new Error(`Local file not found: HTTP ${response.status}`);
+        }
+      } catch (localError) {
+        console.warn("Failed to load from local path, trying remote URL:", localError);
+        // Fall back to remote URL if local fails
+        response = await fetch(
+          "https://integ.hyperswitch.io/cypress-test/reports/report_latest.json"
+        );
+      }
+    }
+    
+    if (!response.ok) {
+      throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+    }
+
+    dashboardData = await response.json();
+    updateDashboard();
+    
+    // Show success message
+    showSuccess("Latest report loaded successfully!");
+  } catch (error) {
+    console.error("Error loading latest report:", error);
+    showError(
+      "Failed to load latest report. Please check if the report is available at both local and remote locations."
     );
   }
 }
@@ -792,6 +848,29 @@ function showError(message) {
 
   setTimeout(() => {
     errorDiv.remove();
+  }, 5000);
+}
+
+// Show success message
+function showSuccess(message) {
+  const container = document.querySelector(".container");
+  const successDiv = document.createElement("div");
+  successDiv.className = "success-message";
+  successDiv.style.position = "fixed";
+  successDiv.style.top = "20px";
+  successDiv.style.right = "20px";
+  successDiv.style.zIndex = "1001";
+  successDiv.style.backgroundColor = "#04c38d";
+  successDiv.style.color = "white";
+  successDiv.style.padding = "12px 20px";
+  successDiv.style.borderRadius = "4px";
+  successDiv.style.boxShadow = "0 2px 10px rgba(0,0,0,0.1)";
+  successDiv.textContent = message;
+
+  container.appendChild(successDiv);
+
+  setTimeout(() => {
+    successDiv.remove();
   }, 5000);
 }
 
