@@ -873,15 +873,15 @@ export const connectorDetails = {
         authentication_type: "no_three_ds",
         description: "hello world",
         billing: {
-            address: {
-                zip: "560095",
-                first_name: "John",
-                last_name: "Doe",
-                line1: "Harry Street",
-                country: "AT",
-                line2: "Downbridge",
-                city: "London"
-            }
+          address: {
+            zip: "560095",
+            first_name: "John",
+            last_name: "Doe",
+            line1: "Harry Street",
+            country: "AT",
+            line2: "Downbridge",
+            city: "London",
+          },
         },
         payment_method_data: {
           bank_redirect: {
@@ -907,15 +907,15 @@ export const connectorDetails = {
         authentication_type: "no_three_ds",
         description: "hello world",
         billing: {
-            address: {
-                zip: "560095",
-                first_name: "John",
-                last_name: "Doe",
-                line1: "Harry Street",
-                country: "AT",
-                line2: "line2",
-                city: "London"
-            }
+          address: {
+            zip: "560095",
+            first_name: "John",
+            last_name: "Doe",
+            line1: "Harry Street",
+            country: "AT",
+            line2: "line2",
+            city: "London",
+          },
         },
         payment_method_data: {
           bank_redirect: {
