@@ -458,36 +458,37 @@ where
         .get_connector_from_request(state, &req, &mut payment_data)
         .await?;
 
-    let (mca_type_details, router_data) = internal_call_connector_service_prerequisites(
-        state,
-        &merchant_context,
-        connector_data.clone(),
-        &operation,
-        &mut payment_data,
-        profile,
-    )
-    .await?;
+    let merchant_connector_account = payment_data
+        .get_merchant_connector_details()
+        .map(domain::MerchantConnectorAccountTypeDetails::MerchantConnectorDetails)
+        .ok_or_else(|| {
+            error_stack::report!(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable("Merchant connector details not found in payment data")
+        })?;
 
-    let router_data = decide_unified_connector_service_call(
+    operation
+        .to_domain()?
+        .populate_payment_data(
+            state,
+            &mut payment_data,
+            &merchant_context,
+            profile,
+            &connector_data,
+        )
+        .await?;
+
+    let router_data = connector_service_decider(
         state,
         req_state.clone(),
         &merchant_context,
         connector_data.clone(),
         &operation,
         &mut payment_data,
-        &None,
         call_connector_action.clone(),
-        None, // schedule_time is not used in PreDetermined ConnectorCallType
         header_payload.clone(),
-        #[cfg(feature = "frm")]
-        None,
         profile,
-        false,
-        false,
         req.should_return_raw_response(),
-        mca_type_details,
-        router_data,
-        None,
+        merchant_connector_account,
     )
     .await?;
 
@@ -3576,27 +3577,37 @@ where
 
     router_data = router_data.add_session_token(state, &connector).await?;
 
-    let mut should_continue_further = access_token::update_router_data_with_access_token_result(
+    let should_continue_further = access_token::update_router_data_with_access_token_result(
         &add_access_token_result,
         &mut router_data,
         &call_connector_action,
     );
 
-    let add_create_order_result = router_data
+    let should_continue = router_data
         .create_order_at_connector(state, &connector, should_continue_further)
-        .await?;
+        .await?
+        .map(|create_order_response| {
+            // why this needs to be updated in payment data
+            if let Ok(order_id) = create_order_response.clone().create_order_result {
+                payment_data.set_connector_response_reference_id(Some(order_id));
+            }
 
-    if add_create_order_result.is_create_order_performed {
-        if let Ok(order_id_opt) = &add_create_order_result.create_order_result {
-            payment_data.set_connector_response_reference_id(order_id_opt.clone());
+            // Set the response in routerdata response to carry forward
+            router_data.update_router_data_with_create_order_response(create_order_response);
+        });
+
+    let (_, should_continue_further) = match should_continue {
+        Some(_) => {
+            router_data
+                .build_flow_specific_connector_request(
+                    state,
+                    &connector,
+                    call_connector_action.clone(),
+                )
+                .await?
         }
-        should_continue_further = router_data
-            .update_router_data_with_create_order_result(
-                add_create_order_result,
-                should_continue_further,
-            )
-            .await?;
-    }
+        None => (None, false),
+    };
 
     let updated_customer = call_create_connector_customer_if_required(
         state,
@@ -4043,37 +4054,38 @@ where
 
     router_data = router_data.add_session_token(state, &connector).await?;
 
-    let mut should_continue_further = access_token::update_router_data_with_access_token_result(
+    let should_continue_further = access_token::update_router_data_with_access_token_result(
         &add_access_token_result,
         &mut router_data,
         &call_connector_action,
     );
 
-    let add_create_order_result = router_data
+    let should_continue = router_data
         .create_order_at_connector(state, &connector, should_continue_further)
-        .await?;
+        .await?
+        .map(|create_order_response| {
+            // why this needs to be updated in payment data
+            if let Ok(order_id) = create_order_response.clone().create_order_result {
+                payment_data.set_connector_response_reference_id(Some(order_id));
+            }
 
-    if add_create_order_result.is_create_order_performed {
-        if let Ok(order_id_opt) = &add_create_order_result.create_order_result {
-            payment_data.set_connector_response_reference_id(order_id_opt.clone());
-        }
-        should_continue_further = router_data
-            .update_router_data_with_create_order_result(
-                add_create_order_result,
-                should_continue_further,
-            )
-            .await?;
-    }
+            // Set the response in routerdata response to carry forward
+            router_data.update_router_data_with_create_order_response(create_order_response);
+        });
 
     // In case of authorize flow, pre-task and post-tasks are being called in build request
     // if we do not want to proceed further, then the function will return Ok(None, false)
-    let (connector_request, should_continue_further) = if should_continue_further {
-        // Check if the actual flow specific request can be built with available data
-        router_data
-            .build_flow_specific_connector_request(state, &connector, call_connector_action.clone())
-            .await?
-    } else {
-        (None, false)
+    let (connector_request, should_continue_further) = match should_continue {
+        Some(_) => {
+            router_data
+                .build_flow_specific_connector_request(
+                    state,
+                    &connector,
+                    call_connector_action.clone(),
+                )
+                .await?
+        }
+        None => (None, false),
     };
 
     // Update the payment trackers just before calling the connector
@@ -4271,6 +4283,134 @@ where
 #[cfg(feature = "v2")]
 #[allow(clippy::too_many_arguments)]
 #[instrument(skip_all)]
+pub async fn connector_service_decider<F, RouterDReq, ApiRequest, D>(
+    state: &SessionState,
+    req_state: ReqState,
+    merchant_context: &domain::MerchantContext,
+    connector: api::ConnectorData,
+    operation: &BoxedOperation<'_, F, ApiRequest, D>,
+    payment_data: &mut D,
+    call_connector_action: CallConnectorAction,
+    header_payload: HeaderPayload,
+    business_profile: &domain::Profile,
+    return_raw_connector_response: Option<bool>,
+    merchant_connector_account_type_details: domain::MerchantConnectorAccountTypeDetails,
+) -> RouterResult<RouterData<F, RouterDReq, router_types::PaymentsResponseData>>
+where
+    F: Send + Clone + Sync,
+    RouterDReq: Send + Sync,
+
+    // To create connector flow specific interface data
+    D: OperationSessionGetters<F> + OperationSessionSetters<F> + Send + Sync + Clone,
+    D: ConstructFlowSpecificData<F, RouterDReq, router_types::PaymentsResponseData>,
+    RouterData<F, RouterDReq, router_types::PaymentsResponseData>: Feature<F, RouterDReq> + Send,
+    // To construct connector flow specific api
+    dyn api::Connector:
+        services::api::ConnectorIntegration<F, RouterDReq, router_types::PaymentsResponseData>,
+{
+    let mut router_data = payment_data
+        .construct_router_data(
+            state,
+            connector.connector.id(),
+            merchant_context,
+            &None,
+            &merchant_connector_account_type_details,
+            None,
+            None,
+        )
+        .await?;
+
+    // do order creation
+    let should_call_unified_connector_service =
+        should_call_unified_connector_service(state, merchant_context, &router_data).await?;
+
+    let (connector_request, should_continue_further) = if !should_call_unified_connector_service {
+        let mut should_continue_further = true;
+
+        let should_continue = router_data
+            .create_order_at_connector(state, &connector, should_continue_further)
+            .await?
+            .map(|create_order_response| {
+                // why this needs to be updated in payment data
+                if let Ok(order_id) = create_order_response.clone().create_order_result {
+                    payment_data.set_connector_response_reference_id(Some(order_id))
+                }
+
+                // Set the response in routerdata response to carry forward
+                router_data.update_router_data_with_create_order_response(create_order_response);
+            });
+
+        let should_continue: (Option<common_utils::request::Request>, bool) = match should_continue
+        {
+            Some(_) => {
+                router_data
+                    .build_flow_specific_connector_request(
+                        state,
+                        &connector,
+                        call_connector_action.clone(),
+                    )
+                    .await?
+            }
+            None => (None, false),
+        };
+        should_continue
+    } else {
+        // If unified connector service is called, these values are not used
+        // as the request is built in the unified connector service call
+        (None, false)
+    };
+
+    (_, *payment_data) = operation
+        .to_update_tracker()?
+        .update_trackers(
+            state,
+            req_state,
+            payment_data.clone(),
+            None, // customer is not used in internal flows
+            merchant_context.get_merchant_account().storage_scheme,
+            None,
+            merchant_context.get_merchant_key_store(),
+            None, // frm_suggestion is not used in internal flows
+            header_payload.clone(),
+        )
+        .await?;
+
+    record_time_taken_with(|| async {
+        if should_call_unified_connector_service {
+            router_data
+                .call_unified_connector_service(
+                    state,
+                    merchant_connector_account_type_details.clone(),
+                    merchant_context,
+                )
+                .await?;
+
+            Ok(router_data)
+        } else {
+            let router_data = if should_continue_further {
+                router_data
+                    .decide_flows(
+                        state,
+                        &connector,
+                        call_connector_action,
+                        connector_request,
+                        business_profile,
+                        header_payload.clone(),
+                        return_raw_connector_response,
+                    )
+                    .await
+            } else {
+                Ok(router_data)
+            }?;
+            Ok(router_data)
+        }
+    })
+    .await
+}
+
+#[cfg(feature = "v2")]
+#[allow(clippy::too_many_arguments)]
+#[instrument(skip_all)]
 pub async fn decide_unified_connector_service_call<F, RouterDReq, ApiRequest, D>(
     state: &SessionState,
     req_state: ReqState,
@@ -4286,7 +4426,7 @@ pub async fn decide_unified_connector_service_call<F, RouterDReq, ApiRequest, D>
     business_profile: &domain::Profile,
     is_retry_payment: bool,
     should_retry_with_pan: bool,
-    all_keys_required: Option<bool>,
+    return_raw_connector_response: Option<bool>,
     merchant_connector_account_type_details: domain::MerchantConnectorAccountTypeDetails,
     mut router_data: RouterData<F, RouterDReq, router_types::PaymentsResponseData>,
     updated_customer: Option<storage::CustomerUpdate>,
@@ -4344,44 +4484,27 @@ where
 
             Ok(router_data)
         } else {
-            if state.conf.merchant_id_auth.merchant_id_auth_enabled {
-                internal_call_connector_service(
-                    state,
-                    req_state.clone(),
-                    merchant_context,
-                    connector,
-                    operation,
-                    payment_data,
-                    call_connector_action.clone(),
-                    header_payload.clone(),
-                    business_profile,
-                    all_keys_required,
-                    router_data,
-                )
-                .await
-            } else {
-                call_connector_service(
-                    state,
-                    req_state,
-                    merchant_context,
-                    connector,
-                    operation,
-                    payment_data,
-                    customer,
-                    call_connector_action,
-                    schedule_time,
-                    header_payload,
-                    frm_suggestion,
-                    business_profile,
-                    is_retry_payment,
-                    should_retry_with_pan,
-                    all_keys_required,
-                    merchant_connector_account_type_details,
-                    router_data,
-                    updated_customer,
-                )
-                .await
-            }
+            call_connector_service(
+                state,
+                req_state,
+                merchant_context,
+                connector,
+                operation,
+                payment_data,
+                customer,
+                call_connector_action,
+                schedule_time,
+                header_payload,
+                frm_suggestion,
+                business_profile,
+                is_retry_payment,
+                should_retry_with_pan,
+                return_raw_connector_response,
+                merchant_connector_account_type_details,
+                router_data,
+                updated_customer,
+            )
+            .await
         }
     })
     .await
@@ -4636,115 +4759,6 @@ where
         &mut router_data,
         &call_connector_action,
     );
-
-    let (connector_request, should_continue_further) = if should_continue_further {
-        router_data
-            .build_flow_specific_connector_request(state, &connector, call_connector_action.clone())
-            .await?
-    } else {
-        (None, false)
-    };
-
-    (_, *payment_data) = operation
-        .to_update_tracker()?
-        .update_trackers(
-            state,
-            req_state,
-            payment_data.clone(),
-            None,
-            merchant_context.get_merchant_account().storage_scheme,
-            None,
-            merchant_context.get_merchant_key_store(),
-            None,
-            header_payload.clone(),
-        )
-        .await?;
-
-    let router_data = if should_continue_further {
-        router_data
-            .decide_flows(
-                state,
-                &connector,
-                call_connector_action,
-                connector_request,
-                business_profile,
-                header_payload.clone(),
-                return_raw_connector_response,
-            )
-            .await
-    } else {
-        Ok(router_data)
-    }?;
-
-    let etime_connector = Instant::now();
-    let duration_connector = etime_connector.saturating_duration_since(stime_connector);
-    tracing::info!(duration = format!("Duration taken: {}", duration_connector.as_millis()));
-
-    Ok(router_data)
-}
-
-#[cfg(feature = "v2")]
-#[allow(clippy::too_many_arguments)]
-#[instrument(skip_all)]
-pub async fn internal_call_connector_service<F, RouterDReq, ApiRequest, D>(
-    state: &SessionState,
-    req_state: ReqState,
-    merchant_context: &domain::MerchantContext,
-    connector: api::ConnectorData,
-    operation: &BoxedOperation<'_, F, ApiRequest, D>,
-    payment_data: &mut D,
-    call_connector_action: CallConnectorAction,
-    header_payload: HeaderPayload,
-    business_profile: &domain::Profile,
-    return_raw_connector_response: Option<bool>,
-    mut router_data: RouterData<F, RouterDReq, router_types::PaymentsResponseData>,
-) -> RouterResult<RouterData<F, RouterDReq, router_types::PaymentsResponseData>>
-where
-    F: Send + Clone + Sync,
-    RouterDReq: Send + Sync,
-
-    // To create connector flow specific interface data
-    D: OperationSessionGetters<F> + OperationSessionSetters<F> + Send + Sync + Clone,
-    D: ConstructFlowSpecificData<F, RouterDReq, router_types::PaymentsResponseData>,
-    RouterData<F, RouterDReq, router_types::PaymentsResponseData>: Feature<F, RouterDReq> + Send,
-    // To construct connector flow specific api
-    dyn api::Connector:
-        services::api::ConnectorIntegration<F, RouterDReq, router_types::PaymentsResponseData>,
-{
-    let stime_connector = Instant::now();
-
-    let add_access_token_result = router_data
-        .add_access_token(
-            state,
-            &connector,
-            merchant_context,
-            payment_data.get_creds_identifier(),
-        )
-        .await?;
-
-    router_data = router_data.add_session_token(state, &connector).await?;
-
-    let mut should_continue_further = access_token::update_router_data_with_access_token_result(
-        &add_access_token_result,
-        &mut router_data,
-        &call_connector_action,
-    );
-
-    let add_create_order_result = router_data
-        .create_order_at_connector(state, &connector, should_continue_further)
-        .await?;
-
-    if add_create_order_result.is_create_order_performed {
-        if let Ok(order_id_opt) = &add_create_order_result.create_order_result {
-            payment_data.set_connector_response_reference_id(order_id_opt.clone());
-        }
-        should_continue_further = router_data
-            .update_router_data_with_create_order_result(
-                add_create_order_result,
-                should_continue_further,
-            )
-            .await?;
-    }
 
     let (connector_request, should_continue_further) = if should_continue_further {
         router_data

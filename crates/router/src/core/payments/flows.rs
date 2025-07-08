@@ -185,29 +185,19 @@ pub trait Feature<F, T> {
         _state: &SessionState,
         _connector: &api::ConnectorData,
         _should_continue_payment: bool,
-    ) -> RouterResult<types::CreateOrderResult>
+    ) -> RouterResult<Option<types::CreateOrderResult>>
     where
         F: Clone,
         Self: Sized,
         dyn api::Connector: services::ConnectorIntegration<F, T, types::PaymentsResponseData>,
     {
-        Ok(types::CreateOrderResult {
-            create_order_result: Ok(None),
-            is_create_order_performed: false,
-        })
+        Ok(None)
     }
 
-    async fn update_router_data_with_create_order_result(
+    fn update_router_data_with_create_order_response(
         &mut self,
         _create_order_result: types::CreateOrderResult,
-        should_continue_payment: bool,
-    ) -> RouterResult<bool>
-    where
-        F: Clone,
-        Self: Sized,
-        dyn api::Connector: services::ConnectorIntegration<F, T, types::PaymentsResponseData>,
-    {
-        Ok(should_continue_payment)
+    ) {
     }
 
     async fn call_unified_connector_service<'a>(

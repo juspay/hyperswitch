@@ -513,9 +513,9 @@ pub struct PaymentMethodTokenResult {
     pub connector_response: Option<ConnectorResponseData>,
 }
 
+#[derive(Clone)]
 pub struct CreateOrderResult {
-    pub create_order_result: Result<Option<String>, ErrorResponse>,
-    pub is_create_order_performed: bool,
+    pub create_order_result: Result<String, ErrorResponse>,
 }
 
 pub struct PspTokenResult {
