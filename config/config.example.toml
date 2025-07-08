@@ -1094,7 +1094,8 @@ background_color = "#FFFFFF"                                                    
 billing_connectors_which_require_payment_sync = "stripebilling, recurly" # List of billing connectors which has payment sync api call
 
 [open_router]
-enabled = true                          # Enable or disable Open Router
+dynamic_routing_enabled = true                          # Enable or disable Open Router for dynamic routing
+static_routing_enabled = true           # Enable or disable Open Router for static routing
 url = "http://localhost:8080"           # Open Router URL
 
 [grpc_client.unified_connector_service]

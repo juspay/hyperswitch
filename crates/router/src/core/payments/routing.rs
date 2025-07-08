@@ -490,7 +490,7 @@ pub async fn perform_static_routing_v1(
             .to_string(),
     };
 
-    let de_euclid_connectors = if !state.conf.open_router.url.is_empty() {
+    let de_euclid_connectors = if state.conf.open_router.static_routing_enabled {
         let routing_events_wrapper = utils::RoutingEventsWrapper::new(
             state.tenant.tenant_id.clone(),
             state.request_id,
