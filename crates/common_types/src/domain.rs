@@ -88,3 +88,29 @@ pub struct AcquirerConfig {
 pub struct AcquirerConfigMap(pub HashMap<common_utils::id_type::ProfileAcquirerId, AcquirerConfig>);
 
 impl_to_sql_from_sql_json!(AcquirerConfigMap);
+
+/// Merchant connector details
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema)]
+#[cfg(feature = "v2")]
+pub struct MerchantConnectorAuthDetails {
+    /// The connector used for the payment
+    #[schema(value_type = Connector)]
+    pub connector_name: common_enums::connector_enums::Connector,
+
+    /// The merchant connector credentials used for the payment
+    #[schema(value_type = Object, example = r#"{
+        "merchant_connector_creds": {
+            "auth_type": "HeaderKey",
+            "api_key":"sk_test_xxxxxexamplexxxxxx12345"
+        },
+    }"#)]
+    pub merchant_connector_creds: common_utils::pii::SecretSerdeValue,
+}
+
+/// Connector Response Data that are required to be populated in response
+#[cfg(feature = "v2")]
+#[derive(Clone, Debug)]
+pub struct ConnectorResponseData {
+    /// Stringified connector raw response body
+    pub raw_connector_response: Option<String>,
+}

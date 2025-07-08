@@ -74,7 +74,9 @@ pub enum RoutableConnectors {
     Boku,
     Braintree,
     Cashtocode,
+    Celero,
     Chargebee,
+    // Checkbook,
     Checkout,
     Coinbase,
     Coingate,
@@ -84,6 +86,7 @@ pub enum RoutableConnectors {
     Deutschebank,
     Digitalvirgo,
     Dlocal,
+    // Dwolla,
     Ebanx,
     Elavon,
     Facilitapay,
@@ -119,6 +122,7 @@ pub enum RoutableConnectors {
     // Payeezy, As psync and rsync are not supported by this connector, it is added as template code for future usage
     Paybox,
     Payme,
+    Payload,
     Payone,
     Paypal,
     Paystack,
@@ -131,6 +135,7 @@ pub enum RoutableConnectors {
     Recurly,
     Redsys,
     Riskified,
+    Santander,
     Shift4,
     Signifyd,
     Square,
@@ -228,7 +233,9 @@ pub enum Connector {
     Boku,
     Braintree,
     Cashtocode,
+    Celero,
     Chargebee,
+    // Checkbook,
     Checkout,
     Coinbase,
     Coingate,
@@ -240,6 +247,7 @@ pub enum Connector {
     Deutschebank,
     Digitalvirgo,
     Dlocal,
+    // Dwolla,
     Ebanx,
     Elavon,
     Facilitapay,
@@ -278,6 +286,7 @@ pub enum Connector {
     Opennode,
     Paybox,
     // Payeezy, As psync and rsync are not supported by this connector, it is added as template code for future usage
+    Payload,
     Payme,
     Payone,
     Paypal,
@@ -290,6 +299,7 @@ pub enum Connector {
     Razorpay,
     Recurly,
     Redsys,
+    Santander,
     Shift4,
     Square,
     Stax,
@@ -409,13 +419,16 @@ impl Connector {
             | Self::Boku
             | Self::Braintree
             | Self::Cashtocode
+            | Self::Celero
             | Self::Chargebee
+            // | Self::Checkbook
             | Self::Coinbase
             | Self::Coingate
             | Self::Cryptopay
             | Self::Deutschebank
             | Self::Digitalvirgo
             | Self::Dlocal
+            // | Self::Dwolla
             | Self::Ebanx
             | Self::Elavon
             | Self::Facilitapay
@@ -449,6 +462,7 @@ impl Connector {
             | Self::Nuvei
             | Self::Opennode
             | Self::Paybox
+            | Self::Payload
             | Self::Payme
             | Self::Payone
             | Self::Paypal
@@ -460,6 +474,7 @@ impl Connector {
             | Self::Rapyd
             | Self::Recurly
             | Self::Redsys
+            | Self::Santander
             | Self::Shift4
             | Self::Square
             | Self::Stax
@@ -568,7 +583,9 @@ impl From<RoutableConnectors> for Connector {
             RoutableConnectors::Boku => Self::Boku,
             RoutableConnectors::Braintree => Self::Braintree,
             RoutableConnectors::Cashtocode => Self::Cashtocode,
+            RoutableConnectors::Celero => Self::Celero,
             RoutableConnectors::Chargebee => Self::Chargebee,
+            // RoutableConnectors::Checkbook => Self::Checkbook,
             RoutableConnectors::Checkout => Self::Checkout,
             RoutableConnectors::Coinbase => Self::Coinbase,
             RoutableConnectors::Cryptopay => Self::Cryptopay,
@@ -577,6 +594,7 @@ impl From<RoutableConnectors> for Connector {
             RoutableConnectors::Deutschebank => Self::Deutschebank,
             RoutableConnectors::Digitalvirgo => Self::Digitalvirgo,
             RoutableConnectors::Dlocal => Self::Dlocal,
+            // RoutableConnectors::Dwolla => Self::Dwolla,
             RoutableConnectors::Ebanx => Self::Ebanx,
             RoutableConnectors::Elavon => Self::Elavon,
             RoutableConnectors::Facilitapay => Self::Facilitapay,
@@ -607,6 +625,7 @@ impl From<RoutableConnectors> for Connector {
             RoutableConnectors::Nuvei => Self::Nuvei,
             RoutableConnectors::Opennode => Self::Opennode,
             RoutableConnectors::Paybox => Self::Paybox,
+            RoutableConnectors::Payload => Self::Payload,
             RoutableConnectors::Payme => Self::Payme,
             RoutableConnectors::Payone => Self::Payone,
             RoutableConnectors::Paypal => Self::Paypal,
@@ -620,6 +639,7 @@ impl From<RoutableConnectors> for Connector {
             RoutableConnectors::Recurly => Self::Recurly,
             RoutableConnectors::Redsys => Self::Redsys,
             RoutableConnectors::Riskified => Self::Riskified,
+            RoutableConnectors::Santander => Self::Santander,
             RoutableConnectors::Shift4 => Self::Shift4,
             RoutableConnectors::Signifyd => Self::Signifyd,
             RoutableConnectors::Square => Self::Square,
@@ -685,7 +705,9 @@ impl TryFrom<Connector> for RoutableConnectors {
             Connector::Boku => Ok(Self::Boku),
             Connector::Braintree => Ok(Self::Braintree),
             Connector::Cashtocode => Ok(Self::Cashtocode),
+            Connector::Celero => Ok(Self::Celero),
             Connector::Chargebee => Ok(Self::Chargebee),
+            // Connector::Checkbook => Ok(Self::Checkbook),
             Connector::Checkout => Ok(Self::Checkout),
             Connector::Coinbase => Ok(Self::Coinbase),
             Connector::Coingate => Ok(Self::Coingate),
@@ -695,6 +717,7 @@ impl TryFrom<Connector> for RoutableConnectors {
             Connector::Deutschebank => Ok(Self::Deutschebank),
             Connector::Digitalvirgo => Ok(Self::Digitalvirgo),
             Connector::Dlocal => Ok(Self::Dlocal),
+            // Connector::Dwolla => Ok(Self::Dwolla),
             Connector::Ebanx => Ok(Self::Ebanx),
             Connector::Elavon => Ok(Self::Elavon),
             Connector::Facilitapay => Ok(Self::Facilitapay),
@@ -724,6 +747,7 @@ impl TryFrom<Connector> for RoutableConnectors {
             Connector::Nuvei => Ok(Self::Nuvei),
             Connector::Opennode => Ok(Self::Opennode),
             Connector::Paybox => Ok(Self::Paybox),
+            Connector::Payload => Ok(Self::Payload),
             Connector::Payme => Ok(Self::Payme),
             Connector::Payone => Ok(Self::Payone),
             Connector::Paypal => Ok(Self::Paypal),
@@ -735,6 +759,7 @@ impl TryFrom<Connector> for RoutableConnectors {
             Connector::Rapyd => Ok(Self::Rapyd),
             Connector::Razorpay => Ok(Self::Razorpay),
             Connector::Riskified => Ok(Self::Riskified),
+            Connector::Santander => Ok(Self::Santander),
             Connector::Shift4 => Ok(Self::Shift4),
             Connector::Signifyd => Ok(Self::Signifyd),
             Connector::Square => Ok(Self::Square),

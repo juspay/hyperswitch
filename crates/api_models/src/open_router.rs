@@ -58,26 +58,41 @@ pub struct PaymentInfo {
     // cardSwitchProvider: Option<Secret<String>>,
 }
 
-#[derive(Debug, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Serialize, Deserialize, PartialEq, Clone)]
 pub struct DecidedGateway {
     pub gateway_priority_map: Option<HashMap<String, f64>>,
     pub debit_routing_output: Option<DebitRoutingOutput>,
     pub routing_approach: String,
 }
 
-#[derive(Debug, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Serialize, Deserialize, PartialEq, Clone)]
 pub struct DebitRoutingOutput {
-    pub co_badged_card_networks: Vec<common_enums::CardNetwork>,
+    pub co_badged_card_networks_info: CoBadgedCardNetworks,
     pub issuer_country: common_enums::CountryAlpha2,
     pub is_regulated: bool,
     pub regulated_name: Option<common_enums::RegulatedName>,
     pub card_type: common_enums::CardType,
 }
 
+#[derive(Debug, Serialize, Deserialize, PartialEq, Clone)]
+pub struct CoBadgedCardNetworksInfo {
+    pub network: common_enums::CardNetwork,
+    pub saving_percentage: f64,
+}
+
+#[derive(Debug, Serialize, Deserialize, PartialEq, Clone)]
+pub struct CoBadgedCardNetworks(pub Vec<CoBadgedCardNetworksInfo>);
+
+impl CoBadgedCardNetworks {
+    pub fn get_card_networks(&self) -> Vec<common_enums::CardNetwork> {
+        self.0.iter().map(|info| info.network.clone()).collect()
+    }
+}
+
 impl From<&DebitRoutingOutput> for payment_methods::CoBadgedCardData {
     fn from(output: &DebitRoutingOutput) -> Self {
         Self {
-            co_badged_card_networks: output.co_badged_card_networks.clone(),
+            co_badged_card_networks_info: output.co_badged_card_networks_info.clone(),
             issuer_country_code: output.issuer_country,
             is_regulated: output.is_regulated,
             regulated_name: output.regulated_name.clone(),
@@ -96,7 +111,7 @@ impl TryFrom<(payment_methods::CoBadgedCardData, String)> for DebitRoutingReques
         })?;
 
         Ok(Self {
-            co_badged_card_networks: output.co_badged_card_networks,
+            co_badged_card_networks_info: output.co_badged_card_networks_info.get_card_networks(),
             issuer_country: output.issuer_country_code,
             is_regulated: output.is_regulated,
             regulated_name: output.regulated_name,
@@ -114,14 +129,14 @@ pub struct CoBadgedCardRequest {
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct DebitRoutingRequestData {
-    pub co_badged_card_networks: Vec<common_enums::CardNetwork>,
+    pub co_badged_card_networks_info: Vec<common_enums::CardNetwork>,
     pub issuer_country: common_enums::CountryAlpha2,
     pub is_regulated: bool,
     pub regulated_name: Option<common_enums::RegulatedName>,
     pub card_type: common_enums::CardType,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct ErrorResponse {
     pub status: String,
     pub error_code: String,
@@ -132,7 +147,7 @@ pub struct ErrorResponse {
     pub is_dynamic_mga_enabled: bool,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct UnifiedError {
     pub code: String,
     pub user_message: String,
@@ -184,6 +199,19 @@ pub enum TxnStatus {
 pub struct DecisionEngineConfigSetupRequest {
     pub merchant_id: String,
     pub config: DecisionEngineConfigVariant,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct GetDecisionEngineConfigRequest {
+    pub merchant_id: String,
+    pub config: DecisionEngineDynamicAlgorithmType,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+#[serde(rename_all = "camelCase")]
+pub enum DecisionEngineDynamicAlgorithmType {
+    SuccessRate,
+    Elimination,
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]

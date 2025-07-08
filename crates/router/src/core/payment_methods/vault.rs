@@ -1387,7 +1387,7 @@ pub async fn retrieve_payment_method_from_vault_external(
     state: &routes::SessionState,
     merchant_account: &domain::MerchantAccount,
     pm: &domain::PaymentMethod,
-    merchant_connector_account: payment_helpers::MerchantConnectorAccountType,
+    merchant_connector_account: domain::MerchantConnectorAccountTypeDetails,
 ) -> RouterResult<pm_types::VaultRetrieveResponse> {
     let connector_vault_id = pm
         .locker_id
@@ -1527,6 +1527,111 @@ pub async fn retrieve_payment_method_from_vault_using_payment_token(
     Ok((payment_method, vault_data))
 }
 
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct TemporaryVaultCvc {
+    card_cvc: masking::Secret<String>,
+}
+
+#[cfg(feature = "v2")]
+#[instrument(skip_all)]
+pub async fn insert_cvc_using_payment_token(
+    state: &routes::SessionState,
+    payment_token: &String,
+    payment_method_data: api_models::payment_methods::PaymentMethodCreateData,
+    payment_method: common_enums::PaymentMethod,
+    fullfillment_time: i64,
+    encryption_key: &masking::Secret<Vec<u8>>,
+) -> RouterResult<()> {
+    let card_cvc = domain::PaymentMethodVaultingData::from(payment_method_data)
+        .get_card()
+        .and_then(|card| card.card_cvc.clone());
+
+    if let Some(card_cvc) = card_cvc {
+        let redis_conn = state
+            .store
+            .get_redis_conn()
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Failed to get redis connection")?;
+
+        let key = format!(
+            "pm_token_{}_{}_hyperswitch_cvc",
+            payment_token, payment_method
+        );
+
+        let payload_to_be_encrypted = TemporaryVaultCvc { card_cvc };
+
+        let payload = payload_to_be_encrypted
+            .encode_to_string_of_json()
+            .change_context(errors::ApiErrorResponse::InternalServerError)?;
+
+        // Encrypt the CVC and store it in Redis
+        let encrypted_payload = GcmAes256
+            .encode_message(encryption_key.peek().as_ref(), payload.as_bytes())
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Failed to encode TemporaryVaultCvc for vault")?;
+
+        redis_conn
+            .set_key_if_not_exists_with_expiry(
+                &key.as_str().into(),
+                bytes::Bytes::from(encrypted_payload),
+                Some(fullfillment_time),
+            )
+            .await
+            .change_context(errors::StorageError::KVError)
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Failed to add token in redis")?;
+    };
+
+    Ok(())
+}
+
+#[cfg(feature = "v2")]
+#[instrument(skip_all)]
+pub async fn retrieve_and_delete_cvc_from_payment_token(
+    state: &routes::SessionState,
+    payment_token: &String,
+    payment_method: common_enums::PaymentMethod,
+    encryption_key: &masking::Secret<Vec<u8>>,
+) -> RouterResult<masking::Secret<String>> {
+    let redis_conn = state
+        .store
+        .get_redis_conn()
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Failed to get redis connection")?;
+
+    let key = format!(
+        "pm_token_{}_{}_hyperswitch_cvc",
+        payment_token, payment_method
+    );
+
+    let data = redis_conn
+        .get_key::<bytes::Bytes>(&key.clone().into())
+        .await
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Failed to fetch the token from redis")?;
+
+    // decrypt the cvc data
+    let decrypted_payload = GcmAes256
+        .decode_message(
+            encryption_key.peek().as_ref(),
+            masking::Secret::new(data.into()),
+        )
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Failed to decode TemporaryVaultCvc from vault")?;
+
+    let cvc_data: TemporaryVaultCvc = bytes::Bytes::from(decrypted_payload)
+        .parse_struct("TemporaryVaultCvc")
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Failed to deserialize TemporaryVaultCvc")?;
+
+    // delete key after retrieving the cvc
+    redis_conn.delete_key(&key.into()).await.map_err(|err| {
+        logger::error!("Failed to delete token from redis: {:?}", err);
+    });
+
+    Ok(cvc_data.card_cvc)
+}
+
 #[cfg(feature = "v2")]
 #[instrument(skip_all)]
 pub async fn delete_payment_token(
@@ -1563,19 +1668,17 @@ pub async fn retrieve_payment_method_from_vault(
             let external_vault_source = pm.external_vault_source.as_ref();
 
             let merchant_connector_account =
-                payments_core::helpers::get_merchant_connector_account(
-                    state,
-                    merchant_context.get_merchant_account().get_id(),
-                    None,
-                    merchant_context.get_merchant_key_store(),
-                    profile.get_id(),
-                    "",
-                    external_vault_source,
-                )
-                .await
-                .attach_printable(
-                    "failed to fetch merchant connector account for external vault retrieve",
-                )?;
+                domain::MerchantConnectorAccountTypeDetails::MerchantConnectorAccount(Box::new(
+                    payments_core::helpers::get_merchant_connector_account_v2(
+                        state,
+                        merchant_context.get_merchant_key_store(),
+                        external_vault_source,
+                    )
+                    .await
+                    .attach_printable(
+                        "failed to fetch merchant connector account for external vault retrieve",
+                    )?,
+                ));
 
             retrieve_payment_method_from_vault_external(
                 state,
@@ -1633,7 +1736,7 @@ pub async fn delete_payment_method_data_from_vault_internal(
 pub async fn delete_payment_method_data_from_vault_external(
     state: &routes::SessionState,
     merchant_account: &domain::MerchantAccount,
-    merchant_connector_account: payment_helpers::MerchantConnectorAccountType,
+    merchant_connector_account: domain::MerchantConnectorAccountTypeDetails,
     vault_id: domain::VaultId,
 ) -> RouterResult<pm_types::VaultDeleteResponse> {
     let connector_vault_id = vault_id.get_string_repr().to_owned();
@@ -1736,19 +1839,17 @@ pub async fn delete_payment_method_data_from_vault(
             let external_vault_source = pm.external_vault_source.as_ref();
 
             let merchant_connector_account =
-                payments_core::helpers::get_merchant_connector_account(
-                    state,
-                    merchant_context.get_merchant_account().get_id(),
-                    None,
-                    merchant_context.get_merchant_key_store(),
-                    profile.get_id(),
-                    "",
-                    external_vault_source,
-                )
-                .await
-                .attach_printable(
-                    "failed to fetch merchant connector account for external vault delete",
-                )?;
+                domain::MerchantConnectorAccountTypeDetails::MerchantConnectorAccount(Box::new(
+                    payments_core::helpers::get_merchant_connector_account_v2(
+                        state,
+                        merchant_context.get_merchant_key_store(),
+                        external_vault_source,
+                    )
+                    .await
+                    .attach_printable(
+                        "failed to fetch merchant connector account for external vault delete",
+                    )?,
+                ));
 
             delete_payment_method_data_from_vault_external(
                 state,
