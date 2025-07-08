@@ -55,7 +55,7 @@ impl ProxyRequestWrapper {
                     .attach_printable("Locker id not present in Payment Method Entry")
             }
             proxy_api_models::TokenType::TokenizationId => {
-                let token_id = id_type::GlobalTokenId::from_str(token.clone().as_str())
+                let token_id = id_type::GlobalTokenId::from_string(token.clone().as_str())
                     .change_context(errors::ApiErrorResponse::InternalServerError)?;
                 let db = state.store.as_ref();
                 let key_manager_state = &(state).into();
