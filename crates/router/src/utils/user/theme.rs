@@ -246,7 +246,15 @@ pub async fn get_theme_lineage_from_user_token(
     ))
 }
 
-pub fn can_user_access_theme(user: &UserFromToken, theme: &Theme) -> UserResult<()> {
+pub async fn can_user_access_theme(
+    user: &UserFromToken,
+    user_entity_type: &EntityType,
+    theme: &Theme,
+) -> UserResult<()> {
+    if user_entity_type < &theme.entity_type {
+        return Err(UserErrors::ThemeNotFound.into());
+    }
+
     match theme.entity_type {
         EntityType::Tenant => {
             if user.tenant_id.as_ref() == Some(&theme.tenant_id)

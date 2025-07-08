@@ -20,11 +20,6 @@ pub struct GetThemeResponse {
     pub theme_data: ThemeData,
 }
 
-#[derive(Debug, Serialize)]
-pub struct ListThemesResponse {
-    pub themes: Vec<GetThemeResponse>,
-}
-
 #[derive(Debug, MultipartForm)]
 pub struct UploadFileAssetData {
     pub asset_name: Text<String>,
@@ -41,6 +36,14 @@ pub struct UploadFileRequest {
 #[derive(Serialize, Deserialize, Debug)]
 pub struct CreateThemeRequest {
     pub lineage: ThemeLineage,
+    pub theme_name: String,
+    pub theme_data: ThemeData,
+    pub email_config: Option<EmailThemeConfig>,
+}
+
+#[derive(Serialize, Deserialize, Debug)]
+pub struct CreateUserThemeRequest {
+    pub entity_type: EntityType,
     pub theme_name: String,
     pub theme_data: ThemeData,
     pub email_config: Option<EmailThemeConfig>,

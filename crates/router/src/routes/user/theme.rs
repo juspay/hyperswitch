@@ -142,7 +142,7 @@ pub async fn delete_theme(
 pub async fn create_user_theme(
     state: web::Data<AppState>,
     req: HttpRequest,
-    payload: web::Json<theme_api::CreateThemeRequest>,
+    payload: web::Json<theme_api::CreateUserThemeRequest>,
 ) -> HttpResponse {
     let flow = Flow::CreateUserTheme;
     let payload = payload.into_inner();

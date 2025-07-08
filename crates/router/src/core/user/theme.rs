@@ -248,7 +248,7 @@ pub async fn delete_theme(state: SessionState, theme_id: String) -> UserResponse
 pub async fn create_user_theme(
     state: SessionState,
     user_from_token: UserFromToken,
-    request: theme_api::CreateThemeRequest,
+    request: theme_api::CreateUserThemeRequest,
 ) -> UserResponse<theme_api::GetThemeResponse> {
     let email_config = if cfg!(feature = "email") {
         request.email_config.ok_or(UserErrors::MissingEmailConfig)?
@@ -260,12 +260,9 @@ pub async fn create_user_theme(
     let lineage = theme_utils::get_theme_lineage_from_user_token(
         &user_from_token,
         &state,
-        &request.lineage.entity_type(),
+        &request.entity_type,
     )
     .await?;
-    if lineage != request.lineage {
-        return Err(UserErrors::InvalidThemeLineage("Mismatch".to_string()).into());
-    }
     let new_theme = ThemeNew::new(
         Uuid::new_v4().to_string(),
         request.theme_name,
@@ -323,7 +320,14 @@ pub async fn delete_user_theme(
         .find_theme_by_theme_id(theme_id.clone())
         .await
         .to_not_found_response(UserErrors::ThemeNotFound)?;
-    theme_utils::can_user_access_theme(&user_from_token, &db_theme)?;
+
+    let user_role_info = user_from_token
+        .get_role_info_from_db(&state)
+        .await
+        .attach_printable("Invalid role_id in JWT")?;
+    let user_entity_type = user_role_info.get_entity_type();
+
+    theme_utils::can_user_access_theme(&user_from_token, &user_entity_type, &db_theme).await?;
     state
         .store
         .delete_theme_by_theme_id(theme_id.clone())
@@ -348,7 +352,13 @@ pub async fn update_user_theme(
         .await
         .to_not_found_response(UserErrors::ThemeNotFound)?;
 
-    theme_utils::can_user_access_theme(&user_from_token, &db_theme)?;
+    let user_role_info = user_from_token
+        .get_role_info_from_db(&state)
+        .await
+        .attach_printable("Invalid role_id in JWT")?;
+    let user_entity_type = user_role_info.get_entity_type();
+
+    theme_utils::can_user_access_theme(&user_from_token, &user_entity_type, &db_theme).await?;
 
     let db_theme = match request.email_config {
         Some(email_config) => {
@@ -409,7 +419,14 @@ pub async fn upload_file_to_user_theme_storage(
         .find_theme_by_theme_id(theme_id)
         .await
         .to_not_found_response(UserErrors::ThemeNotFound)?;
-    theme_utils::can_user_access_theme(&user_from_token, &db_theme)?;
+
+    let user_role_info = user_from_token
+        .get_role_info_from_db(&state)
+        .await
+        .attach_printable("Invalid role_id in JWT")?;
+    let user_entity_type = user_role_info.get_entity_type();
+
+    theme_utils::can_user_access_theme(&user_from_token, &user_entity_type, &db_theme).await?;
     theme_utils::upload_file_to_theme_bucket(
         &state,
         &theme_utils::get_specific_file_key(&db_theme.theme_id, &request.asset_name),
@@ -424,7 +441,7 @@ pub async fn list_all_themes_in_lineage(
     state: SessionState,
     user: UserFromToken,
     entity_type: EntityType,
-) -> UserResponse<theme_api::ListThemesResponse> {
+) -> UserResponse<Vec<theme_api::GetThemeResponse>> {
     let lineage =
         theme_utils::get_theme_lineage_from_user_token(&user, &state, &entity_type).await?;
 
@@ -472,9 +489,7 @@ pub async fn list_all_themes_in_lineage(
         }
     }
 
-    Ok(ApplicationResponse::Json(theme_api::ListThemesResponse {
-        themes,
-    }))
+    Ok(ApplicationResponse::Json(themes))
 }
 
 pub async fn get_user_theme_using_theme_id(
@@ -487,7 +502,15 @@ pub async fn get_user_theme_using_theme_id(
         .find_theme_by_theme_id(theme_id.clone())
         .await
         .to_not_found_response(UserErrors::ThemeNotFound)?;
-    theme_utils::can_user_access_theme(&user_from_token, &db_theme)?;
+
+    let user_role_info = user_from_token
+        .get_role_info_from_db(&state)
+        .await
+        .attach_printable("Invalid role_id in JWT")?;
+
+    let user_role_entity = user_role_info.get_entity_type();
+
+    theme_utils::can_user_access_theme(&user_from_token, &user_role_entity, &db_theme).await?;
     let file = theme_utils::retrieve_file_from_theme_bucket(
         &state,
         &theme_utils::get_theme_file_key(&theme_id),
