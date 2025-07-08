@@ -163,6 +163,7 @@ pub enum RoutableConnectors {
     Zen,
     Plaid,
     Zsl,
+    Mpgs,
 }
 
 // A connector is an integration to fulfill payments
@@ -330,6 +331,7 @@ pub enum Connector {
     Xendit,
     Zen,
     Zsl,
+    Mpgs,
 }
 
 impl Connector {
@@ -511,8 +513,9 @@ impl Connector {
             | Self::Noon
             | Self::Tokenio
             | Self::Stripe
-            | Self::Datatrans => false,
-            Self::Checkout | Self::Nmi |Self::Cybersource | Self::Archipel => true,
+            | Self::Datatrans
+            | Self::Mpgs => false,
+            Self::Checkout | Self::Nmi | Self::Cybersource | Self::Archipel => true,
         }
     }
 
@@ -668,6 +671,7 @@ impl From<RoutableConnectors> for Connector {
             RoutableConnectors::Inespay => Self::Inespay,
             RoutableConnectors::Coingate => Self::Coingate,
             RoutableConnectors::Hipay => Self::Hipay,
+            RoutableConnectors::Mpgs => Self::Mpgs,
         }
     }
 }
@@ -785,6 +789,7 @@ impl TryFrom<Connector> for RoutableConnectors {
             Connector::Zen => Ok(Self::Zen),
             Connector::Plaid => Ok(Self::Plaid),
             Connector::Zsl => Ok(Self::Zsl),
+            Connector::Mpgs => Ok(Self::Mpgs),
             Connector::Recurly => Ok(Self::Recurly),
             Connector::Getnet => Ok(Self::Getnet),
             Connector::Hipay => Ok(Self::Hipay),
