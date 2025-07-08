@@ -1253,6 +1253,8 @@ pub async fn authentication_authenticate_core(
         error_code: None,
         error_message: authentication.error_message,
         authentication_value,
+        status: authentication.authentication_status,
+        authentication_connector: authentication.authentication_connector,
     };
 
     Ok(hyperswitch_domain_models::api::ApplicationResponse::Json(

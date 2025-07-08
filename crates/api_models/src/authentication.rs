@@ -325,10 +325,23 @@ pub struct AuthenticationAuthenticateResponse {
     /// Merchant app declaring their URL within the CReq message so that the Authentication app can call the Merchant app after OOB authentication has occurred
     pub three_ds_requestor_app_url: Option<String>,
 
-    pub error_code: Option<String>,
+    /// The error message for this authentication.
+    #[schema(value_type = String)]
     pub error_message: Option<String>,
-
+    /// The error code for this authentication.
+    #[schema(value_type = String)]
+    pub error_code: Option<String>,
+    /// The authentication value for this authentication.
+    #[schema(value_type = String)]
     pub authentication_value: Option<masking::Secret<String>>,
+
+    /// The current status of the authentication (e.g., Started).
+    #[schema(value_type = AuthenticationStatus)]
+    pub status: common_enums::AuthenticationStatus,
+
+    /// The connector to be used for authentication, if known.
+    #[schema(value_type = Option<AuthenticationConnectors>, example = "netcetera")]
+    pub authentication_connector: Option<String>,
 }
 
 impl ApiEventMetric for AuthenticationAuthenticateResponse {

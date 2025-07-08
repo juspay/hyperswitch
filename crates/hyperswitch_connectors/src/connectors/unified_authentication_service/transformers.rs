@@ -140,6 +140,7 @@ pub enum MessageCategory {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ThreeDSData {
     pub preferred_protocol_version: common_utils::types::SemanticVersion,
+    pub threeds_method_comp_ind: api_models::payments::ThreeDsCompletionIndicator,
 }
 
 #[derive(Default, Clone, Debug, Serialize, Deserialize, PartialEq)]
@@ -837,7 +838,8 @@ pub enum ACSChallengeMandatedEnum {
 #[derive(Clone, Serialize, Debug)]
 pub struct DeviceDetails {
     pub device_channel: api_models::payments::DeviceChannel,
-    pub browser_info: BrowserInfo,
+    pub browser_info: Option<BrowserInfo>,
+    pub sdk_info: Option<api_models::payments::SdkInformation>,
 }
 
 impl TryFrom<&UnifiedAuthenticationServiceRouterData<&UasAuthenticationRouterData>>
@@ -882,6 +884,7 @@ impl TryFrom<&UnifiedAuthenticationServiceRouterData<&UasAuthenticationRouterDat
                 .pre_authentication_data
                 .message_version
                 .clone(),
+            threeds_method_comp_ind: item.router_data.request.threeds_method_comp_ind.clone(),
         };
 
         let device_details = DeviceDetails {
@@ -894,7 +897,8 @@ impl TryFrom<&UnifiedAuthenticationServiceRouterData<&UasAuthenticationRouterDat
                 .ok_or(errors::ConnectorError::MissingRequiredField {
                     field_name: "device_channel",
                 })?,
-            browser_info,
+            browser_info: Some(browser_info),
+            sdk_info: item.router_data.request.sdk_information.clone(),
         };
 
         let message_category = item.router_data.request.transaction_details.message_category.clone().map(|category| match category {
