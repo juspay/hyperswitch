@@ -232,7 +232,7 @@ pub async fn payments_get_intent(
                 header_payload.clone(),
             )
         },
-        auth::api_or_client_auth(
+        auth::api_or_client_or_jwt_auth(
             &auth::V2ApiKeyAuth {
                 is_connected_allowed: false,
                 is_platform_allowed: false,
@@ -240,6 +240,9 @@ pub async fn payments_get_intent(
             &auth::V2ClientAuth(common_utils::types::authentication::ResourceId::Payment(
                 global_payment_id.clone(),
             )),
+            &auth::JWTAuth {
+                permission: Permission::ProfileRevenueRecoveryRead,
+            },
             req.headers(),
         ),
         api_locking::LockAction::NotApplicable,
@@ -2280,6 +2283,11 @@ pub fn get_or_generate_payment_id(
 
     let payment_id = given_payment_id.unwrap_or(common_utils::id_type::PaymentId::default());
 
+    payload.is_payment_id_from_merchant = matches!(
+        &payload.payment_id,
+        Some(payment_types::PaymentIdType::PaymentIntentId(_))
+    );
+
     payload.payment_id = Some(api_models::payments::PaymentIdType::PaymentIntentId(
         payment_id,
     ));
@@ -2950,7 +2958,7 @@ pub async fn payment_status(
         force_sync: payload.force_sync,
         expand_attempts: payload.expand_attempts,
         param: payload.param.clone(),
-        all_keys_required: payload.all_keys_required,
+        return_raw_connector_response: payload.return_raw_connector_response,
         merchant_connector_details: None,
     };
 

@@ -1,5 +1,7 @@
+use std::borrow::Cow;
+
 use common_enums::enums as api_enums;
-use common_types::primitive_wrappers;
+use common_types::{domain::AcquirerConfig, primitive_wrappers};
 use common_utils::{
     crypto::{OptionalEncryptableName, OptionalEncryptableValue},
     date_time,
@@ -1198,6 +1200,23 @@ impl Profile {
     }
 
     #[cfg(feature = "v1")]
+    pub fn get_acquirer_details_from_network(
+        &self,
+        network: common_enums::CardNetwork,
+    ) -> Option<AcquirerConfig> {
+        // iterate over acquirer_config_map and find the acquirer config for the given network
+        self.acquirer_config_map
+            .as_ref()
+            .and_then(|acquirer_config_map| {
+                acquirer_config_map
+                    .0
+                    .iter()
+                    .find(|&(_, acquirer_config)| acquirer_config.network == network)
+            })
+            .map(|(_, acquirer_config)| acquirer_config.clone())
+    }
+
+    #[cfg(feature = "v1")]
     pub fn get_payment_routing_algorithm(
         &self,
     ) -> CustomResult<
@@ -1250,6 +1269,39 @@ impl Profile {
             .attach_printable(
                 "unable to deserialize frm routing algorithm ref from merchant account",
             )
+    }
+
+    pub fn get_payment_webhook_statuses(&self) -> Cow<'_, [common_enums::IntentStatus]> {
+        self.webhook_details
+            .as_ref()
+            .and_then(|details| details.payment_statuses_enabled.as_ref())
+            .filter(|statuses_vec| !statuses_vec.is_empty())
+            .map(|statuses_vec| Cow::Borrowed(statuses_vec.as_slice()))
+            .unwrap_or_else(|| {
+                Cow::Borrowed(common_types::consts::DEFAULT_PAYMENT_WEBHOOK_TRIGGER_STATUSES)
+            })
+    }
+
+    pub fn get_refund_webhook_statuses(&self) -> Cow<'_, [common_enums::RefundStatus]> {
+        self.webhook_details
+            .as_ref()
+            .and_then(|details| details.refund_statuses_enabled.as_ref())
+            .filter(|statuses_vec| !statuses_vec.is_empty())
+            .map(|statuses_vec| Cow::Borrowed(statuses_vec.as_slice()))
+            .unwrap_or_else(|| {
+                Cow::Borrowed(common_types::consts::DEFAULT_REFUND_WEBHOOK_TRIGGER_STATUSES)
+            })
+    }
+
+    pub fn get_payout_webhook_statuses(&self) -> Cow<'_, [common_enums::PayoutStatus]> {
+        self.webhook_details
+            .as_ref()
+            .and_then(|details| details.payout_statuses_enabled.as_ref())
+            .filter(|statuses_vec| !statuses_vec.is_empty())
+            .map(|statuses_vec| Cow::Borrowed(statuses_vec.as_slice()))
+            .unwrap_or_else(|| {
+                Cow::Borrowed(common_types::consts::DEFAULT_PAYOUT_WEBHOOK_TRIGGER_STATUSES)
+            })
     }
 }
 

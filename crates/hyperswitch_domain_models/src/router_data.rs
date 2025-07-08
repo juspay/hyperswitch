@@ -99,12 +99,16 @@ pub struct RouterData<Flow, Request, Response> {
 
     pub connector_mandate_request_reference_id: Option<String>,
 
-    pub authentication_id: Option<String>,
+    pub authentication_id: Option<id_type::AuthenticationId>,
     /// Contains the type of sca exemption required for the transaction
     pub psd2_sca_exemption_type: Option<common_enums::ScaExemptionType>,
 
-    /// Contains whole connector response
-    pub whole_connector_response: Option<String>,
+    /// Contains stringified connector raw response body
+    pub raw_connector_response: Option<String>,
+
+    /// Indicates whether the payment ID was provided by the merchant (true),
+    /// or generated internally by Hyperswitch (false)
+    pub is_payment_id_from_merchant: Option<bool>,
 }
 
 // Different patterns of authentication.
@@ -567,6 +571,7 @@ impl
                     resource_id,
                     redirection_data,
                     connector_metadata,
+                    connector_response_reference_id,
                     ..
                 } => {
                     let attempt_status = self.get_attempt_status_for_db_update(payment_data);
@@ -595,6 +600,8 @@ impl
                                             token_details.get_connector_token_request_reference_id()
                                         }),
                                 ),
+                            connector_response_reference_id: connector_response_reference_id
+                                .clone(),
                         },
                     ))
                 }
@@ -1253,6 +1260,7 @@ impl
                     resource_id,
                     redirection_data,
                     connector_metadata,
+                    connector_response_reference_id,
                     ..
                 } => {
                     let attempt_status = self.get_attempt_status_for_db_update(payment_data);
@@ -1281,6 +1289,9 @@ impl
                                             token_details.get_connector_token_request_reference_id()
                                         }),
                                 ),
+
+                            connector_response_reference_id: connector_response_reference_id
+                                .clone(),
                         },
                     ))
                 }

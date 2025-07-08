@@ -70,6 +70,8 @@ pub struct KafkaPaymentAttemptEvent<'a> {
     pub organization_id: &'a id_type::OrganizationId,
     pub card_network: Option<String>,
     pub card_discovery: Option<String>,
+    pub routing_approach: Option<storage_enums::RoutingApproach>,
+    pub debit_routing_savings: Option<MinorUnit>,
 }
 
 #[cfg(feature = "v1")]
@@ -131,6 +133,8 @@ impl<'a> KafkaPaymentAttemptEvent<'a> {
             card_discovery: attempt
                 .card_discovery
                 .map(|discovery| discovery.to_string()),
+            routing_approach: attempt.routing_approach,
+            debit_routing_savings: attempt.debit_routing_savings,
         }
     }
 }
@@ -191,7 +195,7 @@ pub struct KafkaPaymentAttemptEvent<'a> {
     pub authentication_connector: Option<String>,
     pub authentication_id: Option<String>,
     pub fingerprint_id: Option<String>,
-    pub customer_acceptance: Option<&'a masking::Secret<serde_json::Value>>,
+    pub customer_acceptance: Option<&'a masking::Secret<payments::CustomerAcceptance>>,
     pub shipping_cost: Option<MinorUnit>,
     pub order_tax_amount: Option<MinorUnit>,
     pub charges: Option<payments::ConnectorChargeResponseData>,
@@ -334,7 +338,9 @@ impl<'a> KafkaPaymentAttemptEvent<'a> {
             encoded_data: encoded_data.as_ref(),
             external_three_ds_authentication_attempted: *external_three_ds_authentication_attempted,
             authentication_connector: authentication_connector.clone(),
-            authentication_id: authentication_id.clone(),
+            authentication_id: authentication_id
+                .as_ref()
+                .map(|id| id.get_string_repr().to_string()),
             fingerprint_id: fingerprint_id.clone(),
             customer_acceptance: customer_acceptance.as_ref(),
             shipping_cost: amount_details.get_shipping_cost(),

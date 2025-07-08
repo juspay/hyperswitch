@@ -20,16 +20,16 @@ use api_models::payment_methods;
 #[cfg(feature = "payouts")]
 pub use api_models::{enums::PayoutConnectors, payouts as payout_types};
 #[cfg(feature = "v1")]
-use common_utils::ext_traits::{Encode, OptionExt};
-use common_utils::{consts::DEFAULT_LOCALE, id_type};
+use common_utils::{consts::DEFAULT_LOCALE, ext_traits::OptionExt};
 #[cfg(feature = "v2")]
 use common_utils::{
     crypto::Encryptable,
     errors::CustomResult,
-    ext_traits::{AsyncExt, Encode, ValueExt},
+    ext_traits::{AsyncExt, ValueExt},
     fp_utils::when,
     generate_id, types as util_types,
 };
+use common_utils::{ext_traits::Encode, id_type};
 use diesel_models::{
     enums, GenericLinkNew, PaymentMethodCollectLink, PaymentMethodCollectLinkData,
 };
@@ -231,7 +231,7 @@ pub async fn initiate_pm_collect_link(
         link: url::Url::parse(url)
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable_lazy(|| {
-                format!("Failed to parse the payment method collect link - {}", url)
+                format!("Failed to parse the payment method collect link - {url}")
             })?
             .into(),
         return_url: pm_collect_link.return_url,
@@ -865,12 +865,15 @@ fn get_card_network_with_us_local_debit_network_override(
         .map(|network| network.is_us_local_network())
     {
         services::logger::debug!("Card network is a US local network, checking for global network in co-badged card data");
-        co_badged_card_data.and_then(|data| {
-            data.co_badged_card_networks
-                .iter()
-                .find(|network| network.is_global_network())
-                .cloned()
-        })
+        let info: Option<api_models::open_router::CoBadgedCardNetworksInfo> = co_badged_card_data
+            .and_then(|data| {
+                data.co_badged_card_networks_info
+                    .0
+                    .iter()
+                    .find(|info| info.network.is_global_network())
+                    .cloned()
+            });
+        info.map(|data| data.network)
     } else {
         card_network
     }
@@ -2750,7 +2753,7 @@ pub async fn payment_methods_session_update(
 
     let payment_method_session_domain_model =
         hyperswitch_domain_models::payment_methods::PaymentMethodsSessionUpdateEnum::GeneralUpdate{
-            billing,
+            billing: Box::new(billing),
             psp_tokenization: request.psp_tokenization,
             network_tokenization: request.network_tokenization,
             tokenization_data: request.tokenization_data,
@@ -2922,6 +2925,7 @@ fn construct_zero_auth_payments_request(
         force_3ds_challenge: None,
         is_iframe_redirection_enabled: None,
         merchant_connector_details: None,
+        return_raw_connector_response: None,
     })
 }
 
@@ -3008,7 +3012,7 @@ pub async fn payment_methods_session_confirm(
     )
     .attach_printable("Failed to create payment method request")?;
 
-    let (payment_method_response, _payment_method) = create_payment_method_core(
+    let (payment_method_response, payment_method) = create_payment_method_core(
         &state,
         &req_state,
         create_payment_method_request.clone(),
@@ -3016,6 +3020,50 @@ pub async fn payment_methods_session_confirm(
         &profile,
     )
     .await?;
+
+    let parent_payment_method_token = generate_id(consts::ID_LENGTH, "token");
+
+    let token_data = get_pm_list_token_data(request.payment_method_type, &payment_method)?;
+
+    let intent_fulfillment_time = common_utils::consts::DEFAULT_INTENT_FULFILLMENT_TIME;
+
+    // insert the token data into redis
+    if let Some(token_data) = token_data {
+        pm_routes::ParentPaymentMethodToken::create_key_for_token((
+            &parent_payment_method_token,
+            request.payment_method_type,
+        ))
+        .insert(intent_fulfillment_time, token_data, &state)
+        .await?;
+    };
+
+    let update_payment_method_session = hyperswitch_domain_models::payment_methods::PaymentMethodsSessionUpdateEnum::UpdateAssociatedPaymentMethods {
+        associated_payment_methods:  Some(vec![parent_payment_method_token.clone()])
+    };
+
+    vault::insert_cvc_using_payment_token(
+        &state,
+        &parent_payment_method_token,
+        create_payment_method_request.payment_method_data.clone(),
+        request.payment_method_type,
+        intent_fulfillment_time,
+        merchant_context.get_merchant_key_store().key.get_inner(),
+    )
+    .await?;
+
+    let payment_method_session = db
+        .update_payment_method_session(
+            key_manager_state,
+            merchant_context.get_merchant_key_store(),
+            &payment_method_session_id,
+            update_payment_method_session,
+            payment_method_session,
+        )
+        .await
+        .to_not_found_response(errors::ApiErrorResponse::GenericNotFoundError {
+            message: "payment methods session does not exist or has expired".to_string(),
+        })
+        .attach_printable("Failed to update payment methods session from db")?;
 
     let payments_response = match &payment_method_session.psp_tokenization {
         Some(common_types::payment_methods::PspTokenization {
@@ -3263,7 +3311,8 @@ async fn create_single_use_tokenization_flow(
             connector_mandate_request_reference_id: None,
             authentication_id: None,
             psd2_sca_exemption_type: None,
-            whole_connector_response: None,
+            raw_connector_response: None,
+            is_payment_id_from_merchant: None,
         };
 
     let payment_method_token_response = tokenization::add_token_for_payment_method(

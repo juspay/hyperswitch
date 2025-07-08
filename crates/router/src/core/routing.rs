@@ -2483,11 +2483,6 @@ pub async fn migrate_rules_for_profile(
             .attach_printable("Failed to get payout routing algorithm")?
             .unwrap_or_default()
             .algorithm_id,
-        business_profile
-            .get_frm_routing_algorithm()
-            .attach_printable("Failed to get frm routing algorithm")?
-            .unwrap_or_default()
-            .algorithm_id,
     ];
 
     #[cfg(feature = "v2")]
@@ -2523,7 +2518,7 @@ pub async fn migrate_rules_for_profile(
             Ok(algo) => algo,
             Err(e) => {
                 router_env::logger::error!(?e, ?algorithm_id, "Failed to fetch routing algorithm");
-                push_error(algorithm_id, format!("Fetch error: {:?}", e));
+                push_error(algorithm_id, format!("Fetch error: {e:?}"));
                 continue;
             }
         };
@@ -2541,7 +2536,7 @@ pub async fn migrate_rules_for_profile(
                         ?algorithm_id,
                         "Failed to convert advanced program"
                     );
-                    push_error(algorithm_id.clone(), format!("Conversion error: {:?}", e));
+                    push_error(algorithm_id.clone(), format!("Conversion error: {e:?}"));
                     None
                 }
             },
@@ -2564,7 +2559,7 @@ pub async fn migrate_rules_for_profile(
             }
             Err(e) => {
                 router_env::logger::error!(?e, ?algorithm_id, "Failed to parse algorithm");
-                push_error(algorithm_id.clone(), format!("Parse error: {:?}", e));
+                push_error(algorithm_id.clone(), format!("Parse error: {e:?}"));
                 None
             }
         };
@@ -2616,7 +2611,7 @@ pub async fn migrate_rules_for_profile(
                 );
                 push_error(
                     algorithm.algorithm_id.clone(),
-                    format!("Insertion error: {:?}", err),
+                    format!("Insertion error: {err:?}"),
                 );
             }
         }

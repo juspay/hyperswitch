@@ -2,7 +2,7 @@ use std::{collections::HashMap, ops::Deref};
 
 use api_models::{self, enums as api_enums, payments};
 use common_enums::{enums, AttemptStatus, PaymentChargeType, StripeChargeType};
-use common_types::payments::SplitPaymentsRequest;
+use common_types::payments::{AcceptanceType, SplitPaymentsRequest};
 use common_utils::{
     collect_missing_value_keys,
     errors::CustomResult,
@@ -13,7 +13,6 @@ use common_utils::{
 };
 use error_stack::ResultExt;
 use hyperswitch_domain_models::{
-    mandates::AcceptanceType,
     payment_method_data::{
         self, BankRedirectData, Card, CardRedirectData, GiftCardData, GooglePayWalletData,
         PayLaterData, PaymentMethodData, VoucherData, WalletData,
@@ -3576,7 +3575,7 @@ fn format_metadata_for_request(merchant_metadata: Secret<Value>) -> HashMap<Stri
     let mut formatted_metadata = HashMap::new();
     if let Value::Object(metadata_map) = merchant_metadata.expose() {
         for (key, value) in metadata_map {
-            formatted_metadata.insert(format!("metadata[{}]", key), value.to_string());
+            formatted_metadata.insert(format!("metadata[{key}]"), value.to_string());
         }
     }
     formatted_metadata
@@ -4323,7 +4322,7 @@ fn get_transaction_metadata(
             serde_json::from_str(&metadata.peek().to_string()).unwrap_or(HashMap::new());
 
         for (key, value) in hashmap {
-            request_hash_map.insert(format!("metadata[{}]", key), value.to_string());
+            request_hash_map.insert(format!("metadata[{key}]"), value.to_string());
         }
 
         meta_data.extend(request_hash_map)
@@ -4360,10 +4359,7 @@ fn get_stripe_payments_response_data(
             res.decline_code
                 .clone()
                 .map(|decline_code| {
-                    format!(
-                        "message - {}, decline_code - {}",
-                        error_message, decline_code
-                    )
+                    format!("message - {error_message}, decline_code - {decline_code}")
                 })
                 .or(Some(error_message.clone()))
         }),
