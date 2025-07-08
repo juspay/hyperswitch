@@ -7,14 +7,26 @@ license.workspace = true
 
 [features]
 frm = ["hyperswitch_domain_models/frm", "hyperswitch_interfaces/frm"]
-payouts = ["hyperswitch_domain_models/payouts", "api_models/payouts", "hyperswitch_interfaces/payouts"]
+payouts = [
+  "hyperswitch_domain_models/payouts",
+  "api_models/payouts",
+  "hyperswitch_interfaces/payouts",
+]
 v1 = ["api_models/v1", "hyperswitch_domain_models/v1", "common_utils/v1"]
-v2 = ["api_models/v2", "hyperswitch_domain_models/v2", "common_utils/v2", "hyperswitch_interfaces/v2"]
-revenue_recovery = ["hyperswitch_interfaces/revenue_recovery", "hyperswitch_domain_models/revenue_recovery"]
+v2 = [
+  "api_models/v2",
+  "hyperswitch_domain_models/v2",
+  "common_utils/v2",
+  "hyperswitch_interfaces/v2",
+]
+revenue_recovery = [
+  "hyperswitch_interfaces/revenue_recovery",
+  "hyperswitch_domain_models/revenue_recovery",
+]
 default = ["dummy_connector"]
 dummy_connector = [
-    "hyperswitch_interfaces/dummy_connector",
-    "hyperswitch_domain_models/dummy_connector",
+  "hyperswitch_interfaces/dummy_connector",
+  "hyperswitch_domain_models/dummy_connector",
 ]
 
 [dependencies]
@@ -36,7 +48,7 @@ josekit = "0.8.7"
 lazy_static = "1.5.0"
 mime = "0.3.17"
 num-traits = "0.2.19"
-openssl = {version = "0.10.70"}
+openssl = { version = "0.10.70" }
 qrcode = "0.14.1"
 quick-xml = { version = "0.31.0", features = ["serialize"] }
 rand = "0.8.5"
@@ -55,21 +67,35 @@ sha1 = { version = "0.10.6" }
 strum = { version = "0.26", features = ["derive"] }
 time = "0.3.41"
 unicode-normalization = "0.1.24"
-utoipa = { version = "4.2.3", features = ["preserve_order", "preserve_path_order", "time"] }
+utoipa = { version = "4.2.3", features = [
+  "preserve_order",
+  "preserve_path_order",
+  "time",
+] }
 url = "2.5.4"
 urlencoding = "2.1.3"
 uuid = { version = "1.17.0", features = ["v4"] }
 
 # First party crates
-api_models = { version = "0.1.0", path = "../api_models", features = ["errors"], default-features = false }
+api_models = { version = "0.1.0", path = "../api_models", features = [
+  "errors",
+], default-features = false }
 cards = { version = "0.1.0", path = "../cards" }
 common_enums = { version = "0.1.0", path = "../common_enums" }
 common_types = { version = "0.1.0", path = "../common_types" }
-common_utils = { version = "0.1.0", path = "../common_utils", features = ["async_ext", "logs", "metrics", "crypto_openssl"] }
+common_utils = { version = "0.1.0", path = "../common_utils", features = [
+  "async_ext",
+  "logs",
+  "metrics",
+  "crypto_openssl",
+] }
 hyperswitch_domain_models = { version = "0.1.0", path = "../hyperswitch_domain_models", default-features = false }
 hyperswitch_interfaces = { version = "0.1.0", path = "../hyperswitch_interfaces", default-features = false }
 masking = { version = "0.1.0", path = "../masking" }
-router_env = { version = "0.1.0", path = "../router_env", features = ["log_extra_implicit_fields", "log_custom_entries_to_extra"] }
+router_env = { version = "0.1.0", path = "../router_env", features = [
+  "log_extra_implicit_fields",
+  "log_custom_entries_to_extra",
+] }
 
 [lints]
 workspace = true

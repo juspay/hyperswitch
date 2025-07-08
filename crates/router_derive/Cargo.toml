@@ -17,7 +17,10 @@ proc-macro2 = "1.0.95"
 quote = "1.0.40"
 serde_json = "1.0.140"
 strum = { version = "0.26.3", features = ["derive"] }
-syn = { version = "2.0.101", features = ["full", "extra-traits"] } # the full feature does not seem to encompass all the features
+syn = { version = "2.0.101", features = [
+  "full",
+  "extra-traits",
+] } # the full feature does not seem to encompass all the features
 
 [dev-dependencies]
 diesel = { version = "2.2.10", features = ["postgres"] }

@@ -38,7 +38,10 @@ username = "username"
 
 [redis]
 cluster_enabled = false
-cluster_urls = ["redis.cluster.uri-1:8080", "redis.cluster.uri-2:4115"] # List of redis cluster urls
+cluster_urls = [
+  "redis.cluster.uri-1:8080",
+  "redis.cluster.uri-2:4115",
+] # List of redis cluster urls
 default_ttl = 300
 host = "localhost"
 pool_size = 5

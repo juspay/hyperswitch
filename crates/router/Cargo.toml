@@ -10,34 +10,134 @@ license.workspace = true
 
 [features]
 default = ["common_default", "v1"]
-common_default = ["kv_store", "stripe", "oltp", "olap", "accounts_cache", "dummy_connector", "payouts", "payout_retry", "retry", "frm", "tls", "partial-auth", "km_forward_x_request_id"]
-olap = ["hyperswitch_domain_models/olap", "storage_impl/olap", "scheduler/olap", "api_models/olap", "dep:analytics"]
+common_default = [
+  "kv_store",
+  "stripe",
+  "oltp",
+  "olap",
+  "accounts_cache",
+  "dummy_connector",
+  "payouts",
+  "payout_retry",
+  "retry",
+  "frm",
+  "tls",
+  "partial-auth",
+  "km_forward_x_request_id",
+]
+olap = [
+  "hyperswitch_domain_models/olap",
+  "storage_impl/olap",
+  "scheduler/olap",
+  "api_models/olap",
+  "dep:analytics",
+]
 tls = ["actix-web/rustls-0_22"]
 email = ["external_services/email", "scheduler/email", "olap"]
 # keymanager_create, keymanager_mtls, encryption_service should not be removed or added to default feature. Once this features were enabled it can't be disabled as these are breaking changes.
 keymanager_create = []
 keymanager_mtls = ["reqwest/rustls-tls", "common_utils/keymanager_mtls"]
-encryption_service = ["keymanager_create", "hyperswitch_domain_models/encryption_service", "common_utils/encryption_service"]
+encryption_service = [
+  "keymanager_create",
+  "hyperswitch_domain_models/encryption_service",
+  "common_utils/encryption_service",
+]
 km_forward_x_request_id = ["common_utils/km_forward_x_request_id"]
-frm = ["api_models/frm", "hyperswitch_domain_models/frm", "hyperswitch_connectors/frm", "hyperswitch_interfaces/frm"]
+frm = [
+  "api_models/frm",
+  "hyperswitch_domain_models/frm",
+  "hyperswitch_connectors/frm",
+  "hyperswitch_interfaces/frm",
+]
 stripe = []
-release = ["stripe", "email", "accounts_cache", "kv_store", "vergen", "recon", "external_services/aws_kms", "external_services/aws_s3", "keymanager_mtls", "keymanager_create", "encryption_service", "dynamic_routing"]
+release = [
+  "stripe",
+  "email",
+  "accounts_cache",
+  "kv_store",
+  "vergen",
+  "recon",
+  "external_services/aws_kms",
+  "external_services/aws_s3",
+  "keymanager_mtls",
+  "keymanager_create",
+  "encryption_service",
+  "dynamic_routing",
+]
 oltp = ["storage_impl/oltp"]
 kv_store = ["scheduler/kv_store"]
 accounts_cache = []
 vergen = ["router_env/vergen"]
-dummy_connector = ["api_models/dummy_connector", "euclid/dummy_connector", "hyperswitch_interfaces/dummy_connector", "kgraph_utils/dummy_connector", "payment_methods/dummy_connector", "hyperswitch_domain_models/dummy_connector","hyperswitch_connectors/dummy_connector"]
+dummy_connector = [
+  "api_models/dummy_connector",
+  "euclid/dummy_connector",
+  "hyperswitch_interfaces/dummy_connector",
+  "kgraph_utils/dummy_connector",
+  "payment_methods/dummy_connector",
+  "hyperswitch_domain_models/dummy_connector",
+  "hyperswitch_connectors/dummy_connector",
+]
 external_access_dc = ["dummy_connector"]
 detailed_errors = ["api_models/detailed_errors", "error-stack/serde"]
-payouts = ["api_models/payouts", "common_enums/payouts", "hyperswitch_connectors/payouts", "hyperswitch_domain_models/payouts", "storage_impl/payouts", "payment_methods/payouts"]
+payouts = [
+  "api_models/payouts",
+  "common_enums/payouts",
+  "hyperswitch_connectors/payouts",
+  "hyperswitch_domain_models/payouts",
+  "storage_impl/payouts",
+  "payment_methods/payouts",
+]
 payout_retry = ["payouts"]
 recon = ["email", "api_models/recon"]
 retry = []
-v2 = [ "common_default", "api_models/v2", "diesel_models/v2", "hyperswitch_domain_models/v2", "storage_impl/v2", "kgraph_utils/v2", "common_utils/v2", "hyperswitch_connectors/v2", "hyperswitch_interfaces/v2", "common_types/v2", "revenue_recovery", "scheduler/v2", "euclid/v2", "payment_methods/v2", "tokenization_v2"]
-v1 = ["common_default", "api_models/v1", "diesel_models/v1", "hyperswitch_domain_models/v1", "storage_impl/v1", "hyperswitch_interfaces/v1", "kgraph_utils/v1", "common_utils/v1", "hyperswitch_connectors/v1", "common_types/v1", "scheduler/v1", "payment_methods/v1"]
-dynamic_routing = ["external_services/dynamic_routing", "storage_impl/dynamic_routing", "api_models/dynamic_routing"]
-revenue_recovery = ["api_models/revenue_recovery", "hyperswitch_interfaces/revenue_recovery", "hyperswitch_domain_models/revenue_recovery", "hyperswitch_connectors/revenue_recovery"]
-tokenization_v2 = ["api_models/tokenization_v2", "diesel_models/tokenization_v2", "hyperswitch_domain_models/tokenization_v2", "storage_impl/tokenization_v2"]
+v2 = [
+  "common_default",
+  "api_models/v2",
+  "diesel_models/v2",
+  "hyperswitch_domain_models/v2",
+  "storage_impl/v2",
+  "kgraph_utils/v2",
+  "common_utils/v2",
+  "hyperswitch_connectors/v2",
+  "hyperswitch_interfaces/v2",
+  "common_types/v2",
+  "revenue_recovery",
+  "scheduler/v2",
+  "euclid/v2",
+  "payment_methods/v2",
+  "tokenization_v2",
+]
+v1 = [
+  "common_default",
+  "api_models/v1",
+  "diesel_models/v1",
+  "hyperswitch_domain_models/v1",
+  "storage_impl/v1",
+  "hyperswitch_interfaces/v1",
+  "kgraph_utils/v1",
+  "common_utils/v1",
+  "hyperswitch_connectors/v1",
+  "common_types/v1",
+  "scheduler/v1",
+  "payment_methods/v1",
+]
+dynamic_routing = [
+  "external_services/dynamic_routing",
+  "storage_impl/dynamic_routing",
+  "api_models/dynamic_routing",
+]
+revenue_recovery = [
+  "api_models/revenue_recovery",
+  "hyperswitch_interfaces/revenue_recovery",
+  "hyperswitch_domain_models/revenue_recovery",
+  "hyperswitch_connectors/revenue_recovery",
+]
+tokenization_v2 = [
+  "api_models/tokenization_v2",
+  "diesel_models/tokenization_v2",
+  "hyperswitch_domain_models/tokenization_v2",
+  "storage_impl/tokenization_v2",
+]
 
 # Partial Auth
 # The feature reduces the overhead of the router authenticating the merchant for every request, and trusts on `x-merchant-id` header to be present in the request.
@@ -57,7 +157,12 @@ base64 = "0.22.1"
 bb8 = "0.8"
 blake3 = "1.8.2"
 bytes = "1.10.1"
-clap = { version = "4.5.38", default-features = false, features = ["std", "derive", "help", "usage"] }
+clap = { version = "4.5.38", default-features = false, features = [
+  "std",
+  "derive",
+  "help",
+  "usage",
+] }
 config = { version = "0.14.1", features = ["toml"] }
 cookie = "0.18.1"
 csv = "1.3.1"
@@ -84,9 +189,17 @@ rand = "0.8.5"
 rand_chacha = "0.3.1"
 rdkafka = "0.36.2"
 regex = "1.11.1"
-reqwest = { version = "0.11.27", features = ["json", "rustls-tls", "gzip", "multipart"] }
+reqwest = { version = "0.11.27", features = [
+  "json",
+  "rustls-tls",
+  "gzip",
+  "multipart",
+] }
 ring = "0.17.14"
-rust_decimal = { version = "1.37.1", features = ["serde-with-float", "serde-with-str"] }
+rust_decimal = { version = "1.37.1", features = [
+  "serde-with-float",
+  "serde-with-str",
+] }
 rust-i18n = { git = "https://github.com/kashif-m/rust-i18n", rev = "f2d8096aaaff7a87a847c35a5394c269f75e077a" }
 unified-connector-service-client = { git = "https://github.com/juspay/connector-service", rev = "afaef3427f815befe253da152e5f37d3858bbc9f", package = "rust-grpc-client" }
 rustc-hash = "1.1.0"
@@ -101,14 +214,24 @@ sha2 = "0.10.9"
 strum = { version = "0.26", features = ["derive"] }
 tera = "1.20.0"
 thiserror = "1.0.69"
-time = { version = "0.3.41", features = ["serde", "serde-well-known", "std", "parsing", "serde-human-readable"] }
+time = { version = "0.3.41", features = [
+  "serde",
+  "serde-well-known",
+  "std",
+  "parsing",
+  "serde-human-readable",
+] }
 tokio = { version = "1.45.1", features = ["macros", "rt-multi-thread"] }
 totp-rs = { version = "5.7.0", features = ["gen_secret", "otpauth"] }
 tracing-futures = { version = "0.2.5", features = ["tokio"] }
 unicode-segmentation = "1.12.0"
 url = { version = "2.5.4", features = ["serde"] }
 urlencoding = "2.1.3"
-utoipa = { version = "4.2.3", features = ["preserve_order", "preserve_path_order", "time"] }
+utoipa = { version = "4.2.3", features = [
+  "preserve_order",
+  "preserve_path_order",
+  "time",
+] }
 uuid = { version = "1.17.0", features = ["v4"] }
 validator = "0.17.0"
 x509-parser = "0.16.0"
@@ -116,13 +239,26 @@ x509-parser = "0.16.0"
 # First party crates
 
 analytics = { version = "0.1.0", path = "../analytics", optional = true, default-features = false }
-api_models = { version = "0.1.0", path = "../api_models", features = ["errors", "control_center_theme"] }
+api_models = { version = "0.1.0", path = "../api_models", features = [
+  "errors",
+  "control_center_theme",
+] }
 cards = { version = "0.1.0", path = "../cards" }
 common_enums = { version = "0.1.0", path = "../common_enums" }
-common_utils = { version = "0.1.0", path = "../common_utils", features = ["signals", "async_ext", "logs", "metrics", "keymanager", "encryption_service"] }
+common_utils = { version = "0.1.0", path = "../common_utils", features = [
+  "signals",
+  "async_ext",
+  "logs",
+  "metrics",
+  "keymanager",
+  "encryption_service",
+] }
 common_types = { version = "0.1.0", path = "../common_types" }
 currency_conversion = { version = "0.1.0", path = "../currency_conversion" }
-diesel_models = { version = "0.1.0", path = "../diesel_models", features = ["kv_store", "tokenization_v2"], default-features = false }
+diesel_models = { version = "0.1.0", path = "../diesel_models", features = [
+  "kv_store",
+  "tokenization_v2",
+], default-features = false }
 euclid = { version = "0.1.0", path = "../euclid", features = ["valued_jit"] }
 events = { version = "0.1.0", path = "../events" }
 external_services = { version = "0.1.0", path = "../external_services" }
@@ -135,7 +271,10 @@ masking = { version = "0.1.0", path = "../masking" }
 pm_auth = { version = "0.1.0", path = "../pm_auth", package = "pm_auth" }
 redis_interface = { version = "0.1.0", path = "../redis_interface" }
 router_derive = { version = "0.1.0", path = "../router_derive" }
-router_env = { version = "0.1.0", path = "../router_env", features = ["log_extra_implicit_fields", "log_custom_entries_to_extra"] }
+router_env = { version = "0.1.0", path = "../router_env", features = [
+  "log_extra_implicit_fields",
+  "log_custom_entries_to_extra",
+] }
 scheduler = { version = "0.1.0", path = "../scheduler", default-features = false }
 storage_impl = { version = "0.1.0", path = "../storage_impl", default-features = false }
 payment_methods = { version = "0.1.0", path = "../payment_methods", default-features = false }

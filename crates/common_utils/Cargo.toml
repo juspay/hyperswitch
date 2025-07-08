@@ -13,7 +13,13 @@ keymanager = ["dep:router_env"]
 keymanager_mtls = ["reqwest/rustls-tls"]
 encryption_service = ["dep:router_env"]
 km_forward_x_request_id = ["dep:router_env", "router_env/actix_web"]
-signals = ["dep:signal-hook-tokio", "dep:signal-hook", "dep:tokio", "dep:router_env", "dep:futures"]
+signals = [
+  "dep:signal-hook-tokio",
+  "dep:signal-hook",
+  "dep:tokio",
+  "dep:router_env",
+  "dep:futures",
+]
 async_ext = ["dep:async-trait", "dep:futures"]
 logs = ["dep:router_env"]
 metrics = ["dep:router_env", "dep:futures"]
@@ -39,12 +45,17 @@ md5 = "0.7.0"
 nanoid = "0.4.0"
 nutype = { version = "0.4.3", features = ["serde"] }
 once_cell = "1.21.3"
-openssl = {version = "0.10.72", optional = true}
+openssl = { version = "0.10.72", optional = true }
 phonenumber = "0.3.7"
 quick-xml = { version = "0.31.0", features = ["serialize"] }
 rand = "0.8.5"
 regex = "1.11.1"
-reqwest = { version = "0.11.27", features = ["json", "native-tls", "gzip", "multipart"] }
+reqwest = { version = "0.11.27", features = [
+  "json",
+  "native-tls",
+  "gzip",
+  "multipart",
+] }
 ring = { version = "0.17.14", features = ["std", "wasm32_unknown_unknown_js"] }
 rust_decimal = "1.37"
 rustc-hash = "1.1.0"
@@ -56,22 +67,33 @@ signal-hook = { version = "0.3.18", optional = true }
 strum = { version = "0.26.3", features = ["derive"] }
 thiserror = "1.0.69"
 time = { version = "0.3.41", features = ["serde", "serde-well-known", "std"] }
-tokio = { version = "1.45.1", features = ["macros", "rt-multi-thread"], optional = true }
+tokio = { version = "1.45.1", features = [
+  "macros",
+  "rt-multi-thread",
+], optional = true }
 url = { version = "2.5.4", features = ["serde"] }
-utoipa = { version = "4.2.3", features = ["preserve_order", "preserve_path_order"] }
+utoipa = { version = "4.2.3", features = [
+  "preserve_order",
+  "preserve_path_order",
+] }
 uuid = { version = "1.17.0", features = ["v7"] }
 
 # First party crates
 common_enums = { version = "0.1.0", path = "../common_enums" }
 masking = { version = "0.1.0", path = "../masking" }
-router_env = { version = "0.1.0", path = "../router_env", features = ["log_extra_implicit_fields", "log_custom_entries_to_extra"], optional = true, default-features = false }
+router_env = { version = "0.1.0", path = "../router_env", features = [
+  "log_extra_implicit_fields",
+  "log_custom_entries_to_extra",
+], optional = true, default-features = false }
 
 [target.'cfg(target_arch = "wasm32")'.dependencies.uuid]
 version = "1.17.0"
 features = ["v7", "js"]
 
 [target.'cfg(not(target_os = "windows"))'.dependencies]
-signal-hook-tokio = { version = "0.3.1", features = ["futures-v0_3"], optional = true }
+signal-hook-tokio = { version = "0.3.1", features = [
+  "futures-v0_3",
+], optional = true }
 
 [dev-dependencies]
 fake = "2.10.0"

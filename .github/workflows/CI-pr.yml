@@ -58,23 +58,48 @@ jobs:
         with:
           toolchain: nightly
           components: rustfmt
+      
+      - name: Install taplo
+        uses: taiki-e/install-action@v2
+        with:
+          tool: taplo
+          checksum: true
 
-      - name: Check formatting for forked pull requests
+      - name: Check Rust formatting for forked pull requests
         if: ${{ github.event.pull_request.head.repo.full_name != github.event.pull_request.base.repo.full_name }}
         shell: bash
         run: cargo +nightly fmt --all --check
+      
+      - name: Check TOML formatting for forked pull requests
+        if: ${{ github.event.pull_request.head.repo.full_name != github.event.pull_request.base.repo.full_name }}
+        shell: bash
+        run: taplo fmt --check $(find . -name "*.toml" -type f)
 
-      - name: Run formatter
+      - name: Run Rust formatter
         if: ${{ github.event.pull_request.head.repo.full_name == github.event.pull_request.base.repo.full_name }}
         shell: bash
         run: |
           cargo +nightly fmt --all
           if ! git diff --exit-code --quiet -- crates; then
-            echo "::notice::Formatting check failed"
+            echo "::notice::Rust Formatting check failed"
             git config --local user.name 'hyperswitch-bot[bot]'
             git config --local user.email '148525504+hyperswitch-bot[bot]@users.noreply.github.com'
             git add crates
-            git commit --message 'chore: run formatter'
+            git commit --message 'chore: run rust formatter'
+            git push
+          fi
+        
+      - name: Run TOML formatter
+        if: ${{ github.event.pull_request.head.repo.full_name == github.event.pull_request.base.repo.full_name }}
+        shell: bash
+        run: |
+          taplo fmt $(find . -name "*.toml" -type f)
+          if ! git diff --exit-code --quiet; then
+            echo "::notice::TOML Formatting check failed"
+            git config --local user.name 'hyperswitch-bot[bot]'
+            git config --local user.email '148525504+hyperswitch-bot[bot]@users.noreply.github.com'
+            git add .
+            git commit --message 'chore: run TOML formatter'
             git push
           fi
 

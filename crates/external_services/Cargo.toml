@@ -14,18 +14,20 @@ aws_s3 = ["dep:aws-config", "dep:aws-sdk-s3"]
 hashicorp-vault = ["dep:vaultrs"]
 v1 = ["hyperswitch_interfaces/v1", "common_utils/v1"]
 dynamic_routing = [
-    "dep:prost",
-    "dep:api_models",
-    "tokio/macros",
-    "tokio/rt-multi-thread",
-    "dep:router_env",
-    "dep:hyper-util",
-    "dep:http-body-util",
+  "dep:prost",
+  "dep:api_models",
+  "tokio/macros",
+  "tokio/rt-multi-thread",
+  "dep:router_env",
+  "dep:hyper-util",
+  "dep:http-body-util",
 ]
 
 [dependencies]
 async-trait = "0.1.88"
-aws-config = { version = "1.5.10", optional = true, features = ["behavior-version-latest"] }
+aws-config = { version = "1.5.10", optional = true, features = [
+  "behavior-version-latest",
+] }
 aws-sdk-kms = { version = "1.51.0", optional = true }
 aws-sdk-sesv2 = "1.57.0"
 aws-sdk-sts = "1.51.0"
@@ -61,8 +63,8 @@ common_utils = { version = "0.1.0", path = "../common_utils" }
 hyperswitch_interfaces = { version = "0.1.0", path = "../hyperswitch_interfaces", default-features = false }
 masking = { version = "0.1.0", path = "../masking" }
 router_env = { version = "0.1.0", path = "../router_env", features = [
-    "log_extra_implicit_fields",
-    "log_custom_entries_to_extra",
+  "log_extra_implicit_fields",
+  "log_custom_entries_to_extra",
 ] }
 api_models = { version = "0.1.0", path = "../api_models", optional = true }
 

@@ -13,9 +13,23 @@ dynamic_routing = []
 oltp = []
 olap = ["hyperswitch_domain_models/olap"]
 payouts = ["hyperswitch_domain_models/payouts"]
-v1 = ["api_models/v1", "diesel_models/v1", "hyperswitch_domain_models/v1", "common_utils/v1"]
-v2 = ["api_models/v2", "diesel_models/v2", "hyperswitch_domain_models/v2", "common_utils/v2"]
-tokenization_v2 = ["diesel_models/tokenization_v2", "api_models/tokenization_v2", "hyperswitch_domain_models/tokenization_v2"]
+v1 = [
+  "api_models/v1",
+  "diesel_models/v1",
+  "hyperswitch_domain_models/v1",
+  "common_utils/v1",
+]
+v2 = [
+  "api_models/v2",
+  "diesel_models/v2",
+  "hyperswitch_domain_models/v2",
+  "common_utils/v2",
+]
+tokenization_v2 = [
+  "diesel_models/tokenization_v2",
+  "api_models/tokenization_v2",
+  "hyperswitch_domain_models/tokenization_v2",
+]
 
 [dependencies]
 # First Party dependencies
@@ -36,7 +50,9 @@ bb8 = "0.8.6"
 bytes = "1.10.1"
 config = { version = "0.14.1", features = ["toml"] }
 crc32fast = "1.4.2"
-diesel = { version = "2.2.10", default-features = false, features = ["postgres"] }
+diesel = { version = "2.2.10", default-features = false, features = [
+  "postgres",
+] }
 dyn-clone = "1.0.19"
 error-stack = "0.4.1"
 futures = "0.3.31"

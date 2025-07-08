@@ -11,10 +11,10 @@ key1 = "MerchantId"
 api_secret = "Secondary key"
 
 [amazonpay]
-api_key="API Key"
+api_key = "API Key"
 
 [archipel]
-api_key="CA Certificate PEM"
+api_key = "CA Certificate PEM"
 
 [authorizedotnet]
 api_key = "MyMerchantName"
@@ -52,7 +52,7 @@ key1 = "secret_key"
 
 [facilitapay]
 api_key = "password"
-key1 = "username" # email id
+key1 = "username"    # email id
 
 [fiserv]
 api_key = "MyApiKey"
@@ -130,38 +130,38 @@ api_secret = "Application Identifier"
 key1 = "Business Identifier"
 
 [opayo]
-api_key="API Key"
+api_key = "API Key"
 
 [wise]
 api_key = "API Key"
 key1 = "Profile ID"
 
 [automation_configs]
-hs_base_url="http://localhost:8080"
-hs_test_browser="firefox"
-chrome_profile_path=""
-firefox_profile_path=""
-pypl_email=""
-pypl_pass=""
-gmail_email=""
-gmail_pass=""
+hs_base_url = "http://localhost:8080"
+hs_test_browser = "firefox"
+chrome_profile_path = ""
+firefox_profile_path = ""
+pypl_email = ""
+pypl_pass = ""
+gmail_email = ""
+gmail_pass = ""
 
 [payme]
 # Open api key
-api_key="seller payme id"
-key1="payme client key"
+api_key = "seller payme id"
+key1 = "payme client key"
 
 [cryptopay]
 api_key = "api_key"
 key1 = "key1"
 
 [cashtocode]
-api_key="Classic PMT API Key"
+api_key = "Classic PMT API Key"
 key1 = "Evoucher PMT API Key"
 
 
 [tsys]
-api_key="device id"
+api_key = "device id"
 key1 = "transaction key"
 api_secret = "developer id"
 
@@ -170,31 +170,31 @@ api_key = "Partner code"
 key1 = "Credential code"
 
 [powertranz]
-api_key="PowerTranz-PowerTranzPassword"
+api_key = "PowerTranz-PowerTranzPassword"
 key1 = "PowerTranz-PowerTranzId"
 
 [stax]
-api_key="API Key"
+api_key = "API Key"
 
 [boku]
-api_key="API Key"
+api_key = "API Key"
 key1 = "transaction key"
 
 [square]
-api_key="API Key"
+api_key = "API Key"
 key1 = "transaction key"
 
 [helcim]
-api_key="API Key"
+api_key = "API Key"
 
 [gocardless]
-api_key="API Key"
+api_key = "API Key"
 
 [volt]
-api_key="API Key"
+api_key = "API Key"
 
 [prophetpay]
-api_key="API Key"
+api_key = "API Key"
 
 [bankofamerica]
 api_key = "MyApiKey"
@@ -202,64 +202,64 @@ key1 = "Merchant id"
 api_secret = "Secret key"
 
 [placetopay]
-api_key= "Login"
-key1= "Trankey"
+api_key = "Login"
+key1 = "Trankey"
 
 
 [plaid]
-api_key="Client Id"
-key1= "Secret"
+api_key = "Client Id"
+key1 = "Secret"
 
 [threedsecureio]
-api_key="API Key"
+api_key = "API Key"
 
 
 [ebanx]
-api_key="API Key"
+api_key = "API Key"
 
 
 [billwerk]
-api_key="API Key"
+api_key = "API Key"
 
 
 [netcetera]
-certificate="Certificate"
-private_key="Private Key"
+certificate = "Certificate"
+private_key = "Private Key"
 
 [zsl]
-api_key= "Key"
-key1= "Merchant id"
+api_key = "Key"
+key1 = "Merchant id"
 
 
 [payone]
-api_key="API Key"
+api_key = "API Key"
 
 
 [mifinity]
-api_key="API Key"
+api_key = "API Key"
 
 
 [gpayments]
-api_key="API Key"
+api_key = "API Key"
 
 [adyenplatform]
-api_key="API Key"
+api_key = "API Key"
 
 [datatrans]
-api_key="API Key"
+api_key = "API Key"
 
 
 [bamboraapac]
-api_key="API Key"
+api_key = "API Key"
 
 [razorpay]
-api_key="API Key"
+api_key = "API Key"
 key1 = "Merchant id"
 api_secret = "Razorpay Id"
 key2 = "Razorpay Secret"
 
 [itaubank]
-api_key="API Key"
+api_key = "API Key"
 
 [wellsfargo]
 api_key = "MyApiKey"
@@ -267,16 +267,16 @@ key1 = "Merchant id"
 api_secret = "Secret key"
 
 [paybox]
-api_key="API Key"
+api_key = "API Key"
 
 [fiservemea]
-api_key="API Key"
+api_key = "API Key"
 
 [nexixpay]
-api_key="API Key"
+api_key = "API Key"
 
 [redsys]
-api_key="API Key"
+api_key = "API Key"
 
 [wellsfargopayout]
 api_key = "Consumer Key"
@@ -291,7 +291,7 @@ api_key = "Client Secret"
 key1 = "Client ID"
 
 [novalnet]
-api_key="API Key"
+api_key = "API Key"
 
 [deutschebank]
 api_key = "Client ID"
@@ -299,42 +299,42 @@ key1 = "Merchant ID"
 api_secret = "Client Key"
 
 [thunes]
-api_key="API Key"
+api_key = "API Key"
 
 [getnet]
-api_key="API Key"
+api_key = "API Key"
 
 [inespay]
-api_key="API Key"
+api_key = "API Key"
 
 [jpmorgan]
-api_key="Client ID"
-key1 ="Client Secret"
+api_key = "Client ID"
+key1 = "Client Secret"
 
 [elavon]
-api_key="API Key"
+api_key = "API Key"
 
 [nomupay]
-api_key="kid"
-key1="eid"
+api_key = "kid"
+key1 = "eid"
 
 [unified_authentication_service]
-api_key="API Key"
+api_key = "API Key"
 
 [chargebee]
-api_key= "API Key"
+api_key = "API Key"
 
 [moneris]
-api_key= "API Key"
+api_key = "API Key"
 
 [stripebilling]
-api_key= "API Key"
+api_key = "API Key"
 
 [paystack]
 api_key = "API Key"
 
 [recurly]
-api_key= "API Key"
+api_key = "API Key"
 
 [barclaycard]
 api_key = "MyApiKey"
@@ -342,16 +342,16 @@ key1 = "Merchant id"
 api_secret = "Secret key"
 
 [checkbook]
-api_key="Client ID"
-key1 ="Client Secret"
+api_key = "Client ID"
+key1 = "Client Secret"
 
 [santander]
-api_key="Client ID"
-key1 ="Client Secret"
+api_key = "Client ID"
+key1 = "Client Secret"
 
 [dwolla]
-api_key="Client ID"
-key1="Client Secret"
+api_key = "Client ID"
+key1 = "Client Secret"
 
 [payload]
-api_key="API Key"
+api_key = "API Key"
