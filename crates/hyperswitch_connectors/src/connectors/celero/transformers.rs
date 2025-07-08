@@ -754,11 +754,10 @@ impl From<CeleroErrorResponse> for CeleroErrorDetails {
 impl CeleroErrorDetails {
     pub fn from_transaction_response(response: &CeleroCardResponse, msg: String) -> Self {
         // Map specific error codes based on common response patterns
-        let (error_code, decline_reason) =
-            Self::map_processor_error(&response.processor_response_code, &msg);
+        let decline_reason = Self::map_processor_error(&response.processor_response_code, &msg);
 
         Self {
-            error_code,
+            error_code: None,
             error_message: msg,
             processor_response_code: response.processor_response_code.clone(),
             decline_reason,
@@ -767,160 +766,36 @@ impl CeleroErrorDetails {
 
     pub fn from_top_level_error(msg: String) -> Self {
         // Map specific error codes from top-level API errors
-        let (error_code, decline_reason) = Self::map_api_error(&msg);
 
         Self {
-            error_code,
+            error_code: None,
             error_message: msg,
             processor_response_code: None,
-            decline_reason,
+            decline_reason: None,
         }
     }
 
     /// Map processor response codes and messages to specific Hyperswitch error codes
-    fn map_processor_error(
-        processor_code: &Option<String>,
-        message: &str,
-    ) -> (Option<String>, Option<String>) {
+    fn map_processor_error(processor_code: &Option<String>, message: &str) -> Option<String> {
         let message_lower = message.to_lowercase();
-
-        // Check message content for specific error patterns first
-        if message_lower.contains("invalid card number") || message_lower.contains("invalid card") {
-            return (
-                Some("INVALID_CARD_DATA".to_string()),
-                Some("Invalid card number".to_string()),
-            );
-        }
-
-        if message_lower.contains("insufficient funds")
-            || message_lower.contains("insufficient balance")
-        {
-            return (
-                Some("INSUFFICIENT_FUNDS".to_string()),
-                Some("Insufficient funds".to_string()),
-            );
-        }
-
-        if message_lower.contains("expired card") || message_lower.contains("card expired") {
-            return (
-                Some("EXPIRED_CARD".to_string()),
-                Some("Card expired".to_string()),
-            );
-        }
-
-        if message_lower.contains("cvv")
-            || message_lower.contains("cvc")
-            || message_lower.contains("security code")
-        {
-            return (
-                Some("INCORRECT_CVC".to_string()),
-                Some("CVV mismatch".to_string()),
-            );
-        }
-
-        if message_lower.contains("declined") || message_lower.contains("decline") {
-            return (
-                Some("TRANSACTION_DECLINED".to_string()),
-                Some("Transaction declined by issuer".to_string()),
-            );
-        }
-
         // Check processor response codes if available
         if let Some(code) = processor_code {
             match code.as_str() {
-                "05" => (
-                    Some("TRANSACTION_DECLINED".to_string()),
-                    Some("Do not honor".to_string()),
-                ),
-                "14" => (
-                    Some("INVALID_CARD_DATA".to_string()),
-                    Some("Invalid card number".to_string()),
-                ),
-                "51" => (
-                    Some("INSUFFICIENT_FUNDS".to_string()),
-                    Some("Insufficient funds".to_string()),
-                ),
-                "54" => (
-                    Some("EXPIRED_CARD".to_string()),
-                    Some("Expired card".to_string()),
-                ),
-                "55" => (
-                    Some("INCORRECT_CVC".to_string()),
-                    Some("Incorrect PIN".to_string()),
-                ),
-                "61" => (
-                    Some("TRANSACTION_DECLINED".to_string()),
-                    Some("Exceeds withdrawal amount limit".to_string()),
-                ),
-                "62" => (
-                    Some("TRANSACTION_DECLINED".to_string()),
-                    Some("Restricted card".to_string()),
-                ),
-                "65" => (
-                    Some("TRANSACTION_DECLINED".to_string()),
-                    Some("Exceeds withdrawal frequency limit".to_string()),
-                ),
-                "78" => (
-                    Some("INVALID_CARD_DATA".to_string()),
-                    Some("Invalid/nonexistent account".to_string()),
-                ),
-                "91" => (
-                    Some("PROCESSING_ERROR".to_string()),
-                    Some("Issuer or switch inoperative".to_string()),
-                ),
-                "96" => (
-                    Some("PROCESSING_ERROR".to_string()),
-                    Some("System malfunction".to_string()),
-                ),
-                _ => (
-                    Some("TRANSACTION_FAILED".to_string()),
-                    Some("Transaction failed".to_string()),
-                ),
+                "05" => Some("TRANSACTION_DECLINED".to_string()),
+                "14" => Some("INVALID_CARD_DATA".to_string()),
+                "51" => Some("INSUFFICIENT_FUNDS".to_string()),
+                "54" => Some("EXPIRED_CARD".to_string()),
+                "55" => Some("INCORRECT_CVC".to_string()),
+                "61" => Some("Exceeds withdrawal amount limit".to_string()),
+                "62" => Some("TRANSACTION_DECLINED".to_string()),
+                "65" => Some("Exceeds withdrawal frequency limit".to_string()),
+                "78" => Some("INVALID_CARD_DATA".to_string()),
+                "91" => Some("PROCESSING_ERROR".to_string()),
+                "96" => Some("PROCESSING_ERROR".to_string()),
+                _ => Some("Transaction failed".to_string()),
             }
         } else {
-            (
-                Some("TRANSACTION_FAILED".to_string()),
-                Some("Transaction failed".to_string()),
-            )
-        }
-    }
-
-    /// Map top-level API errors to specific error codes
-    fn map_api_error(message: &str) -> (Option<String>, Option<String>) {
-        let message_lower = message.to_lowercase();
-
-        if message_lower.contains("authentication") || message_lower.contains("unauthorized") {
-            (
-                Some("AUTHENTICATION_FAILED".to_string()),
-                Some("Authentication failed".to_string()),
-            )
-        } else if message_lower.contains("invalid request") || message_lower.contains("bad request")
-        {
-            (
-                Some("INVALID_REQUEST".to_string()),
-                Some("Invalid request format".to_string()),
-            )
-        } else if message_lower.contains("timeout") {
-            (
-                Some("REQUEST_TIMEOUT".to_string()),
-                Some("Request timeout".to_string()),
-            )
-        } else if message_lower.contains("rate limit")
-            || message_lower.contains("too many requests")
-        {
-            (
-                Some("RATE_LIMITED".to_string()),
-                Some("Rate limit exceeded".to_string()),
-            )
-        } else if message_lower.contains("service unavailable")
-            || message_lower.contains("server error")
-        {
-            (
-                Some("SERVICE_UNAVAILABLE".to_string()),
-                Some("Service temporarily unavailable".to_string()),
-            )
-        } else {
-            (Some("API_ERROR".to_string()), None)
+            Some(message_lower)
         }
     }
 }

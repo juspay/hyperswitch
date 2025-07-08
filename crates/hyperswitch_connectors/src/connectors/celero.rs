@@ -1,5 +1,8 @@
 pub mod transformers;
 
+use std::sync::LazyLock;
+
+use common_enums::enums;
 use common_utils::{
     errors::CustomResult,
     ext_traits::BytesExt,
@@ -19,7 +22,10 @@ use hyperswitch_domain_models::{
         PaymentsCancelData, PaymentsCaptureData, PaymentsSessionData, PaymentsSyncData,
         RefundsData, SetupMandateRequestData,
     },
-    router_response_types::{PaymentsResponseData, RefundsResponseData},
+    router_response_types::{
+        ConnectorInfo, PaymentMethodDetails, PaymentsResponseData, RefundsResponseData,
+        SupportedPaymentMethods, SupportedPaymentMethodsExt,
+    },
     types::{
         PaymentsAuthorizeRouterData, PaymentsCaptureRouterData, PaymentsSyncRouterData,
         RefundSyncRouterData, RefundsRouterData,
@@ -156,19 +162,19 @@ impl ConnectorCommon for Celero {
 impl ConnectorValidation for Celero {
     fn validate_connector_against_payment_request(
         &self,
-        capture_method: Option<common_enums::enums::CaptureMethod>,
-        _payment_method: common_enums::PaymentMethod,
-        _pmt: Option<common_enums::enums::PaymentMethodType>,
+        capture_method: Option<enums::CaptureMethod>,
+        _payment_method: enums::PaymentMethod,
+        _pmt: Option<enums::PaymentMethodType>,
     ) -> CustomResult<(), errors::ConnectorError> {
         let capture_method = capture_method.unwrap_or_default();
 
         // CeleroCommerce supports both automatic (sale) and manual (authorize + capture) flows
         let is_capture_method_supported = matches!(
             capture_method,
-            common_enums::enums::CaptureMethod::Automatic
-                | common_enums::enums::CaptureMethod::Manual
-                | common_enums::enums::CaptureMethod::ManualMultiple
-                | common_enums::enums::CaptureMethod::SequentialAutomatic
+            enums::CaptureMethod::Automatic
+                | enums::CaptureMethod::Manual
+                | enums::CaptureMethod::ManualMultiple
+                | enums::CaptureMethod::SequentialAutomatic
         );
 
         if is_capture_method_supported {
@@ -726,4 +732,81 @@ impl webhooks::IncomingWebhook for Celero {
     }
 }
 
-impl ConnectorSpecifications for Celero {}
+static CELERO_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMethods> = LazyLock::new(|| {
+    let supported_capture_methods = vec![
+        enums::CaptureMethod::Automatic,
+        enums::CaptureMethod::Manual,
+        enums::CaptureMethod::ManualMultiple,
+        enums::CaptureMethod::SequentialAutomatic,
+    ];
+
+    let supported_card_network = vec![
+        common_enums::CardNetwork::AmericanExpress,
+        common_enums::CardNetwork::CartesBancaires,
+        common_enums::CardNetwork::Maestro,
+        common_enums::CardNetwork::Mastercard,
+        common_enums::CardNetwork::Visa,
+    ];
+
+    let mut celero_supported_payment_methods = SupportedPaymentMethods::new();
+
+    celero_supported_payment_methods.add(
+        enums::PaymentMethod::Card,
+        enums::PaymentMethodType::Credit,
+        PaymentMethodDetails {
+            mandates: enums::FeatureStatus::Supported,
+            refunds: enums::FeatureStatus::Supported,
+            supported_capture_methods: supported_capture_methods.clone(),
+            specific_features: Some(
+                api_models::feature_matrix::PaymentMethodSpecificFeatures::Card({
+                    api_models::feature_matrix::CardSpecificFeatures {
+                        three_ds: common_enums::FeatureStatus::Supported,
+                        no_three_ds: common_enums::FeatureStatus::Supported,
+                        supported_card_networks: supported_card_network.clone(),
+                    }
+                }),
+            ),
+        },
+    );
+
+    celero_supported_payment_methods.add(
+        enums::PaymentMethod::Card,
+        enums::PaymentMethodType::Debit,
+        PaymentMethodDetails {
+            mandates: enums::FeatureStatus::Supported,
+            refunds: enums::FeatureStatus::Supported,
+            supported_capture_methods: supported_capture_methods.clone(),
+            specific_features: Some(
+                api_models::feature_matrix::PaymentMethodSpecificFeatures::Card({
+                    api_models::feature_matrix::CardSpecificFeatures {
+                        three_ds: common_enums::FeatureStatus::NotSupported,
+                        no_three_ds: common_enums::FeatureStatus::Supported,
+                        supported_card_networks: supported_card_network.clone(),
+                    }
+                }),
+            ),
+        },
+    );
+
+    celero_supported_payment_methods
+});
+
+static CELERO_CONNECTOR_INFO: ConnectorInfo = ConnectorInfo {
+    display_name: "Celero",
+    description: "Celero is your trusted provider for payment processing technology and solutions, with a commitment to helping small to mid-sized businesses thrive",
+    connector_type: enums::PaymentConnectorCategory::PaymentGateway,
+};
+
+impl ConnectorSpecifications for Celero {
+    fn get_connector_about(&self) -> Option<&'static ConnectorInfo> {
+        Some(&CELERO_CONNECTOR_INFO)
+    }
+
+    fn get_supported_payment_methods(&self) -> Option<&'static SupportedPaymentMethods> {
+        Some(&*CELERO_SUPPORTED_PAYMENT_METHODS)
+    }
+
+    fn get_supported_webhook_flows(&self) -> Option<&'static [enums::EventClass]> {
+        None
+    }
+}
