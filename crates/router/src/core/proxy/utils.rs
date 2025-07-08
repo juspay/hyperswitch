@@ -48,7 +48,9 @@ impl ProxyRequestWrapper {
                     .find_payment_method(&((state).into()), key_store, &pm_id, storage_scheme)
                     .await
                     .change_context(errors::ApiErrorResponse::PaymentMethodNotFound)?;
-                Ok(ProxyRecord::PaymentMethodRecord(Box::new(payment_method_record)))
+                Ok(ProxyRecord::PaymentMethodRecord(Box::new(
+                    payment_method_record,
+                )))
             }
             proxy_api_models::TokenType::TokenizationId => {
                 Err(report!(errors::ApiErrorResponse::NotImplemented {
