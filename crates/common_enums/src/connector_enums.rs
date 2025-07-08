@@ -75,6 +75,7 @@ pub enum RoutableConnectors {
     Boku,
     Braintree,
     Cashtocode,
+    Celero,
     Chargebee,
     // Checkbook,
     Checkout,
@@ -234,6 +235,7 @@ pub enum Connector {
     Boku,
     Braintree,
     Cashtocode,
+    Celero,
     Chargebee,
     // Checkbook,
     Checkout,
@@ -420,6 +422,7 @@ impl Connector {
             | Self::Boku
             | Self::Braintree
             | Self::Cashtocode
+            | Self::Celero
             | Self::Chargebee
             // | Self::Checkbook
             | Self::Coinbase
@@ -584,6 +587,7 @@ impl From<RoutableConnectors> for Connector {
             RoutableConnectors::Boku => Self::Boku,
             RoutableConnectors::Braintree => Self::Braintree,
             RoutableConnectors::Cashtocode => Self::Cashtocode,
+            RoutableConnectors::Celero => Self::Celero,
             RoutableConnectors::Chargebee => Self::Chargebee,
             // RoutableConnectors::Checkbook => Self::Checkbook,
             RoutableConnectors::Checkout => Self::Checkout,
@@ -706,6 +710,7 @@ impl TryFrom<Connector> for RoutableConnectors {
             Connector::Boku => Ok(Self::Boku),
             Connector::Braintree => Ok(Self::Braintree),
             Connector::Cashtocode => Ok(Self::Cashtocode),
+            Connector::Celero => Ok(Self::Celero),
             Connector::Chargebee => Ok(Self::Chargebee),
             // Connector::Checkbook => Ok(Self::Checkbook),
             Connector::Checkout => Ok(Self::Checkout),

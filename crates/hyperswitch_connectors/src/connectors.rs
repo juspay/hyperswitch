@@ -16,6 +16,7 @@ pub mod bluesnap;
 pub mod boku;
 pub mod braintree;
 pub mod cashtocode;
+pub mod celero;
 pub mod chargebee;
 pub mod checkbook;
 pub mod checkout;
@@ -87,6 +88,7 @@ pub mod riskified;
 pub mod santander;
 pub mod shift4;
 pub mod signifyd;
+pub mod silverflow;
 pub mod square;
 pub mod stax;
 pub mod stripe;
@@ -114,10 +116,10 @@ pub mod zsl;
 pub use self::dummyconnector::DummyConnector;
 pub use self::{
     aci::Aci, adyen::Adyen, adyenplatform::Adyenplatform, airwallex::Airwallex,
-    amazonpay::Amazonpay, archipel::Archipel, authipay::Authipay, authorizedotnet::Authorizedotnet,
-    bambora::Bambora, bamboraapac::Bamboraapac, bankofamerica::Bankofamerica,
-    barclaycard::Barclaycard, billwerk::Billwerk, bitpay::Bitpay, bluesnap::Bluesnap, boku::Boku,
-    braintree::Braintree, cashtocode::Cashtocode, chargebee::Chargebee, checkbook::Checkbook,
+    amazonpay::Amazonpay, archipel::Archipel, authipay::Authipay, authorizedotnet::Authorizedotnet, bambora::Bambora,
+    bamboraapac::Bamboraapac, bankofamerica::Bankofamerica, barclaycard::Barclaycard,
+    billwerk::Billwerk, bitpay::Bitpay, bluesnap::Bluesnap, boku::Boku, braintree::Braintree,
+    cashtocode::Cashtocode, celero::Celero, chargebee::Chargebee, checkbook::Checkbook,
     checkout::Checkout, coinbase::Coinbase, coingate::Coingate, cryptopay::Cryptopay,
     ctp_mastercard::CtpMastercard, cybersource::Cybersource, datatrans::Datatrans,
     deutschebank::Deutschebank, digitalvirgo::Digitalvirgo, dlocal::Dlocal, dwolla::Dwolla,
@@ -133,10 +135,11 @@ pub use self::{
     paypal::Paypal, paystack::Paystack, payu::Payu, placetopay::Placetopay, plaid::Plaid,
     powertranz::Powertranz, prophetpay::Prophetpay, rapyd::Rapyd, razorpay::Razorpay,
     recurly::Recurly, redsys::Redsys, riskified::Riskified, santander::Santander, shift4::Shift4,
-    signifyd::Signifyd, square::Square, stax::Stax, stripe::Stripe, stripebilling::Stripebilling,
-    taxjar::Taxjar, threedsecureio::Threedsecureio, thunes::Thunes, tokenio::Tokenio,
-    trustpay::Trustpay, tsys::Tsys, unified_authentication_service::UnifiedAuthenticationService,
-    vgs::Vgs, volt::Volt, wellsfargo::Wellsfargo, wellsfargopayout::Wellsfargopayout, wise::Wise,
-    worldline::Worldline, worldpay::Worldpay, worldpayvantiv::Worldpayvantiv,
-    worldpayxml::Worldpayxml, xendit::Xendit, zen::Zen, zsl::Zsl,
+    signifyd::Signifyd, silverflow::Silverflow, square::Square, stax::Stax, stripe::Stripe,
+    stripebilling::Stripebilling, taxjar::Taxjar, threedsecureio::Threedsecureio, thunes::Thunes,
+    tokenio::Tokenio, trustpay::Trustpay, tsys::Tsys,
+    unified_authentication_service::UnifiedAuthenticationService, vgs::Vgs, volt::Volt,
+    wellsfargo::Wellsfargo, wellsfargopayout::Wellsfargopayout, wise::Wise, worldline::Worldline,
+    worldpay::Worldpay, worldpayvantiv::Worldpayvantiv, worldpayxml::Worldpayxml, xendit::Xendit,
+    zen::Zen, zsl::Zsl,
 };
