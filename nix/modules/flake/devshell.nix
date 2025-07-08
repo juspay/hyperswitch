@@ -1,4 +1,5 @@
 {
+  debug = true;
   perSystem = { config, pkgs, self', ... }:
     let
       rustMsrv = config.rust-project.cargoToml.workspace.package.rust-version;
