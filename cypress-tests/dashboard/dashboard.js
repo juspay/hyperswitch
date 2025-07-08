@@ -68,18 +68,18 @@ function setupEventListeners() {
 async function loadDashboardData() {
   try {
     let response;
-
+    
     // Check if we're running on the hosted environment
     if (window.location.hostname === "integ.hyperswitch.io") {
       // Use the remote URL for hosted environment
       response = await fetch(
-        "https://integ.hyperswitch.io/cypress-test/reports/dashboard-data.json"
+        "https://integ.hyperswitch.io/cypress-test/reports/report_latest.json"
       );
     } else {
       // Use the local path for local development
       response = await fetch("../cypress/reports/dashboard-data.json");
     }
-
+    
     if (!response.ok) {
       throw new Error("Failed to load dashboard data");
     }
