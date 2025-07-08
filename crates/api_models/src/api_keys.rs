@@ -2,7 +2,7 @@ use common_utils::custom_serde;
 use masking::StrongSecret;
 use serde::{Deserialize, Serialize};
 use time::PrimitiveDateTime;
-use utoipa::ToSchema;
+use utoipa::{PartialSchema, ToSchema};
 
 /// The request body for creating an API Key.
 #[derive(Debug, Deserialize, ToSchema, Serialize)]
@@ -232,28 +232,40 @@ mod never {
     }
 }
 
-impl<'a> ToSchema<'a> for ApiKeyExpiration {
-    fn schema() -> (
-        &'a str,
-        utoipa::openapi::RefOr<utoipa::openapi::schema::Schema>,
-    ) {
-        use utoipa::openapi::{KnownFormat, ObjectBuilder, OneOfBuilder, SchemaFormat, SchemaType};
+impl PartialSchema for ApiKeyExpiration {
+    fn schema() -> utoipa::openapi::RefOr<utoipa::openapi::schema::Schema> {
+        use utoipa::openapi::{
+            schema::{SchemaType, Type},
+            KnownFormat, ObjectBuilder, OneOfBuilder, SchemaFormat,
+        };
 
-        (
-            "ApiKeyExpiration",
-            OneOfBuilder::new()
-                .item(
-                    ObjectBuilder::new()
-                        .schema_type(SchemaType::String)
-                        .enum_values(Some(["never"])),
-                )
-                .item(
-                    ObjectBuilder::new()
-                        .schema_type(SchemaType::String)
-                        .format(Some(SchemaFormat::KnownFormat(KnownFormat::DateTime))),
-                )
-                .into(),
-        )
+        OneOfBuilder::new()
+            .item(
+                ObjectBuilder::new()
+                    .schema_type(SchemaType::Type(Type::String))
+                    .enum_values(Some(["never"])),
+            )
+            .item(
+                ObjectBuilder::new()
+                    .schema_type(SchemaType::Type(Type::String))
+                    .format(Some(SchemaFormat::KnownFormat(KnownFormat::DateTime))),
+            )
+            .into()
+    }
+}
+
+impl ToSchema for ApiKeyExpiration {
+    fn name() -> std::borrow::Cow<'static, str> {
+        std::borrow::Cow::Borrowed("ApiKeyExpiration")
+    }
+
+    fn schemas(
+        _schemas: &mut Vec<(
+            String,
+            utoipa::openapi::RefOr<utoipa::openapi::schema::Schema>,
+        )>,
+    ) {
+        // nothing by default
     }
 }
 

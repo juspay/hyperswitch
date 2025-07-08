@@ -200,7 +200,6 @@ pub struct MerchantAccountCreateWithoutOrgId {
     #[schema(value_type = Option<Object>, example = r#"{ "city": "NY", "unit": "245" }"#)]
     pub metadata: Option<pii::SecretSerdeValue>,
 
-    #[schema(value_type = Option<MerchantProductType>)]
     pub product_type: Option<api_enums::MerchantProductType>,
 }
 
@@ -210,12 +209,13 @@ pub struct MerchantAccountCreateWithoutOrgId {
 #[cfg(feature = "v2")]
 #[derive(Clone, Debug, Serialize, ToSchema)]
 pub struct MerchantAccountCreate {
+    #[schema(value_type = String)]
     pub merchant_name: Secret<common_utils::new_type::MerchantName>,
     pub merchant_details: Option<MerchantDetails>,
+    #[schema(value_type = Option<Object>)]
     pub metadata: Option<pii::SecretSerdeValue>,
     pub organization_id: id_type::OrganizationId,
     /// Product Type of this merchant account
-    #[schema(value_type = Option<MerchantProductType>)]
     pub product_type: Option<api_enums::MerchantProductType>,
 }
 
@@ -278,7 +278,6 @@ pub enum CardTestingGuardStatus {
 #[derive(Clone, Debug, Deserialize, Serialize, ToSchema)]
 pub struct AuthenticationConnectorDetails {
     /// List of authentication connectors
-    #[schema(value_type = Vec<AuthenticationConnectors>)]
     pub authentication_connectors: Vec<common_enums::AuthenticationConnectors>,
     /// URL of the (customer service) website that will be shown to the shopper in case of technical errors during the 3D Secure 2 process.
     pub three_ds_requestor_url: String,
@@ -293,7 +292,6 @@ pub struct ExternalVaultConnectorDetails {
     pub vault_connector_id: id_type::MerchantConnectorAccountId,
 
     /// External vault to be used for storing payment method information
-    #[schema(value_type = Option<VaultSdk>)]
     pub vault_sdk: Option<common_enums::VaultSdk>,
 }
 
@@ -302,6 +300,7 @@ pub struct MerchantAccountMetadata {
     pub compatible_connector: Option<api_enums::Connector>,
 
     #[serde(flatten)]
+    #[schema(value_type = Option<Object>)]
     pub data: Option<pii::SecretSerdeValue>,
 }
 
@@ -614,11 +613,11 @@ pub struct MerchantAccountResponse {
     pub organization_id: id_type::OrganizationId,
 
     /// Used to indicate the status of the recon module for a merchant account
-    #[schema(value_type = ReconStatus, example = "not_requested")]
+    #[schema(example = "not_requested")]
     pub recon_status: api_enums::ReconStatus,
 
     /// Product Type of this merchant account
-    #[schema(value_type = Option<MerchantProductType>, example = "Orchestration")]
+    #[schema(example = "Orchestration")]
     pub product_type: Option<api_enums::MerchantProductType>,
 }
 
@@ -666,7 +665,6 @@ pub struct MerchantDetails {
 #[derive(Clone, Debug, Deserialize, ToSchema, Serialize, PartialEq)]
 #[serde(deny_unknown_fields)]
 pub struct PrimaryBusinessDetails {
-    #[schema(value_type = CountryAlpha2)]
     pub country: api_enums::CountryAlpha2,
     #[schema(example = "food")]
     pub business: String,
@@ -704,16 +702,16 @@ pub struct WebhookDetails {
     pub payment_failed_enabled: Option<bool>,
 
     /// List of payment statuses that triggers a webhook for payment intents
-    #[schema(value_type = Vec<IntentStatus>, example = json!(["succeeded", "failed", "partially_captured", "requires_merchant_action"]))]
+    #[schema(example = json!(["succeeded", "failed", "partially_captured", "requires_merchant_action"]))]
     pub payment_statuses_enabled: Option<Vec<api_enums::IntentStatus>>,
 
     /// List of refund statuses that triggers a webhook for refunds
-    #[schema(value_type = Vec<IntentStatus>, example = json!(["success", "failure"]))]
+    #[schema(example = json!(["success", "failure"]))]
     pub refund_statuses_enabled: Option<Vec<api_enums::RefundStatus>>,
 
     /// List of payout statuses that triggers a webhook for payouts
     #[cfg(feature = "payouts")]
-    #[schema(value_type = Option<Vec<PayoutStatus>>, example = json!(["success", "failed"]))]
+    #[schema(example = json!(["success", "failed"]))]
     pub payout_statuses_enabled: Option<Vec<api_enums::PayoutStatus>>,
 }
 
@@ -791,11 +789,11 @@ pub struct MerchantConnectorId {
 #[serde(deny_unknown_fields)]
 pub struct MerchantConnectorCreate {
     /// Type of the Connector for the financial use case. Could range from Payments to Accounting to Banking.
-    #[schema(value_type = ConnectorType, example = "payment_processor")]
+    #[schema(example = "payment_processor")]
     pub connector_type: api_enums::ConnectorType,
 
     /// Name of the Connector
-    #[schema(value_type = Connector, example = "stripe")]
+    #[schema(example = "stripe")]
     pub connector_name: api_enums::Connector,
 
     /// This is an unique label you can generate and pass in order to identify this connector account on your Hyperswitch dashboard and reports, If not passed then if will take `connector_name`_`profile_name`. Eg: if your profile label is `default`, connector label can be `stripe_default`
@@ -838,7 +836,7 @@ pub struct MerchantConnectorCreate {
     #[schema(value_type = Option<Object>)]
     pub pm_auth_config: Option<pii::SecretSerdeValue>,
 
-    #[schema(value_type = Option<ConnectorStatus>, example = "inactive")]
+    #[schema(example = "inactive")]
     // By default the ConnectorStatus is Active
     pub status: Option<api_enums::ConnectorStatus>,
 
@@ -1251,11 +1249,11 @@ impl MerchantConnectorInfo {
 #[serde(deny_unknown_fields)]
 pub struct MerchantConnectorResponse {
     /// Type of the Connector for the financial use case. Could range from Payments to Accounting to Banking.
-    #[schema(value_type = ConnectorType, example = "payment_processor")]
+    #[schema(example = "payment_processor")]
     pub connector_type: api_enums::ConnectorType,
 
     /// Name of the Connector
-    #[schema(value_type = Connector, example = "stripe")]
+    #[schema(example = "stripe")]
     pub connector_name: common_enums::connector_enums::Connector,
 
     /// A unique label to identify the connector account created under a profile
@@ -1305,7 +1303,7 @@ pub struct MerchantConnectorResponse {
     #[schema(value_type = Option<Object>)]
     pub pm_auth_config: Option<pii::SecretSerdeValue>,
 
-    #[schema(value_type = ConnectorStatus, example = "inactive")]
+    #[schema(example = "inactive")]
     pub status: api_enums::ConnectorStatus,
 
     #[schema(value_type = Option<AdditionalMerchantData>)]
@@ -1560,11 +1558,11 @@ impl MerchantConnectorListResponse {
 #[serde(deny_unknown_fields)]
 pub struct MerchantConnectorListResponse {
     /// Type of the Connector for the financial use case. Could range from Payments to Accounting to Banking.
-    #[schema(value_type = ConnectorType, example = "payment_processor")]
+    #[schema(example = "payment_processor")]
     pub connector_type: api_enums::ConnectorType,
 
     /// Name of the Connector
-    #[schema(value_type = Connector, example = "stripe")]
+    #[schema(example = "stripe")]
     pub connector_name: common_enums::connector_enums::Connector,
 
     /// A unique label to identify the connector account created under a profile
@@ -1597,7 +1595,7 @@ pub struct MerchantConnectorListResponse {
     #[schema(value_type = Option<Object>)]
     pub pm_auth_config: Option<pii::SecretSerdeValue>,
 
-    #[schema(value_type = ConnectorStatus, example = "inactive")]
+    #[schema(example = "inactive")]
     pub status: api_enums::ConnectorStatus,
 }
 
@@ -1734,7 +1732,7 @@ pub struct ConnectorWalletDetails {
 #[serde(deny_unknown_fields)]
 pub struct MerchantConnectorUpdate {
     /// Type of the Connector for the financial use case. Could range from Payments to Accounting to Banking.
-    #[schema(value_type = ConnectorType, example = "payment_processor")]
+    #[schema(example = "payment_processor")]
     pub connector_type: api_enums::ConnectorType,
 
     /// This is an unique label you can generate and pass in order to identify this connector account on your Hyperswitch dashboard and reports, If not passed then if will take `connector_name`_`profile_name`. Eg: if your profile label is `default`, connector label can be `stripe_default`
@@ -1773,7 +1771,7 @@ pub struct MerchantConnectorUpdate {
     #[schema(value_type = Option<Object>)]
     pub pm_auth_config: Option<pii::SecretSerdeValue>,
 
-    #[schema(value_type = ConnectorStatus, example = "inactive")]
+    #[schema(example = "inactive")]
     pub status: Option<api_enums::ConnectorStatus>,
 
     /// The identifier for the Merchant Account
@@ -1814,7 +1812,7 @@ impl MerchantConnectorUpdate {
 #[serde(deny_unknown_fields)]
 pub struct FrmConfigs {
     ///this is the connector that can be used for the payment
-    #[schema(value_type = ConnectorType, example = "payment_processor")]
+    #[schema(example = "payment_processor")]
     pub gateway: Option<api_enums::Connector>,
     ///payment methods that can be used in the payment
     pub payment_methods: Vec<FrmPaymentMethod>,
@@ -1825,12 +1823,11 @@ pub struct FrmConfigs {
 #[serde(deny_unknown_fields)]
 pub struct FrmPaymentMethod {
     ///payment methods(card, wallet, etc) that can be used in the payment
-    #[schema(value_type = PaymentMethod,example = "card")]
+    #[schema(example = "card")]
     pub payment_method: Option<common_enums::PaymentMethod>,
     ///payment method types(credit, debit) that can be used in the payment. This field is deprecated. It has not been removed to provide backward compatibility.
     pub payment_method_types: Option<Vec<FrmPaymentMethodType>>,
     ///frm flow type to be used, can be pre/post
-    #[schema(value_type = Option<FrmPreferredFlowTypes>)]
     pub flow: Option<api_enums::FrmPreferredFlowTypes>,
 }
 
@@ -1839,16 +1836,12 @@ pub struct FrmPaymentMethod {
 #[serde(deny_unknown_fields)]
 pub struct FrmPaymentMethodType {
     ///payment method types(credit, debit) that can be used in the payment
-    #[schema(value_type = PaymentMethodType)]
     pub payment_method_type: Option<common_enums::PaymentMethodType>,
     ///card networks(like visa mastercard) types that can be used in the payment
-    #[schema(value_type = CardNetwork)]
     pub card_networks: Option<Vec<common_enums::CardNetwork>>,
     ///frm flow type to be used, can be pre/post
-    #[schema(value_type = FrmPreferredFlowTypes)]
     pub flow: api_enums::FrmPreferredFlowTypes,
     ///action that the frm would take, in case fraud is detected
-    #[schema(value_type = FrmAction)]
     pub action: api_enums::FrmAction,
 }
 /// Details of all the payment methods enabled for the connector for the given merchant account
@@ -1856,11 +1849,11 @@ pub struct FrmPaymentMethodType {
 #[serde(deny_unknown_fields)]
 pub struct PaymentMethodsEnabled {
     /// Type of payment method.
-    #[schema(value_type = PaymentMethod,example = "card")]
+    #[schema(example = "card")]
     pub payment_method: common_enums::PaymentMethod,
 
     /// Subtype of payment method
-    #[schema(value_type = Option<Vec<RequestPaymentMethodTypes>>,example = json!(["credit"]))]
+    #[schema(example = json!(["credit"]))]
     pub payment_method_types: Option<Vec<payment_methods::RequestPaymentMethodTypes>>,
 }
 impl PaymentMethodsEnabled {
@@ -1886,9 +1879,7 @@ impl PaymentMethodsEnabled {
     rename_all = "snake_case"
 )]
 pub enum AcceptedCurrencies {
-    #[schema(value_type = Vec<Currency>)]
     EnableOnly(Vec<api_enums::Currency>),
-    #[schema(value_type = Vec<Currency>)]
     DisableOnly(Vec<api_enums::Currency>),
     AllAccepted,
 }
@@ -1902,9 +1893,7 @@ pub enum AcceptedCurrencies {
 )]
 /// Object to filter the customer countries for which the payment method is displayed
 pub enum AcceptedCountries {
-    #[schema(value_type = Vec<CountryAlpha2>)]
     EnableOnly(Vec<api_enums::CountryAlpha2>),
-    #[schema(value_type = Vec<CountryAlpha2>)]
     DisableOnly(Vec<api_enums::CountryAlpha2>),
     AllAccepted,
 }
@@ -2219,7 +2208,7 @@ pub struct ProfileCreate {
     pub order_fulfillment_time: Option<OrderFulfillmentTime>,
 
     /// Whether the order fulfillment time is calculated from the origin or the time of creating the payment, or confirming the payment
-    #[schema(value_type = Option<OrderFulfillmentTimeOrigin>, example = "create")]
+    #[schema(example = "create")]
     pub order_fulfillment_time_origin: Option<api_enums::OrderFulfillmentTimeOrigin>,
 
     /// Verified Apple Pay domains for a particular profile
@@ -2306,7 +2295,7 @@ pub struct ProfileCreate {
     pub is_debit_routing_enabled: Option<bool>,
 
     //Merchant country for the profile
-    #[schema(value_type = Option<CountryAlpha2>, example = "US")]
+    #[schema(example = "US")]
     pub merchant_business_country: Option<api_enums::CountryAlpha2>,
 
     /// Indicates if the redirection has to open in the iframe
@@ -2320,7 +2309,7 @@ pub struct ProfileCreate {
     pub external_vault_connector_details: Option<ExternalVaultConnectorDetails>,
 
     /// Four-digit code assigned based on business type to determine processing fees and risk level
-    #[schema(value_type = Option<MerchantCategoryCode>, example = "5411")]
+    #[schema(example = "5411")]
     pub merchant_category_code: Option<api_enums::MerchantCategoryCode>,
 }
 
@@ -2595,7 +2584,7 @@ pub struct ProfileResponse {
     pub order_fulfillment_time: Option<OrderFulfillmentTime>,
 
     /// Whether the order fulfillment time is calculated from the origin or the time of creating the payment, or confirming the payment
-    #[schema(value_type = Option<OrderFulfillmentTimeOrigin>, example = "create")]
+    #[schema(example = "create")]
     pub order_fulfillment_time_origin: Option<api_enums::OrderFulfillmentTimeOrigin>,
 
     /// Merchant Connector id to be stored for tax_calculator connector
@@ -2635,7 +2624,7 @@ pub struct ProfileResponse {
     pub is_debit_routing_enabled: Option<bool>,
 
     //Merchant country for the profile
-    #[schema(value_type = Option<CountryAlpha2>, example = "US")]
+    #[schema(example = "US")]
     pub merchant_business_country: Option<api_enums::CountryAlpha2>,
 
     /// Indicates if the redirection has to open in the iframe
@@ -2649,7 +2638,7 @@ pub struct ProfileResponse {
     pub external_vault_connector_details: Option<ExternalVaultConnectorDetails>,
 
     /// Four-digit code assigned based on business type to determine processing fees and risk level
-    #[schema(value_type = Option<MerchantCategoryCode>, example = "5411")]
+    #[schema(example = "5411")]
     pub merchant_category_code: Option<api_enums::MerchantCategoryCode>,
 }
 
@@ -2848,7 +2837,7 @@ pub struct ProfileUpdate {
     pub order_fulfillment_time: Option<OrderFulfillmentTime>,
 
     /// Whether the order fulfillment time is calculated from the origin or the time of creating the payment, or confirming the payment
-    #[schema(value_type = Option<OrderFulfillmentTimeOrigin>, example = "create")]
+    #[schema(example = "create")]
     pub order_fulfillment_time_origin: Option<api_enums::OrderFulfillmentTimeOrigin>,
 
     /// Verified Apple Pay domains for a particular profile
@@ -2935,7 +2924,7 @@ pub struct ProfileUpdate {
     pub is_debit_routing_enabled: Option<bool>,
 
     //Merchant country for the profile
-    #[schema(value_type = Option<CountryAlpha2>, example = "US")]
+    #[schema(example = "US")]
     pub merchant_business_country: Option<api_enums::CountryAlpha2>,
 
     /// Indicates if external vault is enabled or not.
@@ -2945,7 +2934,7 @@ pub struct ProfileUpdate {
     pub external_vault_connector_details: Option<ExternalVaultConnectorDetails>,
 
     /// Four-digit code assigned based on business type to determine processing fees and risk level
-    #[schema(value_type = Option<MerchantCategoryCode>, example = "5411")]
+    #[schema(example = "5411")]
     pub merchant_category_code: Option<api_enums::MerchantCategoryCode>,
 }
 
@@ -2955,7 +2944,7 @@ pub struct BusinessCollectLinkConfig {
     pub config: BusinessGenericLinkConfig,
 
     /// List of payment methods shown on collect UI
-    #[schema(value_type = Vec<EnabledPaymentMethod>, example = r#"[{"payment_method": "bank_transfer", "payment_method_types": ["ach", "bacs", "sepa"]}]"#)]
+    #[schema(example = r#"[{"payment_method": "bank_transfer", "payment_method_types": ["ach", "bacs", "sepa"]}]"#)]
     pub enabled_payment_methods: Vec<link_utils::EnabledPaymentMethod>,
 }
 
@@ -2965,7 +2954,7 @@ pub struct BusinessPayoutLinkConfig {
     pub config: BusinessGenericLinkConfig,
 
     /// Form layout of the payout link
-    #[schema(value_type = Option<UIWidgetFormLayout>, max_length = 255, example = "tabs")]
+    #[schema(max_length = 255, example = "tabs")]
     pub form_layout: Option<api_enums::UIWidgetFormLayout>,
 
     /// Allows for removing any validations / pre-requisites which are necessary in a production environment
@@ -3019,7 +3008,6 @@ pub struct BusinessGenericLinkConfig {
     pub allowed_domains: HashSet<String>,
 
     #[serde(flatten)]
-    #[schema(value_type = GenericLinkUiConfig)]
     pub ui_config: link_utils::GenericLinkUiConfig,
 }
 
@@ -3124,7 +3112,7 @@ pub struct PaymentLinkConfigRequest {
     /// Configurations for the background image for details section
     pub background_image: Option<PaymentLinkBackgroundImageConfig>,
     /// Custom layout for details section
-    #[schema(value_type = Option<PaymentLinkDetailsLayout>, example = "layout1")]
+    #[schema(example = "layout1")]
     pub details_layout: Option<api_enums::PaymentLinkDetailsLayout>,
     /// Text for payment link's handle confirm button
     pub payment_button_text: Option<String>,
@@ -3147,10 +3135,10 @@ pub struct PaymentLinkConfigRequest {
     /// Optional header for the SDK's payment form
     pub payment_form_header_text: Option<String>,
     /// Label type in the SDK's payment form
-    #[schema(value_type = Option<PaymentLinkSdkLabelType>, example = "floating")]
+    #[schema(example = "floating")]
     pub payment_form_label_type: Option<api_enums::PaymentLinkSdkLabelType>,
     /// Boolean for controlling whether or not to show the explicit consent for storing cards
-    #[schema(value_type = Option<PaymentLinkShowSdkTerms>, example = "always")]
+    #[schema(example = "always")]
     pub show_card_terms: Option<api_enums::PaymentLinkShowSdkTerms>,
     /// Boolean to control payment button text for setup mandate calls
     pub is_setup_mandate_flow: Option<bool>,
@@ -3189,10 +3177,10 @@ pub struct PaymentLinkBackgroundImageConfig {
     #[schema(value_type = String, example = "https://hyperswitch.io/favicon.ico")]
     pub url: common_utils::types::Url,
     /// Position of the image in the UI
-    #[schema(value_type = Option<ElementPosition>, example = "top-left")]
+    #[schema(example = "top-left")]
     pub position: Option<api_enums::ElementPosition>,
     /// Size of the image in the UI
-    #[schema(value_type = Option<ElementSize>, example = "contain")]
+    #[schema(example = "contain")]
     pub size: Option<api_enums::ElementSize>,
 }
 
@@ -3221,7 +3209,7 @@ pub struct PaymentLinkConfig {
     /// Configurations for the background image for details section
     pub background_image: Option<PaymentLinkBackgroundImageConfig>,
     /// Custom layout for details section
-    #[schema(value_type = Option<PaymentLinkDetailsLayout>, example = "layout1")]
+    #[schema(example = "layout1")]
     pub details_layout: Option<api_enums::PaymentLinkDetailsLayout>,
     /// Toggle for HyperSwitch branding visibility
     pub branding_visibility: Option<bool>,
@@ -3246,10 +3234,10 @@ pub struct PaymentLinkConfig {
     /// Optional header for the SDK's payment form
     pub payment_form_header_text: Option<String>,
     /// Label type in the SDK's payment form
-    #[schema(value_type = Option<PaymentLinkSdkLabelType>, example = "floating")]
+    #[schema(example = "floating")]
     pub payment_form_label_type: Option<api_enums::PaymentLinkSdkLabelType>,
     /// Boolean for controlling whether or not to show the explicit consent for storing cards
-    #[schema(value_type = Option<PaymentLinkShowSdkTerms>, example = "always")]
+    #[schema(example = "always")]
     pub show_card_terms: Option<api_enums::PaymentLinkShowSdkTerms>,
     /// Boolean to control payment button text for setup mandate calls
     pub is_setup_mandate_flow: Option<bool>,

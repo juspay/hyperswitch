@@ -14,7 +14,6 @@ pub struct RelayRequest {
     pub connector_id: common_utils::id_type::MerchantConnectorAccountId,
     /// The type of relay request
     #[serde(rename = "type")]
-    #[schema(value_type = RelayType)]
     pub relay_type: api_enums::RelayType,
     /// The data that is associated with the relay request
     pub data: Option<RelayData>,
@@ -33,7 +32,6 @@ pub struct RelayRefundRequestData {
     #[schema(value_type = i64 , example = 6540)]
     pub amount: MinorUnit,
     /// The currency in which the amount is being refunded
-    #[schema(value_type = Currency)]
     pub currency: api_enums::Currency,
     /// The reason for the refund
     #[schema(max_length = 255, example = "Customer returned the product")]
@@ -46,7 +44,6 @@ pub struct RelayResponse {
     #[schema(example = "relay_mbabizu24mvu3mela5njyhpit4", value_type = String)]
     pub id: common_utils::id_type::RelayId,
     /// The status of the relay request
-    #[schema(value_type = RelayStatus)]
     pub status: api_enums::RelayStatus,
     /// The identifier that is associated to a resource at the connector reference to which the relay request is being made
     #[schema(example = "pi_3MKEivSFNglxLpam0ZaL98q9")]
@@ -64,7 +61,6 @@ pub struct RelayResponse {
     pub profile_id: common_utils::id_type::ProfileId,
     /// The type of relay request
     #[serde(rename = "type")]
-    #[schema(value_type = RelayType)]
     pub relay_type: api_enums::RelayType,
     /// The data that is associated with the relay request
     pub data: Option<RelayData>,

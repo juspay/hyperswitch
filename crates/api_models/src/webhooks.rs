@@ -342,7 +342,6 @@ pub struct OutgoingWebhook {
     pub event_id: String,
 
     /// The type of event this webhook corresponds to.
-    #[schema(value_type = EventType)]
     pub event_type: api_enums::EventType,
 
     /// This is specific to the flow, for ex: it will be `PaymentsResponse` for payments flow
@@ -374,16 +373,16 @@ pub enum OutgoingWebhookContent {
 #[serde(tag = "type", content = "object", rename_all = "snake_case")]
 #[cfg(feature = "v2")]
 pub enum OutgoingWebhookContent {
-    #[schema(value_type = PaymentsResponse, title = "PaymentsResponse")]
+    #[schema(title = "PaymentsResponse")]
     PaymentDetails(Box<payments::PaymentsResponse>),
-    #[schema(value_type = RefundResponse, title = "RefundResponse")]
+    #[schema(title = "RefundResponse")]
     RefundDetails(Box<refunds::RefundResponse>),
-    #[schema(value_type = DisputeResponse, title = "DisputeResponse")]
+    #[schema(title = "DisputeResponse")]
     DisputeDetails(Box<disputes::DisputeResponse>),
-    #[schema(value_type = MandateResponse, title = "MandateResponse")]
+    #[schema(title = "MandateResponse")]
     MandateDetails(Box<mandates::MandateResponse>),
     #[cfg(feature = "payouts")]
-    #[schema(value_type = PayoutCreateResponse, title = "PayoutCreateResponse")]
+    #[schema(title = "PayoutCreateResponse")]
     PayoutDetails(Box<payouts::PayoutCreateResponse>),
 }
 

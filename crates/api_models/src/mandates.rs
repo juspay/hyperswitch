@@ -16,7 +16,6 @@ pub struct MandateRevokedResponse {
     /// The identifier for mandate
     pub mandate_id: String,
     /// The status for mandates
-    #[schema(value_type = MandateStatus)]
     pub status: api_enums::MandateStatus,
     /// If there was an error while calling the connectors the code is received here
     #[schema(example = "E0001")]
@@ -31,7 +30,6 @@ pub struct MandateResponse {
     /// The identifier for mandate
     pub mandate_id: String,
     /// The status for mandates
-    #[schema(value_type = MandateStatus)]
     pub status: api_enums::MandateStatus,
     /// The identifier for payment method
     pub payment_method_id: String,
@@ -42,7 +40,6 @@ pub struct MandateResponse {
     /// The card details for mandate
     pub card: Option<MandateCardDetails>,
     /// Details about the customer’s acceptance
-    #[schema(value_type = Option<CustomerAcceptance>)]
     pub customer_acceptance: Option<common_payments_types::CustomerAcceptance>,
 }
 
@@ -74,7 +71,6 @@ pub struct MandateCardDetails {
     /// The bank that issued the card
     pub card_issuer: Option<String>,
     /// The network that facilitates payment card transactions
-    #[schema(value_type = Option<CardNetwork>)]
     pub card_network: Option<api_enums::CardNetwork>,
     /// The type of the payment card
     pub card_type: Option<String>,
@@ -159,7 +155,7 @@ pub struct NetworkTransactionIdAndCardDetails {
     pub card_issuer: Option<String>,
 
     /// The card network for the card
-    #[schema(value_type = Option<CardNetwork>, example = "Visa")]
+    #[schema(example = "Visa")]
     pub card_network: Option<api_enums::CardNetwork>,
 
     #[schema(example = "CREDIT")]

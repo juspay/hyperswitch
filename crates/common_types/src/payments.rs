@@ -40,7 +40,7 @@ impl_to_sql_from_sql_json!(SplitPaymentsRequest);
 /// Fee information for Split Payments to be charged on the payment being collected for Stripe
 pub struct StripeSplitPaymentRequest {
     /// Stripe's charge type
-    #[schema(value_type = PaymentChargeType, example = "direct")]
+    #[schema(example = "direct")]
     pub charge_type: enums::PaymentChargeType,
 
     /// Platform fees to be collected on the payment
@@ -221,7 +221,7 @@ pub struct StripeChargeResponseData {
     pub charge_id: Option<String>,
 
     /// Type of charge (connector specific)
-    #[schema(value_type = PaymentChargeType, example = "direct")]
+    #[schema(example = "direct")]
     pub charge_type: enums::PaymentChargeType,
 
     /// Platform fees collected on the payment
@@ -263,7 +263,7 @@ pub struct XenditSplitRoute {
     /// Amount of payments to be split, using a percent rate as unit
     pub percent_amount: Option<i64>,
     /// Currency code
-    #[schema(value_type = Currency, example = "USD")]
+    #[schema(example = "USD")]
     pub currency: enums::Currency,
     ///  ID of the destination account where the amount will be routed to
     pub destination_account_id: String,

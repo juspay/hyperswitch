@@ -92,10 +92,8 @@ pub struct CustomerRequest {
     #[schema(max_length = 255, example = "+65")]
     pub phone_country_code: Option<String>,
     /// The default billing address for the customer
-    #[schema(value_type = Option<AddressDetails>)]
     pub default_billing_address: Option<payments::AddressDetails>,
     /// The default shipping address for the customer
-    #[schema(value_type = Option<AddressDetails>)]
     pub default_shipping_address: Option<payments::AddressDetails>,
     /// You can specify up to 50 keys, with key names up to 40 characters long and values up to 500
     /// characters long. Metadata is useful for storing additional, structured information on an
@@ -201,10 +199,8 @@ pub struct CustomerResponse {
     #[schema(max_length = 255, example = "First Customer", value_type = Option<String>)]
     pub description: Option<Description>,
     /// The default billing address for the customer
-    #[schema(value_type = Option<AddressDetails>)]
     pub default_billing_address: Option<payments::AddressDetails>,
     /// The default shipping address for the customer
-    #[schema(value_type = Option<AddressDetails>)]
     pub default_shipping_address: Option<payments::AddressDetails>,
     ///  A timestamp (ISO 8601 code) that determines when the customer was created
     #[schema(value_type = PrimitiveDateTime,example = "2023-01-18T11:04:09.922Z")]
@@ -329,10 +325,8 @@ pub struct CustomerUpdateRequest {
     #[schema(max_length = 255, example = "+65")]
     pub phone_country_code: Option<String>,
     /// The default billing address for the customer
-    #[schema(value_type = Option<AddressDetails>)]
     pub default_billing_address: Option<payments::AddressDetails>,
     /// The default shipping address for the customer
-    #[schema(value_type = Option<AddressDetails>)]
     pub default_shipping_address: Option<payments::AddressDetails>,
     /// You can specify up to 50 keys, with key names up to 40 characters long and values up to 500
     /// characters long. Metadata is useful for storing additional, structured information on an
