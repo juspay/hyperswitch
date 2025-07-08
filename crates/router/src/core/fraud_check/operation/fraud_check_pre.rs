@@ -207,6 +207,7 @@ where
                 error_message: router_data.request.error_message,
                 connector_transaction_id: router_data.request.connector_transaction_id,
                 connector: router_data.request.connector,
+                customer_id: router_data.request.customer_id,
             }),
             response: FrmResponse::Transaction(router_data.response),
         }))
@@ -242,6 +243,7 @@ where
                 payment_method_data: router_data.request.payment_method_data,
                 email: router_data.request.email,
                 gateway: router_data.request.gateway,
+                customer_id: router_data.request.customer_id,
             })),
             response: FrmResponse::Checkout(router_data.response),
         })
