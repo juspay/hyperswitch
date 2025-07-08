@@ -1,3 +1,7 @@
+use api_models::routing::{
+    MerchantRoutingAlgorithm, RoutingConfigRequest, RoutingDictionaryRecord,
+};
+
 #[cfg(feature = "v1")]
 /// Routing - Create
 ///

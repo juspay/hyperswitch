@@ -1,3 +1,8 @@
+use api_models::{
+    disputes::DisputeResponse,
+    enums::{DisputeStage, DisputeStatus},
+};
+
 /// Disputes - Retrieve Dispute
 /// Retrieves a dispute
 #[utoipa::path(

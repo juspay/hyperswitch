@@ -1,6 +1,7 @@
 use actix_multipart::Multipart;
 use actix_web::{web, HttpRequest, HttpResponse};
-use api_models::disputes as dispute_models;
+use api_models::disputes::{self as dispute_models, DisputeResponse};
+use common_enums::{DisputeStage, DisputeStatus};
 use router_env::{instrument, tracing, Flow};
 
 use crate::{core::api_locking, services::authorization::permissions::Permission};
@@ -486,7 +487,7 @@ pub async fn retrieve_dispute_evidence(
 #[utoipa::path(
     put,
     path = "/disputes/evidence",
-    request_body=DeleteEvidenceRequest,
+    request_body=dispute_models::DeleteEvidenceRequest,
     responses(
         (status = 200, description = "Evidence deleted from a dispute"),
         (status = 400, description = "Bad Request")

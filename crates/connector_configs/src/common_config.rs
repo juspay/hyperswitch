@@ -3,7 +3,7 @@ use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
 
 #[serde_with::skip_serializing_none]
-#[derive(Debug, Deserialize, serde::Serialize, Clone)]
+#[derive(Debug, Deserialize, serde::Serialize, Clone, ToSchema)]
 #[serde(rename_all = "snake_case")]
 pub struct ZenApplePay {
     pub terminal_uuid: Option<String>,
@@ -11,7 +11,7 @@ pub struct ZenApplePay {
 }
 
 #[serde_with::skip_serializing_none]
-#[derive(Debug, Deserialize, serde::Serialize, Clone)]
+#[derive(Debug, Deserialize, serde::Serialize, Clone, ToSchema)]
 #[serde(untagged)]
 pub enum ApplePayData {
     ApplePay(payments::ApplePayMetadata),
@@ -39,7 +39,7 @@ pub struct GpayDashboardPayLoad {
 }
 
 #[serde_with::skip_serializing_none]
-#[derive(Debug, Deserialize, serde::Serialize, Clone)]
+#[derive(Debug, Deserialize, serde::Serialize, Clone, ToSchema)]
 #[serde(rename_all = "snake_case")]
 pub struct ZenGooglePay {
     pub terminal_uuid: Option<String>,
@@ -55,13 +55,13 @@ pub enum GooglePayData {
 }
 
 #[serde_with::skip_serializing_none]
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema)]
 pub struct PaypalSdkData {
     pub client_id: Option<String>,
 }
 
 #[serde_with::skip_serializing_none]
-#[derive(Debug, Deserialize, serde::Serialize, Clone)]
+#[derive(Debug, Deserialize, serde::Serialize, Clone, ToSchema)]
 #[serde(untagged)]
 pub enum GoogleApiModelData {
     Standard(payments::GpayMetaData),
@@ -131,14 +131,14 @@ pub struct CardProvider {
                 "type": "specific_accepted",
                 "list": ["USD", "INR"]
             }
-        ), value_type = Option<AcceptedCurrencies>)]
+        ))]
     pub accepted_currencies: Option<api_models::admin::AcceptedCurrencies>,
     #[schema(example = json!(
         {
             "type": "specific_accepted",
             "list": ["UK", "AU"]
         }
-    ), value_type = Option<AcceptedCountries>)]
+    ))]
     pub accepted_countries: Option<api_models::admin::AcceptedCountries>,
 }
 #[serde_with::skip_serializing_none]
@@ -152,14 +152,14 @@ pub struct Provider {
                 "type": "specific_accepted",
                 "list": ["USD", "INR"]
             }
-        ), value_type = Option<AcceptedCurrencies>)]
+        ))]
     pub accepted_currencies: Option<api_models::admin::AcceptedCurrencies>,
     #[schema(example = json!(
         {
             "type": "specific_accepted",
             "list": ["UK", "AU"]
         }
-    ), value_type = Option<AcceptedCountries>)]
+    ))]
     pub accepted_countries: Option<api_models::admin::AcceptedCountries>,
     pub payment_experience: Option<api_models::enums::PaymentExperience>,
 }

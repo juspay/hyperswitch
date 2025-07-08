@@ -1,3 +1,8 @@
+use api_models::admin::{
+    MerchantAccountCreate, MerchantAccountResponse, MerchantAccountUpdate,
+    MerchantConnectorResponse, ProfileResponse,
+};
+
 #[cfg(feature = "v1")]
 /// Merchant Account - Create
 ///

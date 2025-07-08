@@ -1,3 +1,13 @@
+use api_models::payment_methods::{
+    CardNetworkTokenizeRequest, CardNetworkTokenizeResponse, CustomerPaymentMethodsListResponse,
+    PaymentMethodCreate, PaymentMethodDeleteResponse, PaymentMethodIntentConfirm,
+    PaymentMethodIntentCreate, PaymentMethodListResponseForSession, PaymentMethodResponse,
+    PaymentMethodSessionConfirmRequest, PaymentMethodSessionDeleteSavedPaymentMethod,
+    PaymentMethodSessionRequest, PaymentMethodSessionResponse,
+    PaymentMethodSessionUpdateSavedPaymentMethod, PaymentMethodUpdate,
+};
+use euclid::enums::{CardNetwork, CountryAlpha2, Currency};
+
 /// PaymentMethods - Create
 ///
 /// Creates and stores a payment method against a customer.
@@ -60,6 +70,7 @@ pub async fn create_payment_method_api() {}
     operation_id = "List all Payment Methods for a Merchant",
     security(("api_key" = []), ("publishable_key" = []))
 )]
+#[cfg(feature = "v1")]
 pub async fn list_payment_method_api() {}
 
 /// List payment methods for a Customer
@@ -199,6 +210,7 @@ pub async fn payment_method_delete_api() {}
     operation_id = "Set the Payment Method as Default",
     security(("ephemeral_key" = []))
 )]
+#[cfg(feature = "v1")]
 pub async fn default_payment_method_set_api() {}
 
 /// Payment Method - Create Intent
