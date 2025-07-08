@@ -695,12 +695,6 @@ export const connectorDetails = {
       },
     },
     SaveCardUseNo3DSManualCaptureOffSession: {
-      Configs: {
-        CONNECTOR_CREDENTIAL: {
-          specName: ["incrementalAuth"],
-          value: "connector_2",
-        },
-      },
       Request: {
         payment_method: "card",
         payment_method_data: {
