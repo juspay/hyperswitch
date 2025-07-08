@@ -179,7 +179,7 @@ impl SellerStatusResponse {
         self.links
             .first()
             .and_then(|link| link.href.strip_prefix('/'))
-            .map(|link| format!("{}{}", paypal_base_url, link))
+            .map(|link| format!("{paypal_base_url}{link}"))
             .ok_or(ApiErrorResponse::InternalServerError)
             .attach_printable("Merchant details not received in onboarding status")
     }

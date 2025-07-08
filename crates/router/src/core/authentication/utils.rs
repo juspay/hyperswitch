@@ -238,7 +238,7 @@ pub async fn create_new_authentication(
         merchant_id,
         authentication_connector: Some(authentication_connector),
         connector_authentication_id: None,
-        payment_method_id: format!("eph_{}", token),
+        payment_method_id: format!("eph_{token}"),
         authentication_type: None,
         authentication_status: common_enums::AuthenticationStatus::Started,
         authentication_lifecycle_status: common_enums::AuthenticationLifecycleStatus::Unused,
