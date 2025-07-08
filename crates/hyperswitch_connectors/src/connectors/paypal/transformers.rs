@@ -1521,11 +1521,10 @@ pub enum PaypalStatusPendingReason {
 impl From<PaypalIncrementalStatus> for common_enums::AuthorizationStatus {
     fn from(item: PaypalIncrementalStatus) -> Self {
         match item {
-            PaypalIncrementalStatus::CREATED => Self::Success,
+            PaypalIncrementalStatus::CREATED
+            | PaypalIncrementalStatus::CAPTURED
+            | PaypalIncrementalStatus::PARTIALLYCAPTURED => Self::Success,
             PaypalIncrementalStatus::PENDING => Self::Processing,
-            PaypalIncrementalStatus::CAPTURED | PaypalIncrementalStatus::PARTIALLYCAPTURED => {
-                Self::Success
-            }
             PaypalIncrementalStatus::DENIED | PaypalIncrementalStatus::VOIDED => Self::Failure,
         }
     }
