@@ -139,6 +139,7 @@ export const connectorDetails = {
           amount_received: null,
           amount: 6000,
           net_amount: 6050,
+          payment_method_data: paymentMethodData,
         },
       },
     },
@@ -616,6 +617,7 @@ export const connectorDetails = {
         status: 200,
         body: {
           status: "processing",
+          payment_method_data: paymentMethodData,
         },
       },
     },
@@ -723,6 +725,7 @@ export const connectorDetails = {
         status: 200,
         body: {
           status: "processing",
+          payment_method_data: paymentMethodData,
         },
       },
     },
