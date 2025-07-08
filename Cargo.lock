@@ -1847,7 +1847,7 @@ dependencies = [
  "common_enums",
  "common_utils",
  "diesel",
- "error-stack",
+ "error-stack 0.4.1",
  "euclid",
  "masking",
  "serde",
