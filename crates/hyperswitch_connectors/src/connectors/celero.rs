@@ -754,13 +754,13 @@ static CELERO_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMethods> = Laz
         enums::PaymentMethod::Card,
         enums::PaymentMethodType::Credit,
         PaymentMethodDetails {
-            mandates: enums::FeatureStatus::Supported,
+            mandates: enums::FeatureStatus::NotSupported,
             refunds: enums::FeatureStatus::Supported,
             supported_capture_methods: supported_capture_methods.clone(),
             specific_features: Some(
                 api_models::feature_matrix::PaymentMethodSpecificFeatures::Card({
                     api_models::feature_matrix::CardSpecificFeatures {
-                        three_ds: common_enums::FeatureStatus::Supported,
+                        three_ds: common_enums::FeatureStatus::NotSupported,
                         no_three_ds: common_enums::FeatureStatus::Supported,
                         supported_card_networks: supported_card_network.clone(),
                     }
@@ -773,7 +773,7 @@ static CELERO_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMethods> = Laz
         enums::PaymentMethod::Card,
         enums::PaymentMethodType::Debit,
         PaymentMethodDetails {
-            mandates: enums::FeatureStatus::Supported,
+            mandates: enums::FeatureStatus::NotSupported,
             refunds: enums::FeatureStatus::Supported,
             supported_capture_methods: supported_capture_methods.clone(),
             specific_features: Some(
