@@ -57,9 +57,9 @@ use hyperswitch_domain_models::{
         AuthenticationData, AuthoriseIntegrityObject, BrowserInformation, CaptureIntegrityObject,
         CompleteAuthorizeData, ConnectorCustomerData, MandateRevokeRequestData,
         PaymentMethodTokenizationData, PaymentsAuthorizeData, PaymentsCancelData,
-        PaymentsCaptureData, PaymentsIncrementalAuthorizationData, PaymentsPostSessionTokensData,
-        PaymentsPreProcessingData, PaymentsSyncData, RefundIntegrityObject, RefundsData,
-        ResponseId, SetupMandateRequestData, SyncIntegrityObject,
+        PaymentsCaptureData, PaymentsPostSessionTokensData, PaymentsPreProcessingData,
+        PaymentsSyncData, RefundIntegrityObject, RefundsData, ResponseId, SetupMandateRequestData,
+        SyncIntegrityObject,
     },
     router_response_types::{CaptureSyncResponse, PaymentsResponseData},
     types::{OrderDetailsWithAmount, SetupMandateRouterData},
@@ -6527,12 +6527,6 @@ impl SplitPaymentData for PaymentsSyncData {
 }
 
 impl SplitPaymentData for PaymentsCancelData {
-    fn get_split_payment_data(&self) -> Option<common_types::payments::SplitPaymentsRequest> {
-        None
-    }
-}
-
-impl SplitPaymentData for PaymentsIncrementalAuthorizationData {
     fn get_split_payment_data(&self) -> Option<common_types::payments::SplitPaymentsRequest> {
         None
     }
