@@ -26,6 +26,7 @@ use hyperswitch_domain_models::{
 use hyperswitch_domain_models::{
     router_data_v2::flow_common_types::VaultConnectorFlowData, types::VaultRouterDataV2,
 };
+use hyperswitch_interfaces::api::ConnectorSpecifications;
 #[cfg(feature = "v2")]
 use masking::ExposeOptionInterface;
 use masking::Secret;
@@ -235,6 +236,7 @@ pub async fn construct_payout_router_data<'a, F>(
         authentication_id: None,
         psd2_sca_exemption_type: None,
         whole_connector_response: None,
+        is_payment_id_from_merchant: None,
     };
 
     Ok(router_data)
@@ -402,6 +404,7 @@ pub async fn construct_refund_router_data<'a, F>(
         authentication_id: None,
         psd2_sca_exemption_type: None,
         whole_connector_response: None,
+        is_payment_id_from_merchant: None,
     };
 
     Ok(router_data)
@@ -605,6 +608,7 @@ pub async fn construct_refund_router_data<'a, F>(
         authentication_id: None,
         psd2_sca_exemption_type: None,
         whole_connector_response: None,
+        is_payment_id_from_merchant: None,
     };
 
     Ok(router_data)
@@ -1006,8 +1010,10 @@ pub async fn construct_accept_dispute_router_data<'a>(
         connector_request_reference_id: get_connector_request_reference_id(
             &state.conf,
             merchant_context.get_merchant_account().get_id(),
+            payment_intent,
             payment_attempt,
-        ),
+            &dispute.connector,
+        )?,
         #[cfg(feature = "payouts")]
         payout_method_data: None,
         #[cfg(feature = "payouts")]
@@ -1029,6 +1035,7 @@ pub async fn construct_accept_dispute_router_data<'a>(
         authentication_id: None,
         psd2_sca_exemption_type: None,
         whole_connector_response: None,
+        is_payment_id_from_merchant: None,
     };
     Ok(router_data)
 }
@@ -1105,8 +1112,10 @@ pub async fn construct_submit_evidence_router_data<'a>(
         connector_request_reference_id: get_connector_request_reference_id(
             &state.conf,
             merchant_context.get_merchant_account().get_id(),
+            payment_intent,
             payment_attempt,
-        ),
+            connector_id,
+        )?,
         #[cfg(feature = "payouts")]
         payout_method_data: None,
         #[cfg(feature = "payouts")]
@@ -1127,6 +1136,7 @@ pub async fn construct_submit_evidence_router_data<'a>(
         authentication_id: None,
         psd2_sca_exemption_type: None,
         whole_connector_response: None,
+        is_payment_id_from_merchant: None,
     };
     Ok(router_data)
 }
@@ -1209,8 +1219,10 @@ pub async fn construct_upload_file_router_data<'a>(
         connector_request_reference_id: get_connector_request_reference_id(
             &state.conf,
             merchant_context.get_merchant_account().get_id(),
+            payment_intent,
             payment_attempt,
-        ),
+            connector_id,
+        )?,
         #[cfg(feature = "payouts")]
         payout_method_data: None,
         #[cfg(feature = "payouts")]
@@ -1231,6 +1243,7 @@ pub async fn construct_upload_file_router_data<'a>(
         authentication_id: None,
         psd2_sca_exemption_type: None,
         whole_connector_response: None,
+        is_payment_id_from_merchant: None,
     };
     Ok(router_data)
 }
@@ -1331,8 +1344,10 @@ pub async fn construct_payments_dynamic_tax_calculation_router_data<F: Clone>(
         connector_request_reference_id: get_connector_request_reference_id(
             &state.conf,
             merchant_context.get_merchant_account().get_id(),
+            payment_intent,
             payment_attempt,
-        ),
+            &merchant_connector_account.connector_name,
+        )?,
         #[cfg(feature = "payouts")]
         payout_method_data: None,
         #[cfg(feature = "payouts")]
@@ -1354,6 +1369,7 @@ pub async fn construct_payments_dynamic_tax_calculation_router_data<F: Clone>(
         authentication_id: None,
         psd2_sca_exemption_type: None,
         whole_connector_response: None,
+        is_payment_id_from_merchant: None,
     };
     Ok(router_data)
 }
@@ -1433,8 +1449,10 @@ pub async fn construct_defend_dispute_router_data<'a>(
         connector_request_reference_id: get_connector_request_reference_id(
             &state.conf,
             merchant_context.get_merchant_account().get_id(),
+            payment_intent,
             payment_attempt,
-        ),
+            connector_id,
+        )?,
         #[cfg(feature = "payouts")]
         payout_method_data: None,
         #[cfg(feature = "payouts")]
@@ -1455,6 +1473,7 @@ pub async fn construct_defend_dispute_router_data<'a>(
         authentication_id: None,
         psd2_sca_exemption_type: None,
         whole_connector_response: None,
+        is_payment_id_from_merchant: None,
     };
     Ok(router_data)
 }
@@ -1550,6 +1569,7 @@ pub async fn construct_retrieve_file_router_data<'a>(
         authentication_id: None,
         psd2_sca_exemption_type: None,
         whole_connector_response: None,
+        is_payment_id_from_merchant: None,
     };
     Ok(router_data)
 }
@@ -1568,16 +1588,30 @@ pub fn is_merchant_enabled_for_payment_id_as_connector_request_id(
 pub fn get_connector_request_reference_id(
     conf: &Settings,
     merchant_id: &common_utils::id_type::MerchantId,
+    payment_intent: &hyperswitch_domain_models::payments::PaymentIntent,
     payment_attempt: &hyperswitch_domain_models::payments::payment_attempt::PaymentAttempt,
-) -> String {
-    let is_config_enabled_for_merchant =
+    connector_name: &str,
+) -> CustomResult<String, errors::ApiErrorResponse> {
+    let is_config_enabled_to_send_payment_id_as_connector_request_id =
         is_merchant_enabled_for_payment_id_as_connector_request_id(conf, merchant_id);
-    // Send payment_id if config is enabled for a merchant, else send attempt_id
-    if is_config_enabled_for_merchant {
-        payment_attempt.payment_id.get_string_repr().to_owned()
-    } else {
-        payment_attempt.attempt_id.to_owned()
-    }
+
+    let connector_data = api::ConnectorData::get_connector_by_name(
+        &conf.connectors,
+        connector_name,
+        api::GetToken::Connector,
+        payment_attempt.merchant_connector_id.clone(),
+    )
+    .change_context(errors::ApiErrorResponse::InternalServerError)
+    .attach_printable_lazy(|| "Failed to construct connector data")?;
+
+    let connector_request_reference_id = connector_data
+        .connector
+        .generate_connector_request_reference_id(
+            payment_intent,
+            payment_attempt,
+            is_config_enabled_to_send_payment_id_as_connector_request_id,
+        );
+    Ok(connector_request_reference_id)
 }
 
 // TODO: Based on the connector configuration, the connector_request_reference_id should be generated

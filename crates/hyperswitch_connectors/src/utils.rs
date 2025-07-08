@@ -6212,6 +6212,7 @@ pub(crate) fn convert_payment_authorize_router_response<F1, F2, T1, T2>(
         authentication_id: data.authentication_id.clone(),
         psd2_sca_exemption_type: data.psd2_sca_exemption_type,
         whole_connector_response: data.whole_connector_response.clone(),
+        is_payment_id_from_merchant: data.is_payment_id_from_merchant,
     }
 }
 
