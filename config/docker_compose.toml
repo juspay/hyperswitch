@@ -128,7 +128,9 @@ bluesnap.secondary_base_url = "https://sandpay.bluesnap.com/"
 boku.base_url = "https://$-api4-stage.boku.com"
 braintree.base_url = "https://payments.sandbox.braintree-api.com/graphql"
 cashtocode.base_url = "https://cluster05.api-test.cashtocode.com"
+celero.base_url = "https://sandbox.gotnpgateway.com"
 chargebee.base_url = "https://$.chargebee.com/api/"
+checkbook.base_url = "https://api.sandbox.checkbook.io"
 checkout.base_url = "https://api.sandbox.checkout.com/"
 coinbase.base_url = "https://api.commerce.coinbase.com"
 coingate.base_url = "https://api-sandbox.coingate.com"
@@ -140,6 +142,7 @@ deutschebank.base_url = "https://testmerch.directpos.de/rest-api"
 digitalvirgo.base_url = "https://dcb-integration-service-sandbox-external.staging.digitalvirgo.pl"
 dlocal.base_url = "https://sandbox.dlocal.com/"
 dummyconnector.base_url = "http://localhost:8080/dummy-connector"
+dwolla.base_url = "https://api-sandbox.dwolla.com"
 ebanx.base_url = "https://sandbox.ebanxpay.com/"
 elavon.base_url = "https://api.demo.convergepay.com/VirtualMerchantDemo/"
 facilitapay.base_url = "https://sandbox-api.facilitapay.com/api/v1"
@@ -186,6 +189,7 @@ opennode.base_url = "https://dev-api.opennode.com"
 paybox.base_url = "https://preprod-ppps.paybox.com/PPPS.php"
 paybox.secondary_base_url="https://preprod-tpeweb.paybox.com/"
 payeezy.base_url = "https://api-cert.payeezy.com/"
+payload.base_url = "https://api.payload.com"
 payme.base_url = "https://sandbox.payme.io/"
 payone.base_url = "https://payment.preprod.payone.com/"
 paypal.base_url = "https://api-m.sandbox.paypal.com/"
@@ -225,6 +229,7 @@ wise.base_url = "https://api.sandbox.transferwise.tech/"
 worldline.base_url = "https://eu.sandbox.api-ingenico.com/"
 worldpay.base_url = "https://try.access.worldpay.com/"
 worldpayvantiv.base_url = "https://transact.vantivprelive.com/vap/communicator/online"
+worldpayvantiv.secondary_base_url = "https://onlinessr.vantivprelive.com"
 worldpayxml.base_url = "https://secure-test.worldpay.com/jsp/merchant/xml/paymentService.jsp"
 xendit.base_url = "https://api.xendit.co"
 zen.base_url = "https://api.zen-test.com/"
@@ -255,7 +260,9 @@ cards = [
     "bluesnap",
     "boku",
     "braintree",
+    "celero",
     "checkout",
+    "checkbook",
     "coinbase",
     "coingate",
     "cryptopay",
@@ -266,6 +273,7 @@ cards = [
     "digitalvirgo",
     "dlocal",
     "dummyconnector",
+    "dwolla",
     "ebanx",
     "elavon",
     "facilitapay",
@@ -301,6 +309,7 @@ cards = [
     "opennode",
     "paybox",
     "payeezy",
+    "payload",
     "payme",
     "payone",
     "paypal",
@@ -773,6 +782,13 @@ ideal = { country = "NL", currency = "EUR" }
 sofort = { country = "AT,BE,CH,DE,ES,FI,FR,GB,IT,NL,PL,SE", currency = "CHF,EUR" }
 credit = { country = "AD,AE,AF,AG,AI,AL,AM,AO,AQ,AR,AS,AT,AU,AW,AX,AZ,BA,BB,BD,BE,BF,BG,BH,BI,BJ,BL,BM,BN,BO,BQ,BR,BS,BT,BV,BW,BY,BZ,CA,CC,CD,CF,CG,CH,CI,CK,CL,CM,CN,CO,CR,CU,CV,CW,CX,CY,CZ,DE,DJ,DK,DM,DO,DZ,EC,EE,EG,EH,ER,ES,ET,FI,FJ,FK,FM,FO,FR,GA,GB,GD,GE,GF,GG,GH,GI,GL,GM,GN,GP,GQ,GR,GT,GU,GW,GY,HK,HM,HN,HR,HT,HU,ID,IE,IL,IM,IN,IO,IQ,IR,IS,IT,JE,JM,JO,JP,KE,KG,KH,KI,KM,KN,KP,KR,KW,KY,KZ,LA,LB,LC,LI,LK,LR,LS,LT,LU,LV,LY,MA,MC,MD,ME,MF,MG,MH,MK,ML,MM,MN,MO,MP,MQ,MR,MS,MT,MU,MV,MW,MX,MY,MZ,NA,NC,NE,NF,NG,NI,NL,NO,NP,NR,NU,NZ,OM,PA,PE,PF,PG,PH,PK,PL,PM,PN,PR,PS,PT,PW,PY,QA,RE,RO,RS,RU,RW,SA,SB,SC,SD,SE,SG,SH,SI,SJ,SK,SL,SM,SN,SO,SR,SS,ST,SV,SX,SY,SZ,TC,TD,TF,TG,TH,TJ,TL,TM,TN,TO,TR,TT,TV,TW,TZ,UA,UG,UM,US,UY,UZ,VA,VC,VE,VG,VI,VN,VU,WF,WS,YE,YT,ZA,ZM,ZW", currency = "AED,AFN,ALL,AMD,ANG,AOA,ARS,AUD,AWG,AZN,BAM,BBD,BDT,BGN,BHD,BIF,BMD,BND,BOB,BRL,BSD,BTN,BWP,BYN,BZD,CAD,CDF,CHF,CLP,CNY,COP,CRC,CUP,CVE,CZK,DJF,DKK,DOP,DZD,EGP,ERN,ETB,EUR,FJD,FKP,GBP,GEL,GHS,GIP,GMD,GNF,GTQ,GYD,HKD,HNL,HRK,HTG,HUF,IDR,ILS,INR,IQD,IRR,ISK,JMD,JOD,JPY,KES,KGS,KHR,KMF,KPW,KRW,KWD,KYD,KZT,LAK,LBP,LKR,LRD,LSL,LYD,MAD,MDL,MGA,MKD,MMK,MNT,MOP,MRU,MUR,MVR,MWK,MXN,MYR,MZN,NAD,NGN,NIO,NOK,NPR,NZD,OMR,PAB,PEN,PGK,PHP,PKR,PLN,PYG,QAR,RON,RSD,RUB,RWF,SAR,SBD,SCR,SDG,SEK,SGD,SHP,SLL,SOS,SRD,SSP,SVC,SYP,SZL,THB,TJS,TMT,TND,TOP,TRY,TTD,TWD,TZS,UAH,UGX,USD,UYU,UZS,VND,VUV,WST,XAF,XCD,XOF,XPF,YER,ZAR,ZMW,ZWL" }
 debit = { country = "AD,AE,AF,AG,AI,AL,AM,AO,AQ,AR,AS,AT,AU,AW,AX,AZ,BA,BB,BD,BE,BF,BG,BH,BI,BJ,BL,BM,BN,BO,BQ,BR,BS,BT,BV,BW,BY,BZ,CA,CC,CD,CF,CG,CH,CI,CK,CL,CM,CN,CO,CR,CU,CV,CW,CX,CY,CZ,DE,DJ,DK,DM,DO,DZ,EC,EE,EG,EH,ER,ES,ET,FI,FJ,FK,FM,FO,FR,GA,GB,GD,GE,GF,GG,GH,GI,GL,GM,GN,GP,GQ,GR,GT,GU,GW,GY,HK,HM,HN,HR,HT,HU,ID,IE,IL,IM,IN,IO,IQ,IR,IS,IT,JE,JM,JO,JP,KE,KG,KH,KI,KM,KN,KP,KR,KW,KY,KZ,LA,LB,LC,LI,LK,LR,LS,LT,LU,LV,LY,MA,MC,MD,ME,MF,MG,MH,MK,ML,MM,MN,MO,MP,MQ,MR,MS,MT,MU,MV,MW,MX,MY,MZ,NA,NC,NE,NF,NG,NI,NL,NO,NP,NR,NU,NZ,OM,PA,PE,PF,PG,PH,PK,PL,PM,PN,PR,PS,PT,PW,PY,QA,RE,RO,RS,RU,RW,SA,SB,SC,SD,SE,SG,SH,SI,SJ,SK,SL,SM,SN,SO,SR,SS,ST,SV,SX,SY,SZ,TC,TD,TF,TG,TH,TJ,TL,TM,TN,TO,TR,TT,TV,TW,TZ,UA,UG,UM,US,UY,UZ,VA,VC,VE,VG,VI,VN,VU,WF,WS,YE,YT,ZA,ZM,ZW", currency = "AED,AFN,ALL,AMD,ANG,AOA,ARS,AUD,AWG,AZN,BAM,BBD,BDT,BGN,BHD,BIF,BMD,BND,BOB,BRL,BSD,BTN,BWP,BYN,BZD,CAD,CDF,CHF,CLP,CNY,COP,CRC,CUP,CVE,CZK,DJF,DKK,DOP,DZD,EGP,ERN,ETB,EUR,FJD,FKP,GBP,GEL,GHS,GIP,GMD,GNF,GTQ,GYD,HKD,HNL,HRK,HTG,HUF,IDR,ILS,INR,IQD,IRR,ISK,JMD,JOD,JPY,KES,KGS,KHR,KMF,KPW,KRW,KWD,KYD,KZT,LAK,LBP,LKR,LRD,LSL,LYD,MAD,MDL,MGA,MKD,MMK,MNT,MOP,MRU,MUR,MVR,MWK,MXN,MYR,MZN,NAD,NGN,NIO,NOK,NPR,NZD,OMR,PAB,PEN,PGK,PHP,PKR,PLN,PYG,QAR,RON,RSD,RUB,RWF,SAR,SBD,SCR,SDG,SEK,SGD,SHP,SLL,SOS,SRD,SSP,SVC,SYP,SZL,THB,TJS,TMT,TND,TOP,TRY,TTD,TWD,TZS,UAH,UGX,USD,UYU,UZS,VND,VUV,WST,XAF,XCD,XOF,XPF,YER,ZAR,ZMW,ZWL" }
+boleto = { country = "BR", currency = "BRL" }
+trustly = { currency = "CZK,DKK,EUR,GBP,NOK,SEK" }
+ali_pay = { country = "CN", currency = "CNY" }
+we_chat_pay = { country = "CN", currency = "CNY" }
+klarna = { currency = "EUR,GBP,CHF,SEK" }
+blik = { country = "PL", currency = "PLN" }
+crypto_currency = { currency = "USD,GBP,AED" }
 
 [pm_filters.inespay]
 sepa = { country = "ES", currency = "EUR"}
@@ -825,6 +841,9 @@ crypto_currency = { country = "AL, AD, AT, BE, BA, BG, HR, CZ, DK, EE, FI, FR, D
 [pm_filters.paystack]
 eft = { country = "NG, ZA, GH, KE, CI", currency = "NGN, GHS, ZAR, KES, USD" }
 
+[pm_filters.santander]
+pix = { country = "BR", currency = "BRL" }
+
 [bank_config.online_banking_fpx]
 adyen.banks = "affin_bank,agro_bank,alliance_bank,am_bank,bank_islam,bank_muamalat,bank_rakyat,bank_simpanan_nasional,cimb_bank,hong_leong_bank,hsbc_bank,kuwait_finance_house,maybank,ocbc_bank,public_bank,rhb_bank,standard_chartered_bank,uob_bank"
 fiuu.banks = "affin_bank,agro_bank,alliance_bank,am_bank,bank_of_china,bank_islam,bank_muamalat,bank_rakyat,bank_simpanan_nasional,cimb_bank,hong_leong_bank,hsbc_bank,kuwait_finance_house,maybank,ocbc_bank,public_bank,rhb_bank,standard_chartered_bank,uob_bank"
@@ -865,8 +884,8 @@ wallet.google_pay = { connector_list = "stripe,adyen,bankofamerica,authorizedotn
 wallet.apple_pay = { connector_list = "stripe,adyen,cybersource,noon,bankofamerica,authorizedotnet,novalnet,multisafepay,wellsfargo" }
 wallet.samsung_pay = { connector_list = "cybersource" }
 wallet.paypal = { connector_list = "adyen,novalnet,authorizedotnet" }
-card.credit = { connector_list = "stripe,adyen,authorizedotnet,cybersource,datatrans,globalpay,worldpay,multisafepay,nmi,nexinets,noon,bankofamerica,elavon,xendit,novalnet,bamboraapac,archipel,wellsfargo" }
-card.debit = { connector_list = "stripe,adyen,authorizedotnet,cybersource,datatrans,globalpay,worldpay,multisafepay,nmi,nexinets,noon,bankofamerica,elavon,xendit,novalnet,bamboraapac,archipel,wellsfargo" }
+card.credit = { connector_list = "stripe,adyen,authorizedotnet,cybersource,datatrans,globalpay,worldpay,multisafepay,nmi,nexinets,noon,bankofamerica,elavon,xendit,novalnet,bamboraapac,archipel,wellsfargo,worldpayvantiv" }
+card.debit = { connector_list = "stripe,adyen,authorizedotnet,cybersource,datatrans,globalpay,worldpay,multisafepay,nmi,nexinets,noon,bankofamerica,elavon,xendit,novalnet,bamboraapac,archipel,wellsfargo,worldpayvantiv" }
 bank_debit.ach = { connector_list = "gocardless,adyen" }
 bank_debit.becs = { connector_list = "gocardless" }
 bank_debit.bacs = { connector_list = "adyen" }
@@ -880,7 +899,7 @@ card.credit = { connector_list = "cybersource" }
 card.debit = { connector_list = "cybersource" }
 
 [network_transaction_id_supported_connectors]
-connector_list = "adyen,archipel,cybersource,novalnet,stripe,worldpay"
+connector_list = "adyen,archipel,cybersource,novalnet,stripe,worldpay,worldpayvantiv"
 
 [connector_customer]
 connector_list = "adyen,facilitapay,gocardless,hyperswitch_vault,stax,stripe"
@@ -1024,7 +1043,9 @@ merchant_name = "HyperSwitch"
 card = "credit,debit"
 
 [payout_method_filters.adyenplatform]
-sepa = { country = "ES,SK,AT,NL,DE,BE,FR,FI,PT,IE,EE,LT,LV,IT,CZ,DE,HU,NO,PL,SE,GB,CH", currency = "EUR,CZK,DKK,HUF,NOK,PLN,SEK,GBP,CHF" }
+sepa = { country = "AT,BE,CH,CZ,DE,EE,ES,FI,FR,GB,HU,IE,IT,LT,LV,NL,NO,PL,PT,SE,SK", currency = "EUR,CZK,DKK,HUF,NOK,PLN,SEK,GBP,CHF" }
+credit = { country = "AT,BE,BG,CY,CZ,DE,DK,EE,ES,FI,FR,GB,GR,HR,HU,IE,IS,IT,LI,LT,LU,LV,MT,NL,NO,PL,PT,RO,SE,SI,SK,US", currency = "EUR,USD,GBP" }
+debit = { country = "AT,BE,BG,CY,CZ,DE,DK,EE,ES,FI,FR,GB,GR,HR,HU,IE,IS,IT,LI,LT,LU,LV,MT,NL,NO,PL,PT,RO,SE,SI,SK,US", currency = "EUR,USD,GBP" }
 
 [payout_method_filters.stripe]
 ach = { country = "US", currency = "USD" }

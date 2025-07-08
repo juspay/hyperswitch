@@ -483,9 +483,11 @@ pub async fn perform_static_routing_v1(
             .get_string_repr()
             .to_string(),
         #[cfg(feature = "payouts")]
-        routing::TransactionData::Payout(payout_data) => {
-            payout_data.payout_attempt.payout_id.clone()
-        }
+        routing::TransactionData::Payout(payout_data) => payout_data
+            .payout_attempt
+            .payout_id
+            .get_string_repr()
+            .to_string(),
     };
 
     let routing_events_wrapper = utils::RoutingEventsWrapper::new(
@@ -513,7 +515,10 @@ pub async fn perform_static_routing_v1(
     ).unwrap_or_default();
 
     let (routable_connectors, routing_approach) = match cached_algorithm.as_ref() {
-        CachedAlgorithm::Single(conn) => (vec![(**conn).clone()], None),
+        CachedAlgorithm::Single(conn) => (
+            vec![(**conn).clone()],
+            Some(common_enums::RoutingApproach::StraightThroughRouting),
+        ),
         CachedAlgorithm::Priority(plist) => (plist.clone(), None),
         CachedAlgorithm::VolumeSplit(splits) => (
             perform_volume_split(splits.to_vec())
@@ -1206,8 +1211,10 @@ pub async fn perform_session_flow_routing(
     session_input: SessionFlowRoutingInput<'_>,
     business_profile: &domain::Profile,
     transaction_type: &api_enums::TransactionType,
-) -> RoutingResult<FxHashMap<api_enums::PaymentMethodType, Vec<routing_types::SessionRoutingChoice>>>
-{
+) -> RoutingResult<(
+    FxHashMap<api_enums::PaymentMethodType, Vec<routing_types::SessionRoutingChoice>>,
+    Option<common_enums::RoutingApproach>,
+)> {
     let mut pm_type_map: FxHashMap<api_enums::PaymentMethodType, FxHashMap<String, api::GetToken>> =
         FxHashMap::default();
 
@@ -1295,6 +1302,7 @@ pub async fn perform_session_flow_routing(
         api_enums::PaymentMethodType,
         Vec<routing_types::SessionRoutingChoice>,
     > = FxHashMap::default();
+    let mut final_routing_approach = None;
 
     for (pm_type, allowed_connectors) in pm_type_map {
         let euclid_pmt: euclid_enums::PaymentMethodType = pm_type;
@@ -1313,12 +1321,15 @@ pub async fn perform_session_flow_routing(
             profile_id: &profile_id,
         };
 
-        let routable_connector_choice_option = perform_session_routing_for_pm_type(
-            &session_pm_input,
-            transaction_type,
-            business_profile,
-        )
-        .await?;
+        let (routable_connector_choice_option, routing_approach) =
+            perform_session_routing_for_pm_type(
+                &session_pm_input,
+                transaction_type,
+                business_profile,
+            )
+            .await?;
+
+        final_routing_approach = routing_approach;
 
         if let Some(routable_connector_choice) = routable_connector_choice_option {
             let mut session_routing_choice: Vec<routing_types::SessionRoutingChoice> = Vec::new();
@@ -1346,7 +1357,7 @@ pub async fn perform_session_flow_routing(
         }
     }
 
-    Ok(result)
+    Ok((result, final_routing_approach))
 }
 
 #[cfg(feature = "v1")]
@@ -1354,14 +1365,17 @@ async fn perform_session_routing_for_pm_type(
     session_pm_input: &SessionRoutingPmTypeInput<'_>,
     transaction_type: &api_enums::TransactionType,
     _business_profile: &domain::Profile,
-) -> RoutingResult<Option<Vec<api_models::routing::RoutableConnectorChoice>>> {
+) -> RoutingResult<(
+    Option<Vec<api_models::routing::RoutableConnectorChoice>>,
+    Option<common_enums::RoutingApproach>,
+)> {
     let merchant_id = &session_pm_input.key_store.merchant_id;
 
     let algorithm_id = match session_pm_input.routing_algorithm {
         MerchantAccountRoutingAlgorithm::V1(algorithm_ref) => &algorithm_ref.algorithm_id,
     };
 
-    let chosen_connectors = if let Some(ref algorithm_id) = algorithm_id {
+    let (chosen_connectors, routing_approach) = if let Some(ref algorithm_id) = algorithm_id {
         let cached_algorithm = ensure_algorithm_cached_v1(
             &session_pm_input.state.clone(),
             merchant_id,
@@ -1372,23 +1386,35 @@ async fn perform_session_routing_for_pm_type(
         .await?;
 
         match cached_algorithm.as_ref() {
-            CachedAlgorithm::Single(conn) => vec![(**conn).clone()],
-            CachedAlgorithm::Priority(plist) => plist.clone(),
-            CachedAlgorithm::VolumeSplit(splits) => perform_volume_split(splits.to_vec())
-                .change_context(errors::RoutingError::ConnectorSelectionFailed)?,
-            CachedAlgorithm::Advanced(interpreter) => execute_dsl_and_get_connector_v1(
-                session_pm_input.backend_input.clone(),
-                interpreter,
-            )?,
+            CachedAlgorithm::Single(conn) => (
+                vec![(**conn).clone()],
+                Some(common_enums::RoutingApproach::StraightThroughRouting),
+            ),
+            CachedAlgorithm::Priority(plist) => (plist.clone(), None),
+            CachedAlgorithm::VolumeSplit(splits) => (
+                perform_volume_split(splits.to_vec())
+                    .change_context(errors::RoutingError::ConnectorSelectionFailed)?,
+                Some(common_enums::RoutingApproach::VolumeBasedRouting),
+            ),
+            CachedAlgorithm::Advanced(interpreter) => (
+                execute_dsl_and_get_connector_v1(
+                    session_pm_input.backend_input.clone(),
+                    interpreter,
+                )?,
+                Some(common_enums::RoutingApproach::RuleBasedRouting),
+            ),
         }
     } else {
-        routing::helpers::get_merchant_default_config(
-            &*session_pm_input.state.clone().store,
-            session_pm_input.profile_id.get_string_repr(),
-            transaction_type,
+        (
+            routing::helpers::get_merchant_default_config(
+                &*session_pm_input.state.clone().store,
+                session_pm_input.profile_id.get_string_repr(),
+                transaction_type,
+            )
+            .await
+            .change_context(errors::RoutingError::FallbackConfigFetchFailed)?,
+            None,
         )
-        .await
-        .change_context(errors::RoutingError::FallbackConfigFetchFailed)?
     };
 
     let mut final_selection = perform_cgraph_filtering(
@@ -1424,9 +1450,9 @@ async fn perform_session_routing_for_pm_type(
     }
 
     if final_selection.is_empty() {
-        Ok(None)
+        Ok((None, routing_approach))
     } else {
-        Ok(Some(final_selection))
+        Ok((Some(final_selection), routing_approach))
     }
 }
 

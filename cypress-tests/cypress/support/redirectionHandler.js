@@ -386,6 +386,24 @@ function bankRedirectRedirection(
             }
             verifyUrl = false;
             break;
+
+          case "nexinets":
+            switch (paymentMethodType) {
+              case "ideal":
+                // Nexinets iDEAL specific selector - click the Success link
+                cy.get("a.btn.btn-primary.btn-block")
+                  .contains("Success")
+                  .click();
+
+                verifyUrl = true;
+                break;
+              default:
+                throw new Error(
+                  `Unsupported Nexinets payment method type: ${paymentMethodType}`
+                );
+            }
+            break;
+
           default:
             throw new Error(
               `Unsupported connector in handleFlow: ${connectorId}`
@@ -699,6 +717,20 @@ function threeDsRedirection(redirectionUrl, expectedUrl, connectorId) {
                   cy.get("#txtButton").click();
                 });
             });
+          break;
+
+        case "deutschebank":
+          cy.get('button[id="submit"]', { timeout: constants.TIMEOUT })
+            .should("exist")
+            .should("be.visible")
+            .click();
+          break;
+
+        case "nexinets":
+          cy.wait(constants.TIMEOUT / 10); // Wait for the page to load
+          // Nexinets iDEAL specific selector - click the Success link
+          cy.get("a.btn.btn-primary.btn-block").contains("Success").click();
+
           break;
 
         case "nmi":

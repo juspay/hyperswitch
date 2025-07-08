@@ -272,24 +272,8 @@ pub struct PaymentsCreateIntentRequest {
     pub force_3ds_challenge: Option<bool>,
 
     /// Merchant connector details used to make payments.
-    pub merchant_connector_details: Option<MerchantConnectorDetails>,
-}
-
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema)]
-#[cfg(feature = "v2")]
-pub struct MerchantConnectorDetails {
-    /// The connector used for the payment
-    #[schema(value_type = Connector)]
-    pub connector_name: api_enums::Connector,
-
-    /// The merchant connector credentials used for the payment
-    #[schema(value_type = Object, example = r#"{
-        "merchant_connector_creds": {
-            "auth_type": "HeaderKey",
-            "api_key":"sk_test_xxxxxexamplexxxxxx12345"
-        },
-    }"#)]
-    pub merchant_connector_creds: pii::SecretSerdeValue,
+    #[schema(value_type = Option<MerchantConnectorAuthDetails>)]
+    pub merchant_connector_details: Option<common_types::domain::MerchantConnectorAuthDetails>,
 }
 #[cfg(feature = "v2")]
 #[derive(Debug, serde::Serialize, serde::Deserialize, Clone, ToSchema)]
@@ -1196,6 +1180,12 @@ pub struct PaymentsRequest {
 
     /// If enabled, provides whole connector response
     pub all_keys_required: Option<bool>,
+
+    /// Indicates whether the `payment_id` was provided by the merchant
+    /// This value is inferred internally based on the request
+    #[serde(skip_deserializing)]
+    #[remove_in(PaymentsUpdateRequest, PaymentsCreateRequest, PaymentsConfirmRequest)]
+    pub is_payment_id_from_merchant: bool,
 }
 
 #[derive(Clone, Debug, PartialEq, serde::Serialize, serde::Deserialize, ToSchema)]
@@ -5361,7 +5351,11 @@ pub struct PaymentsConfirmIntentRequest {
     pub payment_token: Option<String>,
 
     /// Merchant connector details used to make payments.
-    pub merchant_connector_details: Option<MerchantConnectorDetails>,
+    #[schema(value_type = Option<MerchantConnectorAuthDetails>)]
+    pub merchant_connector_details: Option<common_types::domain::MerchantConnectorAuthDetails>,
+
+    /// If true, returns stringified connector raw response body
+    pub return_raw_connector_response: Option<bool>,
 }
 
 #[cfg(feature = "v2")]
@@ -5536,7 +5530,11 @@ pub struct PaymentsRequest {
     pub is_iframe_redirection_enabled: Option<bool>,
 
     /// Merchant connector details used to make payments.
-    pub merchant_connector_details: Option<MerchantConnectorDetails>,
+    #[schema(value_type = Option<MerchantConnectorAuthDetails>)]
+    pub merchant_connector_details: Option<common_types::domain::MerchantConnectorAuthDetails>,
+
+    /// Stringified connector raw response body. Only returned if `return_raw_connector_response` is true
+    pub return_raw_connector_response: Option<bool>,
 }
 
 #[cfg(feature = "v2")]
@@ -5589,6 +5587,7 @@ impl From<&PaymentsRequest> for PaymentsConfirmIntentRequest {
             payment_method_id: request.payment_method_id.clone(),
             payment_token: None,
             merchant_connector_details: request.merchant_connector_details.clone(),
+            return_raw_connector_response: request.return_raw_connector_response,
         }
     }
 }
@@ -5611,10 +5610,11 @@ pub struct PaymentsRetrieveRequest {
     /// These are the query params that are sent in case of redirect response.
     /// These can be ingested by the connector to take necessary actions.
     pub param: Option<String>,
-    /// If enabled, provides whole connector response
-    pub all_keys_required: Option<bool>,
+    /// If true, returns stringified connector raw response body
+    pub return_raw_connector_response: Option<bool>,
     /// Merchant connector details used to make payments.
-    pub merchant_connector_details: Option<MerchantConnectorDetails>,
+    #[schema(value_type = Option<MerchantConnectorAuthDetails>)]
+    pub merchant_connector_details: Option<common_types::domain::MerchantConnectorAuthDetails>,
 }
 
 #[cfg(feature = "v2")]
@@ -5632,8 +5632,8 @@ pub struct PaymentsStatusRequest {
     /// These are the query params that are sent in case of redirect response.
     /// These can be ingested by the connector to take necessary actions.
     pub param: Option<String>,
-    /// If enabled, provides whole connector response
-    pub all_keys_required: Option<bool>,
+    /// If true, returns stringified connector raw response body
+    pub return_raw_connector_response: Option<bool>,
 }
 
 /// Error details for the payment
@@ -5789,6 +5789,9 @@ pub struct PaymentsResponse {
         example = "pay_mbabizu24mvu3mela5njyhpit4"
     )]
     pub merchant_reference_id: Option<id_type::PaymentReferenceId>,
+
+    /// Stringified connector raw response body. Only returned if `return_raw_connector_response` is true
+    pub raw_connector_response: Option<String>,
 }
 
 #[cfg(feature = "v2")]
@@ -6883,7 +6886,6 @@ pub struct AirwallexData {
     /// payload required by airwallex
     payload: Option<String>,
 }
-
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema)]
 pub struct NoonData {
     /// Information about the order category that merchant wants to specify at connector level. (e.g. In Noon Payments it can take values like "pay", "food", or any other custom string set by the merchant in Noon's Dashboard)
@@ -7510,6 +7512,7 @@ pub struct PaymentsSessionResponse {
     pub vault_details: Option<VaultSessionDetails>,
 }
 
+#[cfg(feature = "v1")]
 #[derive(Default, Debug, serde::Deserialize, serde::Serialize, Clone, ToSchema)]
 pub struct PaymentRetrieveBody {
     /// The identifier for the Merchant Account.
@@ -7527,6 +7530,7 @@ pub struct PaymentRetrieveBody {
     pub all_keys_required: Option<bool>,
 }
 
+#[cfg(feature = "v1")]
 #[derive(Default, Debug, serde::Deserialize, serde::Serialize, Clone, ToSchema)]
 pub struct PaymentRetrieveBodyWithCredentials {
     /// The identifier for payment.

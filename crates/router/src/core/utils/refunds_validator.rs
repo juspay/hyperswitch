@@ -245,8 +245,8 @@ pub fn validate_adyen_charge_refund(
                 if refund_amount > payment_amount {
                     return Err(report!(errors::ApiErrorResponse::InvalidRequestData {
                         message: format!(
-                            "Invalid refund amount for split item, reference: {}",
-                            refund_split_reference
+                            "Invalid refund amount for split item, reference: {refund_split_reference}",
+
                         ),
                     }));
                 }
@@ -260,8 +260,8 @@ pub fn validate_adyen_charge_refund(
                 if !refund_account.eq(payment_account) {
                     return Err(report!(errors::ApiErrorResponse::InvalidRequestData {
                         message: format!(
-                            "Invalid refund account for split item, reference: {}",
-                            refund_split_reference
+                            "Invalid refund account for split item, reference: {refund_split_reference}",
+
                         ),
                     }));
                 }
@@ -270,16 +270,15 @@ pub fn validate_adyen_charge_refund(
             if refund_split_item.split_type != payment_split_item.split_type {
                 return Err(report!(errors::ApiErrorResponse::InvalidRequestData {
                     message: format!(
-                        "Invalid refund split_type for split item, reference: {}",
-                        refund_split_reference
+                        "Invalid refund split_type for split item, reference: {refund_split_reference}",
+
                     ),
                 }));
             }
         } else {
             return Err(report!(errors::ApiErrorResponse::InvalidRequestData {
                 message: format!(
-                    "No matching payment split item found for reference: {}",
-                    refund_split_reference
+                    "No matching payment split item found for reference: {refund_split_reference}",
                 ),
             }));
         }

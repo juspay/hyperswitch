@@ -263,7 +263,7 @@ impl ConnectorIntegration<AccessTokenAuth, AccessTokenRequestData, AccessToken> 
                 format!(
                     "Basic {}",
                     common_utils::consts::BASE64_ENGINE
-                        .encode(format!("{}:{}", project_id, secret_key))
+                        .encode(format!("{project_id}:{secret_key}"))
                 )
             });
         Ok(vec![
@@ -423,40 +423,69 @@ impl ConnectorIntegration<PSync, PaymentsSyncData, PaymentsResponseData> for Tru
             .parse_struct("trustpay PaymentsResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
 
-        if let trustpay::TrustpayPaymentsResponse::WebhookResponse(ref webhook_response) = response
-        {
-            let response_integrity_object = connector_utils::get_sync_integrity_object(
-                self.amount_converter_to_float_major_unit,
-                webhook_response.amount.amount,
-                webhook_response.amount.currency.to_string(),
-            )?;
+        match &response {
+            trustpay::TrustpayPaymentsResponse::WebhookResponse(webhook_response) => {
+                let response_integrity_object = connector_utils::get_sync_integrity_object(
+                    self.amount_converter_to_float_major_unit,
+                    webhook_response.amount.amount,
+                    webhook_response.amount.currency.to_string(),
+                )?;
 
-            event_builder.map(|i| i.set_response_body(&response));
-            router_env::logger::info!(connector_response=?response);
+                event_builder.map(|i| i.set_response_body(&response));
+                router_env::logger::info!(connector_response=?response);
 
-            let new_router_data = RouterData::try_from(ResponseRouterData {
-                response,
-                data: data.clone(),
-                http_code: res.status_code,
-            });
-
-            return new_router_data
+                RouterData::try_from(ResponseRouterData {
+                    response,
+                    data: data.clone(),
+                    http_code: res.status_code,
+                })
                 .map(|mut router_data| {
                     router_data.request.integrity_object = Some(response_integrity_object);
                     router_data
                 })
-                .change_context(errors::ConnectorError::ResponseHandlingFailed);
+                .change_context(errors::ConnectorError::ResponseHandlingFailed)
+            }
+
+            trustpay::TrustpayPaymentsResponse::BankRedirectSync(bank_redirect_sync_response) => {
+                let response_integrity_object = connector_utils::get_sync_integrity_object(
+                    self.amount_converter_to_float_major_unit,
+                    bank_redirect_sync_response
+                        .payment_information
+                        .amount
+                        .amount,
+                    bank_redirect_sync_response
+                        .payment_information
+                        .amount
+                        .currency
+                        .to_string(),
+                )?;
+
+                event_builder.map(|i| i.set_response_body(&response));
+                router_env::logger::info!(connector_response=?response);
+
+                RouterData::try_from(ResponseRouterData {
+                    response,
+                    data: data.clone(),
+                    http_code: res.status_code,
+                })
+                .map(|mut router_data| {
+                    router_data.request.integrity_object = Some(response_integrity_object);
+                    router_data
+                })
+                .change_context(errors::ConnectorError::ResponseHandlingFailed)
+            }
+
+            _ => {
+                event_builder.map(|i| i.set_response_body(&response));
+                router_env::logger::info!(connector_response=?response);
+                RouterData::try_from(ResponseRouterData {
+                    response,
+                    data: data.clone(),
+                    http_code: res.status_code,
+                })
+                .change_context(errors::ConnectorError::ResponseHandlingFailed)
+            }
         }
-
-        event_builder.map(|i| i.set_response_body(&response));
-        router_env::logger::info!(connector_response=?response);
-
-        RouterData::try_from(ResponseRouterData {
-            response,
-            data: data.clone(),
-            http_code: res.status_code,
-        })
-        .change_context(errors::ConnectorError::ResponseHandlingFailed)
     }
 }
 

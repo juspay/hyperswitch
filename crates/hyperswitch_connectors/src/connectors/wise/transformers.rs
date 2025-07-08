@@ -510,7 +510,7 @@ impl<F> TryFrom<&PayoutsRouterData<F>> for WisePayoutCreateRequest {
                 Ok(Self {
                     target_account,
                     quote_uuid,
-                    customer_transaction_id: request.payout_id,
+                    customer_transaction_id: request.payout_id.get_string_repr().to_string(),
                     details: wise_transfer_details,
                 })
             }

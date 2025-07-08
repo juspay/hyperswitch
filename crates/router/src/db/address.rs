@@ -388,7 +388,7 @@ mod storage {
                         merchant_id,
                         payment_id,
                     };
-                    let field = format!("add_{}", address_id);
+                    let field = format!("add_{address_id}");
                     Box::pin(db_utils::try_redis_get_else_try_database_get(
                         async {
                             Box::pin(kv_wrapper(
