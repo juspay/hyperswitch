@@ -4,6 +4,16 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2025.06.25.0-hotfix3
+
+### Features
+
+- **data-migration:** Add connector customer and mandate details support for multiple profiles ([#8552](https://github.com/juspay/hyperswitch/pull/8552)) ([`cabfcba`](https://github.com/juspay/hyperswitch/commit/cabfcbada079870c565c83c2f2cb475a3a1917a5))
+
+**Full Changelog:** [`2025.06.25.0-hotfix2...2025.06.25.0-hotfix3`](https://github.com/juspay/hyperswitch/compare/2025.06.25.0-hotfix2...2025.06.25.0-hotfix3)
+
+- - -
+
 ## 2025.06.25.0-hotfix2
 
 ### Bug Fixes
