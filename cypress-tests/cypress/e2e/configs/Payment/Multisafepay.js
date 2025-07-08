@@ -871,17 +871,17 @@ export const connectorDetails = {
         payment_method: "bank_redirect",
         payment_method_type: "eps",
         authentication_type: "no_three_ds",
-        description: "hellow world",
+        description: "hello world",
         billing: {
-          address: {
-            zip: "560095",
-            first_name: "Sakil",
-            last_name: "Mostak",
-            line1: "Fasdf",
-            country: "AT",
-            line2: "Fasdf",
-            city: "Fasdf",
-          },
+            address: {
+                zip: "560095",
+                first_name: "John",
+                last_name: "Doe",
+                line1: "Harry Street",
+                country: "AT",
+                line2: "Downbridge",
+                city: "London"
+            }
         },
         payment_method_data: {
           bank_redirect: {
@@ -905,17 +905,17 @@ export const connectorDetails = {
         payment_method: "bank_redirect",
         payment_method_type: "sofort",
         authentication_type: "no_three_ds",
-        description: "hellow world",
+        description: "hello world",
         billing: {
-          address: {
-            zip: "560095",
-            first_name: "Sakil",
-            last_name: "Mostak",
-            line1: "Fasdf",
-            country: "AT",
-            line2: "Fasdf",
-            city: "Fasdf",
-          },
+            address: {
+                zip: "560095",
+                first_name: "John",
+                last_name: "Doe",
+                line1: "Harry Street",
+                country: "AT",
+                line2: "line2",
+                city: "London"
+            }
         },
         payment_method_data: {
           bank_redirect: {
@@ -939,7 +939,7 @@ export const connectorDetails = {
         payment_method: "wallet",
         payment_method_type: "mb_way",
         authentication_type: "no_three_ds",
-        description: "hellow world",
+        description: "hello world",
         billing: {
           address: {
             zip: "560095",
