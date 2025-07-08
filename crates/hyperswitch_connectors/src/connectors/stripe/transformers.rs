@@ -2833,8 +2833,7 @@ impl From<StripePaymentStatus> for common_enums::AuthorizationStatus {
             | StripePaymentStatus::RequiresCustomerAction
             | StripePaymentStatus::RequiresConfirmation
             | StripePaymentStatus::Consumed => Self::Success,
-            StripePaymentStatus::Processing
-            | StripePaymentStatus::Pending => Self::Processing,
+            StripePaymentStatus::Processing | StripePaymentStatus::Pending => Self::Processing,
             StripePaymentStatus::Failed
             | StripePaymentStatus::Canceled
             | StripePaymentStatus::RequiresPaymentMethod => Self::Failure,

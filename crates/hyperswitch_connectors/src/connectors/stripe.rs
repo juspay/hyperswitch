@@ -51,8 +51,8 @@ use hyperswitch_domain_models::{
 };
 #[cfg(feature = "payouts")]
 use hyperswitch_interfaces::types::{
-    PayoutCancelType, PayoutCreateType, PayoutFulfillType,
-    PayoutRecipientAccountType, PayoutRecipientType,
+    PayoutCancelType, PayoutCreateType, PayoutFulfillType, PayoutRecipientAccountType,
+    PayoutRecipientType,
 };
 use hyperswitch_interfaces::{
     api::{
@@ -68,9 +68,10 @@ use hyperswitch_interfaces::{
     errors::ConnectorError,
     events::connector_api_logs::ConnectorEvent,
     types::{
-        ConnectorCustomerType, PaymentsAuthorizeType, PaymentsCaptureType, PaymentsSyncType,
-        PaymentsUpdateMetadataType, PaymentsVoidType, RefundExecuteType, RefundSyncType, Response,
-        RetrieveFileType, SubmitEvidenceType, TokenizationType, UploadFileType, IncrementalAuthorizationType
+        ConnectorCustomerType, IncrementalAuthorizationType, PaymentsAuthorizeType,
+        PaymentsCaptureType, PaymentsSyncType, PaymentsUpdateMetadataType, PaymentsVoidType,
+        RefundExecuteType, RefundSyncType, Response, RetrieveFileType, SubmitEvidenceType,
+        TokenizationType, UploadFileType,
     },
     webhooks::{IncomingWebhook, IncomingWebhookRequestDetails},
 };
