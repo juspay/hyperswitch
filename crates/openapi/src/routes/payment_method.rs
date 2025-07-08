@@ -1,10 +1,14 @@
 use api_models::payment_methods::{
-    CardNetworkTokenizeRequest, CardNetworkTokenizeResponse, CustomerPaymentMethodsListResponse,
-    PaymentMethodCreate, PaymentMethodDeleteResponse, PaymentMethodIntentConfirm,
-    PaymentMethodIntentCreate, PaymentMethodListResponseForSession, PaymentMethodResponse,
-    PaymentMethodSessionConfirmRequest, PaymentMethodSessionDeleteSavedPaymentMethod,
-    PaymentMethodSessionRequest, PaymentMethodSessionResponse,
-    PaymentMethodSessionUpdateSavedPaymentMethod, PaymentMethodUpdate,
+    CardNetworkTokenizeRequest, CardNetworkTokenizeResponse, CustomerDefaultPaymentMethodResponse,
+    CustomerPaymentMethodsListResponse, PaymentMethodCreate, PaymentMethodDeleteResponse,
+    PaymentMethodListResponse, PaymentMethodResponse, PaymentMethodUpdate,
+};
+#[cfg(feature = "v2")]
+use api_models::payment_methods::{
+    PaymentMethodIntentConfirm, PaymentMethodIntentCreate, PaymentMethodListResponseForSession,
+    PaymentMethodResponse, PaymentMethodSessionConfirmRequest,
+    PaymentMethodSessionDeleteSavedPaymentMethod, PaymentMethodSessionRequest,
+    PaymentMethodSessionResponse, PaymentMethodSessionUpdateSavedPaymentMethod,
 };
 use euclid::enums::{CardNetwork, CountryAlpha2, Currency};
 
@@ -202,7 +206,7 @@ pub async fn payment_method_delete_api() {}
         ("payment_method_id" = String,Path, description = "The unique identifier for the Payment Method"),
     ),
     responses(
-        (status = 200, description = "Payment Method has been set as default", body =CustomerDefaultPaymentMethodResponse ),
+        (status = 200, description = "Payment Method has been set as default", body = CustomerDefaultPaymentMethodResponse ),
         (status = 400, description = "Payment Method has already been set as default for that customer"),
         (status = 404, description = "Payment Method not found for the customer")
     ),

@@ -1,5 +1,6 @@
 use actix_multipart::Multipart;
 use actix_web::{web, HttpRequest, HttpResponse};
+use api_models::files::CreateFileResponse;
 use router_env::{instrument, tracing, Flow};
 
 use crate::core::api_locking;
@@ -19,7 +20,7 @@ use crate::{
 #[utoipa::path(
     post,
     path = "/files",
-    request_body=MultipartRequestWithFile,
+    // request_body=MultipartRequestWithFile,
     responses(
         (status = 200, description = "File created", body = CreateFileResponse),
         (status = 400, description = "Bad Request")

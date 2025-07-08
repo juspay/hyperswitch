@@ -836,7 +836,7 @@ impl AmountDetailsUpdate {
 #[serde(deny_unknown_fields)]
 pub struct PaymentsRequest {
     /// The primary amount for the payment, provided in the lowest denomination of the specified currency (e.g., 6540 for $65.40 USD). This field is mandatory for creating a payment.
-    #[schema(example = 6540)]
+    #[schema(value_type = Option<u64>, example = 6540)]
     #[serde(default, deserialize_with = "amount::deserialize_option")]
     #[mandatory_in(PaymentsCreateRequest = u64)]
     // Makes the field mandatory in PaymentsCreateRequest
@@ -848,7 +848,7 @@ pub struct PaymentsRequest {
 
     /// The three-letter ISO 4217 currency code (e.g., "USD", "EUR") for the payment amount. This field is mandatory for creating a payment.
     #[schema(example = "USD")]
-    #[mandatory_in(PaymentsCreateRequest = Currency)]
+    // #[mandatory_in(PaymentsCreateRequest = Currency)]
     pub currency: Option<api_enums::Currency>,
 
     /// The amount to be captured from the user's payment method, in the lowest denomination. If not provided, and `capture_method` is `automatic`, the full payment `amount` will be captured. If `capture_method` is `manual`, this can be specified in the `/capture` call. Must be less than or equal to the authorized amount.
@@ -1108,7 +1108,7 @@ pub struct PaymentsRequest {
     /// Optional boolean value to extent authorization period of this payment
     ///
     /// capture method must be manual or manual_multiple
-    #[schema(default = false)]
+    #[schema(value_type = Option<bool>, default = false)]
     pub request_extended_authorization: Option<RequestExtendedAuthorizationBool>,
 
     /// Your unique identifier for this payment or order. This ID helps you reconcile payments on your system. If provided, it is passed to the connector if supported.
@@ -4891,7 +4891,7 @@ pub struct PaymentsResponse {
     pub billing: Option<Address>,
 
     /// Information about the product , quantity and amount for connectors. (e.g. Klarna)
-    #[schema(example = r#"[{
+    #[schema(value_type = Option<Vec<OrderDetailsWithAmount>>, example = r#"[{
         "product_name": "gillete creme",
         "quantity": 15,
         "amount" : 900
@@ -5068,6 +5068,7 @@ pub struct PaymentsResponse {
     pub frm_metadata: Option<pii::SecretSerdeValue>,
 
     /// flag that indicates if extended authorization is applied on this payment or not
+    #[schema(value_type = bool)]
     pub extended_authorization_applied: Option<ExtendedAuthorizationAppliedBool>,
 
     /// date and time after which this payment cannot be captured
@@ -6681,7 +6682,7 @@ pub struct GpayMerchantInfo {
     pub merchant_name: String,
 }
 
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema)]
 pub struct GpayMetaData {
     pub merchant_info: GpayMerchantInfo,
     pub allowed_payment_methods: Vec<GpayAllowedPaymentMethods>,
@@ -6848,13 +6849,13 @@ pub enum ApplepaySessionTokenMetadata {
     ApplePay(ApplePayMetadata),
 }
 
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema)]
 pub struct ApplePayMetadata {
     pub payment_request_data: PaymentRequestMetadata,
     pub session_token_data: SessionTokenInfo,
 }
 
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema)]
 #[serde(rename_all = "snake_case")]
 pub enum ApplePayCombinedMetadata {
     Simplified {
@@ -6867,7 +6868,7 @@ pub enum ApplePayCombinedMetadata {
     },
 }
 
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema)]
 pub struct PaymentRequestMetadata {
     pub supported_networks: Vec<String>,
     pub merchant_capabilities: Vec<String>,
@@ -7743,6 +7744,7 @@ pub struct FeatureMetadata {
     /// Redirection response coming in request as metadata field only for redirection scenarios
     pub redirect_response: Option<RedirectResponse>,
     /// Additional tags to be used for global search
+    #[schema(value_type = Option<Vec<String>>)]
     pub search_tags: Option<Vec<HashedString<WithType>>>,
     /// Recurring payment details required for apple pay Merchant Token
     pub apple_pay_recurring_details: Option<ApplePayRecurringDetails>,

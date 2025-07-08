@@ -1,6 +1,7 @@
 use api_models::admin::{
-    MerchantAccountCreate, MerchantAccountResponse, MerchantAccountUpdate,
-    MerchantConnectorResponse, ProfileResponse,
+    MerchantAccountCreate, MerchantAccountDeleteResponse, MerchantAccountResponse,
+    MerchantAccountUpdate, MerchantConnectorResponse, ProfileResponse, ToggleKVRequest,
+    ToggleKVResponse,
 };
 
 #[cfg(feature = "v1")]

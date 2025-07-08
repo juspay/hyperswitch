@@ -1,12 +1,17 @@
 use api_models::payments::{
-    PaymentListResponse, PaymentMethodListResponseForPayments, PaymentsCompleteAuthorizeRequest,
-    PaymentsConfirmIntentRequest, PaymentsCreateIntentRequest,
-    PaymentsDynamicTaxCalculationRequest, PaymentsDynamicTaxCalculationResponse,
-    PaymentsExternalAuthenticationRequest, PaymentsExternalAuthenticationResponse,
-    PaymentsIncrementalAuthorizationRequest, PaymentsIntentResponse,
+    PaymentListResponse, PaymentsCancelRequest, PaymentsCaptureRequest,
+    PaymentsCompleteAuthorizeRequest, PaymentsConfirmRequest, PaymentsCreateRequest,
+    PaymentsCreateResponseOpenApi, PaymentsDynamicTaxCalculationRequest,
+    PaymentsDynamicTaxCalculationResponse, PaymentsExternalAuthenticationRequest,
+    PaymentsExternalAuthenticationResponse, PaymentsIncrementalAuthorizationRequest,
     PaymentsPostSessionTokensRequest, PaymentsPostSessionTokensResponse, PaymentsRequest,
-    PaymentsResponse, PaymentsSessionRequest, PaymentsSessionResponse, PaymentsUpdateIntentRequest,
-    PaymentsUpdateMetadataRequest, PaymentsUpdateMetadataResponse,
+    PaymentsResponse, PaymentsSessionRequest, PaymentsSessionResponse,
+    PaymentsUpdateMetadataRequest, PaymentsUpdateMetadataResponse, PaymentsUpdateRequest,
+};
+#[cfg(feature = "v2")]
+use api_models::payments::{
+    PaymentMethodListResponseForPayments, PaymentsConfirmIntentRequest,
+    PaymentsCreateIntentRequest, PaymentsIntentResponse, PaymentsUpdateIntentRequest,
 };
 
 /// Payments - Create

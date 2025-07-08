@@ -1,3 +1,4 @@
+#[cfg(feature = "v2")]
 use api_models::process_tracker::revenue_recovery::RevenueRecoveryResponse;
 
 #[cfg(feature = "v2")]

@@ -1,3 +1,7 @@
+use api_models::profile_acquirer::{
+    ProfileAcquirerCreate, ProfileAcquirerResponse, ProfileAcquirerUpdate,
+};
+
 #[cfg(feature = "v1")]
 /// Profile Acquirer - Create
 ///

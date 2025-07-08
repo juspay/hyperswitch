@@ -37,7 +37,7 @@ pub struct RefundRequest {
     pub merchant_id: Option<common_utils::id_type::MerchantId>,
 
     /// Total amount for which the refund is to be initiated. Amount for the payment in lowest denomination of the currency. (i.e) in cents for USD denomination, in paisa for INR denomination etc., If not provided, this will default to the full payment amount
-    #[schema( , minimum = 100, example = 6540)]
+    #[schema(value_type = Option<i64> , minimum = 100, example = 6540)]
     pub amount: Option<MinorUnit>,
 
     /// Reason for the refund. Often useful for displaying to users and your customer support executive. In case the payment went through Stripe, this field needs to be passed with one of these enums: `duplicate`, `fraudulent`, or `requested_by_customer`
@@ -242,7 +242,7 @@ pub struct RefundResponse {
     #[schema(value_type= String)]
     pub payment_id: common_utils::id_type::PaymentId,
     /// The refund amount, which should be less than or equal to the total payment amount. Amount for the payment in lowest denomination of the currency. (i.e) in cents for USD denomination, in paisa for INR denomination etc
-    #[schema( , minimum = 100, example = 6540)]
+    #[schema(value_type = i64 , minimum = 100, example = 6540)]
     pub amount: MinorUnit,
     /// The three-letter ISO currency code
     pub currency: String,
@@ -251,6 +251,7 @@ pub struct RefundResponse {
     /// An arbitrary string attached to the object. Often useful for displaying to users and your customer support executive
     pub reason: Option<String>,
     /// You can specify up to 50 keys, with key names up to 40 characters long and values up to 500 characters long. Metadata is useful for storing additional, structured information on an object
+    #[schema(value_type = Option<Object>)]
     pub metadata: Option<pii::SecretSerdeValue>,
     /// The error message
     pub error_message: Option<String>,
@@ -276,7 +277,6 @@ pub struct RefundResponse {
     #[schema(value_type= Option<String>)]
     pub merchant_connector_id: Option<common_utils::id_type::MerchantConnectorAccountId>,
     /// Charge specific fields for controlling the revert of funds from either platform or connected account
-    #[schema(,)]
     pub split_refunds: Option<common_types::refunds::SplitRefund>,
     /// Error code received from the issuer in case of failed refunds
     pub issuer_error_code: Option<String>,

@@ -1,7 +1,13 @@
 use actix_multipart::Multipart;
 use actix_web::{web, HttpRequest, HttpResponse};
-use api_models::disputes::{self as dispute_models, DisputeResponse};
+use api_models::{
+    disputes::{self as dispute_models, DisputeListFilters, DisputeResponse},
+    files::CreateFileResponse,
+};
 use common_enums::{DisputeStage, DisputeStatus};
+use hyperswitch_domain_models::{
+    router_request_types::AcceptDisputeRequestData, router_response_types::AcceptDisputeResponse,
+};
 use router_env::{instrument, tracing, Flow};
 
 use crate::{core::api_locking, services::authorization::permissions::Permission};
@@ -381,7 +387,7 @@ pub async fn submit_dispute_evidence(
 #[utoipa::path(
     put,
     path = "/disputes/evidence",
-    request_body=MultipartRequestWithFile,
+    // request_body=MultipartRequestWithFile,
     responses(
         (status = 200, description = "Evidence attached to dispute", body = CreateFileResponse),
         (status = 400, description = "Bad Request")
