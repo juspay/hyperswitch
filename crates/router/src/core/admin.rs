@@ -3950,6 +3950,13 @@ impl ProfileCreateBridge for api::ProfileCreate {
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("error serializing dynamic_routing_algorithm_ref to JSON Value")?;
 
+        self.merchant_country_code
+            .as_ref()
+            .map(|country_code| country_code.validate_and_get_country_from_merchant_country_code())
+            .transpose()
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Error while parsing country from merchant country code")?;
+
         Ok(domain::Profile::from(domain::ProfileSetter {
             profile_id,
             merchant_id: merchant_context.get_merchant_account().get_id().clone(),
@@ -4494,6 +4501,13 @@ impl ProfileUpdateBridge for api::ProfileUpdate {
         } else {
             self.dynamic_routing_algorithm
         };
+
+        self.merchant_country_code
+            .as_ref()
+            .map(|country_code| country_code.validate_and_get_country_from_merchant_country_code())
+            .transpose()
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Error while parsing country from merchant country code")?;
 
         Ok(domain::ProfileUpdate::Update(Box::new(
             domain::ProfileGeneralUpdate {

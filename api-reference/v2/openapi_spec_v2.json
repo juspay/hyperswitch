@@ -13799,6 +13799,10 @@
         },
         "additionalProperties": false
       },
+      "MerchantCountryCode": {
+        "type": "string",
+        "description": "A wrapper type for merchant country codes that provides validation and conversion functionality.\n\nThis type stores a country code as a string and provides methods to validate it\nand convert it to a `Country` enum variant."
+      },
       "MerchantDetails": {
         "type": "object",
         "properties": {
@@ -21235,9 +21239,11 @@
             "nullable": true
           },
           "merchant_country_code": {
-            "type": "string",
-            "description": "Merchant country code.\nThis is a 3-digit ISO 3166-1 numeric country code that represents the country in which the merchant is registered or operates.\nMerchants typically receive this value based on their business registration information or during onboarding via payment processors or acquiring banks.\nIt is used in payment processing, fraud detection, and regulatory compliance to determine regional rules and routing behavior.",
-            "example": "840",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/MerchantCountryCode"
+              }
+            ],
             "nullable": true
           }
         },
@@ -21518,9 +21524,11 @@
             "nullable": true
           },
           "merchant_country_code": {
-            "type": "string",
-            "description": "Merchant country code.\nThis is a 3-digit ISO 3166-1 numeric country code that represents the country in which the merchant is registered or operates.\nMerchants typically receive this value based on their business registration information or during onboarding via payment processors or acquiring banks.\nIt is used in payment processing, fraud detection, and regulatory compliance to determine regional rules and routing behavior.",
-            "example": "840",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/MerchantCountryCode"
+              }
+            ],
             "nullable": true
           }
         }
