@@ -106,3 +106,11 @@ pub struct MerchantConnectorAuthDetails {
     }"#)]
     pub merchant_connector_creds: common_utils::pii::SecretSerdeValue,
 }
+
+/// Connector Response Data that are required to be populated in response
+#[cfg(feature = "v2")]
+#[derive(Clone, Debug)]
+pub struct ConnectorResponseData {
+    /// Stringified connector raw response body
+    pub raw_connector_response: Option<String>,
+}
