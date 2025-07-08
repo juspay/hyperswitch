@@ -117,7 +117,7 @@ impl ConnectorCommon for Celero {
             .change_context(errors::ConnectorError::FailedToObtainAuthType)?;
         Ok(vec![(
             headers::AUTHORIZATION.to_string(),
-            format!("{}", auth.api_key.expose()).into_masked(),
+            auth.api_key.expose().into_masked(),
         )])
     }
 

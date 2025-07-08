@@ -113,7 +113,7 @@ impl From<&DomainAddress> for CeleroAddress {
             city: address_details.and_then(|a| a.city.clone()),
             state: address_details.and_then(|a| a.state.clone()),
             postal_code: address_details.and_then(|a| a.zip.clone()),
-            country: address_details.and_then(|a| a.country.clone()),
+            country: address_details.and_then(|a| a.country),
             phone: address
                 .phone
                 .as_ref()
@@ -196,7 +196,7 @@ impl TryFrom<&CeleroRouterData<&PaymentsAuthorizeRouterData>> for CeleroPayments
         let shipping_address: Option<CeleroAddress> =
             item.router_data.get_optional_shipping().map(|e| e.into());
 
-        let request: CeleroPaymentsRequest = Self {
+        let request = Self {
             idempotency_key: item.router_data.connector_request_reference_id.clone(),
             transaction_type,
             amount: item.amount,
@@ -335,9 +335,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, CeleroPaymentsResponse, T, PaymentsResp
         match item.response.status {
             CeleroResponseStatus::Success => {
                 if let Some(data) = item.response.data {
-                    let response = match &data.response {
-                        CeleroPaymentMethodResponse::Card(card) => card,
-                    };
+                    let CeleroPaymentMethodResponse::Card(response) = &data.response;
                     // Check if transaction itself failed despite successful API call
                     match response.status {
                         CeleroTransactionStatus::Declined | CeleroTransactionStatus::Error => {
