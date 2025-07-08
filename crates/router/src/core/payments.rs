@@ -4384,7 +4384,7 @@ where
             }
         }
     })
-    .await?;
+    .await
 }
 #[cfg(feature = "v1")]
 // This function does not perform the tokenization action, as the payment method is not saved in this flow.
