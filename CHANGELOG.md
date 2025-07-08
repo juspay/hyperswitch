@@ -4,6 +4,16 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2025.06.25.0-hotfix4
+
+### Features
+
+- **connector:** [Redsys] Use merchant payment_id for ds_merchant_order with length check ([#8555](https://github.com/juspay/hyperswitch/pull/8555)) ([`b2d94fa`](https://github.com/juspay/hyperswitch/commit/b2d94fa1b33aa2165a6c69d01f3e18c3a2e962ff))
+
+**Full Changelog:** [`2025.06.25.0-hotfix3...2025.06.25.0-hotfix4`](https://github.com/juspay/hyperswitch/compare/2025.06.25.0-hotfix3...2025.06.25.0-hotfix4)
+
+- - -
+
 ## 2025.06.25.0-hotfix3
 
 ### Features
