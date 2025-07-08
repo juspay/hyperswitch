@@ -804,11 +804,11 @@ export const connectorDetails = {
         payment_method: "bank_redirect",
         payment_method_type: "trustly",
         payment_method_data: {
-        bank_redirect: {
+          bank_redirect: {
             trustly: {
-                country: "NL"
-            }
-          }
+              country: "NL",
+            },
+          },
         },
       },
       Response: {
@@ -824,10 +824,10 @@ export const connectorDetails = {
         payment_method_type: "blik",
         payment_method_data: {
           bank_redirect: {
-              blik: {
-                  blik_code : "000000"
-              }
-          }
+            blik: {
+              blik_code: "000000",
+            },
+          },
         },
       },
       Response: {
