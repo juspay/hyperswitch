@@ -8,7 +8,7 @@ use diesel::{
     sql_types::{Jsonb, Text},
     AsExpression, FromSqlRow,
 };
-use error_stack::ResultExt;
+use error_stack::{Report, Result, ResultExt};
 use euclid::frontend::{
     ast::Program,
     dir::{DirKeyKind, EuclidDirFilter},
@@ -77,6 +77,7 @@ impl AuthenticationConnectorAccountMap {
             .ok_or(errors::ValidationError::MissingRequiredField {
                 field_name: "authentication_product_id.click_to_pay".to_string(),
             })
+            .map_err(Report::from)
             .cloned()
     }
 }
@@ -108,7 +109,8 @@ impl MerchantCountryCode {
         let country_code = self.get_country_code();
         let code = country_code
             .parse::<u32>()
-            .map_err(|_| errors::ValidationError::IncorrectValueProvided {
+            .map_err(Report::from)
+            .change_context(errors::ValidationError::IncorrectValueProvided {
                 field_name: "merchant_country_code",
             })
             .attach_printable_lazy(|| {
