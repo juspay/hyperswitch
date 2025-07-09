@@ -1224,6 +1224,14 @@ fn get_cards_required_fields() -> HashMap<Connector, RequiredFieldFinal> {
         ),
         (Connector::Boku, fields(vec![], vec![], card_basic())),
         (Connector::Braintree, fields(vec![], vec![], card_basic())),
+        (
+            Connector::Celero,
+            fields(
+                vec![],
+                [card_basic(), billing_email_name_phone(), billing_address()].concat(),
+                vec![],
+            ),
+        ),
         (Connector::Checkout, fields(vec![], card_basic(), vec![])),
         (
             Connector::Coinbase,

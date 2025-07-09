@@ -480,16 +480,6 @@ impl ConnectorIntegration<Void, PaymentsCancelData, PaymentsResponseData> for Ce
         ))
     }
 
-    fn get_request_body(
-        &self,
-        _req: &RouterData<Void, PaymentsCancelData, PaymentsResponseData>,
-        _connectors: &Connectors,
-    ) -> CustomResult<RequestContent, errors::ConnectorError> {
-        // For void operations, CeleroCommerce doesn't require any request body based on API documentation
-        let connector_req = celero::CeleroVoidRequest::default();
-        Ok(RequestContent::Json(Box::new(connector_req)))
-    }
-
     fn build_request(
         &self,
         req: &RouterData<Void, PaymentsCancelData, PaymentsResponseData>,
@@ -501,9 +491,6 @@ impl ConnectorIntegration<Void, PaymentsCancelData, PaymentsResponseData> for Ce
                 .url(&types::PaymentsVoidType::get_url(self, req, connectors)?)
                 .attach_default_headers()
                 .headers(types::PaymentsVoidType::get_headers(self, req, connectors)?)
-                .set_body(types::PaymentsVoidType::get_request_body(
-                    self, req, connectors,
-                )?)
                 .build(),
         ))
     }

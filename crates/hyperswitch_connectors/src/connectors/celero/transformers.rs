@@ -24,7 +24,9 @@ use serde::{Deserialize, Serialize};
 
 use crate::{
     types::{RefundsResponseRouterData, ResponseRouterData},
-    utils::{PaymentsAuthorizeRequestData, RefundsRequestData, RouterData as _},
+    utils::{
+        AddressDetailsData, PaymentsAuthorizeRequestData, RefundsRequestData, RouterData as _,
+    },
 };
 
 //TODO: Fill the struct with respective fields
@@ -53,8 +55,7 @@ impl TryFrom<&PaymentsSyncRouterData> for CeleroSearchRequest {
     fn try_from(item: &PaymentsSyncRouterData) -> Result<Self, Self::Error> {
         let transaction_id = match &item.request.connector_transaction_id {
             ResponseId::ConnectorTransactionId(id) => id.clone(),
-            ResponseId::EncodedData(id) => id.clone(),
-            ResponseId::NoResponseId => {
+            _ => {
                 return Err(errors::ConnectorError::MissingConnectorTransactionID.into());
             }
         };
@@ -102,23 +103,30 @@ pub struct CeleroAddress {
     email: Option<Email>,
 }
 
-impl From<&DomainAddress> for CeleroAddress {
-    fn from(address: &DomainAddress) -> Self {
+impl TryFrom<&DomainAddress> for CeleroAddress {
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(address: &DomainAddress) -> Result<Self, Self::Error> {
         let address_details = address.address.as_ref();
-        Self {
-            first_name: address_details.and_then(|f| f.first_name.clone()),
-            last_name: address_details.and_then(|l| l.last_name.clone()),
-            address_line_1: address_details.and_then(|a| a.line1.clone()),
-            address_line_2: address_details.and_then(|a| a.line2.clone()),
-            city: address_details.and_then(|a| a.city.clone()),
-            state: address_details.and_then(|a| a.state.clone()),
-            postal_code: address_details.and_then(|a| a.zip.clone()),
-            country: address_details.and_then(|a| a.country),
-            phone: address
-                .phone
-                .as_ref()
-                .and_then(|phone| phone.number.clone()),
-            email: address.email.clone(),
+        match address_details {
+            Some(address_details) => Ok(Self {
+                first_name: address_details.get_optional_first_name(),
+                last_name: address_details.get_optional_last_name(),
+                address_line_1: address_details.get_optional_line1(),
+                address_line_2: address_details.get_optional_line2(),
+                city: address_details.get_optional_city(),
+                state: address_details.get_optional_state(),
+                postal_code: address_details.get_optional_zip(),
+                country: address_details.get_optional_country(),
+                phone: address
+                    .phone
+                    .as_ref()
+                    .and_then(|phone| phone.number.clone()),
+                email: address.email.clone(),
+            }),
+            None => Err(errors::ConnectorError::MissingRequiredField {
+                field_name: "address_details",
+            }
+            .into()),
         }
     }
 }
@@ -129,9 +137,15 @@ pub enum CeleroPaymentMethod {
     Card(CeleroCard),
 }
 
+#[derive(Debug, Serialize, PartialEq, Clone, Copy)]
+#[serde(rename_all = "lowercase")]
+pub enum CeleroEntryType {
+    Keyed,
+}
+
 #[derive(Debug, Serialize, PartialEq)]
 pub struct CeleroCard {
-    // entry_type: String,
+    entry_type: CeleroEntryType,
     number: cards::CardNumber,
     expiration_date: Secret<String>,
     cvc: Secret<String>,
@@ -143,7 +157,7 @@ impl TryFrom<&PaymentMethodData> for CeleroPaymentMethod {
         match item {
             PaymentMethodData::Card(req_card) => {
                 let card = CeleroCard {
-                    // entry_type: "keyed".to_string(),
+                    entry_type: CeleroEntryType::Keyed,
                     number: req_card.card_number.clone(),
                     expiration_date: Secret::new(format!(
                         "{}/{}",
@@ -190,11 +204,15 @@ impl TryFrom<&CeleroRouterData<&PaymentsAuthorizeRouterData>> for CeleroPayments
             TransactionType::Authorize
         };
 
-        let billing_address: Option<CeleroAddress> =
-            item.router_data.get_optional_shipping().map(|e| e.into());
+        let billing_address: Option<CeleroAddress> = item
+            .router_data
+            .get_optional_billing()
+            .and_then(|address| address.try_into().ok());
 
-        let shipping_address: Option<CeleroAddress> =
-            item.router_data.get_optional_shipping().map(|e| e.into());
+        let shipping_address: Option<CeleroAddress> = item
+            .router_data
+            .get_optional_shipping()
+            .and_then(|address| address.try_into().ok());
 
         let request = Self {
             idempotency_key: item.router_data.connector_request_reference_id.clone(),
@@ -248,10 +266,14 @@ pub enum CeleroTransactionStatus {
     Error,
     #[serde(alias = "pending", alias = "Pending", alias = "PENDING")]
     Pending,
+    #[serde(alias = "pending_settlement", alias = "PENDING_SETTLEMENT")]
+    PendingSettlement,
     #[serde(alias = "settled", alias = "Settled", alias = "SETTLED")]
     Settled,
     #[serde(alias = "voided", alias = "Voided", alias = "VOIDED")]
     Voided,
+    #[serde(alias = "reversed", alias = "Reversed", alias = "REVERSED")]
+    Reversed,
 }
 
 impl From<CeleroTransactionStatus> for common_enums::AttemptStatus {
@@ -262,7 +284,9 @@ impl From<CeleroTransactionStatus> for common_enums::AttemptStatus {
             CeleroTransactionStatus::Declined => Self::Failure,
             CeleroTransactionStatus::Error => Self::Failure,
             CeleroTransactionStatus::Pending => Self::Pending,
+            CeleroTransactionStatus::PendingSettlement => Self::Pending,
             CeleroTransactionStatus::Voided => Self::Voided,
+            CeleroTransactionStatus::Reversed => Self::Voided,
         }
     }
 }
@@ -520,41 +544,6 @@ impl
                 ..item.data
             }),
         }
-    }
-}
-
-// VOID:
-// Type definition for VoidRequest
-#[derive(Default, Debug, Serialize)]
-pub struct CeleroVoidRequest {
-    // Based on API documentation, void request appears to be a simple POST without body
-    // However, following the existing pattern for consistency
-}
-
-impl
-    TryFrom<
-        &CeleroRouterData<
-            &RouterData<
-                hyperswitch_domain_models::router_flow_types::payments::Void,
-                hyperswitch_domain_models::router_request_types::PaymentsCancelData,
-                PaymentsResponseData,
-            >,
-        >,
-    > for CeleroVoidRequest
-{
-    type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(
-        _item: &CeleroRouterData<
-            &RouterData<
-                hyperswitch_domain_models::router_flow_types::payments::Void,
-                hyperswitch_domain_models::router_request_types::PaymentsCancelData,
-                PaymentsResponseData,
-            >,
-        >,
-    ) -> Result<Self, Self::Error> {
-        Ok(Self {
-            // Void request appears to be empty based on API documentation
-        })
     }
 }
 
