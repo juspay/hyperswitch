@@ -38,8 +38,6 @@ use error_stack::{report, ResultExt};
 use futures::TryStreamExt;
 #[cfg(feature = "v1")]
 use hyperswitch_domain_models::api::{GenericLinks, GenericLinksData};
-#[cfg(feature = "v2")]
-use hyperswitch_domain_models::mandates::CommonMandateReference;
 use hyperswitch_domain_models::payments::{
     payment_attempt::PaymentAttempt, PaymentIntent, VaultData,
 };
@@ -49,8 +47,6 @@ use hyperswitch_domain_models::{
     router_data_v2::flow_common_types::VaultConnectorFlowData,
     router_flow_types::ExternalVaultInsertFlow, types::VaultRouterData,
 };
-#[cfg(feature = "v2")]
-use masking::ExposeOptionInterface;
 use masking::{PeekInterface, Secret};
 use router_env::{instrument, tracing};
 use time::Duration;
@@ -1102,6 +1098,7 @@ pub async fn network_tokenize_and_vault_the_pmd(
             merchant_context,
             &network_token_vaulting_data,
             None,
+            customer_id,
         )
         .await
         .change_context(errors::NetworkTokenizationError::SaveNetworkTokenFailed)
@@ -1842,11 +1839,16 @@ pub async fn vault_payment_method_internal(
         },
     )?;
 
-    let mut resp_from_vault =
-        vault::add_payment_method_to_vault(state, merchant_context, pmd, existing_vault_id)
-            .await
-            .change_context(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable("Failed to add payment method in vault")?;
+    let mut resp_from_vault = vault::add_payment_method_to_vault(
+        state,
+        merchant_context,
+        pmd,
+        existing_vault_id,
+        customer_id,
+    )
+    .await
+    .change_context(errors::ApiErrorResponse::InternalServerError)
+    .attach_printable("Failed to add payment method in vault")?;
 
     // add fingerprint_id to the response
     resp_from_vault.fingerprint_id = Some(fingerprint_id_from_vault);
@@ -2753,7 +2755,7 @@ pub async fn payment_methods_session_update(
 
     let payment_method_session_domain_model =
         hyperswitch_domain_models::payment_methods::PaymentMethodsSessionUpdateEnum::GeneralUpdate{
-            billing,
+            billing: Box::new(billing),
             psp_tokenization: request.psp_tokenization,
             network_tokenization: request.network_tokenization,
             tokenization_data: request.tokenization_data,
@@ -3012,7 +3014,7 @@ pub async fn payment_methods_session_confirm(
     )
     .attach_printable("Failed to create payment method request")?;
 
-    let (payment_method_response, _payment_method) = create_payment_method_core(
+    let (payment_method_response, payment_method) = create_payment_method_core(
         &state,
         &req_state,
         create_payment_method_request.clone(),
@@ -3020,6 +3022,50 @@ pub async fn payment_methods_session_confirm(
         &profile,
     )
     .await?;
+
+    let parent_payment_method_token = generate_id(consts::ID_LENGTH, "token");
+
+    let token_data = get_pm_list_token_data(request.payment_method_type, &payment_method)?;
+
+    let intent_fulfillment_time = common_utils::consts::DEFAULT_INTENT_FULFILLMENT_TIME;
+
+    // insert the token data into redis
+    if let Some(token_data) = token_data {
+        pm_routes::ParentPaymentMethodToken::create_key_for_token((
+            &parent_payment_method_token,
+            request.payment_method_type,
+        ))
+        .insert(intent_fulfillment_time, token_data, &state)
+        .await?;
+    };
+
+    let update_payment_method_session = hyperswitch_domain_models::payment_methods::PaymentMethodsSessionUpdateEnum::UpdateAssociatedPaymentMethods {
+        associated_payment_methods:  Some(vec![parent_payment_method_token.clone()])
+    };
+
+    vault::insert_cvc_using_payment_token(
+        &state,
+        &parent_payment_method_token,
+        create_payment_method_request.payment_method_data.clone(),
+        request.payment_method_type,
+        intent_fulfillment_time,
+        merchant_context.get_merchant_key_store().key.get_inner(),
+    )
+    .await?;
+
+    let payment_method_session = db
+        .update_payment_method_session(
+            key_manager_state,
+            merchant_context.get_merchant_key_store(),
+            &payment_method_session_id,
+            update_payment_method_session,
+            payment_method_session,
+        )
+        .await
+        .to_not_found_response(errors::ApiErrorResponse::GenericNotFoundError {
+            message: "payment methods session does not exist or has expired".to_string(),
+        })
+        .attach_printable("Failed to update payment methods session from db")?;
 
     let payments_response = match &payment_method_session.psp_tokenization {
         Some(common_types::payment_methods::PspTokenization {
