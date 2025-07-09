@@ -6331,6 +6331,16 @@ api_key="API Key"
 [payload.connector_webhook_details]
 merchant_secret="Source verification key"
 [silverflow]
+[[silverflow.credit]]
+  payment_method_type = "Mastercard"
+[[silverflow.credit]]
+  payment_method_type = "Visa"
+[[silverflow.debit]]
+  payment_method_type = "Mastercard"
+[[silverflow.debit]]
+  payment_method_type = "Visa"
 [silverflow.connector_auth.BodyKey]
 api_key="API Key"
 key1="Secret Key"
+[silverflow.connector_webhook_details]
+merchant_secret="Source verification key"
