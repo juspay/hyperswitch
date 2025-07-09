@@ -8,7 +8,8 @@ use api_models::authentication::{
 use api_models::{
     authentication::{
         AcquirerDetails, AuthenticationAuthenticateRequest, AuthenticationAuthenticateResponse,
-        AuthenticationCreateRequest, AuthenticationResponse,
+        AuthenticationCreateRequest, AuthenticationResponse, AuthenticationSyncRequest,
+        AuthenticationSyncResponse,
     },
     payments,
 };
@@ -1255,6 +1256,214 @@ pub async fn authentication_authenticate_core(
         authentication_value,
         status: authentication.authentication_status,
         authentication_connector: authentication.authentication_connector,
+    };
+
+    Ok(hyperswitch_domain_models::api::ApplicationResponse::Json(
+        response,
+    ))
+}
+
+#[cfg(feature = "v1")]
+pub async fn authentication_sync_core(
+    state: SessionState,
+    merchant_context: domain::MerchantContext,
+    authentication_id: common_utils::id_type::AuthenticationId,
+    auth_flow: crate::services::AuthFlow,
+    req: AuthenticationSyncRequest,
+) -> RouterResponse<AuthenticationSyncResponse> {
+    let merchant_account = merchant_context.get_merchant_account();
+    let merchant_id = merchant_account.get_id();
+    let db = &*state.store;
+    let authentication = db
+        .find_authentication_by_merchant_id_authentication_id(merchant_id, &authentication_id)
+        .await
+        .to_not_found_response(ApiErrorResponse::AuthenticationNotFound {
+            id: authentication_id.get_string_repr().to_owned(),
+        })?;
+
+    if let Some(cs) = &req.client_secret {
+        let is_client_secret_expired =
+            utils::authenticate_authentication_client_secret_and_check_expiry(
+                cs.peek(),
+                &authentication,
+            )?;
+
+        if is_client_secret_expired {
+            return Err(ApiErrorResponse::ClientSecretExpired.into());
+        };
+    };
+
+    let key_manager_state = (&state).into();
+
+    let profile_id = crate::core::utils::get_profile_id_from_business_details(
+        &key_manager_state,
+        None,
+        None,
+        &merchant_context,
+        None,
+        db,
+        true,
+    )
+    .await?;
+
+    let business_profile = db
+        .find_business_profile_by_profile_id(
+            &key_manager_state,
+            merchant_context.get_merchant_key_store(),
+            &profile_id,
+        )
+        .await
+        .to_not_found_response(ApiErrorResponse::ProfileNotFound {
+            id: profile_id.get_string_repr().to_owned(),
+        })?;
+
+    let authentication_value = match auth_flow {
+        crate::services::AuthFlow::Client => None,
+        crate::services::AuthFlow::Merchant => {
+            if let Some(common_enums::TransactionStatus::Success) = authentication.trans_status {
+                let tokenised_data = crate::core::payment_methods::vault::get_tokenized_data(
+                    &state,
+                    authentication_id.get_string_repr(),
+                    false,
+                    merchant_context.get_merchant_key_store().key.get_inner(),
+                )
+                .await
+                .inspect_err(|err| router_env::logger::error!(tokenized_data_result=?err))
+                .attach_printable("cavv not present after authentication status is success")?;
+                Some(masking::Secret::new(tokenised_data.value1))
+            } else {
+                None
+            }
+        }
+    };
+
+    let acquirer_details = Some(AcquirerDetails {
+        bin: authentication.acquirer_bin.clone(),
+        merchant_id: authentication.acquirer_merchant_id.clone(),
+        country_code: authentication.acquirer_country_code.clone(),
+    });
+
+    let encrypted_data = domain::types::crypto_operation(
+        &key_manager_state,
+        common_utils::type_name!(hyperswitch_domain_models::authentication::Authentication),
+        domain::types::CryptoOperation::BatchDecrypt(
+            hyperswitch_domain_models::authentication::EncryptedAuthentication::to_encryptable(
+                hyperswitch_domain_models::authentication::EncryptedAuthentication {
+                    billing_address: authentication.billing_address,
+                    shipping_address: authentication.shipping_address,
+                },
+            ),
+        ),
+        common_utils::types::keymanager::Identifier::Merchant(
+            merchant_context
+                .get_merchant_key_store()
+                .merchant_id
+                .clone(),
+        ),
+        merchant_context.get_merchant_key_store().key.peek(),
+    )
+    .await
+    .and_then(|val| val.try_into_batchoperation())
+    .change_context(ApiErrorResponse::InternalServerError)
+    .attach_printable("Unable to encrypt authentication data".to_string())?;
+
+    let encrypted_data = hyperswitch_domain_models::authentication::FromRequestEncryptableAuthentication::from_encryptable(encrypted_data)
+        .change_context(ApiErrorResponse::InternalServerError)
+        .attach_printable("Unable to get encrypted data for authentication after encryption")?;
+
+    let email_decrypted = authentication
+        .email
+        .clone()
+        .async_lift(|inner| async {
+            domain::types::crypto_operation(
+                &key_manager_state,
+                common_utils::type_name!(Authentication),
+                domain::types::CryptoOperation::DecryptOptional(inner),
+                common_utils::types::keymanager::Identifier::Merchant(
+                    merchant_context
+                        .get_merchant_key_store()
+                        .merchant_id
+                        .clone(),
+                ),
+                merchant_context.get_merchant_key_store().key.peek(),
+            )
+            .await
+            .and_then(|val| val.try_into_optionaloperation())
+        })
+        .await
+        .change_context(ApiErrorResponse::InternalServerError)
+        .attach_printable("Unable to encrypt email")?;
+
+    let browser_info = authentication
+        .browser_info
+        .clone()
+        .map(|browser_info| {
+            browser_info.parse_value::<payments::BrowserInformation>("BrowserInformation")
+        })
+        .transpose()
+        .change_context(ApiErrorResponse::InternalServerError)?;
+
+    let amount = authentication
+        .amount
+        .ok_or(ApiErrorResponse::InternalServerError)
+        .attach_printable("amount failed to get amount from authentication table")?;
+    let currency = authentication
+        .currency
+        .ok_or(ApiErrorResponse::InternalServerError)
+        .attach_printable("currency failed to get currency from authentication table")?;
+
+    let profile_acquirer_id = authentication
+        .profile_acquirer_id
+        .clone()
+        .ok_or(ApiErrorResponse::InternalServerError)
+        .attach_printable("failed to get profile_acquirer_id from authentication table")?;
+
+    let response = AuthenticationSyncResponse {
+        authentication_id: authentication_id.clone(),
+        merchant_id: merchant_id.clone(),
+        status: authentication.authentication_status,
+        client_secret: authentication
+            .authentication_client_secret
+            .map(masking::Secret::new),
+        amount,
+        currency,
+        authentication_connector: authentication.authentication_connector.clone(),
+        force_3ds_challenge: authentication.force_3ds_challenge,
+        return_url: authentication.return_url.clone(),
+        created_at: authentication.created_at,
+        profile_id: authentication.profile_id.clone(),
+        psd2_sca_exemption_type: authentication.psd2_sca_exemption_type,
+        acquirer_details,
+        error_message: authentication.error_message.clone(),
+        error_code: authentication.error_code.clone(),
+        authentication_value,
+        threeds_server_transaction_id: authentication.threeds_server_transaction_id.clone(),
+        maximum_supported_3ds_version: authentication.maximum_supported_version.clone(),
+        connector_authentication_id: authentication.connector_authentication_id.clone(),
+        three_ds_method_data: authentication.three_ds_method_data.clone(),
+        three_ds_method_url: authentication.three_ds_method_url.clone(),
+        message_version: authentication.message_version.clone(),
+        connector_metadata: authentication.connector_metadata.clone(),
+        directory_server_id: authentication.directory_server_id.clone(),
+        billing: encrypted_data.billing_address,
+        shipping: encrypted_data.shipping_address,
+        browser_information: browser_info,
+        email: email_decrypted,
+        transaction_status: authentication.trans_status.clone(),
+        acs_url: authentication.acs_url.clone(),
+        challenge_request: authentication.challenge_request.clone(),
+        acs_reference_number: authentication.acs_reference_number.clone(),
+        acs_trans_id: authentication.acs_trans_id.clone(),
+        three_dsserver_trans_id: authentication.threeds_server_transaction_id.clone(),
+        acs_signed_content: authentication.acs_signed_content,
+        three_ds_requestor_url: business_profile
+            .authentication_connector_details
+            .clone()
+            .map(|details| details.three_ds_requestor_url),
+        three_ds_requestor_app_url: business_profile
+            .authentication_connector_details
+            .and_then(|details| details.three_ds_requestor_app_url),
+        profile_acquirer_id,
     };
 
     Ok(hyperswitch_domain_models::api::ApplicationResponse::Json(

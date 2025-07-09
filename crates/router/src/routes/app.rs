@@ -2694,6 +2694,10 @@ impl Authentication {
                 web::resource("/{authentication_id}/authenticate")
                     .route(web::post().to(authentication::authentication_authenticate)),
             )
+            .service(
+                web::resource("/{authentication_id}/sync")
+                    .route(web::post().to(authentication::authentication_sync)),
+            )
     }
 }
 
