@@ -1,5 +1,6 @@
 use actix_web::{web, HttpRequest, HttpResponse};
-use api_models::chat::{self as chat_api};
+#[cfg(all(feature = "olap"))]
+use api_models::chat;
 use router_env::Flow;
 
 use super::AppState;
@@ -15,7 +16,7 @@ use crate::{
 pub async fn get_data_from_automation_workflow(
     state: web::Data<AppState>,
     http_req: HttpRequest,
-    query: web::Query<chat_api::ChatMessageQueryParam>,
+    query: web::Query<chat::ChatMessageQueryParam>,
 ) -> HttpResponse {
     let flow = Flow::GetDataFromAutomationFlow;
     let query_params = query.into_inner();
@@ -27,9 +28,7 @@ pub async fn get_data_from_automation_workflow(
         |state, _: (), _, _| {
             chat_core::get_data_from_automation_workflow(
                 state,
-                chat_api::ChatMessageQueryParam {
-                    message: query_params.message.clone(),
-                },
+                query_params.clone(),
             )
         },
         &auth::JWTAuth {
@@ -43,7 +42,7 @@ pub async fn get_data_from_automation_workflow(
 pub async fn get_data_from_embedded_workflow(
     state: web::Data<AppState>,
     http_req: HttpRequest,
-    query: web::Query<chat_api::ChatMessageQueryParam>,
+    query: web::Query<chat::ChatMessageQueryParam>,
 ) -> HttpResponse {
     let flow = Flow::GetDataFromEmbeddedFlow;
     let query_params = query.into_inner();
@@ -55,9 +54,7 @@ pub async fn get_data_from_embedded_workflow(
         |state, _: (), _, _| {
             chat_core::get_data_from_embedded_workflow(
                 state,
-                chat_api::ChatMessageQueryParam {
-                    message: query_params.message.clone(),
-                },
+                query_params.clone(),
             )
         },
         &auth::JWTAuth {
