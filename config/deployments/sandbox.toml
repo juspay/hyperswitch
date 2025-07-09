@@ -524,8 +524,8 @@ debit = { country = "FR", currency = "CAD, AUD, EUR, USD" }
 credit = { country = "FR", currency = "CAD, AUD, EUR, USD" }
 
 [pm_filters.payload]
-debit = { country = "AL,AR,AZ,CA,CO,DE,GA,ID,IL,IN,KY,LA,MA,MD,ME,MN,MO,MS,MT,NC,NE,PA,PR,SC,SD,TN,VA,VI", currency = "USD,CAD" }
-credit = { country = "AL,AR,AZ,CA,CO,DE,GA,ID,IL,IN,KY,LA,MA,MD,ME,MN,MO,MS,MT,NC,NE,PA,PR,SC,SD,TN,VA,VI", currency = "USD,CAD" }
+debit = { currency = "USD,CAD" }
+credit = { currency = "USD,CAD" }
 
 [pm_filters.klarna]
 klarna = { country = "AU,AT,BE,CA,CZ,DK,FI,FR,DE,GR,IE,IT,NL,NZ,NO,PL,PT,ES,SE,CH,GB,US", currency = "CHF,DKK,EUR,GBP,NOK,PLN,SEK,USD,AUD,NZD,CAD" }
