@@ -404,6 +404,19 @@ function bankRedirectRedirection(
             }
             break;
 
+          case "multisafepay":
+            if (["sofort", "eps", "mbway"].includes(paymentMethodType)) {
+              // Multisafe pay has CSRF blocking cannot actually test redirection flow via cypress
+              // cy.get(".btn-msp-success").click();
+
+              verifyUrl = false;
+            } else {
+              throw new Error(
+                `Unsupported multisafe payment method type: ${paymentMethodType}`
+              );
+            }
+            break;
+
           default:
             throw new Error(
               `Unsupported connector in handleFlow: ${connectorId}`
