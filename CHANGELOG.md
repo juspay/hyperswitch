@@ -4,6 +4,26 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2025.07.09.0
+
+### Features
+
+- **connector:**
+  - [silverflow] template code ([#8553](https://github.com/juspay/hyperswitch/pull/8553)) ([`c322eb9`](https://github.com/juspay/hyperswitch/commit/c322eb9cabb2ca7a8ad0c3ed57192dde9bf7eaa4))
+  - [AUTHIPAY] Integrate cards non 3ds payments ([#8266](https://github.com/juspay/hyperswitch/pull/8266)) ([`ef42ad4`](https://github.com/juspay/hyperswitch/commit/ef42ad43120d8699876990718235b518fa5011ac))
+
+### Bug Fixes
+
+- **payment_method:** Update entity id used for Vault to global customer id ([#8380](https://github.com/juspay/hyperswitch/pull/8380)) ([`cf96c82`](https://github.com/juspay/hyperswitch/commit/cf96c826cad08ea84148238b73bd9ca2de8c0518))
+
+### Refactors
+
+- **routing:** Add conditional check for invoking DE routing flows ([#8559](https://github.com/juspay/hyperswitch/pull/8559)) ([`7508c80`](https://github.com/juspay/hyperswitch/commit/7508c801580f8d83b203b34165dacb6a3814d941))
+
+**Full Changelog:** [`2025.07.08.0...2025.07.09.0`](https://github.com/juspay/hyperswitch/compare/2025.07.08.0...2025.07.09.0)
+
+- - -
+
 ## 2025.07.08.0
 
 ### Features
