@@ -1,5 +1,9 @@
 pub mod transformers;
 
+use std::sync::LazyLock;
+
+use common_enums::enums;
+
 use error_stack::{report, ResultExt};
 use masking::{ExposeInterface, Mask};
 
@@ -7,28 +11,28 @@ use common_utils::{
     errors::CustomResult,
     ext_traits::BytesExt,
     request::{Method, Request, RequestBuilder, RequestContent},
-    types::{AmountConvertor, StringMajorUnit, StringMajorUnitForConnector},
+    types::{AmountConvertor,MinorUnit, StringMajorUnit, StringMajorUnitForConnector},
     consts::{BASE64_ENGINE}
 };
 use base64::engine::Engine;
 
-use crate::{constants::headers, types::ResponseRouterData, utils};
+use crate::{constants::headers, types::ResponseRouterData, utils::{get_http_header,convert_amount}};
 use hyperswitch_domain_models::{
-    router_data::{AccessToken, ConnectorAuthType, ErrorResponse, RouterData},
+    router_data::{AccessToken, ErrorResponse, RouterData},
     router_flow_types::{
-        access_token_auth::AccessTokenAuth,
+        access_token_auth::AccessTokenAuth, CreateConnectorCustomer,
         payments::{Authorize, Capture, PSync, PaymentMethodToken, Session, SetupMandate, Void},
         refunds::{Execute, RSync},
     },
     router_request_types::{
-        AccessTokenRequestData, PaymentMethodTokenizationData, PaymentsAuthorizeData,
-        PaymentsCancelData, PaymentsCaptureData, PaymentsSessionData, PaymentsSyncData,
+        AccessTokenRequestData, ConnectorCustomerData, PaymentMethodTokenizationData, PaymentsAuthorizeData,
+        PaymentsCancelData, PaymentsCaptureData, PaymentsSessionData, PaymentsSyncData, ResponseId,
         RefundsData, SetupMandateRequestData,
     },
-    router_response_types::{PaymentsResponseData, RefundsResponseData},
+    router_response_types::{ConnectorInfo, SupportedPaymentMethods, PaymentsResponseData, PaymentMethodDetails, RefundsResponseData, SupportedPaymentMethodsExt},
     types::{
-        PaymentsAuthorizeRouterData, PaymentsCaptureRouterData, PaymentsSyncRouterData,
-        RefundSyncRouterData, RefundsRouterData, RefreshTokenRouterData,
+        ConnectorCustomerRouterData, PaymentsAuthorizeRouterData, PaymentsSyncRouterData, 
+        RefreshTokenRouterData, TokenizationRouterData,
     },
 };
 use hyperswitch_interfaces::{
@@ -39,7 +43,7 @@ use hyperswitch_interfaces::{
     configs::Connectors,
     errors,
     events::connector_api_logs::ConnectorEvent,
-    types::{self, Response},
+    types::{self, RefreshTokenType, Response, TokenizationType},
     webhooks,
 };
 
@@ -58,6 +62,7 @@ impl Dwolla {
     }
 }
 
+impl api::ConnectorCustomer for Dwolla {}
 impl api::Payment for Dwolla {}
 impl api::PaymentSession for Dwolla {}
 impl api::ConnectorAccessToken for Dwolla {}
@@ -70,12 +75,6 @@ impl api::Refund for Dwolla {}
 impl api::RefundExecute for Dwolla {}
 impl api::RefundSync for Dwolla {}
 impl api::PaymentToken for Dwolla {}
-
-impl ConnectorIntegration<PaymentMethodToken, PaymentMethodTokenizationData, PaymentsResponseData>
-    for Dwolla
-{
-    // Not Implemented (R)
-}
 
 impl<Flow, Request, Response> ConnectorCommonExt<Flow, Request, Response> for Dwolla
 where
@@ -90,7 +89,7 @@ where
             .access_token
             .clone()
             .ok_or(errors::ConnectorError::FailedToObtainAuthType)?;
-        let mut header = vec![
+        let header = vec![
             (
                 headers::CONTENT_TYPE.to_string(),
                 self.common_get_content_type().to_string().into(),
@@ -127,18 +126,6 @@ impl ConnectorCommon for Dwolla {
 
     fn base_url<'a>(&self, connectors: &'a Connectors) -> &'a str {
         connectors.dwolla.base_url.as_ref()
-    }
-
-    fn get_auth_header(
-        &self,
-        auth_type: &ConnectorAuthType,
-    ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
-        let auth = dwolla::DwollaAuthType::try_from(auth_type)
-            .change_context(errors::ConnectorError::FailedToObtainAuthType)?;
-        Ok(vec![(
-            headers::AUTHORIZATION.to_string(),
-            auth.api_key.expose().into_masked(),
-        )])
     }
 
     fn build_error_response(
@@ -185,19 +172,15 @@ impl ConnectorIntegration<AccessTokenAuth, AccessTokenRequestData, AccessToken> 
         Ok(format!("{}/token", self.base_url(connectors)))
     }
 
-    fn get_content_type(&self) -> &'static str {
-        "application/x-www-form-urlencoded"
-    }
-
     fn get_headers(
         &self,
         req: &RefreshTokenRouterData,
-        connectors: &Connectors,
+        _connectors: &Connectors,
     ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
         let auth = dwolla::DwollaAuthType::try_from(&req.connector_auth_type)?;
-        let mut headers = vec![(
+        let mut headers= vec![(
             headers::CONTENT_TYPE.to_string(),
-            self.get_content_type().to_string().into(),
+            "application/x-www-form-urlencoded".to_string().into(),
         )];
 
         let auth_str = format!(
@@ -208,7 +191,6 @@ impl ConnectorIntegration<AccessTokenAuth, AccessTokenRequestData, AccessToken> 
 
         let encoded = BASE64_ENGINE.encode(auth_str);
         let auth_header_value = format!("Basic {}", encoded);
-
         headers.push((
             headers::AUTHORIZATION.to_string(),
             auth_header_value.into_masked(),
@@ -233,7 +215,7 @@ impl ConnectorIntegration<AccessTokenAuth, AccessTokenRequestData, AccessToken> 
             RequestBuilder::new()
                 .method(Method::Post)
                 .headers(headers)
-                .url(&types::RefreshTokenType::get_url(self, req, connectors)?)
+                .url(&RefreshTokenType::get_url(self, req, connectors)?)
                 .set_body(body)
                 .build(),
         );
@@ -259,6 +241,193 @@ impl ConnectorIntegration<AccessTokenAuth, AccessTokenRequestData, AccessToken> 
             data: data.clone(),
             http_code: res.status_code,
         })
+    }
+
+    fn get_error_response(
+        &self,
+        res: Response,
+        event_builder: Option<&mut ConnectorEvent>,
+    ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
+        self.build_error_response(res, event_builder)
+    }
+}
+
+impl ConnectorIntegration<CreateConnectorCustomer, ConnectorCustomerData, PaymentsResponseData>
+    for Dwolla
+{
+    fn get_url(
+        &self,
+        _req: &ConnectorCustomerRouterData,
+        connectors: &Connectors,
+    ) -> CustomResult<String, errors::ConnectorError> {
+        Ok(format!("{}/customers", self.base_url(connectors)))
+    }
+
+    fn get_content_type(&self) -> &'static str {
+        self.common_get_content_type()
+    }
+
+    fn get_headers(
+        &self,
+        req: &ConnectorCustomerRouterData,
+        connectors: &Connectors,
+    ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
+        self.build_headers(req, connectors)
+    }
+
+    fn get_request_body(
+        &self,
+        req: &ConnectorCustomerRouterData,
+        _connectors: &Connectors,
+    ) -> CustomResult<RequestContent, errors::ConnectorError> {
+        let connector_req = dwolla::DwollaCustomerRequest::try_from(req)?;
+        Ok(RequestContent::Json(Box::new(connector_req)))
+    }
+
+    fn build_request(
+        &self,
+        req: &ConnectorCustomerRouterData,
+        connectors: &Connectors,
+    ) -> CustomResult<Option<Request>, errors::ConnectorError> {
+        let request = Some(RequestBuilder::new()
+            .method(Method::Post)
+            .url(&types::ConnectorCustomerType::get_url(self, req, connectors)?)
+            .attach_default_headers()
+            .headers(types::ConnectorCustomerType::get_headers(self, req, connectors)?)
+            .set_body(types::ConnectorCustomerType::get_request_body(self, req, connectors)?)
+            .build());
+        Ok(request)
+    }
+
+    fn handle_response(
+        &self,
+        data: &ConnectorCustomerRouterData,
+        event_builder: Option<&mut ConnectorEvent>,
+        res: Response,
+    ) -> CustomResult<ConnectorCustomerRouterData, errors::ConnectorError>
+    {
+        let headers = res.headers.as_ref().ok_or(errors::ConnectorError::ResponseHandlingFailed)?;
+        let location = get_http_header("Location", headers)
+            .change_context(errors::ConnectorError::ResponseHandlingFailed)?;
+
+        let connector_customer_id = location
+                    .split('/')
+                    .next_back()
+                    .ok_or(errors::ConnectorError::ResponseHandlingFailed)?
+                    .to_string();
+
+        let response =
+                    serde_json::json!({"connector_customer_id": connector_customer_id.clone()});
+        event_builder.map(|i| i.set_response_body(&response));
+        router_env::logger::info!(connector_response=?response);
+        
+        Ok(RouterData{
+            connector_customer: Some(connector_customer_id.clone()),
+            response: Ok(PaymentsResponseData::ConnectorCustomerResponse {
+                connector_customer_id,
+            }),
+            ..data.clone()
+        })
+    }
+
+    fn get_error_response(
+        &self,
+        res: Response,
+        event_builder: Option<&mut ConnectorEvent>,
+    ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
+        self.build_error_response(res, event_builder)
+    }
+}
+
+impl ConnectorIntegration<PaymentMethodToken, PaymentMethodTokenizationData, PaymentsResponseData>
+    for Dwolla
+{
+    fn get_headers(
+        &self,
+        req: &TokenizationRouterData,
+        connectors: &Connectors,
+    ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
+        self.build_headers(req, connectors)
+    }
+
+    fn get_content_type(&self) -> &'static str {
+        self.common_get_content_type()
+    }
+
+    fn get_url(
+        &self,
+        req: &TokenizationRouterData,
+        connectors: &Connectors,
+    ) -> CustomResult<String, errors::ConnectorError> {
+        let customer_id = req.connector_customer.clone().ok_or_else(|| {
+                errors::ConnectorError::MissingRequiredField {
+                    field_name: "connector_customer",
+                }
+            })?;
+        Ok(format!("{}/customers/{}/funding-sources", self.base_url(connectors), customer_id))
+    }
+
+    fn get_request_body(
+        &self,
+        req: &TokenizationRouterData,
+        _connectors: &Connectors,
+    ) -> CustomResult<RequestContent, errors::ConnectorError> {
+        let connector_req = dwolla::DwollaFundingSourceRequest::try_from(req)?;
+        Ok(RequestContent::Json(Box::new(connector_req)))
+    }
+
+    fn build_request(
+        &self,
+        req: &TokenizationRouterData,
+        connectors: &Connectors,
+    ) -> CustomResult<Option<Request>, errors::ConnectorError> {
+        Ok(Some(
+            RequestBuilder::new()
+                .method(Method::Post)
+                .url(&TokenizationType::get_url(self, req, connectors)?)
+                .attach_default_headers()
+                .headers(TokenizationType::get_headers(self, req, connectors)?)
+                .set_body(TokenizationType::get_request_body(self, req, connectors)?)
+                .build(),
+        ))
+    }
+
+    fn handle_response(
+        &self,
+        data: &TokenizationRouterData,
+        event_builder: Option<&mut ConnectorEvent>,
+        res: Response,
+    ) -> CustomResult<TokenizationRouterData, errors::ConnectorError>
+    {
+        let headers = res.headers.as_ref().ok_or(errors::ConnectorError::ResponseHandlingFailed)?;
+        let location = get_http_header("Location", headers)
+            .change_context(errors::ConnectorError::ResponseHandlingFailed)?;
+
+        let payment_token = location
+                    .split('/')
+                    .next_back()
+                    .ok_or(errors::ConnectorError::ResponseHandlingFailed)?
+                    .to_string();
+
+        let response =
+                    serde_json::json!({"payment_token": payment_token.clone()});
+        event_builder.map(|i| i.set_response_body(&response));
+        router_env::logger::info!(connector_response=?response);
+        
+        Ok(RouterData{
+            response: Ok(PaymentsResponseData::TokenizationResponse {
+                token : payment_token.clone(),
+            }),
+            ..data.clone()
+        })
+    }
+
+    fn get_error_response(
+        &self,
+        res: Response,
+        event_builder: Option<&mut ConnectorEvent>,
+    ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
+        self.build_error_response(res, event_builder)
     }
 }
 
@@ -290,13 +459,13 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
         req: &PaymentsAuthorizeRouterData,
         _connectors: &Connectors,
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
-        let amount = utils::convert_amount(
+        let amount_in_minor_unit = MinorUnit::new(req.request.amount);
+        let amount = convert_amount(
             self.amount_converter,
-            req.request.minor_amount,
+            amount_in_minor_unit,
             req.request.currency,
         )?;
-
-        let connector_router_data = dwolla::DwollaRouterData::from((amount, req));
+        let connector_router_data = dwolla::DwollaRouterData::try_from((amount, req))?;
         let connector_req = dwolla::DwollaPaymentsRequest::try_from(&connector_router_data)?;
         Ok(RequestContent::Json(Box::new(connector_req)))
     }
@@ -329,16 +498,34 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
         event_builder: Option<&mut ConnectorEvent>,
         res: Response,
     ) -> CustomResult<PaymentsAuthorizeRouterData, errors::ConnectorError> {
-        let response: dwolla::DwollaPaymentsResponse = res
-            .response
-            .parse_struct("Dwolla PaymentsAuthorizeResponse")
-            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+        let headers = res.headers.as_ref().ok_or(errors::ConnectorError::ResponseHandlingFailed)?;
+        let location = get_http_header("Location", headers)
+            .change_context(errors::ConnectorError::ResponseHandlingFailed)?;
+
+        let payment_id = location
+                    .split('/')
+                    .next_back()
+                    .ok_or(errors::ConnectorError::ResponseHandlingFailed)?
+                    .to_string();
+        
+        let response =
+                    serde_json::json!({"payment_id : ": payment_id.clone()});
+
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
-        RouterData::try_from(ResponseRouterData {
-            response,
-            data: data.clone(),
-            http_code: res.status_code,
+        
+        Ok(RouterData{
+            response : Ok(PaymentsResponseData::TransactionResponse {
+                resource_id: ResponseId::ConnectorTransactionId(payment_id.clone()),
+                redirection_data : Box::new(None),
+                mandate_reference : Box::new(None),
+                connector_metadata : None,
+                network_txn_id: None,
+                connector_response_reference_id: Some(payment_id.clone()),
+                incremental_authorization_allowed: None,
+                charges: None,
+            }),
+            ..data.clone()
         })
     }
 
@@ -366,10 +553,15 @@ impl ConnectorIntegration<PSync, PaymentsSyncData, PaymentsResponseData> for Dwo
 
     fn get_url(
         &self,
-        _req: &PaymentsSyncRouterData,
-        _connectors: &Connectors,
+        req: &PaymentsSyncRouterData,
+        connectors: &Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        Err(errors::ConnectorError::NotImplemented("get_url method".to_string()).into())
+        let connector_payment_id = req
+            .request
+            .connector_transaction_id
+            .get_connector_transaction_id()
+            .change_context(errors::ConnectorError::MissingConnectorTransactionID)?;
+        Ok(format!("{}/transfers/{}", self.base_url(connectors),connector_payment_id.clone()))
     }
 
     fn build_request(
@@ -393,9 +585,9 @@ impl ConnectorIntegration<PSync, PaymentsSyncData, PaymentsResponseData> for Dwo
         event_builder: Option<&mut ConnectorEvent>,
         res: Response,
     ) -> CustomResult<PaymentsSyncRouterData, errors::ConnectorError> {
-        let response: dwolla::DwollaPaymentsResponse = res
+        let response: dwolla::DwollaPSyncResponse = res
             .response
-            .parse_struct("dwolla PaymentsSyncResponse")
+            .parse_struct("dwolla DwollaPSyncResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
@@ -416,233 +608,19 @@ impl ConnectorIntegration<PSync, PaymentsSyncData, PaymentsResponseData> for Dwo
 }
 
 impl ConnectorIntegration<Capture, PaymentsCaptureData, PaymentsResponseData> for Dwolla {
-    fn get_headers(
-        &self,
-        req: &PaymentsCaptureRouterData,
-        connectors: &Connectors,
-    ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
-        self.build_headers(req, connectors)
-    }
-
-    fn get_content_type(&self) -> &'static str {
-        self.common_get_content_type()
-    }
-
-    fn get_url(
-        &self,
-        _req: &PaymentsCaptureRouterData,
-        _connectors: &Connectors,
-    ) -> CustomResult<String, errors::ConnectorError> {
-        Err(errors::ConnectorError::NotImplemented("get_url method".to_string()).into())
-    }
-
-    fn get_request_body(
-        &self,
-        _req: &PaymentsCaptureRouterData,
-        _connectors: &Connectors,
-    ) -> CustomResult<RequestContent, errors::ConnectorError> {
-        Err(errors::ConnectorError::NotImplemented("get_request_body method".to_string()).into())
-    }
-
-    fn build_request(
-        &self,
-        req: &PaymentsCaptureRouterData,
-        connectors: &Connectors,
-    ) -> CustomResult<Option<Request>, errors::ConnectorError> {
-        Ok(Some(
-            RequestBuilder::new()
-                .method(Method::Post)
-                .url(&types::PaymentsCaptureType::get_url(self, req, connectors)?)
-                .attach_default_headers()
-                .headers(types::PaymentsCaptureType::get_headers(
-                    self, req, connectors,
-                )?)
-                .set_body(types::PaymentsCaptureType::get_request_body(
-                    self, req, connectors,
-                )?)
-                .build(),
-        ))
-    }
-
-    fn handle_response(
-        &self,
-        data: &PaymentsCaptureRouterData,
-        event_builder: Option<&mut ConnectorEvent>,
-        res: Response,
-    ) -> CustomResult<PaymentsCaptureRouterData, errors::ConnectorError> {
-        let response: dwolla::DwollaPaymentsResponse = res
-            .response
-            .parse_struct("Dwolla PaymentsCaptureResponse")
-            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
-        event_builder.map(|i| i.set_response_body(&response));
-        router_env::logger::info!(connector_response=?response);
-        RouterData::try_from(ResponseRouterData {
-            response,
-            data: data.clone(),
-            http_code: res.status_code,
-        })
-    }
-
-    fn get_error_response(
-        &self,
-        res: Response,
-        event_builder: Option<&mut ConnectorEvent>,
-    ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
-        self.build_error_response(res, event_builder)
-    }
+    //Not implemented for Dwolla
 }
 
-impl ConnectorIntegration<Void, PaymentsCancelData, PaymentsResponseData> for Dwolla {}
+impl ConnectorIntegration<Void, PaymentsCancelData, PaymentsResponseData> for Dwolla {
+    //Not implemented for Dwolla
+}
 
 impl ConnectorIntegration<Execute, RefundsData, RefundsResponseData> for Dwolla {
-    fn get_headers(
-        &self,
-        req: &RefundsRouterData<Execute>,
-        connectors: &Connectors,
-    ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
-        self.build_headers(req, connectors)
-    }
-
-    fn get_content_type(&self) -> &'static str {
-        self.common_get_content_type()
-    }
-
-    fn get_url(
-        &self,
-        _req: &RefundsRouterData<Execute>,
-        _connectors: &Connectors,
-    ) -> CustomResult<String, errors::ConnectorError> {
-        Err(errors::ConnectorError::NotImplemented("get_url method".to_string()).into())
-    }
-
-    fn get_request_body(
-        &self,
-        req: &RefundsRouterData<Execute>,
-        _connectors: &Connectors,
-    ) -> CustomResult<RequestContent, errors::ConnectorError> {
-        let refund_amount = utils::convert_amount(
-            self.amount_converter,
-            req.request.minor_refund_amount,
-            req.request.currency,
-        )?;
-
-        let connector_router_data = dwolla::DwollaRouterData::from((refund_amount, req));
-        let connector_req = dwolla::DwollaRefundRequest::try_from(&connector_router_data)?;
-        Ok(RequestContent::Json(Box::new(connector_req)))
-    }
-
-    fn build_request(
-        &self,
-        req: &RefundsRouterData<Execute>,
-        connectors: &Connectors,
-    ) -> CustomResult<Option<Request>, errors::ConnectorError> {
-        let request = RequestBuilder::new()
-            .method(Method::Post)
-            .url(&types::RefundExecuteType::get_url(self, req, connectors)?)
-            .attach_default_headers()
-            .headers(types::RefundExecuteType::get_headers(
-                self, req, connectors,
-            )?)
-            .set_body(types::RefundExecuteType::get_request_body(
-                self, req, connectors,
-            )?)
-            .build();
-        Ok(Some(request))
-    }
-
-    fn handle_response(
-        &self,
-        data: &RefundsRouterData<Execute>,
-        event_builder: Option<&mut ConnectorEvent>,
-        res: Response,
-    ) -> CustomResult<RefundsRouterData<Execute>, errors::ConnectorError> {
-        let response: dwolla::RefundResponse =
-            res.response
-                .parse_struct("dwolla RefundResponse")
-                .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
-        event_builder.map(|i| i.set_response_body(&response));
-        router_env::logger::info!(connector_response=?response);
-        RouterData::try_from(ResponseRouterData {
-            response,
-            data: data.clone(),
-            http_code: res.status_code,
-        })
-    }
-
-    fn get_error_response(
-        &self,
-        res: Response,
-        event_builder: Option<&mut ConnectorEvent>,
-    ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
-        self.build_error_response(res, event_builder)
-    }
+    //Not implemented for Dwolla
 }
 
 impl ConnectorIntegration<RSync, RefundsData, RefundsResponseData> for Dwolla {
-    fn get_headers(
-        &self,
-        req: &RefundSyncRouterData,
-        connectors: &Connectors,
-    ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
-        self.build_headers(req, connectors)
-    }
-
-    fn get_content_type(&self) -> &'static str {
-        self.common_get_content_type()
-    }
-
-    fn get_url(
-        &self,
-        _req: &RefundSyncRouterData,
-        _connectors: &Connectors,
-    ) -> CustomResult<String, errors::ConnectorError> {
-        Err(errors::ConnectorError::NotImplemented("get_url method".to_string()).into())
-    }
-
-    fn build_request(
-        &self,
-        req: &RefundSyncRouterData,
-        connectors: &Connectors,
-    ) -> CustomResult<Option<Request>, errors::ConnectorError> {
-        Ok(Some(
-            RequestBuilder::new()
-                .method(Method::Get)
-                .url(&types::RefundSyncType::get_url(self, req, connectors)?)
-                .attach_default_headers()
-                .headers(types::RefundSyncType::get_headers(self, req, connectors)?)
-                .set_body(types::RefundSyncType::get_request_body(
-                    self, req, connectors,
-                )?)
-                .build(),
-        ))
-    }
-
-    fn handle_response(
-        &self,
-        data: &RefundSyncRouterData,
-        event_builder: Option<&mut ConnectorEvent>,
-        res: Response,
-    ) -> CustomResult<RefundSyncRouterData, errors::ConnectorError> {
-        let response: dwolla::RefundResponse = res
-            .response
-            .parse_struct("dwolla RefundSyncResponse")
-            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
-        event_builder.map(|i| i.set_response_body(&response));
-        router_env::logger::info!(connector_response=?response);
-        RouterData::try_from(ResponseRouterData {
-            response,
-            data: data.clone(),
-            http_code: res.status_code,
-        })
-    }
-
-    fn get_error_response(
-        &self,
-        res: Response,
-        event_builder: Option<&mut ConnectorEvent>,
-    ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
-        self.build_error_response(res, event_builder)
-    }
+    //Not implemented for Dwolla
 }
 
 #[async_trait::async_trait]
@@ -669,4 +647,42 @@ impl webhooks::IncomingWebhook for Dwolla {
     }
 }
 
-impl ConnectorSpecifications for Dwolla {}
+static DWOLLA_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMethods> =
+    LazyLock::new(|| {
+        let supported_capture_methods = vec![
+            enums::CaptureMethod::Automatic,
+            enums::CaptureMethod::Manual,
+            enums::CaptureMethod::SequentialAutomatic,
+        ];
+
+        let mut dwolla_supported_payment_methods = SupportedPaymentMethods::new();
+
+        dwolla_supported_payment_methods.add(
+            enums::PaymentMethod::BankDebit,
+            enums::PaymentMethodType::Ach,
+                PaymentMethodDetails {
+                    mandates: enums::FeatureStatus::NotSupported,
+                    refunds: enums::FeatureStatus::Supported,
+                    supported_capture_methods: supported_capture_methods.clone(),
+                    specific_features: None,
+                },
+            );
+
+        dwolla_supported_payment_methods
+    });
+
+static DWOLLA_CONNECTOR_INFO: ConnectorInfo = ConnectorInfo {
+    display_name: "Dwolla",
+    description: "Dwolla is a multinational financial technology company offering financial services and software as a service (SaaS)",
+    connector_type: enums::PaymentConnectorCategory::PaymentGateway,
+};
+
+impl ConnectorSpecifications for Dwolla {
+    fn get_connector_about(&self) -> Option<&'static ConnectorInfo> {
+        Some(&DWOLLA_CONNECTOR_INFO)
+    }
+
+    fn get_supported_payment_methods(&self) -> Option<&'static SupportedPaymentMethods> {
+        Some(&*DWOLLA_SUPPORTED_PAYMENT_METHODS)
+    }
+}

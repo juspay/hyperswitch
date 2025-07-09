@@ -84,7 +84,7 @@ pub enum RoutableConnectors {
     Deutschebank,
     Digitalvirgo,
     Dlocal,
-    // Dwolla,
+    Dwolla,
     Ebanx,
     Elavon,
     Facilitapay,
@@ -242,7 +242,7 @@ pub enum Connector {
     Deutschebank,
     Digitalvirgo,
     Dlocal,
-    // Dwolla,
+    Dwolla,
     Ebanx,
     Elavon,
     Facilitapay,
@@ -373,6 +373,7 @@ impl Connector {
                 | (Self::Volt, _)
                 | (Self::Itaubank, _)
                 | (Self::Facilitapay, _)
+                | (Self::Dwolla, _)
         )
     }
     pub fn requires_order_creation_before_payment(self, payment_method: PaymentMethod) -> bool {
@@ -420,7 +421,7 @@ impl Connector {
             | Self::Deutschebank
             | Self::Digitalvirgo
             | Self::Dlocal
-            // | Self::Dwolla
+            | Self::Dwolla
             | Self::Ebanx
             | Self::Elavon
             | Self::Facilitapay
@@ -583,7 +584,7 @@ impl From<RoutableConnectors> for Connector {
             RoutableConnectors::Deutschebank => Self::Deutschebank,
             RoutableConnectors::Digitalvirgo => Self::Digitalvirgo,
             RoutableConnectors::Dlocal => Self::Dlocal,
-            // RoutableConnectors::Dwolla => Self::Dwolla,
+            RoutableConnectors::Dwolla => Self::Dwolla,
             RoutableConnectors::Ebanx => Self::Ebanx,
             RoutableConnectors::Elavon => Self::Elavon,
             RoutableConnectors::Facilitapay => Self::Facilitapay,
@@ -703,7 +704,7 @@ impl TryFrom<Connector> for RoutableConnectors {
             Connector::Deutschebank => Ok(Self::Deutschebank),
             Connector::Digitalvirgo => Ok(Self::Digitalvirgo),
             Connector::Dlocal => Ok(Self::Dlocal),
-            // Connector::Dwolla => Ok(Self::Dwolla),
+            Connector::Dwolla => Ok(Self::Dwolla),
             Connector::Ebanx => Ok(Self::Ebanx),
             Connector::Elavon => Ok(Self::Elavon),
             Connector::Facilitapay => Ok(Self::Facilitapay),
