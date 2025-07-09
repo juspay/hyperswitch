@@ -228,9 +228,6 @@ where
                     call_connector_action.clone(),
                     None,
                     header_payload.clone(),
-                    #[cfg(feature = "frm")]
-                    None,
-                    #[cfg(not(feature = "frm"))]
                     None,
                     profile,
                     false,
@@ -308,9 +305,6 @@ where
                     call_connector_action.clone(),
                     None,
                     header_payload.clone(),
-                    #[cfg(feature = "frm")]
-                    None,
-                    #[cfg(not(feature = "frm"))]
                     None,
                     profile,
                     false,
