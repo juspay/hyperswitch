@@ -140,7 +140,7 @@ where
     }
 }
 
-#[derive(Serialize, serde::Deserialize, Debug, Clone, FromSqlRow, AsExpression, ToSchema)]
+#[derive(Serialize, serde::Deserialize, Debug, Clone, FromSqlRow, AsExpression)]
 #[diesel(sql_type = Jsonb)]
 /// Payout link object
 pub struct PayoutLinkData {
@@ -153,7 +153,6 @@ pub struct PayoutLinkData {
     /// Link to render the payout link
     pub link: url::Url,
     /// Client secret generated for authenticating frontend APIs
-    #[schema(value_type = String)]
     pub client_secret: Secret<String>,
     /// Expiry in seconds from the time it was created
     pub session_expiry: u32,

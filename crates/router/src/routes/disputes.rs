@@ -387,7 +387,7 @@ pub async fn submit_dispute_evidence(
 #[utoipa::path(
     put,
     path = "/disputes/evidence",
-    // request_body=MultipartRequestWithFile,
+    request_body=MultipartRequestWithFile,
     responses(
         (status = 200, description = "Evidence attached to dispute", body = CreateFileResponse),
         (status = 400, description = "Bad Request")

@@ -677,53 +677,39 @@ pub struct PayoutActionRequest {
     pub payout_id: id_type::PayoutId,
 }
 
-#[derive(Default, Debug, ToSchema, Clone, Deserialize)]
+#[derive(Default, Debug, Clone, Deserialize)]
 pub struct PayoutVendorAccountDetails {
     pub vendor_details: PayoutVendorDetails,
     pub individual_details: PayoutIndividualDetails,
 }
 
-#[derive(Default, Debug, Serialize, ToSchema, Clone, Deserialize)]
+#[derive(Default, Debug, Serialize, Clone, Deserialize)]
 pub struct PayoutVendorDetails {
     pub account_type: String,
     pub business_type: String,
     pub business_profile_mcc: Option<i32>,
     pub business_profile_url: Option<String>,
-    #[schema(value_type = Option<String>)]
     pub business_profile_name: Option<Secret<String>>,
-    #[schema(value_type = Option<String>)]
     pub company_address_line1: Option<Secret<String>>,
-    #[schema(value_type = Option<String>)]
     pub company_address_line2: Option<Secret<String>>,
-    #[schema(value_type = Option<String>)]
     pub company_address_postal_code: Option<Secret<String>>,
-    #[schema(value_type = Option<String>)]
     pub company_address_city: Option<Secret<String>>,
-    #[schema(value_type = Option<String>)]
     pub company_address_state: Option<Secret<String>>,
-    #[schema(value_type = Option<String>)]
     pub company_phone: Option<Secret<String>>,
-    #[schema(value_type = Option<String>)]
     pub company_tax_id: Option<Secret<String>>,
     pub company_owners_provided: Option<bool>,
     pub capabilities_card_payments: Option<bool>,
     pub capabilities_transfers: Option<bool>,
 }
 
-#[derive(Default, Debug, Serialize, ToSchema, Clone, Deserialize)]
+#[derive(Default, Debug, Serialize, Clone, Deserialize)]
 pub struct PayoutIndividualDetails {
     pub tos_acceptance_date: Option<i64>,
-    #[schema(value_type = Option<String>)]
     pub tos_acceptance_ip: Option<Secret<String>>,
-    #[schema(value_type = Option<String>)]
     pub individual_dob_day: Option<Secret<String>>,
-    #[schema(value_type = Option<String>)]
     pub individual_dob_month: Option<Secret<String>>,
-    #[schema(value_type = Option<String>)]
     pub individual_dob_year: Option<Secret<String>>,
-    #[schema(value_type = Option<String>)]
     pub individual_id_number: Option<Secret<String>>,
-    #[schema(value_type = Option<String>)]
     pub individual_ssn_last_4: Option<Secret<String>>,
     pub external_account_account_holder_type: Option<String>,
 }

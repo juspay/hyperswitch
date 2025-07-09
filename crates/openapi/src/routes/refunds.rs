@@ -1,9 +1,10 @@
 use api_models::refunds::{
-    RefundListMetaData, RefundListRequest, RefundListResponse, RefundRequest, RefundResponse,
-    RefundUpdateRequest,
+    RefundListMetaData, RefundListRequest, RefundListResponse, RefundResponse,
 };
 #[cfg(feature = "v2")]
 use api_models::refunds::{RefundMetadataUpdateRequest, RefundsCreateRequest};
+#[cfg(feature = "v1")]
+use api_models::refunds::{RefundRequest, RefundUpdateRequest};
 use common_utils::types::TimeRange;
 /// Refunds - Create
 ///

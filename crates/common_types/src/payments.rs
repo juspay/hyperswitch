@@ -52,9 +52,7 @@ pub struct StripeSplitPaymentRequest {
 }
 impl_to_sql_from_sql_json!(StripeSplitPaymentRequest);
 
-#[derive(
-    Serialize, Deserialize, Debug, Clone, PartialEq, Eq, FromSqlRow, AsExpression, ToSchema,
-)]
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq, FromSqlRow, AsExpression)]
 #[diesel(sql_type = Jsonb)]
 #[serde(deny_unknown_fields)]
 /// Hashmap to store mca_id's with product names

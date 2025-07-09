@@ -20,7 +20,7 @@ use crate::{
 #[utoipa::path(
     post,
     path = "/files",
-    // request_body=MultipartRequestWithFile,
+    request_body=MultipartRequestWithFile,
     responses(
         (status = 200, description = "File created", body = CreateFileResponse),
         (status = 400, description = "Bad Request")

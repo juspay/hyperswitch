@@ -1,14 +1,17 @@
 use api_models::payment_methods::{
-    CardNetworkTokenizeRequest, CardNetworkTokenizeResponse, CustomerDefaultPaymentMethodResponse,
-    CustomerPaymentMethodsListResponse, PaymentMethodCreate, PaymentMethodDeleteResponse,
-    PaymentMethodListResponse, PaymentMethodResponse, PaymentMethodUpdate,
+    CardNetworkTokenizeRequest, CardNetworkTokenizeResponse, CustomerPaymentMethodsListResponse,
+    PaymentMethodCreate, PaymentMethodDeleteResponse, PaymentMethodResponse, PaymentMethodUpdate,
+};
+#[cfg(feature = "v1")]
+use api_models::payment_methods::{
+    CustomerDefaultPaymentMethodResponse, PaymentMethodListResponse,
 };
 #[cfg(feature = "v2")]
 use api_models::payment_methods::{
     PaymentMethodIntentConfirm, PaymentMethodIntentCreate, PaymentMethodListResponseForSession,
-    PaymentMethodResponse, PaymentMethodSessionConfirmRequest,
-    PaymentMethodSessionDeleteSavedPaymentMethod, PaymentMethodSessionRequest,
-    PaymentMethodSessionResponse, PaymentMethodSessionUpdateSavedPaymentMethod,
+    PaymentMethodSessionConfirmRequest, PaymentMethodSessionDeleteSavedPaymentMethod,
+    PaymentMethodSessionRequest, PaymentMethodSessionResponse,
+    PaymentMethodSessionUpdateSavedPaymentMethod,
 };
 use euclid::enums::{CardNetwork, CountryAlpha2, Currency};
 
@@ -131,6 +134,7 @@ pub async fn list_customer_payment_method_api() {}
     operation_id = "List Customer Payment Methods via Client Secret",
     security(("publishable_key" = []))
 )]
+#[cfg(feature = "v1")]
 pub async fn list_customer_payment_method_api_client() {}
 
 /// Payment Method - Retrieve

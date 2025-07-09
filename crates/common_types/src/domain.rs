@@ -82,7 +82,7 @@ pub struct AcquirerConfig {
     pub acquirer_fraud_rate: f64,
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone, FromSqlRow, AsExpression, ToSchema)]
+#[derive(Serialize, Deserialize, Debug, Clone, FromSqlRow, AsExpression)]
 #[diesel(sql_type = Jsonb)]
 /// Acquirer configs
 pub struct AcquirerConfigMap(pub HashMap<common_utils::id_type::ProfileAcquirerId, AcquirerConfig>);

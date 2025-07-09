@@ -72,7 +72,7 @@ pub struct FraudCheckFulfillmentData {
 #[serde(rename_all = "snake_case")]
 pub struct FrmFulfillmentRequest {
     ///unique payment_id for the transaction
-    #[schema(max_length = 255, example = "pay_qiYfHcDou1ycIaxVXKHF")]
+    #[schema(value_type = String, max_length = 255, example = "pay_qiYfHcDou1ycIaxVXKHF")]
     pub payment_id: common_utils::id_type::PaymentId,
     ///unique order_id for the order_details in the transaction
     #[schema(max_length = 255, example = "pay_qiYfHcDou1ycIaxVXKHF")]
@@ -154,7 +154,7 @@ pub struct Destination {
 pub struct Address {
     #[schema(value_type = String)]
     pub street_address: Secret<String>,
-    #[schema(value_type = String)]
+    #[schema(value_type = Option<String>)]
     pub unit: Option<Secret<String>>,
     #[schema(value_type = String)]
     pub postal_code: Secret<String>,

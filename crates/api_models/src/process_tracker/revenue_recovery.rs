@@ -15,8 +15,7 @@ pub struct RevenueRecoveryResponse {
     pub business_status: String,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct RevenueRecoveryId {
-    #[schema(value_type = String)]
     pub revenue_recovery_id: id_type::GlobalPaymentId,
 }

@@ -80,6 +80,7 @@ pub struct RelayRetrieveRequest {
     #[serde(default)]
     pub force_sync: bool,
     /// The unique identifier for the Relay
+    #[schema(value_type = String)]
     pub id: common_utils::id_type::RelayId,
 }
 

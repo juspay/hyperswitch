@@ -14076,7 +14076,7 @@
             ]
           },
           "organization_id": {
-            "$ref": "#/components/schemas/OrganizationId"
+            "type": "string"
           },
           "product_type": {
             "oneOf": [
@@ -14531,10 +14531,6 @@
             ]
           }
         }
-      },
-      "MerchantConnectorAccountId": {
-        "type": "string",
-        "description": "A type for merchant_connector_id that can be used for merchant_connector_account ids"
       },
       "MerchantConnectorAuthDetails": {
         "type": "object",
@@ -16390,10 +16386,6 @@
           }
         },
         "additionalProperties": false
-      },
-      "OrganizationId": {
-        "type": "string",
-        "description": "A type for organization_id that can be used for organization ids"
       },
       "OrganizationResponse": {
         "type": "object",
@@ -20816,12 +20808,15 @@
             ]
           },
           "connector": {
-            "type": [
-              "string",
-              "null"
-            ],
-            "description": "The connector used for the payment",
-            "example": "stripe"
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/Connector",
+                "description": "The connector used for the payment"
+              }
+            ]
           },
           "merchant_connector_id": {
             "type": [
@@ -24713,7 +24708,7 @@
                   "null"
                 ],
                 "items": {
-                  "$ref": "#/components/schemas/MerchantConnectorAccountId"
+                  "type": "string"
                 },
                 "description": "The list of merchant connector ids to filter the refunds list for selected label"
               },
@@ -25552,21 +25547,15 @@
       "RoutableConnectorChoice": {
         "type": "object",
         "required": [
-          "connector"
+          "connector",
+          "merchant_connector_id"
         ],
         "properties": {
           "connector": {
             "$ref": "#/components/schemas/RoutableConnectors"
           },
           "merchant_connector_id": {
-            "oneOf": [
-              {
-                "type": "null"
-              },
-              {
-                "$ref": "#/components/schemas/MerchantConnectorAccountId"
-              }
-            ]
+            "type": "string"
           }
         }
       },

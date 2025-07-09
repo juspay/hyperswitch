@@ -164,14 +164,13 @@ pub struct Provider {
     pub payment_experience: Option<api_models::enums::PaymentExperience>,
 }
 
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub struct ConnectorApiIntegrationPayload {
     pub connector_type: String,
     pub profile_id: common_utils::id_type::ProfileId,
     pub connector_name: api_models::enums::Connector,
     #[serde(skip_deserializing)]
-    #[schema(example = "stripe_US_travel")]
     pub connector_label: Option<String>,
     pub merchant_connector_id: Option<String>,
     pub disabled: bool,

@@ -26,6 +26,7 @@ use crate::{profile_acquirer::ProfileAcquirerResponse, routing};
 
 #[derive(Clone, Debug, Deserialize, ToSchema, Serialize)]
 pub struct MerchantAccountListRequest {
+    #[schema(value_type = String)]
     pub organization_id: id_type::OrganizationId,
 }
 
@@ -214,6 +215,7 @@ pub struct MerchantAccountCreate {
     pub merchant_details: Option<MerchantDetails>,
     #[schema(value_type = Option<Object>)]
     pub metadata: Option<pii::SecretSerdeValue>,
+    #[schema(value_type = String)]
     pub organization_id: id_type::OrganizationId,
     /// Product Type of this merchant account
     pub product_type: Option<api_enums::MerchantProductType>,

@@ -6712,17 +6712,6 @@
           }
         }
       },
-      "AcquirerConfigMap": {
-        "type": "object",
-        "description": "Acquirer configs",
-        "additionalProperties": {
-          "$ref": "#/components/schemas/AcquirerConfig"
-        },
-        "propertyNames": {
-          "type": "string",
-          "description": "A type for profile_acquirer_id that can be used for profile acquirer ids"
-        }
-      },
       "AcquirerData": {
         "type": "object",
         "description": "Represents data about the acquirer used in the 3DS decision rule.",
@@ -17965,10 +17954,6 @@
           "5661"
         ]
       },
-      "MerchantConnectorAccountId": {
-        "type": "string",
-        "description": "A type for merchant_connector_id that can be used for merchant_connector_account ids"
-      },
       "MerchantConnectorCreate": {
         "type": "object",
         "description": "Create a new Merchant Connector for the merchant account. The connector could be a payment processor / facilitator / acquirer or specialized services like Fraud / Accounting etc.\"",
@@ -22797,7 +22782,15 @@
             "minLength": 30
           },
           "routing": {
-            "description": "Details of the routing configuration for that payment"
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/StraightThroughAlgorithm",
+                "description": "Details of the routing configuration for that payment"
+              }
+            ]
           },
           "connector": {
             "type": [
@@ -23018,7 +23011,15 @@
             "maxLength": 64
           },
           "browser_info": {
-            "description": "Additional details required by 3DS 2.0"
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/BrowserInformation",
+                "description": "Additional details required by 3DS 2.0"
+              }
+            ]
           },
           "payment_experience": {
             "oneOf": [
@@ -23309,7 +23310,15 @@
             "minLength": 30
           },
           "routing": {
-            "description": "Details of the routing configuration for that payment"
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/StraightThroughAlgorithm",
+                "description": "Details of the routing configuration for that payment"
+              }
+            ]
           },
           "connector": {
             "type": [
@@ -23522,7 +23531,15 @@
             "maxLength": 64
           },
           "browser_info": {
-            "description": "Additional details required by 3DS 2.0"
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/BrowserInformation",
+                "description": "Additional details required by 3DS 2.0"
+              }
+            ]
           },
           "payment_experience": {
             "oneOf": [
@@ -23771,8 +23788,7 @@
           "net_amount",
           "amount_capturable",
           "currency",
-          "attempt_count",
-          "extended_authorization_applied"
+          "attempt_count"
         ],
         "properties": {
           "payment_id": {
@@ -23856,9 +23872,8 @@
             "example": "2022-09-10T10:11:12Z"
           },
           "currency": {
-            "type": "string",
-            "description": "Three-letter ISO currency code (e.g., USD, EUR) for the payment amount.",
-            "example": "USD"
+            "$ref": "#/components/schemas/Currency",
+            "description": "Three-letter ISO currency code (e.g., USD, EUR) for the payment amount."
           },
           "customer_id": {
             "type": [
@@ -24190,6 +24205,13 @@
             "description": "An optional sub-label for further categorization of the business unit or profile used for this payment."
           },
           "allowed_payment_method_types": {
+            "type": [
+              "array",
+              "null"
+            ],
+            "items": {
+              "$ref": "#/components/schemas/PaymentMethodType"
+            },
             "description": "Allowed Payment Method Types for a given PaymentIntent"
           },
           "ephemeral_key": {
@@ -24237,10 +24259,26 @@
             "description": "You can specify up to 50 keys, with key names up to 40 characters long and values up to 500 characters long. Metadata is useful for storing additional, structured information on an object."
           },
           "connector_metadata": {
-            "description": "Additional data related to some connectors"
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/ConnectorMetadata",
+                "description": "Additional data related to some connectors"
+              }
+            ]
           },
           "feature_metadata": {
-            "description": "Additional data that might be required by hyperswitch, to enable some specific features."
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/FeatureMetadata",
+                "description": "Additional data that might be required by hyperswitch, to enable some specific features."
+              }
+            ]
           },
           "reference_id": {
             "type": [
@@ -24358,7 +24396,15 @@
             "description": "Payment Fingerprint, to identify a particular card.\nIt is a 20 character long alphanumeric code."
           },
           "browser_info": {
-            "description": "The browser information used for this payment"
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/BrowserInformation",
+                "description": "The browser information used for this payment"
+              }
+            ]
           },
           "payment_method_id": {
             "type": [
@@ -24406,7 +24452,10 @@
             "description": "You can specify up to 50 keys, with key names up to 40 characters long and values up to 500 characters long. FRM Metadata is useful for storing additional, structured information on an object related to FRM."
           },
           "extended_authorization_applied": {
-            "type": "boolean",
+            "type": [
+              "boolean",
+              "null"
+            ],
             "description": "flag that indicates if extended authorization is applied on this payment or not"
           },
           "capture_before": {
@@ -24821,7 +24870,15 @@
             "maxLength": 255
           },
           "routing": {
-            "description": "Details of the routing configuration for that payment"
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/StraightThroughAlgorithm",
+                "description": "Details of the routing configuration for that payment"
+              }
+            ]
           },
           "connector": {
             "type": [
@@ -25099,7 +25156,15 @@
             "maxLength": 64
           },
           "browser_info": {
-            "description": "Additional details required by 3DS 2.0"
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/BrowserInformation",
+                "description": "Additional details required by 3DS 2.0"
+              }
+            ]
           },
           "payment_experience": {
             "oneOf": [
@@ -25408,8 +25473,7 @@
           "net_amount",
           "amount_capturable",
           "currency",
-          "attempt_count",
-          "extended_authorization_applied"
+          "attempt_count"
         ],
         "properties": {
           "payment_id": {
@@ -25493,9 +25557,8 @@
             "example": "2022-09-10T10:11:12Z"
           },
           "currency": {
-            "type": "string",
-            "description": "Three-letter ISO currency code (e.g., USD, EUR) for the payment amount.",
-            "example": "USD"
+            "$ref": "#/components/schemas/Currency",
+            "description": "Three-letter ISO currency code (e.g., USD, EUR) for the payment amount."
           },
           "customer_id": {
             "type": [
@@ -25860,6 +25923,13 @@
             "description": "An optional sub-label for further categorization of the business unit or profile used for this payment."
           },
           "allowed_payment_method_types": {
+            "type": [
+              "array",
+              "null"
+            ],
+            "items": {
+              "$ref": "#/components/schemas/PaymentMethodType"
+            },
             "description": "Allowed Payment Method Types for a given PaymentIntent"
           },
           "ephemeral_key": {
@@ -25907,10 +25977,26 @@
             "description": "You can specify up to 50 keys, with key names up to 40 characters long and values up to 500 characters long. Metadata is useful for storing additional, structured information on an object."
           },
           "connector_metadata": {
-            "description": "Additional data related to some connectors"
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/ConnectorMetadata",
+                "description": "Additional data related to some connectors"
+              }
+            ]
           },
           "feature_metadata": {
-            "description": "Additional data that might be required by hyperswitch, to enable some specific features."
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/FeatureMetadata",
+                "description": "Additional data that might be required by hyperswitch, to enable some specific features."
+              }
+            ]
           },
           "reference_id": {
             "type": [
@@ -26028,7 +26114,15 @@
             "description": "Payment Fingerprint, to identify a particular card.\nIt is a 20 character long alphanumeric code."
           },
           "browser_info": {
-            "description": "The browser information used for this payment"
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/BrowserInformation",
+                "description": "The browser information used for this payment"
+              }
+            ]
           },
           "payment_method_id": {
             "type": [
@@ -26076,7 +26170,10 @@
             "description": "You can specify up to 50 keys, with key names up to 40 characters long and values up to 500 characters long. FRM Metadata is useful for storing additional, structured information on an object related to FRM."
           },
           "extended_authorization_applied": {
-            "type": "boolean",
+            "type": [
+              "boolean",
+              "null"
+            ],
             "description": "flag that indicates if extended authorization is applied on this payment or not"
           },
           "capture_before": {
@@ -26407,7 +26504,15 @@
             "minLength": 30
           },
           "routing": {
-            "description": "Details of the routing configuration for that payment"
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/StraightThroughAlgorithm",
+                "description": "Details of the routing configuration for that payment"
+              }
+            ]
           },
           "connector": {
             "type": [
@@ -26611,7 +26716,15 @@
             ]
           },
           "browser_info": {
-            "description": "Additional details required by 3DS 2.0"
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/BrowserInformation",
+                "description": "Additional details required by 3DS 2.0"
+              }
+            ]
           },
           "payment_experience": {
             "oneOf": [
@@ -30381,7 +30494,7 @@
                   "null"
                 ],
                 "items": {
-                  "$ref": "#/components/schemas/MerchantConnectorAccountId"
+                  "type": "string"
                 },
                 "description": "The list of merchant connector ids to filter the refunds list for selected label"
               },
@@ -31347,21 +31460,15 @@
       "RoutableConnectorChoice": {
         "type": "object",
         "required": [
-          "connector"
+          "connector",
+          "merchant_connector_id"
         ],
         "properties": {
           "connector": {
             "$ref": "#/components/schemas/RoutableConnectors"
           },
           "merchant_connector_id": {
-            "oneOf": [
-              {
-                "type": "null"
-              },
-              {
-                "$ref": "#/components/schemas/MerchantConnectorAccountId"
-              }
-            ]
+            "type": "string"
           }
         }
       },
