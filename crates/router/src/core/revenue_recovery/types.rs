@@ -126,7 +126,6 @@ impl RevenueRecoveryPaymentsAttemptStatus {
                         business_status::PSYNC_WORKFLOW_COMPLETE,
                     )
                     .await?;
-
                 // publish events to kafka
                 if let Err(e) = recovery_incoming_flow::RecoveryPaymentTuple::publish_revenue_recovery_event_to_kafka(
                     state,
@@ -159,7 +158,6 @@ impl RevenueRecoveryPaymentsAttemptStatus {
                         business_status::PSYNC_WORKFLOW_COMPLETE,
                     )
                     .await?;
-
                 // publish events to kafka
                 if let Err(e) = recovery_incoming_flow::RecoveryPaymentTuple::publish_revenue_recovery_event_to_kafka(
                     state,
@@ -331,13 +329,64 @@ impl Action {
             revenue_recovery_metadata,
         )
         .await;
+        let recovery_payment_intent =
+            hyperswitch_domain_models::revenue_recovery::RecoveryPaymentIntent::from(
+                payment_intent,
+            );
+
         // handle proxy api's response
         match response {
             Ok(payment_data) => match payment_data.payment_attempt.status.foreign_into() {
-                RevenueRecoveryPaymentsAttemptStatus::Succeeded => Ok(Self::SuccessfulPayment(
-                    payment_data.payment_attempt.clone(),
-                )),
+                RevenueRecoveryPaymentsAttemptStatus::Succeeded => {
+                    let recovery_payment_attempt =
+                        hyperswitch_domain_models::revenue_recovery::RecoveryPaymentAttempt::from(
+                            &payment_data.payment_attempt,
+                        );
+
+                    let recovery_payment_tuple = recovery_incoming_flow::RecoveryPaymentTuple::new(
+                        &recovery_payment_intent,
+                        &recovery_payment_attempt,
+                    );
+
+                    // publish events to kafka
+                    if let Err(e) = recovery_incoming_flow::RecoveryPaymentTuple::publish_revenue_recovery_event_to_kafka(
+                    state,
+                    &recovery_payment_tuple,
+                )
+                .await{
+                    router_env::logger::error!(
+                        "Failed to publish revenue recovery event to kafka: {:?}",
+                        e
+                    );
+                };
+
+                    Ok(Self::SuccessfulPayment(
+                        payment_data.payment_attempt.clone(),
+                    ))
+                }
                 RevenueRecoveryPaymentsAttemptStatus::Failed => {
+                    let recovery_payment_attempt =
+                        hyperswitch_domain_models::revenue_recovery::RecoveryPaymentAttempt::from(
+                            &payment_data.payment_attempt,
+                        );
+
+                    let recovery_payment_tuple = recovery_incoming_flow::RecoveryPaymentTuple::new(
+                        &recovery_payment_intent,
+                        &recovery_payment_attempt,
+                    );
+
+                    // publish events to kafka
+                    if let Err(e) = recovery_incoming_flow::RecoveryPaymentTuple::publish_revenue_recovery_event_to_kafka(
+                        state,
+                        &recovery_payment_tuple,
+                    )
+                    .await{
+                        router_env::logger::error!(
+                            "Failed to publish revenue recovery event to kafka: {:?}",
+                            e
+                        );
+                    };
+
                     Self::decide_retry_failure_action(
                         db,
                         merchant_id,

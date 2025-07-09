@@ -362,16 +362,20 @@ impl RevenueRecoveryInvoice {
                 let payment_id = payments_response.id.clone();
                 let status = payments_response.status;
                 let feature_metadata = payments_response.feature_metadata;
+                let merchant_id = merchant_context.get_merchant_account().get_id().clone();
+                let revenue_recovery_invoice_data = &self.0;
                 Ok(Some(revenue_recovery::RecoveryPaymentIntent {
                     payment_id,
                     status,
                     feature_metadata,
-                    merchant_id: payments_response.merchant_id.clone(),
-                    merchant_reference_id: Some(self.0.merchant_reference_id.clone()),
-                    invoice_amount: self.0.amount,
-                    invoice_currency: self.0.currency,
-                    created_at: payments_response.created_at,
-                    billing_address: self.0.billing_address.clone(),
+                    merchant_id,
+                    merchant_reference_id: Some(
+                        revenue_recovery_invoice_data.merchant_reference_id.clone(),
+                    ),
+                    invoice_amount: revenue_recovery_invoice_data.amount,
+                    invoice_currency: revenue_recovery_invoice_data.currency,
+                    created_at: revenue_recovery_invoice_data.billing_started_at,
+                    billing_address: revenue_recovery_invoice_data.billing_address.clone(),
                 }))
             }
             Err(err)
@@ -428,16 +432,21 @@ impl RevenueRecoveryInvoice {
             .change_context(errors::RevenueRecoveryError::PaymentIntentCreateFailed)
             .attach_printable("expected json response")?;
 
+        let merchant_id = merchant_context.get_merchant_account().get_id().clone();
+        let revenue_recovery_invoice_data = &self.0;
+
         Ok(revenue_recovery::RecoveryPaymentIntent {
             payment_id: response.id,
             status: response.status,
             feature_metadata: response.feature_metadata,
-            merchant_id: response.merchant_id.clone(),
-            merchant_reference_id: Some(self.0.merchant_reference_id.clone()),
-            invoice_amount: self.0.amount,
-            invoice_currency: self.0.currency,
-            created_at: response.created_at,
-            billing_address: self.0.billing_address.clone(),
+            merchant_id,
+            merchant_reference_id: Some(
+                revenue_recovery_invoice_data.merchant_reference_id.clone(),
+            ),
+            invoice_amount: revenue_recovery_invoice_data.amount,
+            invoice_currency: revenue_recovery_invoice_data.currency,
+            created_at: revenue_recovery_invoice_data.billing_started_at,
+            billing_address: revenue_recovery_invoice_data.billing_address.clone(),
         })
     }
 }
@@ -554,6 +563,7 @@ impl RevenueRecoveryAttempt {
                             .clone()
                             .and_then(|e| e.network_decline_code), // Placeholder, to be populated if available
                         error_code: res.error.clone().map(|error| error.code),
+                        created_at: res.created_at,
                     });
                 // If we have an attempt, combine it with payment_intent in a tuple.
                 let res_with_payment_intent_and_attempt =
@@ -631,6 +641,7 @@ impl RevenueRecoveryAttempt {
                             .error_details
                             .clone()
                             .map(|error| error.code),
+                        created_at: attempt_response.created_at,
                     },
                     revenue_recovery::RecoveryPaymentIntent {
                         payment_id: payment_intent.payment_id.clone(),
@@ -723,6 +734,8 @@ impl RevenueRecoveryAttempt {
             connector_customer_id: revenue_recovery_attempt_data.connector_customer_id.clone(),
             retry_count: revenue_recovery_attempt_data.retry_count,
             invoice_next_billing_time: revenue_recovery_attempt_data.invoice_next_billing_time,
+            invoice_billing_started_at_time: revenue_recovery_attempt_data
+                .invoice_billing_started_at_time,
             triggered_by,
             card_network: revenue_recovery_attempt_data.card_network.clone(),
             card_issuer,
@@ -1241,6 +1254,7 @@ impl BillingConnectorInvoiceSyncFlowRouterData {
     }
 }
 
+#[derive(Clone, Debug)]
 pub struct RecoveryPaymentTuple(
     revenue_recovery::RecoveryPaymentIntent,
     revenue_recovery::RecoveryPaymentAttempt,
@@ -1258,33 +1272,33 @@ impl RecoveryPaymentTuple {
         state: &SessionState,
         recovery_payment_tuple: &Self,
     ) -> CustomResult<(), errors::RevenueRecoveryError> {
-        let payment_intent = &recovery_payment_tuple.0;
-        let payment_attempt = &recovery_payment_tuple.1;
-        let revenue_recovery_feature_metadata = payment_intent
+        let recovery_payment_intent = &recovery_payment_tuple.0;
+        let recovery_payment_attempt = &recovery_payment_tuple.1;
+        let revenue_recovery_feature_metadata = recovery_payment_intent
             .feature_metadata
             .as_ref()
             .and_then(|metadata| metadata.payment_revenue_recovery_metadata.as_ref());
 
-        let billing_city = payment_intent
+        let billing_city = recovery_payment_intent
             .billing_address
             .as_ref()
             .and_then(|billing_address| billing_address.address.as_ref())
             .and_then(|address| address.city.clone())
             .map(Secret::new);
 
-        let billing_state = payment_intent
+        let billing_state = recovery_payment_intent
             .billing_address
             .as_ref()
             .and_then(|billing_address| billing_address.address.as_ref())
             .and_then(|address| address.state.clone());
 
-        let billing_country = payment_intent
+        let billing_country = recovery_payment_intent
             .billing_address
             .as_ref()
             .and_then(|billing_address| billing_address.address.as_ref())
             .and_then(|address| address.country);
 
-        let card_info = payment_intent
+        let card_info = recovery_payment_intent
             .feature_metadata
             .as_ref()
             .and_then(|metadata| {
@@ -1296,28 +1310,31 @@ impl RecoveryPaymentTuple {
             });
 
         let event = kafka::revenue_recovery::RevenueRecovery {
-            merchant_id: &payment_intent.merchant_id,
-            invoice_amount: payment_intent.invoice_amount,
-            invoice_currency: &payment_intent.invoice_currency,
-            invoice_date: payment_intent.created_at.assume_utc(),
+            merchant_id: &recovery_payment_intent.merchant_id,
+            invoice_amount: recovery_payment_intent.invoice_amount,
+            invoice_currency: &recovery_payment_intent.invoice_currency,
+            invoice_date: revenue_recovery_feature_metadata.and_then(|data| {
+                data.invoice_billing_started_at_time
+                    .map(|time| time.assume_utc())
+            }),
             invoice_due_date: revenue_recovery_feature_metadata
                 .and_then(|data| data.invoice_next_billing_time.map(|time| time.assume_utc())),
             billing_city,
             billing_country: billing_country.as_ref(),
             billing_state,
-            attempt_amount: payment_attempt.amount,
-            attempt_currency: &payment_intent.invoice_currency.clone(),
-            attempt_status: &payment_attempt.attempt_status.clone(),
-            pg_error_code: payment_attempt.error_code.clone(),
-            network_advice_code: payment_attempt.network_advice_code.clone(),
-            network_error_code: payment_attempt.network_decline_code.clone(),
+            attempt_amount: recovery_payment_attempt.amount,
+            attempt_currency: &recovery_payment_intent.invoice_currency.clone(),
+            attempt_status: &recovery_payment_attempt.attempt_status.clone(),
+            pg_error_code: recovery_payment_attempt.error_code.clone(),
+            network_advice_code: recovery_payment_attempt.network_advice_code.clone(),
+            network_error_code: recovery_payment_attempt.network_decline_code.clone(),
             first_pg_error_code: revenue_recovery_feature_metadata
                 .and_then(|data| data.first_payment_attempt_pg_error_code.clone()),
             first_network_advice_code: revenue_recovery_feature_metadata
                 .and_then(|data| data.first_payment_attempt_network_advice_code.clone()),
             first_network_error_code: revenue_recovery_feature_metadata
                 .and_then(|data| data.first_payment_attempt_network_decline_code.clone()),
-            attempt_created_at: payment_intent.created_at.assume_utc(),
+            attempt_created_at: recovery_payment_attempt.created_at.assume_utc(),
             payment_method_type: revenue_recovery_feature_metadata
                 .map(|data| &data.payment_method_type),
             payment_method_subtype: revenue_recovery_feature_metadata

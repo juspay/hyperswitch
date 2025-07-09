@@ -52,6 +52,8 @@ pub struct RevenueRecoveryAttemptData {
     pub retry_count: Option<u16>,
     /// Time when next invoice will be generated which will be equal to the end time of the current invoice
     pub invoice_next_billing_time: Option<PrimitiveDateTime>,
+    /// Time at which the invoice created
+    pub invoice_billing_started_at_time: Option<PrimitiveDateTime>,
     /// card network type
     pub card_network: Option<common_enums::CardNetwork>,
     /// card isin
@@ -75,6 +77,8 @@ pub struct RevenueRecoveryInvoiceData {
     pub retry_count: Option<u16>,
     /// Ending date of the invoice or the Next billing time of the Subscription
     pub next_billing_at: Option<PrimitiveDateTime>,
+    /// Invoice Starting Time
+    pub billing_started_at: Option<PrimitiveDateTime>,
 }
 
 /// type of action that needs to taken after consuming recovery payload
@@ -94,7 +98,7 @@ pub enum RecoveryAction {
     InvalidAction,
 }
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct RecoveryPaymentIntent {
     pub payment_id: id_type::GlobalPaymentId,
     pub status: common_enums::IntentStatus,
@@ -103,11 +107,11 @@ pub struct RecoveryPaymentIntent {
     pub merchant_reference_id: Option<id_type::PaymentReferenceId>,
     pub invoice_amount: util_types::MinorUnit,
     pub invoice_currency: common_enums::Currency,
-    pub created_at: PrimitiveDateTime,
+    pub created_at: Option<PrimitiveDateTime>,
     pub billing_address: Option<api_payments::Address>,
 }
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct RecoveryPaymentAttempt {
     pub attempt_id: id_type::GlobalAttemptId,
     pub attempt_status: common_enums::AttemptStatus,
@@ -116,6 +120,7 @@ pub struct RecoveryPaymentAttempt {
     pub network_advice_code: Option<String>,
     pub network_decline_code: Option<String>,
     pub error_code: Option<String>,
+    pub created_at: PrimitiveDateTime,
 }
 
 impl RecoveryPaymentAttempt {
@@ -247,6 +252,7 @@ impl From<&BillingConnectorInvoiceSyncResponse> for RevenueRecoveryInvoiceData {
             billing_address: data.billing_address.clone(),
             retry_count: data.retry_count,
             next_billing_at: data.ends_at,
+            billing_started_at: data.created_at,
         }
     }
 }
@@ -297,6 +303,7 @@ impl
             card_network: billing_connector_payment_details.card_network.clone(),
             card_isin: billing_connector_payment_details.card_isin.clone(),
             charge_id: billing_connector_payment_details.charge_id.clone(),
+            invoice_billing_started_at_time: invoice_details.billing_started_at,
         }
     }
 }
@@ -339,15 +346,15 @@ impl From<&payments::PaymentIntent> for RecoveryPaymentIntent {
                 .feature_metadata
                 .clone()
                 .map(|feature_metadata| feature_metadata.convert_back()),
-            merchant_id: payment_intent.merchant_id.clone(),
             merchant_reference_id: payment_intent.merchant_reference_id.clone(),
             invoice_amount: payment_intent.amount_details.order_amount,
             invoice_currency: payment_intent.amount_details.currency,
-            created_at: payment_intent.created_at,
             billing_address: payment_intent
                 .billing_address
                 .clone()
                 .map(|address| api_payments::Address::from(address.into_inner())),
+            merchant_id: payment_intent.merchant_id.clone(),
+            created_at: Some(payment_intent.created_at),
         }
     }
 }
@@ -383,6 +390,7 @@ impl From<&payments::payment_attempt::PaymentAttempt> for RecoveryPaymentAttempt
                 .error
                 .as_ref()
                 .map(|error| error.code.clone()),
+            created_at: payment_attempt.created_at,
         }
     }
 }

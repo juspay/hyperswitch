@@ -8,8 +8,8 @@ pub struct RevenueRecovery<'a> {
     pub invoice_currency: &'a common_enums::Currency,
     #[serde(default, with = "time::serde::timestamp::nanoseconds::option")]
     pub invoice_due_date: Option<OffsetDateTime>,
-    #[serde(with = "time::serde::timestamp::nanoseconds")]
-    pub invoice_date: OffsetDateTime,
+    #[serde(with = "time::serde::timestamp::nanoseconds::option")]
+    pub invoice_date: Option<OffsetDateTime>,
     pub billing_country: Option<&'a common_enums::CountryAlpha2>,
     pub billing_state: Option<Secret<String>>,
     pub billing_city: Option<Secret<String>>,

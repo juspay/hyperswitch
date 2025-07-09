@@ -1816,8 +1816,6 @@ where
                     .clone()
                     .map(ForeignFrom::foreign_from),
                 request_incremental_authorization: payment_intent.request_incremental_authorization,
-                created_at: payment_intent.created_at,
-                merchant_id: payment_intent.merchant_id.clone(),
                 expires_on: payment_intent.session_expiry,
                 frm_metadata: payment_intent.frm_metadata.clone(),
                 request_external_three_ds_authentication: payment_intent
@@ -2128,6 +2126,7 @@ where
             error_details: payment_attempt
                 .error
                 .map(api_models::payments::RecordAttemptErrorDetails::from),
+            created_at: payment_attempt.created_at,
         };
         Ok(services::ApplicationResponse::JsonWithHeaders((
             response,
@@ -5027,6 +5026,8 @@ impl ForeignFrom<&diesel_models::types::FeatureMetadata> for api_models::payment
                     first_payment_attempt_pg_error_code: payment_revenue_recovery_metadata
                         .first_payment_attempt_pg_error_code
                         .clone(),
+                    invoice_billing_started_at_time: payment_revenue_recovery_metadata
+                        .invoice_billing_started_at_time,
                 }
             });
         let apple_pay_details = feature_metadata
