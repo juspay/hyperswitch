@@ -70,6 +70,7 @@ pub struct Settings<S: SecretState> {
     pub server: Server,
     pub proxy: Proxy,
     pub env: Env,
+    pub chat: ChatSettings,
     pub master_database: SecretStateContainer<Database, S>,
     #[cfg(feature = "olap")]
     pub replica_database: SecretStateContainer<Database, S>,
@@ -192,6 +193,15 @@ pub struct CloneConnectorAllowlistConfig {
 pub struct Platform {
     pub enabled: bool,
     pub allow_connected_merchants: bool,
+    pub chat: bool,
+}
+
+#[derive(Debug, Deserialize, Clone, Default)]
+#[serde(default)]
+pub struct ChatSettings {
+    pub enabled: bool,
+    pub automation_workflow_host: String,
+    pub embedded_workflow_host: String,
 }
 
 #[derive(Debug, Clone, Default, Deserialize)]

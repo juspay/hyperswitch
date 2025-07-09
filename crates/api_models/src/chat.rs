@@ -12,5 +12,5 @@ pub struct ChatResponse {
 
 #[derive(Debug, serde::Deserialize, serde::Serialize)]
 pub struct ChatDataType {
-    pub output: Option<serde_json::Value>
+    pub output: Option<serde_json::Value>,
 }

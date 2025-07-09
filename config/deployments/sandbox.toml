@@ -777,6 +777,11 @@ connector_list = "adyen,cybersource"
 enabled = false
 allow_connected_merchants = false
 
+[chat]
+enabled = false
+automation_workflow_host = ""
+embedded_workflow_host = ""
+
 [billing_connectors_payment_sync]
 billing_connectors_which_require_payment_sync = "stripebilling, recurly"
 

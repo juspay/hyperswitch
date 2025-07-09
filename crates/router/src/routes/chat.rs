@@ -1,3 +1,7 @@
+use actix_web::{web, HttpRequest, HttpResponse};
+use api_models::chat::{self as chat_api};
+use router_env::Flow;
+
 use super::AppState;
 use crate::{
     core::{api_locking, chat as chat_core},
@@ -7,23 +11,55 @@ use crate::{
         authorization::permissions::Permission,
     },
 };
-use actix_web::{web, HttpRequest, HttpResponse};
-use api_models::chat::{self as chat_api};
-use router_env::Flow;
 
-pub async fn ask_chat(
+pub async fn get_data_from_automation_workflow(
     state: web::Data<AppState>,
     http_req: HttpRequest,
     query: web::Query<chat_api::ChatMessageQueryParam>,
 ) -> HttpResponse {
-    let flow = Flow::UserSignUp;
+    let flow = Flow::GetDataFromAutomationFlow;
     let query_params = query.into_inner();
     Box::pin(api::server_wrap(
         flow.clone(),
         state,
         &http_req,
         (),
-        |state, user, _, _| chat_core::ask_chat(state, user, query_params.message.clone()),
+        |state, _: (), _, _| {
+            chat_core::get_data_from_automation_workflow(
+                state,
+                chat_api::ChatMessageQueryParam {
+                    message: query_params.message.clone(),
+                },
+            )
+        },
+        &auth::JWTAuth {
+            permission: Permission::MerchantPaymentRead,
+        },
+        api_locking::LockAction::NotApplicable,
+    ))
+    .await
+}
+
+pub async fn get_data_from_embedded_workflow(
+    state: web::Data<AppState>,
+    http_req: HttpRequest,
+    query: web::Query<chat_api::ChatMessageQueryParam>,
+) -> HttpResponse {
+    let flow = Flow::GetDataFromEmbeddedFlow;
+    let query_params = query.into_inner();
+    Box::pin(api::server_wrap(
+        flow.clone(),
+        state,
+        &http_req,
+        (),
+        |state, _: (), _, _| {
+            chat_core::get_data_from_embedded_workflow(
+                state,
+                chat_api::ChatMessageQueryParam {
+                    message: query_params.message.clone(),
+                },
+            )
+        },
         &auth::JWTAuth {
             permission: Permission::MerchantPaymentRead,
         },

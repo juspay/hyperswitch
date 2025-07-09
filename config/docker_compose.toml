@@ -1099,6 +1099,11 @@ background_color = "#FFFFFF"                                                    
 enabled = true
 allow_connected_merchants = true
 
+[chat]
+enabled = false
+automation_workflow_host = ""
+embedded_workflow_host = ""
+
 [authentication_providers]
 click_to_pay = {connector_list = "adyen, cybersource"}
 

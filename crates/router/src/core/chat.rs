@@ -1,41 +1,29 @@
-use api_models::chat::{self, ChatDataType};
-use common_utils::{
-    errors::CustomResult,
-    request::{Method, RequestBuilder},
-};
-use error_stack::ResultExt;
-use external_services::http_client;
-
+use api_models::chat;
+use common_utils::errors::CustomResult;
 use crate::{
-    db::errors::chat::ChatErrors,
-    routes::SessionState,
-    services::{authentication as auth, ApplicationResponse},
+    db::errors::chat::ChatErrors, routes::SessionState, services::ApplicationResponse, utils,
 };
 
-pub async fn ask_chat(
+pub async fn get_data_from_automation_workflow(
     state: SessionState,
-    _user_from_token: auth::UserFromToken,
-    message: String,
+    query: chat::ChatMessageQueryParam,
 ) -> CustomResult<ApplicationResponse<chat::ChatResponse>, ChatErrors> {
-    let request = RequestBuilder::new()
-        .method(Method::Get)
-        .url("http://localhost:8080?message=${message}")
-        .build();
+    utils::chat::make_chat_request_and_get_response(
+        &state,
+        &query.message,
+        &state.conf.chat.automation_workflow_host,
+    )
+    .await
+}
 
-    let response = http_client::send_request(&state.conf.proxy, request, None)
-        .await
-        .change_context(ChatErrors::InternalServerError)?
-        .json::<ChatDataType>()
-        .await
-        .change_context(ChatErrors::ChatResponseDeserializationFailed)?;
-
-    let res = response
-        .output
-        .unwrap_or_else(|| serde_json::json!("No data returned from external API"));
-
-    Ok(ApplicationResponse::Json(chat::ChatResponse {
-        message: message.clone(),
-        data: res,
-        timestamp: common_utils::date_time::now().to_string(),
-    }))
+pub async fn get_data_from_embedded_workflow(
+    state: SessionState,
+    query: chat::ChatMessageQueryParam,
+) -> CustomResult<ApplicationResponse<chat::ChatResponse>, ChatErrors> {
+    utils::chat::make_chat_request_and_get_response(
+        &state,
+        &query.message,
+        &state.conf.chat.embedded_workflow_host,
+    )
+    .await
 }
