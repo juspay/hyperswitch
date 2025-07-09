@@ -1,8 +1,4 @@
-import {
-  customerAcceptance,
-  singleUseMandateData,
-  multiUseMandateData,
-} from "./Commons.js";
+import { customerAcceptance } from "./Commons.js";
 
 const successfulNo3DSCardDetails = {
   card_number: "5185570141917102",
