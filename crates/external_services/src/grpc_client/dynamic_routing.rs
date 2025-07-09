@@ -44,7 +44,7 @@ pub enum DynamicRoutingError {
 }
 
 /// Type that consists of all the services provided by the client
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Default)]
 pub struct RoutingStrategy {
     /// success rate service for Dynamic Routing
     pub success_rate_client: Option<SuccessRateCalculatorClient<Client>>,

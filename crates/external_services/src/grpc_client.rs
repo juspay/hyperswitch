@@ -9,7 +9,7 @@ pub mod unified_connector_service;
 use std::{fmt::Debug, sync::Arc};
 
 #[cfg(feature = "dynamic_routing")]
-use common_utils::consts;
+use common_utils::{consts, ext_traits::AsyncExt};
 #[cfg(feature = "dynamic_routing")]
 use dynamic_routing::{DynamicRoutingClientConfig, RoutingStrategy};
 #[cfg(feature = "dynamic_routing")]
@@ -47,7 +47,7 @@ pub struct GrpcClients {
 pub struct GrpcClientSettings {
     #[cfg(feature = "dynamic_routing")]
     /// Configs for Dynamic Routing Client
-    pub dynamic_routing_client: DynamicRoutingClientConfig,
+    pub dynamic_routing_client: Option<DynamicRoutingClientConfig>,
     /// Configs for Unified Connector Service client
     pub unified_connector_service: Option<UnifiedConnectorServiceClientConfig>,
 }
@@ -69,9 +69,11 @@ impl GrpcClientSettings {
         let dynamic_routing_connection = self
             .dynamic_routing_client
             .clone()
-            .get_dynamic_routing_connection(client.clone())
+            .async_map(|config| config.get_dynamic_routing_connection(client.clone()))
             .await
-            .expect("Failed to establish a connection with the Dynamic Routing Server");
+            .transpose()
+            .expect("Failed to establish a connection with the Dynamic Routing Server")
+            .unwrap_or_default();
 
         #[cfg(feature = "dynamic_routing")]
         let health_client = HealthCheckClient::build_connections(self, client)
