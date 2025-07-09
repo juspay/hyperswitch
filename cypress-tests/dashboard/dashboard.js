@@ -19,12 +19,24 @@ function toPascalCase(str) {
 // Initialize the dashboard
 document.addEventListener("DOMContentLoaded", () => {
   loadTheme();
+  setupUI();
   loadDashboardData();
   setupEventListeners();
 
   // Refresh data every 30 seconds
   setInterval(loadDashboardData, 30000);
 });
+
+// Setup UI based on environment
+function setupUI() {
+  const isHosted = window.location.hostname === "integ.hyperswitch.io";
+  
+  // Show/hide report loader for hosted environment
+  const reportLoader = document.getElementById("reportLoader");
+  if (isHosted) {
+    reportLoader.style.display = "flex";
+  }
+}
 
 // Setup event listeners
 function setupEventListeners() {
@@ -41,6 +53,23 @@ function setupEventListeners() {
   document
     .getElementById("statusFilter")
     .addEventListener("change", filterData);
+
+  // Add event listeners for hosted environment features
+  const loadReportBtn = document.getElementById("loadReportBtn");
+  const reportNameInput = document.getElementById("reportNameInput");
+  
+  if (loadReportBtn) {
+    loadReportBtn.addEventListener("click", loadSpecificReport);
+  }
+  
+  if (reportNameInput) {
+    // Allow Enter key to load report
+    reportNameInput.addEventListener("keypress", (e) => {
+      if (e.key === "Enter") {
+        loadSpecificReport();
+      }
+    });
+  }
 
   // Modal controls
   const modal = document.getElementById("testRunnerModal");
@@ -72,65 +101,41 @@ async function loadDashboardData() {
   try {
     let response;
     
-    // Check if we're running on the hosted environment
+    // Simple logic: local uses dashboard-data.json, hosted uses report_latest.json
     if (window.location.hostname === "integ.hyperswitch.io") {
-      // Use the remote URL for hosted environment
-      response = await fetch(
-        "https://integ.hyperswitch.io/cypress-test/reports/report_latest.json"
-      );
+      // Hosted environment - use latest report
+      response = await fetch("./reports/report_latest.json");
     } else {
-      // Use the local path for local development
+      // Local environment - use dashboard data
       response = await fetch("../cypress/reports/dashboard-data.json");
     }
     
     if (!response.ok) {
-      throw new Error("Failed to load dashboard data");
+      throw new Error(`HTTP ${response.status}: ${response.statusText}`);
     }
 
     dashboardData = await response.json();
     updateDashboard();
   } catch (error) {
     console.error("Error loading dashboard data:", error);
+    const environment = window.location.hostname === "integ.hyperswitch.io" ? "hosted" : "local";
     showError(
-      "Failed to load dashboard data. Make sure to run the report generator first."
+      `Failed to load dashboard data for ${environment} environment. ${environment === "local" ? "Make sure to run the report generator first." : "Check if the latest report is available."}`
     );
   }
 }
 
-// Load latest report from the hosted environment
+// Load latest report (for hosted environment)
 async function loadLatestReport() {
   try {
     let response;
     
-    // Check if we're running on the hosted environment or can access the remote URL
-    if (window.location.hostname === "integ.hyperswitch.io" || window.location.protocol === "https:") {
-      // Try to load from the remote URL first
-      try {
-        response = await fetch(
-          "https://integ.hyperswitch.io/cypress-test/reports/report_latest.json"
-        );
-        if (!response.ok) {
-          throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-        }
-      } catch (remoteError) {
-        console.warn("Failed to load from remote URL, trying local fallback:", remoteError);
-        // Fall back to local path if remote fails
-        response = await fetch("../cypress/reports/dashboard-data.json");
-      }
+    if (window.location.hostname === "integ.hyperswitch.io") {
+      // Hosted environment - load latest report
+      response = await fetch("./reports/report_latest.json");
     } else {
-      // For local development, try local path first, then remote as fallback
-      try {
-        response = await fetch("../cypress/reports/dashboard-data.json");
-        if (!response.ok) {
-          throw new Error(`Local file not found: HTTP ${response.status}`);
-        }
-      } catch (localError) {
-        console.warn("Failed to load from local path, trying remote URL:", localError);
-        // Fall back to remote URL if local fails
-        response = await fetch(
-          "https://integ.hyperswitch.io/cypress-test/reports/report_latest.json"
-        );
-      }
+      // Local environment - just reload the dashboard data
+      response = await fetch("../cypress/reports/dashboard-data.json");
     }
     
     if (!response.ok) {
@@ -144,9 +149,40 @@ async function loadLatestReport() {
     showSuccess("Latest report loaded successfully!");
   } catch (error) {
     console.error("Error loading latest report:", error);
-    showError(
-      "Failed to load latest report. Please check if the report is available at both local and remote locations."
-    );
+    showError("Failed to load latest report. Please check if the report is available.");
+  }
+}
+
+// Load specific report by name (for hosted environment)
+async function loadSpecificReport() {
+  const reportNameInput = document.getElementById("reportNameInput");
+  const reportName = reportNameInput.value.trim();
+  
+  if (!reportName) {
+    showError("Please enter a report name.");
+    return;
+  }
+  
+  try {
+    // Add .json extension if not present
+    const fileName = reportName.endsWith('.json') ? reportName : `${reportName}.json`;
+    const response = await fetch(`./reports/${fileName}`);
+    
+    if (!response.ok) {
+      throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+    }
+
+    dashboardData = await response.json();
+    updateDashboard();
+    
+    // Show success message
+    showSuccess(`Report "${fileName}" loaded successfully!`);
+    
+    // Clear the input
+    reportNameInput.value = "";
+  } catch (error) {
+    console.error("Error loading specific report:", error);
+    showError(`Failed to load report "${reportName}". Please check if the report exists.`);
   }
 }
 
