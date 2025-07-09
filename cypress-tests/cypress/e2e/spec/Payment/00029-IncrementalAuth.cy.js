@@ -16,7 +16,7 @@ describe("[Payment] Incremental Auth", () => {
         connector = globalState.get("connectorId");
 
         // Skip the test if the connector is not in the inclusion list
-        // This is done because only archipel, cybersource and paypal are known to support at present
+        // This is done because only cybersource is known to support at present
         if (
           utils.shouldIncludeConnector(
             connector,
