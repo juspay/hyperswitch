@@ -977,14 +977,13 @@ impl BillingConnectorPaymentsSyncFlowRouterData {
             .attach_printable("Cannot find connector from the connector_name")?;
 
         let connector_params =
-            hyperswitch_domain_models::configs::Connectors::get_connector_params(
+            hyperswitch_domain_models::connector_endpoints::Connectors::get_connector_params(
                 &state.conf.connectors,
                 connector,
             )
             .change_context(errors::RevenueRecoveryError::BillingConnectorPaymentsSyncFailed)
             .attach_printable(format!(
-                "cannot find connector params for this connector {} in this flow",
-                connector
+                "cannot find connector params for this connector {connector} in this flow",
             ))?;
 
         let router_data = types::RouterDataV2 {
@@ -1144,14 +1143,13 @@ impl BillingConnectorInvoiceSyncFlowRouterData {
             .attach_printable("Cannot find connector from the connector_name")?;
 
         let connector_params =
-            hyperswitch_domain_models::configs::Connectors::get_connector_params(
+            hyperswitch_domain_models::connector_endpoints::Connectors::get_connector_params(
                 &state.conf.connectors,
                 connector,
             )
             .change_context(errors::RevenueRecoveryError::BillingConnectorPaymentsSyncFailed)
             .attach_printable(format!(
-                "cannot find connector params for this connector {} in this flow",
-                connector
+                "cannot find connector params for this connector {connector} in this flow",
             ))?;
 
         let router_data = types::RouterDataV2 {

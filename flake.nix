@@ -43,6 +43,7 @@
           devPackages = base ++ (with pkgs; [
             cargo-watch
             nixd
+            protobuf
             rust-bin.stable.${rustDevVersion}.default
             swagger-cli
           ]);

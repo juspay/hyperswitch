@@ -1195,6 +1195,7 @@ impl Default for RequiredFields {
 fn get_cards_required_fields() -> HashMap<Connector, RequiredFieldFinal> {
     HashMap::from([
         (Connector::Aci, fields(vec![], vec![], card_with_name())),
+        (Connector::Authipay, fields(vec![], vec![], card_basic())),
         (Connector::Adyen, fields(vec![], vec![], card_with_name())),
         (Connector::Airwallex, fields(vec![], card_basic(), vec![])),
         (
@@ -1425,6 +1426,25 @@ fn get_cards_required_fields() -> HashMap<Connector, RequiredFieldFinal> {
                         RequiredField::BillingAddressLine1,
                         RequiredField::BillingAddressCity,
                         RequiredField::BillingAddressZip,
+                        RequiredField::BillingAddressCountries(vec!["ALL"]),
+                    ],
+                ]
+                .concat(),
+            ),
+        ),
+        (
+            Connector::Payload,
+            fields(
+                vec![],
+                vec![],
+                [
+                    email(),
+                    card_with_name(),
+                    vec![
+                        RequiredField::BillingAddressLine1,
+                        RequiredField::BillingAddressCity,
+                        RequiredField::BillingAddressZip,
+                        RequiredField::BillingAddressState,
                         RequiredField::BillingAddressCountries(vec!["ALL"]),
                     ],
                 ]
@@ -3117,6 +3137,17 @@ fn get_bank_transfer_required_fields() -> HashMap<enums::PaymentMethodType, Conn
                     },
                 ),
                 (Connector::Adyen, fields(vec![], vec![], vec![])),
+                (
+                    Connector::Santander,
+                    RequiredFieldFinal {
+                        mandate: HashMap::new(),
+                        non_mandate: HashMap::new(),
+                        common: HashMap::from([
+                            RequiredField::BillingUserFirstName.to_tuple(),
+                            RequiredField::BillingUserLastName.to_tuple(),
+                        ]),
+                    },
+                ),
                 (
                     Connector::Facilitapay,
                     RequiredFieldFinal {

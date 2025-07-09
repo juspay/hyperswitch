@@ -687,7 +687,7 @@ pub async fn link_routing_config(
                 // Call to DE here to update SR configs
                 #[cfg(all(feature = "dynamic_routing", feature = "v1"))]
                 {
-                    if state.conf.open_router.enabled {
+                    if state.conf.open_router.dynamic_routing_enabled {
                         update_decision_engine_dynamic_routing_setup(
                             &state,
                             business_profile.get_id(),
@@ -718,7 +718,7 @@ pub async fn link_routing_config(
             );
                 #[cfg(all(feature = "dynamic_routing", feature = "v1"))]
                 {
-                    if state.conf.open_router.enabled {
+                    if state.conf.open_router.dynamic_routing_enabled {
                         update_decision_engine_dynamic_routing_setup(
                             &state,
                             business_profile.get_id(),
@@ -1844,7 +1844,7 @@ pub async fn success_based_routing_update_configs(
         router_env::metric_attributes!(("profile_id", profile_id.clone())),
     );
 
-    if !state.conf.open_router.enabled {
+    if !state.conf.open_router.dynamic_routing_enabled {
         state
             .grpc_client
             .dynamic_routing
@@ -1948,7 +1948,7 @@ pub async fn elimination_routing_update_configs(
         router_env::metric_attributes!(("profile_id", profile_id.clone())),
     );
 
-    if !state.conf.open_router.enabled {
+    if !state.conf.open_router.dynamic_routing_enabled {
         state
             .grpc_client
             .dynamic_routing
@@ -2518,7 +2518,7 @@ pub async fn migrate_rules_for_profile(
             Ok(algo) => algo,
             Err(e) => {
                 router_env::logger::error!(?e, ?algorithm_id, "Failed to fetch routing algorithm");
-                push_error(algorithm_id, format!("Fetch error: {:?}", e));
+                push_error(algorithm_id, format!("Fetch error: {e:?}"));
                 continue;
             }
         };
@@ -2536,7 +2536,7 @@ pub async fn migrate_rules_for_profile(
                         ?algorithm_id,
                         "Failed to convert advanced program"
                     );
-                    push_error(algorithm_id.clone(), format!("Conversion error: {:?}", e));
+                    push_error(algorithm_id.clone(), format!("Conversion error: {e:?}"));
                     None
                 }
             },
@@ -2559,7 +2559,7 @@ pub async fn migrate_rules_for_profile(
             }
             Err(e) => {
                 router_env::logger::error!(?e, ?algorithm_id, "Failed to parse algorithm");
-                push_error(algorithm_id.clone(), format!("Parse error: {:?}", e));
+                push_error(algorithm_id.clone(), format!("Parse error: {e:?}"));
                 None
             }
         };
@@ -2611,7 +2611,7 @@ pub async fn migrate_rules_for_profile(
                 );
                 push_error(
                     algorithm.algorithm_id.clone(),
-                    format!("Insertion error: {:?}", err),
+                    format!("Insertion error: {err:?}"),
                 );
             }
         }

@@ -36,7 +36,7 @@ pub async fn migrate_payment_methods(
             mca_ids.as_ref(),
         ))
         .map_err(|err| errors::ApiErrorResponse::InvalidRequestData {
-            message: format!("error: {:?}", err),
+            message: format!("error: {err:?}"),
         })
         .attach_printable("record deserialization failed");
 
@@ -94,10 +94,7 @@ impl MerchantConnectorValidator {
                 let mca_id =
                     common_utils::id_type::MerchantConnectorAccountId::wrap(trimmed_id.to_string())
                         .map_err(|_| errors::ApiErrorResponse::InvalidRequestData {
-                            message: format!(
-                                "Invalid merchant_connector_account_id: {}",
-                                trimmed_id
-                            ),
+                            message: format!("Invalid merchant_connector_account_id: {trimmed_id}"),
                         })?;
                 result.push(mca_id);
             }
