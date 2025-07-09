@@ -93,6 +93,7 @@ pub struct DwollaCustomerRequest {
     #[serde(rename = "lastName")]
     last_name: Secret<String>,
     email: common_utils::pii::Email,
+    correlation_id: Option<String>,
 }
 
 #[derive(Default, Debug, Serialize, Deserialize, PartialEq)]
@@ -170,6 +171,7 @@ impl TryFrom<&types::ConnectorCustomerRouterData> for DwollaCustomerRequest {
                     field_name: "email",
                 }
             })?,
+            correlation_id: Some(uuid::Uuid::new_v4().to_string().into()),
         })
     }
 }
@@ -292,12 +294,14 @@ pub enum DwollaPaymentStatus {
     Pending,
     #[default]
     Processing,
+    Processed,
 }
 
 impl From<DwollaPaymentStatus> for common_enums::AttemptStatus {
     fn from(item: DwollaPaymentStatus) -> Self {
         match item {
             DwollaPaymentStatus::Succeeded => Self::Charged,
+            DwollaPaymentStatus::Processed => Self::Charged,
             DwollaPaymentStatus::Failed => Self::Failure,
             DwollaPaymentStatus::Processing => Self::Authorizing,
             DwollaPaymentStatus::Pending => Self::Pending,
