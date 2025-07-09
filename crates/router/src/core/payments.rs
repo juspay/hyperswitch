@@ -3577,20 +3577,23 @@ where
         &call_connector_action,
     );
 
-    let should_continue = router_data
+    let should_continue = match router_data
         .create_order_at_connector(state, &connector, should_continue_further)
         .await?
-        .and_then(|create_order_response| {
-            // why this needs to be updated in payment data
+    {
+        Some(create_order_response) => {
             if let Ok(order_id) = create_order_response.clone().create_order_result {
-                payment_data.set_connector_response_reference_id(Some(order_id));
+                payment_data.set_connector_response_reference_id(Some(order_id))
             }
 
             // Set the response in routerdata response to carry forward
             router_data
                 .update_router_data_with_create_order_response(create_order_response.clone());
-            create_order_response.create_order_result.ok()
-        });
+            create_order_response.create_order_result.ok().map(|_| ())
+        }
+        // If create order is not required, then we can proceed with further processing
+        None => Some(()),
+    };
 
     let (_, should_continue_further) = match should_continue {
         Some(_) => {
@@ -4056,20 +4059,23 @@ where
         &call_connector_action,
     );
 
-    let should_continue = router_data
+    let should_continue = match router_data
         .create_order_at_connector(state, &connector, should_continue_further)
         .await?
-        .and_then(|create_order_response| {
-            // why this needs to be updated in payment data
+    {
+        Some(create_order_response) => {
             if let Ok(order_id) = create_order_response.clone().create_order_result {
-                payment_data.set_connector_response_reference_id(Some(order_id));
+                payment_data.set_connector_response_reference_id(Some(order_id))
             }
 
             // Set the response in routerdata response to carry forward
             router_data
                 .update_router_data_with_create_order_response(create_order_response.clone());
-            create_order_response.create_order_result.ok()
-        });
+            create_order_response.create_order_result.ok().map(|_| ())
+        }
+        // If create order is not required, then we can proceed with further processing
+        None => Some(()),
+    };
 
     // In case of authorize flow, pre-task and post-tasks are being called in build request
     // if we do not want to proceed further, then the function will return Ok(None, false)
@@ -4325,11 +4331,11 @@ where
     let (connector_request, should_continue_further) = if !should_call_unified_connector_service {
         let mut should_continue_further = true;
 
-        let should_continue = router_data
+        let should_continue = match router_data
             .create_order_at_connector(state, &connector, should_continue_further)
             .await?
-            .and_then(|create_order_response| {
-                // why this needs to be updated in payment data
+        {
+            Some(create_order_response) => {
                 if let Ok(order_id) = create_order_response.clone().create_order_result {
                     payment_data.set_connector_response_reference_id(Some(order_id))
                 }
@@ -4337,8 +4343,11 @@ where
                 // Set the response in routerdata response to carry forward
                 router_data
                     .update_router_data_with_create_order_response(create_order_response.clone());
-                create_order_response.create_order_result.ok()
-            });
+                create_order_response.create_order_result.ok().map(|_| ())
+            }
+            // If create order is not required, then we can proceed with further processing
+            None => Some(()),
+        };
 
         let should_continue: (Option<common_utils::request::Request>, bool) = match should_continue
         {
