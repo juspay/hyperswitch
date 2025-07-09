@@ -38,6 +38,8 @@ describe("[Payment] Incremental Auth", () => {
   });
 
   context("[Payment] Incremental Pre-Auth", () => {
+    let shouldContinue = true;
+    
     it("[Payment] Create Payment Intent", () => {
       const data = getConnectorDetails(globalState.get("connectorId"))[
         "card_pm"
