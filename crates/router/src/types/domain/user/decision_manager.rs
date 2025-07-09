@@ -161,7 +161,6 @@ impl JWTFlow {
                     .inspect_err(|e| {
                         logger::error!("Failed to validate V2 role: {e:?}");
                     })
-                    .ok()
                     .map(|role| role.role_id == ctx.role_id)
                     .unwrap_or_default();
 
@@ -182,7 +181,6 @@ impl JWTFlow {
                         .inspect_err(|e| {
                             logger::error!("Failed to validate V1 role: {e:?}");
                         })
-                        .ok()
                         .map(|role| role.role_id == ctx.role_id)
                         .unwrap_or_default();
 
