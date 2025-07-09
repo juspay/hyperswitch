@@ -49,10 +49,10 @@ const multiUseMandateData = {
 const payment_method_data_no3ds = {
   card: {
     last4: "5262",
-    card_type: "CREDIT",
-    card_network: "Visa",
-    card_issuer: "ALLIED IRISH BANKS, P.L.C.",
-    card_issuing_country: "IRELAND",
+    card_type: null,
+    card_network: null,
+    card_issuer: null,
+    card_issuing_country: null,
     card_isin: "426397",
     card_extended_bin: null,
     card_exp_month: "12",
