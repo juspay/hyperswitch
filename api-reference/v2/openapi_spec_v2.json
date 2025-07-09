@@ -15539,7 +15539,8 @@
         "required": [
           "id",
           "status",
-          "amount"
+          "amount",
+          "created_at"
         ],
         "properties": {
           "id": {
@@ -15586,6 +15587,11 @@
               }
             ],
             "nullable": true
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "description": "attempt created at timestamp"
           }
         }
       },
@@ -17998,6 +18004,12 @@
             "description": "Invoice Next billing time",
             "nullable": true
           },
+          "invoice_billing_started_at_time": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Invoice Next billing time",
+            "nullable": true
+          },
           "first_payment_attempt_pg_error_code": {
             "type": "string",
             "description": "First Payment Attempt Payment Gateway Error Code",
@@ -18535,9 +18547,7 @@
           "payment_link_enabled",
           "request_incremental_authorization",
           "expires_on",
-          "created_at",
-          "request_external_three_ds_authentication",
-          "merchant_id"
+          "request_external_three_ds_authentication"
         ],
         "properties": {
           "id": {
@@ -18691,11 +18701,6 @@
             "format": "date-time",
             "description": "Will be used to expire client secret after certain amount of time to be supplied in seconds"
           },
-          "created_at": {
-            "type": "string",
-            "format": "date-time",
-            "description": "Time at which the payment intent was created."
-          },
           "frm_metadata": {
             "type": "object",
             "description": "Additional data related to some frm(Fraud Risk Management) connectors",
@@ -18703,10 +18708,6 @@
           },
           "request_external_three_ds_authentication": {
             "$ref": "#/components/schemas/External3dsAuthenticationRequest"
-          },
-          "merchant_id": {
-            "type": "string",
-            "description": "The unique identifier for the merchant"
           }
         },
         "additionalProperties": false
