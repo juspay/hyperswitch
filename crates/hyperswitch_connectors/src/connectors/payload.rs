@@ -124,9 +124,18 @@ impl ConnectorCommon for Payload {
         &self,
         auth_type: &ConnectorAuthType,
     ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
-        let auth = payload::PayloadAuthType::try_from(auth_type)
+        let auth = transformers::PayloadAuthType::try_from(auth_type)
             .change_context(errors::ConnectorError::FailedToObtainAuthType)?;
-        let encoded_api_key = BASE64_ENGINE.encode(format!("{}:", auth.api_key.expose()));
+        // The API key is the same for all currencies, so we can take any.
+        let api_key = auth
+            .auths
+            .values()
+            .next()
+            .ok_or(errors::ConnectorError::FailedToObtainAuthType)?
+            .api_key
+            .clone();
+
+        let encoded_api_key = BASE64_ENGINE.encode(format!("{}:", api_key.expose()));
         Ok(vec![(
             headers::AUTHORIZATION.to_string(),
             format!("Basic {encoded_api_key}").into_masked(),

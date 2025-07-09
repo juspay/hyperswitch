@@ -1,6 +1,9 @@
+use std::collections::HashMap;
+
 use api_models::webhooks::IncomingWebhookEvent;
 use common_enums::enums;
-use common_utils::types::StringMajorUnit;
+use common_utils::{ext_traits::ValueExt, types::StringMajorUnit};
+use error_stack::ResultExt;
 use hyperswitch_domain_models::{
     payment_method_data::PaymentMethodData,
     router_data::{ConnectorAuthType, ErrorResponse, RouterData},
@@ -14,6 +17,7 @@ use hyperswitch_interfaces::{
     errors,
 };
 use masking::Secret;
+use serde::Deserialize;
 
 use super::{requests, responses};
 use crate::{
@@ -52,6 +56,10 @@ impl TryFrom<&PayloadRouterData<&PaymentsAuthorizeRouterData>>
 
         match item.router_data.request.payment_method_data.clone() {
             PaymentMethodData::Card(req_card) => {
+                let payload_auth = PayloadAuth::try_from((
+                    &item.router_data.connector_auth_type,
+                    item.router_data.request.currency,
+                ))?;
                 let card = requests::PayloadCard {
                     number: req_card.clone().card_number,
                     expiry: req_card
@@ -91,6 +99,7 @@ impl TryFrom<&PayloadRouterData<&PaymentsAuthorizeRouterData>>
                         payment_method_type: "card".to_string(),
                         status,
                         billing_address,
+                        processing_id: payload_auth.processing_account_id,
                     },
                 ))
             }
@@ -100,17 +109,59 @@ impl TryFrom<&PayloadRouterData<&PaymentsAuthorizeRouterData>>
 }
 
 // Auth Struct
+#[derive(Debug, Clone, Deserialize)]
+pub struct PayloadAuth {
+    pub api_key: Secret<String>,
+    pub processing_account_id: Option<Secret<String>>,
+}
+
+#[derive(Debug, Clone)]
 pub struct PayloadAuthType {
-    pub(super) api_key: Secret<String>,
+    pub auths: HashMap<enums::Currency, PayloadAuth>,
+}
+
+impl TryFrom<(&ConnectorAuthType, enums::Currency)> for PayloadAuth {
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(value: (&ConnectorAuthType, enums::Currency)) -> Result<Self, Self::Error> {
+        let (auth_type, currency) = value;
+        match auth_type {
+            ConnectorAuthType::CurrencyAuthKey { auth_key_map } => {
+                let auth_key = auth_key_map.get(&currency).ok_or(
+                    errors::ConnectorError::CurrencyNotSupported {
+                        message: currency.to_string(),
+                        connector: "Payload",
+                    },
+                )?;
+
+                auth_key
+                    .to_owned()
+                    .parse_value("PayloadAuth")
+                    .change_context(errors::ConnectorError::FailedToObtainAuthType)
+            }
+            _ => Err(errors::ConnectorError::FailedToObtainAuthType.into()),
+        }
+    }
 }
 
 impl TryFrom<&ConnectorAuthType> for PayloadAuthType {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(auth_type: &ConnectorAuthType) -> Result<Self, Self::Error> {
         match auth_type {
-            ConnectorAuthType::HeaderKey { api_key } => Ok(Self {
-                api_key: api_key.to_owned(),
-            }),
+            ConnectorAuthType::CurrencyAuthKey { auth_key_map } => {
+                let auths = auth_key_map
+                    .iter()
+                    .map(|(currency, auth_key)| {
+                        let auth: PayloadAuth = auth_key
+                            .to_owned()
+                            .parse_value("PayloadAuth")
+                            .change_context(errors::ConnectorError::InvalidDataFormat {
+                                field_name: "auth_key_map",
+                            })?;
+                        Ok((*currency, auth))
+                    })
+                    .collect::<Result<_, Self::Error>>()?;
+                Ok(Self { auths })
+            }
             _ => Err(errors::ConnectorError::FailedToObtainAuthType.into()),
         }
     }

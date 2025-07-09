@@ -51,6 +51,7 @@ pub struct PayloadCardsRequestData {
     // Billing address fields are for AVS validation
     #[serde(flatten)]
     pub billing_address: BillingAddress,
+    pub processing_id: Option<Secret<String>>,
 }
 
 #[derive(Default, Clone, Debug, Serialize, Eq, PartialEq)]
