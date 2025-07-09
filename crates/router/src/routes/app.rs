@@ -2215,10 +2215,9 @@ impl Gsm {
     }
 }
 
-#[cfg(feature = "olap")]
 pub struct Chat;
 
-#[cfg(all(feature = "olap"))]
+#[cfg(feature = "olap")]
 impl Chat {
     pub fn server(state: AppState) -> Scope {
         if state.conf.chat.enabled {

@@ -1,5 +1,5 @@
 use actix_web::{web, HttpRequest, HttpResponse};
-#[cfg(all(feature = "olap"))]
+#[cfg(feature = "olap")]
 use api_models::chat;
 use router_env::Flow;
 
