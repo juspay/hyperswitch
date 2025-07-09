@@ -3587,7 +3587,8 @@ where
             }
 
             // Set the response in routerdata response to carry forward
-            router_data.update_router_data_with_create_order_response(create_order_response.clone());
+            router_data
+                .update_router_data_with_create_order_response(create_order_response.clone());
             create_order_response.create_order_result.ok()
         });
 
@@ -4065,7 +4066,8 @@ where
             }
 
             // Set the response in routerdata response to carry forward
-            router_data.update_router_data_with_create_order_response(create_order_response.clone());
+            router_data
+                .update_router_data_with_create_order_response(create_order_response.clone());
             create_order_response.create_order_result.ok()
         });
 
@@ -4333,7 +4335,8 @@ where
                 }
 
                 // Set the response in routerdata response to carry forward
-                router_data.update_router_data_with_create_order_response(create_order_response.clone());
+                router_data
+                    .update_router_data_with_create_order_response(create_order_response.clone());
                 create_order_response.create_order_result.ok()
             });
 
