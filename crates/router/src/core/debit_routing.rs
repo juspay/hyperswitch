@@ -123,7 +123,7 @@ where
     F: Send + Clone,
     D: OperationSessionGetters<F> + OperationSessionSetters<F> + Send + Sync + Clone,
 {
-    if business_profile.is_debit_routing_enabled && state.conf.open_router.enabled {
+    if business_profile.is_debit_routing_enabled && state.conf.open_router.dynamic_routing_enabled {
         logger::info!("Debit routing is enabled for the profile");
 
         let debit_routing_config = &state.conf.debit_routing_config;

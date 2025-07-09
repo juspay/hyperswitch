@@ -8,6 +8,7 @@
 
 pub mod api;
 pub mod authentication;
+pub mod connector_transformers;
 pub mod domain;
 #[cfg(feature = "frm")]
 pub mod fraud_check;
