@@ -1227,11 +1227,7 @@ fn get_cards_required_fields() -> HashMap<Connector, RequiredFieldFinal> {
         (Connector::Braintree, fields(vec![], vec![], card_basic())),
         (
             Connector::Celero,
-            fields(
-                vec![],
-                [card_basic(), billing_email_name_phone(), billing_address()].concat(),
-                vec![],
-            ),
+            fields(vec![], [card_basic()].concat(), vec![]),
         ),
         (Connector::Checkout, fields(vec![], card_basic(), vec![])),
         (
