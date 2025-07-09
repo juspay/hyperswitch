@@ -8409,7 +8409,7 @@ where
             .attach_printable("failed to perform volume split on routing type")?;
 
         if routing_choice.routing_type.is_dynamic_routing() {
-            if state.conf.open_router.enabled {
+            if state.conf.open_router.dynamic_routing_enabled {
                 routing::perform_dynamic_routing_with_open_router(
                     state,
                     connectors.clone(),
