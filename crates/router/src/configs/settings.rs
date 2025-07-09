@@ -193,7 +193,6 @@ pub struct CloneConnectorAllowlistConfig {
 pub struct Platform {
     pub enabled: bool,
     pub allow_connected_merchants: bool,
-    pub chat: bool,
 }
 
 #[derive(Debug, Deserialize, Clone, Default)]

@@ -1184,7 +1184,7 @@ entity_logo_url = "https://app.hyperswitch.io/email-assets/HyperswitchLogo.png" 
 foreground_color = "#111326"                                                     # Text color
 primary_color = "#006DF9"                                                        # Primary color
 background_color = "#FFFFFF"                                                     # Email background color
- 
+
 [platform]
 enabled = true
 allow_connected_merchants = true
