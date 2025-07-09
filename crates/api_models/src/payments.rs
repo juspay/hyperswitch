@@ -44,6 +44,7 @@ use crate::payment_methods;
 use crate::{
     admin::{self, MerchantConnectorInfo},
     enums as api_enums,
+    enums::Currency,
     mandates::RecurringDetails,
 };
 #[cfg(feature = "v1")]
@@ -607,7 +608,7 @@ pub struct AmountDetails {
     order_amount: Amount,
     /// The currency of the order
     #[schema(example = "USD")]
-    currency: common_enums::Currency,
+    currency: Currency,
     /// The shipping cost of the order. This has to be collected from the merchant
     shipping_cost: Option<MinorUnit>,
     /// Tax amount related to the order. This will be calculated by the external tax provider
@@ -626,7 +627,7 @@ pub struct AmountDetails {
 
 #[cfg(feature = "v2")]
 impl AmountDetails {
-    pub fn new_for_zero_auth_payment(currency: common_enums::Currency) -> Self {
+    pub fn new_for_zero_auth_payment(currency: Currency) -> Self {
         Self {
             order_amount: Amount::Zero,
             currency,
@@ -649,7 +650,7 @@ pub struct AmountDetailsUpdate {
     order_amount: Option<Amount>,
     /// The currency of the order
     #[schema(example = "USD")]
-    currency: Option<common_enums::Currency>,
+    currency: Option<Currency>,
     /// The shipping cost of the order. This has to be collected from the merchant
     shipping_cost: Option<MinorUnit>,
     /// Tax amount related to the order. This will be calculated by the external tax provider
@@ -667,7 +668,7 @@ pub struct AmountDetailsUpdate {
 #[cfg(feature = "v2")]
 pub struct AmountDetailsSetter {
     pub order_amount: Amount,
-    pub currency: common_enums::Currency,
+    pub currency: Currency,
     pub shipping_cost: Option<MinorUnit>,
     pub order_tax_amount: Option<MinorUnit>,
     pub skip_external_tax_calculation: common_enums::TaxCalculationOverride,
@@ -684,7 +685,7 @@ pub struct AmountDetailsResponse {
     pub order_amount: MinorUnit,
     /// The currency of the order
     #[schema(example = "USD")]
-    pub currency: common_enums::Currency,
+    pub currency: Currency,
     /// The shipping cost of the order. This has to be collected from the merchant
     pub shipping_cost: Option<MinorUnit>,
     /// Tax amount related to the order. This will be calculated by the external tax provider
@@ -708,7 +709,7 @@ pub struct PaymentAmountDetailsResponse {
     pub order_amount: MinorUnit,
     /// The currency of the order
     #[schema(example = "USD")]
-    pub currency: common_enums::Currency,
+    pub currency: Currency,
     /// The shipping cost of the order. This has to be collected from the merchant
     pub shipping_cost: Option<MinorUnit>,
     /// Tax amount related to the order. This will be calculated by the external tax provider
@@ -773,7 +774,7 @@ impl AmountDetails {
     pub fn order_amount(&self) -> Amount {
         self.order_amount
     }
-    pub fn currency(&self) -> common_enums::Currency {
+    pub fn currency(&self) -> Currency {
         self.currency
     }
     pub fn shipping_cost(&self) -> Option<MinorUnit> {
@@ -801,7 +802,7 @@ impl AmountDetailsUpdate {
     pub fn order_amount(&self) -> Option<Amount> {
         self.order_amount
     }
-    pub fn currency(&self) -> Option<common_enums::Currency> {
+    pub fn currency(&self) -> Option<Currency> {
         self.currency
     }
     pub fn shipping_cost(&self) -> Option<MinorUnit> {
@@ -850,8 +851,8 @@ pub struct PaymentsRequest {
 
     /// The three-letter ISO 4217 currency code (e.g., "USD", "EUR") for the payment amount. This field is mandatory for creating a payment.
     #[schema(example = "USD")]
-    // #[mandatory_in(PaymentsCreateRequest = Currency)]
-    pub currency: Option<api_enums::Currency>,
+    #[mandatory_in(PaymentsCreateRequest = Currency)]
+    pub currency: Option<Currency>,
 
     /// The amount to be captured from the user's payment method, in the lowest denomination. If not provided, and `capture_method` is `automatic`, the full payment `amount` will be captured. If `capture_method` is `manual`, this can be specified in the `/capture` call. Must be less than or equal to the authorized amount.
     #[schema(example = 6540)]
@@ -1463,7 +1464,7 @@ pub struct PaymentAttemptResponse {
     pub order_tax_amount: Option<MinorUnit>,
     /// The currency of the amount of the payment attempt
     #[schema(example = "USD")]
-    pub currency: Option<enums::Currency>,
+    pub currency: Option<Currency>,
     /// The name of the payment connector (e.g., 'stripe', 'adyen') used for this attempt.
     pub connector: Option<String>,
     /// A human-readable message from the connector explaining the error, if one occurred during this payment attempt.
@@ -1637,7 +1638,7 @@ pub struct CaptureResponse {
     pub amount: MinorUnit,
     /// The currency of the amount of the capture
     #[schema(example = "USD")]
-    pub currency: Option<enums::Currency>,
+    pub currency: Option<Currency>,
     /// The name of the payment connector that processed this capture.
     pub connector: String,
     /// The ID of the payment attempt that was successfully authorized and subsequently captured by this operation.
@@ -1834,7 +1835,7 @@ pub struct MandateData {
 #[derive(Clone, Eq, PartialEq, Copy, Debug, Default, serde::Serialize, serde::Deserialize)]
 pub struct SingleUseMandate {
     pub amount: MinorUnit,
-    pub currency: api_enums::Currency,
+    pub currency: Currency,
 }
 
 #[derive(Clone, Eq, PartialEq, Debug, Default, ToSchema, serde::Serialize, serde::Deserialize)]
@@ -1844,7 +1845,7 @@ pub struct MandateAmountData {
     pub amount: MinorUnit,
     /// The currency for the transaction
     #[schema(example = "USD")]
-    pub currency: api_enums::Currency,
+    pub currency: Currency,
     /// Specifying start date of the mandate
     #[schema(example = "2022-09-10T00:00:00Z")]
     #[serde(default, with = "common_utils::custom_serde::iso8601::option")]
@@ -4805,7 +4806,7 @@ pub struct PaymentsResponse {
     pub created: Option<PrimitiveDateTime>,
 
     /// Three-letter ISO currency code (e.g., USD, EUR) for the payment amount.
-    #[schema(value_type = api_enums::Currency, example = "USD")]
+    #[schema(value_type = Currency, example = "USD")]
     pub currency: String,
 
     /// The identifier for the customer object. If not provided the customer ID will be autogenerated.
@@ -5928,22 +5929,16 @@ pub struct PaymentListConstraints {
     /// The end amount to filter list of transactions which are less than or equal to the end amount
     pub end_amount: Option<i64>,
     /// The connector to filter payments list
-    #[param()]
     pub connector: Option<api_enums::Connector>,
     /// The currency to filter payments list
-    #[param()]
-    pub currency: Option<enums::Currency>,
+    pub currency: Option<Currency>,
     /// The payment status to filter payments list
-    #[param()]
     pub status: Option<enums::IntentStatus>,
     /// The payment method type to filter payments list
-    #[param()]
     pub payment_method_type: Option<enums::PaymentMethod>,
     /// The payment method subtype to filter payments list
-    #[param()]
     pub payment_method_subtype: Option<enums::PaymentMethodType>,
     /// The authentication type to filter payments list
-    #[param()]
     pub authentication_type: Option<enums::AuthenticationType>,
     /// The merchant connector id to filter payments list
     #[param(value_type = Option<String>)]
@@ -5955,7 +5950,6 @@ pub struct PaymentListConstraints {
     #[serde(default)]
     pub order_by: SortBy,
     /// The card networks to filter payments list
-    #[param()]
     pub card_network: Option<enums::CardNetwork>,
     /// The identifier for merchant order reference id
     pub merchant_order_reference_id: Option<String>,
@@ -6043,7 +6037,7 @@ pub struct PaymentListFilterConstraints {
     /// The list of connectors to filter payments list
     pub connector: Option<Vec<api_enums::Connector>>,
     /// The list of currencies to filter payments list
-    pub currency: Option<Vec<enums::Currency>>,
+    pub currency: Option<Vec<Currency>>,
     /// The list of payment status to filter payments list
     pub status: Option<Vec<enums::IntentStatus>>,
     /// The list of payment methods to filter payments list
@@ -6083,7 +6077,7 @@ pub struct PaymentListFilters {
     /// The list of available connector filters
     pub connector: Vec<String>,
     /// The list of available currency filters
-    pub currency: Vec<enums::Currency>,
+    pub currency: Vec<Currency>,
     /// The list of available payment status filters
     pub status: Vec<enums::IntentStatus>,
     /// The list of available payment method filters
@@ -6099,7 +6093,7 @@ pub struct PaymentListFiltersV2 {
     /// The list of available connector filters
     pub connector: HashMap<String, Vec<MerchantConnectorInfo>>,
     /// The list of available currency filters
-    pub currency: Vec<enums::Currency>,
+    pub currency: Vec<Currency>,
     /// The list of available payment status filters
     pub status: Vec<enums::IntentStatus>,
     /// The list payment method and their corresponding types
@@ -6665,7 +6659,7 @@ pub struct GpayTransactionInfo {
     pub country_code: api_enums::CountryAlpha2,
     /// The currency code
     #[schema(example = "USD")]
-    pub currency_code: api_enums::Currency,
+    pub currency_code: Currency,
     /// The total price status (ex: 'FINAL')
     pub total_price_status: String,
     /// The total price
@@ -6812,7 +6806,7 @@ pub struct BraintreeData {
     pub merchant_account_id: Option<Secret<String>>,
     /// Information about the merchant_config_currency that merchant wants to specify at connector level.
     #[schema(value_type = String)]
-    pub merchant_config_currency: Option<api_enums::Currency>,
+    pub merchant_config_currency: Option<Currency>,
 }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema)]
@@ -7044,7 +7038,7 @@ pub struct PazeSessionTokenResponse {
     pub client_profile_id: String,
     /// The transaction currency code
     #[schema(example = "USD")]
-    pub transaction_currency_code: api_enums::Currency,
+    pub transaction_currency_code: Currency,
     /// The transaction amount
     #[schema(value_type = String, example = "38.02")]
     pub transaction_amount: StringMajorUnit,
@@ -7148,7 +7142,7 @@ pub struct SamsungPayAmountDetails {
     pub amount_format: SamsungPayAmountFormat,
     /// The currency code
     #[schema(example = "USD")]
-    pub currency_code: api_enums::Currency,
+    pub currency_code: Currency,
     /// The total amount of the transaction
     #[serde(rename = "total")]
     #[schema(value_type = String, example = "38.02")]
@@ -7301,7 +7295,7 @@ pub struct ApplePayPaymentRequest {
     pub country_code: api_enums::CountryAlpha2,
     /// The code for currency
     #[schema(example = "USD")]
-    pub currency_code: api_enums::Currency,
+    pub currency_code: Currency,
     /// Represents the total for the payment.
     pub total: AmountInfo,
     /// The list of merchant capabilities(ex: whether capable of 3ds or no-3ds)
@@ -8096,7 +8090,7 @@ pub struct RetrievePaymentLinkResponse {
     /// Status Of the Payment Link
     pub status: PaymentLinkStatus,
 
-    pub currency: Option<api_enums::Currency>,
+    pub currency: Option<Currency>,
     /// Secure payment link (with security checks and listing saved payment methods)
     pub secure_link: Option<String>,
 }
@@ -8119,7 +8113,7 @@ pub enum PaymentLinkData {
 #[derive(Debug, serde::Serialize, Clone)]
 pub struct PaymentLinkDetails {
     pub amount: StringMajorUnit,
-    pub currency: api_enums::Currency,
+    pub currency: Currency,
     pub pub_key: String,
     pub client_secret: String,
     pub payment_id: id_type::PaymentId,
@@ -8183,7 +8177,7 @@ pub struct SecurePaymentLinkDetails {
 #[derive(Debug, serde::Serialize)]
 pub struct PaymentLinkStatusDetails {
     pub amount: StringMajorUnit,
-    pub currency: api_enums::Currency,
+    pub currency: Currency,
     pub payment_id: id_type::PaymentId,
     pub merchant_logo: String,
     pub merchant_name: String,
@@ -8316,7 +8310,7 @@ pub struct ClickToPaySessionResponse {
     #[schema(value_type = String, example = "38.02")]
     pub transaction_amount: StringMajorUnit,
 
-    pub transaction_currency_code: common_enums::Currency,
+    pub transaction_currency_code: Currency,
     #[schema(value_type = Option<String>, max_length = 255, example = "9123456789")]
     pub phone_number: Option<Secret<String>>,
     #[schema(max_length = 255, value_type = Option<String>, example = "johntest@test.com")]

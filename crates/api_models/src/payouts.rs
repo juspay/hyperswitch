@@ -14,7 +14,7 @@ use serde::{Deserialize, Serialize};
 use time::PrimitiveDateTime;
 use utoipa::ToSchema;
 
-use crate::{enums as api_enums, payment_methods::RequiredFieldInfo, payments};
+use crate::{enums as api_enums, enums::Currency, payment_methods::RequiredFieldInfo, payments};
 
 #[derive(Debug, Serialize, Clone, ToSchema)]
 pub enum PayoutRequest {
@@ -57,9 +57,9 @@ pub struct PayoutCreateRequest {
 
     /// The currency of the payout request can be specified here
     #[schema(example = "USD")]
-    // #[mandatory_in(PayoutsCreateRequest = Currency)]
+    #[mandatory_in(PayoutsCreateRequest = Currency)]
     #[remove_in(PayoutsConfirmRequest)]
-    pub currency: Option<api_enums::Currency>,
+    pub currency: Option<Currency>,
 
     /// Specifies routing algorithm for selecting a connector
     #[schema(value_type = Option<crate::routing::StaticRoutingAlgorithm>, example = json!({
@@ -418,7 +418,7 @@ pub struct PayoutCreateResponse {
 
     /// Recipient's currency for the payout request
     #[schema(example = "USD")]
-    pub currency: api_enums::Currency,
+    pub currency: Currency,
 
     /// The connector used for the payout
     #[schema(example = "wise")]
@@ -605,7 +605,7 @@ pub struct PayoutAttemptResponse {
     pub amount: common_utils::types::MinorUnit,
     /// The currency of the amount of the payout attempt
     #[schema(example = "USD")]
-    pub currency: Option<api_enums::Currency>,
+    pub currency: Option<Currency>,
     /// The connector used for the payout
     pub connector: Option<String>,
     /// Connector's error code in case of failures
@@ -777,7 +777,7 @@ pub struct PayoutListFilterConstraints {
     pub connector: Option<Vec<api_enums::PayoutConnectors>>,
     /// The list of currencies to filter payouts list
     #[schema(example = "USD")]
-    pub currency: Option<Vec<api_enums::Currency>>,
+    pub currency: Option<Vec<Currency>>,
     /// The list of payout status to filter payouts list
     #[schema( example = json!(["pending", "failed"]))]
     pub status: Option<Vec<api_enums::PayoutStatus>>,
@@ -805,7 +805,7 @@ pub struct PayoutListFilters {
     /// The list of available connector filters
     pub connector: Vec<api_enums::PayoutConnectors>,
     /// The list of available currency filters
-    pub currency: Vec<common_enums::Currency>,
+    pub currency: Vec<Currency>,
     /// The list of available payout status filters
     pub status: Vec<common_enums::PayoutStatus>,
     /// The list of available payout method filters
@@ -842,7 +842,7 @@ pub struct PayoutLinkDetails {
     pub enabled_payment_methods: Vec<link_utils::EnabledPaymentMethod>,
     pub enabled_payment_methods_with_required_fields: Vec<PayoutEnabledPaymentMethodsInfo>,
     pub amount: common_utils::types::StringMajorUnit,
-    pub currency: common_enums::Currency,
+    pub currency: Currency,
     pub locale: String,
     pub form_layout: Option<common_enums::UIWidgetFormLayout>,
     pub test_mode: bool,

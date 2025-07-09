@@ -23246,7 +23246,8 @@
       "PaymentsCreateRequest": {
         "type": "object",
         "required": [
-          "amount"
+          "amount",
+          "currency"
         ],
         "properties": {
           "amount": {
@@ -23267,15 +23268,8 @@
             ]
           },
           "currency": {
-            "oneOf": [
-              {
-                "type": "null"
-              },
-              {
-                "$ref": "#/components/schemas/Currency",
-                "description": "The three-letter ISO 4217 currency code (e.g., \"USD\", \"EUR\") for the payment amount. This field is mandatory for creating a payment."
-              }
-            ]
+            "$ref": "#/components/schemas/Currency",
+            "description": "The three-letter ISO 4217 currency code (e.g., \"USD\", \"EUR\") for the payment amount. This field is mandatory for creating a payment."
           },
           "amount_to_capture": {
             "oneOf": [
@@ -28542,7 +28536,8 @@
       "PayoutsCreateRequest": {
         "type": "object",
         "required": [
-          "amount"
+          "amount",
+          "currency"
         ],
         "properties": {
           "merchant_order_reference_id": {
@@ -28561,15 +28556,8 @@
             "minimum": 0
           },
           "currency": {
-            "oneOf": [
-              {
-                "type": "null"
-              },
-              {
-                "$ref": "#/components/schemas/Currency",
-                "description": "The currency of the payout request can be specified here"
-              }
-            ]
+            "$ref": "#/components/schemas/Currency",
+            "description": "The currency of the payout request can be specified here"
           },
           "routing": {
             "oneOf": [
