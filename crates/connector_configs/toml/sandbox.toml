@@ -365,6 +365,14 @@ required=true
 type="Text"
 
 [adyenplatform_payout]
+[[adyenplatform_payout.credit]]
+  payment_method_type = "Mastercard"
+[[adyenplatform_payout.credit]]
+  payment_method_type = "Visa"
+[[adyenplatform_payout.debit]]
+  payment_method_type = "Mastercard"
+[[adyenplatform_payout.debit]]
+  payment_method_type = "Visa"
 [[adyenplatform_payout.bank_transfer]]
   payment_method_type = "sepa"
 [adyenplatform_payout.connector_auth.HeaderKey]
@@ -495,7 +503,21 @@ required=true
 type="MultiSelect"
 options=["PAN_ONLY", "CRYPTOGRAM_3DS"]
 
-
+[authipay]
+[[authipay.credit]]
+  payment_method_type = "Mastercard"
+[[authipay.credit]]
+  payment_method_type = "Visa"
+[[authipay.debit]]
+  payment_method_type = "Mastercard"
+[[authipay.debit]]
+  payment_method_type = "Visa"
+[authipay.connector_auth.SignatureKey]
+api_key="API Key"
+api_secret="API Secret"
+key1="Merchant ID"
+[authipay.connector_webhook_details]
+merchant_secret="Source verification key"
 
 [authorizedotnet]
 [[authorizedotnet.credit]]
@@ -6282,3 +6304,7 @@ type="Text"
 api_key="API Key"
 [payload.connector_webhook_details]
 merchant_secret="Source verification key"
+[silverflow]
+[silverflow.connector_auth.BodyKey]
+api_key="API Key"
+key1="Secret Key"

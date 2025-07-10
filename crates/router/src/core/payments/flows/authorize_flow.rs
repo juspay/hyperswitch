@@ -1,10 +1,12 @@
 use async_trait::async_trait;
 use common_enums as enums;
 use common_types::payments as common_payments_types;
+use error_stack::ResultExt;
 use hyperswitch_domain_models::errors::api_error_response::ApiErrorResponse;
 #[cfg(feature = "v2")]
 use hyperswitch_domain_models::payments::PaymentConfirmData;
 use masking::ExposeInterface;
+use unified_connector_service_client::payments as payments_grpc;
 
 // use router_env::tracing::Instrument;
 use super::{ConstructFlowSpecificData, Feature};
@@ -14,6 +16,10 @@ use crate::{
         mandate,
         payments::{
             self, access_token, customers, helpers, tokenization, transformers, PaymentData,
+        },
+        unified_connector_service::{
+            build_unified_connector_service_auth_metadata,
+            handle_unified_connector_service_response_for_payment_authorize,
         },
     },
     logger,
@@ -71,24 +77,23 @@ impl
         merchant_connector_account: &helpers::MerchantConnectorAccountType,
         connector: &api::ConnectorData,
     ) -> RouterResult<Option<types::MerchantRecipientData>> {
-        let payment_method = &self
+        let is_open_banking = &self
             .payment_attempt
             .get_payment_method()
-            .get_required_value("PaymentMethod")?;
+            .get_required_value("PaymentMethod")?
+            .eq(&enums::PaymentMethod::OpenBanking);
 
-        let data = if *payment_method == enums::PaymentMethod::OpenBanking {
+        if *is_open_banking {
             payments::get_merchant_bank_data_for_open_banking_connectors(
                 merchant_connector_account,
                 merchant_context,
                 connector,
                 state,
             )
-            .await?
+            .await
         } else {
-            None
-        };
-
-        Ok(data)
+            Ok(None)
+        }
     }
 }
 
@@ -140,24 +145,28 @@ impl
         merchant_connector_account: &helpers::MerchantConnectorAccountType,
         connector: &api::ConnectorData,
     ) -> RouterResult<Option<types::MerchantRecipientData>> {
-        let payment_method = &self
-            .payment_attempt
-            .get_payment_method()
-            .get_required_value("PaymentMethod")?;
+        match &self.payment_intent.is_payment_processor_token_flow {
+            Some(true) => Ok(None),
+            Some(false) | None => {
+                let is_open_banking = &self
+                    .payment_attempt
+                    .get_payment_method()
+                    .get_required_value("PaymentMethod")?
+                    .eq(&enums::PaymentMethod::OpenBanking);
 
-        let data = if *payment_method == enums::PaymentMethod::OpenBanking {
-            payments::get_merchant_bank_data_for_open_banking_connectors(
-                merchant_connector_account,
-                merchant_context,
-                connector,
-                state,
-            )
-            .await?
-        } else {
-            None
-        };
-
-        Ok(data)
+                Ok(if *is_open_banking {
+                    payments::get_merchant_bank_data_for_open_banking_connectors(
+                        merchant_connector_account,
+                        merchant_context,
+                        connector,
+                        state,
+                    )
+                    .await?
+                } else {
+                    None
+                })
+            }
+        }
     }
 }
 
@@ -508,6 +517,56 @@ impl Feature<api::Authorize, types::PaymentsAuthorizeData> for types::PaymentsAu
         } else {
             Ok(should_continue_further)
         }
+    }
+
+    async fn call_unified_connector_service<'a>(
+        &mut self,
+        state: &SessionState,
+        merchant_connector_account: helpers::MerchantConnectorAccountType,
+        merchant_context: &domain::MerchantContext,
+    ) -> RouterResult<()> {
+        let client = state
+            .grpc_client
+            .unified_connector_service_client
+            .clone()
+            .ok_or(ApiErrorResponse::InternalServerError)
+            .attach_printable("Failed to fetch Unified Connector Service client")?;
+
+        let payment_authorize_request =
+            payments_grpc::PaymentServiceAuthorizeRequest::foreign_try_from(self)
+                .change_context(ApiErrorResponse::InternalServerError)
+                .attach_printable("Failed to construct Payment Authorize Request")?;
+
+        let connector_auth_metadata = build_unified_connector_service_auth_metadata(
+            merchant_connector_account,
+            merchant_context,
+        )
+        .change_context(ApiErrorResponse::InternalServerError)
+        .attach_printable("Failed to construct request metadata")?;
+
+        let response = client
+            .payment_authorize(
+                payment_authorize_request,
+                connector_auth_metadata,
+                state.get_grpc_headers(),
+            )
+            .await
+            .change_context(ApiErrorResponse::InternalServerError)
+            .attach_printable("Failed to authorize payment")?;
+
+        let payment_authorize_response = response.into_inner();
+
+        let (status, router_data_response) =
+            handle_unified_connector_service_response_for_payment_authorize(
+                payment_authorize_response,
+            )
+            .change_context(ApiErrorResponse::InternalServerError)
+            .attach_printable("Failed to deserialize UCS response")?;
+
+        self.status = status;
+        self.response = router_data_response;
+
+        Ok(())
     }
 }
 

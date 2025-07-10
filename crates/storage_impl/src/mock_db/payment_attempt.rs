@@ -237,6 +237,7 @@ impl PaymentAttemptInterface for MockDb {
             setup_future_usage_applied: payment_attempt.setup_future_usage_applied,
             routing_approach: payment_attempt.routing_approach,
             connector_request_reference_id: payment_attempt.connector_request_reference_id,
+            debit_routing_savings: None,
         };
         payment_attempts.push(payment_attempt.clone());
         Ok(payment_attempt)

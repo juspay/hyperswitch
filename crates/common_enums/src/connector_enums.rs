@@ -25,6 +25,7 @@ pub use crate::PaymentMethodType;
 #[strum(serialize_all = "snake_case")]
 /// RoutableConnectors are the subset of Connectors that are eligible for payments routing
 pub enum RoutableConnectors {
+    Authipay,
     Adyenplatform,
     #[cfg(feature = "dummy_connector")]
     #[serde(rename = "stripe_billing_test")]
@@ -74,6 +75,7 @@ pub enum RoutableConnectors {
     Boku,
     Braintree,
     Cashtocode,
+    Celero,
     Chargebee,
     // Checkbook,
     Checkout,
@@ -121,7 +123,7 @@ pub enum RoutableConnectors {
     // Payeezy, As psync and rsync are not supported by this connector, it is added as template code for future usage
     Paybox,
     Payme,
-    // Payload,
+    Payload,
     Payone,
     Paypal,
     Paystack,
@@ -183,6 +185,7 @@ pub enum RoutableConnectors {
 #[serde(rename_all = "snake_case")]
 #[strum(serialize_all = "snake_case")]
 pub enum Connector {
+    Authipay,
     Adyenplatform,
     #[cfg(feature = "dummy_connector")]
     #[serde(rename = "stripe_billing_test")]
@@ -232,6 +235,7 @@ pub enum Connector {
     Boku,
     Braintree,
     Cashtocode,
+    Celero,
     Chargebee,
     // Checkbook,
     Checkout,
@@ -284,7 +288,7 @@ pub enum Connector {
     Opennode,
     Paybox,
     // Payeezy, As psync and rsync are not supported by this connector, it is added as template code for future usage
-    // Payload,
+    Payload,
     Payme,
     Payone,
     Paypal,
@@ -402,6 +406,7 @@ impl Connector {
             | Self::DummyConnector7 => false,
             Self::Aci
             // Add Separate authentication support for connectors
+			| Self::Authipay
             | Self::Adyen
             | Self::Adyenplatform
             | Self::Airwallex
@@ -417,6 +422,7 @@ impl Connector {
             | Self::Boku
             | Self::Braintree
             | Self::Cashtocode
+            | Self::Celero
             | Self::Chargebee
             // | Self::Checkbook
             | Self::Coinbase
@@ -459,7 +465,7 @@ impl Connector {
             | Self::Nuvei
             | Self::Opennode
             | Self::Paybox
-            // | Self::Payload
+            | Self::Payload
             | Self::Payme
             | Self::Payone
             | Self::Paypal
@@ -548,6 +554,7 @@ impl Connector {
 impl From<RoutableConnectors> for Connector {
     fn from(routable_connector: RoutableConnectors) -> Self {
         match routable_connector {
+            RoutableConnectors::Authipay => Self::Authipay,
             RoutableConnectors::Adyenplatform => Self::Adyenplatform,
             #[cfg(feature = "dummy_connector")]
             RoutableConnectors::DummyBillingConnector => Self::DummyBillingConnector,
@@ -580,6 +587,7 @@ impl From<RoutableConnectors> for Connector {
             RoutableConnectors::Boku => Self::Boku,
             RoutableConnectors::Braintree => Self::Braintree,
             RoutableConnectors::Cashtocode => Self::Cashtocode,
+            RoutableConnectors::Celero => Self::Celero,
             RoutableConnectors::Chargebee => Self::Chargebee,
             // RoutableConnectors::Checkbook => Self::Checkbook,
             RoutableConnectors::Checkout => Self::Checkout,
@@ -621,7 +629,7 @@ impl From<RoutableConnectors> for Connector {
             RoutableConnectors::Nuvei => Self::Nuvei,
             RoutableConnectors::Opennode => Self::Opennode,
             RoutableConnectors::Paybox => Self::Paybox,
-            // RoutableConnectors::Paybox => Self::Payload,
+            RoutableConnectors::Payload => Self::Payload,
             RoutableConnectors::Payme => Self::Payme,
             RoutableConnectors::Payone => Self::Payone,
             RoutableConnectors::Paypal => Self::Paypal,
@@ -669,6 +677,7 @@ impl TryFrom<Connector> for RoutableConnectors {
 
     fn try_from(connector: Connector) -> Result<Self, Self::Error> {
         match connector {
+            Connector::Authipay => Ok(Self::Authipay),
             Connector::Adyenplatform => Ok(Self::Adyenplatform),
             #[cfg(feature = "dummy_connector")]
             Connector::DummyBillingConnector => Ok(Self::DummyBillingConnector),
@@ -701,6 +710,7 @@ impl TryFrom<Connector> for RoutableConnectors {
             Connector::Boku => Ok(Self::Boku),
             Connector::Braintree => Ok(Self::Braintree),
             Connector::Cashtocode => Ok(Self::Cashtocode),
+            Connector::Celero => Ok(Self::Celero),
             Connector::Chargebee => Ok(Self::Chargebee),
             // Connector::Checkbook => Ok(Self::Checkbook),
             Connector::Checkout => Ok(Self::Checkout),
@@ -742,7 +752,7 @@ impl TryFrom<Connector> for RoutableConnectors {
             Connector::Nuvei => Ok(Self::Nuvei),
             Connector::Opennode => Ok(Self::Opennode),
             Connector::Paybox => Ok(Self::Paybox),
-            // Connector::Paybox => Ok(Self::Payload),
+            Connector::Payload => Ok(Self::Payload),
             Connector::Payme => Ok(Self::Payme),
             Connector::Payone => Ok(Self::Payone),
             Connector::Paypal => Ok(Self::Paypal),
