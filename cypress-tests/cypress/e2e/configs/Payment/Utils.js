@@ -388,7 +388,7 @@ export const CONNECTOR_LISTS = {
   // Inclusion lists (only run for these connectors)
   INCLUDE: {
     MANDATES_USING_NTID_PROXY: ["cybersource"],
-    INCREMENTAL_AUTH: ["cybersource"],
+    INCREMENTAL_AUTH: ["archipel", "cybersource"],
     // Add more inclusion lists
   },
 };
