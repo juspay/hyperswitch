@@ -1,4 +1,8 @@
+use std::time::SystemTime;
+
+use base64::Engine;
 use common_enums::enums;
+use common_utils::errors::CustomResult;
 use hyperswitch_domain_models::{
     payment_method_data::PaymentMethodData,
     router_data::{ConnectorAuthType, RouterData},
@@ -8,7 +12,8 @@ use hyperswitch_domain_models::{
     types::{PaymentsAuthorizeRouterData, PaymentsCaptureRouterData, RefundsRouterData},
 };
 use hyperswitch_interfaces::errors;
-use masking::Secret;
+use masking::{ExposeInterface, Secret};
+use ring::signature;
 use serde::{Deserialize, Serialize};
 
 use crate::{
@@ -161,9 +166,8 @@ impl TryFrom<&MpgsRouterData<&PaymentsCaptureRouterData>> for MpgsPaymentsReques
 }
 
 pub struct MpgsAuthType {
-    pub(super) api_key: Secret<String>,
-    pub(super) merchant_id: Secret<String>,
-    pub(super) api_password: Secret<String>,
+    pub(super) consumer_key: Secret<String>,
+    pub(super) private_key: Secret<String>,
 }
 
 impl TryFrom<&ConnectorAuthType> for MpgsAuthType {
@@ -171,14 +175,58 @@ impl TryFrom<&ConnectorAuthType> for MpgsAuthType {
     fn try_from(auth_type: &ConnectorAuthType) -> Result<Self, Self::Error> {
         if let ConnectorAuthType::BodyKey { api_key, key1 } = auth_type {
             Ok(Self {
-                api_key: key1.to_owned(),
-                merchant_id: api_key.to_owned(),
-                api_password: key1.to_owned(),
+                consumer_key: api_key.to_owned(),
+                private_key: key1.to_owned(),
             })
         } else {
             Err(errors::ConnectorError::FailedToObtainAuthType.into())
         }
     }
+}
+
+pub fn generate_oauth_token(auth: &MpgsAuthType) -> CustomResult<String, errors::ConnectorError> {
+    let timestamp = SystemTime::now()
+        .duration_since(SystemTime::UNIX_EPOCH)
+        .map_err(|_| errors::ConnectorError::RequestEncodingFailed)?
+        .as_secs();
+    let nonce = uuid::Uuid::new_v4().to_string();
+    let signature_method = "RSA-SHA256";
+    let version = "1.0";
+
+    let base_string = format!(
+        "oauth_consumer_key={}&oauth_nonce={}&oauth_signature_method={}&oauth_timestamp={}&oauth_version={}",
+        auth.consumer_key.clone().expose(),
+        nonce,
+        signature_method,
+        timestamp,
+        version
+    );
+
+    let key_pair =
+        signature::RsaKeyPair::from_pkcs8(auth.private_key.clone().expose().as_bytes())
+            .map_err(|_| errors::ConnectorError::RequestEncodingFailed)?;
+    let mut signature = vec![0; key_pair.public().modulus_len()];
+    let rng = ring::rand::SystemRandom::new();
+    key_pair
+        .sign(
+            &signature::RSA_PKCS1_SHA256,
+            &rng,
+            base_string.as_bytes(),
+            &mut signature,
+        )
+        .map_err(|_| errors::ConnectorError::RequestEncodingFailed)?;
+
+    let signature_base64 = common_utils::consts::BASE64_ENGINE.encode(&signature);
+
+    Ok(format!(
+        "OAuth oauth_consumer_key=\"{}\",oauth_nonce=\"{}\",oauth_signature_method=\"{}\",oauth_timestamp=\"{}\",oauth_version=\"{}\",oauth_signature=\"{}\"",
+        auth.consumer_key.clone().expose(),
+        nonce,
+        signature_method,
+        timestamp,
+        version,
+        signature_base64
+    ))
 }
 #[derive(Debug, Clone, Deserialize, Serialize)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]

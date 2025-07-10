@@ -275,6 +275,7 @@ pub enum Connector {
     Mifinity,
     Mollie,
     Moneris,
+    Mpgs,
     Multisafepay,
     Netcetera,
     Nexinets,
@@ -331,7 +332,6 @@ pub enum Connector {
     Xendit,
     Zen,
     Zsl,
-    Mpgs,
 }
 
 impl Connector {
@@ -458,6 +458,7 @@ impl Connector {
             | Self::Mifinity
             | Self::Mollie
             | Self::Moneris
+            | Self::Mpgs
             | Self::Multisafepay
             | Self::Nexinets
             | Self::Nexixpay
@@ -513,8 +514,7 @@ impl Connector {
             | Self::Noon
             | Self::Tokenio
             | Self::Stripe
-            | Self::Datatrans
-            | Self::Mpgs => false,
+            | Self::Datatrans => false,
             Self::Checkout | Self::Nmi | Self::Cybersource | Self::Archipel => true,
         }
     }
@@ -745,6 +745,7 @@ impl TryFrom<Connector> for RoutableConnectors {
             Connector::Mifinity => Ok(Self::Mifinity),
             Connector::Mollie => Ok(Self::Mollie),
             Connector::Moneris => Ok(Self::Moneris),
+            Connector::Mpgs => Ok(Self::Mpgs),
             Connector::Multisafepay => Ok(Self::Multisafepay),
             Connector::Nexinets => Ok(Self::Nexinets),
             Connector::Nexixpay => Ok(Self::Nexixpay),
@@ -789,7 +790,6 @@ impl TryFrom<Connector> for RoutableConnectors {
             Connector::Zen => Ok(Self::Zen),
             Connector::Plaid => Ok(Self::Plaid),
             Connector::Zsl => Ok(Self::Zsl),
-            Connector::Mpgs => Ok(Self::Mpgs),
             Connector::Recurly => Ok(Self::Recurly),
             Connector::Getnet => Ok(Self::Getnet),
             Connector::Hipay => Ok(Self::Hipay),

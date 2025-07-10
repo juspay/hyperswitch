@@ -2,7 +2,6 @@ pub mod transformers;
 
 use std::sync::LazyLock;
 
-use base64::Engine;
 use common_enums::enums;
 use common_utils::{
     errors::CustomResult,
@@ -33,8 +32,7 @@ use hyperswitch_domain_models::{
 };
 use hyperswitch_interfaces::{
     api::{
-        self, ConnectorCommon, ConnectorCommonExt, ConnectorIntegration, ConnectorSpecifications,
-        ConnectorValidation,
+        self, ConnectorCommon, ConnectorIntegration, ConnectorSpecifications, ConnectorValidation,
     },
     configs::Connectors,
     errors,
@@ -61,7 +59,7 @@ impl Mpgs {
         router_data: &PaymentsAuthorizeRouterData,
         connectors: &Connectors,
     ) -> Result<String, errors::ConnectorError> {
-        let merchant_id = auth_type.merchant_id.clone().expose();
+        let merchant_id = auth_type.consumer_key.clone().expose();
         let order_id = router_data.payment_id.clone();
         let transaction_id = uuid::Uuid::new_v4().to_string();
         Ok(format!(
@@ -93,25 +91,6 @@ impl ConnectorIntegration<PaymentMethodToken, PaymentMethodTokenizationData, Pay
     // Not Implemented (R)
 }
 
-impl<Flow, Request, Response> ConnectorCommonExt<Flow, Request, Response> for Mpgs
-where
-    Self: ConnectorIntegration<Flow, Request, Response>,
-{
-    fn build_headers(
-        &self,
-        req: &RouterData<Flow, Request, Response>,
-        _connectors: &Connectors,
-    ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
-        let mut header = vec![(
-            headers::CONTENT_TYPE.to_string(),
-            self.get_content_type().to_string().into(),
-        )];
-        let mut api_key = self.get_auth_header(&req.connector_auth_type)?;
-        header.append(&mut api_key);
-        Ok(header)
-    }
-}
-
 impl ConnectorCommon for Mpgs {
     fn id(&self) -> &'static str {
         "mpgs"
@@ -133,20 +112,11 @@ impl ConnectorCommon for Mpgs {
         &self,
         auth_type: &ConnectorAuthType,
     ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
-        let auth = mpgs::MpgsAuthType::try_from(auth_type)
-            .change_context(errors::ConnectorError::FailedToObtainAuthType)?;
-        let auth_key = format!(
-            "merchant.{}:{}",
-            auth.merchant_id.expose(),
-            auth.api_password.expose()
-        );
-        let auth_header = format!(
-            "Basic {}",
-            &common_utils::consts::BASE64_ENGINE.encode(auth_key)
-        );
+        let auth: mpgs::MpgsAuthType = auth_type.try_into()?;
+        let oauth_token = mpgs::generate_oauth_token(&auth)?;
         Ok(vec![(
             headers::AUTHORIZATION.to_string(),
-            auth_header.into_masked(),
+            oauth_token.into_masked(),
         )])
     }
 
@@ -215,9 +185,17 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
     fn get_headers(
         &self,
         req: &PaymentsAuthorizeRouterData,
-        connectors: &Connectors,
+        _connectors: &Connectors,
     ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
-        self.build_headers(req, connectors)
+        let mut header = vec![(
+            headers::CONTENT_TYPE.to_string(),
+            types::PaymentsAuthorizeType::get_content_type(self)
+                .to_string()
+                .into(),
+        )];
+        let mut api_key = self.get_auth_header(&req.connector_auth_type)?;
+        header.append(&mut api_key);
+        Ok(header)
     }
 
     fn get_content_type(&self) -> &'static str {
@@ -303,9 +281,17 @@ impl ConnectorIntegration<PSync, PaymentsSyncData, PaymentsResponseData> for Mpg
     fn get_headers(
         &self,
         req: &PaymentsSyncRouterData,
-        connectors: &Connectors,
+        _connectors: &Connectors,
     ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
-        self.build_headers(req, connectors)
+        let mut header = vec![(
+            headers::CONTENT_TYPE.to_string(),
+            types::PaymentsSyncType::get_content_type(self)
+                .to_string()
+                .into(),
+        )];
+        let mut api_key = self.get_auth_header(&req.connector_auth_type)?;
+        header.append(&mut api_key);
+        Ok(header)
     }
 
     fn get_content_type(&self) -> &'static str {
@@ -318,7 +304,7 @@ impl ConnectorIntegration<PSync, PaymentsSyncData, PaymentsResponseData> for Mpg
         connectors: &Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
         let auth_type = mpgs::MpgsAuthType::try_from(&req.connector_auth_type)?;
-        let merchant_id = auth_type.merchant_id.clone().expose();
+        let merchant_id = auth_type.consumer_key.clone().expose();
         let order_id = req.payment_id.clone();
         Ok(format!(
             "{}/api/rest/version/100/merchant/{}/order/{}",
@@ -375,9 +361,17 @@ impl ConnectorIntegration<Capture, PaymentsCaptureData, PaymentsResponseData> fo
     fn get_headers(
         &self,
         req: &PaymentsCaptureRouterData,
-        connectors: &Connectors,
+        _connectors: &Connectors,
     ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
-        self.build_headers(req, connectors)
+        let mut header = vec![(
+            headers::CONTENT_TYPE.to_string(),
+            types::PaymentsCaptureType::get_content_type(self)
+                .to_string()
+                .into(),
+        )];
+        let mut api_key = self.get_auth_header(&req.connector_auth_type)?;
+        header.append(&mut api_key);
+        Ok(header)
     }
 
     fn get_content_type(&self) -> &'static str {
@@ -390,7 +384,7 @@ impl ConnectorIntegration<Capture, PaymentsCaptureData, PaymentsResponseData> fo
         connectors: &Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
         let auth_type = mpgs::MpgsAuthType::try_from(&req.connector_auth_type)?;
-        let merchant_id = auth_type.merchant_id.clone().expose();
+        let merchant_id = auth_type.consumer_key.clone().expose();
         let order_id = req.payment_id.clone();
         let transaction_id = uuid::Uuid::new_v4().to_string();
         Ok(format!(
@@ -469,9 +463,17 @@ impl ConnectorIntegration<Void, PaymentsCancelData, PaymentsResponseData> for Mp
     fn get_headers(
         &self,
         req: &PaymentsCancelRouterData,
-        connectors: &Connectors,
+        _connectors: &Connectors,
     ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
-        self.build_headers(req, connectors)
+        let mut header = vec![(
+            headers::CONTENT_TYPE.to_string(),
+            types::PaymentsVoidType::get_content_type(self)
+                .to_string()
+                .into(),
+        )];
+        let mut api_key = self.get_auth_header(&req.connector_auth_type)?;
+        header.append(&mut api_key);
+        Ok(header)
     }
 
     fn get_content_type(&self) -> &'static str {
@@ -484,7 +486,7 @@ impl ConnectorIntegration<Void, PaymentsCancelData, PaymentsResponseData> for Mp
         connectors: &Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
         let auth_type = mpgs::MpgsAuthType::try_from(&req.connector_auth_type)?;
-        let merchant_id = auth_type.merchant_id.clone().expose();
+        let merchant_id = auth_type.consumer_key.clone().expose();
         let order_id = req.payment_id.clone();
         let transaction_id = uuid::Uuid::new_v4().to_string();
         Ok(format!(
@@ -574,9 +576,17 @@ impl ConnectorIntegration<Execute, RefundsData, RefundsResponseData> for Mpgs {
     fn get_headers(
         &self,
         req: &RefundsRouterData<Execute>,
-        connectors: &Connectors,
+        _connectors: &Connectors,
     ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
-        self.build_headers(req, connectors)
+        let mut header = vec![(
+            headers::CONTENT_TYPE.to_string(),
+            types::RefundExecuteType::get_content_type(self)
+                .to_string()
+                .into(),
+        )];
+        let mut api_key = self.get_auth_header(&req.connector_auth_type)?;
+        header.append(&mut api_key);
+        Ok(header)
     }
 
     fn get_content_type(&self) -> &'static str {
@@ -589,7 +599,7 @@ impl ConnectorIntegration<Execute, RefundsData, RefundsResponseData> for Mpgs {
         connectors: &Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
         let auth_type = mpgs::MpgsAuthType::try_from(&req.connector_auth_type)?;
-        let merchant_id = auth_type.merchant_id.clone().expose();
+        let merchant_id = auth_type.consumer_key.clone().expose();
         let order_id = req.payment_id.clone();
         let transaction_id = uuid::Uuid::new_v4().to_string();
         Ok(format!(
@@ -667,9 +677,17 @@ impl ConnectorIntegration<RSync, RefundsData, RefundsResponseData> for Mpgs {
     fn get_headers(
         &self,
         req: &RefundSyncRouterData,
-        connectors: &Connectors,
+        _connectors: &Connectors,
     ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
-        self.build_headers(req, connectors)
+        let mut header = vec![(
+            headers::CONTENT_TYPE.to_string(),
+            types::RefundSyncType::get_content_type(self)
+                .to_string()
+                .into(),
+        )];
+        let mut api_key = self.get_auth_header(&req.connector_auth_type)?;
+        header.append(&mut api_key);
+        Ok(header)
     }
 
     fn get_content_type(&self) -> &'static str {
@@ -682,7 +700,7 @@ impl ConnectorIntegration<RSync, RefundsData, RefundsResponseData> for Mpgs {
         connectors: &Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
         let auth_type = mpgs::MpgsAuthType::try_from(&req.connector_auth_type)?;
-        let merchant_id = auth_type.merchant_id.clone().expose();
+        let merchant_id = auth_type.consumer_key.clone().expose();
         let order_id = req.payment_id.clone();
         let transaction_id = req.request.get_connector_refund_id()?.to_string();
         Ok(format!(
