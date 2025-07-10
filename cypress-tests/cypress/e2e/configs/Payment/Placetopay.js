@@ -323,7 +323,9 @@ export const connectorDetails = {
       Response: {
         status: 400,
         body: {
-          status: "NotSupported",
+          type: "invalid_request",
+          message: "No eligible connector was found for the current payment method configuration",
+          code: "IR_39",
         },
       },
     },
@@ -436,29 +438,6 @@ export const connectorDetails = {
         },
       },
     },
-    MandateMultiUse3DSAutoCapture: {
-      Configs: {
-        TRIGGER_SKIP: true, // Skip mandate tests
-      },
-      Request: {
-        payment_method: "card",
-        payment_method_data: {
-          card: successfulNo3DSCardDetails,
-        },
-        currency: "USD",
-        mandate_data: multiUseMandateData,
-      },
-      Response: {
-        status: 400,
-        body: {
-          error: {
-            type: "invalid_request",
-            message: "Setup Mandate flow for Placetopay is not implemented",
-            code: "IR_00",
-          },
-        },
-      },
-    },
     MandateMultiUse3DSManualCapture: {
       Configs: {
         TRIGGER_SKIP: true, // Skip mandate tests
@@ -476,7 +455,7 @@ export const connectorDetails = {
         body: {
           error: {
             type: "invalid_request",
-            message: "Setup Mandate flow for Placetopay is not implemented",
+            message: "No eligible connector was found for the current payment method configuration",
             code: "IR_00",
           },
         },
@@ -665,7 +644,7 @@ export const connectorDetails = {
         mandate_data: singleUseMandateData,
       },
       Response: {
-        status: 400,
+        status: 501,
         body: {
           error: {
             type: "invalid_request",
@@ -702,62 +681,11 @@ export const connectorDetails = {
         },
       },
       Response: {
-        status: 400,
+        status: 501,
         body: {
           error: {
             type: "invalid_request",
             message: "Setup Mandate flow for Placetopay is not implemented",
-            code: "IR_00",
-          },
-        },
-      },
-    },
-    // MIT flows - NOT supported by Placetopay
-    MITAutoCapture: {
-      Configs: {
-        TRIGGER_SKIP: true, // Skip MIT tests
-      },
-      Request: {},
-      Response: {
-        status: 400,
-        body: {
-          error: {
-            type: "invalid_request",
-            message: "MIT payments are not supported",
-            code: "IR_00",
-          },
-        },
-      },
-    },
-    MITManualCapture: {
-      Configs: {
-        TRIGGER_SKIP: true, // Skip MIT tests
-      },
-      Request: {},
-      Response: {
-        status: 400,
-        body: {
-          error: {
-            type: "invalid_request",
-            message: "MIT payments are not supported",
-            code: "IR_00",
-          },
-        },
-      },
-    },
-    MITWithoutBillingAddress: {
-      Configs: {
-        TRIGGER_SKIP: true, // Skip MIT tests
-      },
-      Request: {
-        billing: null,
-      },
-      Response: {
-        status: 400,
-        body: {
-          error: {
-            type: "invalid_request",
-            message: "MIT payments are not supported",
             code: "IR_00",
           },
         },
