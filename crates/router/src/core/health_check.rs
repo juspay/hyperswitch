@@ -35,6 +35,11 @@ pub trait HealthCheckInterface {
     async fn health_check_grpc(
         &self,
     ) -> CustomResult<HealthCheckMap, errors::HealthCheckGRPCServiceError>;
+
+    #[cfg(feature = "dynamic_routing")]
+    async fn health_check_decision_engine(
+        &self,
+    ) -> CustomResult<HealthState, errors::HealthCheckDecisionEngineError>;
 }
 
 #[async_trait::async_trait]
@@ -183,5 +188,26 @@ impl HealthCheckInterface for app::SessionState {
 
         logger::debug!("Health check successful");
         Ok(health_check_map)
+    }
+
+    #[cfg(feature = "dynamic_routing")]
+    async fn health_check_decision_engine(
+        &self,
+    ) -> CustomResult<HealthState, errors::HealthCheckDecisionEngineError> {
+        if self.conf.open_router.dynamic_routing_enabled {
+            let url = format!("{}/{}", &self.conf.open_router.url, "health");
+            let request = services::Request::new(services::Method::Get, &url);
+            let _ = services::call_connector_api(self, request, "health_check_for_decision_engine")
+                .await
+                .change_context(
+                    errors::HealthCheckDecisionEngineError::FailedToCallDecisionEngineService,
+                )?;
+
+            logger::debug!("Decision engine health check successful");
+            Ok(HealthState::Running)
+        } else {
+            logger::debug!("Decision engine health check not applicable");
+            Ok(HealthState::NotApplicable)
+        }
     }
 }

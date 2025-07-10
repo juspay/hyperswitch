@@ -43,6 +43,8 @@ use storage_impl::config::QueueStrategy;
 
 #[cfg(feature = "olap")]
 use crate::analytics::{AnalyticsConfig, AnalyticsProvider};
+#[cfg(feature = "v2")]
+use crate::types::storage::revenue_recovery;
 use crate::{
     configs,
     core::errors::{ApplicationError, ApplicationResult},
@@ -51,7 +53,6 @@ use crate::{
     routes::app,
     AppState,
 };
-
 pub const REQUIRED_FIELDS_CONFIG_FILE: &str = "payment_required_fields_v2.toml";
 
 #[derive(clap::Parser, Default)]
@@ -115,6 +116,7 @@ pub struct Settings<S: SecretState> {
     #[cfg(feature = "payouts")]
     pub payouts: Payouts,
     pub payout_method_filters: ConnectorFilters,
+    pub debit_routing_config: DebitRoutingConfig,
     pub applepay_decrypt_keys: SecretStateContainer<ApplePayDecryptConfig, S>,
     pub paze_decrypt_keys: Option<SecretStateContainer<PazeDecryptConfig, S>>,
     pub google_pay_decrypt_keys: Option<GooglePayDecryptConfig>,
@@ -153,16 +155,44 @@ pub struct Settings<S: SecretState> {
     pub platform: Platform,
     pub authentication_providers: AuthenticationProviders,
     pub open_router: OpenRouter,
+    #[cfg(feature = "v2")]
+    pub revenue_recovery: revenue_recovery::RevenueRecoverySettings,
+    pub clone_connector_allowlist: Option<CloneConnectorAllowlistConfig>,
+    pub merchant_id_auth: MerchantIdAuthSettings,
+    #[serde(default)]
+    pub infra_values: Option<HashMap<String, String>>,
+}
+
+#[derive(Debug, Deserialize, Clone, Default)]
+pub struct DebitRoutingConfig {
+    #[serde(deserialize_with = "deserialize_hashmap")]
+    pub connector_supported_debit_networks: HashMap<enums::Connector, HashSet<enums::CardNetwork>>,
+    #[serde(deserialize_with = "deserialize_hashset")]
+    pub supported_currencies: HashSet<enums::Currency>,
+    #[serde(deserialize_with = "deserialize_hashset")]
+    pub supported_connectors: HashSet<enums::Connector>,
 }
 
 #[derive(Debug, Deserialize, Clone, Default)]
 pub struct OpenRouter {
-    pub enabled: bool,
+    pub dynamic_routing_enabled: bool,
+    pub static_routing_enabled: bool,
     pub url: String,
 }
+
+#[derive(Debug, Deserialize, Clone, Default)]
+#[serde(default)]
+pub struct CloneConnectorAllowlistConfig {
+    #[serde(deserialize_with = "deserialize_merchant_ids")]
+    pub merchant_ids: HashSet<id_type::MerchantId>,
+    #[serde(deserialize_with = "deserialize_hashset")]
+    pub connector_names: HashSet<enums::Connector>,
+}
+
 #[derive(Debug, Deserialize, Clone, Default)]
 pub struct Platform {
     pub enabled: bool,
+    pub allow_connected_merchants: bool,
 }
 
 #[derive(Debug, Clone, Default, Deserialize)]
@@ -419,9 +449,19 @@ impl Default for GenericLinkEnvUiConfig {
     }
 }
 
-#[derive(Debug, Deserialize, Clone, Default)]
+#[derive(Debug, Deserialize, Clone)]
 pub struct PaymentLink {
-    pub sdk_url: String,
+    pub sdk_url: url::Url,
+}
+
+impl Default for PaymentLink {
+    fn default() -> Self {
+        Self {
+            #[allow(clippy::expect_used)]
+            sdk_url: url::Url::parse("https://beta.hyperswitch.io/v0/HyperLoader.js")
+                .expect("Failed to parse default SDK URL"),
+        }
+    }
 }
 
 #[derive(Debug, Deserialize, Clone, Default)]
@@ -562,6 +602,7 @@ pub struct NetworkTokenizationService {
     pub key_id: String,
     pub delete_token_url: url::Url,
     pub check_token_status_url: url::Url,
+    pub webhook_source_verification_key: Secret<String>,
 }
 
 #[derive(Debug, Deserialize, Clone, Default)]
@@ -778,6 +819,12 @@ pub struct DrainerSettings {
     pub max_read_count: u64,
     pub shutdown_interval: u32, // in milliseconds
     pub loop_interval: u32,     // in milliseconds
+}
+
+#[derive(Debug, Clone, Default, Deserialize)]
+#[serde(default)]
+pub struct MerchantIdAuthSettings {
+    pub merchant_id_auth_enabled: bool,
 }
 
 #[derive(Debug, Clone, Default, Deserialize)]
@@ -1032,6 +1079,10 @@ impl Settings<SecuredSecret> {
             .validate()
             .map_err(|err| ApplicationError::InvalidConfigurationValueError(err.to_string()))?;
 
+        self.platform.validate()?;
+
+        self.open_router.validate()?;
+
         Ok(())
     }
 }
@@ -1272,10 +1323,7 @@ fn deserialize_merchant_ids_inner(
         .map(|s| {
             let trimmed = s.trim();
             id_type::MerchantId::wrap(trimmed.to_owned()).map_err(|error| {
-                format!(
-                    "Unable to deserialize `{}` as `MerchantId`: {error}",
-                    trimmed
-                )
+                format!("Unable to deserialize `{trimmed}` as `MerchantId`: {error}")
             })
         })
         .fold(

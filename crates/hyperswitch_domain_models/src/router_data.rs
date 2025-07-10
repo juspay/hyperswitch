@@ -99,9 +99,16 @@ pub struct RouterData<Flow, Request, Response> {
 
     pub connector_mandate_request_reference_id: Option<String>,
 
-    pub authentication_id: Option<String>,
+    pub authentication_id: Option<id_type::AuthenticationId>,
     /// Contains the type of sca exemption required for the transaction
     pub psd2_sca_exemption_type: Option<common_enums::ScaExemptionType>,
+
+    /// Contains stringified connector raw response body
+    pub raw_connector_response: Option<String>,
+
+    /// Indicates whether the payment ID was provided by the merchant (true),
+    /// or generated internally by Hyperswitch (false)
+    pub is_payment_id_from_merchant: Option<bool>,
 }
 
 // Different patterns of authentication.
@@ -502,7 +509,6 @@ impl
         storage_scheme: common_enums::MerchantStorageScheme,
     ) -> PaymentIntentUpdate {
         let amount_captured = self.get_captured_amount(payment_data);
-        let status = payment_data.payment_attempt.status.is_terminal_status();
         let updated_feature_metadata =
             payment_data
                 .payment_intent
@@ -564,12 +570,9 @@ impl
                 router_response_types::PaymentsResponseData::TransactionResponse {
                     resource_id,
                     redirection_data,
-                    mandate_reference,
                     connector_metadata,
-                    network_txn_id,
                     connector_response_reference_id,
-                    incremental_authorization_allowed,
-                    charges,
+                    ..
                 } => {
                     let attempt_status = self.get_attempt_status_for_db_update(payment_data);
 
@@ -597,6 +600,8 @@ impl
                                             token_details.get_connector_token_request_reference_id()
                                         }),
                                 ),
+                            connector_response_reference_id: connector_response_reference_id
+                                .clone(),
                         },
                     ))
                 }
@@ -629,6 +634,9 @@ impl
                 } => {
                     todo!()
                 }
+                router_response_types::PaymentsResponseData::PaymentsCreateOrderResponse {
+                    ..
+                } => todo!(),
             },
             Err(ref error_response) => {
                 let ErrorResponse {
@@ -636,7 +644,7 @@ impl
                     message,
                     reason,
                     status_code: _,
-                    attempt_status,
+                    attempt_status: _,
                     connector_transaction_id,
                     network_decline_code,
                     network_advice_code,
@@ -693,7 +701,8 @@ impl
             // So set the amount capturable to zero
             common_enums::IntentStatus::Succeeded
             | common_enums::IntentStatus::Failed
-            | common_enums::IntentStatus::Cancelled => Some(MinorUnit::zero()),
+            | common_enums::IntentStatus::Cancelled
+            | common_enums::IntentStatus::Conflicted => Some(MinorUnit::zero()),
             // For these statuses, update the capturable amount when it reaches terminal / capturable state
             common_enums::IntentStatus::RequiresCustomerAction
             | common_enums::IntentStatus::RequiresMerchantAction
@@ -723,7 +732,7 @@ impl
         match intent_status {
             // If the status is succeeded then we have captured the whole amount
             // we need not check for `amount_to_capture` here because passing `amount_to_capture` when authorizing is not supported
-            common_enums::IntentStatus::Succeeded => {
+            common_enums::IntentStatus::Succeeded | common_enums::IntentStatus::Conflicted => {
                 let total_amount = payment_data.payment_attempt.amount_details.get_net_amount();
                 Some(total_amount)
             }
@@ -794,16 +803,7 @@ impl
 
         match self.response {
             Ok(ref response_router_data) => match response_router_data {
-                router_response_types::PaymentsResponseData::TransactionResponse {
-                    resource_id,
-                    redirection_data,
-                    mandate_reference,
-                    connector_metadata,
-                    network_txn_id,
-                    connector_response_reference_id,
-                    incremental_authorization_allowed,
-                    charges,
-                } => {
+                router_response_types::PaymentsResponseData::TransactionResponse { .. } => {
                     let attempt_status = self.status;
 
                     PaymentAttemptUpdate::CaptureUpdate {
@@ -841,6 +841,9 @@ impl
                 } => {
                     todo!()
                 }
+                router_response_types::PaymentsResponseData::PaymentsCreateOrderResponse {
+                    ..
+                } => todo!(),
             },
             Err(ref error_response) => {
                 let ErrorResponse {
@@ -909,7 +912,8 @@ impl
             // If the status is already succeeded / failed we cannot capture any more amount
             common_enums::IntentStatus::Succeeded
             | common_enums::IntentStatus::Failed
-            | common_enums::IntentStatus::Cancelled => Some(MinorUnit::zero()),
+            | common_enums::IntentStatus::Cancelled
+            | common_enums::IntentStatus::Conflicted => Some(MinorUnit::zero()),
             // For these statuses, update the capturable amount when it reaches terminal / capturable state
             common_enums::IntentStatus::RequiresCustomerAction
             | common_enums::IntentStatus::RequiresMerchantAction
@@ -935,7 +939,7 @@ impl
         let intent_status = common_enums::IntentStatus::from(self.status);
         match intent_status {
             // If the status is succeeded then we have captured the whole amount
-            common_enums::IntentStatus::Succeeded => {
+            common_enums::IntentStatus::Succeeded | common_enums::IntentStatus::Conflicted => {
                 let amount_to_capture = payment_data
                     .payment_attempt
                     .amount_details
@@ -1024,16 +1028,7 @@ impl
 
         match self.response {
             Ok(ref response_router_data) => match response_router_data {
-                router_response_types::PaymentsResponseData::TransactionResponse {
-                    resource_id,
-                    redirection_data,
-                    mandate_reference,
-                    connector_metadata,
-                    network_txn_id,
-                    connector_response_reference_id,
-                    incremental_authorization_allowed,
-                    charges,
-                } => {
+                router_response_types::PaymentsResponseData::TransactionResponse { .. } => {
                     let attempt_status = self.get_attempt_status_for_db_update(payment_data);
 
                     PaymentAttemptUpdate::SyncUpdate {
@@ -1071,6 +1066,9 @@ impl
                 } => {
                     todo!()
                 }
+                router_response_types::PaymentsResponseData::PaymentsCreateOrderResponse {
+                    ..
+                } => todo!(),
             },
             Err(ref error_response) => {
                 let ErrorResponse {
@@ -1078,7 +1076,7 @@ impl
                     message,
                     reason,
                     status_code: _,
-                    attempt_status,
+                    attempt_status: _,
                     connector_transaction_id,
                     network_advice_code,
                     network_decline_code,
@@ -1126,11 +1124,7 @@ impl
                     .get_captured_amount(payment_data)
                     .unwrap_or(MinorUnit::zero());
 
-                let total_amount = payment_data
-                    .payment_attempt
-                    .as_ref()
-                    .map(|attempt| attempt.amount_details.get_net_amount())
-                    .unwrap_or(MinorUnit::zero());
+                let total_amount = payment_data.payment_attempt.amount_details.get_net_amount();
 
                 if amount_captured == total_amount {
                     common_enums::AttemptStatus::Charged
@@ -1146,7 +1140,7 @@ impl
         &self,
         payment_data: &payments::PaymentStatusData<router_flow_types::PSync>,
     ) -> Option<MinorUnit> {
-        let payment_attempt = payment_data.payment_attempt.as_ref()?;
+        let payment_attempt = &payment_data.payment_attempt;
 
         // Based on the status of the response, we can determine the amount capturable
         let intent_status = common_enums::IntentStatus::from(self.status);
@@ -1154,7 +1148,8 @@ impl
             // If the status is already succeeded / failed we cannot capture any more amount
             common_enums::IntentStatus::Succeeded
             | common_enums::IntentStatus::Failed
-            | common_enums::IntentStatus::Cancelled => Some(MinorUnit::zero()),
+            | common_enums::IntentStatus::Cancelled
+            | common_enums::IntentStatus::Conflicted => Some(MinorUnit::zero()),
             // For these statuses, update the capturable amount when it reaches terminal / capturable state
             common_enums::IntentStatus::RequiresCustomerAction
             | common_enums::IntentStatus::RequiresMerchantAction
@@ -1176,13 +1171,13 @@ impl
         &self,
         payment_data: &payments::PaymentStatusData<router_flow_types::PSync>,
     ) -> Option<MinorUnit> {
-        let payment_attempt = payment_data.payment_attempt.as_ref()?;
+        let payment_attempt = &payment_data.payment_attempt;
 
         // Based on the status of the response, we can determine the amount capturable
         let intent_status = common_enums::IntentStatus::from(self.status);
         match intent_status {
             // If the status is succeeded then we have captured the whole amount or amount_to_capture
-            common_enums::IntentStatus::Succeeded => {
+            common_enums::IntentStatus::Succeeded | common_enums::IntentStatus::Conflicted => {
                 let amount_to_capture = payment_attempt.amount_details.get_amount_to_capture();
 
                 let amount_captured =
@@ -1264,12 +1259,9 @@ impl
                 router_response_types::PaymentsResponseData::TransactionResponse {
                     resource_id,
                     redirection_data,
-                    mandate_reference,
                     connector_metadata,
-                    network_txn_id,
                     connector_response_reference_id,
-                    incremental_authorization_allowed,
-                    charges,
+                    ..
                 } => {
                     let attempt_status = self.get_attempt_status_for_db_update(payment_data);
 
@@ -1297,6 +1289,9 @@ impl
                                             token_details.get_connector_token_request_reference_id()
                                         }),
                                 ),
+
+                            connector_response_reference_id: connector_response_reference_id
+                                .clone(),
                         },
                     ))
                 }
@@ -1329,6 +1324,9 @@ impl
                 } => {
                     todo!()
                 }
+                router_response_types::PaymentsResponseData::PaymentsCreateOrderResponse {
+                    ..
+                } => todo!(),
             },
             Err(ref error_response) => {
                 let ErrorResponse {
@@ -1386,7 +1384,8 @@ impl
             // So set the amount capturable to zero
             common_enums::IntentStatus::Succeeded
             | common_enums::IntentStatus::Failed
-            | common_enums::IntentStatus::Cancelled => Some(MinorUnit::zero()),
+            | common_enums::IntentStatus::Cancelled
+            | common_enums::IntentStatus::Conflicted => Some(MinorUnit::zero()),
             // For these statuses, update the capturable amount when it reaches terminal / capturable state
             common_enums::IntentStatus::RequiresCustomerAction
             | common_enums::IntentStatus::RequiresMerchantAction
@@ -1416,7 +1415,7 @@ impl
         match intent_status {
             // If the status is succeeded then we have captured the whole amount
             // we need not check for `amount_to_capture` here because passing `amount_to_capture` when authorizing is not supported
-            common_enums::IntentStatus::Succeeded => {
+            common_enums::IntentStatus::Succeeded | common_enums::IntentStatus::Conflicted => {
                 let total_amount = payment_data.payment_attempt.amount_details.get_net_amount();
                 Some(total_amount)
             }

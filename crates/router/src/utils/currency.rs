@@ -1,11 +1,15 @@
-use std::{collections::HashMap, ops::Deref, str::FromStr, sync::Arc};
+use std::{
+    collections::HashMap,
+    ops::Deref,
+    str::FromStr,
+    sync::{Arc, LazyLock},
+};
 
 use api_models::enums;
 use common_utils::{date_time, errors::CustomResult, events::ApiEventMetric, ext_traits::AsyncExt};
 use currency_conversion::types::{CurrencyFactors, ExchangeRates};
 use error_stack::ResultExt;
 use masking::PeekInterface;
-use once_cell::sync::Lazy;
 use redis_interface::DelReply;
 use router_env::{instrument, tracing};
 use rust_decimal::Decimal;
@@ -32,8 +36,8 @@ pub struct FxExchangeRatesCacheEntry {
     timestamp: i64,
 }
 
-static FX_EXCHANGE_RATES_CACHE: Lazy<RwLock<Option<FxExchangeRatesCacheEntry>>> =
-    Lazy::new(|| RwLock::new(None));
+static FX_EXCHANGE_RATES_CACHE: LazyLock<RwLock<Option<FxExchangeRatesCacheEntry>>> =
+    LazyLock::new(|| RwLock::new(None));
 
 impl ApiEventMetric for FxExchangeRatesCacheEntry {}
 
@@ -287,7 +291,7 @@ async fn fetch_forex_rates_from_primary_api(
     let forex_api_key = state.conf.forex_api.get_inner().api_key.peek();
 
     logger::debug!("forex_log: Primary api call for forex fetch");
-    let forex_url: String = format!("{}{}{}", FOREX_BASE_URL, forex_api_key, FOREX_BASE_CURRENCY);
+    let forex_url: String = format!("{FOREX_BASE_URL}{forex_api_key}{FOREX_BASE_CURRENCY}");
     let forex_request = services::RequestBuilder::new()
         .method(services::Method::Get)
         .url(&forex_url)
@@ -352,8 +356,7 @@ pub async fn fetch_forex_rates_from_fallback_api(
 ) -> CustomResult<FxExchangeRatesCacheEntry, ForexError> {
     let fallback_forex_api_key = state.conf.forex_api.get_inner().fallback_api_key.peek();
 
-    let fallback_forex_url: String =
-        format!("{}{}", FALLBACK_FOREX_BASE_URL, fallback_forex_api_key,);
+    let fallback_forex_url: String = format!("{FALLBACK_FOREX_BASE_URL}{fallback_forex_api_key}");
     let fallback_forex_request = services::RequestBuilder::new()
         .method(services::Method::Get)
         .url(&fallback_forex_url)
@@ -377,7 +380,7 @@ pub async fn fetch_forex_rates_from_fallback_api(
         .await
         .change_context(ForexError::ParsingError)
         .attach_printable(
-            "Unable to parse response received from falback api into ForexResponse",
+            "Unable to parse response received from fallback api into ForexResponse",
         )?;
 
     logger::info!(fallback_forex_response=?fallback_forex_response,"forex_log");

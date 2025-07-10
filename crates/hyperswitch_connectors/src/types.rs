@@ -8,22 +8,24 @@ use hyperswitch_domain_models::{
         authentication::{
             Authentication, PostAuthentication, PreAuthentication, PreAuthenticationVersionCall,
         },
-        Accept, AccessTokenAuth, Authorize, Capture, Defend, Evidence, PSync, PostProcessing,
-        PreProcessing, Session, Upload, Void,
+        Accept, AccessTokenAuth, Authorize, Capture, CreateOrder, Defend, Evidence, PSync,
+        PostProcessing, PreProcessing, Retrieve, Session, Upload, Void,
     },
     router_request_types::{
         authentication::{
             ConnectorAuthenticationRequestData, ConnectorPostAuthenticationRequestData,
             PreAuthNRequestData,
         },
-        AcceptDisputeRequestData, AccessTokenRequestData, DefendDisputeRequestData,
-        PaymentsAuthorizeData, PaymentsCancelData, PaymentsCaptureData, PaymentsPostProcessingData,
-        PaymentsPreProcessingData, PaymentsSessionData, PaymentsSyncData, RefundsData,
-        SubmitEvidenceRequestData, UploadFileRequestData,
+        AcceptDisputeRequestData, AccessTokenRequestData, CreateOrderRequestData,
+        DefendDisputeRequestData, PaymentsAuthorizeData, PaymentsCancelData, PaymentsCaptureData,
+        PaymentsPostProcessingData, PaymentsPreProcessingData, PaymentsSessionData,
+        PaymentsSyncData, RefundsData, RetrieveFileRequestData, SubmitEvidenceRequestData,
+        UploadFileRequestData,
     },
     router_response_types::{
         AcceptDisputeResponse, AuthenticationResponseData, DefendDisputeResponse,
-        PaymentsResponseData, RefundsResponseData, SubmitEvidenceResponse, UploadFileResponse,
+        PaymentsResponseData, RefundsResponseData, RetrieveFileResponse, SubmitEvidenceResponse,
+        UploadFileResponse,
     },
 };
 #[cfg(feature = "frm")]
@@ -54,6 +56,8 @@ pub(crate) type PaymentsPreprocessingResponseRouterData<R> =
     ResponseRouterData<PreProcessing, R, PaymentsPreProcessingData, PaymentsResponseData>;
 pub(crate) type PaymentsSessionResponseRouterData<R> =
     ResponseRouterData<Session, R, PaymentsSessionData, PaymentsResponseData>;
+pub(crate) type CreateOrderResponseRouterData<R> =
+    ResponseRouterData<CreateOrder, R, CreateOrderRequestData, PaymentsResponseData>;
 
 pub(crate) type AcceptDisputeRouterData =
     RouterData<Accept, AcceptDisputeRequestData, AcceptDisputeResponse>;
@@ -96,6 +100,7 @@ pub(crate) type FrmCheckoutRouterData =
 pub(crate) struct ResponseRouterDataV2<Flow, R, ResourceCommonData, Request, Response> {
     pub response: R,
     pub data: RouterDataV2<Flow, ResourceCommonData, Request, Response>,
+    #[allow(dead_code)] // Used for metadata passing but this is not read
     pub http_code: u16,
 }
 
@@ -141,3 +146,24 @@ pub(crate) type FrmRecordReturnType =
 #[cfg(feature = "frm")]
 pub(crate) type FrmSaleType =
     dyn ConnectorIntegration<Sale, FraudCheckSaleData, FraudCheckResponseData>;
+
+pub(crate) type RetrieveFileRouterData =
+    RouterData<Retrieve, RetrieveFileRequestData, RetrieveFileResponse>;
+
+#[cfg(feature = "payouts")]
+pub(crate) trait PayoutIndividualDetailsExt {
+    type Error;
+    fn get_external_account_account_holder_type(&self) -> Result<String, Self::Error>;
+}
+
+#[cfg(feature = "payouts")]
+impl PayoutIndividualDetailsExt for api_models::payouts::PayoutIndividualDetails {
+    type Error = error_stack::Report<hyperswitch_interfaces::errors::ConnectorError>;
+    fn get_external_account_account_holder_type(&self) -> Result<String, Self::Error> {
+        self.external_account_account_holder_type
+            .clone()
+            .ok_or_else(crate::utils::missing_field_err(
+                "external_account_account_holder_type",
+            ))
+    }
+}

@@ -32,6 +32,7 @@ use crate::{
     connector_events::events::ConnectorEventsResult,
     disputes::{filters::DisputeFilterRow, metrics::DisputeMetricRow},
     outgoing_webhook_event::events::OutgoingWebhookLogsResult,
+    routing_events::events::RoutingEventsResult,
     sdk_events::events::SdkEventsResult,
     types::TableEngine,
 };
@@ -150,6 +151,7 @@ impl AnalyticsDataSource for ClickhouseClient {
             | AnalyticsCollection::SdkEventsAnalytics
             | AnalyticsCollection::ApiEvents
             | AnalyticsCollection::ConnectorEvents
+            | AnalyticsCollection::RoutingEvents
             | AnalyticsCollection::ApiEventsAnalytics
             | AnalyticsCollection::OutgoingWebhookEvent
             | AnalyticsCollection::ActivePaymentsAnalytics => TableEngine::BasicTree,
@@ -187,6 +189,7 @@ impl super::api_event::events::ApiLogsFilterAnalytics for ClickhouseClient {}
 impl super::api_event::filters::ApiEventFilterAnalytics for ClickhouseClient {}
 impl super::api_event::metrics::ApiEventMetricAnalytics for ClickhouseClient {}
 impl super::connector_events::events::ConnectorEventLogAnalytics for ClickhouseClient {}
+impl super::routing_events::events::RoutingEventLogAnalytics for ClickhouseClient {}
 impl super::outgoing_webhook_event::events::OutgoingWebhookLogsFilterAnalytics
     for ClickhouseClient
 {
@@ -232,6 +235,16 @@ impl TryInto<ConnectorEventsResult> for serde_json::Value {
     fn try_into(self) -> Result<ConnectorEventsResult, Self::Error> {
         serde_json::from_value(self).change_context(ParsingError::StructParseFailure(
             "Failed to parse ConnectorEventsResult in clickhouse results",
+        ))
+    }
+}
+
+impl TryInto<RoutingEventsResult> for serde_json::Value {
+    type Error = Report<ParsingError>;
+
+    fn try_into(self) -> Result<RoutingEventsResult, Self::Error> {
+        serde_json::from_value(self).change_context(ParsingError::StructParseFailure(
+            "Failed to parse RoutingEventsResult in clickhouse results",
         ))
     }
 }
@@ -471,6 +484,7 @@ impl ToSql<ClickhouseClient> for AnalyticsCollection {
             Self::DisputeSessionized => Ok("sessionizer_dispute".to_string()),
             Self::ActivePaymentsAnalytics => Ok("active_payments".to_string()),
             Self::Authentications => Ok("authentications".to_string()),
+            Self::RoutingEvents => Ok("routing_events_audit".to_string()),
         }
     }
 }
@@ -488,7 +502,7 @@ where
                 };
                 format!(
                     "{query}{}",
-                    alias.map_or_else(|| "".to_owned(), |alias| format!(" as {}", alias))
+                    alias.map_or_else(|| "".to_owned(), |alias| format!(" as {alias}"))
                 )
             }
             Self::Sum { field, alias } => {
@@ -508,7 +522,7 @@ where
                 };
                 format!(
                     "{query}{}",
-                    alias.map_or_else(|| "".to_owned(), |alias| format!(" as {}", alias))
+                    alias.map_or_else(|| "".to_owned(), |alias| format!(" as {alias}"))
                 )
             }
             Self::Min { field, alias } => {
@@ -517,7 +531,7 @@ where
                     field
                         .to_sql(table_engine)
                         .attach_printable("Failed to min aggregate")?,
-                    alias.map_or_else(|| "".to_owned(), |alias| format!(" as {}", alias))
+                    alias.map_or_else(|| "".to_owned(), |alias| format!(" as {alias}"))
                 )
             }
             Self::Max { field, alias } => {
@@ -526,7 +540,7 @@ where
                     field
                         .to_sql(table_engine)
                         .attach_printable("Failed to max aggregate")?,
-                    alias.map_or_else(|| "".to_owned(), |alias| format!(" as {}", alias))
+                    alias.map_or_else(|| "".to_owned(), |alias| format!(" as {alias}"))
                 )
             }
             Self::Percentile {
@@ -540,7 +554,7 @@ where
                     field
                         .to_sql(table_engine)
                         .attach_printable("Failed to percentile aggregate")?,
-                    alias.map_or_else(|| "".to_owned(), |alias| format!(" as {}", alias))
+                    alias.map_or_else(|| "".to_owned(), |alias| format!(" as {alias}"))
                 )
             }
             Self::DistinctCount { field, alias } => {
@@ -549,7 +563,7 @@ where
                     field
                         .to_sql(table_engine)
                         .attach_printable("Failed to percentile aggregate")?,
-                    alias.map_or_else(|| "".to_owned(), |alias| format!(" as {}", alias))
+                    alias.map_or_else(|| "".to_owned(), |alias| format!(" as {alias}"))
                 )
             }
         })
@@ -585,7 +599,7 @@ where
                             order
                         )
                     ),
-                    alias.map_or_else(|| "".to_owned(), |alias| format!(" as {}", alias))
+                    alias.map_or_else(|| "".to_owned(), |alias| format!(" as {alias}"))
                 )
             }
             Self::RowNumber {
@@ -608,7 +622,7 @@ where
                             order
                         )
                     ),
-                    alias.map_or_else(|| "".to_owned(), |alias| format!(" as {}", alias))
+                    alias.map_or_else(|| "".to_owned(), |alias| format!(" as {alias}"))
                 )
             }
         })

@@ -864,8 +864,8 @@ impl TryFrom<&PaypalRouterData<&SdkSessionUpdateRouterData>> for PaypalUpdateOrd
         // Create separate paths for amount and items
         let reference_id = &item.router_data.connector_request_reference_id;
 
-        let amount_path = format!("/purchase_units/@reference_id=='{}'/amount", reference_id);
-        let items_path = format!("/purchase_units/@reference_id=='{}'/items", reference_id);
+        let amount_path = format!("/purchase_units/@reference_id=='{reference_id}'/amount");
+        let items_path = format!("/purchase_units/@reference_id=='{reference_id}'/items");
 
         let amount_value = Value::Amount(OrderRequestAmount::try_from(item)?);
 
@@ -1068,6 +1068,7 @@ impl TryFrom<&PaypalRouterData<&PaymentsAuthorizeRouterData>> for PaypalPayments
                 | WalletData::CashappQr(_)
                 | WalletData::SwishQr(_)
                 | WalletData::Mifinity(_)
+                | WalletData::RevolutPay(_)
                 | WalletData::Paze(_) => Err(errors::ConnectorError::NotImplemented(
                     utils::get_unimplemented_payment_method_error_message("Paypal"),
                 ))?,
@@ -1230,8 +1231,11 @@ impl TryFrom<&PaypalRouterData<&PaymentsAuthorizeRouterData>> for PaypalPayments
                     | enums::PaymentMethodType::PayEasy
                     | enums::PaymentMethodType::LocalBankTransfer
                     | enums::PaymentMethodType::InstantBankTransfer
+                    | enums::PaymentMethodType::InstantBankTransferFinland
+                    | enums::PaymentMethodType::InstantBankTransferPoland
                     | enums::PaymentMethodType::Mifinity
-                    | enums::PaymentMethodType::Paze => {
+                    | enums::PaymentMethodType::Paze
+                    | enums::PaymentMethodType::RevolutPay => {
                         Err(errors::ConnectorError::NotImplemented(
                             utils::get_unimplemented_payment_method_error_message("paypal"),
                         ))
@@ -1329,6 +1333,8 @@ impl TryFrom<&BankTransferData> for PaypalPaymentsRequest {
             | BankTransferData::Pix { .. }
             | BankTransferData::Pse {}
             | BankTransferData::InstantBankTransfer {}
+            | BankTransferData::InstantBankTransferFinland {}
+            | BankTransferData::InstantBankTransferPoland {}
             | BankTransferData::LocalBankTransfer { .. } => {
                 Err(errors::ConnectorError::NotImplemented(
                     utils::get_unimplemented_payment_method_error_message("Paypal"),
@@ -2303,7 +2309,7 @@ impl TryFrom<&PaypalRouterData<&PayoutsRouterData<PoFulfill>>> for PaypalFulfill
         let item_data = PaypalPayoutItem::try_from(item)?;
         Ok(Self {
             sender_batch_header: PayoutBatchHeader {
-                sender_batch_id: item.router_data.request.payout_id.to_owned(),
+                sender_batch_id: item.router_data.connector_request_reference_id.to_owned(),
             },
             items: vec![item_data],
         })
@@ -2528,9 +2534,8 @@ impl TryFrom<PaymentsCaptureResponseRouterData<PaypalCaptureResponse>>
             | storage_enums::AttemptStatus::Voided => 0,
             storage_enums::AttemptStatus::Charged
             | storage_enums::AttemptStatus::PartialCharged
-            | storage_enums::AttemptStatus::PartialChargedAndChargeable => {
-                item.data.request.amount_to_capture
-            }
+            | storage_enums::AttemptStatus::PartialChargedAndChargeable
+            | storage_enums::AttemptStatus::IntegrityFailure => item.data.request.amount_to_capture,
         };
         let connector_payment_id: PaypalMeta =
             to_connector_meta(item.data.request.connector_meta.clone())?;

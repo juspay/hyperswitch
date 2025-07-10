@@ -97,6 +97,8 @@ pub async fn incoming_webhooks_wrapper<W: types::OutgoingWebhookType>(
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Could not convert webhook effect to string")?;
 
+    let infra = state.infra_components.clone();
+
     let api_event = ApiEvent::new(
         state.tenant.tenant_id.clone(),
         Some(merchant_context.get_merchant_account().get_id().clone()),
@@ -112,6 +114,7 @@ pub async fn incoming_webhooks_wrapper<W: types::OutgoingWebhookType>(
         api_event,
         req,
         req.method(),
+        infra,
     );
     state.event_handler().log_event(&api_event);
     Ok(application_response)
@@ -453,29 +456,37 @@ async fn payments_incoming_webhook_flow(
                 )
                 .await?;
 
-            let (payment_data, _req, customer, connector_http_status_code, external_latency) =
-                Box::pin(payments::payments_operation_core::<
-                    api::PSync,
-                    _,
-                    _,
-                    _,
-                    PaymentStatusData<api::PSync>,
-                >(
-                    &state,
-                    req_state,
-                    merchant_context.clone(),
-                    &profile,
-                    payments::operations::PaymentGet,
-                    api::PaymentsRetrieveRequest {
-                        force_sync: true,
-                        expand_attempts: false,
-                        param: None,
-                    },
-                    get_trackers_response,
-                    consume_or_trigger_flow,
-                    HeaderPayload::default(),
-                ))
-                .await?;
+            let (
+                payment_data,
+                _req,
+                customer,
+                connector_http_status_code,
+                external_latency,
+                connector_response_data,
+            ) = Box::pin(payments::payments_operation_core::<
+                api::PSync,
+                _,
+                _,
+                _,
+                PaymentStatusData<api::PSync>,
+            >(
+                &state,
+                req_state,
+                merchant_context.clone(),
+                &profile,
+                payments::operations::PaymentGet,
+                api::PaymentsRetrieveRequest {
+                    force_sync: true,
+                    expand_attempts: false,
+                    param: None,
+                    return_raw_connector_response: None,
+                    merchant_connector_details: None,
+                },
+                get_trackers_response,
+                consume_or_trigger_flow,
+                HeaderPayload::default(),
+            ))
+            .await?;
 
             let response = payment_data.generate_response(
                 &state,
@@ -484,6 +495,7 @@ async fn payments_incoming_webhook_flow(
                 None,
                 &merchant_context,
                 &profile,
+                Some(connector_response_data),
             );
 
             lock_action
@@ -530,7 +542,7 @@ async fn payments_incoming_webhook_flow(
 
             let status = payments_response.status;
 
-            let event_type: Option<enums::EventType> = payments_response.status.foreign_into();
+            let event_type: Option<enums::EventType> = payments_response.status.into();
 
             // If event is NOT an UnsupportedEvent, trigger Outgoing Webhook
             if let Some(outgoing_event_type) = event_type {
@@ -670,10 +682,11 @@ where
         payment_data: PaymentStatusData {
             flow: PhantomData,
             payment_intent,
-            payment_attempt: Some(payment_attempt),
+            payment_attempt,
             attempts: None,
             should_sync_with_connector: true,
             payment_address,
+            merchant_connector_details: None,
         },
     })
 }
@@ -726,6 +739,7 @@ async fn verify_webhook_source_verification_call(
         connector_integration,
         &router_data,
         payments::CallConnectorAction::Trigger,
+        None,
         None,
     )
     .await?;

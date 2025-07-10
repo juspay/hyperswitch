@@ -9,7 +9,7 @@ use common_utils::{
     request::{Method, Request, RequestBuilder, RequestContent},
     types::{
         AmountConvertor, MinorUnit, MinorUnitForConnector, StringMajorUnit,
-        StringMajorUnitForConnector,
+        StringMajorUnitForConnector, StringMinorUnit, StringMinorUnitForConnector,
     },
 };
 use error_stack::{Report, ResultExt};
@@ -65,6 +65,7 @@ pub struct Payme {
     amount_converter: &'static (dyn AmountConvertor<Output = MinorUnit> + Sync),
     apple_pay_google_pay_amount_converter:
         &'static (dyn AmountConvertor<Output = StringMajorUnit> + Sync),
+    amount_converter_webhooks: &'static (dyn AmountConvertor<Output = StringMinorUnit> + Sync),
 }
 
 impl Payme {
@@ -72,6 +73,7 @@ impl Payme {
         &Self {
             amount_converter: &MinorUnitForConnector,
             apple_pay_google_pay_amount_converter: &StringMajorUnitForConnector,
+            amount_converter_webhooks: &StringMinorUnitForConnector,
         }
     }
 }
@@ -1228,7 +1230,11 @@ impl webhooks::IncomingWebhook for Payme {
                 .change_context(errors::ConnectorError::WebhookBodyDecodingFailed)?;
 
         Ok(DisputePayload {
-            amount: webhook_object.price.to_string(),
+            amount: utils::convert_amount(
+                self.amount_converter_webhooks,
+                webhook_object.price,
+                webhook_object.currency,
+            )?,
             currency: webhook_object.currency,
             dispute_stage: api_models::enums::DisputeStage::Dispute,
             connector_dispute_id: webhook_object.payme_transaction_id,

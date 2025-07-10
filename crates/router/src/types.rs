@@ -8,6 +8,7 @@
 
 pub mod api;
 pub mod authentication;
+pub mod connector_transformers;
 pub mod domain;
 #[cfg(feature = "frm")]
 pub mod fraud_check;
@@ -36,9 +37,9 @@ use hyperswitch_domain_models::router_flow_types::{
     mandate_revoke::MandateRevoke,
     payments::{
         Approve, Authorize, AuthorizeSessionToken, Balance, CalculateTax, Capture,
-        CompleteAuthorize, CreateConnectorCustomer, IncrementalAuthorization, InitPayment, PSync,
-        PostProcessing, PostSessionTokens, PreProcessing, Reject, SdkSessionUpdate, Session,
-        SetupMandate, UpdateMetadata, Void,
+        CompleteAuthorize, CreateConnectorCustomer, CreateOrder, IncrementalAuthorization,
+        InitPayment, PSync, PostProcessing, PostSessionTokens, PreProcessing, Reject,
+        SdkSessionUpdate, Session, SetupMandate, UpdateMetadata, Void,
     },
     refunds::{Execute, RSync},
     webhooks::VerifyWebhookSource,
@@ -68,16 +69,16 @@ pub use hyperswitch_domain_models::{
         },
         AcceptDisputeRequestData, AccessTokenRequestData, AuthorizeSessionTokenData,
         BrowserInformation, ChargeRefunds, ChargeRefundsOptions, CompleteAuthorizeData,
-        CompleteAuthorizeRedirectResponse, ConnectorCustomerData, DefendDisputeRequestData,
-        DestinationChargeRefund, DirectChargeRefund, MandateRevokeRequestData,
-        MultipleCaptureRequestData, PaymentMethodTokenizationData, PaymentsApproveData,
-        PaymentsAuthorizeData, PaymentsCancelData, PaymentsCaptureData,
+        CompleteAuthorizeRedirectResponse, ConnectorCustomerData, CreateOrderRequestData,
+        DefendDisputeRequestData, DestinationChargeRefund, DirectChargeRefund,
+        MandateRevokeRequestData, MultipleCaptureRequestData, PaymentMethodTokenizationData,
+        PaymentsApproveData, PaymentsAuthorizeData, PaymentsCancelData, PaymentsCaptureData,
         PaymentsIncrementalAuthorizationData, PaymentsPostProcessingData,
         PaymentsPostSessionTokensData, PaymentsPreProcessingData, PaymentsRejectData,
         PaymentsSessionData, PaymentsSyncData, PaymentsTaxCalculationData,
         PaymentsUpdateMetadataData, RefundsData, ResponseId, RetrieveFileRequestData,
         SdkPaymentsSessionUpdateData, SetupMandateRequestData, SplitRefundsRequest,
-        SubmitEvidenceRequestData, SyncRequestType, UploadFileRequestData,
+        SubmitEvidenceRequestData, SyncRequestType, UploadFileRequestData, VaultRequestData,
         VerifyWebhookSourceRequestData,
     },
     router_response_types::{
@@ -88,8 +89,8 @@ pub use hyperswitch_domain_models::{
         AcceptDisputeResponse, CaptureSyncResponse, DefendDisputeResponse, MandateReference,
         MandateRevokeResponseData, PaymentsResponseData, PreprocessingResponseId,
         RefundsResponseData, RetrieveFileResponse, SubmitEvidenceResponse,
-        TaxCalculationResponseData, UploadFileResponse, VerifyWebhookSourceResponseData,
-        VerifyWebhookStatus,
+        TaxCalculationResponseData, UploadFileResponse, VaultResponseData,
+        VerifyWebhookSourceResponseData, VerifyWebhookStatus,
     },
 };
 #[cfg(feature = "payouts")]
@@ -115,10 +116,7 @@ pub use hyperswitch_interfaces::types::{
 
 pub use crate::core::payments::CustomerDetails;
 #[cfg(feature = "payouts")]
-use crate::{
-    connector::utils::missing_field_err,
-    core::utils::IRRELEVANT_CONNECTOR_REQUEST_REFERENCE_ID_IN_PAYOUTS_FLOW,
-};
+use crate::core::utils::IRRELEVANT_CONNECTOR_REQUEST_REFERENCE_ID_IN_PAYOUTS_FLOW;
 use crate::{
     consts,
     core::{
@@ -152,6 +150,9 @@ pub type PaymentsIncrementalAuthorizationRouterData = RouterData<
 >;
 pub type PaymentsTaxCalculationRouterData =
     RouterData<CalculateTax, PaymentsTaxCalculationData, TaxCalculationResponseData>;
+
+pub type CreateOrderRouterData =
+    RouterData<CreateOrder, CreateOrderRequestData, PaymentsResponseData>;
 
 pub type SdkSessionUpdateRouterData =
     RouterData<SdkSessionUpdate, SdkPaymentsSessionUpdateData, PaymentsResponseData>;
@@ -252,16 +253,6 @@ pub trait PayoutIndividualDetailsExt {
     fn get_external_account_account_holder_type(&self) -> Result<String, Self::Error>;
 }
 
-#[cfg(feature = "payouts")]
-impl PayoutIndividualDetailsExt for api_models::payouts::PayoutIndividualDetails {
-    type Error = error_stack::Report<errors::ConnectorError>;
-    fn get_external_account_account_holder_type(&self) -> Result<String, Self::Error> {
-        self.external_account_account_holder_type
-            .clone()
-            .ok_or_else(missing_field_err("external_account_account_holder_type"))
-    }
-}
-
 pub trait Capturable {
     fn get_captured_amount<F>(&self, _payment_data: &PaymentData<F>) -> Option<i64>
     where
@@ -310,7 +301,7 @@ impl Capturable for PaymentsAuthorizeData {
                 match intent_status {
                     common_enums::IntentStatus::Succeeded
                     | common_enums::IntentStatus::Failed
-                    | common_enums::IntentStatus::Processing => Some(0),
+                    | common_enums::IntentStatus::Processing | common_enums::IntentStatus::Conflicted => Some(0),
                     common_enums::IntentStatus::Cancelled
                     | common_enums::IntentStatus::PartiallyCaptured
                     | common_enums::IntentStatus::RequiresCustomerAction
@@ -349,7 +340,8 @@ impl Capturable for PaymentsCaptureData {
         let intent_status = common_enums::IntentStatus::foreign_from(attempt_status);
         match intent_status {
             common_enums::IntentStatus::Succeeded
-            | common_enums::IntentStatus::PartiallyCaptured => Some(0),
+            | common_enums::IntentStatus::PartiallyCaptured
+            | common_enums::IntentStatus::Conflicted => Some(0),
             common_enums::IntentStatus::Processing
             | common_enums::IntentStatus::Cancelled
             | common_enums::IntentStatus::Failed
@@ -393,9 +385,8 @@ impl Capturable for CompleteAuthorizeData {
                 match intent_status {
                     common_enums::IntentStatus::Succeeded|
                     common_enums::IntentStatus::Failed|
-                    common_enums::IntentStatus::Processing => Some(0),
-                    common_enums::IntentStatus::Cancelled
-                    | common_enums::IntentStatus::PartiallyCaptured
+                    common_enums::IntentStatus::Processing | common_enums::IntentStatus::Conflicted => Some(0),
+                    common_enums::IntentStatus::Cancelled | common_enums::IntentStatus::PartiallyCaptured
                     | common_enums::IntentStatus::RequiresCustomerAction
                     | common_enums::IntentStatus::RequiresMerchantAction
                     | common_enums::IntentStatus::RequiresPaymentMethod
@@ -441,7 +432,8 @@ impl Capturable for PaymentsCancelData {
         match intent_status {
             common_enums::IntentStatus::Cancelled
             | common_enums::IntentStatus::Processing
-            | common_enums::IntentStatus::PartiallyCaptured => Some(0),
+            | common_enums::IntentStatus::PartiallyCaptured
+            | common_enums::IntentStatus::Conflicted => Some(0),
             common_enums::IntentStatus::Succeeded
             | common_enums::IntentStatus::Failed
             | common_enums::IntentStatus::RequiresCustomerAction
@@ -520,6 +512,11 @@ pub struct PaymentMethodTokenResult {
     pub payment_method_token_result: Result<Option<String>, ErrorResponse>,
     pub is_payment_method_tokenization_performed: bool,
     pub connector_response: Option<ConnectorResponseData>,
+}
+
+pub struct CreateOrderResult {
+    pub create_order_result: Result<Option<String>, ErrorResponse>,
+    pub is_create_order_performed: bool,
 }
 
 pub struct PspTokenResult {
@@ -612,6 +609,38 @@ pub enum MerchantAccountData {
         name: String,
         connector_recipient_id: Option<RecipientIdType>,
     },
+    FasterPayments {
+        account_number: Secret<String>,
+        sort_code: Secret<String>,
+        name: String,
+        connector_recipient_id: Option<RecipientIdType>,
+    },
+    Sepa {
+        iban: Secret<String>,
+        name: String,
+        connector_recipient_id: Option<RecipientIdType>,
+    },
+    SepaInstant {
+        iban: Secret<String>,
+        name: String,
+        connector_recipient_id: Option<RecipientIdType>,
+    },
+    Elixir {
+        account_number: Secret<String>,
+        iban: Secret<String>,
+        name: String,
+        connector_recipient_id: Option<RecipientIdType>,
+    },
+    Bankgiro {
+        number: Secret<String>,
+        name: String,
+        connector_recipient_id: Option<RecipientIdType>,
+    },
+    Plusgiro {
+        number: Secret<String>,
+        name: String,
+        connector_recipient_id: Option<RecipientIdType>,
+    },
 }
 
 impl ForeignFrom<MerchantAccountData> for api_models::admin::MerchantAccountData {
@@ -637,6 +666,82 @@ impl ForeignFrom<MerchantAccountData> for api_models::admin::MerchantAccountData
             } => Self::Bacs {
                 account_number,
                 sort_code,
+                name,
+                connector_recipient_id: match connector_recipient_id {
+                    Some(RecipientIdType::ConnectorId(id)) => Some(id.clone()),
+                    _ => None,
+                },
+            },
+            MerchantAccountData::FasterPayments {
+                account_number,
+                sort_code,
+                name,
+                connector_recipient_id,
+            } => Self::FasterPayments {
+                account_number,
+                sort_code,
+                name,
+                connector_recipient_id: match connector_recipient_id {
+                    Some(RecipientIdType::ConnectorId(id)) => Some(id.clone()),
+                    _ => None,
+                },
+            },
+            MerchantAccountData::Sepa {
+                iban,
+                name,
+                connector_recipient_id,
+            } => Self::Sepa {
+                iban,
+                name,
+                connector_recipient_id: match connector_recipient_id {
+                    Some(RecipientIdType::ConnectorId(id)) => Some(id.clone()),
+                    _ => None,
+                },
+            },
+            MerchantAccountData::SepaInstant {
+                iban,
+                name,
+                connector_recipient_id,
+            } => Self::SepaInstant {
+                iban,
+                name,
+                connector_recipient_id: match connector_recipient_id {
+                    Some(RecipientIdType::ConnectorId(id)) => Some(id.clone()),
+                    _ => None,
+                },
+            },
+            MerchantAccountData::Elixir {
+                account_number,
+                iban,
+                name,
+                connector_recipient_id,
+            } => Self::Elixir {
+                account_number,
+                iban,
+                name,
+                connector_recipient_id: match connector_recipient_id {
+                    Some(RecipientIdType::ConnectorId(id)) => Some(id.clone()),
+                    _ => None,
+                },
+            },
+            MerchantAccountData::Bankgiro {
+                number,
+                name,
+                connector_recipient_id,
+            } => Self::Bankgiro {
+                number,
+                name,
+                connector_recipient_id: match connector_recipient_id {
+                    Some(RecipientIdType::ConnectorId(id)) => Some(id.clone()),
+                    _ => None,
+                },
+            },
+            MerchantAccountData::Plusgiro {
+                number,
+                name,
+                connector_recipient_id,
+            } => Self::Plusgiro {
+                number,
                 name,
                 connector_recipient_id: match connector_recipient_id {
                     Some(RecipientIdType::ConnectorId(id)) => Some(id.clone()),
@@ -670,10 +775,67 @@ impl From<api_models::admin::MerchantAccountData> for MerchantAccountData {
                 name,
                 connector_recipient_id: connector_recipient_id.map(RecipientIdType::ConnectorId),
             },
+            api_models::admin::MerchantAccountData::FasterPayments {
+                account_number,
+                sort_code,
+                name,
+                connector_recipient_id,
+            } => Self::FasterPayments {
+                account_number,
+                sort_code,
+                name,
+                connector_recipient_id: connector_recipient_id.map(RecipientIdType::ConnectorId),
+            },
+            api_models::admin::MerchantAccountData::Sepa {
+                iban,
+                name,
+                connector_recipient_id,
+            } => Self::Sepa {
+                iban,
+                name,
+                connector_recipient_id: connector_recipient_id.map(RecipientIdType::ConnectorId),
+            },
+            api_models::admin::MerchantAccountData::SepaInstant {
+                iban,
+                name,
+                connector_recipient_id,
+            } => Self::SepaInstant {
+                iban,
+                name,
+                connector_recipient_id: connector_recipient_id.map(RecipientIdType::ConnectorId),
+            },
+            api_models::admin::MerchantAccountData::Elixir {
+                account_number,
+                iban,
+                name,
+                connector_recipient_id,
+            } => Self::Elixir {
+                account_number,
+                iban,
+                name,
+                connector_recipient_id: connector_recipient_id.map(RecipientIdType::ConnectorId),
+            },
+            api_models::admin::MerchantAccountData::Bankgiro {
+                number,
+                name,
+                connector_recipient_id,
+            } => Self::Bankgiro {
+                number,
+                name,
+                connector_recipient_id: connector_recipient_id.map(RecipientIdType::ConnectorId),
+            },
+            api_models::admin::MerchantAccountData::Plusgiro {
+                number,
+                name,
+                connector_recipient_id,
+            } => Self::Plusgiro {
+                number,
+                name,
+                connector_recipient_id: connector_recipient_id.map(RecipientIdType::ConnectorId),
+            },
         }
     }
 }
-
 #[derive(Debug, Clone, serde::Deserialize, serde::Serialize)]
 #[serde(rename_all = "snake_case")]
 pub enum MerchantRecipientData {
@@ -928,6 +1090,7 @@ impl ForeignFrom<&SetupMandateRouterData> for PaymentsAuthorizeData {
             merchant_account_id: None,
             merchant_config_currency: None,
             connector_testing_data: data.request.connector_testing_data.clone(),
+            order_id: None,
         }
     }
 }
@@ -989,6 +1152,8 @@ impl<F1, F2, T1, T2> ForeignFrom<(&RouterData<F1, T1, PaymentsResponseData>, T2)
                 .clone(),
             authentication_id: data.authentication_id.clone(),
             psd2_sca_exemption_type: data.psd2_sca_exemption_type,
+            raw_connector_response: data.raw_connector_response.clone(),
+            is_payment_id_from_merchant: data.is_payment_id_from_merchant,
         }
     }
 }
@@ -1056,6 +1221,8 @@ impl<F1, F2>
             psd2_sca_exemption_type: None,
             additional_merchant_data: data.additional_merchant_data.clone(),
             connector_mandate_request_reference_id: None,
+            raw_connector_response: None,
+            is_payment_id_from_merchant: data.is_payment_id_from_merchant,
         }
     }
 }

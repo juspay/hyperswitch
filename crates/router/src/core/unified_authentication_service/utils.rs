@@ -48,6 +48,7 @@ where
         &router_data,
         payments::CallConnectorAction::Trigger,
         None,
+        None,
     )
     .await
     .to_payment_failed_response()?;
@@ -63,8 +64,8 @@ pub fn construct_uas_router_data<F: Clone, Req, Res>(
     address: Option<PaymentAddress>,
     request_data: Req,
     merchant_connector_account: &payments::helpers::MerchantConnectorAccountType,
-    authentication_id: Option<String>,
-    payment_id: common_utils::id_type::PaymentId,
+    authentication_id: Option<common_utils::id_type::AuthenticationId>,
+    payment_id: Option<common_utils::id_type::PaymentId>,
 ) -> RouterResult<RouterData<F, Req, Res>> {
     let auth_type: ConnectorAuthType = merchant_connector_account
         .get_connector_account_details()
@@ -77,7 +78,9 @@ pub fn construct_uas_router_data<F: Clone, Req, Res>(
         customer_id: None,
         connector_customer: None,
         connector: authentication_connector_name,
-        payment_id: payment_id.get_string_repr().to_owned(),
+        payment_id: payment_id
+            .map(|id| id.get_string_repr().to_owned())
+            .unwrap_or_default(),
         tenant_id: state.tenant.tenant_id.clone(),
         attempt_id: IRRELEVANT_ATTEMPT_ID_IN_AUTHENTICATION_FLOW.to_owned(),
         status: common_enums::AttemptStatus::default(),
@@ -121,6 +124,8 @@ pub fn construct_uas_router_data<F: Clone, Req, Res>(
         connector_mandate_request_reference_id: None,
         authentication_id,
         psd2_sca_exemption_type: None,
+        raw_connector_response: None,
+        is_payment_id_from_merchant: None,
     })
 }
 
@@ -189,7 +194,10 @@ pub async fn external_authentication_update_trackers<F: Clone, Req>(
                             state,
                             auth_val.expose(),
                             None,
-                            authentication.authentication_id.clone(),
+                            authentication
+                                .authentication_id
+                                .get_string_repr()
+                                .to_string(),
                             merchant_key_store.key.get_inner(),
                         )
                     })
@@ -215,6 +223,7 @@ pub async fn external_authentication_update_trackers<F: Clone, Req>(
                         authentication_status,
                         connector_metadata: authentication_details.connector_metadata,
                         ds_trans_id: authentication_details.ds_trans_id,
+                        eci: authentication_details.eci,
                     },
                 )
             }
@@ -237,7 +246,10 @@ pub async fn external_authentication_update_trackers<F: Clone, Req>(
                             state,
                             auth_val,
                             None,
-                            authentication.authentication_id.clone(),
+                            authentication
+                                .authentication_id
+                                .get_string_repr()
+                                .to_string(),
                             merchant_key_store.key.get_inner(),
                         )
                     })

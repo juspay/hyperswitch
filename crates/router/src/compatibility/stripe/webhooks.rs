@@ -4,9 +4,12 @@ use api_models::{
     enums::{Currency, DisputeStatus, MandateStatus},
     webhooks::{self as api},
 };
-#[cfg(feature = "payouts")]
-use common_utils::pii::{self, Email};
 use common_utils::{crypto::SignMessage, date_time, ext_traits::Encode};
+#[cfg(feature = "payouts")]
+use common_utils::{
+    id_type,
+    pii::{self, Email},
+};
 use error_stack::ResultExt;
 use router_env::logger;
 use serde::Serialize;
@@ -94,7 +97,7 @@ pub struct StripeDisputeResponse {
     pub id: String,
     pub amount: String,
     pub currency: Currency,
-    pub payment_intent: common_utils::id_type::PaymentId,
+    pub payment_intent: id_type::PaymentId,
     pub reason: Option<String>,
     pub status: StripeDisputeStatus,
 }
@@ -110,7 +113,7 @@ pub struct StripeMandateResponse {
 #[cfg(feature = "payouts")]
 #[derive(Clone, Serialize, Debug)]
 pub struct StripePayoutResponse {
-    pub id: String,
+    pub id: id_type::PayoutId,
     pub amount: i64,
     pub currency: String,
     pub payout_type: Option<common_enums::PayoutType>,
@@ -218,7 +221,7 @@ impl From<api_models::disputes::DisputeResponse> for StripeDisputeResponse {
     fn from(res: api_models::disputes::DisputeResponse) -> Self {
         Self {
             id: res.dispute_id,
-            amount: res.amount,
+            amount: res.amount.to_string(),
             currency: res.currency,
             payment_intent: res.payment_id,
             reason: res.connector_reason,

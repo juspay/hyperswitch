@@ -132,6 +132,7 @@ impl<'a> NetworkTokenizationBuilder<'a, CardRequestValidated> {
                 .map_or(card_req.card_issuing_country.clone(), |card_info| {
                     card_info.card_issuing_country.clone()
                 }),
+            co_badged_card_data: None,
         };
         NetworkTokenizationBuilder {
             state: std::marker::PhantomData,
@@ -267,8 +268,8 @@ impl<'a> NetworkTokenizationBuilder<'a, CardTokenStored> {
             payment_method: payment_method.payment_method,
             payment_method_type: payment_method.payment_method_type,
             card: card_detail_from_locker,
-            recurring_enabled: true,
-            installment_payment_enabled: false,
+            recurring_enabled: Some(true),
+            installment_payment_enabled: Some(false),
             metadata: payment_method.metadata.clone(),
             created: Some(payment_method.created_at),
             last_used_at: Some(payment_method.last_used_at),

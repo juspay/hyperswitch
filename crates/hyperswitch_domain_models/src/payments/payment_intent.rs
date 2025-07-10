@@ -1,11 +1,11 @@
-#[cfg(feature = "v2")]
-use common_enums::RequestIncrementalAuthorization;
+#[cfg(feature = "v1")]
+use common_utils::consts::PAYMENTS_LIST_MAX_LIMIT_V2;
 #[cfg(feature = "v2")]
 use common_utils::errors::ParsingError;
 #[cfg(feature = "v2")]
 use common_utils::ext_traits::{Encode, ValueExt};
 use common_utils::{
-    consts::{PAYMENTS_LIST_MAX_LIMIT_V1, PAYMENTS_LIST_MAX_LIMIT_V2},
+    consts::PAYMENTS_LIST_MAX_LIMIT_V1,
     crypto::Encryptable,
     encryption::Encryption,
     errors::{CustomResult, ValidationError},
@@ -17,8 +17,6 @@ use common_utils::{
         CreatedBy, MinorUnit,
     },
 };
-#[cfg(feature = "v2")]
-use diesel_models::PaymentLinkConfigRequestForPayments;
 use diesel_models::{
     PaymentIntent as DieselPaymentIntent, PaymentIntentNew as DieselPaymentIntentNew,
 };
@@ -37,13 +35,12 @@ use crate::address::Address;
 #[cfg(feature = "v2")]
 use crate::routing;
 use crate::{
-    behaviour, errors,
+    behaviour,
     merchant_key_store::MerchantKeyStore,
     type_encryption::{crypto_operation, CryptoOperation},
-    RemoteStorageObject,
 };
-#[cfg(feature = "v2")]
-use crate::{FeatureMetadata, OrderDetailsWithAmount};
+#[cfg(feature = "v1")]
+use crate::{errors, RemoteStorageObject};
 
 #[async_trait::async_trait]
 pub trait PaymentIntentInterface {
@@ -209,6 +206,7 @@ pub struct PaymentIntentUpdateFields {
     // updated_by is set internally, field not present in request
     pub updated_by: String,
     pub force_3ds_challenge: Option<bool>,
+    pub is_iframe_redirection_enabled: Option<bool>,
 }
 
 #[cfg(feature = "v1")]
@@ -242,6 +240,8 @@ pub struct PaymentIntentUpdateFields {
     pub is_payment_processor_token_flow: Option<bool>,
     pub tax_details: Option<diesel_models::TaxDetails>,
     pub force_3ds_challenge: Option<bool>,
+    pub is_iframe_redirection_enabled: Option<bool>,
+    pub is_confirm_operation: bool,
 }
 
 #[cfg(feature = "v1")]
@@ -325,6 +325,16 @@ pub enum PaymentIntentUpdate {
     },
 }
 
+#[cfg(feature = "v1")]
+impl PaymentIntentUpdate {
+    pub fn is_confirm_operation(&self) -> bool {
+        match self {
+            Self::Update(value) => value.is_confirm_operation,
+            _ => false,
+        }
+    }
+}
+
 #[cfg(feature = "v2")]
 #[derive(Debug, Clone, Serialize)]
 pub enum PaymentIntentUpdate {
@@ -365,6 +375,13 @@ pub enum PaymentIntentUpdate {
     },
     /// UpdateIntent
     UpdateIntent(Box<PaymentIntentUpdateFields>),
+}
+
+#[cfg(feature = "v2")]
+impl PaymentIntentUpdate {
+    pub fn is_confirm_operation(&self) -> bool {
+        matches!(self, Self::ConfirmIntent { .. })
+    }
 }
 
 #[cfg(feature = "v1")]
@@ -410,6 +427,7 @@ pub struct PaymentIntentUpdateInternal {
     pub is_payment_processor_token_flow: Option<bool>,
     pub tax_details: Option<diesel_models::TaxDetails>,
     pub force_3ds_challenge: Option<bool>,
+    pub is_iframe_redirection_enabled: Option<bool>,
 }
 
 // This conversion is used in the `update_payment_intent` function
@@ -459,6 +477,7 @@ impl TryFrom<PaymentIntentUpdate> for diesel_models::PaymentIntentUpdateInternal
                 request_external_three_ds_authentication: None,
                 updated_by,
                 force_3ds_challenge: None,
+                is_iframe_redirection_enabled: None,
             }),
 
             PaymentIntentUpdate::ConfirmIntentPostUpdate {
@@ -503,6 +522,7 @@ impl TryFrom<PaymentIntentUpdate> for diesel_models::PaymentIntentUpdateInternal
                 request_external_three_ds_authentication: None,
                 updated_by,
                 force_3ds_challenge: None,
+                is_iframe_redirection_enabled: None,
             }),
             PaymentIntentUpdate::SyncUpdate {
                 status,
@@ -545,6 +565,7 @@ impl TryFrom<PaymentIntentUpdate> for diesel_models::PaymentIntentUpdateInternal
                 request_external_three_ds_authentication: None,
                 updated_by,
                 force_3ds_challenge: None,
+                is_iframe_redirection_enabled: None,
             }),
             PaymentIntentUpdate::CaptureUpdate {
                 status,
@@ -587,6 +608,7 @@ impl TryFrom<PaymentIntentUpdate> for diesel_models::PaymentIntentUpdateInternal
                 request_external_three_ds_authentication: None,
                 updated_by,
                 force_3ds_challenge: None,
+                is_iframe_redirection_enabled: None,
             }),
             PaymentIntentUpdate::SessionIntentUpdate {
                 prerouting_algorithm,
@@ -632,6 +654,7 @@ impl TryFrom<PaymentIntentUpdate> for diesel_models::PaymentIntentUpdateInternal
                 request_external_three_ds_authentication: None,
                 updated_by,
                 force_3ds_challenge: None,
+                is_iframe_redirection_enabled: None,
             }),
             PaymentIntentUpdate::UpdateIntent(boxed_intent) => {
                 let PaymentIntentUpdateFields {
@@ -667,6 +690,7 @@ impl TryFrom<PaymentIntentUpdate> for diesel_models::PaymentIntentUpdateInternal
                     active_attempt_id,
                     updated_by,
                     force_3ds_challenge,
+                    is_iframe_redirection_enabled,
                 } = *boxed_intent;
                 Ok(Self {
                     status: None,
@@ -712,6 +736,7 @@ impl TryFrom<PaymentIntentUpdate> for diesel_models::PaymentIntentUpdateInternal
 
                     updated_by,
                     force_3ds_challenge,
+                    is_iframe_redirection_enabled,
                 })
             }
             PaymentIntentUpdate::RecordUpdate {
@@ -756,6 +781,7 @@ impl TryFrom<PaymentIntentUpdate> for diesel_models::PaymentIntentUpdateInternal
                 request_external_three_ds_authentication: None,
                 updated_by,
                 force_3ds_challenge: None,
+                is_iframe_redirection_enabled: None,
             }),
         }
     }
@@ -1032,6 +1058,7 @@ impl From<PaymentIntentUpdate> for DieselPaymentIntentUpdate {
                     is_payment_processor_token_flow: value.is_payment_processor_token_flow,
                     tax_details: value.tax_details,
                     force_3ds_challenge: value.force_3ds_challenge,
+                    is_iframe_redirection_enabled: value.is_iframe_redirection_enabled,
                 }))
             }
             PaymentIntentUpdate::PaymentCreateUpdate {
@@ -1189,6 +1216,7 @@ impl From<PaymentIntentUpdateInternal> for diesel_models::PaymentIntentUpdateInt
             is_payment_processor_token_flow,
             tax_details,
             force_3ds_challenge,
+            is_iframe_redirection_enabled,
         } = value;
         Self {
             amount,
@@ -1196,7 +1224,7 @@ impl From<PaymentIntentUpdateInternal> for diesel_models::PaymentIntentUpdateInt
             status,
             amount_captured,
             customer_id,
-            return_url,
+            return_url: None, // deprecated
             setup_future_usage,
             off_session,
             metadata,
@@ -1228,6 +1256,8 @@ impl From<PaymentIntentUpdateInternal> for diesel_models::PaymentIntentUpdateInt
             is_payment_processor_token_flow,
             tax_details,
             force_3ds_challenge,
+            is_iframe_redirection_enabled,
+            extended_return_url: return_url,
         }
     }
 }
@@ -1539,8 +1569,8 @@ where
                         return Err(error_stack::Report::new(
                             errors::api_error_response::ApiErrorResponse::PreconditionFailed {
                                 message: format!(
-                                    "Access not available for the given profile_id {:?}",
-                                    inaccessible_profile_ids
+                                    "Access not available for the given profile_id {inaccessible_profile_ids:?}",
+
                                 ),
                             },
                         ));
@@ -1609,6 +1639,8 @@ impl behaviour::Conversion for PaymentIntent {
             force_3ds_challenge_trigger,
             processor_merchant_id,
             created_by,
+            is_iframe_redirection_enabled,
+            is_payment_id_from_merchant,
         } = self;
         Ok(DieselPaymentIntent {
             skip_external_tax_calculation: Some(amount_details.get_external_tax_action_as_bool()),
@@ -1693,6 +1725,8 @@ impl behaviour::Conversion for PaymentIntent {
             force_3ds_challenge_trigger,
             processor_merchant_id: Some(processor_merchant_id),
             created_by: created_by.map(|cb| cb.to_string()),
+            is_iframe_redirection_enabled,
+            is_payment_id_from_merchant,
         })
     }
     async fn convert_back(
@@ -1833,6 +1867,8 @@ impl behaviour::Conversion for PaymentIntent {
                 created_by: storage_model
                     .created_by
                     .and_then(|created_by| created_by.parse::<CreatedBy>().ok()),
+                is_iframe_redirection_enabled: storage_model.is_iframe_redirection_enabled,
+                is_payment_id_from_merchant: storage_model.is_payment_id_from_merchant,
             })
         }
         .await
@@ -1918,6 +1954,9 @@ impl behaviour::Conversion for PaymentIntent {
             force_3ds_challenge_trigger: self.force_3ds_challenge_trigger,
             processor_merchant_id: Some(self.processor_merchant_id),
             created_by: self.created_by.map(|cb| cb.to_string()),
+            is_iframe_redirection_enabled: self.is_iframe_redirection_enabled,
+            routing_algorithm_id: self.routing_algorithm_id,
+            is_payment_id_from_merchant: self.is_payment_id_from_merchant,
         })
     }
 }
@@ -1938,7 +1977,7 @@ impl behaviour::Conversion for PaymentIntent {
             amount_captured: self.amount_captured,
             customer_id: self.customer_id,
             description: self.description,
-            return_url: self.return_url,
+            return_url: None, // deprecated
             metadata: self.metadata,
             connector_id: self.connector_id,
             shipping_address_id: self.shipping_address_id,
@@ -1990,6 +2029,9 @@ impl behaviour::Conversion for PaymentIntent {
             created_by: self.created_by.map(|cb| cb.to_string()),
             force_3ds_challenge: self.force_3ds_challenge,
             force_3ds_challenge_trigger: self.force_3ds_challenge_trigger,
+            is_iframe_redirection_enabled: self.is_iframe_redirection_enabled,
+            extended_return_url: self.return_url,
+            is_payment_id_from_merchant: self.is_payment_id_from_merchant,
         })
     }
 
@@ -2032,7 +2074,9 @@ impl behaviour::Conversion for PaymentIntent {
                 amount_captured: storage_model.amount_captured,
                 customer_id: storage_model.customer_id,
                 description: storage_model.description,
-                return_url: storage_model.return_url,
+                return_url: storage_model
+                    .extended_return_url
+                    .or(storage_model.return_url), // fallback to legacy
                 metadata: storage_model.metadata,
                 connector_id: storage_model.connector_id,
                 shipping_address_id: storage_model.shipping_address_id,
@@ -2087,6 +2131,8 @@ impl behaviour::Conversion for PaymentIntent {
                     .and_then(|created_by| created_by.parse::<CreatedBy>().ok()),
                 force_3ds_challenge: storage_model.force_3ds_challenge,
                 force_3ds_challenge_trigger: storage_model.force_3ds_challenge_trigger,
+                is_iframe_redirection_enabled: storage_model.is_iframe_redirection_enabled,
+                is_payment_id_from_merchant: storage_model.is_payment_id_from_merchant,
             })
         }
         .await
@@ -2105,7 +2151,7 @@ impl behaviour::Conversion for PaymentIntent {
             amount_captured: self.amount_captured,
             customer_id: self.customer_id,
             description: self.description,
-            return_url: self.return_url,
+            return_url: None, // deprecated
             metadata: self.metadata,
             connector_id: self.connector_id,
             shipping_address_id: self.shipping_address_id,
@@ -2157,6 +2203,9 @@ impl behaviour::Conversion for PaymentIntent {
             created_by: self.created_by.map(|cb| cb.to_string()),
             force_3ds_challenge: self.force_3ds_challenge,
             force_3ds_challenge_trigger: self.force_3ds_challenge_trigger,
+            is_iframe_redirection_enabled: self.is_iframe_redirection_enabled,
+            extended_return_url: self.return_url,
+            is_payment_id_from_merchant: self.is_payment_id_from_merchant,
         })
     }
 }

@@ -11,7 +11,7 @@ use common_utils::{
         MinorUnit, UnifiedCode, UnifiedMessage,
     },
 };
-#[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
+#[cfg(feature = "v1")]
 use common_utils::{generate_customer_id_of_default_length, types::keymanager::ToEncryptable};
 use error_stack::{report, ResultExt};
 use hyperswitch_domain_models::type_encryption::{crypto_operation, CryptoOperation};
@@ -222,10 +222,7 @@ pub fn should_create_connector_transfer_method(
     Ok(connector_transfer_method_id)
 }
 
-#[cfg(all(
-    any(feature = "v1", feature = "v2"),
-    not(feature = "payment_methods_v2")
-))]
+#[cfg(feature = "v1")]
 pub async fn save_payout_data_to_locker(
     state: &SessionState,
     payout_data: &mut PayoutData,
@@ -234,6 +231,7 @@ pub async fn save_payout_data_to_locker(
     connector_mandate_details: Option<serde_json::Value>,
     merchant_context: &domain::MerchantContext,
 ) -> RouterResult<()> {
+    let mut pm_id: Option<String> = None;
     let payouts = &payout_data.payouts;
     let key_manager_state = state.into();
     let (mut locker_req, card_details, bank_details, wallet_details, payment_method_type) =
@@ -373,14 +371,17 @@ pub async fn save_payout_data_to_locker(
 
             match existing_pm_by_pmid {
                 // If found, update locker's metadata [DELETE + INSERT OP], don't insert in payment_method's table
-                Ok(pm) => (
-                    false,
-                    if duplication_check == DataDuplicationCheck::MetaDataChanged {
-                        Some(pm.clone())
-                    } else {
-                        None
-                    },
-                ),
+                Ok(pm) => {
+                    pm_id = Some(pm.payment_method_id.clone());
+                    (
+                        false,
+                        if duplication_check == DataDuplicationCheck::MetaDataChanged {
+                            Some(pm.clone())
+                        } else {
+                            None
+                        },
+                    )
+                }
 
                 // If not found, use locker ref as locker_id
                 Err(err) => {
@@ -395,14 +396,17 @@ pub async fn save_payout_data_to_locker(
                             .await
                         {
                             // If found, update locker's metadata [DELETE + INSERT OP], don't insert in payment_methods table
-                            Ok(pm) => (
-                                false,
-                                if duplication_check == DataDuplicationCheck::MetaDataChanged {
-                                    Some(pm.clone())
-                                } else {
-                                    None
-                                },
-                            ),
+                            Ok(pm) => {
+                                pm_id = Some(pm.payment_method_id.clone());
+                                (
+                                    false,
+                                    if duplication_check == DataDuplicationCheck::MetaDataChanged {
+                                        Some(pm.clone())
+                                    } else {
+                                        None
+                                    },
+                                )
+                            }
                             Err(err) => {
                                 // If not found, update locker's metadata [DELETE + INSERT OP], and insert in payment_methods table
                                 if err.current_context().is_db_not_found() {
@@ -495,6 +499,7 @@ pub async fn save_payout_data_to_locker(
                             card_network: card_info.card_network,
                             card_type: card_info.card_type,
                             saved_to_locker: true,
+                            co_badged_card_data: None,
                         },
                     )
                 })
@@ -515,6 +520,7 @@ pub async fn save_payout_data_to_locker(
                             card_network: None,
                             card_type: None,
                             saved_to_locker: true,
+                            co_badged_card_data: None,
                         },
                     )
                 });
@@ -659,7 +665,14 @@ pub async fn save_payout_data_to_locker(
     // Store card_reference in payouts table
     let payout_method_id = match &payout_data.payment_method {
         Some(pm) => pm.payment_method_id.clone(),
-        None => stored_resp.card_reference.to_owned(),
+        None => {
+            if let Some(id) = pm_id {
+                id
+            } else {
+                Err(errors::ApiErrorResponse::InternalServerError)
+                    .attach_printable("Payment method was not found")?
+            }
+        }
     };
 
     let updated_payout = storage::PayoutsUpdate::PayoutMethodIdUpdate { payout_method_id };
@@ -678,7 +691,7 @@ pub async fn save_payout_data_to_locker(
     Ok(())
 }
 
-#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+#[cfg(feature = "v2")]
 pub async fn save_payout_data_to_locker(
     _state: &SessionState,
     _payout_data: &mut PayoutData,
@@ -690,7 +703,7 @@ pub async fn save_payout_data_to_locker(
     todo!()
 }
 
-#[cfg(all(feature = "v2", feature = "customer_v2"))]
+#[cfg(feature = "v2")]
 pub(super) async fn get_or_create_customer_details(
     _state: &SessionState,
     _customer_details: &CustomerDetails,
@@ -699,7 +712,7 @@ pub(super) async fn get_or_create_customer_details(
     todo!()
 }
 
-#[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
+#[cfg(feature = "v1")]
 pub(super) async fn get_or_create_customer_details(
     state: &SessionState,
     customer_details: &CustomerDetails,
@@ -810,14 +823,13 @@ pub(super) async fn get_or_create_customer_details(
                     .change_context(errors::ApiErrorResponse::InternalServerError)
                     .attach_printable_lazy(|| {
                         format!(
-                            "Failed to insert customer [id - {:?}] for merchant [id - {:?}]",
-                            customer_id, merchant_id
+                            "Failed to insert customer [id - {customer_id:?}] for merchant [id - {merchant_id:?}]",
                         )
                     })?,
                 ))
             } else {
                 Err(report!(errors::ApiErrorResponse::InvalidRequestData {
-                    message: format!("customer for id - {:?} not found", customer_id),
+                    message: format!("customer for id - {customer_id:?} not found"),
                 }))
             }
         }
@@ -847,7 +859,7 @@ pub async fn decide_payout_connector(
         .attach_printable("Invalid connector name received in 'routed_through'")?;
 
         routing_data.routed_through = Some(connector_name.clone());
-        return Ok(api::ConnectorCallType::PreDetermined(connector_data));
+        return Ok(api::ConnectorCallType::PreDetermined(connector_data.into()));
     }
 
     // Validate and get the business_profile from payout_attempt
@@ -897,6 +909,7 @@ pub async fn decide_payout_connector(
                     api::GetToken::Connector,
                     payout_attempt.merchant_connector_id.clone(),
                 )
+                .map(|connector_data| connector_data.into())
             })
             .collect::<CustomResult<Vec<_>, _>>()
             .change_context(errors::ApiErrorResponse::InternalServerError)
@@ -947,6 +960,7 @@ pub async fn decide_payout_connector(
                     api::GetToken::Connector,
                     payout_attempt.merchant_connector_id.clone(),
                 )
+                .map(|connector_data| connector_data.into())
             })
             .collect::<CustomResult<Vec<_>, _>>()
             .change_context(errors::ApiErrorResponse::InternalServerError)
@@ -980,7 +994,7 @@ pub async fn get_default_payout_connector(
     ))
 }
 
-#[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
+#[cfg(feature = "v1")]
 pub fn should_call_payout_connector_create_customer<'a>(
     state: &'a SessionState,
     connector: &'a api::ConnectorData,
@@ -1010,12 +1024,12 @@ pub fn should_call_payout_connector_create_customer<'a>(
     }
 }
 
-#[cfg(all(feature = "v2", feature = "customer_v2"))]
+#[cfg(feature = "v2")]
 pub fn should_call_payout_connector_create_customer<'a>(
     state: &'a SessionState,
     connector: &'a api::ConnectorData,
     customer: &'a Option<domain::Customer>,
-    merchant_connector_id: &'a id_type::MerchantConnectorAccountId,
+    merchant_connector_id: &'a domain::MerchantConnectorAccountTypeDetails,
 ) -> (bool, Option<&'a str>) {
     // Check if create customer is required for the connector
     match enums::PayoutConnectors::try_from(connector.connector_name) {
@@ -1161,7 +1175,7 @@ pub(super) async fn filter_by_constraints(
     Ok(result)
 }
 
-#[cfg(all(feature = "v2", feature = "customer_v2"))]
+#[cfg(feature = "v2")]
 pub async fn update_payouts_and_payout_attempt(
     _payout_data: &mut PayoutData,
     _merchant_context: &domain::MerchantContext,
@@ -1171,7 +1185,7 @@ pub async fn update_payouts_and_payout_attempt(
     todo!()
 }
 
-#[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
+#[cfg(feature = "v1")]
 pub async fn update_payouts_and_payout_attempt(
     payout_data: &mut PayoutData,
     merchant_context: &domain::MerchantContext,
@@ -1185,8 +1199,8 @@ pub async fn update_payouts_and_payout_attempt(
     if is_payout_terminal_state(status) || is_payout_initiated(status) {
         return Err(report!(errors::ApiErrorResponse::InvalidRequestData {
             message: format!(
-                "Payout {} cannot be updated for status {}",
-                payout_id, status
+                "Payout {} cannot be updated for status {status}",
+                payout_id.get_string_repr()
             ),
         }));
     }
@@ -1211,12 +1225,13 @@ pub async fn update_payouts_and_payout_attempt(
 
     // We have to do this because the function that is being used to create / get address is from payments
     // which expects a payment_id
-    let payout_id_as_payment_id_type =
-        id_type::PaymentId::try_from(std::borrow::Cow::Owned(payout_id.clone()))
-            .change_context(errors::ApiErrorResponse::InvalidRequestData {
-                message: "payout_id contains invalid data".to_string(),
-            })
-            .attach_printable("Error converting payout_id to PaymentId type")?;
+    let payout_id_as_payment_id_type = id_type::PaymentId::try_from(std::borrow::Cow::Owned(
+        payout_id.get_string_repr().to_string(),
+    ))
+    .change_context(errors::ApiErrorResponse::InvalidRequestData {
+        message: "payout_id contains invalid data for PaymentId conversion".to_string(),
+    })
+    .attach_printable("Error converting payout_id to PaymentId type")?;
 
     // Fetch address details from request and create new or else use existing address that was attached
     let billing_address = payment_helpers::create_or_find_address_for_payment_by_request(

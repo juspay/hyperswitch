@@ -31,6 +31,8 @@ pub async fn call_psync_api(
         force_sync: false,
         param: None,
         expand_attempts: true,
+        return_raw_connector_response: None,
+        merchant_connector_details: None,
     };
     let merchant_context_from_revenue_recovery_data =
         MerchantContext::NormalMerchant(Box::new(Context(
@@ -51,7 +53,7 @@ pub async fn call_psync_api(
         )
         .await?;
 
-    let (payment_data, _req, _, _, _) = Box::pin(payments::payments_operation_core::<
+    let (payment_data, _req, _, _, _, _) = Box::pin(payments::payments_operation_core::<
         api_types::PSync,
         _,
         _,
@@ -128,6 +130,7 @@ pub async fn call_proxy_api(
         get_tracker_response,
         payments::CallConnectorAction::Trigger,
         payments_domain::HeaderPayload::default(),
+        None,
     ))
     .await?;
     Ok(payment_data)
@@ -181,16 +184,22 @@ pub async fn record_internal_attempt_api(
             message: "get_revenue_recovery_attempt was not constructed".to_string(),
         })?;
 
-    let request_payload = revenue_recovery_attempt_data.create_payment_record_request(
-        &revenue_recovery_payment_data.billing_mca.id,
-        Some(
-            revenue_recovery_metadata
-                .active_attempt_payment_connector_id
-                .clone(),
-        ),
-        Some(revenue_recovery_metadata.connector),
-        common_enums::TriggeredBy::Internal,
-    );
+    let request_payload = revenue_recovery_attempt_data
+        .create_payment_record_request(
+            state,
+            &revenue_recovery_payment_data.billing_mca.id,
+            Some(
+                revenue_recovery_metadata
+                    .active_attempt_payment_connector_id
+                    .clone(),
+            ),
+            Some(revenue_recovery_metadata.connector),
+            common_enums::TriggeredBy::Internal,
+        )
+        .await
+        .change_context(errors::ApiErrorResponse::GenericNotFoundError {
+            message: "Cannot Create the payment record Request".to_string(),
+        })?;
 
     let merchant_context_from_revenue_recovery_payment_data =
         MerchantContext::NormalMerchant(Box::new(Context(

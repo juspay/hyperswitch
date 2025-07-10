@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use common_utils::types::TimeRange;
+use common_utils::types::{StringMinorUnit, TimeRange};
 use masking::{Deserialize, Serialize};
 use serde::de::Error;
 use time::PrimitiveDateTime;
@@ -19,7 +19,7 @@ pub struct DisputeResponse {
     /// The identifier for payment_attempt
     pub attempt_id: String,
     /// The dispute amount
-    pub amount: String,
+    pub amount: StringMinorUnit,
     /// The three-letter ISO currency code
     #[schema(value_type = Currency)]
     pub currency: Currency,

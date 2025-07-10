@@ -290,6 +290,8 @@ impl ForeignTryFrom<SuccessBasedRoutingConfigBody> for CalSuccessRateConfig {
                 SuccessRateSpecificityLevel::Merchant => Some(ProtoSpecificityLevel::Entity.into()),
                 SuccessRateSpecificityLevel::Global => Some(ProtoSpecificityLevel::Global.into()),
             },
+            exploration_percent: config.exploration_percent,
+            shuffle_on_tie_during_exploitation: config.shuffle_on_tie_during_exploitation,
         })
     }
 }

@@ -34,6 +34,7 @@ if (!isFramed) {
     var clientSecret = paymentDetails.client_secret;
     var sdkUiRules = paymentDetails.sdk_ui_rules;
     var labelType = paymentDetails.payment_form_label_type;
+    var colorIconCardCvcError = paymentDetails.color_icon_card_cvc_error;
     var appearance = {
       variables: {
         colorPrimary: paymentDetails.theme || "rgb(0, 109, 249)",
@@ -52,6 +53,9 @@ if (!isFramed) {
     }
     if (labelType !== null && typeof labelType === "string") {
       appearance.labels = labelType;
+    }
+    if (colorIconCardCvcError !== null && typeof colorIconCardCvcError === "string") {
+      appearance.variables.colorIconCardCvcError = colorIconCardCvcError;
     }
     // @ts-ignore
     hyper = window.Hyper(pub_key, {
@@ -123,8 +127,7 @@ if (!isFramed) {
   /**
    * Use - redirect to /payment_link/status
    */
-  function redirectToStatus() {
-    var paymentDetails = window.__PAYMENT_DETAILS;
+  function redirectToStatus(paymentDetails) {
     var arr = window.location.pathname.split("/");
 
     // NOTE - This code preserves '/api' in url for integ and sbx envs

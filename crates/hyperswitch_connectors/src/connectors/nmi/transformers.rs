@@ -477,7 +477,7 @@ pub struct CardThreeDsData {
     ccexp: Secret<String>,
     email: Option<Email>,
     cardholder_auth: Option<String>,
-    cavv: Option<String>,
+    cavv: Option<Secret<String>>,
     eci: Option<String>,
     cvv: Secret<String>,
     three_ds_version: Option<String>,
@@ -568,7 +568,8 @@ impl TryFrom<(&PaymentMethodData, Option<&PaymentsAuthorizeRouterData>)> for Pay
                 | WalletData::WeChatPayQr(_)
                 | WalletData::CashappQr(_)
                 | WalletData::SwishQr(_)
-                | WalletData::Mifinity(_) => Err(report!(ConnectorError::NotImplemented(
+                | WalletData::Mifinity(_)
+                | WalletData::RevolutPay(_) => Err(report!(ConnectorError::NotImplemented(
                     get_unimplemented_payment_method_error_message("nmi"),
                 ))),
             },
@@ -783,10 +784,10 @@ impl TryFrom<&PaymentsCancelRouterData> for NmiCancelRequest {
         let auth = NmiAuthType::try_from(&item.connector_auth_type)?;
         match &item.request.cancellation_reason {
             Some(cancellation_reason) => {
-                let void_reason: NmiVoidReason = serde_json::from_str(&format!("\"{}\"", cancellation_reason))
+                let void_reason: NmiVoidReason = serde_json::from_str(&format!("\"{cancellation_reason}\"", ))
                     .map_err(|_| ConnectorError::NotSupported {
-                        message: format!("Json deserialise error: unknown variant `{}` expected to be one of `fraud`, `user_cancel`, `icc_rejected`,  `icc_card_removed`, `icc_no_confirmation`, `pos_timeout`. This cancellation_reason", cancellation_reason), 
-                        connector: "nmi" 
+                        message: format!("Json deserialise error: unknown variant `{cancellation_reason}` expected to be one of `fraud`, `user_cancel`, `icc_rejected`,  `icc_card_removed`, `icc_no_confirmation`, `pos_timeout`. This cancellation_reason"),
+                        connector: "nmi"
                     })?;
                 Ok(Self {
                     transaction_type: TransactionType::Void,

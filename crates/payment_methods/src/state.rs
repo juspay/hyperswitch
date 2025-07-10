@@ -1,11 +1,10 @@
-#[cfg(all(
-    any(feature = "v1", feature = "v2"),
-    not(feature = "payment_methods_v2")
-))]
+#[cfg(feature = "v1")]
 use common_utils::errors::CustomResult;
 use common_utils::types::keymanager;
+#[cfg(feature = "v1")]
+use hyperswitch_domain_models::merchant_account;
 use hyperswitch_domain_models::{
-    cards_info, customer, merchant_account, merchant_key_store, payment_methods as pm_domain,
+    cards_info, customer, merchant_key_store, payment_methods as pm_domain,
 };
 use storage_impl::{errors, kv_router_store::KVRouterStore, DatabaseStore, MockDb, RouterStore};
 
@@ -42,10 +41,7 @@ impl From<&PaymentMethodsState> for keymanager::KeyManagerState {
         state.key_manager_state.clone()
     }
 }
-#[cfg(all(
-    any(feature = "v1", feature = "v2"),
-    not(feature = "payment_methods_v2")
-))]
+#[cfg(feature = "v1")]
 impl PaymentMethodsState {
     pub async fn find_payment_method(
         &self,

@@ -2,17 +2,11 @@ pub mod transformers;
 
 use base64::Engine;
 #[cfg(all(feature = "v2", feature = "revenue_recovery"))]
-use common_utils::request::{Method, Request, RequestBuilder, RequestContent};
+use common_utils::request::{Method, Request, RequestBuilder};
 use common_utils::{consts, errors::CustomResult, ext_traits::BytesExt};
-use error_stack::{report, ResultExt};
-#[cfg(all(feature = "v2", feature = "revenue_recovery"))]
-use hyperswitch_domain_models::{
-    revenue_recovery, router_data_v2::flow_common_types as recovery_flow_common_types,
-    router_flow_types::revenue_recovery as recovery_router_flows,
-    router_request_types::revenue_recovery as recovery_request_types,
-    router_response_types::revenue_recovery as recovery_response_types,
-    types as recovery_router_data_types,
-};
+#[cfg(feature = "v1")]
+use error_stack::report;
+use error_stack::ResultExt;
 use hyperswitch_domain_models::{
     router_data::{ConnectorAuthType, ErrorResponse},
     router_data_v2::UasFlowData,
@@ -23,6 +17,14 @@ use hyperswitch_domain_models::{
         UasAuthenticationRequestData, UasAuthenticationResponseData, UasConfirmationRequestData,
         UasPostAuthenticationRequestData, UasPreAuthenticationRequestData,
     },
+};
+#[cfg(all(feature = "v2", feature = "revenue_recovery"))]
+use hyperswitch_domain_models::{
+    router_data_v2::flow_common_types as recovery_flow_common_types,
+    router_flow_types::revenue_recovery as recovery_router_flows,
+    router_request_types::revenue_recovery as recovery_request_types,
+    router_response_types::revenue_recovery as recovery_response_types,
+    types as recovery_router_data_types,
 };
 #[cfg(all(feature = "v2", feature = "revenue_recovery"))]
 use hyperswitch_interfaces::types;
@@ -43,7 +45,6 @@ use crate::{connectors::recurly::transformers::RecurlyWebhookBody, constants::he
 use crate::{
     connectors::recurly::transformers::{RecurlyRecordStatus, RecurlyRecoveryDetailsData},
     types::ResponseRouterDataV2,
-    utils,
 };
 #[cfg(all(feature = "v2", feature = "revenue_recovery"))]
 const STATUS_SUCCESSFUL_ENDPOINT: &str = "mark_successful";
@@ -52,7 +53,7 @@ const STATUS_FAILED_ENDPOINT: &str = "mark_failed";
 
 const RECURLY_API_VERSION: &str = "application/vnd.recurly.v2021-02-25";
 
-// We don't need an amount converter beacuse we are not using it anywhere in code, but it's important to note that Float Major Unit is the standard format used by Recurly.
+// We don't need an amount converter because we are not using it anywhere in code, but it's important to note that Float Major Unit is the standard format used by Recurly.
 #[derive(Clone)]
 pub struct Recurly {
     // amount_converter: &'static (dyn AmountConvertor<Output = FloatMajorUnit> + Sync),

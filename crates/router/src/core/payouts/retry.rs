@@ -23,7 +23,7 @@ use crate::{
 #[allow(clippy::too_many_arguments)]
 pub async fn do_gsm_multiple_connector_actions(
     state: &app::SessionState,
-    mut connectors: IntoIter<api::ConnectorData>,
+    mut connectors_routing_data: IntoIter<api::ConnectorRoutingData>,
     original_connector_data: api::ConnectorData,
     payout_data: &mut PayoutData,
     merchant_context: &domain::MerchantContext,
@@ -53,13 +53,13 @@ pub async fn do_gsm_multiple_connector_actions(
                     break;
                 }
 
-                if connectors.len() == 0 {
+                if connectors_routing_data.len() == 0 {
                     logger::info!("connectors exhausted for auto_retry payout");
                     metrics::AUTO_PAYOUT_RETRY_EXHAUSTED_COUNT.add(1, &[]);
                     break;
                 }
 
-                connector = super::get_next_connector(&mut connectors)?;
+                connector = super::get_next_connector(&mut connectors_routing_data)?.connector_data;
 
                 Box::pin(do_retry(
                     &state.clone(),
@@ -269,12 +269,18 @@ pub async fn modify_trackers(
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Error updating payouts")?;
 
-    let payout_attempt_id =
-        utils::get_payout_attempt_id(payout_id.to_owned(), payout_data.payouts.attempt_count);
+    let payout_attempt_id = utils::get_payout_attempt_id(
+        payout_id.get_string_repr(),
+        payout_data.payouts.attempt_count,
+    );
 
     let payout_attempt_req = storage::PayoutAttemptNew {
         payout_attempt_id: payout_attempt_id.to_string(),
         payout_id: payout_id.to_owned(),
+        merchant_order_reference_id: payout_data
+            .payout_attempt
+            .merchant_order_reference_id
+            .clone(),
         customer_id: payout_data.payout_attempt.customer_id.to_owned(),
         connector: Some(connector.connector_name.to_string()),
         merchant_id: payout_data.payout_attempt.merchant_id.to_owned(),

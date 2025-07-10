@@ -1,7 +1,4 @@
 pub mod transformers;
-
-use std::sync::LazyLock;
-
 use base64::Engine;
 use common_enums::{enums, PaymentAction};
 use common_utils::{
@@ -9,7 +6,10 @@ use common_utils::{
     errors::{CustomResult, ReportSwitchExt},
     ext_traits::ByteSliceExt,
     request::{Method, Request, RequestBuilder, RequestContent},
-    types::{AmountConvertor, StringMajorUnit, StringMajorUnitForConnector},
+    types::{
+        AmountConvertor, FloatMajorUnit, FloatMajorUnitForConnector, StringMajorUnit,
+        StringMajorUnitForConnector, StringMinorUnit, StringMinorUnitForConnector,
+    },
 };
 use error_stack::{Report, ResultExt};
 use hyperswitch_domain_models::{
@@ -25,10 +25,7 @@ use hyperswitch_domain_models::{
         PaymentsCancelData, PaymentsCaptureData, PaymentsPreProcessingData, PaymentsSessionData,
         PaymentsSyncData, RefundsData, SetupMandateRequestData,
     },
-    router_response_types::{
-        ConnectorInfo, PaymentMethodDetails, PaymentsResponseData, RefundsResponseData,
-        SupportedPaymentMethods, SupportedPaymentMethodsExt,
-    },
+    router_response_types::{PaymentsResponseData, RefundsResponseData},
     types::{
         PaymentsAuthorizeRouterData, PaymentsPreProcessingRouterData, PaymentsSyncRouterData,
         RefreshTokenRouterData, RefundSyncRouterData, RefundsRouterData,
@@ -56,18 +53,24 @@ use transformers as trustpay;
 use crate::{
     constants::headers,
     types::ResponseRouterData,
-    utils::{self, ConnectorErrorType, PaymentsPreProcessingRequestData},
+    utils::{self, self as connector_utils, ConnectorErrorType, PaymentsPreProcessingRequestData},
 };
 
 #[derive(Clone)]
 pub struct Trustpay {
     amount_converter: &'static (dyn AmountConvertor<Output = StringMajorUnit> + Sync),
+    amount_converter_to_float_major_unit:
+        &'static (dyn AmountConvertor<Output = FloatMajorUnit> + Sync),
+    amount_converter_to_string_minor_unit:
+        &'static (dyn AmountConvertor<Output = StringMinorUnit> + Sync),
 }
 
 impl Trustpay {
     pub fn new() -> &'static Self {
         &Self {
             amount_converter: &StringMajorUnitForConnector,
+            amount_converter_to_float_major_unit: &FloatMajorUnitForConnector,
+            amount_converter_to_string_minor_unit: &StringMinorUnitForConnector,
         }
     }
 }
@@ -260,7 +263,7 @@ impl ConnectorIntegration<AccessTokenAuth, AccessTokenRequestData, AccessToken> 
                 format!(
                     "Basic {}",
                     common_utils::consts::BASE64_ENGINE
-                        .encode(format!("{}:{}", project_id, secret_key))
+                        .encode(format!("{project_id}:{secret_key}"))
                 )
             });
         Ok(vec![
@@ -420,15 +423,69 @@ impl ConnectorIntegration<PSync, PaymentsSyncData, PaymentsResponseData> for Tru
             .parse_struct("trustpay PaymentsResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
 
-        event_builder.map(|i| i.set_response_body(&response));
-        router_env::logger::info!(connector_response=?response);
+        match &response {
+            trustpay::TrustpayPaymentsResponse::WebhookResponse(webhook_response) => {
+                let response_integrity_object = connector_utils::get_sync_integrity_object(
+                    self.amount_converter_to_float_major_unit,
+                    webhook_response.amount.amount,
+                    webhook_response.amount.currency.to_string(),
+                )?;
 
-        RouterData::try_from(ResponseRouterData {
-            response,
-            data: data.clone(),
-            http_code: res.status_code,
-        })
-        .change_context(errors::ConnectorError::ResponseHandlingFailed)
+                event_builder.map(|i| i.set_response_body(&response));
+                router_env::logger::info!(connector_response=?response);
+
+                RouterData::try_from(ResponseRouterData {
+                    response,
+                    data: data.clone(),
+                    http_code: res.status_code,
+                })
+                .map(|mut router_data| {
+                    router_data.request.integrity_object = Some(response_integrity_object);
+                    router_data
+                })
+                .change_context(errors::ConnectorError::ResponseHandlingFailed)
+            }
+
+            trustpay::TrustpayPaymentsResponse::BankRedirectSync(bank_redirect_sync_response) => {
+                let response_integrity_object = connector_utils::get_sync_integrity_object(
+                    self.amount_converter_to_float_major_unit,
+                    bank_redirect_sync_response
+                        .payment_information
+                        .amount
+                        .amount,
+                    bank_redirect_sync_response
+                        .payment_information
+                        .amount
+                        .currency
+                        .to_string(),
+                )?;
+
+                event_builder.map(|i| i.set_response_body(&response));
+                router_env::logger::info!(connector_response=?response);
+
+                RouterData::try_from(ResponseRouterData {
+                    response,
+                    data: data.clone(),
+                    http_code: res.status_code,
+                })
+                .map(|mut router_data| {
+                    router_data.request.integrity_object = Some(response_integrity_object);
+                    router_data
+                })
+                .change_context(errors::ConnectorError::ResponseHandlingFailed)
+            }
+
+            _ => {
+                event_builder.map(|i| i.set_response_body(&response));
+                router_env::logger::info!(connector_response=?response);
+                RouterData::try_from(ResponseRouterData {
+                    response,
+                    data: data.clone(),
+                    http_code: res.status_code,
+                })
+                .change_context(errors::ConnectorError::ResponseHandlingFailed)
+            }
+        }
     }
 }
 
@@ -806,6 +863,29 @@ impl ConnectorIntegration<RSync, RefundsData, RefundsResponseData> for Trustpay 
             .parse_struct("trustpay RefundResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
 
+        if let trustpay::RefundResponse::WebhookRefund(ref webhook_response) = response {
+            let response_integrity_object = connector_utils::get_refund_integrity_object(
+                self.amount_converter_to_float_major_unit,
+                webhook_response.amount.amount,
+                webhook_response.amount.currency.to_string(),
+            )?;
+
+            event_builder.map(|i| i.set_response_body(&response));
+            router_env::logger::info!(connector_response=?response);
+
+            let new_router_data = RouterData::try_from(ResponseRouterData {
+                response,
+                data: data.clone(),
+                http_code: res.status_code,
+            });
+
+            return new_router_data
+                .map(|mut router_data| {
+                    router_data.request.integrity_object = Some(response_integrity_object);
+                    router_data
+                })
+                .change_context(errors::ConnectorError::ResponseHandlingFailed);
+        }
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
 
@@ -836,26 +916,26 @@ impl webhooks::IncomingWebhook for Trustpay {
             .body
             .parse_struct("TrustpayWebhookResponse")
             .switch()?;
+        let payment_attempt_id = details
+            .payment_information
+            .references
+            .merchant_reference
+            .ok_or(errors::ConnectorError::WebhookReferenceIdNotFound)?;
+
         match details.payment_information.credit_debit_indicator {
             trustpay::CreditDebitIndicator::Crdt => {
                 Ok(api_models::webhooks::ObjectReferenceId::PaymentId(
-                    api_models::payments::PaymentIdType::PaymentAttemptId(
-                        details.payment_information.references.merchant_reference,
-                    ),
+                    api_models::payments::PaymentIdType::PaymentAttemptId(payment_attempt_id),
                 ))
             }
             trustpay::CreditDebitIndicator::Dbit => {
                 if details.payment_information.status == trustpay::WebhookStatus::Chargebacked {
                     Ok(api_models::webhooks::ObjectReferenceId::PaymentId(
-                        api_models::payments::PaymentIdType::PaymentAttemptId(
-                            details.payment_information.references.merchant_reference,
-                        ),
+                        api_models::payments::PaymentIdType::PaymentAttemptId(payment_attempt_id),
                     ))
                 } else {
                     Ok(api_models::webhooks::ObjectReferenceId::RefundId(
-                        api_models::webhooks::RefundIdType::RefundId(
-                            details.payment_information.references.merchant_reference,
-                        ),
+                        api_models::webhooks::RefundIdType::RefundId(payment_attempt_id),
                     ))
                 }
             }
@@ -970,8 +1050,17 @@ impl webhooks::IncomingWebhook for Trustpay {
             .references
             .payment_id
             .ok_or(errors::ConnectorError::WebhookReferenceIdNotFound)?;
+        let amount = utils::convert_back_amount_to_minor_units(
+            self.amount_converter_to_float_major_unit,
+            payment_info.amount.amount,
+            payment_info.amount.currency,
+        )?;
         Ok(DisputePayload {
-            amount: payment_info.amount.amount.to_string(),
+            amount: utils::convert_amount(
+                self.amount_converter_to_string_minor_unit,
+                amount,
+                payment_info.amount.currency,
+            )?,
             currency: payment_info.amount.currency,
             dispute_stage: api_models::enums::DisputeStage::Dispute,
             connector_dispute_id,
@@ -1060,158 +1149,4 @@ impl utils::ConnectorErrorTypeMapping for Trustpay {
     }
 }
 
-static TRUSTPAY_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMethods> =
-    LazyLock::new(|| {
-        let supported_capture_methods = Vec::new();
-
-        let mut trustpay_supported_payment_methods = SupportedPaymentMethods::new();
-        let supported_card_network = vec![
-            common_enums::CardNetwork::Visa,
-            common_enums::CardNetwork::Mastercard,
-            common_enums::CardNetwork::AmericanExpress,
-            common_enums::CardNetwork::DinersClub,
-            common_enums::CardNetwork::Discover,
-            common_enums::CardNetwork::Interac,
-            common_enums::CardNetwork::JCB,
-            common_enums::CardNetwork::CartesBancaires,
-            common_enums::CardNetwork::UnionPay,
-        ];
-
-        trustpay_supported_payment_methods.add(
-            enums::PaymentMethod::Card,
-            enums::PaymentMethodType::Debit,
-            PaymentMethodDetails {
-                mandates: enums::FeatureStatus::NotSupported,
-                refunds: enums::FeatureStatus::Supported,
-                supported_capture_methods: supported_capture_methods.clone(),
-                specific_features: Some(
-                    api_models::feature_matrix::PaymentMethodSpecificFeatures::Card({
-                        api_models::feature_matrix::CardSpecificFeatures {
-                            three_ds: common_enums::FeatureStatus::NotSupported,
-                            no_three_ds: common_enums::FeatureStatus::Supported,
-                            supported_card_networks: supported_card_network.clone(),
-                        }
-                    }),
-                ),
-            },
-        );
-
-        trustpay_supported_payment_methods.add(
-            enums::PaymentMethod::Card,
-            enums::PaymentMethodType::Credit,
-            PaymentMethodDetails {
-                mandates: enums::FeatureStatus::NotSupported,
-                refunds: enums::FeatureStatus::Supported,
-                supported_capture_methods: supported_capture_methods.clone(),
-                specific_features: Some(
-                    api_models::feature_matrix::PaymentMethodSpecificFeatures::Card({
-                        api_models::feature_matrix::CardSpecificFeatures {
-                            three_ds: common_enums::FeatureStatus::NotSupported,
-                            no_three_ds: common_enums::FeatureStatus::Supported,
-                            supported_card_networks: supported_card_network.clone(),
-                        }
-                    }),
-                ),
-            },
-        );
-
-        trustpay_supported_payment_methods.add(
-            enums::PaymentMethod::BankRedirect,
-            enums::PaymentMethodType::Giropay,
-            PaymentMethodDetails {
-                mandates: enums::FeatureStatus::NotSupported,
-                refunds: enums::FeatureStatus::Supported,
-                supported_capture_methods: supported_capture_methods.clone(),
-                specific_features: None,
-            },
-        );
-
-        trustpay_supported_payment_methods.add(
-            enums::PaymentMethod::BankRedirect,
-            enums::PaymentMethodType::Eps,
-            PaymentMethodDetails {
-                mandates: enums::FeatureStatus::NotSupported,
-                refunds: enums::FeatureStatus::Supported,
-                supported_capture_methods: supported_capture_methods.clone(),
-                specific_features: None,
-            },
-        );
-
-        trustpay_supported_payment_methods.add(
-            enums::PaymentMethod::BankRedirect,
-            enums::PaymentMethodType::Ideal,
-            PaymentMethodDetails {
-                mandates: enums::FeatureStatus::NotSupported,
-                refunds: enums::FeatureStatus::Supported,
-                supported_capture_methods: supported_capture_methods.clone(),
-                specific_features: None,
-            },
-        );
-        trustpay_supported_payment_methods.add(
-            enums::PaymentMethod::BankRedirect,
-            enums::PaymentMethodType::Sofort,
-            PaymentMethodDetails {
-                mandates: enums::FeatureStatus::NotSupported,
-                refunds: enums::FeatureStatus::Supported,
-                supported_capture_methods: supported_capture_methods.clone(),
-                specific_features: None,
-            },
-        );
-        trustpay_supported_payment_methods.add(
-            enums::PaymentMethod::BankRedirect,
-            enums::PaymentMethodType::Blik,
-            PaymentMethodDetails {
-                mandates: enums::FeatureStatus::NotSupported,
-                refunds: enums::FeatureStatus::Supported,
-                supported_capture_methods: supported_capture_methods.clone(),
-                specific_features: None,
-            },
-        );
-        trustpay_supported_payment_methods.add(
-            enums::PaymentMethod::BankTransfer,
-            enums::PaymentMethodType::SepaBankTransfer,
-            PaymentMethodDetails {
-                mandates: enums::FeatureStatus::NotSupported,
-                refunds: enums::FeatureStatus::Supported,
-                supported_capture_methods: supported_capture_methods.clone(),
-                specific_features: None,
-            },
-        );
-        trustpay_supported_payment_methods.add(
-            enums::PaymentMethod::BankTransfer,
-            enums::PaymentMethodType::InstantBankTransfer,
-            PaymentMethodDetails {
-                mandates: enums::FeatureStatus::NotSupported,
-                refunds: enums::FeatureStatus::Supported,
-                supported_capture_methods: supported_capture_methods.clone(),
-                specific_features: None,
-            },
-        );
-        trustpay_supported_payment_methods
-    });
-
-static TRUSTPAY_CONNECTOR_INFO: ConnectorInfo = ConnectorInfo {
-        display_name: "Trustpay",
-        description: "TrustPay is a Slovakia-based company specializing in secure e-commerce payments, particularly within the EEA area.",
-        connector_type: enums::PaymentConnectorCategory::PaymentGateway,
-    };
-
-static TRUSTPAY_SUPPORTED_WEBHOOK_FLOWS: [enums::EventClass; 3] = [
-    enums::EventClass::Payments,
-    enums::EventClass::Refunds,
-    enums::EventClass::Disputes,
-];
-
-impl ConnectorSpecifications for Trustpay {
-    fn get_connector_about(&self) -> Option<&'static ConnectorInfo> {
-        Some(&TRUSTPAY_CONNECTOR_INFO)
-    }
-
-    fn get_supported_payment_methods(&self) -> Option<&'static SupportedPaymentMethods> {
-        Some(&*TRUSTPAY_SUPPORTED_PAYMENT_METHODS)
-    }
-
-    fn get_supported_webhook_flows(&self) -> Option<&'static [enums::EventClass]> {
-        Some(&TRUSTPAY_SUPPORTED_WEBHOOK_FLOWS)
-    }
-}
+impl ConnectorSpecifications for Trustpay {}

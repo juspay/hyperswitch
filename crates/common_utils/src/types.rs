@@ -13,6 +13,7 @@ use std::{
     borrow::Cow,
     fmt::Display,
     iter::Sum,
+    num::NonZeroI64,
     ops::{Add, Mul, Sub},
     primitive::i64,
     str::FromStr,
@@ -62,8 +63,8 @@ pub struct Percentage<const PRECISION: u8> {
 
 fn get_invalid_percentage_error_message(precision: u8) -> String {
     format!(
-        "value should be a float between 0 to 100 and precise to only upto {} decimal digits",
-        precision
+        "value should be a float between 0 to 100 and precise to only upto {precision} decimal digits",
+
     )
 }
 
@@ -101,8 +102,7 @@ impl<const PRECISION: u8> Percentage<PRECISION> {
                 amount: MinorUnit::new(amount),
             }))
             .attach_printable(format!(
-                "Cannot calculate percentage for amount greater than {}",
-                max_amount
+                "Cannot calculate percentage for amount greater than {max_amount}",
             ))
         } else {
             let percentage_f64 = f64::from(self.percentage);
@@ -168,7 +168,7 @@ impl<'de, const PRECISION: u8> Visitor<'de> for PercentageVisitor<PRECISION> {
             let string_value = value.to_string();
             Ok(Percentage::from_string(string_value.clone()).map_err(|_| {
                 serde::de::Error::invalid_value(
-                    serde::de::Unexpected::Other(&format!("percentage value {}", string_value)),
+                    serde::de::Unexpected::Other(&format!("percentage value {string_value}")),
                     &&*get_invalid_percentage_error_message(PRECISION),
                 )
             })?)
@@ -402,6 +402,11 @@ impl MinorUnit {
         Self(value)
     }
 
+    /// checks if the amount is greater than the given value
+    pub fn is_greater_than(&self, value: i64) -> bool {
+        self.get_amount_as_i64() > value
+    }
+
     /// Convert the amount to its major denomination based on Currency and return String
     /// Paypal Connector accepts Zero and Two decimal currency but not three decimal and it should be updated as required for 3 decimal currencies.
     /// Paypal Ref - https://developer.paypal.com/docs/reports/reference/paypal-supported-currencies/
@@ -444,6 +449,12 @@ impl MinorUnit {
     ///Convert minor unit to string minor unit
     fn to_minor_unit_as_string(self) -> Result<StringMinorUnit, error_stack::Report<ParsingError>> {
         Ok(StringMinorUnit::new(self.0.to_string()))
+    }
+}
+
+impl From<NonZeroI64> for MinorUnit {
+    fn from(val: NonZeroI64) -> Self {
+        Self::new(val.get())
     }
 }
 
@@ -515,7 +526,20 @@ impl Sum for MinorUnit {
 }
 
 /// Connector specific types to send
-#[derive(Default, Debug, serde::Deserialize, serde::Serialize, Clone, PartialEq)]
+#[derive(
+    Default,
+    Debug,
+    serde::Deserialize,
+    AsExpression,
+    serde::Serialize,
+    Clone,
+    PartialEq,
+    Eq,
+    Hash,
+    ToSchema,
+    PartialOrd,
+)]
+#[diesel(sql_type = sql_types::Text)]
 pub struct StringMinorUnit(String);
 
 impl StringMinorUnit {
@@ -536,6 +560,45 @@ impl StringMinorUnit {
             .to_i64()
             .ok_or(ParsingError::DecimalToI64ConversionFailure)?;
         Ok(MinorUnit::new(amount_i64))
+    }
+}
+
+impl Display for StringMinorUnit {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.0)
+    }
+}
+
+impl<DB> FromSql<sql_types::Text, DB> for StringMinorUnit
+where
+    DB: Backend,
+    String: FromSql<sql_types::Text, DB>,
+{
+    fn from_sql(value: DB::RawValue<'_>) -> deserialize::Result<Self> {
+        let val = String::from_sql(value)?;
+        Ok(Self(val))
+    }
+}
+
+impl<DB> ToSql<sql_types::Text, DB> for StringMinorUnit
+where
+    DB: Backend,
+    String: ToSql<sql_types::Text, DB>,
+{
+    fn to_sql<'b>(&'b self, out: &mut Output<'b, '_, DB>) -> diesel::serialize::Result {
+        self.0.to_sql(out)
+    }
+}
+
+impl<DB> Queryable<sql_types::Text, DB> for StringMinorUnit
+where
+    DB: Backend,
+    Self: FromSql<sql_types::Text, DB>,
+{
+    type Row = Self;
+
+    fn build(row: Self::Row) -> deserialize::Result<Self> {
+        Ok(row)
     }
 }
 
@@ -1225,8 +1288,7 @@ impl ConnectorTransactionId {
                 message: "processor_transaction_data is empty for HashedData variant".to_string(),
             })
             .attach_printable(format!(
-                "processor_transaction_data is empty for connector_transaction_id {}",
-                id
+                "processor_transaction_data is empty for connector_transaction_id {id}",
             ))),
         }
     }
@@ -1244,7 +1306,7 @@ impl From<String> for ConnectorTransactionId {
             hasher.update(src.as_bytes());
             hasher.finalize_xof().fill(&mut output);
             let hash = hex::encode(output);
-            Self::HashedData(format!("hs_hash_{}", hash))
+            Self::HashedData(format!("hs_hash_{hash}"))
         // Default
         } else {
             Self::TxnId(src)
@@ -1359,7 +1421,7 @@ where
 }
 
 impl_enum_str!(
-    tag_delimeter = ":",
+    tag_delimiter = ":",
     /// CreatedBy conveys the information about the creator (identifier) as well as the origin or
     /// trigger (Api, Jwt) of the record.
     #[derive(Eq, PartialEq, Debug, Clone)]

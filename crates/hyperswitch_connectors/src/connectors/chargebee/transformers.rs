@@ -335,6 +335,8 @@ pub struct ChargebeePaymentMethodDetails {
 #[derive(Serialize, Deserialize, Debug)]
 pub struct ChargebeeCardDetails {
     funding_type: ChargebeeFundingType,
+    brand: common_enums::CardNetwork,
+    iin: String,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -505,6 +507,10 @@ impl TryFrom<ChargebeeWebhookBody> for revenue_recovery::RevenueRecoveryAttemptD
             network_error_message: None,
             retry_count,
             invoice_next_billing_time,
+            card_network: Some(payment_method_details.card.brand),
+            card_isin: Some(payment_method_details.card.iin),
+            // This field is none because it is specific to stripebilling.
+            charge_id: None,
         })
     }
 }
@@ -685,13 +691,12 @@ impl TryFrom<enums::AttemptStatus> for ChargebeeRecordStatus {
             | enums::AttemptStatus::Pending
             | enums::AttemptStatus::PaymentMethodAwaited
             | enums::AttemptStatus::ConfirmationAwaited
-            | enums::AttemptStatus::DeviceDataCollectionPending => {
-                Err(errors::ConnectorError::NotSupported {
-                    message: "Record back flow is only supported for terminal status".to_string(),
-                    connector: "chargebee",
-                }
-                .into())
+            | enums::AttemptStatus::DeviceDataCollectionPending
+            | enums::AttemptStatus::IntegrityFailure => Err(errors::ConnectorError::NotSupported {
+                message: "Record back flow is only supported for terminal status".to_string(),
+                connector: "chargebee",
             }
+            .into()),
         }
     }
 }

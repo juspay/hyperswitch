@@ -6,8 +6,10 @@ use crate::routing::{
     LinkedRoutingConfigRetrieveResponse, MerchantRoutingAlgorithm, ProfileDefaultRoutingConfig,
     RoutingAlgorithmId, RoutingConfigRequest, RoutingDictionaryRecord, RoutingKind,
     RoutingLinkWrapper, RoutingPayloadWrapper, RoutingRetrieveLinkQuery,
-    RoutingRetrieveLinkQueryWrapper, RoutingRetrieveQuery, RoutingVolumeSplitWrapper,
-    SuccessBasedRoutingConfig, SuccessBasedRoutingPayloadWrapper, ToggleDynamicRoutingQuery,
+    RoutingRetrieveLinkQueryWrapper, RoutingRetrieveQuery, RoutingVolumeSplit,
+    RoutingVolumeSplitResponse, RoutingVolumeSplitWrapper, RuleMigrationError, RuleMigrationQuery,
+    RuleMigrationResponse, RuleMigrationResult, SuccessBasedRoutingConfig,
+    SuccessBasedRoutingPayloadWrapper, ToggleDynamicRoutingPath, ToggleDynamicRoutingQuery,
     ToggleDynamicRoutingWrapper,
 };
 
@@ -130,6 +132,48 @@ impl ApiEventMetric for DynamicRoutingUpdateConfigQuery {
 }
 
 impl ApiEventMetric for RoutingVolumeSplitWrapper {
+    fn get_api_event_type(&self) -> Option<ApiEventsType> {
+        Some(ApiEventsType::Routing)
+    }
+}
+
+impl ApiEventMetric for ToggleDynamicRoutingPath {
+    fn get_api_event_type(&self) -> Option<ApiEventsType> {
+        Some(ApiEventsType::Routing)
+    }
+}
+
+impl ApiEventMetric for RoutingVolumeSplitResponse {
+    fn get_api_event_type(&self) -> Option<ApiEventsType> {
+        Some(ApiEventsType::Routing)
+    }
+}
+
+impl ApiEventMetric for RoutingVolumeSplit {
+    fn get_api_event_type(&self) -> Option<ApiEventsType> {
+        Some(ApiEventsType::Routing)
+    }
+}
+
+impl ApiEventMetric for RuleMigrationQuery {
+    fn get_api_event_type(&self) -> Option<ApiEventsType> {
+        Some(ApiEventsType::Routing)
+    }
+}
+
+impl ApiEventMetric for RuleMigrationResponse {
+    fn get_api_event_type(&self) -> Option<ApiEventsType> {
+        Some(ApiEventsType::Routing)
+    }
+}
+
+impl ApiEventMetric for RuleMigrationResult {
+    fn get_api_event_type(&self) -> Option<ApiEventsType> {
+        Some(ApiEventsType::Routing)
+    }
+}
+
+impl ApiEventMetric for RuleMigrationError {
     fn get_api_event_type(&self) -> Option<ApiEventsType> {
         Some(ApiEventsType::Routing)
     }

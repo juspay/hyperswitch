@@ -64,6 +64,7 @@ impl VerifyConnectorData {
             merchant_account_id: None,
             merchant_config_currency: None,
             connector_testing_data: None,
+            order_id: None,
         }
     }
 
@@ -126,6 +127,8 @@ impl VerifyConnectorData {
             connector_mandate_request_reference_id: None,
             authentication_id: None,
             psd2_sca_exemption_type: None,
+            raw_connector_response: None,
+            is_payment_id_from_merchant: None,
         }
     }
 }

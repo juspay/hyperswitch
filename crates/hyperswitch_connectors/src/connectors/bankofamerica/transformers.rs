@@ -327,7 +327,8 @@ impl TryFrom<&SetupMandateRouterData> for BankOfAmericaPaymentsRequest {
                 | WalletData::WeChatPayQr(_)
                 | WalletData::CashappQr(_)
                 | WalletData::SwishQr(_)
-                | WalletData::Mifinity(_) => Err(errors::ConnectorError::NotImplemented(
+                | WalletData::Mifinity(_)
+                | WalletData::RevolutPay(_) => Err(errors::ConnectorError::NotImplemented(
                     utils::get_unimplemented_payment_method_error_message("BankOfAmerica"),
                 ))?,
             },
@@ -556,7 +557,12 @@ fn get_boa_card_type(card_network: common_enums::CardNetwork) -> Option<&'static
         common_enums::CardNetwork::UnionPay => Some("062"),
         //"042" is the type code for Masetro Cards(International). For Maestro Cards(UK-Domestic) the mapping should be "024"
         common_enums::CardNetwork::Maestro => Some("042"),
-        common_enums::CardNetwork::Interac | common_enums::CardNetwork::RuPay => None,
+        common_enums::CardNetwork::Interac
+        | common_enums::CardNetwork::RuPay
+        | common_enums::CardNetwork::Star
+        | common_enums::CardNetwork::Accel
+        | common_enums::CardNetwork::Pulse
+        | common_enums::CardNetwork::Nyce => None,
     }
 }
 
@@ -1104,7 +1110,8 @@ impl TryFrom<&BankOfAmericaRouterData<&PaymentsAuthorizeRouterData>>
                         | WalletData::WeChatPayQr(_)
                         | WalletData::CashappQr(_)
                         | WalletData::SwishQr(_)
-                        | WalletData::Mifinity(_) => Err(errors::ConnectorError::NotImplemented(
+                        | WalletData::Mifinity(_)
+                        | WalletData::RevolutPay(_) => Err(errors::ConnectorError::NotImplemented(
                             utils::get_unimplemented_payment_method_error_message(
                                 "Bank of America",
                             ),
@@ -2722,18 +2729,16 @@ pub fn get_error_reason(
 ) -> Option<String> {
     match (error_info, detailed_error_info, avs_error_info) {
         (Some(message), Some(details), Some(avs_message)) => Some(format!(
-            "{}, detailed_error_information: {}, avs_message: {}",
-            message, details, avs_message
+            "{message}, detailed_error_information: {details}, avs_message: {avs_message}",
         )),
-        (Some(message), Some(details), None) => Some(format!(
-            "{}, detailed_error_information: {}",
-            message, details
-        )),
+        (Some(message), Some(details), None) => {
+            Some(format!("{message}, detailed_error_information: {details}"))
+        }
         (Some(message), None, Some(avs_message)) => {
-            Some(format!("{}, avs_message: {}", message, avs_message))
+            Some(format!("{message}, avs_message: {avs_message}"))
         }
         (None, Some(details), Some(avs_message)) => {
-            Some(format!("{}, avs_message: {}", details, avs_message))
+            Some(format!("{details}, avs_message: {avs_message}"))
         }
         (Some(message), None, None) => Some(message),
         (None, Some(details), None) => Some(details),

@@ -1,0 +1,525 @@
+{
+  "$schema": "https://mintlify.com/docs.json",
+  "theme": "mint",
+  "name": "Hyperswitch",
+  "colors": {
+    "primary": "#4F8EFF",
+    "light": "#6BA3FF",
+    "dark": "#2563EB"
+  },
+  "favicon": "/favicon.png",
+  "navigation": {
+    "tabs": [
+      {
+        "tab": "Documentation",
+        "versions": [
+          {
+            "version": "1.0.0",
+            "groups": [
+              {
+                "group": "Get Started",
+                "pages": ["introduction"]
+              },
+              {
+                "group": "Essentials",
+                "pages": [
+                  "essentials/error_codes",
+                  "essentials/rate_limit",
+                  "essentials/go-live"
+                ]
+              },
+              {
+                "group": "Payments Core APIs",
+                "pages": [
+                  "v1/payments/setup--instructions",
+                  "v1/payments/payment--flows",
+                  {
+                    "group": "Payments",
+                    "pages": [
+                      "v1/payments/payments--create",
+                      "v1/payments/payments--update",
+                      "v1/payments/payments--confirm",
+                      "v1/payments/payments--retrieve",
+                      "v1/payments/payments--cancel",
+                      "v1/payments/payments--capture",
+                      "v1/payments/payments--incremental-authorization",
+                      "v1/payments/payments--session-token",
+                      "v1/payments/payments-link--retrieve",
+                      "v1/payments/payments--list",
+                      "v1/payments/payments--external-3ds-authentication",
+                      "v1/payments/payments--complete-authorize",
+                      "v1/payments/payments--update-metadata"
+                    ]
+                  },
+                  {
+                    "group": "Payment Methods",
+                    "pages": [
+                      "v1/payment-methods/paymentmethods--create",
+                      "v1/payment-methods/payment-method--retrieve",
+                      "v1/payment-methods/payment-method--update",
+                      "v1/payment-methods/payment-method--delete",
+                      "v1/payment-methods/payment-method--set-default-payment-method-for-customer",
+                      "v1/payment-methods/list-payment-methods-for-a-merchant",
+                      "v1/payment-methods/list-customer-saved-payment-methods-for-a-payment",
+                      "v1/payment-methods/list-payment-methods-for-a-customer",
+                      "v1/customer-set-default-payment-method/customers--set-default-payment-method"
+                    ]
+                  },
+                  {
+                    "group": "Customers",
+                    "pages": [
+                      "v1/customers/customers--create",
+                      "v1/customers/customers--retrieve",
+                      "v1/customers/customers--update",
+                      "v1/customers/customers--delete",
+                      "v1/customers/customers--list"
+                    ]
+                  },
+                  {
+                    "group": "Mandates",
+                    "pages": [
+                      "v1/mandates/mandates--revoke-mandate",
+                      "v1/mandates/mandates--retrieve-mandate",
+                      "v1/mandates/mandates--customer-mandates-list"
+                    ]
+                  },
+                  {
+                    "group": "Refunds",
+                    "pages": [
+                      "v1/refunds/refunds--create",
+                      "v1/refunds/refunds--update",
+                      "v1/refunds/refunds--retrieve",
+                      "v1/refunds/refunds--list"
+                    ]
+                  },
+                  {
+                    "group": "Disputes",
+                    "pages": [
+                      "v1/disputes/disputes--retrieve",
+                      "v1/disputes/disputes--list"
+                    ]
+                  },
+                  {
+                    "group": "Payouts",
+                    "pages": [
+                      "v1/payouts/payouts--create",
+                      "v1/payouts/payouts--update",
+                      "v1/payouts/payouts--cancel",
+                      "v1/payouts/payouts--fulfill",
+                      "v1/payouts/payouts--confirm",
+                      "v1/payouts/payouts--retrieve",
+                      "v1/payouts/payouts--list",
+                      "v1/payouts/payouts--list-filters",
+                      "v1/payouts/payouts--filter"
+                    ]
+                  }
+                ]
+              },
+              {
+                "group": "Account management APIs",
+                "pages": [
+                  {
+                    "group": "Organization",
+                    "pages": [
+                      "v1/organization/organization--create",
+                      "v1/organization/organization--retrieve",
+                      "v1/organization/organization--update"
+                    ]
+                  },
+                  {
+                    "group": "Merchant Account",
+                    "pages": [
+                      "v1/merchant-account/merchant-account--create",
+                      "v1/merchant-account/merchant-account--retrieve",
+                      "v1/merchant-account/merchant-account--update",
+                      "v1/merchant-account/merchant-account--delete",
+                      "v1/merchant-account/merchant-account--kv-status"
+                    ]
+                  },
+                  {
+                    "group": "Business Profile",
+                    "pages": [
+                      "v1/business-profile/business-profile--create",
+                      "v1/business-profile/business-profile--update",
+                      "v1/business-profile/business-profile--retrieve",
+                      "v1/business-profile/business-profile--delete",
+                      "v1/business-profile/business-profile--list"
+                    ]
+                  },
+                  {
+                    "group": "API Key",
+                    "pages": [
+                      "v1/api-key/api-key--create",
+                      "v1/api-key/api-key--retrieve",
+                      "v1/api-key/api-key--update",
+                      "v1/api-key/api-key--revoke",
+                      "v1/api-key/api-key--list"
+                    ]
+                  },
+                  {
+                    "group": "Merchant Connector Account",
+                    "pages": [
+                      "v1/merchant-connector-account/merchant-connector--create",
+                      "v1/merchant-connector-account/merchant-connector--retrieve",
+                      "v1/merchant-connector-account/merchant-connector--update",
+                      "v1/merchant-connector-account/merchant-connector--delete",
+                      "v1/merchant-connector-account/merchant-connector--list"
+                    ]
+                  },
+                  {
+                    "group": "GSM (Global Status Mapping)",
+                    "pages": [
+                      "v1/gsm/gsm--create",
+                      "v1/gsm/gsm--get",
+                      "v1/gsm/gsm--update",
+                      "v1/gsm/gsm--delete"
+                    ]
+                  }
+                ]
+              },
+              {
+                "group": "Other APIs",
+                "pages": [
+                  {
+                    "group": "Event",
+                    "pages": [
+                      "v1/event/events--list",
+                      "v1/event/events--delivery-attempt-list",
+                      "v1/event/events--manual-retry"
+                    ]
+                  },
+                  {
+                    "group": "Poll",
+                    "pages": ["v1/poll/poll--retrieve-poll-status"]
+                  },
+                  {
+                    "group": "Blocklist",
+                    "pages": [
+                      "v1/blocklist/get-blocklist",
+                      "v1/blocklist/post-blocklist",
+                      "v1/blocklist/delete-blocklist",
+                      "v1/blocklist/post-blocklisttoggle"
+                    ]
+                  },
+                  {
+                    "group": "Routing",
+                    "pages": [
+                      "v1/routing/routing--list",
+                      "v1/routing/routing--create",
+                      "v1/routing/routing--retrieve-config",
+                      "v1/routing/routing--deactivate",
+                      "v1/routing/routing--retrieve-default-config",
+                      "v1/routing/routing--update-default-config",
+                      "v1/routing/routing--retrieve-default-for-profile",
+                      "v1/routing/routing--update-default-for-profile",
+                      "v1/routing/routing--retrieve",
+                      "v1/routing/routing--activate-config"
+                    ]
+                  },
+                  {
+                    "group": "Relay",
+                    "pages": ["v1/relay/relay", "v1/relay/relay--retrieve"]
+                  },
+                  {
+                    "group": "Schemas",
+                    "pages": ["v1/schemas/outgoing--webhook"]
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "version": "2.0.0 [BETA]",
+            "groups": [
+              {
+                "group": "Get Started [BETA]",
+                "pages": ["introduction"]
+              },
+              {
+                "group": "Essentials [BETA]",
+                "pages": [
+                  "essentials/error_codes",
+                  "essentials/rate_limit",
+                  "essentials/go-live"
+                ]
+              },
+              {
+                "group": "Payments Core APIs [BETA]",
+                "pages": [
+                  {
+                    "group": "Payments",
+                    "pages": [
+                      "v2/payments/payments--create-intent",
+                      "v2/payments/payments--get-intent",
+                      "v2/payments/payments--update-intent",
+                      "v2/payments/payments--session-token",
+                      "v2/payments/payments--payment-methods-list",
+                      "v2/payments/payments--confirm-intent",
+                      "v2/payments/payments--get",
+                      "v2/payments/payments--create-and-confirm-intent",
+                      "v2/payments/payments--list"
+                    ]
+                  },
+                  {
+                    "group": "Payment Methods",
+                    "pages": [
+                      "v2/payment-methods/payment-method--create",
+                      "v2/payment-methods/payment-method--create-intent",
+                      "v2/payment-methods/payment-method--confirm-intent",
+                      "v2/payment-methods/payment-method--update",
+                      "v2/payment-methods/payment-method--retrieve",
+                      "v2/payment-methods/payment-method--delete",
+                      "v2/payment-methods/payment-method--list-customer-saved-payment-methods",
+                      "v2/payment-methods/list-saved-payment-methods-for-a-customer"
+                    ]
+                  },
+                  {
+                    "group": "Payment Method Session",
+                    "pages": [
+                      "v2/payment-method-session/payment-method-session--create",
+                      "v2/payment-method-session/payment-method-session--retrieve",
+                      "v2/payment-method-session/payment-method-session--list-payment-methods",
+                      "v2/payment-method-session/payment-method-session--update-a-saved-payment-method",
+                      "v2/payment-method-session/payment-method-session--confirm-a-payment-method-session",
+                      "v2/payment-method-session/payment-method-session--delete-a-saved-payment-method"
+                    ]
+                  },
+                  {
+                    "group": "Customers",
+                    "pages": [
+                      "v2/customers/customers--create",
+                      "v2/customers/customers--retrieve",
+                      "v2/customers/customers--update",
+                      "v2/customers/customers--delete",
+                      "v2/customers/customers--list"
+                    ]
+                  },
+                  {
+                    "group": "Refunds",
+                    "pages": [
+                      "v2/refunds/refunds--create",
+                      "v2/refunds/refunds--metadata-update",
+                      "v2/refunds/refunds--retrieve",
+                      "v2/refunds/refunds--list"
+                    ]
+                  }
+                ]
+              },
+              {
+                "group": "Account management APIs [BETA]",
+                "pages": [
+                  {
+                    "group": "Organization",
+                    "pages": [
+                      "v2/organization/organization--create",
+                      "v2/organization/organization--retrieve",
+                      "v2/organization/organization--update",
+                      "v2/organization/organization--merchant-account--list"
+                    ]
+                  },
+                  {
+                    "group": "Merchant Account",
+                    "pages": [
+                      "v2/merchant-account/merchant-account--create",
+                      "v2/merchant-account/merchant-account--retrieve",
+                      "v2/merchant-account/merchant-account--update",
+                      "v2/merchant-account/business-profile--list"
+                    ]
+                  },
+                  {
+                    "group": "Profile",
+                    "pages": [
+                      "v2/profile/profile--create",
+                      "v2/profile/profile--update",
+                      "v2/profile/profile--activate-routing-algorithm",
+                      "v2/profile/profile--update-default-fallback-routing-algorithm",
+                      "v2/profile/profile--deactivate-routing-algorithm",
+                      "v2/profile/profile--retrieve",
+                      "v2/profile/merchant-connector--list",
+                      "v2/profile/profile--retrieve-active-routing-algorithm",
+                      "v2/profile/profile--retrieve-default-fallback-routing-algorithm"
+                    ]
+                  },
+                  {
+                    "group": "Connector Account",
+                    "pages": [
+                      "v2/connector-account/connector-account--create",
+                      "v2/connector-account/connector-account--retrieve",
+                      "v2/connector-account/connector-account--update"
+                    ]
+                  },
+                  {
+                    "group": "API Key",
+                    "pages": [
+                      "v2/api-key/api-key--create",
+                      "v2/api-key/api-key--retrieve",
+                      "v2/api-key/api-key--update",
+                      "v2/api-key/api-key--revoke",
+                      "v2/api-key/api-key--list"
+                    ]
+                  },
+                  {
+                    "group": "Routing",
+                    "pages": [
+                      "v2/routing/routing--create",
+                      "v2/routing/routing--retrieve"
+                    ]
+                  }
+                ]
+              },
+              {
+                "group": "Other APIs [BETA]",
+                "pages": [
+                  {
+                    "group": "Proxy",
+                    "pages": ["v2/proxy/proxy"]
+                  },
+                  {
+                    "group": "Tokenization",
+                    "pages": ["v2/tokenization/tokenization--create"]
+                  },
+                  {
+                    "group": "Revenue Recovery",
+                    "pages": ["v2/revenue-recovery/revenue-recovery--retrieve"]
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "tab": "Locker API Reference",
+        "groups": [
+          {
+            "group": "Hyperswitch Card Vault",
+            "pages": ["locker-api-reference/overview"]
+          },
+          {
+            "group": "API Reference",
+            "pages": [
+              {
+                "group": "Locker - Health",
+                "pages": ["locker-api-reference/locker-health/get-health"]
+              },
+              {
+                "group": "Locker - Key Custodian",
+                "pages": [
+                  "locker-api-reference/key-custodian/provide-key-1",
+                  "locker-api-reference/key-custodian/provide-key-2",
+                  "locker-api-reference/key-custodian/unlock-the-locker"
+                ]
+              },
+              {
+                "group": "Locker - Cards",
+                "pages": [
+                  "locker-api-reference/cards/add-data-in-locker",
+                  "locker-api-reference/cards/delete-data-from-locker",
+                  "locker-api-reference/cards/retrieve-data-from-locker",
+                  "locker-api-reference/cards/get-or-insert-the-card-fingerprint"
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "tab": "Intelligent Router API Reference",
+        "groups": [
+          {
+            "group": "Hyperswitch Intelligent Router",
+            "pages": ["intelligent-router-api-reference/overview"]
+          },
+          {
+            "group": "API Reference",
+            "pages": [
+              {
+                "group": "Success Rate",
+                "pages": [
+                  "intelligent-router-api-reference/success-rate/fetch-success-rate-for-an-entity",
+                  "intelligent-router-api-reference/success-rate/update-success-rate-window",
+                  "intelligent-router-api-reference/success-rate/invalidate-windows",
+                  "intelligent-router-api-reference/success-rate/fetch-entity-and-global-success-rates"
+                ]
+              },
+              {
+                "group": "Elimination",
+                "pages": [
+                  "intelligent-router-api-reference/elimination/fetch-eliminated-processor-list",
+                  "intelligent-router-api-reference/elimination/update-elimination-bucket",
+                  "intelligent-router-api-reference/elimination/invalidate-elimination-bucket"
+                ]
+              },
+              {
+                "group": "Contract Routing",
+                "pages": [
+                  "intelligent-router-api-reference/contract-routing/fetch-contract-scores-for-an-entity",
+                  "intelligent-router-api-reference/contract-routing/update-contract-information-for-an-entity",
+                  "intelligent-router-api-reference/contract-routing/invalidate-contract-information-for-an-entity"
+                ]
+              },
+              {
+                "group": "Static Routing",
+                "pages": [
+                  "intelligent-router-api-reference/static-routing/create-a-routing-rule",
+                  "intelligent-router-api-reference/static-routing/evaluate-routing-rule"
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "logo": {
+    "light": "/logo/light.svg",
+    "dark": "/logo/dark.svg"
+  },
+  "api": {
+    "openapi": [
+      "v1/openapi_spec_v1.json",
+      "v2/openapi_spec_v2.json",
+      "rust_locker_open_api_spec.yml"
+    ]
+  },
+  "background": {
+    "color": {
+      "light": "#FAFBFC",
+      "dark": "#1d1d1d"
+    }
+  },
+  "navbar": {
+    "links": [
+      {
+        "label": "Contact Us",
+        "href": "https://inviter.co/hyperswitch-slack"
+      },
+      {
+        "label": "Explore with Deepwiki",
+        "href": "https://deepwiki.com/juspay/hyperswitch"
+      }
+    ],
+    "primary": {
+      "type": "button",
+      "label": "Self-Deploy",
+      "href": "https://docs.hyperswitch.io/hyperswitch-open-source/overview"
+    }
+  },
+  "footer": {
+    "socials": {
+      "github": "https://github.com/juspay/hyperswitch",
+      "linkedin": "https://www.linkedin.com/company/hyperswitch"
+    }
+  },
+  "integrations": {
+    "gtm": {
+      "tagId": "GTM-PLBNKQFQ"
+    },
+    "mixpanel": {
+      "projectToken": "b00355f29d9548d1333608df71d5d53d"
+    }
+  },
+  "contextual": {
+    "options": ["copy", "claude", "chatgpt", "view"]
+  }
+}

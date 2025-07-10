@@ -4,6 +4,7 @@ mod utils;
 use std::{
     collections::{HashMap, HashSet},
     str::FromStr,
+    sync::OnceLock,
 };
 
 use api_models::{
@@ -11,6 +12,7 @@ use api_models::{
     surcharge_decision_configs::SurchargeDecisionConfigs,
 };
 use common_enums::RoutableConnectors;
+use common_types::three_ds_decision_rule_engine::ThreeDSDecisionRule;
 use connector_configs::{
     common_config::{ConnectorApiIntegrationPayload, DashboardRequestPayload},
     connector,
@@ -26,14 +28,18 @@ use euclid::{
         dir::{self, enums as dir_enums, EuclidDirFilter},
     },
 };
-use once_cell::sync::OnceCell;
 use strum::{EnumMessage, EnumProperty, VariantNames};
 use wasm_bindgen::prelude::*;
 
 use crate::utils::JsResultExt;
 type JsResult = Result<JsValue, JsValue>;
 use api_models::payment_methods::CountryCodeWithName;
-use common_enums::CountryAlpha2;
+#[cfg(feature = "payouts")]
+use common_enums::PayoutStatus;
+use common_enums::{
+    CountryAlpha2, DisputeStatus, EventClass, EventType, IntentStatus, MandateStatus,
+    MerchantCategoryCode, MerchantCategoryCodeWithName, RefundStatus,
+};
 use strum::IntoEnumIterator;
 
 struct SeedData {
@@ -41,8 +47,8 @@ struct SeedData {
     connectors: Vec<ast::ConnectorChoice>,
 }
 
-static SEED_DATA: OnceCell<SeedData> = OnceCell::new();
-static SEED_FOREX: OnceCell<currency_conversion_types::ExchangeRates> = OnceCell::new();
+static SEED_DATA: OnceLock<SeedData> = OnceLock::new();
+static SEED_FOREX: OnceLock<currency_conversion_types::ExchangeRates> = OnceLock::new();
 
 /// This function can be used by the frontend to educate wasm about the forex rates data.
 /// The input argument is a struct fields base_currency and conversion where later is all the conversions associated with the base_currency
@@ -88,6 +94,22 @@ pub fn get_two_letter_country_code() -> JsResult {
         .collect::<Vec<_>>();
 
     Ok(serde_wasm_bindgen::to_value(&country_code_with_name)?)
+}
+
+/// This function can be used by the frontend to get all the merchant category codes
+/// along with their names.
+#[wasm_bindgen(js_name=getMerchantCategoryCodeWithName)]
+pub fn get_merchant_category_code_with_name() -> JsResult {
+    let merchant_category_codes_with_name = MerchantCategoryCode::iter()
+        .map(|mcc_value| MerchantCategoryCodeWithName {
+            code: mcc_value,
+            name: mcc_value.to_merchant_category_name(),
+        })
+        .collect::<Vec<_>>();
+
+    Ok(serde_wasm_bindgen::to_value(
+        &merchant_category_codes_with_name,
+    )?)
 }
 
 /// This function can be used by the frontend to provide the WASM with information about
@@ -221,10 +243,22 @@ pub fn get_all_connectors() -> JsResult {
 
 #[wasm_bindgen(js_name = getAllKeys)]
 pub fn get_all_keys() -> JsResult {
+    let excluded_keys = [
+        "Connector",
+        // 3DS Decision Rule Keys should not be included in the payument routing keys
+        "issuer_name",
+        "issuer_country",
+        "customer_device_platform",
+        "customer_device_type",
+        "customer_device_display_size",
+        "acquirer_country",
+        "acquirer_fraud_rate",
+    ];
+
     let keys: Vec<&'static str> = dir::DirKeyKind::VARIANTS
         .iter()
         .copied()
-        .filter(|s| s != &"Connector")
+        .filter(|s| !excluded_keys.contains(s))
         .collect();
     Ok(serde_wasm_bindgen::to_value(&keys)?)
 }
@@ -245,6 +279,12 @@ pub fn get_three_ds_keys() -> JsResult {
 #[wasm_bindgen(js_name= getSurchargeKeys)]
 pub fn get_surcharge_keys() -> JsResult {
     let keys = <SurchargeDecisionConfigs as EuclidDirFilter>::ALLOWED;
+    Ok(serde_wasm_bindgen::to_value(keys)?)
+}
+
+#[wasm_bindgen(js_name= getThreeDsDecisionRuleKeys)]
+pub fn get_three_ds_decision_rule_keys() -> JsResult {
+    let keys = <ThreeDSDecisionRule as EuclidDirFilter>::ALLOWED;
     Ok(serde_wasm_bindgen::to_value(keys)?)
 }
 
@@ -284,12 +324,21 @@ pub fn get_variant_values(key: &str) -> Result<JsValue, JsValue> {
         dir::DirKeyKind::RealTimePaymentType => dir_enums::RealTimePaymentType::VARIANTS,
         dir::DirKeyKind::OpenBankingType => dir_enums::OpenBankingType::VARIANTS,
         dir::DirKeyKind::MobilePaymentType => dir_enums::MobilePaymentType::VARIANTS,
+        dir::DirKeyKind::IssuerCountry => dir_enums::Country::VARIANTS,
+        dir::DirKeyKind::AcquirerCountry => dir_enums::Country::VARIANTS,
+        dir::DirKeyKind::CustomerDeviceType => dir_enums::CustomerDeviceType::VARIANTS,
+        dir::DirKeyKind::CustomerDevicePlatform => dir_enums::CustomerDevicePlatform::VARIANTS,
+        dir::DirKeyKind::CustomerDeviceDisplaySize => {
+            dir_enums::CustomerDeviceDisplaySize::VARIANTS
+        }
 
         dir::DirKeyKind::PaymentAmount
         | dir::DirKeyKind::Connector
         | dir::DirKeyKind::CardBin
         | dir::DirKeyKind::BusinessLabel
-        | dir::DirKeyKind::MetaData => Err("Key does not have variants".to_string())?,
+        | dir::DirKeyKind::MetaData
+        | dir::DirKeyKind::IssuerName
+        | dir::DirKeyKind::AcquirerFraudRate => Err("Key does not have variants".to_string())?,
     };
 
     Ok(serde_wasm_bindgen::to_value(variants)?)
@@ -427,4 +476,43 @@ pub fn get_payout_description_category() -> JsResult {
     }
 
     Ok(serde_wasm_bindgen::to_value(&category)?)
+}
+
+#[wasm_bindgen(js_name = getValidWebhookStatus)]
+pub fn get_valid_webhook_status(key: &str) -> JsResult {
+    let event_class = EventClass::from_str(key)
+        .map_err(|_| "Invalid webhook event type received".to_string())
+        .err_to_js()?;
+
+    match event_class {
+        EventClass::Payments => {
+            let statuses: Vec<IntentStatus> = IntentStatus::iter()
+                .filter(|intent_status| Into::<Option<EventType>>::into(*intent_status).is_some())
+                .collect();
+            Ok(serde_wasm_bindgen::to_value(&statuses)?)
+        }
+        EventClass::Refunds => {
+            let statuses: Vec<RefundStatus> = RefundStatus::iter()
+                .filter(|status| Into::<Option<EventType>>::into(*status).is_some())
+                .collect();
+            Ok(serde_wasm_bindgen::to_value(&statuses)?)
+        }
+        EventClass::Disputes => {
+            let statuses: Vec<DisputeStatus> = DisputeStatus::iter().collect();
+            Ok(serde_wasm_bindgen::to_value(&statuses)?)
+        }
+        EventClass::Mandates => {
+            let statuses: Vec<MandateStatus> = MandateStatus::iter()
+                .filter(|status| Into::<Option<EventType>>::into(*status).is_some())
+                .collect();
+            Ok(serde_wasm_bindgen::to_value(&statuses)?)
+        }
+        #[cfg(feature = "payouts")]
+        EventClass::Payouts => {
+            let statuses: Vec<PayoutStatus> = PayoutStatus::iter()
+                .filter(|status| Into::<Option<EventType>>::into(*status).is_some())
+                .collect();
+            Ok(serde_wasm_bindgen::to_value(&statuses)?)
+        }
+    }
 }

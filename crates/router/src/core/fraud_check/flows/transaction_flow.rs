@@ -10,7 +10,7 @@ use crate::{
     },
     errors, services,
     types::{
-        api::{self, fraud_check as frm_api},
+        api::fraud_check as frm_api,
         domain,
         fraud_check::{
             FraudCheckResponseData, FraudCheckTransactionData, FrmTransactionRouterData,
@@ -29,14 +29,14 @@ impl
         FraudCheckResponseData,
     > for FrmData
 {
-    #[cfg(all(feature = "v2", feature = "customer_v2"))]
+    #[cfg(feature = "v2")]
     async fn construct_router_data<'a>(
         &self,
         _state: &SessionState,
         _connector_id: &str,
         _merchant_context: &domain::MerchantContext,
         _customer: &Option<domain::Customer>,
-        _merchant_connector_account: &domain::MerchantConnectorAccount,
+        _merchant_connector_account: &domain::MerchantConnectorAccountTypeDetails,
         _merchant_recipient_data: Option<MerchantRecipientData>,
         _header_payload: Option<hyperswitch_domain_models::payments::HeaderPayload>,
     ) -> RouterResult<
@@ -45,7 +45,7 @@ impl
         todo!()
     }
 
-    #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
+    #[cfg(feature = "v1")]
     async fn construct_router_data<'a>(
         &self,
         state: &SessionState,
@@ -146,19 +146,11 @@ impl
             connector_mandate_request_reference_id: None,
             authentication_id: None,
             psd2_sca_exemption_type: None,
+            raw_connector_response: None,
+            is_payment_id_from_merchant: None,
         };
 
         Ok(router_data)
-    }
-
-    async fn get_merchant_recipient_data<'a>(
-        &self,
-        _state: &SessionState,
-        _merchant_context: &domain::MerchantContext,
-        _merchant_connector_account: &helpers::MerchantConnectorAccountType,
-        _connector: &api::ConnectorData,
-    ) -> RouterResult<Option<MerchantRecipientData>> {
-        Ok(None)
     }
 }
 
@@ -199,6 +191,7 @@ pub async fn decide_frm_flow(
         connector_integration,
         router_data,
         call_connector_action,
+        None,
         None,
     )
     .await

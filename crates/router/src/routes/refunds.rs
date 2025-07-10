@@ -3,9 +3,9 @@ use common_utils;
 use router_env::{instrument, tracing, Flow};
 
 use super::app::AppState;
-#[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "refunds_v2")))]
+#[cfg(feature = "v1")]
 use crate::core::refunds::*;
-#[cfg(all(feature = "v2", feature = "refunds_v2"))]
+#[cfg(feature = "v2")]
 use crate::core::refunds_v2::*;
 use crate::{
     core::api_locking,
@@ -35,12 +35,11 @@ mod internal_payload_types {
     {
         fn get_api_event_type(&self) -> Option<common_utils::events::ApiEventsType> {
             let refund_id = self.global_refund_id.clone();
-            self.payment_id
-                .clone()
-                .map(|payment_id| common_utils::events::ApiEventsType::Refund {
-                    payment_id,
-                    refund_id,
-                })
+            let payment_id = self.payment_id.clone();
+            Some(common_utils::events::ApiEventsType::Refund {
+                payment_id,
+                refund_id,
+            })
         }
     }
 }
@@ -48,19 +47,7 @@ mod internal_payload_types {
 /// Refunds - Create
 ///
 /// To create a refund against an already processed payment
-#[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "refunds_v2")))]
-#[utoipa::path(
-    post,
-    path = "/refunds",
-    request_body=RefundRequest,
-    responses(
-        (status = 200, description = "Refund created", body = RefundResponse),
-        (status = 400, description = "Missing Mandatory fields")
-    ),
-    tag = "Refunds",
-    operation_id = "Create a Refund",
-    security(("api_key" = []))
-)]
+#[cfg(feature = "v1")]
 #[instrument(skip_all, fields(flow = ?Flow::RefundsCreate))]
 // #[post("")]
 pub async fn refunds_create(
@@ -95,7 +82,7 @@ pub async fn refunds_create(
     .await
 }
 
-#[cfg(all(feature = "v2", feature = "refunds_v2"))]
+#[cfg(feature = "v2")]
 #[instrument(skip_all, fields(flow = ?Flow::RefundsCreate))]
 // #[post("")]
 pub async fn refunds_create(
@@ -105,17 +92,20 @@ pub async fn refunds_create(
 ) -> HttpResponse {
     let flow = Flow::RefundsCreate;
 
-    Box::pin(api::server_wrap(
-        flow,
-        state,
-        &req,
-        json_payload.into_inner(),
-        |state, auth: auth::AuthenticationData, req, _| {
-            let merchant_context = domain::MerchantContext::NormalMerchant(Box::new(
-                domain::Context(auth.merchant_account, auth.key_store),
-            ));
-            refund_create_core(state, merchant_context, req)
-        },
+    let global_refund_id =
+        common_utils::id_type::GlobalRefundId::generate(&state.conf.cell_information.id);
+    let payload = json_payload.into_inner();
+
+    let internal_refund_create_payload =
+        internal_payload_types::RefundsGenericRequestWithResourceId {
+            global_refund_id: global_refund_id.clone(),
+            payment_id: Some(payload.payment_id.clone()),
+            payload,
+        };
+
+    let auth_type = if state.conf.merchant_id_auth.merchant_id_auth_enabled {
+        &auth::MerchantIdAuth
+    } else {
         auth::auth_type(
             &auth::V2ApiKeyAuth {
                 is_connected_allowed: false,
@@ -125,30 +115,35 @@ pub async fn refunds_create(
                 permission: Permission::ProfileRefundWrite,
             },
             req.headers(),
-        ),
+        )
+    };
+
+    Box::pin(api::server_wrap(
+        flow,
+        state,
+        &req,
+        internal_refund_create_payload,
+        |state, auth: auth::AuthenticationData, req, _| {
+            let merchant_context = domain::MerchantContext::NormalMerchant(Box::new(
+                domain::Context(auth.merchant_account, auth.key_store),
+            ));
+            refund_create_core(
+                state,
+                merchant_context,
+                req.payload,
+                global_refund_id.clone(),
+            )
+        },
+        auth_type,
         api_locking::LockAction::NotApplicable,
     ))
     .await
 }
 
-#[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "refunds_v2")))]
+#[cfg(feature = "v1")]
 /// Refunds - Retrieve (GET)
 ///
 /// To retrieve the properties of a Refund. This may be used to get the status of a previously initiated payment or next action for an ongoing payment
-#[utoipa::path(
-    get,
-    path = "/refunds/{refund_id}",
-    params(
-        ("refund_id" = String, Path, description = "The identifier for refund")
-    ),
-    responses(
-        (status = 200, description = "Refund retrieved", body = RefundResponse),
-        (status = 404, description = "Refund does not exist in our records")
-    ),
-    tag = "Refunds",
-    operation_id = "Retrieve a Refund",
-    security(("api_key" = []))
-)]
 #[instrument(skip_all, fields(flow))]
 // #[get("/{id}")]
 pub async fn refunds_retrieve(
@@ -201,7 +196,7 @@ pub async fn refunds_retrieve(
     .await
 }
 
-#[cfg(all(feature = "v2", feature = "refunds_v2"))]
+#[cfg(feature = "v2")]
 #[instrument(skip_all, fields(flow))]
 pub async fn refunds_retrieve(
     state: web::Data<AppState>,
@@ -212,6 +207,7 @@ pub async fn refunds_retrieve(
     let refund_request = refunds::RefundsRetrieveRequest {
         refund_id: path.into_inner(),
         force_sync: query_params.force_sync,
+        merchant_connector_details: None,
     };
     let flow = match query_params.force_sync {
         Some(true) => Flow::RefundsRetrieveForceSync,
@@ -251,21 +247,68 @@ pub async fn refunds_retrieve(
     .await
 }
 
-#[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "refunds_v2")))]
+#[cfg(feature = "v2")]
+#[instrument(skip_all, fields(flow))]
+pub async fn refunds_retrieve_with_gateway_creds(
+    state: web::Data<AppState>,
+    req: HttpRequest,
+    path: web::Path<common_utils::id_type::GlobalRefundId>,
+    payload: web::Json<api_models::refunds::RefundsRetrievePayload>,
+) -> HttpResponse {
+    let flow = match payload.force_sync {
+        Some(true) => Flow::RefundsRetrieveForceSync,
+        _ => Flow::RefundsRetrieve,
+    };
+
+    tracing::Span::current().record("flow", flow.to_string());
+
+    let refund_request = refunds::RefundsRetrieveRequest {
+        refund_id: path.into_inner(),
+        force_sync: payload.force_sync,
+        merchant_connector_details: payload.merchant_connector_details.clone(),
+    };
+
+    let auth_type = if state.conf.merchant_id_auth.merchant_id_auth_enabled {
+        &auth::MerchantIdAuth
+    } else {
+        auth::auth_type(
+            &auth::V2ApiKeyAuth {
+                is_connected_allowed: false,
+                is_platform_allowed: false,
+            },
+            &auth::JWTAuth {
+                permission: Permission::ProfileRefundRead,
+            },
+            req.headers(),
+        )
+    };
+
+    Box::pin(api::server_wrap(
+        flow,
+        state,
+        &req,
+        refund_request,
+        |state, auth: auth::AuthenticationData, refund_request, _| {
+            let merchant_context = domain::MerchantContext::NormalMerchant(Box::new(
+                domain::Context(auth.merchant_account, auth.key_store),
+            ));
+            refund_retrieve_core_with_refund_id(
+                state,
+                merchant_context,
+                auth.profile,
+                refund_request,
+            )
+        },
+        auth_type,
+        api_locking::LockAction::NotApplicable,
+    ))
+    .await
+}
+
+#[cfg(feature = "v1")]
 /// Refunds - Retrieve (POST)
 ///
 /// To retrieve the properties of a Refund. This may be used to get the status of a previously initiated payment or next action for an ongoing payment
-#[utoipa::path(
-    get,
-    path = "/refunds/sync",
-    responses(
-        (status = 200, description = "Refund retrieved", body = RefundResponse),
-        (status = 404, description = "Refund does not exist in our records")
-    ),
-    tag = "Refunds",
-    operation_id = "Retrieve a Refund",
-    security(("api_key" = []))
-)]
 #[instrument(skip_all, fields(flow))]
 // #[post("/sync")]
 pub async fn refunds_retrieve_with_body(
@@ -306,25 +349,10 @@ pub async fn refunds_retrieve_with_body(
     .await
 }
 
-#[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "refunds_v2")))]
+#[cfg(feature = "v1")]
 /// Refunds - Update
 ///
 /// To update the properties of a Refund object. This may include attaching a reason for the refund or metadata fields
-#[utoipa::path(
-    post,
-    path = "/refunds/{refund_id}",
-    params(
-        ("refund_id" = String, Path, description = "The identifier for refund")
-    ),
-    request_body=RefundUpdateRequest,
-    responses(
-        (status = 200, description = "Refund updated", body = RefundResponse),
-        (status = 400, description = "Missing Mandatory fields")
-    ),
-    tag = "Refunds",
-    operation_id = "Update a Refund",
-    security(("api_key" = []))
-)]
 #[instrument(skip_all, fields(flow = ?Flow::RefundsUpdate))]
 // #[post("/{id}")]
 pub async fn refunds_update(
@@ -356,7 +384,7 @@ pub async fn refunds_update(
     .await
 }
 
-#[cfg(all(feature = "v2", feature = "refunds_v2"))]
+#[cfg(feature = "v2")]
 #[instrument(skip_all, fields(flow = ?Flow::RefundsUpdate))]
 pub async fn refunds_metadata_update(
     state: web::Data<AppState>,
@@ -395,25 +423,10 @@ pub async fn refunds_metadata_update(
     .await
 }
 
-#[cfg(all(
-    any(feature = "v1", feature = "v2"),
-    not(feature = "refunds_v2"),
-    feature = "olap"
-))]
+#[cfg(all(feature = "v1", feature = "olap"))]
 /// Refunds - List
 ///
 /// To list the refunds associated with a payment_id or with the merchant, if payment_id is not provided
-#[utoipa::path(
-    post,
-    path = "/refunds/list",
-    request_body=RefundListRequest,
-    responses(
-        (status = 200, description = "List of refunds", body = RefundListResponse),
-    ),
-    tag = "Refunds",
-    operation_id = "List all Refunds",
-    security(("api_key" = []))
-)]
 #[instrument(skip_all, fields(flow = ?Flow::RefundsList))]
 pub async fn refunds_list(
     state: web::Data<AppState>,
@@ -447,7 +460,7 @@ pub async fn refunds_list(
     .await
 }
 
-#[cfg(all(feature = "v2", feature = "refunds_v2", feature = "olap"))]
+#[cfg(all(feature = "v2", feature = "olap"))]
 #[instrument(skip_all, fields(flow = ?Flow::RefundsList))]
 pub async fn refunds_list(
     state: web::Data<AppState>,
@@ -478,25 +491,10 @@ pub async fn refunds_list(
     .await
 }
 
-#[cfg(all(
-    any(feature = "v1", feature = "v2"),
-    not(feature = "refunds_v2"),
-    feature = "olap"
-))]
+#[cfg(all(feature = "v1", feature = "olap"))]
 /// Refunds - List at profile level
 ///
 /// To list the refunds associated with a payment_id or with the merchant, if payment_id is not provided
-#[utoipa::path(
-    post,
-    path = "/refunds/profile/list",
-    request_body=RefundListRequest,
-    responses(
-        (status = 200, description = "List of refunds", body = RefundListResponse),
-    ),
-    tag = "Refunds",
-    operation_id = "List all Refunds",
-    security(("api_key" = []))
-)]
 #[instrument(skip_all, fields(flow = ?Flow::RefundsList))]
 pub async fn refunds_list_profile(
     state: web::Data<AppState>,
@@ -535,25 +533,10 @@ pub async fn refunds_list_profile(
     .await
 }
 
-#[cfg(all(
-    any(feature = "v1", feature = "v2"),
-    not(feature = "refunds_v2"),
-    feature = "olap"
-))]
+#[cfg(all(feature = "v1", feature = "olap"))]
 /// Refunds - Filter
 ///
 /// To list the refunds filters associated with list of connectors, currencies and payment statuses
-#[utoipa::path(
-    post,
-    path = "/refunds/filter",
-    request_body=TimeRange,
-    responses(
-        (status = 200, description = "List of filters", body = RefundListMetaData),
-    ),
-    tag = "Refunds",
-    operation_id = "List all filters for Refunds",
-    security(("api_key" = []))
-)]
 #[instrument(skip_all, fields(flow = ?Flow::RefundsList))]
 pub async fn refunds_filter_list(
     state: web::Data<AppState>,
@@ -587,24 +570,10 @@ pub async fn refunds_filter_list(
     .await
 }
 
-#[cfg(all(
-    any(feature = "v1", feature = "v2"),
-    not(feature = "refunds_v2"),
-    feature = "olap"
-))]
+#[cfg(all(feature = "v1", feature = "olap"))]
 /// Refunds - Filter V2
 ///
 /// To list the refunds filters associated with list of connectors, currencies and payment statuses
-#[utoipa::path(
-    get,
-    path = "/refunds/v2/filter",
-    responses(
-        (status = 200, description = "List of static filters", body = RefundListFilters),
-    ),
-    tag = "Refunds",
-    operation_id = "List all filters for Refunds",
-    security(("api_key" = []))
-)]
 #[instrument(skip_all, fields(flow = ?Flow::RefundsFilters))]
 pub async fn get_refunds_filters(state: web::Data<AppState>, req: HttpRequest) -> HttpResponse {
     let flow = Flow::RefundsFilters;
@@ -634,24 +603,10 @@ pub async fn get_refunds_filters(state: web::Data<AppState>, req: HttpRequest) -
     .await
 }
 
-#[cfg(all(
-    any(feature = "v1", feature = "v2"),
-    not(feature = "refunds_v2"),
-    feature = "olap"
-))]
+#[cfg(all(feature = "v1", feature = "olap"))]
 /// Refunds - Filter V2 at profile level
 ///
 /// To list the refunds filters associated with list of connectors, currencies and payment statuses
-#[utoipa::path(
-    get,
-    path = "/refunds/v2/profile/filter",
-    responses(
-        (status = 200, description = "List of static filters", body = RefundListFilters),
-    ),
-    tag = "Refunds",
-    operation_id = "List all filters for Refunds",
-    security(("api_key" = []))
-)]
 #[instrument(skip_all, fields(flow = ?Flow::RefundsFilters))]
 pub async fn get_refunds_filters_profile(
     state: web::Data<AppState>,
@@ -688,11 +643,7 @@ pub async fn get_refunds_filters_profile(
     .await
 }
 
-#[cfg(all(
-    any(feature = "v1", feature = "v2"),
-    not(feature = "refunds_v2"),
-    feature = "olap"
-))]
+#[cfg(all(feature = "v1", feature = "olap"))]
 #[instrument(skip_all, fields(flow = ?Flow::RefundsAggregate))]
 pub async fn get_refunds_aggregates(
     state: web::Data<AppState>,
@@ -727,11 +678,7 @@ pub async fn get_refunds_aggregates(
     .await
 }
 
-#[cfg(all(
-    any(feature = "v1", feature = "v2"),
-    not(feature = "refunds_v2"),
-    feature = "olap"
-))]
+#[cfg(all(feature = "v1", feature = "olap"))]
 #[instrument(skip_all, fields(flow = ?Flow::RefundsManualUpdate))]
 pub async fn refunds_manual_update(
     state: web::Data<AppState>,
@@ -754,11 +701,7 @@ pub async fn refunds_manual_update(
     .await
 }
 
-#[cfg(all(
-    any(feature = "v1", feature = "v2"),
-    not(feature = "refunds_v2"),
-    feature = "olap"
-))]
+#[cfg(all(feature = "v1", feature = "olap"))]
 #[instrument(skip_all, fields(flow = ?Flow::RefundsAggregate))]
 pub async fn get_refunds_aggregate_profile(
     state: web::Data<AppState>,
