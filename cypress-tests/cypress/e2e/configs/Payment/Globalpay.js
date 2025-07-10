@@ -59,7 +59,7 @@ const payment_method_data_no3ds = {
     card_exp_year: "2030",
     card_holder_name: "joseph Doe",
     payment_checks: null,
-    authentication_data: null
+    authentication_data: null,
   },
   billing: null,
 };
@@ -268,8 +268,8 @@ export const connectorDetails = {
             type: "invalid_request",
             message: "Payment method type not supported",
             code: "IR_19",
-            reason: "3DS flow is not supported by Globalpay"
-        }
+            reason: "3DS flow is not supported by Globalpay",
+          },
         },
       },
     },
@@ -291,8 +291,8 @@ export const connectorDetails = {
             type: "invalid_request",
             message: "Payment method type not supported",
             code: "IR_19",
-            reason: "3DS flow is not supported by Globalpay"
-        }
+            reason: "3DS flow is not supported by Globalpay",
+          },
         },
       },
     },
@@ -409,7 +409,7 @@ export const connectorDetails = {
       Response: {
         status: 200,
         body: {
-          status: "succeeded"
+          status: "succeeded",
         },
       },
     },
@@ -478,8 +478,8 @@ export const connectorDetails = {
             type: "invalid_request",
             message: "Payment method type not supported",
             code: "IR_19",
-            reason: "3DS flow is not supported by Globalpay"
-        }
+            reason: "3DS flow is not supported by Globalpay",
+          },
         },
       },
     },
@@ -500,8 +500,8 @@ export const connectorDetails = {
             type: "invalid_request",
             message: "Payment method type not supported",
             code: "IR_19",
-            reason: "3DS flow is not supported by Globalpay"
-        }
+            reason: "3DS flow is not supported by Globalpay",
+          },
         },
       },
     },
@@ -522,8 +522,8 @@ export const connectorDetails = {
             type: "invalid_request",
             message: "Payment method type not supported",
             code: "IR_19",
-            reason: "3DS flow is not supported by Globalpay"
-        }
+            reason: "3DS flow is not supported by Globalpay",
+          },
         },
       },
     },
@@ -544,8 +544,8 @@ export const connectorDetails = {
             type: "invalid_request",
             message: "Payment method type not supported",
             code: "IR_19",
-            reason: "3DS flow is not supported by Globalpay"
-        }
+            reason: "3DS flow is not supported by Globalpay",
+          },
         },
       },
     },
@@ -684,8 +684,8 @@ export const connectorDetails = {
             type: "invalid_request",
             message: "Payment method type not supported",
             code: "IR_19",
-            reason: "3DS flow is not supported by Globalpay"
-        }
+            reason: "3DS flow is not supported by Globalpay",
+          },
         },
       },
     },
@@ -707,8 +707,8 @@ export const connectorDetails = {
             type: "invalid_request",
             message: "Payment method type not supported",
             code: "IR_19",
-            reason: "3DS flow is not supported by Globalpay"
-        }
+            reason: "3DS flow is not supported by Globalpay",
+          },
         },
       },
     },
