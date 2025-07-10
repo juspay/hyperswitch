@@ -84,7 +84,7 @@ describe("[Payment] Incremental Auth", () => {
       const data = getConnectorDetails(globalState.get("connectorId"))[
         "card_pm"
       ]["Capture"];
-      
+
       const newData = {
         ...data,
         Request: { amount_to_capture: data.Request.amount_to_capture + 1000 },
