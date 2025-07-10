@@ -303,9 +303,6 @@ export const connectorDetails = {
     },
 
     ZeroAuthPaymentIntent: {
-      Configs: {
-        TRIGGER_SKIP: true,
-      },
       Request: {
         amount: 0,
         setup_future_usage: "off_session",
@@ -333,10 +330,11 @@ export const connectorDetails = {
       },
       Response: {
         status: 501,
-        body: {
-          status: "succeeded",
-          setup_future_usage: "off_session",
-        },
+        error: {
+            type: "invalid_request",
+            message: "Setup Mandate flow for Dlocal is not implemented",
+            code: "IR_00",
+          },
       },
     },
     // Save card scenarios
