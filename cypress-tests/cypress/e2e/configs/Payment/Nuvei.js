@@ -331,10 +331,10 @@ export const connectorDetails = {
       Response: {
         status: 501,
         error: {
-            type: "invalid_request",
-            message: "Setup Mandate flow for Dlocal is not implemented",
-            code: "IR_00",
-          },
+          type: "invalid_request",
+          message: "Setup Mandate flow for Dlocal is not implemented",
+          code: "IR_00",
+        },
       },
     },
     // Save card scenarios
