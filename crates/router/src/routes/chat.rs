@@ -16,17 +16,18 @@ use crate::{
 pub async fn get_data_from_automation_workflow(
     state: web::Data<AppState>,
     http_req: HttpRequest,
-    query: web::Query<chat::ChatMessageQueryParam>,
+    payload: web::Json<chat::AutomationAiGetDataRequest>,
+    query: web::Query<chat::GetDataMessage>,
 ) -> HttpResponse {
     let flow = Flow::GetDataFromAutomationFlow;
-    let query_params = query.into_inner();
+    let query = query.into_inner();
     Box::pin(api::server_wrap(
         flow.clone(),
         state,
         &http_req,
-        (),
-        |state, _: (), _, _| {
-            chat_core::get_data_from_automation_workflow(state, query_params.clone())
+        payload.into_inner(),
+        |state, user: auth::UserFromToken, payload, _| {
+            chat_core::get_data_from_automation_workflow(state, user, payload, query.clone())
         },
         &auth::JWTAuth {
             permission: Permission::MerchantPaymentRead,
@@ -39,17 +40,16 @@ pub async fn get_data_from_automation_workflow(
 pub async fn get_data_from_embedded_workflow(
     state: web::Data<AppState>,
     http_req: HttpRequest,
-    query: web::Query<chat::ChatMessageQueryParam>,
+    payload: web::Json<chat::EmbeddedAiGetDataRequest>,
 ) -> HttpResponse {
     let flow = Flow::GetDataFromEmbeddedFlow;
-    let query_params = query.into_inner();
     Box::pin(api::server_wrap(
         flow.clone(),
         state,
         &http_req,
-        (),
-        |state, _: (), _, _| {
-            chat_core::get_data_from_embedded_workflow(state, query_params.clone())
+        payload.into_inner(),
+        |state, user: auth::UserFromToken, payload, _| {
+            chat_core::get_data_from_embedded_workflow(state, user, payload)
         },
         &auth::JWTAuth {
             permission: Permission::MerchantPaymentRead,
