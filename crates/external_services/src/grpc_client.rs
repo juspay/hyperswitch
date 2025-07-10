@@ -4,6 +4,8 @@ pub mod dynamic_routing;
 /// gRPC based Heath Check Client interface implementation
 #[cfg(feature = "dynamic_routing")]
 pub mod health_check_client;
+/// gRPC based Unified Connector Service Client interface implementation
+pub mod unified_connector_service;
 use std::{fmt::Debug, sync::Arc};
 
 #[cfg(feature = "dynamic_routing")]
@@ -20,6 +22,10 @@ use serde;
 #[cfg(feature = "dynamic_routing")]
 use tonic::body::Body;
 
+use crate::grpc_client::unified_connector_service::{
+    UnifiedConnectorServiceClient, UnifiedConnectorServiceClientConfig,
+};
+
 #[cfg(feature = "dynamic_routing")]
 /// Hyper based Client type for maintaining connection pool for all gRPC services
 pub type Client = hyper_util::client::legacy::Client<HttpConnector, Body>;
@@ -33,6 +39,8 @@ pub struct GrpcClients {
     /// Health Check client for all gRPC services
     #[cfg(feature = "dynamic_routing")]
     pub health_client: HealthCheckClient,
+    /// Unified Connector Service client
+    pub unified_connector_service_client: Option<UnifiedConnectorServiceClient>,
 }
 /// Type that contains the configs required to construct a  gRPC client with its respective services.
 #[derive(Debug, Clone, serde::Deserialize, serde::Serialize, Default)]
@@ -40,6 +48,8 @@ pub struct GrpcClientSettings {
     #[cfg(feature = "dynamic_routing")]
     /// Configs for Dynamic Routing Client
     pub dynamic_routing_client: DynamicRoutingClientConfig,
+    /// Configs for Unified Connector Service client
+    pub unified_connector_service: Option<UnifiedConnectorServiceClientConfig>,
 }
 
 impl GrpcClientSettings {
@@ -68,11 +78,15 @@ impl GrpcClientSettings {
             .await
             .expect("Failed to build gRPC connections");
 
+        let unified_connector_service_client =
+            UnifiedConnectorServiceClient::build_connections(self).await;
+
         Arc::new(GrpcClients {
             #[cfg(feature = "dynamic_routing")]
             dynamic_routing: dynamic_routing_connection,
             #[cfg(feature = "dynamic_routing")]
             health_client,
+            unified_connector_service_client,
         })
     }
 }
