@@ -56,6 +56,16 @@ impl From<Tokenization> for TokenizationResponse {
     }
 }
 
+#[cfg(all(feature = "v2", feature = "tokenization_v2"))]
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub enum TokenizationUpdate {
+    Update {
+        updated_at: Option<PrimitiveDateTime>,
+        version: Option<common_enums::enums::ApiVersion>,
+        flag: Option<common_enums::enums::TokenizationFlag>,
+    },
+}
+
 #[async_trait::async_trait]
 impl super::behaviour::Conversion for Tokenization {
     type DstType = diesel_models::tokenization::Tokenization;
@@ -103,5 +113,21 @@ impl super::behaviour::Conversion for Tokenization {
             version: self.version,
             flag: self.flag,
         })
+    }
+}
+
+impl From<TokenizationUpdate> for diesel_models::tokenization::TokenizationUpdateInternal {
+    fn from(value: TokenizationUpdate) -> Self {
+        match value{
+            TokenizationUpdate::Update {
+                updated_at,
+                version,
+                flag,
+            } => Self {
+                updated_at,
+                version,
+                flag,
+            },
+        }
     }
 }

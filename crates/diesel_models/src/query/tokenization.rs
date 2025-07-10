@@ -28,7 +28,7 @@ impl tokenization_diesel::Tokenization {
     pub async fn update_with_id(
         self,
         conn: &PgPooledConn,
-        tokenization_record: tokenization_diesel::TokenizationUpdate,
+        tokenization_record: tokenization_diesel::TokenizationUpdateInternal,
     ) -> StorageResult<Self> {
         use diesel::ExpressionMethods;
 

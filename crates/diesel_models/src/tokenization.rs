@@ -30,7 +30,7 @@ pub struct Tokenization {
 #[derive(Clone, Debug, Insertable)]
 #[diesel(table_name = tokenization)]
 pub struct TokenizationNew {
-    pub id: ::id_type::GlobalTokenId,
+    pub id: id_type::GlobalTokenId,
     pub merchant_id: id_type::MerchantId,
     pub customer_id: id_type::GlobalCustomerId,
     pub locker_id: String,
@@ -43,7 +43,7 @@ pub struct TokenizationNew {
 #[cfg(all(feature = "v2", feature = "tokenization_v2"))]
 #[derive(Clone, Debug, AsChangeset)]
 #[diesel(table_name = tokenization)]
-pub struct TokenizationUpdate {
+pub struct TokenizationUpdateInternal {
     pub updated_at: Option<PrimitiveDateTime>,
     pub version: Option<common_enums::enums::ApiVersion>,
     pub flag: Option<common_enums::enums::TokenizationFlag>,

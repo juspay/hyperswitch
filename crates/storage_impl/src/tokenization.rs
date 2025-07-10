@@ -7,6 +7,8 @@ use hyperswitch_domain_models::{
     behaviour::{Conversion, ReverseConversion},
     merchant_key_store::MerchantKeyStore,
 };
+#[cfg(all(feature = "v2", feature = "tokenization_v2"))]
+use diesel_models::tokenization as tokenization_diesel;
 
 use super::MockDb;
 #[cfg(all(feature = "v2", feature = "tokenization_v2"))]
@@ -36,7 +38,7 @@ pub trait TokenizationInterface {
     async fn update_tokenization_record(
         &self,
         tokenization: hyperswitch_domain_models::tokenization::Tokenization,
-        tokenization_update: tokenization::TokenizationUpdate,
+        tokenization_update: hyperswitch_domain_models::tokenization::TokenizationUpdate,
         merchant_key_store: &MerchantKeyStore,
         key_manager_state: &KeyManagerState,
     ) -> CustomResult<hyperswitch_domain_models::tokenization::Tokenization, errors::StorageError>;
@@ -79,7 +81,7 @@ impl<T: DatabaseStore> TokenizationInterface for RouterStore<T> {
     {
         let conn = connection::pg_connection_read(self).await?;
 
-        let tokenization = tokenization::Tokenization::find_by_id(&conn, token)
+        let tokenization = tokenization_diesel::Tokenization::find_by_id(&conn, token)
             .await
             .map_err(|error| report!(errors::StorageError::from(error)))?;
 
@@ -98,7 +100,7 @@ impl<T: DatabaseStore> TokenizationInterface for RouterStore<T> {
     async fn update_tokenization_record(
         &self,
         tokenization_record: hyperswitch_domain_models::tokenization::Tokenization,
-        tokenization_update: tokenization::TokenizationUpdate,
+        tokenization_update: hyperswitch_domain_models::tokenization::TokenizationUpdate,
         merchant_key_store: &MerchantKeyStore,
         key_manager_state: &KeyManagerState,
     ) -> CustomResult<hyperswitch_domain_models::tokenization::Tokenization, errors::StorageError>
@@ -111,7 +113,7 @@ impl<T: DatabaseStore> TokenizationInterface for RouterStore<T> {
         self.call_database(
             key_manager_state,
             merchant_key_store,
-            tokenization_record.update_with_id(&conn, tokenization_update),
+            tokenization_record.update_with_id(&conn, tokenization_diesel::TokenizationUpdateInternal::from(tokenization_update)),
         )
         .await
     }
@@ -147,7 +149,7 @@ impl<T: DatabaseStore> TokenizationInterface for KVRouterStore<T> {
     async fn update_tokenization_record(
         &self,
         tokenization_record: hyperswitch_domain_models::tokenization::Tokenization,
-        tokenization_update: tokenization::TokenizationUpdate,
+        tokenization_update: hyperswitch_domain_models::tokenization::TokenizationUpdate,
         merchant_key_store: &MerchantKeyStore,
         key_manager_state: &KeyManagerState,
     ) -> CustomResult<hyperswitch_domain_models::tokenization::Tokenization, errors::StorageError>
@@ -188,7 +190,7 @@ impl TokenizationInterface for MockDb {
     async fn update_tokenization_record(
         &self,
         tokenization_record: hyperswitch_domain_models::tokenization::Tokenization,
-        tokenization_update: tokenization::TokenizationUpdate,
+        tokenization_update: hyperswitch_domain_models::tokenization::TokenizationUpdate,
         merchant_key_store: &MerchantKeyStore,
         key_manager_state: &KeyManagerState,
     ) -> CustomResult<hyperswitch_domain_models::tokenization::Tokenization, errors::StorageError>

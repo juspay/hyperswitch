@@ -13,8 +13,6 @@ use common_utils::{
     id_type,
 };
 #[cfg(all(feature = "v2", feature = "tokenization_v2"))]
-use diesel_models::tokenization::TokenizationUpdate;
-#[cfg(all(feature = "v2", feature = "tokenization_v2"))]
 use error_stack::ResultExt;
 #[cfg(all(feature = "v2", feature = "tokenization_v2"))]
 use hyperswitch_domain_models;
@@ -119,8 +117,8 @@ pub async fn delete_tokenized_data_core(
     // Retrieve the tokenization record
     let tokenization_record = db
         .get_entity_id_vault_id_by_token_id(
-            &token_id,
-            &merchant_context.get_merchant_key_store(),
+            token_id,
+            merchant_context.get_merchant_key_store(),
             key_manager_state,
         )
         .await
@@ -146,7 +144,7 @@ pub async fn delete_tokenized_data_core(
     .attach_printable("Failed to delete payment method from vault")?;
 
     //update the status with Disabled
-    let tokenization_update = TokenizationUpdate {
+    let tokenization_update = hyperswitch_domain_models::tokenization::TokenizationUpdate::Update {
         updated_at: Some(common_utils::date_time::now()),
         flag: Some(enums::TokenizationFlag::Disabled),
         version: Some(enums::ApiVersion::V2),
@@ -155,7 +153,7 @@ pub async fn delete_tokenized_data_core(
         .update_tokenization_record(
             tokenization_record,
             tokenization_update,
-            &merchant_context.get_merchant_key_store(),
+            merchant_context.get_merchant_key_store(),
             key_manager_state,
         )
         .await
