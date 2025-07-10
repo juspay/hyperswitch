@@ -102,7 +102,7 @@ pub fn build_unified_connector_service_payment_method(
                 }
                 _ => {
                     return Err(UnifiedConnectorServiceError::NotImplemented(format!(
-                        "Unimplemented card payment method type: {payment_method_type:?}"
+                        "Unimplemented payment method subtype: {payment_method_type:?}"
                     ))
                     .into());
                 }
@@ -125,8 +125,7 @@ pub fn build_unified_connector_service_payment_method(
                 }
                 _ => {
                     return Err(UnifiedConnectorServiceError::NotImplemented(format!(
-                        "Unimplemented card payment method type: {:?}",
-                        payment_method_type
+                        "Unimplemented payment method subtype: {payment_method_type:?}"
                     ))
                     .into());
                 }
@@ -137,8 +136,7 @@ pub fn build_unified_connector_service_payment_method(
             })
         }
         _ => Err(UnifiedConnectorServiceError::NotImplemented(format!(
-            "Unimplemented payment method: {:?}",
-            payment_method_data
+            "Unimplemented payment method: {payment_method_data:?}"
         ))
         .into()),
     }
@@ -304,8 +302,7 @@ pub fn handle_unified_connector_service_response_for_payment_authorize(
                     AttemptStatus::PaymentMethodAwaited |
                     AttemptStatus::CaptureFailed |
                     AttemptStatus::IntegrityFailure => return Err(UnifiedConnectorServiceError::NotImplemented(format!(
-                        "AttemptStatus {:?} is not implemented for Unified Connector Service",
-                        status
+                        "AttemptStatus {status:?} is not implemented for Unified Connector Service"
                     )).into()),
                 };
 
@@ -386,8 +383,7 @@ pub fn handle_unified_connector_service_response_for_payment_get(
                     AttemptStatus::PaymentMethodAwaited |
                     AttemptStatus::CaptureFailed |
                     AttemptStatus::IntegrityFailure => return Err(UnifiedConnectorServiceError::NotImplemented(format!(
-                        "AttemptStatus {:?} is not implemented for Unified Connector Service",
-                        status
+                        "AttemptStatus {status:?} is not implemented for Unified Connector Service"
                     )).into()),
     };
 
