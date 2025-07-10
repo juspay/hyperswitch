@@ -176,7 +176,8 @@ pub struct DebitRoutingConfig {
 
 #[derive(Debug, Deserialize, Clone, Default)]
 pub struct OpenRouter {
-    pub enabled: bool,
+    pub dynamic_routing_enabled: bool,
+    pub static_routing_enabled: bool,
     pub url: String,
 }
 
@@ -1088,6 +1089,8 @@ impl Settings<SecuredSecret> {
             .map_err(|err| ApplicationError::InvalidConfigurationValueError(err.to_string()))?;
 
         self.platform.validate()?;
+
+        self.open_router.validate()?;
 
         Ok(())
     }
