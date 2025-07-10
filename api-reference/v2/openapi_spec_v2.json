@@ -17619,10 +17619,7 @@
             ],
             "properties": {
               "bank_names": {
-                "type": "array",
-                "items": {
-                  "$ref": "#/components/schemas/common_enums.BankNames"
-                }
+                "$ref": "#/components/schemas/BankNames"
               }
             }
           }

@@ -21,6 +21,9 @@ use crate::payouts;
 use crate::{admin, enums as api_enums, open_router, payments};
 
 #[cfg(feature = "v1")]
+use crate::payments::BankCodeResponse;
+
+#[cfg(feature = "v1")]
 #[derive(Debug, serde::Deserialize, serde::Serialize, Clone, ToSchema)]
 #[serde(deny_unknown_fields)]
 pub struct PaymentMethodCreate {
@@ -1440,6 +1443,7 @@ pub enum PaymentMethodSubtypeSpecificData {
     },
     #[schema(title = "bank")]
     Bank {
+        #[schema(value_type = BankNames)]
         bank_names: Vec<common_enums::BankNames>,
     },
 }
