@@ -9,16 +9,16 @@ use storage_enums::MerchantStorageScheme;
 use time::PrimitiveDateTime;
 
 use super::payouts::Payouts;
-use crate::errors;
 
 #[async_trait::async_trait]
 pub trait PayoutAttemptInterface {
+    type Error;
     async fn insert_payout_attempt(
         &self,
         _payout_attempt: PayoutAttemptNew,
         _payouts: &Payouts,
         _storage_scheme: MerchantStorageScheme,
-    ) -> error_stack::Result<PayoutAttempt, errors::StorageError>;
+    ) -> error_stack::Result<PayoutAttempt, Self::Error>;
 
     async fn update_payout_attempt(
         &self,
@@ -26,28 +26,35 @@ pub trait PayoutAttemptInterface {
         _payout_attempt_update: PayoutAttemptUpdate,
         _payouts: &Payouts,
         _storage_scheme: MerchantStorageScheme,
-    ) -> error_stack::Result<PayoutAttempt, errors::StorageError>;
+    ) -> error_stack::Result<PayoutAttempt, Self::Error>;
 
     async fn find_payout_attempt_by_merchant_id_payout_attempt_id(
         &self,
         _merchant_id: &id_type::MerchantId,
         _payout_attempt_id: &str,
         _storage_scheme: MerchantStorageScheme,
-    ) -> error_stack::Result<PayoutAttempt, errors::StorageError>;
+    ) -> error_stack::Result<PayoutAttempt, Self::Error>;
 
     async fn find_payout_attempt_by_merchant_id_connector_payout_id(
         &self,
         _merchant_id: &id_type::MerchantId,
         _connector_payout_id: &str,
         _storage_scheme: MerchantStorageScheme,
-    ) -> error_stack::Result<PayoutAttempt, errors::StorageError>;
+    ) -> error_stack::Result<PayoutAttempt, Self::Error>;
+
+    async fn find_payout_attempt_by_merchant_id_merchant_order_reference_id(
+        &self,
+        _merchant_id: &id_type::MerchantId,
+        _merchant_order_reference_id: &str,
+        _storage_scheme: MerchantStorageScheme,
+    ) -> error_stack::Result<PayoutAttempt, Self::Error>;
 
     async fn get_filters_for_payouts(
         &self,
         _payout: &[Payouts],
         _merchant_id: &id_type::MerchantId,
         _storage_scheme: MerchantStorageScheme,
-    ) -> error_stack::Result<PayoutListFilters, errors::StorageError>;
+    ) -> error_stack::Result<PayoutListFilters, Self::Error>;
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -61,7 +68,7 @@ pub struct PayoutListFilters {
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
 pub struct PayoutAttempt {
     pub payout_attempt_id: String,
-    pub payout_id: String,
+    pub payout_id: id_type::PayoutId,
     pub customer_id: Option<id_type::CustomerId>,
     pub merchant_id: id_type::MerchantId,
     pub address_id: Option<String>,
@@ -84,12 +91,13 @@ pub struct PayoutAttempt {
     pub unified_code: Option<UnifiedCode>,
     pub unified_message: Option<UnifiedMessage>,
     pub additional_payout_method_data: Option<payout_method_utils::AdditionalPayoutMethodData>,
+    pub merchant_order_reference_id: Option<String>,
 }
 
 #[derive(Clone, Debug, PartialEq)]
 pub struct PayoutAttemptNew {
     pub payout_attempt_id: String,
-    pub payout_id: String,
+    pub payout_id: id_type::PayoutId,
     pub customer_id: Option<id_type::CustomerId>,
     pub merchant_id: id_type::MerchantId,
     pub address_id: Option<String>,
@@ -110,6 +118,7 @@ pub struct PayoutAttemptNew {
     pub unified_code: Option<UnifiedCode>,
     pub unified_message: Option<UnifiedMessage>,
     pub additional_payout_method_data: Option<payout_method_utils::AdditionalPayoutMethodData>,
+    pub merchant_order_reference_id: Option<String>,
 }
 
 #[derive(Debug, Clone)]

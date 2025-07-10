@@ -266,6 +266,7 @@ pub struct ChargebeeInvoiceBody {
 #[derive(Serialize, Deserialize, Debug)]
 pub struct ChargebeeInvoiceContent {
     pub invoice: ChargebeeInvoiceData,
+    pub subscription: Option<ChargebeeSubscriptionData>,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -274,8 +275,14 @@ pub struct ChargebeeWebhookContent {
     pub transaction: ChargebeeTransactionData,
     pub invoice: ChargebeeInvoiceData,
     pub customer: Option<ChargebeeCustomer>,
+    pub subscription: Option<ChargebeeSubscriptionData>,
 }
 
+#[derive(Serialize, Deserialize, Debug)]
+pub struct ChargebeeSubscriptionData {
+    #[serde(default, with = "common_utils::custom_serde::timestamp::option")]
+    pub next_billing_at: Option<PrimitiveDateTime>,
+}
 #[derive(Serialize, Deserialize, Debug)]
 #[serde(rename_all = "snake_case")]
 pub enum ChargebeeEventType {
@@ -290,6 +297,13 @@ pub struct ChargebeeInvoiceData {
     pub id: String,
     pub total: MinorUnit,
     pub currency_code: enums::Currency,
+    pub billing_address: Option<ChargebeeInvoiceBillingAddress>,
+    pub linked_payments: Option<Vec<ChargebeeInvoicePayments>>,
+}
+
+#[derive(Serialize, Deserialize, Debug)]
+pub struct ChargebeeInvoicePayments {
+    pub txn_status: Option<String>,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -321,6 +335,8 @@ pub struct ChargebeePaymentMethodDetails {
 #[derive(Serialize, Deserialize, Debug)]
 pub struct ChargebeeCardDetails {
     funding_type: ChargebeeFundingType,
+    brand: common_enums::CardNetwork,
+    iin: String,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -351,6 +367,17 @@ pub enum ChargebeeTranasactionStatus {
 #[derive(Serialize, Deserialize, Debug)]
 pub struct ChargebeeCustomer {
     pub payment_method: ChargebeePaymentMethod,
+}
+
+#[derive(Serialize, Deserialize, Debug)]
+pub struct ChargebeeInvoiceBillingAddress {
+    pub line1: Option<Secret<String>>,
+    pub line2: Option<Secret<String>>,
+    pub line3: Option<Secret<String>>,
+    pub state: Option<Secret<String>>,
+    pub country: Option<enums::CountryAlpha2>,
+    pub zip: Option<Secret<String>>,
+    pub city: Option<String>,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -402,7 +429,7 @@ impl ChargebeeCustomer {
                     .ok_or(errors::ConnectorError::WebhookBodyDecodingFailed)?
                     .to_string();
                 let mandate_id = parts
-                    .last()
+                    .next_back()
                     .ok_or(errors::ConnectorError::WebhookBodyDecodingFailed)?
                     .to_string();
                 Ok(ChargebeeMandateDetails {
@@ -449,6 +476,18 @@ impl TryFrom<ChargebeeWebhookBody> for revenue_recovery::RevenueRecoveryAttemptD
                 .change_context(errors::ConnectorError::WebhookBodyDecodingFailed)?;
         let payment_method_sub_type =
             enums::PaymentMethodType::from(payment_method_details.card.funding_type);
+        // Chargebee retry count will always be less than u16 always. Chargebee can have maximum 12 retry attempts
+        #[allow(clippy::as_conversions)]
+        let retry_count = item
+            .content
+            .invoice
+            .linked_payments
+            .map(|linked_payments| linked_payments.len() as u16);
+        let invoice_next_billing_time = item
+            .content
+            .subscription
+            .as_ref()
+            .and_then(|subscription| subscription.next_billing_at);
         Ok(Self {
             amount,
             currency,
@@ -463,6 +502,15 @@ impl TryFrom<ChargebeeWebhookBody> for revenue_recovery::RevenueRecoveryAttemptD
             status,
             payment_method_type,
             payment_method_sub_type,
+            network_advice_code: None,
+            network_decline_code: None,
+            network_error_message: None,
+            retry_count,
+            invoice_next_billing_time,
+            card_network: Some(payment_method_details.card.brand),
+            card_isin: Some(payment_method_details.card.iin),
+            // This field is none because it is specific to stripebilling.
+            charge_id: None,
         })
     }
 }
@@ -514,11 +562,58 @@ impl TryFrom<ChargebeeInvoiceBody> for revenue_recovery::RevenueRecoveryInvoiceD
         let merchant_reference_id =
             common_utils::id_type::PaymentReferenceId::from_str(&item.content.invoice.id)
                 .change_context(errors::ConnectorError::WebhookBodyDecodingFailed)?;
+
+        // The retry count will never exceed u16 limit in a billing connector. It can have maximum of 12 in case of charge bee so its ok to suppress this
+        #[allow(clippy::as_conversions)]
+        let retry_count = item
+            .content
+            .invoice
+            .linked_payments
+            .as_ref()
+            .map(|linked_payments| linked_payments.len() as u16);
+        let invoice_next_billing_time = item
+            .content
+            .subscription
+            .as_ref()
+            .and_then(|subscription| subscription.next_billing_at);
         Ok(Self {
             amount: item.content.invoice.total,
             currency: item.content.invoice.currency_code,
             merchant_reference_id,
+            billing_address: Some(api_models::payments::Address::from(item.content.invoice)),
+            retry_count,
+            next_billing_at: invoice_next_billing_time,
         })
+    }
+}
+
+#[cfg(all(feature = "revenue_recovery", feature = "v2"))]
+impl From<ChargebeeInvoiceData> for api_models::payments::Address {
+    fn from(item: ChargebeeInvoiceData) -> Self {
+        Self {
+            address: item
+                .billing_address
+                .map(api_models::payments::AddressDetails::from),
+            phone: None,
+            email: None,
+        }
+    }
+}
+
+#[cfg(all(feature = "revenue_recovery", feature = "v2"))]
+impl From<ChargebeeInvoiceBillingAddress> for api_models::payments::AddressDetails {
+    fn from(item: ChargebeeInvoiceBillingAddress) -> Self {
+        Self {
+            city: item.city,
+            country: item.country,
+            state: item.state,
+            zip: item.zip,
+            line1: item.line1,
+            line2: item.line2,
+            line3: item.line3,
+            first_name: None,
+            last_name: None,
+        }
     }
 }
 
@@ -596,13 +691,12 @@ impl TryFrom<enums::AttemptStatus> for ChargebeeRecordStatus {
             | enums::AttemptStatus::Pending
             | enums::AttemptStatus::PaymentMethodAwaited
             | enums::AttemptStatus::ConfirmationAwaited
-            | enums::AttemptStatus::DeviceDataCollectionPending => {
-                Err(errors::ConnectorError::NotSupported {
-                    message: "Record back flow is only supported for terminal status".to_string(),
-                    connector: "chargebee",
-                }
-                .into())
+            | enums::AttemptStatus::DeviceDataCollectionPending
+            | enums::AttemptStatus::IntegrityFailure => Err(errors::ConnectorError::NotSupported {
+                message: "Record back flow is only supported for terminal status".to_string(),
+                connector: "chargebee",
             }
+            .into()),
         }
     }
 }

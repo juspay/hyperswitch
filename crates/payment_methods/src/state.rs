@@ -1,24 +1,22 @@
-#[cfg(all(
-    any(feature = "v1", feature = "v2"),
-    not(feature = "payment_methods_v2")
-))]
+#[cfg(feature = "v1")]
 use common_utils::errors::CustomResult;
-use common_utils::types::keymanager::KeyManagerState;
-#[cfg(all(
-    any(feature = "v1", feature = "v2"),
-    not(feature = "payment_methods_v2")
-))]
+use common_utils::types::keymanager;
+#[cfg(feature = "v1")]
+use hyperswitch_domain_models::merchant_account;
 use hyperswitch_domain_models::{
-    errors, merchant_account::MerchantAccount, payment_methods::PaymentMethod,
+    cards_info, customer, merchant_key_store, payment_methods as pm_domain,
 };
-use hyperswitch_domain_models::{
-    merchant_key_store::MerchantKeyStore, payment_methods::PaymentMethodInterface,
-};
-use storage_impl::{kv_router_store::KVRouterStore, DatabaseStore, MockDb, RouterStore};
+use storage_impl::{errors, kv_router_store::KVRouterStore, DatabaseStore, MockDb, RouterStore};
 
 #[async_trait::async_trait]
 pub trait PaymentMethodsStorageInterface:
-    Send + Sync + dyn_clone::DynClone + PaymentMethodInterface + 'static
+    Send
+    + Sync
+    + dyn_clone::DynClone
+    + pm_domain::PaymentMethodInterface<Error = errors::StorageError>
+    + cards_info::CardsInfoInterface<Error = errors::StorageError>
+    + customer::CustomerInterface<Error = errors::StorageError>
+    + 'static
 {
 }
 dyn_clone::clone_trait_object!(PaymentMethodsStorageInterface);
@@ -35,25 +33,22 @@ impl<T: DatabaseStore + 'static> PaymentMethodsStorageInterface for KVRouterStor
 #[derive(Clone)]
 pub struct PaymentMethodsState {
     pub store: Box<dyn PaymentMethodsStorageInterface>,
-    pub key_store: Option<MerchantKeyStore>,
-    pub key_manager_state: KeyManagerState,
+    pub key_store: Option<merchant_key_store::MerchantKeyStore>,
+    pub key_manager_state: keymanager::KeyManagerState,
 }
-impl From<&PaymentMethodsState> for KeyManagerState {
+impl From<&PaymentMethodsState> for keymanager::KeyManagerState {
     fn from(state: &PaymentMethodsState) -> Self {
         state.key_manager_state.clone()
     }
 }
-#[cfg(all(
-    any(feature = "v1", feature = "v2"),
-    not(feature = "payment_methods_v2")
-))]
+#[cfg(feature = "v1")]
 impl PaymentMethodsState {
     pub async fn find_payment_method(
         &self,
-        key_store: &MerchantKeyStore,
-        merchant_account: &MerchantAccount,
+        key_store: &merchant_key_store::MerchantKeyStore,
+        merchant_account: &merchant_account::MerchantAccount,
         payment_method_id: String,
-    ) -> CustomResult<PaymentMethod, errors::StorageError> {
+    ) -> CustomResult<pm_domain::PaymentMethod, errors::StorageError> {
         let db = &*self.store;
         let key_manager_state = &(self.key_manager_state).clone();
 

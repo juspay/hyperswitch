@@ -15,7 +15,7 @@ use crate::{
     consts::PROTOCOL,
     core::{
         errors::{self, ConnectorErrorExt, RouterResult},
-        payments::{self, access_token, helpers, transformers, PaymentData},
+        payments::{self, access_token, customers, helpers, transformers, PaymentData},
     },
     headers, logger,
     routes::{self, app::settings, metrics},
@@ -38,10 +38,9 @@ impl
         &self,
         state: &routes::SessionState,
         connector_id: &str,
-        merchant_account: &domain::MerchantAccount,
-        key_store: &domain::MerchantKeyStore,
+        merchant_context: &domain::MerchantContext,
         customer: &Option<domain::Customer>,
-        merchant_connector_account: &domain::MerchantConnectorAccount,
+        merchant_connector_account: &domain::MerchantConnectorAccountTypeDetails,
         merchant_recipient_data: Option<types::MerchantRecipientData>,
         header_payload: Option<hyperswitch_domain_models::payments::HeaderPayload>,
     ) -> RouterResult<types::PaymentsSessionRouterData> {
@@ -49,25 +48,13 @@ impl
             state,
             self.clone(),
             connector_id,
-            merchant_account,
-            key_store,
+            merchant_context,
             customer,
             merchant_connector_account,
             merchant_recipient_data,
             header_payload,
         ))
         .await
-    }
-
-    async fn get_merchant_recipient_data<'a>(
-        &self,
-        _state: &routes::SessionState,
-        _merchant_account: &domain::MerchantAccount,
-        _key_store: &domain::MerchantKeyStore,
-        _merchant_connector_account: &helpers::MerchantConnectorAccountType,
-        _connector: &api::ConnectorData,
-    ) -> RouterResult<Option<types::MerchantRecipientData>> {
-        Ok(None)
     }
 }
 
@@ -81,8 +68,7 @@ impl
         &self,
         state: &routes::SessionState,
         connector_id: &str,
-        merchant_account: &domain::MerchantAccount,
-        key_store: &domain::MerchantKeyStore,
+        merchant_context: &domain::MerchantContext,
         customer: &Option<domain::Customer>,
         merchant_connector_account: &helpers::MerchantConnectorAccountType,
         merchant_recipient_data: Option<types::MerchantRecipientData>,
@@ -95,25 +81,13 @@ impl
             state,
             self.clone(),
             connector_id,
-            merchant_account,
-            key_store,
+            merchant_context,
             customer,
             merchant_connector_account,
             merchant_recipient_data,
             header_payload,
         ))
         .await
-    }
-
-    async fn get_merchant_recipient_data<'a>(
-        &self,
-        _state: &routes::SessionState,
-        _merchant_account: &domain::MerchantAccount,
-        _key_store: &domain::MerchantKeyStore,
-        _merchant_connector_account: &helpers::MerchantConnectorAccountType,
-        _connector: &api::ConnectorData,
-    ) -> RouterResult<Option<types::MerchantRecipientData>> {
-        Ok(None)
     }
 }
 
@@ -127,6 +101,7 @@ impl Feature<api::Session, types::PaymentsSessionData> for types::PaymentsSessio
         _connector_request: Option<services::Request>,
         business_profile: &domain::Profile,
         header_payload: hyperswitch_domain_models::payments::HeaderPayload,
+        _return_raw_connector_response: Option<bool>,
     ) -> RouterResult<Self> {
         metrics::SESSION_TOKEN_CREATED.add(
             1,
@@ -147,11 +122,25 @@ impl Feature<api::Session, types::PaymentsSessionData> for types::PaymentsSessio
         &self,
         state: &routes::SessionState,
         connector: &api::ConnectorData,
-        merchant_account: &domain::MerchantAccount,
+        merchant_context: &domain::MerchantContext,
         creds_identifier: Option<&str>,
     ) -> RouterResult<types::AddAccessTokenResult> {
-        access_token::add_access_token(state, connector, merchant_account, self, creds_identifier)
+        access_token::add_access_token(state, connector, merchant_context, self, creds_identifier)
             .await
+    }
+
+    async fn create_connector_customer<'a>(
+        &self,
+        state: &routes::SessionState,
+        connector: &api::ConnectorData,
+    ) -> RouterResult<Option<String>> {
+        customers::create_connector_customer(
+            state,
+            connector,
+            self,
+            types::ConnectorCustomerData::try_from(self)?,
+        )
+        .await
     }
 }
 
@@ -260,7 +249,9 @@ async fn create_applepay_session_token(
     let delayed_response = is_session_response_delayed(state, connector);
     if delayed_response {
         let delayed_response_apple_pay_session =
-            Some(payment_types::ApplePaySessionResponse::NoSessionResponse);
+            Some(payment_types::ApplePaySessionResponse::NoSessionResponse(
+                api_models::payments::NullObject,
+            ));
         create_apple_pay_session_response(
             router_data,
             delayed_response_apple_pay_session,
@@ -1303,6 +1294,7 @@ impl RouterDataSession for types::PaymentsSessionRouterData {
                     connector_integration,
                     self,
                     call_connector_action,
+                    None,
                     None,
                 )
                 .await

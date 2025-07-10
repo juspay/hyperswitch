@@ -1,4 +1,4 @@
-use common_enums::ApiVersion;
+pub use common_enums::{enums::ProcessTrackerRunner, ApiVersion};
 use common_utils::ext_traits::Encode;
 use diesel::{AsChangeset, Identifiable, Insertable, Queryable, Selectable};
 use error_stack::ResultExt;
@@ -196,30 +196,6 @@ impl From<ProcessTrackerUpdate> for ProcessTrackerUpdateInternal {
     }
 }
 
-#[derive(
-    serde::Serialize,
-    serde::Deserialize,
-    Clone,
-    Copy,
-    Debug,
-    PartialEq,
-    Eq,
-    strum::EnumString,
-    strum::Display,
-)]
-#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
-#[strum(serialize_all = "SCREAMING_SNAKE_CASE")]
-pub enum ProcessTrackerRunner {
-    PaymentsSyncWorkflow,
-    RefundWorkflowRouter,
-    DeleteTokenizeDataWorkflow,
-    ApiKeyExpiryWorkflow,
-    OutgoingWebhookRetryWorkflow,
-    AttachPayoutAccountWorkflow,
-    PaymentMethodStatusUpdateWorkflow,
-    PassiveRecoveryWorkflow,
-}
-
 #[cfg(test)]
 mod tests {
     #![allow(clippy::unwrap_used)]
@@ -286,6 +262,18 @@ pub mod business_status {
     pub const EXECUTE_WORKFLOW_COMPLETE_FOR_REVIEW: &str =
         "COMPLETED_EXECUTE_TASK_TO_TRIGGER_REVIEW";
 
+    /// This status indicates that the requeue was triggered for execute task
+    pub const EXECUTE_WORKFLOW_REQUEUE: &str = "TRIGGER_REQUEUE_FOR_EXECUTE_WORKFLOW";
+
     /// This status indicates the completion of a psync task
     pub const PSYNC_WORKFLOW_COMPLETE: &str = "COMPLETED_PSYNC_TASK";
+
+    /// This status indicates that the psync task was completed to trigger the review task
+    pub const PSYNC_WORKFLOW_COMPLETE_FOR_REVIEW: &str = "COMPLETED_PSYNC_TASK_TO_TRIGGER_REVIEW";
+
+    /// This status indicates that the requeue was triggered for psync task
+    pub const PSYNC_WORKFLOW_REQUEUE: &str = "TRIGGER_REQUEUE_FOR_PSYNC_WORKFLOW";
+
+    /// This status indicates the completion of a review task
+    pub const REVIEW_WORKFLOW_COMPLETE: &str = "COMPLETED_REVIEW_TASK";
 }

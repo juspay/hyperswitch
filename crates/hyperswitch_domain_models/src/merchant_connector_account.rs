@@ -1,8 +1,6 @@
 #[cfg(feature = "v2")]
 use std::collections::HashMap;
 
-#[cfg(feature = "v2")]
-use common_utils::transformers::ForeignTryFrom;
 use common_utils::{
     crypto::Encryptable,
     date_time,
@@ -26,7 +24,7 @@ use serde_json::Value;
 
 use super::behaviour;
 #[cfg(feature = "v2")]
-use crate::errors::{self, api_error_response};
+use crate::errors::api_error_response;
 use crate::{
     mandates::CommonMandateReference,
     router_data,
@@ -94,6 +92,92 @@ impl MerchantConnectorAccount {
 }
 
 #[cfg(feature = "v2")]
+#[derive(Clone, Debug)]
+pub enum MerchantConnectorAccountTypeDetails {
+    MerchantConnectorAccount(Box<MerchantConnectorAccount>),
+    MerchantConnectorDetails(common_types::domain::MerchantConnectorAuthDetails),
+}
+
+#[cfg(feature = "v2")]
+impl MerchantConnectorAccountTypeDetails {
+    pub fn get_connector_account_details(
+        &self,
+    ) -> error_stack::Result<router_data::ConnectorAuthType, common_utils::errors::ParsingError>
+    {
+        match self {
+            Self::MerchantConnectorAccount(merchant_connector_account) => {
+                merchant_connector_account
+                    .connector_account_details
+                    .peek()
+                    .clone()
+                    .parse_value("ConnectorAuthType")
+            }
+            Self::MerchantConnectorDetails(merchant_connector_details) => {
+                merchant_connector_details
+                    .merchant_connector_creds
+                    .peek()
+                    .clone()
+                    .parse_value("ConnectorAuthType")
+            }
+        }
+    }
+
+    pub fn is_disabled(&self) -> bool {
+        match self {
+            Self::MerchantConnectorAccount(merchant_connector_account) => {
+                merchant_connector_account.disabled.unwrap_or(false)
+            }
+            Self::MerchantConnectorDetails(_) => false,
+        }
+    }
+
+    pub fn get_metadata(&self) -> Option<Secret<Value>> {
+        match self {
+            Self::MerchantConnectorAccount(merchant_connector_account) => {
+                merchant_connector_account.metadata.to_owned()
+            }
+            Self::MerchantConnectorDetails(_) => None,
+        }
+    }
+
+    pub fn get_id(&self) -> Option<id_type::MerchantConnectorAccountId> {
+        match self {
+            Self::MerchantConnectorAccount(merchant_connector_account) => {
+                Some(merchant_connector_account.id.clone())
+            }
+            Self::MerchantConnectorDetails(_) => None,
+        }
+    }
+
+    pub fn get_mca_id(&self) -> Option<id_type::MerchantConnectorAccountId> {
+        match self {
+            Self::MerchantConnectorAccount(merchant_connector_account) => {
+                Some(merchant_connector_account.get_id())
+            }
+            Self::MerchantConnectorDetails(_) => None,
+        }
+    }
+
+    pub fn get_connector_name(&self) -> Option<common_enums::connector_enums::Connector> {
+        match self {
+            Self::MerchantConnectorAccount(merchant_connector_account) => {
+                Some(merchant_connector_account.connector_name)
+            }
+            Self::MerchantConnectorDetails(_) => None,
+        }
+    }
+
+    pub fn get_inner_db_merchant_connector_account(&self) -> Option<&MerchantConnectorAccount> {
+        match self {
+            Self::MerchantConnectorAccount(merchant_connector_account) => {
+                Some(merchant_connector_account)
+            }
+            Self::MerchantConnectorDetails(_) => None,
+        }
+    }
+}
+
+#[cfg(feature = "v2")]
 #[derive(Clone, Debug, router_derive::ToEncryption)]
 pub struct MerchantConnectorAccount {
     pub id: id_type::MerchantConnectorAccountId,
@@ -124,6 +208,13 @@ pub struct MerchantConnectorAccount {
 
 #[cfg(feature = "v2")]
 impl MerchantConnectorAccount {
+    pub fn get_retry_threshold(&self) -> Option<u16> {
+        self.feature_metadata
+            .as_ref()
+            .and_then(|metadata| metadata.revenue_recovery.as_ref())
+            .map(|recovery| recovery.billing_connector_retry_threshold)
+    }
+
     pub fn get_id(&self) -> id_type::MerchantConnectorAccountId {
         self.id.clone()
     }
@@ -170,6 +261,20 @@ impl MerchantConnectorAccount {
                     .mca_reference
                     .billing_to_recovery
                     .get(&account_reference_id)
+                    .cloned()
+            })
+        })
+    }
+    pub fn get_account_reference_id_using_payment_merchant_connector_account_id(
+        &self,
+        payment_merchant_connector_account_id: id_type::MerchantConnectorAccountId,
+    ) -> Option<String> {
+        self.feature_metadata.as_ref().and_then(|metadata| {
+            metadata.revenue_recovery.as_ref().and_then(|recovery| {
+                recovery
+                    .mca_reference
+                    .recovery_to_billing
+                    .get(&payment_merchant_connector_account_id)
                     .cloned()
             })
         })
@@ -356,7 +461,8 @@ impl behaviour::Conversion for MerchantConnectorAccount {
                 connector_account_details: self.connector_account_details.into(),
                 test_mode: self.test_mode,
                 disabled: self.disabled,
-                merchant_connector_id: self.merchant_connector_id,
+                merchant_connector_id: self.merchant_connector_id.clone(),
+                id: Some(self.merchant_connector_id),
                 payment_methods_enabled: self.payment_methods_enabled,
                 connector_type: self.connector_type,
                 metadata: self.metadata,
@@ -452,7 +558,8 @@ impl behaviour::Conversion for MerchantConnectorAccount {
             connector_account_details: Some(self.connector_account_details.into()),
             test_mode: self.test_mode,
             disabled: self.disabled,
-            merchant_connector_id: self.merchant_connector_id,
+            merchant_connector_id: self.merchant_connector_id.clone(),
+            id: Some(self.merchant_connector_id),
             payment_methods_enabled: self.payment_methods_enabled,
             connector_type: Some(self.connector_type),
             metadata: self.metadata,
@@ -726,10 +833,35 @@ common_utils::create_list_wrapper!(
     MerchantConnectorAccounts,
     MerchantConnectorAccount,
     impl_functions: {
+        fn filter_and_map<'a, T>(
+            &'a self,
+            filter: impl Fn(&'a MerchantConnectorAccount) -> bool,
+            func: impl Fn(&'a MerchantConnectorAccount) -> T,
+        ) -> rustc_hash::FxHashSet<T>
+        where
+            T: std::hash::Hash + Eq,
+        {
+            self.0
+                .iter()
+                .filter(|mca| filter(mca))
+                .map(func)
+                .collect::<rustc_hash::FxHashSet<_>>()
+        }
+
+        pub fn filter_by_profile<'a, T>(
+            &'a self,
+            profile_id: &'a id_type::ProfileId,
+            func: impl Fn(&'a MerchantConnectorAccount) -> T,
+        ) -> rustc_hash::FxHashSet<T>
+        where
+            T: std::hash::Hash + Eq,
+        {
+            self.filter_and_map(|mca| mca.profile_id == *profile_id, func)
+        }
         #[cfg(feature = "v2")]
         pub fn get_connector_and_supporting_payment_method_type_for_session_call(
             &self,
-        ) -> Vec<(&MerchantConnectorAccount, common_enums::PaymentMethodType)> {
+        ) -> Vec<(&MerchantConnectorAccount, common_enums::PaymentMethodType, common_enums::PaymentMethod)> {
             // This vector is created to work around lifetimes
             let ref_vector = Vec::default();
 
@@ -738,12 +870,12 @@ common_utils::create_list_wrapper!(
                     .payment_methods_enabled.as_ref()
                     .unwrap_or(&Vec::default())
                     .iter()
-                    .flat_map(|payment_method_types| payment_method_types.payment_method_subtypes.as_ref().unwrap_or(&ref_vector))
-                    .filter(|payment_method_types_enabled| {
+                    .flat_map(|payment_method_types| payment_method_types.payment_method_subtypes.as_ref().unwrap_or(&ref_vector).iter().map(|payment_method_subtype| (payment_method_subtype, payment_method_types.payment_method_type)).collect::<Vec<_>>())
+                    .filter(|(payment_method_types_enabled, _)| {
                         payment_method_types_enabled.payment_experience == Some(api_models::enums::PaymentExperience::InvokeSdkClient)
                     })
-                    .map(|payment_method_types| {
-                        (connector_account, payment_method_types.payment_method_subtype)
+                    .map(|(payment_method_subtypes, payment_method_type)| {
+                        (connector_account, payment_method_subtypes.payment_method_subtype, payment_method_type)
                     })
                     .collect::<Vec<_>>()
             }).collect();

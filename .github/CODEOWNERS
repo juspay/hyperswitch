@@ -20,7 +20,6 @@ crates/router/src/routes/ @juspay/hyperswitch-framework
 migrations/ @juspay/hyperswitch-framework
 v2_migrations/ @juspay/hyperswitch-framework
 api-reference/ @juspay/hyperswitch-framework
-api-reference-v2/ @juspay/hyperswitch-framework
 Cargo.toml @juspay/hyperswitch-framework
 Cargo.lock @juspay/hyperswitch-framework
 
@@ -39,7 +38,9 @@ crates/common_utils/src/events/ @juspay/hyperswitch-analytics
 crates/common_utils/src/events.rs @juspay/hyperswitch-analytics
 crates/analytics/ @juspay/hyperswitch-analytics
 
+scripts/add_connector.sh @juspay/hyperswitch-connector
 connector-template/ @juspay/hyperswitch-connector
+crates/router/src/core/connector_validation.rs @juspay/hyperswitch-connector
 crates/router/src/connector/ @juspay/hyperswitch-connector
 crates/router/tests/connectors/ @juspay/hyperswitch-connector
 crates/test_utils/tests/connectors/ @juspay/hyperswitch-connector
@@ -50,6 +51,9 @@ crates/api_models/src/connector_enums.rs @juspay/hyperswitch-connector
 crates/common_enums/src/connector_enums.rs @juspay/hyperswitch-connector
 crates/router/src/configs/defaults/payment_connector_required_fields.rs @juspay/hyperswitch-connector
 crates/hyperswitch_interfaces/src/configs.rs @juspay/hyperswitch-connector
+crates/hyperswitch_domain_models/src/connector_endpoints.rs @juspay/hyperswitch-connector
+crates/router/src/types/api/connector_mapping.rs @juspay/hyperswitch-connector
+crates/router/src/types/connector_transformers.rs @juspay/hyperswitch-connector
 
 crates/router/src/compatibility/ @juspay/hyperswitch-compatibility
 
@@ -71,24 +75,20 @@ crates/external_services/src/grpc_client/dynamic_routing.rs @juspay/hyperswitch-
 crates/external_services/src/grpc_client/dynamic_routing/ @juspay/hyperswitch-routing
 crates/external_services/src/grpc_client/health_check_client.rs @juspay/hyperswitch-routing
 
-crates/api_models/src/payment_methods.rs @juspay/hyperswitch-routing
-crates/router/src/core/payment_methods.rs @juspay/hyperswitch-routing
-crates/router/src/routes/payment_methods.rs @juspay/hyperswitch-routing
-crates/router/src/types/api/payment_methods.rs @juspay/hyperswitch-routing
-crates/router/src/types/storage/payment_method.rs @juspay/hyperswitch-routing
-crates/router/src/db/payment_method.rs @juspay/hyperswitch-routing
-crates/diesel_models/src/payment_method.rs @juspay/hyperswitch-routing
-crates/diesel_models/src/query/payment_method.rs @juspay/hyperswitch-routing
-crates/storage_impl/src/payment_method.rs @juspay/hyperswitch-routing
-crates/openapi/src/routes/payment_method.rs @juspay/hyperswitch-routing
-crates/router/src/core/payment_methods/cards.rs @juspay/hyperswitch-routing
-crates/router/src/core/payment_methods/utils.rs @juspay/hyperswitch-routing
-crates/router/src/core/payment_methods/transformers.rs @juspay/hyperswitch-routing
-crates/router/src/core/payment_methods/vault.rs @juspay/hyperswitch-routing
-crates/router/src/core/payment_methods/migration.rs @juspay/hyperswitch-routing
-crates/router/src/core/payment_methods/surcharge_decision_configs.rs @juspay/hyperswitch-routing
-crates/router/src/workflows/payment_method_status_update.rs @juspay/hyperswitch-routing
-crates/router/src/core/payments/tokenization.rs @juspay/hyperswitch-routing
+crates/api_models/src/payment_methods.rs @juspay/hyperswitch-payment-methods
+crates/router/src/core/payment_methods.rs @juspay/hyperswitch-payment-methods
+crates/router/src/routes/payment_methods.rs @juspay/hyperswitch-payment-methods
+crates/router/src/types/api/payment_methods.rs @juspay/hyperswitch-payment-methods
+crates/router/src/types/storage/payment_method.rs @juspay/hyperswitch-payment-methods
+crates/router/src/db/payment_method.rs @juspay/hyperswitch-payment-methods
+crates/diesel_models/src/payment_method.rs @juspay/hyperswitch-payment-methods
+crates/diesel_models/src/query/payment_method.rs @juspay/hyperswitch-payment-methods
+crates/storage_impl/src/payment_method.rs @juspay/hyperswitch-payment-methods
+crates/openapi/src/routes/payment_method.rs @juspay/hyperswitch-payment-methods
+crates/router/src/workflows/payment_method_status_update.rs @juspay/hyperswitch-payment-methods
+crates/router/src/core/payments/tokenization.rs @juspay/hyperswitch-payment-methods
+crates/router/src/core/payment_methods/ @juspay/hyperswitch-payment-methods
+crates/payment_methods/ @juspay/hyperswitch-payment-methods
 
 crates/api_models/src/connector_onboarding.rs @juspay/hyperswitch-dashboard
 crates/api_models/src/user @juspay/hyperswitch-dashboard

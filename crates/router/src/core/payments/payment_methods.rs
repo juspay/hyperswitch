@@ -5,18 +5,13 @@ use common_utils::{ext_traits::OptionExt, id_type};
 use error_stack::ResultExt;
 
 use super::errors;
-use crate::{db::errors::StorageErrorExt, routes, types::domain};
+use crate::{core::payment_methods, db::errors::StorageErrorExt, routes, types::domain};
 
-#[cfg(all(
-    feature = "v2",
-    feature = "customer_v2",
-    feature = "payment_methods_v2"
-))]
+#[cfg(feature = "v2")]
 pub async fn list_payment_methods(
     state: routes::SessionState,
-    merchant_account: domain::MerchantAccount,
+    merchant_context: domain::MerchantContext,
     profile: domain::Profile,
-    key_store: domain::MerchantKeyStore,
     payment_id: id_type::GlobalPaymentId,
     _req: api_models::payments::PaymentMethodsListRequest,
     header_payload: &hyperswitch_domain_models::payments::HeaderPayload,
@@ -28,41 +23,43 @@ pub async fn list_payment_methods(
         .find_payment_intent_by_id(
             key_manager_state,
             &payment_id,
-            &key_store,
-            merchant_account.storage_scheme,
+            merchant_context.get_merchant_key_store(),
+            merchant_context.get_merchant_account().storage_scheme,
         )
         .await
         .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
 
     validate_payment_status_for_payment_method_list(payment_intent.status)?;
 
-    let client_secret = header_payload
-        .client_secret
-        .as_ref()
-        .get_required_value("client_secret header")
-        .change_context(errors::ApiErrorResponse::MissingRequiredField {
-            field_name: "client_secret header",
-        })?;
-
-    payment_intent.validate_client_secret(client_secret)?;
-
     let payment_connector_accounts = db
         .list_enabled_connector_accounts_by_profile_id(
             key_manager_state,
             profile.get_id(),
-            &key_store,
+            merchant_context.get_merchant_key_store(),
             common_enums::ConnectorType::PaymentProcessor,
         )
         .await
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("error when fetching merchant connector accounts")?;
 
+    let customer_payment_methods = match &payment_intent.customer_id {
+        Some(customer_id) => Some(
+            payment_methods::list_customer_payment_methods_core(
+                &state,
+                &merchant_context,
+                customer_id,
+            )
+            .await?,
+        ),
+        None => None,
+    };
+
     let response =
         hyperswitch_domain_models::merchant_connector_account::FlattenedPaymentMethodsEnabled::from_payment_connectors_list(payment_connector_accounts)
             .perform_filtering()
             .get_required_fields(RequiredFieldsInput::new())
             .perform_surcharge_calculation()
-            .generate_response();
+            .generate_response(customer_payment_methods);
 
     Ok(hyperswitch_domain_models::api::ApplicationResponse::Json(
         response,
@@ -98,6 +95,9 @@ impl FilteredPaymentMethodsEnabled {
                     payment_method_subtype: payment_methods_enabled
                         .payment_methods_enabled
                         .payment_method_subtype,
+                    payment_experience: payment_methods_enabled
+                        .payment_methods_enabled
+                        .payment_experience,
                 },
             )
             .collect();
@@ -111,6 +111,7 @@ struct RequiredFieldsForEnabledPaymentMethod {
     required_field: Option<Vec<api_models::payment_methods::RequiredFieldInfo>>,
     payment_method_subtype: common_enums::PaymentMethodType,
     payment_method_type: common_enums::PaymentMethod,
+    payment_experience: Option<common_enums::PaymentExperience>,
 }
 
 /// Container to hold the filtered payment methods enabled with required fields
@@ -121,6 +122,7 @@ struct RequiredFieldsAndSurchargeForEnabledPaymentMethodType {
     required_field: Option<Vec<api_models::payment_methods::RequiredFieldInfo>>,
     payment_method_subtype: common_enums::PaymentMethodType,
     payment_method_type: common_enums::PaymentMethod,
+    payment_experience: Option<common_enums::PaymentExperience>,
     surcharge: Option<api_models::payment_methods::SurchargeDetailsResponse>,
 }
 
@@ -130,7 +132,12 @@ struct RequiredFieldsAndSurchargeForEnabledPaymentMethodTypes(
 );
 
 impl RequiredFieldsAndSurchargeForEnabledPaymentMethodTypes {
-    fn generate_response(self) -> api_models::payments::PaymentMethodListResponseForPayments {
+    fn generate_response(
+        self,
+        customer_payment_methods: Option<
+            Vec<api_models::payment_methods::CustomerPaymentMethodResponseItem>,
+        >,
+    ) -> api_models::payments::PaymentMethodListResponseForPayments {
         let response_payment_methods = self
             .0
             .into_iter()
@@ -138,6 +145,7 @@ impl RequiredFieldsAndSurchargeForEnabledPaymentMethodTypes {
                 api_models::payments::ResponsePaymentMethodTypesForPayments {
                     payment_method_type: payment_methods_enabled.payment_method_type,
                     payment_method_subtype: payment_methods_enabled.payment_method_subtype,
+                    payment_experience: payment_methods_enabled.payment_experience,
                     required_fields: payment_methods_enabled.required_field,
                     surcharge_details: payment_methods_enabled.surcharge,
                     extra_information: None,
@@ -147,7 +155,7 @@ impl RequiredFieldsAndSurchargeForEnabledPaymentMethodTypes {
 
         api_models::payments::PaymentMethodListResponseForPayments {
             payment_methods_enabled: response_payment_methods,
-            customer_payment_methods: None,
+            customer_payment_methods,
         }
     }
 }
@@ -164,6 +172,7 @@ impl RequiredFieldsForEnabledPaymentMethodTypes {
                     payment_method_type: payment_methods_enabled.payment_method_type,
                     required_field: payment_methods_enabled.required_field,
                     payment_method_subtype: payment_methods_enabled.payment_method_subtype,
+                    payment_experience: payment_methods_enabled.payment_experience,
                     surcharge: None,
                 },
             )
@@ -192,6 +201,7 @@ fn validate_payment_status_for_payment_method_list(
     match intent_status {
         common_enums::IntentStatus::RequiresPaymentMethod => Ok(()),
         common_enums::IntentStatus::Succeeded
+        | common_enums::IntentStatus::Conflicted
         | common_enums::IntentStatus::Failed
         | common_enums::IntentStatus::Cancelled
         | common_enums::IntentStatus::Processing

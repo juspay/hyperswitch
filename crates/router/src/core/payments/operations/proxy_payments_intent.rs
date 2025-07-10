@@ -6,6 +6,7 @@ use error_stack::ResultExt;
 use hyperswitch_domain_models::{
     payment_method_data::PaymentMethodData, payments::PaymentConfirmData,
 };
+use hyperswitch_interfaces::api::ConnectorSpecifications;
 use masking::PeekInterface;
 use router_env::{instrument, tracing};
 
@@ -15,7 +16,7 @@ use crate::{
         errors::{self, CustomResult, RouterResult, StorageErrorExt},
         payments::{
             operations::{self, ValidateStatusForOperation},
-            OperationSessionGetters,
+            OperationSessionGetters, OperationSessionSetters,
         },
     },
     routes::{app::ReqState, SessionState},
@@ -40,13 +41,14 @@ impl ValidateStatusForOperation for PaymentProxyIntent {
         match intent_status {
             //Failed state is included here so that in PCR, retries can be done for failed payments, otherwise for a failed attempt it was asking for new payment_intent
             common_enums::IntentStatus::RequiresPaymentMethod
-            | common_enums::IntentStatus::Failed => Ok(()),
+            | common_enums::IntentStatus::Failed
+            | common_enums::IntentStatus::Processing => Ok(()),
             //Failed state is included here so that in PCR, retries can be done for failed payments, otherwise for a failed attempt it was asking for new payment_intent
             common_enums::IntentStatus::RequiresPaymentMethod
             | common_enums::IntentStatus::Failed => Ok(()),
-            common_enums::IntentStatus::Succeeded
+            common_enums::IntentStatus::Conflicted
+            | common_enums::IntentStatus::Succeeded
             | common_enums::IntentStatus::Cancelled
-            | common_enums::IntentStatus::Processing
             | common_enums::IntentStatus::RequiresCustomerAction
             | common_enums::IntentStatus::RequiresMerchantAction
             | common_enums::IntentStatus::RequiresCapture
@@ -120,11 +122,11 @@ impl<F: Send + Clone + Sync> ValidateRequest<F, ProxyPaymentsRequest, PaymentCon
     fn validate_request<'a, 'b>(
         &'b self,
         _request: &ProxyPaymentsRequest,
-        merchant_account: &'a domain::MerchantAccount,
+        merchant_context: &'a domain::MerchantContext,
     ) -> RouterResult<operations::ValidateResult> {
         let validate_result = operations::ValidateResult {
-            merchant_id: merchant_account.get_id().to_owned(),
-            storage_scheme: merchant_account.storage_scheme,
+            merchant_id: merchant_context.get_merchant_account().get_id().to_owned(),
+            storage_scheme: merchant_context.get_merchant_account().storage_scheme,
             requeue: false,
         };
 
@@ -142,19 +144,22 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentConfirmData<F>, ProxyPaymentsR
         state: &'a SessionState,
         payment_id: &common_utils::id_type::GlobalPaymentId,
         request: &ProxyPaymentsRequest,
-        merchant_account: &domain::MerchantAccount,
+        merchant_context: &domain::MerchantContext,
         _profile: &domain::Profile,
-        key_store: &domain::MerchantKeyStore,
         header_payload: &hyperswitch_domain_models::payments::HeaderPayload,
-        _platform_merchant_account: Option<&domain::MerchantAccount>,
     ) -> RouterResult<operations::GetTrackerResponse<PaymentConfirmData<F>>> {
         let db = &*state.store;
         let key_manager_state = &state.into();
 
-        let storage_scheme = merchant_account.storage_scheme;
+        let storage_scheme = merchant_context.get_merchant_account().storage_scheme;
 
         let payment_intent = db
-            .find_payment_intent_by_id(key_manager_state, payment_id, key_store, storage_scheme)
+            .find_payment_intent_by_id(
+                key_manager_state,
+                payment_id,
+                merchant_context.get_merchant_key_store(),
+                storage_scheme,
+            )
             .await
             .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
 
@@ -172,8 +177,8 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentConfirmData<F>, ProxyPaymentsR
                     },
                 ),
             ),
-            common_utils::types::keymanager::Identifier::Merchant(merchant_account.get_id().to_owned()),
-            key_store.key.peek(),
+            common_utils::types::keymanager::Identifier::Merchant(merchant_context.get_merchant_account().get_id().to_owned()),
+            merchant_context.get_merchant_key_store().key.peek(),
         )
         .await
         .and_then(|val| val.try_into_batchoperation())
@@ -185,26 +190,40 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentConfirmData<F>, ProxyPaymentsR
                 .change_context(errors::ApiErrorResponse::InternalServerError)
                 .attach_printable("Failed while encrypting payment intent details")?;
 
-        let payment_attempt_domain_model: hyperswitch_domain_models::payments::payment_attempt::PaymentAttempt =
-            hyperswitch_domain_models::payments::payment_attempt::PaymentAttempt::proxy_create_domain_model(
-                &payment_intent,
-                cell_id,
-                storage_scheme,
-                request,
-                encrypted_data
-            )
-            .await?;
+        let payment_attempt = match payment_intent.active_attempt_id.clone() {
+            Some(ref active_attempt_id) => db
+                .find_payment_attempt_by_id(
+                    key_manager_state,
+                    merchant_context.get_merchant_key_store(),
+                    active_attempt_id,
+                    storage_scheme,
+                )
+                .await
+                .change_context(errors::ApiErrorResponse::PaymentNotFound)
+                .attach_printable("Could not find payment attempt")?,
 
-        let payment_attempt = db
-            .insert_payment_attempt(
-                key_manager_state,
-                key_store,
-                payment_attempt_domain_model,
-                storage_scheme,
-            )
-            .await
-            .change_context(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable("Could not insert payment attempt")?;
+            None => {
+                let payment_attempt_domain_model: hyperswitch_domain_models::payments::payment_attempt::PaymentAttempt =
+                hyperswitch_domain_models::payments::payment_attempt::PaymentAttempt::proxy_create_domain_model(
+                    &payment_intent,
+                    cell_id,
+                    storage_scheme,
+                    request,
+                    encrypted_data
+                )
+                .await?;
+                db.insert_payment_attempt(
+                    key_manager_state,
+                    merchant_context.get_merchant_key_store(),
+                    payment_attempt_domain_model,
+                    storage_scheme,
+                )
+                .await
+                .change_context(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable("Could not insert payment attempt")?
+            }
+        };
+
         let processor_payment_token = request.recurring_details.processor_payment_token.clone();
 
         let payment_address = hyperswitch_domain_models::payment_address::PaymentAddress::new(
@@ -243,6 +262,8 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentConfirmData<F>, ProxyPaymentsR
             payment_method_data: Some(PaymentMethodData::MandatePayment),
             payment_address,
             mandate_data: Some(mandate_data_input),
+            payment_method: None,
+            merchant_connector_details: None,
         };
 
         let get_trackers_response = operations::GetTrackerResponse { payment_data };
@@ -283,14 +304,31 @@ impl<F: Clone + Send + Sync> Domain<F, ProxyPaymentsRequest, PaymentConfirmData<
     )> {
         Ok((Box::new(self), None, None))
     }
+    #[instrument(skip_all)]
+    async fn populate_payment_data<'a>(
+        &'a self,
+        _state: &SessionState,
+        payment_data: &mut PaymentConfirmData<F>,
+        _merchant_context: &domain::MerchantContext,
+        _business_profile: &domain::Profile,
+        connector_data: &api::ConnectorData,
+    ) -> CustomResult<(), errors::ApiErrorResponse> {
+        let connector_request_reference_id = connector_data
+            .connector
+            .generate_connector_request_reference_id(
+                &payment_data.payment_intent,
+                &payment_data.payment_attempt,
+            );
+        payment_data.set_connector_request_reference_id(Some(connector_request_reference_id));
+        Ok(())
+    }
 
     async fn perform_routing<'a>(
         &'a self,
-        _merchant_account: &domain::MerchantAccount,
+        _merchant_context: &domain::MerchantContext,
         _business_profile: &domain::Profile,
         state: &SessionState,
         payment_data: &mut PaymentConfirmData<F>,
-        _mechant_key_store: &domain::MerchantKeyStore,
     ) -> CustomResult<ConnectorCallType, errors::ApiErrorResponse> {
         let connector_name = payment_data.get_payment_attempt_connector();
         if let Some(connector_name) = connector_name {
@@ -302,7 +340,7 @@ impl<F: Clone + Send + Sync> Domain<F, ProxyPaymentsRequest, PaymentConfirmData<
                 merchant_connector_id,
             )?;
 
-            Ok(ConnectorCallType::PreDetermined(connector_data))
+            Ok(ConnectorCallType::PreDetermined(connector_data.into()))
         } else {
             Err(error_stack::Report::new(
                 errors::ApiErrorResponse::InternalServerError,
@@ -344,13 +382,15 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentConfirmData<F>, ProxyPaymentsReque
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Connector is none when constructing response")?;
 
-        let merchant_connector_id = payment_data
-            .payment_attempt
-            .merchant_connector_id
-            .clone()
-            .get_required_value("merchant_connector_id")
-            .change_context(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable("Merchant connector id is none when constructing response")?;
+        let merchant_connector_id = Some(
+            payment_data
+                .payment_attempt
+                .merchant_connector_id
+                .clone()
+                .get_required_value("merchant_connector_id")
+                .change_context(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable("Merchant connector id is none when constructing response")?,
+        );
 
         let payment_intent_update =
             hyperswitch_domain_models::payments::payment_intent::PaymentIntentUpdate::ConfirmIntent {
@@ -364,12 +404,24 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentConfirmData<F>, ProxyPaymentsReque
             .authentication_type
             .unwrap_or_default();
 
+        let connector_request_reference_id = payment_data
+            .payment_attempt
+            .connector_request_reference_id
+            .clone();
+
+        let connector_response_reference_id = payment_data
+            .payment_attempt
+            .connector_response_reference_id
+            .clone();
+
         let payment_attempt_update = hyperswitch_domain_models::payments::payment_attempt::PaymentAttemptUpdate::ConfirmIntent {
             status: attempt_status,
             updated_by: storage_scheme.to_string(),
             connector,
             merchant_connector_id,
             authentication_type,
+            connector_request_reference_id,
+            connector_response_reference_id,
         };
 
         let updated_payment_intent = db

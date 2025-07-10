@@ -8,7 +8,10 @@ use common_utils::{
     errors::CustomResult,
     ext_traits::ByteSliceExt,
     request::{Method, Request, RequestBuilder, RequestContent},
-    types::{AmountConvertor, MinorUnit, StringMajorUnit, StringMajorUnitForConnector},
+    types::{
+        AmountConvertor, MinorUnit, StringMajorUnit, StringMajorUnitForConnector, StringMinorUnit,
+        StringMinorUnitForConnector,
+    },
 };
 use error_stack::ResultExt;
 use hyperswitch_domain_models::{
@@ -86,12 +89,14 @@ use crate::{
 #[derive(Clone)]
 pub struct Paypal {
     amount_converter: &'static (dyn AmountConvertor<Output = StringMajorUnit> + Sync),
+    amount_converter_webhooks: &'static (dyn AmountConvertor<Output = StringMinorUnit> + Sync),
 }
 
 impl Paypal {
     pub fn new() -> &'static Self {
         &Self {
             amount_converter: &StringMajorUnitForConnector,
+            amount_converter_webhooks: &StringMinorUnitForConnector,
         }
     }
 }
@@ -148,7 +153,7 @@ impl Paypal {
                     if let Some(field) = error
                         .field
                         .as_ref()
-                        .and_then(|field| field.split('/').last())
+                        .and_then(|field| field.split('/').next_back())
                     {
                         reason.push_str(&format!(", field - {field}"));
                     }
@@ -178,8 +183,9 @@ impl Paypal {
             reason: error_reason.or(Some(response.message)),
             attempt_status: None,
             connector_transaction_id: response.debug_id,
-            issuer_error_code: None,
-            issuer_error_message: None,
+            network_advice_code: None,
+            network_decline_code: None,
+            network_error_message: None,
         })
     }
 }
@@ -311,7 +317,7 @@ impl ConnectorCommon for Paypal {
                     .iter()
                     .try_fold(String::new(), |mut acc, error| {
                         if let Some(description) = &error.description {
-                            write!(acc, "description - {} ;", description)
+                            write!(acc, "description - {description} ;")
                                 .change_context(
                                     errors::ConnectorError::ResponseDeserializationFailed,
                                 )
@@ -352,8 +358,9 @@ impl ConnectorCommon for Paypal {
             reason,
             attempt_status: None,
             connector_transaction_id: response.debug_id,
-            issuer_error_code: None,
-            issuer_error_message: None,
+            network_advice_code: None,
+            network_decline_code: None,
+            network_error_message: None,
         })
     }
 }
@@ -492,8 +499,9 @@ impl ConnectorIntegration<AccessTokenAuth, AccessTokenRequestData, AccessToken> 
             reason: Some(response.error_description),
             attempt_status: None,
             connector_transaction_id: None,
-            issuer_error_code: None,
-            issuer_error_message: None,
+            network_advice_code: None,
+            network_decline_code: None,
+            network_error_message: None,
         })
     }
 }
@@ -945,12 +953,12 @@ impl ConnectorIntegration<SdkSessionUpdate, SdkPaymentsSessionUpdateData, Paymen
         // https://developer.paypal.com/docs/api/orders/v2/#orders_patch
         // If 204 status code, then the session was updated successfully.
         let status = if res.status_code == 204 {
-            enums::SessionUpdateStatus::Success
+            enums::PaymentResourceUpdateStatus::Success
         } else {
-            enums::SessionUpdateStatus::Failure
+            enums::PaymentResourceUpdateStatus::Failure
         };
         Ok(SdkSessionUpdateRouterData {
-            response: Ok(PaymentsResponseData::SessionUpdateResponse { status }),
+            response: Ok(PaymentsResponseData::PaymentResourceUpdateResponse { status }),
             ..data.clone()
         })
     }
@@ -1241,8 +1249,9 @@ impl ConnectorIntegration<PreProcessing, PaymentsPreProcessingData, PaymentsResp
                                 .unwrap_or(paypal::AuthenticationStatus::Null),
                             )),
                             status_code: res.status_code,
-                            issuer_error_code: None,
-                            issuer_error_message: None,
+                             network_advice_code: None,
+            network_decline_code: None,
+            network_error_message: None,
                         }),
                         ..data.clone()
                     }),
@@ -1394,7 +1403,7 @@ impl ConnectorIntegration<PSync, PaymentsSyncData, PaymentsResponseData> for Pay
                                 "Missing Authorize id".to_string(),
                             ),
                         )?;
-                        format!("v2/payments/authorizations/{authorize_id}",)
+                        format!("v2/payments/authorizations/{authorize_id}")
                     }
                     transformers::PaypalPaymentIntent::Capture => {
                         let capture_id = paypal_meta.capture_id.ok_or(
@@ -2020,9 +2029,15 @@ impl IncomingWebhook for Paypal {
                     .attach_printable("Expected Dispute webhooks,but found other webhooks")?
             }
             transformers::PaypalResource::PaypalDisputeWebhooks(payload) => {
+                let amt = connector_utils::convert_back_amount_to_minor_units(
+                    self.amount_converter,
+                    payload.dispute_amount.value,
+                    payload.dispute_amount.currency_code,
+                )?;
                 Ok(disputes::DisputePayload {
-                    amount: connector_utils::to_currency_lower_unit(
-                        payload.dispute_amount.value.get_amount_as_string(),
+                    amount: connector_utils::convert_amount(
+                        self.amount_converter_webhooks,
+                        amt,
                         payload.dispute_amount.currency_code,
                     )?,
                     currency: payload.dispute_amount.currency_code,

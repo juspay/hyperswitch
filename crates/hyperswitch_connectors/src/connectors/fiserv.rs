@@ -1,5 +1,7 @@
 pub mod transformers;
 
+use std::sync::LazyLock;
+
 use base64::Engine;
 use common_enums::enums;
 use common_utils::{
@@ -21,7 +23,10 @@ use hyperswitch_domain_models::{
         PaymentsCancelData, PaymentsCaptureData, PaymentsSessionData, PaymentsSyncData,
         RefundsData, SetupMandateRequestData,
     },
-    router_response_types::{PaymentsResponseData, RefundsResponseData},
+    router_response_types::{
+        ConnectorInfo, PaymentMethodDetails, PaymentsResponseData, RefundsResponseData,
+        SupportedPaymentMethods, SupportedPaymentMethodsExt,
+    },
     types::{
         PaymentsAuthorizeRouterData, PaymentsCancelRouterData, PaymentsCaptureRouterData,
         PaymentsSyncRouterData, RefundSyncRouterData, RefundsRouterData,
@@ -46,6 +51,7 @@ use uuid::Uuid;
 use crate::{
     constants::headers,
     types::ResponseRouterData,
+    utils as connector_utils,
     utils::{construct_not_implemented_error_report, convert_amount},
 };
 
@@ -163,35 +169,41 @@ impl ConnectorCommon for Fiserv {
         event_builder.map(|i| i.set_error_response_body(&response));
         router_env::logger::info!(connector_response=?response);
 
-        let fiserv::ErrorResponse { error, details } = response;
+        let error_details_opt = response.error.as_ref().and_then(|v| v.first());
 
-        Ok(error
-            .or(details)
-            .and_then(|error_details| {
-                error_details.first().map(|first_error| ErrorResponse {
-                    code: first_error
-                        .code
-                        .to_owned()
-                        .unwrap_or_else(|| consts::NO_ERROR_CODE.to_string()),
-                    message: first_error.message.to_owned(),
-                    reason: first_error.field.to_owned(),
-                    status_code: res.status_code,
-                    attempt_status: None,
-                    connector_transaction_id: None,
-                    issuer_error_code: None,
-                    issuer_error_message: None,
-                })
-            })
-            .unwrap_or(ErrorResponse {
-                code: consts::NO_ERROR_CODE.to_string(),
-                message: consts::NO_ERROR_MESSAGE.to_string(),
-                reason: None,
-                status_code: res.status_code,
-                attempt_status: None,
-                connector_transaction_id: None,
-                issuer_error_code: None,
-                issuer_error_message: None,
-            }))
+        let (code, message, reason) = if let Some(first_error) = error_details_opt {
+            let code = first_error
+                .code
+                .clone()
+                .unwrap_or_else(|| consts::NO_ERROR_CODE.to_string());
+
+            let message = first_error
+                .message
+                .clone()
+                .unwrap_or_else(|| consts::NO_ERROR_CODE.to_string());
+
+            let reason = first_error.additional_info.clone();
+
+            (code, message, reason)
+        } else {
+            (
+                consts::NO_ERROR_CODE.to_string(),
+                consts::NO_ERROR_MESSAGE.to_string(),
+                None,
+            )
+        };
+
+        Ok(ErrorResponse {
+            code,
+            message,
+            reason,
+            status_code: res.status_code,
+            attempt_status: None,
+            connector_transaction_id: None,
+            network_advice_code: None,
+            network_decline_code: None,
+            network_error_message: None,
+        })
     }
 }
 
@@ -397,14 +409,38 @@ impl ConnectorIntegration<PSync, PaymentsSyncData, PaymentsResponseData> for Fis
             .response
             .parse_struct("Fiserv PaymentSyncResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+
+        let p_sync_response = response.sync_responses.first().ok_or(
+            errors::ConnectorError::MissingRequiredField {
+                field_name: "P_Sync_Responses[0]",
+            },
+        )?;
+
+        let response_integrity_object = connector_utils::get_sync_integrity_object(
+            self.amount_converter,
+            p_sync_response.payment_receipt.approved_amount.total,
+            p_sync_response
+                .payment_receipt
+                .approved_amount
+                .currency
+                .to_string()
+                .clone(),
+        )?;
+
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
-        RouterData::try_from(ResponseRouterData {
+
+        let new_router_data = RouterData::try_from(ResponseRouterData {
             response,
             data: data.clone(),
             http_code: res.status_code,
         })
-        .change_context(errors::ConnectorError::ResponseHandlingFailed)
+        .change_context(errors::ConnectorError::ResponseHandlingFailed);
+
+        new_router_data.map(|mut router_data| {
+            router_data.request.integrity_object = Some(response_integrity_object);
+            router_data
+        })
     }
 
     fn get_error_response(
@@ -476,16 +512,30 @@ impl ConnectorIntegration<Capture, PaymentsCaptureData, PaymentsResponseData> fo
             .response
             .parse_struct("Fiserv Payment Response")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
-
+        let response_integrity_object = connector_utils::get_capture_integrity_object(
+            self.amount_converter,
+            Some(response.payment_receipt.approved_amount.total),
+            response
+                .payment_receipt
+                .approved_amount
+                .currency
+                .to_string()
+                .clone(),
+        )?;
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
 
-        RouterData::try_from(ResponseRouterData {
+        let new_router_data = RouterData::try_from(ResponseRouterData {
             response,
             data: data.clone(),
             http_code: res.status_code,
         })
-        .change_context(errors::ConnectorError::ResponseHandlingFailed)
+        .change_context(errors::ConnectorError::ResponseHandlingFailed);
+
+        new_router_data.map(|mut router_data| {
+            router_data.request.integrity_object = Some(response_integrity_object);
+            router_data
+        })
     }
 
     fn get_url(
@@ -588,14 +638,32 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
             .response
             .parse_struct("Fiserv PaymentResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+
+        let response_integrity_object = connector_utils::get_authorise_integrity_object(
+            self.amount_converter,
+            response.payment_receipt.approved_amount.total,
+            response
+                .payment_receipt
+                .approved_amount
+                .currency
+                .to_string()
+                .clone(),
+        )?;
+
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
-        RouterData::try_from(ResponseRouterData {
+
+        let new_router_data = RouterData::try_from(ResponseRouterData {
             response,
             data: data.clone(),
             http_code: res.status_code,
         })
-        .change_context(errors::ConnectorError::ResponseHandlingFailed)
+        .change_context(errors::ConnectorError::ResponseHandlingFailed);
+
+        new_router_data.map(|mut router_data| {
+            router_data.request.integrity_object = Some(response_integrity_object);
+            router_data
+        })
     }
 
     fn get_error_response(
@@ -677,14 +745,31 @@ impl ConnectorIntegration<Execute, RefundsData, RefundsResponseData> for Fiserv 
             res.response
                 .parse_struct("fiserv RefundResponse")
                 .change_context(errors::ConnectorError::RequestEncodingFailed)?;
+
+        let response_integrity_object = connector_utils::get_refund_integrity_object(
+            self.amount_converter,
+            response.payment_receipt.approved_amount.total,
+            response
+                .payment_receipt
+                .approved_amount
+                .currency
+                .to_string()
+                .clone(),
+        )?;
+
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
-        RouterData::try_from(ResponseRouterData {
+        let new_router_data = RouterData::try_from(ResponseRouterData {
             response,
             data: data.clone(),
             http_code: res.status_code,
         })
-        .change_context(errors::ConnectorError::ResponseHandlingFailed)
+        .change_context(errors::ConnectorError::ResponseHandlingFailed);
+
+        new_router_data.map(|mut router_data| {
+            router_data.request.integrity_object = Some(response_integrity_object);
+            router_data
+        })
     }
     fn get_error_response(
         &self,
@@ -760,14 +845,37 @@ impl ConnectorIntegration<RSync, RefundsData, RefundsResponseData> for Fiserv {
             .response
             .parse_struct("Fiserv Refund Response")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+
+        let r_sync_response = response.sync_responses.first().ok_or(
+            errors::ConnectorError::MissingRequiredField {
+                field_name: "R_Sync_Responses[0]",
+            },
+        )?;
+
+        let response_integrity_object = connector_utils::get_refund_integrity_object(
+            self.amount_converter,
+            r_sync_response.payment_receipt.approved_amount.total,
+            r_sync_response
+                .payment_receipt
+                .approved_amount
+                .currency
+                .to_string()
+                .clone(),
+        )?;
+
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
-        RouterData::try_from(ResponseRouterData {
+        let new_router_data = RouterData::try_from(ResponseRouterData {
             response,
             data: data.clone(),
             http_code: res.status_code,
         })
-        .change_context(errors::ConnectorError::ResponseHandlingFailed)
+        .change_context(errors::ConnectorError::ResponseHandlingFailed);
+
+        new_router_data.map(|mut router_data| {
+            router_data.request.integrity_object = Some(response_integrity_object);
+            router_data
+        })
     }
 
     fn get_error_response(
@@ -803,4 +911,85 @@ impl webhooks::IncomingWebhook for Fiserv {
     }
 }
 
-impl ConnectorSpecifications for Fiserv {}
+static FISERV_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMethods> = LazyLock::new(|| {
+    let supported_capture_methods = vec![
+        enums::CaptureMethod::Automatic,
+        enums::CaptureMethod::SequentialAutomatic,
+        enums::CaptureMethod::Manual,
+    ];
+
+    let supported_card_network = vec![
+        common_enums::CardNetwork::Visa,
+        common_enums::CardNetwork::Mastercard,
+        common_enums::CardNetwork::AmericanExpress,
+        common_enums::CardNetwork::JCB,
+        common_enums::CardNetwork::Discover,
+        common_enums::CardNetwork::UnionPay,
+        common_enums::CardNetwork::Interac,
+    ];
+
+    let mut fiserv_supported_payment_methods = SupportedPaymentMethods::new();
+
+    fiserv_supported_payment_methods.add(
+        enums::PaymentMethod::Card,
+        enums::PaymentMethodType::Credit,
+        PaymentMethodDetails {
+            mandates: enums::FeatureStatus::NotSupported,
+            refunds: enums::FeatureStatus::Supported,
+            supported_capture_methods: supported_capture_methods.clone(),
+            specific_features: Some(
+                api_models::feature_matrix::PaymentMethodSpecificFeatures::Card({
+                    api_models::feature_matrix::CardSpecificFeatures {
+                        three_ds: common_enums::FeatureStatus::NotSupported,
+                        no_three_ds: common_enums::FeatureStatus::Supported,
+                        supported_card_networks: supported_card_network.clone(),
+                    }
+                }),
+            ),
+        },
+    );
+
+    fiserv_supported_payment_methods.add(
+        enums::PaymentMethod::Card,
+        enums::PaymentMethodType::Debit,
+        PaymentMethodDetails {
+            mandates: enums::FeatureStatus::NotSupported,
+            refunds: enums::FeatureStatus::Supported,
+            supported_capture_methods: supported_capture_methods.clone(),
+            specific_features: Some(
+                api_models::feature_matrix::PaymentMethodSpecificFeatures::Card({
+                    api_models::feature_matrix::CardSpecificFeatures {
+                        three_ds: common_enums::FeatureStatus::NotSupported,
+                        no_three_ds: common_enums::FeatureStatus::Supported,
+                        supported_card_networks: supported_card_network.clone(),
+                    }
+                }),
+            ),
+        },
+    );
+
+    fiserv_supported_payment_methods
+});
+
+static FISERV_CONNECTOR_INFO: ConnectorInfo = ConnectorInfo {
+    display_name: "Fiserv",
+    description:
+        "Fiserv is a global fintech and payments company with solutions for banking, global commerce, merchant acquiring, billing and payments, and point-of-sale ",
+    connector_type: enums::PaymentConnectorCategory::PaymentGateway,
+};
+
+static FISERV_SUPPORTED_WEBHOOK_FLOWS: [enums::EventClass; 0] = [];
+
+impl ConnectorSpecifications for Fiserv {
+    fn get_connector_about(&self) -> Option<&'static ConnectorInfo> {
+        Some(&FISERV_CONNECTOR_INFO)
+    }
+
+    fn get_supported_payment_methods(&self) -> Option<&'static SupportedPaymentMethods> {
+        Some(&*FISERV_SUPPORTED_PAYMENT_METHODS)
+    }
+
+    fn get_supported_webhook_flows(&self) -> Option<&'static [enums::EventClass]> {
+        Some(&FISERV_SUPPORTED_WEBHOOK_FLOWS)
+    }
+}

@@ -1,7 +1,7 @@
 use std::marker::PhantomData;
 
 use common_enums::enums::PaymentMethod;
-use common_utils::ext_traits::ValueExt;
+use common_utils::ext_traits::{AsyncExt, ValueExt};
 use error_stack::ResultExt;
 use hyperswitch_domain_models::{
     errors::api_error_response::ApiErrorResponse,
@@ -10,6 +10,7 @@ use hyperswitch_domain_models::{
     router_data_v2::UasFlowData,
     router_request_types::unified_authentication_service::UasAuthenticationResponseData,
 };
+use masking::ExposeInterface;
 
 use super::types::{
     IRRELEVANT_ATTEMPT_ID_IN_AUTHENTICATION_FLOW,
@@ -47,6 +48,7 @@ where
         &router_data,
         payments::CallConnectorAction::Trigger,
         None,
+        None,
     )
     .await
     .to_payment_failed_response()?;
@@ -62,7 +64,8 @@ pub fn construct_uas_router_data<F: Clone, Req, Res>(
     address: Option<PaymentAddress>,
     request_data: Req,
     merchant_connector_account: &payments::helpers::MerchantConnectorAccountType,
-    authentication_id: Option<String>,
+    authentication_id: Option<common_utils::id_type::AuthenticationId>,
+    payment_id: Option<common_utils::id_type::PaymentId>,
 ) -> RouterResult<RouterData<F, Req, Res>> {
     let auth_type: ConnectorAuthType = merchant_connector_account
         .get_connector_account_details()
@@ -75,9 +78,9 @@ pub fn construct_uas_router_data<F: Clone, Req, Res>(
         customer_id: None,
         connector_customer: None,
         connector: authentication_connector_name,
-        payment_id: common_utils::id_type::PaymentId::get_irrelevant_id("authentication")
-            .get_string_repr()
-            .to_owned(),
+        payment_id: payment_id
+            .map(|id| id.get_string_repr().to_owned())
+            .unwrap_or_default(),
         tenant_id: state.tenant.tenant_id.clone(),
         attempt_id: IRRELEVANT_ATTEMPT_ID_IN_AUTHENTICATION_FLOW.to_owned(),
         status: common_enums::AttemptStatus::default(),
@@ -121,6 +124,8 @@ pub fn construct_uas_router_data<F: Clone, Req, Res>(
         connector_mandate_request_reference_id: None,
         authentication_id,
         psd2_sca_exemption_type: None,
+        raw_connector_response: None,
+        is_payment_id_from_merchant: None,
     })
 }
 
@@ -131,6 +136,7 @@ pub async fn external_authentication_update_trackers<F: Clone, Req>(
     acquirer_details: Option<
         hyperswitch_domain_models::router_request_types::authentication::AcquirerDetails,
     >,
+    merchant_key_store: &hyperswitch_domain_models::merchant_key_store::MerchantKeyStore,
 ) -> RouterResult<diesel_models::authentication::Authentication> {
     let authentication_update = match router_data.response {
         Ok(response) => match response {
@@ -181,9 +187,24 @@ pub async fn external_authentication_update_trackers<F: Clone, Req>(
                 let authentication_status = common_enums::AuthenticationStatus::foreign_from(
                     authentication_details.trans_status.clone(),
                 );
+                authentication_details
+                    .authentication_value
+                    .async_map(|auth_val| {
+                        crate::core::payment_methods::vault::create_tokenize(
+                            state,
+                            auth_val.expose(),
+                            None,
+                            authentication
+                                .authentication_id
+                                .get_string_repr()
+                                .to_string(),
+                            merchant_key_store.key.get_inner(),
+                        )
+                    })
+                    .await
+                    .transpose()?;
                 Ok(
                     diesel_models::authentication::AuthenticationUpdate::AuthenticationUpdate {
-                        authentication_value: authentication_details.authentication_value,
                         trans_status: authentication_details.trans_status,
                         acs_url: authentication_details.authn_flow_type.get_acs_url(),
                         challenge_request: authentication_details
@@ -202,6 +223,7 @@ pub async fn external_authentication_update_trackers<F: Clone, Req>(
                         authentication_status,
                         connector_metadata: authentication_details.connector_metadata,
                         ds_trans_id: authentication_details.ds_trans_id,
+                        eci: authentication_details.eci,
                     },
                 )
             }
@@ -212,16 +234,33 @@ pub async fn external_authentication_update_trackers<F: Clone, Req>(
                     .trans_status
                     .ok_or(ApiErrorResponse::InternalServerError)
                     .attach_printable("missing trans_status in PostAuthentication Details")?;
+
+                let authentication_value = authentication_details
+                    .dynamic_data_details
+                    .and_then(|details| details.dynamic_data_value)
+                    .map(ExposeInterface::expose);
+
+                authentication_value
+                    .async_map(|auth_val| {
+                        crate::core::payment_methods::vault::create_tokenize(
+                            state,
+                            auth_val,
+                            None,
+                            authentication
+                                .authentication_id
+                                .get_string_repr()
+                                .to_string(),
+                            merchant_key_store.key.get_inner(),
+                        )
+                    })
+                    .await
+                    .transpose()?;
                 Ok(
                     diesel_models::authentication::AuthenticationUpdate::PostAuthenticationUpdate {
                         authentication_status: common_enums::AuthenticationStatus::foreign_from(
                             trans_status.clone(),
                         ),
                         trans_status,
-                        authentication_value: authentication_details
-                            .dynamic_data_details
-                            .and_then(|details| details.dynamic_data_value)
-                            .map(masking::ExposeInterface::expose),
                         eci: authentication_details.eci,
                     },
                 )

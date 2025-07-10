@@ -181,6 +181,18 @@ impl super::settings::LockSettings {
     }
 }
 
+impl super::settings::WebhooksSettings {
+    pub fn validate(&self) -> Result<(), ApplicationError> {
+        use common_utils::fp_utils::when;
+
+        when(self.redis_lock_expiry_seconds.is_default_or_empty(), || {
+            Err(ApplicationError::InvalidConfigurationValueError(
+                "redis_lock_expiry_seconds must not be empty or 0".into(),
+            ))
+        })
+    }
+}
+
 impl super::settings::GenericLinkEnvConfig {
     pub fn validate(&self) -> Result<(), ApplicationError> {
         use common_utils::fp_utils::when;
@@ -232,7 +244,16 @@ impl super::settings::NetworkTokenizationService {
             Err(ApplicationError::InvalidConfigurationValueError(
                 "private_key must not be empty".into(),
             ))
-        })
+        })?;
+
+        when(
+            self.webhook_source_verification_key.is_default_or_empty(),
+            || {
+                Err(ApplicationError::InvalidConfigurationValueError(
+                    "webhook_source_verification_key must not be empty".into(),
+                ))
+            },
+        )
     }
 }
 
@@ -291,5 +312,34 @@ impl super::settings::KeyManagerConfig {
                 "Invalid URL for Keymanager".into(),
             ))
         })
+    }
+}
+
+impl super::settings::Platform {
+    pub fn validate(&self) -> Result<(), ApplicationError> {
+        use common_utils::fp_utils::when;
+
+        when(!self.enabled && self.allow_connected_merchants, || {
+            Err(ApplicationError::InvalidConfigurationValueError(
+                "platform.allow_connected_merchants cannot be true when platform.enabled is false"
+                    .into(),
+            ))
+        })
+    }
+}
+
+impl super::settings::OpenRouter {
+    pub fn validate(&self) -> Result<(), ApplicationError> {
+        use common_utils::fp_utils::when;
+
+        when(
+            (self.dynamic_routing_enabled || self.static_routing_enabled)
+                && self.url.is_default_or_empty(),
+            || {
+                Err(ApplicationError::InvalidConfigurationValueError(
+                    "OpenRouter base URL must not be empty when it is enabled".into(),
+                ))
+            },
+        )
     }
 }

@@ -7,12 +7,12 @@ pub mod utils;
 
 use std::fmt::Display;
 
+pub use ::payment_methods::core::errors::VaultError;
 use actix_web::{body::BoxBody, ResponseError};
 pub use common_utils::errors::{CustomResult, ParsingError, ValidationError};
 use diesel_models::errors as storage_errors;
-pub use hyperswitch_domain_models::errors::{
-    api_error_response::{ApiErrorResponse, ErrorType, NotImplementedMessage},
-    StorageError as DataStorageError,
+pub use hyperswitch_domain_models::errors::api_error_response::{
+    ApiErrorResponse, ErrorType, NotImplementedMessage,
 };
 pub use hyperswitch_interfaces::errors::ConnectorError;
 pub use redis_interface::errors::RedisError;
@@ -116,46 +116,6 @@ pub fn http_not_implemented() -> actix_web::HttpResponse<BoxBody> {
 pub enum HealthCheckOutGoing {
     #[error("Outgoing call failed with error: {message}")]
     OutGoingFailed { message: String },
-}
-
-#[derive(Debug, thiserror::Error)]
-pub enum VaultError {
-    #[error("Failed to save card in card vault")]
-    SaveCardFailed,
-    #[error("Failed to fetch card details from card vault")]
-    FetchCardFailed,
-    #[error("Failed to delete card in card vault")]
-    DeleteCardFailed,
-    #[error("Failed to encode card vault request")]
-    RequestEncodingFailed,
-    #[error("Failed to deserialize card vault response")]
-    ResponseDeserializationFailed,
-    #[error("Failed to create payment method")]
-    PaymentMethodCreationFailed,
-    #[error("The given payment method is currently not supported in vault")]
-    PaymentMethodNotSupported,
-    #[error("The given payout method is currently not supported in vault")]
-    PayoutMethodNotSupported,
-    #[error("Missing required field: {field_name}")]
-    MissingRequiredField { field_name: &'static str },
-    #[error("The card vault returned an unexpected response: {0:?}")]
-    UnexpectedResponseError(bytes::Bytes),
-    #[error("Failed to update in PMD table")]
-    UpdateInPaymentMethodDataTableFailed,
-    #[error("Failed to fetch payment method in vault")]
-    FetchPaymentMethodFailed,
-    #[error("Failed to save payment method in vault")]
-    SavePaymentMethodFailed,
-    #[error("Failed to generate fingerprint")]
-    GenerateFingerprintFailed,
-    #[error("Failed to encrypt vault request")]
-    RequestEncryptionFailed,
-    #[error("Failed to decrypt vault response")]
-    ResponseDecryptionFailed,
-    #[error("Failed to call vault")]
-    VaultAPIError,
-    #[error("Failed while calling locker API")]
-    ApiError,
 }
 
 #[derive(Debug, thiserror::Error)]
@@ -388,6 +348,18 @@ pub enum RoutingError {
     SuccessRateCalculationError,
     #[error("Success rate client from dynamic routing gRPC service not initialized")]
     SuccessRateClientInitializationError,
+    #[error("Elimination client from dynamic routing gRPC service not initialized")]
+    EliminationClientInitializationError,
+    #[error("Unable to analyze elimination routing config from dynamic routing service")]
+    EliminationRoutingCalculationError,
+    #[error("Params not found in elimination based routing config")]
+    EliminationBasedRoutingParamsNotFoundError,
+    #[error("Unable to retrieve elimination based routing config")]
+    EliminationRoutingConfigError,
+    #[error(
+        "Invalid elimination based connector label received from dynamic routing service: '{0}'"
+    )]
+    InvalidEliminationBasedConnectorLabel(String),
     #[error("Unable to convert from '{from}' to '{to}'")]
     GenericConversionError { from: String, to: String },
     #[error("Invalid success based connector label received from dynamic routing service: '{0}'")]
@@ -408,6 +380,16 @@ pub enum RoutingError {
     ContractRoutingClientInitializationError,
     #[error("Invalid contract based connector label received from dynamic routing service: '{0}'")]
     InvalidContractBasedConnectorLabel(String),
+    #[error("Failed to perform routing in open_router")]
+    OpenRouterCallFailed,
+    #[error("Error from open_router: {0}")]
+    OpenRouterError(String),
+    #[error("Decision engine responded with validation error: {0}")]
+    DecisionEngineValidationError(String),
+    #[error("Invalid transaction type")]
+    InvalidTransactionType,
+    #[error("Routing events error: {message}, status code: {status_code}")]
+    RoutingEventsError { message: String, status_code: u16 },
 }
 
 #[derive(Debug, Clone, thiserror::Error)]
@@ -499,4 +481,18 @@ pub enum RevenueRecoveryError {
     ProcessTrackerCreationError,
     #[error("Failed to get the response from process tracker")]
     ProcessTrackerResponseError,
+    #[error("Billing connector psync call failed")]
+    BillingConnectorPaymentsSyncFailed,
+    #[error("Billing connector invoice sync call failed")]
+    BillingConnectorInvoiceSyncFailed,
+    #[error("Failed to get the retry count for payment intent")]
+    RetryCountFetchFailed,
+    #[error("Failed to get the billing threshold retry count")]
+    BillingThresholdRetryCountFetchFailed,
+    #[error("Failed to get the retry algorithm type")]
+    RetryAlgorithmTypeNotFound,
+    #[error("Failed to update the retry algorithm type")]
+    RetryAlgorithmUpdationFailed,
+    #[error("Failed to create the revenue recovery attempt data")]
+    RevenueRecoveryAttemptDataCreateFailed,
 }

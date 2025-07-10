@@ -53,7 +53,7 @@ use hyperswitch_interfaces::{
     webhooks,
 };
 use josekit::{
-    jws::{JwsHeader, ES256},
+    jws::{self, JwsHeader, ES256},
     jwt::{self, JwtPayload},
     Map, Value,
 };
@@ -142,15 +142,19 @@ fn get_signature(
                 .signer_from_pem(&private_key)
                 .change_context(errors::ConnectorError::ProcessingStepFailed(None))?;
 
-            let nomupay_jwt = jwt::encode_with_signer(&payload, &header, &signer)
-                .change_context(errors::ConnectorError::ProcessingStepFailed(None))?;
+            let nomupay_jwt = match method {
+                "GET" => jws::serialize_compact(b"", &header, &signer)
+                    .change_context(errors::ConnectorError::ProcessingStepFailed(None))?,
+                _ => jwt::encode_with_signer(&payload, &header, &signer)
+                    .change_context(errors::ConnectorError::ProcessingStepFailed(None))?,
+            };
 
             let jws_blocks: Vec<&str> = nomupay_jwt.split('.').collect();
 
             let jws_detached = jws_blocks
                 .first()
                 .zip(jws_blocks.get(2))
-                .map(|(first, third)| format!("{}..{}", first, third))
+                .map(|(first, third)| format!("{first}..{third}"))
                 .ok_or_else(|| errors::ConnectorError::MissingRequiredField {
                     field_name: "JWS blocks not sufficient for detached payload",
                 })?;
@@ -285,8 +289,9 @@ impl ConnectorCommon for Nomupay {
                 reason: None,
                 attempt_status: None,
                 connector_transaction_id: None,
-                issuer_error_code: None,
-                issuer_error_message: None,
+                network_advice_code: None,
+                network_decline_code: None,
+                network_error_message: None,
             }),
             (None, None, Some(nomupay_inner_error), _, _) => {
                 match (
@@ -300,8 +305,9 @@ impl ConnectorCommon for Nomupay {
                         reason: None,
                         attempt_status: None,
                         connector_transaction_id: None,
-                        issuer_error_code: None,
-                        issuer_error_message: None,
+                        network_advice_code: None,
+                        network_decline_code: None,
+                        network_error_message: None,
                     }),
                     (_, Some(validation_errors)) => Ok(ErrorResponse {
                         status_code: res.status_code,
@@ -318,8 +324,9 @@ impl ConnectorCommon for Nomupay {
                         ),
                         attempt_status: None,
                         connector_transaction_id: None,
-                        issuer_error_code: None,
-                        issuer_error_message: None,
+                        network_advice_code: None,
+                        network_decline_code: None,
+                        network_error_message: None,
                     }),
                     (None, None) => Ok(ErrorResponse {
                         status_code: res.status_code,
@@ -328,8 +335,9 @@ impl ConnectorCommon for Nomupay {
                         reason: None,
                         attempt_status: None,
                         connector_transaction_id: None,
-                        issuer_error_code: None,
-                        issuer_error_message: None,
+                        network_advice_code: None,
+                        network_decline_code: None,
+                        network_error_message: None,
                     }),
                 }
             }
@@ -343,8 +351,9 @@ impl ConnectorCommon for Nomupay {
                 reason: None,
                 attempt_status: None,
                 connector_transaction_id: None,
-                issuer_error_code: None,
-                issuer_error_message: None,
+                network_advice_code: None,
+                network_decline_code: None,
+                network_error_message: None,
             }),
             _ => Ok(ErrorResponse {
                 status_code: res.status_code,
@@ -353,8 +362,9 @@ impl ConnectorCommon for Nomupay {
                 reason: None,
                 attempt_status: None,
                 connector_transaction_id: None,
-                issuer_error_code: None,
-                issuer_error_message: None,
+                network_advice_code: None,
+                network_decline_code: None,
+                network_error_message: None,
             }),
         }
     }

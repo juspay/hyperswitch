@@ -1,0 +1,79 @@
+{
+  "auth": {
+    "type": "apikey",
+    "apikey": [
+      {
+        "key": "value",
+        "value": "{{admin_api_key}}",
+        "type": "string"
+      },
+      {
+        "key": "key",
+        "value": "api-key",
+        "type": "string"
+      },
+      {
+        "key": "in",
+        "value": "header",
+        "type": "string"
+      }
+    ]
+  },
+  "method": "POST",
+  "header": [
+    {
+      "key": "Content-Type",
+      "value": "application/json"
+    },
+    {
+      "key": "Accept",
+      "value": "application/json"
+    }
+  ],
+  "body": {
+    "mode": "raw",
+    "options": {
+      "raw": {
+        "language": "json"
+      }
+    },
+    "raw_json_formatted": {
+      "merchant_id": "postman_merchant_GHAction_{{$guid}}",
+      "organization_id": "{{organization_id}}",
+      "merchant_name": "Flowbird",
+      "merchant_details": {
+        "primary_contact_person": "Primary Contact Person",
+        "primary_email": "primary_email@flowbird.group",
+        "primary_phone": "Primary Phone Number",
+        "secondary_contact_person": "Flowbird contact",
+        "secondary_email": "contact@flowbird.group",
+        "secondary_phone": "+33 (0) 1 58 09 81 10",
+        "website": "https://www.flowbird.com/",
+        "about_business": "Effortless Parking, Charging, Payments and Movement, From City to City",
+        "address": {
+          "line1": "2 ter rue du château",
+          "line2": "",
+          "line3": "",
+          "city": "Neuilly-sur-Seine",
+          "state": "France",
+          "zip": "92200",
+          "country": "FR"
+        }
+      },
+      "sub_merchants_enabled": false,
+      "metadata": {
+        "compatible_connector": "archipel"
+      }
+    }
+  },
+  "url": {
+    "raw": "{{baseUrl}}/accounts",
+    "host": [
+      "{{baseUrl}}"
+    ],
+    "path": [
+      "accounts"
+    ]
+  },
+  "description": "Create a new account for a merchant. The merchant could be a seller or retailer or client who likes to receive and send payments."
+}

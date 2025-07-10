@@ -58,14 +58,13 @@ pub fn get_payment_body(
                     <dts:SubmitSinglePayment>
                         <dts:trnXML>
                             <![CDATA[
-                                {}
+                                {transaction_data}
                             ]]>
                         </dts:trnXML>
                     </dts:SubmitSinglePayment>
                 </soapenv:Body>
             </soapenv:Envelope>
         "#,
-        transaction_data
     );
 
     Ok(body.as_bytes().to_vec())
@@ -346,8 +345,9 @@ impl<F>
                     reason: Some(declined_message),
                     attempt_status: None,
                     connector_transaction_id: None,
-                    issuer_error_code: None,
-                    issuer_error_message: None,
+                    network_advice_code: None,
+                    network_decline_code: None,
+                    network_error_message: None,
                 }),
                 ..item.data
             })
@@ -503,8 +503,9 @@ impl<F>
                     reason: None,
                     attempt_status: None,
                     connector_transaction_id: None,
-                    issuer_error_code: None,
-                    issuer_error_message: None,
+                    network_advice_code: None,
+                    network_decline_code: None,
+                    network_error_message: None,
                 }),
                 ..item.data
             })
@@ -667,8 +668,9 @@ impl<F>
                     reason: Some(declined_message),
                     attempt_status: None,
                     connector_transaction_id: None,
-                    issuer_error_code: None,
-                    issuer_error_message: None,
+                    network_advice_code: None,
+                    network_decline_code: None,
+                    network_error_message: None,
                 }),
                 ..item.data
             })
@@ -950,8 +952,9 @@ impl<F>
                     reason: Some(declined_message),
                     attempt_status: None,
                     connector_transaction_id: None,
-                    issuer_error_code: None,
-                    issuer_error_message: None,
+                    network_advice_code: None,
+                    network_decline_code: None,
+                    network_error_message: None,
                 }),
                 ..item.data
             })

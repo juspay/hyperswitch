@@ -16,6 +16,7 @@ pub mod payment_intents;
 pub mod payments;
 mod query;
 pub mod refunds;
+pub mod routing_events;
 pub mod sdk_events;
 pub mod search;
 mod sqlx;
@@ -106,7 +107,7 @@ impl std::fmt::Display for AnalyticsProvider {
             Self::CombinedSqlx(_, _) => "CombinedSqlx",
         };
 
-        write!(f, "{}", analytics_provider)
+        write!(f, "{analytics_provider}")
     }
 }
 
@@ -911,7 +912,7 @@ impl AnalyticsProvider {
         &self,
         metric: &AuthEventMetrics,
         dimensions: &[AuthEventDimensions],
-        merchant_id: &common_utils::id_type::MerchantId,
+        auth: &AuthInfo,
         filters: &AuthEventFilters,
         granularity: Option<Granularity>,
         time_range: &TimeRange,
@@ -920,20 +921,13 @@ impl AnalyticsProvider {
             Self::Sqlx(_pool) => Err(report!(MetricsError::NotImplemented)),
             Self::Clickhouse(pool) => {
                 metric
-                    .load_metrics(
-                        merchant_id,
-                        dimensions,
-                        filters,
-                        granularity,
-                        time_range,
-                        pool,
-                    )
+                    .load_metrics(auth, dimensions, filters, granularity, time_range, pool)
                     .await
             }
             Self::CombinedCkh(_sqlx_pool, ckh_pool) | Self::CombinedSqlx(_sqlx_pool, ckh_pool) => {
                 metric
                     .load_metrics(
-                        merchant_id,
+                        auth,
                         dimensions,
                         filters,
                         granularity,
@@ -1010,25 +1004,28 @@ impl AnalyticsProvider {
 }
 
 #[derive(Clone, Debug, serde::Deserialize)]
-#[serde(tag = "source")]
-#[serde(rename_all = "lowercase")]
+#[serde(tag = "source", rename_all = "lowercase")]
 pub enum AnalyticsConfig {
     Sqlx {
         sqlx: Database,
+        #[serde(default)]
         forex_enabled: bool,
     },
     Clickhouse {
         clickhouse: ClickhouseConfig,
+        #[serde(default)]
         forex_enabled: bool,
     },
     CombinedCkh {
         sqlx: Database,
         clickhouse: ClickhouseConfig,
+        #[serde(default)]
         forex_enabled: bool,
     },
     CombinedSqlx {
         sqlx: Database,
         clickhouse: ClickhouseConfig,
+        #[serde(default)]
         forex_enabled: bool,
     },
 }
@@ -1162,6 +1159,7 @@ pub enum AnalyticsFlow {
     GetDisputeFilters,
     GetDisputeMetrics,
     GetSankey,
+    GetRoutingEvents,
 }
 
 impl FlowMetric for AnalyticsFlow {}

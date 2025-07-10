@@ -124,6 +124,8 @@ pub enum Flow {
     PaymentMethodSave,
     /// Customer payment methods list flow.
     CustomerPaymentMethodsList,
+    /// Payment methods token data get flow.
+    GetPaymentMethodTokenData,
     /// List Customers for a merchant
     CustomersList,
     /// Retrieve countries and currencies for connector and payment method
@@ -178,6 +180,8 @@ pub enum Flow {
     PaymentsConfirmIntent,
     /// Payments create and confirm intent flow
     PaymentsCreateAndConfirmIntent,
+    /// Payment attempt list flow
+    PaymentAttemptsList,
     #[cfg(feature = "payouts")]
     /// Payouts create flow
     PayoutsCreate,
@@ -247,6 +251,8 @@ pub enum Flow {
     RoutingRetrieveDefaultConfig,
     /// Routing retrieve dictionary
     RoutingRetrieveDictionary,
+    /// Rule migration for decision-engine
+    DecisionEngineRuleMigration,
     /// Routing update config
     RoutingUpdateConfig,
     /// Routing update default config
@@ -407,6 +413,8 @@ pub enum Flow {
     UpdateUserRole,
     /// Create merchant account for user in a org
     UserMerchantAccountCreate,
+    /// Create Platform
+    CreatePlatformAccount,
     /// Create Org in a given tenancy
     UserOrgMerchantCreate,
     /// Generate Sample Data
@@ -536,6 +544,8 @@ pub enum Flow {
     ProxyConfirmIntent,
     /// Payments post session tokens flow
     PaymentsPostSessionTokens,
+    /// Payments Update Metadata
+    PaymentsUpdateMetadata,
     /// Payments start redirection flow
     PaymentStartRedirection,
     /// Volume split on the routing type
@@ -566,6 +576,8 @@ pub enum Flow {
     PaymentMethodSessionUpdate,
     /// Update a saved payment method using the payment methods session
     PaymentMethodSessionUpdateSavedPaymentMethod,
+    /// Delete a saved payment method using the payment methods session
+    PaymentMethodSessionDeleteSavedPaymentMethod,
     /// Confirm a payment method session with payment method data
     PaymentMethodSessionConfirm,
     /// Create Cards Info flow
@@ -576,6 +588,26 @@ pub enum Flow {
     CardsInfoMigrate,
     ///Total payment method count for merchant
     TotalPaymentMethodCount,
+    /// Process Tracker Revenue Recovery Workflow Retrieve
+    RevenueRecoveryRetrieve,
+    /// Tokenization flow
+    TokenizationCreate,
+    /// Tokenization retrieve flow
+    TokenizationRetrieve,
+    /// Clone Connector flow
+    CloneConnector,
+    /// Authentication Create flow
+    AuthenticationCreate,
+    ///Proxy Flow
+    Proxy,
+    /// Profile Acquirer Create flow
+    ProfileAcquirerCreate,
+    /// Profile Acquirer Update flow
+    ProfileAcquirerUpdate,
+    /// ThreeDs Decision Rule Execute flow
+    ThreeDsDecisionRuleExecute,
+    /// Incoming Network Token Webhook Receive
+    IncomingNetworkTokenWebhookReceive,
 }
 
 /// Trait for providing generic behaviour to flow metric

@@ -11,7 +11,10 @@ use super::{
     consts, errors,
     types::{self, GetPaymentMethodDetails},
 };
-use crate::{configs::settings, routes::SessionState};
+use crate::{
+    configs::settings,
+    routes::{dummy_connector::types::DummyConnectors, SessionState},
+};
 
 pub async fn tokio_mock_sleep(delay: u64, tolerance: u64) {
     let mut rng = rand::thread_rng();
@@ -219,7 +222,7 @@ impl ProcessPaymentAttempt for types::DummyConnectorCard {
         payment_attempt: types::DummyConnectorPaymentAttempt,
         redirect_url: String,
     ) -> types::DummyConnectorResult<types::DummyConnectorPaymentData> {
-        match self.get_flow_from_card_number()? {
+        match self.get_flow_from_card_number(payment_attempt.payment_request.connector.clone())? {
             types::DummyConnectorCardFlow::NoThreeDS(status, error) => {
                 if let Some(error) = error {
                     Err(error)?;
@@ -237,9 +240,61 @@ impl ProcessPaymentAttempt for types::DummyConnectorCard {
     }
 }
 
+impl ProcessPaymentAttempt for types::DummyConnectorUpiCollect {
+    fn build_payment_data_from_payment_attempt(
+        self,
+        payment_attempt: types::DummyConnectorPaymentAttempt,
+        redirect_url: String,
+    ) -> types::DummyConnectorResult<types::DummyConnectorPaymentData> {
+        let upi_collect_response = self.get_flow_from_upi_collect()?;
+        if let Some(error) = upi_collect_response.error {
+            Err(error)?;
+        }
+        let next_action = upi_collect_response
+            .is_next_action_required
+            .then_some(types::DummyConnectorNextAction::RedirectToUrl(redirect_url));
+        let return_url = payment_attempt.payment_request.return_url.clone();
+        Ok(
+            payment_attempt.build_payment_data(
+                upi_collect_response.status,
+                next_action,
+                return_url,
+            ),
+        )
+    }
+}
+
+impl types::DummyConnectorUpiCollect {
+    pub fn get_flow_from_upi_collect(
+        self,
+    ) -> types::DummyConnectorResult<types::DummyConnectorUpiFlow> {
+        let vpa_id = self.vpa_id.peek();
+        match vpa_id.as_str() {
+            consts::DUMMY_CONNECTOR_UPI_FAILURE_VPA_ID => Ok(types::DummyConnectorUpiFlow {
+                status: types::DummyConnectorStatus::Failed,
+                error: errors::DummyConnectorErrors::PaymentNotSuccessful.into(),
+                is_next_action_required: false,
+            }),
+            consts::DUMMY_CONNECTOR_UPI_SUCCESS_VPA_ID => Ok(types::DummyConnectorUpiFlow {
+                status: types::DummyConnectorStatus::Processing,
+                error: None,
+                is_next_action_required: true,
+            }),
+            _ => Ok(types::DummyConnectorUpiFlow {
+                status: types::DummyConnectorStatus::Failed,
+                error: Some(errors::DummyConnectorErrors::PaymentDeclined {
+                    message: "Invalid Upi id",
+                }),
+                is_next_action_required: false,
+            }),
+        }
+    }
+}
+
 impl types::DummyConnectorCard {
     pub fn get_flow_from_card_number(
         self,
+        connector: DummyConnectors,
     ) -> types::DummyConnectorResult<types::DummyConnectorCardFlow> {
         let card_number = self.number.peek();
         match card_number.as_str() {
@@ -258,12 +313,21 @@ impl types::DummyConnectorCard {
                     }),
                 ))
             }
-            "4000000000009995" => Ok(types::DummyConnectorCardFlow::NoThreeDS(
-                types::DummyConnectorStatus::Failed,
-                Some(errors::DummyConnectorErrors::PaymentDeclined {
-                    message: "Insufficient funds",
-                }),
-            )),
+            "4000000000009995" => {
+                if connector == DummyConnectors::StripeTest {
+                    Ok(types::DummyConnectorCardFlow::NoThreeDS(
+                        types::DummyConnectorStatus::Succeeded,
+                        None,
+                    ))
+                } else {
+                    Ok(types::DummyConnectorCardFlow::NoThreeDS(
+                        types::DummyConnectorStatus::Failed,
+                        Some(errors::DummyConnectorErrors::PaymentDeclined {
+                            message: "Internal Server Error from Connector, Please try again later",
+                        }),
+                    ))
+                }
+            }
             "4000000000009987" => Ok(types::DummyConnectorCardFlow::NoThreeDS(
                 types::DummyConnectorStatus::Failed,
                 Some(errors::DummyConnectorErrors::PaymentDeclined {
@@ -324,6 +388,10 @@ impl ProcessPaymentAttempt for types::DummyConnectorPaymentMethodData {
             Self::Card(card) => {
                 card.build_payment_data_from_payment_attempt(payment_attempt, redirect_url)
             }
+            Self::Upi(upi_data) => match upi_data {
+                types::DummyConnectorUpi::UpiCollect(upi_collect) => upi_collect
+                    .build_payment_data_from_payment_attempt(payment_attempt, redirect_url),
+            },
             Self::Wallet(wallet) => {
                 wallet.build_payment_data_from_payment_attempt(payment_attempt, redirect_url)
             }

@@ -78,27 +78,20 @@ pub async fn create_role(
         return Err(report!(UserErrors::InvalidRoleOperation))
             .attach_printable("User trying to create org level custom role");
     }
-
-    // TODO: Remove in PR custom-role-write-pr
-    if matches!(role_entity_type, EntityType::Profile) {
-        return Err(report!(UserErrors::InvalidRoleOperation))
-            .attach_printable("User trying to create profile level custom role");
-    }
-
     let requestor_entity_from_role_scope = EntityType::from(req.role_scope);
 
     if requestor_entity_from_role_scope < role_entity_type {
         return Err(report!(UserErrors::InvalidRoleOperation)).attach_printable(format!(
-            "User is trying to create role of type {} and scope {}",
-            role_entity_type, requestor_entity_from_role_scope
+            "User is trying to create role of type {role_entity_type} and scope {requestor_entity_from_role_scope}",
+
         ));
     }
     let max_from_scope_and_entity = cmp::max(requestor_entity_from_role_scope, role_entity_type);
 
     if user_entity_type < max_from_scope_and_entity {
         return Err(report!(UserErrors::InvalidRoleOperation)).attach_printable(format!(
-            "{} is trying to create of scope {} and of type {}",
-            user_entity_type, requestor_entity_from_role_scope, role_entity_type
+            "{user_entity_type} is trying to create of scope {requestor_entity_from_role_scope} and of type {role_entity_type}",
+
         ));
     }
 
@@ -120,13 +113,15 @@ pub async fn create_role(
     .await?;
 
     let (org_id, merchant_id, profile_id) = match role_entity_type {
-        EntityType::Organization | EntityType::Tenant => {
-            (user_from_token.org_id, user_from_token.merchant_id, None)
-        }
-        EntityType::Merchant => (user_from_token.org_id, user_from_token.merchant_id, None),
+        EntityType::Organization | EntityType::Tenant => (user_from_token.org_id, None, None),
+        EntityType::Merchant => (
+            user_from_token.org_id,
+            Some(user_from_token.merchant_id),
+            None,
+        ),
         EntityType::Profile => (
             user_from_token.org_id,
-            user_from_token.merchant_id,
+            Some(user_from_token.merchant_id),
             Some(user_from_token.profile_id),
         ),
     };
@@ -219,6 +214,11 @@ pub async fn get_parent_info_for_role(
         role_info.get_entity_type(),
         role_info.get_permission_groups().to_vec(),
     )
+    .ok_or(UserErrors::InternalServerError)
+    .attach_printable(format!(
+        "No group descriptions found for role_id: {}",
+        role.role_id
+    ))?
     .into_iter()
     .map(|(parent_group, description)| role_api::ParentGroupInfo {
         name: parent_group.clone(),
@@ -345,10 +345,7 @@ pub async fn list_roles_with_info(
         .into());
     }
 
-    let mut role_info_vec = PREDEFINED_ROLES
-        .iter()
-        .map(|(_, role_info)| role_info.clone())
-        .collect::<Vec<_>>();
+    let mut role_info_vec = PREDEFINED_ROLES.values().cloned().collect::<Vec<_>>();
 
     let user_role_entity = user_role_info.get_entity_type();
     let is_lineage_data_required = request.entity_type.is_none();
@@ -439,10 +436,7 @@ pub async fn list_roles_at_entity_level(
         )
         .into());
     }
-    let mut role_info_vec = PREDEFINED_ROLES
-        .iter()
-        .map(|(_, role_info)| role_info.clone())
-        .collect::<Vec<_>>();
+    let mut role_info_vec = PREDEFINED_ROLES.values().cloned().collect::<Vec<_>>();
 
     let tenant_id = user_from_token
         .tenant_id

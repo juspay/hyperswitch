@@ -1,0 +1,23 @@
+{
+  "childrenOrder": [
+    "Scenario1-Create payment with confirm true",
+    "Scenario2-Create payment with confirm false",
+    "Scenario3a-Create payment with Manual capture",
+    "Scenario3b-Create payment with partial capture",
+    "Scenario3c-Create payment with confirm false and manual capture",
+    "Scenario4a-Void a payment",
+    "Scenario4b-Void a partially captured payment",
+    "Scenario4c-Void a successful payment",
+    "Scenario5a-Create a zero auth mandate and recurring payment (using mandate_id)",
+    "Scenario5b-Create a zero auth mandate and recurring payment (using connector agnostic)",
+    "Scenario6a-Create a mandate and recurring payment (using mandate_id)",
+    "Scenario6b-Create a mandate and recurring payment (using connector agnostic)",
+    "Scenario7-Save card flow",
+    "Scenario8a-Incremental authorization",
+    "Scenario8b-Incremental authorization with partial capture",
+    "Scenario9a-Refund full payment",
+    "Scenario9b-Refund partial payment",
+    "Scenario9c-Refund full incremented payment",
+    "Scenario10-Create 3DS payment without external 3ds authentication"
+  ]
+}

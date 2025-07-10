@@ -93,6 +93,7 @@ payout_analytics_topic = "topic"         # Kafka topic to be used for Payouts an
 consolidated_events_topic = "topic"      # Kafka topic to be used for Consolidated events
 authentication_analytics_topic = "topic" # Kafka topic to be used for Authentication events
 fraud_check_analytics_topic = "topic"    # Kafka topic to be used for Fraud Check events
+routing_logs_topic = "topic"             # Kafka topic to be used for Routing events
 
 # File storage configuration
 [file_storage]
@@ -153,6 +154,11 @@ bg_metrics_collection_interval_in_secs = 15           # Interval for collecting 
 [lock_settings]
 delay_between_retries_in_milliseconds = 500 # Delay between retries in milliseconds
 redis_lock_expiry_seconds = 180             # Seconds before the redis lock expires
+
+# Controls whether merchant ID authentication is enabled.
+# When enabled, payment endpoints will accept and require a x-merchant-id header in the request.
+[merchant_id_auth]
+merchant_id_auth_enabled = false
 
 # Main SQL data store credentials
 [master_database]
@@ -242,6 +248,7 @@ region = "report_download_config_region"                     # Region of the buc
 
 [opensearch]
 host = "https://localhost:9200"
+enabled = false
 
 [opensearch.auth]
 auth = "basic"
@@ -302,6 +309,14 @@ encryption_manager = "aws_kms" # Encryption manager client to be used
 key_id = "kms_key_id" # The AWS key ID used by the KMS SDK for decrypting data.
 region = "kms_region" # The AWS region used by the KMS SDK for decrypting data.
 
+[crm]
+crm_manager = "hubspot_proxy" # Crm manager client to be used
+
+[crm.hubspot_proxy]
+form_id=""     # Form ID for Hubspot integration
+request_url="" # Request URL for Hubspot API
+
+
 [multitenancy]
 enabled = false
 global_tenant = { tenant_id = "global", schema = "public", redis_key_prefix = "", clickhouse_database = "default"}
@@ -331,6 +346,7 @@ private_key= ""               # private key to decrypt  response payload from to
 key_id= ""                    # key id to encrypt data for token service
 delete_token_url= ""          # base url to delete token from token service
 check_token_status_url= ""    # base url to check token status from token service
+webhook_source_verification_key= "" # webhook source verification key to verify the webhook payload from token service
 
 [grpc_client.dynamic_routing_client] # Dynamic Routing Client Configuration
 host = "localhost" # Client Host
@@ -353,3 +369,15 @@ background_color = "#FFFFFF"                     # Background color of email bod
 
 [connectors.unified_authentication_service] #Unified Authentication Service Configuration
 base_url = "http://localhost:8000" #base url to call unified authentication service
+
+[connectors.hyperswitch_vault] # Hyperswitch Vault Configuration
+base_url = "http://localhost:8080" # base url to call hyperswitch vault service
+
+[clone_connector_allowlist]
+merchant_ids = "merchant_ids"           # Comma-separated list of allowed merchant IDs
+connector_names = "connector_names"     # Comma-separated list of allowed connector names
+
+[grpc_client.unified_connector_service]
+host = "localhost"                      # Unified Connector Service Client Host
+port = 8000                             # Unified Connector Service Client Port
+connection_timeout = 10                 # Connection Timeout Duration in Seconds

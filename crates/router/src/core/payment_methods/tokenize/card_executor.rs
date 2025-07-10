@@ -1,5 +1,6 @@
 use std::str::FromStr;
 
+use ::payment_methods::{controller::PaymentMethodsController, core::migration};
 use api_models::{enums as api_enums, payment_methods as payment_methods_api};
 use common_utils::{
     consts,
@@ -15,12 +16,12 @@ use masking::{ExposeInterface, PeekInterface, SwitchStrategy};
 use router_env::logger;
 
 use super::{
-    migration, CardNetworkTokenizeExecutor, NetworkTokenizationBuilder, NetworkTokenizationProcess,
+    CardNetworkTokenizeExecutor, NetworkTokenizationBuilder, NetworkTokenizationProcess,
     NetworkTokenizationResponse, State, StoreLockerResponse, TransitionTo,
 };
 use crate::{
     core::payment_methods::{
-        cards::{add_card_to_hs_locker, create_payment_method},
+        cards::{add_card_to_hs_locker, PmCards},
         transformers as pm_transformers,
     },
     errors::{self, RouterResult},
@@ -131,6 +132,7 @@ impl<'a> NetworkTokenizationBuilder<'a, CardRequestValidated> {
                 .map_or(card_req.card_issuing_country.clone(), |card_info| {
                     card_info.card_issuing_country.clone()
                 }),
+            co_badged_card_data: None,
         };
         NetworkTokenizationBuilder {
             state: std::marker::PhantomData,
@@ -266,8 +268,8 @@ impl<'a> NetworkTokenizationBuilder<'a, CardTokenStored> {
             payment_method: payment_method.payment_method,
             payment_method_type: payment_method.payment_method_type,
             card: card_detail_from_locker,
-            recurring_enabled: true,
-            installment_payment_enabled: false,
+            recurring_enabled: Some(true),
+            installment_payment_enabled: Some(false),
             metadata: payment_method.metadata.clone(),
             created: Some(payment_method.created_at),
             last_used_at: Some(payment_method.last_used_at),
@@ -422,7 +424,7 @@ impl CardNetworkTokenizeExecutor<'_, domain::TokenizeCardRequest> {
             address_id: None,
             default_payment_method_id: None,
             updated_by: None,
-            version: hyperswitch_domain_models::consts::API_VERSION,
+            version: common_types::consts::API_VERSION,
         };
 
         db.insert_customer(
@@ -563,8 +565,14 @@ impl CardNetworkTokenizeExecutor<'_, domain::TokenizeCardRequest> {
             connector_mandate_details: None,
             network_transaction_id: None,
         };
-        create_payment_method(
-            self.state,
+        PmCards {
+            state: self.state,
+            merchant_context: &domain::MerchantContext::NormalMerchant(Box::new(domain::Context(
+                self.merchant_account.clone(),
+                self.key_store.clone(),
+            ))),
+        }
+        .create_payment_method(
             &payment_method_create,
             customer_id,
             &payment_method_id,
@@ -573,11 +581,9 @@ impl CardNetworkTokenizeExecutor<'_, domain::TokenizeCardRequest> {
             None,
             None,
             Some(enc_pm_data),
-            self.key_store,
             None,
             None,
             None,
-            self.merchant_account.storage_scheme,
             None,
             None,
             network_token_details.1.clone(),

@@ -39,3 +39,14 @@ pub trait FraudCheckRecordReturn:
     ConnectorIntegration<RecordReturn, FraudCheckRecordReturnData, FraudCheckResponseData>
 {
 }
+
+/// trait FraudCheck
+pub trait FraudCheck:
+    super::ConnectorCommon
+    + FraudCheckSale
+    + FraudCheckTransaction
+    + FraudCheckCheckout
+    + FraudCheckFulfillment
+    + FraudCheckRecordReturn
+{
+}

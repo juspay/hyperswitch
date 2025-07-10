@@ -1,6 +1,7 @@
 pub mod helpers;
 pub mod utils;
 use api_models::payments;
+use common_types::payments as common_payments_types;
 use common_utils::{ext_traits::Encode, id_type};
 use diesel_models::enums as storage_enums;
 use error_stack::{report, ResultExt};
@@ -32,26 +33,25 @@ use crate::{
 #[instrument(skip(state))]
 pub async fn get_mandate(
     state: SessionState,
-    merchant_account: domain::MerchantAccount,
-    key_store: domain::MerchantKeyStore,
+    merchant_context: domain::MerchantContext,
     req: mandates::MandateId,
 ) -> RouterResponse<mandates::MandateResponse> {
     let mandate = state
         .store
         .as_ref()
         .find_mandate_by_merchant_id_mandate_id(
-            merchant_account.get_id(),
+            merchant_context.get_merchant_account().get_id(),
             &req.mandate_id,
-            merchant_account.storage_scheme,
+            merchant_context.get_merchant_account().storage_scheme,
         )
         .await
         .to_not_found_response(errors::ApiErrorResponse::MandateNotFound)?;
     Ok(services::ApplicationResponse::Json(
         mandates::MandateResponse::from_db_mandate(
             &state,
-            key_store,
+            merchant_context.get_merchant_key_store().clone(),
             mandate,
-            merchant_account.storage_scheme,
+            merchant_context.get_merchant_account(),
         )
         .await?,
     ))
@@ -61,16 +61,15 @@ pub async fn get_mandate(
 #[instrument(skip(state))]
 pub async fn revoke_mandate(
     state: SessionState,
-    merchant_account: domain::MerchantAccount,
-    key_store: domain::MerchantKeyStore,
+    merchant_context: domain::MerchantContext,
     req: mandates::MandateId,
 ) -> RouterResponse<mandates::MandateRevokedResponse> {
     let db = state.store.as_ref();
     let mandate = db
         .find_mandate_by_merchant_id_mandate_id(
-            merchant_account.get_id(),
+            merchant_context.get_merchant_account().get_id(),
             &req.mandate_id,
-            merchant_account.storage_scheme,
+            merchant_context.get_merchant_account().storage_scheme,
         )
         .await
         .to_not_found_response(errors::ApiErrorResponse::MandateNotFound)?;
@@ -78,19 +77,15 @@ pub async fn revoke_mandate(
         common_enums::MandateStatus::Active
         | common_enums::MandateStatus::Inactive
         | common_enums::MandateStatus::Pending => {
-            let profile_id = helpers::get_profile_id_for_mandate(
-                &state,
-                &merchant_account,
-                &key_store,
-                mandate.clone(),
-            )
-            .await?;
+            let profile_id =
+                helpers::get_profile_id_for_mandate(&state, &merchant_context, mandate.clone())
+                    .await?;
 
             let merchant_connector_account = payment_helper::get_merchant_connector_account(
                 &state,
-                merchant_account.get_id(),
+                merchant_context.get_merchant_account().get_id(),
                 None,
-                &key_store,
+                merchant_context.get_merchant_key_store(),
                 &profile_id,
                 &mandate.connector.clone(),
                 mandate.merchant_connector_id.as_ref(),
@@ -112,7 +107,7 @@ pub async fn revoke_mandate(
             let router_data = utils::construct_mandate_revoke_router_data(
                 &state,
                 merchant_connector_account,
-                &merchant_account,
+                &merchant_context,
                 mandate.clone(),
             )
             .await?;
@@ -123,6 +118,7 @@ pub async fn revoke_mandate(
                 &router_data,
                 CallConnectorAction::Trigger,
                 None,
+                None,
             )
             .await
             .change_context(errors::ApiErrorResponse::InternalServerError)?;
@@ -131,13 +127,13 @@ pub async fn revoke_mandate(
                 Ok(_) => {
                     let update_mandate = db
                         .update_mandate_by_merchant_id_mandate_id(
-                            merchant_account.get_id(),
+                            merchant_context.get_merchant_account().get_id(),
                             &req.mandate_id,
                             storage::MandateUpdate::StatusUpdate {
                                 mandate_status: storage::enums::MandateStatus::Revoked,
                             },
                             mandate,
-                            merchant_account.storage_scheme,
+                            merchant_context.get_merchant_account().storage_scheme,
                         )
                         .await
                         .to_not_found_response(errors::ApiErrorResponse::MandateNotFound)?;
@@ -224,23 +220,25 @@ pub async fn update_connector_mandate_id(
     }
     Ok(services::ApplicationResponse::StatusOk)
 }
-#[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
+#[cfg(feature = "v1")]
 #[instrument(skip(state))]
 pub async fn get_customer_mandates(
     state: SessionState,
-    merchant_account: domain::MerchantAccount,
-    key_store: domain::MerchantKeyStore,
+    merchant_context: domain::MerchantContext,
     customer_id: id_type::CustomerId,
 ) -> RouterResponse<Vec<mandates::MandateResponse>> {
     let mandates = state
         .store
-        .find_mandate_by_merchant_id_customer_id(merchant_account.get_id(), &customer_id)
+        .find_mandate_by_merchant_id_customer_id(
+            merchant_context.get_merchant_account().get_id(),
+            &customer_id,
+        )
         .await
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable_lazy(|| {
             format!(
                 "Failed while finding mandate: merchant_id: {:?}, customer_id: {:?}",
-                merchant_account.get_id(),
+                merchant_context.get_merchant_account().get_id(),
                 customer_id,
             )
         })?;
@@ -253,9 +251,9 @@ pub async fn get_customer_mandates(
             response_vec.push(
                 mandates::MandateResponse::from_db_mandate(
                     &state,
-                    key_store.clone(),
+                    merchant_context.get_merchant_key_store().clone(),
                     mandate,
-                    merchant_account.storage_scheme,
+                    merchant_context.get_merchant_account(),
                 )
                 .await?,
             );
@@ -401,23 +399,25 @@ where
 #[instrument(skip(state))]
 pub async fn retrieve_mandates_list(
     state: SessionState,
-    merchant_account: domain::MerchantAccount,
-    key_store: domain::MerchantKeyStore,
+    merchant_context: domain::MerchantContext,
     constraints: api_models::mandates::MandateListConstraints,
 ) -> RouterResponse<Vec<api_models::mandates::MandateResponse>> {
     let mandates = state
         .store
         .as_ref()
-        .find_mandates_by_merchant_id(merchant_account.get_id(), constraints)
+        .find_mandates_by_merchant_id(
+            merchant_context.get_merchant_account().get_id(),
+            constraints,
+        )
         .await
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Unable to retrieve mandates")?;
     let mandates_list = future::try_join_all(mandates.into_iter().map(|mandate| {
         mandates::MandateResponse::from_db_mandate(
             &state,
-            key_store.clone(),
+            merchant_context.get_merchant_key_store().clone(),
             mandate,
-            merchant_account.storage_scheme,
+            merchant_context.get_merchant_account(),
         )
     }))
     .await?;
@@ -446,5 +446,5 @@ pub trait MandateBehaviour {
     fn get_setup_mandate_details(
         &self,
     ) -> Option<&hyperswitch_domain_models::mandates::MandateData>;
-    fn get_customer_acceptance(&self) -> Option<payments::CustomerAcceptance>;
+    fn get_customer_acceptance(&self) -> Option<common_payments_types::CustomerAcceptance>;
 }

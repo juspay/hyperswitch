@@ -5,12 +5,16 @@ use common_enums::enums;
 use common_utils::{
     errors::CustomResult,
     ext_traits::{Encode, OptionExt, ValueExt},
+    pii::Email,
     request::Method,
 };
 use error_stack::ResultExt;
 use hyperswitch_domain_models::{
     payment_method_data::{Card, PaymentMethodData, WalletData},
-    router_data::{ConnectorAuthType, ErrorResponse, RouterData},
+    router_data::{
+        AdditionalPaymentMethodConnectorResponse, ConnectorAuthType, ConnectorResponseData,
+        ErrorResponse, RouterData,
+    },
     router_flow_types::RSync,
     router_request_types::ResponseId,
     router_response_types::{
@@ -35,6 +39,12 @@ use crate::{
         RefundsRequestData, RouterData as OtherRouterData, WalletData as OtherWalletData,
     },
 };
+
+const MAX_ID_LENGTH: usize = 20;
+
+fn get_random_string() -> String {
+    Alphanumeric.sample_string(&mut rand::thread_rng(), MAX_ID_LENGTH)
+}
 
 #[derive(Debug, Serialize)]
 pub enum TransactionType {
@@ -207,6 +217,7 @@ struct PaymentProfileDetails {
 #[serde(rename_all = "camelCase")]
 pub struct CustomerDetails {
     id: String,
+    email: Option<Email>,
 }
 
 #[derive(Debug, Serialize)]
@@ -230,6 +241,7 @@ pub struct BillTo {
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Order {
+    invoice_number: String,
     description: String,
 }
 
@@ -457,7 +469,8 @@ impl TryFrom<&SetupMandateRouterData> for CreateCustomerProfileRequest {
                 | WalletData::WeChatPayQr(_)
                 | WalletData::CashappQr(_)
                 | WalletData::SwishQr(_)
-                | WalletData::Mifinity(_) => Err(errors::ConnectorError::NotImplemented(
+                | WalletData::Mifinity(_)
+                | WalletData::RevolutPay(_) => Err(errors::ConnectorError::NotImplemented(
                     utils::get_unimplemented_payment_method_error_message("authorizedotnet"),
                 ))?,
             },
@@ -551,8 +564,9 @@ impl<F, T>
                     status_code: item.http_code,
                     attempt_status: None,
                     connector_transaction_id: None,
-                    issuer_error_code: None,
-                    issuer_error_message: None,
+                    network_advice_code: None,
+                    network_decline_code: None,
+                    network_error_message: None,
                 });
                 Ok(Self {
                     response,
@@ -610,7 +624,7 @@ impl TryFrom<&AuthorizedotnetRouterData<&PaymentsAuthorizeRouterData>>
         let merchant_authentication =
             AuthorizedotnetAuthType::try_from(&item.router_data.connector_auth_type)?;
 
-        let ref_id = if item.router_data.connector_request_reference_id.len() <= 20 {
+        let ref_id = if item.router_data.connector_request_reference_id.len() <= MAX_ID_LENGTH {
             Some(item.router_data.connector_request_reference_id.clone())
         } else {
             None
@@ -726,9 +740,17 @@ impl
             }),
             profile: None,
             order: Order {
+                invoice_number: get_random_string(),
                 description: item.router_data.connector_request_reference_id.clone(),
             },
-            customer: None,
+            customer: Some(CustomerDetails {
+                id: if item.router_data.payment_id.len() <= MAX_ID_LENGTH {
+                    item.router_data.payment_id.clone()
+                } else {
+                    get_random_string()
+                },
+                email: item.router_data.request.get_optional_email(),
+            }),
             bill_to: item
                 .router_data
                 .get_optional_billing()
@@ -797,9 +819,17 @@ impl
                     })
                 }),
             order: Order {
+                invoice_number: get_random_string(),
                 description: item.router_data.connector_request_reference_id.clone(),
             },
-            customer: None,
+            customer: Some(CustomerDetails {
+                id: if item.router_data.payment_id.len() <= MAX_ID_LENGTH {
+                    item.router_data.payment_id.clone()
+                } else {
+                    get_random_string()
+                },
+                email: item.router_data.request.get_optional_email(),
+            }),
             bill_to: None,
             user_fields: match item.router_data.request.metadata.clone() {
                 Some(metadata) => Some(UserFields {
@@ -834,24 +864,21 @@ impl
             &Card,
         ),
     ) -> Result<Self, Self::Error> {
-        let (profile, customer) = if item.router_data.request.is_mandate_payment() {
-            (
-                Some(ProfileDetails::CreateProfileDetails(CreateProfileDetails {
-                    create_profile: true,
-                })),
-                Some(CustomerDetails {
-                    //The payment ID is included in the customer details because the connector requires unique customer information with a length of fewer than 20 characters when creating a mandate.
-                    //If the length exceeds 20 characters, a random alphanumeric string is used instead.
-                    id: if item.router_data.payment_id.len() <= 20 {
-                        item.router_data.payment_id.clone()
-                    } else {
-                        Alphanumeric.sample_string(&mut rand::thread_rng(), 20)
-                    },
-                }),
-            )
-        } else {
-            (None, None)
-        };
+        let (profile, customer) = (
+            Some(ProfileDetails::CreateProfileDetails(CreateProfileDetails {
+                create_profile: true,
+            })),
+            Some(CustomerDetails {
+                //The payment ID is included in the customer details because the connector requires unique customer information with a length of fewer than 20 characters when creating a mandate.
+                //If the length exceeds 20 characters, a random alphanumeric string is used instead.
+                id: if item.router_data.payment_id.len() <= MAX_ID_LENGTH {
+                    item.router_data.payment_id.clone()
+                } else {
+                    get_random_string()
+                },
+                email: item.router_data.request.get_optional_email(),
+            }),
+        );
         Ok(Self {
             transaction_type: TransactionType::try_from(item.router_data.request.capture_method)?,
             amount: item.amount,
@@ -863,6 +890,7 @@ impl
             })),
             profile,
             order: Order {
+                invoice_number: get_random_string(),
                 description: item.router_data.connector_request_reference_id.clone(),
             },
             customer,
@@ -910,23 +938,19 @@ impl
             &WalletData,
         ),
     ) -> Result<Self, Self::Error> {
-        let (profile, customer) = if item.router_data.request.is_mandate_payment() {
-            (
-                Some(ProfileDetails::CreateProfileDetails(CreateProfileDetails {
-                    create_profile: true,
-                })),
-                Some(CustomerDetails {
-                    id: if item.router_data.payment_id.len() <= 20 {
-                        item.router_data.payment_id.clone()
-                    } else {
-                        Alphanumeric.sample_string(&mut rand::thread_rng(), 20)
-                    },
-                }),
-            )
-        } else {
-            (None, None)
-        };
-
+        let (profile, customer) = (
+            Some(ProfileDetails::CreateProfileDetails(CreateProfileDetails {
+                create_profile: true,
+            })),
+            Some(CustomerDetails {
+                id: if item.router_data.payment_id.len() <= MAX_ID_LENGTH {
+                    item.router_data.payment_id.clone()
+                } else {
+                    get_random_string()
+                },
+                email: item.router_data.request.get_optional_email(),
+            }),
+        );
         Ok(Self {
             transaction_type: TransactionType::try_from(item.router_data.request.capture_method)?,
             amount: item.amount,
@@ -937,6 +961,7 @@ impl
             )?),
             profile,
             order: Order {
+                invoice_number: get_random_string(),
                 description: item.router_data.connector_request_reference_id.clone(),
             },
             customer,
@@ -1116,6 +1141,7 @@ pub struct AuthorizedotnetTransactionResponse {
     pub(super) account_number: Option<Secret<String>>,
     pub(super) errors: Option<Vec<ErrorMessage>>,
     secure_acceptance: Option<SecureAcceptance>,
+    avs_result_code: Option<String>,
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
@@ -1194,6 +1220,48 @@ impl From<AuthorizedotnetVoidStatus> for enums::AttemptStatus {
     }
 }
 
+fn get_avs_response_description(code: &str) -> Option<&'static str> {
+    match code {
+        "A" => Some("The street address matched, but the postal code did not."),
+        "B" => Some("No address information was provided."),
+        "E" => Some(
+            "AVS data provided is invalid or AVS is not allowed for the card type that was used.",
+        ),
+        "G" => Some("The card was issued by a bank outside the U.S. and does not support AVS."),
+        "N" => Some("Neither the street address nor postal code matched."),
+        "P" => Some("AVS is not applicable for this transaction."),
+        "R" => Some("Retry — AVS was unavailable or timed out."),
+        "S" => Some("AVS is not supported by card issuer."),
+        "U" => Some("Address information is unavailable."),
+        "W" => Some("The US ZIP+4 code matches, but the street address does not."),
+        "X" => Some("Both the street address and the US ZIP+4 code matched."),
+        "Y" => Some("The street address and postal code matched."),
+        "Z" => Some("The postal code matched, but the street address did not."),
+        _ => None,
+    }
+}
+
+fn convert_to_additional_payment_method_connector_response(
+    transaction_response: &AuthorizedotnetTransactionResponse,
+) -> Option<AdditionalPaymentMethodConnectorResponse> {
+    match transaction_response.avs_result_code.as_deref() {
+        Some("P") | None => None,
+        Some(code) => {
+            let description = get_avs_response_description(code);
+            let payment_checks = serde_json::json!({
+                "avs_result_code": code,
+                "description": description
+            });
+            Some(AdditionalPaymentMethodConnectorResponse::Card {
+                authentication_data: None,
+                payment_checks: Some(payment_checks),
+                card_network: None,
+                domestic_network: None,
+            })
+        }
+    }
+}
+
 impl<F, T>
     ForeignTryFrom<(
         ResponseRouterData<F, AuthorizedotnetPaymentsResponse, T, PaymentsResponseData>,
@@ -1221,8 +1289,9 @@ impl<F, T>
                         status_code: item.http_code,
                         attempt_status: None,
                         connector_transaction_id: Some(transaction_response.transaction_id.clone()),
-                        issuer_error_code: None,
-                        issuer_error_message: None,
+                        network_advice_code: None,
+                        network_decline_code: None,
+                        network_error_message: None,
                     })
                 });
                 let metadata = transaction_response
@@ -1235,6 +1304,11 @@ impl<F, T>
                     .change_context(errors::ConnectorError::MissingRequiredField {
                         field_name: "connector_metadata",
                     })?;
+
+                let connector_response_data =
+                    convert_to_additional_payment_method_connector_response(transaction_response)
+                        .map(ConnectorResponseData::with_additional_payment_method_data);
+
                 let url = transaction_response
                     .secure_acceptance
                     .as_ref()
@@ -1282,6 +1356,7 @@ impl<F, T>
                             charges: None,
                         }),
                     },
+                    connector_response: connector_response_data,
                     ..item.data
                 })
             }
@@ -1314,8 +1389,9 @@ impl<F, T> TryFrom<ResponseRouterData<F, AuthorizedotnetVoidResponse, T, Payment
                         status_code: item.http_code,
                         attempt_status: None,
                         connector_transaction_id: Some(transaction_response.transaction_id.clone()),
-                        issuer_error_code: None,
-                        issuer_error_message: None,
+                        network_advice_code: None,
+                        network_decline_code: None,
+                        network_error_message: None,
                     })
                 });
                 let metadata = transaction_response
@@ -1464,8 +1540,9 @@ impl<F> TryFrom<RefundsResponseRouterData<F, AuthorizedotnetRefundResponse>>
                 status_code: item.http_code,
                 attempt_status: None,
                 connector_transaction_id: Some(transaction_response.transaction_id.clone()),
-                issuer_error_code: None,
-                issuer_error_message: None,
+                network_advice_code: None,
+                network_decline_code: None,
+                network_error_message: None,
             })
         });
 
@@ -1562,6 +1639,7 @@ pub enum RSyncStatus {
     RefundPendingSettlement,
     Declined,
     GeneralError,
+    Voided,
 }
 
 #[derive(Debug, Deserialize, Serialize)]
@@ -1615,7 +1693,9 @@ impl From<RSyncStatus> for enums::RefundStatus {
         match transaction_status {
             RSyncStatus::RefundSettledSuccessfully => Self::Success,
             RSyncStatus::RefundPendingSettlement => Self::Pending,
-            RSyncStatus::Declined | RSyncStatus::GeneralError => Self::Failure,
+            RSyncStatus::Declined | RSyncStatus::GeneralError | RSyncStatus::Voided => {
+                Self::Failure
+            }
         }
     }
 }
@@ -1744,8 +1824,9 @@ fn get_err_response(
         status_code,
         attempt_status: None,
         connector_transaction_id: None,
-        issuer_error_code: None,
-        issuer_error_message: None,
+        network_advice_code: None,
+        network_decline_code: None,
+        network_error_message: None,
     })
 }
 
@@ -1897,7 +1978,8 @@ fn get_wallet_data(
         | WalletData::WeChatPayQr(_)
         | WalletData::CashappQr(_)
         | WalletData::SwishQr(_)
-        | WalletData::Mifinity(_) => Err(errors::ConnectorError::NotImplemented(
+        | WalletData::Mifinity(_)
+        | WalletData::RevolutPay(_) => Err(errors::ConnectorError::NotImplemented(
             utils::get_unimplemented_payment_method_error_message("authorizedotnet"),
         ))?,
     }

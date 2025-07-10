@@ -6,12 +6,11 @@ use diesel_models::{
     },
 };
 use error_stack::ResultExt;
-use hyperswitch_domain_models::errors;
 use redis_interface::SetnxReply;
 
 use crate::{
     diesel_error_to_data_error,
-    errors::RedisErrorExt,
+    errors::{self, RedisErrorExt},
     kv_router_store::KVRouterStore,
     redis::kv_store::{decide_storage_scheme, kv_wrapper, KvOperation, Op, PartitionKey},
     utils::{self, try_redis_get_else_try_database_get},

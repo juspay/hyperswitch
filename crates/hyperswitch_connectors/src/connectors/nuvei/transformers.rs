@@ -948,6 +948,7 @@ where
                 | WalletData::CashappQr(_)
                 | WalletData::SwishQr(_)
                 | WalletData::WeChatPayQr(_)
+                | WalletData::RevolutPay(_)
                 | WalletData::Mifinity(_) => Err(errors::ConnectorError::NotImplemented(
                     utils::get_unimplemented_payment_method_error_message("nuvei"),
                 )
@@ -1820,8 +1821,9 @@ fn get_error_response<T>(
         status_code: http_code,
         attempt_status: None,
         connector_transaction_id: None,
-        issuer_error_code: None,
-        issuer_error_message: None,
+        network_advice_code: None,
+        network_decline_code: None,
+        network_error_message: None,
     }))
 }
 

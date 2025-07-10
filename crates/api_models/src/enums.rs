@@ -114,7 +114,7 @@ impl TryFrom<Connector> for PayoutConnectors {
             Connector::Paypal => Ok(Self::Paypal),
             Connector::Stripe => Ok(Self::Stripe),
             Connector::Wise => Ok(Self::Wise),
-            _ => Err(format!("Invalid payout connector {}", value)),
+            _ => Err(format!("Invalid payout connector {value}")),
         }
     }
 }
@@ -160,10 +160,31 @@ pub enum TaxConnectors {
     Taxjar,
 }
 
-#[derive(Clone, Debug, serde::Serialize, strum::EnumString)]
+#[derive(Clone, Debug, serde::Serialize, strum::EnumString, Eq, PartialEq)]
 #[serde(rename_all = "snake_case")]
 pub enum BillingConnectors {
     Chargebee,
+    Recurly,
+    Stripebilling,
+    #[cfg(feature = "dummy_connector")]
+    DummyBillingConnector,
+}
+
+#[derive(Clone, Copy, Debug, serde::Serialize, strum::EnumString, Eq, PartialEq)]
+#[serde(rename_all = "snake_case")]
+#[strum(serialize_all = "snake_case")]
+pub enum VaultConnectors {
+    Vgs,
+    HyperswitchVault,
+}
+
+impl From<VaultConnectors> for Connector {
+    fn from(value: VaultConnectors) -> Self {
+        match value {
+            VaultConnectors::Vgs => Self::Vgs,
+            VaultConnectors::HyperswitchVault => Self::HyperswitchVault,
+        }
+    }
 }
 
 #[derive(
@@ -233,9 +254,12 @@ pub enum FieldType {
     UserShippingAddressPincode,
     UserShippingAddressState,
     UserShippingAddressCountry { options: Vec<String> },
+    UserSocialSecurityNumber,
     UserBlikCode,
     UserBank,
     UserBankAccountNumber,
+    UserSourceBankAccountId,
+    UserDestinationBankAccountId,
     Text,
     DropDown { options: Vec<String> },
     UserDateOfBirth,
@@ -429,6 +453,10 @@ pub fn convert_billing_connector(connector_name: &str) -> Option<BillingConnecto
 #[cfg(feature = "frm")]
 pub fn convert_frm_connector(connector_name: &str) -> Option<FrmConnectors> {
     FrmConnectors::from_str(connector_name).ok()
+}
+
+pub fn convert_vault_connector(connector_name: &str) -> Option<VaultConnectors> {
+    VaultConnectors::from_str(connector_name).ok()
 }
 
 #[derive(Debug, Clone, Copy, Eq, PartialEq, Ord, PartialOrd, serde::Serialize, Hash)]

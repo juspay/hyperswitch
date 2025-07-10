@@ -1,4 +1,5 @@
 use async_trait::async_trait;
+use common_types::payments as common_payments_types;
 use router_env::logger;
 
 use super::{ConstructFlowSpecificData, Feature};
@@ -28,8 +29,7 @@ impl
         &self,
         state: &SessionState,
         connector_id: &str,
-        merchant_account: &domain::MerchantAccount,
-        key_store: &domain::MerchantKeyStore,
+        merchant_context: &domain::MerchantContext,
         customer: &Option<domain::Customer>,
         merchant_connector_account: &helpers::MerchantConnectorAccountType,
         merchant_recipient_data: Option<types::MerchantRecipientData>,
@@ -42,25 +42,13 @@ impl
             state,
             self.clone(),
             connector_id,
-            merchant_account,
-            key_store,
+            merchant_context,
             customer,
             merchant_connector_account,
             merchant_recipient_data,
             header_payload,
         ))
         .await
-    }
-
-    async fn get_merchant_recipient_data<'a>(
-        &self,
-        _state: &SessionState,
-        _merchant_account: &domain::MerchantAccount,
-        _key_store: &domain::MerchantKeyStore,
-        _merchant_connector_account: &helpers::MerchantConnectorAccountType,
-        _connector: &api::ConnectorData,
-    ) -> RouterResult<Option<types::MerchantRecipientData>> {
-        Ok(None)
     }
 }
 
@@ -77,10 +65,9 @@ impl
         &self,
         state: &SessionState,
         connector_id: &str,
-        merchant_account: &domain::MerchantAccount,
-        key_store: &domain::MerchantKeyStore,
+        merchant_context: &domain::MerchantContext,
         customer: &Option<domain::Customer>,
-        merchant_connector_account: &domain::MerchantConnectorAccount,
+        merchant_connector_account: &domain::MerchantConnectorAccountTypeDetails,
         merchant_recipient_data: Option<types::MerchantRecipientData>,
         header_payload: Option<hyperswitch_domain_models::payments::HeaderPayload>,
     ) -> RouterResult<types::SetupMandateRouterData> {
@@ -89,8 +76,7 @@ impl
                 state,
                 self.clone(),
                 connector_id,
-                merchant_account,
-                key_store,
+                merchant_context,
                 customer,
                 merchant_connector_account,
                 merchant_recipient_data,
@@ -98,17 +84,6 @@ impl
             ),
         )
         .await
-    }
-
-    async fn get_merchant_recipient_data<'a>(
-        &self,
-        _state: &SessionState,
-        _merchant_account: &domain::MerchantAccount,
-        _key_store: &domain::MerchantKeyStore,
-        _merchant_connector_account: &helpers::MerchantConnectorAccountType,
-        _connector: &api::ConnectorData,
-    ) -> RouterResult<Option<types::MerchantRecipientData>> {
-        Ok(None)
     }
 }
 
@@ -122,6 +97,7 @@ impl Feature<api::SetupMandate, types::SetupMandateRequestData> for types::Setup
         connector_request: Option<services::Request>,
         _business_profile: &domain::Profile,
         _header_payload: hyperswitch_domain_models::payments::HeaderPayload,
+        _return_raw_connector_response: Option<bool>,
     ) -> RouterResult<Self> {
         let connector_integration: services::BoxedPaymentConnectorIntegrationInterface<
             api::SetupMandate,
@@ -149,6 +125,7 @@ impl Feature<api::SetupMandate, types::SetupMandateRequestData> for types::Setup
             &self,
             call_connector_action.clone(),
             connector_request,
+            None,
         )
         .await
         .to_setup_mandate_failed_response()?;
@@ -159,10 +136,10 @@ impl Feature<api::SetupMandate, types::SetupMandateRequestData> for types::Setup
         &self,
         state: &SessionState,
         connector: &api::ConnectorData,
-        merchant_account: &domain::MerchantAccount,
+        merchant_context: &domain::MerchantContext,
         creds_identifier: Option<&str>,
     ) -> RouterResult<types::AddAccessTokenResult> {
-        access_token::add_access_token(state, connector, merchant_account, self, creds_identifier)
+        access_token::add_access_token(state, connector, merchant_context, self, creds_identifier)
             .await
     }
 
@@ -251,7 +228,7 @@ impl mandate::MandateBehaviour for types::SetupMandateRequestData {
     ) -> Option<&hyperswitch_domain_models::mandates::MandateData> {
         self.setup_mandate_details.as_ref()
     }
-    fn get_customer_acceptance(&self) -> Option<api_models::payments::CustomerAcceptance> {
-        self.customer_acceptance.clone().map(From::from)
+    fn get_customer_acceptance(&self) -> Option<common_payments_types::CustomerAcceptance> {
+        self.customer_acceptance.clone()
     }
 }

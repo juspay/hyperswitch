@@ -7,7 +7,7 @@ use common_utils::{
 
 use super::payment_method_data::PaymentMethodData;
 
-#[derive(Debug, Eq, PartialEq)]
+#[derive(Debug, PartialEq)]
 pub enum ApplicationResponse<R> {
     Json(R),
     StatusOk,
@@ -54,7 +54,7 @@ impl<T: ApiEventMetric> ApiEventMetric for ApplicationResponse<T> {
 
 impl_api_event_type!(Miscellaneous, (PaymentLinkFormData, GenericLinkFormData));
 
-#[derive(Debug, Eq, PartialEq)]
+#[derive(Debug, PartialEq)]
 pub struct RedirectionFormData {
     pub redirect_form: crate::router_response_types::RedirectForm,
     pub payment_method_data: Option<PaymentMethodData>,
@@ -72,7 +72,7 @@ pub enum PaymentLinkAction {
 pub struct PaymentLinkFormData {
     pub js_script: String,
     pub css_script: String,
-    pub sdk_url: String,
+    pub sdk_url: url::Url,
     pub html_meta_tags: String,
 }
 
@@ -127,7 +127,7 @@ pub struct GenericExpiredLinkData {
 pub struct GenericLinkFormData {
     pub js_data: String,
     pub css_data: String,
-    pub sdk_url: String,
+    pub sdk_url: url::Url,
     pub html_meta_tags: String,
 }
 

@@ -3,7 +3,6 @@
     "Create API Key",
     "Update API Key",
     "Retrieve API Key",
-    "List API Keys",
-    "Delete API Key"
+    "List API Keys"
   ]
 }

@@ -2,7 +2,6 @@ pub mod api;
 pub mod authentication;
 pub mod authorization;
 pub mod connector_integration_interface;
-pub mod conversion_impls;
 #[cfg(feature = "email")]
 pub mod email;
 pub mod encryption;
@@ -19,14 +18,13 @@ pub mod openidconnect;
 use std::sync::Arc;
 
 use error_stack::ResultExt;
-use hyperswitch_domain_models::errors::StorageResult;
 pub use hyperswitch_interfaces::connector_integration_v2::{
     BoxedConnectorIntegrationV2, ConnectorIntegrationAnyV2, ConnectorIntegrationV2,
 };
 use masking::{ExposeInterface, StrongSecret};
 #[cfg(feature = "kv_store")]
 use storage_impl::kv_router_store::KVRouterStore;
-use storage_impl::{config::TenantConfig, redis::RedisStore, RouterStore};
+use storage_impl::{config::TenantConfig, errors::StorageResult, redis::RedisStore, RouterStore};
 use tokio::sync::oneshot;
 
 pub use self::{api::*, encryption::*};

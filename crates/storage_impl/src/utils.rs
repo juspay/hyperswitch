@@ -1,9 +1,11 @@
 use bb8::PooledConnection;
 use diesel::PgConnection;
 use error_stack::ResultExt;
-use hyperswitch_domain_models::errors::StorageError;
 
-use crate::{errors::RedisErrorExt, metrics, DatabaseStore};
+use crate::{
+    errors::{RedisErrorExt, StorageError},
+    metrics, DatabaseStore,
+};
 
 pub async fn pg_connection_read<T: DatabaseStore>(
     store: &T,

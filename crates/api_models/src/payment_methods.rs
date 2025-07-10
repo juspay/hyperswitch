@@ -1,36 +1,29 @@
 use std::collections::{HashMap, HashSet};
-#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+#[cfg(feature = "v2")]
 use std::str::FromStr;
 
 use cards::CardNumber;
+#[cfg(feature = "v1")]
+use common_utils::crypto::OptionalEncryptableName;
 use common_utils::{
     consts::SURCHARGE_PERCENTAGE_PRECISION_LENGTH,
-    crypto::OptionalEncryptableName,
     errors,
     ext_traits::OptionExt,
     id_type, link_utils, pii,
     types::{MinorUnit, Percentage, Surcharge},
 };
-#[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
 use masking::PeekInterface;
-#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
-use masking::{ExposeInterface, PeekInterface};
 use serde::de;
 use utoipa::{schema, ToSchema};
 
-#[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
-use crate::customers;
 #[cfg(feature = "payouts")]
 use crate::payouts;
 use crate::{
-    admin, enums as api_enums,
+    admin, enums as api_enums, open_router,
     payments::{self, BankCodeResponse},
 };
 
-#[cfg(all(
-    any(feature = "v1", feature = "v2"),
-    not(feature = "payment_methods_v2")
-))]
+#[cfg(feature = "v1")]
 #[derive(Debug, serde::Deserialize, serde::Serialize, Clone, ToSchema)]
 #[serde(deny_unknown_fields)]
 pub struct PaymentMethodCreate {
@@ -107,7 +100,7 @@ pub struct PaymentMethodCreate {
     pub network_transaction_id: Option<String>,
 }
 
-#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+#[cfg(feature = "v2")]
 #[derive(Debug, serde::Deserialize, serde::Serialize, Clone, ToSchema)]
 #[serde(deny_unknown_fields)]
 pub struct PaymentMethodCreate {
@@ -116,7 +109,7 @@ pub struct PaymentMethodCreate {
     pub payment_method_type: api_enums::PaymentMethod,
 
     /// This is a sub-category of payment method.
-    #[schema(value_type = PaymentMethodType,example = "credit")]
+    #[schema(value_type = PaymentMethodType,example = "google_pay")]
     pub payment_method_subtype: api_enums::PaymentMethodType,
 
     /// You can specify up to 50 keys, with key names up to 40 characters long and values up to 500 characters long. Metadata is useful for storing additional, structured information on an object.
@@ -148,7 +141,7 @@ pub struct PaymentMethodCreate {
     pub network_tokenization: Option<common_types::payment_methods::NetworkTokenization>,
 }
 
-#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+#[cfg(feature = "v2")]
 #[derive(Debug, serde::Deserialize, serde::Serialize, Clone, ToSchema)]
 #[serde(deny_unknown_fields)]
 pub struct PaymentMethodIntentCreate {
@@ -170,7 +163,7 @@ pub struct PaymentMethodIntentCreate {
     pub customer_id: id_type::GlobalCustomerId,
 }
 
-#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+#[cfg(feature = "v2")]
 #[derive(Debug, serde::Deserialize, serde::Serialize, Clone, ToSchema)]
 #[serde(deny_unknown_fields)]
 pub struct PaymentMethodIntentConfirm {
@@ -190,7 +183,7 @@ pub struct PaymentMethodIntentConfirm {
     pub payment_method_subtype: api_enums::PaymentMethodType,
 }
 
-#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+#[cfg(feature = "v2")]
 impl PaymentMethodIntentConfirm {
     pub fn validate_payment_method_data_against_payment_method(
         payment_method_type: api_enums::PaymentMethod,
@@ -206,14 +199,14 @@ impl PaymentMethodIntentConfirm {
 }
 
 /// This struct is used internally only
-#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+#[cfg(feature = "v2")]
 #[derive(Debug, serde::Deserialize, serde::Serialize, Clone)]
 pub struct PaymentMethodIntentConfirmInternal {
     pub id: id_type::GlobalPaymentMethodId,
     pub request: PaymentMethodIntentConfirm,
 }
 
-#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+#[cfg(feature = "v2")]
 impl From<PaymentMethodIntentConfirmInternal> for PaymentMethodIntentConfirm {
     fn from(item: PaymentMethodIntentConfirmInternal) -> Self {
         item.request
@@ -359,8 +352,7 @@ where
         .map_err(|err| {
             let err_msg = format!("{err:?}");
             de::Error::custom(format_args!(
-                "Failed to deserialize PaymentsMandateReference `{}`",
-                err_msg
+                "Failed to deserialize PaymentsMandateReference `{err_msg}`",
             ))
         })?;
 
@@ -378,8 +370,7 @@ where
         .map_err(|err| {
             let err_msg = format!("{err:?}");
             de::Error::custom(format_args!(
-                "Failed to deserialize CommonMandateReference `{}`",
-                err_msg
+                "Failed to deserialize CommonMandateReference `{err_msg}`",
             ))
         })?
         .flatten();
@@ -390,10 +381,7 @@ where
     }))
 }
 
-#[cfg(all(
-    any(feature = "v1", feature = "v2"),
-    not(feature = "payment_methods_v2")
-))]
+#[cfg(feature = "v1")]
 impl PaymentMethodCreate {
     pub fn get_payment_method_create_from_payment_method_migrate(
         card_number: CardNumber,
@@ -442,7 +430,7 @@ impl PaymentMethodCreate {
     }
 }
 
-#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+#[cfg(feature = "v2")]
 impl PaymentMethodCreate {
     pub fn validate_payment_method_data_against_payment_method(
         payment_method_type: api_enums::PaymentMethod,
@@ -455,12 +443,18 @@ impl PaymentMethodCreate {
             _ => false,
         }
     }
+    pub fn get_tokenize_connector_id(
+        &self,
+    ) -> Result<id_type::MerchantConnectorAccountId, error_stack::Report<errors::ValidationError>>
+    {
+        self.psp_tokenization
+            .clone()
+            .get_required_value("psp_tokenization")
+            .map(|psp| psp.connector_id)
+    }
 }
 
-#[cfg(all(
-    any(feature = "v1", feature = "v2"),
-    not(feature = "payment_methods_v2")
-))]
+#[cfg(feature = "v1")]
 #[derive(Debug, serde::Deserialize, serde::Serialize, Clone, ToSchema)]
 #[serde(deny_unknown_fields)]
 pub struct PaymentMethodUpdate {
@@ -477,7 +471,7 @@ pub struct PaymentMethodUpdate {
     pub client_secret: Option<String>,
 }
 
-#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+#[cfg(feature = "v2")]
 #[derive(Debug, serde::Deserialize, serde::Serialize, Clone, ToSchema)]
 #[serde(deny_unknown_fields)]
 pub struct PaymentMethodUpdate {
@@ -488,7 +482,7 @@ pub struct PaymentMethodUpdate {
     pub connector_token_details: Option<ConnectorTokenDetails>,
 }
 
-#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+#[cfg(feature = "v2")]
 #[derive(Debug, serde::Deserialize, serde::Serialize, Clone, ToSchema)]
 #[serde(deny_unknown_fields)]
 #[serde(rename_all = "snake_case")]
@@ -497,7 +491,7 @@ pub enum PaymentMethodUpdateData {
     Card(CardDetailUpdate),
 }
 
-#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+#[cfg(feature = "v2")]
 #[derive(Debug, serde::Deserialize, serde::Serialize, Clone, ToSchema)]
 #[serde(deny_unknown_fields)]
 #[serde(rename_all = "snake_case")]
@@ -506,10 +500,7 @@ pub enum PaymentMethodCreateData {
     Card(CardDetail),
 }
 
-#[cfg(all(
-    any(feature = "v1", feature = "v2"),
-    not(feature = "payment_methods_v2")
-))]
+#[cfg(feature = "v1")]
 #[derive(Debug, serde::Deserialize, serde::Serialize, Clone, ToSchema)]
 #[serde(deny_unknown_fields)]
 #[serde(rename_all = "snake_case")]
@@ -518,10 +509,7 @@ pub enum PaymentMethodCreateData {
     Card(CardDetail),
 }
 
-#[cfg(all(
-    any(feature = "v1", feature = "v2"),
-    not(feature = "payment_methods_v2")
-))]
+#[cfg(feature = "v1")]
 #[derive(Debug, serde::Deserialize, serde::Serialize, Clone, ToSchema)]
 #[serde(deny_unknown_fields)]
 pub struct CardDetail {
@@ -581,7 +569,7 @@ pub enum CardType {
 // but when vaulting the card, we do not need cvc to be collected from the user
 // This is because, the vaulted payment method can be used for future transactions in the presence of the customer
 // when the customer is on_session again, the cvc can be collected from the customer
-#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+#[cfg(feature = "v2")]
 #[derive(Debug, serde::Deserialize, serde::Serialize, Clone, ToSchema)]
 #[serde(deny_unknown_fields)]
 pub struct CardDetail {
@@ -709,10 +697,7 @@ pub struct MigrateNetworkTokenDetail {
     pub network_token_requestor_ref_id: String,
 }
 
-#[cfg(all(
-    any(feature = "v1", feature = "v2"),
-    not(feature = "payment_methods_v2")
-))]
+#[cfg(feature = "v1")]
 #[derive(Debug, serde::Deserialize, serde::Serialize, Clone, ToSchema)]
 #[serde(deny_unknown_fields)]
 pub struct CardDetailUpdate {
@@ -733,10 +718,7 @@ pub struct CardDetailUpdate {
     pub nick_name: Option<masking::Secret<String>>,
 }
 
-#[cfg(all(
-    any(feature = "v1", feature = "v2"),
-    not(feature = "payment_methods_v2")
-))]
+#[cfg(feature = "v1")]
 impl CardDetailUpdate {
     pub fn apply(&self, card_data_from_locker: Card) -> CardDetail {
         CardDetail {
@@ -765,7 +747,7 @@ impl CardDetailUpdate {
     }
 }
 
-#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+#[cfg(feature = "v2")]
 #[derive(Debug, serde::Deserialize, serde::Serialize, Clone, ToSchema)]
 #[serde(deny_unknown_fields)]
 pub struct CardDetailUpdate {
@@ -778,7 +760,7 @@ pub struct CardDetailUpdate {
     pub nick_name: Option<masking::Secret<String>>,
 }
 
-#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+#[cfg(feature = "v2")]
 impl CardDetailUpdate {
     pub fn apply(&self, card_data_from_locker: Card) -> CardDetail {
         CardDetail {
@@ -802,7 +784,7 @@ impl CardDetailUpdate {
     }
 }
 
-#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+#[cfg(feature = "v2")]
 #[derive(Debug, serde::Deserialize, serde::Serialize, Clone, ToSchema)]
 #[serde(deny_unknown_fields)]
 #[serde(rename_all = "snake_case")]
@@ -811,10 +793,7 @@ pub enum PaymentMethodResponseData {
     Card(CardDetailFromLocker),
 }
 
-#[cfg(all(
-    any(feature = "v1", feature = "v2"),
-    not(feature = "payment_methods_v2")
-))]
+#[cfg(feature = "v1")]
 #[derive(Debug, serde::Deserialize, serde::Serialize, ToSchema)]
 pub struct PaymentMethodResponse {
     /// Unique identifier for a merchant
@@ -841,13 +820,13 @@ pub struct PaymentMethodResponse {
     #[schema(example = json!({"last4": "1142","exp_month": "03","exp_year": "2030"}))]
     pub card: Option<CardDetailFromLocker>,
 
-    /// Indicates whether the payment method is eligible for recurring payments
+    /// Indicates whether the payment method supports recurring payments. Optional.
     #[schema(example = true)]
-    pub recurring_enabled: bool,
+    pub recurring_enabled: Option<bool>,
 
-    /// Indicates whether the payment method is eligible for installment payments
+    /// Indicates whether the payment method is eligible for installment payments (e.g., EMI, BNPL). Optional.
     #[schema(example = true)]
-    pub installment_payment_enabled: bool,
+    pub installment_payment_enabled: Option<bool>,
 
     /// Type of payment experience enabled with the connector
     #[schema(value_type = Option<Vec<PaymentExperience>>, example = json!(["redirect_to_url"]))]
@@ -876,7 +855,7 @@ pub struct PaymentMethodResponse {
     pub client_secret: Option<String>,
 }
 
-#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+#[cfg(feature = "v2")]
 #[derive(Debug, serde::Deserialize, serde::Serialize, ToSchema, Clone)]
 pub struct ConnectorTokenDetails {
     /// The unique identifier of the connector account through which the token was generated
@@ -906,7 +885,8 @@ pub struct ConnectorTokenDetails {
     /// The value of the connector token. This token can be used to make merchant initiated payments ( MIT ), directly with the connector.
     pub token: masking::Secret<String>,
 }
-#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+
+#[cfg(feature = "v2")]
 #[derive(Debug, serde::Serialize, serde::Deserialize, ToSchema, Clone)]
 pub struct PaymentMethodResponse {
     /// The unique identifier of the Payment method
@@ -934,9 +914,9 @@ pub struct PaymentMethodResponse {
     #[schema(value_type = Option<PaymentMethodType>, example = "credit")]
     pub payment_method_subtype: Option<api_enums::PaymentMethodType>,
 
-    /// Indicates whether the payment method is eligible for recurring payments
+    /// Indicates whether the payment method supports recurring payments. Optional.
     #[schema(example = true)]
-    pub recurring_enabled: bool,
+    pub recurring_enabled: Option<bool>,
 
     /// A timestamp (ISO 8601 code) that determines when the payment method was created
     #[schema(value_type = Option<PrimitiveDateTime>, example = "2023-01-18T11:04:09.922Z")]
@@ -957,14 +937,14 @@ pub struct PaymentMethodResponse {
     pub network_token: Option<NetworkTokenResponse>,
 }
 
-#[derive(Clone, Debug, Eq, PartialEq, serde::Deserialize, serde::Serialize)]
+#[derive(Clone, Debug, PartialEq, serde::Deserialize, serde::Serialize)]
 pub enum PaymentMethodsData {
     Card(CardDetailsPaymentMethod),
     BankDetails(PaymentMethodDataBankCreds),
     WalletDetails(PaymentMethodDataWalletInfo),
 }
 
-#[derive(Clone, Debug, Eq, PartialEq, serde::Deserialize, serde::Serialize)]
+#[derive(Clone, Debug, PartialEq, serde::Deserialize, serde::Serialize)]
 pub struct CardDetailsPaymentMethod {
     pub last4_digits: Option<String>,
     pub issuer_country: Option<String>,
@@ -978,18 +958,54 @@ pub struct CardDetailsPaymentMethod {
     pub card_type: Option<String>,
     #[serde(default = "saved_in_locker_default")]
     pub saved_to_locker: bool,
+    pub co_badged_card_data: Option<CoBadgedCardDataToBeSaved>,
 }
 
-#[derive(Clone, Debug, Eq, PartialEq, serde::Deserialize, serde::Serialize)]
+impl From<&CoBadgedCardData> for CoBadgedCardDataToBeSaved {
+    fn from(co_badged_card_data: &CoBadgedCardData) -> Self {
+        Self {
+            co_badged_card_networks: co_badged_card_data
+                .co_badged_card_networks_info
+                .get_card_networks(),
+            issuer_country_code: co_badged_card_data.issuer_country_code,
+            is_regulated: co_badged_card_data.is_regulated,
+            regulated_name: co_badged_card_data.regulated_name.clone(),
+        }
+    }
+}
+
+#[derive(Clone, Debug, PartialEq, serde::Deserialize, serde::Serialize)]
+pub struct CoBadgedCardData {
+    pub co_badged_card_networks_info: open_router::CoBadgedCardNetworks,
+    pub issuer_country_code: common_enums::CountryAlpha2,
+    pub is_regulated: bool,
+    pub regulated_name: Option<common_enums::RegulatedName>,
+}
+
+#[derive(Clone, Debug, PartialEq, serde::Deserialize, serde::Serialize)]
+pub struct CoBadgedCardDataToBeSaved {
+    pub co_badged_card_networks: Vec<common_enums::CardNetwork>,
+    pub issuer_country_code: common_enums::CountryAlpha2,
+    pub is_regulated: bool,
+    pub regulated_name: Option<common_enums::RegulatedName>,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq, serde::Deserialize, serde::Serialize, ToSchema)]
 pub struct NetworkTokenDetailsPaymentMethod {
     pub last4_digits: Option<String>,
-    pub issuer_country: Option<String>,
+    #[schema(value_type = Option<CountryAlpha2>)]
+    pub issuer_country: Option<common_enums::CountryAlpha2>,
+    #[schema(value_type = Option<String>)]
     pub network_token_expiry_month: Option<masking::Secret<String>>,
+    #[schema(value_type = Option<String>)]
     pub network_token_expiry_year: Option<masking::Secret<String>>,
+    #[schema(value_type = Option<String>)]
     pub nick_name: Option<masking::Secret<String>>,
+    #[schema(value_type = Option<String>)]
     pub card_holder_name: Option<masking::Secret<String>>,
     pub card_isin: Option<String>,
     pub card_issuer: Option<String>,
+    #[schema(value_type = Option<CardNetwork>)]
     pub card_network: Option<api_enums::CardNetwork>,
     pub card_type: Option<String>,
     #[serde(default = "saved_in_locker_default")]
@@ -1098,10 +1114,24 @@ pub struct Card {
     pub nick_name: Option<String>,
 }
 
-#[cfg(all(
-    any(feature = "v1", feature = "v2"),
-    not(feature = "payment_methods_v2")
-))]
+#[cfg(feature = "v1")]
+impl From<(Card, Option<common_enums::CardNetwork>)> for CardDetail {
+    fn from((card, card_network): (Card, Option<common_enums::CardNetwork>)) -> Self {
+        Self {
+            card_number: card.card_number.clone(),
+            card_exp_month: card.card_exp_month.clone(),
+            card_exp_year: card.card_exp_year.clone(),
+            card_holder_name: card.name_on_card.clone(),
+            nick_name: card.nick_name.map(masking::Secret::new),
+            card_issuing_country: None,
+            card_network,
+            card_issuer: None,
+            card_type: None,
+        }
+    }
+}
+
+#[cfg(feature = "v1")]
 #[derive(Debug, serde::Deserialize, serde::Serialize, Clone, ToSchema)]
 pub struct CardDetailFromLocker {
     pub scheme: Option<String>,
@@ -1138,7 +1168,7 @@ pub struct CardDetailFromLocker {
     pub saved_to_locker: bool,
 }
 
-#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+#[cfg(feature = "v2")]
 #[derive(Debug, serde::Deserialize, serde::Serialize, Clone, ToSchema)]
 pub struct CardDetailFromLocker {
     #[schema(value_type = Option<CountryAlpha2>)]
@@ -1172,7 +1202,7 @@ pub struct CardDetailFromLocker {
     pub saved_to_locker: bool,
 }
 
-#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+#[cfg(feature = "v2")]
 #[derive(Debug, serde::Deserialize, serde::Serialize, Clone, ToSchema)]
 pub struct NetworkTokenResponse {
     pub payment_method_data: NetworkTokenDetailsPaymentMethod,
@@ -1182,10 +1212,7 @@ fn saved_in_locker_default() -> bool {
     true
 }
 
-#[cfg(all(
-    any(feature = "v1", feature = "v2"),
-    not(feature = "payment_methods_v2")
-))]
+#[cfg(feature = "v1")]
 impl From<CardDetailFromLocker> for payments::AdditionalCardInfo {
     fn from(item: CardDetailFromLocker) -> Self {
         Self {
@@ -1208,7 +1235,7 @@ impl From<CardDetailFromLocker> for payments::AdditionalCardInfo {
     }
 }
 
-#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+#[cfg(feature = "v2")]
 impl From<CardDetailFromLocker> for payments::AdditionalCardInfo {
     fn from(item: CardDetailFromLocker) -> Self {
         Self {
@@ -1233,18 +1260,15 @@ impl From<CardDetailFromLocker> for payments::AdditionalCardInfo {
 
 #[cfg(feature = "v2")]
 #[derive(Debug, serde::Serialize, ToSchema)]
-pub struct PaymentMethodListResponse {
+pub struct PaymentMethodListResponseForSession {
     /// The list of payment methods that are enabled for the business profile
     pub payment_methods_enabled: Vec<ResponsePaymentMethodTypes>,
 
     /// The list of saved payment methods of the customer
-    pub customer_payment_methods: Vec<CustomerPaymentMethod>,
+    pub customer_payment_methods: Vec<CustomerPaymentMethodResponseItem>,
 }
 
-#[cfg(all(
-    any(feature = "v1", feature = "v2"),
-    not(feature = "payment_methods_v2")
-))]
+#[cfg(feature = "v1")]
 impl From<CardDetailsPaymentMethod> for CardDetailFromLocker {
     fn from(item: CardDetailsPaymentMethod) -> Self {
         Self {
@@ -1267,7 +1291,7 @@ impl From<CardDetailsPaymentMethod> for CardDetailFromLocker {
     }
 }
 
-#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+#[cfg(feature = "v2")]
 impl From<CardDetailsPaymentMethod> for CardDetailFromLocker {
     fn from(item: CardDetailsPaymentMethod) -> Self {
         Self {
@@ -1294,7 +1318,7 @@ impl From<CardDetailsPaymentMethod> for CardDetailFromLocker {
     }
 }
 
-#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+#[cfg(feature = "v2")]
 impl From<CardDetail> for CardDetailFromLocker {
     fn from(item: CardDetail) -> Self {
         Self {
@@ -1315,7 +1339,7 @@ impl From<CardDetail> for CardDetailFromLocker {
     }
 }
 
-#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+#[cfg(feature = "v2")]
 impl From<CardDetail> for CardDetailsPaymentMethod {
     fn from(item: CardDetail) -> Self {
         Self {
@@ -1330,16 +1354,16 @@ impl From<CardDetail> for CardDetailsPaymentMethod {
             card_network: item.card_network,
             card_type: item.card_type.map(|card| card.to_string()),
             saved_to_locker: true,
+            co_badged_card_data: None,
         }
     }
 }
 
-#[cfg(all(
-    any(feature = "v1", feature = "v2"),
-    not(feature = "payment_methods_v2")
-))]
-impl From<CardDetailFromLocker> for CardDetailsPaymentMethod {
-    fn from(item: CardDetailFromLocker) -> Self {
+#[cfg(feature = "v1")]
+impl From<(CardDetailFromLocker, Option<&CoBadgedCardData>)> for CardDetailsPaymentMethod {
+    fn from(
+        (item, co_badged_card_data): (CardDetailFromLocker, Option<&CoBadgedCardData>),
+    ) -> Self {
         Self {
             issuer_country: item.issuer_country,
             last4_digits: item.last4_digits,
@@ -1352,11 +1376,12 @@ impl From<CardDetailFromLocker> for CardDetailsPaymentMethod {
             card_network: item.card_network,
             card_type: item.card_type,
             saved_to_locker: item.saved_to_locker,
+            co_badged_card_data: co_badged_card_data.map(CoBadgedCardDataToBeSaved::from),
         }
     }
 }
 
-#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+#[cfg(feature = "v2")]
 impl From<CardDetailFromLocker> for CardDetailsPaymentMethod {
     fn from(item: CardDetailFromLocker) -> Self {
         Self {
@@ -1371,6 +1396,7 @@ impl From<CardDetailFromLocker> for CardDetailsPaymentMethod {
             card_network: item.card_network,
             card_type: item.card_type,
             saved_to_locker: item.saved_to_locker,
+            co_badged_card_data: None,
         }
     }
 }
@@ -1405,10 +1431,7 @@ pub struct BankDebitTypes {
     pub eligible_connectors: Vec<String>,
 }
 
-#[cfg(all(
-    any(feature = "v1", feature = "v2"),
-    not(feature = "payment_methods_v2")
-))]
+#[cfg(feature = "v1")]
 #[derive(Debug, Clone, serde::Serialize, ToSchema, PartialEq)]
 pub struct ResponsePaymentMethodTypes {
     /// The payment method type enabled
@@ -1440,7 +1463,7 @@ pub struct ResponsePaymentMethodTypes {
     pub pm_auth_connector: Option<String>,
 }
 
-#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+#[cfg(feature = "v2")]
 #[derive(Debug, Clone, serde::Serialize, ToSchema, PartialEq)]
 #[serde(untagged)] // Untagged used for serialization only
 pub enum PaymentMethodSubtypeSpecificData {
@@ -1452,7 +1475,7 @@ pub enum PaymentMethodSubtypeSpecificData {
     Bank { bank_names: Vec<BankCodeResponse> },
 }
 
-#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+#[cfg(feature = "v2")]
 #[derive(Debug, Clone, serde::Serialize, ToSchema, PartialEq)]
 pub struct ResponsePaymentMethodTypes {
     /// The payment method type enabled
@@ -1614,13 +1637,13 @@ pub struct RequestPaymentMethodTypes {
     #[schema(example = 1313)]
     pub maximum_amount: Option<MinorUnit>,
 
-    /// Boolean to enable recurring payments / mandates. Default is true.
-    #[schema(default = true, example = false)]
-    pub recurring_enabled: bool,
+    /// Indicates whether the payment method supports recurring payments. Optional.
+    #[schema(example = false)]
+    pub recurring_enabled: Option<bool>,
 
-    /// Boolean to enable installment / EMI / BNPL payments. Default is true.
-    #[schema(default = true, example = false)]
-    pub installment_payment_enabled: bool,
+    /// Indicates whether the payment method is eligible for installment payments (e.g., EMI, BNPL). Optional.
+    #[schema(example = true)]
+    pub installment_payment_enabled: Option<bool>,
 }
 impl RequestPaymentMethodTypes {
     /// Get payment_method_type
@@ -1630,10 +1653,7 @@ impl RequestPaymentMethodTypes {
     }
 }
 
-#[cfg(all(
-    any(feature = "v1", feature = "v2"),
-    not(feature = "payment_methods_v2")
-))]
+#[cfg(feature = "v1")]
 //List Payment Method
 #[derive(Debug, Clone, serde::Serialize, Default, ToSchema)]
 #[serde(deny_unknown_fields)]
@@ -1654,11 +1674,11 @@ pub struct PaymentMethodListRequest {
     #[schema(example = 60)]
     pub amount: Option<MinorUnit>,
 
-    /// Indicates whether the payment method is eligible for recurring payments
+    /// Indicates whether the payment method supports recurring payments. Optional.
     #[schema(example = true)]
     pub recurring_enabled: Option<bool>,
 
-    /// Indicates whether the payment method is eligible for installment payments
+    /// Indicates whether the payment method is eligible for installment payments (e.g., EMI, BNPL). Optional.
     #[schema(example = true)]
     pub installment_payment_enabled: Option<bool>,
 
@@ -1671,10 +1691,7 @@ pub struct PaymentMethodListRequest {
     pub limit: Option<i64>,
 }
 
-#[cfg(all(
-    any(feature = "v1", feature = "v2"),
-    not(feature = "payment_methods_v2")
-))]
+#[cfg(feature = "v1")]
 impl<'de> serde::Deserialize<'de> for PaymentMethodListRequest {
     fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
     where
@@ -1756,7 +1773,7 @@ impl<'de> serde::Deserialize<'de> for PaymentMethodListRequest {
     }
 }
 
-#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+#[cfg(feature = "v2")]
 //List Payment Method
 #[derive(Debug, Clone, serde::Serialize, Default, ToSchema)]
 #[serde(deny_unknown_fields)]
@@ -1777,7 +1794,7 @@ pub struct PaymentMethodListRequest {
     #[schema(value_type = Option<Vec<Currency>>,example = json!(["USD", "EUR"]))]
     pub accepted_currencies: Option<Vec<api_enums::Currency>>,
 
-    /// Indicates whether the payment method is eligible for recurring payments
+    /// Indicates whether the payment method supports recurring payments. Optional.
     #[schema(example = true)]
     pub recurring_enabled: Option<bool>,
 
@@ -1790,7 +1807,7 @@ pub struct PaymentMethodListRequest {
     pub limit: Option<i64>,
 }
 
-#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+#[cfg(feature = "v2")]
 impl<'de> serde::Deserialize<'de> for PaymentMethodListRequest {
     fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
     where
@@ -1921,10 +1938,7 @@ pub struct PaymentMethodListResponse {
     pub is_tax_calculation_enabled: bool,
 }
 
-#[cfg(all(
-    any(feature = "v2", feature = "v1"),
-    not(feature = "payment_methods_v2")
-))]
+#[cfg(feature = "v1")]
 #[derive(Debug, serde::Serialize, ToSchema)]
 pub struct CustomerPaymentMethodsListResponse {
     /// List of payment methods for customer
@@ -1933,27 +1947,109 @@ pub struct CustomerPaymentMethodsListResponse {
     pub is_guest_customer: Option<bool>,
 }
 
-#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+// OLAP PML Response
+#[cfg(feature = "v2")]
 #[derive(Debug, serde::Serialize, ToSchema)]
 pub struct CustomerPaymentMethodsListResponse {
     /// List of payment methods for customer
-    pub customer_payment_methods: Vec<CustomerPaymentMethod>,
+    pub customer_payment_methods: Vec<PaymentMethodResponseItem>,
 }
 
-#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+#[cfg(feature = "v2")]
+#[derive(Debug, Clone, serde::Deserialize, serde::Serialize, ToSchema)]
+#[serde(deny_unknown_fields)]
+pub struct GetTokenDataRequest {
+    /// Indicates the type of token to be fetched
+    pub token_type: api_enums::TokenDataType,
+}
+
+#[cfg(feature = "v2")]
+impl common_utils::events::ApiEventMetric for GetTokenDataRequest {}
+
+#[cfg(feature = "v2")]
+#[derive(Debug, serde::Serialize, ToSchema)]
+pub struct TokenDataResponse {
+    /// The unique identifier of the payment method.
+    #[schema(value_type = String, example = "12345_pm_01926c58bc6e77c09e809964e72af8c8")]
+    pub payment_method_id: id_type::GlobalPaymentMethodId,
+
+    /// token type of the payment method
+    #[schema(value_type = TokenDataType)]
+    pub token_type: api_enums::TokenDataType,
+
+    /// token details of the payment method
+    pub token_details: TokenDetailsResponse,
+}
+
+#[cfg(feature = "v2")]
+impl common_utils::events::ApiEventMetric for TokenDataResponse {}
+
+#[cfg(feature = "v2")]
+#[derive(Debug, serde::Serialize, ToSchema)]
+#[serde(untagged)]
+pub enum TokenDetailsResponse {
+    NetworkTokenDetails(NetworkTokenDetailsResponse),
+}
+
+#[cfg(feature = "v2")]
+#[derive(Debug, serde::Serialize, ToSchema)]
+pub struct NetworkTokenDetailsResponse {
+    /// Network token generated against the Card Number
+    #[schema(value_type = String)]
+    pub network_token: cards::NetworkToken,
+
+    /// Expiry month of the network token
+    #[schema(value_type = String)]
+    pub network_token_exp_month: masking::Secret<String>,
+
+    /// Expiry year of the network token
+    #[schema(value_type = String)]
+    pub network_token_exp_year: masking::Secret<String>,
+
+    /// Cryptogram generated by the Network
+    #[schema(value_type = Option<String>)]
+    pub cryptogram: Option<masking::Secret<String>>,
+
+    /// Issuer of the card
+    pub card_issuer: Option<String>,
+
+    /// Card network of the token
+    #[schema(value_type = Option<CardNetwork>)]
+    pub card_network: Option<common_enums::CardNetwork>,
+
+    /// Card type of the token
+    pub card_type: Option<CardType>,
+
+    /// Issuing country of the card
+    #[schema(value_type = Option<CountryAlpha2>)]
+    pub card_issuing_country: Option<common_enums::CountryAlpha2>,
+
+    /// Bank code of the card
+    pub bank_code: Option<String>,
+
+    /// Name of the card holder
+    #[schema(value_type = Option<String>)]
+    pub card_holder_name: Option<masking::Secret<String>>,
+
+    /// Nick name of the card holder
+    #[schema(value_type = Option<String>)]
+    pub nick_name: Option<masking::Secret<String>>,
+
+    /// ECI indicator of the card
+    pub eci: Option<String>,
+}
+
+#[cfg(feature = "v2")]
 #[derive(Debug, serde::Serialize, ToSchema)]
 pub struct TotalPaymentMethodCountResponse {
     /// total count of payment methods under the merchant
     pub total_count: i64,
 }
 
-#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+#[cfg(feature = "v2")]
 impl common_utils::events::ApiEventMetric for TotalPaymentMethodCountResponse {}
 
-#[cfg(all(
-    any(feature = "v2", feature = "v1"),
-    not(feature = "payment_methods_v2")
-))]
+#[cfg(feature = "v1")]
 #[derive(Debug, serde::Serialize, ToSchema)]
 pub struct PaymentMethodDeleteResponse {
     /// The unique identifier of the Payment method
@@ -1965,7 +2061,7 @@ pub struct PaymentMethodDeleteResponse {
     pub deleted: bool,
 }
 
-#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+#[cfg(feature = "v2")]
 #[derive(Debug, serde::Serialize, ToSchema)]
 pub struct PaymentMethodDeleteResponse {
     /// The unique identifier of the Payment method
@@ -1990,12 +2086,81 @@ pub struct CustomerDefaultPaymentMethodResponse {
     pub payment_method_type: Option<api_enums::PaymentMethodType>,
 }
 
-#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+#[cfg(feature = "v2")]
 #[derive(Debug, Clone, serde::Serialize, ToSchema)]
-pub struct CustomerPaymentMethod {
+pub struct PaymentMethodResponseItem {
     /// The unique identifier of the payment method.
     #[schema(value_type = String, example = "12345_pm_01926c58bc6e77c09e809964e72af8c8")]
     pub id: id_type::GlobalPaymentMethodId,
+
+    /// The unique identifier of the customer.
+    #[schema(
+        min_length = 32,
+        max_length = 64,
+        example = "12345_cus_01926c58bc6e77c09e809964e72af8c8",
+        value_type = String
+    )]
+    pub customer_id: id_type::GlobalCustomerId,
+
+    /// The type of payment method use for the payment.
+    #[schema(value_type = PaymentMethod,example = "card")]
+    pub payment_method_type: api_enums::PaymentMethod,
+
+    /// This is a sub-category of payment method.
+    #[schema(value_type = PaymentMethodType,example = "credit")]
+    pub payment_method_subtype: api_enums::PaymentMethodType,
+
+    /// Indicates whether the payment method supports recurring payments. Optional.
+    #[schema(example = true)]
+    pub recurring_enabled: Option<bool>,
+
+    /// PaymentMethod Data from locker
+    pub payment_method_data: Option<PaymentMethodListData>,
+
+    /// Masked bank details from PM auth services
+    #[schema(example = json!({"mask": "0000"}))]
+    pub bank: Option<MaskedBankDetails>,
+
+    /// A timestamp (ISO 8601 code) that determines when the payment method was created
+    #[schema(value_type = PrimitiveDateTime, example = "2023-01-18T11:04:09.922Z")]
+    #[serde(with = "common_utils::custom_serde::iso8601")]
+    pub created: time::PrimitiveDateTime,
+
+    /// Whether this payment method requires CVV to be collected
+    #[schema(example = true)]
+    pub requires_cvv: bool,
+
+    ///  A timestamp (ISO 8601 code) that determines when the payment method was last used
+    #[schema(value_type = PrimitiveDateTime,example = "2024-02-24T11:04:09.922Z")]
+    #[serde(default, with = "common_utils::custom_serde::iso8601")]
+    pub last_used_at: time::PrimitiveDateTime,
+
+    /// Indicates if the payment method has been set to default or not
+    #[schema(example = true)]
+    pub is_default: bool,
+
+    /// The billing details of the payment method
+    #[schema(value_type = Option<Address>)]
+    pub billing: Option<payments::Address>,
+
+    ///The network token details for the payment method
+    pub network_tokenization: Option<NetworkTokenResponse>,
+
+    /// Whether psp_tokenization is enabled for the payment_method, this will be true when at least
+    /// one multi-use token with status `Active` is available for the payment method
+    pub psp_tokenization_enabled: bool,
+}
+
+#[cfg(feature = "v2")]
+#[derive(Debug, Clone, serde::Serialize, ToSchema)]
+pub struct CustomerPaymentMethodResponseItem {
+    /// The unique identifier of the payment method.
+    #[schema(value_type = String, example = "12345_pm_01926c58bc6e77c09e809964e72af8c8")]
+    pub id: id_type::GlobalPaymentMethodId,
+
+    /// Temporary Token for payment method in vault which gets refreshed for every payment
+    #[schema(example = "7ebf443f-a050-4067-84e5-e6f6d4800aef")]
+    pub payment_token: String,
 
     /// The unique identifier of the customer.
     #[schema(
@@ -2036,7 +2201,7 @@ pub struct CustomerPaymentMethod {
 
     ///  A timestamp (ISO 8601 code) that determines when the payment method was last used
     #[schema(value_type = PrimitiveDateTime,example = "2024-02-24T11:04:09.922Z")]
-    #[serde(default, with = "common_utils::custom_serde::iso8601")]
+    #[serde(with = "common_utils::custom_serde::iso8601")]
     pub last_used_at: time::PrimitiveDateTime,
 
     /// Indicates if the payment method has been set to default or not
@@ -2046,12 +2211,9 @@ pub struct CustomerPaymentMethod {
     /// The billing details of the payment method
     #[schema(value_type = Option<Address>)]
     pub billing: Option<payments::Address>,
-
-    ///The network token details for the payment method
-    pub network_tokenization: Option<NetworkTokenResponse>,
 }
 
-#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+#[cfg(feature = "v2")]
 #[derive(Debug, Clone, serde::Serialize, ToSchema)]
 #[serde(rename_all = "snake_case")]
 pub enum PaymentMethodListData {
@@ -2061,10 +2223,7 @@ pub enum PaymentMethodListData {
     Bank(payouts::Bank),
 }
 
-#[cfg(all(
-    any(feature = "v2", feature = "v1"),
-    not(feature = "payment_methods_v2")
-))]
+#[cfg(feature = "v1")]
 #[derive(Debug, Clone, serde::Serialize, ToSchema)]
 pub struct CustomerPaymentMethod {
     /// Token for payment method in temporary card locker which gets refreshed often
@@ -2094,13 +2253,13 @@ pub struct CustomerPaymentMethod {
     #[schema(value_type = Option<PaymentMethodIssuerCode>,example = "jp_applepay")]
     pub payment_method_issuer_code: Option<api_enums::PaymentMethodIssuerCode>,
 
-    /// Indicates whether the payment method is eligible for recurring payments
+    /// Indicates whether the payment method supports recurring payments. Optional.
     #[schema(example = true)]
-    pub recurring_enabled: bool,
+    pub recurring_enabled: Option<bool>,
 
-    /// Indicates whether the payment method is eligible for installment payments
+    /// Indicates whether the payment method is eligible for installment payments (e.g., EMI, BNPL). Optional.
     #[schema(example = true)]
-    pub installment_payment_enabled: bool,
+    pub installment_payment_enabled: Option<bool>,
 
     /// Type of payment experience enabled with the connector
     #[schema(value_type = Option<Vec<PaymentExperience>>,example = json!(["redirect_to_url"]))]
@@ -2388,24 +2547,26 @@ pub struct PaymentMethodRecord {
     pub merchant_id: Option<id_type::MerchantId>,
     pub payment_method: Option<api_enums::PaymentMethod>,
     pub payment_method_type: Option<api_enums::PaymentMethodType>,
-    pub nick_name: masking::Secret<String>,
+    pub nick_name: Option<masking::Secret<String>>,
     pub payment_instrument_id: Option<masking::Secret<String>>,
+    pub connector_customer_id: Option<String>,
     pub card_number_masked: masking::Secret<String>,
     pub card_expiry_month: masking::Secret<String>,
     pub card_expiry_year: masking::Secret<String>,
     pub card_scheme: Option<String>,
     pub original_transaction_id: Option<String>,
-    pub billing_address_zip: masking::Secret<String>,
-    pub billing_address_state: masking::Secret<String>,
-    pub billing_address_first_name: masking::Secret<String>,
-    pub billing_address_last_name: masking::Secret<String>,
-    pub billing_address_city: String,
+    pub billing_address_zip: Option<masking::Secret<String>>,
+    pub billing_address_state: Option<masking::Secret<String>>,
+    pub billing_address_first_name: Option<masking::Secret<String>>,
+    pub billing_address_last_name: Option<masking::Secret<String>>,
+    pub billing_address_city: Option<String>,
     pub billing_address_country: Option<api_enums::CountryAlpha2>,
-    pub billing_address_line1: masking::Secret<String>,
+    pub billing_address_line1: Option<masking::Secret<String>>,
     pub billing_address_line2: Option<masking::Secret<String>>,
     pub billing_address_line3: Option<masking::Secret<String>>,
     pub raw_card_number: Option<masking::Secret<String>>,
     pub merchant_connector_id: Option<id_type::MerchantConnectorAccountId>,
+    pub merchant_connector_ids: Option<String>,
     pub original_transaction_amount: Option<i64>,
     pub original_transaction_currency: Option<common_enums::Currency>,
     pub line_number: Option<i64>,
@@ -2442,15 +2603,64 @@ pub enum MigrationStatus {
     Failed,
 }
 
+impl PaymentMethodRecord {
+    fn create_address(&self) -> Option<payments::AddressDetails> {
+        if self.billing_address_first_name.is_some()
+            && self.billing_address_line1.is_some()
+            && self.billing_address_zip.is_some()
+            && self.billing_address_city.is_some()
+            && self.billing_address_country.is_some()
+        {
+            Some(payments::AddressDetails {
+                city: self.billing_address_city.clone(),
+                country: self.billing_address_country,
+                line1: self.billing_address_line1.clone(),
+                line2: self.billing_address_line2.clone(),
+                state: self.billing_address_state.clone(),
+                line3: self.billing_address_line3.clone(),
+                zip: self.billing_address_zip.clone(),
+                first_name: self.billing_address_first_name.clone(),
+                last_name: self.billing_address_last_name.clone(),
+            })
+        } else {
+            None
+        }
+    }
+
+    fn create_phone(&self) -> Option<payments::PhoneDetails> {
+        if self.phone.is_some() || self.phone_country_code.is_some() {
+            Some(payments::PhoneDetails {
+                number: self.phone.clone(),
+                country_code: self.phone_country_code.clone(),
+            })
+        } else {
+            None
+        }
+    }
+
+    fn create_billing(&self) -> Option<payments::Address> {
+        let address = self.create_address();
+        let phone = self.create_phone();
+
+        if address.is_some() || phone.is_some() || self.email.is_some() {
+            Some(payments::Address {
+                address,
+                phone,
+                email: self.email.clone(),
+            })
+        } else {
+            None
+        }
+    }
+}
+
+#[cfg(feature = "v1")]
 type PaymentMethodMigrationResponseType = (
     Result<PaymentMethodMigrateResponse, String>,
     PaymentMethodRecord,
 );
 
-#[cfg(all(
-    any(feature = "v2", feature = "v1"),
-    not(feature = "payment_methods_v2")
-))]
+#[cfg(feature = "v1")]
 impl From<PaymentMethodMigrationResponseType> for PaymentMethodMigrationResponse {
     fn from((response, record): PaymentMethodMigrationResponseType) -> Self {
         match response {
@@ -2482,60 +2692,76 @@ impl From<PaymentMethodMigrationResponseType> for PaymentMethodMigrationResponse
 
 impl
     TryFrom<(
-        PaymentMethodRecord,
+        &PaymentMethodRecord,
         id_type::MerchantId,
-        Option<id_type::MerchantConnectorAccountId>,
+        Option<&Vec<id_type::MerchantConnectorAccountId>>,
     )> for PaymentMethodMigrate
 {
     type Error = error_stack::Report<errors::ValidationError>;
+
     fn try_from(
         item: (
-            PaymentMethodRecord,
+            &PaymentMethodRecord,
             id_type::MerchantId,
-            Option<id_type::MerchantConnectorAccountId>,
+            Option<&Vec<id_type::MerchantConnectorAccountId>>,
         ),
     ) -> Result<Self, Self::Error> {
-        let (record, merchant_id, mca_id) = item;
-
-        //  if payment instrument id is present then only construct this
-        let connector_mandate_details = if record.payment_instrument_id.is_some() {
-            Some(PaymentsMandateReference(HashMap::from([(
-                mca_id.get_required_value("merchant_connector_id")?,
-                PaymentsMandateReferenceRecord {
-                    connector_mandate_id: record
-                        .payment_instrument_id
-                        .get_required_value("payment_instrument_id")?
-                        .peek()
-                        .to_string(),
-                    payment_method_type: record.payment_method_type,
-                    original_payment_authorized_amount: record.original_transaction_amount,
-                    original_payment_authorized_currency: record.original_transaction_currency,
-                },
-            )])))
+        let (record, merchant_id, mca_ids) = item;
+        let billing = record.create_billing();
+        let connector_mandate_details = if let Some(payment_instrument_id) =
+            &record.payment_instrument_id
+        {
+            let ids = mca_ids.get_required_value("mca_ids")?;
+            let mandate_map: HashMap<_, _> = ids
+                .iter()
+                .map(|mca_id| {
+                    (
+                        mca_id.clone(),
+                        PaymentsMandateReferenceRecord {
+                            connector_mandate_id: payment_instrument_id.peek().to_string(),
+                            payment_method_type: record.payment_method_type,
+                            original_payment_authorized_amount: record.original_transaction_amount,
+                            original_payment_authorized_currency: record
+                                .original_transaction_currency,
+                        },
+                    )
+                })
+                .collect();
+            Some(PaymentsMandateReference(mandate_map))
         } else {
             None
         };
+
         Ok(Self {
             merchant_id,
-            customer_id: Some(record.customer_id),
+            customer_id: Some(record.customer_id.clone()),
             card: Some(MigrateCardDetail {
-                card_number: record.raw_card_number.unwrap_or(record.card_number_masked),
-                card_exp_month: record.card_expiry_month,
-                card_exp_year: record.card_expiry_year,
+                card_number: record
+                    .raw_card_number
+                    .clone()
+                    .unwrap_or_else(|| record.card_number_masked.clone()),
+                card_exp_month: record.card_expiry_month.clone(),
+                card_exp_year: record.card_expiry_year.clone(),
                 card_holder_name: record.name.clone(),
                 card_network: None,
                 card_type: None,
                 card_issuer: None,
                 card_issuing_country: None,
-                nick_name: Some(record.nick_name.clone()),
+                nick_name: record.nick_name.clone(),
             }),
             network_token: Some(MigrateNetworkTokenDetail {
                 network_token_data: MigrateNetworkTokenData {
-                    network_token_number: record.network_token_number.unwrap_or_default(),
-                    network_token_exp_month: record.network_token_expiry_month.unwrap_or_default(),
-                    network_token_exp_year: record.network_token_expiry_year.unwrap_or_default(),
-                    card_holder_name: record.name,
-                    nick_name: Some(record.nick_name.clone()),
+                    network_token_number: record.network_token_number.clone().unwrap_or_default(),
+                    network_token_exp_month: record
+                        .network_token_expiry_month
+                        .clone()
+                        .unwrap_or_default(),
+                    network_token_exp_year: record
+                        .network_token_expiry_year
+                        .clone()
+                        .unwrap_or_default(),
+                    card_holder_name: record.name.clone(),
+                    nick_name: record.nick_name.clone(),
                     card_issuing_country: None,
                     card_network: None,
                     card_issuer: None,
@@ -2543,29 +2769,13 @@ impl
                 },
                 network_token_requestor_ref_id: record
                     .network_token_requestor_ref_id
+                    .clone()
                     .unwrap_or_default(),
             }),
             payment_method: record.payment_method,
             payment_method_type: record.payment_method_type,
             payment_method_issuer: None,
-            billing: Some(payments::Address {
-                address: Some(payments::AddressDetails {
-                    city: Some(record.billing_address_city),
-                    country: record.billing_address_country,
-                    line1: Some(record.billing_address_line1),
-                    line2: record.billing_address_line2,
-                    state: Some(record.billing_address_state),
-                    line3: record.billing_address_line3,
-                    zip: Some(record.billing_address_zip),
-                    first_name: Some(record.billing_address_first_name),
-                    last_name: Some(record.billing_address_last_name),
-                }),
-                phone: Some(payments::PhoneDetails {
-                    number: record.phone,
-                    country_code: record.phone_country_code,
-                }),
-                email: record.email,
-            }),
+            billing,
             connector_mandate_details: connector_mandate_details.map(
                 |payments_mandate_reference| {
                     CommonMandateReference::from(payments_mandate_reference)
@@ -2579,36 +2789,8 @@ impl
             #[cfg(feature = "payouts")]
             wallet: None,
             payment_method_data: None,
-            network_transaction_id: record.original_transaction_id,
+            network_transaction_id: record.original_transaction_id.clone(),
         })
-    }
-}
-
-#[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
-impl From<(PaymentMethodRecord, id_type::MerchantId)> for customers::CustomerRequest {
-    fn from(value: (PaymentMethodRecord, id_type::MerchantId)) -> Self {
-        let (record, merchant_id) = value;
-        Self {
-            customer_id: Some(record.customer_id),
-            merchant_id,
-            name: record.name,
-            email: record.email,
-            phone: record.phone,
-            description: None,
-            phone_country_code: record.phone_country_code,
-            address: Some(payments::AddressDetails {
-                city: Some(record.billing_address_city),
-                country: record.billing_address_country,
-                line1: Some(record.billing_address_line1),
-                line2: record.billing_address_line2,
-                state: Some(record.billing_address_state),
-                line3: record.billing_address_line3,
-                zip: Some(record.billing_address_zip),
-                first_name: Some(record.billing_address_first_name),
-                last_name: Some(record.billing_address_last_name),
-            }),
-            metadata: None,
-        }
     }
 }
 
@@ -2772,6 +2954,10 @@ pub struct PaymentMethodSessionRequest {
     /// If not provided, the session will expire in 15 minutes
     #[schema(example = 900, default = 900)]
     pub expires_in: Option<u32>,
+
+    /// Contains data to be passed on to tokenization service ( if present ) to create token_id for given JSON data
+    #[schema(value_type = Option<serde_json::Value>)]
+    pub tokenization_data: Option<pii::SecretSerdeValue>,
 }
 
 #[cfg(feature = "v2")]
@@ -2788,6 +2974,10 @@ pub struct PaymentMethodsSessionUpdateRequest {
     /// The network tokenization configuration if applicable
     #[schema(value_type = Option<NetworkTokenization>)]
     pub network_tokenization: Option<common_types::payment_methods::NetworkTokenization>,
+
+    /// Contains data to be passed on to tokenization service ( if present ) to create token_id for given JSON data
+    #[schema(value_type = Option<serde_json::Value>)]
+    pub tokenization_data: Option<pii::SecretSerdeValue>,
 }
 
 #[cfg(feature = "v2")]
@@ -2804,13 +2994,21 @@ pub struct PaymentMethodSessionUpdateSavedPaymentMethod {
 
 #[cfg(feature = "v2")]
 #[derive(Debug, Clone, serde::Deserialize, serde::Serialize, ToSchema)]
+pub struct PaymentMethodSessionDeleteSavedPaymentMethod {
+    /// The payment method id of the payment method to be updated
+    #[schema(value_type = String, example = "12345_pm_01926c58bc6e77c09e809964e72af8c8")]
+    pub payment_method_id: id_type::GlobalPaymentMethodId,
+}
+
+#[cfg(feature = "v2")]
+#[derive(Debug, Clone, serde::Deserialize, serde::Serialize, ToSchema)]
 pub struct PaymentMethodSessionConfirmRequest {
     /// The payment method type
     #[schema(value_type = PaymentMethod, example = "card")]
     pub payment_method_type: common_enums::PaymentMethod,
 
     /// The payment method subtype
-    #[schema(value_type = PaymentMethodType, example = "credit")]
+    #[schema(value_type = PaymentMethodType, example = "google_pay")]
     pub payment_method_subtype: common_enums::PaymentMethodType,
 
     /// The payment instrument data to be used for the payment
@@ -2844,6 +3042,10 @@ pub struct PaymentMethodSessionResponse {
     #[schema(value_type = Option<NetworkTokenization>)]
     pub network_tokenization: Option<common_types::payment_methods::NetworkTokenization>,
 
+    /// Contains data to be passed on to tokenization service ( if present ) to create token_id for given JSON data
+    #[schema(value_type = Option<serde_json::Value>)]
+    pub tokenization_data: Option<pii::SecretSerdeValue>,
+
     /// The iso timestamp when the session will expire
     /// Trying to retrieve the session or any operations on the session after this time will result in an error
     #[schema(value_type = PrimitiveDateTime, example = "2023-01-18T11:04:09.922Z")]
@@ -2868,7 +3070,11 @@ pub struct PaymentMethodSessionResponse {
 
     /// The payment method that was created using this payment method session
     #[schema(value_type = Option<Vec<String>>)]
-    pub associated_payment_methods: Option<Vec<id_type::GlobalPaymentMethodId>>,
+    pub associated_payment_methods: Option<Vec<String>>,
+
+    /// The token-id created if there is tokenization_data present
+    #[schema(value_type = Option<String>, example = "12345_tok_01926c58bc6e77c09e809964e72af8c8")]
+    pub associated_token_id: Option<id_type::GlobalTokenId>,
 }
 
 #[cfg(feature = "v2")]
@@ -2879,6 +3085,6 @@ pub struct AuthenticationDetails {
     pub status: common_enums::IntentStatus,
 
     /// Error details of the authentication
-    #[schema(value_type = ErrorDetails)]
+    #[schema(value_type = Option<ErrorDetails>)]
     pub error: Option<payments::ErrorDetails>,
 }

@@ -4,13 +4,13 @@ use diesel_models as store;
 use error_stack::ResultExt;
 use hyperswitch_domain_models::{
     behaviour::{Conversion, ReverseConversion},
-    errors::{StorageError, StorageResult},
     merchant_key_store::MerchantKeyStore,
 };
 use masking::StrongSecret;
 use redis::{kv_store::RedisConnInterface, pub_sub::PubSubInterface, RedisStore};
 mod address;
 pub mod callback_mapper;
+pub mod cards_info;
 pub mod config;
 pub mod connection;
 pub mod customers;
@@ -32,14 +32,15 @@ pub mod utils;
 
 use common_utils::{errors::CustomResult, types::keymanager::KeyManagerState};
 use database::store::PgPool;
+pub mod tokenization;
 #[cfg(not(feature = "payouts"))]
 use hyperswitch_domain_models::{PayoutAttemptInterface, PayoutsInterface};
 pub use mock_db::MockDb;
 use redis_interface::{errors::RedisError, RedisConnectionPool, SaddReply};
 
-pub use crate::database::store::DatabaseStore;
 #[cfg(not(feature = "payouts"))]
 pub use crate::database::store::Store;
+pub use crate::{database::store::DatabaseStore, errors::StorageError};
 
 #[derive(Debug, Clone)]
 pub struct RouterStore<T: DatabaseStore> {
@@ -65,7 +66,7 @@ where
         config: Self::Config,
         tenant_config: &dyn config::TenantConfig,
         test_transaction: bool,
-    ) -> StorageResult<Self> {
+    ) -> error_stack::Result<Self, StorageError> {
         let (db_conf, cache_conf, encryption_key, cache_error_signal, inmemory_cache_stream) =
             config;
         if test_transaction {
@@ -113,7 +114,7 @@ impl<T: DatabaseStore> RouterStore<T> {
         encryption_key: StrongSecret<Vec<u8>>,
         cache_store: Arc<RedisStore>,
         inmemory_cache_stream: &str,
-    ) -> StorageResult<Self> {
+    ) -> error_stack::Result<Self, StorageError> {
         let db_store = T::new(db_conf, tenant_config, false).await?;
         let redis_conn = cache_store.redis_conn.clone();
         let cache_store = Arc::new(RedisStore {
@@ -140,7 +141,7 @@ impl<T: DatabaseStore> RouterStore<T> {
     pub async fn cache_store(
         cache_conf: &redis_interface::RedisSettings,
         cache_error_signal: tokio::sync::oneshot::Sender<()>,
-    ) -> StorageResult<Arc<RedisStore>> {
+    ) -> error_stack::Result<Arc<RedisStore>, StorageError> {
         let cache_store = RedisStore::new(cache_conf)
             .await
             .change_context(StorageError::InitializationError)
@@ -178,6 +179,37 @@ impl<T: DatabaseStore> RouterStore<T> {
             )
             .await
             .change_context(StorageError::DecryptionError)
+    }
+
+    pub async fn find_optional_resource<D, R, M>(
+        &self,
+        state: &KeyManagerState,
+        key_store: &MerchantKeyStore,
+        execute_query_fut: R,
+    ) -> error_stack::Result<Option<D>, StorageError>
+    where
+        D: Debug + Sync + Conversion,
+        R: futures::Future<
+                Output = error_stack::Result<Option<M>, diesel_models::errors::DatabaseError>,
+            > + Send,
+        M: ReverseConversion<D>,
+    {
+        match execute_query_fut.await.map_err(|error| {
+            let new_err = diesel_error_to_data_error(*error.current_context());
+            error.change_context(new_err)
+        })? {
+            Some(resource) => Ok(Some(
+                resource
+                    .convert(
+                        state,
+                        key_store.key.get_inner(),
+                        key_store.merchant_id.clone().into(),
+                    )
+                    .await
+                    .change_context(StorageError::DecryptionError)?,
+            )),
+            None => Ok(None),
+        }
     }
 
     pub async fn find_resources<D, R, M>(
@@ -225,7 +257,7 @@ impl<T: DatabaseStore> RouterStore<T> {
         tenant_config: &dyn config::TenantConfig,
         cache_conf: &redis_interface::RedisSettings,
         encryption_key: StrongSecret<Vec<u8>>,
-    ) -> StorageResult<Self> {
+    ) -> error_stack::Result<Self, StorageError> {
         // TODO: create an error enum and return proper error here
         let db_store = T::new(db_conf, tenant_config, true).await?;
         let cache_store = RedisStore::new(cache_conf)
@@ -346,6 +378,17 @@ impl UniqueConstraints for diesel_models::PaymentAttempt {
     }
 }
 
+#[cfg(feature = "v2")]
+impl UniqueConstraints for diesel_models::PaymentAttempt {
+    fn unique_constraints(&self) -> Vec<String> {
+        vec![format!("pa_{}", self.id.get_string_repr())]
+    }
+    fn table_name(&self) -> &str {
+        "PaymentAttempt"
+    }
+}
+
+#[cfg(feature = "v1")]
 impl UniqueConstraints for diesel_models::Refund {
     fn unique_constraints(&self) -> Vec<String> {
         vec![format!(
@@ -353,6 +396,16 @@ impl UniqueConstraints for diesel_models::Refund {
             self.merchant_id.get_string_repr(),
             self.refund_id
         )]
+    }
+    fn table_name(&self) -> &str {
+        "Refund"
+    }
+}
+
+#[cfg(feature = "v2")]
+impl UniqueConstraints for diesel_models::Refund {
+    fn unique_constraints(&self) -> Vec<String> {
+        vec![self.id.get_string_repr().to_owned()]
     }
     fn table_name(&self) -> &str {
         "Refund"
@@ -374,7 +427,7 @@ impl UniqueConstraints for diesel_models::Payouts {
         vec![format!(
             "po_{}_{}",
             self.merchant_id.get_string_repr(),
-            self.payout_id
+            self.payout_id.get_string_repr()
         )]
     }
     fn table_name(&self) -> &str {
@@ -396,10 +449,7 @@ impl UniqueConstraints for diesel_models::PayoutAttempt {
     }
 }
 
-#[cfg(all(
-    any(feature = "v1", feature = "v2"),
-    not(feature = "payment_methods_v2")
-))]
+#[cfg(feature = "v1")]
 impl UniqueConstraints for diesel_models::PaymentMethod {
     fn unique_constraints(&self) -> Vec<String> {
         vec![format!("paymentmethod_{}", self.payment_method_id)]
@@ -409,7 +459,7 @@ impl UniqueConstraints for diesel_models::PaymentMethod {
     }
 }
 
-#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+#[cfg(feature = "v2")]
 impl UniqueConstraints for diesel_models::PaymentMethod {
     fn unique_constraints(&self) -> Vec<String> {
         vec![self.id.get_string_repr().to_owned()]
@@ -432,7 +482,7 @@ impl UniqueConstraints for diesel_models::Mandate {
     }
 }
 
-#[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
+#[cfg(feature = "v1")]
 impl UniqueConstraints for diesel_models::Customer {
     fn unique_constraints(&self) -> Vec<String> {
         vec![format!(
@@ -446,7 +496,7 @@ impl UniqueConstraints for diesel_models::Customer {
     }
 }
 
-#[cfg(all(feature = "v2", feature = "customer_v2"))]
+#[cfg(feature = "v2")]
 impl UniqueConstraints for diesel_models::Customer {
     fn unique_constraints(&self) -> Vec<String> {
         vec![format!("customer_{}", self.id.get_string_repr())]
@@ -460,3 +510,14 @@ impl UniqueConstraints for diesel_models::Customer {
 impl<T: DatabaseStore> PayoutAttemptInterface for RouterStore<T> {}
 #[cfg(not(feature = "payouts"))]
 impl<T: DatabaseStore> PayoutsInterface for RouterStore<T> {}
+
+#[cfg(all(feature = "v2", feature = "tokenization_v2"))]
+impl UniqueConstraints for diesel_models::tokenization::Tokenization {
+    fn unique_constraints(&self) -> Vec<String> {
+        vec![format!("id_{}", self.id.get_string_repr())]
+    }
+
+    fn table_name(&self) -> &str {
+        "tokenization"
+    }
+}

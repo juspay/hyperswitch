@@ -98,7 +98,7 @@ pub enum WebhookResponseTracker {
     },
     #[cfg(feature = "payouts")]
     Payout {
-        payout_id: String,
+        payout_id: common_utils::id_type::PayoutId,
         status: common_enums::PayoutStatus,
     },
     #[cfg(feature = "v1")]
@@ -129,6 +129,11 @@ pub enum WebhookResponseTracker {
         mandate_id: String,
         status: common_enums::MandateStatus,
     },
+    #[cfg(feature = "v1")]
+    PaymentMethod {
+        payment_method_id: String,
+        status: common_enums::PaymentMethodStatus,
+    },
     NoEffect,
     Relay {
         relay_id: common_utils::id_type::RelayId,
@@ -143,10 +148,27 @@ impl WebhookResponseTracker {
             Self::Payment { payment_id, .. }
             | Self::Refund { payment_id, .. }
             | Self::Dispute { payment_id, .. } => Some(payment_id.to_owned()),
-            Self::NoEffect | Self::Mandate { .. } => None,
+            Self::NoEffect | Self::Mandate { .. } | Self::PaymentMethod { .. } => None,
             #[cfg(feature = "payouts")]
             Self::Payout { .. } => None,
             Self::Relay { .. } => None,
+        }
+    }
+
+    #[cfg(feature = "v1")]
+    pub fn get_payment_method_id(&self) -> Option<String> {
+        match self {
+            Self::PaymentMethod {
+                payment_method_id, ..
+            } => Some(payment_method_id.to_owned()),
+            Self::Payment { .. }
+            | Self::Refund { .. }
+            | Self::Dispute { .. }
+            | Self::NoEffect
+            | Self::Mandate { .. }
+            | Self::Relay { .. } => None,
+            #[cfg(feature = "payouts")]
+            Self::Payout { .. } => None,
         }
     }
 
@@ -232,7 +254,7 @@ pub enum MandateIdType {
 
 #[derive(Clone)]
 pub enum AuthenticationIdType {
-    AuthenticationId(String),
+    AuthenticationId(common_utils::id_type::AuthenticationId),
     ConnectorAuthenticationId(String),
 }
 
@@ -259,6 +281,50 @@ pub enum ObjectReferenceId {
 #[derive(Clone)]
 pub enum InvoiceIdType {
     ConnectorInvoiceId(String),
+}
+
+#[cfg(all(feature = "revenue_recovery", feature = "v2"))]
+impl ObjectReferenceId {
+    pub fn get_connector_transaction_id_as_string(
+        self,
+    ) -> Result<String, common_utils::errors::ValidationError> {
+        match self {
+            Self::PaymentId(
+                payments::PaymentIdType::ConnectorTransactionId(id)
+            ) => Ok(id),
+            Self::PaymentId(_)=>Err(
+                common_utils::errors::ValidationError::IncorrectValueProvided {
+                    field_name: "ConnectorTransactionId variant of PaymentId is required but received otherr variant",
+                },
+            ),
+            Self::RefundId(_) => Err(
+                common_utils::errors::ValidationError::IncorrectValueProvided {
+                    field_name: "PaymentId is required but received RefundId",
+                },
+            ),
+            Self::MandateId(_) => Err(
+                common_utils::errors::ValidationError::IncorrectValueProvided {
+                    field_name: "PaymentId is required but received MandateId",
+                },
+            ),
+            Self::ExternalAuthenticationID(_) => Err(
+                common_utils::errors::ValidationError::IncorrectValueProvided {
+                    field_name: "PaymentId is required but received ExternalAuthenticationID",
+                },
+            ),
+            #[cfg(feature = "payouts")]
+            Self::PayoutId(_) => Err(
+                common_utils::errors::ValidationError::IncorrectValueProvided {
+                    field_name: "PaymentId is required but received PayoutId",
+                },
+            ),
+            Self::InvoiceId(_) => Err(
+                common_utils::errors::ValidationError::IncorrectValueProvided {
+                    field_name: "PaymentId is required but received InvoiceId",
+                },
+            )
+        }
+    }
 }
 
 pub struct IncomingWebhookDetails {
@@ -304,7 +370,7 @@ pub enum OutgoingWebhookContent {
     PayoutDetails(Box<payouts::PayoutCreateResponse>),
 }
 
-#[derive(Debug, Serialize, ToSchema)]
+#[derive(Debug, Clone, Serialize, ToSchema)]
 #[serde(tag = "type", content = "object", rename_all = "snake_case")]
 #[cfg(feature = "v2")]
 pub enum OutgoingWebhookContent {

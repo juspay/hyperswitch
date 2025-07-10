@@ -187,6 +187,9 @@ pub struct Notifications {
     /// The merchant URL that will receive the notification when the 3DS ACS successfully gathers
     /// de ice informatiSon and tonotification_configurations.cordingly.
     pub three_ds_method_return_url: Option<String>,
+    /// The URL on merchant's website to which the customer should be redirected in the event of
+    /// the customer canceling the transaction.
+    pub cancel_url: Option<String>,
 }
 
 #[derive(Debug, Serialize, Deserialize)]

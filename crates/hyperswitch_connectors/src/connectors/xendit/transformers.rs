@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 
 use cards::CardNumber;
-use common_enums::enums;
+use common_enums::{enums, Currency};
 use common_utils::{pii, request::Method, types::FloatMajorUnit};
 use hyperswitch_domain_models::{
     payment_method_data::PaymentMethodData,
@@ -65,7 +65,7 @@ pub struct CardPaymentRequest {
 #[derive(Serialize, Deserialize, Debug)]
 pub struct MandatePaymentRequest {
     pub amount: FloatMajorUnit,
-    pub currency: common_enums::Currency,
+    pub currency: Currency,
     pub capture_method: String,
     pub payment_method_id: Secret<String>,
     pub channel_properties: ChannelProperties,
@@ -81,7 +81,7 @@ pub struct XenditPaymentsCaptureRequest {
 #[derive(Serialize, Deserialize, Debug)]
 pub struct XenditPaymentsRequest {
     pub amount: FloatMajorUnit,
-    pub currency: common_enums::Currency,
+    pub currency: Currency,
     pub capture_method: String,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub payment_method: Option<PaymentMethod>,
@@ -97,7 +97,7 @@ pub struct XenditSplitRoute {
     pub flat_amount: Option<FloatMajorUnit>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub percent_amount: Option<i64>,
-    pub currency: enums::Currency,
+    pub currency: Currency,
     pub destination_account_id: String,
     pub reference_id: String,
 }
@@ -164,7 +164,7 @@ pub enum PaymentStatus {
     AwaitingCapture,
     Verified,
 }
-#[derive(Debug, Deserialize, Serialize)]
+#[derive(Debug, Deserialize, Serialize, Clone)]
 #[serde(untagged)]
 pub enum XenditResponse {
     Payment(XenditPaymentResponse),
@@ -178,6 +178,8 @@ pub struct XenditPaymentResponse {
     pub payment_method: PaymentMethodInfo,
     pub failure_code: Option<String>,
     pub reference_id: Secret<String>,
+    pub amount: FloatMajorUnit,
+    pub currency: Currency,
 }
 
 fn map_payment_response_to_attempt_status(
@@ -330,8 +332,9 @@ impl<F>
                 attempt_status: None,
                 connector_transaction_id: Some(item.response.id.clone()),
                 status_code: item.http_code,
-                issuer_error_code: None,
-                issuer_error_message: None,
+                network_advice_code: None,
+                network_decline_code: None,
+                network_error_message: None,
             })
         } else {
             let charges = match item.data.request.split_payments.as_ref() {
@@ -441,8 +444,9 @@ impl<F>
                 attempt_status: None,
                 connector_transaction_id: None,
                 status_code: item.http_code,
-                issuer_error_code: None,
-                issuer_error_message: None,
+                network_advice_code: None,
+                network_decline_code: None,
+                network_error_message: None,
             })
         } else {
             Ok(PaymentsResponseData::TransactionResponse {
@@ -500,7 +504,7 @@ impl<F>
                         common_utils::types::AmountConvertor::convert_back(
                             &required_conversion_type,
                             amount,
-                            item.data.request.currency.unwrap_or(enums::Currency::USD),
+                            item.data.request.currency.unwrap_or(Currency::USD),
                         )
                         .map_err(|_| {
                             errors::ConnectorError::RequestEncodingFailedWithReason(
@@ -576,8 +580,9 @@ impl TryFrom<PaymentsSyncResponseRouterData<XenditResponse>> for PaymentsSyncRou
                         attempt_status: None,
                         connector_transaction_id: Some(payment_response.id.clone()),
                         status_code: item.http_code,
-                        issuer_error_code: None,
-                        issuer_error_message: None,
+                        network_advice_code: None,
+                        network_decline_code: None,
+                        network_error_message: None,
                     })
                 } else {
                     Ok(PaymentsResponseData::TransactionResponse {
@@ -657,7 +662,7 @@ impl TryFrom<&PaymentsPreProcessingRouterData> for XenditSplitRequestData {
                             common_utils::types::AmountConvertor::convert(
                                 &required_conversion_type,
                                 amount,
-                                item.request.currency.unwrap_or(enums::Currency::USD),
+                                item.request.currency.unwrap_or(Currency::USD),
                             )
                             .map_err(|_| {
                                 errors::ConnectorError::RequestEncodingFailedWithReason(
@@ -736,8 +741,10 @@ impl From<RefundStatus> for enums::RefundStatus {
 //TODO: Fill the struct with respective fields
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct RefundResponse {
-    id: String,
-    status: RefundStatus,
+    pub id: String,
+    pub status: RefundStatus,
+    pub amount: FloatMajorUnit,
+    pub currency: String,
 }
 
 impl TryFrom<RefundsResponseRouterData<Execute, RefundResponse>> for RefundsRouterData<Execute> {
@@ -774,20 +781,22 @@ impl TryFrom<RefundsResponseRouterData<RSync, RefundResponse>> for RefundsRouter
 pub struct XenditMetadata {
     pub for_user_id: String,
 }
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct XenditWebhookEvent {
     pub event: XenditEventType,
     pub data: EventDetails,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct EventDetails {
     pub id: String,
     pub payment_request_id: Option<String>,
+    pub amount: FloatMajorUnit,
+    pub currency: String,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
 pub enum XenditEventType {
     #[serde(rename = "payment.succeeded")]
     PaymentSucceeded,

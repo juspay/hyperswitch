@@ -122,7 +122,7 @@ export const connectorDetails = {
     },
   },
   bank_transfer_pm: {
-    sepa: {
+    sepa_bank_transfer: {
       Create: {
         Request: {
           currency: "GBP",
@@ -196,7 +196,7 @@ export const connectorDetails = {
       SavePayoutMethod: {
         Request: {
           payment_method: "bank_transfer",
-          payment_method_type: "sepa",
+          payment_method_type: "sepa_bank_transfer",
           bank_transfer: {
             iban: "NL46TEST0136169112",
             bic: "ABNANL2A",
@@ -209,7 +209,7 @@ export const connectorDetails = {
           status: 200,
           body: {
             payment_method: "bank_transfer",
-            payment_method_type: "sepa",
+            payment_method_type: "sepa_bank_transfer",
           },
         },
       },

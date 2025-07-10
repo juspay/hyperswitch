@@ -269,7 +269,7 @@ impl SurchargeMetadata {
         self.surcharge_results.get(&surcharge_key)
     }
     pub fn get_surcharge_metadata_redis_key(payment_attempt_id: &str) -> String {
-        format!("surcharge_metadata_{}", payment_attempt_id)
+        format!("surcharge_metadata_{payment_attempt_id}")
     }
     pub fn get_individual_surcharge_key_value_pairs(&self) -> Vec<(String, SurchargeDetails)> {
         self.surcharge_results
@@ -283,16 +283,13 @@ impl SurchargeMetadata {
     pub fn get_surcharge_details_redis_hashset_key(surcharge_key: &SurchargeKey) -> String {
         match surcharge_key {
             SurchargeKey::Token(token) => {
-                format!("token_{}", token)
+                format!("token_{token}")
             }
             SurchargeKey::PaymentMethodData(payment_method, payment_method_type, card_network) => {
                 if let Some(card_network) = card_network {
-                    format!(
-                        "{}_{}_{}",
-                        payment_method, payment_method_type, card_network
-                    )
+                    format!("{payment_method}_{payment_method_type}_{card_network}")
                 } else {
-                    format!("{}_{}", payment_method, payment_method_type)
+                    format!("{payment_method}_{payment_method_type}")
                 }
             }
         }
@@ -366,14 +363,21 @@ impl SurchargeMetadata {
     }
 }
 
-impl ForeignTryFrom<&storage::Authentication> for AuthenticationData {
+impl
+    ForeignTryFrom<
+        &hyperswitch_domain_models::router_request_types::authentication::AuthenticationStore,
+    > for AuthenticationData
+{
     type Error = error_stack::Report<errors::ApiErrorResponse>;
-    fn foreign_try_from(authentication: &storage::Authentication) -> Result<Self, Self::Error> {
+    fn foreign_try_from(
+        authentication_store: &hyperswitch_domain_models::router_request_types::authentication::AuthenticationStore,
+    ) -> Result<Self, Self::Error> {
+        let authentication = &authentication_store.authentication;
         if authentication.authentication_status == common_enums::AuthenticationStatus::Success {
             let threeds_server_transaction_id =
                 authentication.threeds_server_transaction_id.clone();
             let message_version = authentication.message_version.clone();
-            let cavv = authentication
+            let cavv = authentication_store
                 .cavv
                 .clone()
                 .get_required_value("cavv")

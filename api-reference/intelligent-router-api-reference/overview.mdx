@@ -1,0 +1,111 @@
+# Dynamo - Dynamic Routing System
+
+## Overview
+
+Dynamo is an open-source dynamic routing system designed for payment processing. It intelligently routes payments to different processors based on real-time metrics, helping to optimize payment flows and increase transaction success rates.
+
+## Why Dynamo?
+
+- 💸 **Increase Payment Success**: Automatically route to the best-performing processors
+- 📊 **Data-Driven Decisions**: Make routing choices based on real performance metrics
+- 🌐 **Multi-tenant Support**: Isolate routing data between different merchants
+- ⚡ **High Performance**: Built with Rust for maximum efficiency and reliability
+- 🔄 **Multiple Routing Strategies**: Choose from success-rate, elimination, or contract-based routing
+
+## Documentation
+
+- [Integration Guide](https://github.com/juspay/hyperswitch-intelligent-router/blob/main/docs/integration-guide.md)
+- [Installation Guide](https://github.com/juspay/hyperswitch-intelligent-router/blob/main/docs/installation.md)
+- [Configuration Guide](https://github.com/juspay/hyperswitch-intelligent-router/blob/main/docs/configuration.md)
+- [API Reference](https://api-reference.hyperswitch.io/intelligent-router-api-reference/overview)
+- [Contributing Guidelines](https://github.com/juspay/hyperswitch-intelligent-router/blob/main/CONTRIBUTING.md)
+
+## Quick Start
+
+### Local Setup
+
+```bash
+# Clone the repository
+git clone https://github.com/yourusername/dynamo.git
+cd dynamo
+
+# Configure Redis
+# Make sure Redis is running on localhost:6379 or update the config file
+
+# Build the core service
+cargo build --release
+
+# Run with development configuration
+./target/release/dynamo
+```
+
+### Docker Setup
+
+```bash
+# Clone the repository
+git clone https://github.com/yourusername/dynamo.git
+cd dynamo
+
+# Build the Docker image
+docker build -t dynamo:latest .
+
+# Run with default configuration
+docker run -p 8000:8000 -p 9000:9000 dynamo:latest
+
+# Run with custom configuration
+docker run -p 8000:8000 -p 9000:9000 -v $(pwd)/config:/app/config dynamo:latest
+```
+
+## Usage Examples
+
+### Success Rate Based Routing
+
+```bash
+# Make a routing decision based on success rates
+grpcurl -d '{"id": "merchant1", "params": "card", "labels": ["stripe", "adyen"], "config": {"min_aggregates_size": 5, "default_success_rate": 100}}' \
+  -plaintext localhost:8000 success_rate.SuccessRateCalculator/FetchSuccessRate
+```
+
+### Update Payment Results
+
+```bash
+# Update success rate data with payment results
+grpcurl -d '{"id": "merchant1", "params": "card", "labels_with_status": [{"label": "stripe", "status": true}], "config": {"max_aggregates_size": 10, "current_block_threshold": {"max_total_count": 5}}}' \
+  -plaintext localhost:8000 success_rate.SuccessRateCalculator/UpdateSuccessRateWindow
+```
+
+For more examples, see our [Examples Documentation](docs/examples.md).
+
+## Project Structure
+
+Dynamo consists of two main components:
+
+- **dynamo**: Core routing service with GRPC/HTTP APIs
+- **procesmo**: WebAssembly module for data processing and visualization
+
+The project uses a workspace structure:
+
+```
+crates/
+├── dynamo/         # Main routing service
+└── procesmo/       # WebAssembly data processing module
+```
+
+## Contributing
+
+We welcome contributions from everyone! Here's how you can help:
+
+1. Fork the repository
+2. Create your feature branch: `git checkout -b feature/amazing-feature`
+3. Commit your changes: `git commit -m 'Add some amazing feature'`
+4. Push to your branch: `git push origin feature/amazing-feature`
+5. Open a Pull Request
+
+See [https://github.com/juspay/hyperswitch-intelligent-router/blob/main/CONTRIBUTING.md](https://github.com/juspay/hyperswitch-intelligent-router/blob/main/CONTRIBUTING.md) for detailed guidelines.
+
+## Community
+
+- Join our [Discord server](https://discord.gg/wJZ7DVW8mm) for discussions
+- Join our [Slack channel](https://join.slack.com/t/hyperswitch-io/shared_invite/zt-2jqxmpsbm-WXUENx022HjNEy~Ark7Orw)
+- Report issues on [GitHub Issues](https://github.com/juspay/hyperswitch-dynamo/issues)
+- Follow updates on [Twitter](https://twitter.com/juspay)

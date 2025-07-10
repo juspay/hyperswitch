@@ -84,6 +84,14 @@ merchant_secret="Source verification key"
 [[adyen.debit]]
   payment_method_type = "Visa"
 [[adyen.debit]]
+  payment_method_type = "Nyce"
+[[adyen.debit]]
+  payment_method_type = "Pulse"
+[[adyen.debit]]
+  payment_method_type = "Star"
+[[adyen.debit]]
+  payment_method_type = "Accel"
+[[adyen.debit]]
   payment_method_type = "Interac"
 [[adyen.debit]]
   payment_method_type = "AmericanExpress"
@@ -304,6 +312,51 @@ required=true
 type="MultiSelect"
 options=["PAN_ONLY", "CRYPTOGRAM_3DS"]
 
+[[adyen.connector_wallets_details.google_pay]]
+name="merchant_name"
+label="Google Pay Merchant Name"
+placeholder="Enter Google Pay Merchant Name"
+required=true
+type="Text"
+[[adyen.connector_wallets_details.google_pay]]
+name="merchant_id"
+label="Google Pay Merchant Id"
+placeholder="Enter Google Pay Merchant Id"
+required=true
+type="Text"
+[[adyen.connector_wallets_details.google_pay]]
+name="gateway_merchant_id"
+label="Google Pay Merchant Key"
+placeholder="Enter Google Pay Merchant Key"
+required=true
+type="Text"
+[[adyen.connector_wallets_details.google_pay]]
+name="public_key"
+label="Google Pay Public Key"
+placeholder="Enter Google Pay Public Key"
+required=true
+type="Text"
+[[adyen.connector_wallets_details.google_pay]]
+name="private_key"
+label="Google Pay Private Key"
+placeholder="Enter Google Pay Private Key"
+required=true
+type="Text"
+[[adyen.connector_wallets_details.google_pay]]
+name="recipient_id"
+label="Recipient Id"
+placeholder="Enter Recipient Id"
+required=true
+type="Text"
+[[adyen.connector_wallets_details.google_pay]]
+name="allowed_auth_methods"
+label="Allowed Auth Methods"
+placeholder="Enter Allowed Auth Methods"
+required=true
+type="MultiSelect"
+options=["PAN_ONLY", "CRYPTOGRAM_3DS"]
+
+
 [adyen.metadata.endpoint_prefix]
 name="endpoint_prefix"
 label="Live endpoint prefix"
@@ -312,6 +365,14 @@ required=true
 type="Text"
 
 [adyenplatform_payout]
+[[adyenplatform_payout.credit]]
+  payment_method_type = "Mastercard"
+[[adyenplatform_payout.credit]]
+  payment_method_type = "Visa"
+[[adyenplatform_payout.debit]]
+  payment_method_type = "Mastercard"
+[[adyenplatform_payout.debit]]
+  payment_method_type = "Visa"
 [[adyenplatform_payout.bank_transfer]]
   payment_method_type = "sepa"
 [adyenplatform_payout.connector_auth.HeaderKey]
@@ -371,6 +432,7 @@ key1="Client ID"
 
 [airwallex.connector_webhook_details]
 merchant_secret="Source verification key"
+
 [[airwallex.metadata.google_pay]]
 name="merchant_name"
 label="Google Pay Merchant Name"
@@ -397,6 +459,65 @@ required=true
 type="MultiSelect"
 options=["PAN_ONLY", "CRYPTOGRAM_3DS"]
 
+[[airwallex.connector_wallets_details.google_pay]]
+name="merchant_name"
+label="Google Pay Merchant Name"
+placeholder="Enter Google Pay Merchant Name"
+required=true
+type="Text"
+[[airwallex.connector_wallets_details.google_pay]]
+name="merchant_id"
+label="Google Pay Merchant Id"
+placeholder="Enter Google Pay Merchant Id"
+required=true
+type="Text"
+[[airwallex.connector_wallets_details.google_pay]]
+name="gateway_merchant_id"
+label="Google Pay Merchant Key"
+placeholder="Enter Google Pay Merchant Key"
+required=true
+type="Text"
+[[airwallex.connector_wallets_details.google_pay]]
+name="public_key"
+label="Google Pay Public Key"
+placeholder="Enter Google Pay Public Key"
+required=true
+type="Text"
+[[airwallex.connector_wallets_details.google_pay]]
+name="private_key"
+label="Google Pay Private Key"
+placeholder="Enter Google Pay Private Key"
+required=true
+type="Text"
+[[airwallex.connector_wallets_details.google_pay]]
+name="recipient_id"
+label="Recipient Id"
+placeholder="Enter Recipient Id"
+required=true
+type="Text"
+[[airwallex.connector_wallets_details.google_pay]]
+name="allowed_auth_methods"
+label="Allowed Auth Methods"
+placeholder="Enter Allowed Auth Methods"
+required=true
+type="MultiSelect"
+options=["PAN_ONLY", "CRYPTOGRAM_3DS"]
+
+[authipay]
+[[authipay.credit]]
+  payment_method_type = "Mastercard"
+[[authipay.credit]]
+  payment_method_type = "Visa"
+[[authipay.debit]]
+  payment_method_type = "Mastercard"
+[[authipay.debit]]
+  payment_method_type = "Visa"
+[authipay.connector_auth.SignatureKey]
+api_key="API Key"
+api_secret="API Secret"
+key1="Merchant ID"
+[authipay.connector_webhook_details]
+merchant_secret="Source verification key"
 
 [authorizedotnet]
 [[authorizedotnet.credit]]
@@ -524,6 +645,51 @@ required=true
 type="MultiSelect"
 options=["PAN_ONLY", "CRYPTOGRAM_3DS"]
 
+[[authorizedotnet.connector_wallets_details.google_pay]]
+name="merchant_name"
+label="Google Pay Merchant Name"
+placeholder="Enter Google Pay Merchant Name"
+required=true
+type="Text"
+[[authorizedotnet.connector_wallets_details.google_pay]]
+name="merchant_id"
+label="Google Pay Merchant Id"
+placeholder="Enter Google Pay Merchant Id"
+required=true
+type="Text"
+[[authorizedotnet.connector_wallets_details.google_pay]]
+name="gateway_merchant_id"
+label="Google Pay Merchant Key"
+placeholder="Enter Google Pay Merchant Key"
+required=true
+type="Text"
+[[authorizedotnet.connector_wallets_details.google_pay]]
+name="public_key"
+label="Google Pay Public Key"
+placeholder="Enter Google Pay Public Key"
+required=true
+type="Text"
+[[authorizedotnet.connector_wallets_details.google_pay]]
+name="private_key"
+label="Google Pay Private Key"
+placeholder="Enter Google Pay Private Key"
+required=true
+type="Text"
+[[authorizedotnet.connector_wallets_details.google_pay]]
+name="recipient_id"
+label="Recipient Id"
+placeholder="Enter Recipient Id"
+required=true
+type="Text"
+[[authorizedotnet.connector_wallets_details.google_pay]]
+name="allowed_auth_methods"
+label="Allowed Auth Methods"
+placeholder="Enter Allowed Auth Methods"
+required=true
+type="MultiSelect"
+options=["PAN_ONLY", "CRYPTOGRAM_3DS"]
+
+
 [bambora]
 [[bambora.credit]]
   payment_method_type = "Mastercard"
@@ -648,6 +814,8 @@ api_secret="Password"
   payment_method_type = "apple_pay"
 [[bankofamerica.wallet]]
   payment_method_type = "google_pay"
+[[bankofamerica.wallet]]
+  payment_method_type = "samsung_pay"
 [bankofamerica.connector_auth.SignatureKey]
 api_key="Key"
 key1="Merchant ID"
@@ -732,6 +900,123 @@ required=true
 type="MultiSelect"
 options=["PAN_ONLY", "CRYPTOGRAM_3DS"]
 
+[[bankofamerica.connector_wallets_details.google_pay]]
+name="merchant_name"
+label="Google Pay Merchant Name"
+placeholder="Enter Google Pay Merchant Name"
+required=true
+type="Text"
+[[bankofamerica.connector_wallets_details.google_pay]]
+name="merchant_id"
+label="Google Pay Merchant Id"
+placeholder="Enter Google Pay Merchant Id"
+required=true
+type="Text"
+[[bankofamerica.connector_wallets_details.google_pay]]
+name="gateway_merchant_id"
+label="Google Pay Merchant Key"
+placeholder="Enter Google Pay Merchant Key"
+required=true
+type="Text"
+[[bankofamerica.connector_wallets_details.google_pay]]
+name="public_key"
+label="Google Pay Public Key"
+placeholder="Enter Google Pay Public Key"
+required=true
+type="Text"
+[[bankofamerica.connector_wallets_details.google_pay]]
+name="private_key"
+label="Google Pay Private Key"
+placeholder="Enter Google Pay Private Key"
+required=true
+type="Text"
+[[bankofamerica.connector_wallets_details.google_pay]]
+name="recipient_id"
+label="Recipient Id"
+placeholder="Enter Recipient Id"
+required=true
+type="Text"
+[[bankofamerica.connector_wallets_details.google_pay]]
+name="allowed_auth_methods"
+label="Allowed Auth Methods"
+placeholder="Enter Allowed Auth Methods"
+required=true
+type="MultiSelect"
+options=["PAN_ONLY", "CRYPTOGRAM_3DS"]
+
+[[bankofamerica.connector_wallets_details.samsung_pay]]
+name="service_id"
+label="Samsung Pay Service Id"
+placeholder="Enter Samsung Pay Service Id"
+required=true
+type="Text"
+[[bankofamerica.connector_wallets_details.samsung_pay]]
+name="merchant_display_name"
+label="Display Name"
+placeholder="Enter Display Name"
+required=true
+type="Text"
+[[bankofamerica.connector_wallets_details.samsung_pay]]
+name="merchant_business_country"
+label="Merchant Business Country"
+placeholder="Enter Merchant Business Country"
+required=true
+type="Select"
+options=[]
+[[bankofamerica.connector_wallets_details.samsung_pay]]
+name="allowed_brands"
+label="Allowed Brands"
+placeholder="Enter Allowed Brands"
+required=true
+type="MultiSelect"
+options=["visa","masterCard","amex","discover"]
+
+[barclaycard]
+[[barclaycard.credit]]
+  payment_method_type = "Mastercard"
+[[barclaycard.credit]]
+  payment_method_type = "Visa"
+[[barclaycard.credit]]
+  payment_method_type = "AmericanExpress"
+[[barclaycard.credit]]
+  payment_method_type = "JCB"
+[[barclaycard.credit]]
+  payment_method_type = "Discover"
+[[barclaycard.credit]]
+  payment_method_type = "Maestro"
+[[barclaycard.credit]]
+  payment_method_type = "Interac"
+[[barclaycard.credit]]
+  payment_method_type = "DinersClub"
+[[barclaycard.credit]]
+  payment_method_type = "CartesBancaires"
+[[barclaycard.credit]]
+  payment_method_type = "UnionPay"
+[[barclaycard.debit]]
+  payment_method_type = "Mastercard"
+[[barclaycard.debit]]
+  payment_method_type = "Visa"
+[[barclaycard.debit]]
+  payment_method_type = "AmericanExpress"
+[[barclaycard.debit]]
+  payment_method_type = "JCB"
+[[barclaycard.debit]]
+  payment_method_type = "Discover"
+[[barclaycard.debit]]
+  payment_method_type = "Maestro"
+[[barclaycard.debit]]
+  payment_method_type = "Interac"
+[[barclaycard.debit]]
+  payment_method_type = "DinersClub"
+[[barclaycard.debit]]
+  payment_method_type = "CartesBancaires"
+[[barclaycard.debit]]
+  payment_method_type = "UnionPay"
+[barclaycard.connector_auth.SignatureKey]
+api_key="Key"
+key1="Merchant ID"
+api_secret="Shared Secret"
+
 [bitpay]
 [[bitpay.crypto]]
   payment_method_type = "crypto_currency"
@@ -758,24 +1043,6 @@ merchant_secret="Source verification key"
 [[bluesnap.credit]]
   payment_method_type = "CartesBancaires"
 [[bluesnap.credit]]
-  payment_method_type = "UnionPay"
-[[bluesnap.debit]]
-  payment_method_type = "Mastercard"
-[[bluesnap.debit]]
-  payment_method_type = "Visa"
-[[bluesnap.debit]]
-  payment_method_type = "Interac"
-[[bluesnap.debit]]
-  payment_method_type = "AmericanExpress"
-[[bluesnap.debit]]
-  payment_method_type = "JCB"
-[[bluesnap.debit]]
-  payment_method_type = "DinersClub"
-[[bluesnap.debit]]
-  payment_method_type = "Discover"
-[[bluesnap.debit]]
-  payment_method_type = "CartesBancaires"
-[[bluesnap.debit]]
   payment_method_type = "UnionPay"
 [[bluesnap.wallet]]
   payment_method_type = "google_pay"
@@ -863,6 +1130,51 @@ placeholder="Enter Allowed Auth Methods"
 required=true
 type="MultiSelect"
 options=["PAN_ONLY", "CRYPTOGRAM_3DS"]
+
+[[bluesnap.connector_wallets_details.google_pay]]
+name="merchant_name"
+label="Google Pay Merchant Name"
+placeholder="Enter Google Pay Merchant Name"
+required=true
+type="Text"
+[[bluesnap.connector_wallets_details.google_pay]]
+name="merchant_id"
+label="Google Pay Merchant Id"
+placeholder="Enter Google Pay Merchant Id"
+required=true
+type="Text"
+[[bluesnap.connector_wallets_details.google_pay]]
+name="gateway_merchant_id"
+label="Google Pay Merchant Key"
+placeholder="Enter Google Pay Merchant Key"
+required=true
+type="Text"
+[[bluesnap.connector_wallets_details.google_pay]]
+name="public_key"
+label="Google Pay Public Key"
+placeholder="Enter Google Pay Public Key"
+required=true
+type="Text"
+[[bluesnap.connector_wallets_details.google_pay]]
+name="private_key"
+label="Google Pay Private Key"
+placeholder="Enter Google Pay Private Key"
+required=true
+type="Text"
+[[bluesnap.connector_wallets_details.google_pay]]
+name="recipient_id"
+label="Recipient Id"
+placeholder="Enter Recipient Id"
+required=true
+type="Text"
+[[bluesnap.connector_wallets_details.google_pay]]
+name="allowed_auth_methods"
+label="Allowed Auth Methods"
+placeholder="Enter Allowed Auth Methods"
+required=true
+type="MultiSelect"
+options=["PAN_ONLY", "CRYPTOGRAM_3DS"]
+
 
 [bluesnap.metadata.merchant_id]
 name="merchant_id"
@@ -1172,6 +1484,51 @@ required=true
 type="MultiSelect"
 options=["PAN_ONLY", "CRYPTOGRAM_3DS"]
 
+[[checkout.connector_wallets_details.google_pay]]
+name="merchant_name"
+label="Google Pay Merchant Name"
+placeholder="Enter Google Pay Merchant Name"
+required=true
+type="Text"
+[[checkout.connector_wallets_details.google_pay]]
+name="merchant_id"
+label="Google Pay Merchant Id"
+placeholder="Enter Google Pay Merchant Id"
+required=true
+type="Text"
+[[checkout.connector_wallets_details.google_pay]]
+name="gateway_merchant_id"
+label="Google Pay Merchant Key"
+placeholder="Enter Google Pay Merchant Key"
+required=true
+type="Text"
+[[checkout.connector_wallets_details.google_pay]]
+name="public_key"
+label="Google Pay Public Key"
+placeholder="Enter Google Pay Public Key"
+required=true
+type="Text"
+[[checkout.connector_wallets_details.google_pay]]
+name="private_key"
+label="Google Pay Private Key"
+placeholder="Enter Google Pay Private Key"
+required=true
+type="Text"
+[[checkout.connector_wallets_details.google_pay]]
+name="recipient_id"
+label="Recipient Id"
+placeholder="Enter Recipient Id"
+required=true
+type="Text"
+[[checkout.connector_wallets_details.google_pay]]
+name="allowed_auth_methods"
+label="Allowed Auth Methods"
+placeholder="Enter Allowed Auth Methods"
+required=true
+type="MultiSelect"
+options=["PAN_ONLY", "CRYPTOGRAM_3DS"]
+
+
 [checkout.metadata.acquirer_bin]
 name="acquirer_bin"
 label="Acquirer Bin"
@@ -1198,12 +1555,38 @@ type="Text"
 api_key="API Key"
 [coinbase.connector_webhook_details]
 merchant_secret="Source verification key"
+[coinbase.metadata.pricing_type]
+name="pricing_type"
+label="Select the pricing type Example: fixed_price,no_price"
+placeholder="Select the pricing type Example: fixed_price,no_price"
+required=true
+type="Select"
+options=["fixed_price","no_price"]
 
 [coingate]
 [[coingate.crypto]]
   payment_method_type = "crypto_currency"
-[coingate.connector_auth.HeaderKey]
+[coingate.connector_auth.BodyKey]
 api_key="API Key"
+key1 ="Merchant Token"
+[coingate.metadata.currency_id]
+name="currency_id"
+label="ID of the currency in which the refund will be issued"
+placeholder="Enter ID of the currency in which the refund will be issued"
+required=true
+type="Number"
+[coingate.metadata.platform_id]
+name="platform_id"
+label="Platform ID of the currency in which the refund will be issued"
+placeholder="Enter Platform ID of the currency in which the refund will be issued"
+required=true
+type="Number"
+[coingate.metadata.ledger_account_id]
+name="ledger_account_id"
+label="ID of the trader balance associated with the currency in which the refund will be issued"
+placeholder="Enter ID of the trader balance associated with the currency in which the refund will be issued"
+required=true
+type="Text"
 
 [cryptopay]
 [[cryptopay.crypto]]
@@ -1345,6 +1728,78 @@ placeholder="Enter Allowed Auth Methods"
 required=true
 type="MultiSelect"
 options=["PAN_ONLY", "CRYPTOGRAM_3DS"]
+
+[[cybersource.connector_wallets_details.google_pay]]
+name="merchant_name"
+label="Google Pay Merchant Name"
+placeholder="Enter Google Pay Merchant Name"
+required=true
+type="Text"
+[[cybersource.connector_wallets_details.google_pay]]
+name="merchant_id"
+label="Google Pay Merchant Id"
+placeholder="Enter Google Pay Merchant Id"
+required=true
+type="Text"
+[[cybersource.connector_wallets_details.google_pay]]
+name="gateway_merchant_id"
+label="Google Pay Merchant Key"
+placeholder="Enter Google Pay Merchant Key"
+required=true
+type="Text"
+[[cybersource.connector_wallets_details.google_pay]]
+name="public_key"
+label="Google Pay Public Key"
+placeholder="Enter Google Pay Public Key"
+required=true
+type="Text"
+[[cybersource.connector_wallets_details.google_pay]]
+name="private_key"
+label="Google Pay Private Key"
+placeholder="Enter Google Pay Private Key"
+required=true
+type="Text"
+[[cybersource.connector_wallets_details.google_pay]]
+name="recipient_id"
+label="Recipient Id"
+placeholder="Enter Recipient Id"
+required=true
+type="Text"
+[[cybersource.connector_wallets_details.google_pay]]
+name="allowed_auth_methods"
+label="Allowed Auth Methods"
+placeholder="Enter Allowed Auth Methods"
+required=true
+type="MultiSelect"
+options=["PAN_ONLY", "CRYPTOGRAM_3DS"]
+
+[[cybersource.connector_wallets_details.samsung_pay]]
+name="service_id"
+label="Samsung Pay Service Id"
+placeholder="Enter Samsung Pay Service Id"
+required=true
+type="Text"
+[[cybersource.connector_wallets_details.samsung_pay]]
+name="merchant_display_name"
+label="Display Name"
+placeholder="Enter Display Name"
+required=true
+type="Text"
+[[cybersource.connector_wallets_details.samsung_pay]]
+name="merchant_business_country"
+label="Merchant Business Country"
+placeholder="Enter Merchant Business Country"
+required=true
+type="Select"
+options=[]
+[[cybersource.connector_wallets_details.samsung_pay]]
+name="allowed_brands"
+label="Allowed Brands"
+placeholder="Enter Allowed Brands"
+required=true
+type="MultiSelect"
+options=["visa","masterCard","amex","discover"]
+
 
 [cybersource.metadata.acquirer_bin]
 name="acquirer_bin"
@@ -1637,7 +2092,7 @@ merchant_secret="Source verification key"
 [[getnet.credit]]
   payment_method_type = "UnionPay"
 [[getnet.credit]]
-  payment_method_type = "Rupay"
+  payment_method_type = "RuPay"
 [[getnet.credit]]
   payment_method_type = "Maestro"
 
@@ -1721,6 +2176,51 @@ placeholder="Enter Allowed Auth Methods"
 required=true
 type="MultiSelect"
 options=["PAN_ONLY", "CRYPTOGRAM_3DS"]
+
+[[globalpay.connector_wallets_details.google_pay]]
+name="merchant_name"
+label="Google Pay Merchant Name"
+placeholder="Enter Google Pay Merchant Name"
+required=true
+type="Text"
+[[globalpay.connector_wallets_details.google_pay]]
+name="merchant_id"
+label="Google Pay Merchant Id"
+placeholder="Enter Google Pay Merchant Id"
+required=true
+type="Text"
+[[globalpay.connector_wallets_details.google_pay]]
+name="gateway_merchant_id"
+label="Google Pay Merchant Key"
+placeholder="Enter Google Pay Merchant Key"
+required=true
+type="Text"
+[[globalpay.connector_wallets_details.google_pay]]
+name="public_key"
+label="Google Pay Public Key"
+placeholder="Enter Google Pay Public Key"
+required=true
+type="Text"
+[[globalpay.connector_wallets_details.google_pay]]
+name="private_key"
+label="Google Pay Private Key"
+placeholder="Enter Google Pay Private Key"
+required=true
+type="Text"
+[[globalpay.connector_wallets_details.google_pay]]
+name="recipient_id"
+label="Recipient Id"
+placeholder="Enter Recipient Id"
+required=true
+type="Text"
+[[globalpay.connector_wallets_details.google_pay]]
+name="allowed_auth_methods"
+label="Allowed Auth Methods"
+placeholder="Enter Allowed Auth Methods"
+required=true
+type="MultiSelect"
+options=["PAN_ONLY", "CRYPTOGRAM_3DS"]
+
 
 [globalpay.metadata.account_name]
 name="account_name"
@@ -2022,6 +2522,51 @@ required=true
 type="MultiSelect"
 options=["PAN_ONLY", "CRYPTOGRAM_3DS"]
 
+[[multisafepay.connector_wallets_details.google_pay]]
+name="merchant_name"
+label="Google Pay Merchant Name"
+placeholder="Enter Google Pay Merchant Name"
+required=true
+type="Text"
+[[multisafepay.connector_wallets_details.google_pay]]
+name="merchant_id"
+label="Google Pay Merchant Id"
+placeholder="Enter Google Pay Merchant Id"
+required=true
+type="Text"
+[[multisafepay.connector_wallets_details.google_pay]]
+name="gateway_merchant_id"
+label="Google Pay Merchant Key"
+placeholder="Enter Google Pay Merchant Key"
+required=true
+type="Text"
+[[multisafepay.connector_wallets_details.google_pay]]
+name="public_key"
+label="Google Pay Public Key"
+placeholder="Enter Google Pay Public Key"
+required=true
+type="Text"
+[[multisafepay.connector_wallets_details.google_pay]]
+name="private_key"
+label="Google Pay Private Key"
+placeholder="Enter Google Pay Private Key"
+required=true
+type="Text"
+[[multisafepay.connector_wallets_details.google_pay]]
+name="recipient_id"
+label="Recipient Id"
+placeholder="Enter Recipient Id"
+required=true
+type="Text"
+[[multisafepay.connector_wallets_details.google_pay]]
+name="allowed_auth_methods"
+label="Allowed Auth Methods"
+placeholder="Enter Allowed Auth Methods"
+required=true
+type="MultiSelect"
+options=["PAN_ONLY", "CRYPTOGRAM_3DS"]
+
+
 [nexinets]
 [[nexinets.credit]]
   payment_method_type = "Mastercard"
@@ -2274,6 +2819,51 @@ required=true
 type="MultiSelect"
 options=["PAN_ONLY", "CRYPTOGRAM_3DS"]
 
+[[nmi.connector_wallets_details.google_pay]]
+name="merchant_name"
+label="Google Pay Merchant Name"
+placeholder="Enter Google Pay Merchant Name"
+required=true
+type="Text"
+[[nmi.connector_wallets_details.google_pay]]
+name="merchant_id"
+label="Google Pay Merchant Id"
+placeholder="Enter Google Pay Merchant Id"
+required=true
+type="Text"
+[[nmi.connector_wallets_details.google_pay]]
+name="gateway_merchant_id"
+label="Google Pay Merchant Key"
+placeholder="Enter Google Pay Merchant Key"
+required=true
+type="Text"
+[[nmi.connector_wallets_details.google_pay]]
+name="public_key"
+label="Google Pay Public Key"
+placeholder="Enter Google Pay Public Key"
+required=true
+type="Text"
+[[nmi.connector_wallets_details.google_pay]]
+name="private_key"
+label="Google Pay Private Key"
+placeholder="Enter Google Pay Private Key"
+required=true
+type="Text"
+[[nmi.connector_wallets_details.google_pay]]
+name="recipient_id"
+label="Recipient Id"
+placeholder="Enter Recipient Id"
+required=true
+type="Text"
+[[nmi.connector_wallets_details.google_pay]]
+name="allowed_auth_methods"
+label="Allowed Auth Methods"
+placeholder="Enter Allowed Auth Methods"
+required=true
+type="MultiSelect"
+options=["PAN_ONLY", "CRYPTOGRAM_3DS"]
+
+
 [nmi.metadata.acquirer_bin]
 name="acquirer_bin"
 label="Acquirer Bin"
@@ -2420,6 +3010,51 @@ required=true
 type="MultiSelect"
 options=["PAN_ONLY", "CRYPTOGRAM_3DS"]
 
+[[noon.connector_wallets_details.google_pay]]
+name="merchant_name"
+label="Google Pay Merchant Name"
+placeholder="Enter Google Pay Merchant Name"
+required=true
+type="Text"
+[[noon.connector_wallets_details.google_pay]]
+name="merchant_id"
+label="Google Pay Merchant Id"
+placeholder="Enter Google Pay Merchant Id"
+required=true
+type="Text"
+[[noon.connector_wallets_details.google_pay]]
+name="gateway_merchant_id"
+label="Google Pay Merchant Key"
+placeholder="Enter Google Pay Merchant Key"
+required=true
+type="Text"
+[[noon.connector_wallets_details.google_pay]]
+name="public_key"
+label="Google Pay Public Key"
+placeholder="Enter Google Pay Public Key"
+required=true
+type="Text"
+[[noon.connector_wallets_details.google_pay]]
+name="private_key"
+label="Google Pay Private Key"
+placeholder="Enter Google Pay Private Key"
+required=true
+type="Text"
+[[noon.connector_wallets_details.google_pay]]
+name="recipient_id"
+label="Recipient Id"
+placeholder="Enter Recipient Id"
+required=true
+type="Text"
+[[noon.connector_wallets_details.google_pay]]
+name="allowed_auth_methods"
+label="Allowed Auth Methods"
+placeholder="Enter Allowed Auth Methods"
+required=true
+type="MultiSelect"
+options=["PAN_ONLY", "CRYPTOGRAM_3DS"]
+
+
 [novalnet]
 [[novalnet.credit]]
   payment_method_type = "Mastercard"
@@ -2469,6 +3104,7 @@ key1="Payment Access Key"
 api_secret="Tariff ID"
 [novalnet.connector_webhook_details]
 merchant_secret="Source verification key"
+
 [[novalnet.metadata.google_pay]]
 name="merchant_name"
 label="Google Pay Merchant Name"
@@ -2494,6 +3130,51 @@ placeholder="Enter Allowed Auth Methods"
 required=true
 type="MultiSelect"
 options=["PAN_ONLY", "CRYPTOGRAM_3DS"]
+
+[[novalnet.connector_wallets_details.google_pay]]
+name="merchant_name"
+label="Google Pay Merchant Name"
+placeholder="Enter Google Pay Merchant Name"
+required=true
+type="Text"
+[[novalnet.connector_wallets_details.google_pay]]
+name="merchant_id"
+label="Google Pay Merchant Id"
+placeholder="Enter Google Pay Merchant Id"
+required=true
+type="Text"
+[[novalnet.connector_wallets_details.google_pay]]
+name="gateway_merchant_id"
+label="Google Pay Merchant Key"
+placeholder="Enter Google Pay Merchant Key"
+required=true
+type="Text"
+[[novalnet.connector_wallets_details.google_pay]]
+name="public_key"
+label="Google Pay Public Key"
+placeholder="Enter Google Pay Public Key"
+required=true
+type="Text"
+[[novalnet.connector_wallets_details.google_pay]]
+name="private_key"
+label="Google Pay Private Key"
+placeholder="Enter Google Pay Private Key"
+required=true
+type="Text"
+[[novalnet.connector_wallets_details.google_pay]]
+name="recipient_id"
+label="Recipient Id"
+placeholder="Enter Recipient Id"
+required=true
+type="Text"
+[[novalnet.connector_wallets_details.google_pay]]
+name="allowed_auth_methods"
+label="Allowed Auth Methods"
+placeholder="Enter Allowed Auth Methods"
+required=true
+type="MultiSelect"
+options=["PAN_ONLY", "CRYPTOGRAM_3DS"]
+
 
 [[novalnet.metadata.apple_pay]]
 name="certificate"
@@ -2685,6 +3366,51 @@ placeholder="Enter Allowed Auth Methods"
 required=true
 type="MultiSelect"
 options=["PAN_ONLY", "CRYPTOGRAM_3DS"]
+
+[[nuvei.connector_wallets_details.google_pay]]
+name="merchant_name"
+label="Google Pay Merchant Name"
+placeholder="Enter Google Pay Merchant Name"
+required=true
+type="Text"
+[[nuvei.connector_wallets_details.google_pay]]
+name="merchant_id"
+label="Google Pay Merchant Id"
+placeholder="Enter Google Pay Merchant Id"
+required=true
+type="Text"
+[[nuvei.connector_wallets_details.google_pay]]
+name="gateway_merchant_id"
+label="Google Pay Merchant Key"
+placeholder="Enter Google Pay Merchant Key"
+required=true
+type="Text"
+[[nuvei.connector_wallets_details.google_pay]]
+name="public_key"
+label="Google Pay Public Key"
+placeholder="Enter Google Pay Public Key"
+required=true
+type="Text"
+[[nuvei.connector_wallets_details.google_pay]]
+name="private_key"
+label="Google Pay Private Key"
+placeholder="Enter Google Pay Private Key"
+required=true
+type="Text"
+[[nuvei.connector_wallets_details.google_pay]]
+name="recipient_id"
+label="Recipient Id"
+placeholder="Enter Recipient Id"
+required=true
+type="Text"
+[[nuvei.connector_wallets_details.google_pay]]
+name="allowed_auth_methods"
+label="Allowed Auth Methods"
+placeholder="Enter Allowed Auth Methods"
+required=true
+type="MultiSelect"
+options=["PAN_ONLY", "CRYPTOGRAM_3DS"]
+
 
 
 [opennode]
@@ -2886,6 +3612,51 @@ placeholder="Enter Allowed Auth Methods"
 required=true
 type="MultiSelect"
 options=["PAN_ONLY", "CRYPTOGRAM_3DS"]
+
+[[payu.connector_wallets_details.google_pay]]
+name="merchant_name"
+label="Google Pay Merchant Name"
+placeholder="Enter Google Pay Merchant Name"
+required=true
+type="Text"
+[[payu.connector_wallets_details.google_pay]]
+name="merchant_id"
+label="Google Pay Merchant Id"
+placeholder="Enter Google Pay Merchant Id"
+required=true
+type="Text"
+[[payu.connector_wallets_details.google_pay]]
+name="gateway_merchant_id"
+label="Google Pay Merchant Key"
+placeholder="Enter Google Pay Merchant Key"
+required=true
+type="Text"
+[[payu.connector_wallets_details.google_pay]]
+name="public_key"
+label="Google Pay Public Key"
+placeholder="Enter Google Pay Public Key"
+required=true
+type="Text"
+[[payu.connector_wallets_details.google_pay]]
+name="private_key"
+label="Google Pay Private Key"
+placeholder="Enter Google Pay Private Key"
+required=true
+type="Text"
+[[payu.connector_wallets_details.google_pay]]
+name="recipient_id"
+label="Recipient Id"
+placeholder="Enter Recipient Id"
+required=true
+type="Text"
+[[payu.connector_wallets_details.google_pay]]
+name="allowed_auth_methods"
+label="Allowed Auth Methods"
+placeholder="Enter Allowed Auth Methods"
+required=true
+type="MultiSelect"
+options=["PAN_ONLY", "CRYPTOGRAM_3DS"]
+
 
 [placetopay]
 [[placetopay.credit]]
@@ -3230,8 +4001,6 @@ merchant_secret="Source verification key"
 [[stripe.bank_redirect]]
   payment_method_type = "giropay"
 [[stripe.bank_redirect]]
-  payment_method_type = "sofort"
-[[stripe.bank_redirect]]
   payment_method_type = "eps"
 [[stripe.bank_redirect]]
   payment_method_type = "bancontact_card"
@@ -3265,6 +4034,8 @@ merchant_secret="Source verification key"
   payment_method_type = "ali_pay"
 [[stripe.wallet]]
   payment_method_type = "cashapp"
+[[stripe.wallet]]
+  payment_method_type = "revolut_pay"
 is_verifiable = true
 [stripe.connector_auth.HeaderKey]
 api_key="Secret Key"
@@ -3347,6 +4118,51 @@ placeholder="Enter Allowed Auth Methods"
 required=true
 type="MultiSelect"
 options=["PAN_ONLY", "CRYPTOGRAM_3DS"]
+
+[[stripe.connector_wallets_details.google_pay]]
+name="merchant_name"
+label="Google Pay Merchant Name"
+placeholder="Enter Google Pay Merchant Name"
+required=true
+type="Text"
+[[stripe.connector_wallets_details.google_pay]]
+name="merchant_id"
+label="Google Pay Merchant Id"
+placeholder="Enter Google Pay Merchant Id"
+required=true
+type="Text"
+[[stripe.connector_wallets_details.google_pay]]
+name="stripe:publishableKey"
+label="Stripe Publishable Key"
+placeholder="Enter Stripe Publishable Key"
+required=true
+type="Text"
+[[stripe.connector_wallets_details.google_pay]]
+name="public_key"
+label="Google Pay Public Key"
+placeholder="Enter Google Pay Public Key"
+required=true
+type="Text"
+[[stripe.connector_wallets_details.google_pay]]
+name="private_key"
+label="Google Pay Private Key"
+placeholder="Enter Google Pay Private Key"
+required=true
+type="Text"
+[[stripe.connector_wallets_details.google_pay]]
+name="recipient_id"
+label="Recipient Id"
+placeholder="Enter Recipient Id"
+required=true
+type="Text"
+[[stripe.connector_wallets_details.google_pay]]
+name="allowed_auth_methods"
+label="Allowed Auth Methods"
+placeholder="Enter Allowed Auth Methods"
+required=true
+type="MultiSelect"
+options=["PAN_ONLY", "CRYPTOGRAM_3DS"]
+
 
 [stax]
 [[stax.credit]]
@@ -3486,6 +4302,14 @@ merchant_secret="Source verification key"
   payment_method_type = "apple_pay"
 [[trustpay.wallet]]
   payment_method_type = "google_pay"
+[[trustpay.bank_transfer]]
+  payment_method_type = "sepa_bank_transfer"
+[[trustpay.bank_transfer]]
+  payment_method_type = "instant_bank_transfer"
+[[trustpay.bank_transfer]]
+  payment_method_type = "instant_bank_transfer_finland"
+[[trustpay.bank_transfer]]
+  payment_method_type = "instant_bank_transfer_poland"
 [trustpay.connector_auth.SignatureKey]
 api_key="API Key"
 key1="Project ID"
@@ -3569,6 +4393,51 @@ placeholder="Enter Allowed Auth Methods"
 required=true
 type="MultiSelect"
 options=["PAN_ONLY", "CRYPTOGRAM_3DS"]
+
+[[trustpay.connector_wallets_details.google_pay]]
+name="merchant_name"
+label="Google Pay Merchant Name"
+placeholder="Enter Google Pay Merchant Name"
+required=true
+type="Text"
+[[trustpay.connector_wallets_details.google_pay]]
+name="merchant_id"
+label="Google Pay Merchant Id"
+placeholder="Enter Google Pay Merchant Id"
+required=true
+type="Text"
+[[trustpay.connector_wallets_details.google_pay]]
+name="gateway_merchant_id"
+label="Google Pay Merchant Key"
+placeholder="Enter Google Pay Merchant Key"
+required=true
+type="Text"
+[[trustpay.connector_wallets_details.google_pay]]
+name="public_key"
+label="Google Pay Public Key"
+placeholder="Enter Google Pay Public Key"
+required=true
+type="Text"
+[[trustpay.connector_wallets_details.google_pay]]
+name="private_key"
+label="Google Pay Private Key"
+placeholder="Enter Google Pay Private Key"
+required=true
+type="Text"
+[[trustpay.connector_wallets_details.google_pay]]
+name="recipient_id"
+label="Recipient Id"
+placeholder="Enter Recipient Id"
+required=true
+type="Text"
+[[trustpay.connector_wallets_details.google_pay]]
+name="allowed_auth_methods"
+label="Allowed Auth Methods"
+placeholder="Enter Allowed Auth Methods"
+required=true
+type="MultiSelect"
+options=["PAN_ONLY", "CRYPTOGRAM_3DS"]
+
 
 [tsys]
 [[tsys.credit]]
@@ -3803,6 +4672,51 @@ placeholder="Enter Allowed Auth Methods"
 required=true
 type="MultiSelect"
 options=["PAN_ONLY", "CRYPTOGRAM_3DS"]
+
+[[worldpay.connector_wallets_details.google_pay]]
+name="merchant_name"
+label="Google Pay Merchant Name"
+placeholder="Enter Google Pay Merchant Name"
+required=true
+type="Text"
+[[worldpay.connector_wallets_details.google_pay]]
+name="merchant_id"
+label="Google Pay Merchant Id"
+placeholder="Enter Google Pay Merchant Id"
+required=true
+type="Text"
+[[worldpay.connector_wallets_details.google_pay]]
+name="gateway_merchant_id"
+label="Google Pay Merchant Key"
+placeholder="Enter Google Pay Merchant Key"
+required=true
+type="Text"
+[[worldpay.connector_wallets_details.google_pay]]
+name="public_key"
+label="Google Pay Public Key"
+placeholder="Enter Google Pay Public Key"
+required=true
+type="Text"
+[[worldpay.connector_wallets_details.google_pay]]
+name="private_key"
+label="Google Pay Private Key"
+placeholder="Enter Google Pay Private Key"
+required=true
+type="Text"
+[[worldpay.connector_wallets_details.google_pay]]
+name="recipient_id"
+label="Recipient Id"
+placeholder="Enter Recipient Id"
+required=true
+type="Text"
+[[worldpay.connector_wallets_details.google_pay]]
+name="allowed_auth_methods"
+label="Allowed Auth Methods"
+placeholder="Enter Allowed Auth Methods"
+required=true
+type="MultiSelect"
+options=["PAN_ONLY", "CRYPTOGRAM_3DS"]
+
 
 [zen]
 [[zen.credit]]
@@ -4195,6 +5109,24 @@ label="Pull Mechanism Enabled"
 placeholder="Enter Pull Mechanism Enabled"
 required=false
 type="Toggle"
+[threedsecureio.metadata.acquirer_bin]
+name="acquirer_bin"
+label="Acquirer BIN"
+placeholder="Enter Acquirer BIN"
+required=true
+type="Text"
+[threedsecureio.metadata.acquirer_merchant_id]
+name="acquirer_merchant_id"
+label="Acquirer Merchant ID"
+placeholder="Enter Acquirer Merchant ID"
+required=true
+type="Text"
+[threedsecureio.metadata.acquirer_country_code]
+name="acquirer_country_code"
+label="Acquirer Country Code"
+placeholder="Enter Acquirer Country Code"
+required=false
+type="Text"
 
 [netcetera]
 [netcetera.connector_auth.CertificateAuth]
@@ -4483,6 +5415,7 @@ api_secret="Shared Secret"
 api_key="Verify Key"
 key1="Merchant ID"
 api_secret="Secret Key"
+
 [[fiuu.metadata.google_pay]]
 name="merchant_name"
 label="Google Pay Merchant Name"
@@ -4508,6 +5441,51 @@ placeholder="Enter Allowed Auth Methods"
 required=true
 type="MultiSelect"
 options=["PAN_ONLY", "CRYPTOGRAM_3DS"]
+
+[[fiuu.connector_wallets_details.google_pay]]
+name="merchant_name"
+label="Google Pay Merchant Name"
+placeholder="Enter Google Pay Merchant Name"
+required=true
+type="Text"
+[[fiuu.connector_wallets_details.google_pay]]
+name="merchant_id"
+label="Google Pay Merchant Id"
+placeholder="Enter Google Pay Merchant Id"
+required=true
+type="Text"
+[[fiuu.connector_wallets_details.google_pay]]
+name="gateway_merchant_id"
+label="Google Pay Merchant Key"
+placeholder="Enter Google Pay Merchant Key"
+required=true
+type="Text"
+[[fiuu.connector_wallets_details.google_pay]]
+name="public_key"
+label="Google Pay Public Key"
+placeholder="Enter Google Pay Public Key"
+required=true
+type="Text"
+[[fiuu.connector_wallets_details.google_pay]]
+name="private_key"
+label="Google Pay Private Key"
+placeholder="Enter Google Pay Private Key"
+required=true
+type="Text"
+[[fiuu.connector_wallets_details.google_pay]]
+name="recipient_id"
+label="Recipient Id"
+placeholder="Enter Recipient Id"
+required=true
+type="Text"
+[[fiuu.connector_wallets_details.google_pay]]
+name="allowed_auth_methods"
+label="Allowed Auth Methods"
+placeholder="Enter Allowed Auth Methods"
+required=true
+type="MultiSelect"
+options=["PAN_ONLY", "CRYPTOGRAM_3DS"]
+
 
 [[fiuu.metadata.apple_pay]]
 name="certificate"
@@ -4563,6 +5541,171 @@ options=["Hyperswitch"]
 
 [fiuu.connector_webhook_details]
 merchant_secret="Source verification key"
+
+[tokenio]
+[[tokenio.open_banking]]
+  payment_method_type = "open_banking_pis"
+[tokenio.connector_webhook_details]
+merchant_secret="Tokenio Public Key"
+[tokenio.connector_auth.MultiAuthKey]
+api_key="Key Id"
+api_secret="Private Key"
+key1="Merchant Id"
+key2="Key Algorithm"
+[tokenio.additional_merchant_data.open_banking_recipient_data]
+name="open_banking_recipient_data"
+label="Open Banking Recipient Data"
+placeholder="Enter Open Banking Recipient Data"
+required=true
+type="Select"
+options=["account_data"]
+[tokenio.additional_merchant_data.account_data]
+name="account_data"
+label="Bank scheme"
+placeholder="Enter account_data"
+required=true
+type="Select"
+options=["iban","bacs","faster_payments","sepa","sepa_instant","elixir","bankgiro","plusgiro"]
+
+[[tokenio.additional_merchant_data.iban]]
+name = "iban"
+label = "IBAN"
+placeholder = "Enter IBAN"
+required = true
+type = "Text"
+
+[[tokenio.additional_merchant_data.iban]]
+name = "iban_name"
+label = "Account Holder Name"
+placeholder = "Enter account holder name"
+required = true
+type = "Text"
+
+# BACS Configuration (array of InputData)
+[[tokenio.additional_merchant_data.bacs]]
+name = "bacs_sort_code"
+label = "Sort Code"
+placeholder = "Enter sort code (e.g., 12-34-56)"
+required = true
+type = "Text"
+
+[[tokenio.additional_merchant_data.bacs]]
+name = "bacs_account_number"
+label = "Account Number"
+placeholder = "Enter account number"
+required = true
+type = "Text"
+
+[[tokenio.additional_merchant_data.bacs]]
+name = "bacs_name"
+label = "Account Holder Name"
+placeholder = "Enter account holder name"
+required = true
+type = "Text"
+
+# Faster Payments Configuration (array of InputData)
+[[tokenio.additional_merchant_data.faster_payments]]
+name = "faster_payments_sort_code"
+label = "Sort Code"
+placeholder = "Enter sort code (e.g., 12-34-56)"
+required = true
+type = "Text"
+
+[[tokenio.additional_merchant_data.faster_payments]]
+name = "faster_payments_account_number"
+label = "Account Number"
+placeholder = "Enter account number"
+required = true
+type = "Text"
+
+[[tokenio.additional_merchant_data.faster_payments]]
+name = "faster_payments_name"
+label = "Account Holder Name"
+placeholder = "Enter account holder name"
+required = true
+type = "Text"
+
+# SEPA Configuration (array of InputData)
+[[tokenio.additional_merchant_data.sepa]]
+name = "sepa_iban"
+label = "IBAN"
+placeholder = "Enter IBAN"
+required = true
+type = "Text"
+
+[[tokenio.additional_merchant_data.sepa]]
+name = "sepa_name"
+label = "Account Holder Name"
+placeholder = "Enter account holder name"
+required = true
+type = "Text"
+
+# SEPA Instant Configuration (array of InputData)
+[[tokenio.additional_merchant_data.sepa_instant]]
+name = "sepa_instant_iban"
+label = "IBAN"
+placeholder = "Enter IBAN"
+required = true
+type = "Text"
+
+[[tokenio.additional_merchant_data.sepa_instant]]
+name = "sepa_instant_name"
+label = "Account Holder Name"
+placeholder = "Enter account holder name"
+required = true
+type = "Text"
+
+# Elixir Configuration (array of InputData)
+[[tokenio.additional_merchant_data.elixir]]
+name = "elixir_account_number"
+label = "Account Number"
+placeholder = "Enter account number"
+required = true
+type = "Text"
+
+[[tokenio.additional_merchant_data.elixir]]
+name = "elixir_iban"
+label = "IBAN"
+placeholder = "Enter IBAN"
+required = true
+type = "Text"
+
+[[tokenio.additional_merchant_data.elixir]]
+name = "elixir_name"
+label = "Account Holder Name"
+placeholder = "Enter account holder name"
+required = true
+type = "Text"
+
+# Bankgiro Configuration (array of InputData)
+[[tokenio.additional_merchant_data.bankgiro]]
+name = "bankgiro_number"
+label = "Bankgiro Number"
+placeholder = "Enter bankgiro number"
+required = true
+type = "Text"
+
+[[tokenio.additional_merchant_data.bankgiro]]
+name = "bankgiro_name"
+label = "Account Holder Name"
+placeholder = "Enter account holder name"
+required = true
+type = "Text"
+
+# Plusgiro Configuration (array of InputData)
+[[tokenio.additional_merchant_data.plusgiro]]
+name = "plusgiro_number"
+label = "Plusgiro Number"
+placeholder = "Enter plusgiro number"
+required = true
+type = "Text"
+
+[[tokenio.additional_merchant_data.plusgiro]]
+name = "plusgiro_name"
+label = "Account Holder Name"
+placeholder = "Enter account holder name"
+required = true
+type = "Text"
 
 [elavon]
 [[elavon.credit]]
@@ -4631,13 +5774,7 @@ placeholder="Enter locale"
 required=true
 type="Text"
 
-[ctp_mastercard.metadata.card_brands]
-name="card_brands"
-label="Card Brands"
-placeholder="Enter Card Brands"
-required=true
-type="MultiSelect"
-options=["visa","mastercard"]
+
 
 [ctp_mastercard.metadata.acquirer_bin]
 name="acquirer_bin"
@@ -4812,3 +5949,362 @@ api_key="API Key"
 [hipay.connector_auth.BodyKey]
 api_key="API Login ID"
 key1="API password"
+
+[ctp_visa]
+[ctp_visa.connector_auth.NoKey]
+
+
+[ctp_visa.metadata.dpa_id]
+name="dpa_id"
+label="DPA Id"
+placeholder="Enter DPA Id"
+required=true
+type="Text"
+
+[ctp_visa.metadata.dpa_name]
+name="dpa_name"
+label="DPA Name"
+placeholder="Enter DPA Name"
+required=true
+type="Text"
+
+[ctp_visa.metadata.locale]
+name="locale"
+label="Locale"
+placeholder="Enter locale"
+required=true
+type="Text"
+
+
+[ctp_visa.metadata.acquirer_bin]
+name="acquirer_bin"
+label="Acquire Bin"
+placeholder="Enter Acquirer Bin"
+required=true
+type="Text"
+
+[ctp_visa.metadata.acquirer_merchant_id]
+name="acquirer_merchant_id"
+label="Acquire Merchant Id"
+placeholder="Enter Acquirer Merchant Id"
+required=true
+type="Text"
+
+[ctp_visa.metadata.merchant_category_code]
+name="merchant_category_code"
+label="Merchant Category Code"
+placeholder="Enter Merchant Category Code"
+required=true
+type="Text"
+
+[ctp_visa.metadata.merchant_country_code]
+name="merchant_country_code"
+label="Merchant Country Code"
+placeholder="Enter Merchant Country Code"
+required=true
+type="Text"
+
+[ctp_visa.metadata.dpa_client_id]
+name="dpa_client_id"
+label="DPA Client ID"
+placeholder="Enter DPA Client ID"
+required=true
+type="Text"
+
+[redsys]
+[[redsys.credit]]
+payment_method_type = "Mastercard"
+[[redsys.credit]]
+payment_method_type = "Visa"
+[[redsys.credit]]
+payment_method_type = "AmericanExpress"
+[[redsys.credit]]
+payment_method_type = "JCB"
+[[redsys.credit]]
+payment_method_type = "DinersClub"
+[[redsys.credit]]
+payment_method_type = "UnionPay"
+[[redsys.debit]]
+payment_method_type = "Mastercard"
+[[redsys.debit]]
+payment_method_type = "Visa"
+[[redsys.debit]]
+payment_method_type = "AmericanExpress"
+[[redsys.debit]]
+payment_method_type = "JCB"
+[[redsys.debit]]
+payment_method_type = "DinersClub"
+[[redsys.debit]]
+payment_method_type = "UnionPay"
+[redsys.connector_auth.SignatureKey]
+api_key = "Merchant ID"
+key1 = "Terminal ID"
+api_secret = "Secret Key"
+
+[facilitapay]
+[[facilitapay.bank_transfer]]
+  payment_method_type = "pix"
+[facilitapay.connector_auth.BodyKey]
+  api_key="Password"
+  key1="Username"
+
+[archipel]
+[archipel.connector_auth.HeaderKey]
+api_key="Enter CA Certificate PEM"
+[[archipel.credit]]
+payment_method_type = "Mastercard"
+[[archipel.credit]]
+payment_method_type = "Visa"
+[[archipel.credit]]
+payment_method_type = "AmericanExpress"
+[[archipel.credit]]
+payment_method_type = "DinersClub"
+[[archipel.credit]]
+payment_method_type = "Discover"
+[[archipel.credit]]
+payment_method_type = "CartesBancaires"
+[[archipel.debit]]
+payment_method_type = "Mastercard"
+[[archipel.debit]]
+payment_method_type = "Visa"
+[[archipel.debit]]
+payment_method_type = "AmericanExpress"
+[[archipel.debit]]
+payment_method_type = "DinersClub"
+[[archipel.debit]]
+payment_method_type = "Discover"
+[[archipel.debit]]
+payment_method_type = "CartesBancaires"
+[[archipel.wallet]]
+payment_method_type = "apple_pay"
+[archipel.metadata.tenant_id]
+name="tenant_id"
+label="Tenant ID"
+placeholder="Enter Archipel tenantID"
+required=true
+type="Text"
+[archipel.metadata.platform_url]
+name="platform_url"
+label="Platform Endpoint Prefix"
+placeholder="E.g. 192.0.0.1:8080"
+required=true
+type="Text"
+[[archipel.metadata.apple_pay]]
+name="certificate"
+label="Merchant Certificate (Base64 Encoded)"
+placeholder="Enter Merchant Certificate (Base64 Encoded)"
+required=true
+type="Text"
+[[archipel.metadata.apple_pay]]
+name="certificate_keys"
+label="Merchant PrivateKey (Base64 Encoded)"
+placeholder="Enter Merchant PrivateKey (Base64 Encoded)"
+required=true
+type="Text"
+[[archipel.metadata.apple_pay]]
+name="merchant_identifier"
+label="Apple Merchant Identifier"
+placeholder="Enter Apple Merchant Identifier"
+required=true
+type="Text"
+[[archipel.metadata.apple_pay]]
+name="display_name"
+label="Display Name"
+placeholder="Enter Display Name"
+required=true
+type="Text"
+[[archipel.metadata.apple_pay]]
+name="initiative"
+label="Domain"
+placeholder="Enter Domain"
+required=true
+type="Select"
+options=["web","ios"]
+[[archipel.metadata.apple_pay]]
+name="initiative_context"
+label="Domain Name"
+placeholder="Enter Domain Name"
+required=true
+type="Text"
+[[archipel.metadata.apple_pay]]
+name="merchant_business_country"
+label="Merchant Business Country"
+placeholder="Enter Merchant Business Country"
+required=true
+type="Select"
+options=[]
+[[archipel.metadata.apple_pay]]
+name="payment_processing_details_at"
+label="Payment Processing Details At"
+placeholder="Enter Payment Processing Details At"
+required=true
+type="Radio"
+options=["Hyperswitch"]
+
+[archipel.metadata.acquirer_bin]
+name = "acquirer_bin"
+label = "Acquirer Bin"
+placeholder = "Enter Acquirer Bin"
+required = false
+type = "Text"
+[archipel.metadata.acquirer_merchant_id]
+name = "acquirer_merchant_id"
+label = "Acquirer Merchant ID"
+placeholder = "Enter Acquirer Merchant ID"
+required = false
+type = "Text"
+
+
+[worldpayxml]
+[[worldpayxml.credit]]
+  payment_method_type = "Mastercard"
+[[worldpayxml.credit]]
+  payment_method_type = "Visa"
+[[worldpayxml.credit]]
+  payment_method_type = "Interac"
+[[worldpayxml.credit]]
+  payment_method_type = "AmericanExpress"
+[[worldpayxml.credit]]
+  payment_method_type = "JCB"
+[[worldpayxml.credit]]
+  payment_method_type = "DinersClub"
+[[worldpayxml.credit]]
+  payment_method_type = "Discover"
+[[worldpayxml.credit]]
+  payment_method_type = "CartesBancaires"
+[[worldpayxml.credit]]
+  payment_method_type = "UnionPay"
+[[worldpayxml.debit]]
+  payment_method_type = "Mastercard"
+[[worldpayxml.debit]]
+  payment_method_type = "Visa"
+[[worldpayxml.debit]]
+  payment_method_type = "Interac"
+[[worldpayxml.debit]]
+  payment_method_type = "AmericanExpress"
+[[worldpayxml.debit]]
+  payment_method_type = "JCB"
+[[worldpayxml.debit]]
+  payment_method_type = "DinersClub"
+[[worldpayxml.debit]]
+  payment_method_type = "Discover"
+[[worldpayxml.debit]]
+  payment_method_type = "CartesBancaires"
+[[worldpayxml.debit]]
+  payment_method_type = "UnionPay"
+
+[worldpayxml.connector_auth.SignatureKey]
+api_secret="Merchant Code"
+api_key="API Username"
+key1="API Password"
+
+[worldpayvantiv]
+[[worldpayvantiv.credit]]
+  payment_method_type = "Mastercard"
+[[worldpayvantiv.credit]]
+  payment_method_type = "Visa"
+[[worldpayvantiv.credit]]
+  payment_method_type = "AmericanExpress"
+[[worldpayvantiv.credit]]
+  payment_method_type = "JCB"
+[[worldpayvantiv.credit]]
+  payment_method_type = "DinersClub"
+[[worldpayvantiv.credit]]
+  payment_method_type = "Discover"
+[[worldpayvantiv.debit]]
+  payment_method_type = "Mastercard"
+[[worldpayvantiv.debit]]
+  payment_method_type = "Visa"
+[[worldpayvantiv.debit]]
+  payment_method_type = "AmericanExpress"
+[[worldpayvantiv.debit]]
+  payment_method_type = "JCB"
+[[worldpayvantiv.debit]]
+  payment_method_type = "DinersClub"
+[[worldpayvantiv.debit]]
+  payment_method_type = "Discover"
+
+[worldpayvantiv.connector_auth.SignatureKey]
+api_key="Username"
+api_secret="Password"
+key1="Merchant ID"
+
+[worldpayvantiv.metadata.report_group]
+name="report_group"
+label="Default Report Group"
+placeholder="Enter Default Report Group"
+required=true
+type="Text"
+
+[worldpayvantiv.metadata.merchant_config_currency]
+name="merchant_config_currency"
+label="Currency"
+placeholder="Enter Currency"
+required=true
+type="Select"
+options=[]
+
+[santander.connector_auth.BodyKey]
+api_key="Client ID"
+key1="Client Secret"
+
+[santander.metadata.pix_key]
+name="pix_key"
+label="Chave Key"
+placeholder="Enter your Chave/Pix Key"
+required=true
+type="Text"
+
+[santander.metadata.expiration_time]
+name="expiration_time"
+label="Expiration Time"
+placeholder="Enter your Pix QR Code Expiration Time"
+required=true
+type="Number"
+
+[santander.metadata.cpf]
+name="cpf"
+label="Cpf"
+placeholder="Enter your cpf number"
+required=true
+type="Text"
+
+[santander.metadata.merchant_city]
+name="merchant_city"
+label="Merchant City"
+placeholder="Enter the city the merchant is based in"
+required=true
+type="Text"
+
+[santander.metadata.merchant_name]
+name="merchant_name"
+label="Merchant Name"
+placeholder="Enter the merchant name"
+required=true
+type="Text"
+
+[payload]
+[[payload.credit]]
+  payment_method_type = "AmericanExpress"
+[[payload.credit]]
+  payment_method_type = "Discover"
+[[payload.credit]]
+  payment_method_type = "Mastercard"
+[[payload.credit]]
+  payment_method_type = "Visa"
+[[payload.debit]]
+  payment_method_type = "AmericanExpress"
+[[payload.debit]]
+  payment_method_type = "Discover"
+[[payload.debit]]
+  payment_method_type = "Mastercard"
+[[payload.debit]]
+  payment_method_type = "Visa"
+[payload.connector_auth.HeaderKey]
+api_key="API Key"
+[payload.connector_webhook_details]
+merchant_secret="Source verification key"
+[silverflow]
+[silverflow.connector_auth.BodyKey]
+api_key="API Key"
+key1="Secret Key"

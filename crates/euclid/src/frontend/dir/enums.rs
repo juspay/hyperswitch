@@ -1,10 +1,12 @@
 use strum::VariantNames;
+use utoipa::ToSchema;
 
 use crate::enums::collect_variants;
 pub use crate::enums::{
     AuthenticationType, CaptureMethod, CardNetwork, Country, Country as BusinessCountry,
-    Country as BillingCountry, CountryAlpha2, Currency as PaymentCurrency, MandateAcceptanceType,
-    MandateType, PaymentMethod, PaymentType, RoutableConnectors, SetupFutureUsage,
+    Country as BillingCountry, Country as IssuerCountry, Country as AcquirerCountry, CountryAlpha2,
+    Currency as PaymentCurrency, MandateAcceptanceType, MandateType, PaymentMethod, PaymentType,
+    RoutableConnectors, SetupFutureUsage,
 };
 #[cfg(feature = "payouts")]
 pub use crate::enums::{PayoutBankTransferType, PayoutType, PayoutWalletType};
@@ -27,6 +29,8 @@ pub use crate::enums::{PayoutBankTransferType, PayoutType, PayoutWalletType};
 pub enum CardType {
     Credit,
     Debit,
+    #[cfg(feature = "v2")]
+    Card,
 }
 
 #[derive(
@@ -93,6 +97,7 @@ pub enum WalletType {
     Venmo,
     Mifinity,
     Paze,
+    RevolutPay,
 }
 
 #[derive(
@@ -201,7 +206,7 @@ pub enum OpenBankingType {
 pub enum BankTransferType {
     Multibanco,
     Ach,
-    Sepa,
+    SepaBankTransfer,
     Bacs,
     BcaBankTransfer,
     BniVa,
@@ -213,6 +218,9 @@ pub enum BankTransferType {
     Pix,
     Pse,
     LocalBankTransfer,
+    InstantBankTransfer,
+    InstantBankTransferFinland,
+    InstantBankTransferPoland,
 }
 
 #[derive(
@@ -379,6 +387,100 @@ pub enum RewardType {
     Evoucher,
 }
 
+#[derive(
+    Clone,
+    Debug,
+    Hash,
+    PartialEq,
+    Eq,
+    strum::Display,
+    strum::VariantNames,
+    strum::EnumIter,
+    strum::EnumString,
+    serde::Serialize,
+    serde::Deserialize,
+    ToSchema,
+)]
+#[serde(rename_all = "snake_case")]
+#[strum(serialize_all = "snake_case")]
+pub enum CustomerDevicePlatform {
+    Web,
+    Android,
+    Ios,
+}
+
+#[derive(
+    Clone,
+    Debug,
+    Hash,
+    PartialEq,
+    Eq,
+    strum::Display,
+    strum::VariantNames,
+    strum::EnumIter,
+    strum::EnumString,
+    serde::Serialize,
+    serde::Deserialize,
+    ToSchema,
+)]
+#[serde(rename_all = "snake_case")]
+#[strum(serialize_all = "snake_case")]
+pub enum CustomerDeviceType {
+    Mobile,
+    Tablet,
+    Desktop,
+    GamingConsole,
+}
+
+// Common display sizes for different device types
+#[derive(
+    Clone,
+    Debug,
+    Hash,
+    PartialEq,
+    Eq,
+    strum::Display,
+    strum::VariantNames,
+    strum::EnumIter,
+    strum::EnumString,
+    serde::Serialize,
+    serde::Deserialize,
+    ToSchema,
+)]
+#[serde(rename_all = "snake_case")]
+#[strum(serialize_all = "snake_case")]
+pub enum CustomerDeviceDisplaySize {
+    // Mobile sizes
+    Size320x568, // iPhone SE
+    Size375x667, // iPhone 8
+    Size390x844, // iPhone 12/13
+    Size414x896, // iPhone XR/11
+    Size428x926, // iPhone 12/13 Pro Max
+
+    // Tablet sizes
+    Size768x1024,  // iPad
+    Size834x1112,  // iPad Pro 10.5
+    Size834x1194,  // iPad Pro 11
+    Size1024x1366, // iPad Pro 12.9
+
+    // Desktop sizes
+    Size1280x720,  // HD
+    Size1366x768,  // Common laptop
+    Size1440x900,  // MacBook Air
+    Size1920x1080, // Full HD
+    Size2560x1440, // QHD
+    Size3840x2160, // 4K
+
+    // Custom sizes
+    Size500x600,
+    Size600x400,
+
+    // Other common sizes
+    Size360x640,  // Common Android
+    Size412x915,  // Pixel 6
+    Size800x1280, // Common Android tablet
+}
+
 collect_variants!(CardType);
 collect_variants!(PayLaterType);
 collect_variants!(WalletType);
@@ -394,3 +496,6 @@ collect_variants!(BankTransferType);
 collect_variants!(CardRedirectType);
 collect_variants!(OpenBankingType);
 collect_variants!(MobilePaymentType);
+collect_variants!(CustomerDeviceType);
+collect_variants!(CustomerDevicePlatform);
+collect_variants!(CustomerDeviceDisplaySize);

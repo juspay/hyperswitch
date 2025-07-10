@@ -4,6 +4,16 @@
  * UTIL FUNCTIONS
  */
 
+function decodeUri(uri) {
+  try {
+    var uriStr = decodeURIComponent(uri);
+    return JSON.parse(uriStr);
+  } catch (e) {
+    console.error("Error decoding and parsing string URI:", e);
+    return uri;
+  }
+}
+
 /**
  * Ref - https://github.com/onury/invert-color/blob/master/lib/cjs/invert.js
  */
@@ -52,8 +62,8 @@ function invertToBW(color, bw, asArr) {
       ? hexToRgbArray(options.black)
       : options.black
     : asArr
-    ? hexToRgbArray(options.white)
-    : options.white;
+      ? hexToRgbArray(options.white)
+      : options.white;
 }
 function invert(color, bw) {
   if (bw === void 0) {
@@ -86,7 +96,37 @@ window.state = {
   isMobileView: window.innerWidth <= 1400,
 };
 
-const translations = getTranslations(window.__PAYMENT_DETAILS.locale);
+// @ts-ignore
+var encodedPaymentDetails = window.__PAYMENT_DETAILS;
+var paymentDetails = decodeUri(encodedPaymentDetails);
+
+// @ts-ignore
+const translations = getTranslations(paymentDetails.locale);
+
+var isFramed = false;
+try {
+  isFramed = window.parent.location !== window.location;
+
+  // If parent's window object is restricted, DOMException is
+  // thrown which concludes that the webpage is iframed
+} catch (err) {
+  isFramed = true;
+}
+
+/**
+ * Trigger - on boot
+ * Use - emit latest payment status to parent window
+ */
+function emitPaymentStatus(paymentDetails) {
+  var message = {
+    payment: {
+      status: paymentDetails.status,
+    }
+  };
+
+  window.parent.postMessage(message, "*");
+}
+
 /**
  * Trigger - init function invoked once the script tag is loaded
  * Use
@@ -97,23 +137,43 @@ const translations = getTranslations(window.__PAYMENT_DETAILS.locale);
  *  - Initialize SDK
  **/
 function boot() {
-  // @ts-ignore
-  var paymentDetails = window.__PAYMENT_DETAILS;
-
-  // Attach document icon
-  if (paymentDetails.merchant_logo) {
-    var link = document.createElement("link");
-    link.rel = "icon";
-    link.href = paymentDetails.merchant_logo;
-    link.type = "image/x-icon";
-    document.head.appendChild(link);
+  // Emit latest payment status
+  if (isFramed) {
+    emitPaymentStatus(paymentDetails);
   }
 
-  // Render status details
-  renderStatusDetails(paymentDetails);
+  if (shouldRenderUI(paymentDetails)) {
+    removeClass("body", "hidden");
+    // Attach document icon
+    if (paymentDetails.merchant_logo) {
+      var link = document.createElement("link");
+      link.rel = "icon";
+      link.href = paymentDetails.merchant_logo;
+      link.type = "image/x-icon";
+      document.head.appendChild(link);
+    }
 
-  // Add event listeners
-  initializeEventListeners(paymentDetails);
+    // Render status details
+    renderStatusDetails(paymentDetails);
+
+    // Add event listeners
+    initializeEventListeners(paymentDetails);
+  }
+}
+
+/**
+ * Trigger - on boot
+ * Use - Check if UI should be rendered based on some conditions
+ * @returns {Boolean}
+ */
+function shouldRenderUI(paymentDetails) {
+  var status = paymentDetails.status;
+  if (isFramed) {
+    switch (status) {
+      case "requires_customer_action": return false;
+    }
+  }
+  return true;
 }
 
 /**
@@ -158,6 +218,7 @@ function renderStatusDetails(paymentDetails) {
       ).toTimeString();
       break;
 
+    case "requires_customer_action":
     case "processing":
       statusDetails.imageSource = "https://live.hyperswitch.io/payment-link-assets/pending.png";
       statusDetails.message = translations.paymentTakingLonger;
@@ -223,7 +284,7 @@ function renderStatusDetails(paymentDetails) {
   var merchantLogoNode = document.createElement("img");
   merchantLogoNode.className = "hyper-checkout-status-merchant-logo";
   // @ts-ignore
-  merchantLogoNode.src = window.__PAYMENT_DETAILS.merchant_logo;
+  merchantLogoNode.src = paymentDetails.merchant_logo;
   merchantLogoNode.alt = "";
 
   // Form content items
@@ -279,7 +340,7 @@ function renderStatusDetails(paymentDetails) {
           var innerText =
             secondsLeft === 0
               ? translations.redirecting
-              : translations.redirectingIn + secondsLeft + " "+translations.seconds;
+              : translations.redirectingIn + secondsLeft + " " + translations.seconds;
           // @ts-ignore
           statusRedirectTextNode.innerText = innerText;
           if (secondsLeft === 0) {
@@ -341,5 +402,18 @@ function initializeEventListeners(paymentDetails) {
   if (statusRedirectTextNode instanceof HTMLDivElement) {
     statusRedirectTextNode.style.color = contrastBWColor;
   }
-  };
+};
 
+function addClass(id, className) {
+  var element = document.querySelector(id);
+  if (element instanceof HTMLElement) {
+    element.classList.add(className);
+  }
+}
+
+function removeClass(id, className) {
+  var element = document.querySelector(id);
+  if (element instanceof HTMLElement) {
+    element.classList.remove(className);
+  }
+}

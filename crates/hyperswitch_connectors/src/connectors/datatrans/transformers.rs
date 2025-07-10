@@ -458,7 +458,7 @@ fn create_card_details(
                 .threeds_server_transaction_id
                 .clone()
                 .map(Secret::new),
-            cavv: Secret::new(auth_data.cavv.clone()),
+            cavv: auth_data.cavv.clone(),
             eci: auth_data.eci.clone(),
             xid: auth_data.ds_trans_id.clone().map(Secret::new),
             three_ds_version: auth_data
@@ -560,8 +560,9 @@ impl<F>
                 attempt_status: None,
                 connector_transaction_id: None,
                 status_code: item.http_code,
-                issuer_error_code: None,
-                issuer_error_message: None,
+                network_advice_code: None,
+                network_decline_code: None,
+                network_error_message: None,
             }),
             DatatransResponse::TransactionResponse(response) => {
                 Ok(PaymentsResponseData::TransactionResponse {
@@ -579,8 +580,8 @@ impl<F>
             }
             DatatransResponse::ThreeDSResponse(response) => {
                 let redirection_link = match item.data.test_mode {
-                    Some(true) => format!("{}/v1/start", REDIRECTION_SBX_URL),
-                    Some(false) | None => format!("{}/v1/start", REDIRECTION_PROD_URL),
+                    Some(true) => format!("{REDIRECTION_SBX_URL}/v1/start"),
+                    Some(false) | None => format!("{REDIRECTION_PROD_URL}/v1/start"),
                 };
                 Ok(PaymentsResponseData::TransactionResponse {
                     resource_id: ResponseId::ConnectorTransactionId(
@@ -631,8 +632,9 @@ impl<F>
                 attempt_status: None,
                 connector_transaction_id: None,
                 status_code: item.http_code,
-                issuer_error_code: None,
-                issuer_error_message: None,
+                network_advice_code: None,
+                network_decline_code: None,
+                network_error_message: None,
             }),
             DatatransResponse::TransactionResponse(response) => {
                 Ok(PaymentsResponseData::TransactionResponse {
@@ -650,8 +652,8 @@ impl<F>
             }
             DatatransResponse::ThreeDSResponse(response) => {
                 let redirection_link = match item.data.test_mode {
-                    Some(true) => format!("{}/v1/start", REDIRECTION_SBX_URL),
-                    Some(false) | None => format!("{}/v1/start", REDIRECTION_PROD_URL),
+                    Some(true) => format!("{REDIRECTION_SBX_URL}/v1/start"),
+                    Some(false) | None => format!("{REDIRECTION_PROD_URL}/v1/start"),
                 };
                 Ok(PaymentsResponseData::TransactionResponse {
                     resource_id: ResponseId::ConnectorTransactionId(
@@ -708,8 +710,9 @@ impl TryFrom<RefundsResponseRouterData<Execute, DatatransRefundsResponse>>
                     attempt_status: None,
                     connector_transaction_id: None,
                     status_code: item.http_code,
-                    issuer_error_code: None,
-                    issuer_error_message: None,
+                    network_advice_code: None,
+                    network_decline_code: None,
+                    network_error_message: None,
                 }),
                 ..item.data
             }),
@@ -739,8 +742,9 @@ impl TryFrom<RefundsResponseRouterData<RSync, DatatransSyncResponse>>
                 attempt_status: None,
                 connector_transaction_id: None,
                 status_code: item.http_code,
-                issuer_error_code: None,
-                issuer_error_message: None,
+                network_advice_code: None,
+                network_decline_code: None,
+                network_error_message: None,
             }),
             DatatransSyncResponse::Response(response) => Ok(RefundsResponseData {
                 connector_refund_id: response.transaction_id.to_string(),
@@ -770,8 +774,9 @@ impl TryFrom<PaymentsSyncResponseRouterData<DatatransSyncResponse>>
                     attempt_status: None,
                     connector_transaction_id: None,
                     status_code: item.http_code,
-                    issuer_error_code: None,
-                    issuer_error_message: None,
+                    network_advice_code: None,
+                    network_decline_code: None,
+                    network_error_message: None,
                 });
                 Ok(Self {
                     response,
@@ -795,8 +800,9 @@ impl TryFrom<PaymentsSyncResponseRouterData<DatatransSyncResponse>>
                         status_code: item.http_code,
                         attempt_status: None,
                         connector_transaction_id: None,
-                        issuer_error_code: None,
-                        issuer_error_message: None,
+                        network_advice_code: None,
+                        network_decline_code: None,
+                        network_error_message: None,
                     })
                 } else {
                     let mandate_reference = sync_response

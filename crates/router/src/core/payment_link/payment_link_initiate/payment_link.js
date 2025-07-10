@@ -1,8 +1,18 @@
-// @ts-nocheck
+// @ts-check
 
 /**
  * UTIL FUNCTIONS
  */
+
+function decodeUri(uri) {
+  try {
+    var uriStr = decodeURIComponent(uri);
+    return JSON.parse(uriStr);
+  } catch (e) {
+    console.error("Error decoding and parsing string URI:", e);
+    return uri;
+  }
+}
 
 function adjustLightness(hexColor, factor) {
   // Convert hex to RGB
@@ -176,10 +186,37 @@ window.state = {
 var widgets = null;
 var unifiedCheckout = null;
 // @ts-ignore
-var pub_key = window.__PAYMENT_DETAILS.pub_key;
+var encodedPaymentDetails = window.__PAYMENT_DETAILS;
+var paymentDetails = decodeUri(encodedPaymentDetails);
+var pub_key = paymentDetails.pub_key;
 var hyper = null;
 
-const translations = getTranslations(window.__PAYMENT_DETAILS.locale);
+// @ts-ignore
+const translations = getTranslations(paymentDetails.locale);
+
+var isFramed = false;
+try {
+  isFramed = window.parent.location !== window.location;
+
+  // If parent's window object is restricted, DOMException is
+  // thrown which concludes that the webpage is iframed
+} catch (err) {
+  isFramed = true;
+}
+
+/**
+ * Trigger - on boot
+ * Use - emit latest payment status to parent window
+ */
+function emitPaymentStatus(paymentDetails) {
+  var message = {
+    payment: {
+      status: paymentDetails.status,
+    }
+  };
+
+  window.parent.postMessage(message, "*");
+}
 
 /**
  * Trigger - init function invoked once the script tag is loaded
@@ -190,12 +227,11 @@ const translations = getTranslations(window.__PAYMENT_DETAILS.locale);
  *  - Initialize event listeners for updating UI on screen size changes
  *  - Initialize SDK
  **/
-
-
 function boot() {
-
-  // @ts-ignore
-  var paymentDetails = window.__PAYMENT_DETAILS;
+  // Emit latest payment status
+  if (isFramed) {
+    emitPaymentStatus(paymentDetails);
+  }
 
   if (paymentDetails.display_sdk_only) {
     hide(".checkout-page")
@@ -255,12 +291,6 @@ function boot() {
   // Add event listeners
   initializeEventListeners(paymentDetails);
 
-  // Update payment link styles
-  var paymentLinkUiRules = paymentDetails.payment_link_ui_rules;
-  if (isObject(paymentLinkUiRules)) {
-    updatePaymentLinkUi(paymentLinkUiRules);
-  }
-
   // Initialize SDK
   // @ts-ignore
   if (window.Hyper) {
@@ -318,8 +348,16 @@ function initializeEventListeners(paymentDetails) {
   // Get locale for pay now
   var payNowButtonText = document.createElement("div");
   var payNowButtonText = document.getElementById('submit-button-text');
+  var capture_type = paymentDetails.capture_method;
   if (payNowButtonText) {
-    payNowButtonText.textContent = paymentDetails.payment_button_text || translations.payNow;
+    if (paymentDetails.payment_button_text) {
+      payNowButtonText.textContent = paymentDetails.payment_button_text;
+    } else if (paymentDetails.is_setup_mandate_flow || (paymentDetails.amount === "0.00" && paymentDetails.setup_future_usage_applied === "off_session")) {
+      payNowButtonText.textContent = translations.addPaymentMethod;
+    } else {
+      payNowButtonText.textContent = capture_type === "manual" ? translations.authorizePayment : translations.payNow;
+
+    }
   }
 
   if (submitButtonNode instanceof HTMLButtonElement) {
@@ -400,7 +438,7 @@ function initializeEventListeners(paymentDetails) {
   if (paymentForm instanceof HTMLFormElement) {
     paymentForm.addEventListener("submit", function (event) {
       event.preventDefault();
-      handleSubmit(event);
+      handleSubmit(event, paymentDetails);
     })
   }
 
@@ -412,18 +450,20 @@ function initializeEventListeners(paymentDetails) {
 function handleFormReadyForSubmission() {
   window.addEventListener("message", function (event) {
     // Event listener for updating the button rules
-    if (isObject(event.data) && event.data["isFormReadyForSubmission"] !== null) {
-      let isFormReadyForSubmission = event.data["isFormReadyForSubmission"];
-      var submitButtonNode = document.getElementById("submit");
-      if (submitButtonNode instanceof HTMLButtonElement) {
-        if (isFormReadyForSubmission === false) {
-          submitButtonNode.disabled = true;
-          addClass("#submit", "not-ready");
-          addClass("#submit", "disabled");
-        } else if (isFormReadyForSubmission === true) {
-          submitButtonNode.disabled = false;
-          removeClass("#submit", "not-ready");
-          removeClass("#submit", "disabled");
+    if (event.origin == "{{sdk_origin}}") {
+      if (isObject(event.data) && event.data["isFormReadyForSubmission"] !== null) {
+        let isFormReadyForSubmission = event.data["isFormReadyForSubmission"];
+        var submitButtonNode = document.getElementById("submit");
+        if (submitButtonNode instanceof HTMLButtonElement) {
+          if (isFormReadyForSubmission === false) {
+            submitButtonNode.disabled = true;
+            addClass("#submit", "not-ready");
+            addClass("#submit", "disabled");
+          } else if (isFormReadyForSubmission === true) {
+            submitButtonNode.disabled = false;
+            removeClass("#submit", "not-ready");
+            removeClass("#submit", "disabled");
+          }
         }
       }
     }
@@ -469,12 +509,10 @@ function mountUnifiedCheckout(id) {
  *    - Toggle UI loaders appropriately
  *    - Handle errors and redirect to status page
  * @param {Event} e
+ * @param {PaymentDetails} paymentDetails
  */
 // @ts-ignore
-function handleSubmit(e) {
-  // @ts-ignore
-  var paymentDetails = window.__PAYMENT_DETAILS;
-
+function handleSubmit(e, paymentDetails) {
   // Update button loader
   hide("#submit-button-text");
   show("#submit-spinner");
@@ -518,7 +556,7 @@ function handleSubmit(e) {
         url.search = params.toString();
         window.top.location.href = url.toString();
       } else {
-        redirectToStatus();
+        redirectToStatus(paymentDetails);
       }
     })
     .catch(function (error) {
@@ -737,25 +775,33 @@ function appendMerchantDetails(paymentDetails, merchantDynamicDetails) {
       );
       var horizontalLine = document.createElement("hr");
       horizontalLine.className = "hyper-checkout-payment-horizontal-line";
-      horizontalLineContainer.append(horizontalLine);
+      if (horizontalLineContainer instanceof HTMLDivElement) {
+        horizontalLineContainer.append(horizontalLine);
+      }
 
       // max number of items to show in the merchant details
       let maxItemsInDetails = 50;
       for (var item of merchantDetailsObject) {
         var merchantData = document.createElement("div");
         merchantData.className = "hyper-checkout-payment-merchant-dynamic-data";
+        var keyNode = document.createElement("span");
+        keyNode.textContent = item.key;
+        var valueNode = document.createElement("span");
+        valueNode.textContent = item.value;
         // make the key and value bold if specified in the ui_configuration
-        var key = item.ui_configuration
-          ? item.ui_configuration.is_key_bold
-            ? item.key.bold()
-            : item.key
-          : item.key;
-        var value = item.ui_configuration
-          ? item.ui_configuration.is_value_bold
-            ? item.value.bold()
-            : item.value
-          : item.value;
-        merchantData.innerHTML = key + " : " + value;
+        if (isObject(item.ui_configuration)) {
+          if (item.ui_configuration.is_key_bold) {
+            keyNode.style.fontWeight = "bold";
+          }
+          if (item.ui_configuration.is_value_bold) {
+            valueNode.style.fontWeight = "bold";
+          }
+        }
+        var separatorNode = document.createElement("span");
+        separatorNode.textContent = " : ";
+        merchantData.appendChild(keyNode);
+        merchantData.appendChild(separatorNode);
+        merchantData.appendChild(valueNode);
 
         merchantDynamicDetails.append(merchantData);
         if (--maxItemsInDetails === 0) {
@@ -1162,25 +1208,4 @@ function renderSDKHeader(paymentDetails) {
     // sdkHeaderNode.append(sdkHeaderLogoNode);
     sdkHeaderNode.append(sdkHeaderItemNode);
   }
-}
-
-/**
- * Trigger - post UI render
- * Use - add CSS rules for the payment link
- * @param {Object} paymentLinkUiRules
- */
-function updatePaymentLinkUi(paymentLinkUiRules) {
-  Object.keys(paymentLinkUiRules).forEach(function (selector) {
-    try {
-      var node = document.querySelector(selector);
-      if (node instanceof HTMLElement) {
-        var styles = paymentLinkUiRules[selector];
-        Object.keys(styles).forEach(function (property) {
-          node.style[property] = styles[property];
-        });
-      }
-    } catch (error) {
-      console.error("Failed to apply styles to selector", selector, error);
-    }
-  })
 }

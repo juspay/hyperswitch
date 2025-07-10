@@ -3,14 +3,12 @@ use common_utils::{encryption::Encryption, pii, types::Description};
 use diesel::{AsChangeset, Identifiable, Insertable, Queryable, Selectable};
 use time::PrimitiveDateTime;
 
-#[cfg(all(feature = "v2", feature = "customer_v2"))]
-use crate::enums::DeleteStatus;
-#[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
+#[cfg(feature = "v1")]
 use crate::schema::customers;
-#[cfg(all(feature = "v2", feature = "customer_v2"))]
-use crate::schema_v2::customers;
+#[cfg(feature = "v2")]
+use crate::{enums::DeleteStatus, schema_v2::customers};
 
-#[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
+#[cfg(feature = "v1")]
 #[derive(
     Clone, Debug, router_derive::DebugAsDisplay, serde::Deserialize, serde::Serialize, Insertable,
 )]
@@ -32,14 +30,14 @@ pub struct CustomerNew {
     pub version: ApiVersion,
 }
 
-#[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
+#[cfg(feature = "v1")]
 impl CustomerNew {
     pub fn update_storage_scheme(&mut self, storage_scheme: common_enums::MerchantStorageScheme) {
         self.updated_by = Some(storage_scheme.to_string());
     }
 }
 
-#[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
+#[cfg(feature = "v1")]
 impl From<CustomerNew> for Customer {
     fn from(customer_new: CustomerNew) -> Self {
         Self {
@@ -62,7 +60,7 @@ impl From<CustomerNew> for Customer {
     }
 }
 
-#[cfg(all(feature = "v2", feature = "customer_v2"))]
+#[cfg(feature = "v2")]
 #[derive(
     Clone, Debug, Insertable, router_derive::DebugAsDisplay, serde::Deserialize, serde::Serialize,
 )]
@@ -76,7 +74,7 @@ pub struct CustomerNew {
     pub description: Option<Description>,
     pub created_at: PrimitiveDateTime,
     pub metadata: Option<pii::SecretSerdeValue>,
-    pub connector_customer: Option<ConnectorCustomerMap>,
+    pub connector_customer: Option<common_types::customers::ConnectorCustomerMap>,
     pub modified_at: PrimitiveDateTime,
     pub default_payment_method_id: Option<common_utils::id_type::GlobalPaymentMethodId>,
     pub updated_by: Option<String>,
@@ -88,14 +86,14 @@ pub struct CustomerNew {
     pub id: common_utils::id_type::GlobalCustomerId,
 }
 
-#[cfg(all(feature = "v2", feature = "customer_v2"))]
+#[cfg(feature = "v2")]
 impl CustomerNew {
     pub fn update_storage_scheme(&mut self, storage_scheme: common_enums::MerchantStorageScheme) {
         self.updated_by = Some(storage_scheme.to_string());
     }
 }
 
-#[cfg(all(feature = "v2", feature = "customer_v2"))]
+#[cfg(feature = "v2")]
 impl From<CustomerNew> for Customer {
     fn from(customer_new: CustomerNew) -> Self {
         Self {
@@ -121,7 +119,7 @@ impl From<CustomerNew> for Customer {
     }
 }
 
-#[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
+#[cfg(feature = "v1")]
 #[derive(
     Clone, Debug, Identifiable, Queryable, Selectable, serde::Deserialize, serde::Serialize,
 )]
@@ -144,7 +142,7 @@ pub struct Customer {
     pub version: ApiVersion,
 }
 
-#[cfg(all(feature = "v2", feature = "customer_v2"))]
+#[cfg(feature = "v2")]
 #[derive(
     Clone, Debug, Identifiable, Queryable, Selectable, serde::Serialize, serde::Deserialize,
 )]
@@ -158,7 +156,7 @@ pub struct Customer {
     pub description: Option<Description>,
     pub created_at: PrimitiveDateTime,
     pub metadata: Option<pii::SecretSerdeValue>,
-    pub connector_customer: Option<ConnectorCustomerMap>,
+    pub connector_customer: Option<common_types::customers::ConnectorCustomerMap>,
     pub modified_at: PrimitiveDateTime,
     pub default_payment_method_id: Option<common_utils::id_type::GlobalPaymentMethodId>,
     pub updated_by: Option<String>,
@@ -170,7 +168,7 @@ pub struct Customer {
     pub id: common_utils::id_type::GlobalCustomerId,
 }
 
-#[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
+#[cfg(feature = "v1")]
 #[derive(
     Clone, Debug, AsChangeset, router_derive::DebugAsDisplay, serde::Deserialize, serde::Serialize,
 )]
@@ -189,7 +187,7 @@ pub struct CustomerUpdateInternal {
     pub updated_by: Option<String>,
 }
 
-#[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
+#[cfg(feature = "v1")]
 impl CustomerUpdateInternal {
     pub fn apply_changeset(self, source: Customer) -> Customer {
         let Self {
@@ -223,7 +221,7 @@ impl CustomerUpdateInternal {
     }
 }
 
-#[cfg(all(feature = "v2", feature = "customer_v2"))]
+#[cfg(feature = "v2")]
 #[derive(
     Clone, Debug, AsChangeset, router_derive::DebugAsDisplay, serde::Deserialize, serde::Serialize,
 )]
@@ -236,7 +234,7 @@ pub struct CustomerUpdateInternal {
     pub phone_country_code: Option<String>,
     pub metadata: Option<pii::SecretSerdeValue>,
     pub modified_at: PrimitiveDateTime,
-    pub connector_customer: Option<ConnectorCustomerMap>,
+    pub connector_customer: Option<common_types::customers::ConnectorCustomerMap>,
     pub default_payment_method_id: Option<Option<common_utils::id_type::GlobalPaymentMethodId>>,
     pub updated_by: Option<String>,
     pub default_billing_address: Option<Encryption>,
@@ -244,7 +242,7 @@ pub struct CustomerUpdateInternal {
     pub status: Option<DeleteStatus>,
 }
 
-#[cfg(all(feature = "v2", feature = "customer_v2"))]
+#[cfg(feature = "v2")]
 impl CustomerUpdateInternal {
     pub fn apply_changeset(self, source: Customer) -> Customer {
         let Self {
@@ -281,33 +279,5 @@ impl CustomerUpdateInternal {
             status: status.unwrap_or(source.status),
             ..source
         }
-    }
-}
-
-#[cfg(all(feature = "v2", feature = "customer_v2"))]
-#[derive(Clone, Debug, Default, serde::Deserialize, serde::Serialize, diesel::AsExpression)]
-#[diesel(sql_type = diesel::sql_types::Jsonb)]
-#[serde(transparent)]
-pub struct ConnectorCustomerMap(
-    std::collections::HashMap<common_utils::id_type::MerchantConnectorAccountId, String>,
-);
-
-#[cfg(all(feature = "v2", feature = "customer_v2"))]
-common_utils::impl_to_sql_from_sql_json!(ConnectorCustomerMap);
-
-#[cfg(all(feature = "v2", feature = "customer_v2"))]
-impl std::ops::Deref for ConnectorCustomerMap {
-    type Target =
-        std::collections::HashMap<common_utils::id_type::MerchantConnectorAccountId, String>;
-
-    fn deref(&self) -> &Self::Target {
-        &self.0
-    }
-}
-
-#[cfg(all(feature = "v2", feature = "customer_v2"))]
-impl std::ops::DerefMut for ConnectorCustomerMap {
-    fn deref_mut(&mut self) -> &mut Self::Target {
-        &mut self.0
     }
 }

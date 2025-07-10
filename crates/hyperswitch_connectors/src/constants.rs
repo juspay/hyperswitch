@@ -27,10 +27,13 @@ pub(crate) mod headers {
     pub(crate) const X_API_KEY: &str = "X-Api-Key";
     pub(crate) const CORRELATION_ID: &str = "Correlation-Id";
     pub(crate) const WP_API_VERSION: &str = "WP-Api-Version";
+    pub(crate) const STRIPE_COMPATIBLE_CONNECT_ACCOUNT: &str = "Stripe-Account";
     pub(crate) const SOURCE: &str = "Source";
     pub(crate) const USER_AGENT: &str = "User-Agent";
     pub(crate) const KEY: &str = "key";
     pub(crate) const X_SIGNATURE: &str = "X-Signature";
+    pub(crate) const SOAP_ACTION: &str = "SOAPAction";
+    pub(crate) const X_PROFILE_ID: &str = "X-Profile-Id";
 }
 
 /// Unsupported response type error message

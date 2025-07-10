@@ -9,9 +9,12 @@
  **/
 function initializeSDK() {
   // @ts-ignore
-  var paymentDetails = window.__PAYMENT_DETAILS;
+  var encodedPaymentDetails = window.__PAYMENT_DETAILS;
+  var paymentDetails = decodeUri(encodedPaymentDetails);
   var clientSecret = paymentDetails.client_secret;
   var sdkUiRules = paymentDetails.sdk_ui_rules;
+  var labelType = paymentDetails.payment_form_label_type;
+  var colorIconCardCvcError = paymentDetails.color_icon_card_cvc_error;
   var appearance = {
     variables: {
       colorPrimary: paymentDetails.theme || "rgb(0, 109, 249)",
@@ -25,8 +28,14 @@ function initializeSDK() {
       colorBackground: "rgb(255, 255, 255)",
     },
   };
-  if (sdkUiRules !== null && typeof sdkUiRules === "object" && Object.getPrototypeOf(sdkUiRules) === Object.prototype) {
+  if (isObject(sdkUiRules)) {
     appearance.rules = sdkUiRules;
+  }
+  if (labelType !== null && typeof labelType === "string") {
+    appearance.labels = labelType;
+  }
+  if (colorIconCardCvcError !== null && typeof colorIconCardCvcError === "string") {
+    appearance.variables.colorIconCardCvcError = colorIconCardCvcError;
   }
   // @ts-ignore
   hyper = window.Hyper(pub_key, {
@@ -70,11 +79,18 @@ function initializeSDK() {
     hideCardNicknameField: hideCardNicknameField,
     customMessageForCardTerms: paymentDetails.custom_message_for_card_terms,
   };
-  // @ts-ignore
+  var showCardTerms = paymentDetails.show_card_terms;
+  if (showCardTerms !== null && typeof showCardTerms === "string") {
+    unifiedCheckoutOptions.terms = {
+      card: showCardTerms
+    };
+  }
+  var paymentMethodsHeaderText = paymentDetails.payment_form_header_text;
+  if (paymentMethodsHeaderText !== null && typeof paymentMethodsHeaderText === "string") {
+    unifiedCheckoutOptions.paymentMethodsHeaderText = paymentMethodsHeaderText;
+  }
   unifiedCheckout = widgets.create("payment", unifiedCheckoutOptions);
-  // @ts-ignore
   mountUnifiedCheckout("#unified-checkout");
-  // @ts-ignore
   showSDK(paymentDetails.display_sdk_only, paymentDetails.enable_button_only_on_form_ready);
 
   let shimmer = document.getElementById("payment-details-shimmer");
@@ -88,8 +104,7 @@ function initializeSDK() {
 /**
  * Use - redirect to /payment_link/status
  */
-function redirectToStatus() {
-  var paymentDetails = window.__PAYMENT_DETAILS;
+function redirectToStatus(paymentDetails) {
   var arr = window.location.pathname.split("/");
 
   // NOTE - This code preserves '/api' in url for integ and sbx

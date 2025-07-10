@@ -26,6 +26,10 @@ describe("Card - Mandates using Payment Method Id flow test", () => {
         }
       });
 
+      it("customer-create-call-test", () => {
+        cy.createCustomerCallTest(fixtures.customerCreateBody, globalState);
+      });
+
       it("Create No 3DS Payment Intent", () => {
         const data = getConnectorDetails(globalState.get("connectorId"))[
           "card_pm"
@@ -62,6 +66,14 @@ describe("Card - Mandates using Payment Method Id flow test", () => {
           shouldContinue = utils.should_continue_further(data);
       });
 
+      it("retrieve-payment-call-test", () => {
+        const data = getConnectorDetails(globalState.get("connectorId"))[
+          "card_pm"
+        ]["PaymentMethodIdMandateNo3DSAutoCapture"];
+
+        cy.retrievePaymentCallTest(globalState, data);
+      });
+
       it("Confirm No 3DS MIT", () => {
         const data = getConnectorDetails(globalState.get("connectorId"))[
           "card_pm"
@@ -75,6 +87,14 @@ describe("Card - Mandates using Payment Method Id flow test", () => {
           "automatic",
           globalState
         );
+      });
+
+      it("retrieve-payment-call-test", () => {
+        const data = getConnectorDetails(globalState.get("connectorId"))[
+          "card_pm"
+        ]["MITAutoCapture"];
+
+        cy.retrievePaymentCallTest(globalState, data);
       });
     }
   );
@@ -137,6 +157,14 @@ describe("Card - Mandates using Payment Method Id flow test", () => {
           shouldContinue = utils.should_continue_further(data);
       });
 
+      it("retrieve-payment-call-test", () => {
+        const data = getConnectorDetails(globalState.get("connectorId"))[
+          "card_pm"
+        ]["Capture"];
+
+        cy.retrievePaymentCallTest(globalState, data);
+      });
+
       it("Confirm No 3DS MIT", () => {
         const data = getConnectorDetails(globalState.get("connectorId"))[
           "card_pm"
@@ -150,6 +178,14 @@ describe("Card - Mandates using Payment Method Id flow test", () => {
           "automatic",
           globalState
         );
+      });
+
+      it("retrieve-payment-call-test", () => {
+        const data = getConnectorDetails(globalState.get("connectorId"))[
+          "card_pm"
+        ]["MITAutoCapture"];
+
+        cy.retrievePaymentCallTest(globalState, data);
       });
     }
   );
@@ -184,6 +220,14 @@ describe("Card - Mandates using Payment Method Id flow test", () => {
           shouldContinue = utils.should_continue_further(data);
       });
 
+      it("retrieve-payment-call-test", () => {
+        const data = getConnectorDetails(globalState.get("connectorId"))[
+          "card_pm"
+        ]["PaymentMethodIdMandateNo3DSAutoCapture"];
+
+        cy.retrievePaymentCallTest(globalState, data);
+      });
+
       it("Confirm No 3DS MIT", () => {
         const data = getConnectorDetails(globalState.get("connectorId"))[
           "card_pm"
@@ -198,6 +242,15 @@ describe("Card - Mandates using Payment Method Id flow test", () => {
           globalState
         );
       });
+
+      it("retrieve-payment-call-test", () => {
+        const data = getConnectorDetails(globalState.get("connectorId"))[
+          "card_pm"
+        ]["MITAutoCapture"];
+
+        cy.retrievePaymentCallTest(globalState, data);
+      });
+
       it("Confirm No 3DS MIT", () => {
         const data = getConnectorDetails(globalState.get("connectorId"))[
           "card_pm"
@@ -211,6 +264,14 @@ describe("Card - Mandates using Payment Method Id flow test", () => {
           "automatic",
           globalState
         );
+      });
+
+      it("retrieve-payment-call-test", () => {
+        const data = getConnectorDetails(globalState.get("connectorId"))[
+          "card_pm"
+        ]["MITAutoCapture"];
+
+        cy.retrievePaymentCallTest(globalState, data);
       });
     }
   );
@@ -256,6 +317,14 @@ describe("Card - Mandates using Payment Method Id flow test", () => {
           shouldContinue = utils.should_continue_further(data);
       });
 
+      it("retrieve-payment-call-test", () => {
+        const data = getConnectorDetails(globalState.get("connectorId"))[
+          "card_pm"
+        ]["Capture"];
+
+        cy.retrievePaymentCallTest(globalState, data);
+      });
+
       it("Confirm No 3DS MIT 1", () => {
         const data = getConnectorDetails(globalState.get("connectorId"))[
           "card_pm"
@@ -285,6 +354,14 @@ describe("Card - Mandates using Payment Method Id flow test", () => {
           shouldContinue = utils.should_continue_further(data);
       });
 
+      it("retrieve-payment-call-test", () => {
+        const data = getConnectorDetails(globalState.get("connectorId"))[
+          "card_pm"
+        ]["Capture"];
+
+        cy.retrievePaymentCallTest(globalState, data);
+      });
+
       it("Confirm No 3DS MIT 2", () => {
         const data = getConnectorDetails(globalState.get("connectorId"))[
           "card_pm"
@@ -309,6 +386,14 @@ describe("Card - Mandates using Payment Method Id flow test", () => {
 
         if (shouldContinue)
           shouldContinue = utils.should_continue_further(data);
+      });
+
+      it("retrieve-payment-call-test", () => {
+        const data = getConnectorDetails(globalState.get("connectorId"))[
+          "card_pm"
+        ]["Capture"];
+
+        cy.retrievePaymentCallTest(globalState, data);
       });
     }
   );
@@ -407,6 +492,14 @@ describe("Card - Mandates using Payment Method Id flow test", () => {
         cy.handleRedirection(globalState, expected_redirection);
       });
 
+      it("retrieve-payment-call-test", () => {
+        const data = getConnectorDetails(globalState.get("connectorId"))[
+          "card_pm"
+        ]["PaymentMethodIdMandate3DSAutoCapture"];
+
+        cy.retrievePaymentCallTest(globalState, data);
+      });
+
       it("Confirm No 3DS MIT", () => {
         const data = getConnectorDetails(globalState.get("connectorId"))[
           "card_pm"
@@ -421,6 +514,7 @@ describe("Card - Mandates using Payment Method Id flow test", () => {
           globalState
         );
       });
+
       it("Confirm No 3DS MIT", () => {
         const data = getConnectorDetails(globalState.get("connectorId"))[
           "card_pm"
@@ -482,6 +576,14 @@ describe("Card - Mandates using Payment Method Id flow test", () => {
 
         if (shouldContinue)
           shouldContinue = utils.should_continue_further(data);
+      });
+
+      it("retrieve-payment-call-test", () => {
+        const data = getConnectorDetails(globalState.get("connectorId"))[
+          "card_pm"
+        ]["Capture"];
+
+        cy.retrievePaymentCallTest(globalState, data);
       });
 
       it("Confirm No 3DS MIT", () => {

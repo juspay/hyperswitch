@@ -1,10 +1,9 @@
 //! Custom validations for some shared types.
 
-use std::collections::HashSet;
+use std::{collections::HashSet, sync::LazyLock};
 
 use error_stack::report;
 use globset::Glob;
-use once_cell::sync::Lazy;
 use regex::Regex;
 #[cfg(feature = "logs")]
 use router_env::logger;
@@ -25,7 +24,9 @@ pub fn validate_phone_number(phone_number: &str) -> Result<(), ValidationError> 
 /// Performs a simple validation against a provided email address.
 pub fn validate_email(email: &str) -> CustomResult<(), ValidationError> {
     #[deny(clippy::invalid_regex)]
-    static EMAIL_REGEX: Lazy<Option<Regex>> = Lazy::new(|| {
+    static EMAIL_REGEX: LazyLock<Option<Regex>> = LazyLock::new(|| {
+        #[allow(unknown_lints)]
+        #[allow(clippy::manual_ok_err)]
         match Regex::new(
             r"^(?i)[a-z0-9.!#$%&'*+/=?^_`{|}~-]+@[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?(?:\.[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?)+$",
         ) {
@@ -70,8 +71,8 @@ pub fn validate_domain_against_allowed_domains(
             .map(|glob| glob.compile_matcher().is_match(domain))
             .map_err(|err| {
                 let err_msg = format!(
-                    "Invalid glob pattern for configured allowed_domain [{:?}]! - {:?}",
-                    allowed_domain, err
+                    "Invalid glob pattern for configured allowed_domain [{allowed_domain:?}]! - {err:?}",
+
                 );
                 #[cfg(feature = "logs")]
                 logger::error!(err_msg);

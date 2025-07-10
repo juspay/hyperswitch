@@ -140,8 +140,9 @@ impl ConnectorCommon for Shift4 {
             reason: None,
             attempt_status: None,
             connector_transaction_id: None,
-            issuer_error_code: None,
-            issuer_error_message: None,
+            network_advice_code: None,
+            network_decline_code: None,
+            network_error_message: None,
         })
     }
 }
@@ -853,6 +854,10 @@ lazy_static! {
             enums::CaptureMethod::SequentialAutomatic,
         ];
 
+        let supported_capture_methods2 = vec![
+            enums::CaptureMethod::Automatic,
+        ];
+
         let supported_card_network = vec![
             common_enums::CardNetwork::Visa,
             common_enums::CardNetwork::Mastercard,
@@ -895,11 +900,44 @@ lazy_static! {
 
         shift4_supported_payment_methods.add(
             enums::PaymentMethod::BankRedirect,
+            enums::PaymentMethodType::Trustly,
+            PaymentMethodDetails {
+                mandates: enums::FeatureStatus::Supported,
+                refunds: enums::FeatureStatus::Supported,
+                supported_capture_methods: supported_capture_methods2.clone(),
+                specific_features: None,
+            },
+        );
+
+        shift4_supported_payment_methods.add(
+            enums::PaymentMethod::BankRedirect,
             enums::PaymentMethodType::Sofort,
             PaymentMethodDetails{
                 mandates: enums::FeatureStatus::NotSupported,
                 refunds: enums::FeatureStatus::Supported,
                 supported_capture_methods: supported_capture_methods.clone(),
+                specific_features: None
+            }
+        );
+
+        shift4_supported_payment_methods.add(
+            enums::PaymentMethod::BankRedirect,
+            enums::PaymentMethodType::Blik,
+            PaymentMethodDetails{
+                mandates: enums::FeatureStatus::NotSupported,
+                refunds: enums::FeatureStatus::Supported,
+                supported_capture_methods: supported_capture_methods2.clone(),
+                specific_features: None
+            }
+        );
+
+        shift4_supported_payment_methods.add(
+            enums::PaymentMethod::Voucher,
+            enums::PaymentMethodType::Boleto,
+            PaymentMethodDetails{
+                mandates: enums::FeatureStatus::NotSupported,
+                refunds: enums::FeatureStatus::Supported,
+                supported_capture_methods: supported_capture_methods2.clone(),
                 specific_features: None
             }
         );
@@ -942,6 +980,50 @@ lazy_static! {
             }
         );
 
+        shift4_supported_payment_methods.add(
+            enums::PaymentMethod::Wallet,
+            enums::PaymentMethodType::AliPay,
+            PaymentMethodDetails {
+                mandates: enums::FeatureStatus::NotSupported,
+                refunds: enums::FeatureStatus::Supported,
+                supported_capture_methods: supported_capture_methods2.clone(),
+                specific_features: None,
+            },
+        );
+
+        shift4_supported_payment_methods.add(
+            enums::PaymentMethod::Wallet,
+            enums::PaymentMethodType::WeChatPay,
+            PaymentMethodDetails {
+                mandates: enums::FeatureStatus::NotSupported,
+                refunds: enums::FeatureStatus::Supported,
+                supported_capture_methods: supported_capture_methods2.clone(),
+                specific_features: None,
+            },
+        );
+
+        shift4_supported_payment_methods.add(
+            enums::PaymentMethod::PayLater,
+            enums::PaymentMethodType::Klarna,
+            PaymentMethodDetails {
+                mandates: enums::FeatureStatus::NotSupported,
+                refunds: enums::FeatureStatus::Supported,
+                supported_capture_methods: supported_capture_methods2.clone(),
+                specific_features: None,
+            },
+        );
+
+        shift4_supported_payment_methods.add(
+            enums::PaymentMethod::Crypto,
+            enums::PaymentMethodType::CryptoCurrency,
+            PaymentMethodDetails {
+                mandates: enums::FeatureStatus::NotSupported,
+                refunds: enums::FeatureStatus::Supported,
+                supported_capture_methods: supported_capture_methods2.clone(),
+                specific_features: None,
+            },
+        );
+
         shift4_supported_payment_methods
     };
 
@@ -952,7 +1034,7 @@ lazy_static! {
         connector_type: enums::PaymentConnectorCategory::PaymentGateway,
     };
 
-    static ref SHIFT4_SUPPORTED_WEBHOOK_FLOWS: Vec<enums::EventClass> = vec![enums::EventClass::Payments];
+    static ref SHIFT4_SUPPORTED_WEBHOOK_FLOWS: Vec<enums::EventClass> = vec![enums::EventClass::Payments, enums::EventClass::Refunds];
 
 }
 

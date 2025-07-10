@@ -26,6 +26,10 @@ describe("Card - SingleUse Mandates flow test", () => {
         }
       });
 
+      it("customer-create-call-test", () => {
+        cy.createCustomerCallTest(fixtures.customerCreateBody, globalState);
+      });
+
       it("Confirm No 3DS CIT", () => {
         const data = getConnectorDetails(globalState.get("connectorId"))[
           "card_pm"
@@ -45,6 +49,14 @@ describe("Card - SingleUse Mandates flow test", () => {
           shouldContinue = utils.should_continue_further(data);
       });
 
+      it("retrieve-payment-call-test", () => {
+        const data = getConnectorDetails(globalState.get("connectorId"))[
+          "card_pm"
+        ]["ZeroAuthMandate"];
+
+        cy.retrievePaymentCallTest(globalState, data);
+      });
+
       it("Confirm No 3DS MIT", () => {
         const data = getConnectorDetails(globalState.get("connectorId"))[
           "card_pm"
@@ -58,6 +70,14 @@ describe("Card - SingleUse Mandates flow test", () => {
           "automatic",
           globalState
         );
+      });
+
+      it("retrieve-payment-call-test", () => {
+        const data = getConnectorDetails(globalState.get("connectorId"))[
+          "card_pm"
+        ]["MITAutoCapture"];
+
+        cy.retrievePaymentCallTest(globalState, data);
       });
     }
   );
@@ -91,6 +111,14 @@ describe("Card - SingleUse Mandates flow test", () => {
           shouldContinue = utils.should_continue_further(data);
       });
 
+      it("retrieve-payment-call-test", () => {
+        const data = getConnectorDetails(globalState.get("connectorId"))[
+          "card_pm"
+        ]["ZeroAuthMandate"];
+
+        cy.retrievePaymentCallTest(globalState, data);
+      });
+
       it("Confirm No 3DS MIT", () => {
         const data = getConnectorDetails(globalState.get("connectorId"))[
           "card_pm"
@@ -105,6 +133,15 @@ describe("Card - SingleUse Mandates flow test", () => {
           globalState
         );
       });
+
+      it("retrieve-payment-call-test", () => {
+        const data = getConnectorDetails(globalState.get("connectorId"))[
+          "card_pm"
+        ]["MITAutoCapture"];
+
+        cy.retrievePaymentCallTest(globalState, data);
+      });
+
       it("Confirm No 3DS MIT", () => {
         const data = getConnectorDetails(globalState.get("connectorId"))[
           "card_pm"
@@ -118,6 +155,14 @@ describe("Card - SingleUse Mandates flow test", () => {
           "automatic",
           globalState
         );
+      });
+
+      it("retrieve-payment-call-test", () => {
+        const data = getConnectorDetails(globalState.get("connectorId"))[
+          "card_pm"
+        ]["MITAutoCapture"];
+
+        cy.retrievePaymentCallTest(globalState, data);
       });
     }
   );
@@ -197,6 +242,14 @@ describe("Card - SingleUse Mandates flow test", () => {
       );
 
       if (shouldContinue) shouldContinue = utils.should_continue_further(data);
+    });
+
+    it("retrieve-payment-call-test", () => {
+      const data = getConnectorDetails(globalState.get("connectorId"))[
+        "card_pm"
+      ]["SaveCardConfirmAutoCaptureOffSession"];
+
+      cy.retrievePaymentCallTest(globalState, data);
     });
   });
 });
