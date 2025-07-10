@@ -1,0 +1,119 @@
+---
+title: API Key Types in Hyperswitch
+description: Overview of authentication and authorization keys available in Hyperswitch.
+---
+
+import Note from '@site/src/components/Note'
+import Table from '@site/src/components/Table'
+import Check from '@site/src/components/Check'
+
+# API Key Types in Hyperswitch
+
+Hyperswitch supports multiple API key types, each designed for different authentication and authorization use cases.
+
+<Note>
+For security, **never expose secret or admin keys in client-side or mobile code**. Use publishable keys for public contexts.
+</Note>
+
+## 1. API Key (Secret Key)
+
+- **Primary merchant authentication key for server-side API requests.**
+- Environment-specific prefix (`snd_`, `prod_`, etc.).
+- Used to authenticate backend requests.
+- This key can be **generated and managed from the [Hyperswitch dashboard (sandbox)](https://app.hyperswitch.io/developers?tabIndex=1)**.
+
+- **Never expose this key in public code.**
+
+## 2. Admin API Key
+
+- **Administrative key** with elevated privileges.
+- Used for system-level operations such as creating merchant and connector accounts.
+- **Set as a configuration value when deploying or running the server.**
+- Should only be used in secure, internal workflows.
+- Some API calls require an admin API key. **Do not confuse this with a regular API Key.**
+- The **admin API key is a configuration value that can be set at the time of deploying the Hyperswitch server**.
+- **Admin API keys for the hosted Hyperswitch environments (sandbox/production) are managed by Juspay and are not provided publicly.**
+
+<Check>
+You do **not** generate this key from the dashboard.  
+Instead, **set your Admin API Key in your deployment configuration**:
+
+**For Docker Compose:**  
+Update the value in your `docker_compose.toml` file:
+</Check>
+
+```toml
+# docker_compose.toml
+admin_api_key = "your_admin_key_here"
+```
+<Check> **For Helm Chart deployments:** Set the admin API key in your `values.yaml` file. </Check>
+
+```yaml
+# values.yaml
+adminApiKey: your_admin_key_here
+```
+<Note> Do **not** expose your admin API key publicly. Only trusted operators and infrastructure should have access to this value. </Note>
+
+You can also add a link to the Docker Compose example for extra clarity:
+[See example in the Hyperswitch repository](https://github.com/juspay/hyperswitch/blob/main/config/docker_compose.toml)
+
+
+## 3. Publishable Key
+
+- **Client-side key** with limited permissions.
+- Safe for use in public client-side (web or mobile) code.
+- Prefix: `pk_{environment}_{uuid}`.
+- Generated during merchant account creation.
+
+## 4. Ephemeral Key
+
+- **Temporary key** for limited operations.
+- Used for single or short-lived access (e.g., accessing a specific customer object).
+- Validity is configurable (see `[eph_key] validity` in `development.toml`).
+
+## 5. JWT Key
+
+- **Bearer token** (JWT) for API authentication and session management.
+- Used for JWT-based endpoints and user authentication flows.
+- Format: `Authorization: Bearer <jwt_token>`
+- Some API calls will require a JWT or bearer token.
+
+<Check>
+JWTs are not provisioned from the Hyperswitch dashboard.  
+They are typically **issued as part of an authentication flow**, such as login or session creation.  
+Check your authentication provider or the specific Hyperswitch API endpoint documentation for how to obtain a JWT.
+</Check>
+
+```http
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+```
+<Note> Keep your JWT tokens secure. Do not expose them in client-side code unless specifically required for session management, and always use HTTPS when transmitting JWTs. </Note>
+
+## Reference Table
+
+<Table>
+| Key Type         | Example Prefix        | Usage                        | Security                |
+|------------------|----------------------|------------------------------|-------------------------|
+| Secret (API Key) | snd_c69***, prod_*** | Backend server API requests  | Keep secret             |
+| Admin API Key    | (admin-specific)     | Admin operations             | Highly confidential     |
+| Publishable Key  | pk_snd_3b3***        | Client-side, public usage    | Safe to expose          |
+| Ephemeral Key    | (short-lived)        | Temporary, limited access    | Short validity, limited |
+| JWT Key          | (JWT Bearer)         | Session/user authentication  | Use in headers          |
+</Table>
+
+<Check>
+Get your [API Key](https://app.hyperswitch.io/developers?tabIndex=1) and [Publishable Key](https://app.hyperswitch.io/home) from the Hyperswitch dashboard.
+</Check>
+
+## Connector Authentication Keys
+
+For payment connector integrations, Hyperswitch supports additional auth types (not for general API use):
+
+- **HeaderKey**
+- **BodyKey**
+- **SignatureKey**
+- **MultiAuthKey**
+
+These are used for connector authentication and are not required for typical merchant integrations.
+
+---
