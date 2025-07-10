@@ -29,7 +29,7 @@ use crate::{
 #[cfg(feature = "v1")]
 #[derive(Clone, Debug)]
 pub struct Profile {
-    profile_id: common_utils::id_type::ProfileId,
+    pub profile_id: common_utils::id_type::ProfileId,
     pub merchant_id: common_utils::id_type::MerchantId,
     pub profile_name: String,
     pub created_at: time::PrimitiveDateTime,
