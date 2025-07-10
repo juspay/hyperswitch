@@ -3577,35 +3577,22 @@ where
         &call_connector_action,
     );
 
-    let should_continue = match router_data
+    let should_continue_further = match router_data
         .create_order_at_connector(state, &connector, should_continue_further)
         .await?
     {
         Some(create_order_response) => {
             if let Ok(order_id) = create_order_response.clone().create_order_result {
-                payment_data.set_connector_response_reference_id(Some(order_id))
+                payment_data.set_connector_response_reference_id(Some(order_id.clone()))
             }
 
             // Set the response in routerdata response to carry forward
             router_data
                 .update_router_data_with_create_order_response(create_order_response.clone());
-            create_order_response.create_order_result.ok().map(|_| ())
+            create_order_response.create_order_result.ok().is_some()
         }
         // If create order is not required, then we can proceed with further processing
-        None => Some(()),
-    };
-
-    let (_, should_continue_further) = match should_continue {
-        Some(_) => {
-            router_data
-                .build_flow_specific_connector_request(
-                    state,
-                    &connector,
-                    call_connector_action.clone(),
-                )
-                .await?
-        }
-        None => (None, false),
+        None => true,
     };
 
     let updated_customer = call_create_connector_customer_if_required(
